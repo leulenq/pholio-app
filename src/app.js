@@ -376,31 +376,31 @@ initializeFirebaseAdmin();
 
 app.use(attachLocals);
 
-// Rate limiters with custom key generator for serverless compatibility
-// Note: req.ip is always set by our middleware above, preventing "undefined IP" errors
-// In serverless environments (Netlify Functions), req.ip might be undefined initially
-// We provide a custom keyGenerator that always returns a valid key, so we can safely
-// disable IP validation to prevent "undefined request.ip" errors
-const authLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: rateLimitKeyGenerator,
-  validate: { ipAddress: false }
-});
+// Rate limiters: skipped in serverless (Netlify Functions) because the in-memory store
+// is shared across all users hitting the same Lambda instance — causing everyone to get
+// blocked after just 10 combined requests. Netlify's edge handles DDoS/abuse at the CDN level.
+if (!config.isServerless) {
+  const authLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: rateLimitKeyGenerator,
+    validate: { ipAddress: false }
+  });
 
-const uploadLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: rateLimitKeyGenerator,
-  validate: { ipAddress: false }
-});
+  const uploadLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: rateLimitKeyGenerator,
+    validate: { ipAddress: false }
+  });
 
-app.use(['/login', '/signup'], authLimiter);
-app.use('/upload', uploadLimiter);
+  app.use(['/login', '/signup'], authLimiter);
+  app.use('/upload', uploadLimiter);
+}
 
 
 
