@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { talentApi } from '../../api/talent';
 import * as agencyApi from '../../api/agency';
 import { useAuth } from '../../hooks/useAuth';
+import { useCastingComplete, useCastingStatus } from '../../hooks/useCasting';
 
 // Step Components
 import CastingEntry from './CastingEntry';
