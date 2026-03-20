@@ -1,5 +1,26 @@
 require('dotenv').config();
 
+function normalizePostgresSslMode(connectionString) {
+  try {
+    const parsed = new URL(connectionString);
+    const sslMode = parsed.searchParams.get('sslmode');
+    const useLibpqCompat = parsed.searchParams.get('uselibpqcompat');
+
+    if (
+      sslMode &&
+      ['prefer', 'require', 'verify-ca'].includes(sslMode) &&
+      useLibpqCompat !== 'true'
+    ) {
+      parsed.searchParams.set('sslmode', 'verify-full');
+      return parsed.toString();
+    }
+
+    return connectionString;
+  } catch (error) {
+    return connectionString;
+  }
+}
+
 const shared = {
   migrations: {
     tableName: 'knex_migrations',
@@ -27,7 +48,7 @@ if (client === 'pg') {
     throw new Error(
       'DATABASE_URL environment variable is required when DB_CLIENT=pg.\n' +
       'Please set DATABASE_URL in your environment variables.\n' +
-      'Example: DATABASE_URL=postgresql://user:password@host:5432/dbname?sslmode=require\n' +
+      'Example: DATABASE_URL=postgresql://user:password@host:5432/dbname?sslmode=verify-full\n' +
       'For Neon: Get your connection string from https://console.neon.tech'
     );
   }
@@ -91,6 +112,12 @@ if (client === 'pg') {
   // Remove any leading/trailing whitespace
   cleanedUrl = cleanedUrl.trim();
 
+  const normalizedUrl = normalizePostgresSslMode(cleanedUrl);
+  if (normalizedUrl !== cleanedUrl) {
+    console.log('[DATABASE_URL] Updated sslmode to verify-full to preserve secure behavior with current pg parser semantics');
+    cleanedUrl = normalizedUrl;
+  }
+
   // Log the cleaning process for debugging (in both development and production for troubleshooting)
   if (cleanedUrl !== originalUrl) {
     console.log('[DATABASE_URL] Cleaned URL from:', originalUrl.substring(0, 80) + (originalUrl.length > 80 ? '...' : ''));
@@ -112,11 +139,11 @@ if (client === 'pg') {
       '3. Click on "Connection Details" or "Connection String"\n' +
       '4. Look for the connection string (starts with postgresql://)\n' +
       '5. Copy ONLY the connection string, NOT the psql command\n' +
-      '6. It should look like: postgresql://user:pass@host/dbname?sslmode=require\n' +
+      '6. It should look like: postgresql://user:pass@host/dbname?sslmode=verify-full\n' +
       '7. Do NOT include: psql, quotes, or any other text\n\n' +
       `What you provided: ${process.env.DATABASE_URL.substring(0, 80)}...\n\n` +
       'Example of CORRECT format:\n' +
-      'postgresql://username:password@ep-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require'
+      'postgresql://username:password@ep-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=verify-full'
     );
   }
 
@@ -171,11 +198,11 @@ if (client === 'pg') {
         '3. Click on "Connection Details" or "Connection String"\n' +
         '4. Copy the COMPLETE connection string (it will have a unique hostname starting with "ep-")\n' +
         '5. Paste the REAL connection string in Netlify environment variables\n' +
-        '6. Make sure it includes ?sslmode=require at the end\n' +
+        '6. Make sure it includes ?sslmode=verify-full at the end\n' +
         '7. Make sure the hostname starts with "ep-" (this is required for Neon databases)\n\n' +
         `Current hostname: ${hostname}\n\n` +
         'Your real Neon connection string should look like:\n' +
-        'postgresql://username:password@ep-xxx-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require'
+        'postgresql://username:password@ep-xxx-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=verify-full'
       );
     }
 
@@ -192,11 +219,11 @@ if (client === 'pg') {
         '3. Click on "Connection Details" or "Connection String"\n' +
         '4. Copy the COMPLETE connection string (it will have a unique hostname like "ep-xxx-xxx.us-east-2.aws.neon.tech")\n' +
         '5. Paste the REAL connection string in Netlify environment variables\n' +
-        '6. Make sure it includes ?sslmode=require at the end\n' +
+        '6. Make sure it includes ?sslmode=verify-full at the end\n' +
         '7. Make sure the hostname starts with "ep-" (this is required for Neon databases)\n\n' +
         `What you provided: ${originalPreview}\n\n` +
         'Your real Neon connection string should look like:\n' +
-        'postgresql://username:password@ep-xxx-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require\n\n' +
+        'postgresql://username:password@ep-xxx-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=verify-full\n\n' +
         'Common mistakes:\n' +
         '- Using "host.neon.tech" or "your-host.neon.tech" (these are placeholders)\n' +
         '- Using "localhost" or "127.0.0.1" (Neon databases are remote)\n' +

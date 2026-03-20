@@ -192,7 +192,7 @@ COOKIE_DOMAIN=.pholio.studio
 SESSION_SECRET=<long-random-string>
 
 DB_CLIENT=pg
-DATABASE_URL=postgresql://user:password@ep-xxxx.neon.tech/dbname?sslmode=require
+DATABASE_URL=postgresql://user:password@ep-xxxx.neon.tech/dbname?sslmode=verify-full
 
 # Firebase (same keys as dev)
 FIREBASE_API_KEY=...
