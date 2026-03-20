@@ -26,7 +26,9 @@ const getR2Prefix = (id, type = 'profiles') => {
 // Storage configuration
 let storage;
 
-if (config.nodeEnv === 'production' || process.env.USE_R2 === 'true') {
+const useR2 = (config.nodeEnv === 'production' || process.env.USE_R2 === 'true') && config.r2.bucket;
+
+if (useR2) {
   storage = multerS3({
     s3: s3,
     bucket: config.r2.bucket,
@@ -43,7 +45,7 @@ if (config.nodeEnv === 'production' || process.env.USE_R2 === 'true') {
     }
   });
 } else {
-  // Local disk storage for development
+  // Local dev or production without R2 configured — use disk storage (/tmp in Lambda)
   storage = multer.diskStorage({
     destination: (req, file, cb) => {
       try {
