@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   root: '.',
+  envPrefix: ['VITE_', 'FIREBASE_'],
   // Use '/' in dev mode (serve), '/dashboard-app/' in build mode
   base: command === 'serve' ? '/' : '/dashboard-app/',
   build: {

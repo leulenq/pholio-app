@@ -5,6 +5,18 @@ require('dotenv').config();
 const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || '0.25');
 const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || '8');
 
+function readEnv(...keys) {
+  for (const key of keys) {
+    if (process.env[key]) return process.env[key];
+  }
+  return undefined;
+}
+
+const firebaseProjectId = readEnv('FIREBASE_PROJECT_ID', 'VITE_FIREBASE_PROJECT_ID');
+const firebaseStorageBucket =
+  readEnv('FIREBASE_STORAGE_BUCKET', 'VITE_FIREBASE_STORAGE_BUCKET') ||
+  (firebaseProjectId ? `${firebaseProjectId}.appspot.com` : undefined);
+
 // Detect serverless environment (Netlify Functions, AWS Lambda, etc.)
 const isServerless = Boolean(
   process.env.AWS_LAMBDA_FUNCTION_NAME ||
@@ -43,17 +55,17 @@ module.exports = {
   // Firebase configuration
   firebase: {
     // Server-side (Admin SDK)
-    projectId: process.env.FIREBASE_PROJECT_ID,
+    projectId: firebaseProjectId,
     privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     clientId: process.env.FIREBASE_CLIENT_ID,
     // Client-side (Web SDK)
-    apiKey: process.env.FIREBASE_API_KEY,
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || (process.env.FIREBASE_PROJECT_ID ? `${process.env.FIREBASE_PROJECT_ID}.appspot.com` : undefined),
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.FIREBASE_APP_ID,
-    measurementId: process.env.FIREBASE_MEASUREMENT_ID
+    apiKey: readEnv('FIREBASE_API_KEY', 'VITE_FIREBASE_API_KEY'),
+    authDomain: readEnv('FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_AUTH_DOMAIN'),
+    storageBucket: firebaseStorageBucket,
+    messagingSenderId: readEnv('FIREBASE_MESSAGING_SENDER_ID', 'VITE_FIREBASE_MESSAGING_SENDER_ID'),
+    appId: readEnv('FIREBASE_APP_ID', 'VITE_FIREBASE_APP_ID'),
+    measurementId: readEnv('FIREBASE_MEASUREMENT_ID', 'VITE_FIREBASE_MEASUREMENT_ID')
   },
   // Stripe configuration
   stripe: {
