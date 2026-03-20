@@ -320,8 +320,10 @@ function FilterDropdown({ label, options, value, onChange }) {
 
 // ── Adapter ───────────────────────────────────────────────────
 const toTalentObject = (t) => !t ? null : ({
-  id: t.id,
-  name: t.name,
+  id:            t.id,
+  profileId:     t.id,
+  applicationId: null,
+  name:          t.name,
   photo: t.img || null,
   type: t.type,
   status: t.status,
@@ -333,7 +335,7 @@ const toTalentObject = (t) => !t ? null : ({
 // ── Main Page ─────────────────────────────────────────────────
 export default function RosterPage() {
   const [query, setQuery] = useState('');
-  const [view, setView] = useState('rows'); // 'rows' | 'grid'
+  const [view, setView] = useState('grid'); // 'rows' | 'grid'
   const [sortKey, setSortKey] = useState('lastBooking');
   const [sortDir, setSortDir] = useState('desc');
   const [filters, setFilters] = useState({ gender: '', type: '', status: '' });

@@ -192,6 +192,28 @@ export async function getProfilePreview(profileId) {
 }
 
 /**
+ * Get full profile details for a discoverable talent (Discover + Roster via separate endpoint)
+ */
+export async function fetchProfileDetails(profileId) {
+  return apiClient.get(`/profiles/${profileId}/details`);
+}
+
+/**
+ * Get full application details (Applicants + Overview contexts)
+ * NOTE: Do NOT use getApplication() — it hits /applications/:id (no details), this hits /applications/:id/details
+ */
+export async function getApplicationDetails(applicationId) {
+  return apiClient.get(`/applications/${applicationId}/details`);
+}
+
+/**
+ * Get roster profile — bypasses is_discoverable filter, includes booking stats
+ */
+export async function fetchRosterProfile(profileId) {
+  return apiClient.get(`/roster/${profileId}`);
+}
+
+/**
  * Invite talent to apply
  */
 export async function inviteTalent(profileId) {
@@ -587,6 +609,9 @@ export default {
   archiveApplication,
   getDiscoverableTalent,
   getProfilePreview,
+  fetchProfileDetails,
+  getApplicationDetails,
+  fetchRosterProfile,
   inviteTalent,
   getBoards,
   createBoard,
@@ -611,4 +636,7 @@ export default {
   bulkDeclineApplications,
   bulkArchiveApplications,
   bulkAddTag,
+  bulkRemoveTag,
+  createCheckoutSession: () => apiClient.post('/stripe/create-checkout-session'),
+  getCustomerPortalSession: () => apiClient.get('/stripe/customer-portal'),
 };

@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import CastingPanel from '../../components/agency/CastingPanel';
+import { TalentPanel } from '../../components/agency/TalentPanel';
 
 // ════════════════════════════════════════════════════════════
 // MOCK DATA
@@ -111,6 +111,20 @@ const INITIAL_CANDIDATES = [
 ];
 
 const STAGES = ['Applied', 'Shortlisted', 'Interview', 'Offered', 'Booked'];
+
+// Maps a casting candidate to the TalentPanel talent shape.
+// Casting pages use mock data so profileId/applicationId are numeric stubs —
+// Zone B will show error+retry states until real IDs are wired up.
+const toCastingTalentObject = (c) => !c ? null : ({
+  id:            c.id,
+  profileId:     c.id,
+  applicationId: c.id,
+  name:          c.name,
+  photo:         c.avatar || null,
+  type:          c.archetype || 'editorial',
+  status:        c.stage?.toLowerCase() || 'available',
+  location:      c.location || null,
+});
 
 // ════════════════════════════════════════════════════════════
 // CANDIDATE CARD
@@ -385,6 +399,19 @@ function CastingPage() {
       toast.success(`${candidate.name} moved to ${newStage}`);
     } else if (action === 'message') {
       toast.success('Coming soon');
+    }
+  };
+
+  // Translates TalentPanel's generic onAction events into casting-specific actions.
+  const handleTalentPanelAction = (action, talent) => {
+    const candidate = candidates.find(c => c.id === talent.id);
+    if (!candidate) return;
+    switch (action) {
+      case 'accept':    return handleCandidateAction('advance', candidate);
+      case 'shortlist': return handleCandidateAction('stage-change', candidate, 'Shortlisted');
+      case 'reject':    return handleCandidateAction('pass', candidate);
+      case 'message':   return handleCandidateAction('message', candidate);
+      default:          toast.success('Coming soon');
     }
   };
 
@@ -676,7 +703,7 @@ function CastingPage() {
         >
           {briefExpanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           {!briefExpanded && (
-            <span className="[writing-mode:vertical-rl] text-[0.6875rem] font-medium uppercase tracking-widest">Brief</span>
+            <span className="[writing-mode:vertical-rl] text-[0.75rem] font-bold uppercase tracking-[0.2em] text-slate-600">Brief</span>
           )}
         </button>
         <AnimatePresence>
@@ -696,7 +723,7 @@ function CastingPage() {
               ].map(s => (
                 <div key={s.label} className="mb-8">
                   <h4 className="font-display text-base font-bold italic text-[#0f172a] mb-3">{s.label}</h4>
-                  <p className="text-[0.8125rem] text-slate-500 leading-relaxed font-medium">{s.body}</p>
+                  <p className="text-sm text-slate-700 leading-relaxed font-medium">{s.body}</p>
                 </div>
               ))}
               <div className="mb-8">
@@ -736,12 +763,12 @@ function CastingPage() {
       {/* ═══ Candidate Panel ═══ */}
       <AnimatePresence>
         {drawerCandidate && (
-          <CastingPanel
+          <TalentPanel
             key={drawerCandidate.id}
-            candidate={drawerCandidate}
-            casting={activeCasting}
+            talent={toCastingTalentObject(drawerCandidate)}
+            context="applicants"
             onClose={() => setDrawerCandidate(null)}
-            onAction={handleCandidateAction}
+            onAction={handleTalentPanelAction}
           />
         )}
       </AnimatePresence>

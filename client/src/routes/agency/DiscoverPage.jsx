@@ -12,6 +12,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Mail } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { getAgencyProfile } from '../../api/agency';
 import Grainient from './Grainient';
 import './DiscoverPage.css';
 import { TalentPanel } from '../../components/agency/TalentPanel';
@@ -19,8 +21,10 @@ import { TalentMatchRing } from '../../components/agency/ui/TalentMatchRing';
 
 // ─── Data adapter ─────────────────────────────────────────────────────────────
 const toTalentObject = (t) => !t ? null : ({
-  id:           t.id,
-  name:         `${t.first} ${t.last}`,
+  id:            t.id,
+  profileId:     t.id,
+  applicationId: null,
+  name:          `${t.first} ${t.last}`,
   photo:        t.photo || null,
   type:         (t.archetype || 'editorial').toLowerCase(),
   status:       'available',
@@ -235,6 +239,11 @@ function TalentCard({ talent, index, aspectRatio, onClick }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DiscoverPage() {
+  const { data: profile } = useQuery({
+    queryKey: ['agency-profile'],
+    queryFn: getAgencyProfile,
+  });
+
   const [query, setQuery]                   = useState('');
   const [chips, setChips]                   = useState([]);
   const [isFocused, setIsFocused]           = useState(false);
@@ -389,7 +398,7 @@ export default function DiscoverPage() {
               />
             </svg>
             <span className="dc-curated-label">
-              {chips.length > 0 ? 'Search Results' : 'Curated for SMG Models'}
+              {chips.length > 0 ? 'Search Results' : `Curated for ${profile?.agency_name || 'SMG Models'}`}
             </span>
           </div>
           <span className="dc-curated-count">

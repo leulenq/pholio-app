@@ -29,10 +29,18 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
 
   if (!isOpen) return null;
 
-  const firstName = profile?.first_name || 'Agency User';
+  const fullName = profile?.first_name 
+    ? (profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.first_name)
+    : profile?.agency_name || profile?.email?.split('@')[0] || 'Agency User';
   const agencyName = profile?.agency_name || '';
+  
+  // Try to find an avatar URL:
+  // 1. From profile.images[0].path (talent-like structure)
+  // 2. From profile.agency_logo_path (agency-specific structure)
   const avatarUrl = profile?.images?.[0]?.path
     ? `/${profile.images[0].path}`
+    : profile?.agency_logo_path
+    ? `/${profile.agency_logo_path}`
     : null;
 
   const navLinks = [
@@ -45,15 +53,23 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
     <div className="nav-panel ud-panel" aria-label="Account menu">
       {/* Profile card */}
       <div className="ud-profile">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={firstName} className="ud-avatar" />
-        ) : (
-          <div className="ud-avatar-initials" aria-hidden="true">
-            {getInitials(firstName)}
-          </div>
-        )}
-        <p className="ud-name">{firstName}</p>
-        {agencyName && <p className="ud-agency">{agencyName}</p>}
+        <div className="ud-avatar-wrap">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={fullName} className="ud-avatar" />
+          ) : (
+            <div className="ud-avatar-initials" aria-hidden="true">
+              {getInitials(fullName)}
+            </div>
+          )}
+        </div>
+        <div className="ud-info">
+          <p className="ud-name">{fullName}</p>
+          {agencyName && (
+            <p className="ud-agency">
+              {agencyName}
+            </p>
+          )}
+        </div>
         <span className="ud-badge">Enterprise</span>
       </div>
 

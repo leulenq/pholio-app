@@ -12,16 +12,22 @@ const { ensureUniqueSlug } = require('./slugify');
  * @param {Object} [params.profileData] - Optional profile data (for TALENT role)
  * @returns {Promise<Object>} Created user object
  */
-async function createUser({ firebaseUid, email, role, agencyName = null, profileData = null }) {
+async function createUser({ firebaseUid, email, role, agencyName = null, profileData = null, first_name = null, last_name = null }) {
   const userId = uuidv4();
   const normalizedEmail = email.toLowerCase().trim();
+
+  // If profileData is provided, first_name and last_name should come from it
+  const finalFirstName = profileData?.first_name || first_name;
+  const finalLastName = profileData?.last_name || last_name;
 
   console.log('[User Helpers] Creating user:', {
     id: userId,
     email: normalizedEmail,
     firebase_uid: firebaseUid,
     role: role,
-    agency_name: agencyName || null
+    agency_name: agencyName || null,
+    first_name: finalFirstName,
+    last_name: finalLastName
   });
 
   // Use transaction if profile data is provided (for TALENT)
@@ -32,15 +38,17 @@ async function createUser({ firebaseUid, email, role, agencyName = null, profile
         id: userId,
         email: normalizedEmail,
         firebase_uid: firebaseUid,
-        role: 'TALENT'
+        role: 'TALENT',
+        first_name: finalFirstName,
+        last_name: finalLastName
       });
 
       console.log('[User Helpers] User inserted in transaction:', userId);
 
       // Create profile
       const slug = await ensureUniqueSlug(trx, 'profiles', 
-        profileData.first_name && profileData.last_name
-          ? `${profileData.first_name}-${profileData.last_name}`
+        finalFirstName && finalLastName
+          ? `${finalFirstName}-${finalLastName}`
           : 'talent'
       );
       const profileId = uuidv4();
@@ -49,8 +57,8 @@ async function createUser({ firebaseUid, email, role, agencyName = null, profile
         id: profileId,
         user_id: userId,
         slug,
-        first_name: profileData.first_name || null,
-        last_name: profileData.last_name || null,
+        first_name: finalFirstName,
+        last_name: finalLastName,
         city: profileData.city || null,
         phone: profileData.phone || null,
         bio_raw: profileData.bio || null,
@@ -78,7 +86,9 @@ async function createUser({ firebaseUid, email, role, agencyName = null, profile
     email: normalizedEmail,
     firebase_uid: firebaseUid,
     role: role,
-    agency_name: agencyName || null
+    agency_name: agencyName || null,
+    first_name: finalFirstName,
+    last_name: finalLastName
   });
 
   console.log('[User Helpers] User created successfully:', {

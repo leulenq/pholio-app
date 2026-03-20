@@ -136,7 +136,9 @@ export default function AgencyLayout() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const userName = profile?.first_name || 'Sarah Chen';
+  const userName = profile?.first_name 
+    ? (profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.first_name)
+    : profile?.agency_name || profile?.email?.split('@')[0] || 'Agency User';
 
   const isDiscoverPage = location.pathname === '/dashboard/agency/discover';
 

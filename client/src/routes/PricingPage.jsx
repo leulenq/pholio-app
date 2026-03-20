@@ -1,8 +1,36 @@
-import React from 'react';
-import { Check, Sparkles, ArrowLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { talentApi } from '../api/talent';
+import * as agencyApi from '../api/agency';
+import { useAuth } from '../hooks/useAuth';
+import { toast } from 'sonner';
 
 export default function PricingPage() {
+  const { user } = useAuth();
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const handleUpgrade = async () => {
+    try {
+      setIsUpgrading(true);
+      
+      // Determine which API to use based on user role
+      const api = user?.role === 'AGENCY' ? agencyApi : talentApi;
+      const response = await api.createCheckoutSession();
+      
+      if (response.url) {
+        window.location.href = response.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error) {
+      console.error('[Pricing] Upgrade error:', error);
+      toast.error(error.response?.data?.error || 'Failed to start checkout. Please try again.');
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   const plans = [
     {
       name: 'Free',
@@ -50,7 +78,7 @@ export default function PricingPage() {
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Back Button */}
         <Link
-          to="/dashboard/talent"
+          to={user?.role === 'AGENCY' ? '/dashboard/agency' : '/dashboard/talent'}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -193,7 +221,8 @@ export default function PricingPage() {
               </ul>
 
               <button
-                disabled={plan.current}
+                disabled={plan.current || isUpgrading}
+                onClick={plan.highlighted ? handleUpgrade : undefined}
                 style={{
                   width: '100%',
                   padding: '0.875rem 1.5rem',
@@ -203,12 +232,16 @@ export default function PricingPage() {
                   borderRadius: '8px',
                   fontSize: '0.9375rem',
                   fontWeight: 600,
-                  cursor: plan.current ? 'not-allowed' : 'pointer',
+                  cursor: (plan.current || isUpgrading) ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
-                  opacity: plan.current ? 0.6 : 1
+                  opacity: (plan.current || isUpgrading) ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
                 }}
                 onMouseEnter={(e) => {
-                  if (!plan.current) {
+                  if (!plan.current && !isUpgrading) {
                     e.target.style.transform = 'translateY(-2px)';
                     e.target.style.boxShadow = '0 8px 16px -4px rgba(0, 0, 0, 0.2)';
                   }
@@ -218,7 +251,14 @@ export default function PricingPage() {
                   e.target.style.boxShadow = 'none';
                 }}
               >
-                {plan.cta}
+                {isUpgrading && plan.highlighted ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Redirecting...
+                  </>
+                ) : (
+                  plan.cta
+                )}
               </button>
             </div>
           ))}
