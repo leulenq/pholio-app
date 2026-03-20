@@ -23,7 +23,7 @@ const router = express.Router();
  * Create Stripe Checkout Session for subscription
  * POST /stripe/create-checkout-session
  */
-router.post('/create-checkout-session', requireRole('TALENT'), async (req, res, next) => {
+router.post('/create-checkout-session', requireRole('TALENT', 'AGENCY'), async (req, res, next) => {
   try {
     const userId = req.session.userId;
     const user = await knex('users').where({ id: userId }).first();
@@ -94,7 +94,7 @@ router.post('/create-checkout-session', requireRole('TALENT'), async (req, res, 
  * Handle successful Stripe Checkout
  * GET /stripe/checkout/success
  */
-router.get('/checkout/success', requireRole('TALENT'), async (req, res, next) => {
+router.get('/checkout/success', requireRole('TALENT', 'AGENCY'), async (req, res, next) => {
   try {
     const { session_id } = req.query;
 
@@ -151,7 +151,7 @@ router.get('/checkout/success', requireRole('TALENT'), async (req, res, next) =>
  * Handle canceled Stripe Checkout
  * GET /stripe/checkout/cancel
  */
-router.get('/checkout/cancel', requireRole('TALENT'), (req, res) => {
+router.get('/checkout/cancel', requireRole('TALENT', 'AGENCY'), (req, res) => {
   addMessage(req, 'info', 'Checkout was canceled. You can try again anytime.');
   return res.redirect('/pro/upgrade');
 });
@@ -160,7 +160,7 @@ router.get('/checkout/cancel', requireRole('TALENT'), (req, res) => {
  * Create Customer Portal session for subscription management
  * GET /stripe/customer-portal
  */
-router.get('/customer-portal', requireRole('TALENT'), async (req, res, next) => {
+router.get('/customer-portal', requireRole('TALENT', 'AGENCY'), async (req, res, next) => {
   try {
     const userId = req.session.userId;
     const user = await knex('users').where({ id: userId }).first();

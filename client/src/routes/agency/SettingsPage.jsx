@@ -174,6 +174,8 @@ export default function SettingsPage() {
 
 function ProfileSection({ profile }) {
   const [formData, setFormData] = useState({
+    first_name: profile?.first_name || '',
+    last_name: profile?.last_name || '',
     agency_name: profile?.agency_name || '',
     agency_location: profile?.agency_location || '',
     agency_website: profile?.agency_website || '',
@@ -200,6 +202,29 @@ function ProfileSection({ profile }) {
   return (
     <div className="st-card">
       <div className="st-card-form">
+        <div className="st-field-row">
+          <div className="st-field">
+            <label>First Name <span className="st-req">*</span></label>
+            <input 
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              placeholder="e.g. Sarah"
+              className="st-input"
+            />
+          </div>
+          <div className="st-field">
+            <label>Last Name</label>
+            <input 
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              placeholder="e.g. Chen"
+              className="st-input"
+            />
+          </div>
+        </div>
+
         <div className="st-field">
           <label>Agency Name <span className="st-req">*</span></label>
           <input 

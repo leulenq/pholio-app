@@ -577,7 +577,8 @@ app.get([
   '/dashboard{/*path}',
   '/onboarding',
   '/onboarding{/*path}',
-  '/reveal'
+  '/reveal',
+  '/apply'
 ], (req, res) => {
   // Development: Redirect to Vite dev server
   if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'staging') {

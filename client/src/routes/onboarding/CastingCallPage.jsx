@@ -6,9 +6,11 @@
  */
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCastingStatus, useCastingComplete } from '../../hooks/useCasting';
+import { talentApi } from '../../api/talent';
+import * as agencyApi from '../../api/agency';
+import { useAuth } from '../../hooks/useAuth';
 
 // Step Components
 import CastingEntry from './CastingEntry';
@@ -20,11 +22,14 @@ import './CastingCinematic.css';
 
 function CastingCallPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const plan = searchParams.get('plan');
   const [currentView, setCurrentView] = useState('entry');
   const [photoData, setPhotoData] = useState(null);
   const [profileData, setProfileData] = useState({});
   const [currentEntryProgress, setCurrentEntryProgress] = useState(0);
 
+  const { user } = useAuth();
   const { data: status, isLoading, error } = useCastingStatus();
 
   console.log('[CastingCallPage] Rendered', { currentView, status });
@@ -76,6 +81,22 @@ function CastingCallPage() {
     try {
       await completeMutation.mutateAsync();
       console.log('[CastingCallPage] Onboarding marked complete');
+
+      // If user selected a plan (e.g., Studio+ 14-day trial), initiate checkout
+      if (plan === 'studio') {
+        console.log('[CastingCallPage] Studio plan detected, initiating Stripe checkout');
+        try {
+          const api = user?.role === 'AGENCY' ? agencyApi : talentApi;
+          const { url } = await api.createCheckoutSession();
+          if (url) {
+            window.location.href = url;
+            return;
+          }
+        } catch (checkoutError) {
+          console.error('[CastingCallPage] Error creating checkout session:', checkoutError);
+          // Fallback to reveal if checkout fails
+        }
+      }
     } catch (error) {
       console.error('[CastingCallPage] Error completing onboarding:', error);
     }

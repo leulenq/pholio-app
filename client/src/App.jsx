@@ -49,6 +49,7 @@ function App() {
 
         {/* Onboarding - Standalone (no dashboard layout) */}
         <Route path="/onboarding" element={<CastingCallPage />} />
+        <Route path="/apply" element={<Navigate to="/onboarding" replace />} />
         <Route path="/onboarding/test" element={<TestPreview />} />
         <Route path="/onboarding/preview-reveal" element={<CastingRevealPreview />} />
 
