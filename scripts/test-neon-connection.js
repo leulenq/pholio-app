@@ -38,9 +38,9 @@ async function testConnection() {
   }
 
   // Check for SSL mode
-  if (!dbUrl.includes('sslmode=require')) {
-    console.warn('⚠️  Warning: DATABASE_URL does not include sslmode=require');
-    console.warn('   Neon requires SSL connections. Add ?sslmode=require to your connection string');
+  if (!dbUrl.includes('sslmode=verify-full')) {
+    console.warn('⚠️  Warning: DATABASE_URL does not include sslmode=verify-full');
+    console.warn('   Use ?sslmode=verify-full to preserve secure TLS behavior with current pg parser semantics');
     console.log('');
   }
 
@@ -121,14 +121,14 @@ async function testConnection() {
     } else if (error.message.includes('SSL')) {
       console.error('💡 This usually means:');
       console.error('   - SSL is required but not enabled');
-      console.error('   - Add ?sslmode=require to your DATABASE_URL');
+      console.error('   - Add ?sslmode=verify-full to your DATABASE_URL');
     }
 
     console.error('');
     console.error('Troubleshooting:');
     console.error('1. Verify your DATABASE_URL in the Neon dashboard');
     console.error('2. Check that your Neon project is active (not paused)');
-    console.error('3. Ensure sslmode=require is in your connection string');
+    console.error('3. Ensure sslmode=verify-full is in your connection string');
     console.error('4. Review the NEON_SETUP.md guide for more help');
 
     process.exit(1);
@@ -144,4 +144,3 @@ testConnection().catch(error => {
   console.error('Unexpected error:', error);
   process.exit(1);
 });
-

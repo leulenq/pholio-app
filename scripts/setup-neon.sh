@@ -26,7 +26,7 @@ echo ""
 echo "You can find your connection string in the Neon dashboard:"
 echo "1. Go to https://console.neon.tech"
 echo "2. Select your project"
-echo "3. Copy the connection string (it should include ?sslmode=require)"
+echo "3. Copy the connection string (it should include ?sslmode=verify-full)"
 echo ""
 
 read -p "Enter your Neon DATABASE_URL: " NEON_URL
@@ -105,4 +105,3 @@ echo "Sample accounts (after seeding):"
 echo "- Talent: talent@example.com / password123"
 echo "- Agency: agency@example.com / password123"
 echo ""
-
