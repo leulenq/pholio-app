@@ -1,0 +1,140 @@
+/* ============================================
+   READINESS BAR — Comp Card Role Status
+   ============================================ */
+
+.readiness-bar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.readiness-bar--complete {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+/* Header row: roles on left, status on right */
+.readiness-bar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Role circles row */
+.readiness-bar__roles {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.readiness-bar__role {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* Circle */
+.readiness-bar__circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.readiness-bar__circle--filled {
+  border-color: currentColor;
+}
+
+/* Label */
+.readiness-bar__label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #94a3b8;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.readiness-bar__label--filled {
+  color: #334155;
+}
+
+/* Status text (right side) */
+.readiness-bar__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.readiness-bar__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.readiness-bar--complete .readiness-bar__count {
+  color: #15803d;
+}
+
+.readiness-bar__collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.readiness-bar__collapse-btn:hover {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Progress track */
+.readiness-bar__track {
+  margin-top: 0.75rem;
+  height: 3px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.readiness-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #C9A55A, #d4b76a);
+  border-radius: 3px;
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .readiness-bar__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .readiness-bar__roles {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .readiness-bar__label {
+    font-size: 0.7rem;
+  }
+}

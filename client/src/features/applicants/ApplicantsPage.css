@@ -1,0 +1,341 @@
+/* Applicants Page Styles */
+
+.applicants-page {
+  max-width: 1600px;
+  margin: 0 auto;
+  animation: pageEntrance 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Header */
+.applicants-header {
+  margin-bottom: var(--agency-spacing-xl);
+}
+
+.applicants-header-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--agency-spacing-lg);
+}
+
+.applicants-header-text h1 {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--agency-text-primary);
+  margin-bottom: var(--agency-spacing-xs);
+}
+
+.applicants-header-text p {
+  font-size: 1rem;
+  color: var(--agency-text-secondary);
+  margin: 0;
+}
+
+.applicants-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--agency-spacing-sm);
+}
+
+/* Status Tabs */
+.applicants-tabs {
+  margin-bottom: var(--agency-spacing-xl);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.applicants-tabs-list {
+  display: flex;
+  gap: var(--agency-spacing-xs);
+  border-bottom: 2px solid var(--agency-border);
+  padding-bottom: 0;
+  min-width: min-content;
+}
+
+.applicants-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--agency-spacing-sm);
+  padding: var(--agency-spacing-md) var(--agency-spacing-lg);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--agency-text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--agency-transition-fast);
+}
+
+.applicants-tab:hover {
+  color: var(--agency-text-primary);
+  background: var(--agency-bg-elevated);
+}
+
+.applicants-tab--active {
+  color: var(--agency-primary);
+  border-bottom-color: var(--agency-primary);
+  font-weight: 600;
+}
+
+.applicants-tab-badge {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--agency-radius-sm);
+  background: var(--agency-bg-elevated);
+  color: var(--agency-text-secondary);
+}
+
+.applicants-tab--active .applicants-tab-badge {
+  background: var(--agency-primary-light);
+  color: var(--agency-primary);
+}
+
+/* Layout */
+.applicants-layout {
+  display: flex;
+  gap: var(--agency-spacing-xl);
+  align-items: flex-start;
+}
+
+.applicants-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Table Container */
+.applicants-table-container {
+  background: var(--agency-bg-surface);
+  border: 1px solid var(--agency-border);
+  border-radius: var(--agency-radius-lg);
+  box-shadow: var(--agency-shadow-sm);
+  overflow: hidden;
+}
+
+.applicants-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.applicants-table thead {
+  background: var(--agency-bg-elevated);
+  border-bottom: 2px solid var(--agency-border);
+}
+
+.applicants-table th {
+  padding: var(--agency-spacing-md) var(--agency-spacing-lg);
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--agency-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.applicants-table tbody tr {
+  border-bottom: 1px solid var(--agency-border);
+  transition: all var(--agency-transition-fast);
+}
+
+.applicants-table tbody tr:hover {
+  background: var(--agency-bg-elevated);
+}
+
+.applicants-table td {
+  padding: var(--agency-spacing-lg);
+  font-size: 0.9375rem;
+  color: var(--agency-text-primary);
+}
+
+/* Table Cell Specific */
+.applicant-cell-checkbox {
+  width: 40px;
+}
+
+.applicant-cell-profile {
+  min-width: 200px;
+}
+
+.applicant-cell-actions {
+  width: 80px;
+  text-align: right;
+}
+
+/* Profile Cell */
+.applicant-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--agency-spacing-md);
+}
+
+.applicant-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--agency-border);
+}
+
+.applicant-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.applicant-name {
+  font-weight: 600;
+  color: var(--agency-text-primary);
+  margin-bottom: 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.applicant-location {
+  font-size: 0.875rem;
+  color: var(--agency-text-secondary);
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--agency-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge--new {
+  background: var(--agency-info);
+  color: white;
+}
+
+.status-badge--under-review {
+  background: var(--agency-warning);
+  color: white;
+}
+
+.status-badge--accepted {
+  background: var(--agency-success);
+  color: white;
+}
+
+.status-badge--declined {
+  background: var(--agency-danger);
+  color: white;
+}
+
+.status-badge--archived {
+  background: var(--agency-text-tertiary);
+  color: white;
+}
+
+/* Tags in Table */
+.applicant-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* Pagination */
+.applicants-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--agency-spacing-lg) var(--agency-spacing-xl);
+  border-top: 1px solid var(--agency-border);
+  background: var(--agency-bg-surface);
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: var(--agency-text-secondary);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--agency-spacing-sm);
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--agency-border);
+  background: var(--agency-bg-surface);
+  border-radius: var(--agency-radius-sm);
+  color: var(--agency-text-secondary);
+  cursor: pointer;
+  transition: all var(--agency-transition-fast);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--agency-primary-light);
+  border-color: var(--agency-primary);
+  color: var(--agency-primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Animations */
+@keyframes pageEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .applicants-layout {
+    flex-direction: column;
+  }
+
+  .applicants-table-container {
+    overflow-x: auto;
+  }
+
+  .applicants-table {
+    min-width: 800px;
+  }
+}
+
+@media (max-width: 768px) {
+  .applicants-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .applicants-header-text h1 {
+    font-size: 2rem;
+  }
+
+  .applicants-tabs {
+    margin-left: calc(var(--agency-spacing-md) * -1);
+    margin-right: calc(var(--agency-spacing-md) * -1);
+    padding-left: var(--agency-spacing-md);
+    padding-right: var(--agency-spacing-md);
+  }
+
+  .applicants-pagination {
+    flex-direction: column;
+    gap: var(--agency-spacing-md);
+  }
+}

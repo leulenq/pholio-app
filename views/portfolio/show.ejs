@@ -1,0 +1,446 @@
+<% if (profile.is_pro) { %>
+  <!-- Pro Portfolio - Vogue Editorial Style -->
+  <div class="portfolio-pro-wrapper">
+    <div class="portfolio-pro-container">
+      <!-- Hero Section - Editorial Style -->
+      <section class="portfolio-pro-hero">
+        <div class="portfolio-pro-hero__bg">
+          <% if (profile.hero_image_path) { %>
+            <div class="portfolio-pro-hero__image-wrapper">
+              <img src="<%= profile.hero_image_path %>" alt="<%= profile.first_name %> <%= profile.last_name %>" class="portfolio-pro-hero__image">
+              <div class="portfolio-pro-hero__overlay"></div>
+            </div>
+          <% } %>
+        </div>
+        
+        <div class="portfolio-pro-hero__content">
+          <div class="portfolio-pro-hero__card">
+            <div class="portfolio-pro-hero__header">
+              <span class="portfolio-pro-badge">Studio+</span>
+              <span class="portfolio-pro-eyebrow">Pholio Portfolio</span>
+            </div>
+            
+            <h1 class="portfolio-pro-name">
+              <span class="portfolio-pro-name__first"><%= profile.first_name %></span>
+              <span class="portfolio-pro-name__last"><%= profile.last_name %></span>
+            </h1>
+            
+            <p class="portfolio-pro-location"><%= profile.city %></p>
+            
+            <!-- Stats Grid - Editorial Style -->
+            <div class="portfolio-pro-stats">
+            <% if (profile.height_cm) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Height</span>
+                <span class="portfolio-pro-stat__value"><%= profile.height_cm %> cm</span>
+              </div>
+            <% } %>
+            <% if (profile.measurements) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Measurements</span>
+                <span class="portfolio-pro-stat__value"><%= profile.measurements %></span>
+              </div>
+            <% } %>
+            <% if (profile.gender) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Gender</span>
+                <span class="portfolio-pro-stat__value"><%= profile.gender %></span>
+              </div>
+            <% } %>
+            <% if (profile.age) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Age</span>
+                <span class="portfolio-pro-stat__value"><%= profile.age %></span>
+              </div>
+            <% } %>
+            <% if (profile.weight_kg || profile.weight_lbs) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Weight</span>
+                <span class="portfolio-pro-stat__value">
+                  <% if (profile.weight_kg && profile.weight_lbs) { %>
+                    <%= profile.weight_kg %> kg / <%= profile.weight_lbs %> lbs
+                  <% } else if (profile.weight_kg) { %>
+                    <%= profile.weight_kg %> kg
+                  <% } else if (profile.weight_lbs) { %>
+                    <%= profile.weight_lbs %> lbs
+                  <% } %>
+                </span>
+              </div>
+            <% } %>
+            <% if (profile.is_pro && profile.languages) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Languages</span>
+                <span class="portfolio-pro-stat__value">
+                  <% 
+                    let languagesArray = [];
+                    try {
+                      languagesArray = typeof profile.languages === 'string' ? JSON.parse(profile.languages) : profile.languages;
+                    } catch {
+                      languagesArray = [];
+                    }
+                    const languagesDisplay = Array.isArray(languagesArray) && languagesArray.length > 0 
+                      ? languagesArray.join(', ') 
+                      : (typeof profile.languages === 'string' ? profile.languages : '');
+                  %>
+                  <%= languagesDisplay %>
+                </span>
+              </div>
+            <% } %>
+            <% if (profile.is_pro && (profile.availability_travel !== null || profile.availability_schedule)) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Availability</span>
+                <span class="portfolio-pro-stat__value">
+                  <% 
+                    const availabilityParts = [];
+                    if (profile.availability_schedule) availabilityParts.push(profile.availability_schedule);
+                    if (profile.availability_travel === true) availabilityParts.push('Willing to travel');
+                    const availabilityDisplay = availabilityParts.length > 0 ? availabilityParts.join(' • ') : '';
+                  %>
+                  <%= availabilityDisplay %>
+                </span>
+              </div>
+            <% } %>
+            <% if (profile.is_pro && profile.experience_level) { %>
+              <div class="portfolio-pro-stat">
+                <span class="portfolio-pro-stat__label">Experience</span>
+                <span class="portfolio-pro-stat__value"><%= profile.experience_level %></span>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </section>
+
+      <!-- Bio Section - Editorial Style -->
+      <section class="portfolio-pro-bio">
+        <div class="portfolio-pro-bio__card">
+          <h2 class="portfolio-pro-section-title">About</h2>
+          <div class="portfolio-pro-bio__content">
+            <p><%= profile.bio_curated %></p>
+            
+            <% if (profile.is_pro && profile.training) { %>
+              <div class="portfolio-pro-bio__subsection">
+                <h3>Training</h3>
+                <p><%= profile.training %></p>
+              </div>
+            <% } %>
+            
+            <% if (profile.portfolio_url) { %>
+              <div class="portfolio-pro-bio__subsection">
+                <h3>Portfolio</h3>
+                <p><a href="<%= profile.portfolio_url %>" target="_blank" rel="noopener" class="portfolio-pro-link"><%= profile.portfolio_url %></a></p>
+              </div>
+            <% } %>
+            
+            <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
+              <div class="portfolio-pro-bio__subsection">
+                <h3>Social Media</h3>
+                <ul class="portfolio-pro-social">
+                  <% if (profile.instagram_handle) { %>
+                    <li>
+                      <% if (profile.is_pro && profile.instagram_url) { %>
+                        <a href="<%= profile.instagram_url %>" target="_blank" rel="noopener" class="portfolio-pro-link">Instagram: @<%= profile.instagram_handle %></a>
+                      <% } else { %>
+                        Instagram: @<%= profile.instagram_handle %>
+                      <% } %>
+                    </li>
+                  <% } %>
+                  <% if (profile.twitter_handle) { %>
+                    <li>
+                      <% if (profile.is_pro && profile.twitter_url) { %>
+                        <a href="<%= profile.twitter_url %>" target="_blank" rel="noopener" class="portfolio-pro-link">Twitter: @<%= profile.twitter_handle %></a>
+                      <% } else { %>
+                        Twitter: @<%= profile.twitter_handle %>
+                      <% } %>
+                    </li>
+                  <% } %>
+                  <% if (profile.tiktok_handle) { %>
+                    <li>
+                      <% if (profile.is_pro && profile.tiktok_url) { %>
+                        <a href="<%= profile.tiktok_url %>" target="_blank" rel="noopener" class="portfolio-pro-link">TikTok: @<%= profile.tiktok_handle %></a>
+                      <% } else { %>
+                        TikTok: @<%= profile.tiktok_handle %>
+                      <% } %>
+                    </li>
+                  <% } %>
+                </ul>
+              </div>
+            <% } %>
+            
+            <% if (profile.is_pro && (profile.nationality || profile.union_membership || profile.ethnicity)) { %>
+              <div class="portfolio-pro-bio__subsection">
+                <h3>Additional Information</h3>
+                <ul class="portfolio-pro-info">
+                  <% if (profile.nationality) { %>
+                    <li><span>Nationality:</span> <%= profile.nationality %></li>
+                  <% } %>
+                  <% if (profile.union_membership) { %>
+                    <li><span>Union:</span> <%= profile.union_membership %></li>
+                  <% } %>
+                  <% if (profile.ethnicity) { %>
+                    <li><span>Ethnicity:</span> <%= profile.ethnicity %></li>
+                  <% } %>
+                </ul>
+              </div>
+            <% } %>
+            
+            <% if (profile.is_pro && (profile.tattoos === true || profile.piercings === true)) { %>
+              <div class="portfolio-pro-bio__subsection">
+                <h3>Physical Characteristics</h3>
+                <ul class="portfolio-pro-info">
+                  <% if (profile.tattoos === true) { %>
+                    <li>Has visible tattoos</li>
+                  <% } %>
+                  <% if (profile.piercings === true) { %>
+                    <li>Has visible piercings</li>
+                  <% } %>
+                </ul>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </section>
+
+      <!-- Gallery Section - Editorial Style -->
+      <section class="portfolio-pro-gallery">
+        <div class="portfolio-pro-container">
+          <h2 class="portfolio-pro-section-title">Gallery</h2>
+          <div class="portfolio-pro-gallery__grid">
+            <% images.forEach((item) => { %>
+              <figure class="portfolio-pro-gallery__item">
+                <img src="<%= item.path %>" alt="<%= item.label || 'Portfolio image' %>" class="portfolio-pro-gallery__image">
+                <% if (item.label) { %>
+                  <figcaption class="portfolio-pro-gallery__caption"><%= item.label %></figcaption>
+                <% } %>
+              </figure>
+            <% }) %>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+<% } else { %>
+  <!-- Free Portfolio - Existing Design -->
+  <section class="portfolio-hero">
+    <div class="portfolio-hero__meta">
+      <span class="eyebrow">Pholio portfolio</span>
+      <h1 class="display"><%= profile.first_name %> <%= profile.last_name %></h1>
+      <p class="portfolio-location"><%= profile.city %></p>
+      <ul class="portfolio-stats">
+        <li><span>Height</span> <%= profile.height_cm %> cm (<%= heightFeet %>)</li>
+        <li><span>Measurements</span> <%= profile.measurements %></li>
+        <% if (profile.gender) { %>
+          <li><span>Gender</span> <%= profile.gender %></li>
+        <% } %>
+        <% if (profile.age) { %>
+          <li><span>Age</span> <%= profile.age %></li>
+        <% } %>
+        <% if (profile.weight_kg || profile.weight_lbs) { %>
+          <li><span>Weight</span>
+            <% if (profile.weight_kg && profile.weight_lbs) { %>
+              <%= profile.weight_kg %> kg (<%= profile.weight_lbs %> lbs)
+            <% } else if (profile.weight_kg) { %>
+              <%= profile.weight_kg %> kg
+            <% } else if (profile.weight_lbs) { %>
+              <%= profile.weight_lbs %> lbs
+            <% } %>
+          </li>
+        <% } %>
+        <% if (profile.dress_size) { %>
+          <li><span>Dress Size</span> <%= profile.dress_size %></li>
+        <% } %>
+        <% if (profile.hair_length) { %>
+          <li><span>Hair Length</span> <%= profile.hair_length %></li>
+        <% } %>
+        <% if (profile.skin_tone) { %>
+          <li><span>Skin Tone</span> <%= profile.skin_tone %></li>
+        <% } %>
+      </ul>
+    </div>
+    <% if (profile.hero_image_path) { %>
+      <figure class="portfolio-hero__image">
+        <img src="<%= profile.hero_image_path %>" alt="Hero image for <%= profile.first_name %> <%= profile.last_name %>">
+      </figure>
+    <% } %>
+  </section>
+
+  <section class="portfolio-body">
+    <article class="portfolio-bio">
+      <h2>About</h2>
+      <p><%= profile.bio_curated %></p>
+      <% if (profile.portfolio_url) { %>
+        <div class="portfolio-portfolio">
+          <h3>Portfolio</h3>
+          <p><a href="<%= profile.portfolio_url %>" target="_blank" rel="noopener"><%= profile.portfolio_url %></a></p>
+        </div>
+      <% } %>
+      <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
+        <div class="portfolio-social">
+          <h3>Social Media</h3>
+          <ul class="portfolio-social-list">
+            <% if (profile.instagram_handle) { %>
+              <li>Instagram: @<%= profile.instagram_handle %></li>
+            <% } %>
+            <% if (profile.twitter_handle) { %>
+              <li>Twitter: @<%= profile.twitter_handle %></li>
+            <% } %>
+            <% if (profile.tiktok_handle) { %>
+              <li>TikTok: @<%= profile.tiktok_handle %></li>
+            <% } %>
+          </ul>
+        </div>
+      <% } %>
+    </article>
+    <section class="portfolio-gallery">
+      <h2>Gallery</h2>
+      <div class="portfolio-grid">
+        <% images.forEach((item) => { %>
+          <figure>
+            <img src="<%= item.path %>" alt="<%= item.label || 'Portfolio image' %>">
+            <figcaption><%= item.label || 'Portfolio image' %></figcaption>
+          </figure>
+        <% }) %>
+      </div>
+    </section>
+  </section>
+<% } %>
+
+<script>
+  (function() {
+    const slug = '<%= profile.slug %>';
+    const trackEvent = (eventType, metadata = {}) => {
+      fetch(`/portfolio/${slug}/event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventType, metadata })
+      }).catch(err => console.error('Tracking error:', err));
+    };
+
+    // Track Bio View (Engagement)
+    const bioSection = document.querySelector('.portfolio-pro-bio, .portfolio-bio');
+    if (bioSection) {
+      let bioViewStartTime = null;
+      let bioTracked = false;
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !bioTracked) {
+            bioViewStartTime = Date.now();
+          } else if (bioViewStartTime && !bioTracked) {
+            const duration = Date.now() - bioViewStartTime;
+            if (duration > 3000) { // Considered a "read" if viewed for > 3s
+              trackEvent('bio_read', { duration });
+              bioTracked = true;
+            }
+            bioViewStartTime = null;
+          }
+        });
+      }, { threshold: 0.5 });
+      observer.observe(bioSection);
+    }
+
+    // Track Outbound Clicks
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (!link) return;
+
+      const href = link.href;
+      if (href.includes('instagram.com')) trackEvent('social_click', { platform: 'instagram', url: href });
+      else if (href.includes('twitter.com')) trackEvent('social_click', { platform: 'twitter', url: href });
+      else if (href.includes('tiktok.com')) trackEvent('social_click', { platform: 'tiktok', url: href });
+      else if (link.classList.contains('portfolio-pro-link') || link.closest('.portfolio-portfolio')) {
+        trackEvent('portfolio_click', { url: href });
+      }
+    });
+
+    // Track Scroll Depth
+    let maxDepthReached = 0;
+    window.addEventListener('scroll', () => {
+      const winHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight - winHeight;
+      const scrollPos = window.scrollY;
+      const currentPercent = Math.round((scrollPos / docHeight) * 100);
+
+      const milestones = [25, 50, 75, 100];
+      milestones.forEach(m => {
+        if (currentPercent >= m && maxDepthReached < m) {
+          maxDepthReached = m;
+          trackEvent('scroll_depth', { percent: m });
+        }
+      });
+    }, { passive: true });
+  })();
+</script>
+
+<script>
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const agencyId = params.get('agency_id');
+    const token = params.get('token');
+    const ref = params.get('ref');
+
+    if (ref === 'agency' && agencyId && token) {
+      // Create and show modal
+      const modal = document.createElement('div');
+      modal.innerHTML = `
+        <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; font-family: sans-serif;">
+            <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                <h3 style="margin: 0 0 0.5rem; font-size: 1.25rem; font-weight: 600; color: #0f172a;">Agency Invitation</h3>
+                <p style="margin: 0 0 1.5rem; color: #64748b;">An agency has invited you to apply directly to their roster.</p>
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button id="cancel-app" style="padding: 0.5rem 1rem; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; color: #475569;">Cancel</button>
+                    <button id="confirm-app" style="padding: 0.5rem 1rem; background: #0f172a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Apply Now</button>
+                </div>
+            </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('cancel-app').onclick = () => modal.remove();
+      document.getElementById('confirm-app').onclick = async () => {
+          const btn = document.getElementById('confirm-app');
+          const originalText = btn.innerText;
+          btn.innerText = 'Applying...';
+          btn.disabled = true;
+
+          try {
+              const res = await fetch('/api/talent/redirect-apply', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ agencyId, token })
+              });
+              
+              if (res.status === 401 || res.status === 403) {
+                  // Redirect to login
+                  alert('Please login to accept this invitation.');
+                  window.location.href = '/login?redirect=' + encodeURIComponent(window.location.href);
+                  return;
+              }
+
+              const data = await res.json();
+              
+              if (res.ok && data.success) {
+                  modal.innerHTML = `
+                    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; font-family: sans-serif;">
+                        <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 400px; width: 90%; text-align: center;">
+                            <h3 style="margin: 0 0 0.5rem; color: #16a34a;">Application Sent!</h3>
+                            <p style="margin: 0; color: #64748b;">The agency has received your application.</p>
+                            <button onclick="window.location.href=window.location.pathname" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #0f172a; color: white; border: none; border-radius: 6px; cursor: pointer;" >Close</button>
+                        </div>
+                    </div>
+                  `;
+              } else if (data.message === 'Already applied') {
+                   alert('You have already applied to this agency.');
+                   modal.remove();
+              } else {
+                  throw new Error(data.error || 'Failed to apply');
+              }
+          } catch (err) {
+              alert(err.message);
+              btn.innerText = originalText;
+              btn.disabled = false;
+          }
+      };
+    }
+  })();
+</script>

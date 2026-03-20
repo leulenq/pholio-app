@@ -1,0 +1,317 @@
+/* Shared Widget Styles - Final Polish */
+
+/* Momentum Widget Enhanced */
+.momentum-widget .momentum-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.momentum-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #C9A55A;
+}
+
+.momentum-label {
+  font-size: 0.875rem;
+  color: #64748B;
+}
+
+.sidebar-widget {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid #E2E8F0;
+}
+
+.widget-header {
+  margin-bottom: 1rem;
+}
+
+.widget-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.sidebar-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-image-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.performance-ring {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  overflow: visible; 
+}
+
+.ring-bg {
+  fill: none;
+  stroke: #e5e7eb;
+}
+
+.ring-fill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Task 11.3: Profile Image Border */
+.profile-avatar-inner {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background-color: #f3f4f6;
+  border: 4px solid white;
+  /* Task 11.1: Glow Effect */
+  box-shadow: 0 0 24px rgba(201, 165, 90, 0.15); 
+  z-index: 2;
+}
+
+/* Task 3: Segmented Period Toggle Styling */
+.periodToggle {
+  display: inline-flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: white; /* Ensure bg */
+}
+
+.periodToggle button {
+  padding: 0.375rem 1rem; /* Compact padding */
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-right: 1px solid #e5e7eb;
+}
+
+.periodToggle button:last-child {
+  border-right: none;
+}
+
+.periodToggle button.active {
+  background: var(--color-primary); /* Gold */
+  color: white;
+  font-weight: 600;
+}
+
+.periodToggle button:not(.active):hover {
+  background: #f5f4f2;
+}
+
+/* Task 9.1: Momentum Bar Styling */
+.chart-bar {
+  width: 100%;
+  /* Gradient Fill */
+  background: linear-gradient(to bottom, #C9A55A 0%, #d4c8a8 100%);
+  border-radius: 6px 6px 0 0;
+  opacity: 0.85;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 4px;
+}
+
+/* Task 9.2: Active Hover State */
+.chart-bar-wrapper:hover .chart-bar {
+  opacity: 1;
+  transform: translateY(-2px); /* Slight Lift */
+  box-shadow: 0 4px 8px rgba(201, 165, 90, 0.3);
+  /* Optional stroke feel via border or ring if needed, but transform + shadow is cleaner for bars */
+}
+
+/* Agency Interest Polish */
+.agency-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.agency-card {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem; 
+  background-color: #f8fafc; /* Task: Contrast against white widget */
+  border: 1px solid rgba(0,0,0,0.03); /* Very subtle */
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+/* Task 4.3: Agency Hover */
+.agency-card:hover {
+  background-color: white; /* Lift up to white */
+  border-color: rgba(201, 165, 90, 0.3);
+  transform: scale(1.02); 
+  box-shadow: var(--shadow-elevation-2); /* Level 2 Shadow */
+}
+
+/* Task 10.2: Agency Logo Inset */
+.agency-logo {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.agency-info {
+  flex: 1;
+}
+
+.agency-info h4 {
+  font-size: 0.95rem;
+  font-weight: 600; /* Semibold */
+  color: #0f172a; /* Dark text */
+  margin: 0 0 2px 0;
+}
+
+.agency-info p {
+  font-size: 0.85rem;
+  color: #64748b; /* Slate */
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Task 10.3: Timestamp Styling */
+.agency-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.agency-time-icon {
+  color: #94a3b8;
+}
+
+.agency-timestamp span {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Chevron on hover */
+.agency-card::after {
+  content: "›"; /* Minimal chevron */
+  position: absolute;
+  right: 1rem;
+  font-size: 1.5rem;
+  color: #94a3b8;
+  opacity: 0;
+  transition: opacity 0.2s;
+  line-height: 1;
+  top: 50%;
+  transform: translateY(-55%);
+}
+
+.agency-card:hover::after {
+  opacity: 1;
+}
+
+/* Actions Grid Polish */
+.actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.action-btn-sidebar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  transition: all 0.2s;
+}
+
+.action-btn-sidebar:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+.action-btn-sidebar.primary {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: transparent;
+  font-weight: 600;
+}
+/* Sidebar Chart Updates */
+
+/* Tooltip (reused/tweaked for Recharts custom tooltip) */
+.chart-tooltip {
+  background: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+.chart-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: white transparent transparent transparent;
+}
+.tooltip-date {
+  font-size: 0.7rem; color: #94a3b8; font-weight: 500;
+}
+.tooltip-val {
+  font-size: 0.85rem; color: #0f172a; font-weight: 700;
+}
+
+/* Percentile Text */
+.percentile-text {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Compact Toggle */
+.chart-toggle-group.compact .chart-toggle-btn {
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+}

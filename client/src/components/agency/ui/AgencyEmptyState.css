@@ -1,0 +1,103 @@
+/* Agency Empty State Component */
+
+.agency-empty-state {
+  text-align: center;
+  padding: var(--agency-spacing-3xl);
+  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agency-empty-state--compact {
+  padding: var(--agency-spacing-xl);
+}
+
+.agency-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--agency-bg-elevated);
+  color: var(--agency-text-tertiary);
+  margin-bottom: var(--agency-spacing-lg);
+  transition: all var(--agency-transition-normal);
+}
+
+.agency-empty-icon--primary {
+  background: var(--agency-primary-light);
+  color: var(--agency-primary);
+}
+
+.agency-empty-icon--success {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--agency-success);
+}
+
+.agency-empty-icon--warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--agency-warning);
+}
+
+.agency-empty-icon--danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--agency-danger);
+}
+
+.agency-empty-state:hover .agency-empty-icon {
+  transform: scale(1.05);
+}
+
+.agency-empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--agency-text-primary);
+  margin-bottom: var(--agency-spacing-sm);
+  margin-top: 0;
+}
+
+.agency-empty-description {
+  font-size: 0.9375rem;
+  color: var(--agency-text-secondary);
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0 auto var(--agency-spacing-xl);
+}
+
+.agency-empty-action {
+  display: flex;
+  justify-content: center;
+  gap: var(--agency-spacing-md);
+  flex-wrap: wrap;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .agency-empty-state {
+    padding: var(--agency-spacing-xl);
+  }
+
+  .agency-empty-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .agency-empty-title {
+    font-size: 1.125rem;
+  }
+
+  .agency-empty-description {
+    font-size: 0.875rem;
+  }
+}

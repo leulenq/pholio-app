@@ -1,0 +1,307 @@
+/**
+ * Dashboard Enhancements - Profile Completeness Improvements
+ * Adds visual emphasis for priority sections and enhanced progress tracking
+ */
+
+/* Priority Accordion Item Styling */
+.talent-accordion__item--priority {
+  border-left: 3px solid #f59e0b;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
+}
+
+.talent-accordion__item--priority .talent-accordion__header {
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.talent-accordion__item--priority .talent-accordion__header:hover {
+  background: rgba(245, 158, 11, 0.06);
+}
+
+/* Required Field Indicator */
+.form-field--required label {
+  font-weight: 600;
+}
+
+.form-label__required {
+  color: #ef4444;
+  margin-left: 0.125rem;
+}
+
+.form-label__help {
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+/* Enhanced Progress Bar */
+.profile-progress {
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(201, 165, 90, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.profile-progress__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.profile-progress__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #e2e8f0;
+}
+
+.profile-progress__percentage {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-gold-text, #B8944A); /* Improved contrast */
+}
+
+.profile-progress__bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.profile-progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-gold, #c9a55a) 0%, #d4af6a 100%);
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 10px rgba(201, 165, 90, 0.3);
+  animation: progressBarLoad 0.5s ease-out; /* Animate from 0% on initial load */
+}
+
+@keyframes progressBarLoad {
+  from {
+    width: 0%;
+  }
+}
+
+.profile-progress__next-steps {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-progress__next-steps ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-progress__next-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+}
+
+.profile-progress__next-steps li span:first-child {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+/* Physical Profile Section Emphasis */
+.talent-accordion__item[data-section="physical-profile"] .talent-accordion__header {
+  position: relative;
+}
+
+.talent-accordion__item[data-section="physical-profile"]:not(.talent-accordion__item--complete)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Phone Field Emphasis */
+.form-field--required input[type="tel"]:not(:focus):invalid {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+.form-field--required input[type="tel"]:focus {
+  border-color: #c9a55a;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.1);
+}
+
+/* Liquid Gold Toggle Switches for Checkboxes */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 40px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(201, 165, 90, 0.3);
+  border-radius: 20px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"]:checked {
+  background: #C9A55A;
+  border-color: #C9A55A;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.2);
+}
+
+input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input[type="checkbox"]:checked::before {
+  left: calc(100% - 18px);
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+input[type="checkbox"]:hover {
+  border-color: rgba(201, 165, 90, 0.5);
+}
+
+input[type="checkbox"]:checked:hover {
+  background: #D4AF6A;
+  border-color: #D4AF6A;
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.2);
+}
+
+input[type="checkbox"]:checked:focus {
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.3);
+}
+
+/* Checkbox Label Styling */
+label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+label:has(input[type="checkbox"]) span {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-primary, #0F172A);
+  line-height: 1.5;
+}
+
+/* Browser Autocomplete Override - Kills "zigzag" pattern and forces Obsidian theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--bg-surface, #FFFFFF) inset !important;
+  box-shadow: 0 0 0 30px var(--bg-surface, #FFFFFF) inset !important;
+  -webkit-text-fill-color: var(--text-primary, #0F172A) !important;
+  color: var(--text-primary, #0F172A) !important;
+  background-color: var(--bg-surface, #FFFFFF) !important;
+  background-image: none !important;
+  border: 1.5px solid var(--border-color, rgba(0, 0, 0, 0.08)) !important;
+  transition: background-color 5000s ease-in-out 0s, color 5000s ease-in-out 0s !important;
+}
+
+input:-internal-autofill-selected,
+textarea:-internal-autofill-selected,
+select:-internal-autofill-selected {
+  background-color: var(--bg-surface, #FFFFFF) !important;
+  background-image: none !important;
+  -webkit-box-shadow: 0 0 0 30px var(--bg-surface, #FFFFFF) inset !important;
+  box-shadow: 0 0 0 30px var(--bg-surface, #FFFFFF) inset !important;
+  -webkit-text-fill-color: var(--text-primary, #0F172A) !important;
+  color: var(--text-primary, #0F172A) !important;
+}
+
+/* Ensure no background patterns leak into inputs - Obsidian theme compatibility */
+.form-field input,
+.form-field textarea,
+.form-field select {
+  background-color: var(--bg-surface, #FFFFFF) !important;
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+  background-attachment: initial !important;
+  background-position: initial !important;
+  background-size: initial !important;
+}
+
+/* Kill any inherited gradients or patterns */
+.form-field input[type="text"],
+.form-field input[type="email"],
+.form-field input[type="tel"],
+.form-field input[type="number"],
+.form-field input[type="url"],
+.form-field input[type="date"],
+.form-field textarea,
+.form-field select {
+  background: var(--bg-surface, #FFFFFF) !important;
+  background-image: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .profile-progress__percentage {
+    font-size: 1.25rem;
+  }
+  
+  .talent-accordion__item--priority .talent-accordion__title span {
+    display: block;
+    margin-left: 0;
+    margin-top: 0.25rem;
+  }
+  
+  input[type="checkbox"] {
+    width: 36px;
+    height: 18px;
+  }
+  
+  input[type="checkbox"]::before {
+    width: 14px;
+    height: 14px;
+  }
+  
+  input[type="checkbox"]:checked::before {
+    left: calc(100% - 16px);
+  }
+}
+

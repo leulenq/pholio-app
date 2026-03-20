@@ -1,0 +1,11 @@
+{
+  "overrides": [
+    {
+      "files": "*.ejs",
+      "options": {
+        "parser": null
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || 'Pholio' %></title>
+    <link rel="stylesheet" href="/styles/global.css">
+    
+    <!-- Firebase Initialization -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+
+        const firebaseConfig = <%- JSON.stringify(firebaseConfig || {}) %>;
+
+        if (firebaseConfig.apiKey) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                window.firebaseApp = app;
+                window.firebaseAuth = getAuth(app);
+                
+                if (firebaseConfig.measurementId) {
+                    try {
+                        window.firebaseAnalytics = getAnalytics(app);
+                    } catch (e) {
+                         console.warn('Firebase Analytics failed to initialize:', e);
+                    }
+                }
+                
+                console.log('Firebase initialized successfully in layout');
+            } catch (error) {
+                console.error('Error initializing Firebase:', error);
+            }
+        } else {
+            console.warn('Firebase config missing in layout');
+        }
+    </script>
+    
+    <!-- Shared Auth Logic -->
+    <script type="module" src="/scripts/firebase-auth.js"></script>
+
+    <style>
+        /* Basic reset and layout styles if global.css fails to load */
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #000; color: #fff; }
+        .layout-container { display: flex; flex-direction: column; min-height: 100vh; }
+        main { flex: 1; display: flex; flex-direction: column; }
+    </style>
+</head>
+<body>
+    <div class="layout-container">
+        <!-- Optional Header -->
+        
+        <main>
+            <%- body %>
+        </main>
+
+        <!-- Optional Footer -->
+    </div>
+</body>
+</html>

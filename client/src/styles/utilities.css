@@ -1,0 +1,104 @@
+/* Utilities mimicking Tailwind for layout structure */
+
+.flex {
+  display: flex;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.pt-4 {
+  padding-top: 1rem;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* Grid System */
+.grid {
+  display: grid;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .md\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .md\:w-auto {
+    width: auto;
+  }
+}
+
+/* ─── Gold color utilities + font-display ───────────────────────────────────
+   Tailwind v4 @theme is not generating these — define them explicitly here.
+   These are unlayered so they take precedence over any @layer utilities rules.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.font-display { font-family: var(--font-display, 'Playfair Display', Georgia, serif); }
+
+.text-gold-400 { color: var(--color-gold-400, #D4AF37); }
+.text-gold-500 { color: var(--color-gold-500, #C9A55A); }
+.text-gold-600 { color: var(--color-gold-600, #B8944A); }
+
+.bg-gold-500   { background-color: var(--color-gold-500, #C9A55A); }
+.bg-gold-600   { background-color: var(--color-gold-600, #B8944A); }
+.bg-gold-500\/5  { background-color: color-mix(in srgb, var(--color-gold-500, #C9A55A)  5%, transparent); }
+.bg-gold-500\/8  { background-color: color-mix(in srgb, var(--color-gold-500, #C9A55A)  8%, transparent); }
+.bg-gold-500\/10 { background-color: color-mix(in srgb, var(--color-gold-500, #C9A55A) 10%, transparent); }
+
+.border-gold-500    { border-color: var(--color-gold-500, #C9A55A); }
+.border-gold-500\/10 { border-color: color-mix(in srgb, var(--color-gold-500, #C9A55A) 10%, transparent); }
+.border-gold-500\/20 { border-color: color-mix(in srgb, var(--color-gold-500, #C9A55A) 20%, transparent); }
+.border-gold-500\/30 { border-color: color-mix(in srgb, var(--color-gold-500, #C9A55A) 30%, transparent); }
+
+.hover\:text-gold-500:hover   { color: var(--color-gold-500, #C9A55A); }
+.hover\:bg-gold-500:hover     { background-color: var(--color-gold-500, #C9A55A); }
+.hover\:bg-gold-600:hover     { background-color: var(--color-gold-600, #B8944A); }
+.hover\:border-gold-500:hover { border-color: var(--color-gold-500, #C9A55A); }
+
+.focus\:border-gold-500:focus { border-color: var(--color-gold-500, #C9A55A); }
+
+.ring-gold-500 { --tw-ring-color: var(--color-gold-500, #C9A55A); }

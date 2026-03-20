@@ -1,0 +1,66 @@
+/* Hero Section Styles - Final Polish */
+
+.hero-card {
+  position: relative;
+  background: transparent; 
+  padding: 3rem 0 2rem 0;
+  margin-bottom: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 0;
+  max-width: 800px;
+}
+
+/* Task 1.1: Full Gradient Greeting - Specific Spec */
+/* Task 1.1: Full Gradient Greeting - Specific Spec */
+/* Task 7.2: Display Font */
+.hero-title {
+  font-family: var(--font-display); /* Playfair Display */
+  font-size: 3rem; /* Task 7.1: 3rem */
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  line-height: 1.1;
+  letter-spacing: -0.03em; /* Task 7.1: Tighter spacing */
+  
+  /* Gradient applied to entire text block */
+  background: linear-gradient(135deg, #1a1818 20%, #C9A55A 80%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #1a1a1a; 
+  display: inline-block;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: #64748b; 
+  font-weight: 400;
+  line-height: 1.6;
+  margin-bottom: 0;
+  max-width: 600px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .hero-title {
+    font-size: 3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-card {
+    padding: 2rem 0 1.5rem 0;
+  }
+  .hero-title {
+    font-size: 2.25rem;
+  }
+  .hero-subtitle {
+    font-size: 1.125rem;
+  }
+}

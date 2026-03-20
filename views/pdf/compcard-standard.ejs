@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <%
+    // Google Fonts: Cormorant Garamond (display) + Inter (ui) + theme font if different
+    const gcFonts = ['Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400', 'Inter:wght@400;500'];
+    const themeNameFont = (typeof theme !== 'undefined' && theme && theme.fonts && theme.fonts.name)
+      ? theme.fonts.name : 'Cormorant Garamond';
+    if (themeNameFont !== 'Cormorant Garamond') {
+      gcFonts.push(themeNameFont.replace(/ /g, '+') + ':wght@400;600;700');
+    }
+    const fontsUrl = 'https://fonts.googleapis.com/css2?' + gcFonts.map(f => 'family=' + f).join('&') + '&display=swap';
+
+    // Theme colours
+    const bgColor   = (typeof theme !== 'undefined' && theme && theme.colors) ? theme.colors.background : '#FAFAF8';
+    const textColor = (typeof theme !== 'undefined' && theme && theme.colors) ? theme.colors.text      : '#1C1C1C';
+    const accent    = (typeof theme !== 'undefined' && theme && theme.colors) ? theme.colors.accent    : '#C9A96E';
+    const nameFont  = '"' + themeNameFont + '", "Cormorant Garamond", serif';
+
+    // Archetype
+    const archetypeLabel   = (typeof archetype !== 'undefined' && archetype && archetype.label)   ? archetype.label   : null;
+    const castingVerdict   = (typeof archetype !== 'undefined' && archetype && archetype.verdict) ? archetype.verdict : null;
+
+    // Profile helpers
+    const fullName = profile.first_name + ' ' + profile.last_name;
+    const slugText = baseUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') + '/' + profile.slug;
+
+    // Height: prefer formatted string, else cm
+    const heightDisplay = (typeof heightFeet !== 'undefined' && heightFeet) ? heightFeet : (profile.height_cm ? profile.height_cm + ' cm' : null);
+
+    // Measurements: bust / waist / hips
+    let bust = profile.bust || null;
+    let waist = profile.waist || null;
+    let hips = profile.hips || null;
+    // Also parse legacy measurements string "32-25-35"
+    if ((!bust || !waist || !hips) && profile.measurements) {
+      const parts = profile.measurements.toString().split(/[-\/,]/).map(s => s.trim());
+      if (parts.length >= 3) {
+        bust  = bust  || parts[0];
+        waist = waist || parts[1];
+        hips  = hips  || parts[2];
+      }
+    }
+
+    // Image URL helper (defined as string, used inline)
+    function imgUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http')) return path;
+      return baseUrl + (path.startsWith('/') ? path : '/' + path);
+    }
+  %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="<%= fontsUrl %>" rel="stylesheet">
+  <style>
+    @page {
+      size: 5.5in 8.5in;
+      margin: 0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:     <%= bgColor %>;
+      --text:   <%= textColor %>;
+      --accent: <%= accent %>;
+      --font-name: <%= nameFont %>;
+      --font-ui: "Inter", sans-serif;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── PAGE WRAPPER ─────────────────────────────── */
+    .comp-card-page {
+      width: 5.5in;
+      height: 8.5in;
+      overflow: hidden;
+      position: relative;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Force page break between the two pages */
+    .comp-card-page:first-child {
+      break-after: page;
+      page-break-after: always;
+    }
+
+    /* ═══════════════════════════════════════════════
+       PAGE 1 — FRONT
+    ═══════════════════════════════════════════════ */
+
+    /* Full-bleed hero image */
+    .front__hero {
+      position: absolute;
+      inset: 0;
+      background: #111;
+    }
+
+    .front__hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Gradient overlay at bottom 30% */
+    .front__overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.72) 0%,
+        rgba(0, 0, 0, 0.30) 30%,
+        transparent 55%
+      );
+    }
+
+    /* Archetype badge — top right */
+    .front__badge {
+      position: absolute;
+      top: 0.28in;
+      right: 0.28in;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-ui);
+      font-size: 7pt;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+      line-height: 1;
+    }
+
+    /* Name block — bottom left */
+    .front__name-block {
+      position: absolute;
+      bottom: 0.35in;
+      left: 0.35in;
+      right: 0.35in;
+    }
+
+    .front__name {
+      font-family: var(--font-name);
+      font-size: 28pt;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      margin-bottom: 0.06in;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    .front__city {
+      font-family: var(--font-ui);
+      font-size: 8pt;
+      font-weight: 400;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.12em;
+      font-variant: small-caps;
+      text-transform: lowercase;
+      margin-bottom: 0.06in;
+    }
+
+    .front__slug {
+      font-family: var(--font-ui);
+      font-size: 6pt;
+      font-weight: 400;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+
+    /* ═══════════════════════════════════════════════
+       PAGE 2 — BACK
+    ═══════════════════════════════════════════════ */
+
+    .back__page {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 0.3in 0.3in 0.25in;
+    }
+
+    /* Header row */
+    .back__header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 0.1in;
+      padding-bottom: 0.06in;
+      border-bottom: 1px solid var(--accent);
+    }
+
+    .back__header-name {
+      font-family: var(--font-name);
+      font-size: 14pt;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .back__header-archetype {
+      font-family: var(--font-ui);
+      font-size: 7pt;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* Body: 2-column layout */
+    .back__body {
+      display: grid;
+      grid-template-columns: 1fr 2.1in;
+      gap: 0.2in;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Left: 2×2 image grid */
+    .back__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 0.08in;
+    }
+
+    .back__grid-slot {
+      background: #e8e8e6;
+      overflow: hidden;
+    }
+
+    .back__grid-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .back__grid-slot--empty {
+      background: color-mix(in srgb, var(--bg) 80%, var(--text) 20%);
+    }
+
+    /* Right: Stats panel */
+    .back__stats-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .back__stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.055in 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--text) 12%, transparent 88%);
+    }
+
+    .back__stat-row:first-child {
+      border-top: none;
+    }
+
+    .back__stat-label {
+      font-family: var(--font-ui);
+      font-size: 6.5pt;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text);
+      opacity: 0.55;
+    }
+
+    .back__stat-value {
+      font-family: var(--font-ui);
+      font-size: 8pt;
+      font-weight: 500;
+      color: var(--text);
+      text-align: right;
+    }
+
+    /* Casting verdict */
+    .back__verdict-rule {
+      border: none;
+      border-top: 1px solid color-mix(in srgb, var(--accent) 50%, transparent 50%);
+      margin: 0.12in 0 0.1in;
+    }
+
+    .back__verdict {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 8.5pt;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.5;
+      opacity: 0.85;
+    }
+
+    /* Footer: slug + QR */
+    .back__footer {
+      margin-top: auto;
+      padding-top: 0.1in;
+    }
+
+    .back__footer-rule {
+      border: none;
+      border-top: 1px solid color-mix(in srgb, var(--accent) 50%, transparent 50%);
+      margin-bottom: 0.07in;
+    }
+
+    .back__footer-slug {
+      font-family: var(--font-ui);
+      font-size: 6pt;
+      font-weight: 400;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+
+    .back__qr {
+      margin-top: 0.07in;
+    }
+
+    .back__qr img {
+      width: 0.55in;
+      height: 0.55in;
+      display: block;
+    }
+
+    /* Watermark */
+    .watermark {
+      position: absolute;
+      bottom: 0.15in;
+      right: 0.3in;
+      font-family: var(--font-ui);
+      font-size: 5.5pt;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 500;
+      color: var(--text);
+      opacity: 0.25;
+    }
+  </style>
+</head>
+<body>
+
+  <%/* ─────────────────────────────────────────────
+     PAGE 1 — FRONT
+  ───────────────────────────────────────────── */%>
+  <div class="comp-card-page" id="front">
+
+    <%/* Hero image */%>
+    <div class="front__hero">
+      <% if (heroImage && heroImage.path) { %>
+        <img src="<%= imgUrl(heroImage.path) %>" alt="<%= fullName %>">
+      <% } else { %>
+        <%/* Placeholder gradient when no image */%>
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#2a2a2a 0%,#444 100%);"></div>
+      <% } %>
+    </div>
+
+    <%/* Gradient overlay */%>
+    <div class="front__overlay"></div>
+
+    <%/* Archetype badge */%>
+    <% if (archetypeLabel) { %>
+      <div class="front__badge"><%= archetypeLabel %></div>
+    <% } %>
+
+    <%/* Name / City / Slug block */%>
+    <div class="front__name-block">
+      <div class="front__name"><%= fullName %></div>
+      <% if (profile.city) { %>
+        <div class="front__city"><%= profile.city %></div>
+      <% } %>
+      <div class="front__slug"><%= slugText %></div>
+    </div>
+
+    <%/* Watermark for free users */%>
+    <% if (!isPro) { %>
+      <div class="watermark">Pholio</div>
+    <% } %>
+  </div>
+
+  <%/* ─────────────────────────────────────────────
+     PAGE 2 — BACK
+  ───────────────────────────────────────────── */%>
+  <div class="comp-card-page" id="back">
+    <div class="back__page">
+
+      <%/* Header */%>
+      <div class="back__header">
+        <span class="back__header-name"><%= fullName %></span>
+        <% if (archetypeLabel) { %>
+          <span class="back__header-archetype"><%= archetypeLabel %></span>
+        <% } %>
+      </div>
+
+      <%/* Body: grid + stats */%>
+      <div class="back__body">
+
+        <%/* 2×2 image grid */%>
+        <div class="back__grid">
+          <% for (let i = 0; i < 4; i++) {
+               const gi = (typeof gridImages !== 'undefined' && gridImages) ? gridImages[i] : null;
+          %>
+          <div class="back__grid-slot <%= gi ? '' : 'back__grid-slot--empty' %>">
+            <% if (gi && gi.path) { %>
+              <img src="<%= imgUrl(gi.path) %>" alt="Portfolio image <%= i+1 %>">
+            <% } %>
+          </div>
+          <% } %>
+        </div>
+
+        <%/* Stats panel */%>
+        <div class="back__stats-panel">
+          <% if (heightDisplay) { %>
+          <div class="back__stat-row">
+            <span class="back__stat-label">Height</span>
+            <span class="back__stat-value"><%= heightDisplay %></span>
+          </div>
+          <% } %>
+          <% if (bust) { %>
+          <div class="back__stat-row">
+            <span class="back__stat-label">Bust</span>
+            <span class="back__stat-value"><%= bust %>"</span>
+          </div>
+          <% } %>
+          <% if (waist) { %>
+          <div class="back__stat-row">
+            <span class="back__stat-label">Waist</span>
+            <span class="back__stat-value"><%= waist %>"</span>
+          </div>
+          <% } %>
+          <% if (hips) { %>
+          <div class="back__stat-row">
+            <span class="back__stat-label">Hips</span>
+            <span class="back__stat-value"><%= hips %>"</span>
+          </div>
+          <% } %>
+          <% if (profile.hair_color) { %>
+          <div class="back__stat-row">
+            <span class="back__stat-label">Hair</span>
+            <span class="back__stat-value"><%= profile.hair_color %></span>
+          </div>
+          <% } %>
+          <% if (profile.eye_color) { %>
+          <div class="back__stat-row">
+            <span class="back__stat-label">Eyes</span>
+            <span class="back__stat-value"><%= profile.eye_color %></span>
+          </div>
+          <% } %>
+
+          <%/* Casting verdict */%>
+          <% if (castingVerdict) { %>
+            <hr class="back__verdict-rule">
+            <p class="back__verdict">"<%= castingVerdict %>"</p>
+          <% } %>
+
+          <%/* Footer: slug + optional QR */%>
+          <div class="back__footer">
+            <hr class="back__footer-rule">
+            <div class="back__footer-slug"><%= slugText %></div>
+            <% if (isPro && typeof qrCode !== 'undefined' && qrCode) { %>
+              <div class="back__qr">
+                <img src="<%= qrCode %>" alt="QR Code">
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if (!isPro) { %>
+      <div class="watermark">Pholio</div>
+    <% } %>
+  </div>
+
+</body>
+</html>

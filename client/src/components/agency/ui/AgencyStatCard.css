@@ -1,0 +1,202 @@
+/* Agency Stat Card Component */
+
+.agency-stat-card {
+  display: flex;
+  align-items: center;
+  gap: var(--agency-spacing-lg);
+  padding: var(--agency-spacing-xl);
+  background: var(--agency-bg-surface);
+  border: 1px solid var(--agency-border);
+  border-radius: var(--agency-radius-lg);
+  box-shadow: var(--agency-shadow-sm);
+  transition: all var(--agency-transition-normal);
+  animation: cardEntrance 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.agency-stat-card--clickable {
+  cursor: pointer;
+}
+
+.agency-stat-card:hover,
+.agency-stat-card--clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--agency-shadow-md);
+}
+
+.agency-stat-card--clickable:focus {
+  outline: 2px solid var(--agency-primary);
+  outline-offset: 2px;
+}
+
+/* Icon */
+.agency-stat-icon {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--agency-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--agency-transition-fast);
+}
+
+.agency-stat-card:hover .agency-stat-icon {
+  transform: scale(1.05);
+}
+
+.agency-stat-icon--amber {
+  background: linear-gradient(135deg, #C9A55A, #b89446);
+  color: #FFFFFF;
+}
+
+.agency-stat-icon--gold {
+  background: linear-gradient(135deg, #C9A55A, #b08d45);
+  color: #FFFFFF;
+}
+
+.agency-stat-icon--green {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #FFFFFF;
+}
+
+.agency-stat-icon--blue {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #FFFFFF;
+}
+
+.agency-stat-icon--red {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #FFFFFF;
+}
+
+.agency-stat-icon--amber {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #FFFFFF;
+}
+
+/* Content */
+.agency-stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.agency-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--agency-text-primary);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.agency-stat-label {
+  font-size: 0.875rem;
+  color: var(--agency-text-secondary);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+/* Trend Indicator */
+.agency-stat-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--agency-radius-sm);
+}
+
+.agency-stat-trend--positive {
+  color: var(--agency-success);
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.agency-stat-trend--negative {
+  color: var(--agency-danger);
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Loading State */
+.agency-stat-card--loading {
+  pointer-events: none;
+}
+
+.agency-stat-skeleton-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--agency-radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--agency-bg-elevated) 0%,
+    var(--agency-border) 50%,
+    var(--agency-bg-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.agency-stat-skeleton-value {
+  width: 80px;
+  height: 32px;
+  background: linear-gradient(
+    90deg,
+    var(--agency-bg-elevated) 0%,
+    var(--agency-border) 50%,
+    var(--agency-bg-elevated) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--agency-radius-sm);
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 0.5rem;
+}
+
+.agency-stat-skeleton-label {
+  width: 120px;
+  height: 14px;
+  background: linear-gradient(
+    90deg,
+    var(--agency-bg-elevated) 0%,
+    var(--agency-border) 50%,
+    var(--agency-bg-elevated) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--agency-radius-sm);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .agency-stat-card {
+    padding: var(--agency-spacing-lg);
+    gap: var(--agency-spacing-md);
+  }
+
+  .agency-stat-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .agency-stat-value {
+    font-size: 1.5rem;
+  }
+}

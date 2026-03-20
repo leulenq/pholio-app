@@ -1,0 +1,33 @@
+[build]
+  # Run patch script first (strips browser fields from iconv-lite/readable-stream/pg
+  # and silences extend-node.js) so esbuild bundles server-side versions correctly.
+  command = "node scripts/patch-express.js && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
+  publish = "public"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--include=optional"
+
+[functions]
+  directory = "netlify/function"
+  # esbuild resolves directory requires (e.g. require('./router'), require('./util/nullUndefinedCheck'))
+  # at bundle time, eliminating the entire class of nft trace bugs.
+  node_bundler = "esbuild"
+  included_files = ["views/**", "public/**", "migrations/**"]
+
+[functions."server"]
+  timeout = 26
+  memory = 3008
+  # Native binaries + packages with directory requires or ESM/CJS conflicts.
+  # Knex optional dialects (mysql, tedious, oracledb) are not installed but referenced in knex source.
+  external_node_modules = [
+    "bcrypt", "sharp", "puppeteer", "@sparticuz/chromium", "better-sqlite3", "sqlite3",
+    "mysql", "mysql2", "tedious", "oracledb", "mssql",
+    "fsevents", "pg-native", "pg-query-stream",
+    "firebase-admin"
+  ]
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/server"
+  status = 200

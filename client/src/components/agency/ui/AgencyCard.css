@@ -1,0 +1,116 @@
+/* Agency Card Component */
+
+.agency-card {
+  background: var(--agency-bg-surface);
+  border: 1px solid var(--agency-border);
+  border-radius: var(--agency-radius-md);
+  padding: var(--agency-spacing-xl);
+  box-shadow: var(--agency-shadow-sm);
+  transition: all var(--agency-transition-normal);
+}
+
+.agency-card--hover {
+  cursor: pointer;
+}
+
+.agency-card--hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--agency-shadow-md);
+  border-color: var(--agency-border-hover);
+}
+
+.agency-card--elevated {
+  box-shadow: var(--agency-shadow-md);
+}
+
+.agency-card--primary {
+  border-color: var(--agency-primary);
+  background: linear-gradient(135deg, var(--agency-primary-light), transparent);
+}
+
+.agency-card--success {
+  border-color: var(--agency-success);
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.05), transparent);
+}
+
+.agency-card--warning {
+  border-color: var(--agency-warning);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), transparent);
+}
+
+.agency-card--danger {
+  border-color: var(--agency-danger);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.05), transparent);
+}
+
+.agency-card--flat {
+  box-shadow: none;
+  border: none;
+  background: var(--agency-bg-elevated);
+}
+
+/* Card Sub-components */
+.agency-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--agency-spacing-lg);
+  padding-bottom: var(--agency-spacing-md);
+  border-bottom: 1px solid var(--agency-border);
+}
+
+.agency-card-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--agency-text-primary);
+  margin: 0;
+}
+
+.agency-card-content {
+  color: var(--agency-text-secondary);
+  line-height: 1.6;
+}
+
+.agency-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--agency-spacing-lg);
+  padding-top: var(--agency-spacing-md);
+  border-top: 1px solid var(--agency-border);
+}
+
+/* Focus state for interactive cards */
+.agency-card--hover:focus {
+  outline: 2px solid var(--agency-primary);
+  outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.agency-card--animated {
+  animation: cardEntrance 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .agency-card {
+    padding: var(--agency-spacing-lg);
+  }
+
+  .agency-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--agency-spacing-sm);
+  }
+}

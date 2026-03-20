@@ -1,0 +1,204 @@
+/* Photo Gallery Styles - Premium Update */
+
+.photo-gallery-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg); /* Slightly more gap */
+  margin-bottom: var(--spacing-3xl);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.section-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.section-link:hover {
+  text-decoration: underline;
+}
+
+/* Gallery Horizontal Scroll */
+.gallery-container {
+  display: flex;
+  gap: var(--spacing-md); 
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--spacing-lg); /* Space for shadow */
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  padding-left: 4px; /* Fix clipping of first item shadow */
+}
+
+.gallery-container::-webkit-scrollbar {
+  display: none; 
+}
+
+/* Photo Card */
+.photo-card {
+  position: relative;
+  flex: 0 0 200px;
+  height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: var(--color-bg-secondary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+
+.photo-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+}
+
+.photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Overlay */
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-card:hover .photo-overlay {
+  opacity: 1;
+}
+
+.photo-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.photo-action-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: white;
+  color: var(--color-text-dark);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.photo-action-btn:hover {
+  transform: scale(1.1);
+  color: var(--color-primary);
+}
+
+/* Skeleton */
+.skeleton-card {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Empty State - Multi-Card */
+.empty-card {
+  flex: 0 0 200px;
+  height: 280px;
+  border-radius: 12px;
+  border: 2px dashed rgba(201, 165, 90, 0.4);
+  background-color: rgba(201, 165, 90, 0.02);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.empty-card.primary-action {
+  border-color: var(--color-primary);
+  background-color: rgba(201, 165, 90, 0.05);
+}
+
+.empty-card.primary-action:hover {
+  background-color: rgba(201, 165, 90, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(201, 165, 90, 0.1);
+}
+
+.empty-card.placeholder {
+  opacity: 0.6;
+  border-width: 1px;
+}
+
+.empty-card.placeholder:hover {
+  opacity: 1;
+  border-color: var(--color-primary);
+}
+
+.empty-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.8);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Pulse animation for primary action */
+.empty-icon-circle.pulse {
+  animation: subtlePulse 2s infinite ease-in-out;
+}
+
+@keyframes subtlePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(201, 165, 90, 0.1); }
+  100% { transform: scale(1); }
+}
+
+.empty-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text-dark);
+  margin-bottom: 0.5rem;
+}
+
+.empty-subtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-slate);
+}

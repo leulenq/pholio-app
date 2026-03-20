@@ -1,0 +1,175 @@
+<div class="auth-container">
+    <div class="auth-card">
+        <h1 class="auth-title">Sign in to Pholio</h1>
+        
+        <% if (errors && errors.firebase) { %>
+            <div class="alert alert-error">
+                <%= errors.firebase[0] %>
+            </div>
+        <% } %>
+
+        <div class="auth-section">
+            <button id="google-signin-btn" class="btn btn-google">
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" fill-rule="evenodd"></path>
+                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.032-3.716H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" fill-rule="evenodd"></path>
+                    <path d="M3.968 10.705A5.366 5.366 0 0 1 3.682 9c0-.593.102-1.17.286-1.705V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.448 2.797 1.237 3.935l2.73-2.23z" fill="#FBBC05" fill-rule="evenodd"></path>
+                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962l2.731 2.23C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" fill-rule="evenodd"></path>
+                </svg>
+                Continue with Google
+            </button>
+        </div>
+
+        <div class="divider">
+            <span>or sign in with email</span>
+        </div>
+
+        <form action="/login" method="POST" id="login-form">
+            <input type="hidden" name="next" value="<%= values.next || '' %>">
+            <input type="hidden" name="firebase_token" id="firebase-token">
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="<%= values.email || '' %>" required autocomplete="email">
+                <% if (errors && errors.email) { %>
+                    <div class="field-error"><%= errors.email[0] %></div>
+                <% } %>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <% if (errors && errors.password) { %>
+                    <div class="field-error"><%= errors.password[0] %></div>
+                <% } %>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="email-submit-btn">Sign In</button>
+            </div>
+        </form>
+        
+        <p class="auth-footer">
+            Don't have an account? <a href="/signup">Sign up</a>
+        </p>
+    </div>
+</div>
+
+<style>
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 80vh; padding: 1rem; }
+    .auth-card { background: #111; padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 400px; border: 1px solid #333; }
+    .auth-title { text-align: center; margin-bottom: 2rem; font-weight: 600; font-size: 1.5rem; }
+    
+    .btn { display: flex; align-items: center; justify-content: center; width: 100%; padding: 0.75rem; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; font-size: 0.95rem; transition: all 0.2s; }
+    .btn-google { background: #fff; color: #333; gap: 0.75rem; border: 1px solid #ccc; }
+    .btn-google:hover { background: #f1f1f1; }
+    .btn-primary { background: #fff; color: #000; margin-top: 1rem; font-weight: 600; }
+    .btn-primary:hover { opacity: 0.9; }
+    
+    .divider { display: flex; align-items: center; margin: 1.5rem 0; color: #666; font-size: 0.85rem; }
+    .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #333; }
+    .divider span { padding: 0 0.75rem; }
+    
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: #aaa; }
+    input { width: 100%; padding: 0.75rem; background: #222; border: 1px solid #333; color: #fff; border-radius: 6px; box-sizing: border-box; }
+    input:focus { outline: none; border-color: #666; }
+    
+    .alert-error { background: rgba(220, 38, 38, 0.1); color: #ef4444; padding: 0.75rem; border-radius: 6px; margin-bottom: 1.5rem; font-size: 0.9rem; text-align: center; border: 1px solid rgba(220, 38, 38, 0.2); }
+    .field-error { color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem; }
+    
+    .auth-footer { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: #888; }
+    .auth-footer a { color: #fff; text-decoration: none; }
+    .auth-footer a:hover { text-decoration: underline; }
+</style>
+
+<script type="module">
+    // Wait for FirebaseAuth to be available from layout
+    const waitForAuth = () => {
+        return new Promise((resolve) => {
+            if (window.FirebaseAuth) return resolve(window.FirebaseAuth);
+            const interval = setInterval(() => {
+                if (window.FirebaseAuth) {
+                    clearInterval(interval);
+                    resolve(window.FirebaseAuth);
+                }
+            }, 100);
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const Auth = await waitForAuth();
+        const googleBtn = document.getElementById('google-signin-btn');
+        const emailForm = document.getElementById('login-form');
+        const emailSubmitBtn = document.getElementById('email-submit-btn');
+        
+        // Handle Google Sign In
+        if (googleBtn) {
+            googleBtn.addEventListener('click', async () => {
+                try {
+                    // Disable button logic
+                    googleBtn.style.opacity = '0.7';
+                    googleBtn.disabled = true;
+                    
+                    const result = await Auth.signInWithGoogle();
+                    if (result && result.user) {
+                        const token = await result.user.getIdToken();
+                        document.getElementById('firebase-token').value = token;
+                        // Clear email/password fields to ensure token mechanism is used
+                        document.getElementById('email').value = '';
+                        document.getElementById('password').value = '';
+                        emailForm.submit();
+                    }
+                } catch (error) {
+                    console.error('Google Sign In Error:', error);
+                    alert('Sign in failed: ' + (window.getFirebaseErrorMessage ? window.getFirebaseErrorMessage(error) : error.message));
+                    googleBtn.style.opacity = '1';
+                    googleBtn.disabled = false;
+                }
+            });
+        }
+        
+        // Handle Email/Password Sign In (Client -> Firebase -> Server)
+        if (emailForm) {
+            emailForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                if (!document.getElementById('firebase-token').value) {
+                    // If no token yet (normal email flow), authenticate with Firebase first
+                    try {
+                        emailSubmitBtn.style.opacity = '0.7';
+                        emailSubmitBtn.disabled = true;
+                        emailSubmitBtn.textContent = 'Signing in...';
+                        
+                        const credential = await Auth.signIn(email, password);
+                        const token = await credential.user.getIdToken();
+                        
+                        document.getElementById('firebase-token').value = token;
+                        // Now submit form with token
+                        emailForm.submit();
+                    } catch (error) {
+                        console.error('Email Sign In Error:', error);
+                        // Make visible alert instead of blocking alert
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'alert alert-error';
+                        errorDiv.textContent = window.getFirebaseErrorMessage ? window.getFirebaseErrorMessage(error) : error.message;
+                        
+                        const existingAlert = document.querySelector('.alert-error');
+                        if (existingAlert) existingAlert.remove();
+                        
+                        document.querySelector('.auth-card').insertBefore(errorDiv, document.querySelector('.auth-section'));
+                        
+                        emailSubmitBtn.style.opacity = '1';
+                        emailSubmitBtn.disabled = false;
+                        emailSubmitBtn.textContent = 'Sign In';
+                    }
+                } else {
+                    // Token already present, just submit
+                    emailForm.submit();
+                }
+            });
+        }
+    });
+</script>

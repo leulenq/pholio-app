@@ -1,0 +1,160 @@
+<div class="auth-container">
+    <div class="auth-card">
+        <h1 class="auth-title">Partner with Pholio</h1>
+        <p class="auth-subtitle">Join as an Agency or Scout</p>
+        
+        <% if (errors && errors._general) { %>
+            <div class="alert alert-error">
+                <%= errors._general[0] %>
+            </div>
+        <% } %>
+
+        <form action="/partners" method="POST" id="partners-form">
+            <input type="hidden" name="firebase_token" id="firebase-token">
+            
+            <div class="form-group">
+                <label for="agency_name">Agency Name</label>
+                <input type="text" id="agency_name" name="agency_name" value="<%= values.agency_name || '' %>" required>
+                <% if (errors && errors.agency_name) { %>
+                    <div class="field-error"><%= errors.agency_name[0] %></div>
+                <% } %>
+            </div>
+
+            <div class="form-group">
+                <label for="contact_name">Contact Name</label>
+                <input type="text" id="contact_name" name="contact_name" value="<%= values.contact_name || '' %>" required>
+                <% if (errors && errors.contact_name) { %>
+                    <div class="field-error"><%= errors.contact_name[0] %></div>
+                <% } %>
+            </div>
+            
+            <div class="form-group">
+                <label for="contact_role">Role</label>
+                <select id="contact_role" name="contact_role" required>
+                    <option value="" disabled <%= !values.contact_role ? 'selected' : '' %>>Select your role</option>
+                    <option value="Booker" <%= values.contact_role === 'Booker' ? 'selected' : '' %>>Booker</option>
+                    <option value="Director" <%= values.contact_role === 'Director' ? 'selected' : '' %>>Director</option>
+                    <option value="Scout" <%= values.contact_role === 'Scout' ? 'selected' : '' %>>Scout</option>
+                    <option value="Other" <%= values.contact_role === 'Other' ? 'selected' : '' %>>Other</option>
+                </select>
+                <% if (errors && errors.contact_role) { %>
+                    <div class="field-error"><%= errors.contact_role[0] %></div>
+                <% } %>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="<%= values.email || '' %>" required autocomplete="email">
+                <% if (errors && errors.email) { %>
+                    <div class="field-error"><%= errors.email[0] %></div>
+                <% } %>
+            </div>
+            
+            <div class="form-group">
+                <label for="company_website">Website (Optional)</label>
+                <input type="url" id="company_website" name="company_website" value="<%= values.company_website || '' %>" placeholder="https://">
+                <% if (errors && errors.company_website) { %>
+                    <div class="field-error"><%= errors.company_website[0] %></div>
+                <% } %>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="new-password">
+                <% if (errors && errors.password) { %>
+                    <div class="field-error"><%= errors.password[0] %></div>
+                <% } %>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="submit-btn">Create Account</button>
+            </div>
+        </form>
+        
+        <p class="auth-footer">
+            Already have an account? <a href="/login">Sign in</a>
+        </p>
+    </div>
+</div>
+
+<style>
+    /* Reusing auth styles from login */
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 80vh; padding: 1rem; }
+    .auth-card { background: #111; padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid #333; }
+    .auth-title { text-align: center; margin-bottom: 0.5rem; font-weight: 600; font-size: 1.5rem; }
+    .auth-subtitle { text-align: center; margin-bottom: 2rem; color: #888; margin-top: 0; }
+    
+    .btn { display: flex; align-items: center; justify-content: center; width: 100%; padding: 0.75rem; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; font-size: 0.95rem; transition: all 0.2s; }
+    .btn-primary { background: #fff; color: #000; margin-top: 1rem; font-weight: 600; }
+    .btn-primary:hover { opacity: 0.9; }
+    
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: #aaa; }
+    input, select { width: 100%; padding: 0.75rem; background: #222; border: 1px solid #333; color: #fff; border-radius: 6px; box-sizing: border-box; }
+    input:focus, select:focus { outline: none; border-color: #666; }
+    
+    .alert-error { background: rgba(220, 38, 38, 0.1); color: #ef4444; padding: 0.75rem; border-radius: 6px; margin-bottom: 1.5rem; font-size: 0.9rem; text-align: center; border: 1px solid rgba(220, 38, 38, 0.2); }
+    .field-error { color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem; }
+    
+    .auth-footer { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: #888; }
+    .auth-footer a { color: #fff; text-decoration: none; }
+    .auth-footer a:hover { text-decoration: underline; }
+</style>
+
+<script type="module">
+    // Wait for FirebaseAuth to be available from layout
+    const waitForAuth = () => {
+        return new Promise((resolve) => {
+            if (window.FirebaseAuth) return resolve(window.FirebaseAuth);
+            const interval = setInterval(() => {
+                if (window.FirebaseAuth) {
+                    clearInterval(interval);
+                    resolve(window.FirebaseAuth);
+                }
+            }, 100);
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const Auth = await waitForAuth();
+        const form = document.getElementById('partners-form');
+        const submitBtn = document.getElementById('submit-btn');
+        
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                try {
+                    submitBtn.style.opacity = '0.7';
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Creating account...';
+                    
+                    // Create Firebase user first
+                    const credential = await Auth.signUp(email, password);
+                    const token = await credential.user.getIdToken();
+                    
+                    document.getElementById('firebase-token').value = token;
+                    // Now submit form with token
+                    form.submit();
+                } catch (error) {
+                    console.error('Sign Up Error:', error);
+                    
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-error';
+                    errorDiv.textContent = window.getFirebaseErrorMessage ? window.getFirebaseErrorMessage(error) : error.message;
+                    
+                    const existingAlert = document.querySelector('.alert-error');
+                    if (existingAlert) existingAlert.remove();
+                    
+                    document.querySelector('.auth-card').insertBefore(errorDiv, document.querySelector('form'));
+                    
+                    submitBtn.style.opacity = '1';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Create Account';
+                }
+            });
+        }
+    });
+</script>

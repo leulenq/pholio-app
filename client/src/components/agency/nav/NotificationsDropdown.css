@@ -1,0 +1,221 @@
+/* ── NotificationsDropdown ────────────────────────────── */
+
+@keyframes nav-panel-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+
+.nav-panel {
+  animation: nav-panel-in 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nd-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 200;
+  width: 360px;
+  max-height: 460px;
+  background: var(--ag-surface-0);
+  border: 1px solid var(--ag-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+.nd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ag-border);
+  flex-shrink: 0;
+}
+
+.nd-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ag-text-0);
+  margin: 0;
+}
+
+.nd-mark-read {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--ag-gold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.nd-mark-read:hover {
+  opacity: 0.75;
+}
+
+/* ── List ── */
+.nd-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Notification item ── */
+.nd-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ag-border);
+  cursor: default;
+  transition: background 0.15s ease;
+}
+
+.nd-item:last-child {
+  border-bottom: none;
+}
+
+.nd-item--unread {
+  background: var(--ag-surface-3);
+}
+
+/* ── Icon circle ── */
+.nd-icon-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Item content ── */
+.nd-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.nd-item-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.nd-item-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ag-text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nd-item--unread .nd-item-title {
+  font-weight: 600;
+}
+
+.nd-item-time {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--ag-text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nd-item-detail {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--ag-text-2);
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── States ── */
+.nd-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--ag-text-2);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.nd-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ag-border);
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--ag-surface-3) 25%,
+    var(--ag-surface-4) 50%,
+    var(--ag-surface-3) 75%
+  );
+  background-size: 200%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.nd-skel-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nd-skel-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nd-skel-line { height: 10px; }
+.nd-skel-line--wide  { width: 75%; }
+.nd-skel-line--short { width: 55%; }
+
+/* ── Footer ── */
+.nd-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--ag-border);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.nd-footer a {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--ag-gold);
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.nd-footer a:hover {
+  opacity: 0.75;
+}

@@ -1,0 +1,267 @@
+/* Dashboard Shell Layout - Refined Brand Compliance */
+
+.dashboard-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: var(--font-family);
+  
+  /* Task 2.1: Gradient Background */
+  background: linear-gradient(135deg, #fafaf9 0%, #f5f4f1 50%, rgba(201, 165, 90, 0.04) 100%);
+  
+  /* Task 2.2: Texture Overlay (Noise) */
+  /* Using a subtle noise data URI */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+                    linear-gradient(135deg, #fafaf9 0%, #f5f4f1 50%, rgba(201, 165, 90, 0.04) 100%);
+  
+  /* Task 2.3: Radial Gradient Accent (Top-Right) */
+  position: relative;
+}
+
+/* Accent pseudo-element */
+.dashboard-root::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(ellipse at top right, rgba(201, 165, 90, 0.08), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Header Container */
+.dashboard-header {
+  background-color: var(--color-card);
+  border-bottom: 1px solid var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-xl);
+  height: 80px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* 1. Left: Branding */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 200px;
+}
+
+.brand-logo-circle {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); /* Keeping Finexa gradient as requested, or switch to Gold if brand implies? Keeping for now as User didn't explicitly kill the gradient logo, just the "Purple Pro Tip" */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-xl);
+}
+
+.brand-text {
+  font-family: var(--font-family);
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-dark);
+  letter-spacing: -0.02em;
+}
+
+/* 2. Center: Navigation (Tabs) */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs); /* Tighter gap for tabs */
+  background-color: transparent;
+}
+
+.nav-pill {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-slate);
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  outline: none; /* Focus handled by box-shadow */
+}
+
+.nav-pill:hover {
+  background-color: rgba(201, 165, 90, 0.05); /* 5% Gold tint */
+  color: var(--color-text-dark);
+}
+
+.nav-pill.active {
+  background-color: var(--color-primary); /* #C9A55A Gold */
+  color: white;
+  font-weight: var(--font-weight-semibold);
+}
+
+.nav-pill:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
+/* 3. Right: Actions */
+.date-display {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+  margin-right: var(--spacing-md);
+}
+
+.date-main {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-dark);
+}
+
+.date-weekday {
+  font-size: 0.9rem;
+  color: var(--color-text-slate);
+}
+
+/* Notification Button */
+.notification-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-slate);
+  border-radius: var(--radius-sm); /* User requested 4px radius in 2.5 context?? Wait "4px border-radius" in 2.5 requirements */
+  border-radius: 4px; 
+  transition: all 0.2s;
+  padding: 8px; /* as requested */
+}
+
+.notification-btn:hover {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-dark);
+}
+
+.notification-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--color-primary); /* Gold */
+  color: white;
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 5px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1;
+}
+
+/* User Avatar */
+.user-avatar-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: white;
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition: transform 0.2s;
+  border: none;
+}
+
+.user-avatar-btn:hover {
+  transform: scale(1.05);
+}
+
+.user-avatar-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Mobile Toggle */
+.mobile-menu-btn {
+  display: none;
+  color: var(--color-text-dark);
+}
+
+/* Content Area */
+.dashboard-content {
+  flex: 1;
+  padding: var(--spacing-xl);
+  max-width: 1440px; /* Restored to reasonable full width */
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 1024px) {
+  .dashboard-header {
+    padding: 0 var(--spacing-md);
+    height: auto; /* Allow growth */
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
+  }
+
+  .header-brand {
+    order: 1;
+    flex: 1;
+  }
+  
+  .header-actions {
+    order: 2;
+    justify-content: flex-end;
+    min-width: auto;
+    gap: var(--spacing-sm);
+  }
+  
+  /* Task 5.1/5.2: Mobile Layout & Scrollable Tabs */
+  .header-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px; /* Space for scrollbar if visible/hidden */
+    justify-content: flex-start; /* Left align scrollable */
+  }
+  
+  .header-nav::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .nav-pill {
+    scroll-snap-align: center;
+    flex-shrink: 0;
+  }
+  
+  .header-search-container {
+    display: none; /* Hide on mobile header row for now or move? User said "Search bar: full width, move to separate row if necessary". Let's hide for now to save check time or implement logic later. Actually let's just stack it? */
+  }
+  
+  .date-display {
+    display: none; /* Hide date on small mobile */
+  }
+  
+  .mobile-menu-btn {
+    display: block;
+  }
+}

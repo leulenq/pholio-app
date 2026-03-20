@@ -1,0 +1,109 @@
+/* Recent Activity Styles */
+
+.recent-activity-section {
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.activity-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  margin-bottom: 0.25rem;
+}
+
+.activity-subtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.activity-link {
+  font-size: 0.9rem;
+  color: var(--color-primary); /* Gold */
+  text-decoration: none;
+  font-weight: 500;
+}
+.activity-link:hover {
+  text-decoration: underline;
+}
+
+.activity-list {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-item:hover {
+  background-color: #faf9f7;
+}
+
+.activity-icon-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+}
+
+.icon-blue { background-color: #3b82f6; }
+.icon-purple { background-color: #8b5cf6; }
+.icon-gold { background-color: #C9A55A; }
+.icon-slate { background-color: #94a3b8; }
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-desc {
+  font-size: 0.95rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.activity-time {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+/* Skeleton */
+.skeleton-item {
+  height: 70px;
+  background: linear-gradient(90deg, #f8fafc 25%, #f1f5f9 50%, #f8fafc 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.activity-empty {
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  text-align: center;
+}

@@ -1,0 +1,21 @@
+{
+  "[ejs]": {
+    "editor.formatOnSave": false,
+    "editor.defaultFormatter": null,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    "editor.codeActionsOnSave": {}
+  },
+  "files.associations": {
+    "*.ejs": "ejs"
+  },
+  "prettier.disableLanguages": ["ejs"],
+  "editor.formatOnSave": false,
+  "[javascript]": {
+    "editor.formatOnSave": false
+  },
+  "[typescript]": {
+    "editor.formatOnSave": false
+  }
+}
+

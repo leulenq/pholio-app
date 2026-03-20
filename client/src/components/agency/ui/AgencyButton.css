@@ -1,0 +1,147 @@
+/* Agency Button Component */
+
+.agency-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  border-radius: var(--agency-radius-sm);
+  transition: all var(--agency-transition-fast);
+  cursor: pointer;
+  border: none;
+  font-size: 0.9375rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.agency-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--agency-shadow-focus);
+}
+
+.agency-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Variants */
+.agency-btn--primary {
+  background: var(--agency-primary);
+  color: white;
+}
+
+.agency-btn--primary:hover:not(:disabled) {
+  background: var(--agency-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--agency-shadow-button);
+}
+
+.agency-btn--secondary {
+  background: white;
+  color: var(--agency-primary);
+  border: 1px solid var(--agency-border);
+}
+
+.agency-btn--secondary:hover:not(:disabled) {
+  background: var(--agency-primary-light);
+  border-color: var(--agency-primary);
+}
+
+.agency-btn--ghost {
+  background: transparent;
+  color: var(--agency-text-secondary);
+}
+
+.agency-btn--ghost:hover:not(:disabled) {
+  background: var(--agency-bg-elevated);
+  color: var(--agency-text-primary);
+}
+
+.agency-btn--danger {
+  background: var(--agency-danger);
+  color: white;
+}
+
+.agency-btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.agency-btn--success {
+  background: var(--agency-success);
+  color: white;
+}
+
+.agency-btn--success:hover:not(:disabled) {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+}
+
+.agency-btn--gold {
+  background: linear-gradient(135deg, var(--agency-gold), var(--agency-gold-hover));
+  color: white;
+}
+
+.agency-btn--gold:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--agency-gold-hover), #9a7533);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 165, 90, 0.3);
+}
+
+/* Sizes */
+.agency-btn--sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.agency-btn--md {
+  padding: 0.75rem 1.5rem;
+}
+
+.agency-btn--lg {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+}
+
+/* Icon only */
+.agency-btn--icon {
+  padding: 0.5rem;
+  aspect-ratio: 1;
+}
+
+/* Loading Spinner */
+.agency-btn-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Full width */
+.agency-btn--full {
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .agency-btn--md {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+  }
+
+  .agency-btn--lg {
+    padding: 0.875rem 1.75rem;
+    font-size: 0.9375rem;
+  }
+}

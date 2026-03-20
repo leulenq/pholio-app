@@ -1,0 +1,51 @@
+/* Pholio Brand Design Tokens
+   Official brand design system for consistent styling across all pages
+   This file should be imported FIRST before any other stylesheets */
+
+:root {
+  /* Typography */
+  --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-display: 'Playfair Display', Georgia, serif;
+
+  /* Colors - Primary */
+  --color-primary: #C9A55A;
+  --color-primary-hover: #b08d45;
+
+  /* Colors - Text */
+  --color-text-dark: #0f172a;
+  --color-text-slate: #64748b;
+  --color-text-light: #94a3b8;
+
+  /* Colors - Backgrounds */
+  --color-bg-primary: #faf9f7;
+  --color-bg-secondary: #f5f4f2;
+  --color-bg-surface: #ffffff;
+
+  /* Colors - Borders */
+  --color-border-light: #e2e8f0;
+  --color-border-hover: #cbd5e1;
+
+  /* Spacing (8px base) */
+  --spacing-xs: 0.5rem;    /* 8px */
+  --spacing-sm: 0.75rem;   /* 12px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 2.5rem;   /* 40px */
+  --spacing-3xl: 3rem;     /* 48px */
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows - Brand Guidelines */
+  --shadow-card: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+  --shadow-button-hover: 0 4px 12px rgba(201, 165, 90, 0.2);
+  --shadow-focus: 0 0 0 4px rgba(201, 165, 90, 0.1);
+
+  /* Transitions - Brand Guidelines */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

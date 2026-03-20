@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# EJS template files - prevent ESLint from linting
+*.ejs
+
+# Config files
+*.config.js
+knexfile.js
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Uploads directory
+uploads/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Scripts that may use different syntax
+scripts/
+

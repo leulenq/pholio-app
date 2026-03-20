@@ -1,0 +1,153 @@
+/* ============================================================
+   PHOLIO AGENCY — Design Tokens
+   Warm Editorial Luxury System
+   Cream & Gold, refined typography
+   ============================================================ */
+
+:root {
+  /* ---- Surface Scale (warm light) ---- */
+  --ag-black: #1A1815;
+  --ag-surface-0: #FAF8F5;           /* canvas background */
+  --ag-surface-1: #FFFFFF;           /* sidebar, cards */
+  --ag-surface-2: #F5F2EE;  /* hover surface — backgrounds that appear on hover/subtle elevation */
+  --ag-surface-3: #F5F2EE;  /* interactive surface — active states, inputs (same tone, distinct role) */
+  --ag-surface-4: #EDE9E3;           /* active states, inputs */
+
+  /* ---- Gold ---- */
+  --ag-gold: #C9A55A;
+  --ag-gold-dim: rgba(201, 165, 90, 0.65);
+  --ag-gold-muted: rgba(201, 165, 90, 0.12);
+  --ag-gold-ghost: rgba(201, 165, 90, 0.08);
+  --ag-gold-hover: #B8956A;
+
+  /* ---- Text (warm darks) ---- */
+  --ag-text-0: #1A1815;              /* headlines */
+  --ag-text-1: #2D2A26;              /* body */
+  --ag-text-2: #6B6560;              /* secondary */
+  --ag-text-3: #9C958E;              /* tertiary/muted */
+  --ag-text-4: #C8C2BA;              /* ghost/disabled */
+
+  /* ---- Borders ---- */
+  --ag-border: rgba(26,24,21,0.08);
+  --ag-border-strong: rgba(26,24,21,0.14);          /* canonical name */
+  --ag-border-hover: rgba(26,24,21,0.14);            /* alias for --ag-border-strong — keep during migration */
+  --ag-border-gold: rgba(201,165,90,0.25);
+  --ag-border-error: rgba(220,38,38,0.5);
+  --ag-border-warning: rgba(234,179,8,0.5);
+  --ag-border-success: rgba(34,197,94,0.5);
+
+  /* ---- Semantic ---- */
+  --ag-success: #2D8A56;
+  --ag-success-dim: rgba(45,138,86,0.1);
+  --ag-danger: #C0392B;
+  --ag-danger-dim: rgba(192,57,43,0.08);
+  --ag-warning: #C2850E;
+  --ag-warning-dim: rgba(194,133,14,0.1);
+  --ag-info: #3B7DD8;
+  --ag-info-dim: rgba(59,125,216,0.08);
+
+  /* ---- Shadows (warm-toned) ---- */
+  --ag-shadow-sm: 0 1px 3px rgba(26,24,21,0.06);
+  --ag-shadow-md: 0 4px 20px rgba(26,24,21,0.08);
+  --ag-shadow-lg: 0 12px 40px rgba(26,24,21,0.12);
+  --ag-shadow-gold: 0 0 20px rgba(201,165,90,0.15);
+
+  /* ---- Typography ---- */
+  --ag-font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --ag-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ag-font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  /* aliases for backward compatibility during migration */
+  --ag-font-serif: var(--ag-font-display);
+  --ag-font-sans: var(--ag-font-body);
+
+  /* ---- Text Size Scale ---- */
+  --ag-text-hero: 3.5rem;
+  --ag-text-h1: 2.5rem;
+  --ag-text-section: 1.125rem;
+  --ag-text-card: 1rem;
+  --ag-text-body: 0.875rem;
+  --ag-text-label: 0.6875rem;
+  --ag-text-mono: 0.8125rem;
+
+  /* ---- Motion ---- */
+  --ag-ease: cubic-bezier(0.4, 0, 0.2, 1);             /* standard — use for color/opacity transitions */
+  --ag-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);    /* spring — use for scale/translate/entrance */
+  --ag-duration-fast: 150ms;
+  --ag-duration: 200ms;
+  --ag-duration-slow: 400ms;
+
+  /* ---- Layout ---- */
+  --ag-sidebar-w: 220px;
+  --ag-header-h: 56px;
+
+  /* ---- Radius ---- */
+  --ag-radius-sm: 4px;
+  --ag-radius-md: 8px;
+  --ag-radius-lg: 12px;
+  --ag-radius-xl: 20px;
+  --ag-radius-full: 100px;
+
+  /* ---- Spacing ---- */
+  --ag-page-x: 40px;
+  --ag-page-y: 48px;
+  --ag-card-pad: 24px;
+  --ag-card-pad-lg: 32px;
+  --ag-gap: 24px;
+  --ag-gap-sm: 16px;
+
+  /* ---- Z-index scale ---- */
+  --ag-z-base: 1;
+  --ag-z-dropdown: 20;
+  --ag-z-panel: 40;
+  --ag-z-modal: 100;
+  --ag-z-toast: 200;
+
+  /* ============================================================
+     Legacy aliases — maps old --agency-* tokens to new --ag-*
+     Used by sub-pages (Boards, Discover, Analytics, etc.)
+     ============================================================ */
+  --agency-primary: var(--ag-gold);
+  --agency-primary-hover: var(--ag-gold-hover);
+  --agency-primary-light: var(--ag-gold-ghost);
+  --agency-gold: var(--ag-gold);
+  --agency-gold-hover: var(--ag-gold-hover);
+
+  --agency-success: var(--ag-success);
+  --agency-danger: var(--ag-danger);
+  --agency-warning: var(--ag-warning);
+  --agency-info: var(--ag-info);
+
+  --agency-bg-canvas: var(--ag-surface-0);
+  --agency-bg-surface: var(--ag-surface-1);
+  --agency-bg-elevated: var(--ag-surface-3);
+  --agency-border: var(--ag-border);
+  --agency-border-hover: var(--ag-border-hover);
+
+  --agency-text-primary: var(--ag-text-0);
+  --agency-text-secondary: var(--ag-text-2);
+  --agency-text-tertiary: var(--ag-text-3);
+
+  --agency-shadow-sm: var(--ag-shadow-sm);
+  --agency-shadow-md: var(--ag-shadow-md);
+  --agency-shadow-lg: var(--ag-shadow-lg);
+  --agency-shadow-focus: 0 0 0 3px rgba(201, 165, 90, 0.15);
+
+  --agency-transition-fast: var(--ag-duration-fast) var(--ag-ease);
+  --agency-transition-normal: var(--ag-duration) var(--ag-ease);
+
+  --agency-spacing-xs: 0.5rem;
+  --agency-spacing-sm: 0.75rem;
+  --agency-spacing-md: 1rem;
+  --agency-spacing-lg: 1.5rem;
+  --agency-spacing-xl: 2rem;
+  --agency-spacing-2xl: 2.5rem;
+  --agency-spacing-3xl: 3rem;
+
+  --agency-radius-sm: var(--ag-radius-sm);
+  --agency-radius-md: var(--ag-radius-md);
+  --agency-radius-lg: var(--ag-radius-lg);
+  --agency-radius-xl: var(--ag-radius-xl);
+
+  --font-display: var(--ag-font-display);
+  --font-body: var(--ag-font-body);
+}

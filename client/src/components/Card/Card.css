@@ -1,0 +1,11 @@
+.card {
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  /* Optional: border for better definition on light backgrounds if needed */
+  border: 1px solid var(--color-border-light); 
+}
+
+.cardPaddingSmall { padding: var(--spacing-lg); }
+.cardPaddingDefault { padding: var(--spacing-xl); }
+.cardPaddingLarge { padding: var(--spacing-2xl); }

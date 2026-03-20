@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+public/dashboard-app
+.env
+.env.local
+dev.sqlite3
+pholio.db
+uploads/
+.netlify
+netlify/function-built/
+*.log

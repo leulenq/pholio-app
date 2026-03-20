@@ -1,0 +1,43 @@
+.cosmic-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #0a0805;
+  overflow: hidden;
+}
+
+.cosmic-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: 
+    radial-gradient(ellipse 55% 45% at 12% 18%, rgba(201, 168, 76, 0.11) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 88% 82%, rgba(160, 100, 30, 0.08) 0%, transparent 65%),
+    radial-gradient(ellipse 35% 45% at 78% 42%, rgba(30, 60, 55, 0.07) 0%, transparent 60%);
+  animation: nebulaPulse 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes nebulaPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.cosmic-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .cosmic-container::before {
+    animation: none;
+  }
+}

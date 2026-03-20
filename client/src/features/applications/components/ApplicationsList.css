@@ -1,0 +1,596 @@
+/* ============================================
+   APPLICATIONS LIST - TIMELINE DESIGN
+   ============================================ */
+
+.applications-list-container {
+  width: 100%;
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+
+.applications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.applications-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.applications-subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0.25rem 0 0 0;
+}
+
+/* ============================================
+   STATUS LEGEND
+   ============================================ */
+
+.status-legend {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-dot.pending {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
+}
+
+.legend-dot.accepted {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.legend-dot.declined {
+  background: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
+}
+
+/* ============================================
+   TIMELINE
+   ============================================ */
+
+.applications-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ============================================
+   APPLICATION CARD
+   ============================================ */
+
+.application-card {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding-left: 3.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: cardSlideIn 0.6s ease-out both;
+  border: 1px solid #f1f5f9;
+}
+
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.application-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #e2e8f0;
+}
+
+/* Status-based left border */
+.application-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+  transition: width 0.3s ease;
+}
+
+.application-card.status-pending::before {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.application-card.status-accepted::before {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+}
+
+.application-card.status-declined::before {
+  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+}
+
+.application-card:hover::before {
+  width: 6px;
+}
+
+/* ============================================
+   TIMELINE CONNECTOR
+   ============================================ */
+
+.timeline-connector {
+  position: absolute;
+  left: 2rem;
+  top: 100%;
+  width: 2px;
+  height: 1.5rem;
+  background: linear-gradient(180deg, #e2e8f0 0%, transparent 100%);
+  z-index: 1;
+}
+
+/* ============================================
+   STATUS INDICATOR (Timeline Dot)
+   ============================================ */
+
+.status-indicator {
+  position: absolute;
+  left: 1.5rem;
+  top: 2rem;
+  z-index: 2;
+}
+
+.status-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid white;
+  background: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
+  transition: all 0.3s ease;
+}
+
+.status-pending .status-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.status-accepted .status-dot {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.status-declined .status-dot {
+  background: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.9;
+  }
+}
+
+/* ============================================
+   CARD BODY
+   ============================================ */
+
+.card-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* ============================================
+   AGENCY SECTION
+   ============================================ */
+
+.agency-section {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-width: 250px;
+}
+
+.agency-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 2px solid #f1f5f9;
+}
+
+.agency-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-initial {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #64748b;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.agency-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  justify-content: center;
+}
+
+.agency-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.agency-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.agency-meta svg {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   STATUS SECTION
+   ============================================ */
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-width: 160px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.status-pending .status-badge {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+}
+
+.status-pending .status-badge svg {
+  color: #f59e0b;
+}
+
+.status-accepted .status-badge {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+}
+
+.status-accepted .status-badge svg {
+  color: #059669;
+}
+
+.status-declined .status-badge {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #475569;
+}
+
+.status-declined .status-badge svg {
+  color: #64748b;
+}
+
+.status-description {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+  text-align: right;
+}
+
+/* ============================================
+   CARD FOOTER
+   ============================================ */
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.submission-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.submission-date svg {
+  opacity: 0.7;
+}
+
+/* ============================================
+   WITHDRAW BUTTON
+   ============================================ */
+
+.withdraw-btn {
+  background: transparent;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.withdraw-btn:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+}
+
+.withdraw-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.withdraw-btn.loading {
+  pointer-events: none;
+}
+
+.btn-spinner-small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fecaca;
+  border-top-color: #dc2626;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* ============================================
+   LOADING SKELETON
+   ============================================ */
+
+.applications-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.application-card-skeleton {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #f1f5f9;
+}
+
+.skeleton-header {
+  height: 20px;
+  width: 40%;
+  background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.skeleton-line {
+  height: 16px;
+  background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.skeleton-line.short {
+  width: 60%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
+.applications-empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.empty-illustration {
+  margin-bottom: 1.5rem;
+}
+
+.empty-circle {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #faf9f7 0%, #f1f5f9 100%);
+  border: 2px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.applications-empty-state h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.5rem 0;
+}
+
+.applications-empty-state p {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0 0 2rem 0;
+}
+
+.empty-tip {
+  max-width: 400px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #faf9f7 0%, #f8f9fa 100%);
+  border: 1px solid #f1f3f5;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  text-align: left;
+}
+
+.tip-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.tip-text {
+  font-size: 0.8125rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.tip-text strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .applications-header {
+    flex-direction: column;
+  }
+
+  .status-legend {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .legend-item {
+    font-size: 0.75rem;
+  }
+
+  .card-main {
+    flex-direction: column;
+  }
+
+  .status-section {
+    align-items: flex-start;
+  }
+
+  .status-description {
+    text-align: left;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .withdraw-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

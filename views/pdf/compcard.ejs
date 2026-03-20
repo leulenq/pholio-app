@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <% if (typeof googleFontsUrl !== 'undefined' && googleFontsUrl) { %>
+  <link href="<%= googleFontsUrl %>" rel="stylesheet">
+  <% } else { %>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <% } %>
+  <style>
+    @page { 
+      size: 5.5in 8.5in; 
+      margin: 0; 
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --bg-color: #FAF9F7;
+      --text-color: #2D2D2D;
+      --accent-color: #C9A55A;
+      --name-font: "Playfair Display", serif;
+      --bio-font: "Lora", serif;
+      --stats-font: "Inter", sans-serif;
+      --grid-cols: 2;
+      --grid-rows: 2;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--stats-font);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* Container */
+    .comp-card {
+      width: 5.5in;
+      height: 8.5in;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    
+    /* Layout Variations - Header Position */
+    .comp-card.layout-header-top {
+      flex-direction: column;
+    }
+    
+    .comp-card.layout-header-sidebar {
+      flex-direction: row;
+    }
+    
+    .comp-card.layout-header-overlay {
+      flex-direction: column;
+    }
+    
+    /* Header Section */
+    .comp-card__header {
+      padding: 0.35in 0.35in 0.2in;
+      position: relative;
+    }
+    
+    .comp-card.layout-header-sidebar .comp-card__header {
+      width: 1.8in;
+      padding: 0.35in 0.25in;
+      border-right: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .comp-card.layout-header-overlay .comp-card__header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
+      padding: 0.25in 0.35in;
+    }
+    
+    /* Name Typography */
+    .comp-card__name {
+      font-family: var(--name-font);
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      line-height: 1;
+      margin-bottom: 0.06in;
+      color: var(--text-color);
+    }
+    
+    .comp-card.layout-header-overlay .comp-card__name {
+      color: #FFFFFF;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Location */
+    .comp-card__location {
+      font-family: var(--stats-font);
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 0.12in;
+      color: var(--text-color);
+      opacity: 0.7;
+    }
+    
+    .comp-card.layout-header-overlay .comp-card__location {
+      color: #FFFFFF;
+      opacity: 0.9;
+    }
+    
+    /* Stats */
+    .comp-card__stats {
+      display: flex;
+      gap: 0.3in;
+      font-family: var(--stats-font);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+      flex-wrap: wrap;
+    }
+    
+    .comp-card.layout-header-sidebar .comp-card__stats {
+      flex-direction: column;
+      gap: 0.15in;
+    }
+    
+    .comp-card.layout-header-overlay .comp-card__stats {
+      color: #FFFFFF;
+    }
+    
+    .comp-card__stat {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    
+    .comp-card__stat-label {
+      opacity: 0.65;
+      font-weight: 400;
+    }
+    
+    .comp-card__stat-value {
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text-color);
+    }
+    
+    .comp-card.layout-header-overlay .comp-card__stat-value {
+      color: #FFFFFF;
+    }
+    
+    /* Stats Position - Overlay */
+    .comp-card.layout-stats-overlay_top_right .comp-card__stats {
+      position: absolute;
+      top: 0.25in;
+      right: 0.35in;
+      z-index: 15;
+      color: #FFFFFF;
+    }
+    
+    .comp-card.layout-stats-overlay_top_left .comp-card__stats {
+      position: absolute;
+      top: 0.25in;
+      left: 0.35in;
+      z-index: 15;
+      color: #FFFFFF;
+    }
+    
+    .comp-card.layout-stats-overlay_bottom_right .comp-card__stats {
+      position: absolute;
+      bottom: 0.25in;
+      right: 0.35in;
+      z-index: 15;
+      color: #FFFFFF;
+    }
+    
+    .comp-card.layout-stats-overlay_bottom_left .comp-card__stats {
+      position: absolute;
+      bottom: 0.25in;
+      left: 0.35in;
+      z-index: 15;
+      color: #FFFFFF;
+    }
+    
+    .comp-card.layout-stats-header_bottom .comp-card__stats {
+      margin-top: 0.1in;
+    }
+    
+    .comp-card.layout-stats-sidebar_bottom .comp-card__stats {
+      margin-top: auto;
+      padding-top: 0.2in;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Main Content Area */
+    .comp-card__content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0.2in 0.35in 0.15in;
+      overflow: hidden;
+    }
+    
+    .comp-card.layout-header-sidebar .comp-card__content {
+      flex: 1;
+      padding: 0.2in 0.25in 0.15in 0.35in;
+    }
+    
+    .comp-card.layout-header-overlay .comp-card__content {
+      padding-top: 0;
+    }
+    
+    /* Hero Image */
+    .comp-card__hero {
+      width: 100%;
+      height: 3.5in;
+      position: relative;
+      overflow: hidden;
+      background: #E5E5E5;
+      margin-bottom: 0.12in;
+    }
+    
+    .comp-card.layout-header-overlay .comp-card__hero {
+      height: 4.5in;
+      margin-bottom: 0;
+    }
+    
+    .comp-card.layout-header-sidebar .comp-card__hero {
+      height: 2.5in;
+    }
+    
+    .comp-card__hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    
+    /* Gallery - Dynamic Grid */
+    .comp-card__gallery {
+      display: grid;
+      grid-template-columns: repeat(var(--grid-cols), 1fr);
+      grid-template-rows: repeat(var(--grid-rows), 1fr);
+      gap: 0.1in;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    .comp-card__gallery-item {
+      overflow: hidden;
+      background: #E5E5E5;
+      position: relative;
+    }
+    
+    .comp-card__gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    
+    /* Bio Section - Dynamic Position */
+    .comp-card__bio {
+      padding: 0.12in 0 0;
+      margin-top: 0.1in;
+      font-family: var(--bio-font);
+      font-size: 8px;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      color: var(--text-color);
+      opacity: 0.8;
+    }
+    
+    /* Bio Position Classes */
+    .comp-card.layout-bio-bottom_center .comp-card__bio {
+      text-align: center;
+    }
+    
+    .comp-card.layout-bio-bottom_left .comp-card__bio {
+      text-align: left;
+    }
+    
+    .comp-card.layout-bio-bottom_right .comp-card__bio {
+      text-align: right;
+    }
+    
+    .comp-card.layout-bio-bottom_full .comp-card__bio {
+      width: 100%;
+      padding: 0.15in 0;
+    }
+    
+    .comp-card.layout-bio-left .comp-card__bio {
+      width: 40%;
+      float: left;
+      margin-right: 0.2in;
+      border-top: none;
+      border-right: 1px solid rgba(0, 0, 0, 0.1);
+      padding-right: 0.15in;
+      padding-top: 0;
+      margin-top: 0;
+    }
+    
+    .comp-card.layout-bio-right .comp-card__bio {
+      width: 40%;
+      float: right;
+      margin-left: 0.2in;
+      border-top: none;
+      border-left: 1px solid rgba(0, 0, 0, 0.1);
+      padding-left: 0.15in;
+      padding-top: 0;
+      margin-top: 0;
+    }
+    
+    /* Watermark - Free Users Only (Bottom Right Corner) */
+    .comp-card__watermark {
+      position: absolute;
+      bottom: 0.15in;
+      right: 0.35in;
+      font-family: var(--stats-font);
+      font-size: 6px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+      color: var(--text-color);
+      opacity: 0.35;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    /* Agency Logo - Pro Users Only */
+    .comp-card__agency-logo {
+      position: absolute;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0.9;
+    }
+    
+    .comp-card__agency-logo--top-left {
+      top: 0.2in;
+      left: 0.35in;
+    }
+    
+    .comp-card__agency-logo--top-right {
+      top: 0.2in;
+      right: 0.35in;
+    }
+    
+    .comp-card__agency-logo--bottom-left {
+      bottom: 0.15in;
+      left: 0.35in;
+    }
+    
+    .comp-card__agency-logo--bottom-right {
+      bottom: 0.15in;
+      right: 0.35in;
+    }
+    
+    .comp-card__agency-logo--small {
+      max-width: 0.8in;
+      max-height: 0.4in;
+    }
+    
+    .comp-card__agency-logo--medium {
+      max-width: 1.2in;
+      max-height: 0.6in;
+    }
+    
+    .comp-card__agency-logo--large {
+      max-width: 1.6in;
+      max-height: 0.8in;
+    }
+    
+    .comp-card__agency-logo img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    /* QR Code - Pro Only (Bottom Left) */
+    .comp-card__qr {
+      position: absolute;
+      bottom: 0.15in;
+      left: 0.35in;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      z-index: 5;
+    }
+    
+    .comp-card__qr-code {
+      width: 0.8in;
+      height: 0.8in;
+      background: #FFFFFF;
+      padding: 4px;
+      border-radius: 2px;
+    }
+    
+    .comp-card__qr-code img {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    
+    .comp-card__qr-label {
+      font-family: var(--stats-font);
+      font-size: 5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+      text-align: center;
+      color: var(--text-color);
+      opacity: 0.6;
+    }
+    
+    /* Image Enhancement - Pro Only */
+    .comp-card--pro .comp-card__hero img,
+    .comp-card--pro .comp-card__gallery-item img {
+      filter: contrast(1.05) saturate(1.1) brightness(1.02);
+    }
+    
+    .comp-card--pro .comp-card__hero {
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
+    }
+    
+    .comp-card--pro .comp-card__gallery-item {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Extended Content Sections - Pro Only */
+    .comp-card__extended {
+      margin-top: 0.1in;
+      padding-top: 0.1in;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    .comp-card__section {
+      margin-bottom: 0.08in;
+    }
+    
+    .comp-card__section-title {
+      font-family: var(--stats-font);
+      font-size: 7px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 3px;
+      color: var(--text-color);
+    }
+    
+    .comp-card__section-content {
+      font-family: var(--stats-font);
+      font-size: 7px;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+      color: var(--text-color);
+      opacity: 0.8;
+    }
+    
+    /* Advanced Stats - Pro Only */
+    .comp-card__stats--advanced {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.2in 0.3in;
+    }
+    
+    .comp-card__stat--advanced {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0.8in;
+    }
+  </style>
+</head>
+<body>
+  <%
+    // Ensure theme exists with fallback values
+    const bgColor = (typeof theme !== 'undefined' && theme && theme.colors && theme.colors.background) ? theme.colors.background : '#FAF9F7';
+    const textColor = (typeof theme !== 'undefined' && theme && theme.colors && theme.colors.text) ? theme.colors.text : '#2D2D2D';
+    const accentColor = (typeof theme !== 'undefined' && theme && theme.colors && theme.colors.accent) ? theme.colors.accent : '#C9A55A';
+    const nameFont = (typeof fontCSS !== 'undefined' && fontCSS && fontCSS.nameFont) ? fontCSS.nameFont : '"Playfair Display", serif';
+    const bioFont = (typeof fontCSS !== 'undefined' && fontCSS && fontCSS.bioFont) ? fontCSS.bioFont : '"Lora", serif';
+    const statsFont = (typeof fontCSS !== 'undefined' && fontCSS && fontCSS.statsFont) ? fontCSS.statsFont : '"Inter", sans-serif';
+    const gridCols = (typeof theme !== 'undefined' && theme && theme.layout && theme.layout.imageGrid && theme.layout.imageGrid.cols) ? theme.layout.imageGrid.cols : 2;
+    const gridRows = (typeof theme !== 'undefined' && theme && theme.layout && theme.layout.imageGrid && theme.layout.imageGrid.rows) ? theme.layout.imageGrid.rows : 2;
+  %>
+  <div class="comp-card <%= typeof layoutClasses !== 'undefined' ? layoutClasses : '' %> <%= isPro ? 'comp-card--pro' : '' %>" 
+       style="
+         --bg-color: <%= bgColor %>;
+         --text-color: <%= textColor %>;
+         --accent-color: <%= accentColor %>;
+         --name-font: <%= nameFont %>;
+         --bio-font: <%= bioFont %>;
+         --stats-font: <%= statsFont %>;
+         --grid-cols: <%= gridCols %>;
+         --grid-rows: <%= gridRows %>;
+         background: <%= bgColor %> !important;
+         color: <%= textColor %> !important;
+       ">
+    
+    <!-- Header: Name, Location, Stats -->
+    <header class="comp-card__header">
+      <h1 class="comp-card__name" style="font-family: var(--name-font); color: var(--text-color);"><%= profile.first_name %> <%= profile.last_name %></h1>
+      <div class="comp-card__location" style="font-family: var(--stats-font);"><%= profile.city || 'Location' %></div>
+      <div class="comp-card__stats <%= isPro ? 'comp-card__stats--advanced' : '' %>" style="font-family: var(--stats-font);">
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Height</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= heightFeet %> (<%= profile.height_cm %> cm)</span>
+        </div>
+        <% if (profile.measurements) { %>
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Measurements</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.measurements %></span>
+        </div>
+        <% } %>
+        <% if (profile.gender) { %>
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Gender</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.gender %></span>
+        </div>
+        <% } %>
+        <% if (profile.age) { %>
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Age</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.age %></span>
+        </div>
+        <% } %>
+        <% if (profile.weight_kg || profile.weight_lbs) { %>
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Weight</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);">
+            <% if (profile.weight_kg && profile.weight_lbs) { %>
+              <%= profile.weight_kg %> kg (<%= profile.weight_lbs %> lbs)
+            <% } else if (profile.weight_kg) { %>
+              <%= profile.weight_kg %> kg
+            <% } else if (profile.weight_lbs) { %>
+              <%= profile.weight_lbs %> lbs
+            <% } %>
+          </span>
+        </div>
+        <% } %>
+        <% if (profile.dress_size) { %>
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Dress Size</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.dress_size %></span>
+        </div>
+        <% } %>
+        <% if (profile.hair_length) { %>
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Hair Length</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.hair_length %></span>
+        </div>
+        <% } %>
+        <% if (profile.skin_tone) { %>
+        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+          <span class="comp-card__stat-label">Skin Tone</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.skin_tone %></span>
+        </div>
+        <% } %>
+        <% if (isPro) { %>
+        <!-- Advanced Stats - Pro Only -->
+        <% if (profile.shoe_size) { %>
+        <div class="comp-card__stat comp-card__stat--advanced">
+          <span class="comp-card__stat-label">Shoe Size</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.shoe_size %></span>
+        </div>
+        <% } %>
+        <% if (profile.hair_color) { %>
+        <div class="comp-card__stat comp-card__stat--advanced">
+          <span class="comp-card__stat-label">Hair</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.hair_color %></span>
+        </div>
+        <% } %>
+        <% if (profile.eye_color) { %>
+        <div class="comp-card__stat comp-card__stat--advanced">
+          <span class="comp-card__stat-label">Eyes</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.eye_color %></span>
+        </div>
+        <% } %>
+        <% if (profile.age_range) { %>
+        <div class="comp-card__stat comp-card__stat--advanced">
+          <span class="comp-card__stat-label">Age Range</span>
+          <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.age_range %></span>
+        </div>
+        <% } %>
+        <% } %>
+      </div>
+    </header>
+    
+    <!-- Main Content: Hero + Gallery -->
+    <div class="comp-card__content">
+      <!-- Hero Image -->
+      <% if (hero) { %>
+      <div class="comp-card__hero">
+        <% const heroUrl = hero.startsWith('http') ? hero : baseUrl + (hero.startsWith('/') ? hero : '/' + hero); %>
+        <img src="<%= heroUrl %>" alt="<%= profile.first_name %> <%= profile.last_name %>">
+      </div>
+      <% } %>
+      
+      <!-- Gallery Images - Dynamic Grid -->
+      <% if (images && images.length > 0) { %>
+      <div class="comp-card__gallery" style="grid-template-columns: repeat(var(--grid-cols), 1fr); grid-template-rows: repeat(var(--grid-rows), 1fr);">
+        <% 
+          const gridCols = typeof theme !== 'undefined' && theme.layout && theme.layout.imageGrid ? theme.layout.imageGrid.cols : 2;
+          const gridRows = typeof theme !== 'undefined' && theme.layout && theme.layout.imageGrid ? theme.layout.imageGrid.rows : 2;
+          const maxImages = gridCols * gridRows;
+          images.slice(0, maxImages).forEach((item) => { 
+        %>
+        <div class="comp-card__gallery-item">
+          <% const imageUrl = item.path.startsWith('http') ? item.path : baseUrl + (item.path.startsWith('/') ? item.path : '/' + item.path); %>
+          <img src="<%= imageUrl %>" alt="<%= item.label || 'Portfolio image' %>">
+        </div>
+        <% }) %>
+      </div>
+      <% } %>
+      
+      <!-- Bio - Dynamic Position -->
+      <% if (profile.bio_curated) { %>
+      <div class="comp-card__bio" style="font-family: var(--bio-font); color: var(--text-color);">
+        <%= profile.bio_curated %>
+      </div>
+      <% } %>
+      
+      <!-- Extended Content Sections - Pro Only -->
+      <% if (isPro) { %>
+      <div class="comp-card__extended">
+        <% if (profile.languages) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Languages</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
+            <% 
+              let languagesArray = [];
+              try {
+                languagesArray = typeof profile.languages === 'string' ? JSON.parse(profile.languages) : profile.languages;
+              } catch {
+                languagesArray = [];
+              }
+              const languagesDisplay = Array.isArray(languagesArray) && languagesArray.length > 0 
+                ? languagesArray.join(', ') 
+                : (typeof profile.languages === 'string' ? profile.languages : '');
+            %>
+            <%= languagesDisplay %>
+          </div>
+        </div>
+        <% } %>
+        <% if (profile.availability_travel !== null || profile.availability_schedule) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Availability</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
+            <% 
+              const availabilityParts = [];
+              if (profile.availability_schedule) availabilityParts.push(profile.availability_schedule);
+              if (profile.availability_travel === true) availabilityParts.push('Willing to travel');
+              const availabilityDisplay = availabilityParts.length > 0 ? availabilityParts.join(' • ') : '';
+            %>
+            <%= availabilityDisplay %>
+          </div>
+        </div>
+        <% } %>
+        <% if (profile.experience_level) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Experience</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);"><%= profile.experience_level %></div>
+        </div>
+        <% } %>
+        <% if (profile.training) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Training</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);"><%= profile.training %></div>
+        </div>
+        <% } %>
+        <% if (profile.portfolio_url) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Portfolio</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
+            <a href="<%= profile.portfolio_url %>" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;"><%= profile.portfolio_url %></a>
+          </div>
+        </div>
+        <% } %>
+        <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Social Media</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
+            <% if (profile.instagram_handle) { %>
+              <% if (isPro && profile.instagram_url) { %>
+                <a href="<%= profile.instagram_url %>" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">Instagram: @<%= profile.instagram_handle %></a>
+              <% } else { %>
+                Instagram: @<%= profile.instagram_handle %>
+              <% } %>
+              <% if (profile.twitter_handle || profile.tiktok_handle) { %><br><% } %>
+            <% } %>
+            <% if (profile.twitter_handle) { %>
+              <% if (isPro && profile.twitter_url) { %>
+                <a href="<%= profile.twitter_url %>" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">Twitter: @<%= profile.twitter_handle %></a>
+              <% } else { %>
+                Twitter: @<%= profile.twitter_handle %>
+              <% } %>
+              <% if (profile.tiktok_handle) { %><br><% } %>
+            <% } %>
+            <% if (profile.tiktok_handle) { %>
+              <% if (isPro && profile.tiktok_url) { %>
+                <a href="<%= profile.tiktok_url %>" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">TikTok: @<%= profile.tiktok_handle %></a>
+              <% } else { %>
+                TikTok: @<%= profile.tiktok_handle %>
+              <% } %>
+            <% } %>
+          </div>
+        </div>
+        <% } %>
+        <% if (profile.nationality || profile.union_membership || profile.ethnicity) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Additional Info</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
+            <% if (profile.nationality) { %>Nationality: <%= profile.nationality %><% if (profile.union_membership || profile.ethnicity) { %><br><% } %><% } %>
+            <% if (profile.union_membership) { %>Union: <%= profile.union_membership %><% if (profile.ethnicity) { %><br><% } %><% } %>
+            <% if (profile.ethnicity) { %>Ethnicity: <%= profile.ethnicity %><% } %>
+          </div>
+        </div>
+        <% } %>
+        <% if (profile.tattoos === true || profile.piercings === true) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Physical Characteristics</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
+            <% if (profile.tattoos === true) { %>Has visible tattoos<% if (profile.piercings === true) { %>, <% } %><% } %>
+            <% if (profile.piercings === true) { %>Has visible piercings<% } %>
+          </div>
+        </div>
+        <% } %>
+        <% if (profile.specializations) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Specializations</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);"><%= profile.specializations %></div>
+        </div>
+        <% } %>
+        <% if (profile.achievements) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Notable Work</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);"><%= profile.achievements %></div>
+        </div>
+        <% } %>
+        <% if (profile.agency_affiliation) { %>
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Representation</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);"><%= profile.agency_affiliation %></div>
+        </div>
+        <% } %>
+      </div>
+      <% } else { %>
+      <!-- Free Users: Social Media as Text Only -->
+      <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
+      <div class="comp-card__extended">
+        <div class="comp-card__section">
+          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Social Media</div>
+          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
+            <% if (profile.instagram_handle) { %>
+              Instagram: @<%= profile.instagram_handle %>
+              <% if (profile.twitter_handle || profile.tiktok_handle) { %><br><% } %>
+            <% } %>
+            <% if (profile.twitter_handle) { %>
+              Twitter: @<%= profile.twitter_handle %>
+              <% if (profile.tiktok_handle) { %><br><% } %>
+            <% } %>
+            <% if (profile.tiktok_handle) { %>
+              TikTok: @<%= profile.tiktok_handle %>
+            <% } %>
+          </div>
+        </div>
+      </div>
+      <% } %>
+      <% } %>
+    </div>
+    
+    <!-- QR Code - Pro Only (Bottom Left) -->
+    <% if (isPro && qrCode) { %>
+    <div class="comp-card__qr">
+      <div class="comp-card__qr-code">
+        <img src="<%= qrCode %>" alt="Portfolio QR Code">
+      </div>
+      <div class="comp-card__qr-label" style="font-family: var(--stats-font); color: var(--text-color);">Scan for Portfolio</div>
+    </div>
+    <% } %>
+    
+    <!-- Watermark - Free Users Only (Bottom Right Corner) -->
+    <% if (watermark) { %>
+    <div class="comp-card__watermark" style="font-family: var(--stats-font); color: var(--text-color);">ZipSite</div>
+    <% } %>
+    
+    <!-- Agency Logo - Pro Users Only -->
+    <% if (isPro && agencyLogo && agencyLogo.path) { %>
+    <div class="comp-card__agency-logo comp-card__agency-logo--<%= agencyLogo.position || 'bottom-right' %> comp-card__agency-logo--<%= agencyLogo.size || 'small' %>">
+      <% 
+        const logoUrl = agencyLogo.type === 'url' 
+          ? agencyLogo.path 
+          : (agencyLogo.path.startsWith('http') ? agencyLogo.path : baseUrl + (agencyLogo.path.startsWith('/') ? agencyLogo.path : '/' + agencyLogo.path));
+      %>
+      <img src="<%= logoUrl %>" alt="Agency Logo" onerror="this.style.display='none';">
+    </div>
+    <% } %>
+  </div>
+</body>
+</html>

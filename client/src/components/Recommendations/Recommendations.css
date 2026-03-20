@@ -1,0 +1,98 @@
+/* Recommendations Styles */
+
+.recommendations-section {
+  width: 100%;
+  margin-bottom: 2.5rem;
+}
+
+.rec-card {
+  background-color: rgba(201, 165, 90, 0.04);
+  border-left: 4px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.rec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.rec-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary); /* Gold */
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rec-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.rec-close:hover {
+  background-color: rgba(0,0,0,0.05);
+  color: #64748b;
+}
+
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rec-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rec-icon-wrapper {
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+}
+
+.rec-text {
+  flex: 1;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.rec-action-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(201, 165, 90, 0.3);
+  border-radius: 6px;
+  transition: all 0.2s;
+  background-color: white;
+}
+
+.rec-action-btn:hover {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+@media (max-width: 640px) {
+  .rec-item {
+    flex-wrap: wrap;
+  }
+  .rec-action-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem;
+  }
+}

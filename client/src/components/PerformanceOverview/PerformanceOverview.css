@@ -1,0 +1,202 @@
+/* Performance Overview Styles */
+
+.performance-overview-section {
+  background: white;
+  /* Task 5.3: Large cards -> 16px radius */
+  border-radius: 16px; 
+  /* Task 5.2: Large cards -> 2.5rem padding */
+  padding: 2.5rem; 
+  /* Task 4.2: Important card -> Level 2 Shadow */
+  box-shadow: var(--shadow-elevation-2); 
+  /* Task 4.3: Border Treatment */
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  margin-bottom: 2.5rem;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  
+  /* Task 6.2: Overlapping Elements (Advanced) */
+  /* Extend 20px into sidebar column area if viewport allows */
+  position: relative;
+  z-index: 20; 
+}
+
+.performance-overview-section:hover {
+  border-color: rgba(201, 165, 90, 0.2);
+}
+
+@media (min-width: 1280px) {
+  .performance-overview-section {
+     margin-right: -20px; /* Pull into sidebar gap */
+     max-width: calc(100% + 20px);
+  }
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.stat-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.stat-value-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stat-hero-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1;
+  margin: 0;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.25rem 0.6rem;
+  border-radius: 99px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.stat-pill.positive {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+.stat-pill.negative {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.stat-secondary {
+  display: flex;
+  gap: 2rem;
+}
+
+.mini-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.mini-stat .label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.mini-stat .value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Chart */
+.chart-wrapper {
+  margin-bottom: 1.5rem;
+  /* Recharts ResponsiveContainer handles size, wrapper just positions */
+}
+
+
+/* Breakdown Grid */
+.breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1.5rem;
+}
+
+/* Task 8: Engagement Cards with Progress */
+.metric-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid transparent; /* Invisible border by default or subtle */
+  background-color: #f8fafc; /* Subtle background */
+  transition: all 0.2s ease;
+}
+
+.metric-card-wrapper:hover {
+  background-color: white;
+  border-color: rgba(201, 165, 90, 0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.metric-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric-icon-bg {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background-color: white; /* Contrast against wrapper */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-info .count {
+  font-weight: 700;
+  font-size: 1.125rem; /* Larger */
+  color: #0f172a;
+  line-height: 1.2;
+}
+.metric-info .desc {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Progress bar */
+.metric-progress-bg {
+  width: 100%;
+  height: 4px;
+  background-color: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.metric-progress-fill {
+  height: 100%;
+  background-color: #C9A55A;
+  border-radius: 2px;
+}
+
+@media (max-width: 640px) {
+  .stats-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .stat-secondary {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .breakdown-grid {
+    grid-template-columns: 1fr;
+  }
+}

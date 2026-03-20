@@ -1,0 +1,33 @@
+/* Right Sidebar - Scrolling with Page */
+
+/* Right Sidebar - Scrolling with Page */
+.right-sidebar {
+  display: none; 
+  width: 100%; /* Fill Grid column */
+  background-color: transparent; /* Remove white background */
+  border-left: none; /* Remove border line, visual separator handled by main container */
+  box-shadow: none; /* Remove side shadow */
+  height: auto; 
+  min-height: 100%;
+  z-index: 40;
+}
+
+.sidebar-content {
+  padding: 0; /* Let grid gap handle spacing */
+  display: flex;
+  flex-direction: column;
+  gap: 24px; 
+}
+
+/* Override overrides */
+.sidebar-profile { margin-bottom: 0; }
+.profile-image-container { margin-bottom: 0.75rem; }
+.sidebar-widget { margin-top: 0; padding: 1rem 1.25rem; }
+
+
+@media (min-width: 1280px) {
+  .right-sidebar {
+    display: block;
+    /* In Grid layout, this will fill the right column */
+  }
+}
