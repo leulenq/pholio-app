@@ -4,7 +4,8 @@
 const express   = require('express')
 const router    = express.Router()
 const knex      = require('../../db/knex')
-const { requireRole } = require('../../middleware/auth')
+const { requireRole }        = require('../../middleware/auth')
+const { getSessionAgencyId } = require('../../lib/agency-context')
 const {
   getPendingReview,
   getActiveCastings,
@@ -13,19 +14,21 @@ const {
   getPipeline,
   getTalentMix,
   getAlerts,
+  getPulse,
+  getActiveUtilization,
 } = require('../../lib/agency-overview-queries')
 
 /**
  * GET /api/agency/overview
  *
- * Returns aggregated KPI, pipeline, talent mix, and alert data
- * for the Agency Overview tab. All 7 queries run in parallel.
+ * Returns aggregated KPI, pipeline, talent mix, pulse, and alert data
+ * for the Agency Overview tab. All 9 queries run in parallel.
  *
- * Auth: requireRole('AGENCY') — also verifies session via ensureSignedIn internally.
+ * Auth: requireRole('AGENCY')
  */
 router.get('/api/agency/overview', requireRole('AGENCY'), async (req, res) => {
   try {
-    const agencyId = req.session.userId
+    const agencyId = getSessionAgencyId(req.session)
     if (!agencyId) return res.status(401).json({ success: false, error: 'Unauthorized' })
 
     const [
@@ -36,23 +39,28 @@ router.get('/api/agency/overview', requireRole('AGENCY'), async (req, res) => {
       pipeline,
       talentMix,
       alerts,
+      pulse,
+      utilization,
     ] = await Promise.all([
-      getPendingReview(knex,   agencyId),
-      getActiveCastings(knex,  agencyId),
-      getRosterSize(knex,      agencyId),
-      getPlacementRate(knex,   agencyId),
-      getPipeline(knex,        agencyId),
-      getTalentMix(knex,       agencyId),
-      getAlerts(knex,          agencyId),
+      getPendingReview(knex,       agencyId),
+      getActiveCastings(knex,      agencyId),
+      getRosterSize(knex,          agencyId),
+      getPlacementRate(knex,       agencyId),
+      getPipeline(knex,            agencyId),
+      getTalentMix(knex,           agencyId),
+      getAlerts(knex,              agencyId),
+      getPulse(knex,               agencyId),
+      getActiveUtilization(knex,   agencyId),
     ])
 
     return res.json({
       success: true,
       data: {
-        kpis: { pendingReview, activeCastings, rosterSize, placementRate },
+        kpis: { pendingReview, activeCastings, rosterSize, placementRate, utilization },
         pipeline,
         talentMix,
         alerts,
+        pulse,
       },
     })
   } catch (err) {
