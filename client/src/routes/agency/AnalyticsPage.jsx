@@ -13,7 +13,7 @@ const ICON_MAP = { Clock, TrendingDown, UserCheck, Zap, TrendingUp, AlertCircle 
 /* ─── Static data ─────────────────────────────────────────── */
 const SIGNALS = {
   '30d': [
-    { variant: 'critical', icon: 'Clock',       text: '4 applicants have been in Under Review for 14+ days.', cta: { label: 'View them', to: '/dashboard/agency/applicants' } },
+    { variant: 'critical', icon: 'Clock',       text: '4 applicants have been in Under Review for 14+ days.', cta: { label: 'View them', to: '/dashboard/agency/inbox' } },
     { variant: 'warning',  icon: 'TrendingDown', text: 'Invite → application rate dropped from 38% to 21% this month.', cta: null },
     { variant: 'positive', icon: 'UserCheck',   text: '2 new talent signed this month — roster at an all-time high of 24.', cta: null },
   ],
