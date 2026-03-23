@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate, useReducedMotion } from 'framer-motion';
 import {
   ChevronDown,
-  Sparkles, ArrowUpRight, TrendingUp, Inbox, Users,
-  AlertCircle, Clock
+  ArrowUpRight, TrendingUp, Inbox, Users,
+  AlertCircle, Clock, Loader2, Moon, Star,
 } from 'lucide-react';
 import { AreaChart, Area, RadialBarChart, RadialBar, Label, ResponsiveContainer, YAxis } from 'recharts';
 
 import { TalentPanel } from '../../components/agency/TalentPanel';
 import { TalentMatchRing } from '../../components/agency/ui/TalentMatchRing';
+import { getAgencyOverview, getAgencyProfile, getRecentApplicants } from '../../api/agency';
 import './OverviewPage.css';
 
 // ─── Data adapter ─────────────────────────────────────────────────────────────
@@ -29,70 +31,24 @@ const toTalentObject = (t) => !t ? null : ({
   bio:          t.bio || null,
 });
 
-// ════════════════════════════════════════════════════════════
-// DATA
-// ════════════════════════════════════════════════════════════
-
-const PIPELINE = [
-  {
-    id: 1, name: 'Amara Johnson', archetype: 'editorial', archetypeLabel: 'Editorial',
-    city: 'New York', match: 97, applied: '2h ago', status: 'submitted',
-    height: "5'10\"", bust: '34"', waist: '25"', hips: '35"', shoe: '9',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200',
-    bio: 'Versatile editorial talent with a striking presence. 4 years in high-fashion campaigns and lookbook production.',
-  },
-  {
-    id: 2, name: 'Sofia Chen', archetype: 'runway', archetypeLabel: 'Runway',
-    city: 'Los Angeles', match: 94, applied: '4h ago', status: 'underReview',
-    height: "5'11\"", bust: '33"', waist: '24"', hips: '34"', shoe: '8.5',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200&h=200',
-    bio: 'Haute couture specialist featured in NYFW SS25 and Paris Fashion Week.',
-  },
-  {
-    id: 3, name: 'Zara Williams', archetype: 'commercial', archetypeLabel: 'Commercial',
-    city: 'Miami', match: 88, applied: 'Yesterday', status: 'submitted',
-    height: "5'8\"", bust: '35"', waist: '26"', hips: '36"', shoe: '8',
-    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=200&h=200',
-    bio: 'Natural, approachable presence perfect for lifestyle and brand campaigns.',
-  },
-  {
-    id: 4, name: 'Elena Marcus', archetype: 'editorial', archetypeLabel: 'Editorial',
-    city: 'New York', match: 91, applied: 'Yesterday', status: 'shortlisted',
-    height: "5'9\"", bust: '34"', waist: '25"', hips: '35"', shoe: '8.5',
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=200&h=200',
-    bio: 'Award-winning editorial talent. Known for expressive storytelling through movement.',
-  },
-  {
-    id: 5, name: 'Mia Thompson', archetype: 'lifestyle', archetypeLabel: 'Lifestyle',
-    city: 'Chicago', match: 85, applied: '2d ago', status: 'passed',
-    height: "5'7\"", bust: '36"', waist: '27"', hips: '37"', shoe: '7.5',
-    avatar: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&q=80&w=200&h=200',
-    bio: 'Wellness and fitness-focused talent. Authentic energy with camera confidence.',
-  },
-];
-
-const ARCHETYPES = [
-  { name: 'Editorial', pct: 45, color: '#C9A55A' },
-  { name: 'Runway', pct: 28, color: '#0f172a' },
-  { name: 'Commercial', pct: 17, color: '#94a3b8' },
-  { name: 'Lifestyle', pct: 10, color: '#cbd5e1' },
-];
-
-const PIPELINE_STAGES = [
-  { label: 'Submitted', count: 47, color: '#64748b', pct: 40 },
-  { label: 'Under Review', count: 22, color: '#C9A55A', pct: 25, isUrgent: true },
-  { label: 'Shortlisted', count: 12, color: '#0f172a', pct: 15 },
-  { label: 'Booked', count: 8, color: '#10b981', pct: 10 },
-  { label: 'Passed', count: 11, color: '#e2e8f0', pct: 10 },
-];
-
 const STATUS_COLORS = {
   submitted: '#64748b',
-  underReview: '#C9A55A',
   shortlisted: '#0f172a',
   booked: '#10b981',
   passed: '#e2e8f0',
+  declined: '#ef4444',
+  accepted: '#16a34a',
 };
+
+const PIPELINE_COLORS = {
+  Submitted: '#64748b',
+  Shortlisted: '#0f172a',
+  Booked: '#10b981',
+  Passed: '#e2e8f0',
+  Declined: '#ef4444',
+};
+
+const TALENT_MIX_COLORS = ['#C9A55A', '#0f172a', '#94a3b8', '#cbd5e1', '#64748b', '#16a34a'];
 
 // ════════════════════════════════════════════════════════════
 // HELPERS
@@ -124,6 +80,84 @@ function AnimatedNumber({ value, duration = 1.2 }) {
   }, [value]);
 
   return <span>{display}</span>;
+}
+
+function formatRelativeTime(dateString) {
+  const value = new Date(dateString);
+  if (Number.isNaN(value.getTime())) return '';
+
+  const diffMs = Date.now() - value.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffHours < 1) return 'Just now';
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return value.toLocaleDateString();
+}
+
+function getApplicantStatus(status) {
+  if (!status) return 'submitted';
+  if (status === 'accepted') return 'accepted';
+  return status;
+}
+
+// ════════════════════════════════════════════════════════════
+// DYNAMIC SUBTITLE
+// ════════════════════════════════════════════════════════════
+
+function buildDynamicSubtitle(kpis, pulse) {
+  const pending = kpis?.pendingReview?.count ?? 0;
+  const oldest  = kpis?.pendingReview?.oldestDaysAgo;
+  if (pending > 0) {
+    return `${pending} application${pending === 1 ? '' : 's'} waiting — oldest ${oldest ?? '?'} days ago.`;
+  }
+  const closingToday = kpis?.activeCastings?.closingToday ?? 0;
+  if (closingToday > 0) {
+    return `${closingToday} casting${closingToday === 1 ? '' : 's'} close${closingToday === 1 ? 's' : ''} today — time to shortlist.`;
+  }
+  const idle = pulse?.idleTalent ?? 0;
+  if (idle > 0) {
+    return `${idle} signed talent haven't been submitted in 30 days.`;
+  }
+  return 'All caught up — roster looking strong.';
+}
+
+// ════════════════════════════════════════════════════════════
+// PULSE STRIP
+// ════════════════════════════════════════════════════════════
+
+function PulseChip({ icon: Icon, value, label, to, urgent }) {
+  const display = value == null ? '—' : value;
+  return (
+    <motion.div
+      className={`ov-pulse-chip${urgent ? ' ov-pulse-chip--urgent' : ''}${value === 0 || value == null ? ' ov-pulse-chip--dim' : ''}`}
+      whileHover={{ y: -1, transition: { duration: 0.15 } }}
+    >
+      <Link to={to} className="ov-pulse-chip-inner">
+        <Icon size={14} className="ov-pulse-icon" />
+        <span className="ov-pulse-value">{display}</span>
+        <span className="ov-pulse-label">{label}</span>
+      </Link>
+    </motion.div>
+  );
+}
+
+function PulseStrip({ pulse, rosterCount }) {
+  const idle        = pulse?.idleTalent ?? null;
+  const avgMatch    = pulse?.avgMatchScore ?? null;
+  const idleUrgent  = rosterCount > 0 && idle != null && (idle / rosterCount) > 0.2;
+  const matchUrgent = avgMatch != null && avgMatch < 50;
+
+  return (
+    <div className="ov-pulse-strip">
+      <PulseChip icon={Inbox}  value={pulse?.newToday}     label="new today"          to="/dashboard/agency/applicants" />
+      <PulseChip icon={Clock}  value={pulse?.closingWeek}  label="closing this week"  to="/dashboard/agency/casting" />
+      <PulseChip icon={Moon}   value={idle}                label="idle signed talent" to="/dashboard/agency/roster" urgent={idleUrgent} />
+      <PulseChip icon={Star}   value={avgMatch != null ? `${avgMatch}%` : null} label="avg match score" to="/dashboard/agency/applicants" urgent={matchUrgent} />
+    </div>
+  );
 }
 
 // ════════════════════════════════════════════════════════════
@@ -171,35 +205,16 @@ function StatusMicroPill({ children }) {
 // ATTENTION STRIP
 // ════════════════════════════════════════════════════════════
 
-const ATTENTION_ITEMS = [
-  {
-    variant: 'critical',
-    icon: AlertCircle,
-    text: '4 applicants have been in Under Review for 14+ days.',
-    cta: { label: 'View them', to: '/dashboard/agency/applicants' },
-  },
-  {
-    variant: 'warning',
-    icon: Clock,
-    text: '2 castings close today — submissions still open.',
-    cta: { label: 'Go to Casting', to: '/dashboard/agency/casting' },
-  },
-  {
-    variant: 'positive',
-    icon: TrendingUp,
-    text: '2 new applications submitted in the last 2 hours.',
-    cta: { label: 'Review now', to: '/dashboard/agency/applicants' },
-  },
-];
+function AttentionStripData({ items }) {
+  if (!items.length) return null;
 
-function AttentionStrip() {
   return (
     <div className="ov-attention">
-      {ATTENTION_ITEMS.map((item, i) => {
+      {items.map((item, i) => {
         const Icon = item.icon;
         return (
           <motion.div
-            key={i}
+            key={`${item.variant}-${item.text}`}
             className={`ov-att-card ov-att-card--${item.variant}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -270,17 +285,21 @@ export default function OverviewPage() {
   const [selected, setSelected] = useState(null);
   const [hoveredStage, setHoveredStage] = useState(null);
   const prefersReducedMotion = useReducedMotion();
-
-  const mockRosterGrowth = [
-    { value: 112 }, { value: 115 }, { value: 118 }, { value: 119 },
-    { value: 122 }, { value: 125 }, { value: 128 }
-  ];
-  
-  // Placement Rate mock data
-  const placementData = [
-    { name: 'Track', value: 100, fill: '#E2E8F0' },
-    { name: 'Placement', value: 68, fill: '#C9A55A' }
-  ];
+  const { data: overview, isLoading, isError } = useQuery({
+    queryKey: ['agency', 'overview'],
+    queryFn: getAgencyOverview,
+    staleTime: 60000,
+  });
+  const { data: recentApplicants = [] } = useQuery({
+    queryKey: ['agency', 'overview', 'recent-applicants'],
+    queryFn: () => getRecentApplicants(5),
+    staleTime: 60000,
+  });
+  const { data: profile } = useQuery({
+    queryKey: ['agency-profile'],
+    queryFn: getAgencyProfile,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const containerVars = {
     hidden: { opacity: 0 },
@@ -314,6 +333,100 @@ export default function OverviewPage() {
     })
   };
 
+  const kpis = overview?.kpis || {};
+  const pendingReview = kpis.pendingReview || { count: 0, oldestDaysAgo: null };
+  const activeCastings = kpis.activeCastings || { count: 0, closingToday: 0 };
+  const rosterSize = kpis.rosterSize || { count: 0, trend: [] , changeThisMonth: 0 };
+  const pulse = overview?.pulse ?? {};
+  const dynamicSubtitle = buildDynamicSubtitle(kpis, pulse);
+  const pipelineStages = (overview?.pipeline || []).map((stage) => ({
+    ...stage,
+    pct: stage.sharePct,
+    color: PIPELINE_COLORS[stage.label] || '#94a3b8',
+    isUrgent: stage.label === 'Submitted',
+  }));
+
+  // Pipeline conversion rates (cumulative funnel approximation)
+  const pipelineTotal     = pipelineStages.reduce((s, p) => s + p.count, 0);
+  const shortlistedCount  = pipelineStages.find(s => s.label === 'Shortlisted')?.count ?? 0;
+  const bookedCount       = pipelineStages.find(s => s.label === 'Booked')?.count ?? 0;
+
+  const sub2short  = pipelineTotal > 0
+    ? Math.round(((shortlistedCount + bookedCount) / pipelineTotal) * 100)
+    : null;
+  const short2book = (shortlistedCount + bookedCount) > 0
+    ? Math.round((bookedCount / (shortlistedCount + bookedCount)) * 100)
+    : null;
+
+  const conversionRates = [
+    { label: 'Submitted → Shortlisted', value: sub2short },
+    { label: 'Shortlisted → Booked',    value: short2book },
+  ];
+  const nonZeroRates = conversionRates.filter(r => r.value !== null && r.value > 0);
+  const weakestGate  = nonZeroRates.length > 0
+    ? nonZeroRates.reduce((min, r) => r.value < min.value ? r : min)
+    : null;
+
+  const talentMix = (overview?.talentMix || []).map((item, index) => ({
+    ...item,
+    pct: item.pct,
+    color: TALENT_MIX_COLORS[index % TALENT_MIX_COLORS.length],
+  }));
+  const utilization = kpis.utilization || { active: 0, total: 0, pct: 0 };
+  const utilizationData = [
+    { name: 'Track', value: 100, fill: '#E2E8F0' },
+    { name: 'Active', value: utilization.pct || 0, fill: '#C9A55A' }
+  ];
+  const rosterGrowth = (rosterSize.trend || []).map((value) => ({ value }));
+  const attentionItems = (overview?.alerts || []).map((alert) => ({
+    variant: alert.type,
+    icon: alert.type === 'critical' ? AlertCircle : alert.type === 'warning' ? Clock : TrendingUp,
+    text: alert.message,
+    cta: alert.link ? { label: alert.type === 'warning' ? 'Go to Casting' : 'Review now', to: alert.link } : null,
+  }));
+  const primaryName = profile?.first_name || profile?.agency_name || 'there';
+  const displayApplicants = recentApplicants.map((app) => ({
+    id: app.applicationId,
+    name: app.name,
+    avatar: app.profileImage,
+    archetype: null,
+    archetypeLabel: app.matchScore ? `${app.matchScore}% match` : 'Recent',
+    city: app.location,
+    applied: formatRelativeTime(app.createdAt),
+    status: getApplicantStatus('submitted'),
+    height: app.height,
+    bust: null,
+    waist: null,
+    hips: null,
+    bio: null,
+    match: app.matchScore || 0,
+  }));
+  const submittedCount = pipelineStages.find((stage) => stage.label === 'Submitted')?.count || recentApplicants.length;
+  const highestDemand = talentMix.reduce((max, item) => item.pct > max.pct ? item : max, talentMix[0]);
+  const lowestDemand = talentMix.reduce((min, item) => item.pct < min.pct ? item : min, talentMix[0]);
+
+  if (isLoading) {
+    return (
+      <div className="ov-page" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#64748b' }}>
+          <Loader2 size={20} className="animate-spin" />
+          <span>Loading overview…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="ov-page" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center', color: '#64748b' }}>
+          <AlertCircle size={22} style={{ marginBottom: 8 }} />
+          <div>Failed to load the overview dashboard.</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div 
       className="ov-page"
@@ -327,17 +440,20 @@ export default function OverviewPage() {
         <div className="ov-hero-content">
           <h1 className="ov-hero-title ov-hero-title-gold">
             <motion.span className="ov-hero-line" custom={0} variants={lineVars}>
-              {getGreeting()}, Sarah.
+              {getGreeting()}, {primaryName}.
             </motion.span>
             <motion.span className="ov-hero-line ov-hero-line--sub" custom={1} variants={lineVars}>
-              Here's where your roster stands today.
+              {dynamicSubtitle}
             </motion.span>
           </h1>
         </div>
       </motion.section>
 
       {/* ── Attention Strip ── */}
-      <AttentionStrip />
+      <AttentionStripData items={attentionItems} />
+
+      {/* ── Pulse Strip ── */}
+      <PulseStrip pulse={pulse} rosterCount={rosterSize.count} />
 
       {/* ── Row 1: KPI cards ── */}
       <BentoGrid variants={itemVars}>
@@ -347,27 +463,27 @@ export default function OverviewPage() {
           <div className="ov-kpi-head">
             <MicroLabel>Pending Review</MicroLabel>
           </div>
-          <StatNumeral value={14} />
+          <StatNumeral value={pendingReview.count} />
           <div className="ov-kpi-urgent-sub" style={{ fontSize: '11px', color: '#9CA3AF' }}>
-            Oldest: 4 days ago
+            Oldest: {pendingReview.oldestDaysAgo == null ? 'none' : `${pendingReview.oldestDaysAgo} days ago`}
           </div>
-          <div className="ov-kpi-bg-numeral">14</div>
+          <div className="ov-kpi-bg-numeral">{pendingReview.count}</div>
         </EditorialCard>
 
         {/* Card 2: Active Castings */}
         <EditorialCard>
           <div className="ov-kpi-head">
             <MicroLabel>Active Castings</MicroLabel>
-            <StatusMicroPill>2 closing today</StatusMicroPill>
+            <StatusMicroPill>{activeCastings.closingToday} closing today</StatusMicroPill>
           </div>
-          <StatNumeral value={6} />
+          <StatNumeral value={activeCastings.count} />
           <div className="ov-kpi-dots-row">
-            <span className="ov-kpi-dot glow" />
-            <span className="ov-kpi-dot glow" />
-            <span className="ov-kpi-dot" />
-            <span className="ov-kpi-dot" />
-            <span className="ov-kpi-dot" />
-            <span className="ov-kpi-dot" />
+            {Array.from({ length: Math.max(activeCastings.count, 1) }).slice(0, 8).map((_, index) => (
+              <span
+                key={index}
+                className={`ov-kpi-dot ${index < activeCastings.closingToday ? 'glow' : ''}`}
+              />
+            ))}
           </div>
         </EditorialCard>
 
@@ -376,11 +492,11 @@ export default function OverviewPage() {
           <div className="ov-kpi-head">
             <MicroLabel>Roster Size</MicroLabel>
           </div>
-          <StatNumeral value={128} align="center" />
+          <StatNumeral value={rosterSize.count} align="center" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div className="ov-roster-growth-chart" style={{ width: '100%', height: 36 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mockRosterGrowth} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                <AreaChart data={rosterGrowth.length ? rosterGrowth : [{ value: 0 }]} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="rosterGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#C9A55A" stopOpacity={0.4}/>
@@ -401,46 +517,47 @@ export default function OverviewPage() {
               </ResponsiveContainer>
             </div>
             <span className="ov-kpi-change positive" style={{ color: '#16a34a', background: 'transparent', padding: 0, fontSize: '0.75rem', alignSelf: 'flex-start' }}>
-              ↑ 3 this month
+              ↑ {rosterSize.changeThisMonth} this month
             </span>
           </div>
         </EditorialCard>
 
-        {/* Card 4: Placement Rate */}
+        {/* Card 4: Active Talent Utilization */}
         <EditorialCard>
           <div className="ov-kpi-head">
-            <MicroLabel>Placement Rate</MicroLabel>
+            <MicroLabel>Roster Active</MicroLabel>
           </div>
           <div className="ov-kpi-body--center" style={{ margin: 'auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div className="ov-placement-hero">
               <div className="ov-placement-halo" />
               <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart 
-                  cx="50%" 
-                  cy="50%" 
-                  innerRadius="72%" 
-                  outerRadius="90%" 
-                  startAngle={90} 
-                  endAngle={-270} 
-                  data={placementData}
+                <RadialBarChart
+                  cx="50%" cy="50%"
+                  innerRadius="72%" outerRadius="90%"
+                  startAngle={90} endAngle={-270}
+                  data={utilizationData}
                   barSize={12}
                   style={{ margin: '0 auto' }}
                 >
-                  <RadialBar 
-                    dataKey="value" 
+                  <RadialBar
+                    dataKey="value"
                     cornerRadius={5}
                     isAnimationActive={!prefersReducedMotion}
                   />
-                  <Label 
-                    value="68%" 
-                    position="center" 
-                    style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, fill: '#C9A55A' }} 
+                  <Label
+                    value={`${utilization.pct || 0}%`}
+                    position="center"
+                    style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, fill: '#C9A55A' }}
                   />
                 </RadialBarChart>
               </ResponsiveContainer>
             </div>
-            <span className="ov-placement-caption" style={{ marginTop: 8, fontSize: '10px', letterSpacing: '0.08em', color: '#9CA3AF' }}>OF CASTINGS BOOKED</span>
-            <span className="ov-placement-season">↑ from 61% last season</span>
+            <span className="ov-placement-caption" style={{ marginTop: 8, fontSize: '10px', letterSpacing: '0.08em', color: '#9CA3AF' }}>
+              OF ROSTER SUBMITTED
+            </span>
+            <span className="ov-placement-season">
+              {utilization.active} of {utilization.total} active in 30 days
+            </span>
           </div>
         </EditorialCard>
       </BentoGrid>
@@ -458,7 +575,7 @@ export default function OverviewPage() {
 
           {/* Animated stacked bar */}
           <div className="ov-pipeline-bar">
-            {PIPELINE_STAGES.map((s, i) => (
+            {pipelineStages.map((s, i) => (
               <motion.div
                 key={s.label}
                 className={`ov-pipeline-seg ${hoveredStage === s.label ? 'ov-pipeline-seg--active' : ''} ${s.isUrgent ? 'ov-pipeline-seg--pulse' : ''}`}
@@ -480,7 +597,7 @@ export default function OverviewPage() {
           </div>
 
           <div className="ov-pipeline-legend">
-            {PIPELINE_STAGES.map(s => (
+            {pipelineStages.map(s => (
               <div
                 key={s.label}
                 className={`ov-legend-item ${hoveredStage === s.label ? 'ov-legend-item--active' : ''}`}
@@ -493,6 +610,23 @@ export default function OverviewPage() {
               </div>
             ))}
           </div>
+
+          {/* Conversion rates */}
+          {(sub2short !== null || short2book !== null) && (
+            <div className="ov-conversion-row">
+              {conversionRates.map(r => (
+                <div key={r.label} className="ov-conversion-chip">
+                  <span className="ov-conversion-label">{r.label}</span>
+                  <span className="ov-conversion-value">{r.value !== null ? `${r.value}%` : '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {weakestGate && (
+            <p className="ov-conversion-insight">
+              {weakestGate.label} is your tightest gate.
+            </p>
+          )}
         </motion.div>
 
         {/* Archetypes card — now with donut */}
@@ -505,23 +639,29 @@ export default function OverviewPage() {
           </div>
 
           <div className="ov-arch-layout">
-            <ArchetypeDonut segments={ARCHETYPES} />
+            <ArchetypeDonut segments={talentMix} />
             <div className="ov-arch-list">
-              {ARCHETYPES.map(a => (
+              {talentMix.map(a => (
                 <div key={a.name} className="ov-arch-row">
                   <span className="ov-arch-dot" style={{ background: a.color }} />
                   <span className="ov-arch-name">{a.name}</span>
                   <span className="ov-arch-pct">{a.pct}%</span>
                 </div>
               ))}
-              <div className="ov-arch-insights">
-                <span className="ov-arch-demand">
-                  Spring '26 demand: {ARCHETYPES.reduce((max, a) => a.pct > max.pct ? a : max, ARCHETYPES[0]).name} ↑
-                </span>
-                <Link to="/dashboard/agency/discover" className="ov-arch-scout-cta">
-                  Low {ARCHETYPES.reduce((min, a) => a.pct < min.pct ? a : min, ARCHETYPES[0]).name} talent on roster — consider scouting.
-                </Link>
-              </div>
+              {talentMix.length > 0 ? (
+                <div className="ov-arch-insights">
+                  <span className="ov-arch-demand">
+                    Roster is strongest in {highestDemand?.name} right now.
+                  </span>
+                  <Link to="/dashboard/agency/discover" className="ov-arch-scout-cta">
+                    {lowestDemand?.name} is thinnest on roster — consider scouting.
+                  </Link>
+                </div>
+              ) : (
+                <div className="ov-arch-insights">
+                  <span className="ov-arch-demand">No signed roster mix data yet.</span>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
@@ -535,17 +675,17 @@ export default function OverviewPage() {
             <div className="ov-card-title-group">
               <Inbox size={16} className="ov-card-icon" />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h2 className="ov-card-title">New Applications</h2>
-                <span className="ov-app-count-badge">47</span>
+                <h2 className="ov-card-title">Recent Applications</h2>
+                <span className="ov-app-count-badge">{submittedCount}</span>
               </div>
             </div>
-            <button className="ov-sort-btn">
+            <div className="ov-sort-btn">
               Newest <ChevronDown size={14} />
-            </button>
+            </div>
           </div>
 
           <div className="ov-app-list">
-            {PIPELINE.map((t, idx) => (
+            {displayApplicants.map((t, idx) => (
               <motion.div
                 key={t.id}
                 onClick={() => setSelected(t)}
@@ -561,7 +701,7 @@ export default function OverviewPage() {
                 <div className="ov-app-info">
                   <span className="ov-app-name">{t.name}</span>
                   <span className="ov-app-meta">
-                    <span className={`ov-app-badge ov-badge--${t.archetype}`}>{t.archetypeLabel}</span>
+                    <span className="ov-app-badge ov-badge--editorial">{t.archetypeLabel}</span>
                     {t.city} · {t.applied}
                   </span>
                 </div>
@@ -569,15 +709,23 @@ export default function OverviewPage() {
                   <TalentMatchRing score={t.match || 0} size="sm" />
                 </div>
                 <div className="ov-app-quick-actions" onClick={e => e.stopPropagation()}>
-                  <button className="ov-quick-btn ov-quick-btn--accept">Accept</button>
-                  <button className="ov-quick-btn ov-quick-btn--review">Review</button>
+                  <Link to="/dashboard/agency/applicants" className="ov-quick-btn ov-quick-btn--accept">Open</Link>
+                  <Link to="/dashboard/agency/applicants" className="ov-quick-btn ov-quick-btn--review">Review</Link>
                 </div>
               </motion.div>
             ))}
+            {displayApplicants.length === 0 && (
+              <div className="ov-app-row" style={{ cursor: 'default' }}>
+                <div className="ov-app-info">
+                  <span className="ov-app-name">No recent applications yet.</span>
+                  <span className="ov-app-meta">New submissions will appear here.</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <Link to="/dashboard/agency/applicants" className="ov-view-all">
-            View all 47 applications <ArrowUpRight size={14} />
+            View all applications <ArrowUpRight size={14} />
           </Link>
         </motion.div>
 
@@ -591,9 +739,15 @@ export default function OverviewPage() {
           </div>
           <div className="ov-promo-content">
             <span className="ov-promo-eyebrow">DISCOVER</span>
-            <h3 className="ov-promo-heading">Explore New Talent</h3>
+            <h3 className="ov-promo-heading">
+              {pulse.discoverableCount != null
+                ? `${pulse.discoverableCount} profiles ready to discover`
+                : 'Explore New Talent'}
+            </h3>
             <p className="ov-promo-body">
-              Browse AI-matched profiles from our curated talent network. Updated in real time.
+              {pulse.newTalentWeek != null
+                ? `${pulse.newTalentWeek} new talent joined this week. Updated in real time.`
+                : 'Browse curated talent from our network. Updated in real time.'}
             </p>
             <Link to="/dashboard/agency/discover" className="ov-promo-cta">
               <span className="ov-cta-text">Discover</span>
