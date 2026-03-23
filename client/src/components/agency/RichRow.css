@@ -1,0 +1,130 @@
+.ag-rich-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--ag-row-h, 76px);
+  padding: 0 16px;
+  cursor: pointer;
+  transition: background var(--ag-duration-fast) var(--ag-ease);
+  border-left: 3px solid transparent;
+  position: relative;
+}
+
+.ag-rich-row:hover {
+  background: var(--ag-surface-2);
+}
+
+.ag-rich-row:hover .ag-rich-row__checkbox {
+  opacity: 1;
+}
+
+.ag-rich-row.is-selected {
+  border-left-color: var(--ag-gold);
+  background: var(--ag-gold-ghost, rgba(201, 165, 90, 0.08));
+}
+
+.ag-rich-row__check {
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ag-rich-row__checkbox {
+  opacity: 0;
+  cursor: pointer;
+  accent-color: var(--ag-gold);
+  transition: opacity var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-rich-row__checkbox:checked {
+  opacity: 1;
+}
+
+.ag-rich-row__unread {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ag-gold);
+}
+
+.ag-rich-row__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.ag-rich-row__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ag-rich-row__line1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ag-rich-row__name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ag-text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-rich-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ag-rich-row__time {
+  font-size: 12px;
+  color: var(--ag-text-3);
+  white-space: nowrap;
+}
+
+.ag-rich-row__line2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ag-text-2);
+}
+
+.ag-rich-row__stat {
+  font-size: 12px;
+  color: var(--ag-text-2);
+}
+
+.ag-rich-row__line3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+}
+
+.ag-rich-row__tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ag-surface-3);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ag-text-2);
+}
+
+.ag-rich-row__tag--overflow {
+  color: var(--ag-text-3);
+  background: none;
+}
