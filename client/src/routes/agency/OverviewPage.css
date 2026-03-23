@@ -1635,3 +1635,111 @@
   background: rgba(201,165,90,0.15);
   border-color: rgba(201,165,90,0.35);
 }
+
+/* ── Pulse Strip ── */
+.ov-pulse-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.ov-pulse-chip {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--ag-surface-1);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--ag-text-0);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.ov-pulse-chip:hover {
+  border-color: var(--ag-gold);
+  box-shadow: var(--ag-shadow-gold);
+}
+
+.ov-pulse-chip-inner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+}
+
+.ov-pulse-chip--dim {
+  opacity: 0.45;
+}
+
+.ov-pulse-chip--urgent {
+  border-color: #d97706;
+  background: #fffbeb;
+}
+
+.ov-pulse-icon {
+  color: var(--ag-gold);
+  flex-shrink: 0;
+}
+
+.ov-pulse-chip--urgent .ov-pulse-icon {
+  color: #d97706;
+}
+
+.ov-pulse-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ag-text-0);
+  line-height: 1;
+}
+
+.ov-pulse-label {
+  font-size: 11px;
+  color: var(--ag-text-2);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── Conversion rates ── */
+.ov-conversion-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.ov-conversion-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--ag-surface-0);
+  border-radius: 8px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.ov-conversion-label {
+  font-size: 10px;
+  color: var(--ag-text-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ov-conversion-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ag-gold);
+  font-family: var(--font-display);
+}
+
+.ov-conversion-insight {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--ag-text-2);
+  font-style: italic;
+}
