@@ -1,7 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const knex = require("../../db/knex");
-const { requireRole } = require("../../middleware/auth");
+const { z } = require("zod");
+const {
+  requireRole,
+  requireAgencyMembershipRole,
+  requireAgencyOnboardingComplete,
+} = require("../../middleware/auth");
 const { upload, processImage } = require("../../lib/uploader");
 const { v4: uuidv4 } = require("uuid");
 const { calculateMatchScore } = require("../../lib/match-scoring");
@@ -9,7 +14,116 @@ const {
   sendApplicationStatusEmail,
   sendNewMessageEmail,
 } = require("../../lib/email");
+const {
+  getSessionActorUserId,
+  getSessionAgencyId,
+} = require("../../lib/agency-context");
 const { embed, toVectorLiteral } = require("../../lib/ai/embeddings");
+
+const agencyMemberCreateSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email()
+    .transform((value) => value.toLowerCase()),
+  membership_role: z.enum(["ADMIN", "MEMBER"]).optional().default("MEMBER"),
+});
+
+const agencyMemberUpdateSchema = z.object({
+  membership_role: z.enum(["ADMIN", "MEMBER"]),
+});
+
+function serializeAgencyMember(row) {
+  return {
+    membershipId: row.membership_id,
+    userId: row.user_id,
+    agencyId: row.agency_id,
+    email: row.email,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    full_name:
+      [row.first_name, row.last_name].filter(Boolean).join(" ") || row.email,
+    membership_role: row.membership_role,
+    status: row.membership_status,
+    invited_at: row.invited_at,
+    joined_at: row.joined_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+const CASTING_PIPELINE_STAGES = [
+  "Applied",
+  "Shortlisted",
+  "Offered",
+  "Booked",
+  "Passed",
+];
+
+function mapApplicationStatusToCastingStage(status) {
+  switch ((status || "").toLowerCase()) {
+    case "submitted":
+    case "pending":
+      return "Applied";
+    case "shortlisted":
+      return "Shortlisted";
+    case "accepted":
+      return "Offered";
+    case "booked":
+      return "Booked";
+    case "passed":
+    case "declined":
+    case "archived":
+      return "Passed";
+    default:
+      return "Applied";
+  }
+}
+
+function mapCastingStageToApplicationStatus(stage) {
+  switch ((stage || "").toLowerCase()) {
+    case "applied":
+      return "submitted";
+    case "shortlisted":
+      return "shortlisted";
+    case "offered":
+      return "accepted";
+    case "booked":
+      return "booked";
+    case "passed":
+      return "passed";
+    default:
+      return null;
+  }
+}
+
+function formatCastingMeasurements(row) {
+  const bust = row.bust_cm ?? row.bust ?? null;
+  const waist = row.waist_cm ?? row.waist ?? null;
+  const hips = row.hips_cm ?? row.hips ?? null;
+  const parts = [bust, waist, hips].filter(
+    (value) => value !== null && value !== undefined && value !== "",
+  );
+  return parts.length ? parts.join("-") : null;
+}
+
+router.use(
+  "/api/agency",
+  requireRole("AGENCY"),
+  requireAgencyOnboardingComplete({
+    allow: [
+      { method: "GET", path: "/me" },
+      { method: "PUT", path: "/profile" },
+      { method: "POST", path: "/branding" },
+      { method: "PUT", path: "/settings" },
+      { method: "GET", path: "/team" },
+      { method: "POST", path: "/team" },
+      { method: "PATCH", pathPrefix: "/team/" },
+      { method: "DELETE", pathPrefix: "/team/" },
+      { method: "POST", path: "/onboarding/complete" },
+    ],
+  }),
+);
 
 // Helper function to recalculate match scores for all applications in a board
 async function recalculateBoardScores(boardId, agencyId) {
@@ -107,13 +221,28 @@ router.get(
       // Get application counts for each board
       const boardsWithCounts = await Promise.all(
         boards.map(async (board) => {
-          const count = await knex("board_applications")
-            .where({ board_id: board.id })
-            .count("* as count")
-            .first();
+          const [count, submittedCount, bookedCount] = await Promise.all([
+            knex("board_applications")
+              .where({ board_id: board.id })
+              .count("* as count")
+              .first(),
+            knex("board_applications as ba")
+              .join("applications as a", "a.id", "ba.application_id")
+              .where({ "ba.board_id": board.id })
+              .whereIn("a.status", ["submitted", "pending"])
+              .count("* as count")
+              .first(),
+            knex("board_applications as ba")
+              .join("applications as a", "a.id", "ba.application_id")
+              .where({ "ba.board_id": board.id, "a.status": "booked" })
+              .count("* as count")
+              .first(),
+          ]);
           return {
             ...board,
             application_count: parseInt(count?.count || 0),
+            submitted_count: parseInt(submittedCount?.count || 0),
+            booked_count: parseInt(bookedCount?.count || 0),
           };
         }),
       );
@@ -199,7 +328,10 @@ router.post(
       const agencyId = req.session.userId;
       const {
         name,
+        client_name,
         description,
+        closes_at,
+        target_slots,
         is_active = true,
         sort_order = 0,
         requirements,
@@ -216,7 +348,15 @@ router.post(
           id: require("crypto").randomUUID(),
           agency_id: agencyId,
           name: name.trim(),
+          client_name: client_name?.trim() || null,
           description: description || null,
+          closes_at: closes_at || null,
+          target_slots:
+            target_slots !== undefined &&
+            target_slots !== null &&
+            target_slots !== ""
+              ? parseInt(target_slots, 10) || null
+              : null,
           is_active: !!is_active,
           sort_order: parseInt(sort_order) || 0,
           created_at: knex.fn.now(),
@@ -301,7 +441,15 @@ router.put(
     try {
       const { boardId } = req.params;
       const agencyId = req.session.userId;
-      const { name, description, is_active, sort_order } = req.body;
+      const {
+        name,
+        client_name,
+        description,
+        closes_at,
+        target_slots,
+        is_active,
+        sort_order,
+      } = req.body;
 
       // Verify board belongs to agency
       const board = await knex("boards")
@@ -317,7 +465,16 @@ router.put(
         updated_at: knex.fn.now(),
       };
       if (name !== undefined) updates.name = name.trim();
+      if (client_name !== undefined)
+        updates.client_name = client_name?.trim() || null;
       if (description !== undefined) updates.description = description || null;
+      if (closes_at !== undefined) updates.closes_at = closes_at || null;
+      if (target_slots !== undefined) {
+        updates.target_slots =
+          target_slots !== null && target_slots !== ""
+            ? parseInt(target_slots, 10) || null
+            : null;
+      }
       if (is_active !== undefined) updates.is_active = !!is_active;
       if (sort_order !== undefined)
         updates.sort_order = parseInt(sort_order) || 0;
@@ -757,6 +914,134 @@ router.post(
   },
 );
 
+// GET /api/agency/boards/:boardId/candidates - Get casting pipeline candidates for a board
+router.get(
+  "/api/agency/boards/:boardId/candidates",
+  requireRole("AGENCY"),
+  async (req, res) => {
+    try {
+      const { boardId } = req.params;
+      const agencyId = req.session.userId;
+
+      const board = await knex("boards")
+        .where({ id: boardId, agency_id: agencyId })
+        .first();
+
+      if (!board) {
+        return res.status(404).json({ error: "Board not found" });
+      }
+
+      const applicationRows = await knex("board_applications as ba")
+        .join("applications as a", "a.id", "ba.application_id")
+        .join("profiles as p", "p.id", "a.profile_id")
+        .where({
+          "ba.board_id": boardId,
+          "a.agency_id": agencyId,
+        })
+        .select(
+          "ba.id as board_application_id",
+          "ba.match_score",
+          "a.id as application_id",
+          "a.status as application_status",
+          "a.created_at as application_created_at",
+          "p.id as profile_id",
+          "p.first_name",
+          "p.last_name",
+          "p.city",
+          "p.country",
+          "p.height_cm",
+          "p.bust_cm",
+          "p.waist_cm",
+          "p.hips_cm",
+          "p.bust",
+          "p.waist",
+          "p.hips",
+          "p.hero_image_path",
+          "p.archetype",
+        )
+        .orderBy([
+          { column: "ba.match_score", order: "desc", nulls: "last" },
+          { column: "a.created_at", order: "desc" },
+        ]);
+
+      const profileIds = applicationRows.map((row) => row.profile_id);
+      const images = profileIds.length
+        ? await knex("images")
+            .whereIn("profile_id", profileIds)
+            .orderBy([
+              { column: "is_primary", order: "desc" },
+              { column: "sort", order: "asc" },
+              { column: "created_at", order: "asc" },
+            ])
+        : [];
+
+      const imagesByProfile = new Map();
+      for (const image of images) {
+        if (!imagesByProfile.has(image.profile_id)) {
+          imagesByProfile.set(image.profile_id, []);
+        }
+        imagesByProfile.get(image.profile_id).push(image);
+      }
+
+      const candidates = applicationRows.map((row) => {
+        const profileImages = imagesByProfile.get(row.profile_id) || [];
+        const primaryImage =
+          profileImages.find((image) => image.is_primary) ||
+          profileImages[0] ||
+          null;
+        const location =
+          [row.city, row.country].filter(Boolean).join(", ") || null;
+
+        return {
+          id: row.application_id,
+          applicationId: row.application_id,
+          profileId: row.profile_id,
+          name:
+            [row.first_name, row.last_name].filter(Boolean).join(" ").trim() ||
+            "Unknown Talent",
+          archetype: row.archetype || "editorial",
+          score:
+            row.match_score !== null && row.match_score !== undefined
+              ? Number(row.match_score)
+              : null,
+          avatar: primaryImage?.path || row.hero_image_path || null,
+          stage: mapApplicationStatusToCastingStage(row.application_status),
+          backendStatus: row.application_status || "submitted",
+          height: row.height_cm ? `${row.height_cm} cm` : null,
+          location,
+          measurements: formatCastingMeasurements(row),
+          portfolio: profileImages.map((image) => ({
+            id: image.id,
+            url: image.path,
+          })),
+          created_at: row.application_created_at,
+        };
+      });
+
+      const counts = candidates.reduce((accumulator, candidate) => {
+        accumulator[candidate.stage] = (accumulator[candidate.stage] || 0) + 1;
+        return accumulator;
+      }, {});
+
+      return res.json({
+        board: {
+          ...board,
+          application_count: candidates.length,
+          submitted_count: counts.Applied || 0,
+          booked_count: counts.Booked || 0,
+        },
+        stages: CASTING_PIPELINE_STAGES,
+        candidates,
+      });
+    } catch (error) {
+      console.error("[Casting API] Error fetching board candidates:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch casting candidates" });
+    }
+  },
+);
+
 // GET /api/agency/applications - Get filtered applications as JSON
 router.get(
   "/api/agency/applications",
@@ -988,11 +1273,18 @@ async function logActivity(
 ) {
   const { v4: uuidv4 } = require("uuid");
   try {
+    const activityUserId = userId
+      ? await knex("users")
+          .where({ id: userId })
+          .first()
+          .then((row) => row?.id || null)
+      : null;
+
     await knex("application_activities").insert({
       id: uuidv4(),
       application_id: applicationId,
       agency_id: agencyId,
-      user_id: userId,
+      user_id: activityUserId,
       activity_type: activityType,
       description,
       metadata: JSON.stringify(metadata),
@@ -1051,7 +1343,7 @@ router.post(
             .first();
 
           // Get agency info
-          const agency = await knex("users").where({ id: agencyId }).first();
+          const agency = await knex("agencies").where({ id: agencyId }).first();
 
           if (talent && talent.email && agency) {
             await sendApplicationStatusEmail({
@@ -1074,6 +1366,87 @@ router.post(
     } catch (error) {
       console.error("[Accept Application API] Error:", error);
       return res.status(500).json({ error: "Failed to accept application" });
+    }
+  },
+);
+
+// PATCH /api/agency/applications/:applicationId/status - Update application pipeline status
+router.patch(
+  "/api/agency/applications/:applicationId/status",
+  requireRole("AGENCY"),
+  async (req, res) => {
+    try {
+      const { applicationId } = req.params;
+      const agencyId = req.session.userId;
+      const requestedStatus =
+        req.body?.status || mapCastingStageToApplicationStatus(req.body?.stage);
+
+      if (!requestedStatus) {
+        return res
+          .status(400)
+          .json({
+            error: "Valid application status or casting stage is required",
+          });
+      }
+
+      const allowedStatuses = [
+        "submitted",
+        "shortlisted",
+        "accepted",
+        "booked",
+        "passed",
+        "declined",
+        "archived",
+      ];
+
+      if (!allowedStatuses.includes(requestedStatus)) {
+        return res
+          .status(400)
+          .json({ error: "Unsupported application status" });
+      }
+
+      const application = await knex("applications")
+        .where({ id: applicationId, agency_id: agencyId })
+        .first();
+
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      await knex("applications")
+        .where({ id: applicationId })
+        .update({
+          status: requestedStatus,
+          accepted_at:
+            requestedStatus === "accepted"
+              ? knex.fn.now()
+              : application.accepted_at,
+          updated_at: knex.fn.now(),
+        });
+
+      await logActivity(
+        knex,
+        applicationId,
+        agencyId,
+        agencyId,
+        "status_change",
+        `Application moved to ${requestedStatus}`,
+        { old_status: application.status, new_status: requestedStatus },
+      );
+
+      return res.json({
+        success: true,
+        data: {
+          applicationId,
+          status: requestedStatus,
+          stage: mapApplicationStatusToCastingStage(requestedStatus),
+        },
+      });
+    } catch (error) {
+      console.error("[Casting API] Error updating application status:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to update application status" });
     }
   },
 );
@@ -1124,7 +1497,7 @@ router.post(
             .first();
 
           // Get agency info
-          const agency = await knex("users").where({ id: agencyId }).first();
+          const agency = await knex("agencies").where({ id: agencyId }).first();
 
           if (talent && talent.email && agency) {
             await sendApplicationStatusEmail({
@@ -1292,6 +1665,99 @@ router.post(
     } catch (error) {
       console.error("[Bulk Accept API] Error:", error);
       return res.status(500).json({ error: "Failed to accept applications" });
+    }
+  },
+);
+
+// PATCH /api/agency/applications/bulk-status - Bulk update application pipeline status
+router.patch(
+  "/api/agency/applications/bulk-status",
+  requireRole("AGENCY"),
+  async (req, res) => {
+    try {
+      const { applicationIds, status, stage } = req.body || {};
+      const agencyId = req.session.userId;
+      const requestedStatus =
+        status || mapCastingStageToApplicationStatus(stage);
+
+      if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "Application IDs array is required" });
+      }
+
+      if (!requestedStatus) {
+        return res
+          .status(400)
+          .json({
+            error: "Valid application status or casting stage is required",
+          });
+      }
+
+      const allowedStatuses = [
+        "submitted",
+        "shortlisted",
+        "accepted",
+        "booked",
+        "passed",
+        "declined",
+        "archived",
+      ];
+
+      if (!allowedStatuses.includes(requestedStatus)) {
+        return res
+          .status(400)
+          .json({ error: "Unsupported application status" });
+      }
+
+      const applications = await knex("applications")
+        .whereIn("id", applicationIds)
+        .where({ agency_id: agencyId });
+
+      if (applications.length !== applicationIds.length) {
+        return res.status(404).json({ error: "Some applications not found" });
+      }
+
+      await knex("applications")
+        .whereIn("id", applicationIds)
+        .update({
+          status: requestedStatus,
+          accepted_at: requestedStatus === "accepted" ? knex.fn.now() : null,
+          updated_at: knex.fn.now(),
+        });
+
+      for (const application of applications) {
+        await logActivity(
+          knex,
+          application.id,
+          agencyId,
+          agencyId,
+          "status_change",
+          `Application moved to ${requestedStatus} (bulk)`,
+          {
+            old_status: application.status,
+            new_status: requestedStatus,
+            bulk_operation: true,
+          },
+        );
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          count: applicationIds.length,
+          status: requestedStatus,
+          stage: mapApplicationStatusToCastingStage(requestedStatus),
+        },
+      });
+    } catch (error) {
+      console.error(
+        "[Casting API] Error bulk updating application status:",
+        error,
+      );
+      return res
+        .status(500)
+        .json({ error: "Failed to bulk update application status" });
     }
   },
 );
@@ -1566,11 +2032,13 @@ router.post(
 // GET /api/agency/me - Get current agency profile
 router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
   try {
-    const agencyId = req.session.userId;
-    const user = await knex("users").where({ id: agencyId }).first();
+    const actorUserId = getSessionActorUserId(req);
+    const agencyId = getSessionAgencyId(req);
+    const user = await knex("users").where({ id: actorUserId }).first();
+    const agency = await knex("agencies").where({ id: agencyId }).first();
 
-    if (!user) {
-      return res.status(404).json({ error: "Agency not found" });
+    if (!user || !agency) {
+      return res.status(404).json({ error: "Agency account not found" });
     }
 
     // Format response to match frontend expectations
@@ -1581,12 +2049,20 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        agency_name: user.agency_name,
-        agency_logo_path: user.agency_logo_path,
-        agency_brand_color: user.agency_brand_color,
-        agency_description: user.agency_description,
-        agency_website: user.agency_website,
-        agency_location: user.agency_location,
+        agency_name: agency.name,
+        agency_logo_path: agency.logo_path,
+        agency_brand_color: agency.brand_color,
+        agency_description: agency.description,
+        agency_website: agency.website,
+        agency_location: agency.location,
+        notify_new_applications: agency.notify_new_applications,
+        notify_status_changes: agency.notify_status_changes,
+        default_view: agency.default_view,
+        onboarding: {
+          started_at: agency.onboarding_started_at || null,
+          completed_at: agency.onboarding_completed_at || null,
+          completed: !!agency.onboarding_completed_at,
+        },
       },
     });
   } catch (error) {
@@ -1599,9 +2075,11 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
 router.put(
   "/api/agency/profile",
   requireRole("AGENCY"),
+  requireAgencyMembershipRole("OWNER", "ADMIN"),
   async (req, res, next) => {
     try {
-      const agencyId = req.session.userId;
+      const actorUserId = getSessionActorUserId(req);
+      const agencyId = getSessionAgencyId(req);
       const {
         first_name,
         last_name,
@@ -1612,20 +2090,26 @@ router.put(
       } = req.body;
 
       const updateData = {};
-      if (first_name !== undefined)
-        updateData.first_name = first_name || null;
-      if (last_name !== undefined)
-        updateData.last_name = last_name || null;
-      if (agency_name !== undefined)
-        updateData.agency_name = agency_name || null;
-      if (agency_location !== undefined)
-        updateData.agency_location = agency_location || null;
-      if (agency_website !== undefined)
-        updateData.agency_website = agency_website || null;
-      if (agency_description !== undefined)
-        updateData.agency_description = agency_description || null;
+      if (first_name !== undefined) updateData.first_name = first_name || null;
+      if (last_name !== undefined) updateData.last_name = last_name || null;
+      if (Object.keys(updateData).length > 0) {
+        await knex("users").where({ id: actorUserId }).update(updateData);
+      }
 
-      await knex("users").where({ id: agencyId }).update(updateData);
+      const agencyUpdateData = {};
+      if (agency_name !== undefined)
+        agencyUpdateData.name = agency_name || null;
+      if (agency_location !== undefined)
+        agencyUpdateData.location = agency_location || null;
+      if (agency_website !== undefined)
+        agencyUpdateData.website = agency_website || null;
+      if (agency_description !== undefined)
+        agencyUpdateData.description = agency_description || null;
+
+      if (Object.keys(agencyUpdateData).length > 0) {
+        agencyUpdateData.updated_at = knex.fn.now();
+        await knex("agencies").where({ id: agencyId }).update(agencyUpdateData);
+      }
 
       return res.json({
         success: true,
@@ -1638,24 +2122,81 @@ router.put(
   },
 );
 
+// POST /api/agency/onboarding/complete - Mark first-login onboarding complete
+router.post(
+  "/api/agency/onboarding/complete",
+  requireRole("AGENCY"),
+  requireAgencyMembershipRole("OWNER", "ADMIN"),
+  async (req, res) => {
+    try {
+      const agencyId = getSessionAgencyId(req);
+      const actorUserId = getSessionActorUserId(req);
+
+      const agency = await knex("agencies").where({ id: agencyId }).first();
+      if (!agency) {
+        return res.status(404).json({ error: "Agency account not found" });
+      }
+
+      const updateData = {
+        updated_at: knex.fn.now(),
+      };
+
+      if (!agency.onboarding_started_at) {
+        updateData.onboarding_started_at = knex.fn.now();
+      }
+      if (!agency.onboarding_completed_at) {
+        updateData.onboarding_completed_at = knex.fn.now();
+        updateData.onboarding_completed_by_user_id = actorUserId;
+      }
+
+      if (Object.keys(updateData).length > 1) {
+        await knex("agencies").where({ id: agencyId }).update(updateData);
+      }
+
+      req.session.agencyOnboardingCompletedAt =
+        agency.onboarding_completed_at || new Date().toISOString();
+
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          completed: true,
+          redirect: "/dashboard/agency",
+        },
+      });
+    } catch (error) {
+      console.error(
+        "[Agency Onboarding API] Error completing onboarding:",
+        error,
+      );
+      return res.status(500).json({ error: "Failed to complete onboarding" });
+    }
+  },
+);
+
 // POST /api/agency/branding - Update agency branding (logo and color)
 router.post(
   "/api/agency/branding",
   requireRole("AGENCY"),
+  requireAgencyMembershipRole("OWNER", "ADMIN"),
   upload.single("agency_logo"),
   async (req, res, next) => {
     try {
-      const agencyId = req.session.userId;
+      const actorUserId = getSessionActorUserId(req);
+      const agencyId = getSessionAgencyId(req);
       const { agency_brand_color, remove_logo } = req.body;
 
       const updateData = {};
 
       if (remove_logo === "true") {
         // Remove existing logo
-        const user = await knex("users").where({ id: agencyId }).first();
-        if (user && user.agency_logo_path) {
+        const agency = await knex("agencies").where({ id: agencyId }).first();
+        if (agency && agency.logo_path) {
           // Delete file from storage if needed
-          updateData.agency_logo_path = null;
+          updateData.logo_path = null;
         }
       } else if (req.file) {
         // Process and save new logo
@@ -1665,21 +2206,22 @@ router.post(
           maxHeight: 400,
           quality: 90,
         });
-        updateData.agency_logo_path = processedImage.path;
+        updateData.logo_path = processedImage.path;
       }
 
       if (agency_brand_color !== undefined) {
-        updateData.agency_brand_color = agency_brand_color || null;
+        updateData.brand_color = agency_brand_color || null;
       }
 
       if (Object.keys(updateData).length > 0) {
-        await knex("users").where({ id: agencyId }).update(updateData);
+        updateData.updated_at = knex.fn.now();
+        await knex("agencies").where({ id: agencyId }).update(updateData);
       }
 
       return res.json({
         success: true,
         message: "Branding updated successfully",
-        logo_path: updateData.agency_logo_path || null,
+        logo_path: updateData.logo_path || null,
       });
     } catch (error) {
       console.error("[Agency Branding API] Error:", error);
@@ -1692,9 +2234,10 @@ router.post(
 router.put(
   "/api/agency/settings",
   requireRole("AGENCY"),
+  requireAgencyMembershipRole("OWNER", "ADMIN"),
   async (req, res, next) => {
     try {
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req);
       const { notify_new_applications, notify_status_changes, default_view } =
         req.body;
 
@@ -1706,7 +2249,8 @@ router.put(
       if (default_view !== undefined)
         updateData.default_view = default_view || null;
 
-      await knex("users").where({ id: agencyId }).update(updateData);
+      updateData.updated_at = knex.fn.now();
+      await knex("agencies").where({ id: agencyId }).update(updateData);
 
       return res.json({
         success: true,
@@ -1715,6 +2259,259 @@ router.put(
     } catch (error) {
       console.error("[Agency Settings API] Error:", error);
       return res.status(500).json({ error: "Failed to update settings" });
+    }
+  },
+);
+
+// GET /api/agency/team - List agency members
+router.get("/api/agency/team", requireRole("AGENCY"), async (req, res) => {
+  try {
+    const agencyId = getSessionAgencyId(req);
+
+    const members = await knex("agency_memberships as am")
+      .join("users as u", "u.id", "am.user_id")
+      .where({ "am.agency_id": agencyId })
+      .select(
+        "am.id as membership_id",
+        "am.agency_id",
+        "am.user_id",
+        "am.membership_role",
+        "am.status as membership_status",
+        "am.invited_at",
+        "am.joined_at",
+        "am.created_at",
+        "am.updated_at",
+        "u.email",
+        "u.first_name",
+        "u.last_name",
+      )
+      .orderBy([
+        { column: "am.membership_role", order: "asc" },
+        { column: "am.created_at", order: "asc" },
+      ]);
+
+    return res.json({
+      success: true,
+      data: members.map(serializeAgencyMember),
+    });
+  } catch (error) {
+    console.error("[Agency Team API] Error listing members:", error);
+    return res.status(500).json({ error: "Failed to load team members" });
+  }
+});
+
+// POST /api/agency/team - Add an existing agency user to this agency
+router.post(
+  "/api/agency/team",
+  requireRole("AGENCY"),
+  requireAgencyMembershipRole("OWNER", "ADMIN"),
+  async (req, res) => {
+    try {
+      const agencyId = getSessionAgencyId(req);
+      const parsed = agencyMemberCreateSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid team member payload",
+          details: parsed.error.flatten(),
+        });
+      }
+
+      const { email, membership_role } = parsed.data;
+      const user = await knex("users").where({ email, role: "AGENCY" }).first();
+
+      if (!user) {
+        return res.status(404).json({
+          error: "Agency user not found",
+          message:
+            "Only existing provisioned agency logins can be added in this phase.",
+        });
+      }
+
+      let membership = await knex("agency_memberships")
+        .where({ agency_id: agencyId, user_id: user.id })
+        .first();
+
+      if (membership && membership.status === "ACTIVE") {
+        return res
+          .status(409)
+          .json({ error: "User is already an active member of this agency" });
+      }
+
+      if (membership) {
+        await knex("agency_memberships")
+          .where({ id: membership.id })
+          .update({
+            membership_role,
+            status: "ACTIVE",
+            invited_at: membership.invited_at || knex.fn.now(),
+            joined_at: membership.joined_at || knex.fn.now(),
+            updated_at: knex.fn.now(),
+          });
+      } else {
+        await knex("agency_memberships").insert({
+          id: uuidv4(),
+          agency_id: agencyId,
+          user_id: user.id,
+          membership_role,
+          status: "ACTIVE",
+          invited_at: knex.fn.now(),
+          joined_at: knex.fn.now(),
+          created_at: knex.fn.now(),
+          updated_at: knex.fn.now(),
+        });
+      }
+
+      membership = await knex("agency_memberships as am")
+        .join("users as u", "u.id", "am.user_id")
+        .where({
+          "am.agency_id": agencyId,
+          "am.user_id": user.id,
+        })
+        .select(
+          "am.id as membership_id",
+          "am.agency_id",
+          "am.user_id",
+          "am.membership_role",
+          "am.status as membership_status",
+          "am.invited_at",
+          "am.joined_at",
+          "am.created_at",
+          "am.updated_at",
+          "u.email",
+          "u.first_name",
+          "u.last_name",
+        )
+        .first();
+
+      return res.status(201).json({
+        success: true,
+        data: serializeAgencyMember(membership),
+      });
+    } catch (error) {
+      console.error("[Agency Team API] Error adding member:", error);
+      return res.status(500).json({ error: "Failed to add team member" });
+    }
+  },
+);
+
+// PATCH /api/agency/team/:membershipId - Update membership role
+router.patch(
+  "/api/agency/team/:membershipId",
+  requireRole("AGENCY"),
+  requireAgencyMembershipRole("OWNER", "ADMIN"),
+  async (req, res) => {
+    try {
+      const agencyId = getSessionAgencyId(req);
+      const actorUserId = getSessionActorUserId(req);
+      const { membershipId } = req.params;
+      const parsed = agencyMemberUpdateSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid membership update payload",
+          details: parsed.error.flatten(),
+        });
+      }
+
+      const membership = await knex("agency_memberships")
+        .where({ id: membershipId, agency_id: agencyId })
+        .first();
+
+      if (!membership) {
+        return res.status(404).json({ error: "Team member not found" });
+      }
+
+      if (membership.membership_role === "OWNER") {
+        return res.status(403).json({
+          error: "Owner memberships cannot be changed in this phase",
+        });
+      }
+
+      if (membership.user_id === actorUserId) {
+        return res.status(403).json({
+          error: "You cannot change your own membership role in this phase",
+        });
+      }
+
+      await knex("agency_memberships").where({ id: membershipId }).update({
+        membership_role: parsed.data.membership_role,
+        updated_at: knex.fn.now(),
+      });
+
+      const updatedMembership = await knex("agency_memberships as am")
+        .join("users as u", "u.id", "am.user_id")
+        .where({ "am.id": membershipId })
+        .select(
+          "am.id as membership_id",
+          "am.agency_id",
+          "am.user_id",
+          "am.membership_role",
+          "am.status as membership_status",
+          "am.invited_at",
+          "am.joined_at",
+          "am.created_at",
+          "am.updated_at",
+          "u.email",
+          "u.first_name",
+          "u.last_name",
+        )
+        .first();
+
+      return res.json({
+        success: true,
+        data: serializeAgencyMember(updatedMembership),
+      });
+    } catch (error) {
+      console.error("[Agency Team API] Error updating member:", error);
+      return res.status(500).json({ error: "Failed to update team member" });
+    }
+  },
+);
+
+// DELETE /api/agency/team/:membershipId - Deactivate a membership
+router.delete(
+  "/api/agency/team/:membershipId",
+  requireRole("AGENCY"),
+  requireAgencyMembershipRole("OWNER", "ADMIN"),
+  async (req, res) => {
+    try {
+      const agencyId = getSessionAgencyId(req);
+      const actorUserId = getSessionActorUserId(req);
+      const { membershipId } = req.params;
+
+      const membership = await knex("agency_memberships")
+        .where({ id: membershipId, agency_id: agencyId })
+        .first();
+
+      if (!membership) {
+        return res.status(404).json({ error: "Team member not found" });
+      }
+
+      if (membership.membership_role === "OWNER") {
+        return res.status(403).json({
+          error: "Owner memberships cannot be deactivated in this phase",
+        });
+      }
+
+      if (membership.user_id === actorUserId) {
+        return res.status(403).json({
+          error: "You cannot deactivate your own membership in this phase",
+        });
+      }
+
+      await knex("agency_memberships").where({ id: membershipId }).update({
+        status: "INACTIVE",
+        updated_at: knex.fn.now(),
+      });
+
+      return res.json({
+        success: true,
+        data: { membershipId, status: "INACTIVE" },
+      });
+    } catch (error) {
+      console.error("[Agency Team API] Error deactivating member:", error);
+      return res.status(500).json({ error: "Failed to remove team member" });
     }
   },
 );
@@ -2389,7 +3186,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { profileId } = req.params;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req);
 
       // Get profile
       const profile = await knex("profiles")
@@ -2451,6 +3248,125 @@ router.get(
     } catch (error) {
       console.error("[Profile Details API] Error:", error);
       return res.status(500).json({ error: "Failed to fetch profile details" });
+    }
+  },
+);
+
+// GET /api/agency/roster - Get all signed roster talent for this agency
+router.get(
+  "/api/agency/roster",
+  requireRole("AGENCY"),
+  async (req, res, next) => {
+    try {
+      const agencyId = getSessionAgencyId(req.session);
+
+      // Fetch all accepted applications for this agency
+      const applications = await knex("applications").where({
+        agency_id: agencyId,
+        status: "accepted",
+      });
+
+      if (!applications.length) {
+        return res.json([]);
+      }
+
+      const profileIds = applications.map((a) => a.profile_id);
+
+      const profiles = await knex("profiles")
+        .leftJoin("users", "profiles.user_id", "users.id")
+        .whereIn("profiles.id", profileIds)
+        .select(
+          "profiles.*",
+          "users.email",
+          "users.first_name",
+          "users.last_name",
+          "users.phone",
+        );
+
+      const images = await knex("images")
+        .whereIn("profile_id", profileIds)
+        .orderBy(["profile_id", "sort", "created_at"]);
+
+      // Get latest commissions for each profile to determine lastBooking and status
+      const commissions = await knex("commissions")
+        .whereIn("profile_id", profileIds)
+        .where({ agency_id: agencyId })
+        .select("profile_id")
+        .max("created_at as last_booking_date")
+        .groupBy("profile_id");
+
+      const commissionMap = {};
+      commissions.forEach((c) => {
+        commissionMap[c.profile_id] = c.last_booking_date;
+      });
+
+      // Get tags
+      const applicationIds = applications.map((a) => a.id);
+      const tags = await knex("application_tags")
+        .whereIn("application_id", applicationIds)
+        .where({ agency_id: agencyId });
+
+      const tagsByApp = {};
+      tags.forEach((t) => {
+        if (!tagsByApp[t.application_id]) tagsByApp[t.application_id] = [];
+        tagsByApp[t.application_id].push(t.tag);
+      });
+
+      const response = profiles.map((p) => {
+        const app = applications.find((a) => a.profile_id === p.id);
+        const profileImages = images.filter((i) => i.profile_id === p.id);
+        const coverImage =
+          profileImages.find((i) => i.is_cover) || profileImages[0];
+
+        let archetype = p.archetype ? p.archetype.toLowerCase() : "editorial";
+        if (
+          !["editorial", "commercial", "runway", "fitness", "plus"].includes(
+            archetype,
+          )
+        ) {
+          archetype = "editorial";
+        }
+
+        const lastBooking = commissionMap[p.id] || null;
+        let status = "available";
+        if (lastBooking) {
+          const daysSince = Math.floor(
+            (Date.now() - new Date(lastBooking).getTime()) / 86400000,
+          );
+          if (daysSince < 7) status = "booking";
+          else if (daysSince > 180) status = "inactive";
+        }
+
+        return {
+          id: p.id,
+          applicationId: app.id,
+          name:
+            [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
+          gender: p.gender || "female",
+          type: archetype,
+          status: status,
+          location: p.city || "Unknown",
+          height: p.height_cm || p.height || 0,
+          bust: p.bust_cm || p.bust || 0,
+          waist: p.waist_cm || p.waist || 0,
+          hips: p.hips_cm || p.hips || 0,
+          lastBooking: lastBooking,
+          dateAdded: app.accepted_at || app.updated_at,
+          tags: tagsByApp[app.id] || [],
+          img: coverImage ? coverImage.url : null,
+          email: p.email,
+          phone: p.phone,
+          notes: p.bio,
+        };
+      });
+
+      // Order by dateAdded desc
+      response.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+
+      return res.json(response);
+    } catch (error) {
+      console.error("[Roster API] Error fetching roster:", error);
+      return res.status(500).json({ error: "Failed to fetch roster" });
     }
   },
 );
@@ -2871,12 +3787,14 @@ router.get(
         gender = "",
         eye_color = "",
         hair_color = "",
+        archetype = "",
+        experience_level = "",
         page = "1",
         limit = "20",
         q = "", // semantic / vibe search query
       } = req.query;
 
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req);
       const pageNum = Math.max(1, parseInt(page, 10) || 1);
       const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
       const offset = (pageNum - 1) * limitNum;
@@ -2946,6 +3864,14 @@ router.get(
 
       if (hair_color) {
         query = query.where("profiles.hair_color", hair_color);
+      }
+
+      if (archetype) {
+        query = query.where("profiles.archetype", archetype);
+      }
+
+      if (experience_level) {
+        query = query.where("profiles.experience_level", experience_level);
       }
 
       // Get total count before applying sort/pagination
@@ -3100,7 +4026,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { profileId } = req.params;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req);
 
       const profile = await knex("profiles")
         .where({ id: profileId, is_discoverable: true })
@@ -3140,13 +4066,13 @@ router.post(
           .where({ id: profile.user_id })
           .first();
 
-        const agency = await knex("users").where({ id: agencyId }).first();
+        const agency = await knex("agencies").where({ id: agencyId }).first();
 
         if (talentUser && agency) {
           await sendAgencyInviteEmail({
             talentEmail: talentUser.email,
             talentName: `${profile.first_name} ${profile.last_name}`,
-            agencyName: agency.agency_name || agency.email,
+            agencyName: agency.name,
           });
         }
       } catch (emailError) {
@@ -3310,6 +4236,7 @@ router.post(
       const { applicationId } = req.params;
       const { message, attachment_url } = req.body;
       const agencyId = req.session.userId;
+      const actorUserId = getSessionActorUserId(req.session);
 
       if (!message || !message.trim()) {
         return res.status(400).json({ error: "Message is required" });
@@ -3330,7 +4257,7 @@ router.post(
       await knex("messages").insert({
         id: messageId,
         application_id: applicationId,
-        sender_id: agencyId,
+        sender_id: actorUserId,
         sender_type: "AGENCY",
         message: message.trim(),
         attachment_url: attachment_url || null,
@@ -3358,7 +4285,7 @@ router.post(
             .first();
 
           // Get agency info
-          const agency = await knex("users").where({ id: agencyId }).first();
+          const agency = await knex("agencies").where({ id: agencyId }).first();
 
           if (talent && talent.email && agency) {
             const messagePreview =
@@ -4338,6 +5265,31 @@ router.delete(
     } catch (error) {
       console.error("[Reminders API] Error deleting reminder:", error);
       return res.status(500).json({ error: "Failed to delete reminder" });
+    }
+  },
+);
+
+// GET /api/agency/pipeline-counts
+router.get(
+  "/api/agency/pipeline-counts",
+  requireRole("AGENCY"),
+  async (req, res) => {
+    try {
+      const agencyId = getSessionAgencyId(req);
+      const rows = await knex("applications")
+        .where({ agency_id: agencyId })
+        .select("status")
+        .count("* as count")
+        .groupBy("status");
+
+      const counts = {};
+      for (const row of rows) {
+        counts[row.status] = parseInt(row.count, 10);
+      }
+      return res.json({ success: true, data: counts });
+    } catch (error) {
+      console.error("[Pipeline API] Error fetching pipeline counts:", error);
+      return res.status(500).json({ error: "Failed to fetch pipeline counts" });
     }
   },
 );
