@@ -334,14 +334,14 @@ async function getAlerts(db, agencyId) {
  * Returns live "right now" signals for the pulse strip and Discover promo card.
  *
  * Pulse strip chips (4): newToday, closingWeek, idleTalent, avgMatchScore
- * Discover promo card (2): matchCount, newTalentWeek
+ * Discover promo card (2): discoverableCount, newTalentWeek
  *
  * @returns {{
  *   newToday: number,
  *   closingWeek: number,
  *   idleTalent: number,
  *   avgMatchScore: number|null,
- *   matchCount: number,
+ *   discoverableCount: number,
  *   newTalentWeek: number
  * }}
  */
@@ -393,7 +393,7 @@ async function getPulse(db, agencyId) {
           .where("ba.created_at", ">=", thirtyDaysAgoISO)
           .distinct();
       })
-      .count("* as count"),
+      .countDistinct("a.profile_id as count"),
 
     // Average match score of currently-pending submitted applications
     db("board_applications as ba")
@@ -424,7 +424,7 @@ async function getPulse(db, agencyId) {
     closingWeek: parseInt(closingWeekRow.count, 10) || 0,
     idleTalent: parseInt(idleRow.count, 10) || 0,
     avgMatchScore: avgRow.avg != null ? Math.round(Number(avgRow.avg)) : null,
-    matchCount: parseInt(matchRow.count, 10) || 0,
+    discoverableCount: parseInt(matchRow.count, 10) || 0,
     newTalentWeek: parseInt(newTalentRow.count, 10) || 0,
   };
 }

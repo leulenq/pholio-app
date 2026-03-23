@@ -468,19 +468,6 @@ describe("query functions — data correctness", () => {
     ]);
   });
 
-  test("DEBUG: verify data was inserted", async () => {
-    const apps = await knex("applications")
-      .where("agency_id", AGENCY_USER_ID)
-      .select("status", "created_at", "accepted_at");
-    const boards = await knex("boards")
-      .where("agency_id", AGENCY_USER_ID)
-      .select("closes_at");
-    console.log("DEBUG apps:", JSON.stringify(apps));
-    console.log("DEBUG boards:", JSON.stringify(boards));
-    // Just check we have data
-    expect(apps.length).toBeGreaterThan(0);
-  });
-
   test("pendingReview.count matches submitted applications in DB", async () => {
     const [row] = await knex("applications")
       .where({ agency_id: AGENCY_USER_ID, status: "submitted" })
@@ -580,7 +567,7 @@ describe("getPulse — zero state", () => {
     expect(result.closingWeek).toBe(0);
     expect(result.idleTalent).toBe(0);
     expect(result.avgMatchScore).toBeNull();
-    expect(result.matchCount).toBeGreaterThanOrEqual(0);
+    expect(result.discoverableCount).toBeGreaterThanOrEqual(0);
     expect(result.newTalentWeek).toBeGreaterThanOrEqual(0);
   });
 });
