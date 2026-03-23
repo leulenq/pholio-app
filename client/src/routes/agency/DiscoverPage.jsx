@@ -1,7 +1,7 @@
 /**
  * DiscoverPage — "The Signal"
  *
- * AI-powered talent discovery. Pure frontend prototype with static data.
+ * AI-powered talent discovery. Wired to real backend data.
  *
  * Layout:
  *   1. Threshold  — full-viewport entry with NL search bar + intent chips
@@ -9,102 +9,62 @@
  *   3. Detail Panel — right-edge drawer (no center modal)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Mail } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { getAgencyProfile } from '../../api/agency';
+import { X, MapPin, Mail, Loader2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { getAgencyProfile, getDiscoverableTalent, inviteTalent } from '../../api/agency';
 import Grainient from './Grainient';
 import './DiscoverPage.css';
-import { TalentPanel } from '../../components/agency/TalentPanel';
-import { TalentMatchRing } from '../../components/agency/ui/TalentMatchRing';
+import TalentDetailPanel from '../../components/agency/TalentDetailPanel';
 
-// ─── Data adapter ─────────────────────────────────────────────────────────────
-const toTalentObject = (t) => !t ? null : ({
-  id:            t.id,
-  profileId:     t.id,
-  applicationId: null,
-  name:          `${t.first} ${t.last}`,
-  photo:        t.photo || null,
-  type:         (t.archetype || 'editorial').toLowerCase(),
-  status:       'available',
-  location:     t.city || null,
-  matchScore:   t.match || 0,
-  measurements: {
-    height: t.height || null,
-    bust:   null,
-    waist:  null,
-    hips:   null,
-  },
-  bio:          t.bio || null,
-});
+// ─── Height/measurement helpers ───────────────────────────────────────────────
+function cmToFeetInches(cm) {
+  if (!cm) return null;
+  const totalInches = Math.round(cm / 2.54);
+  const feet = Math.floor(totalInches / 12);
+  const inches = totalInches % 12;
+  return `${feet}'${inches}"`;
+}
 
-// ─── Static talent data ───────────────────────────────────────────────────────
-const TALENT = [
-  {
-    id: 1, first: 'Amara',    last: 'Johnson',  archetype: 'Editorial',
-    city: 'New York',    match: 97, height: "5'10\"", meas: '34–25–35', shoe: '9',   age: 22,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600&h=800',
-    bio: 'Versatile editorial talent with a striking presence. Four years across high-fashion campaigns and lookbook production.',
-  },
-  {
-    id: 2, first: 'Sofia',    last: 'Chen',     archetype: 'Runway',
-    city: 'Los Angeles', match: 94, height: "5'11\"", meas: '33–24–34', shoe: '8.5', age: 21,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600&h=900',
-    bio: 'Haute couture specialist. Featured in NYFW SS25, Paris Fashion Week, and four international runways.',
-  },
-  {
-    id: 3, first: 'Zara',     last: 'Williams', archetype: 'Commercial',
-    city: 'Miami',       match: 88, height: "5'8\"",  meas: '35–26–36', shoe: '8',   age: 24,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600&h=750',
-    bio: 'Natural, approachable presence perfect for lifestyle and brand campaigns. Broad commercial portfolio.',
-  },
-  {
-    id: 4, first: 'Elena',    last: 'Marcus',   archetype: 'Editorial',
-    city: 'New York',    match: 91, height: "5'9\"",  meas: '34–25–35', shoe: '8.5', age: 23,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&q=80&w=600&h=850',
-    bio: 'Award-winning editorial talent. Known for expressive storytelling through movement and striking camera presence.',
-  },
-  {
-    id: 5, first: 'Mia',      last: 'Thompson', archetype: 'Lifestyle',
-    city: 'Chicago',     match: 85, height: "5'7\"",  meas: '36–27–37', shoe: '7.5', age: 25,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?auto=format&fit=crop&q=80&w=600&h=800',
-    bio: 'Wellness and fitness-focused talent. Authentic energy with strong camera confidence and digital reach.',
-  },
-  {
-    id: 6, first: 'Léa',      last: 'Fontaine', archetype: 'Runway',
-    city: 'Paris',       match: 96, height: "5'11\"", meas: '32–23–33', shoe: '9',   age: 20,
-    exp: 'New Face',
-    photo: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&q=80&w=600&h=900',
-    bio: 'Emerging Parisian talent with extraordinary movement and proportion. Exceptional runway instinct.',
-  },
-  {
-    id: 7, first: 'Naomi',    last: 'Adeyemi',  archetype: 'Editorial',
-    city: 'London',      match: 90, height: "5'9\"",  meas: '34–24–35', shoe: '8',   age: 22,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1481218110397-35a40234aafe?auto=format&fit=crop&q=80&w=600&h=800',
-    bio: 'Bold, expressive editorial presence with a strong print and digital media background.',
-  },
-  {
-    id: 8, first: 'Isabelle', last: 'Moreau',   archetype: 'Commercial',
-    city: 'New York',    match: 83, height: "5'8\"",  meas: '35–26–36', shoe: '8',   age: 26,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=600&h=750',
-    bio: 'Highly versatile commercial presence. Broad client portfolio across beauty, lifestyle, and brand campaigns.',
-  },
-  {
-    id: 9, first: 'Yuki',     last: 'Tanaka',   archetype: 'Runway',
-    city: 'Tokyo',       match: 92, height: "5'10\"", meas: '33–24–34', shoe: '8.5', age: 21,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=600&h=850',
-    bio: 'Precision and poise. Tokyo-based runway specialist with exceptional editorial crossover.',
-  },
-];
+function formatMeas(bust_cm, waist_cm, hips_cm) {
+  const toIn = (v) => (v ? Math.round(v / 2.54) : null);
+  const b = toIn(bust_cm);
+  const w = toIn(waist_cm);
+  const h = toIn(hips_cm);
+  if (!b && !w && !h) return null;
+  return [b, w, h].map((v) => v ?? '—').join('–');
+}
+
+// ─── Data adapter: API profile → display object ───────────────────────────────
+function toTalentObject(profile) {
+  if (!profile) return null;
+  const primaryImage =
+    profile.images?.find((img) => img.is_primary) || profile.images?.[0];
+  return {
+    id: profile.id,
+    profileId: profile.id,
+    applicationId: null,
+    name: `${profile.first_name} ${profile.last_name || ''}`.trim(),
+    photo: primaryImage?.path || null,
+    archetype: profile.archetype || 'Commercial',
+    type: (profile.archetype || 'commercial').toLowerCase(),
+    status: 'available',
+    location: profile.city || null,
+    height: cmToFeetInches(profile.height_cm),
+    meas: formatMeas(profile.bust_cm, profile.waist_cm, profile.hips_cm),
+    shoe: profile.shoe_size || null,
+    exp: profile.experience_level || null,
+    measurements: {
+      height: cmToFeetInches(profile.height_cm),
+      bust: profile.bust_cm ? `${Math.round(profile.bust_cm / 2.54)}"` : null,
+      waist: profile.waist_cm ? `${Math.round(profile.waist_cm / 2.54)}"` : null,
+      hips: profile.hips_cm ? `${Math.round(profile.hips_cm / 2.54)}"` : null,
+    },
+    bio: profile.bio_curated || null,
+  };
+}
 
 // Alternating card heights for masonry rhythm
 const ASPECT_RATIOS = ['3/4', '2/3', '4/5', '3/4', '2/3', '4/5', '3/4', '4/5', '2/3'];
@@ -141,7 +101,7 @@ function parseIntent(q) {
   const CITIES = ['new york', 'los angeles', 'miami', 'chicago', 'london', 'paris', 'tokyo', 'milan'];
   for (const city of CITIES) {
     if (s.includes(city)) {
-      chips.push({ label: city.replace(/\b\w/g, c => c.toUpperCase()), key: 'city' });
+      chips.push({ label: city.replace(/\b\w/g, (c) => c.toUpperCase()), key: 'city' });
     }
   }
 
@@ -152,25 +112,46 @@ function parseIntent(q) {
   return chips;
 }
 
-function applyChips(talent, chips) {
-  if (!chips.length) return talent;
-  return talent.filter(t =>
-    chips.every(chip => {
-      if (chip.key === 'archetype')  return t.archetype === chip.label;
-      if (chip.key === 'city')       return t.city.toLowerCase().includes(chip.label.toLowerCase());
-      if (chip.key === 'experience') return t.exp === chip.label;
-      if (chip.key === 'height' && chip.label === 'Tall') {
-        const m = t.height.match(/(\d)[''′](\d+)/);
-        return m ? parseInt(m[1]) * 12 + parseInt(m[2]) >= 69 : false;
+// ─── Chips → API params ───────────────────────────────────────────────────────
+function chipsToParams(chips, q) {
+  const params = {};
+  if (q.trim()) params.q = q.trim();
+
+  for (const chip of chips) {
+    if (chip.key === 'gender')     params.gender = chip.label;
+    if (chip.key === 'archetype')  params.archetype = chip.label;
+    if (chip.key === 'city')       params.city = chip.label;
+    if (chip.key === 'experience') params.experience_level = 'Beginner';
+    if (chip.key === 'height') {
+      if (chip.label === 'Tall') {
+        params.min_height = 175; // ~5'9"
+      } else {
+        const m = chip.label.match(/(\d)[''′](\d+)/);
+        if (m) params.min_height = Math.round((parseInt(m[1]) * 12 + parseInt(m[2])) * 2.54);
       }
-      return true;
-    })
+    }
+  }
+  return params;
+}
+
+// ─── Skeleton card ────────────────────────────────────────────────────────────
+function SkeletonCard({ aspectRatio }) {
+  return (
+    <div className="dc-card">
+      <div className="dc-card-frame dc-card-skeleton" style={{ aspectRatio }} />
+    </div>
   );
 }
 
 // ─── Talent Card ──────────────────────────────────────────────────────────────
-function TalentCard({ talent, index, aspectRatio, onClick }) {
+function TalentCard({ talent, index, aspectRatio, onClick, onInvite, isInviting, isInvited }) {
   const ac = ARCHETYPE[talent.archetype] || ARCHETYPE.Commercial;
+
+  const handleInviteClick = (e) => {
+    e.stopPropagation();
+    if (!isInvited && !isInviting) onInvite(talent.id);
+  };
+
   return (
     <motion.div
       className="dc-card"
@@ -180,12 +161,16 @@ function TalentCard({ talent, index, aspectRatio, onClick }) {
       onClick={onClick}
     >
       <div className="dc-card-frame" style={{ aspectRatio }}>
-        <img
-          src={talent.photo}
-          alt={`${talent.first} ${talent.last}`}
-          className="dc-card-img"
-          loading="lazy"
-        />
+        {talent.photo ? (
+          <img
+            src={talent.photo}
+            alt={talent.name}
+            className="dc-card-img"
+            loading="lazy"
+          />
+        ) : (
+          <div className="dc-card-img dc-card-img--fallback" aria-hidden="true" />
+        )}
 
         {/* Persistent bottom gradient */}
         <div className="dc-card-grad" />
@@ -198,37 +183,41 @@ function TalentCard({ talent, index, aspectRatio, onClick }) {
           {talent.archetype}
         </div>
 
-        {/* Match ring — top right */}
-        <div className="dc-card-ring">
-          <TalentMatchRing score={talent.match || 0} size="md" />
-        </div>
-
         {/* Identity — bottom, always visible */}
         <div className="dc-card-id">
-          <div className="dc-card-name">{talent.first} {talent.last}</div>
-          <div className="dc-card-city">
-            <MapPin size={9} strokeWidth={2} />
-            {talent.city}
-          </div>
+          <div className="dc-card-name">{talent.name}</div>
+          {talent.location && (
+            <div className="dc-card-city">
+              <MapPin size={9} strokeWidth={2} />
+              {talent.location}
+            </div>
+          )}
         </div>
 
         {/* Hover reveal panel */}
         <div className="dc-card-reveal">
           <div className="dc-card-stats">
-            <span>{talent.height}</span>
-            <span className="dc-dot">·</span>
-            <span>{talent.meas}</span>
-            <span className="dc-dot">·</span>
-            <span>Shoe {talent.shoe}</span>
+            {talent.height && <span>{talent.height}</span>}
+            {talent.height && talent.meas && <span className="dc-dot">·</span>}
+            {talent.meas && <span>{talent.meas}</span>}
+            {talent.shoe && <><span className="dc-dot">·</span><span>Shoe {talent.shoe}</span></>}
           </div>
-          <div className="dc-card-exp">{talent.exp}</div>
+          {talent.exp && <div className="dc-card-exp">{talent.exp}</div>}
           <div className="dc-card-btns">
-            <button className="dc-btn-ghost" onClick={e => e.stopPropagation()}>
+            <button className="dc-btn-ghost" onClick={(e) => { e.stopPropagation(); onClick(); }}>
               View
             </button>
-            <button className="dc-btn-gold" onClick={e => e.stopPropagation()}>
-              <Mail size={12} strokeWidth={2.2} />
-              Invite
+            <button
+              className={`dc-btn-gold${isInvited ? ' dc-btn-gold--done' : ''}`}
+              onClick={handleInviteClick}
+              disabled={isInviting || isInvited}
+            >
+              {isInviting ? (
+                <Loader2 size={12} strokeWidth={2.2} className="dc-spin" />
+              ) : (
+                <Mail size={12} strokeWidth={2.2} />
+              )}
+              {isInvited ? 'Invited' : 'Invite'}
             </button>
           </div>
         </div>
@@ -239,24 +228,35 @@ function TalentCard({ talent, index, aspectRatio, onClick }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DiscoverPage() {
-  const { data: profile } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: agencyProfile } = useQuery({
     queryKey: ['agency-profile'],
     queryFn: getAgencyProfile,
   });
 
   const [query, setQuery]                   = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [chips, setChips]                   = useState([]);
   const [isFocused, setIsFocused]           = useState(false);
   const [promptIdx, setPromptIdx]           = useState(0);
   const [promptVisible, setPromptVisible]   = useState(true);
   const [selectedTalent, setSelectedTalent] = useState(null);
+  const [invitingIds, setInvitingIds]       = useState(new Set());
+  const [invitedIds, setInvitedIds]         = useState(new Set());
+
+  // Debounce query → API
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 500);
+    return () => clearTimeout(t);
+  }, [query]);
 
   // Cycle placeholder prompts
   useEffect(() => {
     const id = setInterval(() => {
       setPromptVisible(false);
       setTimeout(() => {
-        setPromptIdx(i => (i + 1) % PROMPTS.length);
+        setPromptIdx((i) => (i + 1) % PROMPTS.length);
         setPromptVisible(true);
       }, 420);
     }, 3800);
@@ -269,8 +269,51 @@ export default function DiscoverPage() {
     setChips(parseIntent(query));
   }, [query]);
 
-  const removeChip = label => setChips(cs => cs.filter(c => c.label !== label));
-  const visible    = applyChips(TALENT, chips);
+  const removeChip = (label) => setChips((cs) => cs.filter((c) => c.label !== label));
+
+  // Build API params from chips + debounced query
+  const apiParams = useMemo(() => chipsToParams(chips, debouncedQuery), [chips, debouncedQuery]);
+
+  // Fetch real talent data
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['discover', apiParams],
+    queryFn: () => getDiscoverableTalent(apiParams),
+    staleTime: 30_000,
+  });
+
+  const profiles = data?.profiles || [];
+  const pagination = data?.pagination;
+  const visible = profiles.map(toTalentObject).filter(Boolean);
+
+  // Invite handler
+  const handleInvite = useCallback(async (profileId) => {
+    setInvitingIds((prev) => new Set([...prev, profileId]));
+    try {
+      await inviteTalent(profileId);
+      setInvitedIds((prev) => new Set([...prev, profileId]));
+      toast.success('Invitation sent');
+      // Invalidate so this profile drops off results on next fetch
+      queryClient.invalidateQueries({ queryKey: ['discover'] });
+    } catch (err) {
+      if (err?.status === 409) {
+        toast.info('Already invited');
+        setInvitedIds((prev) => new Set([...prev, profileId]));
+      } else {
+        toast.error('Failed to send invitation');
+      }
+    } finally {
+      setInvitingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(profileId);
+        return next;
+      });
+    }
+  }, [queryClient]);
+
+  const handlePanelAction = useCallback((action, talent) => {
+    if (action === 'invite') handleInvite(talent.profileId);
+    else toast.success('Coming soon');
+  }, [handleInvite]);
 
   return (
     <div className="dc-page">
@@ -320,7 +363,7 @@ export default function DiscoverPage() {
                 <input
                   className="dc-bar-input"
                   value={query}
-                  onChange={e => setQuery(e.target.value)}
+                  onChange={(e) => setQuery(e.target.value)}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   spellCheck={false}
@@ -398,15 +441,30 @@ export default function DiscoverPage() {
               />
             </svg>
             <span className="dc-curated-label">
-              {chips.length > 0 ? 'Search Results' : `Curated for ${profile?.agency_name || 'SMG Models'}`}
+              {chips.length > 0 || debouncedQuery ? 'Search Results' : `Curated for ${agencyProfile?.agency_name || 'your agency'}`}
             </span>
           </div>
           <span className="dc-curated-count">
-            {visible.length} profiles <span className="dc-gem-inline">✦</span>
+            {isLoading ? (
+              <Loader2 size={14} className="dc-spin" />
+            ) : (
+              <>{pagination?.total ?? visible.length} profiles <span className="dc-gem-inline">✦</span></>
+            )}
           </span>
         </div>
 
-        {visible.length === 0 ? (
+        {isError ? (
+          <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="dc-empty-gem">◈</div>
+            <p className="dc-empty-text">Failed to load talent. Please try again.</p>
+          </motion.div>
+        ) : isLoading ? (
+          <div className="dc-grid">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} aspectRatio={ASPECT_RATIOS[i % ASPECT_RATIOS.length]} />
+            ))}
+          </div>
+        ) : visible.length === 0 ? (
           <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="dc-empty-gem">◈</div>
             <p className="dc-empty-text">No talent matched your criteria.</p>
@@ -421,6 +479,9 @@ export default function DiscoverPage() {
                 index={i}
                 aspectRatio={ASPECT_RATIOS[i % ASPECT_RATIOS.length]}
                 onClick={() => setSelectedTalent(t)}
+                onInvite={handleInvite}
+                isInviting={invitingIds.has(t.id)}
+                isInvited={invitedIds.has(t.id)}
               />
             ))}
           </div>
@@ -430,10 +491,11 @@ export default function DiscoverPage() {
       {/* ── Talent Panel ───────────────────────────────────── */}
       <AnimatePresence>
         {selectedTalent && (
-          <TalentPanel
+          <TalentDetailPanel
             key={selectedTalent.id}
-            talent={toTalentObject(selectedTalent)}
+            profileId={selectedTalent.profileId || selectedTalent.id}
             context="discover"
+            mode="drawer"
             onClose={() => setSelectedTalent(null)}
           />
         )}
