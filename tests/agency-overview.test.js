@@ -299,6 +299,28 @@ describe("GET /api/agency/overview — response shape", () => {
     }
   });
 
+  test("pulse object present with correct shape", () => {
+    const { pulse } = res.body.data;
+    expect(pulse).toBeDefined();
+    expect(typeof pulse.newToday).toBe("number");
+    expect(typeof pulse.closingWeek).toBe("number");
+    expect(typeof pulse.idleTalent).toBe("number");
+    expect(typeof pulse.discoverableCount).toBe("number");
+    expect(typeof pulse.newTalentWeek).toBe("number");
+    // avgMatchScore may be null when no submitted apps exist
+    expect(
+      pulse.avgMatchScore === null || typeof pulse.avgMatchScore === "number",
+    ).toBe(true);
+  });
+
+  test("kpis.utilization present with correct shape", () => {
+    const { utilization } = res.body.data.kpis;
+    expect(utilization).toBeDefined();
+    expect(typeof utilization.active).toBe("number");
+    expect(typeof utilization.total).toBe("number");
+    expect(typeof utilization.pct).toBe("number");
+  });
+
   test("no field is null except oldestDaysAgo when pendingReview.count is 0", () => {
     const { kpis, pipeline, talentMix, alerts } = res.body.data;
 
