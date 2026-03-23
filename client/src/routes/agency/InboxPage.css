@@ -1,0 +1,18 @@
+.inbox-page { display: flex; height: calc(100vh - 56px); }
+.inbox-page__list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.inbox-page.has-panel .inbox-page__list { flex: 0 0 45%; }
+.inbox-page__rows { flex: 1; overflow-y: auto; }
+.inbox-page__kanban { display: flex; gap: 12px; overflow-x: auto; flex: 1; padding: 16px; }
+
+/* Loading skeletons */
+.ag-rich-row-skeleton {
+  height: var(--ag-row-h, 76px);
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--ag-surface-2, #F0EDE8) 25%, var(--ag-surface-1, #fff) 50%, var(--ag-surface-2, #F0EDE8) 75%);
+  background-size: 200% 100%;
+  animation: ag-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes ag-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
