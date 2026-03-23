@@ -12,7 +12,7 @@ const routeNames = {
   '/dashboard/talent/settings': 'Settings',
   '/dashboard/agency': 'Dashboard',
   '/dashboard/agency/overview': 'Overview',
-  '/dashboard/agency/applicants': 'Applicants',
+  '/dashboard/agency/inbox': 'Inbox',
   '/dashboard/agency/discover': 'Discover',
   '/dashboard/agency/boards': 'Boards',
   '/dashboard/agency/interviews': 'Interviews',

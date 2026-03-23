@@ -136,7 +136,7 @@ export default function ActivityPage() {
                           </div>
                         </div>
 
-                        <Link to={`/dashboard/agency/applicants?id=${item.application_id}`} className="st-activity-arrow">
+                        <Link to={`/dashboard/agency/inbox?id=${item.application_id}`} className="st-activity-arrow">
                           <ChevronRight size={18} />
                         </Link>
                       </div>
