@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, LayoutGrid, Rows, Image as ImageIcon,
   X, Sparkles, ChevronRight, ChevronLeft, Eye,
@@ -16,111 +18,51 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { TalentPanel } from '../../components/agency/TalentPanel';
+import TalentDetailPanel from '../../components/agency/TalentDetailPanel';
+import BulkActionToolbar from '../../components/agency/BulkActionToolbar';
+import {
+  bulkUpdateCastingApplicationStage,
+  createBoard,
+  getBoards,
+  getCastingBoardPipeline,
+  updateCastingApplicationStage,
+} from '../../api/agency';
 
 // ════════════════════════════════════════════════════════════
 // MOCK DATA
 // ════════════════════════════════════════════════════════════
 
-const CASTINGS = [
-  {
-    id: 1, role: 'Lead Female Editorial', client: 'Vogue Italia', status: 'Active',
-    deadline: 'Oct 18, 2025', unreviewed: 12, filledSlots: 8, totalSlots: 12,
-    brief: 'Looking for high-fashion editorial talent for a 12-page spread. Dark aesthetics, movement-focused.',
-    requirements: "Height: 5'9\"+, Archetype: Editorial, Location: Milan/Remote",
-    moodBoard: [
-      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=200&h=200&fit=crop',
-      'https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?w=200&h=200&fit=crop',
-    ],
-  },
-  {
-    id: 2, role: 'Spring Runway Lookbook', client: 'Balenciaga', status: 'Closing Soon',
-    deadline: 'Oct 15, 2025', unreviewed: 34, filledSlots: 4, totalSlots: 10,
-    brief: 'Casting for the upcoming Spring lookbook. Strong walk and unique features preferred.',
-    requirements: "Height: 5'11\"+, Archetype: Runway, Available: Oct 20-25",
-    moodBoard: [],
-  },
-  {
-    id: 3, role: 'Commercial Campaign', client: 'Glossier', status: 'Active',
-    deadline: 'Oct 25, 2025', unreviewed: 0, filledSlots: 0, totalSlots: 5,
-    brief: 'Natural skin focused campaign. Approachable, glowing presence.',
-    requirements: 'Archetype: Commercial/Lifestyle, No height req.',
-    moodBoard: [],
-  },
-];
+const STAGES = ['Applied', 'Shortlisted', 'Offered', 'Booked', 'Passed'];
 
-const INITIAL_CANDIDATES = [
-  {
-    id: 101, name: 'Amara Johnson', archetype: 'editorial', score: 98,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop&crop=faces',
-    stage: 'Applied', height: "5'10\"", location: 'Milan, IT', measurements: '34-24-35',
-    portfolio: [
-      { id: 1, url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=600&fit=crop' },
-      { id: 2, url: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=400&h=600&fit=crop' },
-      { id: 3, url: 'https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?w=400&h=600&fit=crop' },
-      { id: 4, url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=600&fit=crop' },
-    ],
-  },
-  {
-    id: 102, name: 'Sofia Chen', archetype: 'runway', score: 94,
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop&crop=faces',
-    stage: 'Applied', height: "5'11\"", location: 'Paris, FR', measurements: '33-23-34',
-    portfolio: [
-      { id: 1, url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop' },
-      { id: 2, url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=600&fit=crop' },
-    ],
-  },
-  {
-    id: 103, name: 'Zara Williams', archetype: 'commercial', score: 88,
-    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=600&fit=crop&crop=faces',
-    stage: 'Shortlisted', height: "5'8\"", location: 'New York, US', measurements: '35-25-36',
-    portfolio: [],
-  },
-  {
-    id: 104, name: 'Elena Marcus', archetype: 'editorial', score: 91,
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=600&fit=crop&crop=faces',
-    stage: 'Interview', height: "5'9\"", location: 'London, UK', measurements: '34-24-35',
-    portfolio: [
-      { id: 1, url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=600&fit=crop' },
-      { id: 2, url: 'https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?w=400&h=600&fit=crop' },
-    ],
-  },
-  {
-    id: 105, name: 'Mia Thompson', archetype: 'lifestyle', score: 85,
-    avatar: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400&h=600&fit=crop&crop=faces',
-    stage: 'Offered', height: "5'7\"", location: 'LA, US', measurements: '35-26-37',
-    portfolio: [],
-  },
-  {
-    id: 106, name: 'Jordan Lee', archetype: 'editorial', score: 96,
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=600&fit=crop&crop=faces',
-    stage: 'Applied', height: "5'10\"", location: 'Tokyo, JP', measurements: '33-22-33',
-    portfolio: [
-      { id: 1, url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=600&fit=crop' },
-      { id: 2, url: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=400&h=600&fit=crop' },
-      { id: 3, url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&h=600&fit=crop' },
-    ],
-  },
-  {
-    id: 107, name: 'Naomi Adeyemi', archetype: 'runway', score: 92,
-    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=600&fit=crop&crop=faces',
-    stage: 'Applied', height: "5'11\"", location: 'Lagos, NG', measurements: '34-23-35',
-    portfolio: [],
-  },
-];
+function formatAssetUrl(path) {
+  if (!path) return null;
+  if (/^(https?:)?\/\//.test(path) || path.startsWith('data:')) {
+    return path;
+  }
+  return `/${path.replace(/^\/+/, '')}`;
+}
 
-const STAGES = ['Applied', 'Shortlisted', 'Interview', 'Offered', 'Booked'];
+function buildAvatarFallback(name) {
+  const initials = (name || '?')
+    .split(' ')
+    .map((part) => part[0] || '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  return `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600"><rect width="100%" height="100%" fill="#ede6da"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Georgia, serif" font-size="120" fill="#b69355">${initials}</text></svg>`
+  )}`;
+}
 
 // Maps a casting candidate to the TalentPanel talent shape.
 // Casting pages use mock data so profileId/applicationId are numeric stubs —
 // Zone B will show error+retry states until real IDs are wired up.
 const toCastingTalentObject = (c) => !c ? null : ({
-  id:            c.id,
-  profileId:     c.id,
-  applicationId: c.id,
+  id:            c.profileId || c.id,
+  profileId:     c.profileId || c.id,
+  applicationId: c.applicationId || c.id,
   name:          c.name,
-  photo:         c.avatar || null,
+  photo:         formatAssetUrl(c.avatar) || buildAvatarFallback(c.name),
   type:          c.archetype || 'editorial',
   status:        c.stage?.toLowerCase() || 'available',
   location:      c.location || null,
@@ -132,6 +74,7 @@ const toCastingTalentObject = (c) => !c ? null : ({
 
 function CandidateCard({ candidate, isSelected, onSelect, onOpenDrawer, inlineStyle, innerRef, attributes, listeners, mode, index }) {
   const isGallery = mode === 'gallery';
+  const scoreLabel = candidate.score === null || candidate.score === undefined ? 'NA' : `${candidate.score}`;
   return (
     <div
       ref={innerRef}
@@ -147,7 +90,7 @@ function CandidateCard({ candidate, isSelected, onSelect, onOpenDrawer, inlineSt
     >
       <div className={['relative overflow-hidden', isGallery ? 'rounded-[12px]' : 'rounded-t-[12px]'].join(' ')}>
         <img
-          src={candidate.avatar}
+          src={formatAssetUrl(candidate.avatar) || buildAvatarFallback(candidate.name)}
           alt={candidate.name}
           className={['w-full object-cover block transition-transform duration-700 group-hover:scale-110', isGallery ? 'aspect-[2/3]' : 'h-52'].join(' ')}
         />
@@ -170,7 +113,7 @@ function CandidateCard({ candidate, isSelected, onSelect, onOpenDrawer, inlineSt
 
         {/* Score badge */}
         <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/10 text-white text-[9px] font-bold px-2 py-1 rounded-full shadow-sm">
-          <Sparkles size={8} className="text-[#C9A84C]" /> {candidate.score}% Match
+          <Sparkles size={8} className="text-[#C9A84C]" /> {scoreLabel} Match
         </div>
 
 
@@ -279,8 +222,10 @@ export default function CastingPageWrapper() {
 }
 
 function CastingPage() {
-  const [activeCasting, setActiveCasting] = useState(CASTINGS.length > 0 ? CASTINGS[0] : null);
-  const [candidates, setCandidates] = useState(INITIAL_CANDIDATES);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [activeCastingId, setActiveCastingId] = useState(null);
+  const [candidates, setCandidates] = useState([]);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('cas-view') || 'kanban');
   const [briefExpanded, setBriefExpanded] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
@@ -292,6 +237,122 @@ function CastingPage() {
   const [isFocusAnimating, setIsFocusAnimating] = useState(false);
   const [filterStage, setFilterStage] = useState('All');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(viewMode === 'kanban');
+  const [castingSearch, setCastingSearch] = useState('');
+  const [newRoleForm, setNewRoleForm] = useState({
+    name: '',
+    client_name: '',
+    closes_at: '',
+    target_slots: '',
+    description: '',
+  });
+
+  const boardsQuery = useQuery({
+    queryKey: ['agency-casting-boards'],
+    queryFn: getBoards,
+  });
+
+  const boards = Array.isArray(boardsQuery.data) ? boardsQuery.data : [];
+  const filteredBoards = boards.filter((board) => {
+    if (!castingSearch.trim()) return true;
+    const haystack = `${board.name || ''} ${board.client_name || ''}`.toLowerCase();
+    return haystack.includes(castingSearch.trim().toLowerCase());
+  });
+
+  const pipelineQuery = useQuery({
+    queryKey: ['agency-casting-board-pipeline', activeCastingId],
+    queryFn: () => getCastingBoardPipeline(activeCastingId),
+    enabled: !!activeCastingId,
+  });
+
+  const activeCasting =
+    boards.find((board) => board.id === activeCastingId) || pipelineQuery.data?.board || null;
+  const displayedStages = pipelineQuery.data?.stages || STAGES;
+
+  useEffect(() => {
+    if (!boards.length) {
+      setActiveCastingId(null);
+      return;
+    }
+    if (!activeCastingId || !boards.some((board) => board.id === activeCastingId)) {
+      setActiveCastingId(boards[0].id);
+    }
+  }, [boards, activeCastingId]);
+
+  useEffect(() => {
+    setCandidates(Array.isArray(pipelineQuery.data?.candidates) ? pipelineQuery.data.candidates : []);
+    setSelectedCandidates((prev) =>
+      prev.filter((id) => (pipelineQuery.data?.candidates || []).some((candidate) => candidate.id === id))
+    );
+    setDrawerCandidate((prev) => {
+      if (!prev) return prev;
+      return (pipelineQuery.data?.candidates || []).find((candidate) => candidate.id === prev.id) || null;
+    });
+  }, [pipelineQuery.data]);
+
+  useEffect(() => {
+    if (!focusMode) return;
+    const nextAppliedCandidates = candidates.filter((candidate) => candidate.stage === 'Applied');
+    if (!nextAppliedCandidates.length) {
+      setFocusMode(false);
+      return;
+    }
+    if (focusIndex > nextAppliedCandidates.length - 1) {
+      setFocusIndex(nextAppliedCandidates.length - 1);
+    }
+  }, [candidates, focusMode, focusIndex]);
+
+  const invalidateCastingData = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['agency-casting-boards'] }),
+      queryClient.invalidateQueries({ queryKey: ['agency-casting-board-pipeline', activeCastingId] }),
+    ]);
+  }, [queryClient, activeCastingId]);
+
+  const updateStageMutation = useMutation({
+    mutationFn: ({ applicationId, stage }) =>
+      updateCastingApplicationStage(applicationId, { stage }),
+    onSuccess: async () => {
+      await invalidateCastingData();
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to update candidate stage');
+      pipelineQuery.refetch();
+    },
+  });
+
+  const bulkUpdateStageMutation = useMutation({
+    mutationFn: ({ applicationIds, stage }) =>
+      bulkUpdateCastingApplicationStage(applicationIds, { stage }),
+    onSuccess: async (_, variables) => {
+      await invalidateCastingData();
+      setSelectedCandidates([]);
+      toast.success(`${variables.applicationIds.length} candidate${variables.applicationIds.length === 1 ? '' : 's'} moved to ${variables.stage}`);
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to update selected candidates');
+      pipelineQuery.refetch();
+    },
+  });
+
+  const createBoardMutation = useMutation({
+    mutationFn: createBoard,
+    onSuccess: async (board) => {
+      await queryClient.invalidateQueries({ queryKey: ['agency-casting-boards'] });
+      setActiveCastingId(board.id);
+      setShowNewForm(false);
+      setNewRoleForm({
+        name: '',
+        client_name: '',
+        closes_at: '',
+        target_slots: '',
+        description: '',
+      });
+      toast.success('New casting created');
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to create casting');
+    },
+  });
 
   // Auto-collapse logic for all views
   useEffect(() => {
@@ -299,12 +360,70 @@ function CastingPage() {
   }, [viewMode]);
 
   const appliedCandidates = candidates.filter(c => c.stage === 'Applied');
+  const visibleCandidates = candidates.filter((candidate) => filterStage === 'All' || candidate.stage === filterStage);
+  const focusCandidate = appliedCandidates[focusIndex] || null;
+  const activeDragCandidate = candidates.find((candidate) => candidate.id === activeId) || null;
 
   const setView = (mode) => { 
     setViewMode(mode); 
     localStorage.setItem('cas-view', mode);
     setIsSidebarCollapsed(true);
   };
+
+  const formatDeadline = (value) => {
+    if (!value) return 'Open-ended';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Open-ended';
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getBoardStatus = (board) => {
+    if (!board?.closes_at) return 'Active';
+    const closesAt = new Date(board.closes_at);
+    if (Number.isNaN(closesAt.getTime())) return 'Active';
+    const now = new Date();
+    if (closesAt < now) return 'Closed';
+    const diffDays = Math.ceil((closesAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 7 ? 'Closing Soon' : 'Active';
+  };
+
+  const getBoardProgress = (board) => {
+    const totalSlots = Number(board?.target_slots) || Number(board?.application_count) || 1;
+    const filledSlots = Number(board?.booked_count) || 0;
+    return Math.max(0, Math.min(100, (filledSlots / totalSlots) * 100));
+  };
+
+  const updateLocalCandidateStage = useCallback((candidateId, stage) => {
+    setCandidates((prev) => prev.map((candidate) => (
+      candidate.id === candidateId ? { ...candidate, stage } : candidate
+    )));
+    setDrawerCandidate((prev) => (prev && prev.id === candidateId ? { ...prev, stage } : prev));
+  }, []);
+
+  const commitCandidateStage = useCallback((candidate, stage, successMessage) => {
+    if (!candidate?.applicationId || candidate.stage === stage) return;
+    const previousStage = candidate.stage;
+    updateLocalCandidateStage(candidate.id, stage);
+    updateStageMutation.mutate(
+      { applicationId: candidate.applicationId, stage },
+      {
+        onSuccess: async () => {
+          if (successMessage) {
+            toast.success(successMessage);
+          }
+          await invalidateCastingData();
+        },
+        onError: (error) => {
+          updateLocalCandidateStage(candidate.id, previousStage);
+          toast.error(error?.message || 'Failed to update candidate stage');
+        },
+      },
+    );
+  }, [invalidateCastingData, updateLocalCandidateStage, updateStageMutation]);
 
   // Focus Review keyboard handler
   const handleFocusKey = useCallback((e) => {
@@ -314,19 +433,17 @@ function CastingPage() {
     if (!current) return;
     if (e.key === 's' || e.key === 'S') {
       setIsFocusAnimating(true);
-      setCandidates(prev => prev.map(c => c.id === current.id ? { ...c, stage: 'Shortlisted' } : c));
-      toast.success(`${current.name} moved to Shortlisted`, { action: { label: 'Undo', onClick: () => setCandidates(prev => prev.map(c => c.id === current.id ? { ...c, stage: 'Applied' } : c)) } });
+      commitCandidateStage(current, 'Shortlisted', `${current.name} moved to Shortlisted`);
       setTimeout(() => { setFocusIndex(i => Math.min(i, appliedCandidates.length - 2)); setIsFocusAnimating(false); }, 300);
     }
     if (e.key === 'p' || e.key === 'P') {
       setIsFocusAnimating(true);
-      setCandidates(prev => prev.map(c => c.id === current.id ? { ...c, stage: 'Passed' } : c));
-      toast(`${current.name} passed`, { action: { label: 'Undo', onClick: () => setCandidates(prev => prev.map(c => c.id === current.id ? { ...c, stage: 'Applied' } : c)) } });
+      commitCandidateStage(current, 'Passed', `${current.name} passed`);
       setTimeout(() => { setFocusIndex(i => Math.min(i, appliedCandidates.length - 2)); setIsFocusAnimating(false); }, 300);
     }
     if (e.key === 'ArrowRight') setFocusIndex(i => Math.min(i + 1, appliedCandidates.length - 1));
     if (e.key === 'ArrowLeft') setFocusIndex(i => Math.max(i - 1, 0));
-  }, [focusMode, focusIndex, appliedCandidates, isFocusAnimating]);
+  }, [focusMode, focusIndex, appliedCandidates, isFocusAnimating, commitCandidateStage]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleFocusKey);
@@ -339,66 +456,41 @@ function CastingPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const handleDragStart = (e) => setActiveId(e.active.id);
-  const handleDragOver = (e) => {
-    const { active, over } = e;
-    if (!over) return;
-    const activeCand = candidates.find(c => c.id === active.id);
-    const overId = over.id;
-    if (STAGES.includes(overId)) {
-      if (activeCand.stage !== overId) setCandidates(prev => prev.map(c => c.id === active.id ? { ...c, stage: overId } : c));
-      return;
-    }
-    const overCand = candidates.find(c => c.id === overId);
-    if (overCand && activeCand.stage !== overCand.stage) {
-      setCandidates(prev => prev.map(c => c.id === active.id ? { ...c, stage: overCand.stage } : c));
-    }
-  };
+  const handleDragOver = () => {};
   const handleDragEnd = (e) => {
     const { active, over } = e;
     setActiveId(null);
-    if (over && active.id !== over.id) {
-      const oldIdx = candidates.findIndex(c => c.id === active.id);
-      const newIdx = candidates.findIndex(c => c.id === over.id);
-      if (newIdx !== -1) {
-        const moved = candidates[oldIdx];
-        const dest = candidates[newIdx];
-        if (moved.stage !== dest.stage) {
-          toast.success(`${moved.name} → ${dest.stage}`, { action: { label: 'Undo', onClick: () => setCandidates(prev => prev.map(c => c.id === moved.id ? { ...c, stage: moved.stage } : c)) } });
-        }
-        setCandidates(items => arrayMove(items, oldIdx, newIdx));
-      }
+    if (!over || active.id === over.id) return;
+
+    const moved = candidates.find((candidate) => candidate.id === active.id);
+    if (!moved) return;
+
+    if (displayedStages.includes(over.id)) {
+      commitCandidateStage(moved, over.id, `${moved.name} moved to ${over.id}`);
+      return;
+    }
+
+    const destinationCandidate = candidates.find((candidate) => candidate.id === over.id);
+    if (destinationCandidate && destinationCandidate.stage !== moved.stage) {
+      commitCandidateStage(moved, destinationCandidate.stage, `${moved.name} moved to ${destinationCandidate.stage}`);
     }
   };
 
   const toggleSelect = (id) => setSelectedCandidates(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const activeDragCandidate = candidates.find(c => c.id === activeId);
-  const focusCandidate = appliedCandidates[focusIndex];
   const openDrawer = (c) => { setDrawerCandidate(c); };
 
   const handleCandidateAction = (action, candidate, payload) => {
     if (action === 'pass') {
-      setCandidates(prev =>
-        prev.map(c => c.id === candidate.id ? { ...c, stage: 'Passed' } : c)
-      );
-      setDrawerCandidate(prev => prev ? { ...prev, stage: 'Passed' } : prev);
-      toast.success(`${candidate.name} passed`);
+      commitCandidateStage(candidate, 'Passed', `${candidate.name} passed`);
     } else if (action === 'advance') {
-      const next = STAGES[STAGES.indexOf(candidate.stage) + 1];
+      const next = displayedStages[displayedStages.indexOf(candidate.stage) + 1];
       if (!next) return;
-      setCandidates(prev =>
-        prev.map(c => c.id === candidate.id ? { ...c, stage: next } : c)
-      );
-      setDrawerCandidate(prev => prev ? { ...prev, stage: next } : prev);
-      toast.success(`${candidate.name} advanced to ${next}`);
+      commitCandidateStage(candidate, next, `${candidate.name} advanced to ${next}`);
     } else if (action === 'stage-change') {
       const newStage = payload;
-      setCandidates(prev =>
-        prev.map(c => c.id === candidate.id ? { ...c, stage: newStage } : c)
-      );
-      setDrawerCandidate(prev => prev ? { ...prev, stage: newStage } : prev);
-      toast.success(`${candidate.name} moved to ${newStage}`);
+      commitCandidateStage(candidate, newStage, `${candidate.name} moved to ${newStage}`);
     } else if (action === 'message') {
-      toast.success('Coming soon');
+      navigate('/dashboard/agency/messages');
     }
   };
 
@@ -415,7 +507,42 @@ function CastingPage() {
     }
   };
 
-  if (!activeCasting) {
+  const submitNewRole = (e) => {
+    e.preventDefault();
+    createBoardMutation.mutate({
+      name: newRoleForm.name,
+      client_name: newRoleForm.client_name,
+      closes_at: newRoleForm.closes_at || null,
+      target_slots: newRoleForm.target_slots || null,
+      description: newRoleForm.description || null,
+    });
+  };
+
+  if (boardsQuery.isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center flex-col gap-3 font-sans">
+        <h2 className="font-display text-2xl font-medium text-slate-800">Loading castings</h2>
+        <p className="text-slate-400 text-sm">Fetching roles and candidate pipeline.</p>
+      </div>
+    );
+  }
+
+  if (boardsQuery.isError) {
+    return (
+      <div className="flex h-full items-center justify-center flex-col gap-4 font-sans">
+        <h2 className="font-display text-2xl font-medium text-slate-800">Casting unavailable</h2>
+        <p className="text-slate-400 text-sm">{boardsQuery.error?.message || 'Failed to load castings.'}</p>
+        <button
+          onClick={() => boardsQuery.refetch()}
+          className="px-5 py-2.5 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-all duration-200"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!activeCasting && !boards.length) {
     return (
       <div className="flex h-full items-center justify-center flex-col gap-4 font-sans">
         <h2 className="font-display text-2xl font-medium text-slate-800">No Active Castings</h2>
@@ -477,6 +604,8 @@ function CastingPage() {
               <input 
                 type="text" 
                 placeholder="Search roles..." 
+                value={castingSearch}
+                onChange={(e) => setCastingSearch(e.target.value)}
                 className="w-full h-9 bg-[#C9A84C]/5 border border-[#C9A84C]/20 pl-10 pr-4 text-[0.8125rem] font-sans text-slate-600 focus:outline-none focus:border-[#C9A84C]/40 transition-all placeholder:text-[#C9A84C]/60"
                 style={{ borderRadius: '6px' }}
               />
@@ -486,13 +615,15 @@ function CastingPage() {
 
         {/* Casting cards rail */}
         <div className={['flex-1 overflow-y-auto pb-8 flex flex-col gap-3 scrollbar-hide', isSidebarCollapsed ? 'px-2' : 'px-4'].join(' ')}>
-          {CASTINGS.map(c => {
-            const isActive = activeCasting.id === c.id;
-            const progress = (c.filledSlots / c.totalSlots) * 100;
+          {filteredBoards.map(c => {
+            const isActive = activeCasting?.id === c.id;
+            const progress = getBoardProgress(c);
+            const boardStatus = getBoardStatus(c);
+            const totalSlots = Number(c.target_slots) || Number(c.application_count) || 0;
             return (
               <button
                 key={c.id}
-                onClick={() => setActiveCasting(c)}
+                onClick={() => setActiveCastingId(c.id)}
                 className={[
                   'group w-full text-left transition-all duration-300 relative flex flex-col gap-6 overflow-hidden',
                   isSidebarCollapsed ? 'p-3 items-center' : 'p-6',
@@ -506,24 +637,24 @@ function CastingPage() {
                   <>
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span className="font-display text-[1rem] font-bold text-[#0f172a] leading-tight tracking-tight">{c.role}</span>
-                        <span className="text-[0.6rem] font-bold text-[#C9A84C] uppercase tracking-[0.08em]">{c.client}</span>
+                        <span className="font-display text-[1rem] font-bold text-[#0f172a] leading-tight tracking-tight">{c.name}</span>
+                        <span className="text-[0.6rem] font-bold text-[#C9A84C] uppercase tracking-[0.08em]">{c.client_name || 'Internal Casting'}</span>
                       </div>
-                      {c.status === 'Closing Soon' && (
+                      {boardStatus === 'Closing Soon' && (
                         <span className="text-[0.5625rem] font-black px-2 py-0.5 rounded-[4px] tracking-tighter uppercase whitespace-nowrap bg-[#B8860B]/10 text-[#B8860B]" style={{ borderRadius: '4px' }}>
-                          {c.status}
+                          {boardStatus}
                         </span>
                       )}
                     </div>
 
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-col">
-                        <span className="text-[1.5rem] font-bold text-[#0f172a] leading-none tracking-tight">{c.unreviewed || 48}</span>
-                        <span className="text-[0.5rem] font-black text-[#0f172a] uppercase tracking-widest mt-1.5 ml-0.5 opacity-60">Applicants</span>
+                        <span className="text-[1.5rem] font-bold text-[#0f172a] leading-none tracking-tight">{c.submitted_count || 0}</span>
+                        <span className="text-[0.5rem] font-black text-[#0f172a] uppercase tracking-widest mt-1.5 ml-0.5 opacity-60">Applied</span>
                       </div>
                       <div className="w-full">
                         <div className="flex justify-between items-end mb-1.5">
-                          <span className="text-[0.625rem] font-black text-slate-500 uppercase tracking-widest">{c.filledSlots} of {c.totalSlots} Slots</span>
+                          <span className="text-[0.625rem] font-black text-slate-500 uppercase tracking-widest">{c.booked_count || 0} of {totalSlots} Slots</span>
                           <span className="text-[0.625rem] font-black text-[#C9A84C]">{Math.round(progress)}%</span>
                         </div>
                         <div className="w-full bg-black/[0.08] overflow-hidden" style={{ height: '3px', borderRadius: '100px' }}>
@@ -538,14 +669,14 @@ function CastingPage() {
 
                       <div className="flex items-center gap-1.5 text-slate-400/60 mt-1">
                         <Calendar size={11} />
-                        <span className="text-[0.7rem] font-medium tracking-tight whitespace-nowrap">{c.deadline}</span>
+                        <span className="text-[0.7rem] font-medium tracking-tight whitespace-nowrap">{formatDeadline(c.closes_at)}</span>
                       </div>
                     </div>
                   </>
                 ) : (
                   <div className="relative">
                     <div className={['w-8 h-8 rounded-full flex items-center justify-center font-display text-sm font-bold transition-all duration-300', isActive ? 'bg-[#C9A84C] text-white' : 'bg-slate-100 text-slate-400'].join(' ')}>
-                      {c.role.charAt(0)}
+                      {(c.name || '?').charAt(0)}
                     </div>
                     {isActive && (
                       <motion.div 
@@ -558,6 +689,9 @@ function CastingPage() {
               </button>
             );
           })}
+          {filteredBoards.length === 0 && !isSidebarCollapsed && (
+            <div className="px-2 pt-2 text-xs text-slate-400">No castings match that search.</div>
+          )}
         </div>
       </motion.aside>
 
@@ -567,10 +701,10 @@ function CastingPage() {
         <div className="flex flex-col flex-shrink-0">
           <div className="flex items-center justify-between px-12 pt-10 pb-6 bg-transparent">
             <div className="flex flex-col gap-1">
-              <h1 className="font-display text-4xl font-bold text-[#0f172a] tracking-tight">{activeCasting.role}</h1>
+              <h1 className="font-display text-4xl font-bold text-[#0f172a] tracking-tight">{activeCasting?.name || 'Casting'}</h1>
               <div className="flex items-center gap-2 ml-1">
                 <span className="h-px w-6 bg-[#C9A84C]" />
-                <span className="text-[0.6875rem] font-bold text-[#C9A84C] uppercase tracking-[0.2em]">{activeCasting.client}</span>
+                <span className="text-[0.6875rem] font-bold text-[#C9A84C] uppercase tracking-[0.2em]">{activeCasting?.client_name || 'Internal Casting'}</span>
               </div>
             </div>
           </div>
@@ -610,7 +744,7 @@ function CastingPage() {
           <DndContext sensors={sensors} collisionDetection={closestCenter}
             onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
             <div className="flex gap-5 p-12 py-10 overflow-x-auto flex-1 items-start">
-              {STAGES.map(stage => (
+              {displayedStages.map(stage => (
                 <SortableContext key={stage} id={stage}
                   items={candidates.filter(c => c.stage === stage).map(c => c.id)}
                   strategy={verticalListSortingStrategy}>
@@ -649,9 +783,10 @@ function CastingPage() {
               ))}
             </div>
             <DragOverlay>
-              {activeId && activeDragCandidate ? (
+                  {activeId && activeDragCandidate ? (
                 <div className="bg-white rounded-xl p-2.5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] rotate-2 scale-105">
-                  <img src={activeDragCandidate.avatar} alt={activeDragCandidate.name} className="w-full h-44 object-cover rounded-lg" />
+                  <img src={formatAssetUrl(activeDragCandidate.avatar) || buildAvatarFallback(activeDragCandidate.name)} alt={activeDragCandidate.name} className="w-full h-44 object-cover rounded-lg" />
+                  
                   <div className="px-1 pt-2 pb-1">
                     <span className="font-display block text-[#0f172a] text-sm font-bold">{activeDragCandidate.name}</span>
                     <span className="text-slate-500 text-xs capitalize">{activeDragCandidate.archetype}</span>
@@ -666,7 +801,7 @@ function CastingPage() {
         {viewMode === 'grid' && (
           <div className="flex-1 overflow-y-auto px-12 py-10">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-5">
-              {candidates.filter(c => filterStage === 'All' || c.stage === filterStage).map((cand, idx) => (
+              {visibleCandidates.map((cand, idx) => (
                 <CandidateCard key={cand.id} candidate={cand} index={idx}
                   isSelected={selectedCandidates.includes(cand.id)}
                   onSelect={toggleSelect} onOpenDrawer={openDrawer} />
@@ -679,7 +814,7 @@ function CastingPage() {
         {viewMode === 'gallery' && (
           <div className="flex-1 overflow-y-auto px-12 py-10">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
-              {candidates.filter(c => filterStage === 'All' || c.stage === filterStage).map((cand, idx) => (
+              {visibleCandidates.map((cand, idx) => (
                 <CandidateCard key={cand.id} candidate={cand} mode="gallery" index={idx}
                   isSelected={selectedCandidates.includes(cand.id)}
                   onSelect={toggleSelect} onOpenDrawer={openDrawer} />
@@ -712,14 +847,14 @@ function CastingPage() {
               className="pl-14 pr-8 py-8 overflow-y-auto flex-1"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
             >
-              <h2 className="font-display text-xl font-bold text-[#0f172a] leading-tight">{activeCasting.role}</h2>
+              <h2 className="font-display text-xl font-bold text-[#0f172a] leading-tight">{activeCasting?.name}</h2>
               <div className="flex gap-2 flex-wrap mt-3 mb-8">
-                <span className="px-2.5 py-1 text-[0.5625rem] font-black uppercase tracking-widest rounded bg-[#C9A84C]/8 text-[#C9A84C] border border-[#C9A84C]/10">{activeCasting.client}</span>
-                <span className={['px-2.5 py-1 text-[0.5625rem] font-black uppercase tracking-widest rounded border', activeCasting.status === 'Closing Soon' ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-slate-50 text-slate-400 border-slate-100'].join(' ')}>{activeCasting.status}</span>
+                <span className="px-2.5 py-1 text-[0.5625rem] font-black uppercase tracking-widest rounded bg-[#C9A84C]/8 text-[#C9A84C] border border-[#C9A84C]/10">{activeCasting?.client_name || 'Internal Casting'}</span>
+                <span className={['px-2.5 py-1 text-[0.5625rem] font-black uppercase tracking-widest rounded border', getBoardStatus(activeCasting) === 'Closing Soon' ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-slate-50 text-slate-400 border-slate-100'].join(' ')}>{getBoardStatus(activeCasting)}</span>
               </div>
               {[
-                { label: 'The Brief', body: activeCasting.brief },
-                { label: 'Requirements', body: activeCasting.requirements },
+                { label: 'The Brief', body: activeCasting?.description || 'No creative brief has been added yet.' },
+                { label: 'Delivery Window', body: `Casting closes ${formatDeadline(activeCasting?.closes_at)}.` },
               ].map(s => (
                 <div key={s.label} className="mb-8">
                   <h4 className="font-display text-base font-bold italic text-[#0f172a] mb-3">{s.label}</h4>
@@ -727,12 +862,16 @@ function CastingPage() {
                 </div>
               ))}
               <div className="mb-8">
-                <h4 className="font-display text-base font-bold italic text-[#0f172a] mb-3">Mood Board</h4>
-                <div className="flex gap-2 flex-wrap mt-3">
-                  {activeCasting.moodBoard.length > 0
-                    ? activeCasting.moodBoard.map((img, i) => <img key={i} src={img} alt="Mood" className="w-20 h-20 rounded-lg object-cover hover:-translate-y-1 transition-transform duration-200 cursor-pointer" />)
-                    : <div className="w-full h-14 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-300">No assets yet.</div>
-                  }
+                <h4 className="font-display text-base font-bold italic text-[#0f172a] mb-3">Pipeline Snapshot</h4>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  {displayedStages.map((stage) => (
+                    <div key={stage} className="rounded-lg border border-slate-100 bg-[#faf9f7] px-4 py-3">
+                      <div className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400">{stage}</div>
+                      <div className="mt-2 font-display text-2xl text-[#0f172a]">
+                        {candidates.filter((candidate) => candidate.stage === stage).length}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </motion.div>
@@ -745,30 +884,33 @@ function CastingPage() {
       {/* ═══ Bulk Action Bar ═══ */}
       <AnimatePresence>
         {selectedCandidates.length > 0 && (
-          <motion.div
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 border border-white/5 rounded-xl px-6 py-3 flex items-center gap-5 z-50 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)]"
-            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-          >
-            <span className="font-display text-white text-[0.9375rem] font-medium">{selectedCandidates.length} Selected</span>
-            <div className="flex gap-2">
-              <button className="px-4 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-xs font-medium hover:bg-white/10 transition-all duration-200">Move Stage</button>
-              <button className="px-4 py-2 rounded-lg border border-white/10 bg-white/5 text-white text-xs font-medium hover:bg-white/10 transition-all duration-200">Message</button>
-              <button className="px-4 py-2 rounded-lg bg-gold-500 text-white text-xs font-medium hover:bg-gold-600 transition-all duration-200">Shortlist All</button>
-            </div>
-            <button onClick={() => setSelectedCandidates([])} className="ml-2 w-6 h-6 rounded-full flex items-center justify-center text-slate-500 hover:text-white transition-colors duration-200"><X size={14} /></button>
-          </motion.div>
+          <BulkActionToolbar
+            selectedCount={selectedCandidates.length}
+            context="casting"
+            onAction={(action) => {
+              const appIds = candidates.filter(c => selectedCandidates.includes(c.id)).map(c => c.applicationId);
+              if (action === 'move-stage') {
+                bulkUpdateStageMutation.mutate({ applicationIds: appIds, stage: 'Shortlisted' });
+              } else if (action === 'remove') {
+                bulkUpdateStageMutation.mutate({ applicationIds: appIds, stage: 'Passed' });
+              }
+            }}
+            onClearSelection={() => setSelectedCandidates([])}
+          />
         )}
       </AnimatePresence>
 
       {/* ═══ Candidate Panel ═══ */}
       <AnimatePresence>
         {drawerCandidate && (
-          <TalentPanel
+          <TalentDetailPanel
             key={drawerCandidate.id}
-            talent={toCastingTalentObject(drawerCandidate)}
-            context="applicants"
+            applicationId={drawerCandidate.applicationId || drawerCandidate.id}
+            profileId={drawerCandidate.profileId || drawerCandidate.id}
+            context="casting"
+            boardId={activeCastingId}
+            mode="drawer"
             onClose={() => setDrawerCandidate(null)}
-            onAction={handleTalentPanelAction}
           />
         )}
       </AnimatePresence>
@@ -794,7 +936,7 @@ function CastingPage() {
                 transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
               >
                 <img
-                  src={focusCandidate.avatar}
+                  src={formatAssetUrl(focusCandidate.avatar) || buildAvatarFallback(focusCandidate.name)}
                   alt={focusCandidate.name}
                   className="h-full min-h-0 flex-shrink-0 object-cover rounded-lg shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4)]"
                   style={{ width: 'min(440px, calc((100vh - 240px) * 0.66))' }}
@@ -803,7 +945,7 @@ function CastingPage() {
                   <h2 className="font-display text-5xl font-normal text-white leading-tight tracking-tight">{focusCandidate.name}</h2>
                   <div className="flex items-center gap-3">
                     <span className="px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-widest rounded bg-gold-500/8 text-gold-500 border border-gold-500/20">{focusCandidate.archetype}</span>
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-gold-500 bg-gold-500/8 px-3 py-1 rounded-full"><Sparkles size={10} /> {focusCandidate.score}% Match</span>
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-gold-500 bg-gold-500/8 px-3 py-1 rounded-full"><Sparkles size={10} /> {focusCandidate.score ?? 'NA'} Match</span>
                   </div>
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     {[focusCandidate.height, focusCandidate.measurements, focusCandidate.location].map((val, i) => (
@@ -817,14 +959,14 @@ function CastingPage() {
             <div className="flex items-center gap-4 px-8 pb-8 flex-shrink-0">
               <button onClick={() => setFocusIndex(i => Math.max(i - 1, 0))} disabled={focusIndex === 0} aria-label="Previous candidate" className="w-12 h-12 rounded-full bg-white/5 border border-white/10 text-slate-400 flex items-center justify-center hover:bg-white/10 hover:text-white transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed"><ChevronLeft size={18} /></button>
               <button
-                onClick={() => { setCandidates(prev => prev.map(c => c.id === focusCandidate.id ? { ...c, stage: 'Passed' } : c)); toast(`${focusCandidate.name} passed`); setTimeout(() => setFocusIndex(i => Math.min(i, appliedCandidates.length - 2)), 300); }}
+                onClick={() => { commitCandidateStage(focusCandidate, 'Passed', `${focusCandidate.name} passed`); setTimeout(() => setFocusIndex(i => Math.min(i, appliedCandidates.length - 2)), 300); }}
                 aria-label="Pass candidate"
                 className="min-w-[200px] flex-1 py-4 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-sm font-medium flex items-center justify-center gap-3 hover:bg-white/10 hover:text-white transition-all duration-200"
               >
                 Pass <kbd className="inline-flex items-center justify-center w-[22px] h-[22px] rounded bg-white/10 text-[0.625rem] font-mono">P</kbd>
               </button>
               <button
-                onClick={() => { setCandidates(prev => prev.map(c => c.id === focusCandidate.id ? { ...c, stage: 'Shortlisted' } : c)); toast.success(`${focusCandidate.name} → Shortlisted`); setTimeout(() => setFocusIndex(i => Math.min(i, appliedCandidates.length - 2)), 300); }}
+                onClick={() => { commitCandidateStage(focusCandidate, 'Shortlisted', `${focusCandidate.name} → Shortlisted`); setTimeout(() => setFocusIndex(i => Math.min(i, appliedCandidates.length - 2)), 300); }}
                 aria-label="Shortlist candidate"
                 className="min-w-[200px] flex-1 py-4 rounded-lg bg-gold-500 text-white text-sm font-medium flex items-center justify-center gap-3 hover:bg-gold-600 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(201,165,90,0.3)]"
               >
@@ -852,29 +994,42 @@ function CastingPage() {
                 <h2 className="font-display text-3xl font-normal text-slate-800 tracking-tight">Create New Role</h2>
                 <button onClick={() => setShowNewForm(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 hover:text-slate-800 transition-all duration-200"><X size={18} /></button>
               </div>
-              <form className="flex flex-col gap-6" onSubmit={e => { e.preventDefault(); setShowNewForm(false); toast.success('New casting created!'); }}>
+              <form className="flex flex-col gap-6" onSubmit={submitNewRole}>
                 {[
-                  { label: 'Role Name', type: 'text', placeholder: 'e.g. FW25 Runway Lead' },
-                  { label: 'Client', type: 'text', placeholder: 'e.g. Prada' },
-                  { label: 'Deadline', type: 'date', placeholder: '' },
-                ].map(({ label, type, placeholder }) => (
+                  { key: 'name', label: 'Role Name', type: 'text', placeholder: 'e.g. FW25 Runway Lead' },
+                  { key: 'client_name', label: 'Client', type: 'text', placeholder: 'e.g. Prada' },
+                  { key: 'closes_at', label: 'Deadline', type: 'date', placeholder: '' },
+                  { key: 'target_slots', label: 'Target Slots', type: 'number', placeholder: 'e.g. 12' },
+                ].map(({ key, label, type, placeholder }) => (
                   <div key={label} className="flex flex-col gap-2">
                     <label className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-500">{label}</label>
-                    <input type={type} placeholder={placeholder} className="px-4 py-3.5 bg-[#faf9f7] border border-transparent rounded-lg text-sm font-sans text-slate-800 transition-all duration-200 focus:outline-none focus:border-gold-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(201,165,90,0.1)]" />
+                    <input
+                      type={type}
+                      placeholder={placeholder}
+                      value={newRoleForm[key]}
+                      onChange={(e) => setNewRoleForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="px-4 py-3.5 bg-[#faf9f7] border border-transparent rounded-lg text-sm font-sans text-slate-800 transition-all duration-200 focus:outline-none focus:border-gold-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(201,165,90,0.1)]"
+                      required={key === 'name'}
+                    />
                   </div>
                 ))}
                 <div className="flex flex-col gap-2">
                   <label className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-500">Brief</label>
-                  <textarea placeholder="Describe the requirements..." rows={4} className="px-4 py-3.5 bg-[#faf9f7] border border-transparent rounded-lg text-sm font-sans text-slate-800 resize-none transition-all duration-200 focus:outline-none focus:border-gold-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(201,165,90,0.1)]" />
+                  <textarea
+                    placeholder="Describe the requirements..."
+                    rows={4}
+                    value={newRoleForm.description}
+                    onChange={(e) => setNewRoleForm((prev) => ({ ...prev, description: e.target.value }))}
+                    className="px-4 py-3.5 bg-[#faf9f7] border border-transparent rounded-lg text-sm font-sans text-slate-800 resize-none transition-all duration-200 focus:outline-none focus:border-gold-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(201,165,90,0.1)]"
+                  />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-500">Mood Board Assets</label>
-                  <div className="h-[120px] border border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center gap-2 text-slate-400 text-sm cursor-pointer bg-[#faf9f7] hover:border-gold-500 hover:text-gold-500 hover:bg-gold-500/5 transition-all duration-200">
-                    <Plus size={24} />
-                    <span>Upload or drag mood board images</span>
-                  </div>
-                </div>
-                <button type="submit" className="mt-4 w-full py-4 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-all duration-200 hover:-translate-y-0.5 font-sans">Create Role</button>
+                <button
+                  type="submit"
+                  disabled={createBoardMutation.isPending}
+                  className="mt-4 w-full py-4 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-all duration-200 hover:-translate-y-0.5 font-sans disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {createBoardMutation.isPending ? 'Creating...' : 'Create Role'}
+                </button>
               </form>
             </motion.div>
           </>
