@@ -664,3 +664,23 @@ describe("getPulse — data correctness", () => {
     expect(result.idleTalent).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ─── getActiveUtilization — zero state ───────────────────────────────────────
+
+describe("getActiveUtilization — zero state", () => {
+  let freshUtilAgencyId;
+
+  beforeAll(async () => {
+    freshUtilAgencyId = uuidv4();
+    await knex("users").insert({
+      id: freshUtilAgencyId,
+      email: `fresh-util-${Date.now()}@test.local`,
+      role: "AGENCY",
+    });
+  });
+
+  test("returns { active: 0, total: 0, pct: 0 } for fresh agency", async () => {
+    const result = await queries.getActiveUtilization(knex, freshUtilAgencyId);
+    expect(result).toEqual({ active: 0, total: 0, pct: 0 });
+  });
+});

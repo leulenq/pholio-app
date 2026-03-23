@@ -429,6 +429,38 @@ async function getPulse(db, agencyId) {
   };
 }
 
+/**
+ * Returns active talent utilization: distinct signed talent who have been
+ * submitted to a casting in the last 30 days, vs total distinct signed talent.
+ *
+ * Both sides count DISTINCT profile_id to avoid overcounting talent with
+ * multiple accepted applications.
+ *
+ * @returns {{ active: number, total: number, pct: number }}
+ */
+async function getActiveUtilization(db, agencyId) {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * DAY_MS);
+
+  const [totalRow] = await db("applications")
+    .where({ agency_id: agencyId, status: "accepted" })
+    .countDistinct("profile_id as count");
+
+  const total = parseInt(totalRow.count, 10) || 0;
+  if (total === 0) return { active: 0, total: 0, pct: 0 };
+
+  const [activeRow] = await db("applications as a")
+    .join("board_applications as ba", "ba.application_id", "a.id")
+    .where("a.agency_id", agencyId)
+    .where("a.status", "accepted")
+    .where("ba.created_at", ">=", thirtyDaysAgo.toISOString())
+    .countDistinct("a.profile_id as count");
+
+  const active = parseInt(activeRow.count, 10) || 0;
+  const pct = Math.round((active / total) * 100);
+
+  return { active, total, pct };
+}
+
 module.exports = {
   getPendingReview,
   getActiveCastings,
@@ -438,4 +470,5 @@ module.exports = {
   getTalentMix,
   getAlerts,
   getPulse,
+  getActiveUtilization,
 };
