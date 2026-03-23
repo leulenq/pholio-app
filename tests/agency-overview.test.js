@@ -109,6 +109,32 @@ async function createSchema() {
       t.timestamp("created_at").defaultTo(knex.fn.now());
     });
   }
+
+  // subscriptions — queried by attachLocals for TALENT role users
+  if (!(await knex.schema.hasTable("subscriptions"))) {
+    await knex.schema.createTable("subscriptions", (t) => {
+      t.string("id", 36).primary();
+      t.string("user_id", 36)
+        .references("id")
+        .inTable("users")
+        .onDelete("CASCADE");
+      t.string("stripe_customer_id").notNullable().unique();
+      t.string("stripe_subscription_id").nullable().unique();
+      t.string("stripe_price_id").notNullable();
+      t.enu("status", ["trialing", "active", "past_due", "canceled", "unpaid"])
+        .notNullable()
+        .defaultTo("trialing");
+      t.timestamp("trial_start").nullable();
+      t.timestamp("trial_end").nullable();
+      t.timestamp("current_period_start").nullable();
+      t.timestamp("current_period_end").nullable();
+      t.boolean("cancel_at_period_end").notNullable().defaultTo(false);
+      t.timestamp("canceled_at").nullable();
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+      t.timestamp("updated_at").defaultTo(knex.fn.now());
+    });
+  }
+
   // is_discoverable on profiles
   if (!(await knex.schema.hasColumn("profiles", "is_discoverable"))) {
     await knex.schema.alterTable("profiles", (t) => {
@@ -155,19 +181,26 @@ afterAll(async () => {
 async function agentWithSession(userId, role) {
   const sid = uuidv4();
 
+  // Agency sessions need agencyOnboardingCompletedAt set so the
+  // requireAgencyOnboardingComplete middleware doesn't block requests.
+  const sessionData = {
+    cookie: {
+      originalMaxAge: null,
+      expires: null,
+      secure: false,
+      httpOnly: true,
+      path: "/",
+    },
+    userId,
+    role,
+    ...(role === "AGENCY" && {
+      agencyOnboardingCompletedAt: new Date().toISOString(),
+    }),
+  };
+
   await knex("sessions").insert({
     sid,
-    sess: JSON.stringify({
-      cookie: {
-        originalMaxAge: null,
-        expires: null,
-        secure: false,
-        httpOnly: true,
-        path: "/",
-      },
-      userId,
-      role,
-    }),
+    sess: JSON.stringify(sessionData),
     expired: new Date(Date.now() + 86400000).toISOString(),
   });
 
@@ -555,29 +588,47 @@ describe("getPulse — zero state", () => {
 // ─── getPulse — data correctness ─────────────────────────────────────────────
 
 describe("getPulse — data correctness", () => {
+  // Use a dedicated agency + talent user to avoid corrupting the shared
+  // AGENCY_USER_ID data used by "query functions — data correctness".
+  const PULSE_AGENCY_ID = uuidv4();
+  const PULSE_TALENT_ID = uuidv4();
+  const PULSE_PROFILE_ID = uuidv4();
   const TODAY_APP_ID = uuidv4();
   const ACCEPTED_APP_ID = uuidv4();
   const IDLE_PROFILE_ID = uuidv4();
   const BOARD_ID = uuidv4();
 
   beforeAll(async () => {
-    // Clear existing data for the agency so counts are predictable
-    await knex("board_applications").delete();
-    await knex("applications").where("agency_id", AGENCY_USER_ID).delete();
-    await knex("boards").where("agency_id", AGENCY_USER_ID).delete();
-    await knex("profiles").where({ id: IDLE_PROFILE_ID }).delete();
+    // Insert dedicated users and profile for this describe block
+    await knex("users").insert([
+      {
+        id: PULSE_AGENCY_ID,
+        email: `pulse-agency-${Date.now()}@test.local`,
+        role: "AGENCY",
+      },
+      {
+        id: PULSE_TALENT_ID,
+        email: `pulse-talent-${Date.now()}@test.local`,
+        role: "TALENT",
+      },
+    ]);
+    await knex("profiles").insert({
+      id: PULSE_PROFILE_ID,
+      user_id: PULSE_TALENT_ID,
+      is_discoverable: false,
+    });
 
     // idle talent profile
     await knex("profiles").insert({
       id: IDLE_PROFILE_ID,
-      user_id: TALENT_USER_ID,
+      user_id: PULSE_TALENT_ID,
       is_discoverable: false,
     });
     // application submitted today
     await knex("applications").insert({
       id: TODAY_APP_ID,
-      profile_id: PROFILE_ID,
-      agency_id: AGENCY_USER_ID,
+      profile_id: PULSE_PROFILE_ID,
+      agency_id: PULSE_AGENCY_ID,
       status: "submitted",
       created_at: new Date().toISOString(),
     });
@@ -585,14 +636,14 @@ describe("getPulse — data correctness", () => {
     await knex("applications").insert({
       id: ACCEPTED_APP_ID,
       profile_id: IDLE_PROFILE_ID,
-      agency_id: AGENCY_USER_ID,
+      agency_id: PULSE_AGENCY_ID,
       status: "accepted",
       created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
     });
     // board closing in 3 days
     await knex("boards").insert({
       id: BOARD_ID,
-      agency_id: AGENCY_USER_ID,
+      agency_id: PULSE_AGENCY_ID,
       is_active: true,
       closes_at: new Date(Date.now() + 3 * 86400000).toISOString(),
     });
@@ -603,21 +654,26 @@ describe("getPulse — data correctness", () => {
     await knex("applications")
       .whereIn("id", [TODAY_APP_ID, ACCEPTED_APP_ID])
       .delete();
-    await knex("profiles").where({ id: IDLE_PROFILE_ID }).delete();
+    await knex("profiles")
+      .whereIn("id", [PULSE_PROFILE_ID, IDLE_PROFILE_ID])
+      .delete();
+    await knex("users")
+      .whereIn("id", [PULSE_AGENCY_ID, PULSE_TALENT_ID])
+      .delete();
   });
 
   test("newToday counts application submitted today", async () => {
-    const result = await queries.getPulse(knex, AGENCY_USER_ID);
+    const result = await queries.getPulse(knex, PULSE_AGENCY_ID);
     expect(result.newToday).toBeGreaterThanOrEqual(1);
   });
 
   test("closingWeek counts board closing in 3 days", async () => {
-    const result = await queries.getPulse(knex, AGENCY_USER_ID);
+    const result = await queries.getPulse(knex, PULSE_AGENCY_ID);
     expect(result.closingWeek).toBeGreaterThanOrEqual(1);
   });
 
   test("idleTalent counts accepted talent with no recent board activity", async () => {
-    const result = await queries.getPulse(knex, AGENCY_USER_ID);
+    const result = await queries.getPulse(knex, PULSE_AGENCY_ID);
     expect(result.idleTalent).toBeGreaterThanOrEqual(1);
   });
 });

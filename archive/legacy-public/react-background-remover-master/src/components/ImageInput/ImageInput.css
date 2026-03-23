@@ -1,0 +1,44 @@
+.drop-zone {
+  display: flex;
+  height: 40vh;
+  padding: 1rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--text-color-light);
+  background-color: rgba(0, 0, 0, 0.1);
+  border: 2px dashed var(--text-color-light);
+  border-radius: 20px;
+  transition: all 0.3s ease;
+
+  cursor: pointer;
+}
+
+.drop-zone.selected {
+  height: auto;
+  padding: 1rem;
+  gap: 1rem;
+  flex-direction: row;
+  border-width: 1px;
+}
+
+.drop-zone.selected .icon {
+  fill: var(--text-color-light);
+  width: 2rem;
+  height: 2rem;
+}
+
+.drop-zone:hover {
+  border-color: #fff;
+  color: var(--text-color);
+}
+
+.drop-zone.dragging {
+  border: 2px dashed var(--primary-color);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.drop-zone.dragging .icon {
+  fill: var(--primary-color);
+}
