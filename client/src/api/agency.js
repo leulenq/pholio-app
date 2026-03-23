@@ -44,18 +44,31 @@ async function request(endpoint, options = {}) {
   try {
     const response = await fetch(url, config);
 
-    // Handle 401 Unauthorized
-    if (response.status === 401) {
-      // TEMPORARY: Disabled redirect for development/production viewing
-      // window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
-      return;
-    }
-
     let data;
     try {
       data = await response.json();
     } catch (err) {
       data = null;
+    }
+
+    if (response.status === 401) {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        const next = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+      }
+
+      throw new ApiError(
+        (data && data.error) || (data && data.message) || 'Authentication required',
+        response.status,
+        data
+      );
+    }
+
+    if (response.status === 403 && data?.redirect && typeof window !== 'undefined') {
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (currentPath !== data.redirect) {
+        window.location.assign(data.redirect);
+      }
     }
 
     if (!response.ok) {
@@ -100,6 +113,13 @@ const apiClient = {
 // ============================================================================
 
 /**
+ * Get agency overview dashboard payload
+ */
+export async function getAgencyOverview() {
+  return apiClient.get('/overview');
+}
+
+/**
  * Get agency dashboard stats
  */
 export async function getAgencyStats() {
@@ -124,7 +144,8 @@ export async function getUpcomingInterviews() {
  * Get recent applicants
  */
 export async function getRecentApplicants(limit = 5) {
-  return apiClient.get(`/recent-applicants?limit=${limit}`);
+  const data = await apiClient.get(`/overview/recent-applicants?limit=${limit}`);
+  return data?.applicants || [];
 }
 
 /**
@@ -170,6 +191,13 @@ export async function declineApplication(applicationId) {
 }
 
 /**
+ * Shortlist an application (move to shortlisted status).
+ */
+export async function shortlistApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'shortlisted' });
+}
+
+/**
  * Archive application
  */
 export async function archiveApplication(applicationId) {
@@ -207,6 +235,13 @@ export async function getApplicationDetails(applicationId) {
 }
 
 /**
+ * Get full agency roster
+ */
+export async function fetchRoster() {
+  return apiClient.get('/roster');
+}
+
+/**
  * Get roster profile — bypasses is_discoverable filter, includes booking stats
  */
 export async function fetchRosterProfile(profileId) {
@@ -228,10 +263,34 @@ export async function getBoards() {
 }
 
 /**
+ * Get casting pipeline candidates for a board
+ */
+export async function getCastingBoardPipeline(boardId) {
+  return apiClient.get(`/boards/${boardId}/candidates`);
+}
+
+/**
  * Create board
  */
 export async function createBoard(boardData) {
   return apiClient.post('/boards', boardData);
+}
+
+/**
+ * Update a casting application stage/status
+ */
+export async function updateCastingApplicationStage(applicationId, payload) {
+  return apiClient.patch(`/applications/${applicationId}/status`, payload);
+}
+
+/**
+ * Bulk update casting application stages/statuses
+ */
+export async function bulkUpdateCastingApplicationStage(applicationIds, payload) {
+  return apiClient.patch('/applications/bulk-status', {
+    applicationIds,
+    ...payload,
+  });
 }
 
 /**
@@ -270,6 +329,13 @@ export async function getAgencyProfile() {
 }
 
 /**
+ * Complete first-login onboarding for the current agency
+ */
+export async function completeAgencyOnboarding() {
+  return apiClient.post('/onboarding/complete', {});
+}
+
+/**
  * Update agency profile
  */
 export async function updateAgencyProfile(data) {
@@ -291,6 +357,34 @@ export async function updateAgencyBranding(formData) {
  */
 export async function updateAgencySettings(settings) {
   return apiClient.put('/settings', settings);
+}
+
+/**
+ * Get agency team members
+ */
+export async function getAgencyTeam() {
+  return apiClient.get('/team');
+}
+
+/**
+ * Add an existing agency login to the team
+ */
+export async function addAgencyTeamMember(payload) {
+  return apiClient.post('/team', payload);
+}
+
+/**
+ * Update a team member role
+ */
+export async function updateAgencyTeamMember(membershipId, payload) {
+  return apiClient.patch(`/team/${membershipId}`, payload);
+}
+
+/**
+ * Deactivate a team member
+ */
+export async function removeAgencyTeamMember(membershipId) {
+  return apiClient.delete(`/team/${membershipId}`);
 }
 
 // ============================================================================
@@ -598,6 +692,7 @@ export async function deleteReminder(reminderId) {
 
 export default {
   getAgencyStats,
+  getAgencyOverview,
   getAgencyAnalytics,
   getUpcomingInterviews,
   getRecentApplicants,
@@ -606,11 +701,13 @@ export default {
   getApplication,
   acceptApplication,
   declineApplication,
+  shortlistApplication,
   archiveApplication,
   getDiscoverableTalent,
   getProfilePreview,
   fetchProfileDetails,
   getApplicationDetails,
+  fetchRoster,
   fetchRosterProfile,
   inviteTalent,
   getBoards,
