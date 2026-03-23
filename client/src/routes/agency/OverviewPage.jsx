@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, RadialBarChart, RadialBar, Label, ResponsiveContainer, YAxis } from 'recharts';
 
-import { TalentPanel } from '../../components/agency/TalentPanel';
+import TalentDetailPanel from '../../components/agency/TalentDetailPanel';
 import { TalentMatchRing } from '../../components/agency/ui/TalentMatchRing';
 import { getAgencyOverview, getAgencyProfile, getRecentApplicants } from '../../api/agency';
 import './OverviewPage.css';
@@ -152,10 +152,10 @@ function PulseStrip({ pulse, rosterCount }) {
 
   return (
     <div className="ov-pulse-strip">
-      <PulseChip icon={Inbox}  value={pulse?.newToday}     label="new today"          to="/dashboard/agency/applicants" />
+      <PulseChip icon={Inbox}  value={pulse?.newToday}     label="new today"          to="/dashboard/agency/inbox" />
       <PulseChip icon={Clock}  value={pulse?.closingWeek}  label="closing this week"  to="/dashboard/agency/casting" />
       <PulseChip icon={Moon}   value={idle}                label="idle signed talent" to="/dashboard/agency/roster" urgent={idleUrgent} />
-      <PulseChip icon={Star}   value={avgMatch != null ? `${avgMatch}%` : null} label="avg match score" to="/dashboard/agency/applicants" urgent={matchUrgent} />
+      <PulseChip icon={Star}   value={avgMatch != null ? `${avgMatch}%` : null} label="avg match score" to="/dashboard/agency/inbox" urgent={matchUrgent} />
     </div>
   );
 }
@@ -709,8 +709,8 @@ export default function OverviewPage() {
                   <TalentMatchRing score={t.match || 0} size="sm" />
                 </div>
                 <div className="ov-app-quick-actions" onClick={e => e.stopPropagation()}>
-                  <Link to="/dashboard/agency/applicants" className="ov-quick-btn ov-quick-btn--accept">Open</Link>
-                  <Link to="/dashboard/agency/applicants" className="ov-quick-btn ov-quick-btn--review">Review</Link>
+                  <Link to="/dashboard/agency/inbox" className="ov-quick-btn ov-quick-btn--accept">Open</Link>
+                  <Link to="/dashboard/agency/inbox" className="ov-quick-btn ov-quick-btn--review">Review</Link>
                 </div>
               </motion.div>
             ))}
@@ -724,7 +724,7 @@ export default function OverviewPage() {
             )}
           </div>
 
-          <Link to="/dashboard/agency/applicants" className="ov-view-all">
+          <Link to="/dashboard/agency/inbox" className="ov-view-all">
             View all applications <ArrowUpRight size={14} />
           </Link>
         </motion.div>
@@ -764,10 +764,12 @@ export default function OverviewPage() {
       {/* ═══════ TALENT PANEL ═══════ */}
       <AnimatePresence>
         {selected && (
-          <TalentPanel
+          <TalentDetailPanel
             key={selected.id}
-            talent={toTalentObject(selected)}
-            context="overview"
+            profileId={selected.id}
+            applicationId={selected.applicationId}
+            context="inbox"
+            mode="drawer"
             onClose={() => setSelected(null)}
           />
         )}
