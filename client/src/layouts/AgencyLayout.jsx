@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search,
@@ -9,7 +9,7 @@ import {
   MessageSquare,
   Inbox
 } from 'lucide-react';
-import { getAgencyProfile, getMessageThreads } from '../api/agency';
+import { getAgencyProfile, getMessageThreads, getPipelineCounts } from '../api/agency';
 import MessagesDropdown from '../components/agency/nav/MessagesDropdown';
 import NotificationsDropdown from '../components/agency/nav/NotificationsDropdown';
 import UserDropdown from '../components/agency/nav/UserDropdown';
@@ -17,11 +17,12 @@ import './AgencyLayout.css';
 
 /* ─── top nav tabs ─── */
 const NAV_TABS = [
-  { label: 'Overview',   to: '/dashboard/agency',            end: true },
-  { label: 'Discover',   to: '/dashboard/agency/discover'              },
-  { label: 'Casting',    to: '/dashboard/agency/casting',   count: 6  },
-  { label: 'Roster',     to: '/dashboard/agency/roster'                },
-  { label: 'Analytics',  to: '/dashboard/agency/analytics'             },
+  { label: 'Inbox',     to: '/dashboard/agency/inbox',      end: false },
+  { label: 'Roster',    to: '/dashboard/agency/roster'                 },
+  { label: 'Casting',   to: '/dashboard/agency/casting'               },
+  { label: 'Discover',  to: '/dashboard/agency/discover'              },
+  { label: 'Analytics', to: '/dashboard/agency/analytics'             },
+  { label: 'Overview',  to: '/dashboard/agency/overview'              },
 ];
 
 // MOCK_NOTIFICATIONS placeholder
@@ -136,11 +137,21 @@ export default function AgencyLayout() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: pipelineCounts } = useQuery({
+    queryKey: ['agency', 'pipeline-counts'],
+    queryFn: getPipelineCounts,
+    refetchInterval: 30000,
+  });
+
   const userName = profile?.first_name 
     ? (profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.first_name)
     : profile?.agency_name || profile?.email?.split('@')[0] || 'Agency User';
 
   const isDiscoverPage = location.pathname === '/dashboard/agency/discover';
+
+  if (profile?.onboarding?.completed === false) {
+    return <Navigate to="/dashboard/agency/onboarding" replace />;
+  }
 
   return (
     <div className={`ag-shell ${isDiscoverPage ? 'ag-shell--discover' : ''}`}>
@@ -168,8 +179,8 @@ export default function AgencyLayout() {
                 }
               >
                 {tab.label}
-                {tab.count > 0 && (
-                  <span className="ag-nav-count">{tab.count}</span>
+                {tab.label === 'Inbox' && pipelineCounts?.pending > 0 && (
+                  <span className="ag-nav-pill__badge">{pipelineCounts.pending}</span>
                 )}
               </NavLink>
             ))}

@@ -83,8 +83,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 104px; /* Radical airiness */
-  padding: 0 64px;
+  height: 56px;
+  padding: 0 24px;
   background: transparent;
 }
 
@@ -179,6 +179,22 @@
 .ag-nav-pill.active .ag-nav-count {
   background: #0f172a;
   color: #ffffff;
+}
+
+.ag-nav-pill__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--ag-gold, #B8956A);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 4px;
 }
 
 /* ── Right actions ── */
