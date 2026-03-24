@@ -1,4 +1,4 @@
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 const { provisionAgencyForUser } = require('../src/lib/agency-provisioning');
 
 async function main() {

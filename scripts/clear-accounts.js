@@ -9,7 +9,7 @@
  * WARNING: This will delete ALL users, profiles, and related data!
  */
 
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 
 async function tableExists(tableName) {
   try {

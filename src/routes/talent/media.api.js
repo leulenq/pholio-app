@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 const { requireRole } = require('../../middleware/auth');
-const { upload, processImage, s3 } = require('../../lib/uploader');
+const { upload, processImage, s3 } = require('../../shared/lib/uploader');
 const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs').promises;
 const path = require('path');
 const config = require('../../config');
-const { ensureUniqueSlug } = require('../../lib/slugify');
+const { ensureUniqueSlug } = require('../../shared/lib/slugify');
 const { logActivity } = require('../../lib/dashboard/shared-utils');
-const { asyncHandler } = require('../../middleware/error-handler');
+const { asyncHandler } = require('../../shared/middleware/error-handler');
 
 /**
  * Middleware to ensure profile exists for the current user

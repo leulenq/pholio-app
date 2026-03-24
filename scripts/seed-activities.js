@@ -1,4 +1,4 @@
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 const { v4: uuidv4 } = require('uuid');
 
 async function seedActivities() {

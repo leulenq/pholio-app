@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 const { requireRole } = require('../../middleware/auth');
-const { asyncHandler } = require('../../middleware/error-handler');
+const { asyncHandler } = require('../../shared/middleware/error-handler');
 
 const { calculateProfileCompleteness } = require('../../lib/dashboard/completeness');
 

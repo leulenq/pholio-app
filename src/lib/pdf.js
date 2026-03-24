@@ -1,6 +1,6 @@
 const { URL } = require('url');
 const puppeteer = require('puppeteer');
-const knex = require('../db/knex');
+const knex = require('../shared/db/knex');
 const config = require('../config');
 const { toFeetInches } = require('./stats');
 

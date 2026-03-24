@@ -7,8 +7,8 @@
 
 const knex = require('../db/knex');
 
-const OnboardingAnalytics = require('../lib/analytics/onboarding-events');
-const { getCurrentStep } = require('../lib/onboarding/casting-machine');
+const OnboardingAnalytics = require('../../lib/analytics/onboarding-events');
+const { getCurrentStep } = require('../../lib/onboarding/casting-machine');
 
 /**
  * Middleware to require onboarding completion for talent users

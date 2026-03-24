@@ -12,7 +12,7 @@
  * - Bio, socials, languages, etc.: 30 points distributed
  */
 
-const knex = require('../db/knex');
+const knex = require('../shared/db/knex');
 
 const { calculateProfileStrength } = require('./shared/profile-strength.cjs');
 

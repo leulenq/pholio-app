@@ -4,7 +4,7 @@
  * Tests the complete casting flow with all fixes applied
  */
 
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 
 const TEST_EMAIL = `test_casting_${Date.now()}@example.com`;
 const TEST_PASSWORD = 'TestPassword123!';
@@ -78,7 +78,7 @@ async function testCastingFlow() {
     // Test 4: Create Test Profile
     console.log('\n\n4️⃣ Creating Test Profile...\n');
 
-    const { ensureUniqueSlug } = require('../src/lib/slugify');
+    const { ensureUniqueSlug } = require('../src/shared/lib/slugify');
     const { initialState } = require('../src/lib/onboarding/casting-machine');
 
     const profileId = uuidv4();

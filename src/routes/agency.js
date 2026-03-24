@@ -1,8 +1,8 @@
 const express = require('express');
-const knex = require('../db/knex');
+const knex = require('../shared/db/knex');
 const { requireRole } = require('../middleware/auth');
-const { addMessage } = require('../middleware/context');
-const { sendRejectedApplicantEmail, sendApplicationStatusChangeEmail, sendAgencyInviteEmail } = require('../lib/email');
+const { addMessage } = require('../shared/middleware/context');
+const { sendRejectedApplicantEmail, sendApplicationStatusChangeEmail, sendAgencyInviteEmail } = require('../shared/lib/email');
 const { getSessionActorUserId, getSessionAgencyId } = require('../lib/agency-context');
 const { v4: uuidv4 } = require('uuid');
 

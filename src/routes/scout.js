@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
-const { upload, processImage } = require('../lib/uploader');
+const { upload, processImage } = require('../shared/lib/uploader');
 const multer = require('multer');
 const { requireRole } = require('../middleware/auth');
 const { validateSessionStructure } = require('../middleware/session-validator');

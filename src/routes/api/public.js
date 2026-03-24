@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 const config = require('../../config');
 const { getAllThemes, getFreeThemes, getProThemes } = require('../../lib/themes');
 

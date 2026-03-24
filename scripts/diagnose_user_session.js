@@ -5,7 +5,7 @@
  * Investigates session leak and data integrity issues
  */
 
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 
 const EMAIL_1 = 'leul.enquanhone@uky.edu';
 const EMAIL_2 = 'leulenq@gmail.com';

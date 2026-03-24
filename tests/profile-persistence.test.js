@@ -10,7 +10,7 @@
 
 const request = require('supertest');
 const app = require('../src/app');
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 

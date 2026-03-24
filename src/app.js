@@ -7,10 +7,10 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = rateLimit;
 const config = require('./config');
-const knex = require('./db/knex');
-const { attachLocals } = require('./middleware/context');
+const knex = require('./shared/db/knex');
+const { attachLocals } = require('./shared/middleware/context');
 const { initializeFirebaseAdmin } = require('./lib/firebase-admin');
-const { errorHandler } = require('./middleware/error-handler');
+const { errorHandler } = require('./shared/middleware/error-handler');
 const cookieParser = require('cookie-parser');
 
 // +++ 1. ADD THIS LINE +++
@@ -492,8 +492,8 @@ app.use('/', agencyOverviewRoutes)
 app.use('/', onboardingRoutes); // Phase 2: Onboarding API Routes
 
 // Onboarding redirect middleware (applied to dashboard routes)
-const { requireOnboardingComplete } = require('./middleware/onboarding-redirect');
-const { requireProfileUnlocked } = require('./middleware/require-profile-unlocked');
+const { requireOnboardingComplete } = require('./shared/middleware/onboarding-redirect');
+const { requireProfileUnlocked } = require('./shared/middleware/require-profile-unlocked');
 
 // Dashboard routes (protected by onboarding middleware)
 app.use('/', requireOnboardingComplete, dashboardTalentRoutes);

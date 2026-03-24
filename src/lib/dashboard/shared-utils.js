@@ -4,7 +4,7 @@
  * Common functions used across multiple dashboard route files.
  */
 
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 const { calculateProfileCompleteness } = require('./completeness');
 const { getAllThemes, getFreeThemes, getProThemes, getDefaultTheme } = require('../themes');
 const { toFeetInches } = require('../stats');

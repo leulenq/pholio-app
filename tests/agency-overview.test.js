@@ -13,7 +13,7 @@ const cookieSig = require("cookie-signature"); // transitive dep of express-sess
 const { v4: uuidv4 } = require("uuid");
 
 // Loaded after env vars are set so they pick up the test database
-const knex = require("../src/db/knex");
+const knex = require("../src/shared/db/knex");
 const app = require("../src/app");
 const queries = require("../src/lib/agency-overview-queries");
 

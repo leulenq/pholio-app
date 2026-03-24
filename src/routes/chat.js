@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
-const knex = require('../db/knex');
+const knex = require('../shared/db/knex');
 const { v4: uuidv4 } = require('uuid');
 const { requireRole } = require('../middleware/auth');
 const { validateSessionStructure, validateStageTransition } = require('../middleware/session-validator');
@@ -381,8 +381,8 @@ Respond in JSON:
  */
 async function createProfileFromSynthesis(onboardingData, synthesis, userId) {
   try {
-    const { ensureUniqueSlug } = require('../lib/slugify');
-    const { curateBio } = require('../lib/curate');
+    const { ensureUniqueSlug } = require('../shared/lib/slugify');
+    const { curateBio } = require('../shared/lib/curate');
 
     // Extract data from onboarding data and synthesis
     const sqlData = synthesis.sql || {};

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 const { requireRole } = require('../../middleware/auth');
-const { asyncHandler } = require('../../middleware/error-handler');
-const apiResponse = require('../../lib/api-response');
+const { asyncHandler } = require('../../shared/middleware/error-handler');
+const apiResponse = require('../../shared/lib/api-response');
 
 /**
  * Helper function to format time ago
