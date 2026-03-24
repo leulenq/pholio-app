@@ -393,7 +393,7 @@ export default function OverviewPage() {
     archetypeLabel: app.matchScore ? `${app.matchScore}% match` : 'Recent',
     city: app.location,
     applied: formatRelativeTime(app.createdAt),
-    status: getApplicantStatus('submitted'),
+    status: getApplicantStatus(app.status),
     height: app.height,
     bust: null,
     waist: null,
@@ -679,9 +679,9 @@ export default function OverviewPage() {
                 <span className="ov-app-count-badge">{submittedCount}</span>
               </div>
             </div>
-            <div className="ov-sort-btn">
+            <button className="ov-sort-btn" type="button">
               Newest <ChevronDown size={14} />
-            </div>
+            </button>
           </div>
 
           <div className="ov-app-list">
