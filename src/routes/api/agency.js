@@ -18,7 +18,7 @@ const {
   getSessionActorUserId,
   getSessionAgencyId,
 } = require("../../lib/agency-context");
-const { embed, toVectorLiteral } = require("../../lib/ai/embeddings");
+const { embed, toVectorLiteral } = require("../../domains/ai/embeddings");
 
 const agencyMemberCreateSchema = z.object({
   email: z
@@ -1382,11 +1382,9 @@ router.patch(
         req.body?.status || mapCastingStageToApplicationStatus(req.body?.stage);
 
       if (!requestedStatus) {
-        return res
-          .status(400)
-          .json({
-            error: "Valid application status or casting stage is required",
-          });
+        return res.status(400).json({
+          error: "Valid application status or casting stage is required",
+        });
       }
 
       const allowedStatuses = [
@@ -1687,11 +1685,9 @@ router.patch(
       }
 
       if (!requestedStatus) {
-        return res
-          .status(400)
-          .json({
-            error: "Valid application status or casting stage is required",
-          });
+        return res.status(400).json({
+          error: "Valid application status or casting stage is required",
+        });
       }
 
       const allowedStatuses = [

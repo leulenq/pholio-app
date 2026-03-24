@@ -22,9 +22,9 @@ const knex = require("../shared/db/knex");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { addMessage } = require("../shared/middleware/context");
 const { upload, processImage } = require("../shared/lib/uploader");
-// Deprecated: const { analyzePhoto } = require('../lib/ai/photo-analysis');
-const { generateArchetype } = require("../lib/ai/groq-casting");
-const { masterVisionAnalysis } = require("../lib/ai/analyzeProfileImage");
+// Deprecated: const { analyzePhoto } = require('../domains/ai/photo-analysis');
+const { generateArchetype } = require("../domains/ai/groq-casting");
+const { masterVisionAnalysis } = require("../domains/ai/analyzeProfileImage");
 const SignalCollector = require("../lib/onboarding/signal-collector");
 const {
   getState,
