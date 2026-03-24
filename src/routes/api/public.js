@@ -235,7 +235,7 @@ router.get("/session", async (req, res) => {
           try {
             const {
               calculateProfileCompleteness,
-            } = require("../../lib/dashboard/completeness");
+            } = require("../../domains/talent/services/completeness");
             const images = await knex("images")
               .where({ profile_id: profile.id })
               .orderBy("sort", "asc")
