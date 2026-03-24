@@ -14,7 +14,6 @@ import AnalyticsPage from './routes/talent/AnalyticsPage';
 import ApplicationsPage from './routes/talent/ApplicationsPage';
 import RevealPage from './routes/talent/RevealPage';
 
-import DashboardPricingPage from './routes/PricingPage';
 import SettingsPage from './routes/SettingsPage';
 import CastingCallPage from './routes/onboarding/CastingCallPage';
 import CastingRevealPreview from './routes/onboarding/CastingRevealPreview';
@@ -24,14 +23,10 @@ import TestPreview from './routes/onboarding/TestPreview';
 import AgencyInbox from './routes/agency/InboxPage';
 import AgencyOverview from './routes/agency/OverviewPage';
 import AgencyOnboarding from './routes/agency/OnboardingPage';
-// DEPRECATED: use InboxPage
-import AgencyApplicants from './routes/agency/ApplicantsPage';
 import AgencyDiscover from './routes/agency/DiscoverPage';
 import AgencyBoards from './routes/agency/BoardsPage';
 import AgencyAnalytics from './routes/agency/AnalyticsPage';
 import AgencySettings from './routes/agency/SettingsPage';
-import AgencyInterviews from './routes/agency/InterviewsPage';
-import AgencyReminders from './routes/agency/RemindersPage';
 import AgencyCasting from './routes/agency/CastingPage';
 import AgencyRoster from './routes/agency/RosterPage';
 import AgencyMessages from './routes/agency/MessagesPage';
@@ -75,7 +70,6 @@ function App() {
           <Route path="/dashboard/talent/settings" element={<SettingsPage />} />
           <Route path="/dashboard/talent/settings/:section" element={<SettingsPage />} />
           <Route path="/dashboard/talent/pdf-customizer" element={<PdfCustomizerPage />} />
-          <Route path="/pricing" element={<DashboardPricingPage />} />
           <Route path="/dashboard" element={<Navigate to="/dashboard/talent" replace />} />
         </Route>
 
@@ -92,8 +86,6 @@ function App() {
             <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
             <Route path="/dashboard/agency/boards" element={<AgencyBoards />} />
             <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
-            <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
-            <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
             <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
             <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
             <Route path="/dashboard/agency/messages" element={<AgencyMessages />} />
