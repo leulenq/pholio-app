@@ -10,8 +10,8 @@
  * Part of Phase 1: Backend Infrastructure
  */
 
-const { v4: uuidv4 } = require('uuid');
-const knex = require('../../shared/db/knex');
+const { v4: uuidv4 } = require("uuid");
+const knex = require("../../../shared/db/knex");
 
 class SignalCollector {
   /**
@@ -29,11 +29,13 @@ class SignalCollector {
     const { oauth_provider, inferred_location, inferred_bio_keywords } = data;
 
     // Check if signals record exists
-    const existing = await knex('onboarding_signals')
+    const existing = await knex("onboarding_signals")
       .where({ profile_id: profileId })
       .first();
 
-    const isPostgres = knex.client.config.client === 'pg' || knex.client.config.client === 'postgresql';
+    const isPostgres =
+      knex.client.config.client === "pg" ||
+      knex.client.config.client === "postgresql";
 
     // Prepare bio keywords (array for Postgres, JSON string for SQLite)
     let bioKeywords = inferred_bio_keywords;
@@ -45,35 +47,29 @@ class SignalCollector {
       oauth_provider,
       inferred_location: inferred_location || null,
       inferred_bio_keywords: bioKeywords || null,
-      updated_at: knex.fn.now()
+      updated_at: knex.fn.now(),
     };
 
     if (existing) {
       // Update existing record
-      await knex('onboarding_signals')
+      await knex("onboarding_signals")
         .where({ id: existing.id })
         .update(signalData);
 
-      return knex('onboarding_signals')
-        .where({ id: existing.id })
-        .first();
+      return knex("onboarding_signals").where({ id: existing.id }).first();
     } else {
       // Create new record
       const signalId = uuidv4();
-      await knex('onboarding_signals').insert({
+      await knex("onboarding_signals").insert({
         id: signalId,
         profile_id: profileId,
         ...signalData,
-        created_at: knex.fn.now()
+        created_at: knex.fn.now(),
       });
 
-      return knex('onboarding_signals')
-        .where({ id: signalId })
-        .first();
+      return knex("onboarding_signals").where({ id: signalId }).first();
     }
   }
-
-
 
   /**
    * Get signals record by profile ID
@@ -81,9 +77,7 @@ class SignalCollector {
    * @returns {Promise<Object|null>} Signals record or null
    */
   static async getSignalsByProfileId(profileId) {
-    return knex('onboarding_signals')
-      .where({ profile_id: profileId })
-      .first();
+    return knex("onboarding_signals").where({ profile_id: profileId }).first();
   }
 
   /**
@@ -92,9 +86,7 @@ class SignalCollector {
    * @returns {Promise<Object|null>} Signals record or null
    */
   static async getSignalsById(signalsId) {
-    return knex('onboarding_signals')
-      .where({ id: signalsId })
-      .first();
+    return knex("onboarding_signals").where({ id: signalsId }).first();
   }
 
   /**
@@ -103,9 +95,7 @@ class SignalCollector {
    * @returns {Promise<number>} Number of deleted records
    */
   static async deleteSignals(profileId) {
-    return knex('onboarding_signals')
-      .where({ profile_id: profileId })
-      .del();
+    return knex("onboarding_signals").where({ profile_id: profileId }).del();
   }
 }
 

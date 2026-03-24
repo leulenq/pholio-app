@@ -3,9 +3,7 @@
  * Handles Google Sign-In via Firebase ID token verification
  */
 
-const {
-  verifyIdToken,
-} = require("../../../domains/auth/services/firebase-admin");
+const { verifyIdToken } = require("../../../auth/services/firebase-admin");
 
 /**
  * Verify Google ID token (Firebase)

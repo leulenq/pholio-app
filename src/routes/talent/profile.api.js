@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const knex = require("../../shared/db/knex");
-const { requireRole } = require('../../domains/auth/middleware/require-auth');
+const { requireRole } = require("../../domains/auth/middleware/require-auth");
 const { talentProfileUpdateSchema } = require("../../lib/validation");
 const { curateBio } = require("../../shared/lib/curate");
 const apiResponse = require("../../shared/lib/api-response");
@@ -21,7 +21,7 @@ const {
 } = require("../../lib/profile-helpers");
 const {
   checkEssentialsComplete,
-} = require("../../lib/onboarding/essentials-check");
+} = require("../../domains/onboarding/validation/essentials-check");
 const { computeProfileStatus } = require("../../lib/profile-status");
 const {
   upsertTextEmbedding,
@@ -41,7 +41,7 @@ const { v4: uuidv4 } = require("uuid");
 const {
   getCurrentStep,
   getState,
-} = require("../../lib/onboarding/casting-machine");
+} = require("../../domains/onboarding/services/state-machine");
 
 /**
  * GET /api/talent/profile
