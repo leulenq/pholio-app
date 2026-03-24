@@ -309,7 +309,7 @@ export default function OverviewPage() {
     } catch {
       // Rollback
       queryClient.setQueryData(['agency', 'overview', 'recent-applicants'], prevData);
-      setSelected(null);
+      setSelected(prev => prev?.id === applicationId ? null : prev);
       const { toast } = await import('sonner');
       toast.error('Action failed. Please try again.');
     }
@@ -420,7 +420,7 @@ export default function OverviewPage() {
     name: app.name,
     avatar: app.profileImage,
     archetype: null,
-    archetypeLabel: app.matchScore ? `${app.matchScore}% match` : 'Recent',
+    archetypeLabel: app.archetypeLabel || (app.matchScore ? `${app.matchScore}% match` : 'Recent'),
     city: app.location,
     applied: formatRelativeTime(app.createdAt),
     status: getApplicantStatus(app.status),
@@ -750,18 +750,21 @@ export default function OverviewPage() {
                     className="ov-quick-btn ov-quick-btn--accept"
                     type="button"
                     title="Accept"
+                    aria-label="Accept"
                     onClick={() => handleInlineAction(t.id, acceptApplication, { status: 'accepted', archetypeLabel: 'Accepted' })}
                   >✓</button>
                   <button
                     className="ov-quick-btn ov-quick-btn--shortlist"
                     type="button"
                     title="Shortlist"
+                    aria-label="Shortlist"
                     onClick={() => handleInlineAction(t.id, shortlistApplication, { status: 'shortlisted', archetypeLabel: 'Shortlisted' })}
                   >→</button>
                   <button
                     className="ov-quick-btn ov-quick-btn--decline"
                     type="button"
                     title="Decline"
+                    aria-label="Decline"
                     onClick={() => handleInlineAction(t.id, declineApplication, { status: 'declined', archetypeLabel: 'Declined' })}
                   >✕</button>
                 </div>
