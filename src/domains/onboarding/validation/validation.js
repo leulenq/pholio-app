@@ -2,7 +2,7 @@
  * Onboarding validation helpers
  */
 
-const { onboardingSubmitSchema } = require("../../../lib/validation");
+const { onboardingSubmitSchema } = require("../../../shared/lib/validation");
 
 // Minimum photos required for profile submission
 const ONBOARDING_MIN_PHOTOS = 6;

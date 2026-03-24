@@ -6,7 +6,7 @@ const {
 const {
   createUser: createFirebaseUser,
   getUserByEmail,
-} = require("../src/lib/firebase-admin");
+} = require("../src/domains/auth/services/firebase-admin");
 
 async function main() {
   const email = (process.argv[2] || "demo.agency@pholio.test")
