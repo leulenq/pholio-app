@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const knex = require("../../shared/db/knex");
-const { requireRole } = require('../../domains/auth/middleware/require-auth');
+const knex = require("../../../shared/db/knex");
+const { requireRole } = require("../../auth/middleware/require-auth");
 const {
   getDefaultTheme,
   getTheme,
@@ -10,9 +10,9 @@ const {
   getProThemes,
   getAvailableFonts,
   getAvailableColorPalettes,
-} = require("../../domains/pdf/themes");
-const { getAllLayoutPresets } = require("../../domains/pdf/layouts");
-const { asyncHandler } = require("../../shared/middleware/error-handler");
+} = require("../../pdf/themes");
+const { getAllLayoutPresets } = require("../../pdf/layouts");
+const { asyncHandler } = require("../../../shared/middleware/error-handler");
 
 /**
  * GET /api/talent/pdf-customization

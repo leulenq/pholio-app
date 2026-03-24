@@ -2,7 +2,7 @@ const { URL } = require("url");
 const puppeteer = require("puppeteer");
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
-const { toFeetInches } = require("../../lib/stats");
+const { toFeetInches } = require("../talent/services/stats");
 
 // Import Chromium for serverless environments (Netlify Functions, AWS Lambda)
 let chromium = null;

@@ -1,47 +1,43 @@
 const express = require("express");
 const router = express.Router();
-const knex = require("../../shared/db/knex");
-const { requireRole } = require("../../domains/auth/middleware/require-auth");
-const { talentProfileUpdateSchema } = require("../../lib/validation");
-const { curateBio } = require("../../shared/lib/curate");
-const apiResponse = require("../../shared/lib/api-response");
-const { normalizeMeasurements } = require("../../shared/lib/curate");
-const { ensureUniqueSlug } = require("../../shared/lib/slugify");
-const {
-  calculateProfileCompleteness,
-} = require("../../lib/dashboard/completeness");
-const { logActivity } = require("../../lib/dashboard/shared-utils");
-const { asyncHandler } = require("../../shared/middleware/error-handler");
+const knex = require("../../../shared/db/knex");
+const { requireRole } = require("../../auth/middleware/require-auth");
+const { talentProfileUpdateSchema } = require("../../../lib/validation");
+const { curateBio } = require("../../../shared/lib/curate");
+const apiResponse = require("../../../shared/lib/api-response");
+const { normalizeMeasurements } = require("../../../shared/lib/curate");
+const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const { calculateProfileCompleteness } = require("../services/completeness");
+const { logActivity } = require("../services/shared-utils");
+const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const {
   parseSocialMediaHandle,
   generateSocialMediaUrl,
   convertKgToLbs,
   convertLbsToKg,
   toFeetInches,
-} = require("../../lib/profile-helpers");
+} = require("../services/profile-helpers");
 const {
   checkEssentialsComplete,
-} = require("../../domains/onboarding/validation/essentials-check");
-const { computeProfileStatus } = require("../../lib/profile-status");
+} = require("../../onboarding/validation/essentials-check");
+const { computeProfileStatus } = require("../services/profile-status");
 const {
   upsertTextEmbedding,
   buildProfileText,
-} = require("../../domains/ai/embeddings");
-const {
-  masterVisionAnalysis,
-} = require("../../domains/ai/analyzeProfileImage");
+} = require("../../ai/embeddings");
+const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const path = require("path");
 const {
   getAllThemes,
   getFreeThemes,
   getProThemes,
   getDefaultTheme,
-} = require("../../domains/pdf/themes");
+} = require("../../pdf/themes");
 const { v4: uuidv4 } = require("uuid");
 const {
   getCurrentStep,
   getState,
-} = require("../../domains/onboarding/services/state-machine");
+} = require("../../onboarding/services/state-machine");
 
 /**
  * GET /api/talent/profile

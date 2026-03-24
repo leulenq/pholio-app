@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const knex = require("../../shared/db/knex");
-const { requireRole } = require('../../domains/auth/middleware/require-auth');
+const knex = require("../../../shared/db/knex");
+const { requireRole } = require("../../auth/middleware/require-auth");
 const asyncHandler = require("express-async-handler");
 
 async function getProfileBySessionUserId(userId) {

@@ -17,7 +17,7 @@ const { upload, processImage } = require("../../../shared/lib/uploader");
 const {
   convertKgToLbs,
   convertLbsToKg,
-} = require("../../../lib/profile-helpers");
+} = require("../../talent/services/profile-helpers");
 
 // Minimum photos required for essentials wizard submission
 const ESSENTIALS_MIN_PHOTOS = 3;
