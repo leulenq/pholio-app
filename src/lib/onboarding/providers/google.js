@@ -3,7 +3,9 @@
  * Handles Google Sign-In via Firebase ID token verification
  */
 
-const { verifyIdToken } = require('../../firebase-admin');
+const {
+  verifyIdToken,
+} = require("../../../domains/auth/services/firebase-admin");
 
 /**
  * Verify Google ID token (Firebase)
@@ -11,8 +13,8 @@ const { verifyIdToken } = require('../../firebase-admin');
  * @returns {Promise<Object>} Decoded token with user info
  */
 async function verifyGoogleToken(idToken) {
-  if (!idToken || typeof idToken !== 'string') {
-    throw new Error('Invalid token: token is required');
+  if (!idToken || typeof idToken !== "string") {
+    throw new Error("Invalid token: token is required");
   }
 
   try {
@@ -20,10 +22,10 @@ async function verifyGoogleToken(idToken) {
     return decodedToken;
   } catch (error) {
     // Re-throw with clearer error message
-    if (error.message.includes('expired')) {
-      throw new Error('Token expired');
-    } else if (error.message.includes('Invalid token')) {
-      throw new Error('Invalid token format');
+    if (error.message.includes("expired")) {
+      throw new Error("Token expired");
+    } else if (error.message.includes("Invalid token")) {
+      throw new Error("Invalid token format");
     }
     throw new Error(`Token verification failed: ${error.message}`);
   }
@@ -37,7 +39,7 @@ async function verifyGoogleToken(idToken) {
  */
 function normalizeGoogleUser(decodedToken) {
   if (!decodedToken || !decodedToken.uid) {
-    throw new Error('Invalid decoded token: uid is required');
+    throw new Error("Invalid decoded token: uid is required");
   }
 
   const uid = decodedToken.uid;
@@ -53,7 +55,7 @@ function normalizeGoogleUser(decodedToken) {
   if (!firstName && displayName) {
     const nameParts = displayName.trim().split(/\s+/);
     firstName = nameParts[0] || null;
-    lastName = nameParts.slice(1).join(' ') || null;
+    lastName = nameParts.slice(1).join(" ") || null;
   }
 
   return {
@@ -62,11 +64,11 @@ function normalizeGoogleUser(decodedToken) {
     name: displayName,
     picture,
     first_name: firstName,
-    last_name: lastName
+    last_name: lastName,
   };
 }
 
 module.exports = {
   verifyGoogleToken,
-  normalizeGoogleUser
+  normalizeGoogleUser,
 };

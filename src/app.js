@@ -9,14 +9,16 @@ const { ipKeyGenerator } = rateLimit;
 const config = require("./config");
 const knex = require("./shared/db/knex");
 const { attachLocals } = require("./shared/middleware/context");
-const { initializeFirebaseAdmin } = require("./lib/firebase-admin");
+const {
+  initializeFirebaseAdmin,
+} = require("./domains/auth/services/firebase-admin");
 const { errorHandler } = require("./shared/middleware/error-handler");
 const cookieParser = require("cookie-parser");
 
 // +++ 1. ADD THIS LINE +++
 const ejsLayouts = require("express-ejs-layouts");
 
-const authRoutes = require("./routes/auth");
+const authRoutes = require("./domains/auth/routes/auth");
 const onboardingRoutes = require("./routes/onboarding"); // Phase 2: Onboarding API
 const dashboardTalentRoutes = require("./routes/talent/index");
 const pdfRoutes = require("./domains/pdf/routes/pdf");

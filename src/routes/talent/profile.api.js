@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const knex = require("../../shared/db/knex");
-const { requireRole } = require("../../middleware/auth");
+const { requireRole } = require('../../domains/auth/middleware/require-auth');
 const { talentProfileUpdateSchema } = require("../../lib/validation");
 const { curateBio } = require("../../shared/lib/curate");
 const apiResponse = require("../../shared/lib/api-response");

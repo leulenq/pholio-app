@@ -2,7 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const knex = require('../shared/db/knex');
 const { upload, processImage } = require('../shared/lib/uploader');
-const { requireRole } = require('../middleware/auth');
+const { requireRole } = require('../domains/auth/middleware/require-auth');
 const { imageUploadSchema } = require('../shared/lib/schemas');
 const { cleanString } = require('../shared/lib/sanitize');
 

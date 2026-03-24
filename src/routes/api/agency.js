@@ -6,7 +6,7 @@ const {
   requireRole,
   requireAgencyMembershipRole,
   requireAgencyOnboardingComplete,
-} = require("../../middleware/auth");
+} = require('../../domains/auth/middleware/require-auth');
 const { upload, processImage } = require("../../shared/lib/uploader");
 const { v4: uuidv4 } = require("uuid");
 const { calculateMatchScore } = require("../../lib/match-scoring");

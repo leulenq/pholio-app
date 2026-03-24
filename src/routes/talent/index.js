@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
-const { requireRole } = require('../../middleware/auth');
+const { requireRole } = require('../../domains/auth/middleware/require-auth');
 
 const profileRouter = require('./profile.api');
 const mediaRouter = require('./media.api');

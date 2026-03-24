@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
-const { requireRole } = require('../../middleware/auth');
+const { requireRole } = require('../../domains/auth/middleware/require-auth');
 const config = require('../../config');
 
 router.post('/refine', requireRole('TALENT'), async (req, res) => {

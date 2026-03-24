@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const knex = require('../shared/db/knex');
-const { requireRole } = require('../middleware/auth');
+const { requireRole } = require('../domains/auth/middleware/require-auth');
 const config = require('../config');
 const { addMessage } = require('../shared/middleware/context');
 const { getSubscriptionStatus, getTrialDaysRemaining, isInTrial, isCanceling } = require('../shared/lib/subscriptions');

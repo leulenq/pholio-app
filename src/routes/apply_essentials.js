@@ -7,7 +7,7 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const router = express.Router();
 const knex = require("../shared/db/knex");
-const { requireRole } = require("../middleware/auth");
+const { requireRole } = require('../domains/auth/middleware/require-auth');
 const { addMessage } = require("../shared/middleware/context");
 const {
   essentialsDraftSchema,

@@ -19,7 +19,7 @@ const {
   getImageGridCSS,
   validateLayout,
 } = require("../layouts");
-const { requireRole } = require("../../../middleware/auth");
+const { requireRole } = require('../../auth/middleware/require-auth');
 const knex = require("../../../shared/db/knex");
 const QRCode = require("qrcode");
 const config = require("../../../config");
