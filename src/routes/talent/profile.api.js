@@ -26,15 +26,17 @@ const { computeProfileStatus } = require("../../lib/profile-status");
 const {
   upsertTextEmbedding,
   buildProfileText,
-} = require("../../lib/ai/embeddings");
-const { masterVisionAnalysis } = require("../../lib/ai/analyzeProfileImage");
+} = require("../../domains/ai/embeddings");
+const {
+  masterVisionAnalysis,
+} = require("../../domains/ai/analyzeProfileImage");
 const path = require("path");
 const {
   getAllThemes,
   getFreeThemes,
   getProThemes,
   getDefaultTheme,
-} = require("../../lib/themes");
+} = require("../../domains/pdf/themes");
 const { v4: uuidv4 } = require("uuid");
 const {
   getCurrentStep,
