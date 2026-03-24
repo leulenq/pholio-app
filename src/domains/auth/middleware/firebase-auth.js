@@ -1,5 +1,5 @@
-const { verifyIdToken } = require('../lib/firebase-admin');
-const knex = require('../shared/db/knex');
+const { verifyIdToken } = require("../services/firebase-admin");
+const knex = require("../../../shared/db/knex");
 
 /**
  * Extract Firebase ID token from request
@@ -10,7 +10,7 @@ const knex = require('../shared/db/knex');
 function extractIdToken(req) {
   // Check Authorization header: "Bearer <token>"
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.substring(7);
   }
 
@@ -52,7 +52,9 @@ async function verifyFirebaseToken(req, res, next) {
     }
 
     // Look up user in database by Firebase UID
-    const user = await knex('users').where({ firebase_uid: firebaseUid }).first();
+    const user = await knex("users")
+      .where({ firebase_uid: firebaseUid })
+      .first();
 
     if (!user) {
       // User not found in database
@@ -75,7 +77,7 @@ async function verifyFirebaseToken(req, res, next) {
       await new Promise((resolve, reject) => {
         req.session.save((err) => {
           if (err) {
-            console.error('[Firebase Auth] Error saving session:', err);
+            console.error("[Firebase Auth] Error saving session:", err);
             reject(err);
           } else {
             resolve();
@@ -87,7 +89,7 @@ async function verifyFirebaseToken(req, res, next) {
     return next();
   } catch (error) {
     // Token verification failed
-    console.error('[Firebase Auth] Token verification failed:', error.message);
+    console.error("[Firebase Auth] Token verification failed:", error.message);
 
     // Don't fail the request, just continue without authentication
     // Let individual routes handle authentication requirements
@@ -102,7 +104,7 @@ async function verifyFirebaseToken(req, res, next) {
 function requireFirebaseAuth(req, res, next) {
   verifyFirebaseToken(req, res, () => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      return res.status(401).json({ error: "Authentication required" });
     }
     return next();
   });
@@ -111,6 +113,5 @@ function requireFirebaseAuth(req, res, next) {
 module.exports = {
   extractIdToken,
   verifyFirebaseToken,
-  requireFirebaseAuth
+  requireFirebaseAuth,
 };
-

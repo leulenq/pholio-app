@@ -4,7 +4,7 @@
 const express   = require('express')
 const router    = express.Router()
 const knex      = require('../../shared/db/knex')
-const { requireRole }        = require('../../middleware/auth')
+const { requireRole }        = require('../../domains/auth/middleware/require-auth')
 const { getSessionAgencyId } = require('../../lib/agency-context')
 const {
   getPendingReview,

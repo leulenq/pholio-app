@@ -1,26 +1,26 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
-const knex = require("../shared/db/knex");
-const { loginSchema, agencySignupSchema } = require("../lib/validation");
-const { addMessage } = require("../shared/middleware/context");
-const { ensureUniqueSlug } = require("../shared/lib/slugify");
+const knex = require("../../../shared/db/knex");
+const { loginSchema, agencySignupSchema } = require("../../../lib/validation");
+const { addMessage } = require("../../../shared/middleware/context");
+const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const {
   verifyIdToken,
   createUser: createFirebaseUser,
   getUserByEmail,
-} = require("../lib/firebase-admin");
+} = require("../services/firebase-admin");
 const { extractIdToken } = require("../middleware/firebase-auth");
 const {
   createUser: createUserHelper,
   determineRole,
-} = require("../shared/lib/user-helpers");
+} = require("../../../shared/lib/user-helpers");
 const {
   resolveAgencyContextForMemberUser,
-} = require("../lib/agency-context");
+} = require("../../../lib/agency-context");
 const {
   getIPGeolocation,
   createVerifiedLocationIntel,
-} = require("../shared/lib/geolocation");
+} = require("../../../shared/lib/geolocation");
 
 const router = express.Router();
 
@@ -388,15 +388,13 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             "Agency accounts are provisioned by Pholio. Contact support if you need access.";
           return isJsonRequest
             ? res.status(403).json({ success: false, error: msg })
-            : res
-                .status(403)
-                .render("auth/login", {
-                  title: "Sign in",
-                  values: req.body,
-                  errors: { email: [msg] },
-                  layout: "layout",
-                  currentPage: "login",
-                });
+            : res.status(403).render("auth/login", {
+                title: "Sign in",
+                values: req.body,
+                errors: { email: [msg] },
+                layout: "layout",
+                currentPage: "login",
+              });
         }
 
         // Safe fallbacks for all required DB fields so INSERT never fails
@@ -425,7 +423,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             );
             const {
               initialState,
-            } = require("../lib/onboarding/casting-machine");
+            } = require("../../../lib/onboarding/casting-machine");
             const startState = initialState("entry", trx);
 
             await trx("profiles").insert({
@@ -511,15 +509,13 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               "An account with this email already exists. Please try logging in.";
             return isJsonRequest
               ? res.status(409).json({ success: false, error: msg })
-              : res
-                  .status(409)
-                  .render("auth/login", {
-                    title: "Sign in",
-                    values: req.body,
-                    errors: { email: [msg] },
-                    layout: "layout",
-                    currentPage: "login",
-                  });
+              : res.status(409).render("auth/login", {
+                  title: "Sign in",
+                  values: req.body,
+                  errors: { email: [msg] },
+                  layout: "layout",
+                  currentPage: "login",
+                });
           }
           // user found — fall through to session creation below
         } else {
@@ -527,15 +523,13 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             "We could not create your account. Please try again or contact support.";
           return isJsonRequest
             ? res.status(500).json({ success: false, error: msg })
-            : res
-                .status(500)
-                .render("auth/login", {
-                  title: "Sign in",
-                  values: req.body,
-                  errors: { email: [msg] },
-                  layout: "layout",
-                  currentPage: "login",
-                });
+            : res.status(500).render("auth/login", {
+                title: "Sign in",
+                values: req.body,
+                errors: { email: [msg] },
+                layout: "layout",
+                currentPage: "login",
+              });
         }
       }
     }
@@ -622,8 +616,10 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       req.session.userId = agencyContext.agency.id;
       req.session.memberUserId = user.id;
       req.session.agencyId = agencyContext.agency.id;
-      req.session.agencyMembershipRole = agencyContext.membership?.membership_role || null;
-      req.session.agencyOnboardingCompletedAt = agencyContext.agency.onboarding_completed_at || null;
+      req.session.agencyMembershipRole =
+        agencyContext.membership?.membership_role || null;
+      req.session.agencyOnboardingCompletedAt =
+        agencyContext.agency.onboarding_completed_at || null;
       req.session.role = "AGENCY";
     } else {
       req.session.userId = user.id;
@@ -651,7 +647,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     const redirectUrl =
       req.session.role === "AGENCY" && !req.session.agencyOnboardingCompletedAt
         ? sessionRedirect
-        : (nextPath || sessionRedirect);
+        : nextPath || sessionRedirect;
     console.log("[Login] Redirecting to:", redirectUrl);
 
     // If request is JSON or Accept header requests JSON, return JSON response with redirect URL
@@ -775,8 +771,9 @@ router.get("/partners", (req, res, next) => {
 // POST /partners - Agency signup (Firebase user should be created client-side first)
 router.post("/partners", async (req, res, next) => {
   const parsed = agencySignupSchema.safeParse(req.body);
-  const values = parsed.success ? parsed.data : (req.body || {});
-  const emailError = "Agency accounts are provisioned manually by Pholio. Contact support to request access.";
+  const values = parsed.success ? parsed.data : req.body || {};
+  const emailError =
+    "Agency accounts are provisioned manually by Pholio. Contact support to request access.";
   res.locals.currentPage = "partners";
   return res.status(403).render("auth/partners", {
     title: "Partner with Pholio",
@@ -799,9 +796,12 @@ router.post("/signup", (req, res) => {
 router.post(["/logout", "/api/logout"], (req, res) => {
   const isJson =
     req.headers.accept && req.headers.accept.includes("application/json");
-  const redirectUrl = process.env.MARKETING_SITE_URL || "https://www.pholio.studio";
+  const redirectUrl =
+    process.env.MARKETING_SITE_URL || "https://www.pholio.studio";
   const appLoginUrl =
-    process.env.NODE_ENV === "production" ? "/login" : "http://localhost:5173/login";
+    process.env.NODE_ENV === "production"
+      ? "/login"
+      : "http://localhost:5173/login";
 
   if (!req.session) {
     if (isJson) {
@@ -835,7 +835,8 @@ router.get("/api/session", async (req, res) => {
     role: req.session.role,
     agencyId: req.session.agencyId || null,
     memberUserId: req.session.memberUserId || null,
-    agencyOnboardingCompletedAt: req.session.agencyOnboardingCompletedAt || null,
+    agencyOnboardingCompletedAt:
+      req.session.agencyOnboardingCompletedAt || null,
     redirect: redirectForSession(req.session),
   });
 });

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const knex = require('../../shared/db/knex');
-const { requireRole } = require('../../middleware/auth');
+const { requireRole } = require('../../domains/auth/middleware/require-auth');
 const { ensureUniqueSlug } = require('../../shared/lib/slugify');
 const { asyncHandler } = require('../../shared/middleware/error-handler');
 

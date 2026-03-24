@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const knex = require('../../shared/db/knex');
-const { requireRole } = require('../../middleware/auth');
+const { requireRole } = require('../../domains/auth/middleware/require-auth');
 const { upload, processImage, s3 } = require('../../shared/lib/uploader');
 const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { v4: uuidv4 } = require('uuid');

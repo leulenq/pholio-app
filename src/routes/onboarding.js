@@ -19,7 +19,7 @@ const router = express.Router();
 
 // Dependencies
 const knex = require("../shared/db/knex");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth, requireRole } = require('../domains/auth/middleware/require-auth');
 const { addMessage } = require("../shared/middleware/context");
 const { upload, processImage } = require("../shared/lib/uploader");
 // Deprecated: const { analyzePhoto } = require('../domains/ai/photo-analysis');
