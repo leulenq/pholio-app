@@ -1,7 +1,10 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const knex = require("../../../shared/db/knex");
-const { loginSchema, agencySignupSchema } = require("../../../lib/validation");
+const {
+  loginSchema,
+  agencySignupSchema,
+} = require("../../../shared/lib/validation");
 const { addMessage } = require("../../../shared/middleware/context");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const {

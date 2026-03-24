@@ -12,7 +12,7 @@ const { addMessage } = require("../../../shared/middleware/context");
 const {
   essentialsDraftSchema,
   essentialsSubmitSchema,
-} = require("../../../lib/validation");
+} = require("../../../shared/lib/validation");
 const { upload, processImage } = require("../../../shared/lib/uploader");
 const {
   convertKgToLbs,

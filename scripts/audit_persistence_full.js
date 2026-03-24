@@ -1,5 +1,5 @@
 const knex = require("../src/shared/db/knex");
-const { talentProfileUpdateSchema } = require("../src/lib/validation");
+const { talentProfileUpdateSchema } = require("../src/shared/lib/validation");
 const { curateBio } = require("../src/shared/lib/curate");
 const {
   parseSocialMediaHandle,
