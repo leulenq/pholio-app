@@ -1,5 +1,5 @@
 const { verifyIdToken } = require('../lib/firebase-admin');
-const knex = require('../db/knex');
+const knex = require('../shared/db/knex');
 
 /**
  * Extract Firebase ID token from request

@@ -1,10 +1,10 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const knex = require('../db/knex');
+const knex = require('../shared/db/knex');
 const { requireRole } = require('../middleware/auth');
 const config = require('../config');
-const { addMessage } = require('../middleware/context');
-const { getSubscriptionStatus, getTrialDaysRemaining, isInTrial, isCanceling } = require('../lib/subscriptions');
+const { addMessage } = require('../shared/middleware/context');
+const { getSubscriptionStatus, getTrialDaysRemaining, isInTrial, isCanceling } = require('../shared/lib/subscriptions');
 
 const router = express.Router();
 

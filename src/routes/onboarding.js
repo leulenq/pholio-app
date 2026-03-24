@@ -18,10 +18,10 @@ const { v4: uuidv4 } = require("uuid");
 const router = express.Router();
 
 // Dependencies
-const knex = require("../db/knex");
+const knex = require("../shared/db/knex");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { addMessage } = require("../middleware/context");
-const { upload, processImage } = require("../lib/uploader");
+const { addMessage } = require("../shared/middleware/context");
+const { upload, processImage } = require("../shared/lib/uploader");
 // Deprecated: const { analyzePhoto } = require('../lib/ai/photo-analysis');
 const { generateArchetype } = require("../lib/ai/groq-casting");
 const { masterVisionAnalysis } = require("../lib/ai/analyzeProfileImage");
@@ -37,7 +37,7 @@ const {
   verifyGoogleToken,
   normalizeGoogleUser,
 } = require("../lib/onboarding/providers/google");
-const { ensureUniqueSlug } = require("../lib/slugify");
+const { ensureUniqueSlug } = require("../shared/lib/slugify");
 const OnboardingAnalytics = require("../lib/analytics/onboarding-events");
 
 /**

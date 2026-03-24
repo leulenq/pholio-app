@@ -4,7 +4,7 @@ const multer = require('multer');
 const multerS3 = require('multer-s3');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const sharp = require('sharp');
-const config = require('../config');
+const config = require('../../config');
 const { v4: uuidv4 } = require('uuid');
 
 // Initialize S3 Client for Cloudflare R2

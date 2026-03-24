@@ -1,5 +1,5 @@
 const express = require('express');
-const knex = require('../db/knex');
+const knex = require('../shared/db/knex');
 const { toFeetInches } = require('../lib/stats');
 const { v4: uuidv4 } = require('uuid');
 

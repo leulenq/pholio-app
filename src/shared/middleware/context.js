@@ -1,5 +1,5 @@
 const knex = require('../db/knex');
-const config = require('../config');
+const config = require('../../config');
 const { getSubscriptionStatus, getTrialDaysRemaining, isInTrial, isCanceling } = require('../lib/subscriptions');
 
 async function attachLocals(req, res, next) {
@@ -75,8 +75,8 @@ async function attachLocals(req, res, next) {
     }
   } else {
     // No session, try Firebase token as fallback
-    const { extractIdToken } = require('../middleware/firebase-auth');
-    const { verifyIdToken } = require('../lib/firebase-admin');
+    const { extractIdToken } = require('../../middleware/firebase-auth');
+    const { verifyIdToken } = require('../../lib/firebase-admin');
     
     const idToken = extractIdToken(req);
     if (idToken) {

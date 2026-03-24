@@ -1,9 +1,9 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
-const knex = require("../db/knex");
+const knex = require("../shared/db/knex");
 const { loginSchema, agencySignupSchema } = require("../lib/validation");
-const { addMessage } = require("../middleware/context");
-const { ensureUniqueSlug } = require("../lib/slugify");
+const { addMessage } = require("../shared/middleware/context");
+const { ensureUniqueSlug } = require("../shared/lib/slugify");
 const {
   verifyIdToken,
   createUser: createFirebaseUser,
@@ -13,14 +13,14 @@ const { extractIdToken } = require("../middleware/firebase-auth");
 const {
   createUser: createUserHelper,
   determineRole,
-} = require("../lib/user-helpers");
+} = require("../shared/lib/user-helpers");
 const {
   resolveAgencyContextForMemberUser,
 } = require("../lib/agency-context");
 const {
   getIPGeolocation,
   createVerifiedLocationIntel,
-} = require("../lib/geolocation");
+} = require("../shared/lib/geolocation");
 
 const router = express.Router();
 

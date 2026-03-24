@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const knex = require('../db/knex');
 const { ensureUniqueSlug } = require('./slugify');
-const { provisionAgencyForUser } = require('./agency-provisioning');
+const { provisionAgencyForUser } = require('../../lib/agency-provisioning');
 
 /**
  * Create a new user in the database

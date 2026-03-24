@@ -1,17 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const knex = require("../../db/knex");
+const knex = require("../../shared/db/knex");
 const { requireRole } = require("../../middleware/auth");
 const { talentProfileUpdateSchema } = require("../../lib/validation");
-const { curateBio } = require("../../lib/curate");
-const apiResponse = require("../../lib/api-response");
-const { normalizeMeasurements } = require("../../lib/curate");
-const { ensureUniqueSlug } = require("../../lib/slugify");
+const { curateBio } = require("../../shared/lib/curate");
+const apiResponse = require("../../shared/lib/api-response");
+const { normalizeMeasurements } = require("../../shared/lib/curate");
+const { ensureUniqueSlug } = require("../../shared/lib/slugify");
 const {
   calculateProfileCompleteness,
 } = require("../../lib/dashboard/completeness");
 const { logActivity } = require("../../lib/dashboard/shared-utils");
-const { asyncHandler } = require("../../middleware/error-handler");
+const { asyncHandler } = require("../../shared/middleware/error-handler");
 const {
   parseSocialMediaHandle,
   generateSocialMediaUrl,

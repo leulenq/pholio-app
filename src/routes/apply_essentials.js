@@ -6,14 +6,14 @@
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const router = express.Router();
-const knex = require("../db/knex");
+const knex = require("../shared/db/knex");
 const { requireRole } = require("../middleware/auth");
-const { addMessage } = require("../middleware/context");
+const { addMessage } = require("../shared/middleware/context");
 const {
   essentialsDraftSchema,
   essentialsSubmitSchema,
 } = require("../lib/validation");
-const { upload, processImage } = require("../lib/uploader");
+const { upload, processImage } = require("../shared/lib/uploader");
 const { convertKgToLbs, convertLbsToKg } = require("../lib/profile-helpers");
 
 // Minimum photos required for essentials wizard submission

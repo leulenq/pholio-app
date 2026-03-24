@@ -6,7 +6,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 
 /**
  * Parse referral agency ID from query parameter

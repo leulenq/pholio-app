@@ -4,8 +4,8 @@
  */
 
 const { v4: uuidv4 } = require("uuid");
-const knex = require("../../db/knex");
-const { ensureUniqueSlug } = require("../slugify");
+const knex = require("../../shared/db/knex");
+const { ensureUniqueSlug } = require("../../shared/lib/slugify");
 const {
   verifyGoogleToken,
   normalizeGoogleUser,

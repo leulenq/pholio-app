@@ -1,4 +1,4 @@
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 const { v4: uuidv4 } = require('uuid');
 
 /**

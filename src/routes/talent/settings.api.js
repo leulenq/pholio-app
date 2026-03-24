@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const knex = require('../../db/knex');
+const knex = require('../../shared/db/knex');
 const { requireRole } = require('../../middleware/auth');
-const { ensureUniqueSlug } = require('../../lib/slugify');
-const { asyncHandler } = require('../../middleware/error-handler');
+const { ensureUniqueSlug } = require('../../shared/lib/slugify');
+const { asyncHandler } = require('../../shared/middleware/error-handler');
 
 /**
  * GET /api/talent/settings

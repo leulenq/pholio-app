@@ -52,13 +52,13 @@ jest.mock('../src/lib/ai/photo-analysis', () => ({
 }));
 
 // Mock Image Validator
-jest.mock('../src/lib/image-validator', () => ({
+jest.mock('../src/shared/lib/image-validator', () => ({
   validate: jest.fn().mockResolvedValue({ valid: true })
 }));
 
 // Now import modules that depend on mocks
 const request = require('supertest');
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 const app = require('../src/app');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');

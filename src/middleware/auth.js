@@ -1,4 +1,4 @@
-const { addMessage } = require("./context");
+const { addMessage } = require("../shared/middleware/context");
 
 function ensureSignedIn(req) {
   return Boolean(req.session && req.session.userId);

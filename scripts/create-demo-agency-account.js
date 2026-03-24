@@ -1,5 +1,5 @@
-const knex = require('../src/db/knex');
-const { createUser: createDbUser } = require('../src/lib/user-helpers');
+const knex = require('../src/shared/db/knex');
+const { createUser: createDbUser } = require('../src/shared/lib/user-helpers');
 const { provisionAgencyForUser } = require('../src/lib/agency-provisioning');
 const {
   createUser: createFirebaseUser,
