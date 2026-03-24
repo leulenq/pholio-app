@@ -1,7 +1,9 @@
-const { v4: uuidv4 } = require('uuid');
-const knex = require('../db/knex');
-const { ensureUniqueSlug } = require('./slugify');
-const { provisionAgencyForUser } = require('../../lib/agency-provisioning');
+const { v4: uuidv4 } = require("uuid");
+const knex = require("../db/knex");
+const { ensureUniqueSlug } = require("./slugify");
+const {
+  provisionAgencyForUser,
+} = require("../../domains/agency/services/provisioning");
 
 /**
  * Create a new user in the database
@@ -13,7 +15,15 @@ const { provisionAgencyForUser } = require('../../lib/agency-provisioning');
  * @param {Object} [params.profileData] - Optional profile data (for TALENT role)
  * @returns {Promise<Object>} Created user object
  */
-async function createUser({ firebaseUid, email, role, agencyName = null, profileData = null, first_name = null, last_name = null }) {
+async function createUser({
+  firebaseUid,
+  email,
+  role,
+  agencyName = null,
+  profileData = null,
+  first_name = null,
+  last_name = null,
+}) {
   const userId = uuidv4();
   const normalizedEmail = email.toLowerCase().trim();
 
@@ -21,36 +31,38 @@ async function createUser({ firebaseUid, email, role, agencyName = null, profile
   const finalFirstName = profileData?.first_name || first_name;
   const finalLastName = profileData?.last_name || last_name;
 
-  console.log('[User Helpers] Creating user:', {
+  console.log("[User Helpers] Creating user:", {
     id: userId,
     email: normalizedEmail,
     firebase_uid: firebaseUid,
     role: role,
     agency_name: agencyName || null,
     first_name: finalFirstName,
-    last_name: finalLastName
+    last_name: finalLastName,
   });
 
   // Use transaction if profile data is provided (for TALENT)
-  if (role === 'TALENT' && profileData) {
+  if (role === "TALENT" && profileData) {
     return await knex.transaction(async (trx) => {
       // Insert user
-      await trx('users').insert({
+      await trx("users").insert({
         id: userId,
         email: normalizedEmail,
         firebase_uid: firebaseUid,
-        role: 'TALENT',
+        role: "TALENT",
         first_name: finalFirstName,
-        last_name: finalLastName
+        last_name: finalLastName,
       });
 
-      console.log('[User Helpers] User inserted in transaction:', userId);
+      console.log("[User Helpers] User inserted in transaction:", userId);
 
       // Create profile
-      const slug = await ensureUniqueSlug(trx, 'profiles', 
+      const slug = await ensureUniqueSlug(
+        trx,
+        "profiles",
         finalFirstName && finalLastName
           ? `${finalFirstName}-${finalLastName}`
-          : 'talent'
+          : "talent",
       );
       const profileId = uuidv4();
 
@@ -66,44 +78,50 @@ async function createUser({ firebaseUid, email, role, agencyName = null, profile
         bio_curated: profileData.bio || null,
         // Add other profile fields if provided
         ...(profileData.height_cm && { height_cm: profileData.height_cm }),
-        ...(profileData.instagram_handle && { instagram_handle: profileData.instagram_handle }),
-        ...(profileData.twitter_handle && { twitter_handle: profileData.twitter_handle }),
-        ...(profileData.tiktok_handle && { tiktok_handle: profileData.tiktok_handle })
+        ...(profileData.instagram_handle && {
+          instagram_handle: profileData.instagram_handle,
+        }),
+        ...(profileData.twitter_handle && {
+          twitter_handle: profileData.twitter_handle,
+        }),
+        ...(profileData.tiktok_handle && {
+          tiktok_handle: profileData.tiktok_handle,
+        }),
       };
 
-      await trx('profiles').insert(profileInsert);
+      await trx("profiles").insert(profileInsert);
 
-      console.log('[User Helpers] Profile created in transaction:', profileId);
+      console.log("[User Helpers] Profile created in transaction:", profileId);
 
       // Fetch and return user
-      const user = await trx('users').where({ id: userId }).first();
+      const user = await trx("users").where({ id: userId }).first();
       return user;
     });
   }
 
   // For AGENCY or TALENT without profile data, just create user
-  await knex('users').insert({
+  await knex("users").insert({
     id: userId,
     email: normalizedEmail,
     firebase_uid: firebaseUid,
     role: role,
     first_name: finalFirstName,
-    last_name: finalLastName
+    last_name: finalLastName,
   });
 
-  console.log('[User Helpers] User created successfully:', {
+  console.log("[User Helpers] User created successfully:", {
     id: userId,
     email: normalizedEmail,
-    role: role
+    role: role,
   });
 
   // Verify user was created
-  const createdUser = await knex('users').where({ id: userId }).first();
+  const createdUser = await knex("users").where({ id: userId }).first();
   if (!createdUser) {
-    throw new Error('Failed to create user account');
+    throw new Error("Failed to create user account");
   }
 
-  if (role === 'AGENCY' && agencyName) {
+  if (role === "AGENCY" && agencyName) {
     await provisionAgencyForUser({
       userId,
       agencyName,
@@ -125,21 +143,21 @@ function determineRole(role = null, path = null) {
   if (role) {
     return role.toUpperCase();
   }
-  
+
   if (path) {
-    if (path.includes('/partners') || path.includes('/agency')) {
-      return 'AGENCY';
+    if (path.includes("/partners") || path.includes("/agency")) {
+      return "AGENCY";
     }
-    if (path.includes('/apply') || path.includes('/talent')) {
-      return 'TALENT';
+    if (path.includes("/apply") || path.includes("/talent")) {
+      return "TALENT";
     }
   }
-  
+
   // Default to TALENT
-  return 'TALENT';
+  return "TALENT";
 }
 
 module.exports = {
   createUser,
-  determineRole
+  determineRole,
 };

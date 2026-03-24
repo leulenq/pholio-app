@@ -20,11 +20,9 @@ const ejsLayouts = require("express-ejs-layouts");
 
 const authRoutes = require("./domains/auth/routes/auth");
 const onboardingRoutes = require("./domains/onboarding/routes/casting"); // Phase 2: Onboarding API
-const dashboardTalentRoutes = require("./routes/talent/index");
+const dashboardTalentRoutes = require("./domains/talent/routes/index");
 const pdfRoutes = require("./domains/pdf/routes/pdf");
-const agencyRoutes = require("./routes/agency");
-const agencyApiRoutes = require("./routes/api/agency");
-const agencyOverviewRoutes = require("./routes/api/agency-overview");
+const agencyDomainRoutes = require("./domains/agency/routes/index");
 const proRoutes = require("./routes/pro");
 const stripeRoutes = require("./routes/stripe");
 const chatRoutes = require("./routes/chat");
@@ -520,8 +518,7 @@ app.use("/", scoutRoutes);
 // API Routes
 app.use("/api", apiRoutes);
 app.use("/api/public", publicRoutes);
-app.use("/", agencyApiRoutes); // Agency API routes (includes /api/agency/* endpoints)
-app.use("/", agencyOverviewRoutes);
+app.use("/", agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
 
 // Application/onboarding routes
 app.use("/", onboardingRoutes); // Phase 2: Onboarding API Routes
@@ -536,7 +533,7 @@ const {
 
 // Dashboard routes (protected by onboarding middleware)
 app.use("/", requireOnboardingComplete, dashboardTalentRoutes);
-// Agency dashboard routes now handled by agencyRoutes below
+// Agency dashboard routes handled by agencyDomainRoutes above
 
 // Public portfolio routes
 
@@ -546,8 +543,7 @@ app.use("/", pdfRoutes);
 
 // File upload routes
 
-// Agency and Pro routes
-app.use("/", agencyRoutes);
+// Pro routes
 app.use("/", proRoutes);
 
 // Payment routes (Stripe)

@@ -1,24 +1,24 @@
 const express = require("express");
 const router = express.Router();
-const knex = require("../../shared/db/knex");
+const knex = require("../../../shared/db/knex");
 const { z } = require("zod");
 const {
   requireRole,
   requireAgencyMembershipRole,
   requireAgencyOnboardingComplete,
-} = require('../../domains/auth/middleware/require-auth');
-const { upload, processImage } = require("../../shared/lib/uploader");
+} = require("../../auth/middleware/require-auth");
+const { upload, processImage } = require("../../../shared/lib/uploader");
 const { v4: uuidv4 } = require("uuid");
-const { calculateMatchScore } = require("../../lib/match-scoring");
+const { calculateMatchScore } = require("../services/match-scoring");
 const {
   sendApplicationStatusEmail,
   sendNewMessageEmail,
-} = require("../../shared/lib/email");
+} = require("../../../shared/lib/email");
 const {
   getSessionActorUserId,
   getSessionAgencyId,
-} = require("../../lib/agency-context");
-const { embed, toVectorLiteral } = require("../../domains/ai/embeddings");
+} = require("../services/context");
+const { embed, toVectorLiteral } = require("../../ai/embeddings");
 
 const agencyMemberCreateSchema = z.object({
   email: z
@@ -855,7 +855,9 @@ router.post(
 
           // Calculate match score if requirements and weights exist
           if (requirements && scoring_weights && profile) {
-            const { calculateMatchScore } = require("../../lib/match-scoring");
+            const {
+              calculateMatchScore,
+            } = require("../services/match-scoring");
 
             const parsedRequirements = {
               ...requirements,

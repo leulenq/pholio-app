@@ -15,7 +15,7 @@ const { v4: uuidv4 } = require("uuid");
 // Loaded after env vars are set so they pick up the test database
 const knex = require("../src/shared/db/knex");
 const app = require("../src/app");
-const queries = require("../src/lib/agency-overview-queries");
+const queries = require("../src/domains/agency/queries/overview.queries");
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
 const TEST_DB_PATH = path.resolve(__dirname, "../test-agency-overview.sqlite3");
