@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate, useReducedMotion } from 'framer-motion';
 import {
   ChevronDown,
@@ -11,7 +11,14 @@ import { AreaChart, Area, RadialBarChart, RadialBar, Label, ResponsiveContainer,
 
 import TalentDetailPanel from '../../components/agency/TalentDetailPanel';
 import { TalentMatchRing } from '../../components/agency/ui/TalentMatchRing';
-import { getAgencyOverview, getAgencyProfile, getRecentApplicants } from '../../api/agency';
+import {
+  getAgencyOverview,
+  getAgencyProfile,
+  getRecentApplicants,
+  acceptApplication,
+  declineApplication,
+  shortlistApplication,
+} from '../../api/agency';
 import './OverviewPage.css';
 
 // ─── Data adapter ─────────────────────────────────────────────────────────────
@@ -284,6 +291,29 @@ function ArchetypeDonut({ segments }) {
 export default function OverviewPage() {
   const [selected, setSelected] = useState(null);
   const [hoveredStage, setHoveredStage] = useState(null);
+  const queryClient = useQueryClient();
+
+  async function handleInlineAction(applicationId, actionFn, optimisticUpdate) {
+    const prevData = queryClient.getQueryData(['agency', 'overview', 'recent-applicants']);
+    // Optimistic cache update
+    queryClient.setQueryData(['agency', 'overview', 'recent-applicants'], (old = []) =>
+      old.map(app => app.applicationId === applicationId ? { ...app, ...optimisticUpdate } : app)
+    );
+    // Sync TalentPanel if open
+    setSelected(prev =>
+      prev?.id === applicationId ? { ...prev, ...optimisticUpdate } : prev
+    );
+    try {
+      await actionFn(applicationId);
+      queryClient.invalidateQueries({ queryKey: ['agency', 'overview'] });
+    } catch {
+      // Rollback
+      queryClient.setQueryData(['agency', 'overview', 'recent-applicants'], prevData);
+      setSelected(null);
+      const { toast } = await import('sonner');
+      toast.error('Action failed. Please try again.');
+    }
+  }
   const prefersReducedMotion = useReducedMotion();
   const { data: overview, isLoading, isError } = useQuery({
     queryKey: ['agency', 'overview'],
@@ -688,29 +718,52 @@ export default function OverviewPage() {
             {displayApplicants.map((t, idx) => (
               <motion.div
                 key={t.id}
-                onClick={() => setSelected(t)}
                 className="ov-app-row"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 + idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className={`ov-app-avatar-wrap ${t.status === 'submitted' ? 'ov-app-avatar-wrap--new' : ''}`}>
-                  <img src={t.avatar} alt={t.name} className="ov-app-avatar" />
-                  <span className="ov-status-dot" style={{ background: STATUS_COLORS[t.status] }} />
-                </div>
-                <div className="ov-app-info">
-                  <span className="ov-app-name">{t.name}</span>
-                  <span className="ov-app-meta">
-                    <span className="ov-app-badge ov-badge--editorial">{t.archetypeLabel}</span>
-                    {t.city} · {t.applied}
-                  </span>
-                </div>
-                <div className="ov-app-match-col">
-                  <TalentMatchRing score={t.match || 0} size="sm" />
-                </div>
+                {/* Left side: deep link */}
+                <Link
+                  to={`/dashboard/agency/inbox?applicationId=${t.id}`}
+                  className="ov-app-row-link"
+                  style={{ display: 'contents' }}
+                >
+                  <div className={`ov-app-avatar-wrap ${t.status === 'submitted' ? 'ov-app-avatar-wrap--new' : ''}`}>
+                    <img src={t.avatar} alt={t.name} className="ov-app-avatar" />
+                    <span className="ov-status-dot" style={{ background: STATUS_COLORS[t.status] }} />
+                  </div>
+                  <div className="ov-app-info">
+                    <span className="ov-app-name">{t.name}</span>
+                    <span className="ov-app-meta">
+                      <span className="ov-app-badge ov-badge--editorial">{t.archetypeLabel}</span>
+                      {t.city} · {t.applied}
+                    </span>
+                  </div>
+                  <div className="ov-app-match-col">
+                    <TalentMatchRing score={t.match || 0} size="sm" />
+                  </div>
+                </Link>
+                {/* Right side: inline actions */}
                 <div className="ov-app-quick-actions" onClick={e => e.stopPropagation()}>
-                  <Link to="/dashboard/agency/inbox" className="ov-quick-btn ov-quick-btn--accept">Open</Link>
-                  <Link to="/dashboard/agency/inbox" className="ov-quick-btn ov-quick-btn--review">Review</Link>
+                  <button
+                    className="ov-quick-btn ov-quick-btn--accept"
+                    type="button"
+                    title="Accept"
+                    onClick={() => handleInlineAction(t.id, acceptApplication, { status: 'accepted', archetypeLabel: 'Accepted' })}
+                  >✓</button>
+                  <button
+                    className="ov-quick-btn ov-quick-btn--shortlist"
+                    type="button"
+                    title="Shortlist"
+                    onClick={() => handleInlineAction(t.id, shortlistApplication, { status: 'shortlisted', archetypeLabel: 'Shortlisted' })}
+                  >→</button>
+                  <button
+                    className="ov-quick-btn ov-quick-btn--decline"
+                    type="button"
+                    title="Decline"
+                    onClick={() => handleInlineAction(t.id, declineApplication, { status: 'declined', archetypeLabel: 'Declined' })}
+                  >✕</button>
                 </div>
               </motion.div>
             ))}
