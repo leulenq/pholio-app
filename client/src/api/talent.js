@@ -29,6 +29,7 @@ export const talentApi = {
 
   // Applications
   getApplications: () => apiClient.get('/applications'),
+  getApplicationPromptContext: () => apiClient.get('/applications/prompt-context'),
   getAgencies: () => apiClient.get('/agencies'),
   createApplication: (data) => apiClient.post('/applications', data),
   withdrawApplication: (id) => apiClient.post(`/applications/${id}/withdraw`),

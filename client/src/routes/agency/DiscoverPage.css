@@ -892,3 +892,58 @@
 @media (min-width: 769px) and (max-width: 1100px) {
   .dc-panel { width: min(420px, 55vw); }
 }
+
+/* ============================================================
+   SKELETON / LOADING STATE
+   ============================================================ */
+@keyframes dc-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.dc-card-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 800px 100%;
+  animation: dc-shimmer 1.6s ease-in-out infinite;
+  border-radius: 16px;
+}
+
+.dc-card-img--fallback {
+  background: rgba(255,255,255,0.04);
+}
+
+/* ============================================================
+   SPIN ANIMATION (loading spinner)
+   ============================================================ */
+@keyframes dc-spin {
+  to { transform: rotate(360deg); }
+}
+
+.dc-spin {
+  animation: dc-spin 0.7s linear infinite;
+}
+
+/* ============================================================
+   INVITED STATE
+   ============================================================ */
+.dc-btn-gold--done {
+  background: rgba(201,165,90,0.25);
+  color: #C9A55A;
+  cursor: default;
+}
+
+.dc-btn-gold--done:hover {
+  background: rgba(201,165,90,0.25);
+  transform: none;
+  box-shadow: none;
+}
+
+.dc-btn-gold:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

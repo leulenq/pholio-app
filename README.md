@@ -51,13 +51,13 @@ Pholio connects talent with agencies through polished digital portfolios, AI-ass
 
 ## Architecture
 
-Pholio is a three-app monorepo deployed from a single repository:
+Pholio is deployed as **app + API** from this repository, with an optional **marketing** app when the `landing/` tree is present (not all checkouts include it).
 
 | App | Stack | Directory | Dev Port | Production Domain |
 |-----|-------|-----------|----------|-------------------|
-| Marketing Site | Next.js 16, TypeScript, Tailwind 4 | `landing/` | 3001 | `www.pholio.studio` |
+| Marketing Site (optional) | Next.js 16, TypeScript, Tailwind 4 | `landing/` (if checked out) | 3001 | `www.pholio.studio` |
 | React SPA | Vite + React 19 | `client/` | 5173 | `app.pholio.studio` |
-| API Server | Node.js 20 + Express 5 | `src/` | 3000 | `app.pholio.studio` |
+| API Server | Node.js 20 + Express | `src/` | 3000 | `app.pholio.studio` |
 
 The Vite dev server proxies all `/api`, `/uploads`, and auth routes to the Express server. In production the React SPA compiles to `public/dashboard-app/` and is served statically alongside the Express API, which is deployed as a Netlify Function via `serverless-http`.
 
@@ -106,8 +106,10 @@ The Vite dev server proxies all `/api`, `/uploads`, and auth routes to the Expre
 git clone <repository-url>
 cd pholio
 
-# Install all dependencies (root + client + landing)
-npm install && cd client && npm install && cd ../landing && npm install && cd ..
+# Install dependencies (root + client; add landing if that directory exists)
+npm install && cd client && npm install && cd ..
+# Optional: marketing site — only if you have landing/
+# (cd landing && npm install && cd ..)
 
 # Set up environment variables
 cp .env.example .env
@@ -368,11 +370,12 @@ Design tokens live in `client/src/styles/agency-tokens.css`. The landing page sc
 
 ```
 pholio/
-├── landing/                    # Next.js 16 marketing site
-│   ├── app/                    # Next.js App Router pages
-│   └── components/             # Landing page scenes, animations
+├── archive/                    # Retired assets & backups (not used at runtime; see archive/README.md)
+│   ├── legacy-public/          # Old standalone trees removed from public/
+│   ├── backups/                # Source snapshots (.backup / .bak)
+│   └── transient/              # Logs / scratch output
 │
-├── client/                     # React 19 SPA
+├── client/                     # React 19 SPA (Vite)
 │   └── src/
 │       ├── App.jsx             # Router + layout shells
 │       ├── api/                # Fetch wrapper + named API methods
@@ -382,26 +385,29 @@ pholio/
 │       ├── hooks/              # Custom hooks (useAuth, useProfile, useMedia)
 │       └── styles/             # Global CSS, agency-tokens.css
 │
-├── src/                        # Express 5 API
-│   ├── app.js                  # Entry point + middleware chain
-│   ├── routes/                 # Route handlers (auth, talent/, agency/, api/, pdf)
-│   ├── middleware/             # requireAuth, requireRole, rate limiting
+├── docs/                       # Internal specs and plans (e.g. docs/superpowers/)
+├── landing/                    # Next.js marketing site (optional; not in every clone)
+│
+├── src/                        # Express API
+│   ├── app.js                  # Middleware chain + route mounting
+│   ├── routes/                 # Handlers (auth, talent/, agency/, api/, pdf, …)
+│   ├── middleware/             # requireAuth, requireRole, errors
 │   └── lib/                    # Business logic (pdf, uploader, ai/, onboarding/)
 │
-├── views/                      # EJS templates
-│   ├── auth/                   # Login/signup pages
-│   ├── pdf/                    # Comp card PDF template
-│   └── portfolio/              # Public portfolio pages
-│
-├── migrations/                 # Knex database migrations (63+ files)
-├── seeds/                      # Knex seed files
-├── tests/                      # Jest + Supertest integration tests
-├── netlify/
-│   └── function/
-│       └── server.js           # Netlify Function entry (serverless-http)
-├── netlify.toml                # Build + function configuration
-└── public/
-    └── dashboard-app/          # Compiled React SPA (generated, not committed)
+├── views/                      # EJS templates (auth, portfolio, PDF HTML, …)
+├── migrations/                 # Knex migrations
+├── seeds/                      # Knex seeds
+├── scripts/                    # Tooling, DB helpers, one-off maintenance
+├── tests/                      # Jest + Supertest
+├── netlify/                    # Netlify Function source
+├── netlify.toml
+├── server.js                   # Local server entry (requires ./src/app)
+└── public/                     # Static files served by Express / Netlify publish root
+    ├── dashboard-app/          # Vite build output (gitignored)
+    ├── scripts/                # Legacy/static JS for EJS pages (not Node scripts/)
+    ├── styles/
+    ├── assets/
+    └── images/
 ```
 
 ---
@@ -428,7 +434,7 @@ Symptom: `Cannot find module './get-event-type'` in function logs. Ensure `serve
 # React SPA
 cd client && rm -rf dist node_modules && npm install && npm run build
 
-# Next.js
+# Next.js marketing site (only if landing/ exists)
 cd landing && rm -rf .next node_modules && npm install && npm run build
 ```
 
@@ -436,11 +442,9 @@ cd landing && rm -rf .next node_modules && npm install && npm run build
 
 ## Documentation
 
-Additional internal documentation:
-
 - **`CLAUDE.md`** — Architecture deep-dive and development guide
-- **`PHOLIO_OVERVIEW.md`** — Product overview and feature summary
-- **`PHOLIO_BRAND_GUIDELINES.md`** — Visual design system and brand standards
+- **`docs/superpowers/`** — Feature specs and implementation plans
+- **`archive/README.md`** — What lives under `archive/` and why
 
 ---
 

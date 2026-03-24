@@ -1,5 +1,5 @@
 import MatchScoreRing from './ui/MatchScoreRing';
-import TalentTypePill from './ui/TalentTypePill';
+import { TalentTypePill } from './ui/TalentTypePill';
 import { ClipboardList, MessageCircle, Bookmark } from 'lucide-react';
 import './TalentCard.css';
 

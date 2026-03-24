@@ -77,18 +77,16 @@ export default function Header() {
         headers: { 'Accept': 'application/json' }
       });
       
-      if (!response.ok) {
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        window.location.href = data.redirect || 'https://www.pholio.studio';
+      } else {
         console.error('Logout failed with status:', response.status);
+        window.location.href = 'https://www.pholio.studio';
       }
     } catch (error) {
       console.error('Logout failed:', error);
-    } finally {
-      // Redirect to main website (localhost:3000 in dev)
-      if (window.location.hostname === 'localhost' && window.location.port === '5173') {
-        window.location.href = 'http://localhost:3000';
-      } else {
-        window.location.href = '/'; 
-      }
+      window.location.href = 'https://www.pholio.studio';
     }
   };
 

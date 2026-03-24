@@ -27,10 +27,16 @@ router.get('/api/talent/applications', requireRole('TALENT'), asyncHandler(async
   const applications = await knex('applications')
     .select(
       'applications.*',
-      'users.agency_name',
+      'agencies.name as agency_name',
       'users.email as agency_email'
     )
-    .leftJoin('users', 'applications.agency_id', 'users.id')
+    .leftJoin('agencies', 'applications.agency_id', 'agencies.id')
+    .leftJoin('agency_memberships as am', function () {
+      this.on('am.agency_id', '=', 'agencies.id')
+        .andOn('am.membership_role', '=', knex.raw('?', ['OWNER']))
+        .andOn('am.status', '=', knex.raw('?', ['ACTIVE']));
+    })
+    .leftJoin('users', 'am.user_id', 'users.id')
     .where({ profile_id: profile.id })
     .orderBy('applications.created_at', 'desc');
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
 import {
   Settings,
   Receipt,
@@ -8,6 +9,7 @@ import {
   ExternalLink,
   LogOut,
 } from 'lucide-react';
+import { auth } from '../../../lib/firebase';
 import './UserDropdown.css';
 
 function getInitials(name) {
@@ -48,6 +50,28 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
     { label: 'Billing & Invoices', icon: Receipt,  to: '/dashboard/agency/settings?tab=billing' },
     { label: 'Team Members',       icon: Users,    to: '/dashboard/agency/settings?tab=team'    },
   ];
+
+  async function handleLogout() {
+    try {
+      await signOut(auth).catch(() => {});
+
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        window.location.href = data.redirect || '/login';
+      } else {
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      window.location.href = '/login';
+    }
+  }
 
   return (
     <div className="nav-panel ud-panel" aria-label="Account menu">
@@ -105,11 +129,10 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
 
       <div className="ud-divider" />
 
-      {/* Logout — hard navigation, matches existing codebase pattern */}
-      <a href="/logout" className="ud-item ud-item--logout">
+      <button type="button" className="ud-item ud-item--logout" onClick={handleLogout}>
         <LogOut size={16} className="ud-item-icon" />
         <span className="ud-item-label">Log out</span>
-      </a>
+      </button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const knex = require('../db/knex');
 const { ensureUniqueSlug } = require('./slugify');
+const { provisionAgencyForUser } = require('./agency-provisioning');
 
 /**
  * Create a new user in the database
@@ -86,7 +87,6 @@ async function createUser({ firebaseUid, email, role, agencyName = null, profile
     email: normalizedEmail,
     firebase_uid: firebaseUid,
     role: role,
-    agency_name: agencyName || null,
     first_name: finalFirstName,
     last_name: finalLastName
   });
@@ -101,6 +101,14 @@ async function createUser({ firebaseUid, email, role, agencyName = null, profile
   const createdUser = await knex('users').where({ id: userId }).first();
   if (!createdUser) {
     throw new Error('Failed to create user account');
+  }
+
+  if (role === 'AGENCY' && agencyName) {
+    await provisionAgencyForUser({
+      userId,
+      agencyName,
+      db: knex,
+    });
   }
 
   return createdUser;
@@ -135,4 +143,3 @@ module.exports = {
   createUser,
   determineRole
 };
-

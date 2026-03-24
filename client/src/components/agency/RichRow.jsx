@@ -1,5 +1,5 @@
 import MatchScoreRing from './ui/MatchScoreRing';
-import TalentTypePill from './ui/TalentTypePill';
+import { TalentTypePill } from './ui/TalentTypePill';
 import { formatDistanceToNowStrict } from 'date-fns';
 import './RichRow.css';
 

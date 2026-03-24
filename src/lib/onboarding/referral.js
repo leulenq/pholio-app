@@ -81,8 +81,8 @@ function parseReferralToken(token) {
 /**
  * Validate that an agency exists in the database
  * 
- * @param {string} agencyId - Agency user ID
- * @returns {Promise<Object|null>} Agency user object or null
+ * @param {string} agencyId - Agency organization ID
+ * @returns {Promise<Object|null>} Agency organization row or null
  */
 async function validateAgency(agencyId) {
   if (!agencyId || typeof agencyId !== 'string') {
@@ -90,8 +90,8 @@ async function validateAgency(agencyId) {
   }
 
   try {
-    const agency = await knex('users')
-      .where({ id: agencyId, role: 'AGENCY' })
+    const agency = await knex('agencies')
+      .where({ id: agencyId })
       .first();
     
     return agency || null;
@@ -108,7 +108,7 @@ async function validateAgency(agencyId) {
  * This function validates the agency exists before setting.
  * 
  * @param {string} profileId - Profile ID
- * @param {string} agencyId - Agency user ID
+ * @param {string} agencyId - Agency organization ID
  * @returns {Promise<boolean>} True if successfully set, false otherwise
  * 
  * @example

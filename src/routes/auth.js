@@ -15,6 +15,9 @@ const {
   determineRole,
 } = require("../lib/user-helpers");
 const {
+  resolveAgencyContextForMemberUser,
+} = require("../lib/agency-context");
+const {
   getIPGeolocation,
   createVerifiedLocationIntel,
 } = require("../lib/geolocation");
@@ -27,6 +30,18 @@ function redirectForRole(role) {
   return "/";
 }
 
+function redirectForSession(session) {
+  if (!session?.role) {
+    return "/";
+  }
+
+  if (session.role === "AGENCY" && !session.agencyOnboardingCompletedAt) {
+    return "/dashboard/agency/onboarding";
+  }
+
+  return redirectForRole(session.role);
+}
+
 function safeNext(input) {
   if (!input || typeof input !== "string") return null;
   if (!input.startsWith("/")) return null;
@@ -36,10 +51,12 @@ function safeNext(input) {
 
 // GET /login
 router.get("/login", async (req, res) => {
-  if (req.session && req.session.userId) {
+  const forceLogin = req.query.force === "1";
+
+  if (!forceLogin && req.session && req.session.userId) {
     // If user is logged in, redirect to their dashboard
     // Dashboard routes handle empty states internally (no need to check for profile here)
-    return res.redirect(redirectForRole(req.session.role));
+    return res.redirect(redirectForSession(req.session));
   }
   const nextPath = safeNext(req.query.next);
   // Redirect to Client Login (Port 5173 in dev, /login in prod)
@@ -48,7 +65,16 @@ router.get("/login", async (req, res) => {
     process.env.NODE_ENV === "production"
       ? "/login"
       : "http://localhost:5173/login";
-  return res.redirect(loginUrl);
+  const params = new URLSearchParams();
+  if (nextPath) {
+    params.set("next", nextPath);
+  }
+  if (forceLogin) {
+    params.set("force", "1");
+  }
+
+  const queryString = params.toString();
+  return res.redirect(queryString ? `${loginUrl}?${queryString}` : loginUrl);
 });
 
 // POST /login - Verify Firebase token and create session
@@ -357,6 +383,22 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
         const role = determineRole(null, req.path || req.url);
         console.log("[Login] Creating new user with role:", role);
 
+        if (role === "AGENCY") {
+          const msg =
+            "Agency accounts are provisioned by Pholio. Contact support if you need access.";
+          return isJsonRequest
+            ? res.status(403).json({ success: false, error: msg })
+            : res
+                .status(403)
+                .render("auth/login", {
+                  title: "Sign in",
+                  values: req.body,
+                  errors: { email: [msg] },
+                  layout: "layout",
+                  currentPage: "login",
+                });
+        }
+
         // Safe fallbacks for all required DB fields so INSERT never fails
         const safeFirstName = firstName || "User";
         const safeLastName = lastName || null;
@@ -559,8 +601,38 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       role: user.role,
     });
 
-    req.session.userId = user.id;
-    req.session.role = user.role;
+    if (user.role === "AGENCY") {
+      const agencyContext = await resolveAgencyContextForMemberUser(user.id);
+      if (!agencyContext || !agencyContext.agency) {
+        const msg =
+          "This agency login is not assigned to an organization yet. Contact support.";
+        if (isJsonRequest) {
+          return res.status(403).json({ success: false, error: msg });
+        }
+        res.locals.currentPage = "login";
+        return res.status(403).render("auth/login", {
+          title: "Sign in",
+          values: req.body,
+          errors: { email: [msg] },
+          layout: "layout",
+          currentPage: "login",
+        });
+      }
+
+      req.session.userId = agencyContext.agency.id;
+      req.session.memberUserId = user.id;
+      req.session.agencyId = agencyContext.agency.id;
+      req.session.agencyMembershipRole = agencyContext.membership?.membership_role || null;
+      req.session.agencyOnboardingCompletedAt = agencyContext.agency.onboarding_completed_at || null;
+      req.session.role = "AGENCY";
+    } else {
+      req.session.userId = user.id;
+      req.session.role = user.role;
+      delete req.session.memberUserId;
+      delete req.session.agencyId;
+      delete req.session.agencyMembershipRole;
+      delete req.session.agencyOnboardingCompletedAt;
+    }
 
     // Save session before redirect
     await new Promise((resolve, reject) => {
@@ -575,7 +647,11 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       });
     });
 
-    const redirectUrl = nextPath || redirectForRole(user.role);
+    const sessionRedirect = redirectForSession(req.session);
+    const redirectUrl =
+      req.session.role === "AGENCY" && !req.session.agencyOnboardingCompletedAt
+        ? sessionRedirect
+        : (nextPath || sessionRedirect);
     console.log("[Login] Redirecting to:", redirectUrl);
 
     // If request is JSON or Accept header requests JSON, return JSON response with redirect URL
@@ -699,157 +775,16 @@ router.get("/partners", (req, res, next) => {
 // POST /partners - Agency signup (Firebase user should be created client-side first)
 router.post("/partners", async (req, res, next) => {
   const parsed = agencySignupSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.locals.currentPage = "partners";
-    return res.status(422).render("auth/partners", {
-      title: "Partner with Pholio",
-      values: req.body,
-      errors: parsed.error.flatten().fieldErrors,
-      layout: "layout",
-      currentPage: "partners",
-    });
-  }
-
-  const { email, agency_name, company_website, contact_name, contact_role } =
-    parsed.data;
-  const idToken = extractIdToken(req) || req.body.firebase_token;
-
-  // Normalize email (lowercase, trim) for consistent storage and lookup
-  const normalizedEmail = email.toLowerCase().trim();
-
-  console.log(
-    "[Signup/Partners] Creating agency account for email:",
-    normalizedEmail,
-  );
-
-  if (!idToken) {
-    console.log("[Signup/Partners] No Firebase token provided");
-    res.locals.currentPage = "partners";
-    return res.status(422).render("auth/partners", {
-      title: "Partner with Pholio",
-      values: req.body,
-      errors: { email: ["Authentication failed. Please try again."] },
-      layout: "layout",
-      currentPage: "partners",
-    });
-  }
-
-  try {
-    // Verify Firebase ID token
-    const decodedToken = await verifyIdToken(idToken);
-    const firebaseUid = decodedToken.uid;
-    const firebaseEmail = decodedToken.email;
-
-    if (firebaseEmail.toLowerCase().trim() !== normalizedEmail) {
-      console.log("[Signup/Partners] Email mismatch:", {
-        firebaseEmail,
-        normalizedEmail,
-      });
-      res.locals.currentPage = "partners";
-      return res.status(422).render("auth/partners", {
-        title: "Partner with Pholio",
-        values: req.body,
-        errors: { email: ["Email does not match authenticated account."] },
-        layout: "layout",
-        currentPage: "partners",
-      });
-    }
-
-    // Check if user already exists
-    let existing = await knex("users")
-      .where({ firebase_uid: firebaseUid })
-      .first();
-    if (!existing) {
-      existing = await knex("users").where({ email: normalizedEmail }).first();
-    }
-
-    if (existing) {
-      console.log("[Signup/Partners] User already exists:", {
-        firebaseUid,
-        email: normalizedEmail,
-      });
-      res.locals.currentPage = "partners";
-      return res.status(422).render("auth/partners", {
-        title: "Partner with Pholio",
-        values: req.body,
-        errors: { email: ["That email is already registered"] },
-        layout: "layout",
-        currentPage: "partners",
-      });
-    }
-
-    console.log("[Signup/Partners] Creating agency user...", {
-      email: normalizedEmail,
-      firebase_uid: firebaseUid,
-      role: "AGENCY",
-      agency_name: agency_name || null,
-    });
-
-    // Use helper function to create user
-    const createdUser = await createUserHelper({
-      firebaseUid: firebaseUid,
-      email: normalizedEmail,
-      role: "AGENCY",
-      agencyName: agency_name || null,
-      first_name: contact_name ? contact_name.split(' ')[0] : null,
-      last_name: contact_name ? contact_name.split(' ').slice(1).join(' ') : null,
-    });
-
-    console.log("[Signup/Partners] Agency user created successfully:", {
-      id: createdUser.id,
-      email: createdUser.email,
-      role: createdUser.role,
-    });
-
-    req.session.userId = createdUser.id;
-    req.session.role = "AGENCY";
-
-    console.log("[Signup/Partners] Setting session:", {
-      userId: req.session.userId,
-      role: req.session.role,
-    });
-
-    // Save session before redirect
-    await new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) {
-          console.error("[Signup/Partners] Error saving session:", err);
-          reject(err);
-        } else {
-          console.log("[Signup/Partners] Session saved successfully");
-          resolve();
-        }
-      });
-    });
-
-    addMessage(
-      req,
-      "success",
-      "Welcome to Pholio! Your agency account has been created.",
-    );
-
-    return res.redirect("/dashboard/agency");
-  } catch (error) {
-    console.error("[Signup/Partners] Error creating agency account:", {
-      message: error.message,
-      code: error.code,
-      name: error.name,
-    });
-
-    // Handle Firebase-specific errors
-    if (error.message.includes("Email already exists")) {
-      res.locals.currentPage = "partners";
-      return res.status(422).render("auth/partners", {
-        title: "Partner with Pholio",
-        values: req.body,
-        errors: { email: ["That email is already registered"] },
-        layout: "layout",
-        currentPage: "partners",
-      });
-    }
-
-    return next(error);
-  }
+  const values = parsed.success ? parsed.data : (req.body || {});
+  const emailError = "Agency accounts are provisioned manually by Pholio. Contact support to request access.";
+  res.locals.currentPage = "partners";
+  return res.status(403).render("auth/partners", {
+    title: "Partner with Pholio",
+    values,
+    errors: { email: [emailError] },
+    layout: "layout",
+    currentPage: "partners",
+  });
 });
 
 // POST /signup - Redirect to /onboarding (legacy route, kept for backward compatibility)
@@ -861,16 +796,18 @@ router.post("/signup", (req, res) => {
 });
 
 // POST /logout
-// POST /logout
 router.post(["/logout", "/api/logout"], (req, res) => {
   const isJson =
     req.headers.accept && req.headers.accept.includes("application/json");
+  const redirectUrl = process.env.MARKETING_SITE_URL || "https://www.pholio.studio";
+  const appLoginUrl =
+    process.env.NODE_ENV === "production" ? "/login" : "http://localhost:5173/login";
 
   if (!req.session) {
     if (isJson) {
-      return res.json({ success: true });
+      return res.json({ success: true, redirect: appLoginUrl });
     }
-    return res.redirect("/");
+    return res.redirect(redirectUrl);
   }
 
   req.session.destroy((err) => {
@@ -881,10 +818,25 @@ router.post(["/logout", "/api/logout"], (req, res) => {
     res.clearCookie("connect.sid");
 
     if (isJson) {
-      return res.json({ success: true });
+      return res.json({ success: true, redirect: appLoginUrl });
     }
 
-    res.redirect("/");
+    res.redirect(redirectUrl);
+  });
+});
+
+router.get("/api/session", async (req, res) => {
+  if (!req.session || !req.session.role || !req.session.userId) {
+    return res.json({ authenticated: false });
+  }
+
+  return res.json({
+    authenticated: true,
+    role: req.session.role,
+    agencyId: req.session.agencyId || null,
+    memberUserId: req.session.memberUserId || null,
+    agencyOnboardingCompletedAt: req.session.agencyOnboardingCompletedAt || null,
+    redirect: redirectForSession(req.session),
   });
 });
 

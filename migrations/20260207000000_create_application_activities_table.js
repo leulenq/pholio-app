@@ -8,7 +8,7 @@ exports.up = function(knex) {
     table.uuid('application_id').notNullable()
       .references('id').inTable('applications').onDelete('CASCADE');
     table.uuid('agency_id').notNullable()
-      .references('id').inTable('users');
+      .references('id').inTable('agencies');
     table.uuid('user_id').nullable()
       .references('id').inTable('users'); // Who performed the action
     table.string('activity_type', 50).notNullable();
