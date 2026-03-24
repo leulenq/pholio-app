@@ -1,4 +1,4 @@
-const knex = require('../shared/db/knex');
+const knex = require("../../../shared/db/knex");
 
 function getSessionLike(value) {
   if (!value) {
@@ -15,37 +15,50 @@ function getSessionActorUserId(value) {
 
 function getSessionAgencyId(value) {
   const session = getSessionLike(value);
-  return session?.agencyId || (session?.role === 'AGENCY' ? session?.userId : null) || null;
+  return (
+    session?.agencyId ||
+    (session?.role === "AGENCY" ? session?.userId : null) ||
+    null
+  );
 }
 
 async function ensureLegacyAgencyContextForUser(userId, db = knex) {
-  const user = await db('users').where({ id: userId, role: 'AGENCY' }).first();
+  const user = await db("users").where({ id: userId, role: "AGENCY" }).first();
   if (!user) return null;
 
-  const hasAgencies = await db.schema.hasTable('agencies');
-  const hasMemberships = await db.schema.hasTable('agency_memberships');
+  const hasAgencies = await db.schema.hasTable("agencies");
+  const hasMemberships = await db.schema.hasTable("agency_memberships");
 
   if (!hasAgencies || !hasMemberships) {
     return {
       agency: {
         id: user.id,
-        name: user.agency_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+        name:
+          user.agency_name ||
+          [user.first_name, user.last_name].filter(Boolean).join(" ") ||
+          user.email,
         location: user.agency_location || null,
         website: user.agency_website || null,
         description: user.agency_description || null,
         logo_path: user.agency_logo_path || null,
         brand_color: user.agency_brand_color || null,
-        notify_new_applications: user.notify_new_applications !== undefined ? !!user.notify_new_applications : true,
-        notify_status_changes: user.notify_status_changes !== undefined ? !!user.notify_status_changes : true,
+        notify_new_applications:
+          user.notify_new_applications !== undefined
+            ? !!user.notify_new_applications
+            : true,
+        notify_status_changes:
+          user.notify_status_changes !== undefined
+            ? !!user.notify_status_changes
+            : true,
         default_view: user.default_view || null,
         onboarding_started_at: null,
         onboarding_completed_at: null,
-        status: 'ACTIVE',
+        status: "ACTIVE",
       },
       membership: {
         id: null,
-        membership_role: 'OWNER',
-        status: 'ACTIVE',
+        membership_role: "OWNER",
+        status: "ACTIVE",
       },
       user,
     };
@@ -54,42 +67,45 @@ async function ensureLegacyAgencyContextForUser(userId, db = knex) {
 }
 
 async function resolveAgencyContextForMemberUser(userId, db = knex) {
-  const hasAgencies = await db.schema.hasTable('agencies');
-  const hasMemberships = await db.schema.hasTable('agency_memberships');
+  const hasAgencies = await db.schema.hasTable("agencies");
+  const hasMemberships = await db.schema.hasTable("agency_memberships");
   if (!hasAgencies || !hasMemberships) {
     return ensureLegacyAgencyContextForUser(userId, db);
   }
 
-  const membershipRow = await db('agency_memberships as am')
-    .join('agencies as a', 'a.id', 'am.agency_id')
-    .join('users as u', 'u.id', 'am.user_id')
+  const membershipRow = await db("agency_memberships as am")
+    .join("agencies as a", "a.id", "am.agency_id")
+    .join("users as u", "u.id", "am.user_id")
     .where({
-      'am.user_id': userId,
-      'am.status': 'ACTIVE',
+      "am.user_id": userId,
+      "am.status": "ACTIVE",
     })
     .select(
-      'am.id as membership_id',
-      'am.membership_role',
-      'am.status as membership_status',
-      'a.id as agency_id',
-      'a.name as agency_name',
-      'a.location as agency_location',
-      'a.website as agency_website',
-      'a.description as agency_description',
-      'a.logo_path as agency_logo_path',
-      'a.brand_color as agency_brand_color',
-      'a.notify_new_applications',
-      'a.notify_status_changes',
-      'a.default_view',
-      'a.onboarding_started_at',
-      'a.onboarding_completed_at',
-      'a.status as agency_status',
-      'u.id as user_id',
-      'u.email',
-      'u.first_name',
-      'u.last_name'
+      "am.id as membership_id",
+      "am.membership_role",
+      "am.status as membership_status",
+      "a.id as agency_id",
+      "a.name as agency_name",
+      "a.location as agency_location",
+      "a.website as agency_website",
+      "a.description as agency_description",
+      "a.logo_path as agency_logo_path",
+      "a.brand_color as agency_brand_color",
+      "a.notify_new_applications",
+      "a.notify_status_changes",
+      "a.default_view",
+      "a.onboarding_started_at",
+      "a.onboarding_completed_at",
+      "a.status as agency_status",
+      "u.id as user_id",
+      "u.email",
+      "u.first_name",
+      "u.last_name",
     )
-    .orderBy([{ column: 'am.membership_role', order: 'asc' }, { column: 'am.created_at', order: 'asc' }])
+    .orderBy([
+      { column: "am.membership_role", order: "asc" },
+      { column: "am.created_at", order: "asc" },
+    ])
     .first();
 
   if (membershipRow) {

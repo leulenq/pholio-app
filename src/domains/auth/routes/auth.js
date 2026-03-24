@@ -16,7 +16,7 @@ const {
 } = require("../../../shared/lib/user-helpers");
 const {
   resolveAgencyContextForMemberUser,
-} = require("../../../lib/agency-context");
+} = require("../../agency/services/context");
 const {
   getIPGeolocation,
   createVerifiedLocationIntel,
