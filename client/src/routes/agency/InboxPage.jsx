@@ -9,7 +9,7 @@ import BulkActionToolbar from '../../components/agency/BulkActionToolbar';
 import KanbanColumn from '../../components/agency/KanbanColumn';
 import KanbanCard from '../../components/agency/KanbanCard';
 import KeyboardShortcutOverlay from '../../components/agency/KeyboardShortcutOverlay';
-import AgencyEmptyState from '../../components/agency/ui/AgencyEmptyState';
+import { AgencyEmptyState } from '../../components/agency/ui/AgencyEmptyState';
 import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import './InboxPage.css';
@@ -42,10 +42,11 @@ export default function InboxPage() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const { data: applications = [], isLoading } = useQuery({
+  const { data: applicationsData, isLoading } = useQuery({
     queryKey: ['agency', 'applications', activeFilters],
     queryFn: () => getApplicants(activeFilters),
   });
+  const applications = applicationsData?.profiles || [];
 
   const { data: presets = [] } = useQuery({
     queryKey: ['agency', 'filter-presets'],

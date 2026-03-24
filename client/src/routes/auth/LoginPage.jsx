@@ -4,10 +4,10 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signInWithEmailAndPassword,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  signOut
 } from 'firebase/auth';
 import { Loader2, AlertCircle, Instagram, Mail, Lock, CheckCircle2 } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
 import { auth } from '../../lib/firebase';
 
 import GradientText from '../../components/ui/GradientText';
@@ -15,6 +15,8 @@ import GradientText from '../../components/ui/GradientText';
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const forceLogin = searchParams.get('force') === '1';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -22,18 +24,42 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Use useAuth to check session, but skip redirect to prevent loop
-  // This allows us to auto-redirect if already logged in
-  const { user } = useAuth({ skipRedirect: true });
-
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard/talent');
+    let cancelled = false;
+
+    async function checkSession() {
+      try {
+        if (forceLogin) {
+          await signOut(auth).catch(() => {});
+          await fetch('/api/logout', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+          }).catch(() => {});
+          return;
+        }
+
+        const response = await fetch('/api/session', {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        const data = await response.json();
+        if (!cancelled && data?.authenticated && data?.redirect) {
+          navigate(data.redirect);
+        }
+      } catch (err) {
+        // Ignore session bootstrap failures on login page
+      }
     }
-  }, [user, navigate]);
+
+    checkSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [forceLogin, navigate]);
 
   // Get return URL from state or query param
-  const from = location.state?.from?.pathname || '/dashboard/talent';
+  const from = location.state?.from?.pathname || searchParams.get('next') || '/dashboard/talent';
 
   // Handle Google Sign In
   const handleGoogleSignIn = async () => {
@@ -568,5 +594,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-

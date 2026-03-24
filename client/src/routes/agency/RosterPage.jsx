@@ -13,7 +13,7 @@ import TalentCard from '../../components/agency/TalentCard';
 import RichRow from '../../components/agency/RichRow';
 import TalentDetailPanel from '../../components/agency/TalentDetailPanel';
 import BulkActionToolbar from '../../components/agency/BulkActionToolbar';
-import AgencyEmptyState from '../../components/agency/ui/AgencyEmptyState';
+import { AgencyEmptyState } from '../../components/agency/ui/AgencyEmptyState';
 import './RosterPage.css';
 
 // ── Config ────────────────────────────────────────────────────

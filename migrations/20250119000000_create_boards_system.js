@@ -17,7 +17,7 @@ exports.up = async function up(knex) {
     if (!hasBoardsTable) {
       await knex.schema.createTable('boards', (table) => {
         table.uuid('id').primary();
-        table.uuid('agency_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
+        table.uuid('agency_id').notNullable().references('id').inTable('agencies').onDelete('CASCADE');
         table.string('name').notNullable();
         table.text('description').nullable();
         table.timestamp('created_at').defaultTo(knex.fn.now());
@@ -59,4 +59,3 @@ exports.down = async function down(knex) {
     console.log('[Migration] Dropped boards table');
   }
 };
-

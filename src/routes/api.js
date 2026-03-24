@@ -19,16 +19,20 @@ router.get('/talent/applications', requireRole('TALENT'), async (req, res) => {
     }
 
     // Fetch applications
-    // Note: Adjust table/column names based on your actual schema if different
-    // Assuming 'applications' table links profile_id to agency_id
     const applications = await knex('applications')
-      .join('users', 'applications.agency_id', 'users.id')
+      .leftJoin('agencies', 'applications.agency_id', 'agencies.id')
+      .leftJoin('agency_memberships as am', function () {
+        this.on('am.agency_id', '=', 'agencies.id')
+          .andOn('am.membership_role', '=', knex.raw('?', ['OWNER']))
+          .andOn('am.status', '=', knex.raw('?', ['ACTIVE']));
+      })
+      .leftJoin('users', 'am.user_id', 'users.id')
       .where({ 'applications.profile_id': profile.id })
       .select(
         'applications.id',
         'applications.status',
         'applications.created_at as createdAt',
-        'users.agency_name as agencyName',
+        'agencies.name as agencyName',
         'users.email as agencyEmail' // Fallback if name is missing
       )
       .orderBy('applications.created_at', 'desc');

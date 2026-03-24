@@ -1,5 +1,5 @@
 import MatchScoreRing from './ui/MatchScoreRing';
-import TalentTypePill from './ui/TalentTypePill';
+import { TalentTypePill } from './ui/TalentTypePill';
 
 export default function KanbanCard({ application, onClick, isSelected }) {
   const { name, photo, type, match_score } = application;

@@ -3,6 +3,7 @@ const knex = require('../db/knex');
 const { requireRole } = require('../middleware/auth');
 const { addMessage } = require('../middleware/context');
 const { sendRejectedApplicantEmail, sendApplicationStatusChangeEmail, sendAgencyInviteEmail } = require('../lib/email');
+const { getSessionActorUserId, getSessionAgencyId } = require('../lib/agency-context');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
@@ -11,6 +12,7 @@ const router = express.Router();
 // POST /agency/claim - Claim a talent for commission tracking
 router.post('/agency/claim', requireRole('AGENCY'), async (req, res, next) => {
   try {
+    const agencyId = getSessionAgencyId(req.session);
     const { slug } = req.body;
 
     if (!slug) {
@@ -33,7 +35,7 @@ router.post('/agency/claim', requireRole('AGENCY'), async (req, res, next) => {
       return res.redirect('/dashboard/agency');
     }
 
-    if (profile.partner_agency_id && profile.partner_agency_id !== req.session.userId) {
+    if (profile.partner_agency_id && profile.partner_agency_id !== agencyId) {
       if (req.headers.accept?.includes('application/json')) {
         return res.status(409).json({ error: 'Talent already claimed by another agency' });
       }
@@ -44,7 +46,7 @@ router.post('/agency/claim', requireRole('AGENCY'), async (req, res, next) => {
     await knex('profiles')
       .where({ id: profile.id })
       .update({
-        partner_agency_id: req.session.userId,
+        partner_agency_id: agencyId,
         partner_claimed_at: knex.fn.now(),
         updated_at: knex.fn.now()
       });
@@ -55,7 +57,7 @@ router.post('/agency/claim', requireRole('AGENCY'), async (req, res, next) => {
       return res.json({
         success: true,
         talent: talentName,
-        message: profile.partner_agency_id === req.session.userId
+        message: profile.partner_agency_id === agencyId
           ? 'Claim refreshed successfully'
           : 'Talent claimed successfully'
       });
@@ -64,7 +66,7 @@ router.post('/agency/claim', requireRole('AGENCY'), async (req, res, next) => {
     addMessage(
       req,
       'success',
-      profile.partner_agency_id === req.session.userId
+      profile.partner_agency_id === agencyId
         ? `Claim for ${talentName} has been refreshed`
         : `You've successfully claimed ${talentName}`
     );
@@ -85,6 +87,8 @@ router.post('/agency/claim', requireRole('AGENCY'), async (req, res, next) => {
 // POST /dashboard/agency/applications/:applicationId/archive
 router.post('/dashboard/agency/applications/:applicationId/:action', requireRole('AGENCY'), async (req, res, next) => {
   try {
+    const agencyId = getSessionAgencyId(req.session);
+    const actorUserId = getSessionActorUserId(req.session);
     const { applicationId, action } = req.params;
 
     if (!['accept', 'archive', 'decline'].includes(action)) {
@@ -96,7 +100,7 @@ router.post('/dashboard/agency/applications/:applicationId/:action', requireRole
     }
 
     const application = await knex('applications')
-      .where({ id: applicationId, agency_id: req.session.userId })
+      .where({ id: applicationId, agency_id: agencyId })
       .first();
 
     if (!application) {
@@ -137,23 +141,24 @@ router.post('/dashboard/agency/applications/:applicationId/:action', requireRole
           .where({ id: profile.user_id })
           .first();
         
-        const agency = await knex('users')
-          .where({ id: req.session.userId })
-          .first();
+        const [agency, actorUser] = await Promise.all([
+          knex('agencies').where({ id: agencyId }).first(),
+          knex('users').where({ id: actorUserId }).first()
+        ]);
 
         if (talentUser && agency) {
           if (action === 'decline') {
             await sendRejectedApplicantEmail({
               talentEmail: talentUser.email,
               talentName: `${profile.first_name} ${profile.last_name}`,
-              agencyName: agency.agency_name || agency.email,
-              agencyEmail: agency.email
+              agencyName: agency.name,
+              agencyEmail: actorUser?.email || null
             });
           } else if (action === 'accept') {
             await sendApplicationStatusChangeEmail({
               talentEmail: talentUser.email,
               talentName: `${profile.first_name} ${profile.last_name}`,
-              agencyName: agency.agency_name || agency.email,
+              agencyName: agency.name,
               status: 'accepted'
             });
           }
@@ -214,7 +219,7 @@ router.get('/api/agency/discover/:profileId/preview', requireRole('AGENCY'), asy
 router.post('/dashboard/agency/discover/:profileId/invite', requireRole('AGENCY'), async (req, res, next) => {
   try {
     const { profileId } = req.params;
-    const agencyId = req.session.userId;
+    const agencyId = getSessionAgencyId(req.session);
 
     const profile = await knex('profiles')
       .where({ id: profileId, is_discoverable: true })
@@ -256,7 +261,7 @@ router.post('/dashboard/agency/discover/:profileId/invite', requireRole('AGENCY'
         .where({ id: profile.user_id })
         .first();
       
-      const agency = await knex('users')
+      const agency = await knex('agencies')
         .where({ id: agencyId })
         .first();
 
@@ -264,7 +269,7 @@ router.post('/dashboard/agency/discover/:profileId/invite', requireRole('AGENCY'
         await sendAgencyInviteEmail({
           talentEmail: talentUser.email,
           talentName: `${profile.first_name} ${profile.last_name}`,
-          agencyName: agency.agency_name || agency.email
+          agencyName: agency.name
         });
       }
     } catch (emailError) {

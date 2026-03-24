@@ -12,18 +12,16 @@ router.get('/', requireRole('TALENT'), asyncHandler(async (req, res) => {
   const profile = await knex('profiles').where({ user_id: req.session.userId }).first();
   const isPro = profile && profile.is_pro;
 
-  // 1. Fetch Agencies (Users with role 'AGENCY')
-  // We need to assume there's a way to identify agencies. 
-  // Based on `users` table, maybe `role` column? Yes, middleware checks `requireRole`.
-  const agencies = await knex('users')
-    .where({ role: 'AGENCY' }) // Assuming 'AGENCY' role exists
+  // 1. Fetch Agencies as organizations, not login rows
+  const agencies = await knex('agencies')
+    .where({ status: 'ACTIVE' })
     .select(
       'id', 
-      'first_name as name', // Assuming agency name stored here
-      'agency_location',
-      'agency_website',
-      'agency_description',
-      'profile_image'
+      'name',
+      'location as agency_location',
+      'website as agency_website',
+      'description as agency_description',
+      'logo_path as profile_image'
     );
 
   // 2. Calculate Match Scores (Mock Heuristic)

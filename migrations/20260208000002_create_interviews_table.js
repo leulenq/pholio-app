@@ -30,7 +30,7 @@ exports.up = function(knex) {
 
     // Foreign keys
     table.foreign('application_id').references('id').inTable('applications').onDelete('CASCADE');
-    table.foreign('agency_id').references('id').inTable('users').onDelete('CASCADE');
+    table.foreign('agency_id').references('id').inTable('agencies').onDelete('CASCADE');
     table.foreign('talent_id').references('id').inTable('users').onDelete('CASCADE');
 
     // Indexes

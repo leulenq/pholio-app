@@ -15,7 +15,7 @@ exports.up = function(knex) {
     table.timestamp('updated_at').defaultTo(knex.fn.now());
 
     // Foreign key
-    table.foreign('agency_id').references('id').inTable('users').onDelete('CASCADE');
+    table.foreign('agency_id').references('id').inTable('agencies').onDelete('CASCADE');
 
     // Indexes
     table.index('agency_id');

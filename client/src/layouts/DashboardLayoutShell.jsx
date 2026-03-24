@@ -1,9 +1,12 @@
-import { Link, Navigate, Outlet } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
 import { useFlash } from '../hooks/useFlash';
 import Header from '../components/Header/Header';
-import { calculateProfileStrength } from '../utils/profileScoring';
 import { checkGatingStatus } from '../utils/profileGating';
+import { talentApi } from '../api/talent';
+import LuxuryCompletionPromptModal from '../components/talent/LuxuryCompletionPromptModal';
 
 
 
@@ -13,6 +16,109 @@ import { checkGatingStatus } from '../utils/profileGating';
 export default function DashboardLayoutShell() {
   const { user, profile, isLoading, error } = useAuth();
   const { message, clearFlash } = useFlash();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [promptContext, setPromptContext] = useState(null);
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [isPromptLoading, setIsPromptLoading] = useState(false);
+  const [isPrimarySubmitting, setIsPrimarySubmitting] = useState(false);
+  const [promptError, setPromptError] = useState('');
+  const { isBlocked, missingFields } = checkGatingStatus(profile, user);
+  const promptStorageKey = useMemo(() => `talent-completion-prompt:${profile?.id || 'unknown'}`, [profile?.id]);
+  const missingString = missingFields.map(f => f.label).slice(0, 3).join(', ') + (missingFields.length > 3 ? ` +${missingFields.length - 3} more` : '');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function maybeOpenPrompt() {
+      if (isLoading || !profile?.id || isBlocked) return;
+      if (!location.pathname.startsWith('/dashboard/talent')) return;
+
+      const dismissed = window.sessionStorage.getItem(promptStorageKey);
+      if (dismissed === '1') return;
+
+      setIsPromptLoading(true);
+      setPromptError('');
+      try {
+        const context = await talentApi.getApplicationPromptContext();
+        if (cancelled) return;
+        setPromptContext(context?.data || context || null);
+        setIsPromptOpen(true);
+      } catch {
+        if (cancelled) return;
+        setPromptContext({
+          hasRedirectSignal: false,
+          targetAgency: null,
+          alreadyAppliedToTarget: false
+        });
+        setIsPromptOpen(true);
+      } finally {
+        if (!cancelled) setIsPromptLoading(false);
+      }
+    }
+
+    maybeOpenPrompt();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, profile?.id, isBlocked, location.pathname, promptStorageKey]);
+
+  const dismissPrompt = () => {
+    setIsPromptOpen(false);
+    if (profile?.id) {
+      window.sessionStorage.setItem(promptStorageKey, '1');
+    }
+  };
+
+  const handlePrimaryAction = async () => {
+    const isTargeted = !!promptContext?.hasRedirectSignal && !!promptContext?.targetAgency?.id;
+    setPromptError('');
+
+    if (isTargeted) {
+      if (promptContext?.alreadyAppliedToTarget) {
+        toast.info('Application already submitted to this agency.');
+        dismissPrompt();
+        navigate('/dashboard/talent/applications');
+        return;
+      }
+
+      setIsPrimarySubmitting(true);
+      try {
+        await talentApi.createApplication({ agencyId: promptContext.targetAgency.id });
+        toast.success(`Application submitted to ${promptContext.targetAgency.name}.`);
+        dismissPrompt();
+        navigate('/dashboard/talent/applications');
+      } catch (applyErr) {
+        const msg = applyErr?.data?.error || applyErr?.message || 'Could not submit application right now.';
+        setPromptError(msg);
+      } finally {
+        setIsPrimarySubmitting(false);
+      }
+      return;
+    }
+
+    setIsPrimarySubmitting(true);
+    try {
+      const agenciesRes = await talentApi.getAgencies();
+      const agencies = agenciesRes?.data || agenciesRes || [];
+      if (!agencies.length) {
+        setPromptError('No agencies are available right now. Please try again shortly.');
+        setIsPrimarySubmitting(false);
+        return;
+      }
+
+      const target = agencies[0];
+      await talentApi.createApplication({ agencyId: target.id });
+      toast.success(`Application submitted to ${target.name || 'an agency'}.`);
+      dismissPrompt();
+      navigate('/dashboard/talent/applications');
+    } catch (applyErr) {
+      const msg = applyErr?.data?.error || applyErr?.message || 'Could not submit application right now.';
+      setPromptError(msg);
+    } finally {
+      setIsPrimarySubmitting(false);
+    }
+  };
 
   // If API says onboarding is required, redirect to casting flow
   if (error && error.data?.error === 'onboarding_required') {
@@ -26,12 +132,6 @@ export default function DashboardLayoutShell() {
       </div>
     );
   }
-
-  // Check Gating Status
-  const { isBlocked, missingFields, blockedReason } = checkGatingStatus(profile, user);
-  
-  // Create a display string for missing fields (e.g. "Missing: Name, Photo, Height")
-  const missingString = missingFields.map(f => f.label).slice(0, 3).join(', ') + (missingFields.length > 3 ? ` +${missingFields.length - 3} more` : '');
 
   return (
     <div className="dashboard-root">
@@ -102,6 +202,17 @@ export default function DashboardLayoutShell() {
 
         <Outlet context={{ isBlocked }} />
       </main>
+
+      <LuxuryCompletionPromptModal
+        isOpen={isPromptOpen}
+        mode={promptContext?.hasRedirectSignal ? 'targeted' : 'generic'}
+        targetAgency={promptContext?.targetAgency}
+        isSubmitting={isPrimarySubmitting || isPromptLoading}
+        onPrimaryAction={handlePrimaryAction}
+        onSecondaryAction={dismissPrompt}
+        onClose={dismissPrompt}
+        errorMessage={promptError}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ const session = require('express-session');
 const KnexSessionStore = require('connect-session-knex')(session);
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 const config = require('./config');
 const knex = require('./db/knex');
 const { attachLocals } = require('./middleware/context');
@@ -191,26 +192,6 @@ app.use((req, res, next) => {
 // Custom key generator for rate limiting that works in serverless environments
 // This ensures we always return a valid key for rate limiting
 function rateLimitKeyGenerator(req) {
-  // Use req.ip (which we ensure is set above) as primary identifier
-  // This should now always be set thanks to our middleware
-  let ip = req.ip;
-
-  // Clean up IP if needed (remove IPv6 prefix, port, etc.)
-  if (ip && ip !== '0.0.0.0') {
-    // Remove IPv6 prefix if present
-    ip = ip.replace(/^::ffff:/, '');
-    // Remove port if present
-    const parts = ip.split(':');
-    if (parts.length > 2) {
-      // IPv6 with port
-      ip = parts.slice(0, -1).join(':');
-    } else if (parts.length === 2 && !ip.includes('::')) {
-      // IPv4 with port
-      ip = parts[0];
-    }
-    return ip;
-  }
-
   // Fallback to session ID if available (more reliable in serverless)
   if (req.session && req.sessionID) {
     return `session:${req.sessionID}`;
@@ -221,11 +202,12 @@ function rateLimitKeyGenerator(req) {
     return `user:${req.session.userId}`;
   }
 
+  // Use express-rate-limit's IPv6-safe helper when falling back to IP keys.
+  const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || '127.0.0.1';
+  return ipKeyGenerator(ip);
+
   // Final fallback: use a combination that's unique enough
   // This should rarely be used since we ensure req.ip is set
-  const userAgent = (req.headers['user-agent'] || 'unknown').substring(0, 50);
-  const path = req.path || req.url || 'unknown';
-  return `fallback:${path}:${userAgent}`;
 }
 
 // --- 3. COMMENT OUT YOUR OLD MIDDLEWARE ---
@@ -386,7 +368,7 @@ if (!config.isServerless) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: rateLimitKeyGenerator,
-    validate: { ipAddress: false }
+    validate: { ip: false }
   });
 
   const uploadLimiter = rateLimit({
@@ -395,7 +377,7 @@ if (!config.isServerless) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: rateLimitKeyGenerator,
-    validate: { ipAddress: false }
+    validate: { ip: false }
   });
 
   app.use(['/login', '/signup'], authLimiter);
@@ -622,4 +604,3 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 module.exports = app;
-
