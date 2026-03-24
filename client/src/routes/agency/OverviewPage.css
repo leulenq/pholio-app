@@ -1743,3 +1743,64 @@
   color: var(--ag-text-2);
   font-style: italic;
 }
+
+/* ── Inline action buttons ── */
+.ov-app-row-link {
+  display: contents;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ov-app-quick-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ov-quick-btn {
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.ov-quick-btn--accept {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+
+.ov-quick-btn--accept:hover {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.ov-quick-btn--shortlist {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+.ov-quick-btn--shortlist:hover {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.ov-quick-btn--decline {
+  background: #fff5f5;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.ov-quick-btn--decline:hover {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
