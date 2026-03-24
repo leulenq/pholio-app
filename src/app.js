@@ -19,7 +19,7 @@ const cookieParser = require("cookie-parser");
 const ejsLayouts = require("express-ejs-layouts");
 
 const authRoutes = require("./domains/auth/routes/auth");
-const onboardingRoutes = require("./routes/onboarding"); // Phase 2: Onboarding API
+const onboardingRoutes = require("./domains/onboarding/routes/casting"); // Phase 2: Onboarding API
 const dashboardTalentRoutes = require("./routes/talent/index");
 const pdfRoutes = require("./domains/pdf/routes/pdf");
 const agencyRoutes = require("./routes/agency");

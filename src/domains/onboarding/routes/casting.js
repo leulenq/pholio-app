@@ -18,27 +18,30 @@ const { v4: uuidv4 } = require("uuid");
 const router = express.Router();
 
 // Dependencies
-const knex = require("../shared/db/knex");
-const { requireAuth, requireRole } = require('../domains/auth/middleware/require-auth');
-const { addMessage } = require("../shared/middleware/context");
-const { upload, processImage } = require("../shared/lib/uploader");
-// Deprecated: const { analyzePhoto } = require('../domains/ai/photo-analysis');
-const { generateArchetype } = require("../domains/ai/groq-casting");
-const { masterVisionAnalysis } = require("../domains/ai/analyzeProfileImage");
-const SignalCollector = require("../lib/onboarding/signal-collector");
+const knex = require("../../../shared/db/knex");
+const {
+  requireAuth,
+  requireRole,
+} = require("../../auth/middleware/require-auth");
+const { addMessage } = require("../../../shared/middleware/context");
+const { upload, processImage } = require("../../../shared/lib/uploader");
+// Deprecated: const { analyzePhoto } = require('../../ai/photo-analysis');
+const { generateArchetype } = require("../../ai/groq-casting");
+const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
+const SignalCollector = require("../services/signal-collector");
 const {
   getState,
   transitionTo,
   canComplete,
   getNextSteps,
   initialState,
-} = require("../lib/onboarding/casting-machine");
+} = require("../services/state-machine");
 const {
   verifyGoogleToken,
   normalizeGoogleUser,
-} = require("../lib/onboarding/providers/google");
-const { ensureUniqueSlug } = require("../shared/lib/slugify");
-const OnboardingAnalytics = require("../lib/analytics/onboarding-events");
+} = require("../services/providers/google");
+const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const OnboardingAnalytics = require("../analytics/onboarding-events");
 
 /**
  * Validation Schemas

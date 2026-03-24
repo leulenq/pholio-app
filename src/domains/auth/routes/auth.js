@@ -423,7 +423,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             );
             const {
               initialState,
-            } = require("../../../lib/onboarding/casting-machine");
+            } = require("../../onboarding/services/state-machine");
             const startState = initialState("entry", trx);
 
             await trx("profiles").insert({

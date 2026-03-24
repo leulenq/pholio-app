@@ -4,8 +4,8 @@
  */
 
 const { v4: uuidv4 } = require("uuid");
-const knex = require("../../shared/db/knex");
-const { ensureUniqueSlug } = require("../../shared/lib/slugify");
+const knex = require("../../../shared/db/knex");
+const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const {
   verifyGoogleToken,
   normalizeGoogleUser,
@@ -14,7 +14,7 @@ const {
   verifyInstagramCode,
   normalizeInstagramUser,
 } = require("./providers/instagram");
-const { initialState } = require("./casting-machine");
+const { initialState } = require("./state-machine");
 
 /**
  * Normalize email address
