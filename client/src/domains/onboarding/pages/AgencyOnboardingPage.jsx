@@ -29,7 +29,7 @@ import {
   updateAgencyProfile,
   updateAgencySettings,
   updateAgencyTeamMember,
-} from '../../../api/agency';
+} from '../../agency/api/agency';
 import LoadingSpinner from '../../../components/shared/LoadingSpinner';
 import '../styles/AgencyOnboardingPage.css';
 

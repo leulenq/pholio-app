@@ -6,31 +6,31 @@ import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
 import AuthLayout from './shared/layouts/AuthLayout';
 import LoginPage from './domains/auth/pages/LoginPage/LoginPage';
 import AgencyLayout from './shared/layouts/AgencyLayout';
-import AgencySessionGate from './components/agency/AgencySessionGate';
-import DashboardPage from './routes/DashboardPage';
-import ProfilePage from './routes/talent/ProfilePage';
-import MediaPage from './routes/talent/MediaPage';
-import AnalyticsPage from './routes/talent/AnalyticsPage';
-import ApplicationsPage from './routes/talent/ApplicationsPage';
-import RevealPage from './routes/talent/RevealPage';
+import AgencySessionGate from './domains/agency/components/AgencySessionGate';
+import DashboardPage from './domains/talent/pages/DashboardPage';
+import ProfilePage from './domains/talent/pages/ProfilePage';
+import MediaPage from './domains/talent/pages/MediaPage';
+import AnalyticsPage from './domains/talent/pages/AnalyticsPage';
+import ApplicationsPage from './domains/talent/pages/ApplicationsPage';
+import RevealPage from './domains/talent/pages/RevealPage';
 
-import SettingsPage from './routes/SettingsPage';
+import SettingsPage from './domains/talent/pages/SettingsPage';
 import CastingCallPage from './domains/onboarding/pages/CastingCallPage';
 import CastingRevealPreview from './domains/onboarding/pages/CastingRevealPreview';
 import TestPreview from './domains/onboarding/pages/TestPreview';
 
 // Agency pages
-import AgencyInbox from './routes/agency/InboxPage';
-import AgencyOverview from './routes/agency/OverviewPage';
+import AgencyInbox from './domains/agency/pages/InboxPage';
+import AgencyOverview from './domains/agency/pages/OverviewPage';
 import AgencyOnboarding from './domains/onboarding/pages/AgencyOnboardingPage';
-import AgencyDiscover from './routes/agency/DiscoverPage';
-import AgencyBoards from './routes/agency/BoardsPage';
-import AgencyAnalytics from './routes/agency/AnalyticsPage';
-import AgencySettings from './routes/agency/SettingsPage';
-import AgencyCasting from './routes/agency/CastingPage';
-import AgencyRoster from './routes/agency/RosterPage';
-import AgencyMessages from './routes/agency/MessagesPage';
-import AgencyActivity from './routes/agency/ActivityPage';
+import AgencyDiscover from './domains/agency/pages/DiscoverPage';
+import AgencyBoards from './domains/agency/pages/BoardsPage';
+import AgencyAnalytics from './domains/agency/pages/AnalyticsPage';
+import AgencySettings from './domains/agency/pages/SettingsPage';
+import AgencyCasting from './domains/agency/pages/CastingPage';
+import AgencyRoster from './domains/agency/pages/RosterPage';
+import AgencyMessages from './domains/agency/pages/MessagesPage';
+import AgencyActivity from './domains/agency/pages/ActivityPage';
 
 // Placeholder pages
 const PdfCustomizerPage = () => <div>PDF Customizer Page</div>;

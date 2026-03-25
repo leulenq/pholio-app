@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeVariants, childVariants } from './animations';
-import { useCastingMeasurements, useCastingStatus } from '../../../hooks/useCasting';
+import { useCastingMeasurements, useCastingStatus } from '../hooks/useCasting';
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 

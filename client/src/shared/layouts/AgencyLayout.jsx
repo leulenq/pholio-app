@@ -9,10 +9,10 @@ import {
   MessageSquare,
   Inbox
 } from 'lucide-react';
-import { getAgencyProfile, getMessageThreads, getPipelineCounts } from '../../api/agency';
-import MessagesDropdown from '../../components/agency/nav/MessagesDropdown';
-import NotificationsDropdown from '../../components/agency/nav/NotificationsDropdown';
-import UserDropdown from '../../components/agency/nav/UserDropdown';
+import { getAgencyProfile, getMessageThreads, getPipelineCounts } from '../../domains/agency/api/agency';
+import MessagesDropdown from '../../domains/agency/components/nav/MessagesDropdown';
+import NotificationsDropdown from '../../domains/agency/components/nav/NotificationsDropdown';
+import UserDropdown from '../../domains/agency/components/nav/UserDropdown';
 import './AgencyLayout.css';
 
 /* ─── top nav tabs ─── */

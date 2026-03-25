@@ -14,7 +14,7 @@ import {
   signOut
 } from 'firebase/auth';
 import { auth } from '../../../shared/lib/firebase';
-import { useCastingEntry } from '../../../hooks/useCasting';
+import { useCastingEntry } from '../hooks/useCasting';
 import { useTypeToFocus } from '../../../shared/hooks/useTypeToFocus';
 import { toast } from 'sonner';
 import { fadeVariants, containerVariants, childVariants } from './animations';

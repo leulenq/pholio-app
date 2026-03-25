@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, Sparkles, User, Settings, LogOut, ChevronDown, ExternalLink } from 'lucide-react';
-import { useAuth } from '../../../hooks/useAuth';
-import { useProfileStrength } from '../../../hooks/useProfileStrength';
+import { useAuth } from '../../../domains/auth/hooks/useAuth';
+import { useProfileStrength } from '../../../domains/talent/hooks/useProfileStrength';
 import './Header.css';
 import NotificationDropdown from './NotificationDropdown';
 import { useQuery } from '@tanstack/react-query';
-import { talentApi } from '../../../api/talent';
+import { talentApi } from '../../../domains/talent/api/talent';
 
 
 import { checkGatingStatus } from '../../utils/profileGating';
