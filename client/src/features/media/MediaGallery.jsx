@@ -22,7 +22,7 @@ import ReadinessBar from './ReadinessBar';
 import CompCardPreview from './CompCardPreview';
 import ImageMetadataModal from './ImageMetadataModal';
 import PhotoEditorModal from './PhotoEditorModal';
-import ConfirmationDialog from '../../components/ui/ConfirmationDialog';
+import ConfirmationDialog from '../../shared/components/ui/ConfirmationDialog';
 import './MediaGallery.css';
 
 /* ─── Portfolio Image Card ─────────────────────────────────── */

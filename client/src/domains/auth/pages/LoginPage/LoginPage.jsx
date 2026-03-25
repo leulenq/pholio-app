@@ -8,9 +8,9 @@ import {
   signOut
 } from 'firebase/auth';
 import { Loader2, AlertCircle, Instagram, Mail, Lock, CheckCircle2 } from 'lucide-react';
-import { auth } from '../../lib/firebase';
+import { auth } from '../../../../shared/lib/firebase';
 
-import GradientText from '../../components/ui/GradientText';
+import GradientText from '../../../../shared/components/ui/GradientText';
 
 export default function LoginPage() {
   const navigate = useNavigate();

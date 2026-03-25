@@ -9,7 +9,7 @@ import {
   ExternalLink,
   LogOut,
 } from 'lucide-react';
-import { auth } from '../../../lib/firebase';
+import { auth } from '../../../shared/lib/firebase';
 import './UserDropdown.css';
 
 function getInitials(name) {

@@ -2,10 +2,10 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import DashboardLayoutShell from './layouts/DashboardLayoutShell';
-import AuthLayout from './layouts/AuthLayout';
-import LoginPage from './routes/auth/LoginPage';
-import AgencyLayout from './layouts/AgencyLayout';
+import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
+import AuthLayout from './shared/layouts/AuthLayout';
+import LoginPage from './domains/auth/pages/LoginPage/LoginPage';
+import AgencyLayout from './shared/layouts/AgencyLayout';
 import AgencySessionGate from './components/agency/AgencySessionGate';
 import DashboardPage from './routes/DashboardPage';
 import ProfilePage from './routes/talent/ProfilePage';
@@ -15,14 +15,14 @@ import ApplicationsPage from './routes/talent/ApplicationsPage';
 import RevealPage from './routes/talent/RevealPage';
 
 import SettingsPage from './routes/SettingsPage';
-import CastingCallPage from './routes/onboarding/CastingCallPage';
-import CastingRevealPreview from './routes/onboarding/CastingRevealPreview';
-import TestPreview from './routes/onboarding/TestPreview';
+import CastingCallPage from './domains/onboarding/pages/CastingCallPage';
+import CastingRevealPreview from './domains/onboarding/pages/CastingRevealPreview';
+import TestPreview from './domains/onboarding/pages/TestPreview';
 
 // Agency pages
 import AgencyInbox from './routes/agency/InboxPage';
 import AgencyOverview from './routes/agency/OverviewPage';
-import AgencyOnboarding from './routes/agency/OnboardingPage';
+import AgencyOnboarding from './domains/onboarding/pages/AgencyOnboardingPage';
 import AgencyDiscover from './routes/agency/DiscoverPage';
 import AgencyBoards from './routes/agency/BoardsPage';
 import AgencyAnalytics from './routes/agency/AnalyticsPage';

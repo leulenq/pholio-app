@@ -1,0 +1,477 @@
+/* PholioForms.css - Luxury Editorial Form Styling */
+
+:root {
+  --pholio-gold: #C9A55A;
+  --pholio-gold-hover: #b08d45;
+  --pholio-text-dark: #0f172a;
+  --pholio-text-muted: #64748b;
+  --pholio-text-light: #94a3b8;
+  --pholio-placeholder: #cbd5e1;
+  --pholio-input-bg: #FFFFFF;
+  --pholio-input-bg-focus: #FFFFFF;
+  --pholio-border: #e2e8f0;
+  --pholio-error: #ef4444;
+  --pholio-focus-ring: rgba(201, 165, 90, 0.1);
+}
+
+/* Base Form Wrapper */
+.pholio-form-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  position: relative;
+}
+
+/* Labels - Luxury Editorial Style */
+.pholio-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 14.4px; /* 0.9rem */
+  font-weight: 500;
+  color: var(--pholio-text-dark);
+  margin-bottom: 9.6px; /* 0.6rem */
+  display: block;
+}
+
+/* Inputs, Selects, Textareas - Shared Luxury Styles */
+.pholio-input,
+.pholio-select,
+.pholio-textarea {
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  padding: 14px 18px;
+  /* Redesigned: Seamless Inset Look */
+  border: 1px solid transparent; 
+  border-radius: 8px; /* Medium radius 8px per guidelines */
+  background: #f8f8f7; /* Very light brand off-white for the "well" */
+  color: var(--pholio-text-dark);
+  /* Elegant Depth: Inner paper shadow + Subtle outer lift */
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.01);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  outline: none;
+  min-height: 50px;
+}
+
+/* Premium Focus State */
+.pholio-input:focus,
+.pholio-select:focus,
+.pholio-textarea:focus {
+  border-color: rgba(201, 165, 90, 0.3);
+  background: #ffffff;
+  /* Premium Editorial Focus: Inner depth remains + Wide gold halo */
+  box-shadow: 
+    0 0 0 5px rgba(201, 165, 90, 0.12),
+    inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  transform: translateY(-1.5px);
+}
+
+/* Specific height for text inputs and selects */
+.pholio-input,
+.pholio-select {
+  height: 50px;
+}
+
+/* Placeholder Styling */
+.pholio-input::placeholder,
+.pholio-textarea::placeholder {
+  color: var(--pholio-placeholder);
+  font-style: italic;
+}
+
+
+
+/* Hover States */
+.pholio-input:hover:not(:focus),
+.pholio-select:hover:not(:focus),
+.pholio-textarea:hover:not(:focus) {
+  border-color: rgba(201, 165, 90, 0.2); 
+  background: #fdfdfc;
+  transform: translateY(-0.5px);
+}
+
+/* Error States */
+.pholio-input.has-error,
+.pholio-select.has-error,
+.pholio-textarea.has-error {
+  border-color: var(--pholio-error);
+  background-color: #fffafa; /* Brand Guidelines: Section 8 */
+}
+
+.pholio-input.has-error:focus,
+.pholio-select.has-error:focus,
+.pholio-textarea.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.pholio-error-message {
+  font-family: 'Inter', sans-serif;
+  color: var(--pholio-error); /* #ef4444 */
+  font-size: 12.8px; /* 0.8rem */
+  margin-top: 6.4px; /* 0.4rem */
+  font-weight: 500;
+}
+
+/* Textarea specific - Editorial Quality */
+.pholio-textarea {
+  min-height: 120px;
+  resize: none; /* Editorial requirement: No resizing to maintain layout integrity */
+  line-height: 1.6; /* Matched base line-height from guidelines */
+}
+
+/* Select - Custom Arrow */
+.pholio-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 48px;
+  cursor: pointer;
+}
+
+.pholio-select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23C9A55A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+/* Date Input - Calendar Icon */
+.pholio-input[type="date"] {
+  position: relative;
+}
+
+.pholio-input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.pholio-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Number Input - Hide spinners (already in global, but reinforce) */
+.pholio-input[type="number"]::-webkit-inner-spin-button,
+.pholio-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pholio-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Toggle Switch - Refined */
+.pholio-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  padding: 12px 0;
+}
+
+.pholio-toggle-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 14.4px; /* 0.9rem */
+  color: var(--pholio-text-dark);
+}
+
+.pholio-toggle-input {
+  display: none;
+}
+
+.pholio-toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  background-color: #e2e8f0; /* Brand Light Border color for inactive state */
+  border-radius: 100px; /* Pill shape */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.pholio-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pholio-toggle-input:checked + .pholio-toggle-switch {
+  background-color: var(--pholio-gold);
+}
+
+.pholio-toggle-input:checked + .pholio-toggle-switch::after {
+  transform: translateX(22px);
+}
+
+/* Focus state for toggle */
+.pholio-toggle-wrapper:focus-within .pholio-toggle-switch {
+  box-shadow: 0 0 0 3px var(--pholio-focus-ring);
+}
+
+/* Toggle label text */
+.pholio-toggle-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 14.4px;
+  color: var(--pholio-text-dark);
+  cursor: pointer;
+}
+
+/* Prefix styling (for @ handles) */
+.pholio-input-with-prefix {
+  position: relative;
+}
+
+.pholio-input-prefix {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  color: var(--pholio-text-light); /* Branded Light Text */
+  pointer-events: none;
+}
+
+.pholio-input-with-prefix .pholio-input {
+  padding-left: 36px;
+}
+
+/* Full Width Field Modifier */
+.pholio-field-full {
+  grid-column: 1 / -1;
+}
+
+/* Section Card - Removed for new layout */
+.pholio-section-card {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+
+.pholio-section-header {
+  margin-bottom: 0;
+}
+
+.pholio-section-title {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--pholio-text-dark);
+  margin: 0;
+}
+
+.pholio-section-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--pholio-text-muted);
+  margin-top: 8px;
+}
+
+/* Responsive - Mobile */
+@media (max-width: 768px) {
+  .pholio-input,
+  .pholio-select {
+    height: 48px;
+    padding: 12px 14px;
+  }
+  
+  .pholio-label {
+    font-size: 12px;
+  }
+  
+  .pholio-toggle-wrapper {
+    padding: 10px 0;
+  }
+}
+
+/* Custom Select Dropdown Styling */
+.pholio-custom-select-trigger {
+  position: relative;
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  padding: 14px 18px;
+  border: 1px solid transparent; 
+  border-radius: 8px;
+  background: #f8f8f7;
+  color: var(--pholio-text-dark);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  outline: none;
+  min-height: 50px;
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.01);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.pholio-custom-select-trigger:focus,
+.pholio-custom-select-trigger.open {
+  border-color: rgba(201, 165, 90, 0.3);
+  background: #ffffff;
+  box-shadow: 
+    0 0 0 5px rgba(201, 165, 90, 0.12),
+    inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  transform: translateY(-1.5px);
+}
+
+/* Selected Value Text */
+.selected-value {
+  color: var(--pholio-text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-value.placeholder {
+  color: var(--pholio-placeholder);
+}
+
+/* Chevron Icon */
+.chevron-icon {
+  color: var(--pholio-text-muted);
+  transition: transform 0.3s ease;
+}
+
+.chevron-icon.rotate {
+  transform: rotate(180deg);
+  color: var(--pholio-gold);
+}
+
+/* Dropdown Menu */
+.pholio-custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--pholio-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+  z-index: 9999; /* Ensure it floats above fixed footers */
+  max-height: 250px;
+  overflow-y: auto;
+  animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 6px;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Options */
+.pholio-select-option {
+  padding: 10px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--pholio-text-dark);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.1s ease;
+}
+
+.pholio-select-option:hover {
+  background: #F5F5F7;
+  color: #0A0A0A;
+}
+
+.pholio-select-option.selected {
+  background: rgba(201, 165, 90, 0.08); /* Pale gold */
+  color: var(--pholio-gold);
+  font-weight: 500;
+}
+
+.check-icon {
+  color: var(--pholio-gold);
+}
+
+/* Error State */
+.pholio-custom-select-trigger.error {
+  border-color: var(--pholio-error);
+}
+
+.disabled .pholio-custom-select-trigger {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #F1F1F1;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Premium Tag Styles */
+.pholio-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+
+.pholio-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9; /* Soft Slate background */
+  padding: 4px 10px;
+  border-radius: 100px; /* Pill shape */
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pholio-text-dark);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.2s ease;
+}
+
+.pholio-tag:hover {
+  background: #e2e8f0;
+  border-color: rgba(201, 165, 90, 0.3);
+}
+
+.pholio-tag-remove {
+  cursor: pointer;
+  color: var(--pholio-text-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.pholio-tag-remove:hover {
+  color: var(--pholio-error);
+  transform: scale(1.15);
+}
+
+.pholio-tag-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--pholio-text-dark);
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  min-width: 120px;
+  padding: 4px 0;
+}
+
+.pholio-tag-input::placeholder {
+  color: var(--pholio-placeholder);
+  font-style: italic;
+}

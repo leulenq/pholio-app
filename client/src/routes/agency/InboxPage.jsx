@@ -10,7 +10,7 @@ import KanbanColumn from '../../components/agency/KanbanColumn';
 import KanbanCard from '../../components/agency/KanbanCard';
 import KeyboardShortcutOverlay from '../../components/agency/KeyboardShortcutOverlay';
 import { AgencyEmptyState } from '../../components/agency/ui/AgencyEmptyState';
-import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
+import useKeyboardShortcuts from '../../shared/hooks/useKeyboardShortcuts';
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import './InboxPage.css';
 

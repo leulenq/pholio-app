@@ -1,8 +1,8 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
 import { Sparkles } from 'lucide-react';
-import { PholioInput, PholioTextarea } from '../../ui/forms';
-import PholioCustomSelect from '../../ui/forms/PholioCustomSelect';
+import { PholioInput, PholioTextarea } from '../../../shared/components/ui/forms';
+import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import { Section } from '../Section';
 import styles from '../../../routes/talent/ProfilePage.module.css';
 import { Controller as RHFController } from 'react-hook-form';

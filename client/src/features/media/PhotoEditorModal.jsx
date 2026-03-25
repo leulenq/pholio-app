@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { toast } from 'sonner';
 
-import { getCroppedImgBlob } from '../../utils/canvasUtils';
+import { getCroppedImgBlob } from '../../shared/utils/canvasUtils';
 import './PhotoEditorModal.css';
 
 export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {

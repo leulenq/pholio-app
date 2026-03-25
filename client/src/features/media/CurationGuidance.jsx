@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X, Check, Info, AlertCircle, Camera } from 'lucide-react';
-import { analyzePortfolio } from '../../utils/portfolioGapAnalysis';
+import { analyzePortfolio } from '../../shared/utils/portfolioGapAnalysis';
 
 export default function CurationGuidance({ images }) {
   const [isVisible, setIsVisible] = useState(true);
