@@ -8,10 +8,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { talentApi } from '../../../api/talent';
-import * as agencyApi from '../../../api/agency';
+import { talentApi } from '../../talent/api/talent';
+import * as agencyApi from '../../agency/api/agency';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { useCastingComplete, useCastingStatus } from '../../../hooks/useCasting';
+import { useCastingComplete, useCastingStatus } from '../hooks/useCasting';
 
 // Step Components
 import CastingEntry from './CastingEntry';

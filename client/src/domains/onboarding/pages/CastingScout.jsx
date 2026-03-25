@@ -9,7 +9,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import { useCastingScout, useCastingPrimarySwap, useCastingConfirm } from '../../../hooks/useCasting';
+import { useCastingScout, useCastingPrimarySwap, useCastingConfirm } from '../hooks/useCasting';
 import { toast } from 'sonner';
 import { fadeVariants } from './animations';
 

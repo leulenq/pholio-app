@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../domains/auth/hooks/useAuth';
 import { useFlash } from '../hooks/useFlash';
 import Header from '../components/Header/Header';
 import { checkGatingStatus } from '../utils/profileGating';
-import { talentApi } from '../../api/talent';
+import { talentApi } from '../../domains/talent/api/talent';
 import LuxuryCompletionPromptModal from '../../domains/onboarding/components/LuxuryCompletionPromptModal';
 
 

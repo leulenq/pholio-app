@@ -28,7 +28,7 @@ jest.mock("../src/domains/auth/services/firebase-admin", () => ({
 }));
 
 // Mock AI Photo Analysis
-jest.mock("../src/lib/ai/photo-analysis", () => ({
+jest.mock("../src/domains/ai/photo-analysis", () => ({
   analyzePhoto: jest.fn().mockResolvedValue({
     predictions: {
       height_cm: 178,

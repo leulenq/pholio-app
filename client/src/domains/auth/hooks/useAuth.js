@@ -1,6 +1,5 @@
-import { createContext, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { talentApi } from '../../../api/talent';
+import { talentApi } from '../../talent/api/talent';
 
 /**
  * useAuth Hook
@@ -8,7 +7,14 @@ import { talentApi } from '../../../api/talent';
  */
 export function useAuth(options = {}) {
   const queryClient = useQueryClient();
-  
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data) => talentApi.updateProfile(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+    },
+  });
+
   const query = useQuery({
     queryKey: ['auth-user', options.skipRedirect],
     queryFn: async () => {
@@ -35,5 +41,7 @@ export function useAuth(options = {}) {
     completeness: query.data?.completeness,
     isLoading: query.isLoading,
     isAuthenticated: !!query.data?.user,
+    updateProfile: updateProfileMutation.mutateAsync,
+    isUpdatingProfile: updateProfileMutation.isPending,
   };
 }
