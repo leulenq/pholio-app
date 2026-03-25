@@ -13,16 +13,16 @@ import {
   PholioInput,
   PholioToggle,
   PholioTextarea
-} from '../../components/ui/forms';
-import PholioMeasuringTape from '../../components/ui/forms/PholioMeasuringTape';
-import PholioCustomSelect from '../../components/ui/forms/PholioCustomSelect';
-import PholioMultiSelect from '../../components/ui/forms/PholioMultiSelect';
-import PholioTagInput from '../../components/ui/forms/PholioTagInput';
-import CreditsEditor from '../../components/ui/forms/CreditsEditor';
+} from '../../shared/components/ui/forms';
+import PholioMeasuringTape from '../../shared/components/ui/forms/PholioMeasuringTape';
+import PholioCustomSelect from '../../shared/components/ui/forms/PholioCustomSelect';
+import PholioMultiSelect from '../../shared/components/ui/forms/PholioMultiSelect';
+import PholioTagInput from '../../shared/components/ui/forms/PholioTagInput';
+import CreditsEditor from '../../shared/components/ui/forms/CreditsEditor';
 import { Controller } from 'react-hook-form';
 import ProfileNav from '../../components/dashboard/ProfileNav';
 import ProfileStrengthSidebar from '../../components/profile/ProfileStrengthSidebar';
-import { calculateProfileStrength, getStrengthUI } from '../../utils/profileScoring';
+import { calculateProfileStrength, getStrengthUI } from '../../shared/utils/profileScoring';
 import PhotosTab from '../../components/talent/profile/PhotosTab';
 import {
   Section,
@@ -39,7 +39,7 @@ import {
   inchesToCm,
   getShoeConversions,
   tryJsonJoin
-} from '../../utils/measurementConversions';
+} from '../../shared/utils/measurementConversions';
 
 import styles from './ProfilePage.module.css';
 

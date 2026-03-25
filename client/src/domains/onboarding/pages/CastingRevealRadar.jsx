@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
-import { calculateFitScores, getCategoryInsights, getTopCategories, calculateOverallReadiness } from '../../utils/fitScoring';
+import { calculateFitScores, getCategoryInsights, getTopCategories, calculateOverallReadiness } from '../../../shared/utils/fitScoring';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 
 // Fade-through-black transition variant

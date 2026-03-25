@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { talentProfileUpdateSchema } from '../../lib/validation';
+import { talentProfileUpdateSchema } from '../../shared/lib/validation';
 import { useProfile } from '../../hooks/useProfile';
-import { Input, Select, TextArea, Button } from '../../components/ui';
+import { Input, Select, TextArea, Button } from '../../shared/components/ui';
 import ProfilePreview from './ProfilePreview';
 import { 
   User, Ruler, Briefcase, Award, FileText, Share2, Phone, CheckCircle2, AlertCircle 

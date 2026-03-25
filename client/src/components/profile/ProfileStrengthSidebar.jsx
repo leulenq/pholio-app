@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronUp, Lock } from 'lucide-react';
-import { calculateProfileStrength, getStrengthUI } from '../../utils/profileScoring';
+import { calculateProfileStrength, getStrengthUI } from '../../shared/utils/profileScoring';
 import { useProfileStrength } from '../../hooks/useProfileStrength';
 import styles from './ProfileStrengthSidebar.module.css';
 

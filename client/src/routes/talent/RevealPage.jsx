@@ -10,8 +10,8 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import CastingRevealRadar from '../onboarding/CastingRevealRadar';
-import '../onboarding/CastingCinematic.css';
+import CastingRevealRadar from '../../domains/onboarding/pages/CastingRevealRadar';
+import '../../domains/onboarding/styles/CastingCinematic.css';
 
 // Mock Profile for "Perfect" Reveal (Runway Standard)
 const MOCK_PROFILE = {

@@ -6,10 +6,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeVariants, childVariants } from './animations';
-import { useCastingProfile } from '../../hooks/useCasting';
-import { useTypeToFocus } from '../../hooks/useTypeToFocus';
+import { useCastingProfile } from '../../../hooks/useCasting';
+import { useTypeToFocus } from '../../../shared/hooks/useTypeToFocus';
 import { toast } from 'sonner';
-import { CITIES } from '../../data/cities';
+import { CITIES } from '../../../data/cities';
 import { Check } from 'lucide-react';
 import { CinematicNextButton, CinematicBackButton } from './CinematicNextButton';
 

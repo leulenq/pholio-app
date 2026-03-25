@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../api/talent';
 import { useAuth } from './useAuth';
-import { useFlash } from './useFlash';
+import { useFlash } from '../shared/hooks/useFlash';
 
 export function useProfile() {
   const { profile, images, isLoading: isAuthLoading } = useAuth();

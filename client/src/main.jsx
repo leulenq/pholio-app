@@ -8,7 +8,7 @@ import './styles/agency-dark-overrides.css' /* 2b. Dark theme overrides for agen
 import './styles/reset.css'     /* 3. Reset second */
 import './index.css'            /* 4. Global/Component styles */
 import App from './App'
-import { FlashProvider } from './hooks/useFlash'
+import { FlashProvider } from './shared/hooks/useFlash'
 
 const queryClient = new QueryClient();
 

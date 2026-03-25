@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../api/talent';
-import { useFlash } from './useFlash';
+import { useFlash } from '../shared/hooks/useFlash';
 import { useAuth } from './useAuth';
 
 export function useMedia() {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../../../api/talent';
 import { Calendar, MapPin, XCircle, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import ConfirmationDialog from '../../../components/ui/ConfirmationDialog';
+import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import './ApplicationsList.css';
 
 export default function ApplicationsList({ applications, isLoading }) {

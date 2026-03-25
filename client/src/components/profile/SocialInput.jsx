@@ -2,7 +2,7 @@ import React from 'react';
 import { Controller } from 'react-hook-form';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { PholioInput } from '../ui/forms';
+import { PholioInput } from '../../shared/components/ui/forms';
 import styles from '../../routes/talent/ProfilePage.module.css';
 
 /**
