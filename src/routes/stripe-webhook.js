@@ -1,6 +1,6 @@
-const knex = require('../db/knex');
-const { verifyWebhookSignature, getSubscription } = require('../lib/stripe');
-const { updateSubscription, syncProfileIsPro } = require('../lib/subscriptions');
+const knex = require('../shared/db/knex');
+const { verifyWebhookSignature, getSubscription } = require('../shared/lib/stripe');
+const { updateSubscription, syncProfileIsPro } = require('../shared/lib/subscriptions');
 
 /**
  * Stripe Webhook Handler

@@ -1,7 +1,7 @@
 /* Google Fonts - Inter (Body) + Playfair Display + Noto Serif Display (Headings) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif+Display:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,500;1,600&display=swap');
 
-@import './styles/variables.css';
+@import './styles/tokens.css';
 @import './styles/global.css';
 @import './styles/utilities.css';
 @import './styles/analytics.css';

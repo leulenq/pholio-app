@@ -1,0 +1,226 @@
+.performance-summary-widget {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px; /* modern rounded styling */
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.performance-summary-widget--error {
+  border-color: #FECACA;
+}
+
+.performance-summary-error-inner {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.performance-summary-error-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.performance-summary-error-copy {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: #64748B;
+  line-height: 1.5;
+}
+
+.performance-summary-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: #C9A55A;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.performance-summary-retry:hover:not(:disabled) {
+  background: #B8944A;
+}
+
+.performance-summary-retry:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.performance-summary-widget.expanded {
+  border-color: #C9A55A; /* Gold highlight when active */
+  box-shadow: 0 4px 20px rgba(201, 165, 90, 0.15);
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 1.25rem 1.5rem;
+  cursor: pointer;
+  background: #FFFFFF;
+  transition: background 0.2s ease;
+  user-select: none;
+  border: none;
+  margin: 0;
+  font: inherit;
+  font-family: inherit;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.summary-header:focus-visible {
+  outline: 2px solid #C9A55A;
+  outline-offset: 2px;
+}
+
+.summary-header:hover {
+  background: #F8FAFC;
+}
+
+.summary-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.summary-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #F8FAFC;
+  color: #64748B;
+  transition: all 0.3s ease;
+}
+
+.performance-summary-widget.expanded .summary-icon-wrapper {
+  background: rgba(201, 165, 90, 0.1);
+  color: #C9A55A;
+}
+
+.summary-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.summary-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #0F172A;
+}
+
+.summary-metrics-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.825rem;
+  color: #64748B;
+  margin-top: 0.125rem;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.summary-metrics-preview.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.metric-val {
+  font-weight: 500;
+  color: #334155;
+}
+
+.metric-trait {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-weight: 500;
+}
+
+.metric-trait.positive {
+  color: #10B981;
+}
+
+.metric-trait.neutral {
+  color: #64748B;
+}
+
+.metric-trait.negative {
+  color: #EF4444;
+}
+
+.summary-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toggle-label {
+  font-size: 0.875rem;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.toggle-icon-bg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #F1F5F9;
+  color: #94A3B8;
+  transition: all 0.2s ease;
+}
+
+.performance-summary-widget.expanded .toggle-icon-bg {
+  background: #C9A55A;
+  border-color: #C9A55A;
+  color: #FFFFFF;
+  transform: rotate(180deg); /* If using chevron only, but we change icon logic in JSX, so maybe no rotate needed if we swap icons. But we swap icons. */
+}
+/* We swap icons in JSX so no need to rotate, but let's keep it simple. */
+.performance-summary-widget.expanded .toggle-icon-bg {
+    transform: none;
+}
+
+.summary-body {
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.summary-body.open {
+  height: auto; /* Animate max-height usually but height auto for simple React re-render or use resize observer. */
+  /* Since we don't know height, 'auto' doesn't transition well.
+     We will rely on React rendering for now, or use max-height trick.
+  */
+  max-height: 800px; /* arbitrary large */
+  opacity: 1;
+}
+
+.summary-body-inner {
+  padding: 0 1.5rem 1.5rem;
+  border-top: 1px solid #F1F5F9;
+}
+
+/* Override or Adjust PerformanceOverview styles if needed inside */
+/* We might want to remove the border/shadow of the inner component since we have a wrapper */
+.summary-body-inner .performance-overview-section {
+    box-shadow: none;
+    border: none;
+    padding: 1.5rem 0 0 0;
+}

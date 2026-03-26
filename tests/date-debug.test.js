@@ -1,6 +1,6 @@
 process.env.DATABASE_URL = 'sqlite:///tmp/test-date-jest.sqlite3'
 process.env.DB_CLIENT = 'sqlite3'
-const knex = require('../src/db/knex')
+const knex = require('../src/shared/db/knex')
 const fs = require('fs')
 
 test('Knex stores Date objects correctly in SQLite', async () => {

@@ -31,7 +31,7 @@ exports.up = async function up(knex) {
     table
       .uuid('partner_agency_id')
       .references('id')
-      .inTable('users')
+      .inTable('agencies')
       .onDelete('SET NULL');
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.timestamp('updated_at').defaultTo(knex.fn.now());
@@ -57,7 +57,7 @@ exports.up = async function up(knex) {
       .uuid('agency_id')
       .notNullable()
       .references('id')
-      .inTable('users')
+      .inTable('agencies')
       .onDelete('CASCADE');
     table
       .uuid('profile_id')

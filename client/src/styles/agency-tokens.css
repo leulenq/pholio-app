@@ -102,6 +102,35 @@
   --ag-z-modal: 100;
   --ag-z-toast: 200;
 
+  /* ── Panel system ── */
+  --ag-panel-w: 55%;
+  --ag-panel-drawer-w: 480px;
+  --ag-panel-breakpoint: 1280px; /* documentation-only; hardcode in @media */
+
+  /* ── List density ── */
+  --ag-row-h: 76px;
+  --ag-row-h-compact: 44px;
+  --ag-row-h-card: 96px;
+
+  /* ── Grid system ── */
+  --ag-card-ratio: 3 / 4;
+  --ag-grid-gap: 16px;
+
+  /* ── Semantic status colors ── */
+  --ag-status-available: #2D8A56;
+  --ag-status-on-booking: #3B7DD8;
+  --ag-status-on-hold: #C2850E;
+  --ag-status-inactive: #9C958E;
+
+  /* ── Score thresholds ── */
+  --ag-score-high: var(--ag-gold);
+  --ag-score-mid: var(--ag-success);
+  --ag-score-low: var(--ag-text-3);
+
+  /* ── Kanban ── */
+  --ag-kanban-col-min: 220px;
+  --ag-kanban-card-gap: 8px;
+
   /* ============================================================
      Legacy aliases — maps old --agency-* tokens to new --ag-*
      Used by sub-pages (Boards, Discover, Analytics, etc.)

@@ -1,0 +1,1806 @@
+/* ============================================================
+   PHOLIO AGENCY — Overview (Bento Grid)
+   Elevated Editorial Design
+   ============================================================ */
+
+.ov-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 0 40px 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Hero Welcome Block ── */
+.ov-hero {
+  position: relative;
+  padding: 48px 0 44px;
+  margin-bottom: 12px;
+}
+
+.ov-hero-content {
+  position: relative;
+}
+
+.ov-hero-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 3.5rem;
+  font-weight: 400;
+  margin: 0 0 24px;
+  letter-spacing: -0.04em;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+/* Gold gradient on the greeting text */
+.ov-hero-title-gold {
+  background: linear-gradient(135deg, #C9A55A 0%, #E3CD91 50%, #C9A55A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ov-hero-line {
+  display: block;
+}
+
+/* Subtitle — readable on cream */
+.ov-hero-line--sub {
+  font-size: 1.5rem;
+  -webkit-text-fill-color: #64748b;
+  background: none;
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  margin-top: 6px;
+}
+
+/* ── Hero Stat Pills ── */
+.ov-hero-pills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ov-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ov-hero-pill--amber {
+  background: rgba(201, 165, 90, 0.08); /* subtle amber background tint */
+  border-color: rgba(201, 165, 90, 0.2); 
+}
+
+.ov-pill-num {
+  color: #C9A55A;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.ov-pill-label {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ============================================================
+   KPI CARDS (Row 1) — Solid white, no glassmorphism
+   ============================================================ */
+.ov-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr 1.5fr;
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .ov-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ov-kpi-badge-amber {
+  background: #C9A55A;
+  color: #1a1a1a;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  width: fit-content;
+  flex-shrink: 0;
+}
+
+.ov-placement-caption {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 8px;
+}
+
+.ov-kpi {
+  background: linear-gradient(145deg, #ffffff 0%, #faf9f7 100%);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-top: 1px solid rgba(201, 165, 90, 0.15);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
+  border-radius: 8px; /* Sharper radii for print feel */
+  padding: 32px; /* Massive internal padding */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+
+.ov-kpi:hover {
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.08); /* Removed gold tint on hover to keep it stark */
+}
+
+.ov-kpi--urgent {
+  position: relative;
+  overflow: hidden;
+  background: rgba(201, 165, 90, 0.05);
+}
+
+.ov-kpi--urgent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: #C9A55A;
+}
+
+.ov-kpi-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Typography Hierarchy */
+.ov-kpi-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #9CA3AF;
+  flex: 1;
+}
+
+.ov-kpi-change {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.ov-kpi-change.positive {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.ov-kpi-link {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #C9A55A;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.ov-kpi-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.ov-kpi-sub-label {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.ov-kpi-sub-label {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.ov-kpi-urgent-sub {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.ov-kpi-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+}
+
+.ov-kpi-body--center {
+  justify-content: center;
+  align-items: center;
+}
+
+/* StatTypography Custom Font Enforcement */
+.ov-kpi-number {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 2.8rem;
+  font-weight: 300;
+  color: #1a1a1a;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+/* Card 1 background numeral */
+.ov-kpi-bg-numeral {
+  font-size: 7rem;
+  color: rgba(201,165,90,0.06);
+  position: absolute;
+  bottom: -10px;
+  right: 12px;
+  font-family: var(--font-display);
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+
+/* Card 2 Dots */
+.ov-kpi-dots-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ov-kpi-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(201,165,90,0.3);
+}
+
+.ov-kpi-dot.glow {
+  background: #C9A55A;
+  box-shadow: 0 0 6px rgba(201,165,90,0.6);
+}
+
+/* Card 4 halo */
+.ov-placement-hero {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.ov-placement-halo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: rgba(201,165,90,0.08);
+  pointer-events: none;
+}
+
+.ov-placement-season {
+  font-size: 10px;
+  color: #C9A55A;
+  margin-top: 4px;
+}
+
+/* ── Sparkline ── */
+.ov-sparkline {
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+.ov-sparkline-line {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: ov-draw-line 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+}
+
+@keyframes ov-draw-line {
+  to { stroke-dashoffset: 0; }
+}
+
+.ov-sparkline-dot {
+  opacity: 0;
+  animation: ov-dot-pop 0.3s ease 1.5s forwards;
+}
+
+.ov-sparkline-dot-glow {
+  opacity: 0;
+  animation: ov-dot-glow-pulse 2s ease 1.6s infinite;
+}
+
+@keyframes ov-dot-pop {
+  from { opacity: 0; r: 0; }
+  to { opacity: 1; r: 3.5; }
+}
+
+@keyframes ov-dot-glow-pulse {
+  0%, 100% { opacity: 0.2; r: 6; }
+  50% { opacity: 0.5; r: 8; }
+}
+
+/* ── Progress ring ── */
+.ov-ring {
+  flex-shrink: 0;
+}
+
+.ov-ring-progress {
+  transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ov-ring-text {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #0f172a;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── Mini bars ── */
+.ov-minibars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+  width: 80px;
+  margin-bottom: 4px;
+}
+
+.ov-minibar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ov-minibar-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+  width: 24px;
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ov-minibar-track {
+  flex: 1;
+  height: 5px;
+  background: #f1f0ee;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ov-minibar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ── Calendar dots ── */
+.ov-cal-dots {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.ov-cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ov-cal-letter {
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.ov-cal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f1f0ee;
+  transition: all 0.3s ease;
+}
+
+.ov-cal-dot--on {
+  background: #C9A55A;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15);
+}
+
+/* ============================================================
+   ROW 2 — Applications + Promo
+   ============================================================ */
+.ov-row-2 {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* ── Shared card base ── */
+.ov-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  box-shadow: 0 12px 36px -12px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.ov-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.ov-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ov-card-icon {
+  color: #C9A55A;
+  flex-shrink: 0;
+}
+
+.ov-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ov-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #64748b;
+  background: #f5f4f2;
+  border: 1px solid #e8e5e1;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+/* ── Block Header Items ── */
+.ov-app-count-badge {
+  background: #1a1a1a;
+  color: #ffffff;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-weight: 500;
+  display: inline-block;
+  line-height: 1.2;
+}
+
+/* ── Applicant List ── */
+.ov-app-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ov-app-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  position: relative;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.ov-app-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #C9A55A;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ov-app-row:last-child {
+  border-bottom: none;
+}
+
+/* Row Hover State */
+.ov-app-row:hover {
+  background: rgba(201,165,90,0.04);
+}
+
+.ov-app-row:hover::before {
+  opacity: 1;
+}
+
+/* Top Match Highlight (first row) */
+.ov-app-row:nth-child(1) {
+  background: rgba(201,165,90,0.03);
+}
+
+.ov-app-row:nth-child(1)::before {
+  opacity: 1;
+  background: rgba(201,165,90,0.5); /* permanent subtle gold left border */
+}
+
+/* Avatar Styling */
+.ov-app-avatar-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+
+
+.ov-app-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(201,165,90,0.3);
+}
+
+.ov-status-dot {
+  position: absolute;
+  bottom: 0;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+/* Information & Typography */
+.ov-app-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0; /* truncate fix */
+}
+
+.ov-app-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ov-app-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Archetype Tags */
+.ov-app-badge {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.ov-badge--editorial {
+  background: rgba(99,102,241,0.08);
+  color: #6366F1;
+}
+
+.ov-badge--runway {
+  background: rgba(20,20,20,0.06);
+  color: #374151;
+}
+
+.ov-badge--commercial {
+  background: rgba(16,185,129,0.08);
+  color: #059669;
+}
+
+.ov-badge--lifestyle {
+  background: rgba(245,158,11,0.08);
+  color: #D97706;
+}
+
+.ov-app-match-col {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transition: opacity 0.18s ease;
+}
+
+.ov-app-row:hover .ov-app-match-col {
+  opacity: 0;
+}
+
+.ov-view-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #C9A55A;
+  background: #fdfcfa;
+  border: 1px solid #f0ede8;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ov-view-all:hover {
+  background: rgba(201, 165, 90, 0.06);
+  border-color: rgba(201, 165, 90, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   PROMO CARD — Dark editorial with particles
+   ============================================================ */
+.ov-promo {
+  position: relative;
+  background: linear-gradient(145deg, #0B0D10 0%, #141618 50%, #1a1d23 100%);
+  border-radius: 20px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  min-height: 320px;
+}
+
+.ov-promo-glow {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(201, 165, 90, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.ov-promo-glow--2 {
+  top: auto;
+  bottom: -60px;
+  left: -60px;
+  right: auto;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(201, 165, 90, 0.1) 0%, transparent 70%);
+}
+
+.ov-promo-glow--3 {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(201, 165, 90, 0.06) 0%, transparent 70%);
+}
+
+/* Diagonal grid texture overlay */
+.ov-promo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(201, 165, 90, 0.04) 0px,
+    rgba(201, 165, 90, 0.04) 1px,
+    transparent 1px,
+    transparent 28px
+  );
+  pointer-events: none;
+  border-radius: 20px;
+  z-index: 0;
+}
+
+/* Floating particles */
+.ov-promo-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ov-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #C9A55A;
+  opacity: 0;
+  animation: ov-float-particle 6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 1s);
+}
+
+.ov-particle:nth-child(1) { left: 15%; top: 60%; }
+.ov-particle:nth-child(2) { left: 70%; top: 20%; width: 2px; height: 2px; }
+.ov-particle:nth-child(3) { left: 40%; top: 80%; }
+.ov-particle:nth-child(4) { left: 85%; top: 50%; width: 2px; height: 2px; }
+.ov-particle:nth-child(5) { left: 25%; top: 30%; width: 2px; height: 2px; }
+.ov-particle:nth-child(6) { left: 60%; top: 70%; }
+.ov-particle:nth-child(7) { left: 50%; top: 15%; width: 2px; height: 2px; }
+.ov-particle:nth-child(8) { left: 10%; top: 45%; width: 2px; height: 2px; }
+
+@keyframes ov-float-particle {
+  0%, 100% { opacity: 0; transform: translateY(0); }
+  20% { opacity: 0.6; }
+  50% { opacity: 0.3; transform: translateY(-20px); }
+  80% { opacity: 0.5; }
+}
+
+.ov-promo-content {
+  position: relative;
+  z-index: 1;
+}
+
+.ov-promo-eyebrow {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #C9A55A;
+  margin-bottom: 16px;
+}
+
+.ov-promo-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: white;
+  margin: 0 0 12px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.ov-promo-body {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+
+/* CTA with shimmer */
+.ov-promo-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: #C9A55A;
+  color: white;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ov-cta-text {
+  position: relative;
+  z-index: 1;
+}
+
+.ov-cta-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.ov-promo-cta:hover {
+  background: #b08d45;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(201, 165, 90, 0.3);
+}
+
+.ov-promo-cta:hover .ov-cta-shimmer {
+  animation: ov-shimmer-sweep 0.6s ease forwards;
+}
+
+@keyframes ov-shimmer-sweep {
+  from { left: -100%; }
+  to { left: 100%; }
+}
+
+/* ============================================================
+   ROW 3 — Pipeline + Archetypes (Donut)
+   ============================================================ */
+.ov-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Pipeline animated stacked bar */
+.ov-pipeline-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  gap: 2px;
+}
+
+.ov-pipeline-seg {
+  position: relative;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.ov-pipeline-seg--active {
+  filter: brightness(1.1);
+}
+
+.ov-pipeline-seg:not(.ov-pipeline-seg--active) {
+  /* dim others when one is hovered */
+  opacity: 0.7;
+}
+
+/* Pipeline glowing pulse */
+.ov-pipeline-seg--pulse {
+  animation: ov-amber-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  z-index: 1; /* Keep glow above siblings */
+}
+
+@keyframes ov-amber-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(201, 165, 90, 0.4);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(201, 165, 90, 0.6);
+    filter: brightness(1.15);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 165, 90, 0);
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ov-pipeline-seg--pulse {
+    animation: none;
+    box-shadow: none;
+    filter: none;
+  }
+}
+
+/* Tooltip */
+.ov-pipeline-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  animation: ov-tooltip-in 0.15s ease;
+}
+
+.ov-pipeline-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #0f172a;
+}
+
+@keyframes ov-tooltip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.ov-pipeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ov-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.ov-legend-item:hover,
+.ov-legend-item--active {
+  opacity: 1;
+}
+
+.ov-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.ov-legend-item--active .ov-legend-dot {
+  transform: scale(1.4);
+}
+
+.ov-legend-label {
+  font-size: 0.8125rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.ov-legend-count {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ── Archetypes with donut ── */
+.ov-arch-layout {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.ov-donut {
+  flex-shrink: 0;
+}
+
+.ov-donut-seg {
+  transition: opacity 0.2s ease;
+}
+
+.ov-arch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.ov-arch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ov-arch-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ov-arch-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #0f172a;
+  flex: 1;
+}
+
+.ov-arch-pct {
+  margin-left: auto;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Talent Mix Insights */
+.ov-arch-insights {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ov-arch-demand {
+  font-size: 11px;
+  font-family: var(--font-display);
+  font-style: italic;
+  color: #B8944A; /* muted gold */
+  line-height: 1.4;
+}
+
+.ov-arch-scout-cta {
+  font-size: 11px;
+  color: #d97706; /* soft amber */
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.2s ease;
+  line-height: 1.4;
+}
+
+.ov-arch-scout-cta:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* ═══════ QUICK VIEW MODAL ═══════ */
+/* ============================================================
+   MODAL (Quick View) — Redesigned
+   ============================================================ */
+.ov-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: ov-fade-in 0.2s ease;
+}
+
+@keyframes ov-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ov-modal {
+  background: white;
+  width: 100%;
+  max-width: 460px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Hero ── */
+.ov-modal-hero {
+  position: relative;
+  height: 280px;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+.ov-modal-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ov-modal:hover .ov-modal-img {
+  transform: scale(1.04);
+}
+
+.ov-modal-grad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.15) 40%,
+    transparent 70%
+  );
+}
+
+/* ── Close button (glass, floating over hero) ── */
+.ov-modal-close {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.ov-modal-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  transform: scale(1.08);
+}
+
+/* ── Match badge (frosted glass, top-right) ── */
+.ov-modal-match-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 8px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  z-index: 2;
+}
+
+.ov-modal-match-ring {
+  flex-shrink: 0;
+}
+
+.ov-modal-match-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ov-modal-match-val {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  line-height: 1.1;
+}
+
+.ov-modal-match-label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1;
+}
+
+/* ── Body ── */
+.ov-modal-body {
+  padding: 28px;
+  position: relative;
+}
+
+/* ── Name row with status dot ── */
+.ov-modal-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ov-modal-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.ov-modal-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.12);
+}
+
+/* ── Tags row ── */
+.ov-modal-tags {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.ov-modal-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(201, 165, 90, 0.1);
+  color: #C9A55A;
+}
+
+.ov-modal-location {
+  font-size: 0.8125rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ov-modal-applied {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+/* ── Stats strip (glass-morphism) ── */
+.ov-modal-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  padding: 14px;
+  background: rgba(250, 249, 247, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 14px;
+  border: 1px solid #f0ede8;
+  margin-bottom: 20px;
+  transition: all 0.25s ease;
+}
+
+.ov-modal-stats:hover {
+  border-color: rgba(201, 165, 90, 0.25);
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.06);
+}
+
+.ov-modal-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.ov-modal-stat-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+}
+
+.ov-modal-stat-val {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ── Bio ── */
+.ov-modal-bio {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0 0 24px;
+  padding-left: 14px;
+  border-left: 2px solid #C9A55A;
+}
+
+/* ── Action buttons ── */
+.ov-modal-actions-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ov-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ov-modal-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px;
+  border-radius: 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ov-modal-btn--primary {
+  background: #C9A55A;
+  color: white;
+  box-shadow: 0 2px 8px rgba(201, 165, 90, 0.25);
+}
+
+.ov-modal-btn--primary:hover {
+  background: #b08d45;
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 16px rgba(201, 165, 90, 0.3),
+    0 0 0 2px rgba(201, 165, 90, 0.2);
+}
+
+.ov-modal-btn--secondary {
+  background: white;
+  color: #0f172a;
+  border: 1px solid #e8e5e1;
+}
+
+.ov-modal-btn--secondary:hover {
+  border-color: #C9A55A;
+  color: #C9A55A;
+}
+
+.ov-modal-btn--ghost {
+  background: #faf9f7;
+  color: #64748b;
+}
+
+.ov-modal-btn--ghost:hover {
+  background: #f0ede8;
+  color: #0f172a;
+}
+
+.ov-modal-btn--danger:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+/* ============================================================
+   REDUCED MOTION — respects user preference
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .ov-sparkline-line {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .ov-sparkline-dot,
+  .ov-sparkline-dot-glow {
+    animation: none;
+    opacity: 1;
+  }
+
+  .ov-particle {
+    animation: none;
+  }
+
+  .ov-cta-shimmer {
+    display: none;
+  }
+
+  .ov-ring-progress {
+    transition: none;
+  }
+
+  .ov-pipeline-tooltip {
+    animation: none;
+  }
+
+  /* Modal */
+  .ov-modal,
+  .ov-modal-overlay {
+    animation: none !important;
+  }
+
+  .ov-modal-img {
+    transition: none !important;
+  }
+
+  .ov-modal:hover .ov-modal-img {
+    transform: none !important;
+  }
+
+  .ov-modal-close,
+  .ov-modal-stats,
+  .ov-modal-btn {
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .ov-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ov-row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .ov-promo {
+    min-height: 200px;
+  }
+
+  .ov-hero-title {
+    font-size: 2.75rem;
+  }
+
+  .ov-hero-line--sub {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .ov-page {
+    padding: 0 16px 40px;
+  }
+
+  .ov-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ov-row-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .ov-hero-title {
+    font-size: 2rem;
+  }
+
+  .ov-hero-line--sub {
+    font-size: 1.125rem;
+  }
+
+  .ov-hero-pills {
+    flex-wrap: wrap;
+  }
+
+  .ov-arch-layout {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .ov-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ov-modal-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .ov-modal {
+    max-width: 100%;
+    border-radius: 20px;
+  }
+
+  .ov-modal-hero {
+    height: 220px;
+  }
+}
+
+/* ============================================================
+   ATTENTION STRIP
+   ============================================================ */
+.ov-attention {
+  display: flex;
+  gap: 16px;
+}
+
+.ov-att-card {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid;
+}
+
+.ov-att-card--critical { background: rgba(220,38,38,0.05);  border-color: rgba(220,38,38,0.16); }
+.ov-att-card--warning  { background: rgba(217,119,6,0.05);  border-color: rgba(217,119,6,0.16); }
+.ov-att-card--positive { background: rgba(22,163,74,0.05);  border-color: rgba(22,163,74,0.16); }
+
+.ov-att-icon { flex-shrink: 0; margin-top: 1px; }
+.ov-att-card--critical .ov-att-icon { color: #dc2626; }
+.ov-att-card--warning  .ov-att-icon { color: #d97706; }
+.ov-att-card--positive .ov-att-icon { color: #16a34a; }
+
+.ov-att-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #0f172a;
+  margin: 0;
+}
+
+.ov-att-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: opacity 0.15s ease;
+}
+.ov-att-card--critical .ov-att-cta { color: #dc2626; }
+.ov-att-card--warning  .ov-att-cta { color: #d97706; }
+.ov-att-card--positive .ov-att-cta { color: #16a34a; }
+.ov-att-cta:hover { opacity: 0.75; text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .ov-attention { flex-direction: column; }
+}
+
+/* ============================================================
+   APP ROW QUICK ACTIONS
+   ============================================================ */
+.ov-app-quick-actions {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%) translateX(6px);
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+
+.ov-app-row:hover .ov-app-quick-actions {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  pointer-events: auto;
+}
+
+.ov-quick-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ov-quick-btn--accept {
+  background: rgba(22,163,74,0.08);
+  color: #16a34a;
+  border-color: rgba(22,163,74,0.2);
+}
+.ov-quick-btn--accept:hover {
+  background: rgba(22,163,74,0.15);
+  border-color: rgba(22,163,74,0.35);
+}
+
+.ov-quick-btn--review {
+  background: rgba(201,165,90,0.08);
+  color: #C9A55A;
+  border-color: rgba(201,165,90,0.2);
+}
+.ov-quick-btn--review:hover {
+  background: rgba(201,165,90,0.15);
+  border-color: rgba(201,165,90,0.35);
+}
+
+/* ── Pulse Strip ── */
+.ov-pulse-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.ov-pulse-chip {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--ag-surface-1);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--ag-text-0);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.ov-pulse-chip:hover {
+  border-color: var(--ag-gold);
+  box-shadow: var(--ag-shadow-gold);
+}
+
+.ov-pulse-chip-inner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+}
+
+.ov-pulse-chip--dim {
+  opacity: 0.45;
+}
+
+.ov-pulse-chip--urgent {
+  border-color: #d97706;
+  background: #fffbeb;
+}
+
+.ov-pulse-icon {
+  color: var(--ag-gold);
+  flex-shrink: 0;
+}
+
+.ov-pulse-chip--urgent .ov-pulse-icon {
+  color: #d97706;
+}
+
+.ov-pulse-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ag-text-0);
+  line-height: 1;
+}
+
+.ov-pulse-label {
+  font-size: 11px;
+  color: var(--ag-text-2);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── Conversion rates ── */
+.ov-conversion-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.ov-conversion-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--ag-surface-0);
+  border-radius: 8px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.ov-conversion-label {
+  font-size: 10px;
+  color: var(--ag-text-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ov-conversion-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ag-gold);
+  font-family: var(--font-display);
+}
+
+.ov-conversion-insight {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--ag-text-2);
+  font-style: italic;
+}
+
+/* ── Inline action buttons ── */
+.ov-app-row-link {
+  display: contents;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ov-app-quick-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ov-quick-btn {
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.ov-quick-btn--accept {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+
+.ov-quick-btn--accept:hover {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.ov-quick-btn--shortlist {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+.ov-quick-btn--shortlist:hover {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.ov-quick-btn--decline {
+  background: #fff5f5;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.ov-quick-btn--decline:hover {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}

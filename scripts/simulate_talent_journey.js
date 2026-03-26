@@ -366,7 +366,7 @@ async function verifyData(uid) {
 
   try {
     // Fetch profile directly from database
-    const knex = require('../src/db/knex');
+    const knex = require('../src/shared/db/knex');
 
     const user = await knex('users').where({ firebase_uid: uid }).first();
     if (!user) {

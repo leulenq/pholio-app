@@ -36,7 +36,7 @@ exports.up = async function up(knex) {
       .uuid('agency_id')
       .notNullable()
       .references('id')
-      .inTable('users')
+      .inTable('agencies')
       .onDelete('CASCADE');
     table.string('tag').notNullable();
     table.string('color', 20).nullable(); // For color-coding tags
@@ -60,4 +60,3 @@ exports.down = async function down(knex) {
     table.dropColumn('viewed_at');
   });
 };
-
