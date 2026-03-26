@@ -13,6 +13,12 @@
  * Each slot uses role-matched images not already selected, then falls back to
  * the next unselected image in input order. With `options.seed`, tie-breaking
  * uses a deterministic PRNG so the same seed reproduces the same composition.
+ *
+ * Role derivation precedence (per image, for slot matching):
+ *   1. `shot_type` → comp role (headshot / full_body) when set
+ *   2. `style_type` → comp role (editorial / lifestyle) when set
+ *   3. Legacy `metadata.role` only if the corresponding structured dimension
+ *      is empty (phase-4: structured fields win; no legacy override)
  */
 
 const DEFAULT_PREFER_ROLES = {
@@ -74,20 +80,32 @@ function parseMetadata(metadata) {
   }
 }
 
+/** Align with API validation (`normalizeEnumToken`): trim, lower, spaces → underscore */
+function normalizeEnumish(raw) {
+  if (raw == null) return "";
+  const s = String(raw).trim().toLowerCase().replace(/\s+/g, "_");
+  return s;
+}
+
 function deriveCompCardRole(img) {
   if (!img) return null;
-  const hasShotType =
-    img.shot_type != null && String(img.shot_type).trim() !== "";
-  const hasStyleType =
-    img.style_type != null && String(img.style_type).trim() !== "";
-  const legacyRole = parseMetadata(img.metadata).role || null;
+  const shot = normalizeEnumish(img.shot_type);
+  const style = normalizeEnumish(img.style_type);
+  const hasShotType = shot !== "";
+  const hasStyleType = style !== "";
+  const legacyRaw = parseMetadata(img.metadata).role;
+  const legacyRole = legacyRaw != null ? normalizeEnumish(legacyRaw) : "";
 
-  if (img.shot_type === "headshot") return "headshot";
-  if (img.shot_type === "full_length" || img.shot_type === "three_quarter") {
+  if (shot === "headshot") return "headshot";
+  if (
+    shot === "full_length" ||
+    shot === "three_quarter" ||
+    shot === "full_body"
+  ) {
     return "full_body";
   }
-  if (img.style_type === "editorial") return "editorial";
-  if (img.style_type === "lifestyle") return "lifestyle";
+  if (style === "editorial") return "editorial";
+  if (style === "lifestyle") return "lifestyle";
 
   if (
     !hasShotType &&

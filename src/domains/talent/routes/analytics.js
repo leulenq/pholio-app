@@ -235,6 +235,15 @@ router.get(
           message = "Portfolio viewed";
           icon = "👁️";
           break;
+        case "submission_package_created": {
+          const n = metadata.imageCount ?? 0;
+          message =
+            n > 0
+              ? `Submission package saved (${n} image${n !== 1 ? "s" : ""})`
+              : "Submission package saved";
+          icon = "📦";
+          break;
+        }
         default:
           message = "Activity recorded";
           icon = "📝";
