@@ -1,0 +1,125 @@
+.ag-talent-card {
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--ag-surface-1);
+  border: 1px solid var(--ag-border);
+  cursor: pointer;
+  transition: transform var(--ag-duration) var(--ag-ease),
+              box-shadow var(--ag-duration) var(--ag-ease);
+}
+
+.ag-talent-card:hover {
+  transform: scale(1.02);
+  box-shadow: var(--ag-shadow-gold);
+}
+
+.ag-talent-card:hover .ag-talent-card__quick-actions {
+  opacity: 1;
+}
+
+.ag-talent-card__image-wrap {
+  position: relative;
+  aspect-ratio: var(--ag-card-ratio, 3 / 4);
+  overflow: hidden;
+}
+
+.ag-talent-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ag-talent-card__status {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.ag-talent-card__quick-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-talent-card__qbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  color: var(--ag-text-1);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.ag-talent-card__qbtn:hover {
+  background: white;
+  color: var(--ag-gold);
+}
+
+.ag-talent-card__info {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ag-talent-card__row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ag-talent-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ag-text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-talent-card__row2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ag-text-2);
+}
+
+.ag-talent-card__stat {
+  font-size: 12px;
+}
+
+.ag-talent-card__tags {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.ag-talent-card__tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ag-surface-3);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ag-text-2);
+}
+
+.ag-talent-card__tag--overflow {
+  color: var(--ag-text-3);
+  background: none;
+}

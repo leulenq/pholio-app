@@ -1,20 +1,20 @@
 const express = require('express');
-const knex = require('../db/knex');
-const { requireRole } = require('../middleware/auth');
-const { addMessage } = require('../middleware/context');
+const knex = require('../shared/db/knex');
+const { requireRole } = require('../domains/auth/middleware/require-auth');
+const { addMessage } = require('../shared/middleware/context');
 const {
   getOrCreateCustomer,
   createCheckoutSession,
   createCustomerPortalSession,
   verifyWebhookSignature,
   getSubscription
-} = require('../lib/stripe');
+} = require('../shared/lib/stripe');
 const {
   createSubscription,
   updateSubscription,
   getSubscriptionStatus,
   syncProfileIsPro
-} = require('../lib/subscriptions');
+} = require('../shared/lib/subscriptions');
 const config = require('../config');
 
 const router = express.Router();
@@ -45,7 +45,7 @@ router.post('/create-checkout-session', requireRole('TALENT', 'AGENCY'), async (
     let customer;
     if (user.stripe_customer_id) {
       // Customer exists, retrieve it
-      const { stripe } = require('../lib/stripe');
+      const { stripe } = require('../shared/lib/stripe');
       customer = await stripe.customers.retrieve(user.stripe_customer_id);
     } else {
       // Create new customer
@@ -103,7 +103,7 @@ router.get('/checkout/success', requireRole('TALENT', 'AGENCY'), async (req, res
       return res.redirect('/pro/upgrade');
     }
 
-    const { stripe } = require('../lib/stripe');
+    const { stripe } = require('../shared/lib/stripe');
     const session = await stripe.checkout.sessions.retrieve(session_id);
 
     if (!session || session.mode !== 'subscription') {

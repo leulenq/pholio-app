@@ -1,6 +1,6 @@
 const request = require('supertest');
 const sharp = require('sharp');
-const knex = require('../src/db/knex');
+const knex = require('../src/shared/db/knex');
 const app = require('../src/app');
 
 beforeAll(async () => {

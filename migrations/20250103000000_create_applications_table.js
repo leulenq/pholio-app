@@ -14,7 +14,7 @@ exports.up = async function up(knex) {
       .uuid('agency_id')
       .notNullable()
       .references('id')
-      .inTable('users')
+      .inTable('agencies')
       .onDelete('CASCADE');
     table
       .enu('status', ['pending', 'accepted', 'archived', 'declined'])
@@ -54,4 +54,3 @@ exports.down = async function down(knex) {
   // Now drop the main applications table (use CASCADE to handle any remaining dependencies)
   await knex.raw('DROP TABLE IF EXISTS applications CASCADE');
 };
-

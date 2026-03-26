@@ -1,2 +1,0 @@
-# Ignore static assets for the background remover lib, they will be copied on npm install
-/public/static/model

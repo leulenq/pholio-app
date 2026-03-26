@@ -1,0 +1,55 @@
+/* ============================================================
+   PHOLIO AGENCY — Roster Page (Refactored)
+   Uses shared components: FilterBar, TalentCard, TalentDetailPanel
+   ============================================================ */
+
+/* ── Page Shell ── */
+.roster-page {
+  display: flex;
+  height: calc(100vh - 56px);
+}
+
+.roster-page__main {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.roster-page.has-panel .roster-page__main {
+  flex: 0 0 45%;
+}
+
+/* ── Grid View ── */
+.roster-page__grid {
+  display: grid;
+  gap: var(--ag-grid-gap, 16px);
+  grid-template-columns: repeat(4, 1fr);
+  padding: 16px;
+  flex: 1;
+}
+
+@media (max-width: 1439px) { .roster-page__grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 1023px) { .roster-page__grid { grid-template-columns: repeat(2, 1fr); } }
+.roster-page.has-panel .roster-page__grid { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1439px) { .roster-page.has-panel .roster-page__grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── List View ── */
+.roster-page__rows {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ── Card Skeleton ── */
+.roster-page__card-skeleton {
+  aspect-ratio: 3/4;
+  border-radius: var(--ag-radius-lg, 12px);
+  background: linear-gradient(90deg, var(--ag-surface-2, #F0EDE8) 25%, var(--ag-surface-1, #fff) 50%, var(--ag-surface-2, #F0EDE8) 75%);
+  background-size: 200% 100%;
+  animation: ag-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes ag-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -20,7 +20,7 @@ exports.up = async function up(knex) {
       .uuid('invited_by_agency_id')
       .nullable()
       .references('id')
-      .inTable('users')
+      .inTable('agencies')
       .onDelete('SET NULL');
   });
 };
@@ -43,4 +43,3 @@ exports.down = async function down(knex) {
     table.dropColumn('agency_slug');
   });
 };
-

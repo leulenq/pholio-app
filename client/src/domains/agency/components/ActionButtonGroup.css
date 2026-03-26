@@ -1,0 +1,33 @@
+.ag-action-group {
+  display: flex;
+  gap: 8px;
+}
+
+.ag-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-md);
+  background: var(--ag-surface-1);
+  color: var(--ag-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-action-btn:hover {
+  border-color: var(--action-color);
+  color: var(--action-color);
+  background: color-mix(in srgb, var(--action-color) 8%, transparent);
+}
+
+.ag-action-btn.is-active {
+  background: var(--action-color);
+  border-color: var(--action-color);
+  color: white;
+}

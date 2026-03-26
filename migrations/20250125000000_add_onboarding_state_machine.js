@@ -47,7 +47,7 @@ exports.up = async function up(knex) {
     table.boolean('services_locked').notNullable().defaultTo(true).comment('Whether services are locked until essentials complete');
     table.uuid('source_agency_id').nullable()
       .references('id')
-      .inTable('users')
+      .inTable('agencies')
       .onDelete('SET NULL')
       .comment('Agency ID if user came from /apply/:agencySlug partner route');
     table.string('visibility_mode', 20).notNullable().defaultTo('private_intake')
@@ -68,7 +68,7 @@ exports.up = async function up(knex) {
             table.boolean('services_locked').notNullable().defaultTo(true);
           }
           if (!err.message.includes('source_agency_id')) {
-            table.uuid('source_agency_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+            table.uuid('source_agency_id').nullable().references('id').inTable('agencies').onDelete('SET NULL');
           }
           if (!err.message.includes('visibility_mode')) {
             table.string('visibility_mode', 20).notNullable().defaultTo('private_intake');

@@ -1,0 +1,309 @@
+/* --- Panel Modes --- */
+.ag-detail-panel--fixed {
+  width: var(--ag-panel-w);
+  border-left: 1px solid var(--ag-surface-4);
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  background: var(--ag-surface-1);
+}
+
+.ag-detail-panel--drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--ag-panel-drawer-w);
+  max-width: 90vw;
+  z-index: 100;
+  background: var(--ag-surface-1);
+  overflow-y: auto;
+  box-shadow: -8px 0 24px rgba(0,0,0,0.12);
+}
+
+.ag-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 99;
+}
+
+.ag-detail-panel__inner {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Hero --- */
+.ag-detail-panel__hero {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-height: 280px;
+  overflow: hidden;
+  background: var(--ag-surface-3);
+}
+
+.ag-detail-panel__hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ag-detail-panel__hero-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 50%, rgba(0,0,0,0.6));
+  pointer-events: none;
+}
+
+.ag-detail-panel__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  color: var(--ag-text-0);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+.ag-detail-panel__close:hover { background: white; }
+
+.ag-detail-panel__status-badge {
+  position: absolute;
+  top: 12px;
+  right: 52px;
+  z-index: 2;
+}
+
+/* --- Identity --- */
+.ag-detail-panel__identity {
+  padding: 16px 20px 0;
+}
+
+.ag-detail-panel__name {
+  font-family: var(--ag-font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ag-text-0);
+  margin: 0 0 4px;
+  line-height: 1.2;
+}
+
+.ag-detail-panel__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ag-text-2);
+  flex-wrap: wrap;
+}
+
+.ag-detail-panel__meta > span + span::before {
+  content: '\00B7';
+  margin-right: 8px;
+}
+
+.ag-detail-panel__sub-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ag-text-3);
+  margin-top: 6px;
+}
+
+.ag-detail-panel__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* --- Actions --- */
+.ag-detail-panel__actions {
+  padding: 16px 20px;
+}
+
+/* --- Tabs --- */
+.ag-detail-panel__tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ag-border);
+  padding: 0 20px;
+  gap: 0;
+}
+
+.ag-detail-panel__tab {
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ag-text-3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-detail-panel__tab:hover { color: var(--ag-text-1); }
+
+.ag-detail-panel__tab.is-active {
+  color: var(--ag-gold);
+  border-bottom-color: var(--ag-gold);
+}
+
+/* --- Tab Content --- */
+.ag-detail-panel__tab-content {
+  padding: 16px 20px;
+  flex: 1;
+}
+
+.ag-detail-panel__bio-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ag-text-1);
+  margin: 0 0 16px;
+}
+
+.ag-detail-panel__measurements {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ag-detail-panel__measurements > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--ag-surface-2);
+  border-radius: var(--ag-radius-sm);
+  font-size: 13px;
+}
+
+.ag-detail-panel__measurements span { color: var(--ag-text-3); }
+.ag-detail-panel__measurements strong { color: var(--ag-text-0); font-weight: 600; }
+
+/* Match Breakdown */
+.ag-detail-panel__match-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ag-detail-panel__match-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ag-detail-panel__match-label {
+  width: 80px;
+  font-size: 12px;
+  color: var(--ag-text-2);
+  text-transform: capitalize;
+}
+
+.ag-detail-panel__match-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--ag-surface-3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ag-detail-panel__match-fill {
+  height: 100%;
+  background: var(--ag-gold);
+  border-radius: 4px;
+  transition: width 0.4s var(--ag-ease-spring);
+}
+
+.ag-detail-panel__match-pct {
+  width: 36px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ag-text-1);
+}
+
+/* Portfolio grid */
+.ag-detail-panel__portfolio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ag-detail-panel__portfolio-img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--ag-radius-sm);
+}
+
+/* Empty tab */
+.ag-detail-panel__empty-tab {
+  font-size: 13px;
+  color: var(--ag-text-3);
+  text-align: center;
+  padding: 32px 0;
+}
+
+/* --- Bottom Section --- */
+.ag-detail-panel__bottom {
+  padding: 0 20px 20px;
+  border-top: 1px solid var(--ag-border);
+  margin-top: auto;
+}
+
+.ag-detail-panel__section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ag-border);
+}
+
+.ag-detail-panel__section:last-child { border-bottom: none; }
+
+/* --- Loading Skeleton --- */
+.ag-detail-panel__loading {
+  padding: 0;
+}
+
+.ag-detail-panel__skeleton-hero {
+  aspect-ratio: 16 / 9;
+  max-height: 280px;
+  background: var(--ag-surface-3);
+  animation: ag-shimmer 1.5s ease-in-out infinite;
+}
+
+.ag-detail-panel__skeleton-lines {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ag-detail-panel__skeleton-line {
+  height: 14px;
+  background: var(--ag-surface-3);
+  border-radius: 4px;
+  animation: ag-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes ag-shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* --- Dark theme override for Discover context --- */
+.ag-shell--discover .ag-detail-panel--fixed,
+.ag-shell--discover .ag-detail-panel--drawer {
+  background: #1A1815;
+  color: #FAF8F5;
+}
+
+.ag-shell--discover .ag-detail-panel__name { color: #FAF8F5; }
+.ag-shell--discover .ag-detail-panel__tab { color: rgba(250,248,245,0.5); }
+.ag-shell--discover .ag-detail-panel__tab.is-active { color: var(--ag-gold); }

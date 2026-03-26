@@ -6,6 +6,8 @@ const { v4: uuidv4 } = require('uuid');
  */
 exports.seed = async function seed(knex) {
   // Delete existing data (optional - comment out if you want to keep existing data)
+  await knex('agency_memberships').del().catch(() => {});
+  await knex('agencies').del().catch(() => {});
   await knex('commissions').del();
   await knex('images').del();
   await knex('profiles').del();
@@ -20,6 +22,20 @@ exports.seed = async function seed(knex) {
     email: 'agency@example.com',
     password_hash: passwordHash,
     role: 'AGENCY'
+  });
+
+  await knex('agencies').insert({
+    id: agencyId,
+    name: 'Pholio Partner Agency',
+    status: 'ACTIVE'
+  });
+
+  await knex('agency_memberships').insert({
+    id: uuidv4(),
+    agency_id: agencyId,
+    user_id: agencyId,
+    membership_role: 'OWNER',
+    status: 'ACTIVE'
   });
 
   // Create talent account
@@ -53,7 +69,6 @@ exports.seed = async function seed(knex) {
     // measurements column was removed - using individual bust/waist/hips instead
     bio_raw: 'Elara is a collaborative creative professional with a background in editorial campaigns and on-set leadership. Based in Los Angeles, she balances editorial edge with commercial versatility.',
     bio_curated: 'Elara Keats brings a polished presence to every production. Based in Los Angeles, she balances editorial edge with commercial versatility. Standing at 5\'11" with measurements of 32-25-35, she brings a commanding presence to both high-fashion editorials and commercial campaigns.',
-    hero_image_path: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=2000&q=80',
     is_pro: false,
     pdf_theme: null,
     pdf_customizations: null,
@@ -61,9 +76,7 @@ exports.seed = async function seed(knex) {
     // New comprehensive fields
     gender: 'Female',
     date_of_birth: '1995-06-15',
-    age: 29,
     weight_kg: 58,
-    weight_lbs: 128,
     dress_size: '4',
     hair_length: 'Long',
     skin_tone: 'Fair',
@@ -74,11 +87,8 @@ exports.seed = async function seed(knex) {
     training: 'Formal training in editorial modeling and commercial acting.',
     portfolio_url: 'https://elarakeats.portfolio.com',
     instagram_handle: 'elarakeats',
-    instagram_url: null, // Free users don't get URLs
     twitter_handle: 'elarakeats',
-    twitter_url: null, // Free users don't get URLs
     tiktok_handle: 'elarakeats',
-    tiktok_url: null, // Free users don't get URLs
     reference_name: null,
     reference_email: null,
     reference_phone: null,
@@ -150,7 +160,6 @@ exports.seed = async function seed(knex) {
     // measurements column was removed - using individual bust/waist/hips instead
     bio_raw: 'Sample talent profile for testing.',
     bio_curated: 'Sample talent profile for testing purposes.',
-    hero_image_path: '/uploads/seed/elara-headshot.webp',
     partner_agency_id: agencyId
   });
 

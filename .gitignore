@@ -9,3 +9,7 @@ uploads/
 .netlify
 netlify/function-built/
 *.log
+
+# macOS / editor noise
+.DS_Store
+**/.DS_Store

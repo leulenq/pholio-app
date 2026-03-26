@@ -90,62 +90,62 @@ The Vite dev server proxies `/api`, `/uploads`, `/upload`, `/onboarding/*` (sub-
 5. Rate limiting (applied to auth and upload routes)
 6. EJS template engine (views in `views/`, used for auth pages, portfolios, PDFs)
 7. Session middleware (`connect-session-knex` stores sessions in DB)
-8. `attachLocals()` - populates `res.locals` for EJS templates
+8. `attachLocals()` (`shared/middleware/context.js`) - populates `res.locals` for EJS templates
 9. Route handlers
 
-**Route organization (`src/routes/`):**
-- `auth.js` - Login/signup; Firebase ID token → Express session
-- `talent/` - Sub-routers: `media.js`, `profile.js`, `analytics.js`, `applications.js`, `settings.js`, `bio.js`, `pdf-customization.js`
-- `casting.js` - Talent onboarding flow API
-- `agency.js` - Agency dashboard routes
-- `api/` - JSON API routes (`talent.js`, `agency.js`, `public.js`)
-- `pdf.js` - Puppeteer PDF generation
-- `portfolio.js` - Public EJS portfolio pages
-- `chat.js`, `scout.js`, `stripe.js`, `stripe-webhook.js`, `upload.js`
+**Route organization — domain routers (`src/domains/`):**
+- `domains/auth/routes/auth.js` - Login/signup; Firebase ID token → Express session
+- `domains/onboarding/routes/casting.js` - Talent casting / onboarding API (`/onboarding/*` and related endpoints)
+- `domains/talent/routes/` - Talent dashboard + `/api/talent/*`; `index.js` mounts `media.js`, `profile.js`, `analytics.js`, `applications.js`, `agencies.js`, `settings.js`, `pdf-custom.js`, `dashboard.js`, `bio.js`
+- `domains/agency/routes/` - Agency dashboard APIs; `index.js` composes `roster.js`, `inbox.js`, `casting.js`, `tags.js`, `interviews.js`, `reminders.js`, `messages.js`, `overview.js` (JSON under `/api/agency/*` and companion `/agency/*` routes as defined per file)
+- `domains/pdf/routes/pdf.js` - Puppeteer PDF generation
 
-**Key middleware (`src/middleware/`):**
-- `requireAuth()` - Checks session; API routes return 401 JSON, page routes redirect to `/login`
-- `requireRole('TALENT'|'AGENCY')` - Role enforcement
-- Detects API requests by Accept header, XHR flag, or `/api/*` path prefix
+**Route organization — shared entrypoints (`src/routes/`):**
+Still used for cross-cutting HTTP handlers wired from `src/app.js`, including `api.js` (mounted at `/api`), `api/public.js` (`/api/public`), `chat.js`, `scout.js`, `stripe.js`, `pro.js`, and the raw-body `stripe-webhook.js` handler. Additional modules (e.g. `portfolio.js`, `upload.js`) may live here; confirm `app.js` for current `app.use` registration.
 
-**Business logic (`src/lib/`):**
-- `onboarding/casting-machine.js` - Current onboarding state machine (Entry → Scout → Measurements → Profile → Review)
-- `onboarding/state-machine.js` - Legacy machine kept for backward compatibility
-- `ai/` - Photo analysis via Groq
-- `pdf.js`, `uploader.js`, `slugify.js`, `curate.js`, `geolocation.js`, `firebase-admin.js`, `stripe.js`
+**Key middleware:**
+- `domains/auth/middleware/require-auth.js` - `requireAuth()` checks session; API routes return 401 JSON, page routes redirect to `/login`. `requireRole('TALENT'|'AGENCY')` for role enforcement. API detection uses Accept / XHR plus paths such as `/api/*` and `/onboarding/*`.
+- `shared/middleware/context.js` - `attachLocals`, request flash/message helpers
+- `shared/middleware/onboarding-redirect.js` - `requireOnboardingComplete` (dashboard gating)
+- `shared/middleware/require-profile-unlocked.js` - Services lock for comp card / portfolio flows
+- `shared/middleware/error-handler.js` - Centralized error handler
+
+**Business logic and shared services:**
+- `domains/onboarding/services/` - Onboarding/casting pipeline (e.g. `state-machine.js`, signal collection, providers)
+- `domains/ai/` - Photo analysis via Groq, embeddings, scoring helpers
+- `domains/talent/services/`, `domains/agency/services/` - Domain-specific orchestration and helpers
+- `domains/pdf/` - PDF themes, layouts, generator (alongside `domains/pdf/routes/pdf.js`)
+- `domains/auth/services/` - Firebase Admin initialization and auth-related server helpers
+- `shared/lib/` - Cross-cutting utilities: `uploader.js`, `slugify.js`, `curate.js`, `geolocation.js`, `stripe.js`, `email.js`, etc.
+- `shared/db/knex.js` - Knex client
 
 ### Frontend Structure (`client/src/`)
 
 **Routing (`App.jsx` - React Router v7):**
-- `<DashboardLayoutShell>` wraps `/dashboard/talent/*`
-- `<AgencyLayout>` wraps `/dashboard/agency/*`
-- `<AuthLayout>` wraps `/login`
+- `<DashboardLayoutShell>` (`shared/layouts/DashboardLayoutShell.jsx`) wraps `/dashboard/talent/*`
+- `<AgencyLayout>` (`shared/layouts/AgencyLayout.jsx`) wraps `/dashboard/agency/*` (behind `domains/agency/components/AgencySessionGate.jsx` where used)
+- `<AuthLayout>` (`shared/layouts/AuthLayout.jsx`) wraps `/login`
 - Standalone: `/onboarding/*` (casting), `/reveal`
 - Root `/` redirects to `/dashboard/talent`
-- Top-level `<ErrorBoundary>` wraps the entire app
+- Top-level `<ErrorBoundary>` (`shared/components/ErrorBoundary.jsx`) wraps the entire app
 
 **State management:**
 - React Query (TanStack Query v5) for all server state
-- React Hook Form v7 + Zod schemas (`schemas/`) for forms
-- Custom hooks: `useAuth`, `useProfile`, `useMedia`, `useAnalytics`, `useStats`
+- React Hook Form v7 + Zod schemas (`schemas/`, e.g. `profileSchema.ts`) for forms
+- Custom hooks live next to their domain: `domains/auth/hooks/useAuth.js`; talent data hooks in `domains/talent/hooks/` (`useProfile`, `useMedia`, `useAnalytics`, `useProfileStrength`, …); `domains/agency/hooks/useStats.js`. Shared UX hooks in `shared/hooks/`.
 
-**API client pattern (`api/`):**
-
-`api/client.js` wraps `fetch` with:
-- `credentials: 'include'` (session cookies)
-- Auto-unwraps `{ success: true, data: {...} }` → returns `.data` directly
-- `ApiError(message, status, data)` custom class
-- 401 → redirects to `/login?redirect=...` (suppressible via `skipRedirect` option)
-
-`api/talent.js` exposes named methods against `/api/talent/*` base.
-`api/agency.js` exposes named methods against `/api/agency/*` base.
+**API clients:**
+- `shared/lib/api-client.js` - Session `fetch` wrapper for talent calls (default base `/api/talent`): `credentials: 'include'`, unwraps `{ success, data }`, `ApiError`, 401 → `/login` (suppress via `skipRedirect` where supported)
+- `domains/talent/api/talent.js` - Named methods composing the talent API client
+- `domains/agency/api/agency.js` - Agency dashboard `fetch` helpers against `/api/agency/*` (parallel pattern to talent; see file for `ApiError` / helpers)
 
 **Component organization:**
-- `routes/talent/`, `routes/agency/` - Page-level components
-- `components/ui/forms/` - Shared: `PholioInput`, `PholioSelect`, `PholioTextarea`, `PholioToggle`
-- `components/agency/` - Agency-specific UI (ActivityTimeline, InterviewCard, ReminderCard, etc.)
-- `features/` - Feature modules: `media/`, `applications/`, `analytics/`, `dashboard/`, `profile/`
-- `layouts/` - Layout wrappers: `DashboardLayoutShell.jsx`, `AgencyLayout.jsx`
+- `domains/talent/pages/`, `domains/talent/components/` - Talent dashboard screens and widgets (e.g. `RightSidebar/`, media/profile views)
+- `domains/agency/pages/`, `domains/agency/components/` - Agency dashboard (e.g. `ActivityTimeline`, `InterviewCard`, `ReminderCard`, `nav/`, `ui/`)
+- `domains/auth/pages/`, `domains/auth/components/` - Login and auth-adjacent UI
+- `domains/onboarding/pages/`, `domains/onboarding/components/` - Casting / onboarding flow UI
+- `shared/components/` - Cross-cutting UI: `ui/forms/` (`PholioInput`, `PholioSelect`, `PholioTextarea`, `PholioToggle`, …), `Card/`, `StatCard/`, loaders, `Header/`, etc.
+- `shared/layouts/` - `DashboardLayoutShell.jsx`, `AgencyLayout.jsx`, `AuthLayout.jsx`
 
 ### Design Token System
 
