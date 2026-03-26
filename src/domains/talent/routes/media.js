@@ -1190,4 +1190,270 @@ router.patch(
   }),
 );
 
+// --- Submission packages (media + comp-card intent snapshot) ---
+
+const SUBMISSION_PACKAGE_MAX_IMAGES = 50;
+const SUBMISSION_PACKAGE_MAX_LABEL = 200;
+const SUBMISSION_PACKAGE_MAX_NOTES = 2000;
+const SUBMISSION_PACKAGE_MAX_METADATA_BYTES = 24 * 1024;
+const SUBMISSION_PACKAGE_LIST_DEFAULT = 20;
+const SUBMISSION_PACKAGE_LIST_MAX = 50;
+
+function parseSubmissionPackagePayloadFromDb(raw) {
+  if (raw == null) return {};
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return {};
+    try {
+      const parsed = JSON.parse(t);
+      if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed)
+      ) {
+        return { ...parsed };
+      }
+    } catch {
+      /* ignore */
+    }
+    return {};
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return { ...raw };
+  }
+  return {};
+}
+
+function normalizeSubmissionPackageMetadata(bodyMetadata) {
+  if (bodyMetadata == null) return { ok: true, value: {} };
+  if (typeof bodyMetadata !== "object" || Array.isArray(bodyMetadata)) {
+    return { ok: false, error: "metadata must be a plain object" };
+  }
+  let encoded;
+  try {
+    encoded = JSON.stringify(bodyMetadata);
+  } catch {
+    return { ok: false, error: "metadata is not JSON-serializable" };
+  }
+  if (encoded.length > SUBMISSION_PACKAGE_MAX_METADATA_BYTES) {
+    return { ok: false, error: "metadata exceeds maximum size" };
+  }
+  return { ok: true, value: JSON.parse(encoded) };
+}
+
+function dedupeUuidImageIds(rawIds) {
+  const out = [];
+  const seen = new Set();
+  if (!Array.isArray(rawIds)) {
+    return { ok: false, error: "imageIds must be an array", ids: [] };
+  }
+  for (const raw of rawIds) {
+    const id = typeof raw === "string" ? raw.trim() : "";
+    if (!isUuid(id)) {
+      return {
+        ok: false,
+        error: "Each imageIds entry must be a valid UUID",
+        ids: [],
+      };
+    }
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  if (out.length === 0) {
+    return { ok: false, error: "At least one image id is required", ids: [] };
+  }
+  if (out.length > SUBMISSION_PACKAGE_MAX_IMAGES) {
+    return {
+      ok: false,
+      error: `At most ${SUBMISSION_PACKAGE_MAX_IMAGES} images per package`,
+      ids: [],
+    };
+  }
+  return { ok: true, ids: out };
+}
+
+function submissionPackageRowToApi(row) {
+  return {
+    id: row.id,
+    label: row.label,
+    payload: parseSubmissionPackagePayloadFromDb(row.payload),
+    createdAt: row.created_at,
+  };
+}
+
+/**
+ * POST /api/talent/media/submission-packages
+ * Body: { imageIds: string[], metadata?: object, includeCompCard?: boolean, label?: string, notes?: string }
+ */
+router.post(
+  "/submission-packages",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const profile = await knex("profiles").where({ user_id: userId }).first();
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
+
+    const deduped = dedupeUuidImageIds(req.body?.imageIds);
+    if (!deduped.ok) {
+      return res.status(400).json({ success: false, message: deduped.error });
+    }
+
+    const metaResult = normalizeSubmissionPackageMetadata(req.body?.metadata);
+    if (!metaResult.ok) {
+      return res
+        .status(400)
+        .json({ success: false, message: metaResult.error });
+    }
+
+    const labelRaw =
+      typeof req.body?.label === "string" ? req.body.label.trim() : "";
+    const label = labelRaw.slice(0, SUBMISSION_PACKAGE_MAX_LABEL) || null;
+
+    const notesRaw =
+      typeof req.body?.notes === "string" ? req.body.notes.trim() : "";
+    const notes = notesRaw.slice(0, SUBMISSION_PACKAGE_MAX_NOTES) || null;
+
+    const includeCompCard = Boolean(req.body?.includeCompCard);
+
+    const owned = await knex("images")
+      .where({ profile_id: profile.id })
+      .whereIn("id", deduped.ids)
+      .select("id");
+
+    if (owned.length !== deduped.ids.length) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "One or more images were not found or do not belong to your profile",
+      });
+    }
+
+    const packageId = uuidv4();
+    const payload = {
+      version: 1,
+      imageIds: deduped.ids,
+      metadata: metaResult.value,
+      includeCompCard,
+      notes,
+    };
+
+    await knex("talent_submission_packages").insert({
+      id: packageId,
+      user_id: userId,
+      profile_id: profile.id,
+      label,
+      payload,
+      created_at: knex.fn.now(),
+    });
+
+    await logActivity(userId, "submission_package_created", {
+      submissionPackageId: packageId,
+      profileId: profile.id,
+      imageCount: deduped.ids.length,
+      includeCompCard,
+      label: label || undefined,
+    });
+
+    const row = await knex("talent_submission_packages")
+      .where({ id: packageId, user_id: userId })
+      .first();
+
+    return res.status(201).json({
+      success: true,
+      data: submissionPackageRowToApi(row),
+    });
+  }),
+);
+
+/**
+ * GET /api/talent/media/submission-packages
+ * Query: limit (optional, default 20, max 50)
+ */
+router.get(
+  "/submission-packages",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const profile = await knex("profiles").where({ user_id: userId }).first();
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
+
+    let limit = parseInt(String(req.query?.limit || ""), 10);
+    if (!Number.isFinite(limit) || limit < 1) {
+      limit = SUBMISSION_PACKAGE_LIST_DEFAULT;
+    }
+    limit = Math.min(limit, SUBMISSION_PACKAGE_LIST_MAX);
+
+    const rows = await knex("talent_submission_packages")
+      .where({ user_id: userId, profile_id: profile.id })
+      .orderBy("created_at", "desc")
+      .limit(limit)
+      .select("id", "label", "payload", "created_at");
+
+    return res.json({
+      success: true,
+      data: rows.map((r) => submissionPackageRowToApi(r)),
+    });
+  }),
+);
+
+/**
+ * GET /api/talent/media/submission-packages/:id
+ */
+router.get(
+  "/submission-packages/:id",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const packageId = req.params.id;
+    if (!isUuid(packageId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid package id" });
+    }
+
+    const profile = await knex("profiles").where({ user_id: userId }).first();
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
+
+    const row = await knex("talent_submission_packages")
+      .where({
+        id: packageId,
+        user_id: userId,
+        profile_id: profile.id,
+      })
+      .first();
+
+    if (!row) {
+      return res.status(404).json({
+        success: false,
+        error: "Not found",
+        message: "Submission package not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: submissionPackageRowToApi(row),
+    });
+  }),
+);
+
 module.exports = router;
