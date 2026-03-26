@@ -16,15 +16,49 @@ function parseRole(img) {
   } catch { return null; }
 }
 
+function hasShotType(img) {
+  return img.shot_type != null && String(img.shot_type).trim() !== '';
+}
+
+function hasStyleType(img) {
+  return img.style_type != null && String(img.style_type).trim() !== '';
+}
+
+/** Comp-card readiness slots: prefer structured shot/style; fall back to metadata.role when unset. */
+function imageFillsSlot(img, slotRole) {
+  const legacy = parseRole(img);
+  switch (slotRole) {
+    case 'headshot':
+      if (img.shot_type === 'headshot') return true;
+      if (!hasShotType(img) && legacy === 'headshot') return true;
+      return false;
+    case 'full_body':
+      if (img.shot_type === 'full_length' || img.shot_type === 'three_quarter') return true;
+      if (!hasShotType(img) && legacy === 'full_body') return true;
+      return false;
+    case 'editorial':
+      if (img.style_type === 'editorial') return true;
+      if (!hasStyleType(img) && legacy === 'editorial') return true;
+      return false;
+    case 'lifestyle':
+      if (img.style_type === 'lifestyle') return true;
+      if (!hasStyleType(img) && legacy === 'lifestyle') return true;
+      return false;
+    default:
+      return false;
+  }
+}
+
 export default function ReadinessBar({ images = [] }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const roleStatus = useMemo(() => {
     const filled = {};
-    images.forEach(img => {
-      const r = parseRole(img);
-      if (r && !filled[r]) filled[r] = true;
-    });
+    for (const img of images) {
+      for (const slot of ROLE_SLOTS) {
+        if (imageFillsSlot(img, slot.role)) filled[slot.role] = true;
+      }
+    }
 
     return ROLE_SLOTS.map(slot => ({
       ...slot,
@@ -36,6 +70,12 @@ export default function ReadinessBar({ images = [] }) {
   const total = ROLE_SLOTS.length;
   const isComplete = filledCount === total;
   const progressPct = Math.round((filledCount / total) * 100);
+
+  React.useEffect(() => {
+    if (!isComplete && collapsed) {
+      setCollapsed(false);
+    }
+  }, [isComplete, collapsed]);
 
   // If all roles filled, show compact "ready" state
   if (isComplete && collapsed) return null;

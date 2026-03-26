@@ -24,6 +24,19 @@ function getTimeAgo(date) {
   return then.toLocaleDateString();
 }
 
+function parseActivityMetadata(rawMetadata) {
+  if (!rawMetadata) return {};
+  if (typeof rawMetadata === "object") return rawMetadata;
+  if (typeof rawMetadata === "string") {
+    try {
+      return JSON.parse(rawMetadata);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
 /**
  * GET /api/talent/analytics
  * Get analytics data for the profile
@@ -198,10 +211,7 @@ router.get(
 
     // Format activities
     const formattedActivities = activities.map((activity) => {
-      const metadata =
-        typeof activity.metadata === "string"
-          ? JSON.parse(activity.metadata)
-          : activity.metadata || {};
+      const metadata = parseActivityMetadata(activity.metadata);
 
       let message = "";
       let icon = "📝";
@@ -253,8 +263,6 @@ router.get(
  * Get summary stats for dashboard overview
  */
 const { calculateProfileCompleteness } = require("../services/completeness");
-
-// ... (existing code) ...
 
 router.get(
   "/summary",
@@ -486,6 +494,10 @@ router.get(
       .where({ user_id: req.session.userId })
       .first();
     if (!profile) return res.json({ success: true, insights: [] });
+
+    const images = await knex("images")
+      .where({ profile_id: profile.id })
+      .select("id", "is_primary");
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

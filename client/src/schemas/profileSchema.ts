@@ -62,7 +62,9 @@ export const profileSchema = z.object({
 
   // --- Professional & Availability ---
   work_status: z.string().nullable().optional(),
-  work_eligibility: z.union([z.boolean(), z.null()]).optional().transform(v => v ?? false),
+  /** true = authorized, false = not authorized, null = not specified (backend accepts boolean or null). */
+  work_eligibility: z.union([z.boolean(), z.null()]).optional(),
+  passport_ready: z.union([z.boolean(), z.null()]).optional().transform(v => v ?? false),
   availability_travel: z.union([z.boolean(), z.null()]).optional().transform(v => v ?? false),
   drivers_license: z.union([z.boolean(), z.null()]).optional().transform(v => v ?? false),
   availability_schedule: z.string().nullable().optional(),
@@ -75,6 +77,8 @@ export const profileSchema = z.object({
   
   // Representation (New Fields)
   seeking_representation: coercedBoolean,
+  /** UI-only tri-state; stripped before API — kept in sync with seeking_representation + current_agency on load/submit. */
+  representation_status: z.enum(['seeking', 'represented', 'not_seeking']).optional(),
   current_agency: z.string().nullable().optional(),
   previous_representations: z.any().optional(),
 
@@ -85,7 +89,7 @@ export const profileSchema = z.object({
 
   // --- Credits ---
   experience_level: z.union([z.string(), z.null(), z.undefined()]),
-  experience_details: z.string().nullable().optional(),
+  experience_details: z.any().optional(),
 
   // --- References & Emergency ---
   emergency_contact_name: z.string().nullable().optional(),

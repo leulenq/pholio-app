@@ -42,6 +42,19 @@ const {
 } = require("../services/providers/google");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const OnboardingAnalytics = require("../analytics/onboarding-events");
+const {
+  updateProfileCompleteness,
+} = require("../../talent/services/profile-completeness");
+
+function invalidOnboardingSequence(res, state, message) {
+  return res.status(403).json({
+    error: "Invalid onboarding sequence",
+    message:
+      message || "Complete prior onboarding steps in order before this action.",
+    current_step: state.current_step,
+    completed_steps: state.completed_steps || [],
+  });
+}
 
 /**
  * Validation Schemas
@@ -337,6 +350,14 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         knex,
       );
 
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Cannot advance onboarding from the current step via entry.",
+        );
+      }
+
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
     }
 
@@ -430,6 +451,14 @@ router.post(
         },
         knex,
       );
+
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Email verification does not apply at this onboarding step.",
+        );
+      }
 
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
 
@@ -673,6 +702,14 @@ router.post(
         },
         knex,
       );
+
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Confirm your photo after the scout step when it is the current step.",
+        );
+      }
 
       // Also mark analysis status as complete on the profile
       updatePayload.analysis_status = "complete";
@@ -978,6 +1015,14 @@ router.post(
         knex,
       );
 
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Confirm measurements when measurements is the current onboarding step.",
+        );
+      }
+
       // Merge measurement values into the same update payload
       // Ensure unexpected nulls/undefined doesn't override existing data with null unless intended
       // But for this flow, user input is authoritative for the session.
@@ -1046,19 +1091,6 @@ router.post(
       // This allows "Emerging", "Established" etc without failing
       // if (experience_level && !validLevels.includes(experience_level)) { ... }
 
-      // Update profile with gender included
-      await knex("profiles")
-        .where({ id: profile.id })
-        .update({
-          city: city || "Not specified",
-          gender: gender
-            ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase()
-            : null,
-          experience_level: experience_level || "beginner",
-          updated_at: knex.fn.now(),
-        });
-
-      // Transition state to 'done' directly (reveal is now standalone)
       const state = getState(profile);
       const updatePayload = transitionTo(
         state,
@@ -1070,10 +1102,24 @@ router.post(
         knex,
       );
 
-      // Add onboarding_completed_at timestamp
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Finish measurements and reach the profile step before completing onboarding.",
+        );
+      }
+
+      updatePayload.city = city || "Not specified";
+      updatePayload.gender = gender
+        ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase()
+        : null;
+      updatePayload.experience_level = experience_level || "beginner";
       updatePayload.onboarding_completed_at = knex.fn.now();
 
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
+
+      await updateProfileCompleteness(profile.id);
 
       console.log("[Casting Profile] Profile updated and onboarding completed");
 
@@ -1113,6 +1159,20 @@ router.post(
         });
       }
 
+      // Guard against using reveal-complete as a completion shortcut.
+      // The canonical completion path is /onboarding/profile (or /onboarding/complete)
+      // which must set onboarding_completed_at first.
+      if (!profile.onboarding_completed_at) {
+        const state = getState(profile);
+        return res.status(403).json({
+          error: "Prerequisites not met",
+          message:
+            "Complete the profile step before marking reveal as complete.",
+          current_step: state.current_step,
+          completed_steps: state.completed_steps || [],
+        });
+      }
+
       // Transition state to 'done' and mark reveal viewed
       const state = getState(profile);
       const updatePayload = transitionTo(
@@ -1124,6 +1184,14 @@ router.post(
         },
         knex,
       );
+
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Reveal completion is only valid once the prior onboarding steps are complete.",
+        );
+      }
 
       updatePayload.onboarding_completed_at = knex.fn.now();
 
@@ -1227,6 +1295,8 @@ router.post(
       }
       // ── End AI Pipeline ────────────────────────────────────────────────────
 
+      await updateProfileCompleteness(profile.id);
+
       return res.json({
         success: true,
         next_step: "complete",
@@ -1291,6 +1361,14 @@ router.post(
         knex,
       );
 
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Cannot mark onboarding complete from the current step.",
+        );
+      }
+
       // Add onboarding_completed_at timestamp (for middleware compatibility)
       updatePayload.onboarding_completed_at = knex.fn.now();
 
@@ -1304,6 +1382,8 @@ router.post(
       }
 
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
+
+      await updateProfileCompleteness(profile.id);
 
       // Track completion
       await OnboardingAnalytics.trackCompletion(profile.id, "done", null, {

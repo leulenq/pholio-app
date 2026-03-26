@@ -1,6 +1,10 @@
 /**
  * Apply Essentials Wizard Routes - Phase A
  * Handles full-screen wizard for essential model info collection
+ *
+ * NOT MOUNTED in `src/app.js` (2025+): onboarding is driven by the React SPA +
+ * `domains/onboarding/routes/casting.js`.
+ * This file is retained for reference or a future EJS wizard; do not assume these URLs are live.
  */
 
 const express = require("express");

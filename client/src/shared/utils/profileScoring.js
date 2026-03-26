@@ -3,14 +3,72 @@
  * Kept in the SPA so Vite can bundle without importing Node/CommonJS server modules.
  */
 
+/** DOM section ids on the talent profile page (scroll targets). */
+export const PROFILE_STRENGTH_SCROLL_TARGETS = {
+  name: 'identity',
+  city: 'identity',
+  dob: 'identity',
+  gender: 'identity',
+  height: 'appearance',
+  measurements: 'appearance',
+  photo: 'photos-tab',
+  bio: 'identity',
+  weight: 'appearance',
+  appearance: 'appearance',
+  shoe: 'appearance',
+  skin: 'appearance',
+  status: 'roles',
+  exp: 'credits',
+  training: 'training',
+  social: 'socials',
+  emergency: 'contact',
+};
+
 export const calculateProfileStrength = (data) => {
-  if (!data) return { score: 0, isCoreReady: false, missingCoreItems: [], nextSteps: [] };
+  const emptyCompletion = {
+    name: false,
+    city: false,
+    dob: false,
+    gender: false,
+    height: false,
+    measurements: false,
+    photo: false,
+    bio: false,
+    weight: false,
+    appearance: false,
+    shoe: false,
+    skin: false,
+    status: false,
+    exp: false,
+    training: false,
+    social: false,
+    emergency: false,
+  };
+
+  if (!data) {
+    return {
+      score: 0,
+      requiredScore: 0,
+      improveScore: 0,
+      isRequiredComplete: false,
+      isCoreReady: false,
+      missingCoreItems: [],
+      nextSteps: [],
+      allNextSteps: [],
+      fieldCompletion: emptyCompletion,
+      scrollTargetByKey: PROFILE_STRENGTH_SCROLL_TARGETS,
+    };
+  }
 
   let requiredScore = 0;
   let improveScore = 0;
   const missingFields = [];
 
-  const isPresent = (val) => val !== null && val !== undefined && val !== '';
+  const isPresent = (val) => {
+    if (val === null || val === undefined || val === '') return false;
+    if (typeof val === 'string') return val.trim() !== '';
+    return true;
+  };
 
   const parseJSON = (val) => {
     if (!val) return [];
@@ -26,7 +84,7 @@ export const calculateProfileStrength = (data) => {
   };
 
   const hasName = isPresent(data.first_name) && isPresent(data.last_name);
-  const hasCity = isPresent(data.city) && data.city !== 'Not specified';
+  const hasCity = isPresent(data.city) && String(data.city).trim() !== 'Not specified';
   const hasDOB = isPresent(data.date_of_birth) || isPresent(data.dob);
   const hasGender = isPresent(data.gender);
 
@@ -42,7 +100,7 @@ export const calculateProfileStrength = (data) => {
   if (hasGender) requiredScore += 4;
   else missingFields.push({ label: 'Gender', impact: 'Critical', link: '/dashboard/talent/profile?tab=details', points: 4, tier: 'Required' });
 
-  const hasHeight = isPresent(data.height_cm) && data.height_cm > 0;
+  const hasHeight = isPresent(data.height_cm) && Number(data.height_cm) > 0;
   const hasMeasurements = (isPresent(data.bust) || isPresent(data.bust_cm) || isPresent(data.chest)) &&
     (isPresent(data.waist) || isPresent(data.waist_cm)) &&
     (isPresent(data.hips) || isPresent(data.hips_cm));
@@ -53,23 +111,28 @@ export const calculateProfileStrength = (data) => {
   if (hasMeasurements) requiredScore += 15;
   else missingFields.push({ label: 'Measurements (Bust/Waist/Hips)', impact: 'Critical', link: '/dashboard/talent/profile?tab=physical', points: 15, tier: 'Required' });
 
-  const hasHeadshot = isPresent(data.primary_photo_id) ||
+  const hasGalleryImage = Array.isArray(data.images) && data.images.length > 0;
+  const hasHeadshot =
+    isPresent(data.primary_photo_id) ||
     (data.images && data.images.some((img) => img.is_primary || img.isPrimary)) ||
-    isPresent(data.hero_image_path);
+    isPresent(data.hero_image_path) ||
+    hasGalleryImage;
   if (hasHeadshot) requiredScore += 15;
   else missingFields.push({ label: 'Primary Photo', impact: 'Critical', link: '/dashboard/talent/profile?tab=photos', points: 15, tier: 'Required' });
 
-  const bioLength = data.bio?.length || data.bio_raw?.length || 0;
+  const bioSource = data.bio ?? data.bio_raw ?? '';
+  const bioLength = String(bioSource).trim().length;
   const hasBio = bioLength > 50;
   const hasPronouns = isPresent(data.pronouns);
   if (hasBio) improveScore += 7;
   else missingFields.push({ label: 'Professional Bio', impact: 'Medium', link: '/dashboard/talent/profile?tab=details', points: 7, tier: 'Improve' });
   if (hasPronouns) improveScore += 3;
 
-  const hasWeight = isPresent(data.weight_kg) && data.weight_kg > 0;
+  const hasWeight = isPresent(data.weight_kg) && Number(data.weight_kg) > 0;
   const hasBasicLook = isPresent(data.eye_color) && isPresent(data.hair_color);
   const hasShoe = isPresent(data.shoe_size);
-  const hasPhysicalDetails = isPresent(data.skin_tone) || isPresent(data.tattoos);
+  const hasPhysicalDetails =
+    isPresent(data.skin_tone) || data.tattoos === true || data.piercings === true;
 
   if (hasWeight) improveScore += 2;
   if (hasBasicLook) improveScore += 3;
@@ -83,7 +146,8 @@ export const calculateProfileStrength = (data) => {
   const skills = parseJSON(data.specialties);
   const languages = parseJSON(data.languages);
   const hasExpLevel = isPresent(data.experience_level);
-  const hasTrainingSkills = training.length > 30 || (skills && skills.length > 0) || (languages && languages.length > 0);
+  const trainingStr = typeof training === 'string' ? training : String(training ?? '');
+  const hasTrainingSkills = trainingStr.trim().length > 30 || (Array.isArray(skills) && skills.length > 0) || (Array.isArray(languages) && languages.length > 0);
 
   if (hasStatus) improveScore += 4;
   else missingFields.push({ label: 'Work Status', impact: 'Medium', link: '/dashboard/talent/profile?tab=details', points: 4, tier: 'Improve' });
@@ -126,6 +190,26 @@ export const calculateProfileStrength = (data) => {
     });
   }
 
+  const fieldCompletion = {
+    name: hasName,
+    city: hasCity,
+    dob: hasDOB,
+    gender: hasGender,
+    height: hasHeight,
+    measurements: hasMeasurements,
+    photo: hasHeadshot,
+    bio: hasBio,
+    weight: hasWeight,
+    appearance: hasBasicLook,
+    shoe: hasShoe,
+    skin: hasPhysicalDetails,
+    status: hasStatus,
+    exp: hasExpLevel,
+    training: hasTrainingSkills,
+    social: hasSocial,
+    emergency: hasEmergency,
+  };
+
   return {
     score: percentage,
     requiredScore,
@@ -135,6 +219,8 @@ export const calculateProfileStrength = (data) => {
     missingCoreItems: sortedMissing.filter((f) => f.tier === 'Required').map((f) => f.label),
     nextSteps: nextSteps.slice(0, 3),
     allNextSteps: nextSteps,
+    fieldCompletion,
+    scrollTargetByKey: PROFILE_STRENGTH_SCROLL_TARGETS,
   };
 };
 

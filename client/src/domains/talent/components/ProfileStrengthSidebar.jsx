@@ -1,27 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Check, ChevronDown, ChevronUp, Lock } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { calculateProfileStrength, getStrengthUI } from '../../../shared/utils/profileScoring';
-import { useProfileStrength } from '../hooks/useProfileStrength';
 import styles from './ProfileStrengthSidebar.module.css';
 
 export default function ProfileStrengthSidebar({ values, isSaving, isDisabled, onSaveClick, onItemClick }) {
   const [expanded, setExpanded] = useState(false);
   
-  // 1. Official Strength (Server-side source of truth)
-  const official = useProfileStrength();
-  
-  // 2. Live Strength (Interactive preview while typing)
+  // Live Strength (interactive preview while typing)
   const liveStrength = useMemo(() => calculateProfileStrength(values), [values]);
-  
-  const { score, isRequiredComplete, allNextSteps } = liveStrength;
-  const ui = getStrengthUI(score, isRequiredComplete);
 
-  // Helper for completeness
-  const checkFieldComplete = (fieldLabel) => {
-    // If it's NOT in allNextSteps, it's considered complete
-    return !allNextSteps.some(step => step.title === fieldLabel);
-  };
+  const { score, isRequiredComplete, fieldCompletion, scrollTargetByKey } = liveStrength;
+  const ui = getStrengthUI(score, isRequiredComplete);
+  const hasUnsavedChanges = !isDisabled && !isSaving;
 
   // Group 1: Required (60%)
   // Aligned with backend/essentials-check.js + Onboarding
@@ -32,10 +22,10 @@ export default function ProfileStrengthSidebar({ values, isSaving, isDisabled, o
     { label: 'Gender', key: 'gender' },
     { label: 'Height', key: 'height' },
     { label: 'Measurements (Bust/Waist/Hips)', key: 'measurements' },
-    { label: 'Primary Photo', key: 'photo' }
-  ].map(item => ({
+    { label: 'Primary Photo', key: 'photo' },
+  ].map((item) => ({
     ...item,
-    isComplete: checkFieldComplete(item.label)
+    isComplete: fieldCompletion[item.key],
   }));
 
   // Group 2: Improve (40%)
@@ -49,14 +39,13 @@ export default function ProfileStrengthSidebar({ values, isSaving, isDisabled, o
     { label: 'Experience Level', key: 'exp' },
     { label: 'Training & Specialties', key: 'training' },
     { label: 'Social Links', key: 'social' },
-    { label: 'Emergency Contact', key: 'emergency' }
-  ].map(item => ({
+    { label: 'Emergency Contact', key: 'emergency' },
+  ].map((item) => ({
     ...item,
-    isComplete: checkFieldComplete(item.label)
+    isComplete: fieldCompletion[item.key],
   }));
 
-  const missingRequired = requiredItems.filter(i => !i.isComplete);
-  const missingImprove = improveItems.filter(i => !i.isComplete);
+  const missingImprove = improveItems.filter((i) => !i.isComplete);
 
   const statusColor = isRequiredComplete ? (score === 100 ? 'statusGold' : 'statusGreen') : 'statusRed';
   const progressColor = isRequiredComplete ? (score === 100 ? 'statusGold' : 'progressGreen') : 'progressRed';
@@ -64,19 +53,8 @@ export default function ProfileStrengthSidebar({ values, isSaving, isDisabled, o
   const visibleImprove = expanded ? missingImprove : missingImprove.slice(0, 3);
   const hiddenImproveCount = Math.max(0, missingImprove.length - 3);
 
-  const getTargetSection = (label) => {
-    if (label.includes('Name') || label.includes('City') || label.includes('Date') || label.includes('Gender') || label.includes('Bio')) return 'identity';
-    if (label.includes('Photo')) return 'hero-section';
-    if (label.includes('Height') || label.includes('Weight') || label.includes('Measurements') || label.includes('Eye') || label.includes('Shoe') || label.includes('Skin')) return 'appearance';
-    if (label.includes('Work Status') || label.includes('Experience')) return 'roles';
-    if (label.includes('Training') || label.includes('Specialties')) return 'training';
-    if (label.includes('Social')) return 'socials';
-    if (label.includes('Emergency')) return 'contact';
-    return null;
-  };
-
   const renderItem = (item, tier) => {
-    const targetSection = !item.isComplete ? getTargetSection(item.label) : null;
+    const targetSection = !item.isComplete ? scrollTargetByKey[item.key] : null;
     
     if (item.isComplete) {
       if (isRequiredComplete && tier === 'required') return null; // Hide completed required items once all are done
@@ -123,14 +101,14 @@ export default function ProfileStrengthSidebar({ values, isSaving, isDisabled, o
           <div className={styles.scoreWrapper}>
             <span className={styles.score}>{score}%</span>
             <span className={styles.scoreLabel}>Strength</span>
-            {official.score !== score && (
-              <span className={styles.liveIndicator}>Live</span>
-            )}
           </div>
-          
+
           <div className={`${styles.statusPill} ${styles[statusColor]}`}>
-            {official.score}% Verified Ready
+            {ui.label}
           </div>
+          {hasUnsavedChanges && (
+            <p className={styles.unsavedHint}>Unsaved changes</p>
+          )}
         </div>
 
         {/* Progress Bar */}

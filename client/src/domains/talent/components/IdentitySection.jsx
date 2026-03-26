@@ -3,11 +3,10 @@ import { Controller } from 'react-hook-form';
 import { Sparkles } from 'lucide-react';
 import { PholioInput, PholioTextarea } from '../../../shared/components/ui/forms';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
+import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
-import { Controller as RHFController } from 'react-hook-form';
 
-// Compute age from DOB
 function computeAge(dob) {
   if (!dob) return null;
   const birth = new Date(dob);
@@ -31,7 +30,7 @@ export const IdentitySection = ({
   previousBio,
   handleAIImprove,
   handleUndoAI,
-  watchDob // pass watch('date_of_birth') from parent
+  watchDob
 }) => {
   const age = computeAge(watchDob);
   return (
@@ -57,11 +56,19 @@ export const IdentitySection = ({
       </div>
 
       <div className={`${styles.formGrid2} ${styles.formRow}`}>
-        <PholioInput
-          label="City"
-          placeholder="New York, NY"
-          error={errors.city}
-          {...register('city')}
+        <Controller
+          name="city"
+          control={control}
+          render={({ field }) => (
+            <CityAutocompleteField
+              label="City"
+              placeholder="Start typing — e.g. New York, USA"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.city}
+            />
+          )}
         />
         <Controller
           name="gender"
@@ -94,16 +101,21 @@ export const IdentitySection = ({
             {...register('date_of_birth')}
           />
           {age !== null && (
-            <span style={{
-              position: 'absolute', right: '12px', top: '38px',
-              fontSize: '13px', color: 'rgba(255,255,255,0.4)',
-              pointerEvents: 'none'
-            }}>
+            <span
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '38px',
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.4)',
+                pointerEvents: 'none'
+              }}
+            >
               {age} yrs
             </span>
           )}
         </div>
-        <RHFController
+        <Controller
           name="pronouns"
           control={control}
           render={({ field }) => (
@@ -127,7 +139,6 @@ export const IdentitySection = ({
         />
       </div>
 
-      {/* About You with AI Button */}
       <div className={styles.formRow}>
         <div className={styles.sectionHeader}>
           <div className={styles.sectionHeaderRow}>
@@ -165,9 +176,7 @@ export const IdentitySection = ({
               </button>
             </div>
           </div>
-          <p className={styles.sectionDescription}>
-            Tell agencies what makes you unique.
-          </p>
+          <p className={styles.sectionDescription}>Tell agencies what makes you unique.</p>
         </div>
         <PholioTextarea
           label=""

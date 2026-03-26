@@ -18,6 +18,31 @@ export class ApiError extends Error {
   }
 }
 
+function extractApiErrorMessage(data, response) {
+  if (!data || typeof data !== 'object') {
+    return response.statusText || 'API Error';
+  }
+
+  if (typeof data.message === 'string' && data.message.trim()) {
+    return data.message;
+  }
+
+  if (typeof data.error === 'string' && data.error.trim()) {
+    return data.error;
+  }
+
+  if (data.error && typeof data.error === 'object') {
+    if (typeof data.error.message === 'string' && data.error.message.trim()) {
+      return data.error.message;
+    }
+    if (typeof data.error.code === 'string' && data.error.code.trim()) {
+      return data.error.code;
+    }
+  }
+
+  return response.statusText || 'API Error';
+}
+
 /**
  * Generic fetch wrapper
  */
@@ -66,7 +91,7 @@ async function request(endpoint, options = {}) {
 
     if (!response.ok) {
       throw new ApiError(
-        (data && data.error) || (data && data.message) || response.statusText || 'API Error',
+        extractApiErrorMessage(data, response),
         response.status,
         data
       );

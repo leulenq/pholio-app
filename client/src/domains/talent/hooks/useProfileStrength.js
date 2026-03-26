@@ -11,9 +11,11 @@ export function useProfileStrength() {
   const { completeness, isLoading } = useAuth();
 
   return {
-    score: completeness?.percentage || 0,
-    label: completeness?.label || 'Beginner',
-    nextSteps: completeness?.nextSteps || [],
-    isLoading
+    score: completeness?.percentage ?? 0,
+    label: completeness?.label ?? 'Beginner',
+    nextSteps: completeness?.nextSteps ?? [],
+    coreReady: completeness?.coreReady ?? false,
+    isComplete: completeness?.isComplete ?? false,
+    isLoading,
   };
 }

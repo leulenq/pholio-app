@@ -30,7 +30,7 @@ async function castingRequest(endpoint, options = {}) {
     try {
       const errorData = await response.json();
       message = errorData.error?.message || errorData.message || errorData.error || message;
-    } catch (e) {
+    } catch {
       // Fallback for non-JSON errors (like standard 500 HTML pages)
       message = `Server error (${response.status}): ${response.statusText || 'Internal Server Error'}`;
     }
@@ -51,8 +51,10 @@ export function useCastingStatus(enabled = true) {
     queryKey: ['casting', 'status'],
     queryFn: () => castingRequest('/status'),
     enabled,
-    refetchInterval: 5000, // Poll every 5s
-    refetchIntervalInBackground: false
+    retry: false,
+    // Stop polling once the status endpoint errors (e.g. no active session on entry).
+    refetchInterval: (query) => (query.state.error ? false : 5000),
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -133,25 +135,6 @@ export function useCastingConfirm() {
 }
 
 /**
- * Hook: Vibe step (psychographic questions)
- */
-export function useCastingVibe() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (answers) => {
-      return castingRequest('/vibe', {
-        method: 'POST',
-        body: JSON.stringify(answers)
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
-    }
-  });
-}
-
-/**
  * Hook: Measurements step (confirm/adjust Scout predictions)
  */
 export function useCastingMeasurements() {
@@ -186,18 +169,6 @@ export function useCastingProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
     }
-  });
-}
-
-/**
- * Hook: Reveal step
- */
-export function useCastingReveal() {
-  return useQuery({
-    queryKey: ['casting', 'reveal'],
-    queryFn: () => castingRequest('/reveal'),
-    enabled: false, // Only fetch when explicitly requested
-    retry: false
   });
 }
 

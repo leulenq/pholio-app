@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, CheckCircle, AlertCircle, XCircle, Palette } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { talentApi } from '../api/talent';
 import './CompCardPreview.css';
@@ -13,12 +14,20 @@ const PRO_THEMES = [
   { id: 'bold-editorial',  name: 'Editorial',       bg: '#F5F5F5', text: '#0A0A0A', accent: '#D4A017' },
 ];
 
+const PRO_THEME_IDS = new Set(PRO_THEMES.map((t) => t.id));
+
+function initialThemeFromProfile(profile) {
+  const t = profile?.pdf_theme;
+  if (t && PRO_THEME_IDS.has(t)) return t;
+  return 'pholio-standard';
+}
+
 // ─── Stats fields ─────────────────────────────────────────────
 const STAT_FIELDS = [
   { key: 'height_cm',  label: 'Height',      blocking: true },
-  { key: 'bust',       label: 'Bust',        blocking: false, altKeys: ['measurements'] },
-  { key: 'waist',      label: 'Waist',       blocking: false, altKeys: ['measurements'] },
-  { key: 'hips',       label: 'Hips',        blocking: false, altKeys: ['measurements'] },
+  { key: 'bust_cm',    label: 'Bust',        blocking: false, altKeys: ['measurements'] },
+  { key: 'waist_cm',   label: 'Waist',       blocking: false, altKeys: ['measurements'] },
+  { key: 'hips_cm',    label: 'Hips',        blocking: false, altKeys: ['measurements'] },
   { key: 'hair_color', label: 'Hair',        blocking: false },
   { key: 'eye_color',  label: 'Eyes',        blocking: false },
 ];
@@ -31,13 +40,22 @@ const ROLE_SLOTS = [
   { role: 'lifestyle', label: 'Lifestyle', color: '#059669' },
 ];
 
-function getImageUrl(path) {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  return path.startsWith('/') ? path : `/uploads/${path}`;
+function getImageUrl(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed;
+  return `/uploads/${trimmed.replace(/^\/+/, '')}`;
 }
 
 function parseRole(img) {
+  if (img?.shot_type && ROLE_SLOTS.some((slot) => slot.role === img.shot_type)) {
+    return img.shot_type;
+  }
+  if (img?.style_type && ROLE_SLOTS.some((slot) => slot.role === img.style_type)) {
+    return img.style_type;
+  }
   try {
     const m = typeof img.metadata === 'string' ? JSON.parse(img.metadata) : img.metadata;
     return m?.role || null;
@@ -48,8 +66,11 @@ export default function CompCardPreview({ images }) {
   const { profile } = useAuth();
   const slug      = profile?.slug;
   const isPro     = !!profile?.is_pro;
+  const persistedTheme = profile?.pdf_theme;
 
-  const [selectedTheme, setSelectedTheme] = useState('pholio-standard');
+  const [selectedTheme, setSelectedTheme] = useState(() =>
+    initialThemeFromProfile(profile)
+  );
   const [savingTheme,   setSavingTheme]   = useState(false);
   const [downloading,   setDownloading]   = useState(false);
   const [iframeReady,   setIframeReady]   = useState(false);
@@ -72,7 +93,17 @@ export default function CompCardPreview({ images }) {
   });
 
   // Preview URL
-  const previewUrl = slug ? `/pdf/view/${slug}?theme=${selectedTheme}` : null;
+  const previewUrl = slug
+    ? `/pdf/view/${slug}?theme=${selectedTheme}`
+    : null;
+
+  useEffect(() => {
+    if (persistedTheme && PRO_THEME_IDS.has(persistedTheme)) {
+      setSelectedTheme(persistedTheme);
+      return;
+    }
+    setSelectedTheme('pholio-standard');
+  }, [persistedTheme]);
 
   useEffect(() => {
     setIframeReady(false);
@@ -96,6 +127,7 @@ export default function CompCardPreview({ images }) {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download failed:', err);
+      toast.error('Failed to download comp card. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -110,6 +142,7 @@ export default function CompCardPreview({ images }) {
       await talentApi.updatePdfCustomization({ theme: id });
     } catch (err) {
       console.error('Theme save failed:', err);
+      toast.error('Failed to save theme. Please try again.');
     } finally {
       setSavingTheme(false);
     }
@@ -206,7 +239,7 @@ export default function CompCardPreview({ images }) {
               <div key={slot.role} className="ccp-role-slot" title={slot.label}>
                 {img ? (
                   <>
-                    <img src={getImageUrl(img.path)} alt={slot.label} className="ccp-role-img" loading="lazy" />
+                    <img src={getImageUrl(img.public_url || img.path)} alt={slot.label} className="ccp-role-img" loading="lazy" />
                     <div className="ccp-role-badge" style={{ background: slot.color }}>
                       {slot.label.charAt(0)}
                     </div>

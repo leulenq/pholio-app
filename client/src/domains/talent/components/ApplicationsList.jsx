@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../api/talent';
 import { Calendar, MapPin, XCircle, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import './ApplicationsList.css';
 
@@ -14,11 +15,12 @@ export default function ApplicationsList({ applications, isLoading }) {
     mutationFn: talentApi.withdrawApplication,
     onSuccess: () => {
       setWithdrawingId(null);
-      queryClient.invalidateQueries(['applications']);
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      toast.success('Application withdrawn');
     },
     onError: (err) => {
         setWithdrawingId(null);
-        alert(err.message);
+        toast.error(err?.message || 'Failed to withdraw application');
     }
   });
 

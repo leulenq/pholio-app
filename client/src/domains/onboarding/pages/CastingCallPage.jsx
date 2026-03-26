@@ -5,12 +5,10 @@
  * Flow: Entry → Scout → Measurements → Profile → Complete
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { talentApi } from '../../talent/api/talent';
-import * as agencyApi from '../../agency/api/agency';
-import { useAuth } from '../../auth/hooks/useAuth';
 import { useCastingComplete, useCastingStatus } from '../hooks/useCasting';
 
 // Step Components
@@ -30,7 +28,6 @@ function CastingCallPage() {
   const [profileData, setProfileData] = useState({});
   const [currentEntryProgress, setCurrentEntryProgress] = useState(0);
 
-  const { user } = useAuth();
   const { data: status, isLoading, error } = useCastingStatus();
 
   console.log('[CastingCallPage] Rendered', { currentView, status });
@@ -87,8 +84,8 @@ function CastingCallPage() {
       if (plan === 'studio') {
         console.log('[CastingCallPage] Studio plan detected, initiating Stripe checkout');
         try {
-          const api = user?.role === 'AGENCY' ? agencyApi : talentApi;
-          const { url } = await api.createCheckoutSession();
+          const data = await talentApi.createCheckoutSession();
+          const url = data?.url;
           if (url) {
             window.location.href = url;
             return;
@@ -107,9 +104,9 @@ function CastingCallPage() {
   };
 
   // Step 5: Complete - Redirect to dashboard
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
     navigate('/reveal');
-  };
+  }, [navigate]);
 
   // Auto-redirect or resume if status loaded
   React.useEffect(() => {
@@ -143,7 +140,7 @@ function CastingCallPage() {
     if (currentView === 'complete') {
       handleComplete();
     }
-  }, [currentView]);
+  }, [currentView, handleComplete]);
 
   if (isLoading && currentView !== 'entry') {
     return (

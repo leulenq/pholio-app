@@ -27,6 +27,8 @@ const {
 } = require("../../ai/embeddings");
 const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const path = require("path");
+const config = require("../../../config");
+const { z } = require("zod");
 const {
   getAllThemes,
   getFreeThemes,
@@ -38,6 +40,236 @@ const {
   getCurrentStep,
   getState,
 } = require("../../onboarding/services/state-machine");
+
+/**
+ * Allowlisted profile columns for GET/PUT JSON (excludes raw vectors / embeddings).
+ * Keep in sync when adding `profiles` columns intended for the talent app.
+ */
+const TALENT_PROFILE_API_BLOCKLIST = new Set([
+  "vector_summary",
+  "photo_embedding",
+]);
+
+const TALENT_PROFILE_API_KEYS = [
+  "achievements",
+  "age",
+  "analysis_error",
+  "analysis_status",
+  "archetype",
+  "availability_schedule",
+  "availability_travel",
+  "bio_curated",
+  "bio_raw",
+  "body_type",
+  "bust",
+  "bust_cm",
+  "city",
+  "city_secondary",
+  "comfort_levels",
+  "created_at",
+  "current_agency",
+  "date_of_birth",
+  "dress_size",
+  "drivers_license",
+  "emergency_contact_name",
+  "emergency_contact_phone",
+  "emergency_contact_relationship",
+  "ethnicity",
+  "experience_details",
+  "experience_level",
+  "eye_color",
+  "first_name",
+  "fit_score_commercial",
+  "fit_score_editorial",
+  "fit_score_lifestyle",
+  "fit_score_overall",
+  "fit_score_runway",
+  "fit_score_swim_fitness",
+  "fit_scores_calculated_at",
+  "gender",
+  "hair_color",
+  "hair_length",
+  "hair_type",
+  "height_cm",
+  "hero_image_path",
+  "hips",
+  "hips_cm",
+  "id",
+  "image_analysis",
+  "inseam_cm",
+  "instagram_handle",
+  "instagram_url",
+  "is_discoverable",
+  "is_pro",
+  "is_unicorn",
+  "languages",
+  "last_name",
+  "market_fit_rankings",
+  "measurements",
+  "modeling_categories",
+  "nationality",
+  "onboarding_completed_at",
+  "onboarding_stage",
+  "onboarding_state_json",
+  "partner_agency_id",
+  "passport_ready",
+  "pdf_customizations",
+  "pdf_theme",
+  "phone",
+  "photo_key_primary",
+  "piercings",
+  "place_of_birth",
+  "playing_age_max",
+  "playing_age_min",
+  "portfolio_url",
+  "previous_representations",
+  "processed_at",
+  "profile_completeness",
+  "profile_status",
+  "pronouns",
+  "reference_email",
+  "reference_name",
+  "reference_phone",
+  "seeking_representation",
+  "services_locked",
+  "shoe_size",
+  "skin_tone",
+  "slug",
+  "source_agency_id",
+  "specialties",
+  "submitted_at",
+  "tattoos",
+  "tiktok_handle",
+  "tiktok_url",
+  "timezone",
+  "training",
+  "twitter_handle",
+  "twitter_url",
+  "union_membership",
+  "updated_at",
+  "user_id",
+  "vibe_score",
+  "video_reel_url",
+  "visibility_mode",
+  "waist",
+  "waist_cm",
+  "weight_kg",
+  "weight_lbs",
+  "weight_unit",
+  "work_eligibility",
+  "work_status",
+  "youtube_handle",
+  "youtube_url",
+];
+
+function pickTalentProfileForApi(row) {
+  if (!row) return null;
+  const out = {};
+  for (const key of TALENT_PROFILE_API_KEYS) {
+    if (TALENT_PROFILE_API_BLOCKLIST.has(key)) continue;
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      out[key] = row[key];
+    }
+  }
+  return out;
+}
+
+function formatProfileDateOfBirthForApi(profilePayload) {
+  if (!profilePayload?.date_of_birth) return;
+  try {
+    const d = new Date(profilePayload.date_of_birth);
+    if (!isNaN(d.getTime())) {
+      profilePayload.date_of_birth = d.toISOString().split("T")[0];
+    }
+  } catch {
+    /* keep original */
+  }
+}
+
+function parseProfileImageAnalysisForApi(profilePayload) {
+  if (
+    !profilePayload?.image_analysis ||
+    typeof profilePayload.image_analysis !== "string"
+  ) {
+    return;
+  }
+  try {
+    profilePayload.image_analysis = JSON.parse(profilePayload.image_analysis);
+  } catch {
+    profilePayload.image_analysis = null;
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Profile API] Failed to parse image_analysis JSON");
+    }
+  }
+}
+
+/** Normalize images.metadata for JSON responses (DB may return string JSON). */
+function normalizeImageMetadataForApi(raw) {
+  if (raw == null) return {};
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return {};
+    try {
+      const parsed = JSON.parse(t);
+      if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed)
+      ) {
+        return { ...parsed };
+      }
+    } catch {
+      /* ignore */
+    }
+    return {};
+  }
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return { ...raw };
+  }
+  return {};
+}
+
+function normalizeOptionalIso(raw) {
+  if (!raw) return null;
+  const d = raw instanceof Date ? raw : new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function mapProfileImagesForApi(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((img) => ({
+    ...img,
+    metadata: normalizeImageMetadataForApi(img.metadata),
+    captured_at: normalizeOptionalIso(img.captured_at),
+    retouched_at: normalizeOptionalIso(img.retouched_at),
+  }));
+}
+
+function resolveMeasurementCm(data, cmKey, aliasKey) {
+  if (Object.hasOwn(data, cmKey)) {
+    const raw = data[cmKey];
+    if (raw === "" || raw === null || raw === undefined) return null;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : null;
+  }
+  if (Object.hasOwn(data, aliasKey)) {
+    const raw = data[aliasKey];
+    if (raw === "" || raw === null || raw === undefined) return null;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : null;
+  }
+  return null;
+}
+
+const fitScoresUpdateSchema = z.object({
+  runway: z.coerce.number().optional(),
+  editorial: z.coerce.number().optional(),
+  commercial: z.coerce.number().optional(),
+  lifestyle: z.coerce.number().optional(),
+  swim_fitness: z.coerce.number().optional(),
+  overall: z.coerce.number().optional(),
+});
 
 /**
  * GET /api/talent/profile
@@ -93,27 +325,6 @@ router.get(
       return apiResponse.success(res, response);
     }
 
-    // Profile exists
-    response.profile = {
-      ...profile,
-      email: user.email,
-    };
-
-    // Format date_of_birth for frontend (YYYY-MM-DD)
-    if (response.profile.date_of_birth) {
-      try {
-        // Ensure we treat it as a date and format as YYYY-MM-DD
-        const d = new Date(response.profile.date_of_birth);
-        if (!isNaN(d.getTime())) {
-          response.profile.date_of_birth = d.toISOString().split("T")[0];
-        }
-      } catch (e) {
-        // Keep original value if parsing fails
-      }
-    }
-
-    // Removed aliasing for frontend compatibility per user request
-
     // Fetch images
     // Fetch images (migrated to images table)
     const images = await knex("images")
@@ -126,14 +337,20 @@ router.get(
         "is_primary",
         "metadata",
         "label as kind",
+        "image_type",
+        "shot_type",
+        "style_type",
+        "status",
+        "exclude_from_public",
+        "exclude_from_agency",
+        "captured_at",
+        "retouched_at",
+        "set_id",
         "sort",
         "created_at",
       );
 
-    console.log("[Profile API] Fetched images:", {
-      profileId: profile.id,
-      count: images.length,
-    });
+    response.images = mapProfileImagesForApi(images);
 
     // Subquery/Find primary image for hero_image_path mapping
     const primaryImage = images.find((img) => img.is_primary) || images[0];
@@ -142,9 +359,10 @@ router.get(
       ? primaryImage.public_url || primaryImage.path
       : null;
 
-    // Profile exists
+    const publicProfile = pickTalentProfileForApi(profile);
+    formatProfileDateOfBirthForApi(publicProfile);
     response.profile = {
-      ...profile,
+      ...publicProfile,
       email: user.email,
       hero_image_path: derivedHeroPath,
       photo_url_primary: derivedPublicUrl,
@@ -166,7 +384,9 @@ router.get(
     response.themes.current = profile.pdf_theme || getDefaultTheme();
 
     // Share URL
-    response.shareUrl = `${req.protocol}://${req.get("host")}/portfolio/${profile.slug}`;
+    const appBaseUrl =
+      process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+    response.shareUrl = `${appBaseUrl}/portfolio/${profile.slug}`;
 
     // Add calculated fields/stats that might be useful
     // e.g. height in feet/inches for display
@@ -174,22 +394,7 @@ router.get(
       response.profile.height_display = toFeetInches(profile.height_cm);
     }
 
-    // Parse image_analysis if it's a string
-    if (
-      response.profile.image_analysis &&
-      typeof response.profile.image_analysis === "string"
-    ) {
-      try {
-        response.profile.image_analysis = JSON.parse(
-          response.profile.image_analysis,
-        );
-      } catch (e) {
-        console.warn(
-          "[Profile API] Failed to parse image_analysis JSON:",
-          e.message,
-        );
-      }
-    }
+    parseProfileImageAnalysisForApi(response.profile);
 
     // Add onboarding/gating status
     const essentialsCheck = checkEssentialsComplete(profile, images);
@@ -224,10 +429,12 @@ router.put(
     const parsed = talentProfileUpdateSchema.safeParse(req.body);
 
     if (!parsed.success) {
-      console.log(
-        "Profile Validation Errors:",
-        JSON.stringify(parsed.error.flatten().fieldErrors, null, 2),
-      );
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "[Profile API] Validation failed:",
+          parsed.error.flatten().fieldErrors,
+        );
+      }
       return res.status(400).json({
         success: false,
         message: "Validation failed",
@@ -237,87 +444,18 @@ router.put(
 
     const data = parsed.data;
     const user = await knex("users").where({ id: userId }).first();
+    if (!user) {
+      if (req.session) req.session.destroy(() => {});
+      return res
+        .status(401)
+        .json({ success: false, message: "User not found" });
+    }
     let profile = await knex("profiles").where({ user_id: userId }).first();
 
-    // If profile doesn't exist, create it (keeping minimal creation logic)
     if (!profile) {
-      // Extract name for slug
-      const finalLastName = data.last_name || null;
-      const finalFirstName = data.first_name || user.email.split("@")[0];
-      const slug = await ensureUniqueSlug(
-        knex,
-        "profiles",
-        `${finalFirstName}-${finalLastName}`,
-      );
-      const profileId = uuidv4();
-
-      // Prepare insert object (simplified for brevity, assume defaults handling similar to original)
-      // For new JSON API, we expect client to send most fields if they matter,
-      // but creation might only have subset.
-      // We'll init with minimal + data.
-
-      // Note: This matches deserialization logic from original controller
-      const insertData = {
-        id: profileId,
-        user_id: userId,
-        slug,
-        first_name: finalFirstName,
-        last_name: finalLastName,
-        // Original insert used `profile.email || currentUser?.email` for completeness check, implies it might not be in profile table.
-
-        // Fields from data
-        city: data.city || "Not specified",
-        phone: data.phone || "0000000000",
-        height_cm: data.height_cm || 0,
-        bio_raw: data.bio || "",
-        bio_curated: data.bio
-          ? curateBio(data.bio, finalFirstName, finalLastName)
-          : "",
-
-        // ... map all other fields
-        gender: data.gender || null,
-        date_of_birth: data.date_of_birth || null,
-
-        // JSON fields
-        languages: data.languages ? JSON.stringify(data.languages) : null,
-        specialties: data.specialties ? JSON.stringify(data.specialties) : null,
-        comfort_levels: data.comfort_levels
-          ? JSON.stringify(data.comfort_levels)
-          : null,
-        previous_representations: data.previous_representations
-          ? JSON.stringify(data.previous_representations)
-          : null,
-        experience_details: data.experience_details
-          ? typeof data.experience_details === "string"
-            ? data.experience_details
-            : JSON.stringify(data.experience_details)
-          : null,
-        seeking_representation:
-          data.seeking_representation !== undefined
-            ? data.seeking_representation
-            : false,
-        current_agency: data.current_agency || null,
-      };
-
-      // ... (rest of fields mappings would be here, for brevity trusting client sends updates after creation or we expand this)
-      // Actually for a proper implementation I should map them all.
-      // Let's use the update logic to handle the fields after creation or just do it in one go.
-      // Better to do a comprehensive insert if possible.
-      // But since `PUT` implies update, creating on PUT is a bit odd, but original `POST` handled creation.
-      // Use `knex('profiles').insert(insertData)`...
-
-      // For now, let's assume the client calls this endpoint to UPDATE.
-      // If we want to support creation via PUT, we need full mapping.
-      // Let's map the Critical ones.
-
-      await knex("profiles").insert(insertData);
-      profile = await knex("profiles").where({ id: profileId }).first();
-
-      await logActivity(userId, "profile_created", {
-        profileId,
-        slug,
-        action: "created",
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Profile not found" });
     }
 
     // Update Logic (Common for Create-then-Update or just Update)
@@ -338,23 +476,7 @@ router.put(
       }
     };
 
-    // Explicit mapping for camelCase frontend fields
-    if (data.firstName !== undefined) updateData.first_name = data.firstName;
-    if (data.lastName !== undefined) updateData.last_name = data.lastName;
-    if (data.dateOfBirth !== undefined)
-      updateData.date_of_birth = data.dateOfBirth;
-    if (data.dob !== undefined) updateData.date_of_birth = data.dob;
-    if (data.location !== undefined) updateData.city = data.location;
-
-    // Ensure date_of_birth is a string (YYYY-MM-DD) for DB compatibility if needed
-    // (Knex usually handles Date objects but YYYY-MM-DD string is safest for date columns)
-    if (updateData.date_of_birth) {
-      const d = new Date(updateData.date_of_birth);
-      if (!isNaN(d.getTime())) {
-        // Only save the date part to avoid timezone shifts
-        updateData.date_of_birth = d.toISOString().split("T")[0];
-      }
-    }
+    // Aliases (firstName, location, dob, …) are merged in talentProfileUpdateSchema preprocess
 
     // Number fields (ensure no NaN is saved)
     const mapNumberField = (field, dbField = field) => {
@@ -376,12 +498,21 @@ router.put(
     mapNumberField("bust_cm");
     mapNumberField("waist_cm");
     mapNumberField("hips_cm");
+    if (!Object.hasOwn(data, "bust_cm")) mapNumberField("bust", "bust_cm");
+    if (!Object.hasOwn(data, "waist_cm")) mapNumberField("waist", "waist_cm");
+    if (!Object.hasOwn(data, "hips_cm")) mapNumberField("hips", "hips_cm");
     mapNumberField("shoe_size");
     mapField("eye_color");
     mapField("hair_color");
     mapField("gender");
     mapField("pronouns");
     mapField("date_of_birth");
+    if (updateData.date_of_birth) {
+      const d = new Date(updateData.date_of_birth);
+      if (!isNaN(d.getTime())) {
+        updateData.date_of_birth = d.toISOString().split("T")[0];
+      }
+    }
     mapField("dress_size");
     mapField("hair_length");
     mapField("hair_type");
@@ -424,8 +555,6 @@ router.put(
       updateData.drivers_license = data.drivers_license;
     if (data.passport_ready !== undefined)
       updateData.passport_ready = data.passport_ready;
-    if (data.modeling_categories !== undefined)
-      updateData.modeling_categories = JSON.stringify(data.modeling_categories);
 
     // JSON fields - Knex handles stringifying for most drivers, but Postgres prefers objects
     // However, the error "invalid input syntax for type json" often occurs when a stringly-nested object is sent.
@@ -464,9 +593,23 @@ router.put(
     let finalWeightKg = data.weight_kg;
     let finalWeightLbs = data.weight_lbs;
 
-    if (finalWeightKg && !finalWeightLbs) {
+    if (
+      finalWeightKg !== undefined &&
+      finalWeightKg !== null &&
+      finalWeightKg !== "" &&
+      (finalWeightLbs === undefined ||
+        finalWeightLbs === null ||
+        finalWeightLbs === "")
+    ) {
       finalWeightLbs = convertKgToLbs(finalWeightKg);
-    } else if (finalWeightLbs && !finalWeightKg) {
+    } else if (
+      finalWeightLbs !== undefined &&
+      finalWeightLbs !== null &&
+      finalWeightLbs !== "" &&
+      (finalWeightKg === undefined ||
+        finalWeightKg === null ||
+        finalWeightKg === "")
+    ) {
       finalWeightKg = convertLbsToKg(finalWeightLbs);
     }
 
@@ -539,58 +682,25 @@ router.put(
     handleSocial("tiktok", data.tiktok_handle);
     handleSocial("youtube", data.youtube_handle);
 
-    // Handle Primary Photo (Hero Image)
-    // Handle Primary Photo (Hero Image)
-    if (data.primary_photo_id) {
-      await knex.transaction(async (trx) => {
-        // 1. Reset all images for this profile to NOT primary
-        await trx("images")
-          .where({ profile_id: profile.id })
-          .update({ is_primary: false });
-
-        // 2. Set the selected image as primary
-        const updatedCount = await trx("images")
-          .where({ id: data.primary_photo_id, profile_id: profile.id })
-          .update({ is_primary: true });
-
-        if (updatedCount > 0) {
-          const photo = await trx("images")
-            .where({ id: data.primary_photo_id })
-            .first();
-
-          // Fire image analysis in background — do NOT await
-          const fs = require("fs");
-          const absolutePath =
-            photo.absolute_path ||
-            path.join(config.uploadsDir, path.basename(photo.path));
-
-          fs.promises
-            .readFile(absolutePath)
-            .then((imageBuffer) => {
-              masterVisionAnalysis(knex, imageBuffer, profile.id).catch((err) =>
-                console.error(
-                  "[Profile API] Master image analysis failed silently:",
-                  err,
-                ),
-              );
-            })
-            .catch((err) =>
-              console.warn(
-                "[Profile API] Could not read image for analysis (might be on R2):",
-                absolutePath,
-              ),
-            );
-
-          console.log(
-            "[Profile API] Primary image updated to:",
-            data.primary_photo_id,
-          );
-        }
-      });
+    // Validate requested primary photo now, but apply after profile update succeeds.
+    const requestedPrimaryPhotoId = data.primary_photo_id || null;
+    if (requestedPrimaryPhotoId) {
+      const selectedPrimaryPhoto = await knex("images")
+        .where({ id: requestedPrimaryPhotoId, profile_id: profile.id })
+        .first();
+      if (!selectedPrimaryPhoto) {
+        return res.status(400).json({
+          success: false,
+          message: "Primary photo not found for this profile",
+        });
+      }
     }
 
-    // Perform Update
-    if (Object.keys(updateData).length > 0) {
+    // Perform Update only when actual profile fields changed.
+    const hasProfileFieldChanges = Object.keys(updateData).some(
+      (key) => key !== "updated_at",
+    );
+    if (hasProfileFieldChanges) {
       await knex("profiles").where({ id: profile.id }).update(updateData);
 
       // Log activity
@@ -599,6 +709,47 @@ router.put(
         slug: updateData.slug || profile.slug,
         nameChanged: needsSlugUpdate,
       });
+    }
+
+    // Apply primary-image update only after profile save succeeds.
+    if (requestedPrimaryPhotoId) {
+      await knex.transaction(async (trx) => {
+        await trx("images")
+          .where({ profile_id: profile.id })
+          .update({ is_primary: false });
+        const updatedCount = await trx("images")
+          .where({ id: requestedPrimaryPhotoId, profile_id: profile.id })
+          .update({ is_primary: true });
+        if (updatedCount === 0) {
+          throw new Error("Failed to set primary image");
+        }
+      });
+
+      const photo = await knex("images")
+        .where({ id: requestedPrimaryPhotoId })
+        .first();
+      if (photo) {
+        const fs = require("fs");
+        const absolutePath =
+          photo.absolute_path ||
+          path.join(config.uploadsDir, path.basename(photo.path));
+
+        fs.promises
+          .readFile(absolutePath)
+          .then((imageBuffer) => {
+            masterVisionAnalysis(knex, imageBuffer, profile.id).catch((err) =>
+              console.error(
+                "[Profile API] Master image analysis failed silently:",
+                err,
+              ),
+            );
+          })
+          .catch(() =>
+            console.warn(
+              "[Profile API] Could not read primary image for analysis (remote storage or missing file)",
+            ),
+          );
+      }
     }
 
     // Return updated profile
@@ -636,7 +787,25 @@ router.put(
     const images = await knex("images")
       .where({ profile_id: profile.id })
       .orderBy("sort", "asc")
-      .select("id", "path", "label as kind", "created_at");
+      .select(
+        "id",
+        "path",
+        "public_url",
+        "is_primary",
+        "metadata",
+        "label as kind",
+        "image_type",
+        "shot_type",
+        "style_type",
+        "status",
+        "exclude_from_public",
+        "exclude_from_agency",
+        "captured_at",
+        "retouched_at",
+        "set_id",
+        "sort",
+        "created_at",
+      );
 
     const profileForCompleteness = {
       ...updatedProfile,
@@ -647,10 +816,25 @@ router.put(
       images,
     );
 
-    // Use apiResponse.success() for consistent response structure
+    const responseProfile = pickTalentProfileForApi(updatedProfile);
+    formatProfileDateOfBirthForApi(responseProfile);
+    parseProfileImageAnalysisForApi(responseProfile);
+
+    const primaryImage = images.find((img) => img.is_primary) || images[0];
+    const derivedHeroPath = primaryImage ? primaryImage.path : null;
+    const derivedPublicUrl = primaryImage
+      ? primaryImage.public_url || primaryImage.path
+      : null;
+
     return apiResponse.success(res, {
-      profile: updatedProfile,
+      profile: {
+        ...responseProfile,
+        email: user.email,
+        hero_image_path: derivedHeroPath,
+        photo_url_primary: derivedPublicUrl,
+      },
       completeness,
+      images: mapProfileImagesForApi(images),
     });
   }),
 );
@@ -664,9 +848,14 @@ router.post(
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    const { runway, editorial, commercial, lifestyle, swim_fitness, overall } =
-      req.body;
-
+    const parsedScores = fitScoresUpdateSchema.safeParse(req.body);
+    if (!parsedScores.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: parsedScores.error.flatten().fieldErrors,
+      });
+    }
     const profile = await knex("profiles").where({ user_id: userId }).first();
     if (!profile) {
       return res
@@ -677,15 +866,33 @@ router.post(
     // Clamp scores to 0-100 range
     const clamp = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
 
+    const scoreFieldMap = [
+      ["runway", "fit_score_runway"],
+      ["editorial", "fit_score_editorial"],
+      ["commercial", "fit_score_commercial"],
+      ["lifestyle", "fit_score_lifestyle"],
+      ["swim_fitness", "fit_score_swim_fitness"],
+      ["overall", "fit_score_overall"],
+    ];
+    const scorePatch = {};
+    const responseScores = {};
+    for (const [payloadKey, dbKey] of scoreFieldMap) {
+      if (!Object.hasOwn(parsedScores.data, payloadKey)) continue;
+      const value = clamp(parsedScores.data[payloadKey]);
+      scorePatch[dbKey] = value;
+      responseScores[payloadKey] = value;
+    }
+    if (Object.keys(scorePatch).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one fit score is required",
+      });
+    }
+
     await knex("profiles")
       .where({ id: profile.id })
       .update({
-        fit_score_runway: clamp(runway),
-        fit_score_editorial: clamp(editorial),
-        fit_score_commercial: clamp(commercial),
-        fit_score_lifestyle: clamp(lifestyle),
-        fit_score_swim_fitness: clamp(swim_fitness),
-        fit_score_overall: clamp(overall),
+        ...scorePatch,
         fit_scores_calculated_at: knex.fn.now(),
         updated_at: knex.fn.now(),
       });
@@ -693,14 +900,7 @@ router.post(
     return res.json({
       success: true,
       message: "Fit scores saved",
-      scores: {
-        runway: clamp(runway),
-        editorial: clamp(editorial),
-        commercial: clamp(commercial),
-        lifestyle: clamp(lifestyle),
-        swim_fitness: clamp(swim_fitness),
-        overall: clamp(overall),
-      },
+      scores: responseScores,
     });
   }),
 );
