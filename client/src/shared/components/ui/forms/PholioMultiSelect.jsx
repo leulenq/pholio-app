@@ -14,6 +14,7 @@ const PholioMultiSelect = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const blurTimeoutRef = useRef(null);
 
   // Close on click outside
   useEffect(() => {
@@ -22,8 +23,14 @@ const PholioMultiSelect = ({
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    };
   }, []);
 
   const handleSelect = (optionValue) => {
@@ -64,6 +71,30 @@ const PholioMultiSelect = ({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         id={id}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            setIsOpen(false);
+            return;
+          }
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsOpen((prev) => !prev);
+          }
+          if (e.key === 'ArrowDown' && !isOpen) {
+            e.preventDefault();
+            setIsOpen(true);
+          }
+        }}
+        onBlur={(e) => {
+          if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+          const nextFocus = e.relatedTarget;
+          if (containerRef.current?.contains(nextFocus)) return;
+          blurTimeoutRef.current = setTimeout(() => {
+            setIsOpen(false);
+          }, 120);
+        }}
       >
         <div className="pholio-tags-container pr-8">
           {safeValue.length === 0 && (
@@ -102,6 +133,7 @@ const PholioMultiSelect = ({
               <div
                 key={option.value}
                 className={`pholio-select-option ${isSelected ? 'selected' : ''}`}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleSelect(option.value)}
                 role="option"
                 aria-selected={isSelected}

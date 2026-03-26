@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../api/talent';
-import { MapPin, ArrowUpRight, Sparkles, AlertCircle, Gift } from 'lucide-react';
+import { MapPin, ArrowUpRight, Sparkles } from 'lucide-react';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { toast } from 'sonner';
 import './AgenciesGrid.css';
 
 export default function AgenciesGrid({ agencies, isLoading }) {
@@ -15,13 +16,16 @@ export default function AgenciesGrid({ agencies, isLoading }) {
     mutationFn: talentApi.createApplication,
     onSuccess: () => {
         setApplyingId(null);
-        queryClient.invalidateQueries(['applications']);
+        queryClient.invalidateQueries({ queryKey: ['applications'] });
+        toast.success('Application submitted');
     },
     onError: (err) => {
         setApplyingId(null);
         if (err.data?.upgradeRequired) {
-            // Show upgrade modal instead of alert
+            toast.error('Monthly application limit reached. Upgrade to Studio+ for more applications.');
+            return;
         }
+        toast.error(err?.message || 'Failed to submit application');
     }
   });
 

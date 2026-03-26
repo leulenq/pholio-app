@@ -219,6 +219,15 @@ router.get(
       // Get images
       const images = await knex("images")
         .where({ profile_id: profileId })
+        .where(function agencyShareableImages() {
+          this.whereNull("status").orWhere("status", "active");
+        })
+        .where(function notExcludedFromAgency() {
+          this.whereNull("exclude_from_agency").orWhere(
+            "exclude_from_agency",
+            false,
+          );
+        })
         .orderBy(["sort", "created_at"])
         .limit(5);
 
@@ -227,7 +236,10 @@ router.get(
         profile: {
           ...profile,
           images: images.map((img) => ({
-            path: img.path.startsWith("http") ? img.path : "/" + img.path,
+            path:
+              typeof img.path === "string" && img.path.startsWith("http")
+                ? img.path
+                : `/${img.path || ""}`,
             alt: img.alt || `${profile.first_name} ${profile.last_name}`,
           })),
         },

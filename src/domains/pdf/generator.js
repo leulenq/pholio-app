@@ -44,7 +44,7 @@ async function loadProfile(slug) {
   }
 }
 
-async function renderCompCard(slug, theme = null) {
+async function renderCompCard(slug, theme = null, opts = null) {
   if (config.nodeEnv === "test") {
     return Buffer.from(`PDF placeholder for ${slug}`);
   }
@@ -66,6 +66,13 @@ async function renderCompCard(slug, theme = null) {
       const url = new URL(`/pdf/view/${slug}`, config.pdfBaseUrl);
       if (theme) {
         url.searchParams.set("theme", theme);
+      }
+      const genSeed = opts && opts.seed;
+      if (genSeed != null && genSeed !== "") {
+        url.searchParams.set(
+          "seed",
+          String(Array.isArray(genSeed) ? genSeed[0] : genSeed),
+        );
       }
       target = url.toString();
 

@@ -29,6 +29,15 @@ router.get("/home", async (req, res) => {
       if (elaraProfile) {
         elaraImages = await knex("images")
           .where({ profile_id: elaraProfile.id })
+          .where(function publicShareableStatus() {
+            this.whereNull("status").orWhere("status", "active");
+          })
+          .where(function notExcludedFromPublic() {
+            this.whereNull("exclude_from_public").orWhere(
+              "exclude_from_public",
+              false,
+            );
+          })
           .orderBy("sort", "asc");
       }
     } catch (dbError) {
@@ -48,11 +57,23 @@ router.get("/home", async (req, res) => {
       if (config.dbClient === "pg") {
         floatingTalents = await knex("profiles")
           .whereNot({ slug: "elara-k" })
-          .whereExists(function () {
+          .whereExists(function publicPrimaryImageExists() {
             this.select("*")
               .from("images")
               .whereRaw("images.profile_id = profiles.id")
-              .andWhere("is_primary", true);
+              .andWhere("images.is_primary", true)
+              .where(function publicShareableStatus() {
+                this.whereNull("images.status").orWhere(
+                  "images.status",
+                  "active",
+                );
+              })
+              .where(function notExcludedFromPublic() {
+                this.whereNull("images.exclude_from_public").orWhere(
+                  "images.exclude_from_public",
+                  false,
+                );
+              });
           })
           .limit(4)
           .orderByRaw("RANDOM()");
@@ -60,11 +81,23 @@ router.get("/home", async (req, res) => {
         // SQLite: use a simple approach - get all and shuffle in JS, or just order by id
         floatingTalents = await knex("profiles")
           .whereNot({ slug: "elara-k" })
-          .whereExists(function () {
+          .whereExists(function publicPrimaryImageExists() {
             this.select("*")
               .from("images")
               .whereRaw("images.profile_id = profiles.id")
-              .andWhere("is_primary", true);
+              .andWhere("images.is_primary", true)
+              .where(function publicShareableStatus() {
+                this.whereNull("images.status").orWhere(
+                  "images.status",
+                  "active",
+                );
+              })
+              .where(function notExcludedFromPublic() {
+                this.whereNull("images.exclude_from_public").orWhere(
+                  "images.exclude_from_public",
+                  false,
+                );
+              });
           })
           .limit(10)
           .orderBy("created_at", "desc");
@@ -80,6 +113,15 @@ router.get("/home", async (req, res) => {
           try {
             const primaryImage = await knex("images")
               .where({ profile_id: talent.id, is_primary: true })
+              .where(function publicShareableStatus() {
+                this.whereNull("status").orWhere("status", "active");
+              })
+              .where(function notExcludedFromPublic() {
+                this.whereNull("exclude_from_public").orWhere(
+                  "exclude_from_public",
+                  false,
+                );
+              })
               .first();
             return {
               ...talent,

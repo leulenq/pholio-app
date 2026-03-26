@@ -21,45 +21,45 @@
  */
 const TRANSITIONS_V2 = {
   identity: {
-    next: ['verification_pending', 'scout'],
+    next: ["verification_pending", "scout"],
     prev: null,
-    parallel: []
+    parallel: [],
   },
   entry: {
-    next: ['verification_pending', 'gender', 'scout'], // Can go to gender next
+    next: ["verification_pending", "gender", "scout"], // Can go to gender next
     prev: null,
-    parallel: []
+    parallel: [],
   },
   gender: {
-    next: ['scout'],
-    prev: 'entry',
-    parallel: []
+    next: ["scout"],
+    prev: "entry",
+    parallel: [],
   },
   verification_pending: {
-    next: ['scout'],
-    prev: 'entry',
-    parallel: []
+    next: ["scout"],
+    prev: "entry",
+    parallel: [],
   },
   scout: {
-    next: ['measurements'], // Go to measurements after photo upload
-    prev: 'gender',
-    parallel: []
+    next: ["measurements"], // Go to measurements after photo upload
+    prev: "gender",
+    parallel: [],
   },
   measurements: {
-    next: ['profile'], // Go to profile after confirming measurements
-    prev: 'scout',
-    parallel: []
+    next: ["profile"], // Go to profile after confirming measurements
+    prev: "scout",
+    parallel: [],
   },
   profile: {
-    next: ['done'], // Skip reveal, go directly to done
-    prev: 'measurements',
-    parallel: []
+    next: ["done"], // Skip reveal, go directly to done
+    prev: "measurements",
+    parallel: [],
   },
   done: {
     next: null, // Terminal state
     prev: null,
-    parallel: []
-  }
+    parallel: [],
+  },
 };
 
 /**
@@ -72,18 +72,22 @@ const TRANSITIONS_V2 = {
 function getCurrentStep(profile) {
   if (profile.onboarding_state_json) {
     try {
-      const state = typeof profile.onboarding_state_json === 'string'
-        ? JSON.parse(profile.onboarding_state_json)
-        : profile.onboarding_state_json;
+      const state =
+        typeof profile.onboarding_state_json === "string"
+          ? JSON.parse(profile.onboarding_state_json)
+          : profile.onboarding_state_json;
 
-      return state.current_step || 'entry';
+      return state.current_step || "entry";
     } catch (e) {
-      console.warn('[CastingMachine] Failed to parse onboarding_state_json:', e.message);
+      console.warn(
+        "[CastingMachine] Failed to parse onboarding_state_json:",
+        e.message,
+      );
     }
   }
 
   // Fallback to legacy onboarding_stage
-  return profile.onboarding_stage || 'entry';
+  return profile.onboarding_stage || "entry";
 }
 
 /**
@@ -96,30 +100,34 @@ function getCurrentStep(profile) {
 function getState(profile) {
   if (profile.onboarding_state_json) {
     try {
-      const state = typeof profile.onboarding_state_json === 'string'
-        ? JSON.parse(profile.onboarding_state_json)
-        : profile.onboarding_state_json;
+      const state =
+        typeof profile.onboarding_state_json === "string"
+          ? JSON.parse(profile.onboarding_state_json)
+          : profile.onboarding_state_json;
 
       // Ensure required fields exist
       return {
-        version: state.version || 'v2_casting_call',
-        current_step: state.current_step || 'entry',
+        version: state.version || "v2_casting_call",
+        current_step: state.current_step || "entry",
         completed_steps: state.completed_steps || [],
         step_data: state.step_data || {},
-        started_at: state.started_at || new Date().toISOString()
+        started_at: state.started_at || new Date().toISOString(),
       };
     } catch (e) {
-      console.warn('[CastingMachine] Failed to parse state, returning default:', e.message);
+      console.warn(
+        "[CastingMachine] Failed to parse state, returning default:",
+        e.message,
+      );
     }
   }
 
   // Default initial state
   return {
-    version: 'v2_casting_call',
-    current_step: 'entry',
+    version: "v2_casting_call",
+    current_step: "entry",
     completed_steps: [],
     step_data: {},
-    started_at: new Date().toISOString()
+    started_at: new Date().toISOString(),
   };
 }
 
@@ -160,9 +168,12 @@ function canComplete(state) {
   const completedSteps = state.completed_steps || [];
   // Can complete if currently at profile step (meaning scout/measurements are done)
   // or if already reached the done/complete stage
-  return (state.current_step === 'profile' && completedSteps.includes('measurements')) ||
-         state.current_step === 'done' ||
-         completedSteps.includes('profile');
+  return (
+    (state.current_step === "profile" &&
+      completedSteps.includes("measurements")) ||
+    state.current_step === "done" ||
+    completedSteps.includes("profile")
+  );
 }
 
 /**
@@ -176,30 +187,33 @@ function canComplete(state) {
  * @returns {Object} Update payload for knex query
  */
 function transitionTo(currentState, targetStep, stepData = {}, knex) {
-  // Validate transition
-  if (!canTransitionTo(currentState.current_step, targetStep, currentState.completed_steps)) {
+  const completed = currentState.completed_steps || [];
+  if (!canTransitionTo(currentState.current_step, targetStep, completed)) {
     console.warn(
       `[CastingMachine] Invalid transition: ${currentState.current_step} -> ${targetStep}`,
-      `Completed: [${currentState.completed_steps.join(', ')}]`
+      `Completed: [${completed.join(", ")}]`,
     );
-    // Don't throw, but warn. State machine should be resilient.
+    return null;
   }
 
   // Clone state to avoid mutation
   const newState = {
     ...currentState,
     completed_steps: [...(currentState.completed_steps || [])],
-    step_data: { ...(currentState.step_data || {}) }
+    step_data: { ...(currentState.step_data || {}) },
   };
 
   // Mark previous step as complete if moving forward
   const config = TRANSITIONS_V2[currentState.current_step];
-  const isForward = config && (
-    (Array.isArray(config.next) && config.next.includes(targetStep)) ||
-    config.next === targetStep
-  );
+  const isForward =
+    config &&
+    ((Array.isArray(config.next) && config.next.includes(targetStep)) ||
+      config.next === targetStep);
 
-  if (isForward && !newState.completed_steps.includes(currentState.current_step)) {
+  if (
+    isForward &&
+    !newState.completed_steps.includes(currentState.current_step)
+  ) {
     newState.completed_steps.push(currentState.current_step);
   }
 
@@ -214,7 +228,7 @@ function transitionTo(currentState, targetStep, stepData = {}, knex) {
       newState.step_data[dataKey] = {
         ...(newState.step_data[dataKey] || {}),
         ...stepData,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
     }
   }
@@ -224,13 +238,13 @@ function transitionTo(currentState, targetStep, stepData = {}, knex) {
 
   // Serialize for database
   const clientType = knex?.client?.config?.client;
-  const isPostgres = clientType === 'pg' || clientType === 'postgresql';
+  const isPostgres = clientType === "pg" || clientType === "postgresql";
   const jsonValue = isPostgres ? newState : JSON.stringify(newState);
 
   return {
     onboarding_stage: targetStep, // Legacy column (for backwards compatibility)
     onboarding_state_json: jsonValue, // New state machine column
-    updated_at: knex.fn.now()
+    updated_at: knex.fn.now(),
   };
 }
 
@@ -242,22 +256,24 @@ function transitionTo(currentState, targetStep, stepData = {}, knex) {
  * @param {Object} knex - Knex instance
  * @returns {Object} Initial state payload for insert
  */
-function initialState(startStep = 'entry', knex) {
+function initialState(startStep = "entry", knex) {
   const state = {
-    version: 'v2_casting_call',
+    version: "v2_casting_call",
     current_step: startStep,
     completed_steps: [],
     step_data: {},
     can_enter_reveal: false,
-    started_at: new Date().toISOString()
+    started_at: new Date().toISOString(),
   };
 
-  const isPostgres = knex.client.config.client === 'pg' || knex.client.config.client === 'postgresql';
+  const isPostgres =
+    knex.client.config.client === "pg" ||
+    knex.client.config.client === "postgresql";
   const jsonValue = isPostgres ? state : JSON.stringify(state);
 
   return {
     onboarding_stage: startStep,
-    onboarding_state_json: jsonValue
+    onboarding_state_json: jsonValue,
   };
 }
 
@@ -293,8 +309,10 @@ function getNextSteps(state) {
  * @returns {boolean} True if onboarding is complete
  */
 function isComplete(state) {
-  return state.current_step === 'done' ||
-         (state.completed_steps && state.completed_steps.includes('done'));
+  return (
+    state.current_step === "done" ||
+    (state.completed_steps && state.completed_steps.includes("done"))
+  );
 }
 
 module.exports = {
@@ -306,5 +324,5 @@ module.exports = {
   transitionTo,
   initialState,
   getNextSteps,
-  isComplete
+  isComplete,
 };

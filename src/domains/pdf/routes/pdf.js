@@ -19,7 +19,7 @@ const {
   getImageGridCSS,
   validateLayout,
 } = require("../layouts");
-const { requireRole } = require('../../auth/middleware/require-auth');
+const { requireRole } = require("../../auth/middleware/require-auth");
 const knex = require("../../../shared/db/knex");
 const QRCode = require("qrcode");
 const config = require("../../../config");
@@ -380,8 +380,18 @@ async function renderStandardView(req, res, data, isDemo) {
   const mergedTheme =
     mergeThemeWithCustomization(theme, customizations) || theme;
 
-  // Select best images for the 2-page layout
-  const { heroImage, gridImages } = selectCompCardImages(images);
+  // Select best images for the 2-page layout (optional ?seed= for reproducible picks)
+  const rawSeed = req.query.seed;
+  const seed =
+    rawSeed == null || rawSeed === ""
+      ? undefined
+      : Array.isArray(rawSeed)
+        ? rawSeed[0]
+        : rawSeed;
+  const { heroImage, gridImages } = selectCompCardImages(
+    images,
+    seed != null && seed !== "" ? { seed } : undefined,
+  );
 
   // Load archetype
   const archetype = await loadArchetype(profile.id);
@@ -1040,6 +1050,13 @@ router.get("/pdf/:slug", async (req, res, next) => {
     if (themeKey) {
       url.searchParams.set("theme", themeKey);
     }
+    const dlSeed = req.query.seed;
+    if (dlSeed != null && dlSeed !== "") {
+      url.searchParams.set(
+        "seed",
+        String(Array.isArray(dlSeed) ? dlSeed[0] : dlSeed),
+      );
+    }
 
     console.log("[PDF Download] Generating PDF:", {
       slug: slug,
@@ -1049,7 +1066,9 @@ router.get("/pdf/:slug", async (req, res, next) => {
       isDemo: isDemo,
     });
 
-    const buffer = await renderCompCard(req.params.slug, themeKey);
+    const buffer = await renderCompCard(req.params.slug, themeKey, {
+      seed: req.query.seed,
+    });
 
     // Check if PDF is too large for Netlify Functions response (6MB limit)
     const maxResponseSize = 5.5 * 1024 * 1024; // 5.5MB safety limit (Netlify has ~6MB limit)

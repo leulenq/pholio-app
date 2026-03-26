@@ -17,7 +17,13 @@ router.get(
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
     const profile = await getProfileBySessionUserId(req.session.userId);
-    if (!profile) return res.status(404).json({ error: "Profile not found" });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
 
     // Fetch applications with organization-backed agency info
     const applications = await knex("applications")
@@ -54,7 +60,13 @@ router.get(
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
     const profile = await getProfileBySessionUserId(req.session.userId);
-    if (!profile) return res.status(404).json({ error: "Profile not found" });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
 
     // Redirect/invite source-of-truth: latest app rows with invited_by_agency_id.
     // redirect-apply writes invited_by_agency_id below, so both flows are normalized.
@@ -112,16 +124,32 @@ router.post(
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
     const { agencyId } = req.body;
-    if (!agencyId) return res.status(400).json({ error: "Agency ID required" });
+    if (!agencyId) {
+      return res.status(400).json({
+        success: false,
+        error: "Agency ID required",
+        message: "Agency ID required",
+      });
+    }
 
     const profile = await getProfileBySessionUserId(req.session.userId);
-    if (!profile) return res.status(404).json({ error: "Profile not found" });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
 
     // 1. Check if already applied
     const existingparams = { profile_id: profile.id, agency_id: agencyId };
     const existing = await knex("applications").where(existingparams).first();
     if (existing) {
-      return res.status(400).json({ error: "Already applied to this agency" });
+      return res.status(400).json({
+        success: false,
+        error: "Already applied to this agency",
+        message: "Already applied to this agency",
+      });
     }
 
     // 2. Check limits for Free Tier
@@ -138,7 +166,9 @@ router.post(
 
       if (Number(count.c) >= 5) {
         return res.status(403).json({
+          success: false,
           error: "Monthly application limit reached",
+          message: "Monthly application limit reached",
           limit: 5,
           current: Number(count.c),
           upgradeRequired: true,
@@ -170,13 +200,25 @@ router.post(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
 
     const deleted = await knex("applications")
       .where({ id, profile_id: profile.id })
       .del();
 
-    if (!deleted)
-      return res.status(404).json({ error: "Application not found" });
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
+    }
 
     res.json({ success: true });
   }),
@@ -191,8 +233,13 @@ router.post(
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
     const { agencyId, token } = req.body;
-    if (!agencyId || !token)
-      return res.status(400).json({ error: "Agency ID and token required" });
+    if (!agencyId || !token) {
+      return res.status(400).json({
+        success: false,
+        error: "Agency ID and token required",
+        message: "Agency ID and token required",
+      });
+    }
 
     // verify token (Mock logic for now, or check against stored invitation)
     // In production: jwt.verify(token, process.env.AGENCY_INVITE_SECRET)
@@ -200,7 +247,13 @@ router.post(
     // Or check if token matches agencyId simply
 
     const profile = await getProfileBySessionUserId(req.session.userId);
-    if (!profile) return res.status(404).json({ error: "Profile not found" });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
 
     // Check if already applied
     const existingparams = { profile_id: profile.id, agency_id: agencyId };

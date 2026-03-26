@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import React from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import './PholioForms.css';
 
 const CreditsEditor = ({
@@ -9,17 +9,68 @@ const CreditsEditor = ({
   disabled = false,
   label
 }) => {
-  // Safe parsing of initial value
+  // Safe parsing of initial value, including legacy object/blob shapes.
   const parseCredits = (val) => {
-    if (Array.isArray(val)) return val;
+    const toCredit = (entry, index = 0) => {
+      if (typeof entry === 'string') {
+        return {
+          id: `legacy-${index}`,
+          role: '',
+          production: entry,
+          year: '',
+          type: 'Other'
+        };
+      }
+
+      if (!entry || typeof entry !== 'object') {
+        return {
+          id: `credit-${index}`,
+          role: '',
+          production: '',
+          year: '',
+          type: 'Film'
+        };
+      }
+
+      return {
+        ...entry,
+        id: entry.id || `credit-${index}`,
+        role: entry.role || entry.character || '',
+        production:
+          entry.production ||
+          entry.project ||
+          entry.show ||
+          entry.company ||
+          entry.name ||
+          entry.title ||
+          entry.description ||
+          '',
+        year: entry.year ? String(entry.year) : '',
+        type: entry.type || 'Film'
+      };
+    };
+
+    if (Array.isArray(val)) return val.map((item, index) => toCredit(item, index));
+
+    if (val && typeof val === 'object') return [toCredit(val, 0)];
+
     if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (!trimmed) return [];
+
       try {
-        const parsed = JSON.parse(val);
-        return Array.isArray(parsed) ? parsed : [];
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map((item, index) => toCredit(item, index));
+        if (parsed && typeof parsed === 'object') return [toCredit(parsed, 0)];
       } catch {
-        return []; // If it's a string blob, we handle that outside or show it separately
+        return trimmed
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line, index) => toCredit(line, index));
       }
     }
+
     return [];
   };
 

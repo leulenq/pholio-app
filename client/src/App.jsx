@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
 import AuthLayout from './shared/layouts/AuthLayout';
 import LoginPage from './domains/auth/pages/LoginPage/LoginPage';

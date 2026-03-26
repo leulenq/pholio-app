@@ -2,7 +2,46 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { talentApi } from '../api/talent';
 
-export function useAnalytics(days = 30) {
+/** apiClient unwraps { success, data } → data; some routes use { success, insights } (no data key). */
+function asArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.data)) return payload.data;
+  return [];
+}
+
+function asActivityList(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.activities)) return payload.activities;
+  return [];
+}
+
+function asInsightsList(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.insights)) return payload.insights;
+  if (Array.isArray(payload.data)) return payload.data;
+  return [];
+}
+
+function asAnalyticsObject(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return EMPTY_ANALYTICS;
+  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+    return payload.data;
+  }
+  return payload;
+}
+
+function asFiniteNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+const EMPTY_SUMMARY = Object.freeze({});
+const EMPTY_ANALYTICS = Object.freeze({});
+
+export function useAnalytics(days = 30, options = {}) {
+  const includeAdvanced = options?.includeAdvanced === true;
+
   const analyticsQuery = useQuery({
     queryKey: ['talent-analytics', days],
     queryFn: () => talentApi.getAnalytics(days),
@@ -34,6 +73,7 @@ export function useAnalytics(days = 30) {
   const insightsQuery = useQuery({
     queryKey: ['talent-insights'],
     queryFn: () => talentApi.getInsights(),
+    enabled: includeAdvanced,
     staleTime: 1000 * 60 * 10, // 10 minutes
     retry: 1
   });
@@ -41,6 +81,7 @@ export function useAnalytics(days = 30) {
   const sessionsQuery = useQuery({
     queryKey: ['talent-sessions', days],
     queryFn: () => talentApi.getSessions(days),
+    enabled: includeAdvanced,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 1
   });
@@ -48,19 +89,25 @@ export function useAnalytics(days = 30) {
   const cohortsQuery = useQuery({
     queryKey: ['talent-cohorts'],
     queryFn: () => talentApi.getCohorts(),
+    enabled: includeAdvanced,
     staleTime: 1000 * 60 * 30, // 30 minutes (infrequent)
     retry: 1
   });
 
   // Memoize derived data to prevent recalculation on every render
-  const summary = summaryQuery.data || {};
-  const analyticsData = analyticsQuery.data || {};
-  const timeseriesData = timeseriesQuery.data || [];
+  const summary = summaryQuery.data ?? EMPTY_SUMMARY;
+  const analyticsData = asAnalyticsObject(analyticsQuery.data);
+  const timeseriesData = asArray(timeseriesQuery.data);
 
   // Memoize detailed stats calculation - only recalculate when dependencies change
   const detailedStats = useMemo(() => {
-    const viewsCount = summary.views?.total || 0;
-    const cohortsData = cohortsQuery.data?.data || [];
+    const summaryData = summaryQuery.data;
+    const viewsCount = asFiniteNumber(summaryData?.views?.total);
+    const cohortsData = asArray(cohortsQuery.data);
+    const sourceBreakdown = Array.isArray(analyticsData.views?.latestSourceBreakdown)
+      ? analyticsData.views.latestSourceBreakdown
+      : [];
+    const engagementCounts = analyticsData.engagement?.counts || {};
 
     // Calculate retention from cohort data if available
     const calculateRetention = () => {
@@ -69,7 +116,8 @@ export function useAnalytics(days = 30) {
       // Average W1 retention across all cohorts
       const retentionValues = cohortsData
         .map(cohort => cohort.retention?.[1]) // W1 retention
-        .filter(val => val !== null && val !== undefined);
+        .map((val) => asFiniteNumber(val, NaN))
+        .filter((val) => Number.isFinite(val));
 
       if (retentionValues.length === 0) return 0;
 
@@ -78,73 +126,121 @@ export function useAnalytics(days = 30) {
     };
 
     const retentionValue = calculateRetention();
-    const retentionSparkline = cohortsData.slice(0, 7).map(cohort => cohort.retention?.[1] || 0);
+    const retentionSparkline = cohortsData
+      .slice(0, 7)
+      .map((cohort) => asFiniteNumber(cohort.retention?.[1], 0));
+    const profileViewsSparkline = timeseriesData.map((d) => asFiniteNumber(d.views, 0));
+
+    const socialClicks = asFiniteNumber(engagementCounts.social_click);
+    const portfolioClicks = asFiniteNumber(engagementCounts.portfolio_click);
+    const bioReads = asFiniteNumber(engagementCounts.bio_read);
+    const contactRatePct =
+      viewsCount > 0 ? Math.round(((socialClicks + portfolioClicks) / viewsCount) * 100) : 0;
+    const bioReadRatePct = viewsCount > 0 ? Math.round((bioReads / viewsCount) * 100) : 0;
+
+    const viewsTrend = asFiniteNumber(
+      summaryData?.views?.changePct ?? summaryData?.views?.changePercent ?? summaryData?.views?.deltaPct,
+      0
+    );
+    const engagementTrend = asFiniteNumber(
+      analyticsData?.engagement?.trend ?? analyticsData?.engagement?.changePct,
+      0
+    );
+    const retentionTrend = asFiniteNumber(
+      analyticsData?.retention?.trend ?? analyticsData?.retention?.changePct,
+      0
+    );
 
     return {
       profileViews: {
         value: viewsCount,
-        trend: summary.views?.trend === 'up' ? 12 : -8,
-        sparkline: timeseriesData.map(d => d.views) || [0, 0, 0, 0, 0, 0, 0],
-        breakdown: analyticsData.views?.latestSourceBreakdown || [
-          { label: 'Direct visits', percentage: 100, count: viewsCount }
-        ]
+        trend: viewsTrend,
+        sparkline: profileViewsSparkline,
+        breakdown: sourceBreakdown,
       },
       engagement: {
-        value: analyticsData.engagement?.score || Math.round(viewsCount * 2.8),
-        trend: 15,
-        sparkline: timeseriesData.map(d => Math.round(d.views * 2.5)) || [0, 0, 0, 0, 0, 0, 0],
-        chartLabel: 'Engagement Score'
+        value: asFiniteNumber(analyticsData.engagement?.score),
+        trend: engagementTrend,
+        sparkline: Array.isArray(analyticsData.engagement?.sparkline)
+          ? analyticsData.engagement.sparkline.map((v) => asFiniteNumber(v, 0))
+          : [],
+        chartLabel: 'Engagement Score',
       },
       retention: {
         value: retentionValue,
-        trend: 0, // Calculate from historical data if available
-        sparkline: retentionSparkline.length > 0 ? retentionSparkline : [0, 0, 0, 0, 0, 0, 0],
-        chartLabel: 'Retention Rate'
+        trend: retentionTrend,
+        sparkline: retentionSparkline,
+        chartLabel: 'Retention Rate',
       },
       funnel: {
-        value: viewsCount > 0 ? Math.round(((analyticsData.engagement?.counts?.social_click || 0) + (analyticsData.engagement?.counts?.portfolio_click || 0)) / viewsCount * 100) + '%' : '0%',
+        value: contactRatePct,
         breakdown: [
-          { label: 'Profile Views', percentage: 100, trend: summary.views?.trend === 'up' ? 5 : -2 },
+          { label: 'Profile Views', percentage: 100 },
           {
             label: 'Bio Reads',
-            percentage: viewsCount > 0 ? Math.round((analyticsData.engagement?.counts?.bio_read || 0) / viewsCount * 100) : 0,
-            trend: 2.4
+            percentage: bioReadRatePct,
           },
           {
             label: 'Contact Clicks',
-            percentage: viewsCount > 0 ? Math.round(((analyticsData.engagement?.counts?.social_click || 0) + (analyticsData.engagement?.counts?.portfolio_click || 0)) / viewsCount * 100) : 0,
-            trend: 5.1
-          }
-        ]
-      }
+            percentage: contactRatePct,
+          },
+        ],
+      },
     };
-  }, [summary, analyticsData, timeseriesData, cohortsQuery.data?.data]); // Only recalculate when these change
+  }, [summaryQuery.data, analyticsData, timeseriesData, cohortsQuery.data]);
+
+  const isAnalyticsRefetching =
+    analyticsQuery.isFetching ||
+    activityQuery.isFetching ||
+    summaryQuery.isFetching ||
+    timeseriesQuery.isFetching ||
+    (includeAdvanced && (insightsQuery.isFetching || sessionsQuery.isFetching || cohortsQuery.isFetching));
 
   return {
-    analytics: analyticsQuery.data?.data,
-    activities: activityQuery.data?.activities,
+    analytics: analyticsData,
+    activities: asActivityList(activityQuery.data),
     summary,
-    timeseries: timeseriesQuery.data?.data || [],
+    timeseries: timeseriesData,
     detailedStats, // New structured data for the detailed view
-    insights: insightsQuery.data?.insights || [],
-    sessions: sessionsQuery.data?.data || [],
-    cohorts: cohortsQuery.data?.data || [],
+    insights: asInsightsList(insightsQuery.data),
+    sessions: asArray(sessionsQuery.data),
+    cohorts: asArray(cohortsQuery.data),
     // Only block on critical queries (activities, summary) - not advanced analytics
     isLoading: activityQuery.isLoading || summaryQuery.isLoading,
-    isError: analyticsQuery.isError || activityQuery.isError || summaryQuery.isError,
+    isError:
+      analyticsQuery.isError ||
+      activityQuery.isError ||
+      summaryQuery.isError ||
+      timeseriesQuery.isError,
+    /** Granular errors for overview UI (distinct from empty data states). */
+    summaryError: summaryQuery.isError,
+    activityError: activityQuery.isError,
+    isAnalyticsRefetching,
+    isSummaryLoading: summaryQuery.isLoading,
+    isTimeseriesLoading: timeseriesQuery.isLoading,
+    timeseriesError: timeseriesQuery.isError,
     // Loading states for optional queries
     isAnalyticsLoading: analyticsQuery.isLoading,
     isInsightsLoading: insightsQuery.isLoading,
     isSessionsLoading: sessionsQuery.isLoading,
     isCohortsLoading: cohortsQuery.isLoading,
     refetch: () => {
-      analyticsQuery.refetch();
-      activityQuery.refetch();
-      summaryQuery.refetch();
-      timeseriesQuery.refetch();
-      insightsQuery.refetch();
-      sessionsQuery.refetch();
-      cohortsQuery.refetch();
+      const queries = [
+        analyticsQuery.refetch(),
+        activityQuery.refetch(),
+        summaryQuery.refetch(),
+        timeseriesQuery.refetch()
+      ];
+
+      if (includeAdvanced) {
+        queries.push(
+          insightsQuery.refetch(),
+          sessionsQuery.refetch(),
+          cohortsQuery.refetch()
+        );
+      }
+
+      return Promise.all(queries);
     }
   };
 }

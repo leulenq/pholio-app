@@ -18,25 +18,49 @@ export const SocialInput = ({
   control,
   setValue,
   error,
-  fullWidth = false
+  fullWidth = false,
+  type = 'text',
+  inputMode,
+  autoComplete
 }) => {
+  const looksLikeUrl = (input) =>
+    /:\/\//.test(input) || /^www\./i.test(input) || /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(input);
+
+  const normalizeUrl = (input) => {
+    const trimmed = input.trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed.replace(/^\/+/, '')}`;
+  };
+
   const handleBlur = (e) => {
     let val = e.target.value.trim();
     if (!val) return;
 
-    // Auto-prefix logic
-    if (base && !val.includes('http')) {
+    // If the user pasted a URL-like value, normalize scheme instead of prepending base + slug.
+    if (looksLikeUrl(val)) {
+      setValue(name, normalizeUrl(val), { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+
+    // Auto-prefix logic for plain handles/slugs.
+    if (base) {
       if (prefix && val.startsWith(prefix)) {
         val = val.substring(prefix.length);
       }
-      setValue(name, `${base}${val}`, { shouldDirty: true, shouldValidate: true });
+      const merged = `${base}${val}`.replace(/([^:]\/)\/+/g, '$1');
+      setValue(name, merged, { shouldDirty: true, shouldValidate: true });
     }
   };
 
   const testLink = (url) => {
-    if (url && url.includes('http')) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
+    if (url) {
+      const normalized = normalizeUrl(String(url));
+      if (/^https?:\/\//i.test(normalized)) {
+        window.open(normalized, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+    {
       toast.error('Please enter a valid URL to test');
     }
   };
@@ -50,6 +74,9 @@ export const SocialInput = ({
           <div className={styles.socialInputWrapper}>
             <PholioInput
               {...field}
+              type={type}
+              inputMode={inputMode}
+              autoComplete={autoComplete}
               label={label}
               placeholder={placeholder}
               error={error}

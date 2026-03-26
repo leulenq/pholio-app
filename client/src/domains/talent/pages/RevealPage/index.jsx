@@ -7,10 +7,13 @@
  */
 
 
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import CastingRevealRadar from '../../../onboarding/pages/CastingRevealRadar';
+import { useCastingRevealComplete } from '../../../onboarding/hooks/useCasting';
+import { talentApi } from '../../api/talent';
 import '../../../onboarding/styles/CastingCinematic.css';
 
 // Mock Profile for "Perfect" Reveal (Runway Standard)
@@ -30,6 +33,7 @@ function RevealPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMock = searchParams.get('mock') === 'true';
+  const revealCompleteMutation = useCastingRevealComplete();
 
   // Fetch profile data for the reveal calculation
   const { data: profile, isLoading, error } = useQuery({
@@ -42,16 +46,21 @@ function RevealPage() {
         return MOCK_PROFILE;
       }
 
-      const res = await fetch('/api/talent/profile', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load profile');
-      const json = await res.json();
-      return json.data?.profile || json.profile || json;
+      const data = await talentApi.getProfile();
+      return data?.profile || data;
     },
     // Don't refetch mock data
     staleTime: isMock ? Infinity : 0
   });
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    if (!isMock) {
+      try {
+        await revealCompleteMutation.mutateAsync();
+      } catch (err) {
+        console.warn('[RevealPage] reveal-complete failed (non-blocking):', err);
+      }
+    }
     navigate('/dashboard/talent');
   };
 
@@ -63,15 +72,11 @@ function RevealPage() {
     }
 
     try {
-      await fetch('/api/talent/profile/fit-scores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(scores)
-      });
+      await talentApi.saveFitScores(scores);
       console.log('[RevealPage] Fit scores persisted:', scores);
     } catch (err) {
       console.warn('[RevealPage] Failed to persist fit scores:', err);
+      toast.error('Could not save reveal scores right now.');
     }
   }, [isMock]);
  

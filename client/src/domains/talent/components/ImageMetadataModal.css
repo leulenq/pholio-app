@@ -236,6 +236,40 @@
   grid-column: span 2;
 }
 
+.structured-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.structured-fields-grid__full {
+  grid-column: span 2;
+}
+
+.structured-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid #f1f5f9;
+}
+
+.structured-toggle-row:first-of-type {
+  margin-top: 0.25rem;
+}
+
+.structured-toggle-row__label {
+  flex: 1;
+  min-width: 0;
+}
+
+select.form-input {
+  cursor: pointer;
+  appearance: auto;
+}
+
 /* Footer */
 .modal-footer {
   padding: 1.5rem;

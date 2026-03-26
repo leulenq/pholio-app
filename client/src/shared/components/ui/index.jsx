@@ -1,7 +1,5 @@
 import React, { forwardRef } from 'react';
 import clsx from 'clsx';
-import '../../styles/ui.css';
-
 export const Input = forwardRef(({ label, error, helpText, className, type = 'text', ...props }, ref) => {
   return (
     <div className="form-group">

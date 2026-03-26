@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { User, Globe, Ruler, Award, GalleryVerticalEnd, Share2, GraduationCap, Camera, Sparkles, Briefcase, Phone } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/hooks/useAuth';
+import React, { useMemo } from 'react';
+import { User, Globe, Ruler, Award, GalleryVerticalEnd, Share2, GraduationCap, Camera, Briefcase, Phone } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
 const NAV_ITEMS = [
   { id: 'identity', label: 'Personal Details', icon: User },
   { id: 'heritage', label: 'Heritage & Background', icon: Globe },
+  { id: 'photos', label: 'Photos', icon: Camera },
   { id: 'appearance', label: 'Physical Attributes', icon: Ruler },
   { id: 'credits', label: 'Credits & Experience', icon: GalleryVerticalEnd },
   { id: 'training', label: 'Training & Skills', icon: GraduationCap },
@@ -16,27 +16,28 @@ const NAV_ITEMS = [
   { id: 'contact', label: 'Contact', icon: Phone }
 ];
 
+const VALID_NAV_IDS = new Set(NAV_ITEMS.map((item) => item.id));
+
 const ProfileNav = ({ onNavClick, activeSection }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { subscription } = useAuth();
-  const activeTab = searchParams.get('tab') || 'identity';
+  const rawTab = searchParams.get('tab');
+  const resolvedTab =
+    rawTab && VALID_NAV_IDS.has(rawTab) ? rawTab : 'identity';
 
-  // highlight active tab based on scroll or URL
-  const [activeId, setActiveId] = useState('identity');
-
-  // Sync internal state with URL or Prop
-  useEffect(() => {
-     if (activeSection) {
-       setActiveId(activeSection);
-     } else if (activeTab) {
-       setActiveId(activeTab);
-     }
-  }, [activeTab, activeSection]);
+  const activeId = useMemo(() => {
+    const navIdFromSection = activeSection === 'photos-tab' ? 'photos' : activeSection;
+    if (navIdFromSection && NAV_ITEMS.some((item) => item.id === navIdFromSection)) {
+      return navIdFromSection;
+    }
+    return resolvedTab;
+  }, [resolvedTab, activeSection]);
 
   const handleNavClick = (id) => {
-    setSearchParams({ tab: id });
-    setActiveId(id);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', id);
+      return next;
+    });
     if (onNavClick) onNavClick();
   };
 

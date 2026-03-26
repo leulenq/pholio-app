@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit2, Layout, ExternalLink, ArrowRight, FileDown, Sparkles, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { MomentumChart } from './MomentumChart';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import './RightSidebar.css';
@@ -45,7 +46,7 @@ export const RightSidebar = ({ nextPriority }) => {
           </li>
           <li>
             <a
-              href={`/talent/${profile?.slug}`}
+              href={`/portfolio/${profile?.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors text-left group decoration-0"
@@ -57,13 +58,7 @@ export const RightSidebar = ({ nextPriority }) => {
           <li>
             <button
               onClick={() => {
-                // Trigger comp card download
-                const link = document.createElement('a');
-                link.href = '/api/talent/comp-card';
-                link.download = `${profile?.slug || 'comp-card'}.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                toast.info('Comp card download is not available yet — we will add it in a future update.');
               }}
               className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors text-left group decoration-0 cursor-pointer border-0 bg-transparent"
             >
@@ -112,13 +107,13 @@ export const RightSidebar = ({ nextPriority }) => {
               ))}
             </ul>
 
-            <Link 
-              to="/pricing" 
+            <a 
+              href="https://www.pholio.studio/pricing"
               className="w-full py-3.5 bg-[#C9A55A] hover:bg-[#b08d45] text-white text-xs font-bold rounded-lg transition-all shadow-button-hover flex items-center justify-center gap-2 decoration-0 tracking-widest uppercase"
             >
               <span>Upgrade Now</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            </a>
           </div>
         </div>
       )}

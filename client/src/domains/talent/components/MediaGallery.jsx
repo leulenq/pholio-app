@@ -16,7 +16,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useMedia } from '../hooks/useMedia';
-import { Trash2, Plus, Edit2, EyeOff, Upload } from 'lucide-react';
+import { Trash2, Plus, Edit2, EyeOff, Upload, Star, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ReadinessBar from './ReadinessBar';
 import CompCardPreview from './CompCardPreview';
@@ -25,8 +25,74 @@ import PhotoEditorModal from './PhotoEditorModal';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import './MediaGallery.css';
 
+const MAX_PORTFOLIO_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_PORTFOLIO_UPLOAD_FILES = 12;
+const PORTFOLIO_ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+
+function normalizePortfolioMime(file) {
+  const t = (file.type || '').toLowerCase().trim();
+  if (t === 'image/jpg') return 'image/jpeg';
+  return t;
+}
+
+function isAllowedPortfolioFile(file) {
+  const mime = normalizePortfolioMime(file);
+  if (PORTFOLIO_ALLOWED_MIME.has(mime)) return true;
+  const name = (file.name || '').toLowerCase();
+  return /\.(jpe?g|png|webp)$/.test(name);
+}
+
+/**
+ * @param {File[]} files
+ * @returns {{ valid: File[], invalid: { name: string; reason: string }[] }}
+ */
+function partitionPortfolioUploadFiles(files) {
+  const valid = [];
+  const invalid = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    if (index >= MAX_PORTFOLIO_UPLOAD_FILES) {
+      invalid.push({
+        name: file.name || 'Unknown file',
+        reason: `A maximum of ${MAX_PORTFOLIO_UPLOAD_FILES} files can be uploaded at once`,
+      });
+      continue;
+    }
+    if (!isAllowedPortfolioFile(file)) {
+      invalid.push({
+        name: file.name || 'Unknown file',
+        reason: 'Only JPEG, PNG, and WebP are allowed',
+      });
+      continue;
+    }
+    if (file.size > MAX_PORTFOLIO_FILE_BYTES) {
+      invalid.push({
+        name: file.name || 'Unknown file',
+        reason: 'Each file must be 5MB or smaller',
+      });
+      continue;
+    }
+    valid.push(file);
+  }
+  return { valid, invalid };
+}
+
+function showPortfolioUploadValidationToasts(invalid) {
+  if (invalid.length === 0) return;
+  if (invalid.length === 1) {
+    const [{ name, reason }] = invalid;
+    toast.error(`${name}: ${reason}`);
+    return;
+  }
+  const lines = invalid.slice(0, 5).map((i) => `${i.name}: ${i.reason}`);
+  const more = invalid.length > 5 ? `\n… and ${invalid.length - 5} more` : '';
+  toast.error(`${invalid.length} files could not be uploaded`, {
+    description: `${lines.join('\n')}${more}`,
+  });
+}
+
 /* ─── Portfolio Image Card ─────────────────────────────────── */
-function PortfolioImage({ image, onDelete, onEdit }) {
+function PortfolioImage({ image, onDelete, onEdit, onSetPrimary, settingHeroId }) {
   const {
     attributes,
     listeners,
@@ -43,14 +109,18 @@ function PortfolioImage({ image, onDelete, onEdit }) {
     opacity: isDragging ? 0.5 : 1
   };
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return path.startsWith('/') ? path : `/uploads/${path}`;
+  const getImageUrl = (value) => {
+    if (!value || typeof value !== 'string') return '';
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed;
+    return `/uploads/${trimmed.replace(/^\/+/, '')}`;
   };
 
   const isPrivate = image.metadata?.visibility === 'private';
-  const cardRole = image.metadata?.role || null;
+  const isPrimary = !!image.is_primary;
+  const heroBusy = !!settingHeroId;
 
   const roleBadgeColors = {
     headshot:  { bg: '#C9A55A', label: 'Headshot' },
@@ -58,6 +128,38 @@ function PortfolioImage({ image, onDelete, onEdit }) {
     editorial: { bg: '#7C3AED', label: 'Editorial' },
     lifestyle: { bg: '#059669', label: 'Lifestyle' },
   };
+
+  const shotBadgeMap = {
+    headshot: { bg: '#C9A55A', label: 'Headshot' },
+    three_quarter: { bg: '#2563EB', label: '3/4' },
+    full_length: { bg: '#2563EB', label: 'Full length' },
+    profile_left: { bg: '#475569', label: 'Profile L' },
+    profile_right: { bg: '#475569', label: 'Profile R' },
+    back: { bg: '#475569', label: 'Back' },
+    detail: { bg: '#475569', label: 'Detail' },
+  };
+
+  const styleBadgeMap = {
+    editorial: { bg: '#7C3AED', label: 'Editorial' },
+    commercial: { bg: '#0284c7', label: 'Commercial' },
+    lifestyle: { bg: '#059669', label: 'Lifestyle' },
+    beauty: { bg: '#db2777', label: 'Beauty' },
+    ecommerce: { bg: '#78716c', label: 'E-commerce' },
+    swimwear: { bg: '#0d9488', label: 'Swimwear' },
+    fitness: { bg: '#ea580c', label: 'Fitness' },
+  };
+
+  let cardBadge = null;
+  if (image.shot_type && shotBadgeMap[image.shot_type]) {
+    cardBadge = shotBadgeMap[image.shot_type];
+  } else if (image.style_type && styleBadgeMap[image.style_type]) {
+    cardBadge = styleBadgeMap[image.style_type];
+  } else {
+    const cardRole = image.metadata?.role || null;
+    if (cardRole && roleBadgeColors[cardRole]) {
+      cardBadge = { bg: roleBadgeColors[cardRole].bg, label: roleBadgeColors[cardRole].label };
+    }
+  }
 
   return (
     <div
@@ -68,7 +170,7 @@ function PortfolioImage({ image, onDelete, onEdit }) {
     >
       {/* The Image */}
       <img
-        src={getImageUrl(image.path)}
+        src={getImageUrl(image.public_url || image.path)}
         alt="Portfolio"
         className={`portfolio-image ${isPrivate ? 'opacity-75 grayscale' : ''}`}
         loading="lazy"
@@ -78,11 +180,15 @@ function PortfolioImage({ image, onDelete, onEdit }) {
         {...listeners}
       />
 
-      {/* Role Badge */}
-      {cardRole && roleBadgeColors[cardRole] && (
-        <div className="role-badge" style={{ background: roleBadgeColors[cardRole].bg }}>
-          {roleBadgeColors[cardRole].label}
+      {/* Shot / style / legacy role badge */}
+      {cardBadge && (
+        <div className="role-badge" style={{ background: cardBadge.bg }}>
+          {cardBadge.label}
         </div>
+      )}
+
+      {isPrimary && (
+        <div className="primary-badge">Primary</div>
       )}
 
       {/* Private Indicator */}
@@ -97,6 +203,25 @@ function PortfolioImage({ image, onDelete, onEdit }) {
       {/* Hover Actions */}
       <div className="portfolio-image-overlay">
         <div className="portfolio-actions">
+          {!isPrimary && onSetPrimary && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetPrimary(image.id);
+              }}
+              className="action-button action-hero"
+              disabled={heroBusy}
+              title="Set as primary (comp card hero)"
+              aria-label="Set as primary image"
+            >
+              {settingHeroId === image.id ? (
+                <Loader2 size={14} className="action-button-spinner" aria-hidden />
+              ) : (
+                <Star size={14} />
+              )}
+            </button>
+          )}
            <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onEdit(image); }}
@@ -124,25 +249,60 @@ function PortfolioImage({ image, onDelete, onEdit }) {
 
 /* ─── Studio Page ──────────────────────────────────────────── */
 export default function MediaGallery() {
-  const { images, heroId, upload, deleteImage, reorder, setHero, replaceImage, isUploading, isLoading } = useMedia();
+  const {
+    images,
+    upload,
+    deleteImage,
+    reorder,
+    setHero,
+    replaceImage,
+    fetchSets,
+    createSet,
+    setCurrentSet,
+    isUploading,
+    isLoading,
+  } = useMedia();
   const [localImages, setLocalImages] = React.useState(images);
   const [editingImage, setEditingImage] = React.useState(null);
   const [editorImage, setEditorImage] = React.useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = React.useState(null);
+  const [settingHeroId, setSettingHeroId] = React.useState(null);
+  const [mediaSets, setMediaSets] = React.useState([]);
+  const [selectedSetId, setSelectedSetId] = React.useState('');
+  const [isRefreshingSets, setIsRefreshingSets] = React.useState(false);
 
   React.useEffect(() => {
     setLocalImages(images);
   }, [images]);
 
+  const loadSets = React.useCallback(async () => {
+    setIsRefreshingSets(true);
+    try {
+      const response = await fetchSets();
+      const rows = Array.isArray(response?.sets) ? response.sets : [];
+      setMediaSets(rows);
+      const current = rows.find((row) => row.is_current);
+      setSelectedSetId(current?.id || rows[0]?.id || '');
+    } catch (err) {
+      console.warn('Failed to load media sets', err);
+    } finally {
+      setIsRefreshingSets(false);
+    }
+  }, [fetchSets]);
+
+  React.useEffect(() => {
+    loadSets();
+  }, [loadSets]);
+
   React.useEffect(() => {
     document.title = 'Portfolio | Pholio';
   }, []);
 
-  // Optimistic update for metadata
-  const handleUpdateMetadata = (id, newMetadata) => {
-    setLocalImages(prev => prev.map(img => 
-      img.id === id ? { ...img, metadata: newMetadata } : img
-    ));
+  // Optimistic update after metadata modal (metadata + structured top-level fields)
+  const handleUpdateMetadata = (id, patch) => {
+    setLocalImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, ...patch } : img)),
+    );
   };
 
   // Helper: Open Editor (closes metadata modal)
@@ -175,25 +335,57 @@ export default function MediaGallery() {
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
-      const oldIndex = localImages.findIndex((item) => item.id === active.id);
-      const newIndex = localImages.findIndex((item) => item.id === over.id);
-      const newOrder = arrayMove(localImages, oldIndex, newIndex);
-      setLocalImages(newOrder);
-      const ids = newOrder.map(img => img.id);
+    if (!over || active.id === over.id) return;
+    const oldIndex = localImages.findIndex((item) => item.id === active.id);
+    const newIndex = localImages.findIndex((item) => item.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const previousOrder = localImages;
+    const newOrder = arrayMove(localImages, oldIndex, newIndex);
+    setLocalImages(newOrder);
+    const ids = newOrder.map(img => img.id);
+    try {
       await reorder(ids);
+    } catch (err) {
+      setLocalImages(previousOrder);
+      toast.error(err?.message || 'Failed to reorder images');
+    }
+  };
+
+  const handleSetPrimary = async (id) => {
+    setSettingHeroId(id);
+    try {
+      await setHero(id);
+      setLocalImages((prev) =>
+        prev.map((img) => ({ ...img, is_primary: img.id === id }))
+      );
+    } catch (err) {
+      toast.error(err?.message || 'Failed to set primary image');
+    } finally {
+      setSettingHeroId(null);
     }
   };
 
   const handleFileUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const list = Array.from(files);
+    const { valid, invalid } = partitionPortfolioUploadFiles(list);
+    showPortfolioUploadValidationToasts(invalid);
+    if (valid.length === 0) {
+      e.target.value = null;
+      return;
+    }
     const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('media', files[i]);
+    for (let i = 0; i < valid.length; i++) {
+      formData.append('media', valid[i]);
+    }
+    if (selectedSetId) {
+      formData.append('set_id', selectedSetId);
     }
     try {
       await upload(formData);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to upload image(s)');
     } finally {
       e.target.value = null;
     }
@@ -203,35 +395,71 @@ export default function MediaGallery() {
     setDeleteConfirmation(id);
   };
 
-  const confirmDelete = async () => {
-    if (deleteConfirmation) {
-      await deleteImage(deleteConfirmation);
-      setDeleteConfirmation(null);
+  const handleCreateSet = async () => {
+    const kindInput = window.prompt('Set kind (e.g. portfolio_test, digitals, campaign):', 'portfolio_test');
+    if (!kindInput || !kindInput.trim()) return;
+    const nameInput = window.prompt('Set name (optional):', '');
+    try {
+      const res = await createSet({
+        kind: kindInput.trim(),
+        name: nameInput?.trim() || null,
+        is_current: false,
+      });
+      const createdId = res?.set?.id;
+      await loadSets();
+      if (createdId) setSelectedSetId(createdId);
+    } catch (err) {
+      console.warn('Failed to create media set', err);
     }
   };
 
-  const getImageUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    return path.startsWith('/') ? path : `/uploads/${path}`;
+  const handleSetCurrent = async () => {
+    if (!selectedSetId) return;
+    try {
+      await setCurrentSet(selectedSetId);
+      await loadSets();
+    } catch (err) {
+      console.warn('Failed to set current media set', err);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirmation) {
+      try {
+        await deleteImage(deleteConfirmation);
+        setDeleteConfirmation(null);
+      } catch (err) {
+        toast.error(err?.message || 'Failed to delete image');
+      }
+    }
+  };
+
+  const getImageUrl = (value) => {
+    if (!value || typeof value !== 'string') return '';
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed;
+    return `/uploads/${trimmed.replace(/^\/+/, '')}`;
   };
 
   return (
     <div className="studio-container">
       {/* Metadata Modal */}
       {editingImage && (
-        <ImageMetadataModal 
+        <ImageMetadataModal
           image={editingImage}
           onClose={() => setEditingImage(null)}
           onUpdate={handleUpdateMetadata}
           onOpenEditor={handleOpenEditor}
+          mediaSets={mediaSets}
         />
       )}
 
       {/* Editor Modal */}
       {editorImage && (
         <PhotoEditorModal
-          imageSrc={getImageUrl(editorImage.path)}
+          imageSrc={getImageUrl(editorImage.public_url || editorImage.path)}
           onClose={() => setEditorImage(null)}
           onSave={handleSaveEditedPhoto}
         />
@@ -264,7 +492,7 @@ export default function MediaGallery() {
           <input
             type="file"
             multiple
-            accept="image/png, image/jpeg, image/webp"
+            accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
             onChange={handleFileUpload}
             className="file-input-hidden"
             id="media-upload"
@@ -277,6 +505,45 @@ export default function MediaGallery() {
             <Plus size={16} />
             <span>{isUploading ? 'Uploading...' : 'Upload Images'}</span>
           </label>
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="studio-setbar"
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="studio-setbar__left">
+          <span className="studio-setbar__label">Image Set</span>
+          <select
+            className="studio-setbar__select"
+            value={selectedSetId}
+            onChange={(e) => setSelectedSetId(e.target.value)}
+            disabled={isRefreshingSets}
+          >
+            <option value="">No sets yet</option>
+            {mediaSets.map((setRow) => (
+              <option key={setRow.id} value={setRow.id}>
+                {setRow.name || setRow.kind}
+                {setRow.name ? ` (${setRow.kind})` : ''}
+                {setRow.is_current ? ' - current' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="studio-setbar__actions">
+          <button type="button" className="studio-setbar__btn" onClick={handleCreateSet}>
+            New Set
+          </button>
+          <button
+            type="button"
+            className="studio-setbar__btn studio-setbar__btn--primary"
+            onClick={handleSetCurrent}
+            disabled={!selectedSetId}
+          >
+            Make Current
+          </button>
         </div>
       </motion.div>
 
@@ -318,6 +585,8 @@ export default function MediaGallery() {
                         image={image}
                         onDelete={handleDelete}
                         onEdit={setEditingImage}
+                        onSetPrimary={handleSetPrimary}
+                        settingHeroId={settingHeroId}
                       />
                     </motion.div>
                   ))}
@@ -352,7 +621,7 @@ export default function MediaGallery() {
 
         {/* Right: Comp Card Sidebar */}
         <aside className="studio-sidebar">
-          <CompCardPreview images={localImages} heroId={heroId} />
+          <CompCardPreview images={localImages} />
         </aside>
 
       </div>

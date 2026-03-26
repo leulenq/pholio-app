@@ -269,7 +269,7 @@ export default function AnalyticsView() {
   // Default to 7 days for free users, 30 days for Studio+ users
   const [timeRange, setTimeRange] = useState(isStudioPlus ? 30 : 7);
   
-  const { analytics, activities, summary, timeseries, detailedStats, insights, sessions, cohorts, isLoading } = useAnalytics(timeRange);
+  const { analytics, activities, summary, timeseries, detailedStats, insights, sessions, cohorts, isLoading } = useAnalytics(timeRange, { includeAdvanced: true });
 
   if (isLoading) {
     return (

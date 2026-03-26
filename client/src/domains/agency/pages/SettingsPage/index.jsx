@@ -1,25 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  User, Palette, Bell, Shield, Check, Upload, X, 
-  Image as ImageIcon, Users, CreditCard, ChevronRight,
-  ExternalLink, Mail, ShieldCheck, Zap
+  User, Palette, Bell, Shield, Check, 
+  CreditCard, ChevronRight,
+  ExternalLink, Mail, Zap, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   getAgencyProfile,
   updateAgencyProfile,
-  updateAgencyBranding,
-  updateAgencySettings,
-  getAgencyTeam,
-  addAgencyTeamMember,
-  updateAgencyTeamMember,
-  removeAgencyTeamMember,
 } from '../../api/agency';
 import { AgencyButton } from '../../components/ui/AgencyButton';
-import LoadingSpinner from '../../../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../../../shared/components/shared/LoadingSpinner';
+import BrandingSection from './BrandingSection';
+import TeamSection from './TeamSection';
+import OnboardingSection from './OnboardingSection';
 import './SettingsPage.css';
 
 const TABS = [
@@ -35,7 +32,6 @@ export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'profile';
   const [activeTab, setActiveTab] = useState(initialTab);
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -49,7 +45,6 @@ export default function SettingsPage() {
     setSearchParams({ tab: tabId });
   };
 
-  // Fetch agency profile
   const { data: profile, isLoading } = useQuery({
     queryKey: ['agency-profile'],
     queryFn: getAgencyProfile,
@@ -88,7 +83,6 @@ export default function SettingsPage() {
         animate="show"
         variants={containerVars}
       >
-        {/* Header Section */}
         <header className="st-header">
           <div className="st-header-content">
             <h1 className="st-title">Settings</h1>
@@ -105,7 +99,6 @@ export default function SettingsPage() {
         </header>
 
         <div className="st-layout">
-          {/* Enhanced Navigation */}
           <aside className="st-aside">
             <nav className="st-nav">
               {TABS.map((tab) => (
@@ -142,7 +135,6 @@ export default function SettingsPage() {
             </div>
           </aside>
 
-          {/* Dynamic Content Area */}
           <main className="st-main">
             <AnimatePresence mode="wait">
               <motion.div
@@ -161,7 +153,7 @@ export default function SettingsPage() {
                 {activeTab === 'profile' && <ProfileSection profile={profile} />}
                 {activeTab === 'branding' && <BrandingSection profile={profile} />}
                 {activeTab === 'team' && <TeamSection profile={profile} />}
-                {activeTab === 'notifications' && <NotificationsSection profile={profile} />}
+                {activeTab === 'notifications' && <OnboardingSection profile={profile} />}
                 {activeTab === 'billing' && <BillingSection profile={profile} />}
                 {activeTab === 'account' && <AccountSection profile={profile} />}
               </motion.div>
@@ -173,8 +165,6 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-// ─── Sections ────────────────────────────────────────────────────────────────
 
 function ProfileSection({ profile }) {
   const [formData, setFormData] = useState({
@@ -285,314 +275,6 @@ function ProfileSection({ profile }) {
         >
           Save Changes
         </AgencyButton>
-      </div>
-    </div>
-  );
-}
-
-function BrandingSection({ profile }) {
-  const [logoPreview, setLogoPreview] = useState(profile?.agency_logo_path ? `/${profile.agency_logo_path}` : null);
-  const [brandColor, setBrandColor] = useState(profile?.agency_brand_color || '#C9A55A');
-  const fileInputRef = useRef(null);
-  const queryClient = useQueryClient();
-
-  const updateMutation = useMutation({
-    mutationFn: updateAgencyBranding,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries(['agency-profile']);
-      toast.success('Branding updated');
-      if (data.logo_path) setLogoPreview(`/${data.logo_path}`);
-    }
-  });
-
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const formData = new FormData();
-      formData.append('agency_logo', file);
-      updateMutation.mutate(formData);
-    }
-  };
-
-  const handleColorSave = () => {
-    const formData = new FormData();
-    formData.append('agency_brand_color', brandColor);
-    updateMutation.mutate(formData);
-  };
-
-  return (
-    <div className="st-card">
-      <div className="st-card-form">
-        <div className="st-field">
-          <label>Agency Logo</label>
-          <div className="st-logo-grid">
-            <div className="st-logo-preview">
-              {logoPreview ? (
-                <img src={logoPreview} alt="Logo" />
-              ) : (
-                <ImageIcon size={32} strokeWidth={1} />
-              )}
-            </div>
-            <div className="st-logo-actions">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleLogoUpload} 
-                className="hidden" 
-                accept="image/*"
-              />
-              <AgencyButton 
-                variant="secondary" 
-                icon={Upload} 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={updateMutation.isPending}
-              >
-                Upload New
-              </AgencyButton>
-              {logoPreview && (
-                <AgencyButton 
-                  variant="ghost" 
-                  icon={X} 
-                  onClick={() => {
-                    const fd = new FormData();
-                    fd.append('remove_logo', 'true');
-                    updateMutation.mutate(fd);
-                    setLogoPreview(null);
-                  }}
-                >
-                  Remove
-                </AgencyButton>
-              )}
-            </div>
-          </div>
-          <span className="st-help">SVG or High-res PNG. Min 400x400px recommended.</span>
-        </div>
-
-        <div className="st-divider" />
-
-        <div className="st-field">
-          <label>Primary Brand Color</label>
-          <div className="st-color-row">
-            <div className="st-color-input-wrap" style={{ borderColor: brandColor }}>
-              <input 
-                type="color" 
-                value={brandColor} 
-                onChange={(e) => setBrandColor(e.target.value)} 
-                className="st-color-input"
-              />
-            </div>
-            <div className="st-color-info">
-              <code className="st-color-hex">{brandColor.toUpperCase()}</code>
-              <AgencyButton 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleColorSave}
-                disabled={updateMutation.isPending}
-              >
-                Apply
-              </AgencyButton>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TeamSection({ profile }) {
-  const queryClient = useQueryClient();
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('MEMBER');
-
-  const { data: members = [], isLoading, isError, error } = useQuery({
-    queryKey: ['agency-team'],
-    queryFn: getAgencyTeam,
-  });
-
-  const addMemberMutation = useMutation({
-    mutationFn: addAgencyTeamMember,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['agency-team']);
-      setInviteEmail('');
-      setInviteRole('MEMBER');
-      toast.success('Team member added');
-    },
-    onError: (err) => toast.error(err.message || 'Failed to add team member'),
-  });
-
-  const updateMemberMutation = useMutation({
-    mutationFn: ({ membershipId, membership_role }) =>
-      updateAgencyTeamMember(membershipId, { membership_role }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['agency-team']);
-      toast.success('Team member updated');
-    },
-    onError: (err) => toast.error(err.message || 'Failed to update team member'),
-  });
-
-  const removeMemberMutation = useMutation({
-    mutationFn: removeAgencyTeamMember,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['agency-team']);
-      toast.success('Team member removed');
-    },
-    onError: (err) => toast.error(err.message || 'Failed to remove team member'),
-  });
-
-  const isMutating =
-    addMemberMutation.isPending ||
-    updateMemberMutation.isPending ||
-    removeMemberMutation.isPending;
-
-  return (
-    <div className="st-card">
-      <div className="st-card-header">
-        <h3>Organization Members</h3>
-        <span className="st-help">Manage existing provisioned agency logins for this organization.</span>
-      </div>
-      <div className="st-card-form">
-        <div className="st-field-row">
-          <div className="st-field">
-            <label>Member Email</label>
-            <input
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="name@agency.com"
-              className="st-input"
-            />
-          </div>
-          <div className="st-field">
-            <label>Role</label>
-            <select
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
-              className="st-input"
-            >
-              <option value="MEMBER">Member</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
-        </div>
-        <AgencyButton
-          variant="primary"
-          size="sm"
-          icon={Users}
-          loading={addMemberMutation.isPending}
-          disabled={!inviteEmail.trim()}
-          onClick={() => addMemberMutation.mutate({
-            email: inviteEmail.trim(),
-            membership_role: inviteRole,
-          })}
-        >
-          Add Member
-        </AgencyButton>
-      </div>
-      <div className="st-team-list">
-        {isLoading && (
-          <div className="st-member-row">
-            <div className="st-member-details">Loading team members...</div>
-          </div>
-        )}
-        {isError && (
-          <div className="st-member-row">
-            <div className="st-member-details">
-              Failed to load team members{error?.message ? `: ${error.message}` : '.'}
-            </div>
-          </div>
-        )}
-        {!isLoading && !isError && members.length === 0 && (
-          <div className="st-member-row">
-            <div className="st-member-details">No team members found.</div>
-          </div>
-        )}
-        {members.map((m) => (
-          <div key={m.membershipId} className="st-member-row">
-            <div className="st-member-info">
-              <div className="st-member-avatar">{(m.full_name || m.email || '?')[0]}</div>
-              <div className="st-member-details">
-                <span className="st-member-name">
-                  {m.full_name}
-                  {m.membership_role === 'OWNER' && <span className="st-owner-tag">Owner</span>}
-                </span>
-                <span className="st-member-email">{m.email}</span>
-              </div>
-            </div>
-            <div className="st-member-role">
-              {m.membership_role === 'OWNER' ? (
-                'OWNER'
-              ) : (
-                <select
-                  value={m.membership_role}
-                  className="st-input"
-                  style={{ minWidth: 110 }}
-                  disabled={isMutating || m.userId === profile?.id}
-                  onChange={(e) => updateMemberMutation.mutate({
-                    membershipId: m.membershipId,
-                    membership_role: e.target.value,
-                  })}
-                >
-                  <option value="MEMBER">MEMBER</option>
-                  <option value="ADMIN">ADMIN</option>
-                </select>
-              )}
-            </div>
-            <div className="st-member-status">
-              <span className={`st-status-dot ${m.status === 'ACTIVE' ? 'active' : ''}`} />
-              {m.status}
-            </div>
-            {m.membership_role === 'OWNER' || m.userId === profile?.id ? (
-              <span className="st-help">Protected</span>
-            ) : (
-              <AgencyButton
-                variant="ghost"
-                size="sm"
-                disabled={isMutating}
-                onClick={() => removeMemberMutation.mutate(m.membershipId)}
-              >
-                Remove
-              </AgencyButton>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function NotificationsSection({ profile }) {
-  const [settings, setSettings] = useState({
-    push_applications: true,
-    email_status: true,
-    weekly_digest: false,
-    marketing: true
-  });
-
-  const toggles = [
-    { id: 'push_applications', label: 'New Applications', desc: 'Real-time alerts for incoming talent submissions' },
-    { id: 'email_status', label: 'Status Updates', desc: 'Email digest of application transitions' },
-    { id: 'weekly_digest', label: 'Agency Performance', desc: 'Weekly metrics and roster growth summary' },
-    { id: 'marketing', label: 'Feature Announcements', desc: 'Stay updated with Pholio platform releases' },
-  ];
-
-  return (
-    <div className="st-card">
-      <div className="st-toggle-list">
-        {toggles.map((t) => (
-          <div key={t.id} className="st-toggle-row">
-            <div className="st-toggle-info">
-              <span className="st-toggle-label">{t.label}</span>
-              <span className="st-toggle-desc">{t.desc}</span>
-            </div>
-            <label className="st-switch">
-              <input 
-                type="checkbox" 
-                checked={settings[t.id]} 
-                onChange={() => setSettings(p => ({ ...p, [t.id]: !p[t.id] }))} 
-              />
-              <span className="st-slider" />
-            </label>
-          </div>
-        ))}
       </div>
     </div>
   );

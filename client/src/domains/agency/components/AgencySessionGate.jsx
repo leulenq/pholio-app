@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import LoadingSpinner from '../../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../../shared/components/shared/LoadingSpinner';
 
 async function getSession() {
   const response = await fetch('/api/session', {

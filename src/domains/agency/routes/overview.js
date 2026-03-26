@@ -5,6 +5,7 @@ const express = require("express");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
+const { mountAgencyApiGuard } = require("./agency-api-guard");
 const { getSessionAgencyId } = require("../services/context");
 const {
   getPendingReview,
@@ -26,6 +27,8 @@ const {
  *
  * Auth: requireRole('AGENCY')
  */
+mountAgencyApiGuard(router);
+
 router.get("/api/agency/overview", requireRole("AGENCY"), async (req, res) => {
   try {
     const agencyId = getSessionAgencyId(req.session);

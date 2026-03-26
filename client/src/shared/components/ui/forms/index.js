@@ -3,3 +3,5 @@ export { default as PholioSelect } from './PholioSelect';
 export { default as PholioTextarea } from './PholioTextarea';
 export { default as PholioToggle } from './PholioToggle';
 export { default as PholioSection } from './PholioSection';
+export { default as CityAutocompleteField } from './CityAutocompleteField';
+export { default as CountrySelectField } from './CountrySelectField';

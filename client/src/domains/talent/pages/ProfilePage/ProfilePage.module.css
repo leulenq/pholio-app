@@ -1111,6 +1111,141 @@
     left: 16px;
   }
 }
+/* Representation tri-state radios */
+.representationFieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.representationLegend {
+  font-family: 'Inter', sans-serif;
+  font-size: 14.4px;
+  font-weight: 500;
+  color: #0f172a;
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+.representationRadios {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.representationRadioCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fafaf9;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.representationRadioCard:hover {
+  border-color: rgba(201, 165, 90, 0.35);
+  background: #fff;
+}
+
+.representationRadioCardActive {
+  border-color: rgba(201, 165, 90, 0.55);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.2);
+  background: #fff;
+}
+
+.representationRadioInput {
+  margin-top: 4px;
+  accent-color: #c9a55a;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.representationRadioText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.representationRadioTitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.representationRadioHint {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.representationError {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #ef4444;
+}
+
+/* Work eligibility (tri-state) */
+.workEligibilityFieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  grid-column: 1 / -1;
+}
+
+.workEligibilityLegend {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.workEligibilityHint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.workEligibilityOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workEligibilityOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fafaf9;
+  cursor: pointer;
+  font-size: 14px;
+  color: #334155;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.workEligibilityOption:hover {
+  border-color: rgba(201, 165, 90, 0.3);
+}
+
+.workEligibilityOptionActive {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #fff;
+  color: #0f172a;
+}
+
+.workEligibilityOption input {
+  accent-color: #c9a55a;
+}
+
 /* Social Grid Layout */
 .socialGrid {
   display: grid;

@@ -19,7 +19,11 @@ const cookieParser = require("cookie-parser");
 const ejsLayouts = require("express-ejs-layouts");
 
 const authRoutes = require("./domains/auth/routes/auth");
-const onboardingRoutes = require("./domains/onboarding/routes/casting"); // Phase 2: Onboarding API
+// Casting-call onboarding API (source of truth for server routes under /onboarding/* and /casting/*).
+// TODO(deprecation): `domains/onboarding/routes/apply-essentials.js` (EJS /apply/essentials) is not
+// mounted here; the React SPA at /onboarding plus `domains/onboarding/routes/casting.js` are the
+// supported flow. Remount only if product revives the wizard.
+const onboardingRoutes = require("./domains/onboarding/routes/casting");
 const dashboardTalentRoutes = require("./domains/talent/routes/index");
 const pdfRoutes = require("./domains/pdf/routes/pdf");
 const agencyDomainRoutes = require("./domains/agency/routes/index");
@@ -29,6 +33,7 @@ const chatRoutes = require("./routes/chat");
 const scoutRoutes = require("./routes/scout");
 const apiRoutes = require("./routes/api");
 const publicRoutes = require("./routes/api/public");
+const portfolioRoutes = require("./routes/portfolio");
 
 const app = express();
 
@@ -520,22 +525,22 @@ app.use("/api", apiRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/", agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
 
-// Application/onboarding routes
-app.use("/", onboardingRoutes); // Phase 2: Onboarding API Routes
+// Application/onboarding routes (casting API; see TODO on onboardingRoutes require above)
+app.use("/", onboardingRoutes);
 
 // Onboarding redirect middleware (applied to dashboard routes)
 const {
   requireOnboardingComplete,
 } = require("./shared/middleware/onboarding-redirect");
-const {
-  requireProfileUnlocked,
-} = require("./shared/middleware/require-profile-unlocked");
 
-// Dashboard routes (protected by onboarding middleware)
+// Public portfolio (EJS) — mount before onboarding-gated talent shell
+app.use("/", portfolioRoutes);
+
+// Dashboard routes (protected by onboarding middleware).
+// requireProfileUnlocked is not applied here: it only redirects HTML and would block
+// /api/talent/* needed to complete essentials; comp card / PDF locking stays per-route in domain routers.
 app.use("/", requireOnboardingComplete, dashboardTalentRoutes);
 // Agency dashboard routes handled by agencyDomainRoutes above
-
-// Public portfolio routes
 
 // PDF generation routes (public viewing routes don't need unlock check)
 // Locking is handled per-route for customization endpoints that already have requireRole('TALENT')

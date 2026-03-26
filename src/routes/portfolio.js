@@ -276,10 +276,22 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       try {
         profile = await knex("profiles").where({ slug: slug }).first();
         if (profile) {
+          // Public portfolio: only shareable images (active status, not excluded from public).
+          // NULL status → treat as active; NULL exclude_from_public → treat as not excluded.
           images = await knex("images")
             .where({ profile_id: profile.id })
+            .where(function () {
+              this.whereNull("status").orWhere("status", "active");
+            })
+            .where(function () {
+              this.whereNull("exclude_from_public").orWhere(
+                "exclude_from_public",
+                false,
+              );
+            })
             .orderBy("sort");
-          const primaryImage = images.find((img) => img.is_primary);
+          const primaryImage =
+            images.find((img) => img.is_primary) || images[0];
           profile.hero_image_path = primaryImage
             ? primaryImage.public_url || primaryImage.path
             : null;

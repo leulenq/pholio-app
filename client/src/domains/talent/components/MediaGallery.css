@@ -94,6 +94,87 @@
   display: none;
 }
 
+/* Set Controls */
+.studio-setbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.studio-setbar__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.studio-setbar__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-light);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.studio-setbar__select {
+  min-width: 260px;
+  max-width: 420px;
+  width: min(60vw, 420px);
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-dark);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.875rem;
+}
+
+.studio-setbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.studio-setbar__btn {
+  border: 1px solid var(--border-light);
+  background: #fff;
+  color: var(--text-slate);
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-standard);
+}
+
+.studio-setbar__btn:hover {
+  border-color: #cbd5e1;
+  color: var(--text-dark);
+}
+
+.studio-setbar__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.studio-setbar__btn--primary {
+  border-color: var(--primary-gold);
+  background: var(--primary-gold);
+  color: #fff;
+}
+
+.studio-setbar__btn--primary:hover {
+  border-color: var(--primary-gold-hover);
+  background: var(--primary-gold-hover);
+  color: #fff;
+}
+
 /* ── Zone 3: Two-Column Workspace ─────────────────────────── */
 .studio-workspace {
   display: grid;
@@ -260,6 +341,46 @@
   border-color: #ef4444;
 }
 
+.action-hero:hover:not(:disabled) {
+  background: var(--primary-gold);
+  color: white;
+  border-color: var(--primary-gold);
+}
+
+.action-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.action-button-spinner {
+  animation: portfolio-action-spin 0.7s linear infinite;
+}
+
+@keyframes portfolio-action-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Primary (hero) badge ─────────────────────────────────── */
+.primary-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 10px;
+  pointer-events: none;
+  background: var(--primary-gold);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
 /* ── Empty State ──────────────────────────────────────────── */
 .studio-empty {
   grid-column: 1 / -1;
@@ -350,6 +471,27 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
+  }
+
+  .studio-setbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .studio-setbar__left {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .studio-setbar__select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .studio-setbar__actions {
+    justify-content: flex-end;
   }
 
   .studio-upload-btn {

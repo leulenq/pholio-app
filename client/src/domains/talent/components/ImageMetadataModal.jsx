@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Eye, EyeOff, Crop } from 'lucide-react';
+import { X, Save, EyeOff, Crop } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
 import './ImageMetadataModal.css';
@@ -11,7 +11,62 @@ const COMP_CARD_ROLES = [
   { id: 'lifestyle', label: 'Lifestyle', color: '#059669' },
 ];
 
-export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEditor }) {
+const IMAGE_TYPE_OPTIONS = [
+  { value: '', label: 'Not set' },
+  { value: 'digital', label: 'Digital' },
+  { value: 'portfolio', label: 'Portfolio' },
+  { value: 'comp_card', label: 'Comp card' },
+  { value: 'campaign', label: 'Campaign' },
+  { value: 'test', label: 'Test' },
+];
+
+const SHOT_TYPE_OPTIONS = [
+  { value: '', label: 'Not set' },
+  { value: 'headshot', label: 'Headshot' },
+  { value: 'three_quarter', label: 'Three-quarter' },
+  { value: 'full_length', label: 'Full length' },
+  { value: 'profile_left', label: 'Profile (left)' },
+  { value: 'profile_right', label: 'Profile (right)' },
+  { value: 'back', label: 'Back' },
+  { value: 'detail', label: 'Detail' },
+];
+
+const STYLE_TYPE_OPTIONS = [
+  { value: '', label: 'Not set' },
+  { value: 'editorial', label: 'Editorial' },
+  { value: 'commercial', label: 'Commercial' },
+  { value: 'lifestyle', label: 'Lifestyle' },
+  { value: 'beauty', label: 'Beauty' },
+  { value: 'ecommerce', label: 'E-commerce' },
+  { value: 'swimwear', label: 'Swimwear' },
+  { value: 'fitness', label: 'Fitness' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+  { value: 'retired', label: 'Retired' },
+  { value: 'test', label: 'Test' },
+];
+
+function isoToDateInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function dateInputToPayload(value) {
+  if (!value || !String(value).trim()) return null;
+  const d = new Date(`${value}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEditor, mediaSets = [] }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     metadata: {
@@ -20,7 +75,16 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
       credits: image.metadata?.credits || { photographer: '', mua: '', stylist: '' },
       caption: image.metadata?.caption || '',
       visibility: image.metadata?.visibility || 'public'
-    }
+    },
+    image_type: image.image_type ?? '',
+    shot_type: image.shot_type ?? '',
+    style_type: image.style_type ?? '',
+    status: image.status != null ? image.status : 'active',
+    exclude_from_public: !!image.exclude_from_public,
+    exclude_from_agency: !!image.exclude_from_agency,
+    captured_at: isoToDateInput(image.captured_at),
+    retouched_at: isoToDateInput(image.retouched_at),
+    set_id: image.set_id ?? '',
   });
 
   const availableTags = ['Editorial', 'Commercial', 'Runway', 'Swimwear', 'Beauty', 'Lifestyle', 'Digitals'];
@@ -50,9 +114,44 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
   const handleSave = async () => {
     setLoading(true);
     try {
-      const response = await talentApi.updateMedia(image.id, { metadata: formData.metadata });
+      const structuredPayload = {
+        image_type: formData.image_type || null,
+        shot_type: formData.shot_type || null,
+        style_type: formData.style_type || null,
+        status: formData.status || 'active',
+        exclude_from_public: formData.exclude_from_public,
+        exclude_from_agency: formData.exclude_from_agency,
+        captured_at: dateInputToPayload(formData.captured_at),
+        retouched_at: dateInputToPayload(formData.retouched_at),
+        set_id: formData.set_id || null,
+      };
+
+      const response = await talentApi.updateMedia(image.id, {
+        metadata: formData.metadata,
+        ...structuredPayload,
+      });
+
       if (response.success) {
-        onUpdate(image.id, formData.metadata);
+        const next = response.image;
+        if (next) {
+          onUpdate(image.id, {
+            metadata: next.metadata,
+            image_type: next.image_type,
+            shot_type: next.shot_type,
+            style_type: next.style_type,
+            status: next.status,
+            exclude_from_public: next.exclude_from_public,
+            exclude_from_agency: next.exclude_from_agency,
+            captured_at: next.captured_at,
+            retouched_at: next.retouched_at,
+            set_id: next.set_id,
+          });
+        } else {
+          onUpdate(image.id, {
+            metadata: formData.metadata,
+            ...structuredPayload,
+          });
+        }
         onClose();
       }
     } catch (error) {
@@ -125,6 +224,144 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                 >
                   Private
                 </button>
+              </div>
+            </div>
+
+            {/* Structured catalog fields */}
+            <div>
+              <label className="section-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Catalog</label>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.75rem' }}>
+                Structured fields used across portfolio, comp card readiness, and agency views.
+              </p>
+              <div className="structured-fields-grid">
+                <div>
+                  <label className="form-label">Image type</label>
+                  <select
+                    className="form-input"
+                    value={formData.image_type}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, image_type: e.target.value }))}
+                  >
+                    {IMAGE_TYPE_OPTIONS.map((o) => (
+                      <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Shot type</label>
+                  <select
+                    className="form-input"
+                    value={formData.shot_type}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, shot_type: e.target.value }))}
+                  >
+                    {SHOT_TYPE_OPTIONS.map((o) => (
+                      <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Style</label>
+                  <select
+                    className="form-input"
+                    value={formData.style_type}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, style_type: e.target.value }))}
+                  >
+                    {STYLE_TYPE_OPTIONS.map((o) => (
+                      <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Status</label>
+                  <select
+                    className="form-input"
+                    value={formData.status}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    {STATUS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="structured-fields-grid__full">
+                  <label className="form-label">Image set</label>
+                  <select
+                    className="form-input"
+                    value={formData.set_id}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, set_id: e.target.value }))}
+                  >
+                    <option value="">No set</option>
+                    {mediaSets.map((setRow) => (
+                      <option key={setRow.id} value={setRow.id}>
+                        {setRow.name || setRow.kind}
+                        {setRow.name ? ` (${setRow.kind})` : ''}
+                        {setRow.is_current ? ' - current' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="structured-fields-grid__full">
+                  <label className="form-label">Captured</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={formData.captured_at}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, captured_at: e.target.value }))}
+                  />
+                </div>
+                <div className="structured-fields-grid__full">
+                  <label className="form-label">Retouched</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={formData.retouched_at}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, retouched_at: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="structured-toggle-row">
+                <div className="structured-toggle-row__label">
+                  <span className="form-label" style={{ marginBottom: 0 }}>Exclude from public</span>
+                  <p className="section-helper" style={{ marginTop: '0.125rem' }}>Hide from portfolio / public surfaces</p>
+                </div>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_public: false }))}
+                    className={`toggle-option ${!formData.exclude_from_public ? 'active' : ''}`}
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_public: true }))}
+                    className={`toggle-option ${formData.exclude_from_public ? 'active-private' : ''}`}
+                  >
+                    Yes
+                  </button>
+                </div>
+              </div>
+              <div className="structured-toggle-row">
+                <div className="structured-toggle-row__label">
+                  <span className="form-label" style={{ marginBottom: 0 }}>Exclude from agency</span>
+                  <p className="section-helper" style={{ marginTop: '0.125rem' }}>Hide from agency-facing views</p>
+                </div>
+                <div className="toggle-group">
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_agency: false }))}
+                    className={`toggle-option ${!formData.exclude_from_agency ? 'active' : ''}`}
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_agency: true }))}
+                    className={`toggle-option ${formData.exclude_from_agency ? 'active-private' : ''}`}
+                  >
+                    Yes
+                  </button>
+                </div>
               </div>
             </div>
 

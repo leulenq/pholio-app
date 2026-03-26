@@ -43,6 +43,26 @@ router.get(
 );
 
 /**
+ * POST /api/talent/discoverability
+ * Update discoverability (Scout pool opt-in); canonical talent route (was legacy api.js).
+ */
+router.post(
+  "/discoverability",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { isDiscoverable } = req.body;
+    const userId = req.session.userId;
+
+    await knex("profiles").where({ user_id: userId }).update({
+      is_discoverable: !!isDiscoverable,
+      updated_at: knex.fn.now(),
+    });
+
+    res.json({ success: true, isDiscoverable: !!isDiscoverable });
+  }),
+);
+
+/**
  * PUT /api/talent/settings
  * Update settings
  */
@@ -76,9 +96,7 @@ router.put(
 
     if (isPublic !== undefined) {
       updateData.is_public = !!isPublic;
-      // Legacy mapping: if setting is_public=true, assume discoverable? Or keep separate?
-      // Plan separates discoverability into applications.api.js or similar.
-      // We'll keep them somewhat linked or just update is_public here.
+      // is_public and is_discoverable are separate; discoverability uses POST /api/talent/discoverability.
     }
 
     if (Object.keys(updateData).length > 1) {
