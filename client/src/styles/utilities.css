@@ -102,3 +102,59 @@
 .focus\:border-gold-500:focus { border-color: var(--color-gold-500, #C9A55A); }
 
 .ring-gold-500 { --tw-ring-color: var(--color-gold-500, #C9A55A); }
+
+/* ─── Pholio Dashboard Design System ──────────────────────────────────────── */
+
+/* Shared keyframes */
+@keyframes dash-entrance {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes panel-drop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Standard elevated card */
+.pholio-card {
+  background: var(--ag-surface-1);
+  border: 1px solid rgba(26, 24, 21, 0.05);
+  border-radius: 20px;
+  box-shadow:
+    0 2px 8px rgba(26, 24, 21, 0.04),
+    0 8px 24px -8px rgba(26, 24, 21, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition:
+    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform  200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pholio-card:hover {
+  box-shadow:
+    0 4px 16px rgba(26, 24, 21, 0.08),
+    0 16px 40px -12px rgba(26, 24, 21, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+}
+
+/* Section label (all-caps metadata label above sections) */
+.pholio-label {
+  font-family: var(--ag-font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ag-text-3);
+  margin: 0 0 14px;
+}
+
+/* Section heading (Playfair Display, dashboard scale) */
+.pholio-section-heading {
+  font-family: var(--ag-font-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--ag-text-0);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
