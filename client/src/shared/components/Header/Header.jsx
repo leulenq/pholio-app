@@ -231,11 +231,11 @@ export default function Header() {
           style={{ display: 'flex', alignItems: 'center' }}
         >
           <span style={{
-            fontFamily: "var(--font-display, 'Playfair Display', serif)",
+            fontFamily: "var(--ag-font-display)",
             fontWeight: 400,
-            letterSpacing: "0.2em",
-            color: "#C8A96E",
-            fontSize: "24px"
+            letterSpacing: "0.22em",
+            color: "#C9A55A",
+            fontSize: "1rem"
           }}>
             PHOLIO
           </span>
