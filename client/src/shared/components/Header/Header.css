@@ -357,7 +357,7 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ag-text-0);
 }
 
 .mark-all-read {
@@ -368,7 +368,7 @@
   border: none;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--ag-text-2);
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   border-radius: 6px;
@@ -377,7 +377,7 @@
 
 .mark-all-read:hover {
   background: rgba(15, 23, 42, 0.04);
-  color: #C9A55A;
+  color: var(--ag-gold);
 }
 
 .mark-all-read:disabled {
@@ -396,7 +396,7 @@
   border: none;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--ag-text-2);
   padding: 0.375rem 0.75rem;
   border-radius: 999px;
   cursor: pointer;
@@ -405,7 +405,7 @@
 
 .notif-tab.active {
   background: rgba(201, 165, 90, 0.1);
-  color: #C9A55A;
+  color: var(--ag-gold);
 }
 
 .notif-tab:hover:not(.active) {
@@ -413,7 +413,7 @@
 }
 
 .notif-tab:focus-visible {
-  outline: 2px solid #c9a55a;
+  outline: 2px solid var(--ag-gold);
   outline-offset: 2px;
 }
 
@@ -449,7 +449,7 @@
 }
 
 .notification-item:focus-visible {
-  outline: 2px solid #c9a55a;
+  outline: 2px solid var(--ag-gold);
   outline-offset: -2px;
   z-index: 1;
   position: relative;
@@ -489,7 +489,7 @@
 .notification-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ag-text-0);
 }
 
 .unread-dot {
@@ -501,7 +501,7 @@
 
 .notification-desc {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--ag-text-2);
   line-height: 1.4;
   margin: 0 0 0.375rem;
   overflow: hidden;
@@ -514,7 +514,7 @@
 
 .notification-time {
   font-size: 0.6875rem;
-  color: #94a3b8;
+  color: var(--ag-text-3);
 }
 
 .notification-empty {
@@ -529,7 +529,7 @@
   width: 56px;
   height: 56px;
   background: rgba(226, 232, 240, 0.5);
-  color: #94a3b8;
+  color: var(--ag-text-3);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -540,19 +540,19 @@
 .empty-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--ag-text-2);
   margin-bottom: 0.25rem;
 }
 
 .empty-desc {
   font-size: 0.8125rem;
-  color: #94a3b8;
+  color: var(--ag-text-3);
   margin: 0;
 }
 
 .notification-dropdown-footer {
   padding: 1rem;
-  background: #f8fafc;
+  background: var(--ag-surface-0);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -560,32 +560,17 @@
   text-decoration: none;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--ag-text-2);
   border-top: 1px solid rgba(226, 232, 240, 0.5);
   transition: all 0.2s;
 }
 
 .notification-dropdown-footer:hover {
   background: #f1f5f9;
-  color: #C9A55A;
+  color: var(--ag-gold);
 }
 
-.header-avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-.header-avatar:hover {
-  transform: scale(1.05);
-}
 
-.header-avatar img {
-  width: 100%; height: 100%; object-fit: cover;
-}
 .avatar-fallback {
   width: 100%; height: 100%;
   background-color: var(--color-primary);
@@ -773,7 +758,7 @@
 .identity-name {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ag-text-0);
   margin-bottom: 0.125rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -782,7 +767,7 @@
 
 .identity-email {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--ag-text-2);
   margin-bottom: 0.375rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -806,12 +791,12 @@
 
 .role-badge {
   background: rgba(15, 23, 42, 0.06);
-  color: #475569;
+  color: var(--ag-text-2);
 }
 
 .tier-badge {
   background: rgba(148, 163, 184, 0.1);
-  color: #64748b;
+  color: var(--ag-text-2);
 }
 
 /* Profile Strength Widget */
@@ -835,11 +820,11 @@
   margin-bottom: 0.5rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--ag-text-2);
 }
 
 .strength-percentage {
-  color: #C9A55A;
+  color: var(--ag-gold);
   font-weight: 700;
 }
 
@@ -868,7 +853,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #94a3b8;
+  color: var(--ag-text-3);
 }
 
 /* Dropdown Actions */
@@ -883,7 +868,7 @@
   padding: 0.75rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #475569;
+  color: var(--ag-text-2);
   text-decoration: none;
   border-radius: 8px;
   transition: all 0.2s ease;
@@ -904,7 +889,7 @@
 }
 
 .upgrade-item {
-  color: #C9A55A;
+  color: var(--ag-gold);
 }
 
 .upgrade-item:hover {
