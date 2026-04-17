@@ -46,11 +46,11 @@
 .ov-eyebrow,
 .ov-hero-eyebrow {
   font-family: 'Inter', -apple-system, sans-serif;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: #9C958E;
+  letter-spacing: 0.12em;
+  color: var(--ag-text-3);
   margin: 0;
 }
 
@@ -60,8 +60,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #9C958E;
-  background: #ffffff;
+  color: var(--ag-text-3);
+  background: var(--ag-surface-1);
   border: 1px solid #E0DAD3;
   padding: 6px 16px;
   border-radius: 100px;
@@ -70,10 +70,10 @@
 
 /* Massive editorial name */
 .ov-hero-name {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--ag-font-display);
   font-size: clamp(3.5rem, 7vw, 5.5rem);
   font-weight: 400;
-  color: #1A1815;
+  color: var(--ag-text-0);
   margin: 0 0 20px;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -91,7 +91,7 @@
 
 /* Gold portion of tagline */
 .ov-tagline-gold {
-  color: #C9A55A;
+  color: var(--ag-gold);
   font-weight: 500;
 }
 
@@ -110,7 +110,7 @@
 
 /* Card */
 .ov-kpi {
-  background: #ffffff;
+  background: var(--ag-surface-1);
   border: 1px solid rgba(26, 24, 21, 0.05);
   box-shadow:
     0 2px 12px -4px rgba(26, 24, 21, 0.07),
@@ -120,7 +120,7 @@
   display: flex;
   flex-direction: column;
   cursor: default;
-  transition: box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ov-kpi:hover {
@@ -133,7 +133,7 @@
 
 /* Gold icon at top of card */
 .ov-kpi-ico {
-  color: #C9A55A;
+  color: var(--ag-gold);
   margin-bottom: 20px;
   flex-shrink: 0;
 }
@@ -142,7 +142,7 @@
 .ov-kpi-number {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1A1815;
+  color: var(--ag-text-0);
   line-height: 1;
   letter-spacing: -0.03em;
   margin-bottom: 10px;
@@ -156,7 +156,7 @@
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.12em;
   color: #2D2A26;
   margin-bottom: 5px;
 }
@@ -164,7 +164,7 @@
 /* "This month", "Complete!" etc */
 .ov-kpi-sub {
   font-size: 0.8125rem;
-  color: #9C958E;
+  color: var(--ag-text-3);
   font-weight: 400;
 }
 
@@ -185,7 +185,7 @@
   border: 1px solid rgba(201, 165, 90, 0.2);
   border-radius: 10px;
   font-size: 0.8125rem;
-  color: #6B6560;
+  color: var(--ag-text-2);
 }
 
 /* ═══════════════════════════════════════════
@@ -216,8 +216,8 @@
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #9C958E;
+  letter-spacing: 0.12em;
+  color: var(--ag-text-3);
   margin: 0 0 14px;
 }
 
@@ -225,7 +225,7 @@
 .ov-progress-pill {
   font-size: 0.6875rem;
   font-weight: 600;
-  color: #C9A55A;
+  color: var(--ag-gold);
   background: rgba(201, 165, 90, 0.09);
   border: 1px solid rgba(201, 165, 90, 0.22);
   padding: 3px 10px;
@@ -235,7 +235,7 @@
 
 /* ── Next Steps card ── */
 .ov-steps-card {
-  background: #ffffff;
+  background: var(--ag-surface-1);
   border: 1px solid rgba(26, 24, 21, 0.05);
   box-shadow:
     0 2px 12px -4px rgba(26, 24, 21, 0.07),
@@ -251,7 +251,7 @@
   padding: 18px 22px;
   border-bottom: 1px solid rgba(26, 24, 21, 0.04);
   position: relative;
-  transition: background 0.18s ease;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ov-step:last-child { border-bottom: none; }
@@ -263,7 +263,7 @@
   width: 3px;
   background: linear-gradient(180deg, #C9A55A 0%, #E3CD91 100%);
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ov-step:hover::before { opacity: 1; }
@@ -279,32 +279,32 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #ffffff;
-  color: #9C958E;
-  transition: all 0.22s ease;
+  background: var(--ag-surface-1);
+  color: var(--ag-text-3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ov-step-check.checked {
   background: linear-gradient(135deg, #C9A55A 0%, #E3CD91 100%);
   border-color: transparent;
-  color: #ffffff;
+  color: var(--ag-surface-1);
 }
 .ov-step-num {
   font-size: 0.6875rem;
   font-weight: 700;
-  color: #9C958E;
+  color: var(--ag-text-3);
 }
 
 .ov-step-body { flex: 1; min-width: 0; }
 .ov-step-title {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #1A1815;
+  color: var(--ag-text-0);
   margin: 0 0 3px;
   letter-spacing: -0.01em;
 }
 .ov-step-desc {
   font-size: 0.8125rem;
-  color: #6B6560;
+  color: var(--ag-text-2);
   margin: 0;
 }
 
@@ -315,20 +315,20 @@
   padding: 7px 13px;
   background: transparent;
   border: 1.5px solid #E0DAD3;
-  color: #6B6560;
+  color: var(--ag-text-2);
   border-radius: 10px;
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
 }
 .ov-step-cta:hover {
-  background: #1A1815;
-  border-color: #1A1815;
-  color: #ffffff;
+  background: var(--ag-text-0);
+  border-color: var(--ag-text-0);
+  color: var(--ag-surface-1);
 }
 
 /* ═══════════════════════════════════════════
@@ -354,12 +354,12 @@
   align-items: center;
   gap: 13px;
   padding: 12px 14px;
-  background: #ffffff;
+  background: var(--ag-surface-1);
   border: 1px solid rgba(26, 24, 21, 0.06);
   box-shadow: 0 1px 6px -2px rgba(26, 24, 21, 0.05);
   border-radius: 13px;
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   color: inherit;
   width: 100%;
@@ -382,22 +382,22 @@
 }
 .ov-action--primary .ov-action-title,
 .ov-action--primary .ov-action-sub,
-.ov-action--primary .ov-action-arrow { color: #ffffff; }
+.ov-action--primary .ov-action-arrow { color: var(--ag-surface-1); }
 .ov-action--primary .ov-action-icon {
   background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  color: var(--ag-surface-1);
 }
 
 .ov-action-icon {
   width: 34px; height: 34px;
   border-radius: 9px;
   background: #F5F2EE;
-  color: #6B6560;
+  color: var(--ag-text-2);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ov-action:hover .ov-action-icon { transform: scale(1.06); }
 
@@ -411,17 +411,17 @@
 .ov-action-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #1A1815;
+  color: var(--ag-text-0);
   letter-spacing: -0.01em;
 }
 .ov-action-sub {
   font-size: 0.6875rem;
-  color: #6B6560;
+  color: var(--ag-text-2);
 }
 .ov-action-arrow {
   color: #C8C2BA;
   flex-shrink: 0;
-  transition: transform 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ov-action:hover .ov-action-arrow { transform: translateX(2px); }
 
@@ -451,13 +451,13 @@
 .ov-activity-msg {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #1A1815;
+  color: var(--ag-text-0);
   margin: 0 0 3px;
   line-height: 1.4;
 }
 .ov-activity-time {
   font-size: 0.6875rem;
-  color: #9C958E;
+  color: var(--ag-text-3);
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -479,7 +479,7 @@
 .ov-activity-empty p {
   font-size: 0.8125rem;
   margin: 0;
-  color: #9C958E;
+  color: var(--ag-text-3);
 }
 
 /* Studio+ promo */
@@ -507,14 +507,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #C9A55A;
+  color: var(--ag-gold);
   margin: 0 0 10px;
 }
 .ov-promo-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--ag-font-display);
   font-size: 1.375rem;
   font-weight: 400;
-  color: #ffffff;
+  color: var(--ag-surface-1);
   margin: 0 0 8px;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -530,13 +530,13 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #C9A55A;
-  color: #ffffff;
+  background: var(--ag-gold);
+  color: var(--ag-surface-1);
   border-radius: 9px;
   font-size: 0.8125rem;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ov-promo-cta:hover {
   background: #b08d45;
@@ -551,25 +551,25 @@
   padding: 5px 12px;
   background: transparent;
   border: 1.5px solid #E0DAD3;
-  color: #6B6560;
+  color: var(--ag-text-2);
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
 }
 .ov-retry-btn:hover:not(:disabled) {
-  background: #1A1815;
-  border-color: #1A1815;
-  color: #ffffff;
+  background: var(--ag-text-0);
+  border-color: var(--ag-text-0);
+  color: var(--ag-surface-1);
 }
 .ov-retry-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .ov-spinner {
   width: 20px; height: 20px;
   border: 2px solid #EDE9E3;
-  border-top-color: #C9A55A;
+  border-top-color: var(--ag-gold);
   border-radius: 50%;
   animation: ov-spin 0.7s linear infinite;
 }
