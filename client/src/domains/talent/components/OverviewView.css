@@ -82,7 +82,7 @@
 /* Tagline */
 .ov-hero-tagline {
   font-size: 1.0625rem;
-  color: #2D2A26;
+  color: var(--ag-text-1);
   margin: 0;
   font-weight: 400;
   line-height: 1.55;
@@ -157,7 +157,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #2D2A26;
+  color: var(--ag-text-1);
   margin-bottom: 5px;
 }
 
@@ -391,7 +391,7 @@
 .ov-action-icon {
   width: 34px; height: 34px;
   border-radius: 9px;
-  background: #F5F2EE;
+  background: var(--ag-surface-2);
   color: var(--ag-text-2);
   display: flex;
   align-items: center;
@@ -419,7 +419,7 @@
   color: var(--ag-text-2);
 }
 .ov-action-arrow {
-  color: #C8C2BA;
+  color: var(--ag-text-4);
   flex-shrink: 0;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -440,7 +440,7 @@
   transition: background 0.15s ease;
   cursor: default;
 }
-.ov-activity-item:hover { background: #F5F2EE; }
+.ov-activity-item:hover { background: var(--ag-surface-2); }
 .ov-activity-dot {
   width: 7px; height: 7px;
   border-radius: 50%;
@@ -473,7 +473,7 @@
   align-items: center;
   gap: 7px;
   padding: 20px 0;
-  color: #C8C2BA;
+  color: var(--ag-text-4);
   text-align: center;
 }
 .ov-activity-empty p {
@@ -539,7 +539,7 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ov-promo-cta:hover {
-  background: #b08d45;
+  background: var(--ag-gold-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(201, 165, 90, 0.38);
 }
