@@ -230,13 +230,7 @@ export default function Header() {
           }}
           style={{ display: 'flex', alignItems: 'center' }}
         >
-          <span style={{
-            fontFamily: "var(--ag-font-display)",
-            fontWeight: 400,
-            letterSpacing: "0.22em",
-            color: "#C9A55A",
-            fontSize: "1rem"
-          }}>
+          <span className="pholio-logo-text">
             PHOLIO
           </span>
         </a>
