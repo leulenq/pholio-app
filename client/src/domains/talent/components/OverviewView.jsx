@@ -4,7 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { talentApi } from '../api/talent';
-import { Download, Share2, Eye, TrendingUp, Award, ExternalLink, Sparkles, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import {
+  Download, Share2, Eye, TrendingUp, ExternalLink,
+  Sparkles, CheckCircle, Clock, AlertCircle, ChevronRight,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import './OverviewView.css';
 
@@ -20,6 +23,12 @@ function applicationsCountFromPayload(data) {
 function asFiniteNumber(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+function getStrengthSub(pct) {
+  if (pct >= 80) return 'Complete!';
+  if (pct >= 50) return 'Good progress';
+  return 'Keep building';
 }
 
 export default function OverviewView() {
@@ -70,13 +79,6 @@ export default function OverviewView() {
     }
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
   const stats = {
     views: asFiniteNumber(summary?.views?.total),
     downloads: asFiniteNumber(summary?.downloads?.total),
@@ -87,58 +89,7 @@ export default function OverviewView() {
   const applicationsShapeInvalid =
     !applicationsPending && !applicationsError && !applicationsParsed.ok;
 
-  const getProfileStrengthColor = (percentage) => {
-    if (percentage >= 80) return 'strength-high';
-    if (percentage >= 50) return 'strength-medium';
-    return 'strength-low';
-  };
-
-  const getActivityIcon = (activity) => {
-    const type = String(activity?.type || activity?.activity_type || '').toLowerCase();
-    if (type.includes('view')) return <Eye size={14} aria-hidden />;
-    if (type.includes('download')) return <Download size={14} aria-hidden />;
-    if (type.includes('share')) return <Share2 size={14} aria-hidden />;
-    if (type.includes('award') || type.includes('strength')) return <Award size={14} aria-hidden />;
-    return <Clock size={14} aria-hidden />;
-  };
-
-  const renderApplicationsCard = () => (
-    <div
-      className="stat-card stat-card--applications"
-      aria-busy={applicationsPending ? true : undefined}
-    >
-      <div className="stat-icon applications">
-        <TrendingUp size={20} aria-hidden />
-      </div>
-      <div className="stat-content">
-        {applicationsError || applicationsShapeInvalid ? (
-          <div className="stat-applications-state" role="alert">
-            <p className="stat-applications-error-copy">
-              {applicationsShapeInvalid
-                ? 'Application data was in an unexpected format.'
-                : "Couldn't load application count."}
-            </p>
-            <button
-              type="button"
-              className="step-action"
-              onClick={() => refetchApplications()}
-              disabled={applicationsFetching}
-            >
-              {applicationsFetching ? 'Retrying…' : 'Retry'}
-            </button>
-          </div>
-        ) : applicationsPending ? (
-          <>
-            <div className="skeleton-value stat-applications-skeleton" aria-hidden />
-            <span className="overview-sr-only">Loading application count</span>
-          </>
-        ) : (
-          <div className="stat-value">{applicationsParsed.count}</div>
-        )}
-        <div className="stat-label">Applications</div>
-      </div>
-    </div>
-  );
+  const tier = subscription?.isPro ? 'Studio+' : 'Free';
 
   const nextSteps = [
     {
@@ -148,7 +99,6 @@ export default function OverviewView() {
       action: 'Go to Profile',
       link: '/dashboard/talent/profile',
       completed: completeness?.percentage >= 80,
-      icon: <CheckCircle size={20} aria-hidden />
     },
     {
       id: 2,
@@ -157,7 +107,6 @@ export default function OverviewView() {
       action: 'Add Media',
       link: '/dashboard/talent/media',
       completed: Array.isArray(images) && images.length > 0,
-      icon: <CheckCircle size={20} aria-hidden />
     },
     {
       id: 3,
@@ -166,145 +115,180 @@ export default function OverviewView() {
       action: 'Download',
       onClick: handleCompCardPlaceholder,
       completed: false,
-      icon: <Download size={20} aria-hidden />
-    }
+    },
   ];
 
+  const completedCount = nextSteps.filter(s => s.completed).length;
+
+  function getActivityDotColor(activity) {
+    const type = String(activity?.type || activity?.activity_type || '').toLowerCase();
+    if (type.includes('view'))     return '#C9A55A';
+    if (type.includes('download')) return '#1A1815';
+    if (type.includes('share'))    return '#3b82f6';
+    return '#C8C2BA';
+  }
+
   return (
-    <div className="overview-container">
-      <div className="overview-grid">
-        <div className="overview-main">
-          <div className="overview-hero">
-            <h1 className="hero-greeting">
-              {getGreeting()},{' '}
-              <span className="hero-name">{profile?.first_name || 'Talent'}</span>
-            </h1>
-            <p className="hero-tagline">
-              Here's what's happening with your portfolio today
-            </p>
-          </div>
+    <div className="ov-container">
 
-          <div className="stats-section">
-            <h2 className="section-title">At a Glance</h2>
+      {/* ════════════════════════════════
+          HERO
+      ════════════════════════════════ */}
+      <header className="ov-hero">
+        <div className="ov-hero-eyebrow-row">
+          <span className="ov-hero-eyebrow">Welcome back,</span>
+          <span className="ov-tier-badge">{tier}</span>
+        </div>
+
+        <h1 className="ov-hero-name">
+          {profile?.first_name || 'Talent'}
+        </h1>
+
+        <p className="ov-hero-tagline">
+          You're Creating{' '}
+          <span className="ov-tagline-gold">
+            opportunities in the creative industry.
+          </span>
+        </p>
+      </header>
+
+      {/* ════════════════════════════════
+          KPI GRID (4 columns)
+      ════════════════════════════════ */}
+      <section className="ov-kpi-section" aria-label="Stats at a glance">
+        {profileLoading ? (
+          <div className="ov-kpi-grid">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="ov-kpi ov-kpi--skeleton">
+                <div className="ov-skel ov-skel--icon" />
+                <div className="ov-skel ov-skel--num" />
+                <div className="ov-skel ov-skel--label" style={{ marginTop: '10px' }} />
+                <div className="ov-skel ov-skel--sub" style={{ marginTop: '6px' }} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="ov-kpi-grid">
+            {/* Profile Views */}
+            <div className="ov-kpi">
+              <Eye className="ov-kpi-ico" size={22} aria-hidden />
+              <div className="ov-kpi-number">
+                {summaryError ? '—' : stats.views.toLocaleString()}
+              </div>
+              <div className="ov-kpi-label">Profile Views</div>
+              <div className="ov-kpi-sub">This month</div>
+            </div>
+
+            {/* Downloads */}
+            <div className="ov-kpi">
+              <Download className="ov-kpi-ico" size={22} aria-hidden />
+              <div className="ov-kpi-number">
+                {summaryError ? '—' : stats.downloads.toLocaleString()}
+              </div>
+              <div className="ov-kpi-label">Downloads</div>
+              <div className="ov-kpi-sub">Your materials</div>
+            </div>
+
+            {/* Applications */}
+            <div className="ov-kpi" aria-busy={applicationsPending ? true : undefined}>
+              <TrendingUp className="ov-kpi-ico" size={22} aria-hidden />
+              <div className="ov-kpi-number">
+                {applicationsPending ? (
+                  <span className="ov-skel ov-skel--num-inline" aria-hidden />
+                ) : applicationsError || applicationsShapeInvalid ? (
+                  <span className="ov-kpi-err-inline">
+                    <button
+                      type="button"
+                      className="ov-retry-btn"
+                      onClick={() => refetchApplications()}
+                      disabled={applicationsFetching}
+                    >
+                      {applicationsFetching ? '…' : 'Retry'}
+                    </button>
+                  </span>
+                ) : (
+                  applicationsParsed.count
+                )}
+              </div>
+              <div className="ov-kpi-label">Applications</div>
+              <div className="ov-kpi-sub">Active submissions</div>
+            </div>
+
+            {/* Profile Strength */}
+            <div className="ov-kpi">
+              <Sparkles className="ov-kpi-ico" size={22} aria-hidden />
+              <div className="ov-kpi-number">{stats.profileStrength}%</div>
+              <div className="ov-kpi-label">Profile Strength</div>
+              <div className="ov-kpi-sub">{getStrengthSub(stats.profileStrength)}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary error notice (non-blocking) */}
+        {summaryError && !profileLoading && (
+          <div className="ov-summary-err" role="alert">
+            <AlertCircle size={14} aria-hidden />
+            <span>Couldn't load views &amp; downloads.</span>
+            <button
+              type="button"
+              className="ov-retry-btn"
+              onClick={() => refetchAnalytics()}
+              disabled={isAnalyticsRefetching}
+            >
+              {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* ════════════════════════════════
+          BOTTOM — Next Steps + Sidebar
+      ════════════════════════════════ */}
+      <div className="ov-bottom">
+
+        {/* ── Next Steps ── */}
+        <div className="ov-bottom-main">
+          <section className="ov-section">
+            <div className="ov-section-head">
+              <p className="ov-label" style={{ margin: 0 }}>Next Steps</p>
+              {!profileLoading && (
+                <span className="ov-progress-pill">{completedCount}/{nextSteps.length} complete</span>
+              )}
+            </div>
 
             {profileLoading ? (
-              <div className="stats-grid">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="stat-card skeleton-card">
-                    <div className="stat-icon skeleton-icon"></div>
-                    <div className="stat-content">
-                      <div className="skeleton-value"></div>
-                      <div className="skeleton-label"></div>
+              <div className="ov-steps-card">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="ov-step ov-step--skeleton">
+                    <div className="ov-skel ov-skel--circle" />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div className="ov-skel ov-skel--line" style={{ width: '55%' }} />
+                      <div className="ov-skel ov-skel--line" style={{ width: '38%' }} />
                     </div>
                   </div>
                 ))}
               </div>
-            ) : summaryError ? (
-              <div className="stats-grid">
-                <div
-                  className="stat-card"
-                  style={{ gridColumn: '1 / -1', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}
-                  role="alert"
-                >
-                  <AlertCircle size={24} color="#94a3b8" aria-hidden />
-                  <p style={{ margin: 0, textAlign: 'center', color: '#64748b', fontSize: '0.875rem', maxWidth: '22rem' }}>
-                    Couldn't load profile views and summary stats.
-                  </p>
-                  <button
-                    type="button"
-                    className="step-action"
-                    onClick={() => refetchAnalytics()}
-                    disabled={isAnalyticsRefetching}
-                  >
-                    {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
-                  </button>
-                </div>
-
-                {renderApplicationsCard()}
-
-                <div className="stat-card">
-                  <div className={`stat-icon profile-strength ${getProfileStrengthColor(stats.profileStrength)}`}>
-                    <Award size={20} aria-hidden />
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-value">{stats.profileStrength}%</div>
-                    <div className="stat-label">Profile Strength</div>
-                  </div>
-                </div>
-              </div>
             ) : (
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-icon views">
-                    <Eye size={20} aria-hidden />
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-value">{stats.views}</div>
-                    <div className="stat-label">Profile Views</div>
-                  </div>
-                </div>
-
-                <div className="stat-card">
-                  <div className="stat-icon downloads">
-                    <Download size={20} aria-hidden />
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-value">{stats.downloads}</div>
-                    <div className="stat-label">Downloads</div>
-                  </div>
-                </div>
-
-                {renderApplicationsCard()}
-
-                <div className="stat-card">
-                  <div className={`stat-icon profile-strength ${getProfileStrengthColor(stats.profileStrength)}`}>
-                    <Award size={20} aria-hidden />
-                  </div>
-                  <div className="stat-content">
-                    <div className="stat-value">{stats.profileStrength}%</div>
-                    <div className="stat-label">Profile Strength</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="next-steps-section">
-            <h2 className="section-title">Next Steps</h2>
-
-            {profileLoading ? (
-              <div className="next-steps-list">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="next-step-card skeleton-card">
-                    <div className="skeleton-icon" style={{ width: '24px', height: '24px', borderRadius: '50%' }}></div>
-                    <div className="step-content">
-                      <div className="skeleton-value" style={{ height: '0.9375rem', marginBottom: '0.25rem' }}></div>
-                      <div className="skeleton-label" style={{ height: '0.8125rem' }}></div>
+              <div className="ov-steps-card">
+                {nextSteps.map((step, idx) => (
+                  <div key={step.id} className={`ov-step ${step.completed ? 'ov-step--done' : ''}`}>
+                    <div className={`ov-step-check ${step.completed ? 'checked' : ''}`}>
+                      {step.completed
+                        ? <CheckCircle size={14} aria-hidden />
+                        : <span className="ov-step-num">{idx + 1}</span>}
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="next-steps-list">
-                {nextSteps.map((step) => (
-                  <div key={step.id} className={`next-step-card ${step.completed ? 'completed' : ''}`}>
-                    <div className={`step-checkbox ${step.completed ? 'checked' : ''}`}>
-                      {step.completed && step.icon}
+                    <div className="ov-step-body">
+                      <p className="ov-step-title">{step.title}</p>
+                      <p className="ov-step-desc">{step.description}</p>
                     </div>
-
-                    <div className="step-content">
-                      <h3 className="step-title">{step.title}</h3>
-                      <p className="step-description">{step.description}</p>
-                    </div>
-
                     {!step.completed && (
                       step.link ? (
-                        <Link to={step.link} className="step-action">
-                          {step.action}
+                        <Link to={step.link} className="ov-step-cta">
+                          {step.action} <ChevronRight size={13} aria-hidden />
                         </Link>
                       ) : (
-                        <button type="button" onClick={step.onClick} className="step-action">
-                          {step.action}
+                        <button type="button" onClick={step.onClick} className="ov-step-cta">
+                          {step.action} <ChevronRight size={13} aria-hidden />
                         </button>
                       )
                     )}
@@ -312,40 +296,36 @@ export default function OverviewView() {
                 ))}
               </div>
             )}
-          </div>
+          </section>
         </div>
 
-        <aside className="utility-rail">
-          <div className="utility-rail-sticky">
-            <h3 className="rail-title">Quick Actions</h3>
-            
-            <div className="rail-actions">
+        {/* ── Sidebar ── */}
+        <aside className="ov-bottom-aside">
+
+          {/* Quick Actions */}
+          <div className="ov-aside-block">
+            <p className="ov-label">Quick Actions</p>
+            <div className="ov-actions">
               <button
                 type="button"
                 onClick={handleCompCardPlaceholder}
-                className="action-card primary"
+                className="ov-action ov-action--primary"
               >
-                <div className="action-icon primary">
-                  <Download size={24} aria-hidden />
+                <div className="ov-action-icon"><Download size={16} aria-hidden /></div>
+                <div className="ov-action-text">
+                  <span className="ov-action-title">Comp Card</span>
+                  <span className="ov-action-sub">Download PDF</span>
                 </div>
-                <div className="action-content">
-                  <h4 className="action-title">Download Comp Card</h4>
-                  <p className="action-description">Professional PDF for agencies</p>
-                </div>
+                <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
               </button>
 
-              <button
-                type="button"
-                onClick={handleShareProfile}
-                className="action-card secondary"
-              >
-                <div className="action-icon">
-                  <Share2 size={24} aria-hidden />
+              <button type="button" onClick={handleShareProfile} className="ov-action">
+                <div className="ov-action-icon"><Share2 size={16} aria-hidden /></div>
+                <div className="ov-action-text">
+                  <span className="ov-action-title">Share Profile</span>
+                  <span className="ov-action-sub">Copy public link</span>
                 </div>
-                <div className="action-content">
-                  <h4 className="action-title">Share Profile</h4>
-                  <p className="action-description">Copy your public link</p>
-                </div>
+                <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
               </button>
 
               {profile?.slug ? (
@@ -353,98 +333,100 @@ export default function OverviewView() {
                   href={`/portfolio/${profile.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="action-card secondary"
+                  className="ov-action"
                 >
-                  <div className="action-icon">
-                    <ExternalLink size={24} aria-hidden />
+                  <div className="ov-action-icon"><ExternalLink size={16} aria-hidden /></div>
+                  <div className="ov-action-text">
+                    <span className="ov-action-title">Public Profile</span>
+                    <span className="ov-action-sub">See what others see</span>
                   </div>
-                  <div className="action-content">
-                    <h4 className="action-title">View Public Profile</h4>
-                    <p className="action-description">See what others see</p>
-                  </div>
+                  <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
                 </a>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleViewPublicPortfolio}
-                  className="action-card secondary"
-                >
-                  <div className="action-icon">
-                    <ExternalLink size={24} aria-hidden />
+                <button type="button" onClick={handleViewPublicPortfolio} className="ov-action">
+                  <div className="ov-action-icon"><ExternalLink size={16} aria-hidden /></div>
+                  <div className="ov-action-text">
+                    <span className="ov-action-title">Public Profile</span>
+                    <span className="ov-action-sub">Set URL in settings first</span>
                   </div>
-                  <div className="action-content">
-                    <h4 className="action-title">View Public Profile</h4>
-                    <p className="action-description">Set your profile URL in settings first</p>
-                  </div>
+                  <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
                 </button>
               )}
             </div>
+          </div>
 
-            <div className="rail-activity">
-              <h3 className="rail-title">Recent Activity</h3>
+          {/* Recent Activity */}
+          <div className="ov-aside-block">
+            <p className="ov-label">Recent Activity</p>
 
-              {activitiesLoading ? (
-                <div className="activity-loading" role="status" aria-live="polite">
-                  <div className="loading-spinner"></div>
-                  <span className="overview-sr-only">Loading recent activity</span>
-                </div>
-              ) : activityError ? (
-                <div className="activity-empty" role="alert">
-                  <AlertCircle size={24} aria-hidden />
-                  <p>Couldn't load recent activity.</p>
-                  <button
-                    type="button"
-                    className="step-action"
-                    style={{ marginTop: '0.5rem' }}
-                    onClick={() => refetchAnalytics()}
-                    disabled={isAnalyticsRefetching}
-                  >
-                    {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
-                  </button>
-                </div>
-              ) : activities && activities.length > 0 ? (
-                <div className="activity-list">
-                  {activities.map((activity) => {
-                    const fallbackKey = [
-                      activity?.type || activity?.activity_type || 'activity',
-                      activity?.message || 'event',
-                      activity?.createdAt || activity?.created_at || activity?.timeAgo || 'unknown',
-                    ].join(':');
-                    return (
-                    <div key={activity.id || fallbackKey} className="activity-item">
-                      <div className="activity-icon">
-                        {getActivityIcon(activity)}
-                      </div>
-                      <div className="activity-content">
-                        <p className="activity-message">{activity.message}</p>
-                        <div className="activity-time">
-                          <Clock size={12} />
-                          <span>{activity.timeAgo}</span>
-                        </div>
+            {activitiesLoading ? (
+              <div className="ov-activity-loading" role="status" aria-live="polite">
+                <div className="ov-spinner" />
+                <span className="overview-sr-only">Loading recent activity</span>
+              </div>
+            ) : activityError ? (
+              <div className="ov-activity-empty" role="alert">
+                <AlertCircle size={16} aria-hidden />
+                <p>Couldn't load activity.</p>
+                <button
+                  type="button"
+                  className="ov-retry-btn"
+                  onClick={() => refetchAnalytics()}
+                  disabled={isAnalyticsRefetching}
+                >
+                  {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
+                </button>
+              </div>
+            ) : activities && activities.length > 0 ? (
+              <div className="ov-activity-list">
+                {activities.map((activity) => {
+                  const fallbackKey = [
+                    activity?.type || activity?.activity_type || 'activity',
+                    activity?.message || 'event',
+                    activity?.createdAt || activity?.created_at || activity?.timeAgo || 'unknown',
+                  ].join(':');
+                  return (
+                    <div key={activity.id || fallbackKey} className="ov-activity-item">
+                      <span
+                        className="ov-activity-dot"
+                        style={{ backgroundColor: getActivityDotColor(activity) }}
+                        aria-hidden
+                      />
+                      <div className="ov-activity-body">
+                        <p className="ov-activity-msg">{activity.message}</p>
+                        <p className="ov-activity-time">{activity.timeAgo}</p>
                       </div>
                     </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="activity-empty">
-                  <Clock size={24} aria-hidden />
-                  <p>No recent activity</p>
-                </div>
-              )}
-            </div>
-
-            {!subscription?.isPro && (
-              <div className="rail-upgrade">
-                <a href="https://www.pholio.studio/pricing" className="upgrade-button">
-                  <Sparkles size={16} aria-hidden />
-                  <span>Upgrade to Studio+</span>
-                </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="ov-activity-empty">
+                <Clock size={16} aria-hidden />
+                <p>No recent activity</p>
               </div>
             )}
           </div>
-        </aside>
 
+          {/* Studio+ promo */}
+          {!subscription?.isPro && (
+            <div className="ov-promo" aria-label="Upgrade to Studio+">
+              <div className="ov-promo-glow" aria-hidden />
+              <div className="ov-promo-content">
+                <p className="ov-promo-eyebrow">Studio+</p>
+                <h3 className="ov-promo-title">Elevate your presence</h3>
+                <p className="ov-promo-body">
+                  Custom domain, editorial comp cards, and verified analytics.
+                </p>
+                <a href="https://www.pholio.studio/pricing" className="ov-promo-cta">
+                  <Sparkles size={13} aria-hidden />
+                  Upgrade Now
+                </a>
+              </div>
+            </div>
+          )}
+
+        </aside>
       </div>
     </div>
   );
