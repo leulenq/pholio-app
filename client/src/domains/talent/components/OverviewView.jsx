@@ -9,6 +9,7 @@ import {
   Sparkles, CheckCircle, Clock, AlertCircle, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { TierBadgeFromSubscription } from '../../../shared/components/ui/TierBadge';
 import './OverviewView.css';
 
 // GET /applications after api-client unwrap: array or { data: [] }; else malformed (never fake 0).
@@ -89,8 +90,6 @@ export default function OverviewView() {
   const applicationsShapeInvalid =
     !applicationsPending && !applicationsError && !applicationsParsed.ok;
 
-  const tier = subscription?.isPro ? 'Studio+' : 'Free';
-
   const nextSteps = [
     {
       id: 1,
@@ -137,7 +136,7 @@ export default function OverviewView() {
       <header className="ov-hero">
         <div className="ov-hero-eyebrow-row">
           <span className="ov-hero-eyebrow">Welcome back,</span>
-          <span className="ov-tier-badge">{tier}</span>
+          <TierBadgeFromSubscription subscription={subscription} />
         </div>
 
         <h1 className="ov-hero-name">
