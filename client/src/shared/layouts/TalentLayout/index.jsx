@@ -78,9 +78,9 @@ export default function TalentLayout({ outletContext = {} }) {
 
         <main className="tl-content">
           {message && (
-            <div className={`flash-message ${message.type}`} style={{ margin: '16px 60px 0' }}>
+            <div className={`tl-flash tl-flash--${message.type}`} style={{ margin: '16px 60px 0' }}>
               <span>{message.text}</span>
-              <button onClick={clearFlash} className="flash-close">&times;</button>
+              <button onClick={clearFlash} className="tl-flash-close">&times;</button>
             </div>
           )}
           <Outlet context={outletContext} />
