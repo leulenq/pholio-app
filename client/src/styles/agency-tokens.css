@@ -80,6 +80,18 @@
   --ag-sidebar-w: 220px;
   --ag-header-h: 56px;
 
+  /* ---- Talent Dashboard Layout Dimensions ---- */
+  --td-sidebar-w: 185px;
+  --td-topbar-h: 52px;
+  --td-content-pad-x: 60px;
+  --td-content-pad-top: 56px;
+  --td-content-pad-bottom: 64px;
+  --td-section-gap: 40px;
+  --td-module-gap: 24px;
+  --td-presence-pad-y: 48px;
+  --td-presence-pad-x: 52px;
+  --td-ink-deep: #141210;
+
   /* ---- Radius ---- */
   --ag-radius-sm: 4px;
   --ag-radius-md: 8px;
