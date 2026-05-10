@@ -21,7 +21,7 @@ export default function DashboardLayoutShell() {
   const [isPrimarySubmitting, setIsPrimarySubmitting] = useState(false);
   const [promptError, setPromptError] = useState('');
   const gating = checkGatingStatus(profile);
-  const { isBlocked, missingFields } = gating;
+  const { isBlocked } = gating;
   const promptStorageKey = useMemo(() => `talent-completion-prompt:${profile?.id || 'unknown'}`, [profile?.id]);
 
   useEffect(() => {
