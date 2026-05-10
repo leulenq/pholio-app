@@ -1,0 +1,116 @@
+/* ─────────────────────────────────────────
+   OverviewPage — reference implementation
+   ───────────────────────────────────────── */
+.ov-page {
+  padding: var(--td-content-pad-top, 56px) var(--td-content-pad-x, 60px) var(--td-content-pad-bottom, 64px);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--td-section-gap, 40px);
+}
+
+/* Greeting */
+.ov-greeting {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.ov-eyebrow {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9C958E;
+  margin-bottom: 8px;
+}
+
+.ov-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 3.25rem;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  color: #1A1815;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+}
+
+.ov-tier-badge {
+  margin-bottom: 6px;
+}
+
+.ov-greeting-meta {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ov-meta-label {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #C8C2BA;
+}
+
+.ov-meta-value {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: #6B6560;
+}
+
+/* Modules */
+.ov-modules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--td-module-gap, 24px);
+}
+
+.ov-stat-row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.ov-stat-divider {
+  width: 1px;
+  background: rgba(26, 24, 21, 0.06);
+  align-self: stretch;
+  margin: 0 24px;
+  flex-shrink: 0;
+}
+
+.ov-empty {
+  font-size: 0.875rem;
+  color: #9C958E;
+  padding: 40px 0;
+  text-align: center;
+  margin: 0;
+}
+
+/* Loading */
+.ov-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+}
+
+.ov-spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(201, 165, 90, 0.2);
+  border-top-color: #C9A55A;
+  animation: ov-spin 0.8s linear infinite;
+}
+
+@keyframes ov-spin {
+  to { transform: rotate(360deg); }
+}

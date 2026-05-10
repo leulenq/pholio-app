@@ -8,6 +8,7 @@ import LoginPage from './domains/auth/pages/LoginPage/LoginPage';
 import AgencyLayout from './shared/layouts/AgencyLayout';
 import AgencySessionGate from './domains/agency/components/AgencySessionGate';
 import DashboardPage from './domains/talent/pages/DashboardPage';
+import OverviewPage from './domains/talent/pages/OverviewPage';
 import ProfilePage from './domains/talent/pages/ProfilePage';
 import MediaPage from './domains/talent/pages/MediaPage';
 import AnalyticsPage from './domains/talent/pages/AnalyticsPage';
@@ -62,7 +63,7 @@ function App() {
 
         {/* Talent Dashboard Routes */}
         <Route element={<DashboardLayoutShell />}>
-          <Route path="/dashboard/talent" element={<DashboardPage />} />
+          <Route path="/dashboard/talent" element={<OverviewPage />} />
           <Route path="/dashboard/talent/profile" element={<ProfilePage />} />
           <Route path="/dashboard/talent/media" element={<MediaPage />} />
           <Route path="/dashboard/talent/analytics" element={<AnalyticsPage />} />
@@ -78,7 +79,7 @@ function App() {
         <Route element={<AgencySessionGate />}>
           <Route path="/dashboard/agency/onboarding" element={<AgencyOnboarding />} />
           <Route element={<AgencyLayout />}>
-            <Route path="/dashboard/agency" element={<Navigate to="/dashboard/agency/inbox" replace />} />
+            <Route path="/dashboard/agency" element={<Navigate to="/dashboard/agency/overview" replace />} />
             <Route path="/dashboard/agency/inbox" element={<AgencyInbox />} />
             <Route path="/dashboard/agency/applicants" element={<Navigate to="/dashboard/agency/inbox" replace />} />
             <Route path="/dashboard/agency/overview" element={<AgencyOverview />} />
