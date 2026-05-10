@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../domains/auth/hooks/useAuth';
-import { useFlash } from '../hooks/useFlash';
-import Header from '../components/Header/Header';
+import TalentLayout from './TalentLayout';
 import { checkGatingStatus, isRestrictedTalentRoute } from '../utils/profileGating';
 import { talentApi } from '../../domains/talent/api/talent';
 import LuxuryCompletionPromptModal from '../../domains/onboarding/components/LuxuryCompletionPromptModal';
@@ -12,11 +11,8 @@ import ProfileGateBanner from '../components/gating/ProfileGateBanner';
 
 
 
-// Internal Header removed. Using imported component.
-
 export default function DashboardLayoutShell() {
-  const { user, profile, isLoading, error } = useAuth();
-  const { message, clearFlash } = useFlash();
+  const { profile, isLoading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [promptContext, setPromptContext] = useState(null);
@@ -140,30 +136,8 @@ export default function DashboardLayoutShell() {
   }
 
   return (
-    <div className="dashboard-root">
-      <Header user={user} profile={profile} />
-
-      {/* {isBlocked && (
-        <ProfileGateBanner
-          missingFields={missingFields}
-          missingByGroup={gating.missingByGroup}
-          completionPercent={gating.completionPercent}
-          completedCount={gating.completedCount}
-          totalRequired={gating.totalRequired}
-        />
-      )} */}
-
-      <main className="dashboard-content">
-        {message && (
-          <div className={`flash-message ${message.type} mb-6`}>
-             <span>{message.text}</span>
-             <button onClick={clearFlash} className="flash-close">&times;</button>
-          </div>
-        )}
-
-        <Outlet context={{ isBlocked }} />
-      </main>
-
+    <>
+      <TalentLayout outletContext={{ isBlocked }} />
       <LuxuryCompletionPromptModal
         isOpen={isPromptOpen}
         mode={promptContext?.hasRedirectSignal ? 'targeted' : 'generic'}
@@ -174,6 +148,6 @@ export default function DashboardLayoutShell() {
         onClose={dismissPrompt}
         errorMessage={promptError}
       />
-    </div>
+    </>
   );
 }
