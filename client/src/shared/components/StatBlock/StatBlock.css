@@ -1,0 +1,46 @@
+.sb-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.sb-label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #C8C2BA;
+  margin-bottom: 6px;
+}
+
+.sb-number {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 2.25rem;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: #1A1815;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.sb-number--pending  { color: #C2850E; }
+.sb-number--accepted { color: #2D8A56; }
+.sb-number--declined { color: #C8C2BA; }
+
+.sb-delta {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.sb-delta--up   { color: rgba(45, 138, 86, 0.75); }
+.sb-delta--down { color: rgba(192, 57, 43, 0.75); }
+
+.sb-sub {
+  font-size: 0.625rem;
+  color: #9C958E;
+  line-height: 1.4;
+  margin-top: 4px;
+}
