@@ -1,431 +1,531 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import {
+  ArrowUpRight,
+  Camera,
+  ChevronRight,
+  Download,
+  FileText,
+  Activity,
+  TrendingUp,
+  AlertCircle,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { talentApi } from '../api/talent';
-import {
-  Download, Share2, Eye, TrendingUp, ExternalLink,
-  Sparkles, CheckCircle, Clock, AlertCircle, ChevronRight,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { TierBadgeFromSubscription } from '../../../shared/components/ui/TierBadge';
 import './OverviewView.css';
 
-// GET /applications after api-client unwrap: array or { data: [] }; else malformed (never fake 0).
-function applicationsCountFromPayload(data) {
-  if (Array.isArray(data)) return { ok: true, count: data.length };
-  if (data != null && typeof data === 'object' && Array.isArray(data.data)) {
-    return { ok: true, count: data.data.length };
-  }
-  return { ok: false };
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function imageUrl(img) {
+  if (!img) return null;
+  const src = img.public_url || img.path;
+  if (!src) return null;
+  if (src.startsWith('http')) return src;
+  return src.startsWith('/') ? src : `/uploads/${src}`;
 }
 
-function asFiniteNumber(value) {
-  const n = Number(value);
+function asNum(v) {
+  const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
 
-function getStrengthSub(pct) {
-  if (pct >= 80) return 'Complete!';
-  if (pct >= 50) return 'Good progress';
-  return 'Keep building';
+function applicationsCount(payload) {
+  if (Array.isArray(payload)) return { ok: true, count: payload.length };
+  if (payload?.data && Array.isArray(payload.data)) return { ok: true, count: payload.data.length };
+  return { ok: false };
 }
 
+function buildChecklist(images, completeness, profile) {
+  const hasPhotos = Array.isArray(images) && images.length > 0;
+  const profilePct = asNum(completeness?.percentage);
+  const hasMeasurements = !!(
+    profile?.height || profile?.measurements || profile?.chest || profile?.waist || profile?.hips
+  );
+  const hasResume = profilePct >= 40;
+
+  return [
+    {
+      id: 'photos',
+      label: 'Casting Polaroids',
+      status: hasPhotos ? 'Verified' : 'Required',
+      urgency: hasPhotos ? 'success' : 'critical',
+      link: '/dashboard/talent/media',
+    },
+    {
+      id: 'profile',
+      label: 'Digital Resume',
+      status: hasResume ? 'In Sync' : 'Incomplete',
+      urgency: hasResume ? 'success' : 'critical',
+      link: '/dashboard/talent/profile',
+    },
+    {
+      id: 'measurements',
+      label: 'Measurements & Specs',
+      status: hasMeasurements ? 'Verified' : 'Required',
+      urgency: hasMeasurements ? 'success' : 'critical',
+      link: '/dashboard/talent/profile',
+    },
+    {
+      id: 'reel',
+      label: 'Intro Reel (30s)',
+      status: 'Optional',
+      urgency: 'none',
+      link: '/dashboard/talent/media',
+    },
+  ];
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
 export default function OverviewView() {
-  const { profile, subscription, completeness, isLoading: profileLoading, images } = useAuth();
+  const { profile, subscription, completeness, images, isLoading: profileLoading } = useAuth();
   const {
-    activities,
-    isLoading: activitiesLoading,
     summary,
     summaryError,
-    activityError,
+    isLoading: analyticsLoading,
     refetch: refetchAnalytics,
     isAnalyticsRefetching,
   } = useAnalytics();
 
   const {
     data: applicationsPayload,
-    isPending: applicationsPending,
-    isError: applicationsError,
-    refetch: refetchApplications,
-    isFetching: applicationsFetching,
+    isPending: appsPending,
+    isError: appsError,
   } = useQuery({
     queryKey: ['applications'],
     queryFn: () => talentApi.getApplications(),
-    staleTime: 1000 * 60,
+    staleTime: 60 * 1000,
     retry: 1,
   });
 
-  const handleCompCardPlaceholder = () => {
-    toast.info('Comp card download is not available yet — we will add it in a future update.');
+  const firstName = profile?.first_name || '';
+  const lastName  = profile?.last_name  || '';
+  const isPro     = !!subscription?.isPro;
+
+  const views      = asNum(summary?.views?.total);
+  const downloads  = asNum(summary?.downloads?.total);
+  const viewsDelta = asNum(summary?.views?.changePct);
+  const readinessPct  = asNum(completeness?.percentage);
+  const visibilityPct = Math.min(100, readinessPct);
+
+  const appsParsed = applicationsCount(applicationsPayload);
+  const appsCount  = appsParsed.ok ? appsParsed.count : 0;
+
+  const checklist  = buildChecklist(images, completeness, profile);
+
+  const photoSlots = Array.isArray(images) ? images.slice(0, 5) : [];
+  const extraCount = Math.max(0, (Array.isArray(images) ? images.length : 0) - 5);
+
+  const handleCompCard = () => {
+    toast.info('Comp card download is not available yet — coming in a future update.');
   };
-
-  const handleShareProfile = () => {
-    if (!profile?.slug) {
-      toast.error('Set your public profile URL in settings before sharing.');
-      return;
-    }
-    const profileUrl = `${window.location.origin}/portfolio/${profile.slug}`;
-    navigator.clipboard.writeText(profileUrl).then(() => {
-      toast.success('Profile link copied to clipboard!');
-    }).catch(() => {
-      toast.error('Failed to copy link');
-    });
-  };
-
-  const handleViewPublicPortfolio = () => {
-    if (!profile?.slug) {
-      toast.info('Set your profile URL in settings to preview your public portfolio.');
-    }
-  };
-
-  const stats = {
-    views: asFiniteNumber(summary?.views?.total),
-    downloads: asFiniteNumber(summary?.downloads?.total),
-    profileStrength: asFiniteNumber(completeness?.percentage),
-  };
-
-  const applicationsParsed = applicationsCountFromPayload(applicationsPayload);
-  const applicationsShapeInvalid =
-    !applicationsPending && !applicationsError && !applicationsParsed.ok;
-
-  const nextSteps = [
-    {
-      id: 1,
-      title: 'Complete your profile',
-      description: 'Add your measurements and bio',
-      action: 'Go to Profile',
-      link: '/dashboard/talent/profile',
-      completed: completeness?.percentage >= 80,
-    },
-    {
-      id: 2,
-      title: 'Upload portfolio images',
-      description: 'Showcase your best work',
-      action: 'Add Media',
-      link: '/dashboard/talent/media',
-      completed: Array.isArray(images) && images.length > 0,
-    },
-    {
-      id: 3,
-      title: 'Download your comp card',
-      description: 'Share it with agencies',
-      action: 'Download',
-      onClick: handleCompCardPlaceholder,
-      completed: false,
-    },
-  ];
-
-  const completedCount = nextSteps.filter(s => s.completed).length;
-
-  function getActivityDotColor(activity) {
-    const type = String(activity?.type || activity?.activity_type || '').toLowerCase();
-    if (type.includes('view'))     return '#C9A55A';
-    if (type.includes('download')) return '#1A1815';
-    if (type.includes('share'))    return '#3b82f6';
-    return '#C8C2BA';
-  }
 
   return (
     <div className="ov-container">
+      <div className="ov-inner">
 
-      {/* ════════════════════════════════
-          HERO
-      ════════════════════════════════ */}
-      <header className="ov-hero">
-        <div className="ov-hero-eyebrow-row">
-          <span className="ov-hero-eyebrow">Welcome back,</span>
-          <TierBadgeFromSubscription subscription={subscription} />
-        </div>
-
-        <h1 className="ov-hero-name">
-          {profile?.first_name || 'Talent'}
-        </h1>
-
-        <p className="ov-hero-tagline">
-          You're Creating{' '}
-          <span className="ov-tagline-gold">
-            opportunities in the creative industry.
-          </span>
-        </p>
-      </header>
-
-      {/* ════════════════════════════════
-          KPI GRID (4 columns)
-      ════════════════════════════════ */}
-      <section className="ov-kpi-section" aria-label="Stats at a glance">
-        {profileLoading ? (
-          <div className="ov-kpi-grid">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="ov-kpi ov-kpi--skeleton">
-                <div className="ov-skel ov-skel--icon" />
-                <div className="ov-skel ov-skel--num" />
-                <div className="ov-skel ov-skel--label" style={{ marginTop: '10px' }} />
-                <div className="ov-skel ov-skel--sub" style={{ marginTop: '6px' }} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="ov-kpi-grid">
-            {/* Profile Views */}
-            <div className="ov-kpi">
-              <Eye className="ov-kpi-ico" size={22} aria-hidden />
-              <div className="ov-kpi-number">
-                {summaryError ? '—' : stats.views.toLocaleString()}
-              </div>
-              <div className="ov-kpi-label">Profile Views</div>
-              <div className="ov-kpi-sub">This month</div>
-            </div>
-
-            {/* Downloads */}
-            <div className="ov-kpi">
-              <Download className="ov-kpi-ico" size={22} aria-hidden />
-              <div className="ov-kpi-number">
-                {summaryError ? '—' : stats.downloads.toLocaleString()}
-              </div>
-              <div className="ov-kpi-label">Downloads</div>
-              <div className="ov-kpi-sub">Your materials</div>
-            </div>
-
-            {/* Applications */}
-            <div className="ov-kpi" aria-busy={applicationsPending ? true : undefined}>
-              <TrendingUp className="ov-kpi-ico" size={22} aria-hidden />
-              <div className="ov-kpi-number">
-                {applicationsPending ? (
-                  <span className="ov-skel ov-skel--num-inline" aria-hidden />
-                ) : applicationsError || applicationsShapeInvalid ? (
-                  <span className="ov-kpi-err-inline">
-                    <button
-                      type="button"
-                      className="ov-retry-btn"
-                      onClick={() => refetchApplications()}
-                      disabled={applicationsFetching}
-                    >
-                      {applicationsFetching ? '…' : 'Retry'}
-                    </button>
-                  </span>
-                ) : (
-                  applicationsParsed.count
-                )}
-              </div>
-              <div className="ov-kpi-label">Applications</div>
-              <div className="ov-kpi-sub">Active submissions</div>
-            </div>
-
-            {/* Profile Strength */}
-            <div className="ov-kpi">
-              <Sparkles className="ov-kpi-ico" size={22} aria-hidden />
-              <div className="ov-kpi-number">{stats.profileStrength}%</div>
-              <div className="ov-kpi-label">Profile Strength</div>
-              <div className="ov-kpi-sub">{getStrengthSub(stats.profileStrength)}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Summary error notice (non-blocking) */}
-        {summaryError && !profileLoading && (
-          <div className="ov-summary-err" role="alert">
-            <AlertCircle size={14} aria-hidden />
-            <span>Couldn't load views &amp; downloads.</span>
-            <button
-              type="button"
-              className="ov-retry-btn"
-              onClick={() => refetchAnalytics()}
-              disabled={isAnalyticsRefetching}
-            >
-              {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* ════════════════════════════════
-          BOTTOM — Next Steps + Sidebar
-      ════════════════════════════════ */}
-      <div className="ov-bottom">
-
-        {/* ── Next Steps ── */}
-        <div className="ov-bottom-main">
-          <section className="ov-section">
-            <div className="ov-section-head">
-              <p className="ov-label" style={{ margin: 0 }}>Next Steps</p>
-              {!profileLoading && (
-                <span className="ov-progress-pill">{completedCount}/{nextSteps.length} complete</span>
-              )}
+        {/* ════════════════════════════════
+            HERO — Identity
+        ════════════════════════════════ */}
+        <header className="ov-hero">
+          <motion.div
+            className="ov-hero-left"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="ov-hero-eyebrow">
+              <span className="ov-mono">Dashboard</span>
+              <span className={`ov-tier-pill ${isPro ? 'ov-tier-pill--studio' : 'ov-tier-pill--free'}`}>
+                {isPro ? 'Studio+ Member' : 'Free'}
+              </span>
             </div>
 
             {profileLoading ? (
-              <div className="ov-steps-card">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="ov-step ov-step--skeleton">
-                    <div className="ov-skel ov-skel--circle" />
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div className="ov-skel ov-skel--line" style={{ width: '55%' }} />
-                      <div className="ov-skel ov-skel--line" style={{ width: '38%' }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <span className="ov-skel ov-skel--name" aria-hidden />
             ) : (
-              <div className="ov-steps-card">
-                {nextSteps.map((step, idx) => (
-                  <div key={step.id} className={`ov-step ${step.completed ? 'ov-step--done' : ''}`}>
-                    <div className={`ov-step-check ${step.completed ? 'checked' : ''}`}>
-                      {step.completed
-                        ? <CheckCircle size={14} aria-hidden />
-                        : <span className="ov-step-num">{idx + 1}</span>}
-                    </div>
-                    <div className="ov-step-body">
-                      <p className="ov-step-title">{step.title}</p>
-                      <p className="ov-step-desc">{step.description}</p>
-                    </div>
-                    {!step.completed && (
-                      step.link ? (
-                        <Link to={step.link} className="ov-step-cta">
-                          {step.action} <ChevronRight size={13} aria-hidden />
-                        </Link>
-                      ) : (
-                        <button type="button" onClick={step.onClick} className="ov-step-cta">
-                          {step.action} <ChevronRight size={13} aria-hidden />
-                        </button>
-                      )
-                    )}
+              <h1 className="ov-hero-name">
+                {firstName}
+                {firstName && lastName ? ' ' : ''}
+                {lastName && <em>{lastName}</em>}
+                {!firstName && !lastName && 'Your Portfolio'}
+              </h1>
+            )}
+          </motion.div>
+
+          <div className="ov-hero-right">
+            <div className="ov-status-pill">
+              <span className="ov-status-dot" aria-hidden />
+              Actively Seeking Work
+            </div>
+            <p className="ov-discovery-line">Global Discovery Primary</p>
+          </div>
+        </header>
+
+        {/* Gold hairline */}
+        <div className="ov-hairline" aria-hidden />
+
+        {/* ════════════════════════════════
+            ROW 1: Portfolio Book (8 cols) + Readiness Guide (4 cols)
+        ════════════════════════════════ */}
+        <div className="ov-grid">
+
+          {/* ── Portfolio Book ── */}
+          <div className="ov-col-8">
+            <div className="ov-book">
+              <div className="ov-book-header">
+                <div className="ov-book-title-group">
+                  <div className="ov-book-title">
+                    <span className="ov-label" style={{ display: 'block', marginBottom: '6px' }}>
+                      Portfolio
+                    </span>
+                    <span className="ov-book-title-text">The <em>Book.</em></span>
                   </div>
+                  <div className="ov-book-sep" aria-hidden />
+                  <div className="ov-book-tags">
+                    <span className="ov-tag">Editorial</span>
+                    <span className="ov-tag ov-tag--faded">Casting</span>
+                  </div>
+                </div>
+
+                <Link
+                  to="/dashboard/talent/media"
+                  className="ov-book-manage"
+                  aria-label="Manage portfolio frames"
+                >
+                  Manage Frames <ArrowUpRight size={12} aria-hidden />
+                </Link>
+              </div>
+
+              <div className="ov-book-grid" role="list" aria-label="Portfolio images">
+
+                {/* Featured — col-span-2, row-span-2 */}
+                {photoSlots[0] ? (
+                  <Link
+                    to="/dashboard/talent/media"
+                    className="ov-book-featured"
+                    role="listitem"
+                    aria-label="Featured portfolio image"
+                  >
+                    <img
+                      src={imageUrl(photoSlots[0])}
+                      alt="Featured portfolio"
+                      className="ov-book-photo"
+                    />
+                    <div className="ov-book-featured-overlay" aria-hidden>
+                      <span className="ov-book-featured-eyebrow">Featured Cover</span>
+                      <p className="ov-book-featured-caption">Your best work</p>
+                    </div>
+                  </Link>
+                ) : (
+                  <Link
+                    to="/dashboard/talent/media"
+                    className="ov-book-featured ov-book-empty"
+                    role="listitem"
+                    aria-label="Add featured photo"
+                  >
+                    <Camera size={24} color="rgba(245,240,230,0.12)" aria-hidden />
+                    <span className="ov-book-more-label">Add Photo</span>
+                  </Link>
+                )}
+
+                {/* Small slots 1–3 */}
+                {[1, 2, 3].map((idx) => {
+                  const img = photoSlots[idx];
+                  return img ? (
+                    <Link
+                      key={idx}
+                      to="/dashboard/talent/media"
+                      className="ov-book-img-small"
+                      role="listitem"
+                      aria-label={`Portfolio image ${idx + 1}`}
+                    >
+                      <img src={imageUrl(img)} alt="" className="ov-book-photo" />
+                    </Link>
+                  ) : (
+                    <Link
+                      key={idx}
+                      to="/dashboard/talent/media"
+                      className="ov-book-img-small ov-book-empty"
+                      role="listitem"
+                      aria-label="Add portfolio image"
+                    >
+                      <Camera size={16} color="rgba(245,240,230,0.1)" aria-hidden />
+                    </Link>
+                  );
+                })}
+
+                {/* 5th slot: overflow count or image */}
+                {photoSlots[4] && extraCount > 0 ? (
+                  <Link
+                    to="/dashboard/talent/media"
+                    className="ov-book-more"
+                    role="listitem"
+                    aria-label={`View ${extraCount} more images`}
+                  >
+                    <span className="ov-book-more-count">+{extraCount}</span>
+                    <span className="ov-book-more-label">Frames</span>
+                  </Link>
+                ) : photoSlots[4] ? (
+                  <Link
+                    to="/dashboard/talent/media"
+                    className="ov-book-img-small"
+                    role="listitem"
+                    aria-label="Portfolio image 5"
+                  >
+                    <img src={imageUrl(photoSlots[4])} alt="" className="ov-book-photo" />
+                  </Link>
+                ) : (
+                  <Link
+                    to="/dashboard/talent/media"
+                    className="ov-book-more"
+                    role="listitem"
+                    aria-label="Add more images"
+                  >
+                    <Camera size={16} color="rgba(245,240,230,0.08)" aria-hidden />
+                    <span className="ov-book-more-label">Add</span>
+                  </Link>
+                )}
+
+              </div>
+            </div>
+          </div>
+
+          {/* ── Readiness Guide ── */}
+          <div className="ov-col-4">
+            <div className="ov-readiness">
+              <div className="ov-readiness-header">
+                <div>
+                  <span className="ov-label" style={{ display: 'block', marginBottom: '6px' }}>
+                    Readiness Guide
+                  </span>
+                  <h2 className="ov-readiness-title">The <em>Audit.</em></h2>
+                </div>
+                <div
+                  className="ov-readiness-pct"
+                  aria-label={`${readinessPct}% profile complete`}
+                >
+                  {readinessPct}<sup>%</sup>
+                </div>
+              </div>
+
+              <div className="ov-checklist" role="list">
+                {checklist.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={item.link}
+                    className="ov-check-item"
+                    role="listitem"
+                    aria-label={`${item.label}: ${item.status}`}
+                  >
+                    <div className="ov-check-left">
+                      <div
+                        className={`ov-check-dot ov-check-dot--${item.urgency}`}
+                        aria-hidden
+                      />
+                      <span className="ov-check-label">{item.label}</span>
+                    </div>
+                    <div className="ov-check-right">
+                      <span className="ov-check-status">{item.status}</span>
+                      <ChevronRight size={12} className="ov-check-arrow" aria-hidden />
+                    </div>
+                  </Link>
                 ))}
               </div>
-            )}
-          </section>
+
+              <Link to="/dashboard/talent/profile" className="ov-audit-cta">
+                Continue Audit
+              </Link>
+            </div>
+          </div>
+
         </div>
 
-        {/* ── Sidebar ── */}
-        <aside className="ov-bottom-aside">
+        {/* ════════════════════════════════
+            ROW 2: Exposure Intelligence (6) + Identity Artifacts (6)
+        ════════════════════════════════ */}
+        <div className="ov-grid">
 
-          {/* Quick Actions */}
-          <div className="ov-aside-block">
-            <p className="ov-label">Quick Actions</p>
-            <div className="ov-actions">
-              <button
-                type="button"
-                onClick={handleCompCardPlaceholder}
-                className="ov-action ov-action--primary"
-              >
-                <div className="ov-action-icon"><Download size={16} aria-hidden /></div>
-                <div className="ov-action-text">
-                  <span className="ov-action-title">Comp Card</span>
-                  <span className="ov-action-sub">Download PDF</span>
+          {/* ── Exposure Intelligence ── */}
+          <div className="ov-col-6">
+            <div className="ov-exposure">
+              <div className="ov-exposure-header">
+                <div>
+                  <span className="ov-label" style={{ display: 'block', marginBottom: '6px' }}>
+                    Exposure Intelligence
+                  </span>
+                  <h2 className="ov-exposure-title">The <em>Market.</em></h2>
                 </div>
-                <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
-              </button>
-
-              <button type="button" onClick={handleShareProfile} className="ov-action">
-                <div className="ov-action-icon"><Share2 size={16} aria-hidden /></div>
-                <div className="ov-action-text">
-                  <span className="ov-action-title">Share Profile</span>
-                  <span className="ov-action-sub">Copy public link</span>
+                <div className="ov-ranking-chip">
+                  <TrendingUp size={12} aria-hidden />
+                  <span>Top 12% in Editorial</span>
                 </div>
-                <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
-              </button>
+              </div>
 
-              {profile?.slug ? (
-                <a
-                  href={`/portfolio/${profile.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ov-action"
-                >
-                  <div className="ov-action-icon"><ExternalLink size={16} aria-hidden /></div>
-                  <div className="ov-action-text">
-                    <span className="ov-action-title">Public Profile</span>
-                    <span className="ov-action-sub">See what others see</span>
-                  </div>
-                  <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
-                </a>
+              {analyticsLoading ? (
+                <div className="ov-stats-grid">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i}>
+                      <div
+                        className="ov-skel"
+                        style={{ width: '80px', height: '2.5rem', marginBottom: '8px' }}
+                      />
+                      <div className="ov-skel ov-skel--line" style={{ width: '120px' }} />
+                    </div>
+                  ))}
+                </div>
+              ) : summaryError ? (
+                <div className="ov-error-inline" role="alert">
+                  <AlertCircle size={14} aria-hidden />
+                  <span>Couldn't load analytics.</span>
+                  <button
+                    type="button"
+                    className="ov-retry-btn"
+                    onClick={() => refetchAnalytics()}
+                    disabled={isAnalyticsRefetching}
+                  >
+                    {isAnalyticsRefetching ? '…' : 'Retry'}
+                  </button>
+                </div>
               ) : (
-                <button type="button" onClick={handleViewPublicPortfolio} className="ov-action">
-                  <div className="ov-action-icon"><ExternalLink size={16} aria-hidden /></div>
-                  <div className="ov-action-text">
-                    <span className="ov-action-title">Public Profile</span>
-                    <span className="ov-action-sub">Set URL in settings first</span>
+                <div className="ov-stats-grid">
+                  <div>
+                    <div className="ov-stat-number">
+                      <span className="ov-stat-value">{views.toLocaleString()}</span>
+                      {viewsDelta > 0 && (
+                        <span className="ov-stat-delta-positive">+{viewsDelta}%</span>
+                      )}
+                    </div>
+                    <p className="ov-stat-label">Global Views (30d)</p>
                   </div>
-                  <ChevronRight size={13} className="ov-action-arrow" aria-hidden />
-                </button>
+
+                  <div>
+                    <div className="ov-stat-number">
+                      <span className="ov-stat-value ov-stat-value--gold">
+                        {appsPending ? '—' : appsError ? '—' : appsCount}
+                      </span>
+                      <span className="ov-stat-delta-neutral">Active</span>
+                    </div>
+                    <p className="ov-stat-label">Agency Submissions</p>
+                  </div>
+
+                  <div>
+                    <div className="ov-stat-number">
+                      <span className="ov-stat-value">{downloads.toLocaleString()}</span>
+                    </div>
+                    <p className="ov-stat-label">Comp Card Downloads</p>
+                  </div>
+
+                  <div className="ov-visibility">
+                    <div className="ov-visibility-head">
+                      <span className="ov-visibility-label">Visibility Index</span>
+                      {visibilityPct >= 60 && (
+                        <span className="ov-visibility-note">Above Category Avg</span>
+                      )}
+                    </div>
+                    <div
+                      className="ov-vis-track"
+                      role="progressbar"
+                      aria-valuenow={visibilityPct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Profile visibility index"
+                    >
+                      <motion.div
+                        className="ov-vis-fill"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${visibilityPct}%` }}
+                        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Recent Activity */}
-          <div className="ov-aside-block">
-            <p className="ov-label">Recent Activity</p>
+          {/* ── Identity Artifacts ── */}
+          <div className="ov-col-6">
+            <div className="ov-artifacts">
 
-            {activitiesLoading ? (
-              <div className="ov-activity-loading" role="status" aria-live="polite">
-                <div className="ov-spinner" />
-                <span className="overview-sr-only">Loading recent activity</span>
-              </div>
-            ) : activityError ? (
-              <div className="ov-activity-empty" role="alert">
-                <AlertCircle size={16} aria-hidden />
-                <p>Couldn't load activity.</p>
-                <button
-                  type="button"
-                  className="ov-retry-btn"
-                  onClick={() => refetchAnalytics()}
-                  disabled={isAnalyticsRefetching}
-                >
-                  {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
-                </button>
-              </div>
-            ) : activities && activities.length > 0 ? (
-              <div className="ov-activity-list">
-                {activities.map((activity) => {
-                  const fallbackKey = [
-                    activity?.type || activity?.activity_type || 'activity',
-                    activity?.message || 'event',
-                    activity?.createdAt || activity?.created_at || activity?.timeAgo || 'unknown',
-                  ].join(':');
-                  return (
-                    <div key={activity.id || fallbackKey} className="ov-activity-item">
-                      <span
-                        className="ov-activity-dot"
-                        style={{ backgroundColor: getActivityDotColor(activity) }}
-                        aria-hidden
-                      />
-                      <div className="ov-activity-body">
-                        <p className="ov-activity-msg">{activity.message}</p>
-                        <p className="ov-activity-time">{activity.timeAgo}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="ov-activity-empty">
-                <Clock size={16} aria-hidden />
-                <p>No recent activity</p>
-              </div>
-            )}
+              {/* Comp Card — light card */}
+              <button
+                type="button"
+                className="ov-artifact-card ov-artifact-card--light"
+                onClick={handleCompCard}
+                aria-label="Download comp card"
+              >
+                <div>
+                  <div className="ov-artifact-icon" aria-hidden>
+                    <FileText size={20} />
+                  </div>
+                  <h3 className="ov-artifact-title">Digital <em>Comp Card</em></h3>
+                  <p className="ov-artifact-desc">
+                    Generate professional specs with latest polaroids for agency submission.
+                  </p>
+                </div>
+                <div className="ov-artifact-footer">
+                  <span className="ov-artifact-badge">Ready</span>
+                  <div className="ov-artifact-action">
+                    <span>Export</span>
+                    <Download size={13} aria-hidden />
+                  </div>
+                </div>
+              </button>
+
+              {/* Intro Reel — dark card */}
+              <Link
+                to="/dashboard/talent/media"
+                className="ov-artifact-card ov-artifact-card--dark"
+                aria-label="Add intro reel"
+              >
+                <div>
+                  <div className="ov-artifact-icon" aria-hidden>
+                    <Activity size={20} />
+                  </div>
+                  <h3 className="ov-artifact-title">Intro <em>Reel</em></h3>
+                  <p className="ov-artifact-desc">
+                    Capture a quick 30s screen-test to verify presence and personality.
+                  </p>
+                </div>
+                <div className="ov-artifact-footer">
+                  <span className="ov-artifact-badge ov-artifact-badge--missing">Missing</span>
+                  <div className="ov-artifact-action">
+                    <ArrowUpRight size={14} aria-hidden />
+                  </div>
+                </div>
+              </Link>
+
+            </div>
           </div>
 
-          {/* Studio+ promo */}
-          {!subscription?.isPro && (
-            <div className="ov-promo" aria-label="Upgrade to Studio+">
-              <div className="ov-promo-glow" aria-hidden />
-              <div className="ov-promo-content">
-                <p className="ov-promo-eyebrow">Studio+</p>
-                <h3 className="ov-promo-title">Elevate your presence</h3>
-                <p className="ov-promo-body">
-                  Custom domain, editorial comp cards, and verified analytics.
-                </p>
-                <a href="https://www.pholio.studio/pricing" className="ov-promo-cta">
-                  <Sparkles size={13} aria-hidden />
-                  Upgrade Now
-                </a>
-              </div>
-            </div>
-          )}
+        </div>
 
-        </aside>
+        {/* ════════════════════════════════
+            FOOTER
+        ════════════════════════════════ */}
+        <footer className="ov-footer">
+          <nav className="ov-footer-nav" aria-label="Dashboard sections">
+            <Link to="/dashboard/talent"              className="ov-footer-link ov-footer-link--active">Overview</Link>
+            <Link to="/dashboard/talent/media"        className="ov-footer-link">The Book</Link>
+            <Link to="/dashboard/talent/applications" className="ov-footer-link">Market</Link>
+            <Link to="/dashboard/talent/analytics"    className="ov-footer-link">Intel</Link>
+          </nav>
+
+          <div className="ov-footer-meta">
+            <div className="ov-footer-node">
+              <span className="ov-footer-dot" aria-hidden />
+              <span>Identity Node · PH-{profile?.id?.slice(0, 3)?.toUpperCase() || '···'}</span>
+            </div>
+            <div className="ov-footer-sep" aria-hidden />
+            <span>© 2026</span>
+          </div>
+        </footer>
+
       </div>
     </div>
   );
