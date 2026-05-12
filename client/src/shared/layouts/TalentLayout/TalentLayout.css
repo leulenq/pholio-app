@@ -59,14 +59,31 @@
   flex-shrink: 0;
 }
 
-.tl-logo {
+/* Canonical lockup: wordmark + gold sweep (Brand Reference spec) */
+.tl-logo-lockup {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.tl-logo-word {
   font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
-  font-size: 11px;
-  font-weight: 300;
-  letter-spacing: 0.36em;
-  color: var(--tl-gold);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  color: #C8A96E; /* gold-warm on ink */
   text-transform: uppercase;
   user-select: none;
+  line-height: 1;
+}
+
+/* The sweep — the brand's second gesture */
+.tl-logo-sweep {
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #C8A96E, transparent);
+  border-radius: 999px;
 }
 
 .tl-topbar-actions {

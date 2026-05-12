@@ -4,21 +4,18 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   ArrowUpRight,
-  Camera,
   ChevronRight,
-  Download,
   FileText,
   Activity,
   TrendingUp,
   AlertCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import './OverviewPage.css';
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function imageUrl(img) {
   if (!img) return null;
@@ -41,11 +38,10 @@ function applicationsCount(payload) {
 
 function buildChecklist(images, completeness, profile) {
   const hasPhotos = Array.isArray(images) && images.length > 0;
-  const profilePct = asNum(completeness?.percentage);
+  const pct = asNum(completeness?.percentage);
   const hasMeasurements = !!(
     profile?.height || profile?.measurements || profile?.chest || profile?.waist || profile?.hips
   );
-  const hasResume = profilePct >= 40;
 
   return [
     {
@@ -58,13 +54,13 @@ function buildChecklist(images, completeness, profile) {
     {
       id: 'profile',
       label: 'Digital Resume',
-      status: hasResume ? 'In Sync' : 'Incomplete',
-      urgency: hasResume ? 'success' : 'critical',
+      status: pct >= 40 ? 'In Sync' : 'Incomplete',
+      urgency: pct >= 40 ? 'success' : 'critical',
       link: '/dashboard/talent/profile',
     },
     {
       id: 'measurements',
-      label: 'Measurements & Specs',
+      label: 'Measurements',
       status: hasMeasurements ? 'Verified' : 'Required',
       urgency: hasMeasurements ? 'success' : 'critical',
       link: '/dashboard/talent/profile',
@@ -79,7 +75,7 @@ function buildChecklist(images, completeness, profile) {
   ];
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function OverviewPage() {
   const { profile, subscription, completeness, images, isLoading: profileLoading } = useAuth();
@@ -102,46 +98,46 @@ export default function OverviewPage() {
     retry: 1,
   });
 
-  const firstName = profile?.first_name || '';
-  const lastName  = profile?.last_name  || '';
-  const isPro     = !!subscription?.isPro;
+  const firstName   = profile?.first_name || '';
+  const lastName    = profile?.last_name  || '';
+  const isPro       = !!subscription?.isPro;
+  const location    = profile?.city || profile?.location || '';
+  const imageCount  = Array.isArray(images) ? images.length : 0;
 
   const views      = asNum(summary?.views?.total);
   const downloads  = asNum(summary?.downloads?.total);
   const viewsDelta = asNum(summary?.views?.changePct);
-  const readinessPct  = asNum(completeness?.percentage);
-  const visibilityPct = Math.min(100, readinessPct);
+  const readinessPct = asNum(completeness?.percentage);
 
   const appsParsed = applicationsCount(applicationsPayload);
   const appsCount  = appsParsed.ok ? appsParsed.count : 0;
 
-  const checklist  = buildChecklist(images, completeness, profile);
+  const checklist = buildChecklist(images, completeness, profile);
+  const allClear  = checklist
+    .filter(c => c.urgency !== 'none')
+    .every(c => c.urgency === 'success');
 
   const photoSlots = Array.isArray(images) ? images.slice(0, 5) : [];
-  const extraCount = Math.max(0, (Array.isArray(images) ? images.length : 0) - 5);
-
-  const handleCompCard = () => {
-    toast.info('Comp card download is not available yet — coming in a future update.');
-  };
+  const extraCount = Math.max(0, imageCount - 5);
 
   return (
     <div className="ov-container">
       <div className="ov-inner">
 
-        {/* ════════════════════════════════
-            HERO — Identity
-        ════════════════════════════════ */}
+        {/* ═══════════════════════════════════════
+            HERO — identity anchor
+        ═══════════════════════════════════════ */}
         <header className="ov-hero">
           <motion.div
-            className="ov-hero-left"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="ov-hero-identity"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ov-hero-eyebrow">
               <span className="ov-mono">Dashboard</span>
               <span className={`ov-tier-pill ${isPro ? 'ov-tier-pill--studio' : 'ov-tier-pill--free'}`}>
-                {isPro ? 'Studio+ Member' : 'Free'}
+                {isPro ? 'Studio+' : 'Free'}
               </span>
             </div>
 
@@ -149,29 +145,36 @@ export default function OverviewPage() {
               <span className="ov-skel ov-skel--name" aria-hidden />
             ) : (
               <h1 className="ov-hero-name">
-                {firstName}
-                {firstName && lastName ? ' ' : ''}
-                {lastName && <em>{lastName}</em>}
-                {!firstName && !lastName && 'Your Portfolio'}
+                {firstName ? <span>{firstName}</span> : null}
+                {lastName  ? <><br /><em>{lastName}.</em></> : null}
+                {!firstName && !lastName && <span>Your Portfolio</span>}
               </h1>
+            )}
+
+            <motion.div
+              className="ov-hero-sweep"
+              initial={{ scaleX: 0, originX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.9, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              aria-hidden
+            />
+
+            {location && (
+              <p className="ov-hero-location">{location}</p>
             )}
           </motion.div>
 
-          <div className="ov-hero-right">
-            <div className="ov-status-pill">
-              <span className="ov-status-dot" aria-hidden />
-              Actively Seeking Work
-            </div>
-            <p className="ov-discovery-line">Global Discovery Primary</p>
+          <div className="ov-hero-signal" aria-label={`${imageCount} portfolio frames`}>
+            <div className="ov-hero-signal-num">{imageCount}</div>
+            <div className="ov-hero-signal-lbl">Frames</div>
           </div>
         </header>
 
-        {/* Gold hairline */}
         <div className="ov-hairline" aria-hidden />
 
-        {/* ════════════════════════════════
-            ROW 1: Portfolio Book (8 cols) + Readiness Guide (4 cols)
-        ════════════════════════════════ */}
+        {/* ═══════════════════════════════════════
+            ROW 1: Book (8) + Audit (4)
+        ═══════════════════════════════════════ */}
         <div className="ov-grid">
 
           {/* ── Portfolio Book ── */}
@@ -179,114 +182,61 @@ export default function OverviewPage() {
             <div className="ov-book">
               <div className="ov-book-header">
                 <div className="ov-book-title-group">
-                  <div className="ov-book-title">
-                    <span className="ov-label" style={{ display: 'block', marginBottom: '6px' }}>
-                      Portfolio
-                    </span>
+                  <div>
+                    <span className="ov-label" style={{ display: 'block', marginBottom: '4px' }}>Portfolio</span>
                     <span className="ov-book-title-text">The <em>Book.</em></span>
                   </div>
                   <div className="ov-book-sep" aria-hidden />
-                  <div className="ov-book-tags">
-                    <span className="ov-tag">Editorial</span>
-                    <span className="ov-tag ov-tag--faded">Casting</span>
-                  </div>
+                  <span className="ov-book-count">{imageCount} {imageCount === 1 ? 'frame' : 'frames'}</span>
                 </div>
-
-                <Link
-                  to="/dashboard/talent/media"
-                  className="ov-book-manage"
-                  aria-label="Manage portfolio frames"
-                >
-                  Manage Frames <ArrowUpRight size={12} aria-hidden />
+                <Link to="/dashboard/talent/media" className="ov-book-manage" aria-label="Manage portfolio">
+                  Manage <ArrowUpRight size={12} aria-hidden />
                 </Link>
               </div>
 
               <div className="ov-book-grid" role="list" aria-label="Portfolio images">
 
-                {/* Featured — col-span-2, row-span-2 */}
                 {photoSlots[0] ? (
-                  <Link
-                    to="/dashboard/talent/media"
-                    className="ov-book-featured"
-                    role="listitem"
-                    aria-label="Featured portfolio image"
-                  >
-                    <img
-                      src={imageUrl(photoSlots[0])}
-                      alt="Featured portfolio"
-                      className="ov-book-photo"
-                    />
+                  <Link to="/dashboard/talent/media" className="ov-book-featured" role="listitem" aria-label="Featured portfolio image">
+                    <img src={imageUrl(photoSlots[0])} alt="Featured portfolio" className="ov-book-photo" />
                     <div className="ov-book-featured-overlay" aria-hidden>
-                      <span className="ov-book-featured-eyebrow">Featured Cover</span>
-                      <p className="ov-book-featured-caption">Your best work</p>
+                      <span className="ov-book-featured-eyebrow">Cover</span>
+                      <p className="ov-book-featured-caption">
+                        {firstName
+                          ? `${firstName}${lastName ? ` ${lastName}` : ''}`
+                          : 'Featured Frame'}
+                      </p>
                     </div>
                   </Link>
                 ) : (
-                  <Link
-                    to="/dashboard/talent/media"
-                    className="ov-book-featured ov-book-empty"
-                    role="listitem"
-                    aria-label="Add featured photo"
-                  >
-                    <Camera size={24} color="rgba(245,240,230,0.12)" aria-hidden />
-                    <span className="ov-book-more-label">Add Photo</span>
+                  <Link to="/dashboard/talent/media" className="ov-book-featured ov-book-empty" role="listitem" aria-label="Add first portfolio image">
+                    <span className="ov-book-empty-headline">First Frame</span>
+                    <span className="ov-book-empty-sub">Define how agencies see you</span>
                   </Link>
                 )}
 
-                {/* Small slots 1–3 */}
                 {[1, 2, 3].map((idx) => {
                   const img = photoSlots[idx];
                   return img ? (
-                    <Link
-                      key={idx}
-                      to="/dashboard/talent/media"
-                      className="ov-book-img-small"
-                      role="listitem"
-                      aria-label={`Portfolio image ${idx + 1}`}
-                    >
+                    <Link key={idx} to="/dashboard/talent/media" className="ov-book-img-small" role="listitem" aria-label={`Portfolio image ${idx + 1}`}>
                       <img src={imageUrl(img)} alt="" className="ov-book-photo" />
                     </Link>
                   ) : (
-                    <Link
-                      key={idx}
-                      to="/dashboard/talent/media"
-                      className="ov-book-img-small ov-book-empty"
-                      role="listitem"
-                      aria-label="Add portfolio image"
-                    >
-                      <Camera size={16} color="rgba(245,240,230,0.1)" aria-hidden />
-                    </Link>
+                    <Link key={idx} to="/dashboard/talent/media" className="ov-book-img-small ov-book-empty" role="listitem" aria-label="Add portfolio image" />
                   );
                 })}
 
-                {/* 5th slot: overflow count or image */}
                 {photoSlots[4] && extraCount > 0 ? (
-                  <Link
-                    to="/dashboard/talent/media"
-                    className="ov-book-more"
-                    role="listitem"
-                    aria-label={`View ${extraCount} more images`}
-                  >
+                  <Link to="/dashboard/talent/media" className="ov-book-more" role="listitem" aria-label={`${extraCount} more images`}>
                     <span className="ov-book-more-count">+{extraCount}</span>
-                    <span className="ov-book-more-label">Frames</span>
+                    <span className="ov-book-more-label">More</span>
                   </Link>
                 ) : photoSlots[4] ? (
-                  <Link
-                    to="/dashboard/talent/media"
-                    className="ov-book-img-small"
-                    role="listitem"
-                    aria-label="Portfolio image 5"
-                  >
+                  <Link to="/dashboard/talent/media" className="ov-book-img-small" role="listitem" aria-label="Portfolio image 5">
                     <img src={imageUrl(photoSlots[4])} alt="" className="ov-book-photo" />
                   </Link>
                 ) : (
-                  <Link
-                    to="/dashboard/talent/media"
-                    className="ov-book-more"
-                    role="listitem"
-                    aria-label="Add more images"
-                  >
-                    <Camera size={16} color="rgba(245,240,230,0.08)" aria-hidden />
+                  <Link to="/dashboard/talent/media" className="ov-book-more" role="listitem" aria-label="Add more images">
                     <span className="ov-book-more-label">Add</span>
                   </Link>
                 )}
@@ -295,20 +245,15 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          {/* ── Readiness Guide ── */}
+          {/* ── Readiness Audit ── */}
           <div className="ov-col-4">
             <div className="ov-readiness">
               <div className="ov-readiness-header">
                 <div>
-                  <span className="ov-label" style={{ display: 'block', marginBottom: '6px' }}>
-                    Readiness Guide
-                  </span>
+                  <span className="ov-label" style={{ display: 'block', marginBottom: '4px' }}>Readiness</span>
                   <h2 className="ov-readiness-title">The <em>Audit.</em></h2>
                 </div>
-                <div
-                  className="ov-readiness-pct"
-                  aria-label={`${readinessPct}% profile complete`}
-                >
+                <div className="ov-readiness-pct" aria-label={`${readinessPct}% complete`}>
                   {readinessPct}<sup>%</sup>
                 </div>
               </div>
@@ -323,10 +268,7 @@ export default function OverviewPage() {
                     aria-label={`${item.label}: ${item.status}`}
                   >
                     <div className="ov-check-left">
-                      <div
-                        className={`ov-check-dot ov-check-dot--${item.urgency}`}
-                        aria-hidden
-                      />
+                      <div className={`ov-check-dot ov-check-dot--${item.urgency}`} aria-hidden />
                       <span className="ov-check-label">{item.label}</span>
                     </div>
                     <div className="ov-check-right">
@@ -338,50 +280,47 @@ export default function OverviewPage() {
               </div>
 
               <Link to="/dashboard/talent/profile" className="ov-audit-cta">
-                Continue Audit
+                {allClear ? 'View Profile' : 'Continue Audit'}
               </Link>
             </div>
           </div>
 
         </div>
 
-        {/* ════════════════════════════════
-            ROW 2: Exposure Intelligence (6) + Identity Artifacts (6)
-        ════════════════════════════════ */}
+        {/* ═══════════════════════════════════════
+            ROW 2: Signal (6) + Artifacts (6)
+        ═══════════════════════════════════════ */}
         <div className="ov-grid">
 
-          {/* ── Exposure Intelligence ── */}
+          {/* ── Intelligence / Signal ── */}
           <div className="ov-col-6">
             <div className="ov-exposure">
               <div className="ov-exposure-header">
                 <div>
-                  <span className="ov-label" style={{ display: 'block', marginBottom: '6px' }}>
-                    Exposure Intelligence
-                  </span>
-                  <h2 className="ov-exposure-title">The <em>Market.</em></h2>
+                  <span className="ov-label" style={{ display: 'block', marginBottom: '4px' }}>Intelligence</span>
+                  <h2 className="ov-exposure-title">The <em>Signal.</em></h2>
                 </div>
-                <div className="ov-ranking-chip">
-                  <TrendingUp size={12} aria-hidden />
-                  <span>Top 12% in Editorial</span>
-                </div>
+                {!analyticsLoading && !summaryError && viewsDelta > 0 && (
+                  <div className="ov-delta-chip">
+                    <TrendingUp size={11} aria-hidden />
+                    <span>+{viewsDelta}%</span>
+                  </div>
+                )}
               </div>
 
               {analyticsLoading ? (
-                <div className="ov-stats-grid">
+                <div className="ov-stats-row">
                   {[0, 1, 2].map((i) => (
-                    <div key={i}>
-                      <div
-                        className="ov-skel"
-                        style={{ width: '80px', height: '2.5rem', marginBottom: '8px' }}
-                      />
-                      <div className="ov-skel ov-skel--line" style={{ width: '120px' }} />
+                    <div key={i} className="ov-stat-cell">
+                      <div className="ov-skel" style={{ width: '56px', height: '2.25rem', marginBottom: '8px' }} />
+                      <div className="ov-skel ov-skel--line" style={{ width: '88px' }} />
                     </div>
                   ))}
                 </div>
               ) : summaryError ? (
                 <div className="ov-error-inline" role="alert">
                   <AlertCircle size={14} aria-hidden />
-                  <span>Couldn't load analytics.</span>
+                  <span>Analytics unavailable.</span>
                   <button
                     type="button"
                     className="ov-retry-btn"
@@ -392,59 +331,51 @@ export default function OverviewPage() {
                   </button>
                 </div>
               ) : (
-                <div className="ov-stats-grid">
-                  <div>
+                <div className="ov-stats-row">
+                  <div className="ov-stat-cell">
                     <div className="ov-stat-number">
                       <span className="ov-stat-value">{views.toLocaleString()}</span>
-                      {viewsDelta > 0 && (
-                        <span className="ov-stat-delta-positive">+{viewsDelta}%</span>
-                      )}
                     </div>
-                    <p className="ov-stat-label">Global Views (30d)</p>
+                    <p className="ov-stat-label">Profile Views</p>
                   </div>
-
-                  <div>
+                  <div className="ov-stat-cell">
                     <div className="ov-stat-number">
                       <span className="ov-stat-value ov-stat-value--gold">
-                        {appsPending ? '—' : appsError ? '—' : appsCount}
+                        {appsPending || appsError ? '—' : appsCount}
                       </span>
-                      <span className="ov-stat-delta-neutral">Active</span>
                     </div>
-                    <p className="ov-stat-label">Agency Submissions</p>
+                    <p className="ov-stat-label">Submissions</p>
                   </div>
-
-                  <div>
+                  <div className="ov-stat-cell">
                     <div className="ov-stat-number">
                       <span className="ov-stat-value">{downloads.toLocaleString()}</span>
                     </div>
-                    <p className="ov-stat-label">Comp Card Downloads</p>
-                  </div>
-
-                  <div className="ov-visibility">
-                    <div className="ov-visibility-head">
-                      <span className="ov-visibility-label">Visibility Index</span>
-                      {visibilityPct >= 60 && (
-                        <span className="ov-visibility-note">Above Category Avg</span>
-                      )}
-                    </div>
-                    <div
-                      className="ov-vis-track"
-                      role="progressbar"
-                      aria-valuenow={visibilityPct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Profile visibility index"
-                    >
-                      <motion.div
-                        className="ov-vis-fill"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${visibilityPct}%` }}
-                        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                    </div>
+                    <p className="ov-stat-label">Card Downloads</p>
                   </div>
                 </div>
               )}
+
+              <div className="ov-readiness-track-wrap">
+                <div className="ov-readiness-track-head">
+                  <span className="ov-visibility-label">Readiness</span>
+                  <span className="ov-readiness-track-pct">{readinessPct}%</span>
+                </div>
+                <div
+                  className="ov-vis-track"
+                  role="progressbar"
+                  aria-valuenow={readinessPct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Profile readiness"
+                >
+                  <motion.div
+                    className="ov-vis-fill"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${readinessPct}%` }}
+                    transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -452,12 +383,10 @@ export default function OverviewPage() {
           <div className="ov-col-6">
             <div className="ov-artifacts">
 
-              {/* Comp Card — light card */}
-              <button
-                type="button"
+              <Link
+                to="/dashboard/talent/pdf-customizer"
                 className="ov-artifact-card ov-artifact-card--light"
-                onClick={handleCompCard}
-                aria-label="Download comp card"
+                aria-label="Build your comp card"
               >
                 <div>
                   <div className="ov-artifact-icon" aria-hidden>
@@ -465,23 +394,24 @@ export default function OverviewPage() {
                   </div>
                   <h3 className="ov-artifact-title">Digital <em>Comp Card</em></h3>
                   <p className="ov-artifact-desc">
-                    Generate professional specs with latest polaroids for agency submission.
+                    Professional specs, agency-ready. Your latest polaroids, composed.
                   </p>
                 </div>
                 <div className="ov-artifact-footer">
-                  <span className="ov-artifact-badge">Ready</span>
+                  <span className="ov-artifact-badge">
+                    {imageCount > 0 ? 'Ready to build' : 'Add photos first'}
+                  </span>
                   <div className="ov-artifact-action">
-                    <span>Export</span>
-                    <Download size={13} aria-hidden />
+                    <span>Build</span>
+                    <ArrowUpRight size={13} aria-hidden />
                   </div>
                 </div>
-              </button>
+              </Link>
 
-              {/* Intro Reel — dark card */}
               <Link
                 to="/dashboard/talent/media"
                 className="ov-artifact-card ov-artifact-card--dark"
-                aria-label="Add intro reel"
+                aria-label="Record intro reel"
               >
                 <div>
                   <div className="ov-artifact-icon" aria-hidden>
@@ -489,11 +419,11 @@ export default function OverviewPage() {
                   </div>
                   <h3 className="ov-artifact-title">Intro <em>Reel</em></h3>
                   <p className="ov-artifact-desc">
-                    Capture a quick 30s screen-test to verify presence and personality.
+                    Thirty seconds that show what a photo can't. Your presence, unedited.
                   </p>
                 </div>
                 <div className="ov-artifact-footer">
-                  <span className="ov-artifact-badge ov-artifact-badge--missing">Missing</span>
+                  <span className="ov-artifact-badge ov-artifact-badge--missing">Not recorded</span>
                   <div className="ov-artifact-action">
                     <ArrowUpRight size={14} aria-hidden />
                   </div>
@@ -505,25 +435,16 @@ export default function OverviewPage() {
 
         </div>
 
-        {/* ════════════════════════════════
-            FOOTER
-        ════════════════════════════════ */}
+        {/* ═══════════════════════════════════════
+            Page signoff
+        ═══════════════════════════════════════ */}
         <footer className="ov-footer">
-          <nav className="ov-footer-nav" aria-label="Dashboard sections">
-            <Link to="/dashboard/talent"              className="ov-footer-link ov-footer-link--active">Overview</Link>
-            <Link to="/dashboard/talent/media"        className="ov-footer-link">The Book</Link>
-            <Link to="/dashboard/talent/applications" className="ov-footer-link">Market</Link>
-            <Link to="/dashboard/talent/analytics"    className="ov-footer-link">Intel</Link>
-          </nav>
-
-          <div className="ov-footer-meta">
-            <div className="ov-footer-node">
-              <span className="ov-footer-dot" aria-hidden />
-              <span>Identity Node · PH-{profile?.id?.slice(0, 3)?.toUpperCase() || '···'}</span>
-            </div>
-            <div className="ov-footer-sep" aria-hidden />
-            <span>© 2026</span>
+          <div className="ov-footer-node">
+            <span className="ov-footer-dot" aria-hidden />
+            <span>PH-{profile?.id?.slice(0, 6)?.toUpperCase() || '······'}</span>
           </div>
+          <div className="ov-footer-sep" aria-hidden />
+          <span>© 2026 Pholio Studio</span>
         </footer>
 
       </div>

@@ -31,7 +31,10 @@ export default function TalentLayout({ outletContext = {} }) {
       {/* ── Top utility bar ── */}
       <div className="tl-topbar">
         <div className="tl-topbar-logo-zone">
-          <span className="tl-logo">Pholio</span>
+          <div className="tl-logo-lockup" aria-label="Pholio">
+            <span className="tl-logo-word">PHOLIO</span>
+            <div className="tl-logo-sweep" aria-hidden />
+          </div>
         </div>
         <div className="tl-topbar-actions">
           <span className="tl-date">{today}</span>
