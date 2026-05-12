@@ -1,9 +1,10 @@
 import React from 'react';
 import AnalyticsView from '../../components/AnalyticsView';
+import './AnalyticsPage.css';
 
 export default function AnalyticsPage() {
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="analytics-page">
       <AnalyticsView />
     </div>
   );

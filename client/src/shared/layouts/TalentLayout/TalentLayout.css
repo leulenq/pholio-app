@@ -175,6 +175,15 @@
 /* Section labels hidden — icon-only navigation */
 .tl-nav-section { display: none; }
 
+/* Hairline between nav groups */
+.tl-nav-divider {
+  width: 32px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.055);
+  margin: 8px auto;
+  flex-shrink: 0;
+}
+
 .tl-nav-item {
   position: relative;
   width: 100%;

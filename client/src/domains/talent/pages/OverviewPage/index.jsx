@@ -153,7 +153,8 @@ export default function OverviewPage() {
 
             <motion.div
               className="ov-hero-sweep"
-              initial={{ scaleX: 0, originX: 0 }}
+              style={{ transformOrigin: 'left' }}
+              initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 0.9, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
               aria-hidden
@@ -164,10 +165,12 @@ export default function OverviewPage() {
             )}
           </motion.div>
 
-          <div className="ov-hero-signal" aria-label={`${imageCount} portfolio frames`}>
-            <div className="ov-hero-signal-num">{imageCount}</div>
-            <div className="ov-hero-signal-lbl">Frames</div>
-          </div>
+          {imageCount > 0 && (
+            <div className="ov-hero-signal" aria-label={`${imageCount} portfolio frames`}>
+              <div className="ov-hero-signal-num">{imageCount}</div>
+              <div className="ov-hero-signal-lbl">Frames</div>
+            </div>
+          )}
         </header>
 
         <div className="ov-hairline" aria-hidden />

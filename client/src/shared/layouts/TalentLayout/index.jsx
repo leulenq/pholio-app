@@ -55,7 +55,7 @@ export default function TalentLayout({ outletContext = {} }) {
         <aside className="tl-sidebar">
           <nav className="tl-nav" aria-label="Main navigation">
             {WORKSPACE_NAV.map(item => <TalentNavItem key={item.to} item={item} />)}
-            <div style={{ height: 1, width: 32, background: 'rgba(255,255,255,0.05)', margin: '10px auto' }} />
+            <div className="tl-nav-divider" aria-hidden />
             {PROFILE_NAV.map(item => <TalentNavItem key={item.to} item={item} />)}
           </nav>
 
