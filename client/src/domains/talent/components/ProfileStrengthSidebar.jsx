@@ -1,10 +1,7 @@
 import React from 'react';
 import { Check, ClipboardList } from 'lucide-react';
 import { getStrengthUI } from '../../../shared/utils/profileScoring';
-import {
-  buildReadinessLists,
-  buildNavGapBySection,
-} from './profileReadinessItems';
+import { buildReadinessLists } from './profileReadinessItems';
 import styles from './ProfileStrengthSidebar.module.css';
 
 function GlanceGap({ item, tier, scrollTargetByKey, onItemClick }) {
