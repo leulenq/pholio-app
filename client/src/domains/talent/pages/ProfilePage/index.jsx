@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import { Menu, X, Camera } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
@@ -20,6 +21,7 @@ import CreditsEditor from '../../../../shared/components/ui/forms/CreditsEditor'
 import { Controller } from 'react-hook-form';
 import ProfileNav from '../../components/ProfileNav';
 import ProfileStrengthSidebar from '../../components/ProfileStrengthSidebar';
+import ProfileReadinessAudit from '../../components/ProfileReadinessAudit';
 import { calculateProfileStrength } from '../../../../shared/utils/profileScoring';
 import {
   Section,
@@ -214,6 +216,7 @@ export default function ProfilePage() {
   const [isImproving, setIsImproving] = useState(false);
   const [previousBio, setPreviousBio] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [readinessAuditOpen, setReadinessAuditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [unitSystem, setUnitSystem] = useState('metric'); // 'metric' or 'imperial'
   const [shoeRegion, setShoeRegion] = useState('US');
@@ -404,7 +407,38 @@ export default function ProfilePage() {
     [values, authImages],
   );
 
-  const { isCoreReady, missingCoreItems } = calculateProfileStrength(strengthValues);
+  const profileStrength = useMemo(
+    () => calculateProfileStrength(strengthValues),
+    [strengthValues],
+  );
+  const { isCoreReady, missingCoreItems, fieldCompletion, scrollTargetByKey } = profileStrength;
+
+  const scrollToProfileSection = (sectionId) => {
+    const goPhotos = sectionId === 'photos-tab' || sectionId === 'hero-section';
+    if (goPhotos) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', 'photos');
+        return next;
+      });
+      window.setTimeout(() => {
+        const el = document.getElementById('photos-tab');
+        if (el) {
+          const offset = 100;
+          const top = el.getBoundingClientRect().top + window.scrollY - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      }, 400);
+      return;
+    }
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const offset = 100;
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - offset;
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+    }
+  };
 
   const authUserPredicate = (q) =>
     Array.isArray(q.queryKey) && q.queryKey[0] === 'auth-user';
@@ -577,36 +611,39 @@ export default function ProfilePage() {
 
   const isGateEntry = searchParams.get('gate') === 'true';
 
+  const heightDisplay = values.height_cm
+    ? unitSystem === 'imperial'
+      ? (() => {
+          const { ft, in: inches } = cmToFeetInches(values.height_cm);
+          return `${ft}'${inches}"`;
+        })()
+      : `${values.height_cm} cm`
+    : null;
+
+  const heroStatsLine = [heightDisplay, values.hair_color, values.eye_color, values.city]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <div className={styles.pageContainer}>
       {isGateEntry && !isCoreReady && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-5 py-4">
-          <p className="text-sm font-semibold text-amber-900 mb-1">
+        <div className={styles.gateBanner}>
+          <p className={styles.gateBannerTitle}>
             Complete your profile to become visible to agencies
           </p>
-          <p className="text-xs text-amber-700 mb-3">
-            The following sections are required before you appear in agency searches:
+          <p className={styles.gateBannerBody}>
+            The following are required before you appear in agency searches:
           </p>
-          <ul className="space-y-1">
+          <ul className={styles.gateBannerList}>
             {missingCoreItems.map((item) => (
-              <li key={item} className="flex items-center gap-2 text-xs text-amber-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+              <li key={item} className={styles.gateBannerItem}>
+                <span className={styles.gateBannerDot} aria-hidden="true" />
                 {item}
               </li>
             ))}
           </ul>
         </div>
       )}
-
-      {/* Background Ambiance */}
-      <div className={styles.ambianceContainer}>
-        <div className={`${styles.particle} ${styles.particle1}`} />
-        <div className={`${styles.particle} ${styles.particle2}`} />
-        <div className={`${styles.particle} ${styles.particle3}`} />
-        <div className={`${styles.particle} ${styles.particle4}`} />
-        <div className={`${styles.particle} ${styles.particle5}`} />
-        <div className={`${styles.particle} ${styles.particle6}`} />
-      </div>
 
       {/* Mobile Nav Toggle */}
       <button 
@@ -624,50 +661,80 @@ export default function ProfilePage() {
         onClick={() => setNavOpen(false)}
       />
 
-      {/* Hero Section */}
-      <div id="hero-section" className={styles.heroSection}>
-        {heroImage ? (
-          <>
-            <img 
-              src={heroImage} 
-              alt={`${firstName} ${lastName}`} 
-              className={`${styles.heroImage} border-4 border-[#C9A55A]`} 
+      {/* Identity hero — person first, form below */}
+      <header id="hero-section" className={styles.heroSection} aria-label="Profile identity">
+        <motion.div
+          className={styles.heroInner}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className={styles.heroPortraitWrap}>
+          {heroImage ? (
+            <img
+              src={heroImage}
+              alt={`${firstName} ${lastName}`}
+              className={styles.heroImage}
             />
-            <div className={styles.heroOverlay} />
-          </>
-        ) : (
-          <>
-            <div className={styles.heroNoPhotoBg} />
-            <div
-              className={styles.addPhotoPrompt}
-              onClick={() => {
-                setSearchParams((prev) => {
-                  const next = new URLSearchParams(prev);
-                  next.set('tab', 'photos');
-                  return next;
-                });
-              }}
-            >
-              <Camera size={20} />
-              <span>Add your best shot to get started</span>
-            </div>
-          </>
-        )}
-        
-        <div className={styles.heroContent}>
-          <h1 className={styles.heroName}>
-            <span className={styles.shimmerText}>{firstName} {lastName}</span>
-            {subscription?.isPro && <span className={styles.studioBadge}>Studio+</span>}
-          </h1>
-          
-          <p className={styles.heroTagline}>
-            {[
-              values.height_cm ? `${values.height_cm} CM` : null,
-              values.city
-            ].filter(Boolean).join(' • ') || 'LOS ANGELES'}
-          </p>
+          ) : (
+            <>
+              <div className={styles.heroNoPhotoBg} aria-hidden="true" />
+              <button
+                type="button"
+                className={styles.addPhotoPrompt}
+                onClick={() => {
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set('tab', 'photos');
+                    return next;
+                  });
+                }}
+              >
+                <Camera size={20} strokeWidth={1.5} />
+                <span>Add primary photo</span>
+                <span className={styles.addPhotoHint}>Opens your book</span>
+              </button>
+            </>
+          )}
         </div>
-      </div>
+
+          <div className={styles.heroIdentity}>
+            <div className={styles.heroEyebrow}>
+              {values.city ? (
+                <p className={styles.heroTagline}>{String(values.city).toUpperCase()}</p>
+              ) : (
+                <p className={styles.heroTaglineMuted}>LOCATION</p>
+              )}
+              {subscription?.isPro ? (
+                <span className={styles.studioBadge}>Studio+</span>
+              ) : null}
+            </div>
+
+            <h1 className={styles.heroName}>
+              <span>{firstName}</span>
+              {' '}
+              <em>{lastName}</em>
+            </h1>
+
+            <motion.div
+              className={styles.heroSweep}
+              aria-hidden="true"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.85, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              style={{ transformOrigin: 'left' }}
+            />
+
+            {values.work_status ? (
+              <p className={styles.heroRole}>{String(values.work_status)}</p>
+            ) : null}
+
+            {heroStatsLine ? (
+              <p className={styles.heroStats}>{heroStatsLine}</p>
+            ) : null}
+          </div>
+        </motion.div>
+      </header>
 
       {/* Page Header - Removed as requested */}
 
@@ -676,18 +743,32 @@ export default function ProfilePage() {
         
         {/* Left Sidebar - Navigation */}
         <aside className={`${styles.leftSidebar} ${navOpen ? styles.leftSidebarOpen : ''}`}>
-          <ProfileNav 
-            onNavClick={() => setNavOpen(false)} 
-            activeSection={activeSection} 
+          <ProfileNav
+            onNavClick={() => setNavOpen(false)}
+            activeSection={activeSection}
+            fieldCompletion={fieldCompletion}
           />
         </aside>
 
         {/* Center - Form Fields */}
         <main className={styles.centerContent}>
-          <form 
-            id="profile-form" 
+          {readinessAuditOpen && (
+            <ProfileReadinessAudit
+              fieldCompletion={fieldCompletion}
+              scrollTargetByKey={scrollTargetByKey}
+              isRequiredComplete={profileStrength.isRequiredComplete}
+              onItemClick={(sectionId) => {
+                scrollToProfileSection(sectionId);
+                setReadinessAuditOpen(false);
+              }}
+              onClose={() => setReadinessAuditOpen(false)}
+            />
+          )}
+
+          <form
+            id="profile-form"
             onSubmit={handleSubmit(onSubmit)}
-            className={isSubmitting ? styles.formSaving : ''}
+            className={`${styles.profileForms} ${isSubmitting ? styles.formSaving : ''}`}
             aria-busy={isSubmitting}
           >
 
@@ -699,6 +780,17 @@ export default function ProfilePage() {
           />
         ) : (
           <>
+            <article className={styles.movement}>
+              <header className={styles.movementHead}>
+                <p className={styles.movementKicker}>I — Identity</p>
+                <h2 className={styles.movementTitle}>
+                  Who you <em>are</em>
+                </h2>
+                <p className={styles.movementLede}>
+                  Core information agencies review first — name, heritage, and how you describe your work.
+                </p>
+              </header>
+              <div className={styles.movementCard}>
             <IdentitySection
               register={register}
               control={control}
@@ -709,7 +801,20 @@ export default function ProfilePage() {
               handleUndoAI={handleUndoAI}
               watchDob={watch('date_of_birth')}
             />
+              </div>
+            </article>
 
+            <article className={styles.movement}>
+              <header className={styles.movementHead}>
+                <p className={styles.movementKicker}>II — Measurements</p>
+                <h2 className={styles.movementTitle}>
+                  Physical <em>proof</em>
+                </h2>
+                <p className={styles.movementLede}>
+                  Vital statistics casting teams filter on — precise, current, and honest.
+                </p>
+              </header>
+              <div className={styles.movementCard}>
             <MeasurementsSection
               control={control}
               errors={errors}
@@ -721,9 +826,28 @@ export default function ProfilePage() {
               shoeRegion={shoeRegion}
               setShoeRegion={setShoeRegion}
             />
+              </div>
+            </article>
 
-        {/* CREDITS (moved before Training) */}
-        <Section id="credits" title="Credits & Experience" description="Your experience and past work.">
+            <article className={styles.movement}>
+              <header className={styles.movementHead}>
+                <p className={styles.movementKicker}>III — Proof</p>
+                <h2 className={styles.movementTitle}>
+                  Credits & <em>craft</em>
+                </h2>
+                <p className={styles.movementLede}>
+                  Experience, training, and the roles you are cast for.
+                </p>
+              </header>
+              <div className={styles.movementCard}>
+        <Section
+          id="credits"
+          kicker="Experience"
+          title="Credits & Experience"
+          titleEmphasis="Experience"
+          description="Your experience and past work."
+          showDivider={false}
+        >
           <div className={styles.formStack}>
             <Controller
               name="experience_level"
@@ -756,8 +880,13 @@ export default function ProfilePage() {
           </div>
         </Section>
 
-        {/* TRAINING (after Credits) */}
-        <Section id="training" title="Training & Skills" description="Your professional background and skills.">
+        <Section
+          id="training"
+          kicker="Training"
+          title="Training & Skills"
+          titleEmphasis="Skills"
+          description="Your professional background and skills."
+        >
           <div className={styles.formStack}>
             <PholioTextarea
               label="Training Summary"
@@ -800,8 +929,13 @@ export default function ProfilePage() {
           </div>
         </Section>
 
-        {/* ROLES & STYLE */}
-        <Section id="roles" title="Roles & Style" description="What kind of work you specialize in.">
+        <Section
+          id="roles"
+          kicker="Roles"
+          title="Roles & Style"
+          titleEmphasis="Style"
+          description="What kind of work you specialize in."
+        >
           <div className={styles.formGrid2}>
             <Controller
               name="work_status"
@@ -990,8 +1124,20 @@ export default function ProfilePage() {
             </div>
           </div>
         </Section>
+              </div>
+            </article>
 
-        {/* REPRESENTATION */}
+            <article className={styles.movement}>
+              <header className={styles.movementHead}>
+                <p className={styles.movementKicker}>IV — Reach</p>
+                <h2 className={styles.movementTitle}>
+                  Representation & <em>contact</em>
+                </h2>
+                <p className={styles.movementLede}>
+                  Agency status, social presence, and emergency details kept private until needed.
+                </p>
+              </header>
+              <div className={styles.movementCard}>
         <RepresentationSection
           register={register}
           control={control}
@@ -1002,8 +1148,13 @@ export default function ProfilePage() {
 
         <SocialSection control={control} setValue={setValue} errors={errors} />
 
-        {/* CONTACT */}
-        <Section id="contact" title="Contact & Emergency" description="Emergency contact information.">
+        <Section
+          id="contact"
+          kicker="Emergency"
+          title="Contact & Emergency"
+          titleEmphasis="Emergency"
+          description="Emergency contact information."
+        >
           <div className={`${styles.formGrid3} ${styles.formRow}`}>
             <PholioInput label="Emergency Contact" placeholder="Name" error={errors.emergency_contact_name} {...register('emergency_contact_name')} />
             <Controller
@@ -1033,6 +1184,8 @@ export default function ProfilePage() {
             <PholioInput label="Relationship" placeholder="e.g. Mother" error={errors.emergency_contact_relationship} {...register('emergency_contact_relationship')} />
           </div>
         </Section>
+              </div>
+            </article>
 
         </>
       )}
@@ -1040,41 +1193,31 @@ export default function ProfilePage() {
         </main>
 
         {/* Right Sidebar - Profile Strength */}
-        <ProfileStrengthSidebar 
-          values={strengthValues}
+        <ProfileStrengthSidebar
+          strength={profileStrength}
           isSaving={isSubmitting}
           isDisabled={!isDirty || isSubmitting}
+          auditOpen={readinessAuditOpen}
+          onToggleAudit={() => {
+            setReadinessAuditOpen((open) => {
+              const next = !open;
+              if (next) {
+                window.setTimeout(() => {
+                  document.getElementById('readiness-audit-title')?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                  });
+                }, 50);
+              }
+              return next;
+            });
+          }}
           onSaveClick={() => {
             if (Object.keys(errors).length > 0) {
               toast.error('Please fix validation errors before saving');
             }
           }}
-          onItemClick={(sectionId) => {
-            const goPhotos = sectionId === 'photos-tab' || sectionId === 'hero-section';
-            if (goPhotos) {
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                next.set('tab', 'photos');
-                return next;
-              });
-              window.setTimeout(() => {
-                const el = document.getElementById('photos-tab');
-                if (el) {
-                  const offset = 100;
-                  const top = el.getBoundingClientRect().top + window.scrollY - offset;
-                  window.scrollTo({ top, behavior: 'smooth' });
-                }
-              }, 400);
-              return;
-            }
-            const element = document.getElementById(sectionId);
-            if (element) {
-              const offset = 100;
-              const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-              const offsetPosition = elementPosition - offset;
-              window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-            }
-          }}
+          onItemClick={scrollToProfileSection}
         />
 
       </div>{/* End layoutGrid */}
