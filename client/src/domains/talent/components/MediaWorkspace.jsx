@@ -48,15 +48,15 @@ export default function MediaWorkspace() {
               {frames.length} {frames.length === 1 ? 'frame' : 'frames'} · {visibleCount} visible to agencies
             </span>
           </div>
-          <button type="button" className="mw-btn-gold">
-            <Plus size={15} aria-hidden /> Add images
+          <button type="button" className="mw-btn-gold" disabled>
+            <Plus size={15} aria-hidden="true" /> Add images
           </button>
         </motion.header>
 
         {/* Movement I — Library (Task 2) */}
         <section aria-label="Frame library" />
 
-        <div className="mw-divider" aria-hidden />
+        <div className="mw-divider" aria-hidden="true" />
 
         {/* Movement II — Comp card (Task 3) */}
         <section aria-label="Comp card" />
