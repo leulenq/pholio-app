@@ -317,16 +317,6 @@ router.get(
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    const getPeriodCount = async (type, startDate, endDate) => {
-      const result = await knex("analytics")
-        .where({ profile_id: profile.id, event_type: type })
-        .whereBetween("created_at", [endDate, startDate]) // note: whereBetween usually takes [min, max]
-        .count("* as count")
-        .first();
-      return Number(result?.count || 0);
-    };
-
-    // Fix whereBetween date order: [older, newer]
     const [currentViews, funcPrevViews, currentDownloads, funcPrevDownloads] =
       await Promise.all([
         knex("analytics")

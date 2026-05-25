@@ -80,6 +80,7 @@ describe("GET /api/talent/summary", () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/summary"),
     );
+    expect(res.status).toBe(200);
     const { downloads } = res.body.data;
     expect(typeof downloads.changePct).toBe("number");
     expect(Number.isFinite(downloads.changePct)).toBe(true);
