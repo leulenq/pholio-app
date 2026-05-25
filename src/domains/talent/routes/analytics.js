@@ -356,17 +356,20 @@ router.get(
       const prev = Number(previous?.count || 0);
 
       if (prev === 0) {
+        const changePct = cur > 0 ? 100 : 0;
         return {
           change: cur > 0 ? "+100%" : "0%",
+          changePct,
           trend: cur > 0 ? "up" : "neutral",
         };
       }
 
       const percent = ((cur - prev) / prev) * 100;
+      const changePct = Math.round(percent);
       const sign = percent > 0 ? "+" : "";
       const trend = percent > 0 ? "up" : percent < 0 ? "down" : "neutral";
 
-      return { change: `${sign}${Math.round(percent)}%`, trend };
+      return { change: `${sign}${changePct}%`, changePct, trend };
     };
 
     const viewsTrend = calcTrend(currentViews, funcPrevViews);
@@ -393,6 +396,7 @@ router.get(
         thisWeek: Number(thisWeekViews?.count || 0),
         thisMonth: Number(currentViews?.count || 0), // Last 30 days = thisMonth
         change: viewsTrend.change,
+        changePct: viewsTrend.changePct,
         trend: viewsTrend.trend,
       },
       downloads: {
@@ -400,6 +404,7 @@ router.get(
         thisWeek: Number(thisWeekDownloads?.count || 0),
         thisMonth: Number(currentDownloads?.count || 0), // Last 30 days = thisMonth
         change: downloadsTrend.change,
+        changePct: downloadsTrend.changePct,
         trend: downloadsTrend.trend,
       },
       completeness: {
