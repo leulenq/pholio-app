@@ -15,15 +15,17 @@ import './SettingsPage.css';
 const EASING = [0.22, 1, 0.36, 1];
 
 const SECTIONS = [
-  { id: 'account',       label: 'Account',       group: 'IDENTITY',     desc: 'Name, email, phone' },
-  { id: 'notifications', label: 'Notifications',  group: 'PREFERENCES',  desc: 'Email and in-app alerts' },
-  { id: 'privacy',       label: 'Privacy',        group: 'PREFERENCES',  desc: 'Visibility and portfolio URL' },
+  { id: 'account',       label: 'Account',       group: 'IDENTITY',     desc: 'Name, email, locale' },
+  { id: 'notifications', label: 'Notifications',  group: 'PREFERENCES',  desc: 'Alerts and digest frequency' },
+  { id: 'privacy',       label: 'Privacy',        group: 'PREFERENCES',  desc: 'Visibility, portfolio, blocklist' },
+  { id: 'display',       label: 'Display',        group: 'PREFERENCES',  desc: 'Watermark and comp card layout' },
   { id: 'subscription',  label: 'Subscription',   group: 'YOUR PLAN',    desc: 'Plan and billing' },
   { id: 'security',      label: 'Security',       group: 'YOUR PLAN',    desc: 'Password and access' },
-  { id: 'danger',        label: 'Danger Zone',    group: 'YOUR PLAN',    desc: 'Account actions' },
+  { id: 'data',          label: 'Data & Privacy', group: 'LEGAL',        desc: 'Export, cookies, retention' },
+  { id: 'danger',        label: 'Danger Zone',    group: 'LEGAL',        desc: 'Account actions' },
 ];
 
-const GROUPS = ['IDENTITY', 'PREFERENCES', 'YOUR PLAN'];
+const GROUPS = ['IDENTITY', 'PREFERENCES', 'YOUR PLAN', 'LEGAL'];
 
 export default function SettingsPage() {
   const { section } = useParams();
@@ -101,8 +103,10 @@ export default function SettingsPage() {
                 {activeSection === 'account'       && <AccountSection />}
                 {activeSection === 'notifications' && <NotificationsSection />}
                 {activeSection === 'privacy'       && <PrivacySection />}
+                {activeSection === 'display'       && <DisplaySection />}
                 {activeSection === 'subscription'  && <SubscriptionSection />}
                 {activeSection === 'security'      && <SecuritySection />}
+                {activeSection === 'data'          && <DataSection />}
                 {activeSection === 'danger'        && <DangerZoneSection />}
               </motion.div>
             </AnimatePresence>
@@ -116,24 +120,14 @@ export default function SettingsPage() {
 
 function AccountSection() {
   const { profile, updateProfile, isUpdatingProfile } = useAuth();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     first_name: profile?.first_name || '',
     last_name:  profile?.last_name  || '',
     phone:      profile?.phone      || '',
-  });
+    language:   profile?.language   || 'en',
+    timezone:   profile?.timezone   || 'America/New_York',
+  }));
   const [isChanged, setIsChanged] = useState(false);
-  const initializedRef = React.useRef(Boolean(profile));
-
-  useEffect(() => {
-    if (profile && !initializedRef.current) {
-      initializedRef.current = true;
-      setForm({
-        first_name: profile.first_name || '',
-        last_name:  profile.last_name  || '',
-        phone:      profile.phone      || '',
-      });
-    }
-  }, [profile]);
 
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -145,6 +139,8 @@ function AccountSection() {
       first_name: profile?.first_name || '',
       last_name:  profile?.last_name  || '',
       phone:      profile?.phone      || '',
+      language:   profile?.language   || 'en',
+      timezone:   profile?.timezone   || 'America/New_York',
     });
     setIsChanged(false);
   };
@@ -242,6 +238,53 @@ function AccountSection() {
               placeholder="+1 (555) 000-0000"
             />
           </div>
+
+          <div className="st-field-row">
+            <div className="st-field">
+              <label className="st-label" htmlFor="st-language">Language</label>
+              <select
+                id="st-language"
+                className="st-select"
+                name="language"
+                value={form.language}
+                onChange={handleChange}
+              >
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="it">Italiano</option>
+                <option value="pt">Português</option>
+                <option value="ja">日本語</option>
+                <option value="zh">中文</option>
+                <option value="ko">한국어</option>
+              </select>
+            </div>
+            <div className="st-field">
+              <label className="st-label" htmlFor="st-timezone">Timezone</label>
+              <select
+                id="st-timezone"
+                className="st-select"
+                name="timezone"
+                value={form.timezone}
+                onChange={handleChange}
+              >
+                <option value="America/New_York">Eastern (ET)</option>
+                <option value="America/Chicago">Central (CT)</option>
+                <option value="America/Denver">Mountain (MT)</option>
+                <option value="America/Los_Angeles">Pacific (PT)</option>
+                <option value="America/Anchorage">Alaska (AKT)</option>
+                <option value="Pacific/Honolulu">Hawaii (HT)</option>
+                <option value="Europe/London">London (GMT/BST)</option>
+                <option value="Europe/Paris">Paris (CET)</option>
+                <option value="Europe/Berlin">Berlin (CET)</option>
+                <option value="Asia/Tokyo">Tokyo (JST)</option>
+                <option value="Asia/Shanghai">Shanghai (CST)</option>
+                <option value="Asia/Seoul">Seoul (KST)</option>
+                <option value="Australia/Sydney">Sydney (AEST)</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -280,6 +323,12 @@ const INAPP_TOGGLES = [
   { key: 'newMessages',       label: 'New Messages',        desc: 'Direct messages from agencies' },
 ];
 
+const FREQ_OPTIONS = [
+  { value: 'immediate', label: 'Immediate' },
+  { value: 'daily',     label: 'Daily digest' },
+  { value: 'weekly',    label: 'Weekly digest' },
+];
+
 function NotificationsSection() {
   const [prefs, setPrefs] = useState({
     emailNotifications: true,
@@ -289,10 +338,16 @@ function NotificationsSection() {
     inAppApplications:  true,
     newMessages:        true,
   });
+  const [emailFrequency, setEmailFrequency] = useState('immediate');
 
   const handleToggle = (key) => {
     setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
     toast.success('Preference saved');
+  };
+
+  const handleFrequency = (value) => {
+    setEmailFrequency(value);
+    toast.success('Digest frequency updated');
   };
 
   const renderRow = ({ key, label, desc }) => (
@@ -320,6 +375,25 @@ function NotificationsSection() {
         <h2 className="st-card-title">Notifications</h2>
       </div>
       <div className="st-toggle-list">
+        <div className="st-notif-freq">
+          <div className="st-toggle-info">
+            <span className="st-toggle-label">Email Delivery</span>
+            <span className="st-toggle-desc">How often to batch email notifications</span>
+          </div>
+          <div className="st-freq-options" role="group" aria-label="Email frequency">
+            {FREQ_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`st-freq-btn${emailFrequency === opt.value ? ' active' : ''}`}
+                onClick={() => handleFrequency(opt.value)}
+                aria-pressed={emailFrequency === opt.value}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <span className="st-toggle-group-label">By Email</span>
         {EMAIL_TOGGLES.map(renderRow)}
         <span className="st-toggle-group-label">In App</span>
@@ -330,6 +404,21 @@ function NotificationsSection() {
 }
 function PrivacySection() {
   const queryClient = useQueryClient();
+  const [blockedAgencies, setBlockedAgencies] = useState([]);
+  const [blockInput, setBlockInput] = useState('');
+
+  const addBlockedAgency = () => {
+    const name = blockInput.trim();
+    if (!name || blockedAgencies.includes(name)) return;
+    setBlockedAgencies(prev => [...prev, name]);
+    setBlockInput('');
+    toast.success(`${name} blocked`);
+  };
+
+  const removeBlockedAgency = (name) => {
+    setBlockedAgencies(prev => prev.filter(a => a !== name));
+    toast.success(`${name} unblocked`);
+  };
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['talent-settings'],
@@ -390,6 +479,7 @@ function PrivacySection() {
   }
 
   return (
+    <div className="st-card-stack">
     <div className="st-card">
       <div className="st-card-hd">
         <span className="st-card-eyebrow">03 / Preferences</span>
@@ -474,6 +564,58 @@ function PrivacySection() {
           {mutation.isPending ? 'Saving…' : 'Save Changes'}
         </button>
       </div>
+    </div>
+
+    {/* Agency blocklist */}
+    <div className="st-card">
+      <div className="st-card-hd">
+        <span className="st-card-eyebrow">Agency Control</span>
+        <h2 className="st-card-title">Agency Blocklist</h2>
+      </div>
+      <div className="st-card-inner st-form-body">
+        <p className="st-toggle-desc" style={{ margin: 0 }}>
+          Agencies on this list cannot view your profile or submit applications on your behalf.
+        </p>
+        {blockedAgencies.length > 0 && (
+          <div className="st-blocklist">
+            {blockedAgencies.map(name => (
+              <div key={name} className="st-blocklist-row">
+                <span className="st-blocklist-name">{name}</span>
+                <button
+                  type="button"
+                  className="st-btn st-btn-ghost"
+                  style={{ padding: '4px 0', fontSize: '12px' }}
+                  onClick={() => removeBlockedAgency(name)}
+                >
+                  Unblock
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {blockedAgencies.length === 0 && (
+          <span className="st-blocklist-empty">No agencies blocked</span>
+        )}
+        <div className="st-blocklist-add">
+          <input
+            className="st-input"
+            placeholder="Agency name…"
+            value={blockInput}
+            onChange={e => setBlockInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addBlockedAgency(); }}
+            aria-label="Agency name to block"
+          />
+          <button
+            type="button"
+            className="st-btn st-btn-secondary"
+            onClick={addBlockedAgency}
+            disabled={!blockInput.trim()}
+          >
+            Block
+          </button>
+        </div>
+      </div>
+    </div>
     </div>
   );
 }
@@ -642,6 +784,189 @@ function SecuritySection() {
     </div>
   );
 }
+const LAYOUT_OPTIONS = [
+  { value: 'editorial', label: 'Editorial',  desc: 'Full-bleed hero image' },
+  { value: 'classic',   label: 'Classic',    desc: '1 large + 3 small' },
+  { value: 'minimal',   label: 'Minimal',    desc: 'Text-forward grid' },
+];
+
+function DisplaySection() {
+  const [prefs, setPrefs] = useState({
+    watermark:   false,
+    cardLayout:  'editorial',
+    coverImage:  'first',
+  });
+
+  const set = (key, value) => {
+    setPrefs(prev => ({ ...prev, [key]: value }));
+    toast.success('Display preference saved');
+  };
+
+  return (
+    <div className="st-card-stack">
+      <div className="st-card">
+        <div className="st-card-hd">
+          <span className="st-card-eyebrow">04 / Portfolio</span>
+          <h2 className="st-card-title">Display</h2>
+        </div>
+        <div className="st-toggle-list">
+          <div className="st-toggle-row">
+            <div className="st-toggle-info">
+              <span className="st-toggle-label">Pholio Watermark</span>
+              <span className="st-toggle-desc">Add a subtle Pholio badge to portfolio images</span>
+            </div>
+            <label className="st-switch">
+              <input
+                type="checkbox"
+                checked={prefs.watermark}
+                onChange={() => set('watermark', !prefs.watermark)}
+              />
+              <span className="st-slider" />
+              <span className="sr-only">Pholio watermark</span>
+            </label>
+          </div>
+        </div>
+        <div className="st-card-inner">
+          <div className="st-field">
+            <div className="st-label">Comp Card Layout</div>
+            <div className="st-display-grid">
+              {LAYOUT_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`st-display-option${prefs.cardLayout === opt.value ? ' active' : ''}`}
+                  onClick={() => set('cardLayout', opt.value)}
+                  aria-pressed={prefs.cardLayout === opt.value}
+                >
+                  <span className="st-display-option-label">{opt.label}</span>
+                  <span className="st-display-option-desc">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="st-card">
+        <div className="st-card-hd">
+          <span className="st-card-eyebrow">Portfolio Cover</span>
+          <h2 className="st-card-title">Cover Image</h2>
+        </div>
+        <div className="st-card-inner">
+          <div className="st-field">
+            <label className="st-label" htmlFor="st-cover">Default Cover</label>
+            <select
+              id="st-cover"
+              className="st-select"
+              value={prefs.coverImage}
+              onChange={e => set('coverImage', e.target.value)}
+            >
+              <option value="first">First image in gallery</option>
+              <option value="latest">Most recently added</option>
+              <option value="featured">Manually pinned image</option>
+            </select>
+            <span className="st-input-help">
+              Appears at the top of your public portfolio and on comp cards.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DataSection() {
+  const [cookies, setCookies] = useState({ analytics: true, marketing: false });
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    await new Promise(r => setTimeout(r, 900));
+    toast.success("Data export requested — you'll receive an email within 24 hours");
+    setIsExporting(false);
+  };
+
+  return (
+    <div className="st-card-stack">
+      <div className="st-card">
+        <div className="st-card-hd">
+          <span className="st-card-eyebrow">07 / Legal</span>
+          <h2 className="st-card-title">Your Data</h2>
+        </div>
+        <div className="st-card-inner st-form-body">
+          <div className="st-data-row">
+            <div className="st-action-info">
+              <span className="st-action-label">Download Your Data</span>
+              <span className="st-action-desc">
+                Export a ZIP of your profile, images, applications, and account history (GDPR / CCPA).
+              </span>
+            </div>
+            <button
+              type="button"
+              className="st-btn st-btn-secondary"
+              onClick={handleExport}
+              disabled={isExporting}
+            >
+              {isExporting ? 'Requesting…' : 'Request Export'}
+            </button>
+          </div>
+          <div className="st-data-row">
+            <div className="st-action-info">
+              <span className="st-action-label">Right to Erasure</span>
+              <span className="st-action-desc">
+                Request permanent deletion of all personal data. Separate from account deletion — processed within 30 days.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="st-btn st-btn-ghost"
+              onClick={() => toast.info('Erasure request submitted — our team will respond within 30 days')}
+            >
+              Submit Request
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="st-card">
+        <div className="st-card-hd">
+          <span className="st-card-eyebrow">Cookie Preferences</span>
+          <h2 className="st-card-title">Tracking</h2>
+        </div>
+        <div className="st-toggle-list">
+          {[
+            { key: 'essential', label: 'Essential',  desc: 'Required for authentication and core functionality', locked: true },
+            { key: 'analytics', label: 'Analytics',  desc: 'Help us understand how you use Pholio to improve the product' },
+            { key: 'marketing', label: 'Marketing',  desc: 'Personalised announcements and partner promotions' },
+          ].map(({ key, label, desc, locked }) => (
+            <div key={key} className="st-toggle-row">
+              <div className="st-toggle-info">
+                <span className="st-toggle-label">{label}</span>
+                <span className="st-toggle-desc">{desc}</span>
+              </div>
+              <label className="st-switch" style={locked ? { opacity: 0.45, pointerEvents: 'none' } : {}}>
+                <input
+                  type="checkbox"
+                  checked={locked ? true : cookies[key]}
+                  disabled={locked}
+                  onChange={() => {
+                    if (!locked) {
+                      setCookies(prev => ({ ...prev, [key]: !prev[key] }));
+                      toast.success('Cookie preference saved');
+                    }
+                  }}
+                />
+                <span className="st-slider" />
+                <span className="sr-only">{label} cookies</span>
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DangerZoneSection() {
   return (
     <div className="st-card st-card--danger">

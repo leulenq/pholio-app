@@ -687,6 +687,139 @@
   outline-offset: 2px;
 }
 
+/* ─── Notification Frequency ─── */
+.st-notif-freq {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.06);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.st-freq-options {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.st-freq-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(26, 24, 21, 0.12);
+  background: transparent;
+  color: rgba(26, 26, 26, 0.62);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+.st-freq-btn.active {
+  background: rgba(201, 165, 90, 0.12);
+  border-color: rgba(201, 165, 90, 0.3);
+  color: #C9A55A;
+}
+.st-freq-btn:hover:not(.active) {
+  background: rgba(26, 26, 26, 0.04);
+  color: #1A1A1A;
+}
+
+/* ─── Agency Blocklist ─── */
+.st-blocklist {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.st-blocklist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.06);
+}
+.st-blocklist-row:last-child { border-bottom: none; }
+
+.st-blocklist-name { font-size: 14px; color: #1A1A1A; }
+
+.st-blocklist-empty {
+  font-size: 13px;
+  color: rgba(26, 26, 26, 0.42);
+  font-style: italic;
+  padding: 4px 0 8px;
+}
+
+.st-blocklist-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.st-blocklist-add .st-input { flex: 1; }
+
+/* ─── Display Preferences ─── */
+.st-display-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.st-display-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 24, 21, 0.10);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+.st-display-option:hover:not(.active) {
+  background: rgba(26, 26, 26, 0.02);
+  border-color: rgba(26, 24, 21, 0.18);
+}
+.st-display-option.active {
+  background: rgba(201, 165, 90, 0.07);
+  border-color: rgba(201, 165, 90, 0.35);
+}
+
+.st-display-option-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1A1A1A;
+  transition: color 0.2s ease;
+}
+.st-display-option.active .st-display-option-label { color: #C9A55A; }
+
+.st-display-option-desc {
+  font-size: 11px;
+  color: rgba(26, 26, 26, 0.42);
+}
+
+/* ─── Data section rows ─── */
+.st-data-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+.st-data-row + .st-data-row {
+  border-top: 1px solid rgba(26, 24, 21, 0.06);
+  padding-top: 20px;
+  margin-top: 4px;
+}
+.st-data-row .st-action-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
 /* ─── Toggle row variant for use inside card-inner (not toggle-list) ─── */
 .st-toggle-row--inline {
   padding: 16px 0;
@@ -788,4 +921,16 @@
     align-items: flex-start;
     gap: 12px;
   }
+
+  .st-display-grid { grid-template-columns: 1fr; }
+
+  .st-data-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .st-notif-freq { flex-direction: column; align-items: flex-start; }
+
+  .st-blocklist-add { flex-direction: column; }
 }
