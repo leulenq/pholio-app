@@ -1,15 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Camera, Mail, Monitor, Check, CreditCard, ExternalLink,
+  Camera, ExternalLink,
 } from 'lucide-react';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
-import { talentApi } from '../../api/talent';
-import { auth } from '../../../../shared/lib/firebase';
 import './SettingsPage.css';
 
 const EASING = [0.22, 1, 0.36, 1];
@@ -113,7 +109,117 @@ export default function SettingsPage() {
   );
 }
 
-function AccountSection()      { return null; }
+function AccountSection() {
+  const { profile, updateProfile, isUpdatingProfile } = useAuth();
+  const [form, setForm] = useState({
+    first_name: profile?.first_name || '',
+    last_name:  profile?.last_name  || '',
+    phone:      profile?.phone      || '',
+  });
+  const [isChanged, setIsChanged] = useState(false);
+
+  const handleChange = (e) => {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setIsChanged(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateProfile(form);
+      toast.success('Account updated');
+      setIsChanged(false);
+    } catch {
+      toast.error('Failed to save changes');
+    }
+  };
+
+  return (
+    <div className="st-card">
+      <div className="st-card-hd">
+        <span className="st-card-eyebrow">01 / Identity</span>
+        <h2 className="st-card-title">Account</h2>
+      </div>
+      <div className="st-card-inner">
+        <div className="st-avatar-section">
+          <div className="st-avatar" title="Upload headshot">
+            <Camera size={24} className="st-avatar-icon" aria-hidden="true" />
+            <div className="st-avatar-overlay" aria-hidden="true">
+              <Camera size={18} color="white" />
+            </div>
+          </div>
+          <div>
+            <div className="st-label">Profile Photo</div>
+            <div className="st-avatar-action-text">Click to upload a headshot</div>
+          </div>
+        </div>
+
+        <div className="st-form-body">
+          <div className="st-field-row">
+            <div className="st-field">
+              <label className="st-label" htmlFor="st-first-name">First Name</label>
+              <input
+                id="st-first-name"
+                className="st-input"
+                name="first_name"
+                value={form.first_name}
+                onChange={handleChange}
+                placeholder="e.g. Mia"
+              />
+            </div>
+            <div className="st-field">
+              <label className="st-label" htmlFor="st-last-name">Last Name</label>
+              <input
+                id="st-last-name"
+                className="st-input"
+                name="last_name"
+                value={form.last_name}
+                onChange={handleChange}
+                placeholder="e.g. Voss"
+              />
+            </div>
+          </div>
+
+          <div className="st-field">
+            <label className="st-label" htmlFor="st-email">Email Address</label>
+            <input
+              id="st-email"
+              className="st-input"
+              type="email"
+              value={profile?.email || ''}
+              disabled
+            />
+            <span className="st-input-help">
+              Managed by Firebase authentication — contact support to update.
+            </span>
+          </div>
+
+          <div className="st-field">
+            <label className="st-label" htmlFor="st-phone">Phone Number</label>
+            <input
+              id="st-phone"
+              className="st-input"
+              type="tel"
+              name="phone"
+              value={form.phone}
+              onChange={handleChange}
+              placeholder="+1 (555) 000-0000"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="st-card-footer">
+        <button
+          className="st-btn st-btn-primary"
+          onClick={handleSave}
+          disabled={!isChanged || isUpdatingProfile}
+        >
+          {isUpdatingProfile ? 'Saving…' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  );
+}
 function NotificationsSection(){ return null; }
 function PrivacySection()      { return null; }
 function SubscriptionSection() { return null; }
