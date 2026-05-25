@@ -60,8 +60,9 @@ export default function SettingsPage() {
                   {SECTIONS.filter(s => s.group === group).map(s => (
                     <button
                       key={s.id}
+                      type="button"
                       className={`st-nav-item${activeSection === s.id ? ' active' : ''}`}
-                      onClick={() => navigate(`/dashboard/talent/settings/${s.id}`)}
+                      onClick={() => { if (activeSection !== s.id) navigate(`/dashboard/talent/settings/${s.id}`); }}
                       aria-current={activeSection === s.id ? 'page' : undefined}
                     >
                       {activeSection === s.id && (
@@ -121,10 +122,31 @@ function AccountSection() {
     phone:      profile?.phone      || '',
   });
   const [isChanged, setIsChanged] = useState(false);
+  const initializedRef = React.useRef(Boolean(profile));
+
+  useEffect(() => {
+    if (profile && !initializedRef.current) {
+      initializedRef.current = true;
+      setForm({
+        first_name: profile.first_name || '',
+        last_name:  profile.last_name  || '',
+        phone:      profile.phone      || '',
+      });
+    }
+  }, [profile]);
 
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
     setIsChanged(true);
+  };
+
+  const handleCancel = () => {
+    setForm({
+      first_name: profile?.first_name || '',
+      last_name:  profile?.last_name  || '',
+      phone:      profile?.phone      || '',
+    });
+    setIsChanged(false);
   };
 
   const handleSave = async () => {
@@ -145,7 +167,14 @@ function AccountSection() {
       </div>
       <div className="st-card-inner">
         <div className="st-avatar-section">
-          <div className="st-avatar" title="Upload headshot">
+          <div
+            className="st-avatar"
+            role="button"
+            tabIndex={0}
+            aria-label="Upload profile photo"
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click(); }}
+            onClick={() => toast.info('Photo upload coming soon')}
+          >
             <Camera size={24} className="st-avatar-icon" aria-hidden="true" />
             <div className="st-avatar-overlay" aria-hidden="true">
               <Camera size={18} color="white" />
@@ -165,6 +194,7 @@ function AccountSection() {
                 id="st-first-name"
                 className="st-input"
                 name="first_name"
+                autoComplete="given-name"
                 value={form.first_name}
                 onChange={handleChange}
                 placeholder="e.g. Mia"
@@ -176,6 +206,7 @@ function AccountSection() {
                 id="st-last-name"
                 className="st-input"
                 name="last_name"
+                autoComplete="family-name"
                 value={form.last_name}
                 onChange={handleChange}
                 placeholder="e.g. Voss"
@@ -189,6 +220,7 @@ function AccountSection() {
               id="st-email"
               className="st-input"
               type="email"
+              autoComplete="email"
               value={profile?.email || ''}
               disabled
             />
@@ -204,6 +236,7 @@ function AccountSection() {
               className="st-input"
               type="tel"
               name="phone"
+              autoComplete="tel"
               value={form.phone}
               onChange={handleChange}
               placeholder="+1 (555) 000-0000"
@@ -212,8 +245,19 @@ function AccountSection() {
         </div>
       </div>
 
-      <div className="st-card-footer">
+      <div className="st-card-footer" style={{ gap: '8px' }}>
+        {isChanged && (
+          <button
+            type="button"
+            className="st-btn st-btn-secondary"
+            onClick={handleCancel}
+            disabled={isUpdatingProfile}
+          >
+            Cancel
+          </button>
+        )}
         <button
+          type="button"
           className="st-btn st-btn-primary"
           onClick={handleSave}
           disabled={!isChanged || isUpdatingProfile}
@@ -329,7 +373,12 @@ function PrivacySection() {
     setIsChanged(true);
   };
 
+  const slugError = form.slug && !/^[a-z0-9-]{2,50}$/.test(form.slug)
+    ? 'Slug must be 2–50 lowercase letters, numbers, or hyphens'
+    : null;
+
   const handleSave = () => {
+    if (slugError) { toast.error(slugError); return; }
     mutation.mutate({
       slug:    form.slug,
       isPublic: form.isPublic,
@@ -356,11 +405,17 @@ function PrivacySection() {
               id="st-slug"
               className="st-input"
               value={form.slug}
-              onChange={e => set('slug', e.target.value)}
+              onChange={e => set('slug', e.target.value.toLowerCase())}
               placeholder="your-name"
+              maxLength={50}
+              autoComplete="off"
+              spellCheck={false}
             />
           </div>
-          <span className="st-input-help">Share this link with agencies and clients.</span>
+          {slugError
+            ? <span className="st-input-help" style={{ color: '#C0392B' }}>{slugError}</span>
+            : <span className="st-input-help">Share this link with agencies and clients.</span>
+          }
         </div>
 
         <div className="st-field">
@@ -376,7 +431,7 @@ function PrivacySection() {
           </select>
         </div>
 
-        <div className="st-toggle-row" style={{ padding: '16px 0', borderBottom: 'none' }}>
+        <div className="st-toggle-row st-toggle-row--inline">
           <div className="st-toggle-info">
             <span className="st-toggle-label">Allow Search Indexing</span>
             <span className="st-toggle-desc">Let search engines index your portfolio page</span>
@@ -392,7 +447,7 @@ function PrivacySection() {
           </label>
         </div>
 
-        <div className="st-toggle-row" style={{ padding: '16px 0', borderBottom: 'none', borderTop: '1px solid rgba(26,24,21,0.06)' }}>
+        <div className="st-toggle-row st-toggle-row--inline">
           <div className="st-toggle-info">
             <span className="st-toggle-label">Show Contact Information</span>
             <span className="st-toggle-desc">Display email and phone on your public portfolio</span>
@@ -411,9 +466,10 @@ function PrivacySection() {
 
       <div className="st-card-footer">
         <button
+          type="button"
           className="st-btn st-btn-primary"
           onClick={handleSave}
-          disabled={!isChanged || mutation.isPending}
+          disabled={!isChanged || mutation.isPending || Boolean(slugError)}
         >
           {mutation.isPending ? 'Saving…' : 'Save Changes'}
         </button>
@@ -518,7 +574,7 @@ function SecuritySection() {
       {/* Credentials card */}
       <div className="st-card">
         <div className="st-card-hd">
-          <span className="st-card-eyebrow">05 / Your Plan</span>
+          <span className="st-card-eyebrow">05 / Security</span>
           <h2 className="st-card-title">Security</h2>
         </div>
         <div className="st-card-inner st-form-body">

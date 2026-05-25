@@ -174,7 +174,7 @@
 }
 
 .st-support {
-  margin-top: 32px;
+  margin-top: auto;
   padding: 20px;
   border-radius: 12px;
   border: 1px solid rgba(201, 165, 90, 0.2);
@@ -685,4 +685,107 @@
 .st-nav-item:focus-visible {
   outline: 2px solid #C9A55A;
   outline-offset: 2px;
+}
+
+/* ─── Toggle row variant for use inside card-inner (not toggle-list) ─── */
+.st-toggle-row--inline {
+  padding: 16px 0;
+  border-bottom: none;
+}
+.st-toggle-row--inline + .st-toggle-row--inline {
+  border-top: 1px solid rgba(26, 24, 21, 0.06);
+}
+
+/* ─── Responsive: Tablet (≤ 900px) ─── */
+@media (max-width: 900px) {
+  .st-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .st-sidebar {
+    position: static;
+    margin-bottom: 40px;
+  }
+
+  .st-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .st-nav::-webkit-scrollbar { display: none; }
+
+  .st-nav-group {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .st-nav-group-label { display: none; }
+
+  .st-nav-item {
+    width: auto;
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+  }
+
+  .st-nav-desc { display: none; }
+
+  .st-nav-bar { display: none; }
+
+  .st-nav-item.active {
+    background: rgba(201, 165, 90, 0.12);
+    border: 1px solid rgba(201, 165, 90, 0.25);
+  }
+
+  .st-support {
+    margin-top: 24px;
+    display: none;
+  }
+}
+
+/* ─── Responsive: Mobile (≤ 640px) ─── */
+@media (max-width: 640px) {
+  .st-wrap { padding: 32px 20px 64px; }
+
+  .st-page-title { font-size: 36px; }
+
+  .st-field-row { grid-template-columns: 1fr; }
+
+  .st-card-inner { padding: 20px; }
+  .st-card-hd { padding: 20px 20px 16px; }
+  .st-card-footer { padding: 16px 20px; }
+
+  .st-toggle-row { padding: 16px 20px; }
+  .st-toggle-group-label { padding: 12px 20px 6px; }
+
+  .st-invoice-row { padding: 12px 20px; flex-wrap: wrap; }
+  .st-invoice-id { flex: 0 0 auto; }
+  .st-invoice-date { flex: 0 0 auto; }
+  .st-invoice-amount { flex: 0 0 auto; }
+
+  .st-session-row { padding: 12px 20px; }
+
+  .st-plan-card { flex-direction: column; align-items: flex-start; }
+  .st-plan-right { align-items: flex-start; width: 100%; }
+
+  .st-action-row {
+    padding: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .st-credential-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 }
