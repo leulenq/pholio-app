@@ -86,3 +86,22 @@ describe("GET /api/talent/summary", () => {
     expect(Number.isFinite(downloads.changePct)).toBe(true);
   });
 });
+
+describe("GET /api/talent/overview", () => {
+  test("returns activityStream as an array", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/overview"),
+    );
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.activityStream)).toBe(true);
+  });
+
+  test("overview response has expected shape", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/overview"),
+    );
+    expect(res.body).toHaveProperty("profileStrength");
+    expect(res.body).toHaveProperty("nextPriority");
+    expect(res.body).toHaveProperty("activityStream");
+  });
+});

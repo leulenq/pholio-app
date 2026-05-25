@@ -1,4 +1,79 @@
 const express = require("express");
+
+function formatActivity(activity) {
+  const metadata =
+    activity.metadata && typeof activity.metadata === "string"
+      ? (() => {
+          try {
+            return JSON.parse(activity.metadata);
+          } catch {
+            return {};
+          }
+        })()
+      : activity.metadata || {};
+
+  let message = "Activity recorded";
+  let icon = "📝";
+
+  switch (activity.activity_type) {
+    case "profile_updated":
+      message = "Profile updated";
+      icon = "✏️";
+      break;
+    case "image_uploaded": {
+      const n = metadata.imageCount || 1;
+      message = `${n} image${n > 1 ? "s" : ""} uploaded`;
+      icon = "📷";
+      break;
+    }
+    case "pdf_downloaded": {
+      const theme = metadata.theme || "default";
+      message = `PDF downloaded (${theme} theme)`;
+      icon = "📄";
+      break;
+    }
+    case "portfolio_viewed":
+      message = "Portfolio viewed";
+      icon = "👁️";
+      break;
+    case "submission_package_created": {
+      const n = metadata.imageCount ?? 0;
+      message =
+        n > 0
+          ? `Submission package saved (${n} image${n !== 1 ? "s" : ""})`
+          : "Submission package saved";
+      icon = "📦";
+      break;
+    }
+  }
+
+  const now = new Date();
+  const then = new Date(activity.created_at);
+  const diffMs = now - then;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  let timeAgo;
+  if (diffMins < 1) timeAgo = "Just now";
+  else if (diffMins < 60)
+    timeAgo = `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+  else if (diffHours < 24)
+    timeAgo = `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  else if (diffDays < 7)
+    timeAgo = `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  else timeAgo = then.toLocaleDateString();
+
+  return {
+    id: activity.id,
+    type: activity.activity_type,
+    message,
+    icon,
+    metadata,
+    createdAt: activity.created_at,
+    timeAgo,
+  };
+}
+
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
@@ -109,19 +184,12 @@ router.get(
     // For now, let's query the 'activity_logs' if it exists, or return empty.
 
     let activityStream = [];
-
-    // Check if activity_logs exists (it's used in profile.api.js logActivity)
-    // We want to show things relevant to the USER (e.g. "Agency X viewed your profile")
-    // Since we don't have real agency view logic fully wired, we might return empty or mock
-    // BUT the prompt asks to "Fetch recentActivity".
-
     try {
-      // Trying to fetch real logs if possible, filtering for external interactions?
-      // Or just user actions for now?
-      // Prompt implies "Activity Stream" = "Agency Actions" (Views, Saves).
-      // If we don't have that data, we return empty array.
-      // Let's assume an empty stream for now unless we find a specific table for agency_views
-      // activityStream = ...
+      const rows = await knex("activities")
+        .where({ user_id: userId })
+        .orderBy("created_at", "desc")
+        .limit(5);
+      activityStream = rows.map(formatActivity);
     } catch (error) {
       console.warn("Failed to fetch activity stream", error);
     }
