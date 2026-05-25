@@ -154,7 +154,9 @@
   .mw-root * { animation: none !important; transition: none !important; }
 }
 
-/* ── Library grid ── */
+/* ── Library ── */
+.mw-library { margin-top: 56px; }
+
 .mw-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -271,13 +273,6 @@
 .mw-frame__action:hover { background: #fff; color: var(--mw-gold); }
 .mw-frame__action--danger:hover { color: #b04848; }
 .mw-frame__action:disabled { opacity: 0.5; cursor: not-allowed; }
-.mw-frame__caption {
-  font-family: var(--mw-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--mw-text-faint);
-}
 
 /* Add tile */
 .mw-add-tile {

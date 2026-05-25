@@ -261,7 +261,7 @@ export default function MediaWorkspace() {
           />
         )}
 
-        <section aria-label="Frame library" style={{ marginTop: '56px' }}>
+        <section aria-label="Frame library" className="mw-library">
           <div className="mw-section-head">
             <span className="mw-kicker">I — Library</span>
             <h2 className="mw-h2">Your frames</h2>
@@ -274,8 +274,8 @@ export default function MediaWorkspace() {
           ) : frames.length > 0 ? (
             <>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={frames.map((i) => i.id)} strategy={rectSortingStrategy}>
-                  <div className="mw-grid">
+                <div className="mw-grid">
+                  <SortableContext items={frames.map((i) => i.id)} strategy={rectSortingStrategy}>
                     {frames.map((image, index) => (
                       <motion.div key={image.id}
                         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -288,12 +288,12 @@ export default function MediaWorkspace() {
                         />
                       </motion.div>
                     ))}
-                    <button type="button" className="mw-add-tile" onClick={openFilePicker} disabled={isUploading}>
-                      <Plus size={20} aria-hidden="true" />
-                      <span>{isUploading ? 'Adding…' : 'Add images'}</span>
-                    </button>
-                  </div>
-                </SortableContext>
+                  </SortableContext>
+                  <button type="button" className="mw-add-tile" onClick={openFilePicker} disabled={isUploading}>
+                    <Plus size={20} aria-hidden="true" />
+                    <span>{isUploading ? 'Adding…' : 'Add images'}</span>
+                  </button>
+                </div>
               </DndContext>
               <p className="mw-helper">JPEG · PNG · WEBP — up to 5MB, 12 at a time</p>
             </>
