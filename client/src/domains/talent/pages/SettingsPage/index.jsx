@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Camera, ExternalLink,
+  Camera, Mail, Monitor, Check, CreditCard, ExternalLink,
 } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import { talentApi } from '../../api/talent';
+import { auth } from '../../../../shared/lib/firebase';
 import './SettingsPage.css';
 
 const EASING = [0.22, 1, 0.36, 1];
