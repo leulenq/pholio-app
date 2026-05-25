@@ -1,0 +1,155 @@
+/* ── Media Workspace — scoped tokens (brand source of truth) ── */
+.mw-root {
+  --mw-ink: #050505;
+  --mw-cream: #FAF7F2;
+  --mw-cream-warm: #F5F0E8;
+  --mw-gold: #C9A55A;
+  --mw-gold-warm: #C8A96E;
+  --mw-gold-light: #D4BC8A;
+  --mw-text: #1A1A1A;
+  --mw-text-soft: rgba(26, 26, 26, 0.62);
+  --mw-text-faint: rgba(26, 26, 26, 0.42);
+  --mw-hair: rgba(26, 26, 26, 0.08);
+  --mw-hair-strong: rgba(26, 26, 26, 0.16);
+  --mw-hair-gold: rgba(201, 165, 90, 0.18);
+  --mw-serif: "Noto Serif Display", Georgia, serif;
+  --mw-sans: "Inter", system-ui, sans-serif;
+  --mw-mono: "JetBrains Mono", "SF Mono", monospace;
+  --mw-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  min-height: 100%;
+  background: var(--mw-cream);
+  color: var(--mw-text);
+  font-family: var(--mw-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Paper grain */
+.mw-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.025;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 150px 150px;
+}
+
+.mw-wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 56px 48px 96px;
+}
+@media (max-width: 720px) {
+  .mw-wrap { padding: 32px 24px 64px; }
+}
+
+/* ── Editorial primitives ── */
+.mw-kicker {
+  font-family: var(--mw-mono);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--mw-gold);
+}
+.mw-h1 {
+  font-family: var(--mw-serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  font-size: clamp(40px, 6vw, 72px);
+  color: var(--mw-text);
+}
+.mw-h2 {
+  font-family: var(--mw-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+  font-size: clamp(28px, 3.6vw, 44px);
+  color: var(--mw-text);
+}
+.mw-sub {
+  font-family: var(--mw-sans);
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--mw-text-soft);
+  max-width: 56ch;
+}
+.mw-meta {
+  font-family: var(--mw-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--mw-text-faint);
+}
+
+/* Buttons */
+.mw-btn-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mw-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 11px 18px;
+  border: 1px solid var(--mw-gold);
+  border-radius: 2px;
+  background: var(--mw-gold);
+  color: var(--mw-ink);
+  cursor: pointer;
+  transition: background 0.2s var(--mw-ease), border-color 0.2s var(--mw-ease);
+}
+.mw-btn-gold:hover { background: var(--mw-gold-light); border-color: var(--mw-gold-light); }
+.mw-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mw-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mw-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border: 1px solid var(--mw-hair-strong);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--mw-text);
+  cursor: pointer;
+  transition: border-color 0.2s var(--mw-ease), color 0.2s var(--mw-ease);
+}
+.mw-btn-ghost:hover { border-color: rgba(26, 26, 26, 0.32); }
+
+/* Gold center-fade divider */
+.mw-divider {
+  height: 1px;
+  margin: 72px 0;
+  background: linear-gradient(to right, transparent, var(--mw-gold), transparent);
+  opacity: 0.7;
+}
+@media (max-width: 720px) { .mw-divider { margin: 48px 0; } }
+
+/* ── Masthead ── */
+.mw-masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.mw-masthead__copy { display: flex; flex-direction: column; gap: 14px; }
+.mw-masthead__copy .mw-h1 { margin-top: 4px; }
+.mw-masthead__meta { margin-top: 6px; }
+
+/* ── Section head ── */
+.mw-section-head { margin-bottom: 32px; display: flex; flex-direction: column; gap: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-root * { animation: none !important; transition: none !important; }
+}
