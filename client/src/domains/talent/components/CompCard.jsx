@@ -72,6 +72,8 @@ export default function CompCard({ images = [], profile }) {
   const [downloadError, setDownloadError] = React.useState(null);
   const [savingTheme, setSavingTheme] = React.useState(false);
 
+  // Re-init theme only when the persisted pdf_theme changes; intentionally not depending on full profile.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => { setTheme(initialTheme(profile)); }, [profile?.pdf_theme]);
   React.useEffect(() => { if (slug) setSeed(`profile:${slug}`); }, [slug]);
 
