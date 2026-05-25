@@ -89,39 +89,6 @@ const getStrengthLabel = (percentage) => {
   return "Expert";
 };
 
-// Helper: Determine Next Priority
-const determineNextPriority = (profile, images, completeness) => {
-  const hasHeadshot = images && images.length > 0;
-
-  if (!hasHeadshot) {
-    return {
-      title: "First Impression",
-      action: "Upload Headshot",
-      link: "/dashboard/talent/profile?tab=photos",
-    };
-  } else if (completeness.percentage < 100) {
-    // Logic for next steps if not 100%
-    if (!profile.bio) {
-      return {
-        title: "Get Discovered",
-        action: "Complete Bio",
-        link: "/dashboard/talent/profile?tab=details",
-      };
-    }
-    return {
-      title: "Growth",
-      action: "Add More Photos",
-      link: "/dashboard/talent/profile?tab=photos",
-    };
-  } else {
-    return {
-      title: "Maintenance",
-      action: "Update Measurements",
-      link: "/dashboard/talent/profile?tab=physical",
-    };
-  }
-};
-
 /**
  * GET /api/talent/overview
  * Powers the main dashboard overview
@@ -176,13 +143,7 @@ router.get(
       link: topPriority.link,
     };
 
-    // 3. Fetch Activity Stream (Notifications / Views)
-    // Trying to unify where "Activity" comes from.
-    // If we have a 'profile_views' table or 'notifications' table.
-    // Falling back to a mock structure if tables don't exist yet,
-    // but checking for 'notifications' or 'activity_logs' is better.
-    // For now, let's query the 'activity_logs' if it exists, or return empty.
-
+    // 3. Fetch recent activity stream
     let activityStream = [];
     try {
       const rows = await knex("activities")
