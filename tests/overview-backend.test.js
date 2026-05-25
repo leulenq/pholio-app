@@ -105,3 +105,24 @@ describe("GET /api/talent/overview", () => {
     expect(res.body).toHaveProperty("activityStream");
   });
 });
+
+describe("Demo seed: talent@example.com profile", () => {
+  test("profile is Mia Voss with is_pro=true", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/profile"),
+    );
+    expect(res.status).toBe(200);
+    const { profile } = res.body.data;
+    expect(profile.first_name).toBe("Mia");
+    expect(profile.last_name).toBe("Voss");
+    expect(profile.slug).toBe("mia-voss");
+    expect(profile.is_pro).toBe(true);
+  });
+
+  test("profile has 6 images", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/profile"),
+    );
+    expect(res.body.data.images.length).toBeGreaterThanOrEqual(6);
+  });
+});
