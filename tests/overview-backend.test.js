@@ -146,3 +146,30 @@ describe("Demo seed: applications", () => {
     expect(statuses).toContain("declined");
   });
 });
+
+describe("Demo seed: analytics", () => {
+  test("summary reports > 100 views total for talent@example.com", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/summary"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.views.total).toBeGreaterThan(100);
+  });
+
+  test("timeseries returns ~30 data points", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/timeseries?days=30"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(28);
+  });
+
+  test("analytics endpoint returns engagement counts with bio_read > 0", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/analytics?days=30"),
+    );
+    expect(res.status).toBe(200);
+    const { engagement } = res.body.data;
+    expect(engagement.counts.bio_read).toBeGreaterThan(0);
+  });
+});

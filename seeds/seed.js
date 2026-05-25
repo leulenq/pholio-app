@@ -84,6 +84,147 @@ async function seedDemoData(knex, talentId, profileId) {
     });
   }
 
+  // ─── Analytics + Visitor Sessions (90 days) ──────────────────────────────
+  const VISITOR_IDS = Array.from({ length: 18 }, () => uuidv4());
+  const REFERRERS = [
+    "https://instagram.com",
+    "https://instagram.com",
+    "https://instagram.com",
+    null,
+    null,
+    "https://google.com",
+    "https://google.com",
+    "https://tiktok.com",
+  ];
+  const THEMES = ["editorial", "minimal", "bold"];
+  const AGENTS = [
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+  ];
+
+  for (let daysBack = 90; daysBack >= 1; daysBack--) {
+    // Build a UTC midnight base so DATE(created_at) in PostgreSQL always matches
+    // the intended calendar day regardless of server timezone offset.
+    const utcMidnight =
+      Math.floor(now.getTime() / 86400000) * 86400000 - daysBack * 86400000;
+    const day = new Date(utcMidnight);
+    const isWeekend = day.getUTCDay() === 0 || day.getUTCDay() === 6;
+    const recencyFactor = 1 + ((90 - daysBack) / 90) * 1.8;
+    const base = isWeekend ? 5 : 3;
+    const dailyViews = Math.round((base + Math.random() * 4) * recencyFactor);
+
+    for (let v = 0; v < dailyViews; v++) {
+      // Use millisecond arithmetic to stay in UTC — setHours() uses local time
+      const viewTime = new Date(
+        utcMidnight +
+          (8 + Math.floor(Math.random() * 14)) * 3600000 +
+          Math.floor(Math.random() * 60) * 60000,
+      );
+
+      const isReturning = Math.random() < 0.65;
+      const visitorId = isReturning
+        ? VISITOR_IDS[Math.floor(Math.random() * 12)]
+        : VISITOR_IDS[12 + Math.floor(Math.random() * 6)];
+
+      const referrer = REFERRERS[Math.floor(Math.random() * REFERRERS.length)];
+      const userAgent = AGENTS[Math.floor(Math.random() * AGENTS.length)];
+      const ip = `${100 + Math.floor(Math.random() * 155)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+
+      await knex("visitor_sessions").insert({
+        id: uuidv4(),
+        profile_id: profileId,
+        visitor_id: visitorId,
+        started_at: viewTime.toISOString(),
+        last_activity_at: viewTime.toISOString(),
+        ip_address: ip,
+        user_agent: userAgent,
+        referrer,
+        is_returning: isReturning,
+      });
+
+      await knex("analytics").insert({
+        id: uuidv4(),
+        profile_id: profileId,
+        event_type: "view",
+        event_source: "web",
+        metadata: JSON.stringify({ referrer, slug: "mia-voss" }),
+        ip_address: ip,
+        user_agent: userAgent,
+        created_at: viewTime.toISOString(),
+      });
+
+      if (Math.random() < 0.65) {
+        await knex("analytics").insert({
+          id: uuidv4(),
+          profile_id: profileId,
+          event_type: "bio_read",
+          event_source: "web",
+          metadata: JSON.stringify({
+            duration: 10 + Math.floor(Math.random() * 40),
+          }),
+          ip_address: ip,
+          user_agent: userAgent,
+          created_at: new Date(viewTime.getTime() + 15000).toISOString(),
+        });
+      }
+
+      if (Math.random() < 0.25) {
+        await knex("analytics").insert({
+          id: uuidv4(),
+          profile_id: profileId,
+          event_type: "social_click",
+          event_source: "web",
+          metadata: JSON.stringify({ platform: "instagram" }),
+          ip_address: ip,
+          user_agent: userAgent,
+          created_at: new Date(viewTime.getTime() + 30000).toISOString(),
+        });
+      }
+
+      if (Math.random() < 0.2) {
+        await knex("analytics").insert({
+          id: uuidv4(),
+          profile_id: profileId,
+          event_type: "portfolio_click",
+          event_source: "web",
+          metadata: JSON.stringify({ target: "editorial" }),
+          ip_address: ip,
+          user_agent: userAgent,
+          created_at: new Date(viewTime.getTime() + 45000).toISOString(),
+        });
+      }
+
+      if (Math.random() < 0.5) {
+        await knex("analytics").insert({
+          id: uuidv4(),
+          profile_id: profileId,
+          event_type: "scroll_depth",
+          event_source: "web",
+          metadata: JSON.stringify({ depth: Math.random() < 0.6 ? 75 : 100 }),
+          ip_address: ip,
+          user_agent: userAgent,
+          created_at: new Date(viewTime.getTime() + 60000).toISOString(),
+        });
+      }
+
+      if (Math.random() < 0.12) {
+        await knex("analytics").insert({
+          id: uuidv4(),
+          profile_id: profileId,
+          event_type: "download",
+          event_source: "web",
+          metadata: JSON.stringify({
+            theme: THEMES[Math.floor(Math.random() * THEMES.length)],
+          }),
+          ip_address: ip,
+          user_agent: userAgent,
+          created_at: new Date(viewTime.getTime() + 90000).toISOString(),
+        });
+      }
+    }
+  }
+
   return { agencyIds, now };
 }
 
