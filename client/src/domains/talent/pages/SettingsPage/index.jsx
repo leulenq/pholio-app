@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -403,9 +403,30 @@ function NotificationsSection() {
   );
 }
 function PrivacySection() {
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['talent-settings'],
+    queryFn:  talentApi.getSettings,
+    select:   (d) => d?.settings,
+  });
+
+  if (isLoading || !settings) {
+    return <div className="st-loading"><span>Loading…</span></div>;
+  }
+
+  return <PrivacySectionForm initialSettings={settings} />;
+}
+
+function PrivacySectionForm({ initialSettings }) {
   const queryClient = useQueryClient();
   const [blockedAgencies, setBlockedAgencies] = useState([]);
   const [blockInput, setBlockInput] = useState('');
+  const [form, setForm] = useState(() => ({
+    slug:           initialSettings.slug          || '',
+    isPublic:       initialSettings.isPublic      ?? true,
+    isDiscoverable: initialSettings.isDiscoverable ?? false,
+    showContact:    true,
+  }));
+  const [isChanged, setIsChanged] = useState(false);
 
   const addBlockedAgency = () => {
     const name = blockInput.trim();
@@ -419,33 +440,6 @@ function PrivacySection() {
     setBlockedAgencies(prev => prev.filter(a => a !== name));
     toast.success(`${name} unblocked`);
   };
-
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['talent-settings'],
-    queryFn:  talentApi.getSettings,
-    select:   (d) => d?.settings,
-  });
-
-  const [form, setForm] = useState({
-    slug:          '',
-    isPublic:      true,
-    isDiscoverable: false,
-    showContact:   true,
-  });
-  const [initialized, setInitialized] = useState(false);
-  const [isChanged, setIsChanged]     = useState(false);
-
-  useEffect(() => {
-    if (settings && !initialized) {
-      setForm({
-        slug:           settings.slug          || '',
-        isPublic:       settings.isPublic      ?? true,
-        isDiscoverable: settings.isDiscoverable ?? false,
-        showContact:    true,
-      });
-      setInitialized(true);
-    }
-  }, [settings, initialized]);
 
   const mutation = useMutation({
     mutationFn: (data) => talentApi.updateSettings(data),
@@ -473,10 +467,6 @@ function PrivacySection() {
       isPublic: form.isPublic,
     });
   };
-
-  if (isLoading || !initialized) {
-    return <div className="st-loading"><span>Loading…</span></div>;
-  }
 
   return (
     <div className="st-card-stack">
