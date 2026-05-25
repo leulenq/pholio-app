@@ -225,6 +225,73 @@ async function seedDemoData(knex, talentId, profileId) {
     }
   }
 
+  // ─── Activities (30 days, 25 entries) ────────────────────────────────────
+  const activityTemplates = [
+    {
+      type: "image_uploaded",
+      meta: () => ({ imageCount: 1 + Math.floor(Math.random() * 3) }),
+    },
+    { type: "image_uploaded", meta: () => ({ imageCount: 2 }) },
+    {
+      type: "profile_updated",
+      meta: () => ({
+        fields: [
+          ["bio", "measurements", "instagram_handle", "city", "training"][
+            Math.floor(Math.random() * 5)
+          ],
+        ],
+      }),
+    },
+    {
+      type: "profile_updated",
+      meta: () => ({ fields: ["height_cm", "weight_kg"] }),
+    },
+    {
+      type: "pdf_downloaded",
+      meta: () => ({
+        theme: THEMES[Math.floor(Math.random() * THEMES.length)],
+      }),
+    },
+    { type: "pdf_downloaded", meta: () => ({ theme: "editorial" }) },
+    {
+      type: "portfolio_viewed",
+      meta: () => ({
+        source: ["direct", "instagram", "google"][
+          Math.floor(Math.random() * 3)
+        ],
+      }),
+    },
+    {
+      type: "submission_package_created",
+      meta: () => ({ imageCount: 4 + Math.floor(Math.random() * 3) }),
+    },
+  ];
+
+  const activityDays = [];
+  for (let i = 0; i < 25; i++) {
+    const bias =
+      Math.random() < 0.7
+        ? Math.floor(Math.random() * 14)
+        : 14 + Math.floor(Math.random() * 16);
+    activityDays.push(bias);
+  }
+  activityDays.sort((a, b) => b - a);
+
+  for (const dayOffset of activityDays) {
+    const t = new Date(now.getTime() - dayOffset * 86400000);
+    t.setHours(9 + Math.floor(Math.random() * 10));
+    t.setMinutes(Math.floor(Math.random() * 60));
+    const tmpl =
+      activityTemplates[Math.floor(Math.random() * activityTemplates.length)];
+    await knex("activities").insert({
+      id: uuidv4(),
+      user_id: talentId,
+      activity_type: tmpl.type,
+      metadata: JSON.stringify(tmpl.meta()),
+      created_at: t.toISOString(),
+    });
+  }
+
   return { agencyIds, now };
 }
 

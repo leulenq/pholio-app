@@ -173,3 +173,21 @@ describe("Demo seed: analytics", () => {
     expect(engagement.counts.bio_read).toBeGreaterThan(0);
   });
 });
+
+describe("Demo seed: activities", () => {
+  test("activity feed has at least 10 entries", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/activity"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(10);
+  });
+
+  test("activities contain multiple types", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/activity"),
+    );
+    const types = [...new Set(res.body.data.map((a) => a.type))];
+    expect(types.length).toBeGreaterThanOrEqual(3);
+  });
+});
