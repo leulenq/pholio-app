@@ -317,7 +317,7 @@ function PrivacySection() {
   const mutation = useMutation({
     mutationFn: (data) => talentApi.updateSettings(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['talent-settings']);
+      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
       toast.success('Privacy settings saved');
       setIsChanged(false);
     },
