@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +10,6 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { auth } from '../../../../shared/lib/firebase';
-/* eslint-enable no-unused-vars */
 import './SettingsPage.css';
 
 const EASING = [0.22, 1, 0.36, 1];
