@@ -224,8 +224,407 @@ function AccountSection() {
     </div>
   );
 }
-function NotificationsSection(){ return null; }
-function PrivacySection()      { return null; }
-function SubscriptionSection() { return null; }
-function SecuritySection()     { return null; }
-function DangerZoneSection()   { return null; }
+const EMAIL_TOGGLES = [
+  { key: 'emailNotifications', label: 'Email Notifications',  desc: 'All account-related emails' },
+  { key: 'profileViews',       label: 'Profile View Alerts',  desc: 'When an agency views your profile' },
+  { key: 'applicationUpdates', label: 'Application Updates',  desc: 'Status changes on your applications' },
+  { key: 'marketing',          label: 'Marketing & Tips',     desc: 'Feature announcements and editorial tips' },
+];
+
+const INAPP_TOGGLES = [
+  { key: 'inAppApplications', label: 'Application Updates', desc: 'In-dashboard application status alerts' },
+  { key: 'newMessages',       label: 'New Messages',        desc: 'Direct messages from agencies' },
+];
+
+function NotificationsSection() {
+  const [prefs, setPrefs] = useState({
+    emailNotifications: true,
+    profileViews:       true,
+    applicationUpdates: true,
+    marketing:          false,
+    inAppApplications:  true,
+    newMessages:        true,
+  });
+
+  const handleToggle = (key) => {
+    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+    toast.success('Preference saved');
+  };
+
+  const renderRow = ({ key, label, desc }) => (
+    <div key={key} className="st-toggle-row">
+      <div className="st-toggle-info">
+        <span className="st-toggle-label">{label}</span>
+        <span className="st-toggle-desc">{desc}</span>
+      </div>
+      <label className="st-switch">
+        <input
+          type="checkbox"
+          checked={prefs[key]}
+          onChange={() => handleToggle(key)}
+        />
+        <span className="st-slider" />
+        <span className="sr-only">{label}</span>
+      </label>
+    </div>
+  );
+
+  return (
+    <div className="st-card">
+      <div className="st-card-hd">
+        <span className="st-card-eyebrow">02 / Preferences</span>
+        <h2 className="st-card-title">Notifications</h2>
+      </div>
+      <div className="st-toggle-list">
+        <span className="st-toggle-group-label">By Email</span>
+        {EMAIL_TOGGLES.map(renderRow)}
+        <span className="st-toggle-group-label">In App</span>
+        {INAPP_TOGGLES.map(renderRow)}
+      </div>
+    </div>
+  );
+}
+function PrivacySection() {
+  const queryClient = useQueryClient();
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['talent-settings'],
+    queryFn:  talentApi.getSettings,
+    select:   (d) => d?.settings,
+  });
+
+  const [form, setForm] = useState({
+    slug:          '',
+    isPublic:      true,
+    isDiscoverable: false,
+    showContact:   true,
+  });
+  const [initialized, setInitialized] = useState(false);
+  const [isChanged, setIsChanged]     = useState(false);
+
+  useEffect(() => {
+    if (settings && !initialized) {
+      setForm({
+        slug:           settings.slug          || '',
+        isPublic:       settings.isPublic      ?? true,
+        isDiscoverable: settings.isDiscoverable ?? false,
+        showContact:    true,
+      });
+      setInitialized(true);
+    }
+  }, [settings, initialized]);
+
+  const mutation = useMutation({
+    mutationFn: (data) => talentApi.updateSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['talent-settings']);
+      toast.success('Privacy settings saved');
+      setIsChanged(false);
+    },
+    onError: () => toast.error('Failed to save settings'),
+  });
+
+  const set = (key, value) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setIsChanged(true);
+  };
+
+  const handleSave = () => {
+    mutation.mutate({
+      slug:    form.slug,
+      isPublic: form.isPublic,
+    });
+  };
+
+  if (isLoading || !initialized) {
+    return <div className="st-loading"><span>Loading…</span></div>;
+  }
+
+  return (
+    <div className="st-card">
+      <div className="st-card-hd">
+        <span className="st-card-eyebrow">03 / Preferences</span>
+        <h2 className="st-card-title">Privacy &amp; Portfolio</h2>
+      </div>
+
+      <div className="st-card-inner st-form-body">
+        <div className="st-field">
+          <label className="st-label" htmlFor="st-slug">Your Portfolio Slug</label>
+          <div className="st-input-prefix-wrap">
+            <span className="st-input-prefix">pholio.studio/p/</span>
+            <input
+              id="st-slug"
+              className="st-input"
+              value={form.slug}
+              onChange={e => set('slug', e.target.value)}
+              placeholder="your-name"
+            />
+          </div>
+          <span className="st-input-help">Share this link with agencies and clients.</span>
+        </div>
+
+        <div className="st-field">
+          <label className="st-label" htmlFor="st-visibility">Profile Visibility</label>
+          <select
+            id="st-visibility"
+            className="st-select"
+            value={form.isPublic ? 'public' : 'private'}
+            onChange={e => set('isPublic', e.target.value === 'public')}
+          >
+            <option value="public">Public — anyone can view</option>
+            <option value="private">Private — hidden from search</option>
+          </select>
+        </div>
+
+        <div className="st-toggle-row" style={{ padding: '16px 0', borderBottom: 'none' }}>
+          <div className="st-toggle-info">
+            <span className="st-toggle-label">Allow Search Indexing</span>
+            <span className="st-toggle-desc">Let search engines index your portfolio page</span>
+          </div>
+          <label className="st-switch">
+            <input
+              type="checkbox"
+              checked={form.isDiscoverable}
+              onChange={() => set('isDiscoverable', !form.isDiscoverable)}
+            />
+            <span className="st-slider" />
+            <span className="sr-only">Allow search indexing</span>
+          </label>
+        </div>
+
+        <div className="st-toggle-row" style={{ padding: '16px 0', borderBottom: 'none', borderTop: '1px solid rgba(26,24,21,0.06)' }}>
+          <div className="st-toggle-info">
+            <span className="st-toggle-label">Show Contact Information</span>
+            <span className="st-toggle-desc">Display email and phone on your public portfolio</span>
+          </div>
+          <label className="st-switch">
+            <input
+              type="checkbox"
+              checked={form.showContact}
+              onChange={() => set('showContact', !form.showContact)}
+            />
+            <span className="st-slider" />
+            <span className="sr-only">Show contact information</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="st-card-footer">
+        <button
+          className="st-btn st-btn-primary"
+          onClick={handleSave}
+          disabled={!isChanged || mutation.isPending}
+        >
+          {mutation.isPending ? 'Saving…' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  );
+}
+const MOCK_INVOICES = [
+  { id: '#INV-003', date: 'May 01, 2026', amount: '$29.00' },
+  { id: '#INV-002', date: 'Apr 01, 2026', amount: '$29.00' },
+  { id: '#INV-001', date: 'Mar 01, 2026', amount: '$29.00' },
+];
+
+function SubscriptionSection() {
+  return (
+    <div className="st-card-stack">
+      {/* Plan hero card */}
+      <div className="st-card">
+        <div className="st-plan-card">
+          <div className="st-plan-left">
+            <span className="st-plan-name">Studio+</span>
+            <div className="st-plan-price">
+              <span className="st-plan-price-num">$29</span>
+              <span className="st-plan-price-unit">/month</span>
+            </div>
+            <span className="st-plan-renewal">Next renewal: June 1, 2026</span>
+            <button
+              className="st-btn st-btn-ghost"
+              style={{ marginTop: '16px', padding: '0', fontSize: '13px' }}
+              onClick={() => toast.info('Plan management coming soon')}
+            >
+              Change Plan
+            </button>
+          </div>
+          <div className="st-plan-right">
+            <div className="st-payment-method">
+              <CreditCard size={16} aria-hidden="true" />
+              <span className="st-payment-label">•••• 4242</span>
+            </div>
+            <button
+              className="st-btn st-btn-ghost"
+              style={{ padding: '0', fontSize: '12px' }}
+              onClick={() => toast.info('Payment method management coming soon')}
+            >
+              Update Payment Method
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Invoice history */}
+      <div className="st-card">
+        <div className="st-card-hd">
+          <span className="st-card-eyebrow">04 / Your Plan</span>
+          <h2 className="st-card-title">Invoice History</h2>
+        </div>
+        {MOCK_INVOICES.map(inv => (
+          <div key={inv.id} className="st-invoice-row">
+            <span className="st-invoice-id">{inv.id}</span>
+            <span className="st-invoice-date">{inv.date}</span>
+            <span className="st-invoice-amount">{inv.amount}</span>
+            <span className="st-invoice-status">
+              <Check size={11} aria-hidden="true" /> Paid
+            </span>
+            <button
+              className="st-invoice-download"
+              onClick={() => toast.info('Invoice download coming soon')}
+            >
+              Download
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+const MOCK_SESSIONS = [
+  { device: 'Chrome on macOS',   location: 'New York, NY',      time: '2 minutes ago', active: true },
+  { device: 'Safari on iPhone',  location: 'New York, NY',      time: '3 days ago',    active: false },
+  { device: 'Chrome on Windows', location: 'Los Angeles, CA',   time: '2 weeks ago',   active: false },
+];
+
+function SecuritySection() {
+  const { profile } = useAuth();
+  const [isSendingReset, setIsSendingReset] = useState(false);
+
+  const handlePasswordReset = async () => {
+    if (!profile?.email) return;
+    setIsSendingReset(true);
+    try {
+      await sendPasswordResetEmail(auth, profile.email);
+      toast.success(`Password reset email sent to ${profile.email}`);
+    } catch {
+      toast.error('Failed to send reset email');
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
+  return (
+    <div className="st-card-stack">
+      {/* Credentials card */}
+      <div className="st-card">
+        <div className="st-card-hd">
+          <span className="st-card-eyebrow">05 / Your Plan</span>
+          <h2 className="st-card-title">Security</h2>
+        </div>
+        <div className="st-card-inner st-form-body">
+          <div className="st-field">
+            <label className="st-label" htmlFor="st-sec-email">Email Address</label>
+            <div className="st-input-icon-wrap">
+              <Mail size={15} className="st-input-icon" aria-hidden="true" />
+              <input
+                id="st-sec-email"
+                className="st-input st-input--icon"
+                type="email"
+                value={profile?.email || ''}
+                disabled
+              />
+            </div>
+            <span className="st-input-help">Primary authentication email. Managed by Firebase.</span>
+          </div>
+
+          <div className="st-credential-row">
+            <div className="st-toggle-info">
+              <span className="st-toggle-label">Account Password</span>
+              <span className="st-toggle-desc">Send a reset link to your email address</span>
+            </div>
+            <button
+              className="st-btn st-btn-secondary"
+              onClick={handlePasswordReset}
+              disabled={isSendingReset}
+            >
+              {isSendingReset ? 'Sending…' : 'Update Password'}
+            </button>
+          </div>
+
+          <div className="st-credential-row">
+            <div className="st-toggle-info">
+              <span className="st-toggle-label">Two-Factor Authentication</span>
+              <span className="st-toggle-desc">Add an extra layer of security to your account</span>
+            </div>
+            <span className="st-badge st-badge--coming-soon">Coming Soon</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Sessions card */}
+      <div className="st-card">
+        <div className="st-card-hd">
+          <span className="st-card-eyebrow">Recent Activity</span>
+          <h2 className="st-card-title">Sessions</h2>
+        </div>
+        {MOCK_SESSIONS.map((s, i) => (
+          <div key={i} className="st-session-row">
+            <div className="st-session-icon" aria-hidden="true">
+              <Monitor size={15} />
+            </div>
+            <div className="st-session-info">
+              <span className="st-session-device">{s.device}</span>
+              <span className="st-session-location">{s.location}</span>
+            </div>
+            <span className="st-session-time">{s.time}</span>
+            <span className={`st-badge ${s.active ? 'st-badge--active' : 'st-badge--expired'}`}>
+              {s.active ? 'Active' : 'Expired'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function DangerZoneSection() {
+  return (
+    <div className="st-card st-card--danger">
+      <div className="st-card-hd">
+        <span className="st-card-eyebrow">Irreversible Actions</span>
+        <h2 className="st-card-title">Danger Zone</h2>
+      </div>
+
+      <div className="st-action-row">
+        <div className="st-action-info">
+          <span className="st-action-label">Deactivate Account</span>
+          <span className="st-action-desc">
+            Temporarily hide your profile and suspend access. Reactivate any time.
+          </span>
+        </div>
+        <button
+          type="button"
+          className="st-btn st-btn-danger-ghost"
+          onClick={() => toast.error('This action requires confirmation — coming soon')}
+        >
+          Deactivate
+        </button>
+      </div>
+
+      <div className="st-action-row">
+        <div className="st-action-info">
+          <span className="st-action-label">Delete Account</span>
+          <span className="st-action-desc">
+            Permanently delete all data, images, and applications. This cannot be undone.
+          </span>
+        </div>
+        <button
+          type="button"
+          className="st-btn st-btn-danger"
+          onClick={() => toast.error('This action requires confirmation — coming soon')}
+        >
+          Delete Account
+        </button>
+      </div>
+    </div>
+  );
+}
