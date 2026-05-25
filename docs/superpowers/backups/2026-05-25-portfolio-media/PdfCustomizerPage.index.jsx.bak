@@ -1,0 +1,103 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, Sparkles, Layers, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../../../auth/hooks/useAuth';
+import { useMedia } from '../../hooks/useMedia';
+import CompCardPreview from '../../components/CompCardPreview';
+import './PdfCustomizerPage.css';
+
+export default function PdfCustomizerPage() {
+  const { profile } = useAuth();
+  const { images, isLoading } = useMedia();
+
+  const firstName = profile?.first_name || profile?.name?.split(' ')?.[0] || 'Talent';
+  const frameCount = Array.isArray(images) ? images.length : 0;
+
+  return (
+    <div className="pcz-page">
+      <section className="pcz-hero">
+        <div className="pcz-hero__grain" aria-hidden />
+        <div className="pcz-hero__inner">
+          <div className="pcz-hero__meta">
+            <span className="pcz-micro">Comp Card</span>
+            <span className="pcz-divider" aria-hidden />
+            <span className="pcz-meta-value">Talent Studio</span>
+          </div>
+          <h1 className="pcz-title">
+            Build a card that
+            <br />
+            holds the <em>room.</em>
+          </h1>
+          <p className="pcz-lede">
+            Curate theme, verify role coverage, and export your printable 5.5&quot; × 8.5&quot; comp card.
+            Keep the visual language editorial, restrained, and unmistakably you.
+          </p>
+        </div>
+      </section>
+
+      <section className="pcz-body">
+        <div className="pcz-wrap">
+          <div className="pcz-grid">
+            <aside className="pcz-left" aria-label="Comp card guidance">
+              <div className="pcz-panel">
+                <span className="pcz-label">Current Profile</span>
+                <h2 className="pcz-name">
+                  {firstName} <em>Studio</em>
+                </h2>
+                <p className="pcz-small">
+                  {frameCount} {frameCount === 1 ? 'frame' : 'frames'} available for selection. Keep one clear headshot,
+                  one full body, and distinct editorial/lifestyle references.
+                </p>
+              </div>
+
+              <div className="pcz-panel">
+                <span className="pcz-label">Editorial Checklist</span>
+                <ul className="pcz-list">
+                  <li>
+                    <Sparkles size={14} aria-hidden />
+                    <span>One dominant hero image with clean facial read.</span>
+                  </li>
+                  <li>
+                    <Layers size={14} aria-hidden />
+                    <span>Role-tag each frame to control sequence quality.</span>
+                  </li>
+                  <li>
+                    <ShieldCheck size={14} aria-hidden />
+                    <span>Complete key stats (height required for export).</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pcz-panel">
+                <span className="pcz-label">Refine Inputs</span>
+                <div className="pcz-actions">
+                  <Link to="/dashboard/talent/media" className="pcz-link">
+                    Open The Book
+                    <ArrowUpRight size={13} aria-hidden />
+                  </Link>
+                  <Link to="/dashboard/talent/profile" className="pcz-link">
+                    Edit Profile Stats
+                    <ArrowUpRight size={13} aria-hidden />
+                  </Link>
+                </div>
+              </div>
+            </aside>
+
+            <section className="pcz-right" aria-labelledby="pcz-preview-heading">
+              <h2 id="pcz-preview-heading" className="pcz-sr-only">
+                Comp card preview
+              </h2>
+              <div className="pcz-preview-shell">
+                {isLoading ? (
+                  <div className="pcz-loading">Loading comp card workspace…</div>
+                ) : (
+                  <CompCardPreview images={images || []} />
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

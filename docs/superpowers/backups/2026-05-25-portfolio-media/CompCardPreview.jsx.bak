@@ -1,0 +1,730 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Download, Palette, RefreshCw, LayoutPanelTop } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { talentApi } from '../api/talent';
+import { TransferFailureNotice } from '../../../shared/components/states';
+import './CompCardPreview.css';
+
+// ─── Pro theme options ────────────────────────────────────────
+const PRO_THEMES = [
+  { id: 'pholio-standard', name: 'Standard',       bg: '#FAFAF8', text: '#1C1C1C', accent: '#C9A55A' },
+  { id: 'classic-dark',    name: 'Dark',            bg: '#111111', text: '#F0EEE9', accent: '#C9A55A' },
+  { id: 'studio-clean',    name: 'Studio',          bg: '#FFFFFF', text: '#1A1A1A', accent: '#2563EB' },
+  { id: 'bold-editorial',  name: 'Editorial',       bg: '#F5F5F5', text: '#0A0A0A', accent: '#D4A017' },
+];
+
+const PRO_THEME_IDS = new Set(PRO_THEMES.map((t) => t.id));
+const LAYOUT_FAMILY_OPTIONS = [
+  { id: 'auto', name: 'Auto' },
+  { id: 'editorial-balanced', name: 'Editorial' },
+  { id: 'runway-split', name: 'Runway' },
+  { id: 'mosaic-horizontal', name: 'Mosaic' },
+];
+const LAYOUT_FAMILY_LABELS = Object.fromEntries(
+  LAYOUT_FAMILY_OPTIONS.map((item) => [item.id, item.name])
+);
+const THEME_LABELS = Object.fromEntries(
+  PRO_THEMES.map((item) => [item.id, item.name])
+);
+
+function initialThemeFromProfile(profile) {
+  const t = profile?.pdf_theme;
+  if (t && PRO_THEME_IDS.has(t)) return t;
+  return 'pholio-standard';
+}
+
+// ─── Stats fields ─────────────────────────────────────────────
+const STAT_FIELDS = [
+  { key: 'height_cm',  label: 'Height',      blocking: true },
+  { key: 'bust_cm',    label: 'Bust',        blocking: false, altKeys: ['measurements'] },
+  { key: 'waist_cm',   label: 'Waist',       blocking: false, altKeys: ['measurements'] },
+  { key: 'hips_cm',    label: 'Hips',        blocking: false, altKeys: ['measurements'] },
+  { key: 'hair_color', label: 'Hair',        blocking: false },
+  { key: 'eye_color',  label: 'Eyes',        blocking: false },
+];
+
+// ─── Role colours ─────────────────────────────────────────────
+const ROLE_SLOTS = [
+  { role: 'headshot',  label: 'Headshot',  color: '#C9A55A' },
+  { role: 'full_body', label: 'Full Body', color: '#2563EB' },
+  { role: 'editorial', label: 'Editorial', color: '#7C3AED' },
+  { role: 'lifestyle', label: 'Lifestyle', color: '#059669' },
+];
+const GRID_SLOT_COUNT = 4;
+
+function getImageUrl(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed;
+  return `/uploads/${trimmed.replace(/^\/+/, '')}`;
+}
+
+function parseRole(img) {
+  if (img?.shot_type && ROLE_SLOTS.some((slot) => slot.role === img.shot_type)) {
+    return img.shot_type;
+  }
+  if (img?.style_type && ROLE_SLOTS.some((slot) => slot.role === img.style_type)) {
+    return img.style_type;
+  }
+  try {
+    const m = typeof img.metadata === 'string' ? JSON.parse(img.metadata) : img.metadata;
+    return m?.role || null;
+  } catch { return null; }
+}
+
+function getImageId(img) {
+  const rawId = img?.id ?? img?.image_id ?? img?.imageId ?? img?.uuid ?? null;
+  if (rawId === null || rawId === undefined) return null;
+  const parsed = String(rawId).trim();
+  return parsed || null;
+}
+
+function getImageLabel(img, fallbackIndex) {
+  const role = parseRole(img);
+  const base =
+    img?.title ||
+    img?.name ||
+    img?.original_filename ||
+    img?.filename ||
+    img?.path ||
+    `Image ${fallbackIndex + 1}`;
+  return role ? `${base} (${formatStyleVariant(role)})` : base;
+}
+
+function nextCompositionSeed() {
+  const ts = Date.now().toString(36);
+  const rand = Math.floor(Math.random() * 0xffffffff).toString(36);
+  return `manual:${ts}-${rand}`;
+}
+
+function buildCompCardParams({
+  theme,
+  seed,
+  layoutFamily,
+  styleVariant,
+  lockHeroId,
+  lockGridIds,
+}) {
+  const params = new URLSearchParams();
+  if (theme) params.set('theme', theme);
+  if (seed) params.set('seed', seed);
+  if (layoutFamily && layoutFamily !== 'auto') {
+    params.set('layoutFamily', layoutFamily);
+  }
+  if (styleVariant) params.set('styleVariant', styleVariant);
+  if (lockHeroId) params.set('lockHeroId', lockHeroId);
+  if (Array.isArray(lockGridIds) && lockGridIds.some(Boolean)) {
+    params.set('lockGridIds', lockGridIds.map((id) => id || '').join(','));
+  }
+  return params.toString();
+}
+
+function formatStyleVariant(value) {
+  return String(value || '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export default function CompCardPreview({ images }) {
+  const { profile } = useAuth();
+  const slug      = profile?.slug;
+  const isPro     = !!profile?.is_pro;
+  const persistedTheme = profile?.pdf_theme;
+
+  const [selectedTheme, setSelectedTheme] = useState(() =>
+    initialThemeFromProfile(profile)
+  );
+  const [savingTheme,   setSavingTheme]   = useState(false);
+  const [downloading,   setDownloading]   = useState(false);
+  const [downloadError, setDownloadError] = useState(null);
+  const [themeError,    setThemeError]    = useState(null);
+  const [iframeReady,   setIframeReady]   = useState(false);
+  const [seed,          setSeed]          = useState('profile:preview');
+  const [layoutFamily,  setLayoutFamily]  = useState('auto');
+  const [resolvedMeta,  setResolvedMeta]  = useState(null);
+  const [resolvedTheme, setResolvedTheme] = useState(null);
+  const [selectionMeta, setSelectionMeta] = useState(null);
+  const [manualHeroLockId, setManualHeroLockId] = useState(null);
+  const [manualGridLockIds, setManualGridLockIds] = useState(null);
+  const [lockLayout,    setLockLayout]    = useState(false);
+  const [lockStyle,     setLockStyle]     = useState(false);
+  const [lockHero,      setLockHero]      = useState(false);
+  const [lockGrid,      setLockGrid]      = useState(false);
+  const [styleVariant]  = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const raw = new URLSearchParams(window.location.search).get('styleVariant');
+    return raw ? raw.trim() : '';
+  });
+  const hasManualSeedRef = useRef(false);
+  const iframeRef = useRef(null);
+
+  // Stats completeness
+  const statResults = STAT_FIELDS.map(f => {
+    let ok = !!profile?.[f.key];
+    if (!ok && f.altKeys) ok = f.altKeys.some(k => !!profile?.[k]);
+    return { ...f, ok };
+  });
+  const isBlocked = statResults.some(s => s.blocking && !s.ok);
+  const warnCount = statResults.filter(s => !s.blocking && !s.ok).length;
+
+  // Preview URL
+  const effectiveLayoutFamily =
+    lockLayout && resolvedMeta?.layoutFamily ? resolvedMeta.layoutFamily : layoutFamily;
+  const effectiveStyleVariant =
+    lockStyle && resolvedMeta?.styleVariant ? resolvedMeta.styleVariant : styleVariant;
+  const lockHeroId = lockHero ? manualHeroLockId || selectionMeta?.heroImageId || null : null;
+  const currentGridIds = selectionMeta?.gridImageIds || [];
+  const effectiveGridLockIds = lockGrid
+    ? manualGridLockIds || currentGridIds
+    : currentGridIds;
+  const lockGridIds = lockGrid ? effectiveGridLockIds : [];
+  const normalizedGridLockIds = useMemo(() => {
+    const source = [...(effectiveGridLockIds || [])];
+    while (source.length < GRID_SLOT_COUNT) source.push(null);
+    return source.slice(0, GRID_SLOT_COUNT).map((id) => (id ? String(id) : null));
+  }, [effectiveGridLockIds]);
+  const availableGridImages = useMemo(
+    () =>
+      (images || [])
+        .map((img, index) => {
+          const id = getImageId(img);
+          if (!id) return null;
+          return {
+            id,
+            label: getImageLabel(img, index),
+          };
+        })
+        .filter(Boolean),
+    [images]
+  );
+
+  const queryString = buildCompCardParams({
+    theme: selectedTheme,
+    seed,
+    layoutFamily: effectiveLayoutFamily,
+    styleVariant: effectiveStyleVariant,
+    lockHeroId,
+    lockGridIds,
+  });
+  const previewUrl = slug ? `/pdf/view/${slug}?${queryString}` : null;
+  const canCustomize = Boolean(slug);
+  const effectiveSeed = resolvedMeta?.seed || seed || 'auto';
+  const effectiveLayout =
+    resolvedMeta?.layoutFamilyLabel ||
+    LAYOUT_FAMILY_LABELS[resolvedMeta?.layoutFamily] ||
+    LAYOUT_FAMILY_LABELS[layoutFamily] ||
+    'Auto';
+  const effectiveThemeKey = resolvedTheme || selectedTheme;
+  const effectiveTheme = THEME_LABELS[effectiveThemeKey] || effectiveThemeKey || 'Standard';
+  const effectiveStyle =
+    resolvedMeta?.styleVariantLabel ||
+    (resolvedMeta?.styleVariant ? formatStyleVariant(resolvedMeta.styleVariant) : null) ||
+    (styleVariant ? formatStyleVariant(styleVariant) : null);
+  const hasActiveLocks = lockLayout || lockStyle || lockHero || lockGrid;
+  const previewStatusTone = isBlocked ? 'blocked' : warnCount > 0 ? 'warning' : 'ready';
+  const previewStatusLabel = isBlocked
+    ? 'Needs height'
+    : warnCount > 0
+      ? `${warnCount} optional ${warnCount === 1 ? 'field' : 'fields'} open`
+      : 'Ready';
+
+  useEffect(() => {
+    if (persistedTheme && PRO_THEME_IDS.has(persistedTheme)) {
+      setSelectedTheme(persistedTheme);
+      return;
+    }
+    setSelectedTheme('pholio-standard');
+  }, [persistedTheme]);
+
+  useEffect(() => {
+    if (!hasManualSeedRef.current) {
+      setSeed(`profile:${slug || 'preview'}`);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    setIframeReady(false);
+  }, [previewUrl]);
+
+  useEffect(() => {
+    if (!slug) {
+      setResolvedMeta(null);
+      setResolvedTheme(null);
+      setManualGridLockIds(null);
+      return;
+    }
+    const controller = new AbortController();
+    const diagnosticsUrl = `/pdf/view/${slug}?${queryString}&diagnostics=1`;
+    fetch(diagnosticsUrl, {
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => {
+        if (!payload?.compCard) return;
+        setResolvedMeta(payload.compCard);
+        if (payload?.theme) {
+          setResolvedTheme(payload.theme);
+        }
+        if (payload?.selection) {
+          setSelectionMeta(payload.selection);
+          if (!lockHero) {
+            setManualHeroLockId(null);
+          }
+          if (!lockGrid) {
+            setManualGridLockIds(null);
+          }
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [slug, queryString, lockGrid, lockHero]);
+
+  function handleAssignGridSlot(slotIdx, nextId) {
+    if (!Number.isInteger(slotIdx) || slotIdx < 0 || slotIdx >= GRID_SLOT_COUNT) {
+      return;
+    }
+    const normalizedNextId = nextId ? String(nextId) : null;
+    if (normalizedNextId && lockHeroId && normalizedNextId === lockHeroId) {
+      return;
+    }
+    const next = [...normalizedGridLockIds];
+    if (!normalizedNextId) {
+      next[slotIdx] = null;
+    } else {
+      const existingIdx = next.findIndex((id, idx) => idx !== slotIdx && id === normalizedNextId);
+      if (existingIdx !== -1) {
+        // Keep assignments unique if a duplicate is introduced programmatically.
+        next[existingIdx] = next[slotIdx] || null;
+      }
+      next[slotIdx] = normalizedNextId;
+    }
+    setManualGridLockIds(next);
+    setLockGrid(true);
+  }
+
+  function handleAssignHeroImage(nextId) {
+    const normalizedNextId = nextId ? String(nextId) : null;
+    if (normalizedNextId && normalizedGridLockIds.some((id) => id === normalizedNextId)) {
+      return;
+    }
+    setManualHeroLockId(normalizedNextId);
+    setLockHero(Boolean(normalizedNextId));
+  }
+
+  function handleToggleHeroLock() {
+    setLockHero((prev) => {
+      const next = !prev;
+      if (next) {
+        setManualHeroLockId(selectionMeta?.heroImageId || null);
+      } else {
+        setManualHeroLockId(null);
+      }
+      return next;
+    });
+  }
+
+  function handleToggleGridLock() {
+    setLockGrid((prev) => {
+      const next = !prev;
+      if (next) {
+        setManualGridLockIds(selectionMeta?.gridImageIds || []);
+      } else {
+        setManualGridLockIds(null);
+      }
+      return next;
+    });
+  }
+
+  function handleClearLocks() {
+    setLockLayout(false);
+    setLockStyle(false);
+    setLockHero(false);
+    setLockGrid(false);
+    setManualHeroLockId(null);
+    setManualGridLockIds(null);
+  }
+
+  // ─── Download ─────────────────────────────────────────────
+  async function handleDownload() {
+    if (!slug || isBlocked) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const res = await fetch(`/pdf/${slug}?${queryString}&download=1`, { credentials: 'include' });
+      if (!res.ok) {
+        let message = 'Failed to generate comp card PDF.';
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const payload = await res.json().catch(() => null);
+          message = payload?.message || payload?.error || message;
+        } else {
+          const text = await res.text().catch(() => '');
+          if (text) {
+            message = text.slice(0, 180);
+          }
+        }
+        throw new Error(message);
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.toLowerCase().includes('application/pdf')) {
+        throw new Error('Server returned a non-PDF response.');
+      }
+
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = `pholio-${slug}-compcard.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message = err?.message || 'Failed to download comp card. Please try again.';
+      console.error('Download failed:', err);
+      setDownloadError(message);
+      toast.error(message);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  // ─── Theme change (Pro) ────────────────────────────────────
+  async function handleThemeChange(id) {
+    setSelectedTheme(id);
+    if (!isPro) return;
+    setSavingTheme(true);
+    setThemeError(null);
+    try {
+      await talentApi.updatePdfCustomization({ theme: id });
+    } catch (err) {
+      const message = err?.message || 'Failed to save theme. Please try again.';
+      console.error('Theme save failed:', err);
+      setThemeError(message);
+      toast.error(message);
+    } finally {
+      setSavingTheme(false);
+    }
+  }
+
+  return (
+    <div className="ccp-root">
+      <header className="ccp-header">
+        <div className="ccp-heading">
+          <span className="ccp-eyebrow">Comp Card</span>
+          <h3 className="ccp-title">Market card</h3>
+          <p>{[effectiveLayout, effectiveTheme, effectiveStyle].filter(Boolean).join(' / ')} from the current image edit.</p>
+        </div>
+        <div className="ccp-header-actions">
+          {isBlocked && (
+            <Link to="/dashboard/talent/profile" className="ccp-unlock-hint">
+              Add height
+            </Link>
+          )}
+          <div className={`ccp-status-pill ccp-status-pill--${previewStatusTone}`}>
+            {previewStatusLabel}
+          </div>
+          <button
+            className="ccp-download-btn"
+            onClick={handleDownload}
+            disabled={downloading || isBlocked || !slug}
+            title={isBlocked ? 'Add height to unlock downloads' : 'Download PDF comp card'}
+          >
+            {downloading ? (
+              <><span className="ccp-spinner" />Generating</>
+            ) : (
+              <><Download size={14} />Download</>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {(downloadError || themeError) && (
+        <TransferFailureNotice
+          title={downloadError ? 'Download interrupted' : 'Theme save interrupted'}
+          body={downloadError || themeError}
+          retry={
+            downloadError
+              ? { label: 'Retry download', onClick: handleDownload }
+              : { label: 'Dismiss', onClick: () => setThemeError(null) }
+          }
+        />
+      )}
+
+      <section className="ccp-preview-suite" aria-label="Comp card preview">
+        <div className="ccp-preview-stage">
+          <div className="ccp-preview-wrap">
+            {previewUrl ? (
+              <>
+                {!iframeReady && <div className="ccp-preview-loader">Loading...</div>}
+                <iframe
+                  ref={iframeRef}
+                  src={previewUrl}
+                  className="ccp-preview-iframe"
+                  title="Comp card preview"
+                  onLoad={() => setIframeReady(true)}
+                />
+              </>
+            ) : (
+              <div className="ccp-preview-empty">
+                Complete your profile to see a preview
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="ccp-preview-facts" aria-label="Comp card format">
+          <span>5.5 x 8.5</span>
+          <span>Two-sided PDF</span>
+        </div>
+      </section>
+
+      <section
+        className={`ccp-control-section ccp-control-section--direction ${!canCustomize ? 'ccp-control-section--disabled' : ''}`}
+        aria-disabled={!canCustomize}
+      >
+        <div className="ccp-section-heading">
+          <div>
+            <span className="ccp-section-kicker">Curation</span>
+            <h4>Hold the edit</h4>
+          </div>
+          <div className="ccp-section-actions">
+            {hasActiveLocks && (
+              <button
+                type="button"
+                className="ccp-text-btn"
+                onClick={handleClearLocks}
+                title="Clear all active locks"
+                disabled={!canCustomize}
+              >
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              className="ccp-regenerate-btn"
+              onClick={() => {
+                hasManualSeedRef.current = true;
+                setSeed(nextCompositionSeed());
+              }}
+              title="Generate a fresh composition variant"
+              disabled={!canCustomize}
+            >
+              <RefreshCw size={14} aria-hidden="true" />
+              Fresh Edit
+            </button>
+          </div>
+        </div>
+
+        <div className="ccp-lock-rail">
+          <button
+            type="button"
+            className={`ccp-lock-tile ${lockLayout ? 'ccp-lock-tile--active' : ''}`}
+            onClick={() => setLockLayout((v) => !v)}
+            aria-pressed={lockLayout}
+            title="Lock resolved layout family across regenerate"
+            disabled={!canCustomize}
+          >
+            <span className="ccp-lock-label">Layout</span>
+            <span className="ccp-lock-value">{lockLayout ? effectiveLayout : 'Open'}</span>
+          </button>
+          <button
+            type="button"
+            className={`ccp-lock-tile ${lockStyle ? 'ccp-lock-tile--active' : ''}`}
+            onClick={() => setLockStyle((v) => !v)}
+            aria-pressed={lockStyle}
+            title="Lock resolved style variant across regenerate"
+            disabled={!canCustomize}
+          >
+            <span className="ccp-lock-label">Tone</span>
+            <span className="ccp-lock-value">{lockStyle && effectiveStyle ? effectiveStyle : 'Open'}</span>
+          </button>
+          <button
+            type="button"
+            className={`ccp-lock-tile ${lockHero ? 'ccp-lock-tile--active' : ''}`}
+            onClick={handleToggleHeroLock}
+            aria-pressed={lockHero}
+            disabled={!canCustomize || !selectionMeta?.heroImageId}
+            title="Lock current hero image"
+          >
+            <span className="ccp-lock-label">Lead</span>
+            <span className="ccp-lock-value">{lockHero ? 'Held' : 'Open'}</span>
+          </button>
+          <button
+            type="button"
+            className={`ccp-lock-tile ${lockGrid ? 'ccp-lock-tile--active' : ''}`}
+            onClick={handleToggleGridLock}
+            aria-pressed={lockGrid}
+            disabled={!canCustomize || !selectionMeta?.gridImageIds?.some(Boolean)}
+            title="Lock current grid images"
+          >
+            <span className="ccp-lock-label">Support</span>
+            <span className="ccp-lock-value">{lockGrid ? 'Held' : 'Open'}</span>
+          </button>
+        </div>
+      </section>
+
+      <div className="ccp-control-grid">
+        <section
+          className={`ccp-control-section ccp-control-section--appearance ${!canCustomize ? 'ccp-control-section--disabled' : ''}`}
+          aria-disabled={!canCustomize}
+        >
+          <div className="ccp-section-heading">
+            <div>
+              <span className="ccp-section-kicker">Page Style</span>
+              <h4>Composition family</h4>
+            </div>
+            <LayoutPanelTop size={16} aria-hidden="true" />
+          </div>
+
+          <div className="ccp-layout-row" role="group" aria-label="Layout family">
+            {LAYOUT_FAMILY_OPTIONS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`ccp-layout-btn ${layoutFamily === item.id ? 'ccp-layout-btn--active' : ''}`}
+                aria-pressed={layoutFamily === item.id}
+                onClick={() => setLayoutFamily(item.id)}
+              >
+                {item.name}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className={`ccp-control-section ccp-control-section--theme ${!canCustomize ? 'ccp-control-section--disabled' : ''}`}
+          aria-disabled={!canCustomize}
+        >
+          <div className="ccp-section-heading">
+            <div>
+              <span className="ccp-section-kicker">Palette</span>
+              <h4>Finish</h4>
+            </div>
+            {isPro && savingTheme && <span className="ccp-saving-label">Saving</span>}
+          </div>
+
+          <div className="ccp-theme-head">
+            <Palette size={14} aria-hidden="true" />
+            <span>{effectiveTheme}</span>
+          </div>
+
+          {isPro ? (
+            <div className="ccp-themes-row">
+              {PRO_THEMES.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`ccp-theme-btn ${selectedTheme === t.id ? 'ccp-theme-btn--active' : ''}`}
+                  aria-pressed={selectedTheme === t.id}
+                  onClick={() => handleThemeChange(t.id)}
+                  title={t.name}
+                >
+                  <span className="ccp-theme-swatches" aria-hidden="true">
+                    <span className="ccp-swatch" style={{ background: t.bg, border: '1px solid rgba(5, 5, 5, 0.18)' }} />
+                    <span className="ccp-swatch" style={{ background: t.text }} />
+                    <span className="ccp-swatch" style={{ background: t.accent }} />
+                  </span>
+                  <span className="ccp-theme-name">{t.name}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="ccp-pro-hint">
+              <Link to="/pricing">Upgrade to Pro</Link> to unlock curated themes.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <section
+        className={`ccp-control-section ccp-control-section--casting ${!canCustomize ? 'ccp-control-section--disabled' : ''}`}
+        aria-disabled={!canCustomize}
+      >
+        <div className="ccp-section-heading">
+          <div>
+            <span className="ccp-section-kicker">Placement</span>
+            <h4>Lead and support frames</h4>
+          </div>
+          <span className="ccp-section-count">{availableGridImages.length} images</span>
+        </div>
+
+        <div className="ccp-casting-grid">
+          <label className="ccp-field ccp-field--hero">
+            <span>Lead frame</span>
+            <select
+              className="ccp-hero-assign-select"
+              value={lockHeroId || ''}
+              onChange={(e) => handleAssignHeroImage(e.target.value)}
+              aria-label="Assign image to hero slot"
+              disabled={!canCustomize || !availableGridImages.length}
+            >
+              <option value="">Auto select</option>
+              {availableGridImages.map((item) => (
+                <option
+                  key={`hero-${item.id}`}
+                  value={item.id}
+                  disabled={normalizedGridLockIds.includes(item.id)}
+                >
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="ccp-grid-assign-row" role="group" aria-label="Assign image per grid slot">
+            <span className="ccp-field-label">Supporting grid</span>
+            <div className="ccp-grid-assign-list">
+              {Array.from({ length: GRID_SLOT_COUNT }, (_, slotIdx) => {
+                const currentId = normalizedGridLockIds[slotIdx] || '';
+                const usedByOtherSlots = new Set(
+                  normalizedGridLockIds.filter((id, idx) => idx !== slotIdx && id)
+                );
+                if (lockHeroId) {
+                  usedByOtherSlots.add(lockHeroId);
+                }
+                const hasCurrentInPool = currentId
+                  ? availableGridImages.some((item) => item.id === currentId)
+                  : true;
+                return (
+                  <label key={`grid-slot-${slotIdx}`} className="ccp-grid-assign-item">
+                    <span className="ccp-grid-assign-slot-label">{`S${slotIdx + 1}`}</span>
+                    <select
+                      className="ccp-grid-assign-select"
+                      value={currentId}
+                      onChange={(e) => handleAssignGridSlot(slotIdx, e.target.value)}
+                      aria-label={`Assign image to grid slot ${slotIdx + 1}`}
+                      disabled={!canCustomize || !availableGridImages.length}
+                    >
+                      <option value="">Auto</option>
+                      {!hasCurrentInPool && currentId ? (
+                        <option value={currentId}>{`Current image (${currentId.slice(0, 8)})`}</option>
+                      ) : null}
+                      {availableGridImages.map((item) => (
+                        <option
+                          key={`${slotIdx}-${item.id}`}
+                          value={item.id}
+                          disabled={usedByOtherSlots.has(item.id) && item.id !== currentId}
+                        >
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

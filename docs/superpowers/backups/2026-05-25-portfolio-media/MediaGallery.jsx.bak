@@ -1,0 +1,805 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useMedia } from '../hooks/useMedia';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { TransferFailureNotice } from '../../../shared/components/states';
+import {
+  BookOpen,
+  Check,
+  CircleDashed,
+  Edit2,
+  EyeOff,
+  FileText,
+  Loader2,
+  Plus,
+  Star,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import CompCardPreview from './CompCardPreview';
+import ImageMetadataModal from './ImageMetadataModal';
+import PhotoEditorModal from './PhotoEditorModal';
+import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
+import './MediaGallery.css';
+
+const MAX_PORTFOLIO_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_PORTFOLIO_UPLOAD_FILES = 12;
+const PORTFOLIO_ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+
+const BOOK_COVERAGE = [
+  {
+    id: 'cover',
+    label: 'Cover',
+    detail: 'Primary frame',
+    isMet: (images) => images.some((img) => img.is_primary) || images.length > 0,
+  },
+  {
+    id: 'headshot',
+    label: 'Headshot',
+    detail: 'Direct face',
+    isMet: (images) =>
+      images.some((img) => img.shot_type === 'headshot' || legacyRole(img) === 'headshot'),
+  },
+  {
+    id: 'full-length',
+    label: 'Full Length',
+    detail: 'Proportion',
+    isMet: (images) =>
+      images.some((img) =>
+        ['full_length', 'three_quarter'].includes(img.shot_type) || legacyRole(img) === 'full_body'
+      ),
+  },
+  {
+    id: 'editorial',
+    label: 'Editorial',
+    detail: 'Point of view',
+    isMet: (images) =>
+      images.some((img) => img.style_type === 'editorial' || legacyRole(img) === 'editorial'),
+  },
+  {
+    id: 'range',
+    label: 'Range',
+    detail: 'Five frames',
+    isMet: (images) => images.length >= 5,
+  },
+];
+
+function normalizePortfolioMime(file) {
+  const t = (file.type || '').toLowerCase().trim();
+  if (t === 'image/jpg') return 'image/jpeg';
+  return t;
+}
+
+function isAllowedPortfolioFile(file) {
+  const mime = normalizePortfolioMime(file);
+  if (PORTFOLIO_ALLOWED_MIME.has(mime)) return true;
+  const name = (file.name || '').toLowerCase();
+  return /\.(jpe?g|png|webp)$/.test(name);
+}
+
+/**
+ * @param {File[]} files
+ * @returns {{ valid: File[], invalid: { name: string; reason: string }[] }}
+ */
+function partitionPortfolioUploadFiles(files) {
+  const valid = [];
+  const invalid = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    if (index >= MAX_PORTFOLIO_UPLOAD_FILES) {
+      invalid.push({
+        name: file.name || 'Unknown file',
+        reason: `A maximum of ${MAX_PORTFOLIO_UPLOAD_FILES} files can be uploaded at once`,
+      });
+      continue;
+    }
+    if (!isAllowedPortfolioFile(file)) {
+      invalid.push({
+        name: file.name || 'Unknown file',
+        reason: 'Only JPEG, PNG, and WebP are allowed',
+      });
+      continue;
+    }
+    if (file.size > MAX_PORTFOLIO_FILE_BYTES) {
+      invalid.push({
+        name: file.name || 'Unknown file',
+        reason: 'Each file must be 5MB or smaller',
+      });
+      continue;
+    }
+    valid.push(file);
+  }
+  return { valid, invalid };
+}
+
+function showPortfolioUploadValidationToasts(invalid) {
+  if (invalid.length === 0) return;
+  if (invalid.length === 1) {
+    const [{ name, reason }] = invalid;
+    toast.error(`${name}: ${reason}`);
+    return;
+  }
+  const lines = invalid.slice(0, 5).map((i) => `${i.name}: ${i.reason}`);
+  const more = invalid.length > 5 ? `\n... and ${invalid.length - 5} more` : '';
+  toast.error(`${invalid.length} files could not be uploaded`, {
+    description: `${lines.join('\n')}${more}`,
+  });
+}
+
+function getImageUrl(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed;
+  return `/uploads/${trimmed.replace(/^\/+/, '')}`;
+}
+
+function metadataFor(image) {
+  if (!image?.metadata) return {};
+  if (typeof image.metadata === 'object') return image.metadata;
+  try {
+    return JSON.parse(image.metadata);
+  } catch {
+    return {};
+  }
+}
+
+function legacyRole(image) {
+  return metadataFor(image)?.role || null;
+}
+
+function isHiddenFromMarket(image) {
+  const metadata = metadataFor(image);
+  return (
+    metadata.visibility === 'private' ||
+    image?.exclude_from_public ||
+    image?.exclude_from_agency ||
+    image?.status === 'archived'
+  );
+}
+
+function titleize(value) {
+  return String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function imageDescriptor(image) {
+  const shot = image?.shot_type ? titleize(image.shot_type) : '';
+  const style = image?.style_type ? titleize(image.style_type) : '';
+  const role = legacyRole(image) ? titleize(legacyRole(image)) : '';
+  return [shot, style || role].filter(Boolean).join(' / ') || 'Portfolio frame';
+}
+
+function imageCaption(image, fallback) {
+  const metadata = metadataFor(image);
+  return metadata.caption || image?.caption || fallback;
+}
+
+function sequenceTitle(index, isPrimary) {
+  if (isPrimary || index === 0) return 'Cover Frame';
+  if (index === 1) return 'Opening Beat';
+  if (index === 2) return 'Shape';
+  if (index === 3) return 'Range';
+  return `Frame ${String(index + 1).padStart(2, '0')}`;
+}
+
+function editionLabel(setRow) {
+  if (!setRow) return 'Working book';
+  const kind = titleize(setRow.kind || 'book');
+  return setRow.name ? `${setRow.name} / ${kind}` : kind;
+}
+
+function markImageBroken(event) {
+  event.currentTarget.classList.add('book-image--failed');
+}
+
+function buildCoverage(images) {
+  const rows = BOOK_COVERAGE.map((item) => ({
+    ...item,
+    met: item.isMet(images),
+  }));
+  const complete = rows.filter((item) => item.met).length;
+  return {
+    rows,
+    complete,
+    total: rows.length,
+    score: Math.round((complete / rows.length) * 100),
+  };
+}
+
+/* ─── Portfolio Image Card ─────────────────────────────────── */
+function PortfolioImage({
+  image,
+  index,
+  onDelete,
+  onEdit,
+  onSetPrimary,
+  settingHeroId,
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: image.id });
+
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+    zIndex: isDragging ? 10 : 1,
+  };
+
+  const metadata = metadataFor(image);
+  const isPrivate = metadata.visibility === 'private';
+  const isPrimary = !!image.is_primary;
+  const heroBusy = !!settingHeroId;
+  const descriptor = imageDescriptor(image);
+  const caption = imageCaption(image, sequenceTitle(index, isPrimary));
+  const frameClass = [
+    'book-frame-card',
+    isPrimary || index === 0 ? 'book-frame-card--cover' : '',
+    isDragging ? 'book-frame-card--dragging' : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <article
+      ref={setNodeRef}
+      style={style}
+      className={frameClass}
+      aria-label={`${sequenceTitle(index, isPrimary)}: ${descriptor}`}
+    >
+      <div className="book-frame-card__image-wrap" {...attributes} {...listeners}>
+        <img
+          src={getImageUrl(image.public_url || image.path)}
+          alt={caption}
+          className={`book-frame-card__image ${isPrivate ? 'book-frame-card__image--private' : ''}`}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={markImageBroken}
+        />
+        <div className="book-frame-card__shade" aria-hidden />
+        <span className="book-frame-card__number">{String(index + 1).padStart(2, '0')}</span>
+
+        {isPrimary && (
+          <span className="book-frame-card__badge book-frame-card__badge--cover">Cover</span>
+        )}
+
+        {isPrivate && (
+          <span className="book-frame-card__badge book-frame-card__badge--private">
+            <EyeOff size={11} aria-hidden />
+            Private
+          </span>
+        )}
+      </div>
+
+      <div className="book-frame-card__body">
+        <div className="book-frame-card__copy">
+          <span className="book-frame-card__eyebrow">{descriptor}</span>
+          <h3 className="book-frame-card__title">{sequenceTitle(index, isPrimary)}</h3>
+        </div>
+
+        <div className="book-frame-card__actions" aria-label="Frame actions">
+          {!isPrimary && onSetPrimary && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetPrimary(image.id);
+              }}
+              className="book-frame-action"
+              disabled={heroBusy}
+              title="Make cover"
+              aria-label="Make cover"
+            >
+              {settingHeroId === image.id ? (
+                <Loader2 size={14} className="book-frame-action__spinner" aria-hidden />
+              ) : (
+                <Star size={14} />
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(image);
+            }}
+            className="book-frame-action"
+            title="Edit details"
+            aria-label="Edit details"
+          >
+            <Edit2 size={14} />
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(image.id);
+            }}
+            className="book-frame-action book-frame-action--danger"
+            title="Remove frame"
+            aria-label="Remove frame"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export default function MediaGallery() {
+  const {
+    images,
+    upload,
+    deleteImage,
+    reorder,
+    setHero,
+    replaceImage,
+    fetchSets,
+    createSet,
+    setCurrentSet,
+    isUploading,
+    isLoading,
+  } = useMedia();
+  const { profile } = useAuth();
+  const [localImages, setLocalImages] = React.useState(images);
+  const [editingImage, setEditingImage] = React.useState(null);
+  const [editorImage, setEditorImage] = React.useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = React.useState(null);
+  const [settingHeroId, setSettingHeroId] = React.useState(null);
+  const [mediaSets, setMediaSets] = React.useState([]);
+  const [selectedSetId, setSelectedSetId] = React.useState('');
+  const [isRefreshingSets, setIsRefreshingSets] = React.useState(false);
+  const [uploadTransferError, setUploadTransferError] = React.useState(null);
+
+  React.useEffect(() => {
+    setLocalImages(images);
+  }, [images]);
+
+  const loadSets = React.useCallback(async () => {
+    setIsRefreshingSets(true);
+    try {
+      const response = await fetchSets();
+      const rows = Array.isArray(response?.sets) ? response.sets : [];
+      setMediaSets(rows);
+      const current = rows.find((row) => row.is_current);
+      setSelectedSetId(current?.id || rows[0]?.id || '');
+    } catch (err) {
+      console.warn('Failed to load media sets', err);
+    } finally {
+      setIsRefreshingSets(false);
+    }
+  }, [fetchSets]);
+
+  React.useEffect(() => {
+    loadSets();
+  }, [loadSets]);
+
+  React.useEffect(() => {
+    document.title = 'Media | Pholio';
+  }, []);
+
+  const selectedSet = mediaSets.find((row) => String(row.id) === String(selectedSetId));
+  const coverImage = localImages.find((img) => img.is_primary) || localImages[0] || null;
+  const coverage = React.useMemo(() => buildCoverage(localImages), [localImages]);
+  const firstName = profile?.first_name || profile?.name?.split(' ')[0] || 'Talent';
+  const marketVisibleFrames = localImages.filter((img) => !isHiddenFromMarket(img)).length;
+  const missingSignals = coverage.rows.filter((item) => !item.met);
+  const bookState = coverage.score >= 80 ? 'Agency ready' : 'In curation';
+  const selectedSetLabel = editionLabel(selectedSet);
+
+  const handleUpdateMetadata = (id, patch) => {
+    setLocalImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, ...patch } : img)),
+    );
+  };
+
+  const handleOpenEditor = (image) => {
+    setEditingImage(null);
+    setEditorImage(image);
+  };
+
+  const handleSaveEditedPhoto = async (blob) => {
+    if (!editorImage) return;
+
+    try {
+      await replaceImage(editorImage.id, blob);
+      setEditorImage(null);
+    } catch (err) {
+      console.error('Failed to save edited image', err);
+      toast.error('Failed to save edited photo. Please try again.');
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = localImages.findIndex((item) => item.id === active.id);
+    const newIndex = localImages.findIndex((item) => item.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const previousOrder = localImages;
+    const newOrder = arrayMove(localImages, oldIndex, newIndex);
+    setLocalImages(newOrder);
+    const ids = newOrder.map((img) => img.id);
+    try {
+      await reorder(ids);
+    } catch (err) {
+      setLocalImages(previousOrder);
+      toast.error(err?.message || 'Failed to reorder images');
+    }
+  };
+
+  const handleSetPrimary = async (id) => {
+    setSettingHeroId(id);
+    try {
+      await setHero(id);
+      setLocalImages((prev) =>
+        prev.map((img) => ({ ...img, is_primary: img.id === id }))
+      );
+    } catch (err) {
+      toast.error(err?.message || 'Failed to set primary image');
+    } finally {
+      setSettingHeroId(null);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const list = Array.from(files);
+    const { valid, invalid } = partitionPortfolioUploadFiles(list);
+    showPortfolioUploadValidationToasts(invalid);
+    if (valid.length === 0) {
+      e.target.value = null;
+      return;
+    }
+    const formData = new FormData();
+    for (let i = 0; i < valid.length; i += 1) {
+      formData.append('media', valid[i]);
+    }
+    if (selectedSetId) {
+      formData.append('set_id', selectedSetId);
+    }
+    try {
+      setUploadTransferError(null);
+      await upload(formData);
+    } catch (err) {
+      const message = err?.message || 'Failed to upload image(s)';
+      setUploadTransferError(message);
+      toast.error(message);
+    } finally {
+      e.target.value = null;
+    }
+  };
+
+  const handleDelete = (id) => {
+    setDeleteConfirmation(id);
+  };
+
+  const handleCreateSet = async () => {
+    const kindInput = window.prompt('Edition type (book, digitals, campaign):', 'book');
+    if (!kindInput || !kindInput.trim()) return;
+    const nameInput = window.prompt('Edition name:', '');
+    try {
+      const res = await createSet({
+        kind: kindInput.trim(),
+        name: nameInput?.trim() || null,
+        is_current: false,
+      });
+      const createdId = res?.set?.id;
+      await loadSets();
+      if (createdId) setSelectedSetId(createdId);
+    } catch (err) {
+      console.warn('Failed to create media set', err);
+    }
+  };
+
+  const handleSetCurrent = async () => {
+    if (!selectedSetId) return;
+    try {
+      await setCurrentSet(selectedSetId);
+      await loadSets();
+    } catch (err) {
+      console.warn('Failed to set current media set', err);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirmation) {
+      try {
+        await deleteImage(deleteConfirmation);
+        setDeleteConfirmation(null);
+      } catch (err) {
+        toast.error(err?.message || 'Failed to delete image');
+      }
+    }
+  };
+
+  return (
+    <div className="book-container">
+      {editingImage && (
+        <ImageMetadataModal
+          image={editingImage}
+          onClose={() => setEditingImage(null)}
+          onUpdate={handleUpdateMetadata}
+          onOpenEditor={handleOpenEditor}
+          mediaSets={mediaSets}
+        />
+      )}
+
+      {editorImage && (
+        <PhotoEditorModal
+          imageSrc={getImageUrl(editorImage.public_url || editorImage.path)}
+          onClose={() => setEditorImage(null)}
+          onSave={handleSaveEditedPhoto}
+        />
+      )}
+
+      <ConfirmationDialog
+        isOpen={deleteConfirmation !== null}
+        title="Remove Frame?"
+        message="This frame will be removed from the book and from active representation materials."
+        confirmLabel="Remove Frame"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmation(null)}
+      />
+
+      <input
+        type="file"
+        multiple
+        accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        onChange={handleFileUpload}
+        className="book-file-input"
+        id="media-upload"
+        disabled={isUploading}
+      />
+
+      {uploadTransferError && (
+        <TransferFailureNotice
+          title="Upload interrupted"
+          body={uploadTransferError}
+          retry={{ label: 'Dismiss', onClick: () => setUploadTransferError(null) }}
+        />
+      )}
+
+      <section className="book-command-bar" aria-label="Media workspace overview">
+        <div className="book-command-title">
+          <span className="book-kicker">Media</span>
+          <h1>The Book</h1>
+          <p>Agency-facing image edit and comp card.</p>
+        </div>
+
+        <div className="book-page-meta" aria-label="Media book status">
+          <span>{localImages.length} {localImages.length === 1 ? 'frame' : 'frames'}</span>
+          <span>{marketVisibleFrames} visible</span>
+          <span>{bookState}</span>
+          <span>{selectedSet?.is_current ? 'Current edition' : selectedSetLabel}</span>
+        </div>
+
+        <div className="book-command-actions">
+          <label
+            htmlFor="media-upload"
+            className={`book-primary-action ${isUploading ? 'book-primary-action--disabled' : ''}`}
+          >
+            <Plus size={15} aria-hidden />
+            <span>{isUploading ? 'Adding...' : 'Add Images'}</span>
+          </label>
+          <button type="button" className="book-secondary-action" onClick={handleCreateSet}>
+            <FileText size={14} aria-hidden />
+            New Edition
+          </button>
+        </div>
+      </section>
+
+      <section className="book-studio" aria-label="Unified media and comp card workspace">
+        <div className="book-studio-head">
+          <div>
+            <span className="book-kicker">Curation Workspace</span>
+            <h2>Unified media edit</h2>
+          </div>
+          <p>{coverage.complete}/{coverage.total} signals / {selectedSetLabel}</p>
+        </div>
+
+        <div className="book-workbench">
+          <aside className="book-curation-panel" aria-label="Image curation controls">
+            <section className="book-panel-section book-panel-section--cover">
+              <div className="book-panel-head">
+                <span className="book-kicker">Lead</span>
+                <h3>Cover frame</h3>
+              </div>
+
+              <div className="book-cover-editor" aria-label={`${firstName}'s current cover image`}>
+                <div className="book-cover-editor__stage">
+                  {coverImage ? (
+                    <img
+                      src={getImageUrl(coverImage.public_url || coverImage.path)}
+                      alt={imageCaption(coverImage, `${firstName} portfolio cover`)}
+                      className="book-cover-editor__image"
+                      onError={markImageBroken}
+                    />
+                  ) : (
+                    <label htmlFor="media-upload" className="book-cover-editor__empty">
+                      <Upload size={22} strokeWidth={1.6} aria-hidden />
+                      <span>Add cover</span>
+                    </label>
+                  )}
+                </div>
+                <div className="book-cover-editor__footer">
+                  <span>Source</span>
+                  <strong>{coverImage ? imageDescriptor(coverImage) : 'No cover selected'}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="book-panel-section">
+              <div className="book-edit-panel" aria-label="Current portfolio edit controls">
+                <label htmlFor="book-edition-select">Edition</label>
+                <select
+                  id="book-edition-select"
+                  className="book-edition-select"
+                  value={selectedSetId}
+                  onChange={(e) => setSelectedSetId(e.target.value)}
+                  disabled={isRefreshingSets}
+                  aria-label="Select portfolio edition"
+                >
+                  <option value="">Working book</option>
+                  {mediaSets.map((setRow) => (
+                    <option key={setRow.id} value={setRow.id}>
+                      {editionLabel(setRow)}
+                      {setRow.is_current ? ' - current' : ''}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  className="book-edition-button"
+                  onClick={handleSetCurrent}
+                  disabled={!selectedSetId}
+                >
+                  Set Current
+                </button>
+              </div>
+            </section>
+
+            <section className="book-panel-section">
+              <div className="book-readiness-card">
+                <div className="book-readiness-card__top">
+                  <span>{bookState}</span>
+                  <strong>{coverage.complete}/{coverage.total}</strong>
+                </div>
+                <div className="book-readiness-card__track" aria-hidden>
+                  <motion.div
+                    className="book-readiness-card__fill"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${coverage.score}%` }}
+                    transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+                <p>{missingSignals.length ? `${missingSignals.length} visual signal${missingSignals.length === 1 ? '' : 's'} open` : 'Core visual signals covered'}</p>
+              </div>
+
+              <div className="book-signal-stack">
+                {coverage.rows.map((item) => (
+                  <div key={item.id} className={`book-signal ${item.met ? 'book-signal--met' : ''}`}>
+                    <span className="book-signal__icon" aria-hidden>
+                      {item.met ? <Check size={12} /> : <CircleDashed size={12} />}
+                    </span>
+                    <span className="book-signal__label">{item.label}</span>
+                    <span className="book-signal__detail">{item.detail}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </aside>
+
+          <main className="book-output-panel" aria-label="Comp card output studio">
+            <CompCardPreview images={localImages} />
+          </main>
+        </div>
+
+        <section className="book-sequence-panel" aria-labelledby="book-sequence-title">
+          <div className="book-section-head">
+            <div>
+              <span className="book-kicker">Sequence</span>
+              <h2 id="book-sequence-title">Image edit</h2>
+            </div>
+            <p>{localImages.length} {localImages.length === 1 ? 'frame' : 'frames'} / {marketVisibleFrames} visible</p>
+          </div>
+
+          {isLoading ? (
+            <div className="book-sequence-grid">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="book-frame-card book-frame-card--skeleton">
+                  <div className="book-frame-card__image-wrap" />
+                  <div className="book-frame-card__body" />
+                </div>
+              ))}
+            </div>
+          ) : localImages.length > 0 ? (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={localImages.map((img) => img.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="book-sequence-grid">
+                  {localImages.map((image, index) => (
+                    <motion.div
+                      key={image.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.32, delay: index * 0.035, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      <PortfolioImage
+                        image={image}
+                        index={index}
+                        onDelete={handleDelete}
+                        onEdit={setEditingImage}
+                        onSetPrimary={handleSetPrimary}
+                        settingHeroId={settingHeroId}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <motion.div
+              className="book-empty"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="book-empty__mark" aria-hidden>
+                <BookOpen size={34} strokeWidth={1.2} />
+              </div>
+              <h3>No frames yet</h3>
+              <label htmlFor="media-upload" className="book-primary-action">
+                <Plus size={15} aria-hidden />
+                <span>Add Images</span>
+              </label>
+            </motion.div>
+          )}
+        </section>
+      </section>
+    </div>
+  );
+}
