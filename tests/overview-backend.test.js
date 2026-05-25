@@ -126,3 +126,23 @@ describe("Demo seed: talent@example.com profile", () => {
     expect(res.body.data.images.length).toBeGreaterThanOrEqual(6);
   });
 });
+
+describe("Demo seed: applications", () => {
+  test("talent@example.com has 7 applications", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/applications"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.length).toBe(7);
+  });
+
+  test("applications include accepted and declined statuses", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/applications"),
+    );
+    const statuses = res.body.data.map((a) => a.status);
+    expect(statuses).toContain("accepted");
+    expect(statuses).toContain("declined");
+  });
+});

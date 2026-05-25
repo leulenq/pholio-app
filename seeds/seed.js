@@ -1,11 +1,109 @@
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 
+async function seedDemoData(knex, talentId, profileId) {
+  const now = new Date();
+  const daysAgo = (n) => new Date(now.getTime() - n * 86400000).toISOString();
+
+  // ─── Agencies ────────────────────────────────────────────────────────────
+  const agencyList = [
+    {
+      name: "Wilhelmina Models",
+      location: "New York, NY",
+      website: "https://wilhelmina.com",
+    },
+    {
+      name: "IMG Models",
+      location: "New York, NY",
+      website: "https://imgmodels.com",
+    },
+    {
+      name: "Elite Model Management",
+      location: "Paris, France",
+      website: "https://elitemodel.com",
+    },
+    {
+      name: "Ford Models",
+      location: "New York, NY",
+      website: "https://fordmodels.com",
+    },
+    {
+      name: "DNA Model Management",
+      location: "Los Angeles, CA",
+      website: "https://dnamodels.com",
+    },
+    {
+      name: "The Society Management",
+      location: "Los Angeles, CA",
+      website: "https://thesocietymanagement.com",
+    },
+    {
+      name: "Next Management",
+      location: "New York, NY",
+      website: "https://nextmanagement.com",
+    },
+    {
+      name: "Marilyn Agency",
+      location: "Paris, France",
+      website: "https://marilynagency.com",
+    },
+  ];
+
+  const agencyIds = [];
+  for (const ag of agencyList) {
+    const id = uuidv4();
+    agencyIds.push(id);
+    await knex("agencies").insert({
+      id,
+      name: ag.name,
+      location: ag.location,
+      website: ag.website,
+      status: "ACTIVE",
+    });
+  }
+
+  // ─── Applications ─────────────────────────────────────────────────────────
+  // Valid statuses: submitted, shortlisted, booked, passed, accepted, declined, archived
+  const apps = [
+    { agencyIdx: 0, status: "shortlisted", days: 3 }, // Wilhelmina
+    { agencyIdx: 6, status: "submitted", days: 5 }, // Next Management
+    { agencyIdx: 1, status: "accepted", days: 14 }, // IMG Models
+    { agencyIdx: 2, status: "submitted", days: 21 }, // Elite
+    { agencyIdx: 3, status: "booked", days: 28 }, // Ford
+    { agencyIdx: 4, status: "declined", days: 45 }, // DNA
+    { agencyIdx: 5, status: "submitted", days: 7 }, // Society
+  ];
+
+  for (const app of apps) {
+    await knex("applications").insert({
+      id: uuidv4(),
+      profile_id: profileId,
+      agency_id: agencyIds[app.agencyIdx],
+      status: app.status,
+      created_at: daysAgo(app.days),
+    });
+  }
+
+  return { agencyIds, now };
+}
+
 /**
  * @param {import('knex')} knex
  */
 exports.seed = async function seed(knex) {
   // Delete existing data (optional - comment out if you want to keep existing data)
+  await knex("applications")
+    .del()
+    .catch(() => {});
+  await knex("analytics")
+    .del()
+    .catch(() => {});
+  await knex("visitor_sessions")
+    .del()
+    .catch(() => {});
+  await knex("activities")
+    .del()
+    .catch(() => {});
   await knex("agency_memberships")
     .del()
     .catch(() => {});
@@ -238,4 +336,6 @@ exports.seed = async function seed(knex) {
   for (const img of elaraImages) {
     await knex("images").insert(img);
   }
+
+  await seedDemoData(knex, talentId, profileId);
 };
