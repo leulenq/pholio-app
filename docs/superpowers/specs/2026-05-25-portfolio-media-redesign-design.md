@@ -66,7 +66,7 @@ The page is the talent's **core visual workspace**: a single unified flow to man
 - **Type:**
   - Noto Serif Display — headings.
   - Inter — body (300 weight, generous line-height), labels.
-  - JetBrains Mono — kickers, micro labels, counts, format facts. **Must be added to the font load** (index.css currently loads Inter / Playfair Display / Noto Serif Display).
+  - JetBrains Mono — kickers, micro labels, counts, format facts. **Already loaded** (`index.css` line 2 imports Inter / Noto Serif Display / JetBrains Mono / Playfair Display) — no font change needed.
   - Scale: kicker 10–11px mono, 0.22–0.28em tracking, uppercase, gold. H1 `clamp(40px, 6vw, 72px)`. H2 `clamp(28px, 3.6vw, 44px)`. Body 15–17px / 300. Micro 10px mono.
 - **Headings:** literal serif labels, minimal flourish (user choice): "Portfolio" / "Your frames" / "Comp card". Mono kickers retained. (One-italic-word grammar is *not* forced here.)
 - **Buttons:** primary = solid gold `#C9A55A`, ink text, ~2px corners, hover color-shift to `#D4BC8A` (no scale, no shadow lift). Secondary = 1px hairline outline, ink text, hover darkens border (no scale).
@@ -133,7 +133,6 @@ Centered wrap, max-width ~1200px, padding 48px desktop / 24px mobile. Global top
 ### Edited
 - `App.jsx`: remove the `pdf-customizer` route + import.
 - `OverviewPage/index.jsx:464`: repoint link to `/dashboard/talent/media`.
-- `index.css` (or font loader): add JetBrains Mono.
 
 ### Reused unchanged
 - `useMedia` hook (upload/delete/reorder/setHero/replaceImage). Sets-related methods remain in the hook but are simply not called by this page.
