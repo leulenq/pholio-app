@@ -7,6 +7,7 @@ import { useFlash } from '../../hooks/useFlash';
 import { getTalentHeaderTone } from '../../utils/talentHeaderTone';
 import { TALENT_NAV_SECTIONS } from '../../constants/talentNav';
 import { talentApi } from '../../../domains/talent/api/talent';
+import { postLogoutAndRedirectToMarketing } from '../../lib/logout';
 import './TalentLayout.css';
 
 export default function TalentLayout({ outletContext = {}, children }) {
@@ -103,38 +104,7 @@ export default function TalentLayout({ outletContext = {}, children }) {
   }, [isAccountOpen, isNotificationsOpen]);
 
   const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/logout', {
-        method: 'POST',
-        headers: { Accept: 'application/json' },
-      });
-
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        const redirectValue = typeof data.redirect === 'string' ? data.redirect : '';
-        let safeRedirect = '';
-
-        if (redirectValue.startsWith('/') && !redirectValue.startsWith('//')) {
-          safeRedirect = redirectValue;
-        } else if (redirectValue) {
-          try {
-            const parsed = new URL(redirectValue, window.location.origin);
-            if (parsed.origin === window.location.origin) {
-              safeRedirect = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-            }
-          } catch {
-            safeRedirect = '';
-          }
-        }
-
-        window.location.href = safeRedirect || 'https://www.pholio.studio';
-        return;
-      }
-    } catch {
-      // Fall back below.
-    }
-
-    window.location.href = 'https://www.pholio.studio';
+    await postLogoutAndRedirectToMarketing();
   };
 
   return (

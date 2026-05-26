@@ -16,6 +16,7 @@ import { talentApi } from '../../../domains/talent/api/talent';
 
 
 import { checkGatingStatus } from '../../utils/profileGating';
+import { postLogoutAndRedirectToMarketing } from '../../lib/logout';
 
 function trapFocusWithin(event, container) {
   if (event.key !== 'Tab' || !container) return;
@@ -184,42 +185,7 @@ export default function Header() {
       e.preventDefault();
       e.stopPropagation();
     }
-    
-    try {
-      const response = await fetch('/api/logout', { 
-        method: 'POST',
-        headers: { 'Accept': 'application/json' }
-      });
-      
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        const redirectValue = typeof data.redirect === 'string' ? data.redirect : '';
-        let safeRedirect = '';
-        if (redirectValue.startsWith('/') && !redirectValue.startsWith('//')) {
-          safeRedirect = redirectValue;
-        } else if (redirectValue) {
-          try {
-            const parsed = new URL(redirectValue, window.location.origin);
-            if (parsed.origin === window.location.origin) {
-              safeRedirect = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-            }
-          } catch {
-            safeRedirect = '';
-          }
-        }
-        window.location.href = safeRedirect || 'https://www.pholio.studio';
-      } else {
-        if (import.meta.env.DEV) {
-          console.error('Logout failed with status:', response.status);
-        }
-        window.location.href = 'https://www.pholio.studio';
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Logout failed:', error);
-      }
-      window.location.href = 'https://www.pholio.studio';
-    }
+    await postLogoutAndRedirectToMarketing();
   };
 
   return (

@@ -807,14 +807,10 @@ router.post(["/logout", "/api/logout"], (req, res) => {
     req.headers.accept && req.headers.accept.includes("application/json");
   const redirectUrl =
     process.env.MARKETING_SITE_URL || "https://www.pholio.studio";
-  const appLoginUrl =
-    process.env.NODE_ENV === "production"
-      ? "/login"
-      : "http://localhost:5173/login";
 
   if (!req.session) {
     if (isJson) {
-      return res.json({ success: true, redirect: appLoginUrl });
+      return res.json({ success: true, redirect: redirectUrl });
     }
     return res.redirect(redirectUrl);
   }
@@ -827,7 +823,7 @@ router.post(["/logout", "/api/logout"], (req, res) => {
     res.clearCookie("connect.sid");
 
     if (isJson) {
-      return res.json({ success: true, redirect: appLoginUrl });
+      return res.json({ success: true, redirect: redirectUrl });
     }
 
     res.redirect(redirectUrl);

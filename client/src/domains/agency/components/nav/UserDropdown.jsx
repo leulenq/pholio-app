@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import { auth } from '../../../../shared/lib/firebase';
 import { InlineErrorText } from '../../../../shared/components/states';
+import { postLogoutAndRedirectToMarketing } from '../../../../shared/lib/logout';
 import './UserDropdown.css';
 
 function getInitials(name) {
@@ -59,18 +60,8 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
     try {
       await signOut(auth).catch(() => {});
 
-      const response = await fetch('/api/logout', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { Accept: 'application/json' },
-      });
-
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        window.location.href = data.redirect || '/login';
-      } else {
-        throw new Error('Sign-out did not complete on the server');
-      }
+      await postLogoutAndRedirectToMarketing();
+      return;
     } catch (error) {
       console.error('Logout failed:', error);
       const message = error?.message || 'Sign-out failed. Try again.';
