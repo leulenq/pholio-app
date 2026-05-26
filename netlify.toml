@@ -1,7 +1,7 @@
 [build]
   # Run patch script first (strips browser fields from iconv-lite/readable-stream/pg
   # and silences extend-node.js) so esbuild bundles server-side versions correctly.
-  command = "node scripts/patch-express.js && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
+  command = "node scripts/patch-express.js && npm run build:function && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
   publish = "public"
 
 [build.environment]
@@ -9,7 +9,9 @@
   NPM_FLAGS = "--include=optional"
 
 [functions]
-  directory = "netlify/function"
+  # Use pre-built function bundle to avoid Netlify esbuild bundler differences
+  # (especially around optional deps like ejs).
+  directory = "netlify/function-built"
   # esbuild resolves directory requires (e.g. require('./router'), require('./util/nullUndefinedCheck'))
   # at bundle time, eliminating the entire class of nft trace bugs.
   node_bundler = "esbuild"
