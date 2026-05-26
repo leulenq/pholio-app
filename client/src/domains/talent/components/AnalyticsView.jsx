@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -197,8 +196,204 @@ function IntelMasthead({ profile, summary, subscription, appsCount, appsLoading,
   );
 }
 
-function ReachChapter()   { return null; }
-function SignalChapter()  { return null; }
+function ReachChapter({ timeseries, analytics, isPro }) {
+  const viewsData       = analytics?.views    || {};
+  const downloadsData   = analytics?.downloads || {};
+  const sourceBreakdown = asArray(viewsData.latestSourceBreakdown);
+  const byTheme         = asArray(downloadsData.byTheme);
+  const downloadsTotal  = asNum(downloadsData.total);
+
+  const chartData = asArray(timeseries).map(item => ({
+    date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    views: asNum(item.views),
+    ...(isPro && { downloads: asNum(item.downloads) }),
+  }));
+
+  return (
+    <motion.section className="intel-chapter" {...CHAPTER_MOTION}>
+      <ChapterHeader
+        number={1} slug="Reach" title="Reach."
+        lede="How far your profile travels and where it lands."
+      />
+
+      <div className="reach-chart-wrap">
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={chartData} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="reach-views-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#C9A55A" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#C9A55A" stopOpacity={0}    />
+              </linearGradient>
+              {isPro && (
+                <linearGradient id="reach-dl-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.12} />
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}    />
+                </linearGradient>
+              )}
+            </defs>
+            <XAxis
+              dataKey="date" axisLine={false} tickLine={false}
+              tick={{ fontSize: 10, fill: 'rgba(26,26,26,0.36)', fontFamily: 'JetBrains Mono' }}
+            />
+            <Tooltip contentStyle={{
+              background: '#fff', border: 'none', borderRadius: 8,
+              fontSize: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+            }} />
+            {isPro && <Legend wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />}
+            <Area type="monotone" dataKey="views"
+              stroke="#C9A55A" strokeWidth={1.5} fill="url(#reach-views-fill)"
+              name="Views" dot={false} />
+            {isPro && (
+              <Area type="monotone" dataKey="downloads"
+                stroke="#6366f1" strokeWidth={1.5} fill="url(#reach-dl-fill)"
+                name="Downloads" dot={false} />
+            )}
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="reach-stat-row">
+        <div className="reach-stat">
+          <span className="reach-stat-val">{asNum(viewsData.thisWeek).toLocaleString()}</span>
+          <span className="reach-stat-label">Views This Week</span>
+        </div>
+        <div className="reach-stat">
+          <span className="reach-stat-val">{asNum(downloadsData.thisMonth ?? downloadsData.total).toLocaleString()}</span>
+          <span className="reach-stat-label">Downloads (30d)</span>
+        </div>
+        <div className="reach-stat">
+          <span className="reach-stat-val">{byTheme[0]?.theme ?? '—'}</span>
+          <span className="reach-stat-label">Top Comp Card Theme</span>
+        </div>
+      </div>
+
+      {isPro ? (
+        <>
+          <div className="reach-source-bars">
+            {sourceBreakdown.length > 0 ? sourceBreakdown.map(src => (
+              <div key={src.label} className="reach-source-bar-row">
+                <span className="reach-source-label">{src.label}</span>
+                <div className="reach-source-track">
+                  <div className="reach-source-fill" style={{ width: `${src.percentage}%` }} />
+                </div>
+                <span className="reach-source-pct">{src.percentage}%</span>
+                <span className="reach-source-count">({src.count})</span>
+              </div>
+            )) : (
+              <span style={{ fontSize: 13, color: 'rgba(26,26,26,0.36)' }}>Accumulating source data…</span>
+            )}
+          </div>
+          {byTheme.length > 0 && (
+            <div className="reach-theme-table">
+              <div className="reach-theme-header">
+                <span>Comp Card Theme</span><span>Downloads</span><span>Share</span>
+              </div>
+              {byTheme.map(t => (
+                <div key={t.theme} className="reach-theme-row">
+                  <span>{t.theme || 'Unknown'}</span>
+                  <span>{t.count}</span>
+                  <span>{downloadsTotal > 0 ? Math.round((t.count / downloadsTotal) * 100) : 0}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="reach-pill-row">
+          {sourceBreakdown.length > 0 ? sourceBreakdown.map(src => (
+            <span key={src.label} className="reach-pill">{src.label} · {src.percentage}%</span>
+          )) : (
+            <span className="reach-pill reach-pill--empty">Accumulating source data…</span>
+          )}
+          <a href="/pricing" className="reach-upgrade-link">See full breakdown →</a>
+        </div>
+      )}
+    </motion.section>
+  );
+}
+
+function SignalChapter({ analytics, sessions, detailedStats, isPro }) {
+  const viewsTotal       = asNum(analytics?.views?.total);
+  const engagementCounts = analytics?.engagement?.counts || {};
+  const funnel           = computeFunnel(engagementCounts, viewsTotal);
+  const interpretation   = computeInterpretation(funnel.bioReadPct, funnel.contactPct);
+  const returnRate       = asNum(detailedStats?.retention?.value);
+
+  const funnelBars = [
+    { label: 'Profile Views',  pct: 100 },
+    { label: 'Bio Reads',      pct: funnel.bioReadPct },
+    { label: 'Contact Clicks', pct: funnel.contactPct },
+  ];
+
+  return (
+    <motion.section className="intel-chapter" {...CHAPTER_MOTION}>
+      <ChapterHeader
+        number={2} slug="Signal" title="Signal."
+        lede="How visitors engage when they land — and where they go next."
+      />
+
+      <div className="signal-funnel">
+        {funnelBars.map(bar => (
+          <div key={bar.label} className="signal-funnel-bar">
+            <span className="signal-funnel-name">{bar.label}</span>
+            <div className="signal-funnel-track">
+              <motion.div
+                className="signal-funnel-fill"
+                initial={{ width: 0 }}
+                animate={{ width: `${bar.pct}%` }}
+                transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+              />
+            </div>
+            <span className="signal-funnel-pct">{bar.pct}%</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="signal-stat-chips">
+        <div className="signal-stat-chip">
+          <span className="signal-chip-value">{funnel.bioReadPct}%</span>
+          <span className="signal-chip-label">Bio Read Rate</span>
+        </div>
+        <div className="signal-stat-chip">
+          <span className="signal-chip-value">{funnel.contactPct}%</span>
+          <span className="signal-chip-label">Contact Rate</span>
+        </div>
+        <div className="signal-stat-chip">
+          <span className="signal-chip-value">{asNum(engagementCounts.scroll_depth)}</span>
+          <span className="signal-chip-label">Scroll Events</span>
+        </div>
+      </div>
+
+      <p className="signal-interpretation">{interpretation}</p>
+
+      {isPro ? (
+        <div className="signal-pro-row">
+          <SessionsBarChart data={sessions} />
+          <div className="signal-return-card">
+            <span className="signal-return-label">Return Visitor Rate</span>
+            <span className="signal-return-value">{returnRate}%</span>
+            <span className="signal-return-desc">
+              {returnRate >= 30
+                ? 'Strong retention — agencies are coming back to review your profile.'
+                : 'Growing your retention means agencies are considering you over time.'}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="signal-locked">
+          <div className="signal-lock-card-inner">
+            <Lock size={20} className="signal-locked-icon" aria-hidden={true} />
+            <span className="signal-locked-label">Studio+ · When agencies view you</span>
+            <p className="signal-locked-copy">
+              See which hours your profile gets the most attention — and plan your updates accordingly.
+            </p>
+            <a href="/pricing" className="signal-locked-link">Upgrade to Studio+</a>
+          </div>
+        </div>
+      )}
+    </motion.section>
+  );
+}
 function MarketChapter()  { return null; }
 function PatternChapter() { return null; }
 function ActivityFeed()   { return null; }
@@ -209,6 +404,7 @@ export default function AnalyticsView() {
     new URLSearchParams(window.location.search).get('debug') === 'pro');
   const [timeRange, setTimeRange] = useState(7);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isPro) setTimeRange(prev => (prev === 7 ? 30 : prev));
   }, [isPro]);
 
