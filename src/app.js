@@ -17,6 +17,7 @@ const cookieParser = require("cookie-parser");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
 
 // +++ 1. ADD THIS LINE +++
+const ejs = require("ejs");
 const ejsLayouts = require("express-ejs-layouts");
 
 const authRoutes = require("./domains/auth/routes/auth");
@@ -114,6 +115,8 @@ app.set("trust proxy", true);
 
 // +++ 2. SET UP THE NEW LAYOUT ENGINE +++
 app.use(ejsLayouts);
+// Register explicitly so Netlify's esbuild bundle resolves ejs (dynamic require in express/lib/view.js fails otherwise).
+app.engine("ejs", ejs.__express);
 app.set("view engine", "ejs");
 // In serverless (Lambda), __dirname is the bundle root (/var/task) and included_files
 // puts views/ directly there. In local dev, __dirname is src/ so we go up one level.

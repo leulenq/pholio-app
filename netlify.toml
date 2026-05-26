@@ -26,7 +26,9 @@
     "bcrypt", "sharp", "puppeteer", "@sparticuz/chromium", "better-sqlite3", "sqlite3",
     "mysql", "mysql2", "tedious", "oracledb", "mssql",
     "fsevents", "pg-native", "pg-query-stream",
-    "firebase-admin"
+    "firebase-admin",
+    # EJS uses dynamic requires; must ship from node_modules, not esbuild bundle.
+    "ejs", "express-ejs-layouts"
   ]
 
 ##
@@ -35,6 +37,21 @@
 #
 # This prevents a total-site 404 when the function is temporarily unavailable.
 ##
+
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/dashboard-app/favicon.svg"
+  status = 200
+
+[[redirects]]
+  from = "/favicon.svg"
+  to = "/dashboard-app/favicon.svg"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon.svg"
+  to = "/dashboard-app/apple-touch-icon.svg"
+  status = 200
 
 [[redirects]]
   from = "/api/*"

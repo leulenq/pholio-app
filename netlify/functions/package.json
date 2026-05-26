@@ -1,0 +1,10 @@
+{
+  "name": "pholio-netlify-server",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "ejs": "3.1.10",
+    "express-ejs-layouts": "2.5.1",
+    "serverless-http": "3.2.0"
+  }
+}
