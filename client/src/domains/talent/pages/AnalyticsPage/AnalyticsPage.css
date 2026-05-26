@@ -934,12 +934,13 @@
 }
 
 /* ── Activity Feed ───────────────────────────────────────────────────────── */
+/* Scoped under .analytics-page to prevent collision with global analytics.css */
 
-.activity-feed { padding-top: 48px; }
+.analytics-page .activity-feed { padding-top: 48px; }
 
-.activity-feed-header { margin-bottom: 32px; }
+.analytics-page .activity-feed-header { margin-bottom: 32px; }
 
-.activity-feed-title {
+.analytics-page .activity-feed-title {
   font-family: 'Noto Serif Display', Georgia, serif;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   font-weight: 400;
@@ -948,9 +949,9 @@
   margin: 0;
 }
 
-.activity-list { display: flex; flex-direction: column; }
+.analytics-page .activity-list { display: flex; flex-direction: column; }
 
-.activity-item {
+.analytics-page .activity-item {
   display: grid;
   grid-template-columns: 32px 1fr;
   gap: 12px;
@@ -959,15 +960,15 @@
   align-items: start;
 }
 
-.activity-item:last-child { border-bottom: none; }
+.analytics-page .activity-item:last-child { border-bottom: none; }
 
-.activity-rule {
+.analytics-page .activity-rule {
   height: 1px;
   background: rgba(26,26,26,0.06);
   margin: 0;
 }
 
-.activity-icon {
+.analytics-page .activity-icon {
   width: 32px; height: 32px;
   border-radius: 8px;
   background: rgba(201,165,90,0.08);
@@ -979,7 +980,7 @@
   flex-shrink: 0;
 }
 
-.activity-desc {
+.analytics-page .activity-desc {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   color: rgba(26,26,26,0.72);
@@ -987,7 +988,7 @@
   margin-bottom: 4px;
 }
 
-.activity-time {
+.analytics-page .activity-time {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -1015,7 +1016,6 @@
 }
 
 @media (max-width: 640px) {
-  .intel-masthead-top { flex-direction: column; }
   .intel-kpi-row { grid-template-columns: 1fr; }
   .intel-body { padding: 24px 20px 48px; }
   .reach-stat-row { grid-template-columns: 1fr; }
