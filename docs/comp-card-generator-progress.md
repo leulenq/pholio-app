@@ -241,3 +241,21 @@ Files:
 Files:
 
 - `src/domains/pdf/routes/pdf.js`
+
+### 12) Preset export/import APIs (backend-only)
+
+- Added preset export endpoint:
+  - `GET /api/pdf/presets/:slug/:presetId/export`
+  - Returns versioned, portable payload for seed/layout/style/locks.
+- Added preset import endpoint:
+  - `POST /api/pdf/presets/:slug/import`
+  - Supports payload import with optional `overwriteExisting` by preset name.
+  - Uses transactional writes + revision entries (`import-create` / `import-overwrite`).
+- Extended preset response shape with a normalized `payload` object for portability.
+
+Files:
+
+- `src/domains/pdf/routes/pdf.js`
+- `src/domains/pdf/presets.js`
+- `src/domains/pdf/__tests__/presets.test.js`
+- `tests/app.test.js`

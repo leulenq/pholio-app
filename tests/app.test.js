@@ -225,6 +225,31 @@ describe("ZipSite application", () => {
     expect(rollbackResponse.body.preset.name).toBe("Board A");
     expect(rollbackResponse.body.preset.seed).toBe("seed:board-a");
 
+    const exportResponse = await agent.get(
+      `/api/pdf/presets/${profile.slug}/${presetId}/export`,
+    );
+    expect(exportResponse.status).toBe(200);
+    expect(exportResponse.body.ok).toBe(true);
+    expect(exportResponse.body.preset.payload).toEqual(
+      expect.objectContaining({
+        name: "Board A",
+        seed: "seed:board-a",
+      }),
+    );
+
+    const importResponse = await agent
+      .post(`/api/pdf/presets/${profile.slug}/import`)
+      .send({
+        payload: {
+          ...exportResponse.body.preset.payload,
+          name: "Board Imported",
+        },
+      });
+    expect(importResponse.status).toBe(201);
+    expect(importResponse.body.ok).toBe(true);
+    expect(importResponse.body.status).toBe("created");
+    expect(importResponse.body.preset.name).toBe("Board Imported");
+
     const deleteResponse = await agent.delete(
       `/api/pdf/presets/${profile.slug}/${presetId}`,
     );

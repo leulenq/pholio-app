@@ -4,6 +4,7 @@ const {
   mapPresetRevisionRow,
   snapshotFromPresetRow,
   toPresetQuery,
+  toPresetPayload,
 } = require("../presets");
 
 describe("comp-card presets helpers", () => {
@@ -49,6 +50,14 @@ describe("comp-card presets helpers", () => {
 
     const mapped = mapPresetRow(row);
     expect(mapped.lockGridIds).toEqual(["img-1", "img-2", null, null]);
+    expect(mapped.payload).toEqual({
+      name: "Board One",
+      seed: "seed:abc",
+      layoutFamily: "mosaic-horizontal",
+      styleVariant: "linework",
+      lockHeroId: "img-hero",
+      lockGridIds: ["img-1", "img-2", null, null],
+    });
     expect(mapped.query).toEqual({
       seed: "seed:abc",
       layoutFamily: "mosaic-horizontal",
@@ -57,6 +66,7 @@ describe("comp-card presets helpers", () => {
       lockGridIds: "img-1,img-2",
     });
     expect(toPresetQuery(row)).toEqual(mapped.query);
+    expect(toPresetPayload(row)).toEqual(mapped.payload);
     expect(snapshotFromPresetRow(row)).toEqual({
       name: "Board One",
       seed: "seed:abc",
