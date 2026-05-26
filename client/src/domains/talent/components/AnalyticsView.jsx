@@ -1,535 +1,261 @@
 import React, { useState } from 'react';
+// eslint-disable-next-line no-unused-vars
+import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import {
+  AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
+import {
+  Eye, Download, Briefcase, TrendingUp, Lock, Activity,
+  CheckCircle, FileText,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
-} from 'recharts';
-import { Sparkles, Check, Download, Settings } from 'lucide-react';
-
-// Import detailed components (Studio+)
-import MetricCardDetailed from './MetricCardDetailed';
-import SessionsBarChart from './SessionsBarChart';
+import { talentApi } from '../api/talent';
 import CohortHeatmap from './CohortHeatmap';
+import SessionsBarChart from './SessionsBarChart';
 
-// Import free tier components
-import WeeklyBarChart from './WeeklyBarChart';
-import InsightCard from './InsightCard';
-import { EmptyErrorState } from '../../../shared/components/states';
+const CHAPTER_MOTION = {
+  initial: { opacity: 0, y: 24 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+};
 
+const GHOST_OPACITIES = [
+  0.12, 0.45, 0.65, 0.28, 0.08, 0.22,
+  0.55, 0.32, 0.75, 0.18, 0.42, 0.60,
+  0.80, 0.25, 0.14, 0.68, 0.38, 0.22,
+  0.10, 0.52, 0.30, 0.48, 0.62, 0.20,
+];
 
-function IntelMasthead() {
-  return (
-    <header className="intel-hero">
-      <div className="intel-hero__copy">
-        <span className="intel-kicker">Intel</span>
-        <h1 className="intel-title">
-          The <em>Intel.</em>
-        </h1>
-        <p className="intel-lede">
-          Profile views, comp card downloads, and the signals agencies leave behind.
-        </p>
-      </div>
-    </header>
-  );
+const STATUS_LABELS = {
+  PENDING: 'Pending', REVIEWING: 'Reviewing',
+  ACCEPTED: 'Accepted', DECLINED: 'Declined',
+};
+
+const STATUS_CLASS = {
+  PENDING: 'market-status-pill--pending', REVIEWING: 'market-status-pill--reviewing',
+  ACCEPTED: 'market-status-pill--accepted', DECLINED: 'market-status-pill--declined',
+};
+
+const ACTIVITY_ICONS = {
+  view: Eye, download: Download, application: CheckCircle, profile_update: FileText,
+};
+
+function asNum(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
-/**
- * Single Stat Card Component (Enhanced for free users)
- */
-function StatCard({ title, value, subtext, trend, icon }) {
-  const getIcon = () => {
-    if (icon) return icon;
-    if (title.includes('View')) return '👁️';
-    if (title.includes('Download')) return '📄';
-    if (title.includes('Complete')) return '✓';
-    return '📊';
-  };
+function asArray(v) {
+  return Array.isArray(v) ? v : [];
+}
 
-  const getTrendColor = () => {
-    if (trend === undefined || trend === 0) return 'text-slate-400';
-    return trend > 0 ? 'text-emerald-600' : 'text-slate-400';
-  };
+// eslint-disable-next-line react-refresh/only-export-components
+export function computeFunnel(engagementCounts, viewsTotal) {
+  const bioReads      = asNum(engagementCounts?.bio_read);
+  const contactClicks = asNum(engagementCounts?.social_click) + asNum(engagementCounts?.portfolio_click);
+  const bioReadPct    = viewsTotal > 0 ? Math.round((bioReads      / viewsTotal) * 100) : 0;
+  const contactPct    = viewsTotal > 0 ? Math.round((contactClicks / viewsTotal) * 100) : 0;
+  return { bioReads, bioReadPct, contactClicks, contactPct };
+}
 
-  const getTrendIcon = () => {
-    if (trend === undefined || trend === 0) return '→';
-    return trend > 0 ? '↑' : '↓';
-  };
+// eslint-disable-next-line react-refresh/only-export-components
+export function computeInterpretation(bioReadPct, contactPct) {
+  if (bioReadPct === 0 && contactPct === 0)
+    return 'Build up your profile to start collecting engagement signals.';
+  if (bioReadPct >= 50 && contactPct < 10)
+    return 'Most visitors read your bio — fewer click through. Strengthen your social links or portfolio URL.';
+  if (bioReadPct < 20)
+    return "Visitors aren't reaching your bio. A stronger headline or cover image may help pull them in.";
+  if (contactPct >= 20)
+    return 'Strong contact rate — visitors are actively looking for ways to reach you.';
+  return 'Solid engagement. Keep your bio and contact links current for best results.';
+}
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function computeCohortSummary(cohorts) {
+  const list = asArray(cohorts);
+  if (list.length === 0) return { avgW1Retention: 0, bestCohortLabel: '—', totalUnique: 0 };
+  const w1Values = list.map(c => asNum(c.retention?.[1])).filter(v => v > 0);
+  const avgW1Retention = w1Values.length > 0
+    ? Math.round(w1Values.reduce((a, b) => a + b, 0) / w1Values.length) : 0;
+  const bestIdx = list.reduce(
+    (best, c, i) => asNum(c.retention?.[1]) > asNum(list[best]?.retention?.[1]) ? i : best, 0,
+  );
+  const bestCohortLabel = list[bestIdx]?.label ?? '—';
+  const totalUnique     = list.reduce((sum, c) => sum + asNum(c.users ?? c.count), 0);
+  return { avgW1Retention, bestCohortLabel, totalUnique };
+}
+
+function applicationsArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload?.data && Array.isArray(payload.data)) return payload.data;
+  return [];
+}
+
+function ChapterHeader({ number, slug, title, lede }) {
   return (
-    <div className="stat-card enhanced">
-      <div className="stat-header">
-        <div className="stat-icon-badge">{getIcon()}</div>
-        <h3 className="stat-title">{title}</h3>
-      </div>
-      <div className="stat-body">
-        <span className="stat-value-enhanced">{value}</span>
-        {trend !== undefined && (
-           <div className={`stat-trend-enhanced ${getTrendColor()}`}>
-             <span className="trend-arrow">{getTrendIcon()}</span>
-             <span className="trend-text">{Math.abs(trend)} this week</span>
-           </div>
-        )}
-      </div>
-      {subtext && <p className="stat-subtext">{subtext}</p>}
+    <div className="intel-chapter-header">
+      <span className="intel-chapter-kicker">
+        {number != null ? `${String(number).padStart(2, '0')} · ` : ''}{slug}
+      </span>
+      <h2 className="intel-chapter-title">The <em>{title}</em></h2>
+      {lede && <p className="intel-chapter-lede">{lede}</p>}
     </div>
   );
 }
 
-/**
- * Activity Item Component
- */
-function ActivityItem({ activity }) {
-    const getIcon = (type) => {
-        switch(type) {
-            case 'view': return '👁️';
-            case 'download': return '📄';
-            default: return '✨';
-        }
-    };
-
-   return (
-     <div className="activity-item">
-       <div className="activity-icon">
-         {activity.icon || getIcon(activity.type)}
-       </div>
-       <div className="activity-content">
-          <p className="activity-message">{activity.message}</p>
-          <p className="activity-time">{activity.timeAgo}</p>
-       </div>
-     </div>
-   );
-}
-
-/**
- * Performance Chart Component
- */
-function PerformanceChart({ data, timeRange = 30 }) {
-  // Handle empty data
-  if (!data || data.length === 0) {
-    return (
-      <div className="chart-empty-state">
-        <p>Not enough data to display trends yet. Keep building your profile!</p>
-      </div>
-    );
-  }
-
-  // Format data for Recharts
-  const chartData = data.map(item => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    views: item.views || 0,
-    downloads: item.downloads || 0
-  }));
-
-  // Get time range label
-  const timeRangeLabel = timeRange === 7 ? 'Last 7 days' : timeRange === 30 ? 'Last 30 days' : 'Last 90 days';
-
-  return (
-    <div className="performance-chart-container">
-      <div className="chart-header">
-        <h3 className="chart-title">Growth Analytics</h3>
-        <span className="chart-subtitle">{timeRangeLabel}</span>
-      </div>
-      <ResponsiveContainer width="100%" height={320}>
-        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#C9A55A" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#C9A55A" stopOpacity={0}/>
-            </linearGradient>
-            <linearGradient id="colorDownloads" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-          <XAxis 
-            dataKey="date" 
-            axisLine={false}
-            tickLine={false}
-            stroke="#94a3b8"
-            style={{ fontSize: '0.75rem' }}
-          />
-          <YAxis 
-            axisLine={false}
-            tickLine={false}
-            stroke="#94a3b8"
-            style={{ fontSize: '0.75rem' }}
-          />
-          <Tooltip 
-            contentStyle={{
-              backgroundColor: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '0.875rem',
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
-            }}
-          />
-          <Legend 
-            wrapperStyle={{ fontSize: '0.875rem', paddingTop: '1rem' }}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="views" 
-            stroke="#C9A55A" 
-            strokeWidth={2}
-            fillOpacity={1} 
-            fill="url(#colorViews)"
-            name="Profile Views"
-          />
-          <Area 
-            type="monotone" 
-            dataKey="downloads" 
-            stroke="#6366f1" 
-            strokeWidth={2}
-            fillOpacity={1} 
-            fill="url(#colorDownloads)"
-            name="Comp Card Downloads"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-/**
- * Time Range Selector Component
- */
-function TimeRangeSelector({ value, onChange, isStudioPlus }) {
+function TimeRangeSelector({ value, onChange, isPro }) {
   const ranges = [
-    { value: 7, label: '7 Days', proOnly: false },
-    { value: 30, label: '30 Days', proOnly: true },
-    { value: 90, label: '90 Days', proOnly: true }
+    { label: '7d',  days: 7,  proOnly: false },
+    { label: '30d', days: 30, proOnly: true  },
+    { label: '90d', days: 90, proOnly: true  },
   ];
-
   return (
-    <div className="time-range-selector">
-      {ranges.map(range => (
+    <div className="intel-time-range">
+      {ranges.map(r => (
         <button
-          key={range.value}
-          className={`time-range-btn ${value === range.value ? 'active' : ''}`}
-          onClick={() => onChange(range.value)}
-          disabled={range.proOnly && !isStudioPlus}
-          title={range.proOnly && !isStudioPlus ? 'Studio+ required' : ''}
+          key={r.days}
+          className={`intel-time-btn${value === r.days ? ' intel-time-btn--active' : ''}`}
+          onClick={() => onChange(r.days)}
+          disabled={r.proOnly && !isPro}
+          aria-label={`Show ${r.label} analytics`}
         >
-          {range.label}
-          {range.proOnly && !isStudioPlus && <span className="lock-icon">🔒</span>}
+          {r.label}
+          {r.proOnly && !isPro && <Lock size={9} className="intel-time-lock" aria-hidden />}
         </button>
       ))}
     </div>
   );
 }
 
-/**
- * Upgrade Banner Component (Refined for Free Users)
- */
-function UpgradeBanner() {
+function HeroKPIRow({ views, viewsDelta, downloads, completeness, appsCount, appsLoading, isPro, isLoading }) {
+  const kpis = [
+    { label: 'Profile Views',        value: isLoading   ? '—' : views.toLocaleString(),    delta: isPro ? viewsDelta : null, Icon: Eye        },
+    { label: 'Comp Card Downloads',  value: isLoading   ? '—' : downloads.toLocaleString(), delta: null,                     Icon: Download   },
+    { label: 'Agency Submissions',   value: appsLoading ? '—' : String(appsCount),          delta: null,                     Icon: Briefcase  },
+    { label: 'Visibility Score',     value: isLoading   ? '—' : `${completeness}%`,         delta: null,                     Icon: TrendingUp },
+  ];
   return (
-    <div className="upgrade-banner editorial">
-      <div className="upgrade-header">
-        <h3 className="editorial-title" style={{ fontFamily: 'var(--font-display)' }}>
-          Ready for Deeper Insights?
-        </h3>
-        <p className="editorial-subtitle">
-          Studio+ unlocks 90-day history, advanced breakdowns, and export capabilities.
-        </p>
-      </div>
-
-      <div className="premium-benefits-flex">
-         {[
-           '90-Day Analytics',
-           'Source Breakdowns',
-           'Cohort Analysis',
-           'Export Reports'
-         ].map((benefit, i) => (
-           <div key={i} className="benefit-pill">
-              <Check size={14} className="text-[#C9A55A]" />
-              <span>{benefit}</span>
-           </div>
-         ))}
-      </div>
-
-      <button className="upgrade-action-editorial" onClick={() => window.location.href = '/pricing'}>
-        Upgrade to Studio+
-      </button>
+    <div className="intel-kpi-row">
+      {kpis.map(({ label, value, delta, Icon }) => (
+        <div key={label} className="intel-kpi">
+          <Icon size={14} className="intel-kpi-icon" aria-hidden />
+          <span className="intel-kpi-label">{label}</span>
+          <span className="intel-kpi-value">{value}</span>
+          {isPro && delta !== null && delta !== 0 && (
+            <span className={`intel-kpi-delta ${delta > 0 ? 'intel-kpi-delta--up' : 'intel-kpi-delta--down'}`}>
+              {delta > 0 ? '↑' : '↓'} {Math.abs(delta)}%
+            </span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
 
-export default function AnalyticsView() {
-  const { subscription } = useAuth();
-  const searchParams = new URLSearchParams(window.location.search);
-  
-  // Customization State
-  const [isCustomizing, setIsCustomizing] = useState(false);
-  const [visibleWidgets, setVisibleWidgets] = useState({
-    sessions: true,
-    cohorts: true,
-    performance: true
-  });
+function IntelMasthead({ profile, summary, subscription, appsCount, appsLoading, timeRange, onTimeRangeChange, isLoading }) {
+  const isPro        = !!subscription?.isPro;
+  const views        = asNum(summary?.views?.total);
+  const viewsDelta   = asNum(summary?.views?.changePct ?? summary?.views?.changePercent ?? summary?.views?.deltaPct);
+  const downloads    = asNum(summary?.downloads?.total);
+  const completeness = asNum(summary?.completeness?.percentage);
+  const profileId    = profile?.id?.slice(0, 3)?.toUpperCase() ?? '···';
 
-  const toggleWidget = (widget) => {
-    setVisibleWidgets(prev => ({
-      ...prev,
-      [widget]: !prev[widget]
-    }));
-  };
-  const isDebugPro = searchParams.get('debug') === 'pro';
-  const isStudioPlus = subscription?.isPro || isDebugPro || false;
-  
-  // Default to 7 days for free users, 30 days for Studio+ users
-  const [timeRange, setTimeRange] = useState(isStudioPlus ? 30 : 7);
-  
-  const { analytics, activities, summary, timeseries, detailedStats, insights, sessions, cohorts, isLoading, isError, refetch } = useAnalytics(timeRange, { includeAdvanced: true });
+  return (
+    <header className="intel-masthead">
+      <div className="intel-masthead-inner">
+        <div className="intel-masthead-top">
+          <div className="intel-masthead-copy">
+            <span className="intel-kicker">Intel · PH-{profileId}</span>
+            {isLoading
+              ? <div className="intel-skel intel-skel--title" aria-hidden />
+              : <h1 className="intel-display">The <em>Intel.</em></h1>}
+            <p className="intel-lede">Profile signals, agency interest, and performance intelligence.</p>
+            <span className={`intel-tier-pill${isPro ? ' intel-tier-pill--studio' : ''}`}>
+              {isPro ? 'Studio+ Member' : 'Free'}
+            </span>
+          </div>
+          <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} isPro={isPro} />
+        </div>
+
+        <HeroKPIRow
+          views={views}
+          viewsDelta={viewsDelta}
+          downloads={downloads}
+          completeness={completeness}
+          appsCount={appsCount}
+          appsLoading={appsLoading}
+          isPro={isPro}
+          isLoading={isLoading}
+        />
+      </div>
+      <div className="intel-hairline" />
+    </header>
+  );
+}
+
+function ReachChapter()   { return null; }
+function SignalChapter()  { return null; }
+function MarketChapter()  { return null; }
+function PatternChapter() { return null; }
+function ActivityFeed()   { return null; }
+
+export default function AnalyticsView() {
+  const { profile, subscription } = useAuth();
+  const isPro = !!(subscription?.isPro ||
+    new URLSearchParams(window.location.search).get('debug') === 'pro');
+  const [timeRange, setTimeRange] = useState(isPro ? 30 : 7);
+
+  const { analytics, activities, summary, timeseries, detailedStats, sessions, cohorts,
+    isLoading, isError, refetch } = useAnalytics(timeRange, { includeAdvanced: isPro });
+
+  const { data: appsPayload, isPending: appsLoading } = useQuery({
+    queryKey: ['applications'],
+    queryFn: () => talentApi.getApplications(),
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const applications = applicationsArray(appsPayload);
 
   if (isError && !isLoading) {
     return (
-      <div className="analytics-view">
-        <IntelMasthead />
-        <EmptyErrorState
-          title="Intel unavailable"
-          body="We could not load Intel right now. Try again in a moment."
-          retry={{ label: 'Try again', onClick: () => refetch() }}
-        />
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="analytics-view">
-        <IntelMasthead />
-        <div className="stats-grid">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="skeleton-loader" />
-          ))}
+      <div className="intel-masthead" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', padding: '48px clamp(32px,5.4vw,72px)' }}>
+        <div>
+          <span className="intel-kicker">Intel</span>
+          <h1 className="intel-display" style={{ marginBottom: 16 }}>Something went <em>wrong.</em></h1>
+          <p className="intel-lede">We couldn't load your Intel right now.</p>
+          <button onClick={() => refetch()} style={{
+            marginTop: 24, padding: '10px 24px', borderRadius: 8,
+            background: 'rgba(201,165,90,0.14)', border: '1px solid rgba(201,165,90,0.28)',
+            color: '#C9A55A', fontFamily: 'Inter', fontSize: 13, cursor: 'pointer',
+          }}>Try again</button>
         </div>
       </div>
     );
   }
-
-  // Fallback defaults
-  const views = analytics?.views || { total: 0, thisWeek: 0, thisMonth: 0 };
-  const downloads = analytics?.downloads || { total: 0, thisWeek: 0, thisMonth: 0 };
-  const activityList = activities || [];
-  const completeness = summary?.completeness || { percentage: 0, missingItems: [] };
-
-  // Use the detailedStats from the hook or fallback to defaults
-  // Robust fallback for each key to prevent crashes if hook returns partial data
-  const detailedStatsData = {
-    profileViews: detailedStats?.profileViews || { value: 0, trend: 0, sparkline: [], breakdown: [] },
-    engagement: detailedStats?.engagement || { value: 0, trend: 0, sparkline: [], chartLabel: 'Engagement' },
-    retention: detailedStats?.retention || { value: 0, trend: 0, sparkline: [], chartLabel: 'Retention' }
-  };
 
   return (
-    <div className="analytics-view">
-      <IntelMasthead />
-
-      {/* Studio+ Header Controls */}
-      {isStudioPlus && (
-        <section className="mb-8">
-            <div className="flex justify-between items-center">
-                <div className="flex gap-4">
-                    <TimeRangeSelector 
-                        value={timeRange} 
-                        onChange={setTimeRange}
-                        isStudioPlus={isStudioPlus}
-                    />
-                </div>
-            <div className="flex gap-2 relative">
-                {/* Customization Menu */}
-                {isCustomizing && (
-                  <div className="absolute right-0 top-12 bg-white p-4 rounded-xl shadow-xl border border-slate-100 z-20 w-64 animate-in fade-in slide-in-from-top-2">
-                    <h4 className="font-serif font-medium mb-3 text-slate-900">Visible Charts</h4>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                        <input 
-                          type="checkbox" 
-                          checked={visibleWidgets.performance} 
-                          onChange={() => toggleWidget('performance')}
-                          className="accent-[#C9A55A]"
-                        />
-                        <span className="text-sm text-slate-700">Performance Over Time</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                        <input 
-                          type="checkbox" 
-                          checked={visibleWidgets.sessions} 
-                          onChange={() => toggleWidget('sessions')}
-                          className="accent-[#C9A55A]"
-                        />
-                        <span className="text-sm text-slate-700">Weekly Sessions</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                        <input 
-                          type="checkbox" 
-                          checked={visibleWidgets.cohorts} 
-                          onChange={() => toggleWidget('cohorts')}
-                          className="accent-[#C9A55A]"
-                        />
-                        <span className="text-sm text-slate-700">Visitor Retention</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-            
-                <button 
-                  className={`time-range-btn ${isCustomizing ? 'bg-slate-100' : ''}`}
-                  onClick={() => setIsCustomizing(!isCustomizing)}
-                  aria-label="Customize Intel widgets"
-                >
-                    <Settings size={16} /> Customize Widget
-                </button>
-                <button 
-                  className="time-range-btn" 
-                  aria-label="Export Intel data"
-                  onClick={() => window.location.href = `/api/talent/analytics/export${window.location.search}`}
-                >
-                    <Download size={16} /> Export Data
-                </button>
-            </div>
-            </div>
-        </section>
-      )}
-
-      {/* Main Stats Section */}
-      <section className="mb-12">
-        {isStudioPlus ? (
-            <div className="detailed-stats-grid">
-                <MetricCardDetailed 
-                    title="Total Profile Views"
-                    value={detailedStatsData.profileViews.value}
-                    trend={detailedStatsData.profileViews.trend}
-                    chartData={detailedStatsData.profileViews.sparkline}
-                    breakdown={detailedStatsData.profileViews.breakdown}
-                    chartLabel="Views Over Time"
-                />
-                <MetricCardDetailed 
-                    title="Avg. Engagement Value"
-                    value={detailedStatsData.engagement.value}
-                    trend={detailedStatsData.engagement.trend}
-                    chartData={detailedStatsData.engagement.sparkline}
-                    chartLabel={detailedStatsData.engagement.chartLabel}
-                />
-                <MetricCardDetailed 
-                    title="Return Visitor Rate"
-                    value={detailedStatsData.retention.value}
-                    trend={detailedStatsData.retention.trend}
-                    chartData={detailedStatsData.retention.sparkline}
-                    chartLabel={detailedStatsData.retention.chartLabel}
-                />
-            </div>
-        ) : (
-            <>
-                <div className="stats-grid">
-                    <StatCard 
-                        title="Profile Views" 
-                        value={views.total}
-                        trend={views.thisWeek}
-                        subtext={`${views.thisMonth} views this month`}
-                    />
-                    <StatCard 
-                        title="Comp Card Downloads" 
-                        value={downloads.total}
-                        trend={downloads.thisWeek}
-                        subtext={`${downloads.thisMonth} downloads this month`}
-                    />
-                    <StatCard 
-                        title="Profile Completeness" 
-                        value={`${completeness.percentage}%`}
-                        subtext={completeness.missingItems?.length > 0 
-                            ? `Missing: ${completeness.missingItems.slice(0, 2).join(', ')}` 
-                            : 'Profile complete!'}
-                    />
-                </div>
-                
-                {/* Free Tier: Education/Discovery Area */}
-                {/* Free Tier: Education/Discovery Area - Removed */}
-
-            </>
-        )}
-      </section>
-
-      {/* Visualizations Section */}
-      <section className="mb-12">
-        {isStudioPlus ? (
-            <div className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {visibleWidgets.sessions && <SessionsBarChart data={sessions} />}
-                    <MetricCardDetailed 
-                        title="Profile Funnel Performance"
-                        value={detailedStats.funnel.value}
-                        trend={1.23}
-                        chartLabel="Conversion Rate"
-                        breakdown={detailedStats.funnel.breakdown}
-                    />
-                </div>
-                {visibleWidgets.cohorts && <CohortHeatmap data={cohorts} />}
-                {visibleWidgets.performance && <PerformanceChart data={timeseries} timeRange={timeRange} />}
-            </div>
-        ) : (
-            <div className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <WeeklyBarChart data={timeseries.slice(-7).map(item => ({
-                        day: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
-                        value: item.views || 0
-                    }))} />
-                    <InsightCard insights={insights} />
-                </div>
-                <UpgradeBanner />
-            </div>
-        )}
-      </section>
-
-      {/* Activity & Support Section */}
-      <section className="mt-16">
-        <div className="layout-grid">
-           {/* Activity Feed */}
-           <div className="activity-feed">
-              <div className="activity-card">
-                 <div className="card-header">
-                    <h3>Recent Activity</h3>
-                    <span>Last 10 events</span>
-                 </div>
-                 <div className="activity-list">
-                    {activityList.length > 0 ? (
-                      activityList.map(item => (
-                        <ActivityItem key={item.id} activity={item} />
-                      ))
-                    ) : (
-                      <div className="empty-state">
-                        No recent activity recorded.
-                      </div>
-                    )}
-                 </div>
-              </div>
-           </div>
-  
-           {/* Side Widget (Prompts or Insights) */}
-           <div className="insights-sidebar">
-              <div className="insights-widget">
-               <h3 className="insights-title">Pro Tip</h3>
-                 <p className="insights-text">
-                    Talent with at least 5 photos and a complete bio get 3x more views from agencies.
-                 </p>
-                 <button
-                   className="insights-btn"
-                   onClick={() => window.location.href = '/dashboard/talent/media'}
-                 >
-                    Update Portfolio
-                 </button>
-              </div>
-           </div>
-        </div>
-      </section>
+    <div>
+      <IntelMasthead
+        profile={profile}
+        summary={summary}
+        subscription={subscription}
+        appsCount={applications.length}
+        appsLoading={appsLoading}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        isLoading={isLoading}
+      />
+      <div className="intel-body">
+        <ReachChapter   timeseries={timeseries}   analytics={analytics}  isPro={isPro} />
+        <SignalChapter  analytics={analytics}      sessions={sessions}    detailedStats={detailedStats} isPro={isPro} />
+        <MarketChapter  applications={applications} appsLoading={appsLoading} isPro={isPro} />
+        <PatternChapter cohorts={cohorts}           isPro={isPro} />
+        <ActivityFeed   activities={activities} />
+      </div>
     </div>
   );
 }
-
