@@ -80,10 +80,10 @@ export function computeCohortSummary(cohorts) {
   const w1Values = list.map(c => asNum(c.retention?.[1])).filter(v => v > 0);
   const avgW1Retention = w1Values.length > 0
     ? Math.round(w1Values.reduce((a, b) => a + b, 0) / w1Values.length) : 0;
-  const bestIdx = list.reduce(
+  const bestIdx = w1Values.length > 0 ? list.reduce(
     (best, c, i) => asNum(c.retention?.[1]) > asNum(list[best]?.retention?.[1]) ? i : best, 0,
-  );
-  const bestCohortLabel = list[bestIdx]?.label ?? '—';
+  ) : -1;
+  const bestCohortLabel = bestIdx >= 0 ? (list[bestIdx]?.label ?? '—') : '—';
   const totalUnique     = list.reduce((sum, c) => sum + asNum(c.users ?? c.count), 0);
   return { avgW1Retention, bestCohortLabel, totalUnique };
 }
@@ -398,9 +398,15 @@ function MarketChapter({ applications, appsLoading, isPro }) {
   const apps    = asArray(applications).slice(0, 5);
   const allApps = asArray(applications);
 
-  const lastActive = allApps.length > 0
-    ? new Date(allApps[0].updated_at ?? allApps[0].created_at)
-        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const sortedApps = allApps.slice().sort((a, b) => {
+    const ta = new Date(a.updated_at ?? a.created_at).getTime();
+    const tb = new Date(b.updated_at ?? b.created_at).getTime();
+    return (isNaN(tb) ? 0 : tb) - (isNaN(ta) ? 0 : ta);
+  });
+  const lastActiveDate = sortedApps.length > 0
+    ? new Date(sortedApps[0].updated_at ?? sortedApps[0].created_at) : null;
+  const lastActive = lastActiveDate && !isNaN(lastActiveDate)
+    ? lastActiveDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
 
   if (appsLoading) {
@@ -436,8 +442,9 @@ function MarketChapter({ applications, appsLoading, isPro }) {
           <div className="market-list" role="list">
             {apps.map(app => {
               const status    = (app.status ?? 'PENDING').toUpperCase();
-              const submitted = new Date(app.created_at)
-                .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              const createdDate = new Date(app.created_at);
+              const submitted = isNaN(createdDate)
+                ? '—' : createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
               return (
                 <div key={app.id} className="market-row" role="listitem">
                   <div>
@@ -465,8 +472,9 @@ function MarketChapter({ applications, appsLoading, isPro }) {
             <div className="market-timeline" aria-label="Application momentum">
               {allApps.slice(0, 6).map(app => {
                 const status  = (app.status ?? 'PENDING').toUpperCase();
-                const changed = new Date(app.updated_at ?? app.created_at)
-                  .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const changedDate = new Date(app.updated_at ?? app.created_at);
+                const changed = isNaN(changedDate)
+                  ? '—' : changedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 return (
                   <div key={`tl-${app.id}`} className="market-timeline-item">
                     <span className="market-timeline-agency">{app.agency_name ?? 'Agency'}</span>
@@ -560,7 +568,7 @@ function ActivityFeed({ activities }) {
           {list.slice(0, 10).map((item, i) => {
             const Icon = ACTIVITY_ICONS[item.type] ?? Activity;
             return (
-              <div key={item.id ?? i} className="activity-item">
+              <div key={item.id ?? `${item.type}-${i}`} className="activity-item">
                 <div className="activity-icon" aria-hidden="true">
                   <Icon size={14} />
                 </div>
