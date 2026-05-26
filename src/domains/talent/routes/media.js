@@ -251,6 +251,7 @@ function toPublicImagePayload(image, metadataOverride) {
     sort: image.sort,
     created_at: image.created_at,
     updated_at: image.updated_at,
+    has_original: !!(image.original_path || image.original_public_url),
     metadata:
       metadataOverride !== undefined
         ? metadataOverride
@@ -1204,6 +1205,195 @@ router.patch(
     }
 
     return res.json({ success: true, id: imageId, role: role || null });
+  }),
+);
+
+/**
+ * POST /api/talent/media/:id/replace
+ * Replace the file of an existing image in-place (same ID, same sort position).
+ * On the first replacement the original file paths are stored in original_* columns so
+ * the talent can later restore them. Subsequent replacements keep original_* pointing to
+ * the very first uploaded file and delete the prior intermediate version from storage.
+ */
+router.post(
+  "/:id/replace",
+  requireRole("TALENT"),
+  requirePersistentUploadStorage,
+  upload.single("media"),
+  asyncHandler(async (req, res) => {
+    const imageId = req.params.id;
+    if (!isUuid(imageId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid image id" });
+    }
+
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No file uploaded" });
+    }
+
+    const userId = req.session.userId;
+
+    const image = await knex("images")
+      .select("images.*", "profiles.id as _profile_id")
+      .leftJoin("profiles", "images.profile_id", "profiles.id")
+      .where("images.id", imageId)
+      .where("profiles.user_id", userId)
+      .first();
+
+    if (!image) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Image not found" });
+    }
+
+    let processed;
+    try {
+      processed = await processImage(req.file, image.profile_id);
+    } catch (err) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Failed to process uploaded file" });
+    }
+
+    // Track whether the current (pre-replace) file needs to be cleaned up after the DB update.
+    // Only intermediate edits are deleted; the very first original is always preserved.
+    let intermediateToDelete = null;
+
+    await knex.transaction(async (trx) => {
+      const updatePatch = {
+        path: processed.path,
+        public_url: processed.public_url,
+        storage_key: processed.storage_key,
+        absolute_path: processed.absolute_path,
+      };
+
+      if (!image.original_path) {
+        // First replacement: save the original file references — do NOT delete them.
+        updatePatch.original_path = image.path;
+        updatePatch.original_public_url = image.public_url || null;
+        updatePatch.original_storage_key = image.storage_key || null;
+        updatePatch.original_absolute_path = image.absolute_path || null;
+      } else {
+        // Subsequent replacement: current file is an intermediate edit → schedule for deletion.
+        // original_* remains pointing to the very first file.
+        intermediateToDelete = {
+          storage_key: image.storage_key || null,
+          absolute_path: image.absolute_path || null,
+        };
+      }
+
+      await trx("images").where({ id: imageId }).update(updatePatch);
+    });
+
+    // After the DB transaction commits, clean up the intermediate file (best-effort).
+    if (intermediateToDelete) {
+      if (intermediateToDelete.storage_key) {
+        s3.send(
+          new DeleteObjectCommand({
+            Bucket: config.r2.bucket,
+            Key: intermediateToDelete.storage_key,
+          }),
+        ).catch((e) =>
+          console.warn("[Media Replace] Intermediate S3 cleanup:", e.message),
+        );
+      }
+      if (intermediateToDelete.absolute_path) {
+        fs.unlink(intermediateToDelete.absolute_path).catch(() => {});
+      }
+    }
+
+    const fresh = await knex("images").where({ id: imageId }).first();
+    return res.json({
+      success: true,
+      message: "Image replaced",
+      image: toPublicImagePayload(fresh),
+    });
+  }),
+);
+
+/**
+ * POST /api/talent/media/:id/restore
+ * Restore the original pre-edit file for an image that has been replaced.
+ * Swaps original_* values back to path/public_url/storage_key/absolute_path,
+ * clears original_* columns, and deletes the edited file from storage.
+ */
+router.post(
+  "/:id/restore",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const imageId = req.params.id;
+    if (!isUuid(imageId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid image id" });
+    }
+
+    const userId = req.session.userId;
+
+    const image = await knex("images")
+      .select("images.*")
+      .leftJoin("profiles", "images.profile_id", "profiles.id")
+      .where("images.id", imageId)
+      .where("profiles.user_id", userId)
+      .first();
+
+    if (!image) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Image not found" });
+    }
+
+    if (!image.original_path) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No original version to restore — this image has not been edited",
+      });
+    }
+
+    // The edited (current) file will be deleted after the DB update.
+    const editedToDelete = {
+      storage_key: image.storage_key || null,
+      absolute_path: image.absolute_path || null,
+    };
+
+    await knex("images")
+      .where({ id: imageId })
+      .update({
+        path: image.original_path,
+        public_url: image.original_public_url || null,
+        storage_key: image.original_storage_key || null,
+        absolute_path: image.original_absolute_path || null,
+        original_path: null,
+        original_public_url: null,
+        original_storage_key: null,
+        original_absolute_path: null,
+      });
+
+    // Delete the edited version from storage (best-effort).
+    if (editedToDelete.storage_key) {
+      s3.send(
+        new DeleteObjectCommand({
+          Bucket: config.r2.bucket,
+          Key: editedToDelete.storage_key,
+        }),
+      ).catch((e) =>
+        console.warn("[Media Restore] Edited file S3 cleanup:", e.message),
+      );
+    }
+    if (editedToDelete.absolute_path) {
+      fs.unlink(editedToDelete.absolute_path).catch(() => {});
+    }
+
+    const fresh = await knex("images").where({ id: imageId }).first();
+    return res.json({
+      success: true,
+      message: "Original image restored",
+      image: toPublicImagePayload(fresh),
+    });
   }),
 );
 

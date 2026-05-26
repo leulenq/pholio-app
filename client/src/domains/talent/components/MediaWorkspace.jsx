@@ -12,8 +12,7 @@ import { useMedia } from '../hooks/useMedia';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { TransferFailureNotice } from '../../../shared/components/states';
 import { parseApiFailure } from '../../../shared/lib/api-error-message';
-import ImageMetadataModal from './ImageMetadataModal';
-import PhotoEditorModal from './PhotoEditorModal';
+import FrameEditor from './FrameEditor';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import CompCard from './CompCard';
 import './MediaWorkspace.css';
@@ -119,12 +118,11 @@ function PortfolioFrame({ image, index, onSetCover, onEdit, onCrop, onDelete, se
 }
 
 export default function MediaWorkspace() {
-  const { images, upload, deleteImage, reorder, setHero, replaceImage, isUploading, isLoading } = useMedia();
+  const { images, upload, deleteImage, reorder, setHero, replaceImage, restoreImage, isUploading, isLoading } = useMedia();
   const { profile } = useAuth();
 
   const [localImages, setLocalImages] = React.useState(images || []);
-  const [editingImage, setEditingImage] = React.useState(null);
-  const [editorImage, setEditorImage] = React.useState(null);
+  const [editor, setEditor] = React.useState(null); // { image, mode: 'details'|'crop' }
   const [deleteId, setDeleteId] = React.useState(null);
   const [settingCoverId, setSettingCoverId] = React.useState(null);
   const [uploadError, setUploadError] = React.useState(null);
@@ -207,12 +205,15 @@ export default function MediaWorkspace() {
   const handleUpdateMetadata = (id, patch) =>
     setLocalImages((prev) => prev.map((img) => (img.id === id ? { ...img, ...patch } : img)));
 
-  const handleOpenEditor = (image) => { setEditingImage(null); setEditorImage(image); };
-
-  const handleSaveEditedPhoto = async (blob) => {
-    if (!editorImage) return;
-    try { await replaceImage(editorImage.id, blob); setEditorImage(null); }
+  const handleReplace = async (blob) => {
+    if (!editor) return;
+    try { await replaceImage(editor.image.id, blob); setEditor(null); }
     catch (err) { console.error(err); toast.error('Failed to save edited photo. Please try again.'); }
+  };
+
+  const handleRestore = async (id) => {
+    try { await restoreImage(id); setEditor(null); }
+    catch (err) { toast.error(err?.message || 'Failed to restore original'); }
   };
 
   const confirmDelete = async () => {
@@ -224,20 +225,15 @@ export default function MediaWorkspace() {
   return (
     <div className="mw-root">
       <div className="mw-wrap">
-        {editingImage && (
-          <ImageMetadataModal
-            image={editingImage}
-            onClose={() => setEditingImage(null)}
-            onUpdate={handleUpdateMetadata}
-            onOpenEditor={handleOpenEditor}
+        {editor && (
+          <FrameEditor
+            image={editor.image}
+            initialMode={editor.mode}
             mediaSets={[]}
-          />
-        )}
-        {editorImage && (
-          <PhotoEditorModal
-            imageSrc={getImageUrl(editorImage.public_url || editorImage.path)}
-            onClose={() => setEditorImage(null)}
-            onSave={handleSaveEditedPhoto}
+            onClose={() => setEditor(null)}
+            onUpdate={handleUpdateMetadata}
+            onReplace={handleReplace}
+            onRestore={handleRestore}
           />
         )}
         <ConfirmationDialog
@@ -304,8 +300,10 @@ export default function MediaWorkspace() {
                         transition={{ duration: 0.32, delay: index * 0.035, ease: [0.22, 1, 0.36, 1] }}>
                         <PortfolioFrame
                           image={image} index={index}
-                          onSetCover={handleSetCover} onEdit={setEditingImage}
-                          onCrop={setEditorImage} onDelete={setDeleteId}
+                          onSetCover={handleSetCover}
+                          onEdit={(img) => setEditor({ image: img, mode: 'details' })}
+                          onCrop={(img) => setEditor({ image: img, mode: 'crop' })}
+                          onDelete={setDeleteId}
                           settingCoverId={settingCoverId}
                         />
                       </motion.div>

@@ -23,6 +23,8 @@ export const talentApi = {
   updateImageRights: (id, data) => apiClient.put(`/media/${id}/rights`, data),
   setHeroImage: (id) => apiClient.put(`/media/${id}/hero`),
   deleteMedia: (id) => apiClient.delete(`/media/${id}`),
+  replaceImageFile: (id, formData) => apiClient.post(`/media/${id}/replace`, formData),
+  restoreImageOriginal: (id) => apiClient.post(`/media/${id}/restore`, {}),
 
   // Overview
   getOverview: () => apiClient.get('/overview'),

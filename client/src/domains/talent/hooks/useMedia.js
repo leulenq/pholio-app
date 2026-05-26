@@ -71,15 +71,36 @@ export function useMedia() {
       flash('error', err.message || 'Failed to set current media set')
   });
 
-  const getLatestImages = () => {
-    const entries = queryClient.getQueriesData({ queryKey: ['auth-user'] });
-    for (const [, data] of entries) {
-      if (Array.isArray(data?.images)) return data.images;
+  const fetchSets = useCallback(() => talentApi.getMediaSets(), []);
+
+  const replaceImage = async (id, blob) => {
+    if (replacingRef.current) {
+      throw new Error('A photo replace is already in progress');
     }
-    return images || [];
+    replacingRef.current = true;
+    try {
+      const ext = (blob?.type || '').includes('png') ? 'png'
+        : (blob?.type || '').includes('webp') ? 'webp'
+        : 'jpg';
+      const formData = new FormData();
+      formData.append('media', blob, `edited.${ext}`);
+      const res = await talentApi.replaceImageFile(id, formData);
+      await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      await queryClient.refetchQueries({ queryKey: ['auth-user'] });
+      flash('success', 'Image updated');
+      return res.image;
+    } finally {
+      replacingRef.current = false;
+    }
   };
 
-  const fetchSets = useCallback(() => talentApi.getMediaSets(), []);
+  const restoreImage = async (id) => {
+    const res = await talentApi.restoreImageOriginal(id);
+    await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+    await queryClient.refetchQueries({ queryKey: ['auth-user'] });
+    flash('success', 'Original restored');
+    return res.image;
+  };
 
   return {
     images: images || [],
@@ -93,128 +114,7 @@ export function useMedia() {
     fetchSets,
     createSet: createSetMutation.mutateAsync,
     setCurrentSet: setCurrentSetMutation.mutateAsync,
-    replaceImage: async (oldId, newBlob) => {
-      if (replacingRef.current) {
-        throw new Error('A photo replace is already in progress');
-      }
-      replacingRef.current = true;
-      try {
-        // 0. Resolve old image first so we can preserve structured fields/rights
-        let oldImage = getLatestImages().find((img) => img.id === oldId);
-        if (!oldImage) {
-          const latestProfile = await talentApi.getProfile();
-          oldImage = latestProfile?.images?.find((img) => img.id === oldId);
-        }
-        if (!oldImage) {
-          throw new Error('Original image no longer exists. Please refresh and try again.');
-        }
-        const oldSort =
-          Number.isFinite(Number(oldImage.sort)) && Number(oldImage.sort) > 0
-            ? Number(oldImage.sort)
-            : null;
-
-        // 1. Upload new image
-        const formData = new FormData();
-        const extByType = {
-          'image/jpeg': 'jpg',
-          'image/png': 'png',
-          'image/webp': 'webp',
-        };
-        const ext = extByType[newBlob?.type] || 'jpg';
-        formData.append('media', newBlob, `edited.${ext}`);
-        const structuredKeys = [
-          'image_type',
-          'shot_type',
-          'style_type',
-          'status',
-          'exclude_from_public',
-          'exclude_from_agency',
-          'captured_at',
-          'retouched_at',
-          'set_id',
-        ];
-        for (const key of structuredKeys) {
-          const value = oldImage[key];
-          if (value === undefined || value === null || value === '') continue;
-          formData.append(key, String(value));
-        }
-        const uploadRes = await talentApi.uploadMedia(formData);
-        const newImage = uploadRes?.images?.[0];
-        if (!newImage) {
-          const msg = uploadRes?.message;
-          throw new Error(
-            typeof msg === 'string' && msg.trim()
-              ? msg
-              : 'Replace upload did not return an image'
-          );
-        }
-
-        // 2. Copy metadata
-        if (oldImage.metadata) {
-          try {
-            await talentApi.updateMedia(newImage.id, { metadata: oldImage.metadata });
-          } catch (err) {
-            await talentApi.deleteMedia(newImage.id).catch(() => {});
-            throw err;
-          }
-        }
-
-        // 3. Copy rights row if present
-        try {
-          const rightsRes = await talentApi.getImageRights(oldId);
-          const rights = rightsRes?.rights;
-          if (rights && typeof rights === 'object') {
-            await talentApi.updateImageRights(newImage.id, rights);
-          }
-        } catch {
-          // Rights are best-effort; do not block replace if rights read/write fails.
-        }
-
-        // 4. Update hero if replaced image was primary
-        if (oldImage.is_primary) {
-          try {
-            await talentApi.setHeroImage(newImage.id);
-          } catch (err) {
-            await talentApi.deleteMedia(newImage.id).catch(() => {});
-            throw err;
-          }
-        }
-
-        // 5. Delete old image (rollback hero/new image if this final step fails)
-        try {
-          await talentApi.deleteMedia(oldId);
-        } catch (err) {
-          if (oldImage.is_primary) {
-            await talentApi.setHeroImage(oldId).catch(() => {});
-          }
-          await talentApi.deleteMedia(newImage.id).catch(() => {});
-          throw err;
-        }
-        if (oldSort !== null) {
-          try {
-            const latestProfile = await talentApi.getProfile();
-            const latestImages = Array.isArray(latestProfile?.images)
-              ? [...latestProfile.images]
-              : [];
-            const currentIndex = latestImages.findIndex((img) => img.id === newImage.id);
-            if (currentIndex >= 0) {
-              const [moved] = latestImages.splice(currentIndex, 1);
-              const targetIndex = Math.max(0, Math.min(oldSort - 1, latestImages.length));
-              latestImages.splice(targetIndex, 0, moved);
-              await talentApi.reorderMedia(latestImages.map((img) => img.id));
-            }
-          } catch {
-            // Sort preservation is best-effort; keep replace successful.
-          }
-        }
-
-        await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-        await queryClient.refetchQueries({ queryKey: ['auth-user'] });
-        flash('success', 'Image updated');
-        return newImage;
-      } finally {
-        replacingRef.current = false;
-      }
-    }
+    replaceImage,
+    restoreImage,
   };
 }

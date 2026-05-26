@@ -124,7 +124,7 @@ router.post(
   "/",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const { agencyId } = req.body;
+    const { agencyId, note, submissionPackage } = req.body;
     if (!agencyId) {
       return res.status(400).json({
         success: false,
@@ -178,7 +178,7 @@ router.post(
     }
 
     // 3. Create Application
-    const [appId] = await knex("applications")
+    const [insertedApplication] = await knex("applications")
       .insert({
         id: knex.raw("gen_random_uuid()"),
         profile_id: profile.id,
@@ -187,7 +187,53 @@ router.post(
       })
       .returning("id");
 
-    res.json({ success: true, id: appId });
+    const applicationId =
+      typeof insertedApplication === "object"
+        ? insertedApplication.id
+        : insertedApplication;
+
+    const applicationNote = typeof note === "string" ? note.trim() : "";
+    const hasSubmissionPackagesTable = await knex.schema.hasTable(
+      "talent_submission_packages",
+    );
+    if (
+      hasSubmissionPackagesTable &&
+      submissionPackage &&
+      typeof submissionPackage === "object"
+    ) {
+      await knex("talent_submission_packages").insert({
+        id: knex.raw("gen_random_uuid()"),
+        user_id: req.session.userId,
+        profile_id: profile.id,
+        label: `Application to ${agencyId}`,
+        payload: {
+          applicationId,
+          agencyId,
+          mediaSetId: submissionPackage.mediaSetId || null,
+          mediaSetName: submissionPackage.mediaSetName || null,
+          compCardId: submissionPackage.compCardId || null,
+          compCardName: submissionPackage.compCardName || null,
+          imageIds: Array.isArray(submissionPackage.imageIds)
+            ? submissionPackage.imageIds
+            : [],
+          readiness: submissionPackage.readiness || null,
+          consentConfirmed: !!submissionPackage.consentConfirmed,
+          submittedAt: new Date().toISOString(),
+        },
+      });
+    }
+
+    if (applicationNote) {
+      await knex("messages").insert({
+        application_id: applicationId,
+        sender_id: req.session.userId,
+        sender_type: "TALENT",
+        message: applicationNote.slice(0, 1200),
+        is_read: false,
+      });
+    }
+
+    res.json({ success: true, id: applicationId });
   }),
 );
 

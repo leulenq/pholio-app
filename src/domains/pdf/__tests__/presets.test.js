@@ -63,7 +63,7 @@ describe("comp-card presets helpers", () => {
       layoutFamily: "mosaic-horizontal",
       styleVariant: "linework",
       lockHeroId: "img-hero",
-      lockGridIds: "img-1,img-2",
+      lockGridIds: "img-1,img-2,,",
     });
     expect(toPresetQuery(row)).toEqual(mapped.query);
     expect(toPresetPayload(row)).toEqual(mapped.payload);
@@ -109,5 +109,16 @@ describe("comp-card presets helpers", () => {
       },
       createdAt: "2026-01-02T00:00:00.000Z",
     });
+  });
+
+  test("toPresetQuery preserves sparse lock slots", () => {
+    const query = toPresetQuery({
+      seed: "seed:sparse",
+      layout_family: "runway-split",
+      style_variant: "modern-serif",
+      lock_hero_id: null,
+      lock_grid_ids: JSON.stringify([null, "img-b", null, "img-d"]),
+    });
+    expect(query.lockGridIds).toBe(",img-b,,img-d");
   });
 });

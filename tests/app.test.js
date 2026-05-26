@@ -240,15 +240,27 @@ describe("ZipSite application", () => {
     const importResponse = await agent
       .post(`/api/pdf/presets/${profile.slug}/import`)
       .send({
-        payload: {
-          ...exportResponse.body.preset.payload,
-          name: "Board Imported",
+        preset: {
+          ...exportResponse.body.preset,
+          payload: {
+            ...exportResponse.body.preset.payload,
+            name: "Board Imported",
+          },
         },
       });
     expect(importResponse.status).toBe(201);
     expect(importResponse.body.ok).toBe(true);
     expect(importResponse.body.status).toBe("created");
     expect(importResponse.body.preset.name).toBe("Board Imported");
+
+    const importConflictResponse = await agent
+      .post(`/api/pdf/presets/${profile.slug}/import`)
+      .send({
+        payload: exportResponse.body.preset.payload,
+        overwriteExisting: "false",
+      });
+    expect(importConflictResponse.status).toBe(409);
+    expect(importConflictResponse.body.code).toBe("PRESET_NAME_CONFLICT");
 
     const deleteResponse = await agent.delete(
       `/api/pdf/presets/${profile.slug}/${presetId}`,

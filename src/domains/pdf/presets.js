@@ -99,13 +99,17 @@ function snapshotFromPresetRow(row) {
 function toPresetQuery(row) {
   const gridIds = normalizeLockGridIds(
     parseJsonColumn(row.lock_grid_ids) || [],
-  ).filter(Boolean);
+  );
+  const hasAnyGridLock = gridIds.some(Boolean);
+  const serializedGridIds = gridIds
+    .map((id) => (id == null ? "" : id))
+    .join(",");
   return {
     seed: row.seed || undefined,
     layoutFamily: row.layout_family || undefined,
     styleVariant: row.style_variant || undefined,
     lockHeroId: row.lock_hero_id || undefined,
-    lockGridIds: gridIds.length > 0 ? gridIds.join(",") : undefined,
+    lockGridIds: hasAnyGridLock ? serializedGridIds : undefined,
   };
 }
 

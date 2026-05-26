@@ -1,16 +1,27 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowUpRight,
+  BookOpen,
+  Building2,
   Check,
+  ChevronDown,
   CircleDashed,
   Clock,
+  Eye,
   ExternalLink,
+  FileText,
+  IdCard,
+  Image,
   Loader2,
   Lock,
+  Mail,
   MapPin,
   Send,
+  UserCheck,
   XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,6 +41,13 @@ const FILTERS = [
 
 function asArray(payload) {
   if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+}
+
+function asMediaSets(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.sets)) return payload.sets;
   if (Array.isArray(payload?.data)) return payload.data;
   return [];
 }
@@ -142,13 +160,76 @@ function metricLabel(count, singular, plural) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function profileDisplayName(profile) {
+  const parts = [profile?.first_name, profile?.last_name].filter(Boolean);
+  return parts.length ? parts.join(' ') : 'Your profile';
+}
+
+function profileLocation(profile) {
+  return [profile?.city, profile?.state || profile?.region, profile?.country]
+    .filter(Boolean)
+    .join(', ') || profile?.location || 'Location pending';
+}
+
+function imageUrl(image) {
+  return image?.public_url || image?.url || image?.path || null;
+}
+
+function normalizeToken(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+}
+
+function hasShotType(image, types) {
+  const shot = normalizeToken(image?.shot_type);
+  const imageType = normalizeToken(image?.image_type);
+  return types.includes(shot) || types.includes(imageType);
+}
+
+function measurementValue(profile, keys) {
+  for (const key of keys) {
+    const value = profile?.[key];
+    if (value !== null && value !== undefined && value !== '') return value;
+  }
+  return null;
+}
+
+function heightLabel(profile) {
+  const heightCm = measurementValue(profile, ['height_cm']);
+  if (!heightCm) return 'Missing height';
+  const totalInches = Math.round(Number(heightCm) / 2.54);
+  if (!Number.isFinite(totalInches)) return `${heightCm} cm`;
+  return `${Math.floor(totalInches / 12)}'${totalInches % 12}"`;
+}
+
+function bodyStatsLabel(profile) {
+  const bust = measurementValue(profile, ['bust', 'bust_cm']);
+  const waist = measurementValue(profile, ['waist', 'waist_cm']);
+  const hips = measurementValue(profile, ['hips', 'hips_cm']);
+  if (!bust || !waist || !hips) return 'Measurements incomplete';
+  return `${bust} / ${waist} / ${hips}`;
+}
+
+function agencyTypeLabel(agency) {
+  return agency?.division || agency?.type || agency?.agency_type || 'Open representation';
+}
+
 export default function ApplicationsView() {
   const queryClient = useQueryClient();
-  const { profile, subscription } = useAuth();
+  const { profile, subscription, images: authImages = [] } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
   const [applyingId, setApplyingId] = useState(null);
+  const [isApplyFlowOpen, setIsApplyFlowOpen] = useState(false);
+  const [selectedAgencyId, setSelectedAgencyId] = useState(null);
+  const [selectedMediaSetId, setSelectedMediaSetId] = useState('current');
+  const [selectedCompCardId, setSelectedCompCardId] = useState('current');
+  const [applicationNote, setApplicationNote] = useState('');
+  const [hasSubmissionConsent, setHasSubmissionConsent] = useState(false);
+  const [submittedApplication, setSubmittedApplication] = useState(null);
 
   const applicationsQuery = useQuery({
     queryKey: ['applications'],
@@ -160,6 +241,14 @@ export default function ApplicationsView() {
   const agenciesQuery = useQuery({
     queryKey: ['talent-agencies'],
     queryFn: talentApi.getAgencies,
+    staleTime: 1000 * 60 * 3,
+    retry: 1,
+  });
+
+  const mediaSetsQuery = useQuery({
+    queryKey: ['talent-media-sets'],
+    queryFn: talentApi.getMediaSets,
+    enabled: isApplyFlowOpen,
     staleTime: 1000 * 60 * 3,
     retry: 1,
   });
@@ -178,8 +267,20 @@ export default function ApplicationsView() {
 
   const applyMutation = useMutation({
     mutationFn: talentApi.createApplication,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setApplyingId(null);
+      setApplicationNote('');
+      setHasSubmissionConsent(false);
+      setSubmittedApplication({
+        agency: {
+          id: variables?.agencyId,
+          name: variables?.submissionPackage?.agencyName,
+          agency_location: variables?.submissionPackage?.agencyLocation,
+        },
+        submittedAt: new Date().toISOString(),
+        mediaSetId: variables?.submissionPackage?.mediaSetId,
+        compCardId: variables?.submissionPackage?.compCardId,
+      });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       queryClient.invalidateQueries({ queryKey: ['talent-agencies'] });
       toast.success('Application submitted');
@@ -203,6 +304,7 @@ export default function ApplicationsView() {
   );
 
   const agencies = useMemo(() => asArray(agenciesQuery.data), [agenciesQuery.data]);
+  const mediaSets = useMemo(() => asMediaSets(mediaSetsQuery.data), [mediaSetsQuery.data]);
   const gating = useMemo(() => checkGatingStatus(profile), [profile]);
   const applicationGate = getProfileGateFeature('/dashboard/talent/applications');
 
@@ -212,6 +314,7 @@ export default function ApplicationsView() {
   const openAgencies = agencies
     .filter((agency) => !appliedAgencyIds.has(agency.id))
     .slice(0, 6);
+  const selectedAgency = agencies.find((agency) => agency.id === selectedAgencyId) || openAgencies[0] || null;
 
   const activeCount = applications.filter((app) => statusConfig(app.status).tone === 'pending').length;
   const acceptedCount = applications.filter((app) => statusConfig(app.status).tone === 'accepted').length;
@@ -225,13 +328,36 @@ export default function ApplicationsView() {
   const isPro = !!subscription?.isPro;
   const monthlyLimitLabel = isPro ? 'Unlimited' : `${monthCount}/5`;
 
-  const handleApply = (agency) => {
+  const openApplyFlow = (agency = null) => {
+    if (agency?.id) {
+      setSelectedAgencyId(agency.id);
+    } else if (!selectedAgencyId && openAgencies[0]?.id) {
+      setSelectedAgencyId(openAgencies[0].id);
+    }
+    setSubmittedApplication(null);
+    setHasSubmissionConsent(false);
+    setIsApplyFlowOpen(true);
+  };
+
+  const closeApplyFlow = () => {
+    setIsApplyFlowOpen(false);
+    setApplicationNote('');
+    setHasSubmissionConsent(false);
+    setSubmittedApplication(null);
+  };
+
+  const handleApply = (agency, submissionPackage) => {
     if (gating.isBlocked) {
       toast.info('Complete your required profile fields before submitting to an agency.');
       return;
     }
+    if (!agency?.id) return;
     setApplyingId(agency.id);
-    applyMutation.mutate({ agencyId: agency.id });
+    applyMutation.mutate({
+      agencyId: agency.id,
+      note: applicationNote.trim() || undefined,
+      submissionPackage,
+    });
   };
 
   const confirmWithdraw = () => {
@@ -275,17 +401,17 @@ export default function ApplicationsView() {
   return (
     <div className="applications-view-container">
       <header className="app-hero">
-        <div className="app-hero__copy">
+        <div className="app-hero__copy" data-tour="market-hero">
           <span className="app-kicker">Market</span>
           <h1 className="app-title">
             The <em>Market.</em>
           </h1>
           <div className="app-hero__sweep" aria-hidden />
           <p className="app-standfirst">Market submissions, decisions, and next moves.</p>
-          <a href="#app-discovery" className="app-primary-action">
+          <button type="button" className="app-primary-action" onClick={() => openApplyFlow()}>
             <Send size={14} aria-hidden />
             Apply New
-          </a>
+          </button>
         </div>
 
         <dl className="app-market-index" aria-label="Application summary">
@@ -325,7 +451,7 @@ export default function ApplicationsView() {
 
       <div className="app-workspace">
         <section className="app-ledger" aria-labelledby="application-ledger-title">
-          <div className="app-section-head">
+          <div className="app-section-head" data-tour="app-ledger">
             <span className="app-kicker">Ledger</span>
             <h2 id="application-ledger-title">Application history</h2>
             <div className="app-filter-row" aria-label="Filter applications">
@@ -404,7 +530,7 @@ export default function ApplicationsView() {
       </div>
 
       <section className="app-discovery" id="app-discovery" aria-labelledby="application-discovery-title">
-        <div className="app-section-head app-section-head--discovery">
+        <div className="app-section-head app-section-head--discovery" data-tour="agency-discovery">
           <span className="app-kicker">Open Agencies</span>
           <h2 id="application-discovery-title">Next submissions</h2>
           <p>{agenciesQuery.isLoading ? 'Loading agencies' : `${openAgencies.length} available`}</p>
@@ -450,7 +576,7 @@ export default function ApplicationsView() {
                 <button
                   type="button"
                   className="app-agency-card__apply"
-                  onClick={() => handleApply(agency)}
+                  onClick={() => openApplyFlow(agency)}
                   disabled={applyMutation.isPending || gating.isBlocked}
                 >
                   {gating.isBlocked ? (
@@ -465,7 +591,7 @@ export default function ApplicationsView() {
                     </>
                   ) : (
                     <>
-                      Apply
+                      Compose
                       <ArrowUpRight size={14} aria-hidden />
                     </>
                   )}
@@ -491,6 +617,482 @@ export default function ApplicationsView() {
         onConfirm={confirmWithdraw}
         onCancel={() => setWithdrawingApplication(null)}
       />
+
+      {isApplyFlowOpen &&
+        createPortal(
+          <AgencyApplicationModal
+            agencies={openAgencies}
+            selectedAgency={selectedAgency}
+            selectedAgencyId={selectedAgencyId}
+            onSelectAgency={setSelectedAgencyId}
+            onClose={closeApplyFlow}
+            onSubmit={handleApply}
+            isSubmitting={applyMutation.isPending && applyingId === selectedAgency?.id}
+            isBlocked={gating.isBlocked}
+            profile={profile}
+            images={authImages}
+            mediaSets={mediaSets}
+            mediaSetsLoading={mediaSetsQuery.isLoading}
+            selectedMediaSetId={selectedMediaSetId}
+            onSelectedMediaSetIdChange={setSelectedMediaSetId}
+            selectedCompCardId={selectedCompCardId}
+            onSelectedCompCardIdChange={setSelectedCompCardId}
+            monthlyLimitLabel={monthlyLimitLabel}
+            applicationNote={applicationNote}
+            onApplicationNoteChange={setApplicationNote}
+            hasSubmissionConsent={hasSubmissionConsent}
+            onSubmissionConsentChange={setHasSubmissionConsent}
+            submittedApplication={submittedApplication}
+          />,
+          document.body,
+        )}
+    </div>
+  );
+}
+
+function AgencyApplicationModal({
+  agencies,
+  selectedAgency,
+  selectedAgencyId,
+  onSelectAgency,
+  onClose,
+  onSubmit,
+  isSubmitting,
+  isBlocked,
+  profile,
+  images,
+  mediaSets,
+  mediaSetsLoading,
+  selectedMediaSetId,
+  onSelectedMediaSetIdChange,
+  selectedCompCardId,
+  onSelectedCompCardIdChange,
+  monthlyLimitLabel,
+  applicationNote,
+  onApplicationNoteChange,
+  hasSubmissionConsent,
+  onSubmissionConsentChange,
+  submittedApplication,
+}) {
+  const [activeStep, setActiveStep] = useState('agency');
+  const hasAgencies = agencies.length > 0;
+  const site = websiteUrl(selectedAgency?.agency_website);
+  const profileName = profileDisplayName(profile);
+  const visibleImages = images.filter((image) => !image.exclude_from_agency && imageUrl(image));
+  const selectedImages = selectedMediaSetId === 'current'
+    ? visibleImages
+    : visibleImages.filter((image) => image.set_id === selectedMediaSetId);
+  const previewImages = selectedImages.length ? selectedImages.slice(0, 6) : visibleImages.slice(0, 6);
+  const hasHeadshot = selectedImages.some((image) => hasShotType(image, ['headshot']));
+  const hasFullBody = selectedImages.some((image) =>
+    hasShotType(image, ['full_length', 'full_body', 'three_quarter']),
+  );
+  const hasMeasurements = !!measurementValue(profile, ['height_cm']) &&
+    !!measurementValue(profile, ['bust', 'bust_cm']) &&
+    !!measurementValue(profile, ['waist', 'waist_cm']) &&
+    !!measurementValue(profile, ['hips', 'hips_cm']);
+  const hasContact = !!profile?.email && !!profile?.phone;
+  const checks = [
+    { label: 'Agency selected', detail: selectedAgency?.name || 'Choose an agency', complete: !!selectedAgency },
+    { label: 'Headshot image', detail: 'One agency-visible headshot', complete: hasHeadshot },
+    { label: 'Full-body image', detail: 'One full-length or three-quarter frame', complete: hasFullBody },
+    { label: 'Measurements', detail: 'Height plus bust, waist, and hips', complete: hasMeasurements },
+    { label: 'Contact details', detail: 'Email and phone available to the agency', complete: hasContact },
+  ];
+  const missingChecks = checks.filter((check) => !check.complete);
+  const readinessLabel = missingChecks.length === 0
+    ? 'Ready'
+    : `Missing ${missingChecks.length} ${missingChecks.length === 1 ? 'item' : 'items'}`;
+  const compCardOptions = [
+    { id: 'current', label: 'Current comp card', detail: profile?.pdf_theme || 'Default Pholio card' },
+    { id: 'agency', label: 'Agency review card', detail: 'Stats-forward layout' },
+    { id: 'editorial', label: 'Editorial card', detail: 'Image-led presentation' },
+  ];
+  const selectedMediaSetName =
+    selectedMediaSetId === 'current'
+      ? 'Current book'
+      : mediaSets.find((set) => set.id === selectedMediaSetId)?.name || 'Selected image set';
+  const selectedCompCardName =
+    compCardOptions.find((option) => option.id === selectedCompCardId)?.label || 'Current comp card';
+  const canSubmit = hasAgencies && selectedAgency && !isBlocked && missingChecks.length === 0 && hasSubmissionConsent;
+  const packagePayload = {
+    agencyName: selectedAgency?.name || null,
+    agencyLocation: selectedAgency?.agency_location || null,
+    mediaSetId: selectedMediaSetId,
+    mediaSetName: selectedMediaSetName,
+    compCardId: selectedCompCardId,
+    compCardName: selectedCompCardName,
+    imageIds: selectedImages.map((image) => image.id),
+    readiness: readinessLabel,
+    consentConfirmed: hasSubmissionConsent,
+  };
+  const packageItems = [
+    {
+      icon: FileText,
+      label: profileName,
+      detail: profileLocation(profile),
+    },
+    {
+      icon: BookOpen,
+      label: selectedMediaSetName,
+      detail: `${selectedImages.length || visibleImages.length} agency-visible images`,
+    },
+    {
+      icon: IdCard,
+      label: selectedCompCardName,
+      detail: bodyStatsLabel(profile),
+    },
+    {
+      icon: Mail,
+      label: 'Contact',
+      detail: profile?.email && profile?.phone ? 'Email and phone included' : 'Contact details incomplete',
+    },
+  ];
+  const steps = [
+    { id: 'agency', label: 'Agency' },
+    { id: 'package', label: 'Package' },
+    { id: 'checks', label: 'Checks' },
+    { id: 'preview', label: 'Preview' },
+    { id: 'note', label: 'Note' },
+    { id: 'confirm', label: 'Confirm' },
+  ];
+  const activeStepIndex = Math.max(0, steps.findIndex((step) => step.id === activeStep));
+  const isFirstStep = activeStepIndex === 0;
+  const isFinalStep = activeStepIndex === steps.length - 1;
+  const goToPreviousStep = () => {
+    if (!isFirstStep) setActiveStep(steps[activeStepIndex - 1].id);
+  };
+  const goToNextStep = () => {
+    if (!isFinalStep) setActiveStep(steps[activeStepIndex + 1].id);
+  };
+
+  return (
+    <div className="app-application-modal" role="dialog" aria-modal="true" aria-labelledby="app-apply-modal-title">
+      <button type="button" className="app-application-modal__backdrop" aria-label="Close application" onClick={onClose} />
+      <div className="app-application-modal__panel">
+        <div className="app-application-modal__chrome">
+          <span className="app-kicker">Apply New</span>
+          <button type="button" className="app-modal-close" onClick={onClose} aria-label="Close application">
+            <XCircle size={18} aria-hidden />
+          </button>
+        </div>
+
+        {submittedApplication ? (
+          <div className="app-submit-success" role="status">
+            <div className="app-submit-success__mark">
+              <Check size={22} aria-hidden />
+            </div>
+            <span className="app-kicker">Submitted</span>
+            <h2>{submittedApplication.agency?.name || selectedAgency?.name || 'Agency'} has your package.</h2>
+            <p>
+              Submitted {dateLabel(submittedApplication.submittedAt)}. This now appears in Application history as an
+              active submission while the agency reviews your materials.
+            </p>
+            <div className="app-submit-success__next">
+              <div>
+                <span>Package</span>
+                <strong>{selectedMediaSetName}</strong>
+              </div>
+              <div>
+                <span>Comp Card</span>
+                <strong>{selectedCompCardName}</strong>
+              </div>
+              <div>
+                <span>Next</span>
+                <strong>Agency review</strong>
+              </div>
+            </div>
+            <button type="button" className="app-primary-action" onClick={onClose}>
+              Back to Market
+            </button>
+          </div>
+        ) : !hasAgencies ? (
+          <div className="app-application-empty">
+            <CircleDashed size={26} strokeWidth={1.4} aria-hidden />
+            <h3>No open agencies are available right now</h3>
+            <p>Every current agency is already represented in your ledger.</p>
+          </div>
+        ) : (
+          <>
+            <div className="app-application-shell">
+              <aside className="app-application-rail">
+                <div className={`app-readiness-badge ${missingChecks.length === 0 ? 'app-readiness-badge--ready' : ''}`}>
+                  <span>{readinessLabel}</span>
+                  <strong>{monthlyLimitLabel} this month</strong>
+                </div>
+
+                <div className="app-stepper" aria-label="Application sections">
+                  {steps.map((step, index) => (
+                    <button
+                      key={step.id}
+                      type="button"
+                      className={`app-stepper__item ${activeStep === step.id ? 'app-stepper__item--active' : ''}`}
+                      onClick={() => setActiveStep(step.id)}
+                    >
+                      <span>{String(index + 1).padStart(2, '0')}</span>
+                      {step.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="app-rail-summary">
+                  <span className="app-kicker">Sending To</span>
+                  <strong>{selectedAgency?.name || 'Select agency'}</strong>
+                  <p>{selectedMediaSetName} / {selectedCompCardName}</p>
+                </div>
+              </aside>
+
+              <main className="app-application-stage">
+                <div className="app-modal-step">
+                  {activeStep === 'agency' && (
+                    <section className="app-modal-section app-modal-section--agency" aria-label="Agency context">
+                      <div className="app-modal-section__head">
+                        <span className="app-kicker">Agency Context</span>
+                        {site && (
+                          <a href={site} target="_blank" rel="noreferrer" aria-label="Open agency site">
+                            <ExternalLink size={14} aria-hidden />
+                          </a>
+                        )}
+                      </div>
+                      <div className="app-modal-agency">
+                        <div className="app-modal-agency__mark" aria-hidden>
+                          {selectedAgency?.profile_image ? (
+                            <img src={selectedAgency.profile_image} alt="" />
+                          ) : (
+                            <Building2 size={22} strokeWidth={1.4} aria-hidden />
+                          )}
+                        </div>
+                        <div>
+                          <h3>{selectedAgency?.name || 'Select an agency'}</h3>
+                          <p>
+                            <MapPin size={13} aria-hidden />
+                            {selectedAgency?.agency_location || 'Global'}
+                          </p>
+                          <strong>{agencyTypeLabel(selectedAgency)}</strong>
+                        </div>
+                      </div>
+                      <p className="app-modal-agency__note">
+                        {selectedAgency?.agency_description || 'Accepting polished profile packages from new talent.'}
+                      </p>
+                      <div className="app-agency-select-wrap">
+                        <label htmlFor="agency-select">Change agency</label>
+                        <select id="agency-select" value={selectedAgencyId || ''} onChange={(event) => onSelectAgency(event.target.value)}>
+                          {agencies.map((agency) => (
+                            <option key={agency.id} value={agency.id}>
+                              {agency.name || 'Unnamed Agency'}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} aria-hidden />
+                      </div>
+                    </section>
+                  )}
+
+                  {activeStep === 'package' && (
+                    <section className="app-modal-section" aria-label="What Pholio will send">
+                      <div className="app-modal-section__head">
+                        <span className="app-kicker">What Pholio Will Send</span>
+                      </div>
+                      <div className="app-send-list">
+                        {packageItems.map((item) => {
+                          const ItemIcon = item.icon;
+                          return (
+                            <div key={item.label}>
+                              <ItemIcon size={15} strokeWidth={1.5} aria-hidden />
+                              <span>{item.label}</span>
+                              <strong>{item.detail}</strong>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="app-package-controls">
+                        <label>
+                          <span>Image set</span>
+                          <select value={selectedMediaSetId} onChange={(event) => onSelectedMediaSetIdChange(event.target.value)}>
+                            <option value="current">{mediaSetsLoading ? 'Loading image sets' : 'Current book'}</option>
+                            {mediaSets.map((set) => (
+                              <option key={set.id} value={set.id}>
+                                {set.name || `${set.kind || 'Image'} set`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>Comp card</span>
+                          <select value={selectedCompCardId} onChange={(event) => onSelectedCompCardIdChange(event.target.value)}>
+                            {compCardOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    </section>
+                  )}
+
+                  {activeStep === 'checks' && (
+                    <section className="app-modal-section" aria-label="Required checks">
+                      <div className="app-modal-section__head">
+                        <span className="app-kicker">Required Checks</span>
+                      </div>
+                      <div className="app-check-list">
+                        {checks.map((check) => (
+                          <div key={check.label} className={check.complete ? 'app-check app-check--complete' : 'app-check'}>
+                            {check.complete ? <Check size={14} aria-hidden /> : <AlertCircle size={14} aria-hidden />}
+                            <span>{check.label}</span>
+                            <strong>{check.detail}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {activeStep === 'preview' && (
+                    <section className="app-modal-section app-modal-section--preview" aria-label="Agency package preview">
+                      <div className="app-modal-section__head">
+                        <span className="app-kicker">Agency Preview</span>
+                        <Eye size={15} aria-hidden />
+                      </div>
+                      <div className="app-package-preview">
+                        <div className="app-package-preview__identity">
+                          <h3>{profileName}</h3>
+                          <p>{profileLocation(profile)}</p>
+                          <dl>
+                            <div>
+                              <dt>Height</dt>
+                              <dd>{heightLabel(profile)}</dd>
+                            </div>
+                            <div>
+                              <dt>Stats</dt>
+                              <dd>{bodyStatsLabel(profile)}</dd>
+                            </div>
+                            <div>
+                              <dt>Comp</dt>
+                              <dd>{selectedCompCardName}</dd>
+                            </div>
+                          </dl>
+                        </div>
+                        <div className="app-preview-images" aria-label="Selected images">
+                          {previewImages.length > 0 ? (
+                            previewImages.map((image) => (
+                              <div key={image.id} className="app-preview-image">
+                                <img src={imageUrl(image)} alt="" />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="app-preview-image app-preview-image--empty">
+                              <Image size={18} aria-hidden />
+                              No images selected
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  {activeStep === 'note' && (
+                    <section className="app-modal-section app-modal-section--note" aria-label="Submission note">
+                      <label className="app-application-note">
+                        <span className="app-kicker">Submission Note</span>
+                        <textarea
+                          value={applicationNote}
+                          onChange={(event) => onApplicationNoteChange(event.target.value.slice(0, 1200))}
+                          placeholder="Add a concise professional note or leave blank."
+                          rows={4}
+                        />
+                        <small>{applicationNote.length}/1200</small>
+                      </label>
+                    </section>
+                  )}
+
+                  {activeStep === 'confirm' && (
+                    <section className="app-modal-section app-modal-section--consent" aria-label="Consent and confirmation">
+                      <div className="app-modal-section__head">
+                        <span className="app-kicker">Consent And Confirmation</span>
+                      </div>
+                      <label className="app-consent-check">
+                        <input
+                          type="checkbox"
+                          checked={hasSubmissionConsent}
+                          onChange={(event) => onSubmissionConsentChange(event.target.checked)}
+                        />
+                        <span>
+                          I agree to submit my selected profile assets, measurements, images, comp card, and contact details
+                          to {selectedAgency?.name || 'this agency'} for review.
+                        </span>
+                      </label>
+                      {isBlocked && (
+                        <p className="app-modal-warning">Complete required profile fields before applying through Market.</p>
+                      )}
+                      {!isBlocked && missingChecks.length > 0 && (
+                        <p className="app-modal-warning">Resolve the missing checks before submitting this package.</p>
+                      )}
+                    </section>
+                  )}
+                </div>
+
+                <div className="app-application-modal__actions">
+                  <div className="app-step-status">
+                    {isFinalStep ? <UserCheck size={14} aria-hidden /> : <span>{activeStepIndex + 1} / {steps.length}</span>}
+                    <span>
+                      {isFinalStep && canSubmit
+                        ? 'Package is ready for agency review.'
+                        : isFinalStep
+                          ? 'Review the package requirements before sending.'
+                          : steps[activeStepIndex + 1]
+                            ? `Next: ${steps[activeStepIndex + 1].label}`
+                            : 'Ready to confirm'}
+                    </span>
+                  </div>
+                  <div className="app-step-actions">
+                    <button
+                      type="button"
+                      className="app-secondary-action"
+                      onClick={goToPreviousStep}
+                      disabled={isFirstStep}
+                    >
+                      <ArrowLeft size={13} aria-hidden />
+                      Back
+                    </button>
+                    {isFinalStep ? (
+                  <button
+                    type="button"
+                    className="app-primary-action"
+                    onClick={() => onSubmit(selectedAgency, packagePayload)}
+                    disabled={!canSubmit || isSubmitting}
+                  >
+                    {isBlocked ? (
+                      <>
+                        <Lock size={14} aria-hidden />
+                        Locked
+                      </>
+                    ) : isSubmitting ? (
+                      <>
+                        <Loader2 size={14} className="app-spin" aria-hidden />
+                        Sending
+                      </>
+                    ) : (
+                      <>
+                        <Send size={14} aria-hidden />
+                        Submit Application
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button type="button" className="app-primary-action" onClick={goToNextStep}>
+                    Next
+                    <ArrowUpRight size={14} aria-hidden />
+                  </button>
+                )}
+                  </div>
+                </div>
+              </main>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
