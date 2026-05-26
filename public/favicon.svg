@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Pholio">
   <rect width="32" height="32" fill="#050505"/>
   <g fill="#C9A55A">
-    <!-- Initial · P.  brand reduction for favicons (Noto Serif Displaystyle cap P) -->
     <path d="M9.75 8.25h5.1c4.35 0 6.85 2.15 6.85 5.85 0 3.25-2.05 5.35-5.55 5.75l7.45 9.85h-3.85l-6.55-8.65h-1.35v8.65H9.75V8.25zm3.1 2.35v7.45h3.55c2.55 0 3.95-1.25 3.95-3.7 0-2.5-1.4-3.75-3.95-3.75h-3.55z"/>
     <circle cx="23.35" cy="25.15" r="1.3"/>
   </g>

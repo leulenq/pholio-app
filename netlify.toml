@@ -1,7 +1,7 @@
 [build]
   # Run patch script first (strips browser fields from iconv-lite/readable-stream/pg
   # and silences extend-node.js) so esbuild bundles server-side versions correctly.
-  command = "node scripts/patch-express.js && npm run build:function && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
+  command = "node scripts/patch-express.js && npm run build:function && npm run generate:favicons && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
   publish = "public"
 
 [build.environment]
@@ -40,12 +40,27 @@
 
 [[redirects]]
   from = "/favicon.ico"
-  to = "/dashboard-app/favicon.svg"
+  to = "/dashboard-app/favicon.ico"
+  status = 200
+
+[[redirects]]
+  from = "/favicon-16x16.png"
+  to = "/dashboard-app/favicon-16x16.png"
+  status = 200
+
+[[redirects]]
+  from = "/favicon-32x32.png"
+  to = "/dashboard-app/favicon-32x32.png"
   status = 200
 
 [[redirects]]
   from = "/favicon.svg"
   to = "/dashboard-app/favicon.svg"
+  status = 200
+
+[[redirects]]
+  from = "/apple-touch-icon.png"
+  to = "/dashboard-app/apple-touch-icon.png"
   status = 200
 
 [[redirects]]

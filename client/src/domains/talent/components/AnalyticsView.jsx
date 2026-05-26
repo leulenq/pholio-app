@@ -5,8 +5,7 @@ import {
   AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import {
-  Eye, Download, Briefcase, TrendingUp, Lock, Activity,
-  CheckCircle, FileText,
+  Eye, Download, Briefcase, TrendingUp, Lock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '../hooks/useAnalytics';
@@ -38,9 +37,6 @@ const STATUS_CLASS = {
   ACCEPTED: 'market-status-pill--accepted', DECLINED: 'market-status-pill--declined',
 };
 
-const ACTIVITY_ICONS = {
-  view: Eye, download: Download, application: CheckCircle, profile_update: FileText,
-};
 
 function asNum(v) {
   const n = Number(v);
@@ -305,7 +301,6 @@ function ReachChapter({ timeseries, analytics, isPro }) {
           )) : (
             <span className="reach-pill reach-pill--empty">Accumulating source data…</span>
           )}
-          <a href="/pricing" className="reach-upgrade-link">See full breakdown →</a>
         </div>
       )}
     </motion.section>
@@ -553,37 +548,6 @@ function PatternChapter({ cohorts, isPro }) {
     </motion.section>
   );
 }
-function ActivityFeed({ activities }) {
-  const list = asArray(activities);
-  return (
-    <section className="activity-feed">
-      <div className="activity-feed-header intel-chapter-header">
-        <span className="intel-chapter-kicker">Activity</span>
-        <h2 className="activity-feed-title">Recent <em>Events.</em></h2>
-      </div>
-      {list.length === 0 ? (
-        <p className="intel-empty-activity">No recent events recorded.</p>
-      ) : (
-        <div className="activity-list">
-          {list.slice(0, 10).map((item, i) => {
-            const Icon = ACTIVITY_ICONS[item.type] ?? Activity;
-            return (
-              <div key={item.id ?? `${item.type}-${i}`} className="activity-item">
-                <div className="activity-icon" aria-hidden="true">
-                  <Icon size={14} />
-                </div>
-                <div>
-                  <span className="activity-desc">{item.message}</span>
-                  <span className="activity-time">{item.timeAgo}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
 
 export default function AnalyticsView() {
   const { profile, subscription } = useAuth();
@@ -594,7 +558,7 @@ export default function AnalyticsView() {
     if (isPro) setTimeRange(prev => (prev === 7 ? 30 : prev));
   }, [isPro]);
 
-  const { analytics, activities, summary, timeseries, detailedStats, sessions, cohorts,
+  const { analytics, summary, timeseries, detailedStats, sessions, cohorts,
     isLoading, isError, refetch } = useAnalytics(timeRange, { includeAdvanced: isPro });
 
   const { data: appsPayload, isPending: appsLoading } = useQuery({
@@ -639,7 +603,6 @@ export default function AnalyticsView() {
         <SignalChapter  analytics={analytics}      sessions={sessions}    detailedStats={detailedStats} isPro={isPro} />
         <MarketChapter  applications={applications} appsLoading={appsLoading} isPro={isPro} />
         <PatternChapter cohorts={cohorts}           isPro={isPro} />
-        <ActivityFeed   activities={activities} />
       </div>
     </div>
   );

@@ -19,6 +19,7 @@
     "postinstall": "node scripts/patch-express.js",
     "build": "echo 'Build complete'",
     "build:function": "node_modules/.bin/esbuild netlify/function/server.js --bundle --platform=node --target=node20 --outfile=netlify/function-built/server.js --external:bcrypt --external:sharp --external:@img --external:@unrs --external:fsevents --external:sqlite3 --external:better-sqlite3 --external:mysql --external:mysql2 --external:tedious --external:oracledb --external:pg-native --external:pg-query-stream --external:mssql --external:@sparticuz/chromium --external:puppeteer --external:mime --external:zod --external:validator --external:ejs --external:express-ejs-layouts",
+    "generate:favicons": "node scripts/generate-favicons.js",
     "build:migrate": "npm run migrate && npm run build",
     "netlify:cache-bust": "echo 2"
   },
@@ -68,6 +69,7 @@
     "jest": "^30.2.0",
     "nodemon": "^3.1.14",
     "supertest": "^7.2.2",
+    "to-ico": "^1.1.5",
     "tough-cookie": "^6.0.0"
   }
 }
