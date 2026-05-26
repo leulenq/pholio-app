@@ -1,5 +1,7 @@
+const path = require("path");
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
+const config = require("../../../config");
 const knex = require("../../../shared/db/knex");
 const {
   loginSchema,
@@ -61,13 +63,17 @@ router.get("/login", async (req, res) => {
     // Dashboard routes handle empty states internally (no need to check for profile here)
     return res.redirect(redirectForSession(req.session));
   }
+  // Production: React SPA handles /login (served by app.js). Dev: Vite on :5173.
+  if (process.env.NODE_ENV === "production") {
+    const appRoot = config.isServerless
+      ? process.env.LAMBDA_TASK_ROOT || path.join(__dirname, "../../..")
+      : path.join(__dirname, "../../../..");
+    return res.sendFile(
+      path.join(appRoot, "public", "dashboard-app", "index.html"),
+    );
+  }
+
   const nextPath = safeNext(req.query.next);
-  // Redirect to Client Login (Port 5173 in dev, /login in prod)
-  // This deprecates the EJS login page for browser users
-  const loginUrl =
-    process.env.NODE_ENV === "production"
-      ? "/login"
-      : "http://localhost:5173/login";
   const params = new URLSearchParams();
   if (nextPath) {
     params.set("next", nextPath);
@@ -75,8 +81,8 @@ router.get("/login", async (req, res) => {
   if (forceLogin) {
     params.set("force", "1");
   }
-
   const queryString = params.toString();
+  const loginUrl = "http://localhost:5173/login";
   return res.redirect(queryString ? `${loginUrl}?${queryString}` : loginUrl);
 });
 

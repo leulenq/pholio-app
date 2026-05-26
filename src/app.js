@@ -611,11 +611,12 @@ if (
 app.get(
   [
     "/dashboard",
-    "/dashboard{/*path}",
+    "/dashboard/*",
     "/onboarding",
-    "/onboarding{/*path}",
+    "/onboarding/*",
     "/reveal",
     "/apply",
+    "/login",
   ],
   (req, res) => {
     // Development: Redirect to Vite dev server
@@ -638,8 +639,8 @@ app.get("/", (req, res) => {
     if (process.env.NODE_ENV !== "production") {
       return res.redirect("http://localhost:3001"); // Redirect to Next.js Landing Page
     }
-    // In production, we might want to redirect to the main site or dashboard
-    return res.redirect("https://www.pholio.studio");
+    // app.pholio.studio serves the React SPA; marketing lives on www
+    return res.redirect("/dashboard/talent");
   }
 
   // API clients get a status message
