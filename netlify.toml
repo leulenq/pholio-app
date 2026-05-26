@@ -9,9 +9,9 @@
   NPM_FLAGS = "--include=optional"
 
 [functions]
-  # Use pre-built function bundle to avoid Netlify esbuild bundler differences
-  # (especially around optional deps like ejs).
-  directory = "netlify/function-built"
+  # Use conventional Netlify functions directory so the server handler
+  # is definitely deployed at `/.netlify/functions/server`.
+  directory = "netlify/functions"
   # esbuild resolves directory requires (e.g. require('./router'), require('./util/nullUndefinedCheck'))
   # at bundle time, eliminating the entire class of nft trace bugs.
   node_bundler = "esbuild"
@@ -26,7 +26,7 @@
     "bcrypt", "sharp", "puppeteer", "@sparticuz/chromium", "better-sqlite3", "sqlite3",
     "mysql", "mysql2", "tedious", "oracledb", "mssql",
     "fsevents", "pg-native", "pg-query-stream",
-    "firebase-admin", "ejs"
+    "firebase-admin"
   ]
 
 [[redirects]]
