@@ -24,7 +24,7 @@
     "bcrypt", "sharp", "puppeteer", "@sparticuz/chromium", "better-sqlite3", "sqlite3",
     "mysql", "mysql2", "tedious", "oracledb", "mssql",
     "fsevents", "pg-native", "pg-query-stream",
-    "firebase-admin"
+    "firebase-admin", "ejs"
   ]
 
 [[redirects]]

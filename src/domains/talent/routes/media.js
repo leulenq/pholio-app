@@ -521,6 +521,22 @@ router.patch(
   }),
 );
 
+/** Netlify/Lambda cannot serve /uploads from disk; R2 (or USE_R2) is required in production. */
+function requirePersistentUploadStorage(req, res, next) {
+  const useR2 =
+    (config.nodeEnv === "production" || process.env.USE_R2 === "true") &&
+    config.r2.bucket;
+  if (config.isServerless && !useR2) {
+    return res.status(503).json({
+      success: false,
+      error: "upload_storage_unavailable",
+      message:
+        "Image storage is not configured for production. Set R2_BUCKET and Cloudflare R2 credentials in Netlify environment variables.",
+    });
+  }
+  return next();
+}
+
 /**
  * POST /api/talent/media
  * Upload multiple images (max 12)
@@ -529,6 +545,7 @@ router.post(
   "/",
   requireRole("TALENT"),
   ensureProfile,
+  requirePersistentUploadStorage,
   upload.array("media", 12),
   asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {

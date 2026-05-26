@@ -24,6 +24,16 @@ export function parseApiFailure(error, fallbackTitle = 'Something went wrong') {
     };
   }
 
+  if (code === 'upload_storage_unavailable' || error?.data?.error === 'upload_storage_unavailable') {
+    return {
+      title: 'Uploads not configured',
+      body: 'Production image storage (Cloudflare R2) is not set up. Add R2_BUCKET and credentials to Netlify, then redeploy.',
+      supportingMeta: null,
+      isMigration: false,
+      toastMessage: 'Image storage is not configured on the server',
+    };
+  }
+
   if (code === 'DATABASE_CONNECTION_ERROR') {
     return {
       title: 'Database unavailable',

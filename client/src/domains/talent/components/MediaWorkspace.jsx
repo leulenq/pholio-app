@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useMedia } from '../hooks/useMedia';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { TransferFailureNotice } from '../../../shared/components/states';
+import { parseApiFailure } from '../../../shared/lib/api-error-message';
 import ImageMetadataModal from './ImageMetadataModal';
 import PhotoEditorModal from './PhotoEditorModal';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
@@ -152,9 +153,28 @@ export default function MediaWorkspace() {
     valid.forEach((f) => formData.append('media', f));
     try {
       setUploadError(null);
-      await upload(formData);
+      const result = await upload(formData);
+      const uploaded = Array.isArray(result?.images) ? result.images : [];
+      if (uploaded.length > 0) {
+        setLocalImages((prev) => {
+          const seen = new Set(prev.map((img) => img.id));
+          const merged = [...prev];
+          uploaded.forEach((img) => {
+            if (!img?.id || seen.has(img.id)) return;
+            seen.add(img.id);
+            merged.push(img);
+          });
+          return merged;
+        });
+      }
     } catch (err) {
-      const message = err?.message || 'Failed to upload image(s)';
+      const failure = parseApiFailure(err, 'Upload failed');
+      let message = failure.toastMessage || failure.body || 'Failed to upload image(s)';
+      if (err?.data?.error === 'onboarding_required') {
+        message = 'Finish onboarding before adding portfolio images, or complete your casting flow first.';
+      } else if (err?.status === 0 || /network error/i.test(message)) {
+        message = 'Could not reach the server. Wait a moment and try again (the API may still be restarting).';
+      }
       setUploadError(message);
       toast.error(message);
     } finally {
