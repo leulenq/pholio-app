@@ -394,9 +394,188 @@ function SignalChapter({ analytics, sessions, detailedStats, isPro }) {
     </motion.section>
   );
 }
-function MarketChapter()  { return null; }
-function PatternChapter() { return null; }
-function ActivityFeed()   { return null; }
+function MarketChapter({ applications, appsLoading, isPro }) {
+  const apps    = asArray(applications).slice(0, 5);
+  const allApps = asArray(applications);
+
+  const lastActive = allApps.length > 0
+    ? new Date(allApps[0].updated_at ?? allApps[0].created_at)
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  if (appsLoading) {
+    return (
+      <motion.section className="intel-chapter" {...CHAPTER_MOTION}>
+        <ChapterHeader number={3} slug="Market" title="Market."
+          lede="Agency submissions, application status, and where you stand." />
+        <div style={{ height: 120, background: 'rgba(26,26,26,0.04)', borderRadius: 8 }} />
+      </motion.section>
+    );
+  }
+
+  return (
+    <motion.section className="intel-chapter" {...CHAPTER_MOTION}>
+      <ChapterHeader
+        number={3} slug="Market" title="Market."
+        lede="Agency submissions, application status, and where you stand."
+      />
+
+      <div className="market-chips">
+        <span className="market-chip">{allApps.length} Submitted</span>
+        {lastActive && <span className="market-chip">Last activity: {lastActive}</span>}
+      </div>
+
+      {apps.length === 0 ? (
+        <p className="market-zero">
+          No submissions yet.{' '}
+          <Link to="/dashboard/talent/profile">Complete your profile</Link>{' '}
+          to get discovered by agencies.
+        </p>
+      ) : (
+        <>
+          <div className="market-list" role="list">
+            {apps.map(app => {
+              const status    = (app.status ?? 'PENDING').toUpperCase();
+              const submitted = new Date(app.created_at)
+                .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              return (
+                <div key={app.id} className="market-row" role="listitem">
+                  <div>
+                    <span className="market-agency-name">{app.agency_name ?? 'Agency'}</span>
+                    {app.agency_location && (
+                      <span className="market-agency-loc">{app.agency_location}</span>
+                    )}
+                  </div>
+                  <span className={`market-status-pill ${STATUS_CLASS[status] ?? 'market-status-pill--pending'}`}>
+                    {STATUS_LABELS[status] ?? status}
+                  </span>
+                  <span className="market-date">{submitted}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {allApps.length > 5 && (
+            <Link to="/dashboard/talent/applications" className="market-see-all">
+              See all {allApps.length} applications →
+            </Link>
+          )}
+
+          {isPro && (
+            <div className="market-timeline" aria-label="Application momentum">
+              {allApps.slice(0, 6).map(app => {
+                const status  = (app.status ?? 'PENDING').toUpperCase();
+                const changed = new Date(app.updated_at ?? app.created_at)
+                  .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                return (
+                  <div key={`tl-${app.id}`} className="market-timeline-item">
+                    <span className="market-timeline-agency">{app.agency_name ?? 'Agency'}</span>
+                    <span className="market-timeline-date">{changed}</span>
+                    {' — '}{STATUS_LABELS[status] ?? status}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </motion.section>
+  );
+}
+function PatternChapter({ cohorts, isPro }) {
+  if (!isPro) {
+    return (
+      <motion.section className="intel-chapter" {...CHAPTER_MOTION}>
+        <ChapterHeader
+          number={4} slug="Pattern" title="Pattern."
+          lede="Retention, cohorts, and the shape of your audience over time."
+        />
+        <div className="pattern-ghost" aria-label="Studio+ feature: Cohort Retention Analysis">
+          <div className="pattern-ghost-grid" aria-hidden>
+            {GHOST_OPACITIES.map((opacity, i) => (
+              <div key={i} className="pattern-ghost-cell" style={{ opacity }} />
+            ))}
+          </div>
+          <div className="pattern-ghost-shimmer" aria-hidden />
+          <div className="pattern-ghost-overlay">
+            <Lock size={20} className="pattern-ghost-icon" aria-hidden={true} />
+            <span className="pattern-ghost-label">Studio+ · Cohort Retention Analysis</span>
+            <p className="pattern-ghost-copy">
+              See which weeks your viewers come back — and which cohorts lose interest.
+            </p>
+            <a href="/pricing" className="pattern-ghost-link">Upgrade to Studio+</a>
+          </div>
+        </div>
+      </motion.section>
+    );
+  }
+
+  const summary = computeCohortSummary(cohorts);
+
+  return (
+    <motion.section className="intel-chapter" {...CHAPTER_MOTION}>
+      <ChapterHeader
+        number={4} slug="Pattern" title="Pattern."
+        lede="Retention, cohorts, and the shape of your audience over time."
+      />
+
+      <div className="pattern-stats">
+        <div className="pattern-stat">
+          <span className="pattern-cohort-stat-value">{summary.avgW1Retention}%</span>
+          <span className="pattern-cohort-stat-label">Avg. W1 Retention</span>
+        </div>
+        <div className="pattern-stat">
+          <span className="pattern-cohort-stat-value">{summary.bestCohortLabel}</span>
+          <span className="pattern-cohort-stat-label">Best Cohort Week</span>
+        </div>
+        <div className="pattern-stat">
+          <span className="pattern-cohort-stat-value">{summary.totalUnique.toLocaleString()}</span>
+          <span className="pattern-cohort-stat-label">Total Unique Visitors</span>
+        </div>
+      </div>
+
+      {summary.bestCohortLabel !== '—' && (
+        <p className="pattern-cohort-read">
+          Your strongest cohort was the week of <strong>{summary.bestCohortLabel}</strong>.
+          {summary.avgW1Retention > 0 && ` Visitors from that week returned at ${summary.avgW1Retention}%.`}
+        </p>
+      )}
+
+      <CohortHeatmap data={cohorts} />
+    </motion.section>
+  );
+}
+function ActivityFeed({ activities }) {
+  const list = asArray(activities);
+  return (
+    <section className="activity-feed">
+      <div className="activity-feed-header intel-chapter-header">
+        <span className="intel-chapter-kicker">Activity</span>
+        <h2 className="activity-feed-title">Recent <em>Events.</em></h2>
+      </div>
+      {list.length === 0 ? (
+        <p className="intel-empty-activity">No recent events recorded.</p>
+      ) : (
+        <div className="activity-list">
+          {list.slice(0, 10).map((item, i) => {
+            const Icon = ACTIVITY_ICONS[item.type] ?? Activity;
+            return (
+              <div key={item.id ?? i} className="activity-item">
+                <div className="activity-icon" aria-hidden="true">
+                  <Icon size={14} />
+                </div>
+                <div>
+                  <span className="activity-desc">{item.message}</span>
+                  <span className="activity-time">{item.timeAgo}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function AnalyticsView() {
   const { profile, subscription } = useAuth();
