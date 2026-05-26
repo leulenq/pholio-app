@@ -41,14 +41,15 @@ const MAX_PRESETS_PER_PROFILE = 40;
 const MAX_PRESET_REVISIONS = 50;
 const PRESET_EXPORT_VERSION = "1.0";
 
-// Absolute paths to EJS templates (moved from views/pdf/ to src/domains/pdf/templates/)
-const TEMPLATE_STANDARD = path.join(
-  __dirname,
-  "..",
-  "templates",
-  "compcard-standard.ejs",
-);
-const TEMPLATE_LEGACY = path.join(__dirname, "..", "templates", "compcard.ejs");
+// EJS templates live in src/domains/pdf/templates/ (bundled via netlify.toml included_files).
+const pdfTemplateDir = config.isServerless
+  ? path.join(
+      process.env.LAMBDA_TASK_ROOT || "/var/task",
+      "src/domains/pdf/templates",
+    )
+  : path.join(__dirname, "..", "templates");
+const TEMPLATE_STANDARD = path.join(pdfTemplateDir, "compcard-standard.ejs");
+const TEMPLATE_LEGACY = path.join(pdfTemplateDir, "compcard.ejs");
 
 // Helper function to log analytics event (non-blocking)
 async function logAnalyticsEvent(
@@ -496,6 +497,14 @@ function extractImportPayload(body) {
   if (!body || typeof body !== "object") {
     return {};
   }
+  if (
+    body.preset &&
+    typeof body.preset === "object" &&
+    body.preset.payload &&
+    typeof body.preset.payload === "object"
+  ) {
+    return body.preset.payload;
+  }
   if (body.payload && typeof body.payload === "object") {
     return body.payload;
   }
@@ -503,6 +512,15 @@ function extractImportPayload(body) {
     return body.preset;
   }
   return body;
+}
+
+function parseOverwriteExisting(value) {
+  if (value === true || value === 1) return true;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "1";
+  }
+  return false;
 }
 
 // Helper function to render simple HTML error page (for iframe compatibility)
@@ -1935,7 +1953,9 @@ router.post(
       }
 
       const importPayload = extractImportPayload(req.body || {});
-      const overwriteExisting = Boolean(req.body?.overwriteExisting);
+      const overwriteExisting = parseOverwriteExisting(
+        req.body?.overwriteExisting,
+      );
       const normalized = normalizePresetInput(importPayload);
 
       let resultPreset = null;

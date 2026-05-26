@@ -15,7 +15,7 @@
   # esbuild resolves directory requires (e.g. require('./router'), require('./util/nullUndefinedCheck'))
   # at bundle time, eliminating the entire class of nft trace bugs.
   node_bundler = "esbuild"
-  included_files = ["views/**", "public/**", "migrations/**"]
+  included_files = ["views/**", "public/**", "migrations/**", "src/domains/pdf/templates/**"]
 
 [functions."server"]
   timeout = 26

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Validation Error · Pholio</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #FAF7F2; color: #1A1A1A; font-family: system-ui, sans-serif; }
+    .wrap { padding: 48px 24px; max-width: 32rem; }
+    h1 { font-family: Georgia, serif; font-weight: 400; font-size: 28px; color: #C9A55A; }
+    ul { margin-top: 16px; padding-left: 20px; color: rgba(26,26,26,0.72); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Please fix the following</h1>
+    <% if (formErrors && typeof formErrors === 'object') { %>
+      <ul>
+        <% Object.keys(formErrors).forEach(function (field) {
+          const msgs = formErrors[field];
+          if (Array.isArray(msgs)) msgs.forEach(function (m) { %>
+            <li><strong><%= field %>:</strong> <%= m %></li>
+          <% });
+        }); %>
+      </ul>
+    <% } else { %>
+      <p><%= error && error.message ? error.message : 'Validation failed.' %></p>
+    <% } %>
+  </div>
+</body>
+</html>

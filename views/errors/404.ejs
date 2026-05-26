@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page Not Found · Pholio</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #FAF7F2; color: #1A1A1A; font-family: Georgia, "Times New Roman", serif; }
+    .wrap { text-align: center; padding: 48px 24px; }
+    .mark { color: #C9A55A; letter-spacing: 0.2em; font-size: 14px; margin-bottom: 24px; }
+    h1 { font-weight: 400; font-size: 28px; margin: 0 0 12px; }
+    p { font-family: system-ui, sans-serif; font-size: 15px; color: rgba(26,26,26,0.62); }
+    a { color: #C9A55A; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="mark">PHOLIO</div>
+    <h1>Page not found</h1>
+    <p><%= error && error.message ? error.message : 'That page does not exist.' %></p>
+    <p><a href="/">Return home</a></p>
+  </div>
+</body>
+</html>
