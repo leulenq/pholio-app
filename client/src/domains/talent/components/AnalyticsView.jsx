@@ -493,7 +493,7 @@ function MarketChapter({ applications, appsLoading, isPro }) {
 function PatternChapter({ cohorts, isPro }) {
   if (!isPro) {
     return (
-      <motion.section className="intel-chapter" {...CHAPTER_MOTION}>
+      <motion.section className="intel-chapter intel-chapter--last" {...CHAPTER_MOTION}>
         <ChapterHeader
           number={4} slug="Pattern" title="Pattern."
           lede="Retention, cohorts, and the shape of your audience over time."
@@ -591,7 +591,6 @@ export default function AnalyticsView() {
     new URLSearchParams(window.location.search).get('debug') === 'pro');
   const [timeRange, setTimeRange] = useState(7);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isPro) setTimeRange(prev => (prev === 7 ? 30 : prev));
   }, [isPro]);
 

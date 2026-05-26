@@ -240,7 +240,7 @@
   border-bottom: 1px solid rgba(26,26,26,0.06);
 }
 
-.intel-chapter:last-of-type { border-bottom: none; margin-bottom: 0; }
+.intel-chapter--last { border-bottom: none; margin-bottom: 0; }
 
 .intel-chapter-header { margin-bottom: 40px; }
 
@@ -280,27 +280,7 @@
   margin: 0;
 }
 
-.intel-chapter-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 24px;
-}
 
-.intel-chapter-stat-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  padding: 6px 14px;
-  border-radius: 100px;
-  border: 1px solid rgba(201,165,90,0.35);
-  color: rgba(26,26,26,0.62);
-  background: transparent;
-}
 
 /* ── The Reach ───────────────────────────────────────────────────────────── */
 
@@ -695,11 +675,6 @@
 
 .market-row:last-child { border-bottom: none; }
 
-.market-rule {
-  height: 1px;
-  background: rgba(26,26,26,0.06);
-  margin: 0;
-}
 
 .market-agency-name {
   font-family: 'Noto Serif Display', Georgia, serif;
@@ -962,11 +937,6 @@
 
 .analytics-page .activity-item:last-child { border-bottom: none; }
 
-.analytics-page .activity-rule {
-  height: 1px;
-  background: rgba(26,26,26,0.06);
-  margin: 0;
-}
 
 .analytics-page .activity-icon {
   width: 32px; height: 32px;
