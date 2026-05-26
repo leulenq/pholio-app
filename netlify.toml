@@ -29,7 +29,64 @@
     "firebase-admin"
   ]
 
+##
+# Serve the React SPA for app routes (login/dashboard/onboarding/reveal),
+# and only route backend API/auth requests to the Netlify function.
+#
+# This prevents a total-site 404 when the function is temporarily unavailable.
+##
+
 [[redirects]]
-  from = "/*"
+  from = "/api/*"
   to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/logout"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/signup"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/partners"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/stripe"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/pdf/*"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard/*"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/onboarding/*"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/reveal"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/"
+  to = "/dashboard-app/index.html"
   status = 200
