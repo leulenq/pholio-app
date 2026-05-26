@@ -240,4 +240,104 @@ describe("selectCompCardImages", () => {
     const r = selectCompCardImages(images, { enforceActive: false });
     expect(r.heroImage?.id).toBe("arc");
   });
+
+  test("locks.heroId forces hero slot when image exists", () => {
+    const images = [
+      { id: "h1", path: "/1", sort: 1, shot_type: "headshot" },
+      { id: "h2", path: "/2", sort: 2, shot_type: "headshot" },
+      { id: "f1", path: "/3", sort: 3, shot_type: "full_length" },
+      { id: "e1", path: "/4", sort: 4, style_type: "editorial" },
+      { id: "l1", path: "/5", sort: 5, style_type: "lifestyle" },
+    ];
+    const r = selectCompCardImages(images, {
+      seed: "locked-hero",
+      locks: { heroId: "h2" },
+    });
+    expect(r.heroImage?.id).toBe("h2");
+  });
+
+  test("locks.gridIds force grid slots and still avoid duplicates", () => {
+    const images = [
+      { id: "h1", path: "/1", sort: 1, shot_type: "headshot" },
+      { id: "f1", path: "/2", sort: 2, shot_type: "full_length" },
+      { id: "e1", path: "/3", sort: 3, style_type: "editorial" },
+      { id: "l1", path: "/4", sort: 4, style_type: "lifestyle" },
+      { id: "x1", path: "/5", sort: 5 },
+    ];
+    const r = selectCompCardImages(images, {
+      seed: "locked-grid",
+      locks: { gridIds: ["x1", null, "l1", null] },
+    });
+    expect(r.gridImages[0]?.id).toBe("x1");
+    expect(r.gridImages[2]?.id).toBe("l1");
+    const ids = [r.heroImage, ...r.gridImages]
+      .filter(Boolean)
+      .map((img) => img.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("normalizes malformed lock values and pads short lockGridIds", () => {
+    const images = [
+      { id: "h1", path: "/1", sort: 1, shot_type: "headshot" },
+      { id: "f1", path: "/2", sort: 2, shot_type: "full_length" },
+      { id: "e1", path: "/3", sort: 3, style_type: "editorial" },
+      { id: "l1", path: "/4", sort: 4, style_type: "lifestyle" },
+      { id: "x1", path: "/5", sort: 5 },
+    ];
+    const r = selectCompCardImages(images, {
+      seed: "normalize-locks",
+      locks: {
+        heroId: "   ",
+        gridIds: ["  x1  ", " ", undefined],
+      },
+    });
+
+    // Blank hero lock should be ignored; short grid lock list should pad to 4.
+    expect(r.heroImage?.id).toBe("h1");
+    expect(r.gridImages[0]?.id).toBe("x1");
+    expect(r.gridImages).toHaveLength(4);
+    const ids = [r.heroImage, ...r.gridImages]
+      .filter(Boolean)
+      .map((img) => img.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("duplicate lock IDs do not create duplicate slot selections", () => {
+    const images = [
+      { id: "h1", path: "/1", sort: 1, shot_type: "headshot" },
+      { id: "f1", path: "/2", sort: 2, shot_type: "full_length" },
+      { id: "e1", path: "/3", sort: 3, style_type: "editorial" },
+      { id: "l1", path: "/4", sort: 4, style_type: "lifestyle" },
+      { id: "x1", path: "/5", sort: 5 },
+    ];
+    const r = selectCompCardImages(images, {
+      seed: "duplicate-lock-id",
+      locks: {
+        heroId: "x1",
+        gridIds: ["x1", "x1", null, null],
+      },
+    });
+
+    expect(r.heroImage?.id).toBe("x1");
+    const ids = [r.heroImage, ...r.gridImages]
+      .filter(Boolean)
+      .map((img) => img.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("invalid lockGridIds shape falls back to role-based selection", () => {
+    const images = [
+      { id: "h1", path: "/1", sort: 1, shot_type: "headshot" },
+      { id: "f1", path: "/2", sort: 2, shot_type: "full_length" },
+      { id: "e1", path: "/3", sort: 3, style_type: "editorial" },
+      { id: "l1", path: "/4", sort: 4, style_type: "lifestyle" },
+      { id: "x1", path: "/5", sort: 5 },
+    ];
+    const r = selectCompCardImages(images, {
+      seed: "non-array-grid-locks",
+      locks: { gridIds: "x1,e1" },
+    });
+    expect(r.heroImage?.id).toBe("h1");
+    expect(r.gridImages.map((g) => g?.id)).toEqual(["f1", "e1", "l1", "x1"]);
+  });
 });

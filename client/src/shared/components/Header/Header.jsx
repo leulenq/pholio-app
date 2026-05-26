@@ -1,3 +1,8 @@
+/**
+ * @deprecated Unused — talent shell uses TalentLayout.
+ * Nav labels here (Portfolio, Analytics, Applications) drift from TALENT_NAV_SECTIONS.
+ * Safe to remove once confirmed no external imports.
+ */
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, Sparkles, Settings, LogOut, ChevronDown, ExternalLink, Menu, X, Lock } from 'lucide-react';
@@ -61,8 +66,10 @@ export default function Header() {
     { label: 'Profile', path: '/dashboard/talent/profile', restricted: false },
     { label: 'Portfolio', path: '/dashboard/talent/media', restricted: false },
     { label: 'Analytics', path: '/dashboard/talent/analytics', restricted: true },
-    { label: 'Applications', path: '/dashboard/talent/applications', restricted: true },
+    { label: 'Applications', path: '/dashboard/talent/applications', restricted: false },
   ];
+
+  const studioNavHref = 'https://www.pholio.studio/pricing';
 
   // Fetch real activities for notifications
   const { data: activitiesData, isLoading: activitiesLoading } = useQuery({
@@ -88,8 +95,7 @@ export default function Header() {
         ? `Complete ${missingSummary}${missingFields.length > 2 ? ` +${missingFields.length - 2} more` : ''} to unlock this section.`
         : 'Complete your required profile fields to unlock this section.'
     );
-    const from = destinationPath ? `&from=${encodeURIComponent(destinationPath)}` : '';
-    navigate(`/dashboard/talent/profile?gate=true${from}`);
+    navigate(destinationPath || '/dashboard/talent/profile?gate=true');
     setIsMobileNavOpen(false);
   };
 
@@ -309,7 +315,7 @@ export default function Header() {
           {navItems.map((item) => {
             const isDisabled = isBlocked && item.restricted;
             return (
-              <NavLink 
+              <NavLink
                 key={item.label}
                 to={item.path}
                 end={item.end}
@@ -331,17 +337,21 @@ export default function Header() {
               </NavLink>
             );
           })}
+          {!subscription?.isPro && (
+            <a
+              href={studioNavHref}
+              className="nav-btn-studio"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Sparkles size={13} className="nav-btn-studio-icon" aria-hidden />
+              Studio+
+            </a>
+          )}
         </nav>
       </div>
 
       <div className="header-right">
-        {!subscription?.isPro && (
-          <a href="https://www.pholio.studio/pricing" className="upgrade-pill">
-            <Sparkles size={16} />
-            <span>Studio+</span>
-          </a>
-        )}
-
         <span className="header-date">{today}</span>
         
         <div className="notification-bell-container" ref={notificationsRef}>

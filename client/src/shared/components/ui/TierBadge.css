@@ -1,0 +1,199 @@
+/* ============================================
+   TIER BADGE — Pholio Pricing Tier Tags
+   Variants: Free | Studio+
+   ============================================ */
+
+/* ── Base ── */
+.tier-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem; /* 5px */
+  padding: 0.1875rem 0.5625rem; /* 3px 9px */
+  border-radius: 4px;
+  font-family: var(--font-family, Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 0.625rem; /* 10px — micro label */
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Size: sm (default above) ── */
+
+/* ── Size: md ── */
+.tier-tag--md {
+  padding: 0.25rem 0.625rem; /* 4px 10px */
+  font-size: 0.6875rem; /* 11px */
+  gap: 0.375rem;
+  border-radius: 5px;
+}
+
+/* ── Size: lg ── */
+.tier-tag--lg {
+  padding: 0.375rem 0.875rem; /* 6px 14px */
+  font-size: 0.75rem; /* 12px */
+  gap: 0.4375rem;
+  border-radius: 6px;
+}
+
+/* ════════════════════════════════════════════
+   VARIANT: FREE
+   ════════════════════════════════════════════ */
+
+.tier-tag--free {
+  background: rgba(100, 116, 139, 0.08);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.12);
+}
+
+.tier-tag--free:hover {
+  background: rgba(100, 116, 139, 0.12);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+/* Dot indicator */
+.tier-tag__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tier-tag--free .tier-tag__dot {
+  background: #94a3b8;
+}
+
+.tier-tag--md .tier-tag__dot {
+  width: 7px;
+  height: 7px;
+}
+
+.tier-tag--lg .tier-tag__dot {
+  width: 8px;
+  height: 8px;
+}
+
+/* ════════════════════════════════════════════
+   VARIANT: STUDIO+
+   Gold gradient with animated shimmer
+   ════════════════════════════════════════════ */
+
+.tier-tag--studio {
+  background: linear-gradient(135deg, rgba(201, 165, 90, 0.12) 0%, rgba(184, 148, 79, 0.18) 100%);
+  color: #b08d45;
+  border: 1px solid rgba(201, 165, 90, 0.2);
+}
+
+.tier-tag--studio:hover {
+  background: linear-gradient(135deg, rgba(201, 165, 90, 0.18) 0%, rgba(184, 148, 79, 0.25) 100%);
+  border-color: rgba(201, 165, 90, 0.35);
+  box-shadow: 0 2px 8px rgba(201, 165, 90, 0.12);
+}
+
+.tier-tag--studio .tier-tag__dot {
+  background: linear-gradient(135deg, #C9A55A, #B8954F);
+  box-shadow: 0 0 4px rgba(201, 165, 90, 0.35);
+}
+
+/* Sparkle icon in Studio+ */
+.tier-tag__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.tier-tag--studio .tier-tag__icon {
+  color: #C9A55A;
+}
+
+/* Shimmer sweep overlay (Studio+ only) */
+.tier-tag--studio::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(201, 165, 90, 0.12) 40%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(201, 165, 90, 0.12) 60%,
+    transparent 100%
+  );
+  animation: tierShimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes tierShimmer {
+  0%   { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* ════════════════════════════════════════════
+   VARIANT: STUDIO+ SOLID (for dark backgrounds)
+   ════════════════════════════════════════════ */
+
+.tier-tag--studio-solid {
+  background: linear-gradient(135deg, #C9A55A 0%, #B8954F 100%);
+  color: #ffffff;
+  border: 1px solid rgba(201, 165, 90, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.tier-tag--studio-solid:hover {
+  box-shadow: 0 4px 12px rgba(201, 165, 90, 0.3);
+  transform: translateY(-1px);
+}
+
+.tier-tag--studio-solid .tier-tag__dot {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+}
+
+.tier-tag--studio-solid .tier-tag__icon {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.tier-tag--studio-solid::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 40%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.08) 60%,
+    transparent 100%
+  );
+  animation: tierShimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ════════════════════════════════════════════
+   REDUCED MOTION
+   ════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .tier-tag--studio::after,
+  .tier-tag--studio-solid::after {
+    animation: none;
+    display: none;
+  }
+
+  .tier-tag {
+    transition: none;
+  }
+}

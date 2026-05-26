@@ -132,20 +132,67 @@
 .cc-th:hover .cc-th__lead, .cc-th:focus-within .cc-th__lead { opacity: 1; }
 .cc-th.is-lead .cc-th__lead { opacity: 1; background: var(--mw-gold); color: var(--mw-ink); }
 
-/* Layout segmented control */
-.cc-segment { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--mw-hair); border-radius: 4px; overflow: hidden; background: #fff; }
-.cc-segment__btn {
-  display: flex; flex-direction: column; align-items: center; gap: 7px;
-  padding: 14px 6px; border: none; border-right: 1px solid var(--mw-hair);
-  background: transparent; cursor: pointer;
-  font-family: var(--mw-sans); font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
-  color: var(--mw-text-soft);
-  transition: background 0.2s var(--mw-ease), color 0.2s var(--mw-ease);
+/* Layout segmented control — slim, horizontal */
+.cc-segment {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--mw-hair);
+  border-radius: 999px;
+  background: #fff;
+  width: 100%;
 }
-.cc-segment__btn:last-child { border-right: none; }
-.cc-segment__btn:hover { background: var(--mw-cream-warm); color: var(--mw-text); }
-.cc-segment__btn.is-active { background: var(--mw-ink); color: #fff; }
-.cc-segment__btn.is-active svg { color: var(--mw-gold-warm); }
+.cc-segment__btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--mw-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mw-text-soft);
+  white-space: nowrap;
+  transition: all 0.25s var(--mw-ease);
+}
+.cc-segment__btn svg {
+  color: var(--mw-text-faint);
+  transition: color 0.25s var(--mw-ease);
+}
+.cc-segment__btn:hover {
+  color: var(--mw-text);
+  background: rgba(26, 26, 26, 0.03);
+}
+.cc-segment__btn:hover svg {
+  color: var(--mw-text-soft);
+}
+.cc-segment__btn.is-active {
+  background: var(--mw-ink);
+  color: #fff;
+}
+.cc-segment__btn.is-active svg {
+  color: var(--mw-gold);
+}
+@media (max-width: 560px) {
+  .cc-segment {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .cc-segment__btn {
+    border-radius: 8px;
+    padding: 10px 6px;
+  }
+}
 
 /* Finish tiles */
 .cc-finishes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }

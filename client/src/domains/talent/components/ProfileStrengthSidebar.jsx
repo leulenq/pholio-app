@@ -49,11 +49,8 @@ export default function ProfileStrengthSidebar({
       <div className={styles.card}>
         <div className={styles.header}>
           <span className={styles.title}>Readiness</span>
-          <div className={styles.scoreRow}>
-            <div className={styles.scoreWrapper}>
-              <span className={styles.score} aria-live="polite">{score}%</span>
-              <span className={styles.scoreLabel}>Profile</span>
-            </div>
+          <div className={styles.scoreBlock}>
+            <span className={styles.score} aria-live="polite">{score}%</span>
             <div className={`${styles.statusPill} ${styles[statusColor]}`}>
               {ui.label}
             </div>

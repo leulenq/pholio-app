@@ -12,6 +12,7 @@ import { useDropzone } from 'react-dropzone';
 import { useCastingScout, useCastingPrimarySwap, useCastingConfirm } from '../hooks/useCasting';
 import { toast } from 'sonner';
 import { fadeVariants } from './animations';
+import { TransferFailureNotice } from '../../../shared/components/states';
 
 import { ThinkingText } from './ThinkingText';
 import { CinematicDivider } from './CinematicDivider';
@@ -127,6 +128,7 @@ export default function CastingScout({ onComplete, userName }) {
 
   const hasOneDone = photos.some(p => p.status === 'done');
   const anyLoading = photos.some(p => p.status === 'uploading');
+  const hasUploadErrors = photos.some((p) => p.status === 'error');
 
   return (
     <motion.div
@@ -196,6 +198,15 @@ export default function CastingScout({ onComplete, userName }) {
               style={{ marginBottom: '1.5rem' }}
             />
             <CinematicDivider delay={0.5} style={{ marginBottom: '2.5rem' }} />
+
+            {hasUploadErrors && (
+              <TransferFailureNotice
+                title="Some uploads failed"
+                body="One or more photos did not upload. Remove failed items and try again."
+                retry={{ label: 'Dismiss', onClick: () => setPhotos((p) => p.filter((x) => x.status !== 'error')) }}
+                className="sg-transfer-error"
+              />
+            )}
 
             {/* Hidden native file input */}
             <input

@@ -7,6 +7,26 @@ const {
   getFreeThemes,
   getProThemes,
 } = require("../../domains/pdf/themes");
+const {
+  listReferenceLanguages,
+} = require("../../shared/lib/language-reference");
+
+// GET /api/public/languages — canonical language list for profile forms
+router.get("/languages", async (req, res) => {
+  try {
+    const languages = await listReferenceLanguages();
+    res.json({
+      success: true,
+      data: languages.map(({ code, name }) => ({ code, name })),
+    });
+  } catch (error) {
+    console.error("[Public API] Error in /languages:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to load languages",
+    });
+  }
+});
 
 // GET /api/public/home
 router.get("/home", async (req, res) => {

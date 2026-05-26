@@ -1,120 +1,168 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Controller } from 'react-hook-form';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Instagram, Twitter, Youtube, Globe, PlaySquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { PholioInput } from '../../../../shared/components/ui/forms';
 import { Section, SocialInput } from '../../components/profile-index';
 import styles from './ProfilePage.module.css';
 
-function normalizeVideoReelUrl(raw) {
-  if (raw == null || typeof raw !== 'string') return null;
-  const t = raw.trim();
-  if (!t) return null;
-  if (/^https?:\/\//i.test(t)) return t;
-  return `https://${t}`;
-}
+const TiktokIcon = ({ size = 24, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+);
+
+const PLATFORMS = {
+  instagram: {
+    id: 'instagram_handle',
+    name: 'Instagram',
+    icon: Instagram,
+    brandClass: styles.platformInstagram,
+    placeholder: 'instagram.com/username',
+    base: 'https://instagram.com/',
+    prefix: '@',
+    actionText: 'Connect Instagram',
+    isOAuth: true
+  },
+  tiktok: {
+    id: 'tiktok_handle',
+    name: 'TikTok',
+    icon: TiktokIcon,
+    brandClass: styles.platformTiktok,
+    placeholder: 'tiktok.com/@username',
+    base: 'https://tiktok.com/@',
+    prefix: '@',
+    actionText: 'Connect TikTok',
+    isOAuth: true
+  },
+  twitter: {
+    id: 'twitter_handle',
+    name: 'X (Twitter)',
+    icon: Twitter,
+    brandClass: styles.platformTwitter,
+    placeholder: 'x.com/username',
+    base: 'https://x.com/',
+    prefix: '@',
+    actionText: 'Connect X',
+    isOAuth: true
+  },
+  youtube: {
+    id: 'youtube_handle',
+    name: 'YouTube',
+    icon: Youtube,
+    brandClass: styles.platformYoutube,
+    placeholder: 'youtube.com/c/...',
+    base: 'https://youtube.com/',
+    prefix: '',
+    actionText: 'Connect YouTube',
+    isOAuth: true
+  },
+  portfolio: {
+    id: 'portfolio_url',
+    name: 'Website / Portfolio',
+    icon: Globe,
+    brandClass: styles.platformPortfolio,
+    placeholder: 'https://yourwebsite.com',
+    base: '',
+    prefix: '',
+    actionText: 'Add Link',
+    isOAuth: false
+  },
+  reel: {
+    id: 'video_reel_url',
+    name: 'Video Reel',
+    icon: PlaySquare,
+    brandClass: styles.platformReel,
+    placeholder: 'https://vimeo.com/... or YouTube',
+    base: '',
+    prefix: '',
+    actionText: 'Add Reel',
+    isOAuth: false
+  }
+};
+
+const PlatformCard = ({ platformKey, control, setValue, errors }) => {
+  const [isManual, setIsManual] = useState(false);
+  const p = PLATFORMS[platformKey];
+  const Icon = p.icon;
+
+  return (
+    <Controller
+      name={p.id}
+      control={control}
+      render={({ field }) => {
+        const isConnected = !!field.value;
+        const showInput = isManual || isConnected || !p.isOAuth;
+
+        return (
+          <div className={`${styles.platformCard} ${p.brandClass} ${isConnected ? styles.platformConnected : ''}`}>
+             <div className={styles.platformHeader}>
+               <div className={styles.platformIconWrapper}>
+                 <Icon size={20} />
+               </div>
+               <div className={styles.platformInfo}>
+                 <span className={styles.platformName}>{p.name}</span>
+                 {isConnected && !isManual && p.isOAuth && (
+                    <a href={field.value.startsWith('http') ? field.value : `${p.base}${field.value.replace(/^@/, '')}`} target="_blank" rel="noreferrer" className={styles.platformHandle}>
+                      {String(field.value).replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                    </a>
+                 )}
+               </div>
+               {isConnected ? (
+                 <button type="button" className={styles.platformDisconnect} onClick={() => { setValue(p.id, null, {shouldDirty: true}); setIsManual(false); }} title="Remove link">
+                   <Trash2 size={14} />
+                   <span>Remove</span>
+                 </button>
+               ) : (
+                 p.isOAuth && !showInput && (
+                   <button type="button" className={styles.platformConnect} onClick={() => toast.info(`${p.name} OAuth connection coming soon. Please use manual entry.`)}>
+                     {p.actionText}
+                   </button>
+                 )
+               )}
+             </div>
+             
+             {showInput && (
+               <div className={styles.platformInputArea}>
+                 <SocialInput 
+                   name={p.id}
+                   placeholder={p.placeholder}
+                   base={p.base}
+                   prefix={p.prefix}
+                   control={control}
+                   setValue={setValue}
+                   error={errors[p.id]}
+                 />
+               </div>
+             )}
+             
+             {!showInput && !isConnected && p.isOAuth && (
+               <button type="button" className={styles.platformManualBtn} onClick={() => setIsManual(true)}>
+                 Add profile link manually
+               </button>
+             )}
+          </div>
+        );
+      }}
+    />
+  );
+};
 
 export function SocialSection({ control, setValue, errors }) {
   return (
-    <Section id="socials" title="Socials & Media" description="Link your profiles and portfolio.">
+    <Section
+      id="socials"
+      kicker="Social"
+      title="Socials & Media"
+      titleEmphasis="Media"
+      description="Link your profiles and portfolio."
+    >
       <div className={styles.socialGrid}>
-        <SocialInput
-          label="Instagram"
-          name="instagram_handle"
-          placeholder="e.g. https://instagram.com/username"
-          base="https://instagram.com/"
-          prefix="@"
-          control={control}
-          setValue={setValue}
-          error={errors.instagram_handle}
-        />
-        <SocialInput
-          label="TikTok"
-          name="tiktok_handle"
-          placeholder="e.g. https://tiktok.com/@username"
-          base="https://tiktok.com/@"
-          prefix="@"
-          control={control}
-          setValue={setValue}
-          error={errors.tiktok_handle}
-        />
-      </div>
-      <div className={`${styles.socialGrid} ${styles.formRow}`}>
-        <SocialInput
-          label="Twitter / X"
-          name="twitter_handle"
-          placeholder="e.g. https://x.com/username"
-          base="https://x.com/"
-          prefix="@"
-          control={control}
-          setValue={setValue}
-          error={errors.twitter_handle}
-        />
-        <SocialInput
-          label="YouTube Channel"
-          name="youtube_handle"
-          placeholder="e.g. https://youtube.com/channel/..."
-          base="https://youtube.com/"
-          control={control}
-          setValue={setValue}
-          error={errors.youtube_handle}
-        />
-      </div>
-      <div className={`${styles.socialGrid} ${styles.formRow}`}>
-        <SocialInput
-          label="Website / Portfolio"
-          name="portfolio_url"
-          placeholder="https://yourwebsite.com"
-          type="url"
-          inputMode="url"
-          autoComplete="url"
-          control={control}
-          setValue={setValue}
-          error={errors.portfolio_url}
-        />
-        <Controller
-          name="video_reel_url"
-          control={control}
-          render={({ field }) => (
-            <div className={styles.socialInputWrapper}>
-              <PholioInput
-                {...field}
-                value={field.value ?? ''}
-                label="Video reel URL"
-                type="url"
-                inputMode="url"
-                autoComplete="url"
-                placeholder="https://vimeo.com/… or YouTube link"
-                error={errors.video_reel_url}
-                onBlur={(e) => {
-                  field.onBlur();
-                  const next = normalizeVideoReelUrl(e.target.value);
-                  if (next !== (field.value ?? null)) {
-                    setValue('video_reel_url', next, { shouldDirty: true, shouldValidate: true });
-                  }
-                }}
-                className={styles.socialInput}
-              />
-              {field.value && (
-                <button
-                  type="button"
-                  className={styles.testLinkBtn}
-                  onClick={() => {
-                    const u = field.value;
-                    if (u && String(u).includes('http')) {
-                      window.open(String(u), '_blank', 'noopener,noreferrer');
-                    } else {
-                      toast.error('Please enter a valid URL to test');
-                    }
-                  }}
-                  title="Open reel"
-                >
-                  <ExternalLink size={16} />
-                </button>
-              )}
-            </div>
-          )}
-        />
+        <PlatformCard platformKey="instagram" control={control} setValue={setValue} errors={errors} />
+        <PlatformCard platformKey="tiktok" control={control} setValue={setValue} errors={errors} />
+        <PlatformCard platformKey="twitter" control={control} setValue={setValue} errors={errors} />
+        <PlatformCard platformKey="youtube" control={control} setValue={setValue} errors={errors} />
+        <PlatformCard platformKey="portfolio" control={control} setValue={setValue} errors={errors} />
+        <PlatformCard platformKey="reel" control={control} setValue={setValue} errors={errors} />
       </div>
     </Section>
   );

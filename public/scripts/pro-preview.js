@@ -659,21 +659,26 @@
       position: fixed;
       bottom: 2rem;
       right: 2rem;
-      background: #0f172a;
-      color: #ffffff;
-      padding: 1rem 1.5rem;
-      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255, 253, 248, 0.97), rgba(245, 240, 232, 0.94));
+      color: #1a1815;
+      padding: 0.95rem 1.15rem;
+      border: 1px solid rgba(26, 24, 21, 0.1);
+      border-left: 1px solid rgba(45, 138, 86, 0.42);
+      border-radius: 10px;
       font-family: var(--font-sans);
-      font-size: 0.9375rem;
+      font-size: 0.875rem;
       font-weight: 500;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.3);
+      line-height: 1.45;
+      box-shadow: 0 22px 54px rgba(26, 24, 21, 0.16), 0 2px 8px rgba(26, 24, 21, 0.08);
       z-index: 10000;
       opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateY(10px);
+      transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1), transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
       pointer-events: none;
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
     `;
-    toast.textContent = 'URL copied to clipboard!';
+    toast.textContent = 'Portfolio link copied';
     document.body.appendChild(toast);
 
     copyBtn.addEventListener('click', async () => {

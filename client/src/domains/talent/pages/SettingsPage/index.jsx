@@ -27,10 +27,25 @@ const SECTIONS = [
 
 const GROUPS = ['IDENTITY', 'PREFERENCES', 'YOUR PLAN', 'LEGAL'];
 
+function CardHeader({ chapter, title, meta }) {
+  return (
+    <div className="ts-card-hd">
+      <div className="ts-card-hd-row">
+        <div className="ts-card-hd-main">
+          {chapter ? <span className="ts-card-chapter">{chapter}</span> : null}
+          <h2 className="ts-card-title">{title}</h2>
+        </div>
+        {meta ? <span className="ts-card-meta">{meta}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { section } = useParams();
   const activeSection = section || 'account';
   const navigate = useNavigate();
+  const activeMeta = SECTIONS.find(s => s.id === activeSection) ?? SECTIONS[0];
 
   return (
     <div className="ts-page">
@@ -40,7 +55,18 @@ export default function SettingsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASING }}
       >
-        <h1 className="ts-page-title">Settings</h1>
+        <header className="ts-page-header">
+          <div className="ts-page-header-main">
+            <span className="ts-page-kicker">Your workspace</span>
+            <h1 className="ts-page-title">Settings</h1>
+            <div className="ts-page-sweep" aria-hidden="true" />
+          </div>
+          <div className="ts-page-header-meta">
+            <span className="ts-page-meta-label">Viewing</span>
+            <span className="ts-page-meta-value">{activeMeta.label}</span>
+            <span className="ts-page-meta-desc">{activeMeta.desc}</span>
+          </div>
+        </header>
 
         <div className="ts-layout">
           {/* Sidebar */}
@@ -146,10 +172,7 @@ function AccountSection() {
 
   return (
     <div className="ts-card">
-      <div className="ts-card-hd">
-        <span className="ts-card-eyebrow">01 / Identity</span>
-        <h2 className="ts-card-title">Account</h2>
-      </div>
+      <CardHeader chapter="Identity" title="Account" meta="Profile & locale" />
       <div className="ts-card-inner">
         <div className="ts-avatar-section">
           <div
@@ -360,10 +383,7 @@ function NotificationsSection() {
 
   return (
     <div className="ts-card">
-      <div className="ts-card-hd">
-        <span className="ts-card-eyebrow">02 / Preferences</span>
-        <h2 className="ts-card-title">Notifications</h2>
-      </div>
+      <CardHeader chapter="Preferences" title="Notifications" meta="Email & in-app" />
       <div className="ts-toggle-list">
         <div className="ts-notif-freq">
           <div className="ts-toggle-info">
@@ -459,10 +479,7 @@ function PrivacySectionForm({ initialSettings }) {
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">03 / Preferences</span>
-          <h2 className="ts-card-title">Privacy &amp; Portfolio</h2>
-        </div>
+        <CardHeader chapter="Preferences" title="Privacy & Portfolio" meta="Visibility & slug" />
 
         <div className="ts-card-inner ts-form-body">
           <div className="ts-field">
@@ -481,7 +498,7 @@ function PrivacySectionForm({ initialSettings }) {
               />
             </div>
             {slugError
-              ? <span className="ts-input-help" style={{ color: '#e05a4a' }}>{slugError}</span>
+              ? <span className="ts-input-help ts-input-help--error">{slugError}</span>
               : <span className="ts-input-help">Share this link with agencies and clients.</span>
             }
           </div>
@@ -546,10 +563,7 @@ function PrivacySectionForm({ initialSettings }) {
 
       {/* Agency blocklist */}
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">Agency Control</span>
-          <h2 className="ts-card-title">Agency Blocklist</h2>
-        </div>
+        <CardHeader chapter="Agency control" title="Agency Blocklist" meta="Access restrictions" />
         <div className="ts-card-inner ts-form-body">
           <p className="ts-toggle-desc" style={{ margin: 0 }}>
             Agencies on this list cannot view your profile or submit applications on your behalf.
@@ -643,10 +657,7 @@ function SubscriptionSection() {
       </div>
 
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">04 / Your Plan</span>
-          <h2 className="ts-card-title">Invoice History</h2>
-        </div>
+        <CardHeader chapter="Your plan" title="Invoice History" meta="Billing records" />
         {MOCK_INVOICES.map(inv => (
           <div key={inv.id} className="ts-invoice-row">
             <span className="ts-invoice-id">{inv.id}</span>
@@ -695,10 +706,7 @@ function SecuritySection() {
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">05 / Security</span>
-          <h2 className="ts-card-title">Security</h2>
-        </div>
+        <CardHeader chapter="Security" title="Security" meta="Credentials" />
         <div className="ts-card-inner ts-form-body">
           <div className="ts-field">
             <label className="ts-label" htmlFor="ts-sec-email">Email Address</label>
@@ -741,10 +749,7 @@ function SecuritySection() {
       </div>
 
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">Recent Activity</span>
-          <h2 className="ts-card-title">Sessions</h2>
-        </div>
+        <CardHeader chapter="Recent activity" title="Sessions" meta="Signed-in devices" />
         {MOCK_SESSIONS.map((s, i) => (
           <div key={i} className="ts-session-row">
             <div className="ts-session-icon" aria-hidden="true">
@@ -786,10 +791,7 @@ function DisplaySection() {
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">04 / Portfolio</span>
-          <h2 className="ts-card-title">Display</h2>
-        </div>
+        <CardHeader chapter="Portfolio" title="Display" meta="Comp card & watermark" />
         <div className="ts-toggle-list">
           <div className="ts-toggle-row">
             <div className="ts-toggle-info">
@@ -829,10 +831,7 @@ function DisplaySection() {
       </div>
 
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">Portfolio Cover</span>
-          <h2 className="ts-card-title">Cover Image</h2>
-        </div>
+        <CardHeader chapter="Portfolio cover" title="Cover Image" meta="Public portfolio" />
         <div className="ts-card-inner">
           <div className="ts-field">
             <label className="ts-label" htmlFor="ts-cover">Default Cover</label>
@@ -870,10 +869,7 @@ function DataSection() {
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">07 / Legal</span>
-          <h2 className="ts-card-title">Your Data</h2>
-        </div>
+        <CardHeader chapter="Legal" title="Your Data" meta="Export & erasure" />
         <div className="ts-card-inner ts-form-body">
           <div className="ts-data-row">
             <div className="ts-action-info">
@@ -910,10 +906,7 @@ function DataSection() {
       </div>
 
       <div className="ts-card">
-        <div className="ts-card-hd">
-          <span className="ts-card-eyebrow">Cookie Preferences</span>
-          <h2 className="ts-card-title">Tracking</h2>
-        </div>
+        <CardHeader chapter="Cookie preferences" title="Tracking" meta="Consent controls" />
         <div className="ts-toggle-list">
           {[
             { key: 'essential', label: 'Essential',  desc: 'Required for authentication and core functionality', locked: true },
@@ -951,10 +944,7 @@ function DataSection() {
 function DangerZoneSection() {
   return (
     <div className="ts-card ts-card--danger">
-      <div className="ts-card-hd">
-        <span className="ts-card-eyebrow">Irreversible Actions</span>
-        <h2 className="ts-card-title">Danger Zone</h2>
-      </div>
+      <CardHeader chapter="Irreversible actions" title="Danger Zone" meta="Proceed with care" />
 
       <div className="ts-action-row">
         <div className="ts-action-info">

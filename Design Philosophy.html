@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pholio — Design Philosophy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Display:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #050505;
+    --ink-soft: #0F172A;
+    --cream: #FAF7F2;
+    --cream-warm: #F5F0E8;
+    --gold: #C9A55A;
+    --gold-warm: #C8A96E;
+    --gold-light: #D4BC8A;
+    --text: #1A1A1A;
+    --text-soft: rgba(26,26,26,0.62);
+    --text-faint: rgba(26,26,26,0.42);
+    --hair: rgba(26,26,26,0.08);
+    --hair-gold: rgba(201,165,90,0.18);
+    --serif: "Noto Serif Display", Georgia, serif;
+    --sans: "Inter", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", monospace;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--cream); color: var(--text); font-family: var(--sans); font-weight: 400; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+  ::selection { background: var(--gold); color: var(--ink); }
+
+  /* Paper grain */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 150px 150px;
+    mix-blend-mode: multiply;
+  }
+
+  main { position: relative; z-index: 2; }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 48px; }
+  @media (max-width: 720px) { .wrap { padding: 0 24px; } }
+
+  /* ────────── TYPE PRIMITIVES ────────── */
+  .micro { font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); }
+  .label { font-family: var(--sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: var(--gold); }
+  .eyebrow { font-family: var(--sans); font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase; font-weight: 600; color: var(--gold); }
+  .body { font-family: var(--sans); font-weight: 300; font-size: 17px; line-height: 1.7; color: var(--text-soft); max-width: 60ch; text-wrap: pretty; }
+  .body strong { font-weight: 500; color: var(--text); }
+  .body em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--gold); letter-spacing: -0.005em; }
+  .small { font-family: var(--sans); font-weight: 400; font-size: 13px; line-height: 1.7; color: var(--text-faint); max-width: 52ch; }
+  .serif { font-family: var(--serif); font-weight: 400; letter-spacing: -0.02em; line-height: 1.02; }
+  .italic { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--gold); letter-spacing: -0.005em; }
+
+  h1.display { font-size: clamp(56px, 10vw, 148px); }
+  h2.section { font-size: clamp(40px, 6.4vw, 92px); }
+  h3.beat { font-size: clamp(28px, 3.6vw, 48px); }
+  h4.beat-sm { font-size: 22px; letter-spacing: -0.01em; line-height: 1.15; }
+
+  /* ────────── RULES ────────── */
+  .rule-h { height: 1px; background: var(--hair); width: 100%; }
+  .rule-gold-h { height: 1px; background: linear-gradient(to right, transparent, var(--gold), transparent); }
+  .rule-gold-top { height: 1px; background: var(--gold); width: 100%; opacity: 0.85; }
+  .rule-v { width: 1px; background: var(--gold); height: 96px; transform-origin: top; }
+
+  /* ────────── HEADER (ink) ────────── */
+  header.cover {
+    background: var(--ink); color: #fff; position: relative; overflow: hidden;
+    padding: 140px 0 120px;
+  }
+  header.cover::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 60%, rgba(201,165,90,0.10) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header.cover .ghost {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    pointer-events: none; user-select: none; overflow: hidden;
+  }
+  header.cover .ghost span {
+    font-family: var(--serif); font-style: italic; font-size: 38vw; line-height: 1;
+    color: var(--gold); opacity: 0.05; white-space: nowrap;
+  }
+  header.cover .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.035; mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 150px 150px;
+  }
+  header.cover .inner { position: relative; z-index: 1; }
+  header.cover .wordmark { display: inline-flex; align-items: center; gap: 14px; margin-bottom: 80px; }
+  header.cover .wordmark .pholio { font-family: var(--serif); font-weight: 400; letter-spacing: 0.22em; font-size: 18px; color: var(--gold-warm); }
+  header.cover .wordmark .bar { width: 28px; height: 1px; background: var(--gold-warm); }
+  header.cover .meta-row { display: flex; gap: 64px; flex-wrap: wrap; align-items: baseline; margin-bottom: 56px; }
+  header.cover .meta-row .micro { color: rgba(201,165,90,0.78); }
+  header.cover .meta-row .meta-val { font-family: var(--sans); font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.46); margin-top: 6px; letter-spacing: 0.02em; }
+  header.cover h1 { color: #fff; max-width: 18ch; }
+  header.cover h1 .italic { color: var(--gold); }
+  header.cover .standfirst {
+    margin-top: 64px; max-width: 56ch;
+    font-family: var(--sans); font-weight: 300; font-size: 18px; line-height: 1.7;
+    color: rgba(255,255,255,0.58);
+  }
+  header.cover .standfirst em { font-family: var(--serif); font-style: italic; color: var(--gold); font-weight: 400; }
+  header.cover .sweep {
+    margin-top: 80px; height: 1px; width: 160px;
+    background: linear-gradient(to right, transparent, var(--gold-warm), transparent);
+  }
+
+  /* ────────── SECTIONS ────────── */
+  section { padding: 140px 0; position: relative; }
+  section.cream { background: var(--cream); }
+  section.cream-warm { background: var(--cream-warm); }
+  section.ink { background: var(--ink); color: #fff; }
+  section.ink .body { color: rgba(255,255,255,0.56); }
+  section.ink .body strong { color: #fff; }
+  section.ink .small { color: rgba(255,255,255,0.36); }
+  section.ink .rule-h { background: rgba(255,255,255,0.08); }
+  @media (max-width: 720px) { section { padding: 80px 0; } }
+
+  /* Section header pattern */
+  .sec-head { margin-bottom: 80px; }
+  .sec-head .chapter { display: block; margin-bottom: 28px; }
+  .sec-head h2 { max-width: 16ch; }
+  .sec-head .lede { margin-top: 36px; }
+
+  /* Two-col editorial spread */
+  .spread { display: grid; grid-template-columns: 45fr 55fr; gap: 96px; align-items: end; }
+  @media (max-width: 960px) { .spread { grid-template-columns: 1fr; gap: 48px; } }
+  .spread .right { border-left: 1px solid var(--hair); padding-left: 64px; padding-bottom: 8px; }
+  section.ink .spread .right { border-left-color: rgba(255,255,255,0.06); }
+  @media (max-width: 960px) { .spread .right { border-left: none; padding-left: 0; padding-top: 32px; border-top: 1px solid var(--hair); } }
+
+  /* Principle blocks */
+  .principles { display: flex; flex-direction: column; gap: 120px; position: relative; }
+  .principle { display: grid; grid-template-columns: 200px 1fr; gap: 80px; align-items: start; }
+  .principle.stagger { margin-left: 12%; }
+  @media (max-width: 960px) { .principle, .principle.stagger { grid-template-columns: 1fr; gap: 24px; margin-left: 0; } }
+  .principle .index { position: relative; }
+  .principle .index .num { font-family: var(--serif); font-weight: 300; font-size: 84px; line-height: 1; color: var(--text); opacity: 0.08; user-select: none; }
+  section.ink .principle .index .num { color: #fff; opacity: 0.10; }
+  .principle .index .pin { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
+  .principle .index .pin .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+  .principle .index .pin .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
+  .principle .body-col h3 { margin-bottom: 28px; max-width: 18ch; }
+  .principle .body-col .body { margin-bottom: 24px; }
+  .principle .body-col .quote {
+    font-family: var(--serif); font-style: italic; font-weight: 300;
+    font-size: 22px; line-height: 1.45; color: var(--gold);
+    max-width: 36ch; margin: 8px 0 24px;
+    letter-spacing: -0.005em;
+  }
+  .principle .body-col .rules {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    margin-top: 36px; border-top: 1px solid var(--hair);
+  }
+  section.ink .principle .body-col .rules { border-top-color: rgba(255,255,255,0.08); }
+  .principle .body-col .rules > div { padding: 18px 24px 18px 0; border-bottom: 1px solid var(--hair); }
+  section.ink .principle .body-col .rules > div { border-bottom-color: rgba(255,255,255,0.08); }
+  @media (max-width: 720px) { .principle .body-col .rules { grid-template-columns: 1fr; } }
+  .principle .body-col .rules .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  .principle .body-col .rules .v { font-family: var(--sans); font-size: 14px; font-weight: 400; line-height: 1.55; color: var(--text); }
+  section.ink .principle .body-col .rules .v { color: rgba(255,255,255,0.78); }
+
+  /* Manifesto break */
+  .manifesto-break {
+    background: var(--cream); position: relative; overflow: hidden;
+    padding: 200px 0; text-align: center;
+  }
+  .manifesto-break .ghost-p {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    pointer-events: none; user-select: none; overflow: hidden;
+  }
+  .manifesto-break .ghost-p span {
+    font-family: var(--serif); font-style: italic; font-weight: 300;
+    font-size: 80vw; line-height: 1; color: var(--gold); opacity: 0.04;
+  }
+  .manifesto-break .rule-side {
+    position: absolute; top: 0; bottom: 0; width: 1px; background: var(--hair-gold);
+  }
+  .manifesto-break .rule-side.l { left: 15%; }
+  .manifesto-break .rule-side.r { right: 15%; }
+  @media (max-width: 960px) { .manifesto-break .rule-side { display: none; } }
+  .manifesto-break .inner { position: relative; z-index: 1; }
+  .manifesto-break .stack { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .manifesto-break .stack > div { font-family: var(--serif); font-weight: 300; font-size: clamp(56px, 10vw, 132px); line-height: 0.92; letter-spacing: -0.03em; text-transform: uppercase; }
+  .manifesto-break .stack .ans { font-style: italic; font-weight: 300; color: var(--gold); }
+  .manifesto-break .stack .a { transform: translateX(0); }
+  .manifesto-break .stack .b { transform: translateX(72px); }
+  .manifesto-break .stack .c { transform: translateX(-48px); }
+  .manifesto-break .stack .d { transform: translateX(32px); }
+  @media (max-width: 720px) { .manifesto-break .stack > div { transform: translateX(0) !important; } }
+
+  /* The single italic word */
+  .single-word-demo {
+    background: var(--ink); color: #fff; padding: 160px 0; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .single-word-demo::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(201,165,90,0.08) 0%, transparent 65%);
+  }
+  .single-word-demo .quote {
+    position: relative; z-index: 1;
+    font-family: var(--serif); font-weight: 300; letter-spacing: -0.02em;
+    font-size: clamp(32px, 5.5vw, 72px); line-height: 1.18;
+    max-width: 22ch; margin: 0 auto;
+  }
+  .single-word-demo .quote em { font-style: italic; color: var(--gold); font-weight: 300; }
+  .single-word-demo .v-rule {
+    margin: 56px auto 0; width: 1px; height: 96px;
+    background: linear-gradient(to bottom, var(--gold), transparent);
+  }
+  .single-word-demo .footnote { margin-top: 32px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(255,255,255,0.32); }
+
+  /* Score / cadence */
+  .score { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+  @media (max-width: 720px) { .score { grid-template-columns: 1fr; } }
+  .score .beat { padding: 36px 32px 36px 0; border-bottom: 1px solid var(--hair); display: grid; grid-template-columns: 64px 1fr; gap: 24px; align-items: baseline; }
+  .score .beat:nth-child(odd) { border-right: 1px solid var(--hair); padding-right: 48px; }
+  @media (max-width: 720px) { .score .beat:nth-child(odd) { border-right: none; padding-right: 32px; } }
+  .score .beat .n { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+  .score .beat .name { font-family: var(--serif); font-weight: 400; font-size: 22px; letter-spacing: -0.01em; line-height: 1.1; margin-bottom: 8px; }
+  .score .beat .name em { font-style: italic; color: var(--gold); }
+  .score .beat .desc { font-family: var(--sans); font-weight: 300; font-size: 14px; line-height: 1.6; color: var(--text-soft); }
+
+  /* Color tiles */
+  .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  @media (max-width: 960px) { .palette { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 480px) { .palette { grid-template-columns: repeat(2, 1fr); } }
+  .swatch { aspect-ratio: 4/5; position: relative; padding: 18px; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; }
+  .swatch .name { font-family: var(--sans); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .swatch .hex { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; opacity: 0.7; }
+  .swatch .role { font-family: var(--mono); font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.45; margin-bottom: 6px; }
+
+  /* Type scale demo */
+  .type-rows > div { padding: 24px 0; border-bottom: 1px solid var(--hair); display: grid; grid-template-columns: 180px 1fr; gap: 32px; align-items: baseline; }
+  @media (max-width: 720px) { .type-rows > div { grid-template-columns: 1fr; gap: 8px; } }
+  .type-rows .meta { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); padding-top: 8px; }
+  .type-rows .specimen { font-family: var(--serif); color: var(--text); }
+  .type-rows .specimen .italic { color: var(--gold); }
+
+  /* Anti-patterns table */
+  .anti { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  @media (max-width: 720px) { .anti { grid-template-columns: 1fr; } }
+  .anti .col { border-top: 1px solid var(--hair); }
+  .anti .col.no { padding-right: 32px; }
+  .anti .col.yes { padding-left: 32px; border-left: 1px solid var(--hair); }
+  @media (max-width: 720px) { .anti .col.yes { padding-left: 0; border-left: none; padding-top: 24px; } }
+  .anti .col h5 { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); padding: 18px 0; }
+  .anti .col h5 .x { color: #b04848; margin-right: 8px; }
+  .anti .col h5 .ok { color: #4a7a3f; margin-right: 8px; }
+  .anti .col ul { list-style: none; }
+  .anti .col li { padding: 16px 0; border-top: 1px solid var(--hair); font-family: var(--sans); font-weight: 300; font-size: 15px; line-height: 1.55; color: var(--text-soft); }
+  .anti .col li strong { font-weight: 500; color: var(--text); }
+
+  /* Footer */
+  footer { background: var(--cream); padding: 24px 16px 56px; }
+  footer .card { background: #fff; border-radius: 28px; padding: 64px 56px; max-width: 1600px; margin: 0 auto; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.03); position: relative; }
+  footer .card::before { content: ""; position: absolute; top: 0; left: 56px; right: 56px; height: 1px; background: var(--gold); opacity: 0.6; }
+  footer .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 48px; flex-wrap: wrap; }
+  footer .wm { display: inline-flex; align-items: center; gap: 12px; }
+  footer .wm .p { font-family: var(--serif); font-weight: 500; letter-spacing: 0.18em; font-size: 24px; color: var(--ink); text-transform: uppercase; }
+  footer .wm .sliver { width: 3px; height: 24px; background: linear-gradient(180deg, var(--gold) 0%, rgba(201,165,90,0.5) 100%); border-radius: 1px; }
+  footer .doc-meta { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-faint); text-align: right; }
+  footer .doc-meta div + div { margin-top: 6px; }
+  footer .hair { margin: 40px 0 24px; height: 1px; background: rgba(15,23,42,0.06); }
+  footer .copy { font-family: var(--sans); font-weight: 400; font-size: 12px; color: var(--text-faint); }
+
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ───── COVER ───── -->
+  <header class="cover">
+    <div class="ghost"><span>face.</span></div>
+    <div class="grain"></div>
+
+    <div class="wrap inner">
+      <div class="wordmark">
+        <span class="pholio">PHOLIO</span>
+        <span class="bar"></span>
+        <span class="pholio" style="opacity:0.5;">STUDIO</span>
+      </div>
+
+      <div class="meta-row">
+        <div>
+          <div class="micro">Document</div>
+          <div class="meta-val">Design Philosophy &amp; Scheme</div>
+        </div>
+        <div>
+          <div class="micro">Volume</div>
+          <div class="meta-val">01 · Foundations</div>
+        </div>
+        <div>
+          <div class="micro">Established</div>
+          <div class="meta-val">2024</div>
+        </div>
+        <div>
+          <div class="micro">Subject</div>
+          <div class="meta-val">Talent, Verified</div>
+        </div>
+      </div>
+
+      <h1 class="serif display">
+        The Architecture of<br />
+        <span class="italic">Composure.</span>
+      </h1>
+
+      <p class="standfirst">
+        Pholio serves people whose work is judged <em>visually</em>, <em>emotionally</em>, and <em>contextually</em>.
+        Every surface we build is in a quiet conversation with that fact — designed not to perform, but to clear space for the person on the page.
+      </p>
+
+      <div class="sweep"></div>
+    </div>
+  </header>
+
+  <!-- ───── 01. THE PREMISE ───── -->
+  <section class="cream">
+    <div class="wrap">
+      <div class="spread">
+        <div class="left">
+          <span class="label">Chapter I — The Premise</span>
+          <h2 class="serif section" style="margin-top:28px;">
+            We do not<br />
+            <span class="italic">design</span> for users.
+          </h2>
+        </div>
+        <div class="right">
+          <p class="body">
+            Pholio's users are not users in the typical sense. They are <strong>models, performers, and creatives</strong> whose careers turn on how they are seen. Every interface we draw is, in effect, a frame around a person — and the wrong frame can ruin even the right portrait.
+          </p>
+          <p class="body" style="margin-top:24px;">
+            Our medium is therefore <em>restraint</em>. We design the way an editor lays out a magazine spread for a model they admire: with deference, with rhythm, with a great deal of white space, and with one or two moments of declared taste. Everything else gets out of the way.
+          </p>
+          <p class="small" style="margin-top:32px;">
+            This document is the source of truth. When in doubt, return to it before returning to a screenshot or a Figma frame.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 02. THE BELIEF ───── -->
+  <section class="ink single-word-demo">
+    <div class="wrap inner">
+      <p class="quote">
+        We believe your career should be defined by your <em>face</em>,<br />
+        not your <em>formatting.</em>
+      </p>
+      <div class="v-rule"></div>
+      <div class="footnote">The brand sentence. All other copy descends from this.</div>
+    </div>
+  </section>
+
+  <!-- ───── 03. PRINCIPLES ───── -->
+  <section class="cream">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chapter">Chapter II — Seven Principles</span>
+        <h2 class="serif section">
+          The underlying<br />
+          <span class="italic">logic.</span>
+        </h2>
+        <p class="body lede">
+          These are the principles we extracted from the parts of the site that already work — the Manifesto, the /talent narrative, the legal pages, the preloader, the footer. They are the rules that produced those moments and the rules that should govern everything that follows.
+        </p>
+      </div>
+
+      <div class="principles">
+
+        <!-- 01 -->
+        <div class="principle">
+          <div class="index">
+            <div class="num">01</div>
+            <div class="pin"><div class="dot"></div><div class="tag">Composure</div></div>
+          </div>
+          <div class="body-col">
+            <h3 class="serif beat">Composure over<br /><span class="italic">composition.</span></h3>
+            <p class="body">
+              A model's <strong>composure</strong> — their stillness, their command of a frame — is the thing the platform exists to showcase. The interface must possess the same quality. It should not bounce, throb, or beg for attention. It should hold the room.
+            </p>
+            <p class="quote">"A confident page does not raise its voice."</p>
+            <div class="rules">
+              <div><div class="k">Hover</div><div class="v">Color shift, not lift. Gold-up, not scale-up.</div></div>
+              <div><div class="k">Motion</div><div class="v">Single ease (0.22, 1, 0.36, 1). No bounces.</div></div>
+              <div><div class="k">Density</div><div class="v">Spacious. py-32 to py-72 on hero sections.</div></div>
+              <div><div class="k">Borders</div><div class="v">1px hairlines. Never thicker. Rarely visible.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 -->
+        <div class="principle stagger">
+          <div class="index">
+            <div class="num">02</div>
+            <div class="pin"><div class="dot"></div><div class="tag">Earned Emphasis</div></div>
+          </div>
+          <div class="body-col">
+            <h3 class="serif beat">One italic word, <span class="italic">at a time.</span></h3>
+            <p class="body">
+              Every Pholio headline carries <strong>one</strong> emphasised word — set in italic Noto Serif Display, coloured gold. Never two. Never three. The italic word is the headline's <em>verdict</em>: the moment the sentence stops describing and starts deciding.
+            </p>
+            <p class="body" style="margin-top:20px;">
+              This is the single most distinctive grammar we have. It is also the easiest one to break. Resist the urge to gild a second word. Restraint is what makes the first one land.
+            </p>
+            <div class="rules">
+              <div><div class="k">Emphasis</div><div class="v">Italic serif + gold #C9A55A. Always together.</div></div>
+              <div><div class="k">Frequency</div><div class="v">One italic word per heading. No exceptions.</div></div>
+              <div><div class="k">Body emphasis</div><div class="v">Inline italic-serif spans. Same gold, same rule.</div></div>
+              <div><div class="k">Never</div><div class="v">Bolding for emphasis. Underlines. All-caps shouts.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 03 -->
+        <div class="principle">
+          <div class="index">
+            <div class="num">03</div>
+            <div class="pin"><div class="dot"></div><div class="tag">Two Worlds</div></div>
+          </div>
+          <div class="body-col">
+            <h3 class="serif beat">Ink and cream are <span class="italic">moods,</span> not themes.</h3>
+            <p class="body">
+              The site moves between two grounds: <strong>velvet ink</strong> (#050505) and <strong>cream</strong> (#FAF7F2). They are not light-and-dark modes; they are two emotional registers, and switching between them is a deliberate dramatic act.
+            </p>
+            <p class="body" style="margin-top:20px;">
+              Ink is for <em>conviction</em> — manifestos, beliefs, the preloader, the final close. Cream is for <em>composure</em> — long-form reading, product surfaces, the talent narrative, the agency floor. Gold is the bridge. It belongs to neither and works in both.
+            </p>
+            <div class="rules">
+              <div><div class="k">Ink #050505</div><div class="v">Belief, identity, the dark close. Hero only.</div></div>
+              <div><div class="k">Cream #FAF7F2</div><div class="v">Reading, work, the body of the product.</div></div>
+              <div><div class="k">Transition</div><div class="v">A hard cut between sections. Not a gradient.</div></div>
+              <div><div class="k">Cadence</div><div class="v">Roughly 2 cream : 1 ink across a page.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 04 -->
+        <div class="principle stagger">
+          <div class="index">
+            <div class="num">04</div>
+            <div class="pin"><div class="dot"></div><div class="tag">Editorial Rhythm</div></div>
+          </div>
+          <div class="body-col">
+            <h3 class="serif beat">Pages are <span class="italic">scored,</span> not stacked.</h3>
+            <p class="body">
+              The /talent page is built as a narrative score: Arrival, Tension, Release, Proof, Conversion, Myth, Spine, Close. The About page is built as chapters. Sections are <strong>movements</strong>, not modules — each one has a job in the larger arc and earns its presence by doing it.
+            </p>
+            <p class="body" style="margin-top:20px;">
+              This means: no feature parades. No three-up icon grids that say "fast / secure / friendly". When a section can't name its movement, it shouldn't be on the page.
+            </p>
+            <div class="rules">
+              <div><div class="k">Cadence</div><div class="v">Arrival → Tension → Release → Proof → Close.</div></div>
+              <div><div class="k">Section label</div><div class="v">Chapter / movement name in gold mono kicker.</div></div>
+              <div><div class="k">Spacing</div><div class="v">8rem default. 5rem at small. Never less.</div></div>
+              <div><div class="k">Forbidden</div><div class="v">Generic three-up "features" grids.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 05 -->
+        <div class="principle">
+          <div class="index">
+            <div class="num">05</div>
+            <div class="pin"><div class="dot"></div><div class="tag">Margin Furniture</div></div>
+          </div>
+          <div class="body-col">
+            <h3 class="serif beat">The page knows it is <span class="italic">printed.</span></h3>
+            <p class="body">
+              Pholio borrows from print, not from apps. <strong>Vertical gold rules</strong>, <strong>large faint number indices</strong>, <strong>ghost letterforms</strong>, <strong>thin top hairlines</strong>, <strong>uppercase tracked kickers</strong>, <strong>marginal location captions</strong> — these are the page's furniture. They give the eye places to rest and quiet anchors to read against.
+            </p>
+            <p class="body" style="margin-top:20px;">
+              The footer's thin gold hairline along the top edge is not decoration. It is the same line that closes a printed page: a final breath before the colophon.
+            </p>
+            <div class="rules">
+              <div><div class="k">Ghost type</div><div class="v">35–80vw, opacity 0.03–0.05, behind content.</div></div>
+              <div><div class="k">Vertical rules</div><div class="v">1px gold, 80–120px, scale-in from top.</div></div>
+              <div><div class="k">Index numbers</div><div class="v">Serif 84–144px, opacity 0.06–0.10.</div></div>
+              <div><div class="k">Kickers</div><div class="v">10–11px, 0.18–0.4em tracking, gold, uppercase.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 06 -->
+        <div class="principle stagger">
+          <div class="index">
+            <div class="num">06</div>
+            <div class="pin"><div class="dot"></div><div class="tag">Slow Motion</div></div>
+          </div>
+          <div class="body-col">
+            <h3 class="serif beat">Motion is <span class="italic">arrival,</span> not animation.</h3>
+            <p class="body">
+              Pholio's only motion is the act of <strong>arriving</strong> — content fading and lifting into place once, on first sight. Word-stagger reveals. A gold underline sweeping in 800ms after the wordmark. A vertical rule scaling down from the top. After arrival, the page is still.
+            </p>
+            <p class="body" style="margin-top:20px;">
+              There are no looping animations, no shimmer effects, no carousels that move on their own. The single permitted easing is <code style="font-family:var(--mono);font-size:13px;background:rgba(201,165,90,0.08);padding:1px 6px;border-radius:2px;">cubic-bezier(0.22, 1, 0.36, 1)</code>. Durations live between 0.6s and 1.4s.
+            </p>
+            <div class="rules">
+              <div><div class="k">Easing</div><div class="v">Out-quint only. Every transition.</div></div>
+              <div><div class="k">Duration</div><div class="v">0.6s small · 1.0s default · 1.4s hero.</div></div>
+              <div><div class="k">Trigger</div><div class="v">In-view, once. Never loop. Never on scroll-tied.</div></div>
+              <div><div class="k">Reduced motion</div><div class="v">Honoured. Always. Preloader = 100ms.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 07 -->
+        <div class="principle">
+          <div class="index">
+            <div class="num">07</div>
+            <div class="pin"><div class="dot"></div><div class="tag">Plain Specifics</div></div>
+          </div>
+          <div class="body-col">
+            <h3 class="serif beat">Copy is <span class="italic">specific,</span> never sold.</h3>
+            <p class="body">
+              Pholio's voice is editorial and unembellished. The legal pages are the best evidence: they name <strong>real vendors</strong> (Firebase, Stripe, Groq, Neon, Netlify), real <strong>retention windows</strong> (30 days, 90 days, 7 years), real <strong>legal bases</strong>. The marketing voice carries the same posture — declarative, specific, slightly cool, and never enthusiastic.
+            </p>
+            <p class="body" style="margin-top:20px;">
+              Tone is <em>quietly authoritative.</em> Not "we built the best portfolio tool." It is "the industry has always had talent. Now it has a standard." If a sentence can be said in fewer words, say it in fewer words. If it can be said without an exclamation point, it must be.
+            </p>
+            <div class="rules">
+              <div><div class="k">Voice</div><div class="v">Editorial, declarative, slightly cool.</div></div>
+              <div><div class="k">Person</div><div class="v">"We" + "you". Never "users". Never "folks".</div></div>
+              <div><div class="k">No</div><div class="v">Emoji. Exclamations. Marketing superlatives.</div></div>
+              <div><div class="k">Yes</div><div class="v">Real numbers. Real names. Specific verbs.</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 04. THE MANIFESTO BREAK ───── -->
+  <div class="manifesto-break">
+    <div class="rule-side l"></div>
+    <div class="rule-side r"></div>
+    <div class="ghost-p"><span>P</span></div>
+    <div class="wrap inner">
+      <span class="label" style="margin-bottom:64px;display:block;">The Manifesto</span>
+      <div class="stack">
+        <div class="a">Curation is</div>
+        <div class="ans b">Our Compass</div>
+        <div class="c">Quality is</div>
+        <div class="ans d">Our Currency</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───── 05. FOUNDATIONS — colors ───── -->
+  <section class="cream-warm">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chapter">Chapter III — Visual Foundations</span>
+        <h2 class="serif section">A palette of <span class="italic">three.</span></h2>
+        <p class="body lede">
+          The full Pholio system is three colours doing different work. Anything beyond ink, cream, and gold is a tool for a specific moment — a slate for body copy, a hairline for a divider, a state for a destructive action — and never a brand colour.
+        </p>
+      </div>
+
+      <div class="palette">
+        <div class="swatch" style="background:#050505;color:#fff;">
+          <div class="role" style="color:#C9A55A;">Conviction</div>
+          <div class="name">Velvet Ink</div>
+          <div class="hex">#050505</div>
+        </div>
+        <div class="swatch" style="background:#0F172A;color:#fff;">
+          <div class="role" style="color:#C9A55A;">Body Dark</div>
+          <div class="name">Ink</div>
+          <div class="hex">#0F172A</div>
+        </div>
+        <div class="swatch" style="background:#FAF7F2;color:#1A1A1A;border:1px solid var(--hair);">
+          <div class="role" style="color:#C9A55A;">Composure</div>
+          <div class="name">Cream</div>
+          <div class="hex">#FAF7F2</div>
+        </div>
+        <div class="swatch" style="background:#F5F0E8;color:#1A1A1A;border:1px solid var(--hair);">
+          <div class="role" style="color:#C9A55A;">Warm Paper</div>
+          <div class="name">Cream Warm</div>
+          <div class="hex">#F5F0E8</div>
+        </div>
+        <div class="swatch" style="background:#C9A55A;color:#050505;">
+          <div class="role">Verdict</div>
+          <div class="name">Gold</div>
+          <div class="hex">#C9A55A</div>
+        </div>
+        <div class="swatch" style="background:#C8A96E;color:#050505;">
+          <div class="role">Wordmark</div>
+          <div class="name">Gold Warm</div>
+          <div class="hex">#C8A96E</div>
+        </div>
+      </div>
+
+      <p class="small" style="margin-top:40px;">
+        Note: the preloader uses a slightly warmer gold (#C8A96E). This is deliberate — gold under glow reads cooler than gold on paper. Keep both, use each in its place.
+      </p>
+    </div>
+  </section>
+
+  <!-- ───── 06. TYPE ───── -->
+  <section class="cream">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chapter">Chapter IV — Typography</span>
+        <h2 class="serif section">Two voices,<br /><span class="italic">one in italic.</span></h2>
+        <p class="body lede">
+          Noto Serif Display does all of the speaking that matters. Inter does the clerical work. JetBrains Mono signs the timestamps. The italic cut of the serif is the brand's single point of theatre.
+        </p>
+      </div>
+
+      <div class="type-rows">
+        <div>
+          <div class="meta">Display · Serif · 92px</div>
+          <div class="specimen" style="font-size:72px;line-height:0.95;">The architecture of <span class="italic">composure.</span></div>
+        </div>
+        <div>
+          <div class="meta">Section · Serif · 56px</div>
+          <div class="specimen" style="font-size:48px;line-height:1.05;">Now it has a <span class="italic">standard.</span></div>
+        </div>
+        <div>
+          <div class="meta">Beat · Serif · 36px</div>
+          <div class="specimen" style="font-size:32px;line-height:1.15;">Absolute <span class="italic">verification.</span></div>
+        </div>
+        <div>
+          <div class="meta">Pull · Italic · 22px</div>
+          <div class="specimen" style="font-size:22px;font-style:italic;color:var(--gold);font-weight:300;">"Pholio was built to restore signal to the noise."</div>
+        </div>
+        <div>
+          <div class="meta">Body · Sans · 17px</div>
+          <div class="specimen" style="font-family:var(--sans);font-size:17px;font-weight:300;color:var(--text-soft);line-height:1.7;letter-spacing:0;">In a world of algorithmic noise and superficial metrics, the essence of talent is often lost in the static.</div>
+        </div>
+        <div>
+          <div class="meta">Caption · Sans · 13px</div>
+          <div class="specimen" style="font-family:var(--sans);font-size:13px;font-weight:400;color:var(--text-faint);letter-spacing:0;">Built for talent. Trusted by agencies.</div>
+        </div>
+        <div>
+          <div class="meta">Kicker · Sans · 11px</div>
+          <div class="specimen" style="font-family:var(--sans);font-size:11px;font-weight:600;color:var(--gold);letter-spacing:0.18em;text-transform:uppercase;">Chapter II — Core Philosophy</div>
+        </div>
+        <div>
+          <div class="meta">Micro · Mono · 10px</div>
+          <div class="specimen" style="font-family:var(--mono);font-size:10px;font-weight:400;color:var(--gold);letter-spacing:0.28em;text-transform:uppercase;">Established 2024 · Pholio Studio</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 07. THE EDITORIAL SCORE ───── -->
+  <section class="ink">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chapter">Chapter V — The Score</span>
+        <h2 class="serif section" style="color:#fff;">A page is a <span class="italic">movement.</span></h2>
+        <p class="body lede">
+          When laying out a Pholio page, score it. Name each beat before drawing it. If a section can't be named — Arrival, Tension, Release, Proof, Myth, Spine, Close — it should not exist. This is how /talent and /about-us were built, and why they hold together.
+        </p>
+      </div>
+
+      <div class="score">
+        <div class="beat">
+          <div class="n">I</div>
+          <div>
+            <div class="name"><span class="italic">Arrival</span></div>
+            <div class="desc">A hero on ink. Ghost type at the back. One italic gold word in the headline. The reader meets the page.</div>
+          </div>
+        </div>
+        <div class="beat">
+          <div class="n">II</div>
+          <div>
+            <div class="name"><span class="italic">Tension</span></div>
+            <div class="desc">The room before. The inbox, the hallway, the friction we exist to remove. Stated plainly.</div>
+          </div>
+        </div>
+        <div class="beat">
+          <div class="n">III</div>
+          <div>
+            <div class="name"><span class="italic">Release</span></div>
+            <div class="desc">The frictions struck through. A negative reel. Cream after ink, or ink after cream — the page exhales.</div>
+          </div>
+        </div>
+        <div class="beat">
+          <div class="n">IV</div>
+          <div>
+            <div class="name"><span class="italic">Proof</span></div>
+            <div class="desc">A contact sheet of work. Real names. Real numbers. Not a logo wall — a sheet of evidence.</div>
+          </div>
+        </div>
+        <div class="beat">
+          <div class="n">V</div>
+          <div>
+            <div class="name"><span class="italic">Myth</span></div>
+            <div class="desc">The lexicon. Words we use the way the industry doesn't. A glossary that earns the rest.</div>
+          </div>
+        </div>
+        <div class="beat">
+          <div class="n">VI</div>
+          <div>
+            <div class="name"><span class="italic">Spine</span></div>
+            <div class="desc">Three editorial beats — marginalia, not matrices. The product, in language, in order.</div>
+          </div>
+        </div>
+        <div class="beat">
+          <div class="n">VII</div>
+          <div>
+            <div class="name"><span class="italic">Signal</span></div>
+            <div class="desc">Analytics, depth, social proof. Who leaned in, and what that means.</div>
+          </div>
+        </div>
+        <div class="beat">
+          <div class="n">VIII</div>
+          <div>
+            <div class="name"><span class="italic">Close</span></div>
+            <div class="desc">A final ink section. The vertical gold rule. Established 2024. The reader is released, but not abandoned.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 08. ANTI-PATTERNS ───── -->
+  <section class="cream">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chapter">Chapter VI — What Would Break It</span>
+        <h2 class="serif section">The shapes Pholio<br /><span class="italic">refuses.</span></h2>
+        <p class="body lede">
+          Pholio is a platform for people whose careers are judged on surfaces. We owe them an interface that is not embarrassing to be next to. The list below is what we will not do — not because the patterns are wrong elsewhere, but because they are wrong here.
+        </p>
+      </div>
+
+      <div class="anti">
+        <div class="col no">
+          <h5><span class="x">✕</span> We do not</h5>
+          <ul>
+            <li><strong>Use purple-blue SaaS gradients.</strong> No "AI vibes" backgrounds. Gold radial glows only, and only at &lt;10% opacity.</li>
+            <li><strong>Stack feature cards with coloured left borders.</strong> No three-up "fast/secure/easy" grids. If it can't be a chapter, it isn't one.</li>
+            <li><strong>Use emoji.</strong> Anywhere. Not in copy, not in icons, not in empty states. The wordmark and the gold rule are our character set.</li>
+            <li><strong>Animate on a loop.</strong> No shimmer, no breathing buttons, no auto-rotating carousels. Motion fires once on arrival and dies.</li>
+            <li><strong>Bold for emphasis in headlines.</strong> Italic-serif-gold is the only stress. Bold is a body-copy concession, never a brand voice.</li>
+            <li><strong>Use rounded buttons larger than 999px.</strong> Editorial buttons are 2px corners or pill — never both, never in the same view.</li>
+            <li><strong>Photograph imagery in saturated colour.</strong> Grayscale, or grayscale that resolves to colour on hover. Warm grain over cool sharpness.</li>
+            <li><strong>Write "users".</strong> They are <em>talent</em> and <em>agencies</em>. They have names.</li>
+          </ul>
+        </div>
+        <div class="col yes">
+          <h5><span class="ok">✓</span> We do</h5>
+          <ul>
+            <li><strong>Cut hard between ink and cream.</strong> A section break is a stage direction. Treat it like one.</li>
+            <li><strong>Earn each italic word.</strong> Only one per headline. The italic word is the sentence's verdict.</li>
+            <li><strong>Set type at editorial scale.</strong> Display sizes are big enough to read across a room. Body copy is generous, 300-weight, with breath.</li>
+            <li><strong>Use mono for timestamps and labels.</strong> Document dates, established years, chapter numbers, micro-eyebrows — all JetBrains Mono.</li>
+            <li><strong>Write the way our legal pages are written.</strong> Named. Numbered. Plain. Specific. Trustworthy because exact.</li>
+            <li><strong>Frame imagery, not crop it.</strong> 4:5 portraits in 2px-radius rectangles, with grain, with hairline. The image is the subject.</li>
+            <li><strong>Let pages breathe.</strong> 8rem section padding is the floor, not the ceiling. White space is composure made visible.</li>
+            <li><strong>Honour the brief from the reader's side.</strong> If a model wouldn't put it in their portfolio, we shouldn't put it on theirs.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 09. THE SUBJECT IS THE TALENT ───── -->
+  <section class="ink">
+    <div class="wrap">
+      <div class="spread">
+        <div class="left">
+          <span class="label">Chapter VII — Curated for Talent</span>
+          <h2 class="serif section" style="color:#fff;margin-top:28px;">
+            The reader is<br />
+            <span class="italic">the subject.</span>
+          </h2>
+        </div>
+        <div class="right">
+          <p class="body">
+            Pholio serves people whose work is judged the moment they walk in the room. They are professionals at being looked at, and they have <strong>strong, specific taste</strong> about how their image is framed. An interface that treats them like generic SaaS users — confetti, gradients, cheerful emoji empty states — will lose them in the first scroll.
+          </p>
+          <p class="body" style="margin-top:24px;">
+            Our reader has seen the inside of an agency office, a contact sheet, a tear sheet, a comp card, a printed casting list. The visual vocabulary that earns their trust is <em>editorial</em>, not <em>app-y</em>. We borrow from Vogue Italia, from CAA's letterhead, from a well-laid casting brief — not from Slack, not from Notion, not from a B2B onboarding wizard.
+          </p>
+          <p class="body" style="margin-top:24px;">
+            When in doubt: <em>would a model put this on their own portfolio?</em> If the answer is no, we should not put it on ours.
+          </p>
+          <p class="small" style="margin-top:36px;">
+            This is also why the legal pages matter aesthetically. A model who reads the privacy policy and finds it specific, well-set, and unhurried trusts the rest of the platform a little more.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 10. THE BRIEF FORWARD ───── -->
+  <section class="cream">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chapter">Closing — The Brief Going Forward</span>
+        <h2 class="serif section">What this document<br /><span class="italic">does.</span></h2>
+      </div>
+
+      <div class="spread">
+        <div class="left">
+          <p class="body">
+            This is the <strong>source of truth</strong> for Pholio design. The previous design system pass should be considered a draft against this document — anywhere the two disagree, this document wins.
+          </p>
+          <p class="body" style="margin-top:24px;">
+            Future work — the app, the agency portal, sales materials, comp cards, email templates, error states, settings screens, even the favicon — should be derived from these principles before any reference is taken from a screenshot or a competitor.
+          </p>
+        </div>
+        <div class="right">
+          <p class="body">
+            The order of operations is:
+          </p>
+          <ol style="margin-top:20px;padding-left:0;list-style:none;counter-reset:n;">
+            <li style="counter-increment:n;display:grid;grid-template-columns:48px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--hair);">
+              <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.18em;color:var(--gold);padding-top:3px;">01</span>
+              <span style="font-family:var(--sans);font-weight:300;font-size:15px;color:var(--text-soft);line-height:1.55;">Name the <em>movement</em> the section is playing.</span>
+            </li>
+            <li style="counter-increment:n;display:grid;grid-template-columns:48px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--hair);">
+              <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.18em;color:var(--gold);padding-top:3px;">02</span>
+              <span style="font-family:var(--sans);font-weight:300;font-size:15px;color:var(--text-soft);line-height:1.55;">Choose <em>ink or cream</em>. The mood is the choice.</span>
+            </li>
+            <li style="counter-increment:n;display:grid;grid-template-columns:48px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--hair);">
+              <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.18em;color:var(--gold);padding-top:3px;">03</span>
+              <span style="font-family:var(--sans);font-weight:300;font-size:15px;color:var(--text-soft);line-height:1.55;">Write the headline. Earn the <em>one</em> italic word.</span>
+            </li>
+            <li style="counter-increment:n;display:grid;grid-template-columns:48px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--hair);">
+              <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.18em;color:var(--gold);padding-top:3px;">04</span>
+              <span style="font-family:var(--sans);font-weight:300;font-size:15px;color:var(--text-soft);line-height:1.55;">Add furniture: a kicker, a ghost letter, a vertical rule.</span>
+            </li>
+            <li style="counter-increment:n;display:grid;grid-template-columns:48px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--hair);">
+              <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.18em;color:var(--gold);padding-top:3px;">05</span>
+              <span style="font-family:var(--sans);font-weight:300;font-size:15px;color:var(--text-soft);line-height:1.55;">Set body copy at 300-weight, with breath, with specifics.</span>
+            </li>
+            <li style="counter-increment:n;display:grid;grid-template-columns:48px 1fr;gap:16px;padding:14px 0;">
+              <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.18em;color:var(--gold);padding-top:3px;">06</span>
+              <span style="font-family:var(--sans);font-weight:300;font-size:15px;color:var(--text-soft);line-height:1.55;">Animate the arrival once. Leave it alone after.</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── FOOTER ───── -->
+  <footer>
+    <div class="card">
+      <div class="row">
+        <div class="wm">
+          <span class="p">PHOLIO</span>
+          <span class="sliver"></span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:var(--text-faint);">Design Philosophy</span>
+        </div>
+        <div class="doc-meta">
+          <div>Vol. 01 · Foundations</div>
+          <div>Source: pholio-landing@main</div>
+          <div>Authority: This document</div>
+        </div>
+      </div>
+      <div class="hair"></div>
+      <div class="row" style="align-items:center;">
+        <span class="copy">© <span id="y"></span> Pholio Studio. The architecture of composure.</span>
+        <span class="copy" style="font-family:var(--mono);letter-spacing:0.18em;text-transform:uppercase;">End of document.</span>
+      </div>
+    </div>
+  </footer>
+
+</main>
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>

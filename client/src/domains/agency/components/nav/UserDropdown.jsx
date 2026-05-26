@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import {
@@ -9,7 +9,9 @@ import {
   ExternalLink,
   LogOut,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { auth } from '../../../../shared/lib/firebase';
+import { InlineErrorText } from '../../../../shared/components/states';
 import './UserDropdown.css';
 
 function getInitials(name) {
@@ -24,6 +26,7 @@ function getInitials(name) {
 
 export default function UserDropdown({ isOpen, onClose, profile }) {
   const firstItemRef = useRef(null);
+  const [logoutError, setLogoutError] = useState(null);
 
   useEffect(() => {
     if (isOpen) firstItemRef.current?.focus();
@@ -52,6 +55,7 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
   ];
 
   async function handleLogout() {
+    setLogoutError(null);
     try {
       await signOut(auth).catch(() => {});
 
@@ -60,16 +64,18 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
         credentials: 'include',
         headers: { Accept: 'application/json' },
       });
-      
+
       if (response.ok) {
         const data = await response.json().catch(() => ({}));
         window.location.href = data.redirect || '/login';
       } else {
-        window.location.href = '/login';
+        throw new Error('Sign-out did not complete on the server');
       }
     } catch (error) {
       console.error('Logout failed:', error);
-      window.location.href = '/login';
+      const message = error?.message || 'Sign-out failed. Try again.';
+      setLogoutError(message);
+      toast.error(message);
     }
   }
 
@@ -128,6 +134,12 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
       </nav>
 
       <div className="ud-divider" />
+
+      {logoutError && (
+        <div className="ud-logout-error">
+          <InlineErrorText message={logoutError} />
+        </div>
+      )}
 
       <button type="button" className="ud-item ud-item--logout" onClick={handleLogout}>
         <LogOut size={16} className="ud-item-icon" />

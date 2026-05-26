@@ -1,4 +1,5 @@
 import React, { forwardRef, useId } from 'react';
+import InlineErrorText from '../../states/InlineErrorText';
 import './PholioForms.css';
 
 const PholioTextarea = forwardRef(({ label, error, className = '', id: providedId, ...props }, ref) => {
@@ -21,11 +22,7 @@ const PholioTextarea = forwardRef(({ label, error, className = '', id: providedI
         aria-describedby={errorId}
         {...props}
       />
-      {error && (
-        <span id={errorId} className="pholio-error-message" role="alert">
-          {error.message || error}
-        </span>
-      )}
+      {error && <InlineErrorText id={errorId} message={error} className="pholio-error-message" />}
     </div>
   );
 });

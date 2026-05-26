@@ -21,7 +21,24 @@ import CohortHeatmap from './CohortHeatmap';
 // Import free tier components
 import WeeklyBarChart from './WeeklyBarChart';
 import InsightCard from './InsightCard';
+import { EmptyErrorState } from '../../../shared/components/states';
 
+
+function IntelMasthead() {
+  return (
+    <header className="intel-hero">
+      <div className="intel-hero__copy">
+        <span className="intel-kicker">Intel</span>
+        <h1 className="intel-title">
+          The <em>Intel.</em>
+        </h1>
+        <p className="intel-lede">
+          Profile views, comp card downloads, and the signals agencies leave behind.
+        </p>
+      </div>
+    </header>
+  );
+}
 
 /**
  * Single Stat Card Component (Enhanced for free users)
@@ -269,14 +286,30 @@ export default function AnalyticsView() {
   // Default to 7 days for free users, 30 days for Studio+ users
   const [timeRange, setTimeRange] = useState(isStudioPlus ? 30 : 7);
   
-  const { analytics, activities, summary, timeseries, detailedStats, insights, sessions, cohorts, isLoading } = useAnalytics(timeRange, { includeAdvanced: true });
+  const { analytics, activities, summary, timeseries, detailedStats, insights, sessions, cohorts, isLoading, isError, refetch } = useAnalytics(timeRange, { includeAdvanced: true });
+
+  if (isError && !isLoading) {
+    return (
+      <div className="analytics-view">
+        <IntelMasthead />
+        <EmptyErrorState
+          title="Intel unavailable"
+          body="We could not load Intel right now. Try again in a moment."
+          retry={{ label: 'Try again', onClick: () => refetch() }}
+        />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
-      <div className="stats-grid">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="skeleton-loader"></div>
-        ))}
+      <div className="analytics-view">
+        <IntelMasthead />
+        <div className="stats-grid">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="skeleton-loader" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -297,7 +330,8 @@ export default function AnalyticsView() {
 
   return (
     <div className="analytics-view">
-      
+      <IntelMasthead />
+
       {/* Studio+ Header Controls */}
       {isStudioPlus && (
         <section className="mb-8">
@@ -349,13 +383,13 @@ export default function AnalyticsView() {
                 <button 
                   className={`time-range-btn ${isCustomizing ? 'bg-slate-100' : ''}`}
                   onClick={() => setIsCustomizing(!isCustomizing)}
-                  aria-label="Customize Analytics Widgets"
+                  aria-label="Customize Intel widgets"
                 >
                     <Settings size={16} /> Customize Widget
                 </button>
                 <button 
                   className="time-range-btn" 
-                  aria-label="Export Analytics Data"
+                  aria-label="Export Intel data"
                   onClick={() => window.location.href = `/api/talent/analytics/export${window.location.search}`}
                 >
                     <Download size={16} /> Export Data

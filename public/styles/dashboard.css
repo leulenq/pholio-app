@@ -127,29 +127,79 @@
 /* Toast Notifications */
 .media-grid__saving,
 .media-grid__error {
+  --toast-accent: var(--accent-gold, #c9a55a);
+  --toast-accent-rgb: 201, 165, 90;
   position: fixed;
   top: 20px;
   right: 20px;
-  padding: 12px 24px;
-  border-radius: 8px;
+  min-height: 3.75rem;
+  padding: 0.9rem 1rem 0.9rem 3.25rem;
+  border-radius: 10px;
   z-index: 10000;
   font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #1a1815;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.97), rgba(245, 240, 232, 0.94)),
+    radial-gradient(120% 140% at 0% 0%, rgba(var(--toast-accent-rgb), 0.1), transparent 64%);
+  border: 1px solid rgba(26, 24, 21, 0.1);
+  border-left-color: rgba(var(--toast-accent-rgb), 0.34);
+  box-shadow: 0 22px 54px rgba(26, 24, 21, 0.16), 0 2px 8px rgba(26, 24, 21, 0.08);
+  animation: slideInToast 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+
+.media-grid__saving::before,
+.media-grid__error::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--toast-accent-rgb), 0.42), transparent);
+}
+
+.media-grid__saving::after,
+.media-grid__error::after {
+  position: absolute;
+  top: 0.9rem;
+  left: 1rem;
+  width: 1.65rem;
+  height: 1.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--toast-accent);
+  background: rgba(var(--toast-accent-rgb), 0.1);
+  border: 1px solid rgba(var(--toast-accent-rgb), 0.22);
+  border-radius: 999px;
+  font-size: 0.75rem;
   font-weight: 600;
-  box-shadow: var(--shadow-lg);
-  color: var(--toast-text);
-  animation: slideInToast 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  line-height: 1;
 }
 
 .media-grid__saving {
-  background: var(--accent-gold);
+  --toast-accent: var(--accent-gold, #c9a55a);
+  --toast-accent-rgb: 201, 165, 90;
+}
+
+.media-grid__saving::after {
+  content: '...';
 }
 
 .media-grid__error {
-  background: var(--accent-error);
+  --toast-accent: #c0392b;
+  --toast-accent-rgb: 192, 57, 43;
+}
+
+.media-grid__error::after {
+  content: '!';
 }
 
 @keyframes slideInToast {
-  from { opacity: 0; transform: translateY(-20px); }
+  from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

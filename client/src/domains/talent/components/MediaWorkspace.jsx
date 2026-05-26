@@ -241,8 +241,10 @@ export default function MediaWorkspace() {
 
         <motion.header className="mw-masthead" {...ARRIVE}>
           <div className="mw-masthead__copy">
-            <span className="mw-kicker">Portfolio</span>
-            <h1 className="mw-h1">Portfolio</h1>
+            <span className="mw-kicker">The Book</span>
+            <h1 className="mw-h1">
+              The <em>Book.</em>
+            </h1>
             <p className="mw-sub">Curate the frames agencies see — then compose your comp card from them.</p>
             <span className="mw-meta mw-masthead__meta">
               {frames.length} {frames.length === 1 ? 'frame' : 'frames'} · {visibleCount} visible to agencies

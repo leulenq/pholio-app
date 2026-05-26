@@ -17,6 +17,24 @@
     const textColor = (typeof theme !== 'undefined' && theme && theme.colors) ? theme.colors.text      : '#1C1C1C';
     const accent    = (typeof theme !== 'undefined' && theme && theme.colors) ? theme.colors.accent    : '#C9A96E';
     const nameFont  = '"' + themeNameFont + '", "Cormorant Garamond", serif';
+    const safeLayoutPatch = (typeof layoutPatch !== 'undefined' && layoutPatch) ? layoutPatch : {};
+    const safeStyleTokens = (typeof styleTokens !== 'undefined' && styleTokens) ? styleTokens : {};
+    const safeCompCardMetadata = (typeof compCardMetadata !== 'undefined' && compCardMetadata) ? compCardMetadata : {};
+    const layoutFamilyClass = (typeof layoutFamily !== 'undefined' && layoutFamily) ? String(layoutFamily).replace(/[^a-z0-9_-]/gi, '') : 'editorial-balanced';
+    const styleVariantClass = (typeof styleVariant !== 'undefined' && styleVariant) ? String(styleVariant).replace(/[^a-z0-9_-]/gi, '') : 'default';
+    const gridCols = Number(safeLayoutPatch.gridCols) > 0 ? Number(safeLayoutPatch.gridCols) : 2;
+    const gridRows = Number(safeLayoutPatch.gridRows) > 0 ? Number(safeLayoutPatch.gridRows) : 2;
+    const gridSlotCount = Math.max(1, Math.min(8, gridCols * gridRows));
+    const bodyColumns = safeLayoutPatch.bodyColumns || '1fr 2.1in';
+    const bodyGap = safeLayoutPatch.bodyGap || '0.2in';
+    const gridOrder = Number.isFinite(Number(safeLayoutPatch.gridOrder)) ? Number(safeLayoutPatch.gridOrder) : 1;
+    const statsOrder = Number.isFinite(Number(safeLayoutPatch.statsOrder)) ? Number(safeLayoutPatch.statsOrder) : 2;
+    const frontOverlayStrength = Number.isFinite(Number(safeStyleTokens.frontOverlayStrength)) ? Number(safeStyleTokens.frontOverlayStrength) : 0.72;
+    const frontOverlayFadeStop = safeStyleTokens.frontOverlayFadeStop || '55%';
+    const nameSize = safeStyleTokens.nameSize || '28pt';
+    const statRuleOpacity = Number.isFinite(Number(safeStyleTokens.statRuleOpacity)) ? Number(safeStyleTokens.statRuleOpacity) : 0.12;
+    const headerRuleOpacity = Number.isFinite(Number(safeStyleTokens.headerRuleOpacity)) ? Number(safeStyleTokens.headerRuleOpacity) : 0.5;
+    const badgeRadius = safeStyleTokens.badgeRadius || '20px';
 
     // Archetype
     const archetypeLabel   = (typeof archetype !== 'undefined' && archetype && archetype.label)   ? archetype.label   : null;
@@ -67,6 +85,18 @@
       --accent: <%= accent %>;
       --font-name: <%= nameFont %>;
       --font-ui: "Inter", sans-serif;
+      --front-overlay-strength: <%= frontOverlayStrength %>;
+      --front-overlay-fade-stop: <%= frontOverlayFadeStop %>;
+      --name-size: <%= nameSize %>;
+      --stat-rule-opacity: <%= statRuleOpacity %>;
+      --header-rule-opacity: <%= headerRuleOpacity %>;
+      --badge-radius: <%= badgeRadius %>;
+      --back-grid-cols: <%= gridCols %>;
+      --back-grid-rows: <%= gridRows %>;
+      --back-body-columns: <%= bodyColumns %>;
+      --back-body-gap: <%= bodyGap %>;
+      --back-grid-order: <%= gridOrder %>;
+      --back-stats-order: <%= statsOrder %>;
     }
 
     body {
@@ -116,9 +146,9 @@
       inset: 0;
       background: linear-gradient(
         to top,
-        rgba(0, 0, 0, 0.72) 0%,
+        rgba(0, 0, 0, var(--front-overlay-strength)) 0%,
         rgba(0, 0, 0, 0.30) 30%,
-        transparent 55%
+        transparent var(--front-overlay-fade-stop)
       );
     }
 
@@ -136,6 +166,7 @@
       text-transform: uppercase;
       padding: 4px 10px;
       border-radius: 20px;
+      border-radius: var(--badge-radius);
       line-height: 1;
     }
 
@@ -149,7 +180,7 @@
 
     .front__name {
       font-family: var(--font-name);
-      font-size: 28pt;
+      font-size: var(--name-size);
       font-weight: 700;
       color: #fff;
       line-height: 1;
@@ -196,7 +227,7 @@
       justify-content: space-between;
       margin-bottom: 0.1in;
       padding-bottom: 0.06in;
-      border-bottom: 1px solid var(--accent);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent) calc(var(--header-rule-opacity) * 100%), transparent);
     }
 
     .back__header-name {
@@ -220,8 +251,8 @@
     /* Body: 2-column layout */
     .back__body {
       display: grid;
-      grid-template-columns: 1fr 2.1in;
-      gap: 0.2in;
+      grid-template-columns: var(--back-body-columns);
+      gap: var(--back-body-gap);
       flex: 1;
       min-height: 0;
     }
@@ -229,9 +260,10 @@
     /* Left: 2×2 image grid */
     .back__grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
+      grid-template-columns: repeat(var(--back-grid-cols), 1fr);
+      grid-template-rows: repeat(var(--back-grid-rows), 1fr);
       gap: 0.08in;
+      order: var(--back-grid-order);
     }
 
     .back__grid-slot {
@@ -255,6 +287,7 @@
       display: flex;
       flex-direction: column;
       gap: 0;
+      order: var(--back-stats-order);
     }
 
     .back__stat-row {
@@ -262,7 +295,7 @@
       justify-content: space-between;
       align-items: baseline;
       padding: 0.055in 0;
-      border-bottom: 1px solid color-mix(in srgb, var(--text) 12%, transparent 88%);
+      border-bottom: 1px solid color-mix(in srgb, var(--text) calc(var(--stat-rule-opacity) * 100%), transparent);
     }
 
     .back__stat-row:first-child {
@@ -349,12 +382,12 @@
     }
   </style>
 </head>
-<body>
+<body data-compcard-seed="<%= safeCompCardMetadata.seed || 'auto' %>" data-compcard-layout-family="<%= safeCompCardMetadata.layoutFamily || layoutFamilyClass %>" data-compcard-style-variant="<%= safeCompCardMetadata.styleVariant || styleVariantClass %>">
 
   <%/* ─────────────────────────────────────────────
      PAGE 1 — FRONT
   ───────────────────────────────────────────── */%>
-  <div class="comp-card-page" id="front">
+  <div class="comp-card-page layout-family-<%= layoutFamilyClass %> style-variant-<%= styleVariantClass %>" id="front">
 
     <%/* Hero image */%>
     <div class="front__hero">
@@ -392,7 +425,7 @@
   <%/* ─────────────────────────────────────────────
      PAGE 2 — BACK
   ───────────────────────────────────────────── */%>
-  <div class="comp-card-page" id="back">
+  <div class="comp-card-page layout-family-<%= layoutFamilyClass %> style-variant-<%= styleVariantClass %>" id="back">
     <div class="back__page">
 
       <%/* Header */%>
@@ -408,7 +441,7 @@
 
         <%/* 2×2 image grid */%>
         <div class="back__grid">
-          <% for (let i = 0; i < 4; i++) {
+          <% for (let i = 0; i < gridSlotCount; i++) {
                const gi = (typeof gridImages !== 'undefined' && gridImages) ? gridImages[i] : null;
           %>
           <div class="back__grid-slot <%= gi ? '' : 'back__grid-slot--empty' %>">

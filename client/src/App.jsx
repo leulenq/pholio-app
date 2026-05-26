@@ -1,6 +1,5 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
 import AuthLayout from './shared/layouts/AuthLayout';
@@ -33,13 +32,9 @@ import AgencyRoster from './domains/agency/pages/RosterPage';
 import AgencyMessages from './domains/agency/pages/MessagesPage';
 import AgencyActivity from './domains/agency/pages/ActivityPage';
 
-// Placeholder pages
-const PdfCustomizerPage = () => <div>PDF Customizer Page</div>;
-
 function App() {
   return (
     <ErrorBoundary>
-      <Toaster richColors position="top-right" />
       <Routes>
         {/* Root redirects */}
         <Route path="/" element={<Navigate to="/dashboard/talent" replace />} />
@@ -70,7 +65,6 @@ function App() {
           <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
           <Route path="/dashboard/talent/settings" element={<SettingsPage />} />
           <Route path="/dashboard/talent/settings/:section" element={<SettingsPage />} />
-          <Route path="/dashboard/talent/pdf-customizer" element={<PdfCustomizerPage />} />
           <Route path="/dashboard" element={<Navigate to="/dashboard/talent" replace />} />
         </Route>
 

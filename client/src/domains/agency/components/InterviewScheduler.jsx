@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Calendar, Clock, Video, Phone, MapPin, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { scheduleInterview } from '../api/agency';
+import { InlineErrorText } from '../../../shared/components/states';
 
 /**
  * InterviewScheduler Component
@@ -10,6 +11,7 @@ import { scheduleInterview } from '../api/agency';
  */
 export default function InterviewScheduler({ applicationId, talentName, onClose }) {
   const queryClient = useQueryClient();
+  const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
     proposed_datetime: '',
     duration_minutes: 30,
@@ -35,27 +37,35 @@ export default function InterviewScheduler({ applicationId, talentName, onClose 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validate
+    const nextErrors = {};
     if (!formData.proposed_datetime) {
-      toast.error('Please select date and time');
+      nextErrors.proposed_datetime = 'Select a date and time for this interview.';
+    }
+    if (formData.interview_type === 'video_call' && !formData.meeting_url?.trim()) {
+      nextErrors.meeting_url = 'Add a meeting link for video interviews.';
+    }
+    if (formData.interview_type === 'in_person' && !formData.location?.trim()) {
+      nextErrors.location = 'Add a location for in-person interviews.';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors);
+      toast.error('Complete the required interview fields');
       return;
     }
 
-    if (formData.interview_type === 'video_call' && !formData.meeting_url) {
-      toast.error('Please provide meeting URL for video call');
-      return;
-    }
-
-    if (formData.interview_type === 'in_person' && !formData.location) {
-      toast.error('Please provide location for in-person interview');
-      return;
-    }
-
+    setFormErrors({});
     scheduleMutation.mutate(formData);
   };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   return (
@@ -136,8 +146,10 @@ export default function InterviewScheduler({ applicationId, talentName, onClose 
                 value={formData.proposed_datetime}
                 onChange={(e) => handleChange('proposed_datetime', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                aria-invalid={!!formErrors.proposed_datetime}
                 required
               />
+              <InlineErrorText message={formErrors.proposed_datetime} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -171,8 +183,10 @@ export default function InterviewScheduler({ applicationId, talentName, onClose 
                 onChange={(e) => handleChange('meeting_url', e.target.value)}
                 placeholder="https://zoom.us/j/123456789 or https://meet.google.com/abc-defg-hij"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                aria-invalid={!!formErrors.meeting_url}
                 required
               />
+              <InlineErrorText message={formErrors.meeting_url} />
               <p className="text-xs text-gray-500 mt-1">
                 Provide Zoom, Google Meet, or other video call link
               </p>
@@ -191,8 +205,10 @@ export default function InterviewScheduler({ applicationId, talentName, onClose 
                 onChange={(e) => handleChange('location', e.target.value)}
                 placeholder="123 Main St, New York, NY 10001"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                aria-invalid={!!formErrors.location}
                 required
               />
+              <InlineErrorText message={formErrors.location} />
             </div>
           )}
 

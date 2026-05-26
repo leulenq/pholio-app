@@ -37,6 +37,7 @@ router.get(
       .where({ profile_id: profile.id })
       .select(
         "applications.id",
+        "applications.agency_id",
         "applications.status",
         "applications.created_at",
         "applications.updated_at",

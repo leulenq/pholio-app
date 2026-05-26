@@ -1,169 +1,418 @@
 .luxury-prompt-overlay {
+  --prompt-ink: #050505;
+  --prompt-cream: #faf7f2;
+  --prompt-cream-warm: #f5f0e8;
+  --prompt-gold: #c9a55a;
+  --prompt-gold-warm: #c8a96e;
+  --prompt-text: rgba(250, 247, 242, 0.9);
+  --prompt-text-soft: rgba(250, 247, 242, 0.66);
+  --prompt-text-faint: rgba(250, 247, 242, 0.38);
+  --prompt-hair: rgba(250, 247, 242, 0.14);
+  --prompt-hair-gold: rgba(201, 165, 90, 0.42);
+  --prompt-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
   position: fixed;
   inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background:
-    radial-gradient(circle at 15% 15%, rgba(201, 165, 90, 0.2), transparent 55%),
-    radial-gradient(circle at 85% 75%, rgba(110, 86, 52, 0.22), transparent 45%),
-    rgba(16, 15, 13, 0.7);
-  backdrop-filter: blur(8px);
+  z-index: 90;
+  min-height: 100dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--prompt-ink);
+  color: var(--prompt-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 300;
 }
 
-.luxury-prompt-card {
-  width: min(560px, 100%);
+.luxury-prompt-backdrop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--prompt-ink);
+}
+
+.luxury-prompt-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(201, 165, 90, 0.08) 0%, transparent 70%);
+}
+
+.luxury-prompt-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.luxury-prompt-ghost {
+  position: absolute;
+  right: -0.05em;
+  bottom: -0.1em;
+  color: rgba(201, 165, 90, 0.035);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 16vw;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+.luxury-prompt-stage {
   position: relative;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: linear-gradient(160deg, rgba(26, 24, 21, 0.94), rgba(14, 13, 11, 0.96));
-  box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(201, 165, 90, 0.14) inset;
-  padding: 32px;
-  color: #f9f4ec;
+  z-index: 1;
+  width: min(1280px, 100%);
+  min-height: 100dvh;
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 32px;
+  padding: 40px clamp(24px, 6vw, 84px) 48px;
+  box-sizing: border-box;
 }
 
 .luxury-prompt-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
-  color: #f6efe4;
+  position: fixed;
+  top: 32px;
+  right: 32px;
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 165, 90, 0.28);
+  background: rgba(5, 5, 5, 0.85);
+  color: var(--prompt-cream);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  transition:
+    border-color 180ms var(--prompt-ease),
+    color 180ms var(--prompt-ease),
+    background 180ms var(--prompt-ease);
+}
+
+.luxury-prompt-close svg {
+  width: 18px;
+  height: 18px;
 }
 
 .luxury-prompt-close:hover {
-  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--prompt-gold-warm);
+  color: var(--prompt-gold-warm);
+  background: var(--prompt-ink);
 }
 
-.luxury-prompt-badge {
-  display: inline-flex;
+.luxury-prompt-masthead {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 7px 12px;
-  margin-bottom: 16px;
-  font-size: 11px;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.luxury-prompt-wordmark {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.luxury-prompt-wordmark span {
+  color: var(--prompt-gold-warm);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.24em;
+}
+
+.luxury-prompt-wordmark i {
+  width: 62px;
+  height: 1px;
+  display: block;
+  background: linear-gradient(to right, transparent, var(--prompt-gold-warm), transparent);
+}
+
+.luxury-prompt-type-label {
+  margin: 0;
+  color: var(--prompt-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  color: #f1dfb8;
-  border: 1px solid rgba(201, 165, 90, 0.36);
-  background: rgba(201, 165, 90, 0.12);
+}
+
+/* Center Container for Milestone Flow */
+.luxury-prompt-center-container {
+  max-width: 720px;
+  width: 100%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.luxury-prompt-hero-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.luxury-prompt-kicker {
+  margin: 0 0 20px;
+  color: var(--prompt-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
 }
 
 .luxury-prompt-title {
   margin: 0;
-  font-size: clamp(25px, 5vw, 34px);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  color: #fff6e9;
+  color: var(--prompt-cream);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 5.2rem;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.luxury-prompt-title em {
+  color: var(--prompt-gold-warm);
+  font-style: italic;
+  font-weight: 300;
 }
 
 .luxury-prompt-subtitle {
-  margin: 12px 0 0;
-  color: rgba(252, 244, 229, 0.8);
-  font-size: 14px;
-  line-height: 1.6;
+  max-width: 520px;
+  margin: 24px 0 0;
+  color: var(--prompt-text-soft);
+  font-size: 1.15rem;
+  font-weight: 300;
+  line-height: 1.65;
 }
 
-.luxury-prompt-agency {
-  margin-top: 18px;
-  border-radius: 14px;
-  border: 1px solid rgba(201, 165, 90, 0.3);
-  background: rgba(201, 165, 90, 0.1);
-  padding: 11px 12px;
+/* Vertical Gold Rule Divider */
+.luxury-prompt-divider-flow {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.luxury-prompt-v-rule {
+  width: 1px;
+  height: 96px;
+  background: linear-gradient(to bottom, var(--prompt-gold) 0%, rgba(201, 165, 90, 0.4) 70%, transparent 100%);
+  margin: 40px auto;
+}
+
+/* Reveal list styling */
+.luxury-prompt-reveal-block {
+  width: 100%;
+}
+
+.luxury-prompt-reveal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  align-items: center;
+}
+
+.luxury-prompt-reveal-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
 }
 
-.luxury-prompt-agency-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
+.luxury-prompt-reveal-num {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.4rem;
+  font-style: italic;
+  color: var(--prompt-gold-warm);
+  min-width: 24px;
+  text-align: right;
+  line-height: 1;
+}
+
+.luxury-prompt-reveal-text {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--prompt-text-soft);
+}
+
+/* Footer layout */
+.luxury-prompt-footer {
+  display: flex;
   justify-content: center;
-  background: rgba(201, 165, 90, 0.24);
-  color: #ffebb9;
-  flex-shrink: 0;
+  align-items: center;
+  box-sizing: border-box;
 }
 
-.luxury-prompt-agency-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff3d0;
-}
-
-.luxury-prompt-agency-meta {
-  margin-top: 2px;
-  font-size: 12px;
-  color: rgba(255, 243, 208, 0.82);
+.luxury-prompt-command {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .luxury-prompt-error {
-  margin: 12px 0 0;
+  max-width: 360px;
+  margin: 0;
+  border-top: 1px solid rgba(248, 113, 113, 0.45);
+  padding-top: 14px;
   color: #fecaca;
-  font-size: 13px;
+  font-size: 0.88rem;
+  text-align: center;
 }
 
 .luxury-prompt-actions {
-  margin-top: 24px;
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
 }
 
 .luxury-prompt-primary,
 .luxury-prompt-secondary {
-  border: 0;
-  border-radius: 12px;
-  height: 44px;
-  padding: 0 16px;
-  font-size: 13px;
+  min-height: 46px;
+  border-radius: 2px;
+  padding: 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 180ms var(--prompt-ease),
+    border-color 180ms var(--prompt-ease),
+    color 180ms var(--prompt-ease),
+    background 180ms var(--prompt-ease);
 }
 
 .luxury-prompt-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #1a1409;
-  background: linear-gradient(180deg, #dfbf80 0%, #c9a55a 100%);
-  box-shadow: 0 8px 24px rgba(201, 165, 90, 0.3);
+  border: 1px solid var(--prompt-gold-warm);
+  background: var(--prompt-gold-warm);
+  color: var(--prompt-ink);
 }
 
 .luxury-prompt-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 28px rgba(201, 165, 90, 0.42);
+  background: var(--prompt-gold);
+  border-color: var(--prompt-gold);
 }
 
 .luxury-prompt-secondary {
-  color: #ece6d9;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--prompt-hair);
+  background: rgba(5, 5, 5, 0.24);
+  color: var(--prompt-cream);
 }
 
 .luxury-prompt-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--prompt-hair-gold);
+  color: var(--prompt-gold-warm);
+  background: rgba(5, 5, 5, 0.55);
 }
 
 .luxury-prompt-primary:disabled,
 .luxury-prompt-secondary:disabled {
-  opacity: 0.7;
+  opacity: 0.62;
   cursor: default;
+  transform: none;
+}
+
+/* Responsiveness */
+@media (max-width: 960px) {
+  .luxury-prompt-title {
+    font-size: 4rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .luxury-prompt-stage {
+    padding: 32px 20px 40px;
+    gap: 24px;
+  }
+
+  .luxury-prompt-close {
+    top: 20px;
+    right: 20px;
+  }
+
+  .luxury-prompt-masthead p {
+    display: none;
+  }
+
+  .luxury-prompt-title {
+    font-size: 2.8rem;
+  }
+
+  .luxury-prompt-subtitle {
+    font-size: 1rem;
+    margin-top: 18px;
+  }
+
+  .luxury-prompt-v-rule {
+    height: 64px;
+    margin: 32px auto;
+  }
+
+  .luxury-prompt-reveal-list {
+    gap: 20px;
+  }
+
+  .luxury-prompt-reveal-item {
+    gap: 14px;
+  }
+
+  .luxury-prompt-reveal-num {
+    font-size: 1.2rem;
+  }
+
+  .luxury-prompt-reveal-text {
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+  }
+
+  .luxury-prompt-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .luxury-prompt-primary,
+  .luxury-prompt-secondary {
+    width: 100%;
+    min-height: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luxury-prompt-backdrop::after {
+    animation: none;
+  }
 }

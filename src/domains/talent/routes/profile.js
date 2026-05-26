@@ -26,6 +26,9 @@ const {
   buildProfileText,
 } = require("../../ai/embeddings");
 const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
+const {
+  normalizeProfileLanguages,
+} = require("../../../shared/lib/language-reference");
 const path = require("path");
 const config = require("../../../config");
 const { z } = require("zod");
@@ -565,8 +568,14 @@ router.put(
       return typeof val === "string" ? val : JSON.stringify(val);
     };
 
-    if (data.languages !== undefined)
-      updateData.languages = data.languages ? formatJson(data.languages) : null;
+    if (data.languages !== undefined) {
+      const normalizedLanguages = await normalizeProfileLanguages(
+        data.languages,
+      );
+      updateData.languages = normalizedLanguages.length
+        ? formatJson(normalizedLanguages)
+        : null;
+    }
     if (data.specialties !== undefined)
       updateData.specialties = data.specialties
         ? formatJson(data.specialties)

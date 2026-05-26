@@ -9,6 +9,7 @@ export const talentApi = {
   updateProfile: (data) => apiClient.put('/profile', data),
   saveFitScores: (data) => apiClient.post('/profile/fit-scores', data),
   refineBio: (body) => apiClient.post('/bio/refine', body),
+  generateBio: () => apiClient.post('/bio/generate', {}),
 
   // Media
   uploadMedia: (formData) => apiClient.post('/media', formData),

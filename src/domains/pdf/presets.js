@@ -1,0 +1,174 @@
+const { v4: uuidv4 } = require("uuid");
+
+const MAX_PRESET_NAME_LEN = 80;
+
+function toSafeToken(value, maxLen = 64) {
+  if (value == null) return null;
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+  const compact = normalized.replace(/\s+/g, "-");
+  const safe = compact.replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, maxLen);
+  return safe || null;
+}
+
+function normalizeLockGridIds(value) {
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : [];
+  const normalized = source
+    .slice(0, 4)
+    .map((item) => toSafeToken(item, 64) || null);
+  while (normalized.length < 4) normalized.push(null);
+  return normalized;
+}
+
+function parseJsonColumn(value) {
+  if (value == null) return null;
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function normalizePresetInput(input = {}) {
+  const nameRaw = input.name == null ? "" : String(input.name).trim();
+  if (!nameRaw) {
+    const err = new Error("Preset name is required.");
+    err.status = 400;
+    throw err;
+  }
+  if (nameRaw.length > MAX_PRESET_NAME_LEN) {
+    const err = new Error(
+      `Preset name must be ${MAX_PRESET_NAME_LEN} characters or fewer.`,
+    );
+    err.status = 400;
+    throw err;
+  }
+
+  return {
+    name: nameRaw,
+    seed: toSafeToken(input.seed, 128),
+    layout_family: toSafeToken(input.layoutFamily, 64),
+    style_variant: toSafeToken(input.styleVariant, 64),
+    lock_hero_id: toSafeToken(input.lockHeroId, 64),
+    lock_grid_ids: normalizeLockGridIds(input.lockGridIds),
+  };
+}
+
+function mapPresetRow(row) {
+  if (!row) return null;
+  const gridIds = normalizeLockGridIds(
+    parseJsonColumn(row.lock_grid_ids) || [],
+  );
+  return {
+    id: row.id,
+    name: row.name,
+    seed: row.seed || null,
+    layoutFamily: row.layout_family || null,
+    styleVariant: row.style_variant || null,
+    lockHeroId: row.lock_hero_id || null,
+    lockGridIds: gridIds,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    lastUsedAt: row.last_used_at || null,
+    query: toPresetQuery(row),
+    payload: toPresetPayload(row),
+  };
+}
+
+function snapshotFromPresetRow(row) {
+  return {
+    name: row?.name || null,
+    seed: row?.seed || null,
+    layoutFamily: row?.layout_family || null,
+    styleVariant: row?.style_variant || null,
+    lockHeroId: row?.lock_hero_id || null,
+    lockGridIds: normalizeLockGridIds(
+      parseJsonColumn(row?.lock_grid_ids) || [],
+    ),
+  };
+}
+
+function toPresetQuery(row) {
+  const gridIds = normalizeLockGridIds(
+    parseJsonColumn(row.lock_grid_ids) || [],
+  ).filter(Boolean);
+  return {
+    seed: row.seed || undefined,
+    layoutFamily: row.layout_family || undefined,
+    styleVariant: row.style_variant || undefined,
+    lockHeroId: row.lock_hero_id || undefined,
+    lockGridIds: gridIds.length > 0 ? gridIds.join(",") : undefined,
+  };
+}
+
+function toPresetPayload(row) {
+  const gridIds = normalizeLockGridIds(
+    parseJsonColumn(row.lock_grid_ids) || [],
+  );
+  return {
+    name: row.name || null,
+    seed: row.seed || null,
+    layoutFamily: row.layout_family || null,
+    styleVariant: row.style_variant || null,
+    lockHeroId: row.lock_hero_id || null,
+    lockGridIds: gridIds,
+  };
+}
+
+function buildPresetInsert(profileId, normalizedInput) {
+  return {
+    id: uuidv4(),
+    profile_id: profileId,
+    name: normalizedInput.name,
+    seed: normalizedInput.seed,
+    layout_family: normalizedInput.layout_family,
+    style_variant: normalizedInput.style_variant,
+    lock_hero_id: normalizedInput.lock_hero_id,
+    lock_grid_ids: JSON.stringify(normalizedInput.lock_grid_ids),
+    created_at: new Date(),
+    updated_at: new Date(),
+  };
+}
+
+function mapPresetRevisionRow(row) {
+  if (!row) return null;
+  const snapshot = row.snapshot
+    ? typeof row.snapshot === "string"
+      ? parseJsonColumn(row.snapshot) || {}
+      : row.snapshot
+    : {};
+  return {
+    id: row.id,
+    presetId: row.preset_id,
+    revisionNumber: Number(row.revision_number) || 0,
+    reason: row.reason || "update",
+    snapshot: {
+      name: snapshot.name || null,
+      seed: snapshot.seed || null,
+      layoutFamily: snapshot.layoutFamily || null,
+      styleVariant: snapshot.styleVariant || null,
+      lockHeroId: snapshot.lockHeroId || null,
+      lockGridIds: normalizeLockGridIds(snapshot.lockGridIds || []),
+    },
+    createdAt: row.created_at || null,
+  };
+}
+
+module.exports = {
+  MAX_PRESET_NAME_LEN,
+  normalizePresetInput,
+  mapPresetRow,
+  snapshotFromPresetRow,
+  mapPresetRevisionRow,
+  toPresetQuery,
+  toPresetPayload,
+  buildPresetInsert,
+};

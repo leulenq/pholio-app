@@ -64,6 +64,13 @@
   line-height: 1.02;
   font-size: clamp(40px, 6vw, 72px);
   color: var(--mw-text);
+  margin: 12px 0 0;
+}
+
+.mw-h1 em {
+  font-style: italic;
+  color: var(--mw-gold-warm);
+  font-weight: 400;
 }
 .mw-h2 {
   font-family: var(--mw-serif);

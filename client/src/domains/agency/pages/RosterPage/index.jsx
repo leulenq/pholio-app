@@ -14,6 +14,7 @@ import RichRow from '../../components/RichRow';
 import TalentDetailPanel from '../../components/TalentDetailPanel';
 import BulkActionToolbar from '../../components/BulkActionToolbar';
 import { AgencyEmptyState } from '../../components/ui/AgencyEmptyState';
+import { EmptyErrorState } from '../../../../shared/components/states';
 import './RosterPage.css';
 
 // ── Config ────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ const toTalentObject = (t) => !t ? null : ({
 
 // ── Main Page ─────────────────────────────────────────────────
 export default function RosterPage() {
-  const { data: rawRoster = [], isLoading } = useQuery({
+  const { data: rawRoster = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['agency', 'roster'],
     queryFn: fetchRoster,
   });
@@ -168,7 +169,13 @@ export default function RosterPage() {
           viewModes={['grid', 'list']}
         />
 
-        {viewMode === 'grid' ? (
+        {isError ? (
+          <EmptyErrorState
+            title="Could not load roster"
+            body="Your talent roster did not load. Check your connection and try again."
+            retry={{ label: 'Try again', onClick: () => refetch() }}
+          />
+        ) : viewMode === 'grid' ? (
           <div className="roster-page__grid">
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => <div key={i} className="roster-page__card-skeleton" />)

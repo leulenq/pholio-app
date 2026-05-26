@@ -3,9 +3,9 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../domains/auth/hooks/useAuth';
 import TalentLayout from './TalentLayout';
-import { checkGatingStatus, isRestrictedTalentRoute } from '../utils/profileGating';
+import { checkGatingStatus, getProfileGateFeature, isRestrictedTalentRoute } from '../utils/profileGating';
 import { talentApi } from '../../domains/talent/api/talent';
-import LuxuryCompletionPromptModal from '../../domains/onboarding/components/LuxuryCompletionPromptModal';
+import ProfileUnlockExperience from '../../domains/onboarding/components/ProfileUnlockExperience';
 import ProfileGateBanner from '../components/gating/ProfileGateBanner';
 
 
@@ -22,7 +22,10 @@ export default function DashboardLayoutShell() {
   const [promptError, setPromptError] = useState('');
   const gating = checkGatingStatus(profile);
   const { isBlocked } = gating;
-  const promptStorageKey = useMemo(() => `talent-completion-prompt:${profile?.id || 'unknown'}`, [profile?.id]);
+  const isRouteGated = isBlocked && isRestrictedTalentRoute(location.pathname);
+  const gateFeature = getProfileGateFeature(location.pathname);
+  // Fire once ever, per profile, the first time the profile gate is open.
+  const celebrationKey = useMemo(() => `talent-gate-celebrated:${profile?.id || 'unknown'}`, [profile?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,8 +34,8 @@ export default function DashboardLayoutShell() {
       if (isLoading || !profile?.id || isBlocked) return;
       if (!location.pathname.startsWith('/dashboard/talent')) return;
 
-      const dismissed = window.sessionStorage.getItem(promptStorageKey);
-      if (dismissed === '1') return;
+      const celebrated = window.localStorage.getItem(celebrationKey);
+      if (celebrated === '1') return;
 
       setIsPromptLoading(true);
       setPromptError('');
@@ -58,12 +61,12 @@ export default function DashboardLayoutShell() {
     return () => {
       cancelled = true;
     };
-  }, [isLoading, profile?.id, isBlocked, location.pathname, promptStorageKey]);
+  }, [isLoading, profile?.id, isBlocked, location.pathname, celebrationKey]);
 
   const dismissPrompt = () => {
     setIsPromptOpen(false);
     if (profile?.id) {
-      window.sessionStorage.setItem(promptStorageKey, '1');
+      window.localStorage.setItem(celebrationKey, '1');
     }
   };
 
@@ -94,27 +97,8 @@ export default function DashboardLayoutShell() {
       return;
     }
 
-    setIsPrimarySubmitting(true);
-    try {
-      const agenciesRes = await talentApi.getAgencies();
-      const agencies = agenciesRes?.data || agenciesRes || [];
-      if (!agencies.length) {
-        setPromptError('No agencies are available right now. Please try again shortly.');
-        setIsPrimarySubmitting(false);
-        return;
-      }
-
-      const target = agencies[0];
-      await talentApi.createApplication({ agencyId: target.id });
-      toast.success(`Application submitted to ${target.name || 'an agency'}.`);
-      dismissPrompt();
-      navigate('/dashboard/talent/applications');
-    } catch (applyErr) {
-      const msg = applyErr?.data?.error || applyErr?.message || 'Could not submit application right now.';
-      setPromptError(msg);
-    } finally {
-      setIsPrimarySubmitting(false);
-    }
+    dismissPrompt();
+    navigate('/dashboard/talent/applications#app-discovery');
   };
 
   // If API says onboarding is required, redirect to casting flow
@@ -130,18 +114,24 @@ export default function DashboardLayoutShell() {
     );
   }
 
-  if (isBlocked && isRestrictedTalentRoute(location.pathname)) {
-    const from = encodeURIComponent(`${location.pathname}${location.search || ''}`);
-    return <Navigate to={`/dashboard/talent/profile?gate=true&from=${from}`} replace />;
-  }
-
   return (
     <>
-      <TalentLayout outletContext={{ isBlocked }} />
-      <LuxuryCompletionPromptModal
+      <TalentLayout outletContext={{ ...gating }}>
+        {isRouteGated ? (
+          <ProfileGateBanner
+            variant="page"
+            featureName={gateFeature.featureName}
+            featureLabel={gateFeature.featureLabel}
+            description={gateFeature.description}
+            {...gating}
+          />
+        ) : null}
+      </TalentLayout>
+      <ProfileUnlockExperience
         isOpen={isPromptOpen}
         mode={promptContext?.hasRedirectSignal ? 'targeted' : 'generic'}
         targetAgency={promptContext?.targetAgency}
+        profile={profile}
         isSubmitting={isPrimarySubmitting || isPromptLoading}
         onPrimaryAction={handlePrimaryAction}
         onSecondaryAction={dismissPrompt}

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMessageThreads, getMessages, sendMessage, markMessageAsRead } from '../../api/agency';
+import { EmptyErrorState } from '../../../../shared/components/states';
 import './MessagesPage.css';
 
 /** Returns initials from a full name */
@@ -54,14 +55,14 @@ export default function MessagesPage() {
   const queryClient = useQueryClient();
 
   // 1. Fetch Threads
-  const { data: threads = [], isLoading: isThreadsLoading } = useQuery({
+  const { data: threads = [], isLoading: isThreadsLoading, isError: isThreadsError, refetch: refetchThreads } = useQuery({
     queryKey: ['agency', 'messages', 'threads'],
     queryFn: getMessageThreads,
     refetchInterval: 30000,
   });
 
   // 2. Fetch Messages for active thread
-  const { data: messages = [], isLoading: isMessagesLoading } = useQuery({
+  const { data: messages = [], isLoading: isMessagesLoading, isError: isMessagesError, refetch: refetchMessages } = useQuery({
     queryKey: ['agency', 'messages', 'thread', activeThreadId],
     queryFn: () => getMessages(activeThreadId),
     enabled: !!activeThreadId,
@@ -142,6 +143,15 @@ export default function MessagesPage() {
               <div className="st-messages-state">
                 <Loader2 className="animate-spin" />
               </div>
+            ) : isThreadsError ? (
+              <div className="st-messages-state st-messages-state--error">
+                <EmptyErrorState
+                  variant="compact"
+                  title="Could not load threads"
+                  body="Message threads did not load. Try again."
+                  retry={{ label: 'Try again', onClick: () => refetchThreads() }}
+                />
+              </div>
             ) : filteredThreads.length === 0 ? (
               <div className="st-messages-state">
                 <Inbox size={40} strokeWidth={1} />
@@ -206,7 +216,16 @@ export default function MessagesPage() {
 
               <div className="st-messages-viewport">
                 <div className="st-messages-scroll-area">
-                  {isMessagesLoading && !messages.length ? (
+                  {isMessagesError ? (
+                    <div className="st-messages-state st-messages-state--error">
+                      <EmptyErrorState
+                        variant="compact"
+                        title="Could not load messages"
+                        body="This conversation did not load. Try again."
+                        retry={{ label: 'Try again', onClick: () => refetchMessages() }}
+                      />
+                    </div>
+                  ) : isMessagesLoading && !messages.length ? (
                     <div className="st-messages-state">
                       <Loader2 className="animate-spin" />
                     </div>

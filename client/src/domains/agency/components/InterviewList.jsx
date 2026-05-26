@@ -1,26 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, MapPin, Video, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calendar, Clock, MapPin, Video } from 'lucide-react';
 import { getInterviews } from '../api/agency';
 import { AgencyEmptyState } from './ui/AgencyEmptyState';
+import { EmptyErrorState } from '../../../shared/components/states';
 
 export default function InterviewList() {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const fetchInterviews = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const data = await getInterviews();
+      setInterviews(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('[InterviewList] Error:', err);
+      setLoadError(err);
+      setInterviews([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchInterviews() {
-      try {
-        const data = await getInterviews();
-        setInterviews(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('[InterviewList] Error:', err);
-        setInterviews([]);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchInterviews();
-  }, []);
+  }, [fetchInterviews]);
 
   if (loading) {
     return (
@@ -28,6 +34,17 @@ export default function InterviewList() {
         <div style={{ width: 18, height: 18, border: '2px solid var(--agency-border)', borderLeftColor: 'var(--agency-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         Loading interviews...
       </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <EmptyErrorState
+        variant="compact"
+        title="Could not load interviews"
+        body="Scheduled interviews did not load. Try again to refresh the list."
+        retry={{ label: 'Try again', onClick: fetchInterviews }}
+      />
     );
   }
 
@@ -79,7 +96,6 @@ export default function InterviewList() {
             transition: 'all 0.2s ease',
           }}
         >
-          {/* Date Badge */}
           <div style={{
             width: 56, height: 56, borderRadius: 12,
             background: 'var(--agency-primary-light)',
@@ -92,7 +108,6 @@ export default function InterviewList() {
             </span>
           </div>
 
-          {/* Details */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--agency-text-primary)', marginBottom: 4 }}>
               {interview.talent_name || interview.profile_name || 'Talent'}
@@ -114,7 +129,6 @@ export default function InterviewList() {
             </div>
           </div>
 
-          {/* Status */}
           <span style={{
             fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
             padding: '4px 10px', borderRadius: 100,

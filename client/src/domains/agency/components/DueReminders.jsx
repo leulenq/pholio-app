@@ -1,24 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AlertCircle, Clock } from 'lucide-react';
 import { getDueRemindersCount } from '../api/agency';
+import { EmptyErrorState } from '../../../shared/components/states';
 
-export default function DueReminders({ limit = 10 }) {
+export default function DueReminders() {
   const [dueData, setDueData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const fetchDue = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const data = await getDueRemindersCount();
+      setDueData(data);
+    } catch (err) {
+      console.error('[DueReminders] Error:', err);
+      setLoadError(err);
+      setDueData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchDue() {
-      try {
-        const data = await getDueRemindersCount();
-        setDueData(data);
-      } catch (err) {
-        console.error('[DueReminders] Error:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchDue();
-  }, []);
+  }, [fetchDue]);
 
   if (loading) {
     return (
@@ -33,6 +40,17 @@ export default function DueReminders({ limit = 10 }) {
       }}>
         Loading...
       </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <EmptyErrorState
+        variant="compact"
+        title="Due count unavailable"
+        body="We could not load due reminders. Try again to refresh the count."
+        retry={{ label: 'Try again', onClick: fetchDue }}
+      />
     );
   }
 

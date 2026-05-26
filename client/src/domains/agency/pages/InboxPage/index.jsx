@@ -10,6 +10,7 @@ import KanbanColumn from '../../components/KanbanColumn';
 import KanbanCard from '../../components/KanbanCard';
 import KeyboardShortcutOverlay from '../../components/KeyboardShortcutOverlay';
 import { AgencyEmptyState } from '../../components/ui/AgencyEmptyState';
+import { EmptyErrorState } from '../../../../shared/components/states';
 import useKeyboardShortcuts from '../../../../shared/hooks/useKeyboardShortcuts';
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import './InboxPage.css';
@@ -42,7 +43,7 @@ export default function InboxPage() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const { data: applicationsData, isLoading } = useQuery({
+  const { data: applicationsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['agency', 'applications', activeFilters],
     queryFn: () => getApplicants(activeFilters),
   });
@@ -106,7 +107,13 @@ export default function InboxPage() {
           viewModes={['list', 'kanban']}
         />
 
-        {viewMode === 'list' ? (
+        {isError ? (
+          <EmptyErrorState
+            title="Could not load applicants"
+            body="We could not reach the inbox. Check your connection and try again."
+            retry={{ label: 'Try again', onClick: () => refetch() }}
+          />
+        ) : viewMode === 'list' ? (
           <div className="inbox-page__rows">
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => <div key={i} className="ag-rich-row-skeleton" />)

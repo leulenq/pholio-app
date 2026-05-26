@@ -417,63 +417,82 @@
   transform: none;
 }
 
-/* Premium Tag Styles */
-.pholio-tags-container {
+/* Premium Tag Styles V2 */
+.pholio-tags-wrapper {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   width: 100%;
   align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--pholio-border);
+  transition: border-color 0.2s ease;
+  cursor: text;
 }
 
-.pholio-tag {
+.pholio-tags-wrapper.error {
+  border-bottom-color: var(--pholio-error);
+}
+
+.pholio-tags-wrapper:focus-within {
+  border-bottom-color: var(--pholio-gold);
+}
+
+.pholio-premium-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #f1f5f9; /* Soft Slate background */
-  padding: 4px 10px;
-  border-radius: 100px; /* Pill shape */
+  background: transparent;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: var(--pholio-text-dark);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  transition: all 0.2s ease;
-}
-
-.pholio-tag:hover {
-  background: #e2e8f0;
-  border-color: rgba(201, 165, 90, 0.3);
-}
-
-.pholio-tag-remove {
+  border: 1px solid var(--pholio-border);
   cursor: pointer;
-  color: var(--pholio-text-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.2s ease;
 }
 
-.pholio-tag-remove:hover {
-  color: var(--pholio-error);
-  transform: scale(1.15);
+.pholio-premium-tag:hover {
+  border-color: #b04848;
+  background: rgba(176, 72, 72, 0.04);
+  color: #b04848;
 }
 
-.pholio-tag-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--pholio-text-dark);
+.pholio-tag-x {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.pholio-premium-tag:hover .pholio-tag-x {
+  opacity: 1;
+}
+
+.pholio-premium-tag-input {
+  min-width: 140px;
+  background: transparent !important;
+  border: none !important;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
-  min-width: 120px;
-  padding: 4px 0;
+  font-size: 14px;
+  color: var(--pholio-text-dark);
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  height: auto !important;
 }
 
-.pholio-tag-input::placeholder {
+.pholio-premium-tag-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.pholio-premium-tag-input::placeholder {
   color: var(--pholio-placeholder);
-  font-style: italic;
+  font-weight: 300;
 }
 
 /* Autocomplete / combobox (city, country) */
@@ -524,4 +543,39 @@
 
 .pholio-autocomplete-option-active {
   background: #f5f5f7;
+}
+
+.pholio-multiselect-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 4px;
+}
+
+.pholio-multiselect-search-icon {
+  flex-shrink: 0;
+  color: var(--pholio-text-muted, #6b6560);
+}
+
+.pholio-multiselect-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.875rem;
+  color: var(--pholio-text-dark, #1a1815);
+}
+
+.pholio-multiselect-search-input::placeholder {
+  color: var(--pholio-text-muted, #9a948d);
+}
+
+.pholio-multiselect-empty {
+  padding: 12px 14px;
+  font-size: 0.875rem;
+  color: var(--pholio-text-muted, #6b6560);
+  font-style: italic;
 }

@@ -1,4 +1,5 @@
 import React, { forwardRef, useId } from 'react';
+import InlineErrorText from '../../states/InlineErrorText';
 import './PholioForms.css';
 
 const PholioSelect = forwardRef(({ label, options = [], error, className = '', placeholder, id: providedId, ...props }, ref) => {
@@ -30,11 +31,7 @@ const PholioSelect = forwardRef(({ label, options = [], error, className = '', p
           </option>
         ))}
       </select>
-      {error && (
-        <span id={errorId} className="pholio-error-message" role="alert">
-          {error.message || error}
-        </span>
-      )}
+      {error && <InlineErrorText id={errorId} message={error} className="pholio-error-message" />}
     </div>
   );
 });

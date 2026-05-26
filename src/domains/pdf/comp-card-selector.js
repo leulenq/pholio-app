@@ -159,6 +159,25 @@ function normalizePreferRoles(preferRoles) {
   };
 }
 
+function normalizeLocks(locks) {
+  if (!locks || typeof locks !== "object") {
+    return {
+      heroId: null,
+      gridIds: [null, null, null, null],
+    };
+  }
+  const rawGrid = Array.isArray(locks.gridIds) ? locks.gridIds : [];
+  const gridIds = rawGrid.slice(0, 4).map((id) => {
+    if (id == null) return null;
+    const normalized = String(id).trim();
+    return normalized || null;
+  });
+  while (gridIds.length < 4) gridIds.push(null);
+  const heroId =
+    locks.heroId == null ? null : String(locks.heroId).trim() || null;
+  return { heroId, gridIds };
+}
+
 /**
  * Order candidates by first appearance in `enriched` (input order).
  * @param {Array<object>} candidates
@@ -207,6 +226,7 @@ function normalizeOptions(options) {
       seed: undefined,
       enforceActive: true,
       preferRoles: normalizePreferRoles(null),
+      locks: normalizeLocks(null),
       rng: null,
     };
   }
@@ -225,6 +245,7 @@ function normalizeOptions(options) {
     seed,
     enforceActive,
     preferRoles: normalizePreferRoles(options.preferRoles),
+    locks: normalizeLocks(options.locks),
     rng,
   };
 }
@@ -242,7 +263,7 @@ function selectCompCardImages(images, options) {
     return { heroImage: null, gridImages: [null, null, null, null] };
   }
 
-  const { enforceActive, preferRoles, rng } = normalizeOptions(options);
+  const { enforceActive, preferRoles, locks, rng } = normalizeOptions(options);
   const pool = filterEligibleByStatus(images, enforceActive);
 
   const enriched = pool.map((img) => ({
@@ -271,9 +292,24 @@ function selectCompCardImages(images, options) {
     return img || null;
   }
 
-  const heroImage = pickSlot(preferRoles.hero);
+  function pickLockedOrSlot(role, lockedId) {
+    if (lockedId) {
+      const forced = enriched.find(
+        (img) => img.id === lockedId && !selected.has(img.id),
+      );
+      if (forced) {
+        selected.add(forced.id);
+        return forced;
+      }
+    }
+    return pickSlot(role);
+  }
 
-  const gridImages = preferRoles.grid.map((role) => pickSlot(role));
+  const heroImage = pickLockedOrSlot(preferRoles.hero, locks.heroId);
+
+  const gridImages = preferRoles.grid.map((role, index) =>
+    pickLockedOrSlot(role, locks.gridIds[index]),
+  );
 
   return { heroImage, gridImages };
 }

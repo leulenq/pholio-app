@@ -22,7 +22,8 @@ async function loadProfile(slug) {
     if (!profile) return null;
     const images = await knex("images")
       .where({ profile_id: profile.id })
-      .orderBy("sort");
+      .orderBy("sort")
+      .orderBy("id");
 
     // Derive hero_image_path for backward compatibility in PDF views
     const primary = images.find((img) => img.is_primary) || images[0];
@@ -72,6 +73,46 @@ async function renderCompCard(slug, theme = null, opts = null) {
         url.searchParams.set(
           "seed",
           String(Array.isArray(genSeed) ? genSeed[0] : genSeed),
+        );
+      }
+      const genLayoutFamily = opts && opts.layoutFamily;
+      if (genLayoutFamily != null && genLayoutFamily !== "") {
+        url.searchParams.set(
+          "layoutFamily",
+          String(
+            Array.isArray(genLayoutFamily)
+              ? genLayoutFamily[0]
+              : genLayoutFamily,
+          ),
+        );
+      }
+      const genStyleVariant = opts && opts.styleVariant;
+      if (genStyleVariant != null && genStyleVariant !== "") {
+        url.searchParams.set(
+          "styleVariant",
+          String(
+            Array.isArray(genStyleVariant)
+              ? genStyleVariant[0]
+              : genStyleVariant,
+          ),
+        );
+      }
+      const genLockHeroId = opts && opts.lockHeroId;
+      if (genLockHeroId != null && genLockHeroId !== "") {
+        url.searchParams.set(
+          "lockHeroId",
+          String(
+            Array.isArray(genLockHeroId) ? genLockHeroId[0] : genLockHeroId,
+          ),
+        );
+      }
+      const genLockGridIds = opts && opts.lockGridIds;
+      if (genLockGridIds != null && genLockGridIds !== "") {
+        url.searchParams.set(
+          "lockGridIds",
+          String(
+            Array.isArray(genLockGridIds) ? genLockGridIds[0] : genLockGridIds,
+          ),
         );
       }
       target = url.toString();
@@ -351,6 +392,12 @@ async function renderCompCard(slug, theme = null, opts = null) {
           // Disable tagged PDF to reduce size
           tagged: false,
         });
+
+        // Puppeteer may return Uint8Array in newer versions.
+        // Normalize to Buffer so Express sends binary PDF bytes instead of JSON.
+        if (!Buffer.isBuffer(buffer)) {
+          buffer = Buffer.from(buffer);
+        }
 
         console.log(
           "[renderCompCard] PDF generated, size:",

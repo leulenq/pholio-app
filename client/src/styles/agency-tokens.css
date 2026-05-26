@@ -191,4 +191,22 @@
 
   --font-display: var(--ag-font-display);
   --font-body: var(--ag-font-body);
+
+  /* ---- Error state primitives (SPA shared) ---- */
+  --ph-error-surface: var(--ag-surface-1);
+  --ph-error-surface-muted: var(--ag-surface-2);
+  --ph-error-border: var(--ag-border-strong);
+  --ph-error-border-emphasis: var(--ag-border-gold);
+  --ph-error-title: var(--ag-text-0);
+  --ph-error-body: var(--ag-text-2);
+  --ph-error-eyebrow: var(--ag-gold);
+  --ph-error-icon-bg: var(--ag-gold-ghost);
+  --ph-error-icon-fg: var(--ag-gold);
+  --ph-error-primary-bg: var(--ag-gold);
+  --ph-error-primary-bg-hover: var(--ag-gold-hover);
+  --ph-error-primary-fg: var(--ag-black);
+  --ph-error-secondary-bg: transparent;
+  --ph-error-secondary-fg: var(--ag-text-2);
+  --ph-error-secondary-border: var(--ag-border-strong);
+  --ph-inline-error: var(--ag-danger);
 }

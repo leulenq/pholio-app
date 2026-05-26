@@ -9,13 +9,15 @@ import {
   removeAgencyTeamMember,
 } from '../../api/agency';
 import { AgencyButton } from '../../components/ui/AgencyButton';
+import { EmptyErrorState, InlineErrorText } from '../../../../shared/components/states';
 
 export default function TeamSection({ profile }) {
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('MEMBER');
+  const [inviteFieldError, setInviteFieldError] = useState(null);
 
-  const { data: members = [], isLoading, isError, error } = useQuery({
+  const { data: members = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['agency-team'],
     queryFn: getAgencyTeam,
   });
@@ -26,9 +28,14 @@ export default function TeamSection({ profile }) {
       queryClient.invalidateQueries(['agency-team']);
       setInviteEmail('');
       setInviteRole('MEMBER');
+      setInviteFieldError(null);
       toast.success('Team member added');
     },
-    onError: (err) => toast.error(err.message || 'Failed to add team member'),
+    onError: (err) => {
+      const message = err.message || 'Failed to add team member';
+      setInviteFieldError(message);
+      toast.error(message);
+    },
   });
 
   const updateMemberMutation = useMutation({
@@ -67,10 +74,15 @@ export default function TeamSection({ profile }) {
             <label>Member Email</label>
             <input
               value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
+              onChange={(e) => {
+                setInviteEmail(e.target.value);
+                if (inviteFieldError) setInviteFieldError(null);
+              }}
               placeholder="name@agency.com"
-              className="st-input"
+              className={`st-input${inviteFieldError ? ' has-error' : ''}`}
+              aria-invalid={!!inviteFieldError}
             />
+            <InlineErrorText message={inviteFieldError} className="st-field-error" />
           </div>
           <div className="st-field">
             <label>Role</label>
@@ -105,11 +117,12 @@ export default function TeamSection({ profile }) {
           </div>
         )}
         {isError && (
-          <div className="st-member-row">
-            <div className="st-member-details">
-              Failed to load team members{error?.message ? `: ${error.message}` : '.'}
-            </div>
-          </div>
+          <EmptyErrorState
+            variant="compact"
+            title="Could not load team"
+            body={error?.message || 'Team members did not load. Try again to refresh the list.'}
+            retry={{ label: 'Try again', onClick: () => refetch() }}
+          />
         )}
         {!isLoading && !isError && members.length === 0 && (
           <div className="st-member-row">

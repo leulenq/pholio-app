@@ -49,39 +49,35 @@ const PholioTagInput = ({
       {label && <label htmlFor={id} className="pholio-label">{label}</label>}
       
       <div 
-        className={`pholio-custom-select-trigger ${error ? 'error' : ''}`}
+        className={`pholio-tags-wrapper ${error ? 'error' : ''}`}
         onClick={() => containerRef.current?.querySelector('input')?.focus()}
       >
-        <div className="pholio-tags-container">
-          {safeValue.map((tag, index) => (
-            <span 
-              key={index} 
-              className="pholio-tag"
-            >
-              {tag}
-              <X 
-                size={14} 
-                className="pholio-tag-remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeTag(tag);
-                }}
-              />
-            </span>
-          ))}
-          
-          <input
-            id={id}
-            type="text"
-            className="pholio-tag-input"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={addTag} // Add tag on blur as well
-            placeholder={safeValue.length === 0 ? placeholder : ""}
-            disabled={disabled}
-          />
-        </div>
+        {safeValue.map((tag, index) => (
+          <span 
+            key={index} 
+            className="pholio-premium-tag"
+            onClick={(e) => {
+              e.stopPropagation();
+              removeTag(tag);
+            }}
+            title="Click to remove"
+          >
+            {tag}
+            <X size={12} className="pholio-tag-x" />
+          </span>
+        ))}
+        
+        <input
+          id={id}
+          type="text"
+          className="pholio-premium-tag-input"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={addTag}
+          placeholder={safeValue.length === 0 ? placeholder : "Add another..."}
+          disabled={disabled}
+        />
       </div>
       
       {error && (

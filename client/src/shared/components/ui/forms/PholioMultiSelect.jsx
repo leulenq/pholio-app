@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check, X } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { ChevronDown, Check, X, Search } from 'lucide-react';
 import './PholioForms.css';
 
 const PholioMultiSelect = ({ 
@@ -10,11 +10,16 @@ const PholioMultiSelect = ({
   placeholder = "Select options",
   error,
   disabled = false,
-  id
+  id,
+  searchable = false,
+  searchPlaceholder = 'Search…',
+  emptyMessage = 'No matches',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
   const blurTimeoutRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Close on click outside
   useEffect(() => {
@@ -52,6 +57,28 @@ const PholioMultiSelect = ({
   };
 
   const safeValue = Array.isArray(value) ? value : [];
+
+  const filteredOptions = useMemo(() => {
+    if (!searchable) return options;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(
+      (option) =>
+        String(option.label ?? '').toLowerCase().includes(q) ||
+        String(option.value ?? '').toLowerCase().includes(q),
+    );
+  }, [options, searchable, searchQuery]);
+
+  useEffect(() => {
+    if (!isOpen) setSearchQuery('');
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && searchable) {
+      const t = setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, searchable]);
 
   return (
     <div className={`pholio-form-group ${disabled ? 'disabled' : ''}`} ref={containerRef}>
@@ -127,22 +154,51 @@ const PholioMultiSelect = ({
 
       {isOpen && (
         <div className="pholio-custom-select-dropdown" role="listbox">
-          {options.map((option) => {
-            const isSelected = safeValue.includes(option.value);
-            return (
-              <div
-                key={option.value}
-                className={`pholio-select-option ${isSelected ? 'selected' : ''}`}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handleSelect(option.value)}
-                role="option"
-                aria-selected={isSelected}
-              >
-                <span>{option.label}</span>
-                {isSelected && <Check size={14} className="check-icon" />}
-              </div>
-            );
-          })}
+          {searchable && (
+            <div
+              className="pholio-multiselect-search"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <Search size={14} aria-hidden className="pholio-multiselect-search-icon" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                className="pholio-multiselect-search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                  }
+                }}
+              />
+            </div>
+          )}
+          {filteredOptions.length === 0 ? (
+            <div className="pholio-multiselect-empty" role="status">
+              {emptyMessage}
+            </div>
+          ) : (
+            filteredOptions.map((option) => {
+              const isSelected = safeValue.includes(option.value);
+              return (
+                <div
+                  key={option.value}
+                  className={`pholio-select-option ${isSelected ? 'selected' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelect(option.value)}
+                  role="option"
+                  aria-selected={isSelected}
+                >
+                  <span>{option.label}</span>
+                  {isSelected && <Check size={14} className="check-icon" />}
+                </div>
+              );
+            })
+          )}
         </div>
       )}
       

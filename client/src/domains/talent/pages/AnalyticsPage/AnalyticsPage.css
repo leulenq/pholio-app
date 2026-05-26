@@ -1,6 +1,49 @@
 .analytics-page {
   min-height: 100%;
-  background: #FAF8F5;
-  color: #1A1815;
-  padding: 32px 40px 64px;
+  background: #faf7f2;
+  color: #1a1a1a;
+  padding: clamp(40px, 4.4vw, 56px) clamp(28px, 5.4vw, 64px) 64px;
+}
+
+/* Intel editorial masthead — aligned with Market / The Book */
+.analytics-page .intel-hero {
+  padding-bottom: 40px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.24);
+}
+
+.analytics-page .intel-kicker {
+  display: block;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #c9a55a;
+}
+
+.analytics-page .intel-title {
+  margin: 16px 0 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  color: #1a1a1a;
+}
+
+.analytics-page .intel-title em {
+  font-style: italic;
+  color: #c8a96e;
+  font-weight: 400;
+}
+
+.analytics-page .intel-lede {
+  max-width: 42rem;
+  margin: 20px 0 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1.65;
+  color: rgba(26, 26, 26, 0.62);
 }

@@ -13,6 +13,17 @@ const {
   validateCustomization,
 } = require("../themes");
 const { selectCompCardImages } = require("../comp-card-selector");
+const { resolveCompCardArtDirection } = require("../style-engine");
+const { evaluateCompCardGuardrails } = require("../guardrails");
+const {
+  normalizePresetInput,
+  mapPresetRow,
+  mapPresetRevisionRow,
+  snapshotFromPresetRow,
+  toPresetQuery,
+  toPresetPayload,
+  buildPresetInsert,
+} = require("../presets");
 const { getFontFamilyCSS } = require("../fonts");
 const {
   generateLayoutClasses,
@@ -26,6 +37,9 @@ const config = require("../../../config");
 const { v4: uuidv4 } = require("uuid");
 
 const router = express.Router();
+const MAX_PRESETS_PER_PROFILE = 40;
+const MAX_PRESET_REVISIONS = 50;
+const PRESET_EXPORT_VERSION = "1.0";
 
 // Absolute paths to EJS templates (moved from views/pdf/ to src/domains/pdf/templates/)
 const TEMPLATE_STANDARD = path.join(
@@ -311,6 +325,186 @@ function getDemoProfile(slug) {
   };
 }
 
+function normalizeQueryValue(value) {
+  if (Array.isArray(value)) return value[0] ?? undefined;
+  return value;
+}
+
+function normalizeCompCardSeed(value) {
+  const normalized = normalizeQueryValue(value);
+  if (normalized == null) return undefined;
+  const trimmed = String(normalized).trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function toSafeMetadataToken(value, fallback = "auto", maxLen = 96) {
+  const normalized = value == null ? "" : String(value).trim();
+  if (!normalized) return fallback;
+  const compact = normalized.replace(/\s+/g, "-");
+  const safe = compact.replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, maxLen);
+  return safe || fallback;
+}
+
+function parseCompCardLocks(req) {
+  const heroRaw = normalizeQueryValue(req.query.lockHeroId);
+  const heroId =
+    heroRaw == null ? null : toSafeMetadataToken(heroRaw, "", 64) || null;
+
+  const gridRaw = normalizeQueryValue(req.query.lockGridIds);
+  let gridIds = [];
+  if (typeof gridRaw === "string" && gridRaw.trim() !== "") {
+    gridIds = gridRaw
+      .split(",")
+      .map((item) => toSafeMetadataToken(item, "", 64) || null)
+      .slice(0, 4);
+  }
+  while (gridIds.length < 4) gridIds.push(null);
+
+  return { heroId, gridIds };
+}
+
+function resolveCompCardGenerationMetadata(req, theme) {
+  const seed = normalizeCompCardSeed(req.query.seed);
+  const locks = parseCompCardLocks(req);
+  const artDirection = resolveCompCardArtDirection({
+    seed,
+    theme,
+    requestedLayoutFamily: req.query.layoutFamily,
+    requestedStyleVariant: req.query.styleVariant,
+  });
+
+  return {
+    seed,
+    locks,
+    artDirection,
+    metadata: {
+      seed: toSafeMetadataToken(seed, "auto", 96),
+      layoutFamily: toSafeMetadataToken(
+        artDirection.layoutFamily,
+        "editorial-balanced",
+        64,
+      ),
+      layoutFamilyLabel: artDirection.layoutFamilyLabel || null,
+      styleVariant: toSafeMetadataToken(
+        artDirection.styleVariant,
+        "default",
+        64,
+      ),
+      styleVariantLabel: artDirection.styleVariantLabel || null,
+      locks: {
+        heroId: locks.heroId || null,
+        gridIds: locks.gridIds,
+      },
+    },
+  };
+}
+
+function resolveGenerationMode(req) {
+  const queryMode = normalizeQueryValue(req.query.mode);
+  const bodyMode = req.body ? normalizeQueryValue(req.body.mode) : undefined;
+  const normalized = String(queryMode ?? bodyMode ?? "")
+    .trim()
+    .toLowerCase();
+  return normalized === "master" ? "master" : "draft";
+}
+
+function isUniqueViolation(error) {
+  if (!error) return false;
+  if (error.code === "23505") return true; // PostgreSQL
+  return (
+    String(error.code || "").includes("SQLITE_CONSTRAINT") ||
+    String(error.message || "")
+      .toLowerCase()
+      .includes("unique")
+  );
+}
+
+function toSafeRevisionReason(reason) {
+  const normalized = reason == null ? "" : String(reason).trim().toLowerCase();
+  const safe = normalized.replace(/[^a-z0-9_-]/g, "").slice(0, 32);
+  return safe || "update";
+}
+
+async function insertPresetRevision(db, presetRow, reason = "update") {
+  if (!presetRow?.id) return null;
+  const safeReason = toSafeRevisionReason(reason);
+  const snapshot = JSON.stringify(snapshotFromPresetRow(presetRow));
+
+  let attempts = 0;
+  while (attempts < 3) {
+    attempts += 1;
+    const maxResult = await db("comp_card_preset_revisions")
+      .where({ preset_id: presetRow.id })
+      .max("revision_number as maxRevision")
+      .first();
+    const currentMax = Number(maxResult?.maxRevision) || 0;
+    const revisionNumber = currentMax + 1;
+    const revisionId = uuidv4();
+    try {
+      await db("comp_card_preset_revisions").insert({
+        id: revisionId,
+        preset_id: presetRow.id,
+        revision_number: revisionNumber,
+        reason: safeReason,
+        snapshot,
+        created_at: db.fn.now(),
+      });
+      return db("comp_card_preset_revisions").where({ id: revisionId }).first();
+    } catch (error) {
+      if (isUniqueViolation(error) && attempts < 3) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  return null;
+}
+
+async function prunePresetRevisions(
+  db,
+  presetId,
+  keepLatest = MAX_PRESET_REVISIONS,
+) {
+  const staleRows = await db("comp_card_preset_revisions")
+    .where({ preset_id: presetId })
+    .orderBy("revision_number", "desc")
+    .offset(keepLatest)
+    .select("id");
+  if (!staleRows.length) return 0;
+  const staleIds = staleRows.map((row) => row.id).filter(Boolean);
+  if (!staleIds.length) return 0;
+  return db("comp_card_preset_revisions").whereIn("id", staleIds).delete();
+}
+
+async function ensurePresetCapacity(db, profileId) {
+  const countResult = await db("comp_card_presets")
+    .where({ profile_id: profileId })
+    .count({ count: "*" })
+    .first();
+  const currentCount = Number(countResult?.count || 0);
+  if (currentCount >= MAX_PRESETS_PER_PROFILE) {
+    const error = new Error(
+      `Preset limit reached (${MAX_PRESETS_PER_PROFILE}). Delete an existing preset before creating a new one.`,
+    );
+    error.status = 409;
+    error.code = "PRESET_LIMIT_REACHED";
+    throw error;
+  }
+}
+
+function extractImportPayload(body) {
+  if (!body || typeof body !== "object") {
+    return {};
+  }
+  if (body.payload && typeof body.payload === "object") {
+    return body.payload;
+  }
+  if (body.preset && typeof body.preset === "object") {
+    return body.preset;
+  }
+  return body;
+}
+
 // Helper function to render simple HTML error page (for iframe compatibility)
 function renderSimpleError(res, statusCode, title, message) {
   const html =
@@ -381,17 +575,26 @@ async function renderStandardView(req, res, data, isDemo) {
     mergeThemeWithCustomization(theme, customizations) || theme;
 
   // Select best images for the 2-page layout (optional ?seed= for reproducible picks)
-  const rawSeed = req.query.seed;
-  const seed =
-    rawSeed == null || rawSeed === ""
-      ? undefined
-      : Array.isArray(rawSeed)
-        ? rawSeed[0]
-        : rawSeed;
-  const { heroImage, gridImages } = selectCompCardImages(
+  const { seed, locks, artDirection, metadata } =
+    resolveCompCardGenerationMetadata(req, mergedTheme);
+  const { heroImage, gridImages } = selectCompCardImages(images, {
+    seed,
+    locks,
+    preferRoles: artDirection.rolePreference
+      ? {
+          hero: "headshot",
+          grid: artDirection.rolePreference,
+        }
+      : undefined,
+  });
+  const generationMode = resolveGenerationMode(req);
+  const guardrailReport = evaluateCompCardGuardrails({
+    profile,
     images,
-    seed != null && seed !== "" ? { seed } : undefined,
-  );
+    heroImage,
+    gridImages,
+    mode: generationMode,
+  });
 
   // Load archetype
   const archetype = await loadArchetype(profile.id);
@@ -411,6 +614,15 @@ async function renderStandardView(req, res, data, isDemo) {
 
   res.locals.layout = false;
   res.set("Content-Type", "text/html; charset=utf-8");
+  res.set("X-CompCard-Seed", metadata.seed);
+  res.set("X-CompCard-Layout-Family", metadata.layoutFamily);
+  res.set("X-CompCard-Style-Variant", metadata.styleVariant);
+  if (metadata.layoutFamilyLabel) {
+    res.set("X-CompCard-Layout-Family-Label", metadata.layoutFamilyLabel);
+  }
+  if (metadata.styleVariantLabel) {
+    res.set("X-CompCard-Style-Variant-Label", metadata.styleVariantLabel);
+  }
 
   try {
     res.render(TEMPLATE_STANDARD, {
@@ -419,8 +631,14 @@ async function renderStandardView(req, res, data, isDemo) {
       profile,
       heroImage,
       gridImages,
-      theme: mergedTheme,
+      theme: artDirection.appliedTheme,
       themeKey,
+      layoutFamily: artDirection.layoutFamily,
+      styleVariant: artDirection.styleVariant,
+      layoutPatch: artDirection.layoutPatch,
+      styleTokens: artDirection.styleTokens,
+      compCardMetadata: metadata,
+      guardrailReport,
       archetype,
       isPro: profile.is_pro,
       qrCode,
@@ -804,6 +1022,75 @@ router.get("/pdf/view/:slug", async (req, res, next) => {
       );
     }
 
+    const diagnosticsMode =
+      req.query.diagnostics === "1" ||
+      req.query.spec === "1" ||
+      req.query.compose === "1" ||
+      req.query.format === "json";
+    if (diagnosticsMode && req.query.legacy !== "true") {
+      let themeKey =
+        req.query.theme || data.profile.pdf_theme || "pholio-standard";
+      let theme = getTheme(themeKey);
+      if (!theme) {
+        themeKey = "pholio-standard";
+        theme = getTheme(themeKey);
+      }
+      if (isProTheme(themeKey) && !data.profile.is_pro) {
+        themeKey = "pholio-standard";
+        theme = getTheme(themeKey);
+      }
+
+      let customizations = null;
+      if (!isDemo && data.profile.is_pro && data.profile.pdf_customizations) {
+        try {
+          customizations =
+            typeof data.profile.pdf_customizations === "string"
+              ? JSON.parse(data.profile.pdf_customizations)
+              : data.profile.pdf_customizations;
+        } catch {
+          customizations = null;
+        }
+      }
+
+      const mergedTheme =
+        mergeThemeWithCustomization(theme, customizations) || theme;
+      const { seed, locks, artDirection, metadata } =
+        resolveCompCardGenerationMetadata(req, mergedTheme);
+      const { heroImage, gridImages } = selectCompCardImages(
+        data.images || [],
+        {
+          seed,
+          locks,
+          preferRoles: artDirection.rolePreference
+            ? {
+                hero: "headshot",
+                grid: artDirection.rolePreference,
+              }
+            : undefined,
+        },
+      );
+      const generationMode = resolveGenerationMode(req);
+      const guardrailReport = evaluateCompCardGuardrails({
+        profile: data.profile,
+        images: data.images || [],
+        heroImage,
+        gridImages,
+        mode: generationMode,
+      });
+      return res.json({
+        ok: true,
+        slug: data.profile.slug,
+        theme: themeKey,
+        mode: generationMode,
+        compCard: metadata,
+        selection: {
+          heroImageId: heroImage?.id || null,
+          gridImageIds: (gridImages || []).map((img) => img?.id || null),
+        },
+        guardrailReport,
+      });
+    }
+
     // Render PDF view with profile data
     console.log("[PDF View] Rendering PDF for profile:", {
       slug: data.profile.slug,
@@ -1057,6 +1344,38 @@ router.get("/pdf/:slug", async (req, res, next) => {
         String(Array.isArray(dlSeed) ? dlSeed[0] : dlSeed),
       );
     }
+    const dlLayoutFamily = req.query.layoutFamily;
+    if (dlLayoutFamily != null && dlLayoutFamily !== "") {
+      url.searchParams.set(
+        "layoutFamily",
+        String(
+          Array.isArray(dlLayoutFamily) ? dlLayoutFamily[0] : dlLayoutFamily,
+        ),
+      );
+    }
+    const dlStyleVariant = req.query.styleVariant;
+    if (dlStyleVariant != null && dlStyleVariant !== "") {
+      url.searchParams.set(
+        "styleVariant",
+        String(
+          Array.isArray(dlStyleVariant) ? dlStyleVariant[0] : dlStyleVariant,
+        ),
+      );
+    }
+    const dlLockHeroId = req.query.lockHeroId;
+    if (dlLockHeroId != null && dlLockHeroId !== "") {
+      url.searchParams.set(
+        "lockHeroId",
+        String(Array.isArray(dlLockHeroId) ? dlLockHeroId[0] : dlLockHeroId),
+      );
+    }
+    const dlLockGridIds = req.query.lockGridIds;
+    if (dlLockGridIds != null && dlLockGridIds !== "") {
+      url.searchParams.set(
+        "lockGridIds",
+        String(Array.isArray(dlLockGridIds) ? dlLockGridIds[0] : dlLockGridIds),
+      );
+    }
 
     console.log("[PDF Download] Generating PDF:", {
       slug: slug,
@@ -1066,12 +1385,64 @@ router.get("/pdf/:slug", async (req, res, next) => {
       isDemo: isDemo,
     });
 
-    const buffer = await renderCompCard(req.params.slug, themeKey, {
-      seed: req.query.seed,
+    let downloadCustomizations = null;
+    if (!isDemo && profile.is_pro && profile.pdf_customizations) {
+      try {
+        downloadCustomizations =
+          typeof profile.pdf_customizations === "string"
+            ? JSON.parse(profile.pdf_customizations)
+            : profile.pdf_customizations;
+      } catch {
+        downloadCustomizations = null;
+      }
+    }
+    const mergedTheme =
+      mergeThemeWithCustomization(theme, downloadCustomizations) || theme;
+    const { seed, locks, artDirection } = resolveCompCardGenerationMetadata(
+      req,
+      mergedTheme,
+    );
+    const { heroImage, gridImages } = selectCompCardImages(data.images || [], {
+      seed,
+      locks,
+      preferRoles: artDirection.rolePreference
+        ? {
+            hero: "headshot",
+            grid: artDirection.rolePreference,
+          }
+        : undefined,
     });
+    const generationMode = resolveGenerationMode(req);
+    const guardrailReport = evaluateCompCardGuardrails({
+      profile,
+      images: data.images || [],
+      heroImage,
+      gridImages,
+      mode: generationMode,
+    });
+    if (generationMode === "master" && guardrailReport.blockingIssueCount > 0) {
+      return res.status(422).json({
+        error: "Guardrails failed",
+        code: "COMP_CARD_GUARDRAILS_FAILED",
+        message: "Master export blocked due to comp-card guardrail violations.",
+        guardrailReport,
+      });
+    }
 
-    // Check if PDF is too large for Netlify Functions response (6MB limit)
-    const maxResponseSize = 5.5 * 1024 * 1024; // 5.5MB safety limit (Netlify has ~6MB limit)
+    const rawPdf = await renderCompCard(req.params.slug, themeKey, {
+      seed: req.query.seed,
+      layoutFamily: req.query.layoutFamily,
+      styleVariant: req.query.styleVariant,
+      lockHeroId: req.query.lockHeroId,
+      lockGridIds: req.query.lockGridIds,
+    });
+    const buffer = Buffer.isBuffer(rawPdf) ? rawPdf : Buffer.from(rawPdf);
+
+    // Enforce stricter response size only in serverless environments (Netlify ~6MB limit).
+    const maxResponseSize = config.isServerless
+      ? 5.5 * 1024 * 1024
+      : 20 * 1024 * 1024;
+    const maxSizeLabel = config.isServerless ? "6MB" : "20MB";
     if (buffer.length > maxResponseSize) {
       console.error("[PDF Download Route] PDF too large:", {
         size: buffer.length,
@@ -1085,7 +1456,7 @@ router.get("/pdf/:slug", async (req, res, next) => {
           "The generated PDF is too large to download. Please try a different theme or contact support.",
         size: buffer.length,
         sizeMB: (buffer.length / 1024 / 1024).toFixed(2),
-        maxSize: "6MB",
+        maxSize: maxSizeLabel,
       });
     }
 
@@ -1228,6 +1599,564 @@ router.get("/pdf/:slug", async (req, res, next) => {
 });
 
 // API Endpoints for PDF Customization (Studio+ users only)
+
+// GET /api/pdf/presets/:slug - List saved comp-card presets for this profile
+router.get(
+  "/api/pdf/presets/:slug",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const rows = await knex("comp_card_presets")
+        .where({ profile_id: profile.id })
+        .orderBy("updated_at", "desc")
+        .orderBy("created_at", "desc");
+
+      return res.json({
+        ok: true,
+        presets: rows.map(mapPresetRow),
+      });
+    } catch (error) {
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// POST /api/pdf/presets/:slug - Create a new comp-card preset
+router.post(
+  "/api/pdf/presets/:slug",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const normalized = normalizePresetInput(req.body || {});
+      const insertRow = buildPresetInsert(profile.id, normalized);
+      let created = null;
+      try {
+        await knex.transaction(async (trx) => {
+          await ensurePresetCapacity(trx, profile.id);
+          await trx("comp_card_presets").insert(insertRow);
+          created = await trx("comp_card_presets")
+            .where({ id: insertRow.id })
+            .first();
+          await insertPresetRevision(trx, created, "create");
+          await prunePresetRevisions(trx, created.id);
+        });
+      } catch (insertError) {
+        if (isUniqueViolation(insertError)) {
+          return res.status(409).json({
+            error: "Preset name already exists",
+            message: "A preset with this name already exists for this profile.",
+          });
+        }
+        throw insertError;
+      }
+      return res.status(201).json({
+        ok: true,
+        preset: mapPresetRow(created),
+      });
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json({ error: error.message, code: error.code || undefined });
+      }
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// PUT /api/pdf/presets/:slug/:presetId - Update a saved preset
+router.put(
+  "/api/pdf/presets/:slug/:presetId",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug, presetId } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const existing = await knex("comp_card_presets")
+        .where({ id: presetId, profile_id: profile.id })
+        .first();
+      if (!existing) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+
+      const normalized = normalizePresetInput(req.body || {});
+      let updated = null;
+      try {
+        await knex.transaction(async (trx) => {
+          await trx("comp_card_presets")
+            .where({ id: presetId })
+            .update({
+              name: normalized.name,
+              seed: normalized.seed,
+              layout_family: normalized.layout_family,
+              style_variant: normalized.style_variant,
+              lock_hero_id: normalized.lock_hero_id,
+              lock_grid_ids: JSON.stringify(normalized.lock_grid_ids),
+              updated_at: trx.fn.now(),
+            });
+          updated = await trx("comp_card_presets")
+            .where({ id: presetId })
+            .first();
+          await insertPresetRevision(trx, updated, "update");
+          await prunePresetRevisions(trx, updated.id);
+        });
+      } catch (updateError) {
+        if (isUniqueViolation(updateError)) {
+          return res.status(409).json({
+            error: "Preset name already exists",
+            message: "A preset with this name already exists for this profile.",
+          });
+        }
+        throw updateError;
+      }
+      return res.json({ ok: true, preset: mapPresetRow(updated) });
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json({ error: error.message, code: error.code || undefined });
+      }
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// DELETE /api/pdf/presets/:slug/:presetId - Delete a saved preset
+router.delete(
+  "/api/pdf/presets/:slug/:presetId",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug, presetId } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const removed = await knex("comp_card_presets")
+        .where({ id: presetId, profile_id: profile.id })
+        .delete();
+      if (!removed) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+
+      return res.json({ ok: true });
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json({ error: error.message, code: error.code || undefined });
+      }
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// POST /api/pdf/presets/:slug/:presetId/apply - Resolve preset into query params
+router.post(
+  "/api/pdf/presets/:slug/:presetId/apply",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug, presetId } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const preset = await knex("comp_card_presets")
+        .where({ id: presetId, profile_id: profile.id })
+        .first();
+      if (!preset) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+
+      await knex("comp_card_presets")
+        .where({ id: presetId })
+        .update({ last_used_at: knex.fn.now(), updated_at: knex.fn.now() });
+
+      const refreshed = await knex("comp_card_presets")
+        .where({ id: presetId })
+        .first();
+      const mapped = mapPresetRow(refreshed);
+      return res.json({
+        ok: true,
+        preset: mapped,
+        query: toPresetQuery(refreshed),
+      });
+    } catch (error) {
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// GET /api/pdf/presets/:slug/:presetId/export - Export preset payload
+router.get(
+  "/api/pdf/presets/:slug/:presetId/export",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug, presetId } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const preset = await knex("comp_card_presets")
+        .where({ id: presetId, profile_id: profile.id })
+        .first();
+      if (!preset) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+
+      return res.json({
+        ok: true,
+        exportVersion: PRESET_EXPORT_VERSION,
+        exportedAt: new Date().toISOString(),
+        preset: {
+          id: preset.id,
+          name: preset.name,
+          payload: toPresetPayload(preset),
+        },
+      });
+    } catch (error) {
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// POST /api/pdf/presets/:slug/import - Import preset payload
+router.post(
+  "/api/pdf/presets/:slug/import",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const importPayload = extractImportPayload(req.body || {});
+      const overwriteExisting = Boolean(req.body?.overwriteExisting);
+      const normalized = normalizePresetInput(importPayload);
+
+      let resultPreset = null;
+      let status = "created";
+      try {
+        await knex.transaction(async (trx) => {
+          const existing = await trx("comp_card_presets")
+            .where({ profile_id: profile.id, name: normalized.name })
+            .first();
+
+          if (existing) {
+            if (!overwriteExisting) {
+              const conflictError = new Error(
+                "A preset with this name already exists for this profile.",
+              );
+              conflictError.status = 409;
+              conflictError.code = "PRESET_NAME_CONFLICT";
+              throw conflictError;
+            }
+
+            await trx("comp_card_presets")
+              .where({ id: existing.id })
+              .update({
+                seed: normalized.seed,
+                layout_family: normalized.layout_family,
+                style_variant: normalized.style_variant,
+                lock_hero_id: normalized.lock_hero_id,
+                lock_grid_ids: JSON.stringify(normalized.lock_grid_ids),
+                updated_at: trx.fn.now(),
+              });
+            resultPreset = await trx("comp_card_presets")
+              .where({ id: existing.id })
+              .first();
+            await insertPresetRevision(trx, resultPreset, "import-overwrite");
+            await prunePresetRevisions(trx, resultPreset.id);
+            status = "updated";
+            return;
+          }
+
+          await ensurePresetCapacity(trx, profile.id);
+          const insertRow = buildPresetInsert(profile.id, normalized);
+          await trx("comp_card_presets").insert(insertRow);
+          resultPreset = await trx("comp_card_presets")
+            .where({ id: insertRow.id })
+            .first();
+          await insertPresetRevision(trx, resultPreset, "import-create");
+          await prunePresetRevisions(trx, resultPreset.id);
+          status = "created";
+        });
+      } catch (importError) {
+        if (isUniqueViolation(importError)) {
+          return res.status(409).json({
+            error: "Preset name already exists",
+            message: "A preset with this name already exists for this profile.",
+          });
+        }
+        throw importError;
+      }
+
+      return res.status(status === "created" ? 201 : 200).json({
+        ok: true,
+        status,
+        preset: mapPresetRow(resultPreset),
+      });
+    } catch (error) {
+      if (error.status) {
+        return res
+          .status(error.status)
+          .json({ error: error.message, code: error.code || undefined });
+      }
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// GET /api/pdf/presets/:slug/:presetId/revisions - List immutable preset revisions
+router.get(
+  "/api/pdf/presets/:slug/:presetId/revisions",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug, presetId } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const preset = await knex("comp_card_presets")
+        .where({ id: presetId, profile_id: profile.id })
+        .first();
+      if (!preset) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+
+      const revisions = await knex("comp_card_preset_revisions")
+        .where({ preset_id: presetId })
+        .orderBy("revision_number", "desc");
+
+      return res.json({
+        ok: true,
+        preset: mapPresetRow(preset),
+        revisions: revisions.map(mapPresetRevisionRow),
+      });
+    } catch (error) {
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+// POST /api/pdf/presets/:slug/:presetId/rollback - Roll preset back to a revision snapshot
+router.post(
+  "/api/pdf/presets/:slug/:presetId/rollback",
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { slug, presetId } = req.params;
+      const { authorized, profile, error } = await verifyProfileOwnership(
+        req,
+        slug,
+      );
+      if (!authorized) {
+        return res.status(403).json({ error: error || "Not authorized" });
+      }
+
+      const preset = await knex("comp_card_presets")
+        .where({ id: presetId, profile_id: profile.id })
+        .first();
+      if (!preset) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+
+      const revisionId = req.body?.revisionId
+        ? String(req.body.revisionId)
+        : null;
+      if (!revisionId) {
+        return res.status(400).json({ error: "revisionId is required" });
+      }
+
+      const revision = await knex("comp_card_preset_revisions")
+        .where({ id: revisionId, preset_id: presetId })
+        .first();
+      if (!revision) {
+        return res.status(404).json({ error: "Revision not found" });
+      }
+
+      const mappedRevision = mapPresetRevisionRow(revision);
+      const snapshot = mappedRevision.snapshot || {};
+      let rolledBack = null;
+      try {
+        await knex.transaction(async (trx) => {
+          await trx("comp_card_presets")
+            .where({ id: presetId })
+            .update({
+              name: snapshot.name || preset.name,
+              seed: snapshot.seed || null,
+              layout_family: snapshot.layoutFamily || null,
+              style_variant: snapshot.styleVariant || null,
+              lock_hero_id: snapshot.lockHeroId || null,
+              lock_grid_ids: JSON.stringify(snapshot.lockGridIds || []),
+              updated_at: trx.fn.now(),
+            });
+          rolledBack = await trx("comp_card_presets")
+            .where({ id: presetId })
+            .first();
+          await insertPresetRevision(trx, rolledBack, "rollback");
+          await prunePresetRevisions(trx, rolledBack.id);
+        });
+      } catch (rollbackError) {
+        if (isUniqueViolation(rollbackError)) {
+          return res.status(409).json({
+            error: "Preset name already exists",
+            message:
+              "Rollback target name conflicts with another preset on this profile.",
+          });
+        }
+        throw rollbackError;
+      }
+
+      return res.json({
+        ok: true,
+        preset: mapPresetRow(rolledBack),
+        rolledBackTo: mappedRevision,
+      });
+    } catch (error) {
+      if (isDatabaseError(error)) {
+        return res.status(500).json({
+          error: "Database connection error",
+          message:
+            "Unable to connect to the database. Please check your database configuration.",
+          code: error.code,
+          details:
+            process.env.NODE_ENV !== "production" ? error.message : undefined,
+        });
+      }
+      return next(error);
+    }
+  },
+);
 
 // GET /api/pdf/customize/:slug - Get current customizations
 router.get(

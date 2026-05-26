@@ -10,6 +10,8 @@
     }
     const note = document.createElement('div');
     note.className = `toast toast-${type}`;
+    note.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    note.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
     note.textContent = message;
     container.appendChild(note);
     requestAnimationFrame(() => {

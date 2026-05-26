@@ -10,6 +10,12 @@ const STATUS = {
   NOT_SEEKING: 'not_seeking'
 };
 
+const OPTIONS = [
+  { value: STATUS.SEEKING, num: '01', label: 'Seeking', hint: 'Open to representation' },
+  { value: STATUS.REPRESENTED, num: '02', label: 'Represented', hint: 'Currently signed' },
+  { value: STATUS.NOT_SEEKING, num: '03', label: 'Not seeking', hint: 'Freelance / independent' }
+];
+
 /**
  * Representation Section
  * Tri-state status (seeking / represented / not seeking) mapped to seeking_representation + current_agency on save.
@@ -33,46 +39,47 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
   return (
     <Section
       id="representation"
-      title="Representation"
-      description="Tell agencies whether you’re signed, looking, or not seeking representation."
+      kicker="Agency"
+      title="Agency Representation"
+      titleEmphasis="Agency"
+      description="Tell agencies whether you're signed, looking, or not seeking representation."
+      showDivider={false}
     >
       <div className={styles.formStack}>
         <Controller
           name="representation_status"
           control={control}
           render={({ field }) => (
-            <fieldset className={styles.representationFieldset}>
-              <legend className={styles.representationLegend}>Representation status</legend>
-              <div className={styles.representationRadios} role="radiogroup" aria-label="Representation status">
-                {[
-                  { value: STATUS.SEEKING, label: 'Seeking representation', hint: 'Open to signing with an agency' },
-                  { value: STATUS.REPRESENTED, label: 'Currently represented', hint: 'Signed with an agency now' },
-                  { value: STATUS.NOT_SEEKING, label: 'Not seeking', hint: 'Freelance or not looking for an agency' }
-                ].map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`${styles.representationRadioCard} ${
-                      field.value === opt.value ? styles.representationRadioCardActive : ''
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={field.name}
-                      value={opt.value}
-                      checked={field.value === opt.value}
-                      onChange={() => applyStatus(opt.value)}
-                      onBlur={field.onBlur}
-                      className={styles.representationRadioInput}
-                    />
-                    <span className={styles.representationRadioText}>
-                      <span className={styles.representationRadioTitle}>{opt.label}</span>
-                      <span className={styles.representationRadioHint}>{opt.hint}</span>
-                    </span>
-                  </label>
-                ))}
+            <fieldset className={styles.repFieldset}>
+              <legend className={styles.repLegend}>Status</legend>
+              <div className={styles.repOptions} role="radiogroup" aria-label="Representation status">
+                {OPTIONS.map((opt) => {
+                  const isActive = field.value === opt.value;
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`${styles.repOption} ${isActive ? styles.repOptionActive : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name={field.name}
+                        value={opt.value}
+                        checked={isActive}
+                        onChange={() => applyStatus(opt.value)}
+                        onBlur={field.onBlur}
+                        className={styles.repRadioHidden}
+                      />
+                      <span className={styles.repNum}>{opt.num}</span>
+                      <span className={styles.repLabel}>
+                        {isActive ? <em>{opt.label}</em> : opt.label}
+                      </span>
+                      <span className={styles.repHint}>{opt.hint}</span>
+                    </label>
+                  );
+                })}
               </div>
               {errors.representation_status && (
-                <p className={styles.representationError} role="alert">
+                <p className={styles.repError} role="alert">
                   {errors.representation_status.message}
                 </p>
               )}

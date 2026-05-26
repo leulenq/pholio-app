@@ -22,8 +22,11 @@ export function MeasurementsSection({
   return (
     <Section
       id="appearance"
+      kicker="Stats"
       title="Physical Attributes"
+      titleEmphasis="Attributes"
       description="Vital statistics for casting searches."
+      showDivider={false}
       headerAction={
         <div className={styles.unitToggle}>
           <button
@@ -337,38 +340,44 @@ export function MeasurementsSection({
         />
       </div>
 
-      <div className={styles.attributeToggles}>
-        <div className={styles.toggleField}>
-          <div className={styles.toggleInfo}>
-            <div className={styles.toggleIcon}>
-              <PenTool size={22} />
-            </div>
-            <div className={styles.toggleContent}>
-              <span className={styles.toggleName}>Visible Tattoos</span>
-              <p className={styles.toggleDescription}>Tattoos visible in standard clothing</p>
-            </div>
-          </div>
-          <PholioToggle
-            checked={watch('tattoos') || false}
-            onChange={(e) => setValue('tattoos', e.target.checked, { shouldDirty: true })}
-          />
-        </div>
+      <div className={`${styles.formGrid2} ${styles.formRow}`}>
+        <Controller
+          name="tattoos"
+          control={control}
+          render={({ field }) => (
+            <PholioCustomSelect
+              label="Visible Tattoos"
+              id="tattoos"
+              options={[
+                { value: 'true', label: 'Yes' },
+                { value: 'false', label: 'No' }
+              ]}
+              value={field.value ? 'true' : 'false'}
+              onChange={(val) => field.onChange(val === 'true')}
+              error={errors.tattoos}
+              placeholder="Select"
+            />
+          )}
+        />
 
-        <div className={styles.toggleField}>
-          <div className={styles.toggleInfo}>
-            <div className={styles.toggleIcon}>
-              <Disc size={22} />
-            </div>
-            <div className={styles.toggleContent}>
-              <span className={styles.toggleName}>Piercings</span>
-              <p className={styles.toggleDescription}>Any visible body piercings</p>
-            </div>
-          </div>
-          <PholioToggle
-            checked={watch('piercings') || false}
-            onChange={(e) => setValue('piercings', e.target.checked, { shouldDirty: true })}
-          />
-        </div>
+        <Controller
+          name="piercings"
+          control={control}
+          render={({ field }) => (
+            <PholioCustomSelect
+              label="Piercings"
+              id="piercings"
+              options={[
+                { value: 'true', label: 'Yes' },
+                { value: 'false', label: 'No' }
+              ]}
+              value={field.value ? 'true' : 'false'}
+              onChange={(val) => field.onChange(val === 'true')}
+              error={errors.piercings}
+              placeholder="Select"
+            />
+          )}
+        />
       </div>
     </Section>
   );

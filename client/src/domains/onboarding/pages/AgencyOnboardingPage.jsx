@@ -212,6 +212,23 @@ export default function AgencyOnboardingPage() {
     brandingMutation.mutate(formData);
   };
 
+  const openLogoPicker = () => {
+    const input = fileInputRef.current;
+    if (!input) return;
+
+    try {
+      // Prefer showPicker (more "trusted" in some browsers).
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+        return;
+      }
+      input.click();
+    } catch (err) {
+      // Some browsers throw SecurityError if programmatically clicking a hidden file input.
+      toast.error('Your browser blocked the file picker. Try clicking the file input directly or disable strict privacy mode.');
+    }
+  };
+
   const handleBrandColorSave = () => {
     const formData = new FormData();
     formData.append('agency_brand_color', brandingForm.agency_brand_color);
@@ -345,10 +362,25 @@ export default function AgencyOnboardingPage() {
                       ref={fileInputRef}
                       type="file"
                       accept="image/*"
-                      hidden
+                      // Do not use the `hidden` attribute: some browsers throw SecurityError on programmatic click().
+                      style={{
+                        position: 'absolute',
+                        width: 1,
+                        height: 1,
+                        padding: 0,
+                        margin: -1,
+                        overflow: 'hidden',
+                        clip: 'rect(0, 0, 0, 0)',
+                        whiteSpace: 'nowrap',
+                        border: 0,
+                      }}
                       onChange={handleLogoUpload}
                     />
-                    <button type="button" className="agency-onboarding__button agency-onboarding__button--ghost" onClick={() => fileInputRef.current?.click()}>
+                    <button
+                      type="button"
+                      className="agency-onboarding__button agency-onboarding__button--ghost"
+                      onClick={openLogoPicker}
+                    >
                       <Upload size={16} />
                       Upload logo
                     </button>

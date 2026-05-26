@@ -22,6 +22,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { ThinkingText } from './ThinkingText';
 import { CinematicDivider } from './CinematicDivider';
+import { InlineErrorText } from '../../../shared/components/states';
 
 function CastingEntry({ onComplete, onProgress }) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -43,6 +44,7 @@ function CastingEntry({ onComplete, onProgress }) {
   }, [manualStep, onProgress]);
 
   const [isVerifying, setIsVerifying] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   // verificationCode state removed as we use Firebase link now
   
   const handleGoogleSignIn = async () => {
@@ -63,10 +65,18 @@ function CastingEntry({ onComplete, onProgress }) {
   };
 
   const handleNextManual = () => {
-    if (manualStep === 1 && !formData.name) return toast.error("Please enter your name");
-    if (manualStep === 2 && !formData.email) return toast.error("Please enter your email");
-    if (manualStep === 3 && !formData.password) return toast.error("Please enter a password");
-    
+    const nextErrors = {};
+    if (manualStep === 1 && !formData.name?.trim()) nextErrors.name = 'Enter your name to continue.';
+    if (manualStep === 2 && !formData.email?.trim()) nextErrors.email = 'Enter your email to continue.';
+    if (manualStep === 3 && !formData.password?.trim()) nextErrors.password = 'Choose a password to continue.';
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      toast.error('Complete the required fields');
+      return;
+    }
+
+    setFieldErrors({});
     if (manualStep < 3) {
       setManualStep(manualStep + 1);
     } else {
@@ -315,9 +325,14 @@ function CastingEntry({ onComplete, onProgress }) {
               className="cinematic-input"
               placeholder="Your Name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (fieldErrors.name) setFieldErrors((prev) => { const n = { ...prev }; delete n.name; return n; });
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleNextManual()}
+              aria-invalid={!!fieldErrors.name}
             />
+            <InlineErrorText message={fieldErrors.name} className="cinematic-field-error" />
             
             <AnimatePresence>
               {formData.name.trim().length > 0 && (
@@ -368,9 +383,14 @@ function CastingEntry({ onComplete, onProgress }) {
               className="cinematic-input cinematic-input-email"
               placeholder="email@example.com"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, email: e.target.value });
+                if (fieldErrors.email) setFieldErrors((prev) => { const n = { ...prev }; delete n.email; return n; });
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleNextManual()}
+              aria-invalid={!!fieldErrors.email}
             />
+            <InlineErrorText message={fieldErrors.email} className="cinematic-field-error" />
             
             <AnimatePresence>
               {formData.email.trim().length > 0 && (
@@ -423,9 +443,14 @@ function CastingEntry({ onComplete, onProgress }) {
                 style={{ paddingRight: '3rem' }}
                 placeholder="••••••••"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (fieldErrors.password) setFieldErrors((prev) => { const n = { ...prev }; delete n.password; return n; });
+                }}
                 onKeyDown={(e) => e.key === 'Enter' && handleNextManual()}
+                aria-invalid={!!fieldErrors.password}
               />
+              <InlineErrorText message={fieldErrors.password} className="cinematic-field-error" />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}

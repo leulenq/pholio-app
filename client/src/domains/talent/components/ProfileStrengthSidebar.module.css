@@ -1,7 +1,7 @@
 /* Glance rail — compact, no nested scroll */
 .sidebar {
   grid-column: 3;
-  grid-row: 2;
+  grid-row: var(--pf-workspace-row, 2);
   position: sticky;
   top: var(--tl-topbar-h, 68px);
   align-self: start;
@@ -17,7 +17,7 @@
     border-left: none;
     padding: 32px 28px 48px;
     grid-column: 2;
-    grid-row: 2;
+    grid-row: var(--pf-workspace-row, 2);
   }
 }
 
@@ -68,19 +68,12 @@
   margin-bottom: 16px;
 }
 
-.scoreRow {
+.scoreBlock {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.scoreWrapper {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .score {
@@ -90,15 +83,6 @@
   letter-spacing: -0.03em;
   color: #1a1a1a;
   line-height: 1;
-}
-
-.scoreLabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(26, 26, 26, 0.42);
 }
 
 .statusPill {
@@ -112,6 +96,8 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .unsavedHint {

@@ -244,6 +244,38 @@
   border-radius: 1px;
 }
 
+/* Studio+ nav upgrade button — solid gold pill */
+.nav-btn-studio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--ag-gold);
+  color: #050505;
+  border: 1px solid var(--ag-gold);
+  font-family: var(--ag-font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.375rem 1rem;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: all 0.25s var(--ag-ease);
+  margin-left: 0.5rem;
+  box-shadow: 0 1px 3px rgba(201, 165, 90, 0.15);
+}
+.nav-btn-studio:hover {
+  background: var(--ag-gold-hover);
+  border-color: var(--ag-gold-hover);
+  color: #050505;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 165, 90, 0.25);
+}
+.nav-btn-studio-icon {
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
 /* Right: Meta */
 /* Reinforce Right Section */
 .header-right {

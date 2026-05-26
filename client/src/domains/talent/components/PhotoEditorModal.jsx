@@ -1,9 +1,18 @@
 import React, { useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
+import { Crop, RotateCcw, RotateCw, Save, ScanLine, X, ZoomIn } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
 import './PhotoEditorModal.css';
+
+const ASPECTS = [
+  { val: 2 / 3, label: 'Portrait', meta: '2:3' },
+  { val: 1, label: 'Square', meta: '1:1' },
+  { val: 4 / 5, label: 'Editorial', meta: '4:5' },
+  { val: 16 / 9, label: 'Wide', meta: '16:9' },
+];
 
 export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -25,7 +34,7 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
         croppedAreaPixels,
         rotation
       );
-      onSave(croppedBlob);
+      await Promise.resolve(onSave(croppedBlob));
     } catch (e) {
       console.error(e);
       toast.error('Could not crop image. Please try again.');
@@ -33,12 +42,30 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-      <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl overflow-hidden flex flex-col md:flex-row shadow-2xl animate-fade-in-up">
-        
-        {/* Editor Area */}
-        <div className="relative flex-1 bg-[#1a1a1a] min-h-[400px] md:min-h-0 order-2 md:order-1">
+  const resetCrop = () => {
+    setCrop({ x: 0, y: 0 });
+    setRotation(0);
+    setZoom(1);
+  };
+
+  const rotateBy = (amount) => {
+    setRotation((current) => (current + amount + 360) % 360);
+  };
+
+  return createPortal(
+    <div className="pem-overlay" onClick={onClose}>
+      <section className="pem-shell" aria-label="Crop and rotate image" onClick={(e) => e.stopPropagation()}>
+        <div className="pem-stage">
+          <header className="pem-stage__top">
+            <div>
+              <span className="pem-kicker">Crop studio</span>
+              <h2>Refine frame</h2>
+            </div>
+            <button type="button" className="pem-icon-btn" onClick={onClose} aria-label="Close crop editor">
+              <X size={18} />
+            </button>
+          </header>
+          <div className="pem-cropper-wrap">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -51,98 +78,98 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
             onZoomChange={setZoom}
             objectFit="contain"
           />
+          </div>
+          <div className="pem-stage__bottom">
+            <span>{ASPECTS.find((item) => Math.abs(item.val - aspect) < 0.01)?.label || 'Custom'} frame</span>
+            <span>{zoom.toFixed(1)}x · {Number(rotation)} deg</span>
+          </div>
         </div>
 
-        {/* Controls Sidebar */}
-        <div className="w-full md:w-80 bg-white flex flex-col border-l border-slate-100 z-10 h-[40vh] md:h-full order-1 md:order-2">
-          
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <div>
-              <h3 className="text-lg font-serif font-medium text-slate-900 mb-1">Edit Photo</h3>
-              <p className="text-sm text-slate-500">Adjust the framing and composition</p>
-            </div>
-
-            <div className="mt-6 space-y-6">
-              {/* Aspect Ratio */}
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Frame</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { val: 2/3, label: 'Portrait (2:3)' },
-                    { val: 1, label: 'Square (1:1)' },
-                    { val: 4/5, label: 'IG Vertical (4:5)' },
-                    { val: 16/9, label: 'Landscape (16:9)' }
-                  ].map(opt => (
-                    <button 
-                       key={opt.label}
-                       onClick={() => setAspect(opt.val)}
-                       className={`px-3 py-2 text-sm rounded-lg border transition-all ${Math.abs(aspect - opt.val) < 0.01 ? 'border-amber-500 bg-amber-50 text-amber-700 font-medium' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sliders */}
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Zoom</label>
-                    <span className="text-xs text-slate-400 font-mono">{zoom.toFixed(1)}x</span>
-                  </div>
-                  <input
-                    type="range"
-                    value={zoom}
-                    min={1}
-                    max={3}
-                    step={0.1}
-                    aria-label="Zoom level"
-                    onChange={(e) => setZoom(Number(e.target.value))}
-                    className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Rotation</label>
-                    <span className="text-xs text-slate-400 font-mono">{Number(rotation)}°</span>
-                  </div>
-                  <input
-                    type="range"
-                    value={rotation}
-                    min={0}
-                    max={360}
-                    step={1}
-                    aria-label="Rotation angle"
-                    onChange={(e) => setRotation(Number(e.target.value))}
-                    className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                  />
-                </div>
-              </div>
-            </div>
+        <aside className="pem-controls">
+          <div className="pem-controls__head">
+            <span className="pem-kicker">Composition</span>
+            <p>Portfolio crop</p>
           </div>
 
-          {/* Fixed Footer */}
-          <div className="p-4 border-t border-slate-100 bg-white flex gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-            >
+          <div className="pem-controls__body">
+            <div className="pem-tool-section">
+              <div className="pem-tool-label">
+                <Crop size={14} />
+                <span>Frame</span>
+              </div>
+              <div className="pem-aspect-grid">
+                {ASPECTS.map((opt) => (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => setAspect(opt.val)}
+                    className={Math.abs(aspect - opt.val) < 0.01 ? 'is-active' : ''}
+                  >
+                    <span className="pem-aspect-icon" style={{ aspectRatio: `${opt.val}` }} />
+                    <span>{opt.label}</span>
+                    <small>{opt.meta}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pem-tool-section">
+              <div className="pem-slider-head">
+                <label htmlFor="pem-zoom"><ZoomIn size={14} />Zoom</label>
+                <span>{zoom.toFixed(1)}x</span>
+              </div>
+              <input
+                id="pem-zoom"
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                aria-label="Zoom level"
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="pem-range"
+              />
+            </div>
+
+            <div className="pem-tool-section">
+              <div className="pem-slider-head">
+                <label htmlFor="pem-rotation"><RotateCw size={14} />Rotation</label>
+                <span>{Number(rotation)} deg</span>
+              </div>
+              <input
+                id="pem-rotation"
+                type="range"
+                value={rotation}
+                min={0}
+                max={360}
+                step={1}
+                aria-label="Rotation angle"
+                onChange={(e) => setRotation(Number(e.target.value))}
+                className="pem-range"
+              />
+              <div className="pem-nudge-row">
+                <button type="button" onClick={() => rotateBy(-90)}><RotateCcw size={14} />Left</button>
+                <button type="button" onClick={() => rotateBy(90)}><RotateCw size={14} />Right</button>
+              </div>
+            </div>
+
+            <button type="button" className="pem-reset-btn" onClick={resetCrop}>
+              <ScanLine size={14} />
+              Reset composition
+            </button>
+          </div>
+
+          <footer className="pem-footer">
+            <button type="button" onClick={onClose} className="pem-secondary-btn">
               Cancel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={isProcessing}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-            >
-              {isProcessing ? 'Processing...' : 'Save Changes'}
+            <button type="button" onClick={handleSave} disabled={isProcessing} className="pem-primary-btn">
+              {isProcessing ? 'Processing...' : <><Save size={15} />Apply crop</>}
             </button>
-          </div>
-
-        </div>
-      </div>
-    </div>
+          </footer>
+        </aside>
+      </section>
+    </div>,
+    document.body
   );
 }

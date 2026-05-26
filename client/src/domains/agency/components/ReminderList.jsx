@@ -1,56 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, Clock, CheckCircle, RotateCcw, Trash2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { getReminders, completeReminder, snoozeReminder, deleteReminder } from '../api/agency';
 import { AgencyEmptyState } from './ui/AgencyEmptyState';
+import { EmptyErrorState, ActionFailureNotice } from '../../../shared/components/states';
 
 export default function ReminderList() {
   const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
-  const fetchReminders = async () => {
+  const fetchReminders = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const data = await getReminders();
       setReminders(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('[ReminderList] Error:', err);
+      setLoadError(err);
       setReminders([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchReminders();
-  }, []);
+  }, [fetchReminders]);
 
-  const handleComplete = async (id) => {
+  const runAction = async (label, fn) => {
+    setActionError(null);
     try {
-      await completeReminder(id);
-      fetchReminders();
+      await fn();
+      await fetchReminders();
     } catch (err) {
-      console.error('Complete reminder failed:', err);
+      console.error(`${label} failed:`, err);
+      setActionError({ label, message: err?.message || `Could not ${label.toLowerCase()}.` });
+      toast.error(err?.message || `Failed to ${label.toLowerCase()}`);
     }
   };
 
-  const handleSnooze = async (id) => {
+  const handleComplete = (id) => runAction('Complete reminder', () => completeReminder(id));
+  const handleSnooze = (id) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    try {
-      await snoozeReminder(id, tomorrow.toISOString());
-      fetchReminders();
-    } catch (err) {
-      console.error('Snooze reminder failed:', err);
-    }
+    return runAction('Snooze reminder', () => snoozeReminder(id, tomorrow.toISOString()));
   };
-
-  const handleDelete = async (id) => {
-    try {
-      await deleteReminder(id);
-      fetchReminders();
-    } catch (err) {
-      console.error('Delete reminder failed:', err);
-    }
-  };
+  const handleDelete = (id) => runAction('Delete reminder', () => deleteReminder(id));
 
   if (loading) {
     return (
@@ -58,6 +56,17 @@ export default function ReminderList() {
         <div style={{ width: 18, height: 18, border: '2px solid var(--agency-border)', borderLeftColor: 'var(--agency-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         Loading reminders...
       </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <EmptyErrorState
+        variant="compact"
+        title="Could not load reminders"
+        body="Your reminders did not load. Try again to refresh follow-ups."
+        retry={{ label: 'Try again', onClick: fetchReminders }}
+      />
     );
   }
 
@@ -82,7 +91,7 @@ export default function ReminderList() {
     const now = new Date();
     const diffMs = d - now;
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Tomorrow';
     if (diffDays === -1) return 'Yesterday';
@@ -93,6 +102,13 @@ export default function ReminderList() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {actionError && (
+        <ActionFailureNotice
+          title={`${actionError.label} unavailable`}
+          body={actionError.message}
+          retry={{ label: 'Try again', onClick: () => setActionError(null) }}
+        />
+      )}
       {reminders.map((reminder) => {
         const overdue = isOverdue(reminder.due_at || reminder.remind_at);
         const completed = reminder.completed || reminder.status === 'completed';
@@ -112,7 +128,6 @@ export default function ReminderList() {
               transition: 'all 0.2s ease',
             }}
           >
-            {/* Icon */}
             <div style={{
               width: 36, height: 36, borderRadius: 8,
               background: overdue && !completed ? 'rgba(220, 38, 38, 0.1)' : 'var(--agency-primary-light)',
@@ -122,7 +137,6 @@ export default function ReminderList() {
               {completed ? <CheckCircle size={18} /> : overdue ? <AlertCircle size={18} /> : <Bell size={18} />}
             </div>
 
-            {/* Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
                 fontWeight: 500, fontSize: 14, color: 'var(--agency-text-primary)',
@@ -138,7 +152,6 @@ export default function ReminderList() {
               </div>
             </div>
 
-            {/* Actions */}
             {!completed && (
               <div style={{ display: 'flex', gap: 4 }}>
                 <button

@@ -26,17 +26,23 @@ export const IdentitySection = ({
   register,
   control,
   errors,
+  bioValue = '',
   isImproving,
+  improveMode,
   previousBio,
-  handleAIImprove,
+  onBioRefine,
+  onBioGenerate,
   handleUndoAI,
   watchDob
 }) => {
   const age = computeAge(watchDob);
+  const hasBio = (bioValue || '').trim().length >= 10;
   return (
     <Section
       id="identity"
+      kicker="Legal"
       title="Personal Details"
+      titleEmphasis="Details"
       description="Your core information visible to agencies."
       showDivider={false}
     >
@@ -140,51 +146,56 @@ export const IdentitySection = ({
       </div>
 
       <div className={styles.formRow}>
-        <div className={styles.sectionHeader}>
-          <div className={styles.sectionHeaderRow}>
-            <h3 className={styles.sectionTitle} style={{ fontSize: '18px' }}>
-              About You
+        <div className={styles.bioHeader}>
+          <p className={styles.bioKicker}>Bio</p>
+          <div className={styles.bioTitleRow}>
+            <h3 className={styles.bioTitle}>
+              About <em>you</em>
             </h3>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {previousBio && (
-                <button
-                  type="button"
-                  onClick={handleUndoAI}
-                  className={styles.aiButton}
-                  style={{ borderColor: '#6B6B6B', color: '#6B6B6B' }}
-                >
-                  Undo
-                </button>
-              )}
+            {hasBio ? (
               <button
                 type="button"
-                onClick={handleAIImprove}
+                onClick={onBioRefine}
                 disabled={isImproving}
-                className={styles.aiButton}
+                className={styles.bioRefineBtn}
               >
-                {isImproving ? (
-                  <>
-                    <Sparkles size={14} className={styles.animateSpin} />
-                    Refining...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={14} />
-                    AI Refine
-                  </>
-                )}
+                <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
+                {isImproving && improveMode === 'refine' ? 'Refining…' : 'Refine'}
               </button>
-            </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onBioGenerate}
+                disabled={isImproving}
+                className={styles.bioRefineBtn}
+              >
+                <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
+                {isImproving && improveMode === 'generate' ? 'Generating…' : 'Generate'}
+              </button>
+            )}
           </div>
-          <p className={styles.sectionDescription}>Tell agencies what makes you unique.</p>
+          <p className={styles.bioLede}>
+            Tell agencies what makes you unique.
+          </p>
         </div>
         <PholioTextarea
           label=""
           placeholder="Tell us about yourself, your passions, and what drives your career..."
-          rows={5}
+          rows={6}
           error={errors.bio}
           {...register('bio')}
         />
+        {previousBio && (
+          <div className={styles.bioActions}>
+            <button
+              type="button"
+              onClick={handleUndoAI}
+              className={styles.bioUndoBtn}
+            >
+              Revert to original
+            </button>
+          </div>
+        )}
       </div>
     </Section>
   );

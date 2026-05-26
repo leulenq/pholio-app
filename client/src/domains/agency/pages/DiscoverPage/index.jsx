@@ -18,6 +18,8 @@ import { getAgencyProfile, getDiscoverableTalent, inviteTalent } from '../../api
 import Grainient from '../../components/Grainient';
 import './DiscoverPage.css';
 import TalentDetailPanel from '../../components/TalentDetailPanel';
+import { EmptyErrorState } from '../../../../shared/components/states';
+import { AgencyEmptyState } from '../../components/ui/AgencyEmptyState';
 
 // ─── Height/measurement helpers ───────────────────────────────────────────────
 function cmToFeetInches(cm) {
@@ -275,7 +277,7 @@ export default function DiscoverPage() {
   const apiParams = useMemo(() => chipsToParams(chips, debouncedQuery), [chips, debouncedQuery]);
 
   // Fetch real talent data
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['discover', apiParams],
     queryFn: () => getDiscoverableTalent(apiParams),
     staleTime: 30_000,
@@ -454,9 +456,12 @@ export default function DiscoverPage() {
         </div>
 
         {isError ? (
-          <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="dc-empty-gem">◈</div>
-            <p className="dc-empty-text">Failed to load talent. Please try again.</p>
+          <motion.div className="dc-curated-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <EmptyErrorState
+              title="Discovery unavailable"
+              body="Talent results did not load. Check your connection and try again."
+              retry={{ label: 'Try again', onClick: () => refetch() }}
+            />
           </motion.div>
         ) : isLoading ? (
           <div className="dc-grid">
@@ -465,11 +470,15 @@ export default function DiscoverPage() {
             ))}
           </div>
         ) : visible.length === 0 ? (
-          <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="dc-empty-gem">◈</div>
-            <p className="dc-empty-text">No talent matched your criteria.</p>
-            <button className="dc-empty-reset" onClick={() => setQuery('')}>Clear search</button>
-          </motion.div>
+          <AgencyEmptyState
+            title="No talent matched"
+            description="Adjust your search or clear filters to explore more profiles."
+            action={
+              <button type="button" className="dc-empty-reset" onClick={() => setQuery('')}>
+                Clear search
+              </button>
+            }
+          />
         ) : (
           <div className="dc-grid">
             {visible.map((t, i) => (

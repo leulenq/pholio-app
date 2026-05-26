@@ -32,6 +32,24 @@
   --color-warning: #f59e0b;
   --color-info: #3b82f6;
 
+  /* Error State Semantic Hooks (shared primitives) */
+  --ph-error-surface: var(--ag-surface-1, #ffffff);
+  --ph-error-surface-muted: var(--ag-surface-2, #f5f4f2);
+  --ph-error-border: var(--ag-border-strong, rgba(26, 24, 21, 0.14));
+  --ph-error-border-emphasis: var(--ag-border-gold, rgba(201, 165, 90, 0.25));
+  --ph-error-title: var(--ag-text-0, #1a1815);
+  --ph-error-body: var(--ag-text-2, #6b6560);
+  --ph-error-eyebrow: var(--ag-gold, #c9a55a);
+  --ph-error-icon-bg: var(--ag-gold-ghost, rgba(201, 165, 90, 0.08));
+  --ph-error-icon-fg: var(--ag-gold, #c9a55a);
+  --ph-error-primary-bg: var(--ag-gold, #c9a55a);
+  --ph-error-primary-bg-hover: var(--ag-gold-hover, #b8956a);
+  --ph-error-primary-fg: var(--ag-black, #1a1815);
+  --ph-error-secondary-bg: transparent;
+  --ph-error-secondary-fg: var(--ag-text-2, #6b6560);
+  --ph-error-secondary-border: var(--ag-border-strong, rgba(26, 24, 21, 0.14));
+  --ph-inline-error: var(--color-error, #ef4444);
+
   /* Typography */
   --font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Playfair Display', Georgia, serif; /* Task 7.2: Display Font */

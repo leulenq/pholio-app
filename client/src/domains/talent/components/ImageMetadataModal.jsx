@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Save, EyeOff, Crop } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Calendar, Camera, Crop, EyeOff, Image as ImageIcon, Save, Shield, Tags, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
 import './ImageMetadataModal.css';
@@ -66,15 +67,27 @@ function dateInputToPayload(value) {
   return d.toISOString();
 }
 
+function readMetadata(metadata) {
+  if (!metadata) return {};
+  if (typeof metadata === 'object') return metadata;
+  try { return JSON.parse(metadata); } catch { return {}; }
+}
+
 export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEditor, mediaSets = [] }) {
   const [loading, setLoading] = useState(false);
+  const initialMetadata = readMetadata(image.metadata);
+  const initialCredits = initialMetadata.credits || {};
   const [formData, setFormData] = useState({
     metadata: {
-      role: image.metadata?.role || null,
-      tags: image.metadata?.tags || [],
-      credits: image.metadata?.credits || { photographer: '', mua: '', stylist: '' },
-      caption: image.metadata?.caption || '',
-      visibility: image.metadata?.visibility || 'public'
+      role: initialMetadata.role || null,
+      tags: Array.isArray(initialMetadata.tags) ? initialMetadata.tags : [],
+      credits: {
+        photographer: initialCredits.photographer || '',
+        mua: initialCredits.mua || '',
+        stylist: initialCredits.stylist || '',
+      },
+      caption: initialMetadata.caption || '',
+      visibility: initialMetadata.visibility || 'public'
     },
     image_type: image.image_type ?? '',
     shot_type: image.shot_type ?? '',
@@ -168,127 +181,120 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
     return path.startsWith('/') ? path : `/uploads/${path}`;
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-container" onClick={e => e.stopPropagation()}>
-        
-        {/* Left: Image Preview */}
-        <div className="modal-preview-col">
-           <img 
-            src={getImageUrl(image.path)} 
-            alt="Preview" 
-            className="modal-preview-image"
-           />
-           {formData.metadata.visibility === 'private' && (
-             <div className="private-badge">
-               <EyeOff size={12} /> PRIVATE
-             </div>
-           )}
-           
-           <button 
-             onClick={() => onOpenEditor(image)}
-             className="absolute bottom-4 left-4 right-4 py-2 bg-white/90 backdrop-blur text-slate-900 text-sm font-medium rounded-lg shadow-sm hover:bg-white transition-colors flex items-center justify-center gap-2"
-           >
-             <Crop size={14} />
-             Crop & Rotate
-           </button>
-        </div>
+  const previewUrl = getImageUrl(image.public_url || image.path);
+  const selectedRole = COMP_CARD_ROLES.find((role) => role.id === formData.metadata.role);
+  const isPrivate = formData.metadata.visibility === 'private' || formData.exclude_from_public || formData.exclude_from_agency || formData.status === 'archived';
 
-        {/* Right: Metadata Form */}
-        <div className="modal-form-col">
-          <div className="modal-header">
-            <h2 className="modal-title">Image Details</h2>
-            <button onClick={onClose} className="close-button">
-              <X size={20} />
+  return createPortal(
+    <div className="imd-overlay" onClick={onClose}>
+      <section className="imd-shell" aria-label="Edit image details" onClick={e => e.stopPropagation()}>
+        <aside className="imd-preview" aria-label="Selected image preview">
+          <div className="imd-preview__bar">
+            <span className="imd-kicker">Frame details</span>
+            <button type="button" onClick={onClose} className="imd-icon-btn" aria-label="Close details">
+              <X size={18} />
             </button>
           </div>
-
-          <div className="modal-body">
-            
-            {/* Visibility Toggle */}
-            <div className="form-section-header">
-              <div>
-                <h3 className="section-label">Visibility</h3>
-                <p className="section-helper">Control where this image appears</p>
-              </div>
-              <div className="toggle-group">
-                <button 
-                  onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'public' } }))}
-                  className={`toggle-option ${formData.metadata.visibility === 'public' ? 'active' : ''}`}
-                >
-                  Public
-                </button>
-                <button 
-                  onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'private' } }))}
-                  className={`toggle-option ${formData.metadata.visibility === 'private' ? 'active-private' : ''}`}
-                >
-                  Private
-                </button>
-              </div>
+          <div className="imd-image-stage">
+            <img src={previewUrl} alt={formData.metadata.caption || 'Selected portfolio frame'} className="imd-preview-image" />
+            <div className="imd-status-stack">
+              {isPrivate && <span className="imd-pill imd-pill--ink"><EyeOff size={12} />Private</span>}
+              {selectedRole && <span className="imd-pill imd-pill--gold">{selectedRole.label}</span>}
             </div>
+          </div>
+          <button type="button" onClick={() => onOpenEditor(image)} className="imd-crop-action">
+            <Crop size={15} />
+            Crop & rotate
+          </button>
+        </aside>
 
-            {/* Structured catalog fields */}
+        <div className="imd-panel">
+          <header className="imd-header">
             <div>
-              <label className="section-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Catalog</label>
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-                Structured fields used across portfolio, comp card readiness, and agency views.
-              </p>
-              <div className="structured-fields-grid">
-                <div>
-                  <label className="form-label">Image type</label>
-                  <select
-                    className="form-input"
-                    value={formData.image_type}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, image_type: e.target.value }))}
+              <span className="imd-kicker">Curation</span>
+              <h2 className="imd-title">Image details</h2>
+            </div>
+            <span className="imd-frame-id">{image.id ? `ID ${image.id}` : 'Portfolio frame'}</span>
+          </header>
+
+          <div className="imd-body">
+            <section className="imd-section">
+              <div className="imd-section__head">
+                <Shield size={15} />
+                <h3>Publishing</h3>
+              </div>
+              <div className="imd-control-row">
+                <span className="imd-control-label">Visibility</span>
+                <div className="imd-segment" role="group" aria-label="Visibility">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'public' } }))}
+                    className={formData.metadata.visibility === 'public' ? 'is-active' : ''}
                   >
-                    {IMAGE_TYPE_OPTIONS.map((o) => (
-                      <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                    Public
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'private' } }))}
+                    className={formData.metadata.visibility === 'private' ? 'is-active is-private' : ''}
+                  >
+                    Private
+                  </button>
                 </div>
-                <div>
-                  <label className="form-label">Shot type</label>
-                  <select
-                    className="form-input"
-                    value={formData.shot_type}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, shot_type: e.target.value }))}
-                  >
-                    {SHOT_TYPE_OPTIONS.map((o) => (
-                      <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
-                    ))}
+              </div>
+              <div className="imd-switch-list">
+                <label className="imd-switch">
+                  <input
+                    type="checkbox"
+                    checked={formData.exclude_from_public}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, exclude_from_public: e.target.checked }))}
+                  />
+                  <span>Exclude from public</span>
+                </label>
+                <label className="imd-switch">
+                  <input
+                    type="checkbox"
+                    checked={formData.exclude_from_agency}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, exclude_from_agency: e.target.checked }))}
+                  />
+                  <span>Exclude from agency</span>
+                </label>
+              </div>
+            </section>
+
+            <section className="imd-section">
+              <div className="imd-section__head">
+                <ImageIcon size={15} />
+                <h3>Catalog</h3>
+              </div>
+              <div className="imd-grid">
+                <label>
+                  <span className="imd-label">Image type</span>
+                  <select className="imd-input" value={formData.image_type} onChange={(e) => setFormData((prev) => ({ ...prev, image_type: e.target.value }))}>
+                    {IMAGE_TYPE_OPTIONS.map((o) => <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="form-label">Style</label>
-                  <select
-                    className="form-input"
-                    value={formData.style_type}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, style_type: e.target.value }))}
-                  >
-                    {STYLE_TYPE_OPTIONS.map((o) => (
-                      <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
-                    ))}
+                </label>
+                <label>
+                  <span className="imd-label">Shot type</span>
+                  <select className="imd-input" value={formData.shot_type} onChange={(e) => setFormData((prev) => ({ ...prev, shot_type: e.target.value }))}>
+                    {SHOT_TYPE_OPTIONS.map((o) => <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="form-label">Status</label>
-                  <select
-                    className="form-input"
-                    value={formData.status}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
-                  >
-                    {STATUS_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
+                </label>
+                <label>
+                  <span className="imd-label">Style</span>
+                  <select className="imd-input" value={formData.style_type} onChange={(e) => setFormData((prev) => ({ ...prev, style_type: e.target.value }))}>
+                    {STYLE_TYPE_OPTIONS.map((o) => <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
                   </select>
-                </div>
-                <div className="structured-fields-grid__full">
-                  <label className="form-label">Image set</label>
-                  <select
-                    className="form-input"
-                    value={formData.set_id}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, set_id: e.target.value }))}
-                  >
+                </label>
+                <label>
+                  <span className="imd-label">Status</span>
+                  <select className="imd-input" value={formData.status} onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}>
+                    {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </label>
+                <label className="imd-grid__wide">
+                  <span className="imd-label">Image set</span>
+                  <select className="imd-input" value={formData.set_id} onChange={(e) => setFormData((prev) => ({ ...prev, set_id: e.target.value }))}>
                     <option value="">No set</option>
                     {mediaSets.map((setRow) => (
                       <option key={setRow.id} value={setRow.id}>
@@ -298,221 +304,90 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="structured-fields-grid__full">
-                  <label className="form-label">Captured</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.captured_at}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, captured_at: e.target.value }))}
-                  />
-                </div>
-                <div className="structured-fields-grid__full">
-                  <label className="form-label">Retouched</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.retouched_at}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, retouched_at: e.target.value }))}
-                  />
-                </div>
+                </label>
+                <label>
+                  <span className="imd-label"><Calendar size={12} />Captured</span>
+                  <input type="date" className="imd-input" value={formData.captured_at} onChange={(e) => setFormData((prev) => ({ ...prev, captured_at: e.target.value }))} />
+                </label>
+                <label>
+                  <span className="imd-label"><Calendar size={12} />Retouched</span>
+                  <input type="date" className="imd-input" value={formData.retouched_at} onChange={(e) => setFormData((prev) => ({ ...prev, retouched_at: e.target.value }))} />
+                </label>
               </div>
+            </section>
 
-              <div className="structured-toggle-row">
-                <div className="structured-toggle-row__label">
-                  <span className="form-label" style={{ marginBottom: 0 }}>Exclude from public</span>
-                  <p className="section-helper" style={{ marginTop: '0.125rem' }}>Hide from portfolio / public surfaces</p>
-                </div>
-                <div className="toggle-group">
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_public: false }))}
-                    className={`toggle-option ${!formData.exclude_from_public ? 'active' : ''}`}
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_public: true }))}
-                    className={`toggle-option ${formData.exclude_from_public ? 'active-private' : ''}`}
-                  >
-                    Yes
-                  </button>
-                </div>
+            <section className="imd-section">
+              <div className="imd-section__head">
+                <Camera size={15} />
+                <h3>Comp card role</h3>
               </div>
-              <div className="structured-toggle-row">
-                <div className="structured-toggle-row__label">
-                  <span className="form-label" style={{ marginBottom: 0 }}>Exclude from agency</span>
-                  <p className="section-helper" style={{ marginTop: '0.125rem' }}>Hide from agency-facing views</p>
-                </div>
-                <div className="toggle-group">
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_agency: false }))}
-                    className={`toggle-option ${!formData.exclude_from_agency ? 'active' : ''}`}
-                  >
-                    No
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, exclude_from_agency: true }))}
-                    className={`toggle-option ${formData.exclude_from_agency ? 'active-private' : ''}`}
-                  >
-                    Yes
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Comp Card Role */}
-            <div>
-              <label className="section-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Comp Card Role</label>
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.625rem' }}>
-                Tag this photo so it appears in the right slot on your comp card.
-              </p>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {COMP_CARD_ROLES.map(r => {
-                  const isActive = formData.metadata.role === r.id;
+              <div className="imd-chip-grid">
+                {COMP_CARD_ROLES.map((role) => {
+                  const isActive = formData.metadata.role === role.id;
                   return (
                     <button
-                      key={r.id}
+                      key={role.id}
                       type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        metadata: { ...prev.metadata, role: isActive ? null : r.id }
-                      }))}
-                      style={{
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        border: `1.5px solid ${isActive ? r.color : '#e5e7eb'}`,
-                        background: isActive ? r.color : 'transparent',
-                        color: isActive ? '#fff' : '#374151',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                        transition: 'all 0.15s',
-                      }}
+                      onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, role: isActive ? null : role.id } }))}
+                      className={`imd-role-chip ${isActive ? 'is-active' : ''}`}
+                      style={{ '--role-color': role.color }}
                     >
-                      {r.label}
+                      {role.label}
                     </button>
                   );
                 })}
-                {formData.metadata.role && (
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({
-                      ...prev,
-                      metadata: { ...prev.metadata, role: null }
-                    }))}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '20px',
-                      border: '1.5px solid #e5e7eb',
-                      background: 'transparent',
-                      color: '#9ca3af',
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Clear
-                  </button>
-                )}
               </div>
-            </div>
+            </section>
 
-            {/* Tags */}
-            <div>
-              <label className="section-label" style={{ display: 'block', marginBottom: '0.75rem' }}>Categories</label>
-              <div className="tags-container">
+            <section className="imd-section">
+              <div className="imd-section__head">
+                <Tags size={15} />
+                <h3>Categories</h3>
+              </div>
+              <div className="imd-tags">
                 {availableTags.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => toggleTag(tag)}
-                    className={`tag-btn ${formData.metadata.tags.includes(tag) ? 'selected' : ''}`}
-                  >
+                  <button key={tag} type="button" onClick={() => toggleTag(tag)} className={formData.metadata.tags.includes(tag) ? 'is-selected' : ''}>
                     {tag}
                   </button>
                 ))}
               </div>
-            </div>
+            </section>
 
-            {/* Credits */}
-            <div>
-              <label className="section-label" style={{ display: 'block', marginBottom: '1rem' }}>Credits</label>
-              
-              <div className="form-grid">
-                <div className="full-width">
-                   <label className="form-label">Photographer</label>
-                   <input 
-                     type="text" 
-                     className="form-input"
-                     placeholder="@photographer"
-                     value={formData.metadata.credits.photographer}
-                     onChange={(e) => updateCredit('photographer', e.target.value)}
-                   />
-                </div>
-                <div>
-                   <label className="form-label">Makeup Artist</label>
-                   <input 
-                     type="text" 
-                     className="form-input"
-                     placeholder="@mua"
-                     value={formData.metadata.credits.mua}
-                     onChange={(e) => updateCredit('mua', e.target.value)}
-                   />
-                </div>
-                <div>
-                   <label className="form-label">Stylist</label>
-                   <input 
-                     type="text" 
-                     className="form-input"
-                     placeholder="@stylist"
-                     value={formData.metadata.credits.stylist}
-                     onChange={(e) => updateCredit('stylist', e.target.value)}
-                   />
-                </div>
+            <section className="imd-section">
+              <div className="imd-section__head">
+                <Camera size={15} />
+                <h3>Credits</h3>
               </div>
-            </div>
-
-            {/* Caption */}
-            <div>
-              <label className="section-label" style={{ display: 'block', marginBottom: '0.5rem' }}>Caption</label>
-              <textarea 
-                rows="3"
-                className="form-textarea"
-                placeholder="Add a description or context..."
-                value={formData.metadata.caption}
-                onChange={(e) => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, caption: e.target.value } }))}
-              />
-            </div>
-
+              <div className="imd-grid">
+                <label className="imd-grid__wide">
+                  <span className="imd-label">Photographer</span>
+                  <input type="text" className="imd-input" placeholder="@photographer" value={formData.metadata.credits.photographer} onChange={(e) => updateCredit('photographer', e.target.value)} />
+                </label>
+                <label>
+                  <span className="imd-label">Makeup artist</span>
+                  <input type="text" className="imd-input" placeholder="@mua" value={formData.metadata.credits.mua} onChange={(e) => updateCredit('mua', e.target.value)} />
+                </label>
+                <label>
+                  <span className="imd-label">Stylist</span>
+                  <input type="text" className="imd-input" placeholder="@stylist" value={formData.metadata.credits.stylist} onChange={(e) => updateCredit('stylist', e.target.value)} />
+                </label>
+                <label className="imd-grid__wide">
+                  <span className="imd-label">Caption</span>
+                  <textarea rows="3" className="imd-input imd-textarea" placeholder="Add a description or context" value={formData.metadata.caption} onChange={(e) => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, caption: e.target.value } }))} />
+                </label>
+              </div>
+            </section>
           </div>
 
-          <div className="modal-footer">
-            <button 
-              onClick={onClose}
-              className="btn-cancel"
-            >
-              Cancel
+          <footer className="imd-footer">
+            <button type="button" onClick={onClose} className="imd-secondary-btn">Cancel</button>
+            <button type="button" onClick={handleSave} disabled={loading} className="imd-primary-btn">
+              {loading ? 'Saving...' : <><Save size={15} />Save changes</>}
             </button>
-            <button 
-              onClick={handleSave}
-              disabled={loading}
-              className="btn-save"
-            >
-              {loading ? 'Saving...' : (
-                <>
-                  <Save size={16} />
-                  Save Changes
-                </>
-              )}
-            </button>
-          </div>
+          </footer>
         </div>
-      </div>
-    </div>
+      </section>
+    </div>,
+    document.body
   );
 }

@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
+import { pholioToast } from '../../../../shared/lib/pholio-toast';
 import { motion } from 'framer-motion';
-import { Menu, X, Camera } from 'lucide-react';
+import { Menu, X, Camera, Eye, Activity, MousePointerClick } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { profileSchema } from '../../../../schemas/profileSchema';
@@ -33,6 +33,9 @@ import { IdentitySection } from './IdentitySection';
 import { MeasurementsSection } from './MeasurementsSection';
 import { PhotosSection } from './PhotosSection';
 import { SocialSection } from './SocialSection';
+import { useAnalytics } from '../../hooks/useAnalytics';
+import { parseApiFailure } from '../../../../shared/lib/api-error-message';
+import { useReferenceLanguages } from '../../../../shared/hooks/useReferenceLanguages';
 
 import styles from './ProfilePage.module.css';
 
@@ -71,6 +74,11 @@ function normalizeEmergencyPhone(raw) {
   if (raw == null || typeof raw !== 'string') return raw;
   const normalized = normalizePhoneInput(raw);
   return normalized === '' ? null : normalized;
+}
+
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function deriveRepresentationStatus(profile) {
@@ -165,7 +173,7 @@ function normalizeProfileForForm(profile = {}) {
     training_summary: profile.training || '', // Map 'training' col to 'training_summary'
     experience_level: profile.experience_level ? String(profile.experience_level) : null,
 
-    // Keep tag fields as arrays for PholioTagInput rendering
+    // Keep tag/array fields for multi-select rendering
     languages: toArrayField(profile.languages),
     specialties: toArrayField(profile.specialties),
   };
@@ -213,13 +221,26 @@ const AVAILABILITY_OPTIONS = [
 export default function ProfilePage() {
   const { subscription, images: authImages } = useAuth();
   const queryClient = useQueryClient();
-  const [isImproving, setIsImproving] = useState(false);
+  const [bioImproveMode, setBioImproveMode] = useState(null);
   const [previousBio, setPreviousBio] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
   const [readinessAuditOpen, setReadinessAuditOpen] = useState(false);
+  const [gateItemsExpanded, setGateItemsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const saveRequestRef = useRef(0);
   const [unitSystem, setUnitSystem] = useState('metric'); // 'metric' or 'imperial'
   const [shoeRegion, setShoeRegion] = useState('US');
+  const { summary, isLoading: analyticsLoading, summaryError } = useAnalytics();
+  const { data: referenceLanguages = [], isLoading: languagesLoading } = useReferenceLanguages();
+
+  const languageOptions = useMemo(
+    () =>
+      referenceLanguages.map((lang) => ({
+        value: lang.name,
+        label: lang.name,
+      })),
+    [referenceLanguages],
+  );
   
   // Scroll Spy State
   const [activeSection, setActiveSection] = useState('identity');
@@ -266,32 +287,60 @@ export default function ProfilePage() {
     customFields.forEach(field => register(field));
   }, [register]);
 
-  // AI Bio Improvement Handler
-  const handleAIImprove = async () => {
+  const applyBioResult = (data, modeLabel) => {
+    const nextBio = data.bio || data.refined;
+    if (!nextBio) throw new Error('No bio returned');
+    setValue('bio', nextBio, { shouldDirty: true });
+    pholioToast.success(
+      `${modeLabel} complete (${data.wordCount ?? nextBio.split(/\s+/).filter(Boolean).length} words)`,
+    );
+  };
+
+  const handleBioRefine = async () => {
     const currentBio = watch('bio');
     if (!currentBio || currentBio.trim().length < 10) {
-      toast.error('Please write a brief bio first (at least 10 characters)');
+      pholioToast.error('Write at least 10 characters before refining');
       return;
     }
-    
-    setPreviousBio(currentBio);
-    setIsImproving(true);
-    
-    try {
-      const data = await talentApi.refineBio({
-        bio: currentBio,
-        firstName: watch('first_name') || 'Talent',
-        lastName: watch('last_name') || '',
-      });
 
-      setValue('bio', data.refined, { shouldDirty: true });
-      toast.success(`Bio refined! (${data.wordCount} words)`);
+    setPreviousBio(currentBio);
+    setBioImproveMode('refine');
+
+    try {
+      const data = await talentApi.refineBio({ bio: currentBio.trim() });
+      applyBioResult(data, 'Bio refined');
     } catch (error) {
-      console.error('AI improvement failed:', error);
-      toast.error(error.message || 'Failed to improve bio. Please try again.');
-      setPreviousBio(null); // Reset on error
+      console.error('Bio refine failed:', error);
+      pholioToast.error(error.message || 'Failed to refine bio. Please try again.');
+      setPreviousBio(null);
     } finally {
-      setIsImproving(false);
+      setBioImproveMode(null);
+    }
+  };
+
+  const handleBioGenerate = async () => {
+    const currentBio = watch('bio');
+    if (currentBio?.trim()) {
+      setPreviousBio(currentBio);
+    }
+    setBioImproveMode('generate');
+
+    try {
+      const data = await talentApi.generateBio();
+      applyBioResult(data, 'Bio generated');
+    } catch (error) {
+      console.error('Bio generate failed:', error);
+      if (error.data?.details?.code === 'INSUFFICIENT_CONTEXT') {
+        pholioToast.error(
+          error.message ||
+            'Add experience, categories, training, or credits before generating',
+        );
+      } else {
+        pholioToast.error(error.message || 'Failed to generate bio. Please try again.');
+      }
+      if (!currentBio?.trim()) setPreviousBio(null);
+    } finally {
+      setBioImproveMode(null);
     }
   };
 
@@ -300,35 +349,35 @@ export default function ProfilePage() {
     if (previousBio) {
       setValue('bio', previousBio, { shouldDirty: true });
       setPreviousBio(null);
-      toast.info('Reverted to original bio');
+      pholioToast.info('Reverted to original bio');
     }
   };
 
-  // Fetch real profile data on mount
-  useEffect(() => {
-    const loadProfile = async () => {
-      setIsLoading(true);
-      try {
-        const data = await talentApi.getProfile();
-        if (data && data.profile) {
-          reset(normalizeProfileForForm(data.profile));
+  const reloadProfile = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await talentApi.getProfile();
+      if (data && data.profile) {
+        reset(normalizeProfileForForm(data.profile));
 
-          // Sync imperial height state if needed
-          if (data.profile.height_cm) {
-            const { ft, in: inch } = cmToFeetInches(data.profile.height_cm);
-            setHeightFt(ft);
-            setHeightIn(inch);
-          }
+        if (data.profile.height_cm) {
+          const { ft, in: inch } = cmToFeetInches(data.profile.height_cm);
+          setHeightFt(ft);
+          setHeightIn(inch);
         }
-      } catch (error) {
-        console.error('Failed to load profile:', error);
-        toast.error('Failed to load profile data');
-      } finally {
-        setIsLoading(false);
       }
-    };
-    loadProfile();
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+      const failure = parseApiFailure(error, 'Profile could not load');
+      pholioToast.fromFailure(failure);
+    } finally {
+      setIsLoading(false);
+    }
   }, [reset]);
+
+  useEffect(() => {
+    reloadProfile();
+  }, [reloadProfile]);
 
   // Scroll Spy Observer
   useEffect(() => {
@@ -444,6 +493,9 @@ export default function ProfilePage() {
     Array.isArray(q.queryKey) && q.queryKey[0] === 'auth-user';
 
   const onSubmit = async (data) => {
+    const requestId = saveRequestRef.current + 1;
+    saveRequestRef.current = requestId;
+
     try {
       // 1. Transform Frontend Strings -> Backend Arrays/JSON
       const payload = { ...data };
@@ -517,59 +569,73 @@ export default function ProfilePage() {
       }
 
       const res = await talentApi.updateProfile(payload);
-      // Response structure: { profile, completeness } (unwrapped by apiClient)
-      if (res && res.profile) {
-        // Sync local state with authoritative server response using the same normalizer as initial load.
-        reset(normalizeProfileForForm(res.profile));
+      if (saveRequestRef.current !== requestId) return;
 
-        // Invalidate and refetch ALL queries to sync entire dashboard
-        // This ensures Header, Sidebar, Overview, and all components show fresh data
-        await queryClient.invalidateQueries({ predicate: authUserPredicate });
-        await queryClient.invalidateQueries({ queryKey: ['talent-activity'] });
-        await queryClient.invalidateQueries({ queryKey: ['talent-analytics'] });
-
-        await queryClient.refetchQueries({ predicate: authUserPredicate });
-
-        toast.success('Profile saved successfully');
+      if (!res?.profile) {
+        const failure = parseApiFailure(
+          { message: 'Profile save did not return updated data.' },
+          'Profile could not be saved',
+        );
+        pholioToast.fromFailure(failure);
+        return;
       }
+
+      reset(normalizeProfileForForm(res.profile));
+
+      await queryClient.invalidateQueries({ predicate: authUserPredicate });
+      await queryClient.invalidateQueries({ queryKey: ['talent-activity'] });
+      await queryClient.invalidateQueries({ queryKey: ['talent-analytics'] });
+
+      if (saveRequestRef.current !== requestId) return;
+
+      try {
+        await queryClient.refetchQueries({
+          predicate: authUserPredicate,
+          throwOnError: true,
+        });
+      } catch (syncError) {
+        if (saveRequestRef.current !== requestId) return;
+        console.error('Profile saved but dashboard sync failed:', syncError);
+        const failure = parseApiFailure(syncError, 'Dashboard sync incomplete');
+        pholioToast.fromFailure({
+          ...failure,
+          toastMessage: 'Profile saved — dashboard sync incomplete',
+          body: 'Your changes were saved, but the rest of the dashboard could not refresh. Reload the page or try again.',
+        });
+        return;
+      }
+
+      if (saveRequestRef.current !== requestId) return;
+
+      pholioToast.success('Profile saved successfully');
     } catch (error) {
-      console.error("Submission Error:", error);
+      if (saveRequestRef.current !== requestId) return;
+      console.error('Submission Error:', error);
 
       const topLevelErrors = error?.data?.errors;
       const nestedErrors = error?.data?.error?.errors;
       const validationErrors = topLevelErrors || nestedErrors;
 
-      // Handle validation errors from API (both legacy and standardized shapes)
       if ((error.status === 400 || error.status === 422) && validationErrors) {
-        // 1. Show a general warning toast
-        toast.error('Validation failed. Please check the form.');
+        pholioToast.error('Validation failed. Please check the form.', {
+          description: 'Some profile fields need attention before we can save.',
+        });
 
-        // 2. Map errors back to form fields for inline display
-        Object.keys(validationErrors).forEach(field => {
+        Object.keys(validationErrors).forEach((field) => {
           const messages = validationErrors[field];
           if (Array.isArray(messages) && messages.length > 0) {
-            // Map dob -> date_of_birth if needed, though they should match schema
             const formField = field === 'date_of_birth' ? 'date_of_birth' : field;
-            
             setError(formField, {
               type: 'manual',
-              message: messages[0] // Show the first error message for this field
+              message: messages[0],
             });
-
-            // If it's a specific critical error, show it in a toast too
-            if (field === 'date_of_birth') {
-              toast.error(`Birth Date: ${messages[0]}`);
-            }
           }
         });
-      } else {
-        const fallbackMessage =
-          (typeof error?.data?.error?.message === 'string' && error.data.error.message) ||
-          (typeof error?.data?.message === 'string' && error.data.message) ||
-          error.message ||
-          'Failed to save profile';
-        toast.error(fallbackMessage);
+        return;
       }
+
+      const failure = parseApiFailure(error, 'Profile could not be saved');
+      pholioToast.fromFailure(failure);
     }
   };
   // Get hero display data from form values
@@ -620,31 +686,22 @@ export default function ProfilePage() {
       : `${values.height_cm} cm`
     : null;
 
-  const heroStatsLine = [heightDisplay, values.hair_color, values.eye_color, values.city]
+  const heroStatsLine = [heightDisplay, values.eye_color]
     .filter(Boolean)
     .join(' · ');
 
+  const showReadinessGate = isGateEntry && !isCoreReady;
+  const isStudioPlus = !!subscription?.isPro;
+  const websiteViews = toNumber(summary?.views?.total);
+  const websiteViewDelta = toNumber(
+    summary?.views?.changePct ?? summary?.views?.changePercent ?? summary?.views?.deltaPct
+  );
+  const engagementEvents = toNumber(
+    summary?.engagement?.total ?? summary?.clicks?.total ?? summary?.profileClicks?.total
+  );
+
   return (
     <div className={styles.pageContainer}>
-      {isGateEntry && !isCoreReady && (
-        <div className={styles.gateBanner}>
-          <p className={styles.gateBannerTitle}>
-            Complete your profile to become visible to agencies
-          </p>
-          <p className={styles.gateBannerBody}>
-            The following are required before you appear in agency searches:
-          </p>
-          <ul className={styles.gateBannerList}>
-            {missingCoreItems.map((item) => (
-              <li key={item} className={styles.gateBannerItem}>
-                <span className={styles.gateBannerDot} aria-hidden="true" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* Mobile Nav Toggle */}
       <button 
         className={styles.navToggle} 
@@ -732,6 +789,36 @@ export default function ProfilePage() {
             {heroStatsLine ? (
               <p className={styles.heroStats}>{heroStatsLine}</p>
             ) : null}
+
+            {showReadinessGate ? (
+              <div className={styles.heroReadiness} role="status" aria-live="polite">
+                <p className={styles.heroReadinessLine}>
+                  <span className={styles.heroReadinessDot} aria-hidden="true" />
+                  Agency visibility{' '}
+                  <span className={styles.heroReadinessEm}>pending</span>
+                  {' '}
+                  — complete essentials to appear in search.
+                  {missingCoreItems.length > 0 ? (
+                    <>
+                      {' '}
+                      <button
+                        type="button"
+                        className={styles.heroReadinessToggle}
+                        onClick={() => setGateItemsExpanded((open) => !open)}
+                        aria-expanded={gateItemsExpanded}
+                      >
+                        {gateItemsExpanded
+                          ? 'Hide items'
+                          : `${missingCoreItems.length} item${missingCoreItems.length === 1 ? '' : 's'} remaining`}
+                      </button>
+                    </>
+                  ) : null}
+                </p>
+                {gateItemsExpanded && missingCoreItems.length > 0 ? (
+                  <p className={styles.heroReadinessItems}>{missingCoreItems.join(', ')}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </motion.div>
       </header>
@@ -771,7 +858,6 @@ export default function ProfilePage() {
             className={`${styles.profileForms} ${isSubmitting ? styles.formSaving : ''}`}
             aria-busy={isSubmitting}
           >
-
         {searchParams.get('tab') === 'photos' ? (
           <PhotosSection
             onPhotoUploaded={(url) => {
@@ -795,9 +881,12 @@ export default function ProfilePage() {
               register={register}
               control={control}
               errors={errors}
-              isImproving={isImproving}
+              bioValue={watch('bio')}
+              isImproving={!!bioImproveMode}
+              improveMode={bioImproveMode}
               previousBio={previousBio}
-              handleAIImprove={handleAIImprove}
+              onBioRefine={handleBioRefine}
+              onBioGenerate={handleBioGenerate}
               handleUndoAI={handleUndoAI}
               watchDob={watch('date_of_birth')}
             />
@@ -915,13 +1004,20 @@ export default function ProfilePage() {
                 name="languages"
                 control={control}
                 render={({ field }) => (
-                  <PholioTagInput
-                    label="Languages (Tags)"
+                  <PholioMultiSelect
+                    label="Languages"
                     id="languages"
+                    options={languageOptions}
                     value={field.value}
                     onChange={field.onChange}
                     error={errors.languages}
-                    placeholder="Type language and press Enter..."
+                    placeholder={
+                      languagesLoading ? 'Loading languages…' : 'Search and select languages'
+                    }
+                    searchable
+                    searchPlaceholder="Search languages…"
+                    emptyMessage="No languages match your search"
+                    disabled={languagesLoading}
                   />
                 )}
               />
@@ -1005,27 +1101,10 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Modeling Categories */}
-          <div className={styles.formRow}>
-            <Controller
-              name="modeling_categories"
-              control={control}
-              render={({ field }) => (
-                <PholioMultiSelect
-                  label="Modeling Categories"
-                  id="modeling_categories"
-                  options={MODELING_CATEGORIES_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.modeling_categories}
-                  placeholder="Select the categories you work in"
-                />
-              )}
-            />
-          </div>
 
-          {/* Availability */}
-          <div className={`${styles.formGrid2} ${styles.formRow}`}>
+
+          {/* Administrative Details */}
+          <div className={`${styles.formGrid3} ${styles.formRow}`}>
             <Controller
               name="availability_schedule"
               control={control}
@@ -1041,87 +1120,133 @@ export default function ProfilePage() {
                 />
               )}
             />
-            <div className={styles.toggleField} style={{ alignSelf: 'end' }}>
-              <div className={styles.toggleInfo}>
-                <div className={styles.toggleContent}>
-                  <span className={styles.toggleName}>Open to Travel</span>
-                  <p className={styles.toggleDescription}>Willing to travel for jobs</p>
-                </div>
-              </div>
-              <PholioToggle 
-                checked={watch('availability_travel') || false}
-                onChange={(e) => setValue('availability_travel', e.target.checked, { shouldDirty: true })}
-              />
-            </div>
-            <div className={styles.toggleField} style={{ alignSelf: 'end' }}>
-              <div className={styles.toggleInfo}>
-                <div className={styles.toggleContent}>
-                  <span className={styles.toggleName}>Driver's License</span>
-                  <p className={styles.toggleDescription}>Valid driver's license</p>
-                </div>
-              </div>
-              <PholioToggle 
-                checked={watch('drivers_license') || false}
-                onChange={(e) => setValue('drivers_license', e.target.checked, { shouldDirty: true })}
-              />
-            </div>
             <Controller
               name="work_eligibility"
               control={control}
-              render={({ field }) => {
-                const current =
-                  field.value === true ? 'yes' : field.value === false ? 'no' : 'unset';
-                return (
-                  <fieldset className={styles.workEligibilityFieldset}>
-                    <legend className={styles.workEligibilityLegend}>Work eligibility</legend>
-                    <p className={styles.workEligibilityHint}>
-                      Authorized to work in your primary market (employment / right-to-work).
-                    </p>
-                    <div className={styles.workEligibilityOptions} role="radiogroup" aria-label="Work eligibility">
-                      {[
-                        { id: 'we-yes', val: 'yes', label: 'Yes, authorized' },
-                        { id: 'we-no', val: 'no', label: 'No, not yet' },
-                        { id: 'we-unset', val: 'unset', label: 'Prefer not to say' }
-                      ].map((opt) => (
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Work Eligibility"
+                  id="work_eligibility"
+                  options={[
+                    { value: 'yes', label: 'Authorized' },
+                    { value: 'no', label: 'Requires Sponsorship' },
+                    { value: 'unset', label: 'Prefer not to say' }
+                  ]}
+                  value={field.value === true ? 'yes' : field.value === false ? 'no' : 'unset'}
+                  onChange={(val) => {
+                    const next = val === 'yes' ? true : val === 'no' ? false : null;
+                    field.onChange(next);
+                  }}
+                  error={errors.work_eligibility}
+                  placeholder="Select status"
+                />
+              )}
+            />
+            <Controller
+              name="availability_travel"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Open to Travel"
+                  id="availability_travel"
+                  options={[
+                    { value: 'true', label: 'Yes' },
+                    { value: 'false', label: 'No' }
+                  ]}
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
+                  error={errors.availability_travel}
+                  placeholder="Select"
+                />
+              )}
+            />
+            <Controller
+              name="passport_ready"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Passport Ready"
+                  id="passport_ready"
+                  options={[
+                    { value: 'true', label: 'Yes' },
+                    { value: 'false', label: 'No' }
+                  ]}
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
+                  error={errors.passport_ready}
+                  placeholder="Select"
+                />
+              )}
+            />
+            <Controller
+              name="drivers_license"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Driver's License"
+                  id="drivers_license"
+                  options={[
+                    { value: 'true', label: 'Yes' },
+                    { value: 'false', label: 'No' }
+                  ]}
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
+                  error={errors.drivers_license}
+                  placeholder="Select"
+                />
+              )}
+            />
+          </div>
+        </Section>
+
+        <Section
+          id="market"
+          kicker="Categories"
+          title="Market Positioning"
+          titleEmphasis="Positioning"
+          description="Your core modeling categories and market lanes."
+        >
+          <div className={styles.formStack}>
+            <Controller
+              name="modeling_categories"
+              control={control}
+              render={({ field }) => (
+                <fieldset className={styles.repFieldset}>
+                  <legend className={styles.repLegend}>Categories</legend>
+                  <div className={styles.repOptions} role="group" aria-label="Market Positioning">
+                    {MODELING_CATEGORIES_OPTIONS.map((opt, index) => {
+                      const numStr = String(index + 1).padStart(2, '0');
+                      const currentValues = field.value || [];
+                      const isActive = currentValues.includes(opt.value);
+                      return (
                         <label
-                          key={opt.val}
-                          htmlFor={opt.id}
-                          className={`${styles.workEligibilityOption} ${
-                            current === opt.val ? styles.workEligibilityOptionActive : ''
-                          }`}
+                          key={opt.value}
+                          className={`${styles.repOption} ${isActive ? styles.repOptionActive : ''}`}
                         >
                           <input
-                            id={opt.id}
-                            type="radio"
-                            name={field.name}
-                            checked={current === opt.val}
-                            onChange={() => {
-                              const next =
-                                opt.val === 'yes' ? true : opt.val === 'no' ? false : null;
-                              field.onChange(next);
+                            type="checkbox"
+                            value={opt.value}
+                            checked={isActive}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                field.onChange([...currentValues, opt.value]);
+                              } else {
+                                field.onChange(currentValues.filter(v => v !== opt.value));
+                              }
                             }}
-                            onBlur={field.onBlur}
+                            className={styles.repCheckboxHidden}
                           />
-                          {opt.label}
+                          <span className={styles.repNum}>{numStr}</span>
+                          <span className={styles.repLabel}>
+                            {isActive ? <em>{opt.label}</em> : opt.label}
+                          </span>
                         </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                );
-              }}
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
             />
-            <div className={styles.toggleField} style={{ alignSelf: 'end' }}>
-              <div className={styles.toggleInfo}>
-                <div className={styles.toggleContent}>
-                  <span className={styles.toggleName}>Passport Ready</span>
-                  <p className={styles.toggleDescription}>Available for international travel jobs</p>
-                </div>
-              </div>
-              <PholioToggle
-                checked={watch('passport_ready') || false}
-                onChange={(e) => setValue('passport_ready', e.target.checked, { shouldDirty: true })}
-              />
-            </div>
           </div>
         </Section>
               </div>
@@ -1187,6 +1312,63 @@ export default function ProfilePage() {
               </div>
             </article>
 
+            {isStudioPlus ? (
+              <article className={styles.movement}>
+                <header className={styles.movementHead}>
+                  <p className={styles.movementKicker}>V — Studio+</p>
+                  <h2 className={styles.movementTitle}>
+                    Website <em>analytics</em>
+                  </h2>
+                  <p className={styles.movementLede}>
+                    Monitor how agencies discover and engage with your profile.
+                  </p>
+                </header>
+                <div className={styles.movementCard}>
+                  <section className={styles.studioAnalyticsSection} aria-label="Website analytics">
+                    {analyticsLoading ? (
+                      <p className={styles.studioAnalyticsMuted}>Loading analytics...</p>
+                    ) : summaryError ? (
+                      <p className={styles.studioAnalyticsMuted}>
+                        Analytics are temporarily unavailable.
+                      </p>
+                    ) : (
+                      <>
+                        <div className={styles.studioAnalyticsGrid}>
+                          <article className={styles.studioAnalyticsStat}>
+                            <span className={styles.studioAnalyticsLabel}>
+                              <Eye size={14} aria-hidden />
+                              Profile Views
+                            </span>
+                            <p className={styles.studioAnalyticsValue}>{websiteViews.toLocaleString()}</p>
+                            <span className={styles.studioAnalyticsMeta}>
+                              {websiteViewDelta >= 0 ? '+' : ''}
+                              {websiteViewDelta}% vs last period
+                            </span>
+                          </article>
+
+                          <article className={styles.studioAnalyticsStat}>
+                            <span className={styles.studioAnalyticsLabel}>
+                              <MousePointerClick size={14} aria-hidden />
+                              Engagement Events
+                            </span>
+                            <p className={styles.studioAnalyticsValue}>{engagementEvents.toLocaleString()}</p>
+                            <span className={styles.studioAnalyticsMeta}>
+                              Combined interactions from your public profile
+                            </span>
+                          </article>
+                        </div>
+
+                        <Link to="/dashboard/talent/analytics" className={styles.studioAnalyticsLink}>
+                          <Activity size={14} aria-hidden />
+                          Open detailed analytics
+                        </Link>
+                      </>
+                    )}
+                  </section>
+                </div>
+              </article>
+            ) : null}
+
         </>
       )}
           </form>
@@ -1214,7 +1396,7 @@ export default function ProfilePage() {
           }}
           onSaveClick={() => {
             if (Object.keys(errors).length > 0) {
-              toast.error('Please fix validation errors before saving');
+              pholioToast.error('Please fix validation errors before saving');
             }
           }}
           onItemClick={scrollToProfileSection}

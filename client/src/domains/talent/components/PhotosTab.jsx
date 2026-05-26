@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../api/talent';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { TransferFailureNotice } from '../../../shared/components/states';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 12;
@@ -95,6 +96,7 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
   const dragDepthRef = useRef(0);
   const fileInputRef = useRef(null);
   const [settingHeroId, setSettingHeroId] = useState(null);
+  const [uploadTransferError, setUploadTransferError] = useState(null);
 
   useEffect(() => {
     if (!Array.isArray(authImages)) return;
@@ -139,6 +141,7 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
     if (validFiles.length === 0) return;
 
     setIsUploading(true);
+    setUploadTransferError(null);
     const formData = new FormData();
     validFiles.forEach((file) => {
       formData.append('media', file);
@@ -187,8 +190,10 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
       const heroUrl = resolveTalentImageUrl(primary) || heroUrlFromResponse;
       if (onPhotoUploaded && heroUrl) onPhotoUploaded(heroUrl);
     } catch (error) {
+      const message = error?.message || 'Failed to upload photo';
       console.error('Upload failed', error);
-      toast.error('Failed to upload photo');
+      setUploadTransferError(message);
+      toast.error(message);
     } finally {
       setIsUploading(false);
     }
@@ -252,6 +257,14 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
         <h2 className="text-xl font-semibold text-slate-900 font-display">Manage Photos</h2>
         <p className="text-sm text-slate-500">Add high-quality photos to your portfolio to stand out.</p>
       </div>
+
+      {uploadTransferError && (
+        <TransferFailureNotice
+          title="Upload interrupted"
+          body={uploadTransferError}
+          retry={{ label: 'Dismiss', onClick: () => setUploadTransferError(null) }}
+        />
+      )}
 
       <input
         ref={fileInputRef}

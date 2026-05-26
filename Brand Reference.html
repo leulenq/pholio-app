@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pholio — Brand Reference</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Display:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #050505;
+    --ink-soft: #0F172A;
+    --cream: #FAF7F2;
+    --cream-warm: #F5F0E8;
+    --cream-dark: #EDE8DD;
+    --gold: #C9A55A;
+    --gold-warm: #C8A96E;
+    --gold-light: #D4BC8A;
+    --gold-dark: #A8894E;
+    --text: #1A1A1A;
+    --text-soft: rgba(26,26,26,0.62);
+    --text-faint: rgba(26,26,26,0.42);
+    --text-muted: #94a3b8;
+    --hair: rgba(26,26,26,0.08);
+    --hair-strong: rgba(26,26,26,0.16);
+    --hair-gold: rgba(201,165,90,0.22);
+    --serif: "Noto Serif Display", Georgia, serif;
+    --sans: "Inter", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", monospace;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--cream); color: var(--text); font-family: var(--sans); font-weight: 400; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  ::selection { background: var(--gold); color: var(--ink); }
+
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+  }
+  main { position: relative; z-index: 2; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 48px; }
+  @media (max-width: 720px) { .wrap { padding: 0 24px; } }
+
+  .micro { font-family: var(--mono); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); }
+  .label { font-family: var(--sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: var(--gold); }
+  .body { font-family: var(--sans); font-weight: 300; font-size: 17px; line-height: 1.7; color: var(--text-soft); max-width: 62ch; text-wrap: pretty; }
+  .body strong { font-weight: 500; color: var(--text); }
+  .body em { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--gold); }
+  .small { font-family: var(--sans); font-weight: 400; font-size: 13px; line-height: 1.65; color: var(--text-faint); max-width: 56ch; }
+  .serif { font-family: var(--serif); font-weight: 400; letter-spacing: -0.02em; line-height: 1.02; }
+  .italic { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--gold); }
+  h1.display { font-size: clamp(48px, 8vw, 108px); }
+  h2.section { font-size: clamp(36px, 5.4vw, 76px); }
+  h3.beat { font-size: clamp(24px, 3.2vw, 40px); letter-spacing: -0.01em; line-height: 1.08; }
+  h4.sm { font-size: 18px; font-weight: 500; letter-spacing: -0.005em; line-height: 1.2; }
+
+  /* COVER */
+  header.cover { background: var(--ink); color: #fff; padding: 120px 0 96px; position: relative; overflow: hidden; }
+  header.cover::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 60%, rgba(201,165,90,0.10) 0%, transparent 60%); }
+  header.cover .inner { position: relative; z-index: 1; }
+  header.cover .wm-row { display: inline-flex; align-items: center; gap: 14px; margin-bottom: 72px; }
+  header.cover .wm-row .pholio { font-family: var(--serif); font-weight: 400; letter-spacing: 0.22em; font-size: 18px; color: var(--gold-warm); }
+  header.cover .wm-row .bar { width: 28px; height: 1px; background: var(--gold-warm); }
+  header.cover .meta-row { display: flex; gap: 56px; flex-wrap: wrap; margin-bottom: 56px; }
+  header.cover .meta-row .micro { color: rgba(201,165,90,0.78); }
+  header.cover .meta-row .v { font-family: var(--sans); font-size: 13px; color: rgba(255,255,255,0.46); margin-top: 6px; }
+  header.cover h1 { color: #fff; max-width: 16ch; }
+  header.cover .stand { margin-top: 48px; max-width: 56ch; font-family: var(--sans); font-weight: 300; font-size: 18px; line-height: 1.7; color: rgba(255,255,255,0.58); }
+  header.cover .stand em { font-family: var(--serif); font-style: italic; color: var(--gold); }
+  header.cover .sweep { margin-top: 64px; height: 1px; width: 160px; background: linear-gradient(to right, transparent, var(--gold-warm), transparent); }
+
+  /* SECTIONS */
+  section { padding: 120px 0; position: relative; }
+  section.cream { background: var(--cream); }
+  section.cream-warm { background: var(--cream-warm); }
+  section.ink { background: var(--ink); color: #fff; }
+  section.ink .body { color: rgba(255,255,255,0.6); }
+  section.ink .body strong { color: #fff; }
+  @media (max-width: 720px) { section { padding: 72px 0; } }
+
+  .sec-head { margin-bottom: 64px; max-width: 880px; }
+  .sec-head .chap { display: block; margin-bottom: 24px; }
+  .sec-head h2 { max-width: 18ch; }
+  .sec-head .lede { margin-top: 28px; }
+
+  /* INDEX TABLE */
+  .index-list { border-top: 1px solid rgba(255,255,255,0.08); }
+  .index-list .row { display: grid; grid-template-columns: 80px 1fr auto; gap: 32px; align-items: baseline; padding: 22px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .index-list .row .n { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; color: var(--gold); }
+  .index-list .row .name { font-family: var(--serif); font-size: 22px; letter-spacing: -0.01em; color: #fff; }
+  .index-list .row .name em { font-style: italic; color: var(--gold); }
+  .index-list .row .ref { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+
+  /* CARD GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 960px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+  /* LOGO LOCKUP SECTION */
+  .logo-stage {
+    background: var(--ink); border-radius: 6px; padding: 80px 48px; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; min-height: 320px;
+  }
+  .logo-stage::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(201,165,90,0.10) 0%, transparent 55%);
+  }
+  .logo-stage.cream { background: var(--cream); }
+  .logo-stage.cream::before { display: none; }
+  .logo-stage .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.035; mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .lockup { position: relative; display: inline-flex; flex-direction: column; align-items: center; gap: 16px; }
+  .lockup .word { display: inline-flex; }
+  .lockup .word .ltr { font-family: var(--serif); font-weight: 400; letter-spacing: 0.2em; color: var(--gold-warm); }
+  .lockup .sweep { height: 1px; background: linear-gradient(to right, transparent, var(--gold-warm), transparent); border-radius: 999px; }
+  .lockup.on-cream .word .ltr { color: var(--gold); }
+  .lockup.on-cream .sweep { background: linear-gradient(to right, transparent, var(--gold), transparent); }
+
+  /* size variants */
+  .lockup.xl .word .ltr { font-size: 64px; }
+  .lockup.xl .sweep { width: 180px; margin-top: 8px; }
+  .lockup.lg .word .ltr { font-size: 40px; }
+  .lockup.lg .sweep { width: 120px; margin-top: 6px; }
+  .lockup.md .word .ltr { font-size: 24px; }
+  .lockup.md .sweep { width: 72px; }
+  .lockup.sm .word .ltr { font-size: 14px; letter-spacing: 0.22em; }
+  .lockup.sm .sweep { width: 40px; }
+
+  .logo-caption { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 16px 4px 0; }
+  .logo-caption .l { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
+  .logo-caption .r { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; color: var(--text-faint); }
+  section.ink .logo-caption .r { color: rgba(255,255,255,0.4); }
+
+  /* spec tables */
+  .specs { border-top: 1px solid var(--hair); }
+  .specs .row { display: grid; grid-template-columns: 180px 1fr; gap: 32px; padding: 14px 0; border-bottom: 1px solid var(--hair); }
+  @media (max-width: 720px) { .specs .row { grid-template-columns: 1fr; gap: 4px; } }
+  .specs .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); padding-top: 4px; }
+  .specs .v { font-family: var(--sans); font-size: 14px; font-weight: 400; line-height: 1.6; color: var(--text); }
+  .specs .v code { font-family: var(--mono); font-size: 12.5px; background: rgba(201,165,90,0.08); padding: 1px 6px; border-radius: 2px; color: var(--text); }
+  section.ink .specs { border-top-color: rgba(255,255,255,0.08); }
+  section.ink .specs .row { border-bottom-color: rgba(255,255,255,0.08); }
+  section.ink .specs .v { color: rgba(255,255,255,0.82); }
+  section.ink .specs .v code { background: rgba(201,165,90,0.12); color: rgba(255,255,255,0.95); }
+
+  /* CALLOUTS */
+  .callout {
+    border-top: 1px solid var(--hair-gold);
+    padding: 24px 0 0;
+    margin: 24px 0;
+    display: grid; grid-template-columns: 80px 1fr; gap: 24px;
+  }
+  @media (max-width: 720px) { .callout { grid-template-columns: 1fr; gap: 8px; } }
+  .callout .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
+  .callout .text { font-family: var(--sans); font-weight: 300; font-size: 15.5px; line-height: 1.6; color: var(--text-soft); max-width: 60ch; }
+
+  /* DON'T LIST */
+  .donts { list-style: none; padding: 0; margin: 24px 0 0; }
+  .donts li { padding: 16px 0; border-top: 1px solid var(--hair); font-family: var(--sans); font-weight: 300; font-size: 15px; line-height: 1.55; color: var(--text-soft); display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: baseline; }
+  .donts li:first-child { border-top: none; padding-top: 0; }
+  .donts li .x { font-family: var(--mono); color: #b04848; font-size: 14px; line-height: 1; }
+  .donts li strong { color: var(--text); font-weight: 500; }
+
+  /* ─────── PRICING DEMO ─────── */
+  .pricing-stage { background: var(--cream); border-radius: 6px; padding: 56px 32px 64px; position: relative; overflow: hidden; }
+  .pricing-stage::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 1px; width: 60%; background: linear-gradient(to right, transparent, var(--gold), transparent); }
+  .pricing-header { text-align: center; margin-bottom: 32px; }
+  .pricing-header .kicker { font-family: var(--sans); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 600; color: var(--gold); }
+  .pricing-header h3 { font-family: var(--serif); font-size: 40px; letter-spacing: -0.02em; line-height: 1.05; margin: 20px 0 12px; }
+  .pricing-header h3 em { font-style: italic; color: var(--gold); }
+  .pricing-header p { font-family: var(--sans); font-size: 15px; color: var(--text-soft); }
+
+  .billing-toggle { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 14px; }
+  .billing-toggle .lbl { font-family: var(--sans); font-size: 13px; font-weight: 500; }
+  .billing-toggle .lbl.active { color: var(--ink); }
+  .billing-toggle .lbl.muted { color: var(--text-muted); }
+  .billing-toggle .switch { width: 44px; height: 26px; border-radius: 999px; background: var(--cream-dark); position: relative; cursor: pointer; transition: background .3s var(--ease); border: none; }
+  .billing-toggle .switch.on { background: var(--gold); }
+  .billing-toggle .switch .knob { width: 22px; height: 22px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); transition: transform .3s var(--ease); }
+  .billing-toggle .switch.on .knob { transform: translateX(18px); }
+  .billing-toggle .save { font-family: var(--sans); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; background: rgba(201,165,90,0.10); color: var(--gold-dark); }
+  .billing-note { text-align: center; font-family: var(--sans); font-size: 12px; color: var(--text-muted); margin-bottom: 32px; }
+  .billing-note strong { color: var(--ink); font-weight: 600; }
+
+  .price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .price-grid { grid-template-columns: 1fr; } }
+  .price-card { background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 10px; padding: 28px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .price-card.featured { border: 1.5px solid var(--gold); box-shadow: 0 30px 100px rgba(200,169,110,0.08), 0 1px 3px rgba(0,0,0,0.03); position: relative; }
+  .price-card.featured .tab { position: absolute; top: -1px; left: 28px; background: var(--gold); color: var(--ink); font-family: var(--sans); font-size: 9px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; padding: 5px 10px; border-radius: 0 0 4px 4px; }
+  .price-card h4 { font-family: var(--sans); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 4px; margin-top: 12px; }
+  .price-card .sub { font-family: var(--sans); font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+  .price-card .num { display: flex; align-items: baseline; gap: 6px; margin-bottom: 18px; }
+  .price-card .num .big { font-family: var(--serif); font-size: 36px; line-height: 1; }
+  .price-card .num .unit { font-family: var(--sans); font-size: 13px; color: var(--text-muted); }
+  .price-card .btn { display: block; width: 100%; padding: 11px 18px; border-radius: 8px; font-family: var(--sans); font-size: 13px; font-weight: 600; text-align: center; text-decoration: none; transition: all .25s var(--ease); }
+  .price-card .btn.outline { border: 1px solid var(--cream-dark); color: var(--ink); background: transparent; }
+  .price-card .btn.gold { background: var(--gold); color: var(--ink); border: 1px solid var(--gold); letter-spacing: 0.12em; text-transform: uppercase; font-size: 12px; }
+  .price-card .btn.gold:hover { background: var(--gold-light); }
+  .price-card .features { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 12px; }
+  .price-card .features li { display: flex; gap: 10px; align-items: flex-start; font-family: var(--sans); font-size: 13.5px; color: var(--text-soft); }
+  .price-card .features li svg { flex-shrink: 0; margin-top: 2px; }
+
+  .price-card .limit-note { background: rgba(245,240,232,0.5); border: 1px solid rgba(0,0,0,0.04); border-radius: 6px; padding: 10px 12px; font-family: var(--sans); font-size: 12px; color: var(--text-soft); line-height: 1.5; margin-top: 14px; }
+  .price-card .limit-note strong { color: var(--ink); font-weight: 600; }
+
+  .price-card.enterprise { background: var(--ink); border: 1px solid rgba(255,255,255,0.06); border-top: 1px solid rgba(201,165,90,0.28); padding: 32px 36px; margin-top: 20px; display: grid; grid-template-columns: 1fr 1px 1fr; gap: 32px; align-items: center; }
+  @media (max-width: 720px) { .price-card.enterprise { grid-template-columns: 1fr; } .price-card.enterprise .divider { display: none; } }
+  .price-card.enterprise h4 { color: rgba(255,255,255,0.95); }
+  .price-card.enterprise .sub { color: rgba(255,255,255,0.45); }
+  .price-card.enterprise .blurb { font-family: var(--sans); font-size: 12px; line-height: 1.55; color: rgba(255,255,255,0.4); max-width: 36ch; margin-bottom: 18px; }
+  .price-card.enterprise .quote { font-family: var(--serif); font-size: 32px; color: rgba(255,255,255,0.95); margin-bottom: 18px; }
+  .price-card.enterprise .btn { display: inline-block; width: auto; background: rgba(200,169,110,0.15); border: 1px solid rgba(200,169,110,0.35); color: var(--gold-warm); padding: 11px 24px; }
+  .price-card.enterprise .divider { background: rgba(255,255,255,0.07); height: 100%; min-height: 120px; }
+  .price-card.enterprise .features li { color: rgba(255,255,255,0.6); }
+
+  /* PILLS */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--sans); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 5px 11px; border-radius: 999px; line-height: 1;
+    border: 1px solid transparent; transition: background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease);
+    white-space: nowrap;
+  }
+  .pill.lg { font-size: 11px; padding: 7px 14px; letter-spacing: 0.2em; }
+  .pill .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Free — quiet */
+  .pill.free { background: transparent; color: var(--text-soft); border-color: var(--hair-strong); }
+  .pill.free:hover { color: var(--text); border-color: rgba(26,26,26,0.32); }
+  section.ink .pill.free { color: rgba(255,255,255,0.55); border-color: rgba(255,255,255,0.18); }
+  section.ink .pill.free:hover { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.32); }
+
+  /* Studio+ — primary, gold */
+  .pill.studio { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .pill.studio:hover { background: var(--gold-light); border-color: var(--gold-light); }
+
+  /* Ultra — exclusive, velvet w/ gold serif label */
+  .pill.ultra { background: var(--ink); color: var(--gold-warm); border-color: rgba(201,165,90,0.55); font-family: var(--serif); font-weight: 400; font-style: italic; font-size: 12px; letter-spacing: 0.08em; text-transform: none; padding: 5px 14px; }
+  .pill.ultra.lg { font-size: 13.5px; padding: 7px 16px; }
+  .pill.ultra:hover { color: var(--gold-light); border-color: var(--gold-light); }
+  section.ink .pill.ultra { background: rgba(255,255,255,0.04); }
+
+  /* Enterprise — institutional, formal */
+  .pill.enterprise { background: transparent; color: var(--ink); border-color: var(--ink); }
+  .pill.enterprise .dot { background: var(--gold); }
+  .pill.enterprise:hover { background: var(--ink); color: var(--gold-warm); }
+  section.ink .pill.enterprise { color: rgba(255,255,255,0.92); border-color: rgba(255,255,255,0.55); }
+  section.ink .pill.enterprise:hover { background: rgba(255,255,255,0.06); color: var(--gold-warm); border-color: var(--gold); }
+
+  /* pill demo bg blocks */
+  .pill-stage { padding: 32px; border-radius: 6px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .pill-stage.cream { background: #fff; border: 1px solid var(--hair); }
+  .pill-stage.warm { background: var(--cream-warm); }
+  .pill-stage.ink { background: var(--ink); }
+  .pill-stage .label-mini { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); width: 100%; margin-bottom: 4px; }
+  .pill-stage.ink .label-mini { color: var(--gold-warm); }
+
+  /* in-context demos */
+  .ctx { background: #fff; border: 1px solid var(--hair); border-radius: 10px; padding: 24px; }
+  .ctx.ink { background: var(--ink); border-color: rgba(255,255,255,0.06); color: #fff; }
+  .ctx .head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+  .ctx .head h5 { font-family: var(--serif); font-size: 22px; letter-spacing: -0.01em; }
+  .ctx .head .meta { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-faint); }
+  .ctx.ink .head .meta { color: rgba(255,255,255,0.4); }
+  .ctx .body-text { font-family: var(--sans); font-size: 13px; color: var(--text-soft); line-height: 1.6; }
+  .ctx.ink .body-text { color: rgba(255,255,255,0.55); }
+
+  /* matrix table */
+  .matrix { border-top: 1px solid var(--hair); }
+  .matrix .row { display: grid; grid-template-columns: 160px repeat(4, 1fr); gap: 0; align-items: center; border-bottom: 1px solid var(--hair); }
+  .matrix .row > div { padding: 14px 16px 14px 0; font-family: var(--sans); font-size: 13px; color: var(--text-soft); }
+  .matrix .row > div:first-child { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
+  .matrix .row.head > div { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); padding-top: 18px; padding-bottom: 14px; }
+  .matrix .row.head > div:first-child { color: var(--gold); }
+  @media (max-width: 720px) { .matrix .row { grid-template-columns: 1fr; } .matrix .row > div { padding: 6px 0; } .matrix .row.head { display: none; } .matrix .row > div:first-child { padding-top: 18px; padding-bottom: 4px; border-top: 1px solid var(--hair); } }
+
+  /* footer */
+  footer { background: var(--cream); padding: 24px 16px 56px; }
+  footer .card { background: #fff; border-radius: 28px; padding: 56px 48px; max-width: 1600px; margin: 0 auto; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.03); position: relative; }
+  footer .card::before { content: ""; position: absolute; top: 0; left: 48px; right: 48px; height: 1px; background: var(--gold); opacity: 0.6; }
+  footer .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; flex-wrap: wrap; }
+  footer .doc-meta { font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-faint); text-align: right; }
+  footer .doc-meta div + div { margin-top: 6px; }
+  footer .hair { margin: 32px 0 20px; height: 1px; background: rgba(15,23,42,0.06); }
+  footer .copy { font-family: var(--sans); font-size: 12px; color: var(--text-faint); }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ───── COVER ───── -->
+  <header class="cover">
+    <div class="wrap inner">
+      <div class="wm-row">
+        <span class="pholio">PHOLIO</span>
+        <span class="bar"></span>
+        <span class="pholio" style="opacity:0.5;">STUDIO</span>
+      </div>
+
+      <div class="meta-row">
+        <div><div class="micro">Document</div><div class="v">Brand Reference</div></div>
+        <div><div class="micro">Volume</div><div class="v">02 · Practice</div></div>
+        <div><div class="micro">Companion to</div><div class="v">Design Philosophy</div></div>
+        <div><div class="micro">Status</div><div class="v">Canonical · Locked</div></div>
+      </div>
+
+      <h1 class="serif display">
+        Repeatable<br />
+        <span class="italic">decisions.</span>
+      </h1>
+
+      <p class="stand">
+        Where the <em>Philosophy</em> defines what Pholio believes, this document defines what Pholio <em>does</em> — the canonical logo lockup, the pricing pattern, and the membership pill system. Three working references that any future page can build against without drifting.
+      </p>
+
+      <div class="sweep"></div>
+    </div>
+  </header>
+
+  <!-- ───── INDEX ───── -->
+  <section class="ink" style="padding: 80px 0;">
+    <div class="wrap">
+      <span class="label" style="display:block;margin-bottom:32px;">Index</span>
+      <div class="index-list">
+        <div class="row"><div class="n">I</div><div class="name">The <em>Lockup</em></div><div class="ref">Wordmark + Gold Sweep</div></div>
+        <div class="row"><div class="n">II</div><div class="name">The <em>Pricing</em> Pattern</div><div class="ref">/PricingSection · Cream</div></div>
+        <div class="row"><div class="n">III</div><div class="name">The <em>Pill</em> System</div><div class="ref">Free · Studio+ · Ultra · Enterprise</div></div>
+        <div class="row"><div class="n">IV</div><div class="name">Canonical <em>Sources</em></div><div class="ref">Updated source list</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────
+       I. THE LOCKUP
+  ────────────────────────────────────────────────── -->
+  <section class="cream">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chap">Chapter I — The Lockup</span>
+        <h2 class="serif section">The wordmark is<br /><span class="italic">two gestures,</span> not one.</h2>
+        <p class="body lede">
+          The Pholio logo is not a serif word in gold. It is a serif word in gold <strong>plus the gold sweep beneath it</strong> — the same gesture that completes the preloader. The sweep is part of the brand expression, not an animation flourish. The lockup is incomplete without it.
+        </p>
+      </div>
+
+      <!-- Hero on ink -->
+      <div class="logo-stage" style="margin-bottom: 12px;">
+        <div class="grain"></div>
+        <div class="lockup xl">
+          <div class="word"><span class="ltr">P</span><span class="ltr">H</span><span class="ltr">O</span><span class="ltr">L</span><span class="ltr">I</span><span class="ltr">O</span></div>
+          <div class="sweep"></div>
+        </div>
+      </div>
+      <div class="logo-caption">
+        <span class="l">Primary · On Ink</span>
+        <span class="r">Noto Serif Display 400 · 64px · 0.20em · #C8A96E · sweep 180px</span>
+      </div>
+
+      <!-- on cream -->
+      <div class="logo-stage cream" style="margin: 48px 0 12px;">
+        <div class="lockup xl on-cream">
+          <div class="word"><span class="ltr">P</span><span class="ltr">H</span><span class="ltr">O</span><span class="ltr">L</span><span class="ltr">I</span><span class="ltr">O</span></div>
+          <div class="sweep"></div>
+        </div>
+      </div>
+      <div class="logo-caption">
+        <span class="l">Primary · On Cream</span>
+        <span class="r">Same construction · gold shifts to #C9A55A on paper</span>
+      </div>
+
+      <!-- Size variants -->
+      <h3 class="serif beat" style="margin: 80px 0 24px;">Size variants.</h3>
+      <p class="body" style="margin-bottom: 32px;">
+        Four sizes only. The proportion of word to sweep is fixed: the sweep is always <em>roughly half</em> the wordmark's optical width, centered.
+      </p>
+
+      <div class="grid-4">
+        <div>
+          <div class="logo-stage" style="padding: 48px 24px; min-height: 200px;">
+            <div class="lockup xl">
+              <div class="word">
+                <span class="ltr">P</span><span class="ltr">H</span><span class="ltr">O</span><span class="ltr">L</span><span class="ltr">I</span><span class="ltr">O</span>
+              </div>
+              <div class="sweep"></div>
+            </div>
+          </div>
+          <div class="logo-caption"><span class="l">XL · Cover</span><span class="r">64px · 180w</span></div>
+        </div>
+        <div>
+          <div class="logo-stage" style="padding: 48px 24px; min-height: 200px;">
+            <div class="lockup lg">
+              <div class="word">
+                <span class="ltr">P</span><span class="ltr">H</span><span class="ltr">O</span><span class="ltr">L</span><span class="ltr">I</span><span class="ltr">O</span>
+              </div>
+              <div class="sweep"></div>
+            </div>
+          </div>
+          <div class="logo-caption"><span class="l">LG · Hero</span><span class="r">40px · 120w</span></div>
+        </div>
+        <div>
+          <div class="logo-stage" style="padding: 48px 24px; min-height: 200px;">
+            <div class="lockup md">
+              <div class="word">
+                <span class="ltr">P</span><span class="ltr">H</span><span class="ltr">O</span><span class="ltr">L</span><span class="ltr">I</span><span class="ltr">O</span>
+              </div>
+              <div class="sweep"></div>
+            </div>
+          </div>
+          <div class="logo-caption"><span class="l">MD · Header</span><span class="r">24px · 72w</span></div>
+        </div>
+        <div>
+          <div class="logo-stage" style="padding: 48px 24px; min-height: 200px;">
+            <div class="lockup sm">
+              <div class="word">
+                <span class="ltr">P</span><span class="ltr">H</span><span class="ltr">O</span><span class="ltr">L</span><span class="ltr">I</span><span class="ltr">O</span>
+              </div>
+              <div class="sweep"></div>
+            </div>
+          </div>
+          <div class="logo-caption"><span class="l">SM · Footer</span><span class="r">14px · 40w</span></div>
+        </div>
+      </div>
+
+      <!-- Specs -->
+      <h3 class="serif beat" style="margin: 80px 0 24px;">Construction specs.</h3>
+      <div class="specs">
+        <div class="row"><div class="k">Wordmark</div><div class="v">Noto Serif Display, weight 400, all-caps, set in <code>PHOLIO</code>. Never weight 500+. Never italic.</div></div>
+        <div class="row"><div class="k">Letter-spacing</div><div class="v"><code>0.20em</code> at all sizes ≥ 24px. <code>0.22em</code> at small (≤ 16px) to preserve openness.</div></div>
+        <div class="row"><div class="k">Color on ink</div><div class="v"><code>#C8A96E</code> (Gold Warm). Slightly warmer than paper-gold; reads cooler under ambient glow.</div></div>
+        <div class="row"><div class="k">Color on cream</div><div class="v"><code>#C9A55A</code> (Gold). The system's canonical gold. Use everywhere except the preloader and ink heroes.</div></div>
+        <div class="row"><div class="k">The sweep</div><div class="v">1px height. Width is <strong>~50% of the wordmark's optical width</strong>. Horizontal gradient <code>transparent → gold → transparent</code>. Centered. Sits 4–16px below the baseline depending on size.</div></div>
+        <div class="row"><div class="k">Clear space</div><div class="v">Minimum margin equal to the cap-height of the wordmark, on all four sides. The sweep counts as part of the lockup for clear-space purposes.</div></div>
+        <div class="row"><div class="k">Minimum size</div><div class="v">14px wordmark, 40px sweep. Below this, drop the sweep and use the wordmark alone — see "Reductions" below.</div></div>
+        <div class="row"><div class="k">Background</div><div class="v">Ink (<code>#050505</code>) preferred for ceremonial moments (preloader, hero, footer). Cream (<code>#FAF7F2</code>) for everyday use. White cards inside cream sections are fine. Photos and saturated colors are <strong>not</strong>.</div></div>
+        <div class="row"><div class="k">Animation</div><div class="v">When animated: letters fade + lift in stagger (50–80ms each, 0.6s duration, ease-out-quint). The sweep arrives last, expanding from 0 to full width at 0.8s with the same ease.</div></div>
+      </div>
+
+      <!-- Reductions -->
+      <h3 class="serif beat" style="margin: 80px 0 24px;">Reductions &amp; companion marks.</h3>
+      <p class="body" style="margin-bottom: 32px;">
+        At sizes where the sweep can no longer be drawn cleanly (~12px and below), or where vertical space is constrained (favicon, nav, app chrome), use one of the approved reductions. The reductions <em>defer</em> to the full lockup; they do not replace it.
+      </p>
+
+      <div class="grid-4">
+        <div>
+          <div class="logo-stage cream" style="padding: 32px; min-height: 140px; border: 1px solid var(--hair);">
+            <span style="font-family:var(--serif);font-weight:400;letter-spacing:0.22em;font-size:14px;color:var(--gold);">PHOLIO</span>
+          </div>
+          <div class="logo-caption"><span class="l">Wordmark only</span><span class="r">≤ 16px, no sweep</span></div>
+        </div>
+        <div>
+          <div class="logo-stage cream" style="padding: 32px; min-height: 140px; border: 1px solid var(--hair);">
+            <span style="font-family:var(--serif);font-weight:400;letter-spacing:0.05em;font-size:48px;color:var(--gold);">P.</span>
+          </div>
+          <div class="logo-caption"><span class="l">Initial · P.</span><span class="r">Ghost marks, favicons</span></div>
+        </div>
+        <div>
+          <div class="logo-stage cream" style="padding: 32px; min-height: 140px; border: 1px solid var(--hair);">
+            <span style="font-family:var(--serif);font-weight:400;font-style:italic;font-size:48px;color:var(--gold);">P</span>
+          </div>
+          <div class="logo-caption"><span class="l">Italic P · ghost</span><span class="r">Page backgrounds only</span></div>
+        </div>
+        <div>
+          <div class="logo-stage cream" style="padding: 32px; min-height: 140px; border: 1px solid var(--hair); flex-direction: column; gap: 6px;">
+            <span style="font-family:var(--serif);font-weight:500;letter-spacing:0.16em;font-size:22px;color:var(--ink);text-transform:uppercase;">PHOLIO</span>
+            <span style="width:3px;height:22px;background:linear-gradient(180deg,var(--gold),rgba(201,165,90,0.4));border-radius:1px;display:inline-block;align-self:flex-start;margin-top:-26px;margin-left:128px;"></span>
+          </div>
+          <div class="logo-caption"><span class="l">Sliver lockup</span><span class="r">Footer · ink wordmark</span></div>
+        </div>
+      </div>
+
+      <!-- Don'ts -->
+      <h3 class="serif beat" style="margin: 80px 0 24px;">Never.</h3>
+      <ul class="donts">
+        <li><span class="x">✕</span><span><strong>Never set the wordmark in a sans-serif.</strong> Inter is for clerical work; the brand is editorial.</span></li>
+        <li><span class="x">✕</span><span><strong>Never use gold on a coloured or photographic background.</strong> Ink or cream only.</span></li>
+        <li><span class="x">✕</span><span><strong>Never bold or italicise the full wordmark.</strong> The italic cut belongs to single emphasis words inside sentences, not to the lockup.</span></li>
+        <li><span class="x">✕</span><span><strong>Never drop the sweep at sizes ≥ 24px.</strong> The lockup is the gesture; without the sweep, it's a string of letters.</span></li>
+        <li><span class="x">✕</span><span><strong>Never tighten the letter-spacing below 0.18em.</strong> The openness is the brand's posture.</span></li>
+        <li><span class="x">✕</span><span><strong>Never enclose the lockup in a box, badge, or circular avatar.</strong> The lockup is the badge.</span></li>
+        <li><span class="x">✕</span><span><strong>Never animate the sweep on a loop.</strong> It is a single arrival gesture. After the page settles, the sweep is still.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────
+       II. THE PRICING PATTERN
+  ────────────────────────────────────────────────── -->
+  <section class="cream-warm">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chap">Chapter II — The Pricing Pattern</span>
+        <h2 class="serif section">A premium offer,<br /><span class="italic">composed.</span></h2>
+        <p class="body lede">
+          The pricing section is the strongest "functional" surface on the site. It does the job of a conversion section without becoming generic SaaS pricing UI. The shape below is the canonical pattern for any high-stakes commercial moment — pricing, plan comparison, upgrade flow, agency onboarding pitch.
+        </p>
+      </div>
+
+      <!-- Live demo of the pattern -->
+      <div class="pricing-stage">
+        <div class="pricing-header">
+          <span class="kicker">Pricing</span>
+          <h3>Simple, transparent <em>pricing.</em></h3>
+          <p>Start free. Upgrade when you're ready.</p>
+        </div>
+
+        <div class="billing-toggle">
+          <span class="lbl active">Monthly</span>
+          <button class="switch" aria-label="Toggle billing"><span class="knob"></span></button>
+          <span class="lbl muted">Yearly</span>
+        </div>
+        <p class="billing-note">Studio+ <strong>$9.99/month</strong>, billed monthly. Cancel anytime.</p>
+
+        <div class="price-grid">
+          <!-- FREE -->
+          <div class="price-card">
+            <span class="pill free" style="margin-top:4px;">Free</span>
+            <h4>Free</h4>
+            <p class="sub">Get started with the essentials</p>
+            <div class="num"><span class="big">$0</span><span class="unit">/month</span></div>
+            <a class="btn outline">Get started free</a>
+            <p class="limit-note"><strong>On Free,</strong> agency applications are capped at <strong>3 per month</strong>. Studio+ removes that limit.</p>
+            <ul class="features">
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Profile visible to agencies on Pholio</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Up to 10 portfolio images</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Comp card generated instantly</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>AI archetype mapping</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Core analytics</li>
+            </ul>
+          </div>
+
+          <!-- STUDIO+ -->
+          <div class="price-card featured">
+            <div class="tab">Recommended</div>
+            <span class="pill studio" style="margin-top:4px;">Studio+</span>
+            <h4>Studio+</h4>
+            <p class="sub">The full professional toolkit</p>
+            <div class="num"><span class="big">$9.99</span><span class="unit">/month</span></div>
+            <a class="btn gold">Start 14-day free trial</a>
+            <p style="font-family:var(--sans);font-size:11px;line-height:1.5;text-align:center;color:var(--text-muted);margin-top:10px;">No charge for 14 days. Cancel before the trial ends and you won't be charged.</p>
+            <ul class="features">
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A55A" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Unlimited agency applications</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A55A" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>AI profile audit &amp; recommendations</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A55A" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Your own talent website</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A55A" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>QR code on comp cards</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A55A" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Stronger agency discovery placement</li>
+              <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A55A" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Custom .studio URL</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ENTERPRISE -->
+        <div class="price-card enterprise">
+          <div>
+            <span class="pill enterprise" style="margin-bottom:14px;"><span class="dot"></span>Enterprise</span>
+            <h4>Enterprise</h4>
+            <p class="sub">For agencies managing talent at scale</p>
+            <p class="blurb">Volume seats, security review, SSO, and custom workflows — tell us what your board needs.</p>
+            <p class="quote">Let's talk.</p>
+            <a class="btn">Contact us</a>
+          </div>
+          <div class="divider"></div>
+          <ul class="features">
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Unlimited talent seats</li>
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Dedicated account manager</li>
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Custom integrations &amp; API access</li>
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8a96e" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>SLA &amp; priority support</li>
+          </ul>
+        </div>
+
+        <p style="margin-top:32px;text-align:center;font-family:var(--sans);font-size:11px;color:var(--text-muted);max-width:600px;margin-left:auto;margin-right:auto;line-height:1.6;">
+          Prices in USD. Applicable taxes may be added at checkout. Plans renew automatically until you cancel in your account.
+        </p>
+      </div>
+
+      <!-- Why it works -->
+      <h3 class="serif beat" style="margin: 80px 0 24px;">Why it works.</h3>
+      <div class="specs">
+        <div class="row"><div class="k">Hierarchy</div><div class="v">Three plans, but only <strong>two visual weights</strong>: Free is restrained, Studio+ is the hero, Enterprise is a different conversation entirely (different ground, different ask). No "starter / pro / business / scale" matrix.</div></div>
+        <div class="row"><div class="k">Section header</div><div class="v">Standard editorial pattern — small gold kicker (<code>Pricing</code>), serif h2 with one italic gold word (<code>pricing.</code>), one-line subhead. The kicker is the section's name, not a tagline.</div></div>
+        <div class="row"><div class="k">Cream + hairline</div><div class="v">The section sits on cream. The hairline gold-fade at the top (<code>divider-gold-center</code>) is the only ornament. No background gradient. No floating shapes.</div></div>
+        <div class="row"><div class="k">Cards</div><div class="v"><code>10px</code> radius. <code>1px</code> hairline border (<code>rgba(0,0,0,0.06)</code>). Shadow is whisper-thin (<code>0 1px 2px rgba(0,0,0,0.04)</code>). Studio+ promotes to <code>1.5px</code> gold border and a wide, gold-tinted glow.</div></div>
+        <div class="row"><div class="k">Recommended tab</div><div class="v">Solid gold tab anchored at top-left of the featured card, <code>9px</code> uppercase letters, <code>0.22em</code> tracking, velvet ink text. Single visual hierarchy nudge — no "MOST POPULAR" sparkles.</div></div>
+        <div class="row"><div class="k">Price typography</div><div class="v">Numerals set in Noto Serif Display (<code>$9.99</code>) at 36–40px. Unit (<code>/month</code>) in 13px sans, muted. Price changes animate with a 6px y-fade swap (220ms, ease-out-quint).</div></div>
+        <div class="row"><div class="k">Toggle</div><div class="v">Pill switch, 44×26px, cream-dark off-state, gold on-state, white knob. Active side label is ink; inactive is muted. "Save ~20%" pill appears with a soft scale-in only when yearly is on.</div></div>
+        <div class="row"><div class="k">CTAs</div><div class="v">Free uses a quiet <strong>outlined</strong> button (cream-dark border). Studio+ uses the <strong>gold</strong> button — same one used everywhere else as the brand's primary action. Enterprise uses a <strong>tinted-gold</strong> button on velvet (rgba gold bg + rgba gold border).</div></div>
+        <div class="row"><div class="k">Limit honesty</div><div class="v">The Free card carries a small, candidly-worded <strong>limit note</strong> ("agency applications are capped at 3 per month") inside a soft cream-warm callout. This is the trust signal that distinguishes Pholio from churn-funnel SaaS.</div></div>
+        <div class="row"><div class="k">Enterprise as essay</div><div class="v">Full-width velvet card below the grid. No number — a serif sentence (<code>Let's talk.</code>) in place of the price. Single divider line between left column (pitch) and right column (4 bullets). This is how Pholio talks to agencies.</div></div>
+        <div class="row"><div class="k">Tax/legal line</div><div class="v">11–12px sans, muted, centered. One sentence. Mentions USD and that plans renew. This is non-optional — it's the section's "signed and dated" line.</div></div>
+      </div>
+
+      <div class="callout">
+        <div class="tag">Pattern Use</div>
+        <div class="text">This pattern is also the canonical shape for: the Studio+ upgrade dialog inside the product, the agency-tier comparison in sales materials, and any "before/after" plan view. When in doubt, copy this header → toggle → grid-of-two → wide-velvet → fine-print rhythm exactly.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────
+       III. THE PILL SYSTEM
+  ────────────────────────────────────────────────── -->
+  <section class="cream">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chap">Chapter III — The Pill System</span>
+        <h2 class="serif section">Four tiers,<br /><span class="italic">four voices.</span></h2>
+        <p class="body lede">
+          Pholio uses pills wherever a tier or status needs to be named in passing — a profile header, a price card, an account dropdown, a nav, an upgrade hint, an agency dashboard row. Pills are <strong>small, branded, recurring</strong>; if we let them drift, the product becomes a colour-coded mess. The four tiers below are the only ones we draw.
+        </p>
+      </div>
+
+      <!-- Hero pill display -->
+      <div class="grid-2" style="gap: 16px;">
+        <div class="pill-stage cream">
+          <span class="label-mini">On Paper</span>
+          <span class="pill free lg">Free</span>
+          <span class="pill studio lg">Studio+</span>
+          <span class="pill ultra lg">Ultra</span>
+          <span class="pill enterprise lg"><span class="dot"></span>Enterprise</span>
+        </div>
+        <div class="pill-stage ink">
+          <span class="label-mini">On Ink</span>
+          <span class="pill free lg">Free</span>
+          <span class="pill studio lg">Studio+</span>
+          <span class="pill ultra lg">Ultra</span>
+          <span class="pill enterprise lg"><span class="dot"></span>Enterprise</span>
+        </div>
+      </div>
+
+      <!-- Why each is what it is -->
+      <h3 class="serif beat" style="margin: 96px 0 24px;">Four voices, in order.</h3>
+
+      <!-- FREE -->
+      <div style="margin-bottom: 56px;">
+        <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+          <span class="micro">01</span>
+          <span class="pill free lg">Free</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;color:var(--text-faint);text-transform:uppercase;">Quiet · Hairline outline · Ink text</span>
+        </div>
+        <p class="body" style="margin-bottom:20px;">
+          Free is <em>restraint</em>. It is the absence of a brand mark, not the presence of a lower one. The pill is transparent, with a thin ink hairline border and muted text. It should read as "default state," not as "you are missing something."
+        </p>
+        <div class="specs">
+          <div class="row"><div class="k">Background</div><div class="v"><code>transparent</code></div></div>
+          <div class="row"><div class="k">Text</div><div class="v"><code>rgba(26,26,26,0.62)</code> on cream · <code>rgba(255,255,255,0.55)</code> on ink</div></div>
+          <div class="row"><div class="k">Border</div><div class="v"><code>1px solid rgba(26,26,26,0.16)</code> · invert on ink</div></div>
+          <div class="row"><div class="k">Hover</div><div class="v">Text darkens to <code>#1A1A1A</code>; border to <code>rgba(26,26,26,0.32)</code>. No fill change.</div></div>
+        </div>
+      </div>
+
+      <!-- STUDIO+ -->
+      <div style="margin-bottom: 56px;">
+        <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+          <span class="micro">02</span>
+          <span class="pill studio lg">Studio+</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;color:var(--text-faint);text-transform:uppercase;">Hero · Solid gold · Velvet text</span>
+        </div>
+        <p class="body" style="margin-bottom:20px;">
+          Studio+ is the <em>primary tier</em>. The pill is solid gold (<code style="font-family:var(--mono);font-size:13px;background:rgba(201,165,90,0.08);padding:1px 6px;border-radius:2px;">#C9A55A</code>) with velvet ink text. This is the only pill in the system that fills. It carries the same chromatic weight as the gold CTA button — because <strong>upgrading to Studio+ is the same action everywhere</strong>.
+        </p>
+        <div class="specs">
+          <div class="row"><div class="k">Background</div><div class="v"><code>#C9A55A</code> (Gold)</div></div>
+          <div class="row"><div class="k">Text</div><div class="v"><code>#050505</code> (Ink) — never white, never gold-dark</div></div>
+          <div class="row"><div class="k">Border</div><div class="v">Same as background — no visible border</div></div>
+          <div class="row"><div class="k">Hover</div><div class="v">Background shifts to <code>#D4BC8A</code> (Gold Light). No scale. No shadow lift.</div></div>
+          <div class="row"><div class="k">In context</div><div class="v">Used <em>once</em> per surface. If a screen names "Studio+" three times, only the most authoritative instance pills it.</div></div>
+        </div>
+      </div>
+
+      <!-- ULTRA -->
+      <div style="margin-bottom: 56px;">
+        <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+          <span class="micro">03</span>
+          <span class="pill ultra lg">Ultra</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;color:var(--text-faint);text-transform:uppercase;">Exclusive · Velvet fill · Italic serif gold</span>
+        </div>
+        <p class="body" style="margin-bottom:20px;">
+          Ultra sits <em>above</em> Studio+ — the future tier for talent who command the room. It cannot out-gold Studio+ (that would muddy the hierarchy), so it does the opposite: it inverts. <strong>Velvet ink fill, italic serif label, gold text</strong>, gold hairline border. It is the only pill that uses Noto Serif Display italic and the only one whose label is not all-caps. It reads like a notation in a private ledger.
+        </p>
+        <div class="specs">
+          <div class="row"><div class="k">Background</div><div class="v"><code>#050505</code> on cream · <code>rgba(255,255,255,0.04)</code> on ink (preserves contrast)</div></div>
+          <div class="row"><div class="k">Text</div><div class="v"><code>#C8A96E</code> (Gold Warm), italic serif, mixed-case</div></div>
+          <div class="row"><div class="k">Border</div><div class="v"><code>1px solid rgba(201,165,90,0.55)</code></div></div>
+          <div class="row"><div class="k">Hover</div><div class="v">Text + border lift to <code>#D4BC8A</code>. Background unchanged.</div></div>
+          <div class="row"><div class="k">Typography</div><div class="v">Noto Serif Display italic 400 · 12px (lg: 13.5px) · letter-spacing <code>0.08em</code> · NOT uppercase. This is the only pill that breaks the all-caps convention — intentionally.</div></div>
+        </div>
+      </div>
+
+      <!-- ENTERPRISE -->
+      <div style="margin-bottom: 24px;">
+        <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px;">
+          <span class="micro">04</span>
+          <span class="pill enterprise lg"><span class="dot"></span>Enterprise</span>
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;color:var(--text-faint);text-transform:uppercase;">Institutional · Ink outline · Gold dot prefix</span>
+        </div>
+        <p class="body" style="margin-bottom:20px;">
+          Enterprise is for <em>agencies</em>, not talent. The pill is institutional: ink outline on transparent, ink text, with a small gold dot prefix that signals "this is a different conversation." It is the visual equivalent of a business card rather than a price tag.
+        </p>
+        <div class="specs">
+          <div class="row"><div class="k">Background</div><div class="v"><code>transparent</code></div></div>
+          <div class="row"><div class="k">Text</div><div class="v"><code>#1A1A1A</code> on cream · <code>rgba(255,255,255,0.92)</code> on ink</div></div>
+          <div class="row"><div class="k">Border</div><div class="v"><code>1px solid #050505</code> on cream · <code>rgba(255,255,255,0.55)</code> on ink</div></div>
+          <div class="row"><div class="k">Dot prefix</div><div class="v"><code>5px</code> circle, gold (<code>#C9A55A</code>), inset before the label with 6px gap. <strong>The dot is required</strong> — it is what distinguishes Enterprise from a generic outline pill.</div></div>
+          <div class="row"><div class="k">Hover</div><div class="v">Background fills to ink, text becomes Gold Warm (<code>#C8A96E</code>). One of only two pills with a fill-on-hover (the other is Free); both signal "click to learn more."</div></div>
+        </div>
+      </div>
+
+      <!-- The matrix -->
+      <h3 class="serif beat" style="margin: 80px 0 24px;">When each pill appears.</h3>
+      <p class="body" style="margin-bottom: 40px;">
+        Pills are tier names made visible. They appear wherever a tier is being <em>declared</em> — not described. A button that says "Upgrade to Studio+" doesn't need a pill; a profile row that's already a Studio+ member does.
+      </p>
+
+      <div class="matrix">
+        <div class="row head">
+          <div>Context</div>
+          <div>Free</div>
+          <div>Studio+</div>
+          <div>Ultra</div>
+          <div>Enterprise</div>
+        </div>
+        <div class="row">
+          <div>Marketing — pricing card</div>
+          <div>Header pill</div>
+          <div>Header pill + "Recommended" tab</div>
+          <div>Header pill (when launched)</div>
+          <div>Header pill on velvet card</div>
+        </div>
+        <div class="row">
+          <div>Marketing — nav CTA</div>
+          <div>—</div>
+          <div>"Start Studio+ trial" button (no pill)</div>
+          <div>—</div>
+          <div>"For Agencies" link, no pill</div>
+        </div>
+        <div class="row">
+          <div>App — profile dropdown</div>
+          <div>Tier badge in identity block</div>
+          <div>Tier badge in identity block</div>
+          <div>Tier badge in identity block</div>
+          <div>Tier badge on agency seat row</div>
+        </div>
+        <div class="row">
+          <div>App — talent card / search row</div>
+          <div>—</div>
+          <div>Discreet pill, top-right corner</div>
+          <div>Discreet pill, top-right corner</div>
+          <div>—</div>
+        </div>
+        <div class="row">
+          <div>App — comp card preview</div>
+          <div>—</div>
+          <div>QR + Studio+ pill in footer</div>
+          <div>QR + Ultra pill in footer</div>
+          <div>—</div>
+        </div>
+        <div class="row">
+          <div>App — upgrade prompts</div>
+          <div>"Currently on" reference only</div>
+          <div>Target pill in headline</div>
+          <div>Target pill in headline</div>
+          <div>—</div>
+        </div>
+        <div class="row">
+          <div>Email — signature / footer</div>
+          <div>—</div>
+          <div>Inline pill next to talent name</div>
+          <div>Inline pill next to talent name</div>
+          <div>Pill after agency name</div>
+        </div>
+        <div class="row">
+          <div>Agency dashboard — roster row</div>
+          <div>Quiet — text only</div>
+          <div>Pill in plan column</div>
+          <div>Pill in plan column</div>
+          <div>Agency banner pill, top</div>
+        </div>
+      </div>
+
+      <!-- In-context demos -->
+      <h3 class="serif beat" style="margin: 96px 0 24px;">In situ.</h3>
+      <div class="grid-2" style="gap: 20px;">
+        <div class="ctx">
+          <div class="head">
+            <h5>Talia Mendez</h5>
+            <span class="pill studio">Studio+</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">Milan · Editorial</span></div>
+          <p class="body-text">5'10" · Brown hair · Hazel eyes · 18 portfolio frames · Verified by Pholio.</p>
+        </div>
+        <div class="ctx ink">
+          <div class="head">
+            <h5>Atelier Nord</h5>
+            <span class="pill enterprise"><span class="dot"></span>Enterprise</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold-warm);margin-bottom:6px;">Stockholm · 4 scouts · 86 talent</div>
+          <p class="body-text">Active roster. 12 applications pending review across three categories.</p>
+        </div>
+        <div class="ctx">
+          <div class="head">
+            <h5>Liang Hua</h5>
+            <span class="pill ultra">Ultra</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">Paris · Couture</div>
+          <p class="body-text">By invitation. Direct line to senior bookings. Twelve covers since 2023.</p>
+        </div>
+        <div class="ctx">
+          <div class="head">
+            <h5>Marcus Reeve</h5>
+            <span class="pill free">Free</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px;">London · New face</div>
+          <p class="body-text">7 frames. 1 of 3 monthly applications used. Eligible for AI archetype mapping.</p>
+        </div>
+      </div>
+
+      <!-- Don'ts -->
+      <h3 class="serif beat" style="margin: 96px 0 24px;">Never.</h3>
+      <ul class="donts">
+        <li><span class="x">✕</span><span><strong>Never invent a fifth pill.</strong> "Starter", "Plus", "Premium", "Pro" — these don't exist in Pholio. The four tiers are the four tiers. Use existing copy for sub-states.</span></li>
+        <li><span class="x">✕</span><span><strong>Never apply two pills to one entity.</strong> A talent is on exactly one tier. If you need to show plan history, use a timeline, not a pill stack.</span></li>
+        <li><span class="x">✕</span><span><strong>Never re-colour Studio+.</strong> No dark Studio+, no white Studio+, no gradient Studio+. It is gold. Always.</span></li>
+        <li><span class="x">✕</span><span><strong>Never give Ultra a fill.</strong> Ultra's quietness is the point. A filled Ultra reads as a louder Studio+ and ruins the ladder.</span></li>
+        <li><span class="x">✕</span><span><strong>Never drop the Enterprise dot.</strong> Without the gold dot, the Enterprise pill reads as a generic "outline tag" and loses its tier-meaning.</span></li>
+        <li><span class="x">✕</span><span><strong>Never use status pills (Verified, New, Pending) in the same row as tier pills.</strong> If both are required, separate them with a hairline or use a different surface element (a small italic gold word in body copy is preferred).</span></li>
+        <li><span class="x">✕</span><span><strong>Never animate a pill.</strong> No pulse, no shimmer. Tier is identity. Identity doesn't blink.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────────────────────────
+       IV. CANONICAL SOURCES (updated)
+  ────────────────────────────────────────────────── -->
+  <section class="ink">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label chap">Chapter IV — Canonical Sources</span>
+        <h2 class="serif section" style="color:#fff;">The parts of the site<br /><span class="italic">that already work.</span></h2>
+        <p class="body lede">
+          These are the references from <code style="font-family:var(--mono);font-size:13px;color:var(--gold-warm);">leulenq/pholio-landing</code> that the philosophy and this reference were derived from. When in doubt, study these before drawing anything new.
+        </p>
+      </div>
+
+      <div class="index-list">
+        <div class="row">
+          <div class="n">01</div>
+          <div class="name">The <em>Preloader</em></div>
+          <div class="ref">components/Preloader.tsx</div>
+        </div>
+        <div class="row">
+          <div class="n">02</div>
+          <div class="name">The <em>Manifesto</em> section</div>
+          <div class="ref">components/AboutContent.tsx §02</div>
+        </div>
+        <div class="row">
+          <div class="n">03</div>
+          <div class="name">The <em>/talent</em> page</div>
+          <div class="ref">app/talent/page.tsx + TalentPageClient.tsx</div>
+        </div>
+        <div class="row">
+          <div class="n">04</div>
+          <div class="name">The <em>belief</em> sentence</div>
+          <div class="ref">components/BeliefSection.tsx</div>
+        </div>
+        <div class="row">
+          <div class="n">05</div>
+          <div class="name">The <em>legal</em> pages</div>
+          <div class="ref">Privacy · Terms · Cookies</div>
+        </div>
+        <div class="row">
+          <div class="n">06</div>
+          <div class="name">The <em>footer</em></div>
+          <div class="ref">components/MarketingFooter.tsx</div>
+        </div>
+        <div class="row" style="background:rgba(201,165,90,0.04);">
+          <div class="n">07</div>
+          <div class="name">The <em>pricing</em> section <span style="font-family:var(--mono);font-size:10px;letter-spacing:0.22em;color:var(--gold);margin-left:12px;vertical-align:middle;">NEW</span></div>
+          <div class="ref">components/PricingSection.tsx</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 64px;">
+        <span class="label">A note on canon</span>
+        <p class="body" style="margin-top:20px;color:rgba(255,255,255,0.62);">
+          These seven are the parts of pholio-landing that earn the right to be copied from. <strong style="color:#fff;">Other sections of the site exist and may be functional, but they are not canonical</strong> — they should be revised against this document and the Philosophy, not treated as additional references. If you find a part of pholio-landing that you think should be promoted to canon, write it up and bring it to a review.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── FOOTER ───── -->
+  <footer>
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="lockup md on-cream" style="margin-bottom:8px;">
+            <div class="word"><span class="ltr">P</span><span class="ltr">H</span><span class="ltr">O</span><span class="ltr">L</span><span class="ltr">I</span><span class="ltr">O</span></div>
+            <div class="sweep"></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:var(--text-faint);margin-top:6px;">Brand Reference</div>
+        </div>
+        <div class="doc-meta">
+          <div>Vol. 02 · Practice</div>
+          <div>Companion to Design Philosophy</div>
+          <div>Source: pholio-landing@main</div>
+        </div>
+      </div>
+      <div class="hair"></div>
+      <div class="row" style="align-items:center;">
+        <span class="copy">© <span id="y"></span> Pholio Studio. The architecture of composure.</span>
+        <span class="copy" style="font-family:var(--mono);letter-spacing:0.18em;text-transform:uppercase;">End of document.</span>
+      </div>
+    </div>
+  </footer>
+
+</main>
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -27,9 +27,12 @@ export function IdentitySection({
   register,
   control,
   errors,
+  bioValue,
   isImproving,
+  improveMode,
   previousBio,
-  handleAIImprove,
+  onBioRefine,
+  onBioGenerate,
   handleUndoAI,
   watchDob
 }) {
@@ -39,14 +42,23 @@ export function IdentitySection({
         register={register}
         control={control}
         errors={errors}
+        bioValue={bioValue}
         isImproving={isImproving}
+        improveMode={improveMode}
         previousBio={previousBio}
-        handleAIImprove={handleAIImprove}
+        onBioRefine={onBioRefine}
+        onBioGenerate={onBioGenerate}
         handleUndoAI={handleUndoAI}
         watchDob={watchDob}
       />
 
-      <Section id="heritage" title="Heritage & Background" description="Helps match you with diverse casting calls.">
+      <Section
+        id="heritage"
+        kicker="Heritage"
+        title="Heritage & Background"
+        titleEmphasis="Background"
+        description="Helps match you with diverse casting calls."
+      >
         <div className={styles.formRow}>
           <Controller
             name="ethnicity"

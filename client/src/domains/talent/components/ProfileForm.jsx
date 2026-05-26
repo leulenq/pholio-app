@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { talentProfileUpdateSchema } from '../../../shared/lib/validation';
 import { useProfile } from '../hooks/useProfile';
 import { Input, Select, TextArea, Button } from '../../../shared/components/ui';
+import PholioMultiSelect from '../../../shared/components/ui/forms/PholioMultiSelect';
+import { useReferenceLanguages } from '../../../shared/hooks/useReferenceLanguages';
 import ProfilePreview from './ProfilePreview';
 import { 
   User, Ruler, Briefcase, Award, FileText, Share2, Phone, CheckCircle2, AlertCircle 
@@ -44,6 +46,11 @@ const SectionCard = ({ icon: Icon, title, completion, children }) => {
 
 export default function ProfileForm() {
   const { profile, images, updateProfile, isUpdating } = useProfile();
+  const { data: referenceLanguages = [], isLoading: languagesLoading } = useReferenceLanguages();
+  const languageOptions = referenceLanguages.map((lang) => ({
+    value: lang.name,
+    label: lang.name,
+  }));
   
   const formMethods = useForm({
     resolver: zodResolver(talentProfileUpdateSchema),
@@ -51,7 +58,7 @@ export default function ProfileForm() {
     mode: 'onBlur'
   });
   
-  const { register, handleSubmit, reset, watch, formState: { errors, isDirty } } = formMethods;
+  const { register, handleSubmit, reset, watch, control, formState: { errors, isDirty } } = formMethods;
 
   // Simple completion calculation (mock logic for now)
   const calculateCompletion = (fields) => {
@@ -64,7 +71,14 @@ export default function ProfileForm() {
   useEffect(() => {
     if (profile) {
       const formatted = { ...profile };
-      if (Array.isArray(formatted.languages)) formatted.languages = formatted.languages.join(', ');
+      if (typeof formatted.languages === 'string') {
+        formatted.languages = formatted.languages
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      } else if (!Array.isArray(formatted.languages)) {
+        formatted.languages = [];
+      }
       if (Array.isArray(formatted.specialties)) formatted.specialties = formatted.specialties.join(', ');
       if (Array.isArray(formatted.comfort_levels)) formatted.comfort_levels = formatted.comfort_levels.join(', ');
       reset(formatted);
@@ -211,12 +225,25 @@ export default function ProfileForm() {
                 {/* Section 4: Skills */}
                 <SectionCard icon={Award} title="Skills & Languages">
                    <div className="space-y-6">
-                      <Input 
-                         label="Languages" 
-                         placeholder="English, Spanish, French..." 
-                         {...register('languages')} 
-                         error={errors.languages}
-                         helpText="Separate multiple languages with commas" 
+                      <Controller
+                        name="languages"
+                        control={control}
+                        render={({ field }) => (
+                          <PholioMultiSelect
+                            label="Languages"
+                            id="languages"
+                            options={languageOptions}
+                            value={field.value || []}
+                            onChange={field.onChange}
+                            error={errors.languages}
+                            placeholder={
+                              languagesLoading ? 'Loading languages…' : 'Search and select languages'
+                            }
+                            searchable
+                            searchPlaceholder="Search languages…"
+                            disabled={languagesLoading}
+                          />
+                        )}
                       />
                       <Input 
                          label="Specialties" 

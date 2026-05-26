@@ -1293,6 +1293,22 @@ grep -rn "MediaGallery\|CompCardPreview" client/src --include=*.jsx --include=*.
 ```
 Expected: no output (nothing imports them). If anything appears, fix that importer before deleting.
 
+- [ ] **Step 1b: Back up the current working-tree versions before deleting (they hold uncommitted WIP)**
+
+These four files have uncommitted WIP not in git history. Copy the current versions to a backup folder so the WIP is recoverable, then commit the backup.
+
+```bash
+cd /Users/lenquanhone/Projects/pholio-app
+mkdir -p docs/superpowers/backups/2026-05-25-portfolio-media
+cp client/src/domains/talent/components/MediaGallery.jsx     docs/superpowers/backups/2026-05-25-portfolio-media/MediaGallery.jsx.bak
+cp client/src/domains/talent/components/MediaGallery.css     docs/superpowers/backups/2026-05-25-portfolio-media/MediaGallery.css.bak
+cp client/src/domains/talent/components/CompCardPreview.jsx  docs/superpowers/backups/2026-05-25-portfolio-media/CompCardPreview.jsx.bak
+cp client/src/domains/talent/components/CompCardPreview.css  docs/superpowers/backups/2026-05-25-portfolio-media/CompCardPreview.css.bak
+git add docs/superpowers/backups/2026-05-25-portfolio-media
+git commit -m "chore(portfolio): back up legacy media gallery + comp card preview WIP before rebuild"
+```
+(The `.bak` extension keeps them out of the Vite build.)
+
 - [ ] **Step 2: Delete the files**
 
 ```bash
@@ -1349,9 +1365,14 @@ Expected: no output.
 
 - [ ] **Step 5: Final commit (if any fixups were made)**
 
+NOTE: the working tree has ~100 unrelated WIP files. NEVER use `git add -A` / `git add .`. Stage only the redesign files by explicit path, e.g.:
+
 ```bash
 cd /Users/lenquanhone/Projects/pholio-app
-git add -A
+git add client/src/domains/talent/components/MediaWorkspace.jsx \
+        client/src/domains/talent/components/MediaWorkspace.css \
+        client/src/domains/talent/components/CompCard.jsx \
+        client/src/domains/talent/components/CompCard.css
 git commit -m "fix(portfolio): final polish from verification pass"
 ```
 

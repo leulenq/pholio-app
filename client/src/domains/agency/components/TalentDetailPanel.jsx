@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Tag, Plus, Clock, Calendar } from 'lucide-react';
 import ActionButtonGroup from './ActionButtonGroup';
@@ -18,6 +19,7 @@ import {
   fetchRosterProfile, getProfilePreview,
 } from '../api/agency';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { ActionFailureNotice, EmptyErrorState } from '../../../shared/components/states';
 import './TalentDetailPanel.css';
 
 const TABS_BY_CONTEXT = {
@@ -36,10 +38,11 @@ export default function TalentDetailPanel({
   mode = 'fixed',
 }) {
   const [activeTab, setActiveTab] = useState('Bio');
+  const [actionError, setActionError] = useState(null);
   const queryClient = useQueryClient();
 
   // Fetch data based on context
-  const { data: detail, isLoading } = useQuery({
+  const { data: detail, isLoading, isError, refetch } = useQuery({
     queryKey: context === 'inbox' || context === 'casting'
       ? ['agency', 'application-detail', applicationId]
       : ['agency', 'profile-detail', profileId],
@@ -53,15 +56,18 @@ export default function TalentDetailPanel({
 
   const handleAction = async (action) => {
     if (!applicationId) return;
+    setActionError(null);
     try {
       if (action === 'accept') await acceptApplication(applicationId);
       else if (action === 'decline') await declineApplication(applicationId);
-      // updateCastingApplicationStage calls PATCH /applications/:id/status — correct endpoint
       else if (action === 'shortlist') await updateCastingApplicationStage(applicationId, { status: 'shortlisted' });
       else if (action === 'archive') await archiveApplication(applicationId);
       queryClient.invalidateQueries({ queryKey: ['agency'] });
     } catch (err) {
+      const message = err?.message || 'That action could not be completed';
       console.error('Action failed:', err);
+      setActionError(message);
+      toast.error(message);
     }
   };
 
@@ -78,9 +84,10 @@ export default function TalentDetailPanel({
           transition={{ type: 'spring', stiffness: 320, damping: 32 }}
         >
           <PanelContent
-            detail={detail} isLoading={isLoading} context={context}
-            activeTab={activeTab} setActiveTab={setActiveTab} tabs={tabs}
+            detail={detail} isLoading={isLoading} isError={isError} refetch={refetch}
+            context={context} activeTab={activeTab} setActiveTab={setActiveTab} tabs={tabs}
             onClose={onClose} onAction={handleAction} applicationId={applicationId}
+            actionError={actionError} onDismissActionError={() => setActionError(null)}
           />
         </motion.div>
       </AnimatePresence>
@@ -91,15 +98,33 @@ export default function TalentDetailPanel({
   return (
     <div className="ag-detail-panel ag-detail-panel--fixed">
       <PanelContent
-        detail={detail} isLoading={isLoading} context={context}
-        activeTab={activeTab} setActiveTab={setActiveTab} tabs={tabs}
+        detail={detail} isLoading={isLoading} isError={isError} refetch={refetch}
+        context={context} activeTab={activeTab} setActiveTab={setActiveTab} tabs={tabs}
         onClose={onClose} onAction={handleAction} applicationId={applicationId}
+        actionError={actionError} onDismissActionError={() => setActionError(null)}
       />
     </div>
   );
 }
 
-function PanelContent({ detail, isLoading, context, activeTab, setActiveTab, tabs, onClose, onAction, applicationId }) {
+function PanelContent({
+  detail, isLoading, isError, refetch, context, activeTab, setActiveTab, tabs,
+  onClose, onAction, applicationId, actionError, onDismissActionError,
+}) {
+  if (isError) {
+    return (
+      <div className="ag-detail-panel__inner ag-detail-panel__inner--error">
+        <button className="ag-detail-panel__close" onClick={onClose}><X size={18} /></button>
+        <EmptyErrorState
+          variant="compact"
+          title="Profile unavailable"
+          body="We could not load this talent profile. Try again."
+          retry={{ label: 'Try again', onClick: () => refetch() }}
+        />
+      </div>
+    );
+  }
+
   if (isLoading || !detail) {
     return (
       <div className="ag-detail-panel__loading">
@@ -157,6 +182,14 @@ function PanelContent({ detail, isLoading, context, activeTab, setActiveTab, tab
           )}
         </div>
       </div>
+
+      {actionError && (
+        <ActionFailureNotice
+          title="Action failed"
+          body={actionError}
+          retry={{ label: 'Dismiss', onClick: onDismissActionError }}
+        />
+      )}
 
       {/* Actions */}
       <div className="ag-detail-panel__actions">

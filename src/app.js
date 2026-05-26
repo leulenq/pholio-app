@@ -14,6 +14,7 @@ const {
 } = require("./domains/auth/services/firebase-admin");
 const { errorHandler } = require("./shared/middleware/error-handler");
 const cookieParser = require("cookie-parser");
+const devAutoAuth = require("./shared/middleware/dev-auto-auth");
 
 // +++ 1. ADD THIS LINE +++
 const ejsLayouts = require("express-ejs-layouts");
@@ -391,6 +392,11 @@ app.use((req, res, next) => {
 
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
+
+// Dev auto-auth middleware (must come after session and before routes)
+if (process.env.AUTH_PASSTHROUGH_ENABLED === "1") {
+  app.use(devAutoAuth);
+}
 
 app.use(attachLocals);
 
