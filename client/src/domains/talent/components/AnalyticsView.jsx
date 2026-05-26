@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 // eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -207,7 +207,10 @@ export default function AnalyticsView() {
   const { profile, subscription } = useAuth();
   const isPro = !!(subscription?.isPro ||
     new URLSearchParams(window.location.search).get('debug') === 'pro');
-  const [timeRange, setTimeRange] = useState(isPro ? 30 : 7);
+  const [timeRange, setTimeRange] = useState(7);
+  useEffect(() => {
+    if (isPro) setTimeRange(prev => (prev === 7 ? 30 : prev));
+  }, [isPro]);
 
   const { analytics, activities, summary, timeseries, detailedStats, sessions, cohorts,
     isLoading, isError, refetch } = useAnalytics(timeRange, { includeAdvanced: isPro });
