@@ -204,7 +204,7 @@ function ReachChapter({ timeseries, analytics, isPro }) {
   const downloadsTotal  = asNum(downloadsData.total);
 
   const chartData = asArray(timeseries).map(item => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    date: item.date ? new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '',
     views: asNum(item.views),
     ...(isPro && { downloads: asNum(item.downloads) }),
   }));
@@ -274,7 +274,7 @@ function ReachChapter({ timeseries, analytics, isPro }) {
               <div key={src.label} className="reach-source-bar-row">
                 <span className="reach-source-label">{src.label}</span>
                 <div className="reach-source-track">
-                  <div className="reach-source-fill" style={{ width: `${src.percentage}%` }} />
+                  <div className="reach-source-fill" style={{ width: `${Math.min(100, src.percentage)}%` }} />
                 </div>
                 <span className="reach-source-pct">{src.percentage}%</span>
                 <span className="reach-source-count">({src.count})</span>
@@ -371,7 +371,7 @@ function SignalChapter({ analytics, sessions, detailedStats, isPro }) {
           <SessionsBarChart data={sessions} />
           <div className="signal-return-card">
             <span className="signal-return-label">Return Visitor Rate</span>
-            <span className="signal-return-value">{returnRate}%</span>
+            <span className="signal-return-value">{Math.min(100, returnRate)}%</span>
             <span className="signal-return-desc">
               {returnRate >= 30
                 ? 'Strong retention — agencies are coming back to review your profile.'
