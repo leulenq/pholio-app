@@ -44,6 +44,27 @@ export const READINESS_KEY_TO_NAV_ID = {
   emergency: 'contact',
 };
 
+/** Maps each readiness key to the Profile deep-link URL that scrolls to the correct section. */
+export const READINESS_KEY_TO_PROFILE_URL = {
+  name:         '/dashboard/talent/profile?tab=identity',
+  city:         '/dashboard/talent/profile?tab=identity',
+  dob:          '/dashboard/talent/profile?tab=identity',
+  gender:       '/dashboard/talent/profile?tab=identity',
+  bio:          '/dashboard/talent/profile?tab=identity',
+  photo:        '/dashboard/talent/profile?tab=photos',
+  height:       '/dashboard/talent/profile?tab=appearance',
+  measurements: '/dashboard/talent/profile?tab=appearance',
+  weight:       '/dashboard/talent/profile?tab=appearance',
+  appearance:   '/dashboard/talent/profile?tab=appearance',
+  shoe:         '/dashboard/talent/profile?tab=appearance',
+  skin:         '/dashboard/talent/profile?tab=appearance',
+  status:       '/dashboard/talent/profile?tab=roles',
+  exp:          '/dashboard/talent/profile?tab=credits',
+  training:     '/dashboard/talent/profile?tab=training',
+  social:       '/dashboard/talent/profile?tab=socials',
+  emergency:    '/dashboard/talent/profile?tab=contact',
+};
+
 export function buildReadinessLists(fieldCompletion) {
   const requiredItems = REQUIRED_READINESS_ITEMS.map((item) => ({
     ...item,
@@ -66,14 +87,21 @@ export function buildReadinessLists(fieldCompletion) {
   return { requiredItems, improveItems, missingRequired, missingImprove, topGaps };
 }
 
-/** Nav section id → has at least one incomplete field in that section. */
+/** Nav section id → gap tier: required fields missing, or improve-only fields open. */
 export function buildNavGapBySection(fieldCompletion) {
   const gaps = {};
-  const allItems = [...REQUIRED_READINESS_ITEMS, ...IMPROVE_READINESS_ITEMS];
-  for (const item of allItems) {
-    if (fieldCompletion[item.key]) continue;
+
+  for (const item of REQUIRED_READINESS_ITEMS) {
+    if (fieldCompletion?.[item.key]) continue;
     const navId = READINESS_KEY_TO_NAV_ID[item.key];
-    if (navId) gaps[navId] = true;
+    if (navId) gaps[navId] = 'required';
   }
+
+  for (const item of IMPROVE_READINESS_ITEMS) {
+    if (fieldCompletion?.[item.key]) continue;
+    const navId = READINESS_KEY_TO_NAV_ID[item.key];
+    if (navId && gaps[navId] !== 'required') gaps[navId] = 'improve';
+  }
+
   return gaps;
 }
