@@ -546,6 +546,7 @@
 .ov-check-dot--critical { background: #f87171; }
 .ov-check-dot--success  { background: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.35); }
 .ov-check-dot--none     { background: rgba(255, 255, 255, 0.1); }
+.ov-check-dot--improve  { background: rgba(255, 255, 255, 0.32); }
 
 .ov-check-label {
   font-size: 11px;
@@ -581,6 +582,14 @@
 
 .ov-check-item:hover .ov-check-arrow {
   color: var(--ov-gold);
+}
+
+.ov-audit-more {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ov-text-faint);
+  text-align: center;
+  margin: 0 0 8px;
 }
 
 /* Continue Audit CTA */
