@@ -568,6 +568,10 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
+.ov-check-mark--improve {
+  background: rgba(255, 255, 255, 0.32);
+}
+
 .ov-check-label {
   font-family: 'Inter', sans-serif;
   font-size: 13px;
@@ -603,6 +607,14 @@
 
 .ov-check-item:hover .ov-check-arrow {
   color: rgba(201, 165, 90, 0.65);
+}
+
+.ov-audit-more {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ov-text-faint);
+  text-align: center;
+  margin: 0 0 8px;
 }
 
 .ov-audit-cta {

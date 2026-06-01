@@ -14,6 +14,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import { useProfileStrength } from '../../hooks/useProfileStrength';
+import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessItems';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import './OverviewPage.css';
@@ -72,44 +74,6 @@ function applicationsCount(payload) {
   return { ok: false };
 }
 
-function buildChecklist(images, completeness, profile) {
-  const hasPhotos = Array.isArray(images) && images.length > 0;
-  const pct = asNum(completeness?.percentage);
-  const hasMeasurements = !!(
-    profile?.height || profile?.measurements || profile?.chest || profile?.waist || profile?.hips
-  );
-
-  return [
-    {
-      id: 'photos',
-      label: 'Casting Polaroids',
-      status: hasPhotos ? 'Verified' : 'Required',
-      urgency: hasPhotos ? 'success' : 'critical',
-      link: '/dashboard/talent/media',
-    },
-    {
-      id: 'profile',
-      label: 'Digital Resume',
-      status: pct >= 40 ? 'In Sync' : 'Incomplete',
-      urgency: pct >= 40 ? 'success' : 'critical',
-      link: '/dashboard/talent/profile',
-    },
-    {
-      id: 'measurements',
-      label: 'Measurements',
-      status: hasMeasurements ? 'Verified' : 'Required',
-      urgency: hasMeasurements ? 'success' : 'critical',
-      link: '/dashboard/talent/profile',
-    },
-    {
-      id: 'reel',
-      label: 'Intro Reel (30s)',
-      status: 'Optional',
-      urgency: 'none',
-      link: '/dashboard/talent/media',
-    },
-  ];
-}
 
 export default function OverviewPage() {
   const { profile, subscription, completeness, images, isLoading: profileLoading } = useAuth();
@@ -173,8 +137,7 @@ export default function OverviewPage() {
   const sparkMax = Math.max(1, ...websiteSparkline);
   const readinessPct = asNum(completeness?.percentage);
 
-  const checklist = buildChecklist(images, completeness, profile);
-  const allClear = checklist.filter((c) => c.urgency !== 'none').every((c) => c.urgency === 'success');
+  const { topGaps, totalGaps, isRequiredComplete, isLoading: auditLoading } = useProfileStrength();
 
   const photoSlots = Array.isArray(images) ? images.slice(0, 5) : [];
   const extraCount = Math.max(0, imageCount - 5);
@@ -345,28 +308,50 @@ export default function OverviewPage() {
               </div>
 
               <div className="ov-checklist" role="list">
-                {checklist.map((item) => (
+                {auditLoading ? (
+                  [0, 1, 2].map((i) => (
+                    <div key={i} className="ov-check-item" role="listitem" style={{ pointerEvents: 'none' }}>
+                      <div className="ov-check-left">
+                        <span
+                          className="ov-skel"
+                          style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }}
+                          aria-hidden
+                        />
+                        <span className="ov-skel ov-skel--line" style={{ width: 120 }} aria-hidden />
+                      </div>
+                    </div>
+                  ))
+                ) : topGaps.map((item) => (
                   <Link
-                    key={item.id}
-                    to={item.link}
+                    key={item.key}
+                    to={READINESS_KEY_TO_PROFILE_URL[item.key] ?? '/dashboard/talent/profile'}
                     className="ov-check-item"
                     role="listitem"
-                    aria-label={`${item.label}: ${item.status}`}
+                    aria-label={`${item.label}${item.tier === 'required' ? ': Required' : ''}`}
                   >
                     <div className="ov-check-left">
-                      <span className={`ov-check-mark ov-check-mark--${item.urgency}`} aria-hidden />
+                      <span
+                        className={`ov-check-mark ${item.tier === 'required' ? 'ov-check-mark--critical' : 'ov-check-mark--improve'}`}
+                        aria-hidden
+                      />
                       <span className="ov-check-label">{item.label}</span>
                     </div>
                     <div className="ov-check-right">
-                      <span className="ov-check-status">{item.status}</span>
+                      {item.tier === 'required' && (
+                        <span className="ov-check-status">Required</span>
+                      )}
                       <ChevronRight size={12} className="ov-check-arrow" aria-hidden />
                     </div>
                   </Link>
                 ))}
               </div>
 
+              {!auditLoading && totalGaps > 3 && (
+                <p className="ov-audit-more">+{totalGaps - 3} more</p>
+              )}
+
               <Link to="/dashboard/talent/profile" className="ov-audit-cta">
-                {allClear ? 'View Profile' : 'Continue Audit'}
+                {isRequiredComplete ? 'View Profile' : 'Continue Audit'}
               </Link>
             </div>
           </div>
