@@ -1,14 +1,28 @@
+import { useMemo } from 'react';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
+import { buildReadinessLists } from '../components/profileReadinessItems';
 
 /**
  * useProfileStrength Hook
- * 
- * Provides a consolidated source for the "official" profile strength score
- * from the backend. This should be used for display in the Header, 
- * Overview, and Sidebar headers.
+ *
+ * Provides the "official" profile strength score from the backend (score field)
+ * and derives per-field gap data client-side for the audit UI.
+ * Used by Header, Overview, and Sidebar headers.
  */
 export function useProfileStrength() {
-  const { completeness, isLoading } = useAuth();
+  const { completeness, profile, images, isLoading } = useAuth();
+
+  const auditData = useMemo(() => {
+    const strength = calculateProfileStrength({ ...profile, images: images ?? [] });
+    const { missingRequired, missingImprove, topGaps } = buildReadinessLists(strength.fieldCompletion);
+    return {
+      fieldCompletion: strength.fieldCompletion,
+      isRequiredComplete: strength.isRequiredComplete,
+      topGaps,
+      totalGaps: missingRequired.length + missingImprove.length,
+    };
+  }, [profile, images]);
 
   return {
     score: completeness?.percentage ?? 0,
@@ -17,5 +31,9 @@ export function useProfileStrength() {
     coreReady: completeness?.coreReady ?? false,
     isComplete: completeness?.isComplete ?? false,
     isLoading,
+    fieldCompletion: auditData.fieldCompletion,
+    topGaps: auditData.topGaps,
+    totalGaps: auditData.totalGaps,
+    isRequiredComplete: auditData.isRequiredComplete,
   };
 }
