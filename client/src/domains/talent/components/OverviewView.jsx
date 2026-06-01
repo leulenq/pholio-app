@@ -278,7 +278,7 @@ export default function OverviewView() {
               <div className="ov-checklist" role="list">
                 {auditLoading ? (
                   [0, 1, 2].map((i) => (
-                    <div key={i} className="ov-check-item" style={{ pointerEvents: 'none' }}>
+                    <div key={i} className="ov-check-item" role="listitem" style={{ pointerEvents: 'none' }}>
                       <div className="ov-check-left">
                         <div
                           className="ov-skel"
