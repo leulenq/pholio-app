@@ -37,7 +37,9 @@
 
 /* ---------- CO-BRAND LOCKUP (one horizontal line, balanced) ---------- */
 .ag-rail-header { padding: 22px 20px 18px; border-bottom: 1px solid var(--ag-ink-line); overflow: hidden; }
-.ag-cobrand { display: flex; align-items: center; gap: 11px; }
+.ag-cobrand { display: flex; align-items: center; gap: 11px; min-height: 24px; }
+/* taller, intentional brand area when the agency wordmark stacks */
+.ag-cobrand--stacked { align-items: center; min-height: 54px; }
 /* Pholio = the talent-dashboard wordmark, always — left, fixed */
 .ag-cobrand-pholio {
   font-family: 'Noto Serif Display', Georgia, serif;
@@ -45,9 +47,9 @@
   color: var(--ag-gold); text-transform: uppercase; white-space: nowrap; flex: none;
   transition: font-size .42s cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* gold-gradient separator */
+/* gold-gradient separator — stretches to match the agency block height */
 .ag-cobrand-div {
-  width: 1px; height: 20px; flex: none;
+  width: 1px; flex: none; align-self: stretch; min-height: 20px;
   background: linear-gradient(180deg, transparent, rgba(201,165,90,.5), transparent);
 }
 /* agency claims the remaining space and degrades gracefully */
@@ -56,6 +58,13 @@
 .ag-cobrand-name {
   font-size: 12.5px; font-weight: 600; letter-spacing: .08em; color: var(--ag-cream);
   text-transform: uppercase; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* stacked 3-line agency wordmark (for long names) */
+.ag-cobrand-stack { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ag-cobrand-stack span {
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; line-height: 1.26;
+  color: var(--ag-cream); text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ag-rail-collapse {

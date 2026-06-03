@@ -1,7 +1,32 @@
 import React from 'react';
 
-// Co-brand lockup: Pholio wordmark (always the talent-dashboard text logo)
-// followed by the agency's own logo OR name — never both.
+// Decide how to render the agency side of the lockup:
+//  - short names stay on one line
+//  - long multi-word names become a stacked wordmark (up to 3 lines)
+//  - a single long word stays on one line (nothing sensible to stack)
+const ONE_LINE_MAX = 13;
+
+function stackLines(words, maxLines = 3) {
+  if (words.length <= maxLines) return words;
+  const perLine = Math.ceil(words.length / maxLines);
+  const lines = [];
+  for (let i = 0; i < words.length; i += perLine) {
+    lines.push(words.slice(i, i + perLine).join(' '));
+  }
+  return lines;
+}
+
+function agencyTreatment(name) {
+  const trimmed = (name || '').trim();
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (trimmed.length > ONE_LINE_MAX && words.length >= 2) {
+    return { mode: 'stack', lines: stackLines(words, 3) };
+  }
+  return { mode: 'line', text: trimmed };
+}
+
+// Co-brand lockup: Pholio wordmark (always the talent text logo) · gold divider ·
+// the agency's logo OR name — one horizontal composition.
 export default function CoBrandLockup({ profile, collapsed, onToggle }) {
   const agencyName = profile?.agency_name || 'Agency';
   const logoPath = profile?.agency_logo_path || profile?.logo_path;
@@ -9,17 +34,28 @@ export default function CoBrandLockup({ profile, collapsed, onToggle }) {
   const location = profile?.agency_location || profile?.location || '';
   const members = profile?.member_count;
 
+  const treatment = logo ? null : agencyTreatment(agencyName);
+  const stacked = treatment?.mode === 'stack';
+
   return (
     <div className="ag-rail-header">
-      <div className="ag-cobrand">
+      <div className={`ag-cobrand${stacked ? ' ag-cobrand--stacked' : ''}`}>
         <span className="ag-cobrand-pholio">PHOLIO</span>
         {!collapsed && (
           <>
             <span className="ag-cobrand-div" aria-hidden="true" />
             <span className="ag-cobrand-agency">
-              {logo
-                ? <img className="ag-cobrand-logo" src={logo} alt={agencyName} />
-                : <span className="ag-cobrand-name" title={agencyName}>{agencyName}</span>}
+              {logo ? (
+                <img className="ag-cobrand-logo" src={logo} alt={agencyName} />
+              ) : stacked ? (
+                <span className="ag-cobrand-stack" title={agencyName}>
+                  {treatment.lines.map((line, i) => (
+                    <span key={i}>{line}</span>
+                  ))}
+                </span>
+              ) : (
+                <span className="ag-cobrand-name" title={agencyName}>{treatment.text}</span>
+              )}
             </span>
           </>
         )}
