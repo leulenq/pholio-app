@@ -1,0 +1,226 @@
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+  .pf,.pf *{ box-sizing:border-box; }
+  .pf{ font-family:'Inter',sans-serif; }
+  .serif{ font-family:'Playfair Display',serif; }
+  .frame{ position:relative; border-radius:7px; overflow:hidden; box-shadow:0 24px 70px rgba(20,18,14,.22); border:1px solid #2a2620; }
+  .chrome{ height:24px; background:#1c1914; display:flex; align-items:center; gap:6px; padding:0 11px; }
+  .chrome .d{ width:8px;height:8px;border-radius:50%;background:#39342b; }
+  .gold{ color:#C9A55A; }
+  .grain{ position:absolute; inset:0; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .sb{ width:198px; background:#14110B; display:flex; flex-direction:column; position:relative; border-right:1px solid #221e16; }
+  .sect{ font-size:7.5px; letter-spacing:.22em; text-transform:uppercase; color:#6e6452; padding:0 0 7px; }
+  .nav{ font-size:11px; color:#9a9082; padding:6px 0; display:flex; align-items:center; gap:9px; position:relative; }
+  .nav .ic{ width:13px;height:13px;border:1.3px solid currentColor;border-radius:2px;opacity:.5;flex:none; }
+  .nav.on{ color:#F2ECDF; font-weight:500; }
+  .nav.on .ic{ opacity:1; border-color:#C9A55A; background:rgba(201,165,90,.12); }
+  .nav.on::before{ content:''; position:absolute; left:-17px; width:2px; height:15px; background:#C9A55A; box-shadow:0 0 10px rgba(201,165,90,.7); }
+  .ct{ font-size:9px; font-weight:700; margin-left:auto; }
+  .main{ flex:1; background:radial-gradient(120% 80% at 85% -10%, rgba(201,165,90,.10), transparent 55%), #F7F3EC; position:relative; overflow:hidden; }
+  .lbl{ font-size:8px; letter-spacing:.18em; text-transform:uppercase; color:#9b9082; }
+  .rule{ height:1px; background:linear-gradient(90deg,#ddd5c6,transparent); }
+  .av{ border-radius:50%; border:1.5px solid #F7F3EC; background-size:cover; background-position:center; }
+  .av-d{ border:1.5px solid #14110B; }
+  /* hero */
+  .hero{ position:relative; border-radius:5px; overflow:hidden; height:124px; display:flex; }
+  .hero-l{ flex:1.25; background:linear-gradient(135deg,#16130D,#211b12); padding:16px 18px; position:relative; z-index:2; }
+  .hero-r{ flex:1; position:relative; }
+  .hero-r img{ width:100%;height:100%;object-fit:cover;object-position:center 22%; }
+  .hero-scrim{ position:absolute; inset:0; background:linear-gradient(90deg,#16130D 2%, rgba(22,19,13,.35) 38%, transparent 70%); z-index:1; }
+  .cta-ghost{ border:1px solid rgba(239,233,220,.28); color:#EFE9DC; font-size:9px; padding:5px 11px; border-radius:3px; }
+  .cta-gold{ background:#C9A55A; color:#16130D; font-size:9px; font-weight:600; padding:5px 11px; border-radius:3px; }
+  .stat{ flex:1; padding:0 16px; border-left:1px solid #e2dac9; }
+  .stat:first-child{ border-left:none; padding-left:0; }
+  .stat-n{ font-family:'Playfair Display',serif; font-size:24px; color:#16130D; line-height:1; }
+  .rc{ width:216px; background:rgba(255,255,255,.45); border-left:1px solid #e6ddcd; padding:16px; position:relative; }
+  .inc{ display:flex; gap:9px; padding:8px 0; border-bottom:1px solid #ece4d4; align-items:center; }
+  .pic{ width:32px;height:42px;border-radius:2px;background-size:cover;background-position:center; flex:none; box-shadow:0 2px 8px rgba(20,18,14,.18); }
+  .pill{ font-size:7px; letter-spacing:.1em; text-transform:uppercase; color:#9b9082; }
+  .seg{ display:inline-flex; border:1px solid #e0d8c7; border-radius:3px; overflow:hidden; }
+  .seg span{ font-size:8px; letter-spacing:.08em; text-transform:uppercase; padding:3px 9px; color:#9b9082; }
+  .seg span.on{ background:#16130D; color:#EFE9DC; }
+</style>
+
+<h2>Team-first + co-branded shell</h2>
+<p class="subtitle">① Co-brand lockup top-left ② workspace vs. logged-in member are now distinct ③ team presence in the masthead ④ work is assignable — items carry an owner avatar ⑤ Mine / Team toggle on operational surfaces.</p>
+
+<div class="pf" style="max-width:940px; margin:0 auto;">
+<div class="frame">
+  <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span></div>
+  <div style="display:flex; height:500px;">
+
+    <!-- ============ SIDEBAR ============ -->
+    <div class="sb">
+      <div class="grain"></div>
+
+      <!-- ① CO-BRAND LOCKUP -->
+      <div style="padding:15px 16px 13px; border-bottom:1px solid #221e16;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="serif" style="font-size:12px; letter-spacing:.22em; color:#C9A55A;">PHOLIO</span>
+            <span style="width:1px; height:16px; background:#37301f;"></span>
+            <span style="display:flex; align-items:center; gap:6px;">
+              <span class="serif" style="width:18px;height:18px;border-radius:3px;background:#C9A55A;color:#14110B;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">S</span>
+              <span style="font-size:11px; font-weight:700; letter-spacing:.05em; color:#EFE9DC;">SMG</span>
+            </span>
+          </div>
+          <span style="color:#5e5547; font-size:13px;">«</span>
+        </div>
+        <div class="lbl" style="margin-top:9px; color:#5e5547;">Powering · New York · SS26 · 12 members</div>
+      </div>
+
+      <!-- NAV -->
+      <div style="padding:15px 17px; flex:1;">
+        <div class="sect">Monitor</div>
+        <div class="nav on"><span class="ic"></span>Overview</div>
+        <div class="nav"><span class="ic"></span>Activity</div>
+        <div class="sect" style="margin-top:14px;">Pipeline</div>
+        <div class="nav"><span class="ic"></span>Applicants <span class="ct gold">47</span></div>
+        <div class="nav"><span class="ic"></span>Casting <span class="ct" style="color:#6e6452;">6</span></div>
+        <div class="nav"><span class="ic"></span>Interviews</div>
+        <div class="sect" style="margin-top:14px;">Roster</div>
+        <div class="nav"><span class="ic"></span>Talent</div>
+        <div class="nav"><span class="ic"></span>Discover</div>
+        <div class="sect" style="margin-top:14px;">Agency</div>
+        <div class="nav"><span class="ic"></span>Team <span class="ct" style="color:#6e6452;">12</span></div>
+        <div class="nav"><span class="ic"></span>Analytics</div>
+      </div>
+
+      <!-- ② LOGGED-IN MEMBER ACCOUNT (distinct from workspace) -->
+      <div style="padding:12px 14px; border-top:1px solid #221e16; display:flex; align-items:center; gap:10px;">
+        <div class="av av-d" style="width:30px;height:30px;background-image:url(https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=80);"></div>
+        <div style="min-width:0;">
+          <div style="font-size:11px; font-weight:600; color:#EFE9DC;">Sarah Lin</div>
+          <div style="font-size:8.5px; color:#6e6452; letter-spacing:.04em;">Senior Booker · Admin</div>
+        </div>
+        <span style="margin-left:auto; color:#5e5547; font-size:11px;">⌄</span>
+      </div>
+    </div>
+
+    <!-- ============ MAIN ============ -->
+    <div class="main">
+      <div class="grain" style="opacity:.04; mix-blend-mode:multiply;"></div>
+      <div style="padding:15px 22px 20px; position:relative; z-index:1;">
+
+        <!-- MASTHEAD with ③ team presence -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px;">
+          <div class="lbl">The Floor &nbsp;·&nbsp; SS26 Season &nbsp;·&nbsp; New York &nbsp;·&nbsp; 14:32</div>
+          <div style="display:flex; gap:12px; align-items:center;">
+            <!-- presence -->
+            <div style="display:flex; align-items:center;">
+              <div style="display:flex;">
+                <div class="av" style="width:21px;height:21px;background-image:url(https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=60);"></div>
+                <div class="av" style="width:21px;height:21px;margin-left:-7px;background-image:url(https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=60);"></div>
+                <div class="av" style="width:21px;height:21px;margin-left:-7px;background-image:url(https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=60);"></div>
+                <div class="av" style="width:21px;height:21px;margin-left:-7px;background:#ece4d4;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#9b9082;">+9</div>
+              </div>
+            </div>
+            <span style="width:1px;height:16px;background:#e0d8c7;"></span>
+            <div style="width:25px;height:25px;border:1px solid #e0d8c7;border-radius:3px;background:rgba(255,255,255,.5);"></div>
+            <div style="width:25px;height:25px;border:1px solid #e0d8c7;border-radius:3px;background:rgba(255,255,255,.5);"></div>
+          </div>
+        </div>
+        <div class="rule" style="margin-bottom:14px;"></div>
+
+        <!-- greeting -->
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:13px;">
+          <div>
+            <div class="serif" style="font-size:23px; color:#16130D; line-height:1.05;">Good evening, Sarah.</div>
+            <div class="lbl" style="margin-top:6px;">Your team has 3 decisions pending — 1 assigned to you.</div>
+          </div>
+        </div>
+
+        <!-- HERO -->
+        <div class="hero" style="margin-bottom:18px;">
+          <div class="grain" style="z-index:3; opacity:.07;"></div>
+          <div class="hero-l">
+            <div class="lbl" style="color:rgba(201,165,90,.65); margin-bottom:8px;">Pipeline Command · Team</div>
+            <div style="display:flex; align-items:flex-end; gap:11px;">
+              <div class="serif gold" style="font-size:38px; line-height:.85;">14</div>
+              <div style="color:rgba(239,233,220,.6); font-size:9.5px; padding-bottom:4px; line-height:1.4;">awaiting decision · <span style="color:#C9A55A;">3 assigned to you</span></div>
+            </div>
+            <div style="display:flex; gap:7px; margin-top:13px;">
+              <div class="cta-gold">My review queue</div>
+              <div class="cta-ghost">Team queue</div>
+            </div>
+          </div>
+          <div class="hero-r">
+            <div class="hero-scrim"></div>
+            <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600" alt="">
+          </div>
+        </div>
+
+        <!-- LEDGER -->
+        <div style="display:flex; margin-bottom:14px;">
+          <div class="stat"><div class="lbl" style="margin-bottom:7px;">Active Castings</div><div class="stat-n">6</div><div class="lbl gold" style="margin-top:5px;letter-spacing:.06em;">2 close today</div></div>
+          <div class="stat"><div class="lbl" style="margin-bottom:7px;">Roster Size</div><div class="stat-n">128</div><div class="lbl" style="margin-top:5px;letter-spacing:.06em;color:#7d9b82;">↑ 3 this month</div></div>
+          <div class="stat"><div class="lbl" style="margin-bottom:7px;">Placement Rate</div><div class="stat-n">68<span style="font-size:14px;">%</span></div><div class="lbl" style="margin-top:5px;letter-spacing:.06em;color:#7d9b82;">↑ from 61%</div></div>
+          <div class="stat"><div class="lbl" style="margin-bottom:7px;">In Market</div><div class="stat-n">22</div><div class="lbl" style="margin-top:5px;letter-spacing:.06em;">on submission</div></div>
+        </div>
+        <div class="rule" style="margin-bottom:12px;"></div>
+
+        <!-- PIPELINE -->
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:9px;">
+            <div class="lbl" style="color:#16130D; letter-spacing:.16em;">Casting Pipeline</div>
+            <div class="lbl">98 in flight</div>
+          </div>
+          <div style="display:flex; height:6px; gap:2px;">
+            <div style="width:40%;background:#c4bba8;"></div>
+            <div style="width:25%;background:#C9A55A;box-shadow:0 0 12px rgba(201,165,90,.5);"></div>
+            <div style="width:15%;background:#16130D;"></div>
+            <div style="width:10%;background:#7d9b82;"></div>
+            <div style="width:10%;background:#e3dac9;"></div>
+          </div>
+          <div style="display:flex; gap:18px; margin-top:10px;">
+            <span class="lbl">Submitted · 47</span><span class="lbl gold">Under review · 22</span><span class="lbl">Shortlisted · 12</span><span class="lbl">Booked · 8</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT COLUMN ============ -->
+    <div class="rc">
+      <div class="grain" style="opacity:.03; mix-blend-mode:multiply;"></div>
+      <div style="position:relative; z-index:1;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:7px;">
+          <div class="serif" style="font-size:14px; color:#16130D;">Incoming</div>
+          <!-- ⑤ Mine / Team toggle -->
+          <div class="seg"><span class="on">Mine</span><span>Team</span></div>
+        </div>
+        <div class="rule" style="margin-bottom:4px;"></div>
+
+        <!-- ④ items carry owner avatar -->
+        <div class="inc">
+          <div class="pic" style="background-image:url(https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120);"></div>
+          <div style="min-width:0;"><div style="font-weight:600;font-size:11px;color:#16130D;">Amara Johnson</div><div class="pill">Editorial · 97 match</div></div>
+          <div class="av" style="width:18px;height:18px;margin-left:auto;background-image:url(https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=60);" title="Assigned to Sarah"></div>
+        </div>
+        <div class="inc">
+          <div class="pic" style="background-image:url(https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=120);"></div>
+          <div style="min-width:0;"><div style="font-weight:600;font-size:11px;color:#16130D;">Sofia Chen</div><div class="pill">Runway · 94 match</div></div>
+          <div style="width:18px;height:18px;margin-left:auto;border:1px dashed #c9bfa9;border-radius:50%;" title="Unassigned"></div>
+        </div>
+        <div class="inc">
+          <div class="pic" style="background-image:url(https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=120);"></div>
+          <div style="min-width:0;"><div style="font-weight:600;font-size:11px;color:#16130D;">Zara Williams</div><div class="pill">Commercial · 88 match</div></div>
+          <div class="av" style="width:18px;height:18px;margin-left:auto;background-image:url(https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=60);" title="Assigned to Marcus"></div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:7px;">
+            <div class="serif" style="font-size:14px; color:#16130D;">On the floor</div>
+            <div class="seg"><span class="on">Mine</span><span>Team</span></div>
+          </div>
+          <div class="rule" style="margin-bottom:6px;"></div>
+          <div style="font-size:10px; color:#6b6256; padding:6px 0; border-bottom:1px solid #ece4d4;display:flex;gap:7px;align-items:center;"><span class="gold">⚠</span> 4 reviews aging 14+ days</div>
+          <div style="font-size:10px; color:#6b6256; padding:6px 0; border-bottom:1px solid #ece4d4;display:flex;gap:7px;align-items:center;"><span class="gold">◷</span> 2 castings close tonight</div>
+          <div style="font-size:10px; color:#6b6256; padding:6px 0;display:flex;gap:7px;align-items:center;"><span class="gold">✎</span> Follow up · Zara Studio</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>

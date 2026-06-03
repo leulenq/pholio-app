@@ -13,3 +13,6 @@ netlify/function-built/
 # macOS / editor noise
 .DS_Store
 **/.DS_Store
+
+# Superpowers visual brainstorm companion
+.superpowers/
