@@ -35,9 +35,9 @@ export default function OverviewPage() {
   const firstName = profile?.first_name || 'there';
 
   const ledger = [
-    { label: 'Active Castings', value: kpis.activeCastings, delta: kpis.activeCastings ? 'in market' : '—', deltaTone: 'gold' },
-    { label: 'Roster Size', value: kpis.rosterSize, deltaTone: 'up' },
-    { label: 'Placement Rate', value: kpis.placementRate, suffix: '%', deltaTone: 'up' },
+    { label: 'Active Castings', value: kpis.activeCastings, delta: kpis.castingsClosingToday ? `${kpis.castingsClosingToday} close today` : 'none closing', deltaTone: 'gold' },
+    { label: 'Roster Size', value: kpis.rosterSize, delta: kpis.rosterChangeThisMonth ? `↑ ${kpis.rosterChangeThisMonth} this month` : 'steady', deltaTone: 'up' },
+    { label: 'Placement Rate', value: kpis.placementRate, suffix: '%', delta: kpis.placementLastSeason != null ? `from ${kpis.placementLastSeason}%` : null, deltaTone: 'up' },
     { label: 'In Market', value: kpis.utilization, delta: 'on submission', deltaTone: 'neutral' },
   ];
 
@@ -56,6 +56,7 @@ export default function OverviewPage() {
 
           <PipelineCommandHero
             pendingReview={kpis.pendingReview}
+            oldestDaysAgo={kpis.pendingOldestDaysAgo}
             heroImage={incoming[0]?.photo || HERO_FALLBACK}
             onReview={() => navigate('/dashboard/agency/applicants')}
             onNewCasting={() => navigate('/dashboard/agency/casting')}

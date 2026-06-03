@@ -15,7 +15,7 @@ function Counter({ value }) {
   return <span>{d}</span>;
 }
 
-export default function PipelineCommandHero({ pendingReview, heroImage, onReview, onNewCasting }) {
+export default function PipelineCommandHero({ pendingReview, oldestDaysAgo, heroImage, onReview, onNewCasting }) {
   return (
     <motion.section className="ov-hero" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: .5, ease: [0.16, 1, 0.3, 1] }}>
@@ -24,7 +24,10 @@ export default function PipelineCommandHero({ pendingReview, heroImage, onReview
         <div className="ov-hero-label">Pipeline Command</div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
           <div className="ov-hero-number"><Counter value={pendingReview} /></div>
-          <div className="ov-hero-sub">applicants awaiting<br />your decision</div>
+          <div className="ov-hero-sub">
+            applicants awaiting<br />your decision
+            {oldestDaysAgo != null && oldestDaysAgo > 0 ? ` · oldest ${oldestDaysAgo}d` : ''}
+          </div>
         </div>
         <div className="ov-hero-cta-row">
           <button className="ov-cta-gold" onClick={onReview}>Open review queue</button>

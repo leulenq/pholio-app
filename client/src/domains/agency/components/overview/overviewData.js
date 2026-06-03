@@ -11,14 +11,29 @@ const PIPELINE_COLORS = {
   declined: '#e3dac9',
 };
 
+// The overview endpoint returns each KPI as a wrapper object, not a scalar:
+//   pendingReview { count, oldestDaysAgo }   activeCastings { count, closingToday }
+//   rosterSize { count, trend, changeThisMonth }   placementRate { current, lastSeason }
+//   utilization { active, total, pct }
+// We flatten to the scalar each surface renders, plus the useful sub-fields for deltas.
 export function selectKpis(data) {
   const k = data?.kpis || {};
+  const pendingReview = k.pendingReview || {};
+  const activeCastings = k.activeCastings || {};
+  const rosterSize = k.rosterSize || {};
+  const placementRate = k.placementRate || {};
+  const utilization = k.utilization || {};
   return {
-    pendingReview: k.pendingReview ?? 0,
-    activeCastings: k.activeCastings ?? 0,
-    rosterSize: k.rosterSize ?? 0,
-    placementRate: k.placementRate ?? 0,
-    utilization: k.utilization ?? 0,
+    pendingReview: pendingReview.count ?? 0,
+    pendingOldestDaysAgo: pendingReview.oldestDaysAgo ?? null,
+    activeCastings: activeCastings.count ?? 0,
+    castingsClosingToday: activeCastings.closingToday ?? 0,
+    rosterSize: rosterSize.count ?? 0,
+    rosterChangeThisMonth: rosterSize.changeThisMonth ?? 0,
+    placementRate: placementRate.current ?? 0,
+    placementLastSeason: placementRate.lastSeason ?? null,
+    utilization: utilization.active ?? 0,
+    utilizationPct: utilization.pct ?? 0,
   };
 }
 
