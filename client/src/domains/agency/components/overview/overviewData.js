@@ -33,11 +33,14 @@ export function mapApplicant(a) {
   return {
     id: a.id,
     profileId: a.profile_id ?? a.id,
+    applicationId: a.id,
     name: a.name,
     photo: a.avatar || a.photo || null,
     type: (a.archetype || 'editorial').toLowerCase(),
     typeLabel: a.archetype || 'Editorial',
     city: a.city || null,
     match: a.match ?? a.match_score ?? 0,
+    status: a.status || 'available',
+    location: a.city || null,
   };
 }
