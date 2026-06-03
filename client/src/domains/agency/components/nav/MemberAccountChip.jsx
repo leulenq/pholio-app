@@ -35,7 +35,7 @@ export default function MemberAccountChip({ profile, role }) {
           <span className="ag-member-name" style={{ display: 'block' }}>{name}</span>
           <span className="ag-member-role">{roleLabel}</span>
         </span>
-        <ChevronDown size={13} style={{ marginLeft: 'auto', color: 'var(--ag-ink-faint)' }} />
+        <ChevronDown size={14} className="ag-member-chev" />
       </button>
       <UserDropdown isOpen={open} onClose={() => setOpen(false)} profile={profile} />
     </div>
