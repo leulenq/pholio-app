@@ -1,4 +1,10 @@
 .ov-page { padding: 4px 22px 28px; position: relative; z-index: 1; }
+.ov-layout { display: flex; gap: 0; }
+.ov-layout-main { flex: 1; min-width: 0; }
+@media (max-width: 1280px) {
+  .ov-layout { flex-direction: column; }
+  .ov-layout .ag-rightcol { width: auto; border-left: none; border-top: 1px solid #e6ddcd; margin-top: 18px; }
+}
 .ov-greeting { display: flex; align-items: flex-end; justify-content: space-between; margin: 6px 0 14px; }
 .ov-greeting-title { font-family: 'Playfair Display', serif; font-size: 23px; color: #16130D; line-height: 1.05; }
 .ov-greeting-sub { font-size: 8px; letter-spacing: .18em; text-transform: uppercase; color: #9b9082; margin-top: 6px; }

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAgencyProfile } from '../api/agency';
 import { useAgencyOverview, useRecentApplicants } from '../hooks/useAgencyOverview';
 import { selectKpis, selectPipeline, selectAlerts, mapApplicant } from '../components/overview/overviewData';
 import PipelineCommandHero from '../components/overview/PipelineCommandHero';
@@ -23,13 +25,14 @@ export default function OverviewPage() {
   const [selected, setSelected] = useState(null);
   const { data: overview } = useAgencyOverview();
   const { data: applicants = [] } = useRecentApplicants(6);
+  const { data: profile } = useQuery({ queryKey: ['agency-profile'], queryFn: getAgencyProfile, staleTime: 5 * 60 * 1000 });
 
   const kpis = selectKpis(overview);
   const stages = selectPipeline(overview);
   const alerts = selectAlerts(overview);
   const incoming = applicants.map(mapApplicant);
   const total = stages.reduce((s, x) => s + x.count, 0);
-  const firstName = overview?.firstName || 'there';
+  const firstName = profile?.first_name || 'there';
 
   const ledger = [
     { label: 'Active Castings', value: kpis.activeCastings, delta: kpis.activeCastings ? 'in market' : '—', deltaTone: 'gold' },
@@ -40,8 +43,8 @@ export default function OverviewPage() {
 
   return (
     <motion.div className="ov-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div style={{ display: 'flex', gap: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="ov-layout">
+        <div className="ov-layout-main">
           <div className="ov-greeting">
             <div>
               <div className="ov-greeting-title">{greeting()}, {firstName}.</div>

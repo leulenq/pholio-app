@@ -2,9 +2,10 @@ import React from 'react';
 
 export default function CoBrandLockup({ profile, collapsed, onToggle }) {
   const agencyName = profile?.agency_name || 'Agency';
-  const logo = profile?.logo_path ? `/${profile.logo_path}` : null;
+  const logoPath = profile?.agency_logo_path || profile?.logo_path;
+  const logo = logoPath ? `/${logoPath}` : null;
   const initial = agencyName.trim().charAt(0).toUpperCase() || 'A';
-  const location = profile?.location || profile?.agency_location || '';
+  const location = profile?.agency_location || profile?.location || '';
   const members = profile?.member_count;
 
   return (

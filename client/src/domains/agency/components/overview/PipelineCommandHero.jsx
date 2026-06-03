@@ -7,7 +7,7 @@ function Counter({ value }) {
   const [d, setD] = useState(0);
   const reduce = useReducedMotion();
   useEffect(() => {
-    const c = animate(mv, reduce ? value : value, { duration: reduce ? 0 : 1.1, ease: [0.16, 1, 0.3, 1] });
+    const c = animate(mv, value, { duration: reduce ? 0 : 1.1, ease: [0.16, 1, 0.3, 1] });
     const u = rounded.on('change', setD);
     return () => { c.stop(); u(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps

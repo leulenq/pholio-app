@@ -2,13 +2,19 @@ import React, { useRef, useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import UserDropdown from './UserDropdown';
 
-export default function MemberAccountChip({ profile }) {
+// OWNER/ADMIN/MEMBER → Owner/Admin/Member
+function formatRole(role) {
+  if (!role) return 'Member';
+  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+}
+
+export default function MemberAccountChip({ profile, role }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const first = profile?.first_name || '';
   const last = profile?.last_name || '';
   const name = [first, last].filter(Boolean).join(' ') || profile?.email?.split('@')[0] || 'Member';
-  const role = profile?.membership_role || 'Member';
+  const roleLabel = formatRole(role || profile?.membership_role);
   const avatar = profile?.images?.[0]?.path ? `/${profile.images[0].path}` : null;
   const ini = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'ME';
 
@@ -27,7 +33,7 @@ export default function MemberAccountChip({ profile }) {
           : <span className="ag-member-avatar">{ini}</span>}
         <span style={{ minWidth: 0 }}>
           <span className="ag-member-name" style={{ display: 'block' }}>{name}</span>
-          <span className="ag-member-role">{role}</span>
+          <span className="ag-member-role">{roleLabel}</span>
         </span>
         <ChevronDown size={13} style={{ marginLeft: 'auto', color: 'var(--ag-ink-faint)' }} />
       </button>
