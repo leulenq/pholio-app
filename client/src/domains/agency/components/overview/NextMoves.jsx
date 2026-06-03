@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 
 export default function NextMoves({ moves }) {
-  if (!moves.length) return null;
   return (
     <section className="ov-module">
       <div className="ov-module-head"><h2 className="ov-module-title">Next moves</h2></div>
+      {moves.length === 0 && <div className="ov-empty">No actions flagged — you're ahead of the board.</div>}
       <div className="ov-moves">
         {moves.map((m) => (
           <Link key={m.id} to={m.cta.to} className={`ov-move ov-move--${m.tone}`}>
