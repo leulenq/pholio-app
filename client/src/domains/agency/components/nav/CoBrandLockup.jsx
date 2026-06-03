@@ -11,18 +11,8 @@ export default function CoBrandLockup({ profile, collapsed, onToggle }) {
 
   return (
     <div className="ag-rail-header">
-      <div className="ag-cobrand">
+      <div className="ag-cobrand-top">
         <span className="ag-cobrand-pholio">PHOLIO</span>
-        {!collapsed && (
-          <>
-            <span className="ag-cobrand-div" aria-hidden="true" />
-            <span className="ag-cobrand-agency">
-              {logo
-                ? <img className="ag-cobrand-logo" src={logo} alt={agencyName} />
-                : <span className="ag-cobrand-name" title={agencyName}>{agencyName}</span>}
-            </span>
-          </>
-        )}
         <button
           className="ag-rail-collapse"
           onClick={onToggle}
@@ -32,6 +22,13 @@ export default function CoBrandLockup({ profile, collapsed, onToggle }) {
           {collapsed ? '»' : '«'}
         </button>
       </div>
+      {!collapsed && (
+        <div className="ag-cobrand-agency">
+          {logo
+            ? <img className="ag-cobrand-logo" src={logo} alt={agencyName} />
+            : <span className="ag-cobrand-name" title={agencyName}>{agencyName}</span>}
+        </div>
+      )}
       {!collapsed && (
         <div className="ag-rail-meta">
           Powering{location ? ` · ${location}` : ''}{members ? ` · ${members} members` : ''}

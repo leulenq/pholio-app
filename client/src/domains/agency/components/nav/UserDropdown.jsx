@@ -91,7 +91,6 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
             </p>
           )}
         </div>
-        <span className="ud-badge">Enterprise</span>
       </div>
 
       <div className="ud-divider" />

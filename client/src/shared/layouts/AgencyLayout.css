@@ -30,56 +30,52 @@
   width: var(--ag-rail-w); flex: none; background: var(--ag-ink);
   border-right: 1px solid var(--ag-ink-line);
   display: flex; flex-direction: column; position: relative;
-  overflow: hidden; will-change: width;
+  will-change: width;
   transition: width .42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .ag-shell--collapsed .ag-rail { width: var(--ag-rail-w-collapsed); }
 
-/* ---------- CO-BRAND HEADER ---------- */
-.ag-rail-header { padding: 22px 20px 18px; border-bottom: 1px solid var(--ag-ink-line); }
-.ag-cobrand { display: flex; align-items: center; gap: 13px; }
+/* ---------- CO-BRAND LOCKUP (stacked, designed for the rail width) ---------- */
+.ag-rail-header { padding: 22px 20px 18px; border-bottom: 1px solid var(--ag-ink-line); overflow: hidden; }
+.ag-cobrand-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 /* Pholio = the talent-dashboard wordmark, always */
 .ag-cobrand-pholio {
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 18px; font-weight: 400; letter-spacing: .2em; line-height: 1;
+  font-size: 21px; font-weight: 400; letter-spacing: .2em; line-height: 1;
   color: var(--ag-gold); text-transform: uppercase; white-space: nowrap;
   transition: font-size .42s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.ag-cobrand-div {
-  width: 1px; height: 22px; flex: none;
-  background: linear-gradient(180deg, transparent, rgba(201,165,90,.45), transparent);
-}
-.ag-cobrand-agency { display: flex; align-items: center; min-width: 0; }
-/* agency: logo OR name, never both */
-.ag-cobrand-logo { height: 22px; width: auto; max-width: 94px; object-fit: contain; display: block; }
-.ag-cobrand-name {
-  font-size: 12.5px; font-weight: 600; letter-spacing: .09em; color: var(--ag-cream);
-  text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
 .ag-rail-collapse {
-  margin-left: auto; background: none; border: none; color: var(--ag-ink-faint);
-  font-size: 15px; line-height: 1; cursor: pointer; padding: 2px; transition: color .2s;
+  background: none; border: none; color: var(--ag-ink-faint);
+  font-size: 15px; line-height: 1; cursor: pointer; padding: 2px; transition: color .2s; flex: none;
 }
 .ag-rail-collapse:hover { color: var(--ag-cream); }
-.ag-rail-meta { margin-top: 12px; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-ink-faint); white-space: nowrap; overflow: hidden; }
+/* agency identity — gets the full rail width below a hairline */
+.ag-cobrand-agency { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--ag-ink-line); display: flex; align-items: center; min-width: 0; }
+.ag-cobrand-logo { max-width: 100%; max-height: 30px; width: auto; object-fit: contain; display: block; }
+.ag-cobrand-name {
+  font-size: 15px; font-weight: 600; letter-spacing: .12em; color: var(--ag-cream);
+  text-transform: uppercase; line-height: 1.25; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ag-rail-meta { margin-top: 11px; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-ink-faint); white-space: nowrap; overflow: hidden; }
 
-/* fade collapsible content (smoother than display:none) */
-.ag-cobrand-agency, .ag-cobrand-div, .ag-rail-meta,
+/* fade collapsible nav/member labels (smoother than display:none) */
 .ag-nav-group-label, .ag-nav-item span, .ag-nav-count,
-.ag-member-name, .ag-member-role {
+.ag-member-name, .ag-member-role, .ag-member-chev {
   transition: opacity .22s ease;
 }
-.ag-shell--collapsed .ag-cobrand { flex-direction: column; gap: 14px; }
-.ag-shell--collapsed .ag-cobrand-pholio { font-size: 11px; letter-spacing: .14em; }
-.ag-shell--collapsed .ag-rail-collapse { margin-left: 0; }
-.ag-shell--collapsed .ag-cobrand-agency,
-.ag-shell--collapsed .ag-cobrand-div,
-.ag-shell--collapsed .ag-rail-meta,
+.ag-shell--collapsed .ag-rail-header { padding: 18px 8px; }
+.ag-shell--collapsed .ag-cobrand-top { flex-direction: column; gap: 13px; }
+.ag-shell--collapsed .ag-cobrand-pholio { font-size: 10px; letter-spacing: .12em; }
+.ag-shell--collapsed .ag-rail-footer { padding: 15px 0; }
+.ag-shell--collapsed .ag-member { justify-content: center; gap: 0; }
 .ag-shell--collapsed .ag-nav-group-label,
 .ag-shell--collapsed .ag-nav-item span,
 .ag-shell--collapsed .ag-nav-count,
 .ag-shell--collapsed .ag-member-name,
-.ag-shell--collapsed .ag-member-role {
+.ag-shell--collapsed .ag-member-role,
+.ag-shell--collapsed .ag-member-chev {
   opacity: 0; pointer-events: none;
 }
 
@@ -98,7 +94,7 @@
 
 /* ---------- MEMBER FOOTER ---------- */
 .ag-rail-footer { padding: 15px 18px; border-top: 1px solid var(--ag-ink-line); position: relative; }
-.ag-member { display: flex; align-items: center; gap: 12px; background: none; border: none; width: 100%; cursor: pointer; padding: 0; text-align: left; }
+.ag-member { display: flex; align-items: center; gap: 12px; background: none; border: none; width: 100%; cursor: pointer; padding: 0; text-align: left; overflow: hidden; }
 .ag-member-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ag-ink); background: #2a2417; color: var(--ag-cream); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600; flex: none; }
 .ag-member-name { font-size: 12.5px; font-weight: 600; color: var(--ag-cream); white-space: nowrap; }
 .ag-member-role { font-size: 9.5px; color: var(--ag-ink-faint); letter-spacing: .04em; white-space: nowrap; }
