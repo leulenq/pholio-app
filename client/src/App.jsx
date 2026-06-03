@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
+import PholioAuthBridge from './shared/lib/pholio-auth/PholioAuthBridge';
 import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
 import AuthLayout from './shared/layouts/AuthLayout';
 import LoginPage from './domains/auth/pages/LoginPage/LoginPage';
@@ -20,9 +21,8 @@ import CastingRevealPreview from './domains/onboarding/pages/CastingRevealPrevie
 import TestPreview from './domains/onboarding/pages/TestPreview';
 
 // Agency pages
-import AgencyInbox from './domains/agency/pages/InboxPage';
 import AgencyOverview from './domains/agency/pages/OverviewPage';
-import AgencyOnboarding from './domains/onboarding/pages/AgencyOnboardingPage';
+import AgencyApplicants from './domains/agency/pages/ApplicantsPage';
 import AgencyDiscover from './domains/agency/pages/DiscoverPage';
 import AgencyBoards from './domains/agency/pages/BoardsPage';
 import AgencyAnalytics from './domains/agency/pages/AnalyticsPage';
@@ -31,10 +31,14 @@ import AgencyCasting from './domains/agency/pages/CastingPage';
 import AgencyRoster from './domains/agency/pages/RosterPage';
 import AgencyMessages from './domains/agency/pages/MessagesPage';
 import AgencyActivity from './domains/agency/pages/ActivityPage';
+import AgencyInterviews from './domains/agency/pages/InterviewsPage';
+import AgencyReminders from './domains/agency/pages/RemindersPage';
+import AgencySigned from './domains/agency/pages/SignedPage';
 
 function App() {
   return (
     <ErrorBoundary>
+      <PholioAuthBridge />
       <Routes>
         {/* Root redirects */}
         <Route path="/" element={<Navigate to="/dashboard/talent" replace />} />
@@ -71,18 +75,22 @@ function App() {
         {/* Agency Dashboard Routes */}
         <Route path="/agency" element={<Navigate to="/dashboard/agency" replace />} />
         <Route element={<AgencySessionGate />}>
-          <Route path="/dashboard/agency/onboarding" element={<AgencyOnboarding />} />
+          <Route path="/dashboard/agency/onboarding" element={<Navigate to="/dashboard/agency" replace />} />
           <Route element={<AgencyLayout />}>
-            <Route path="/dashboard/agency" element={<Navigate to="/dashboard/agency/overview" replace />} />
-            <Route path="/dashboard/agency/inbox" element={<AgencyInbox />} />
-            <Route path="/dashboard/agency/applicants" element={<Navigate to="/dashboard/agency/inbox" replace />} />
-            <Route path="/dashboard/agency/overview" element={<AgencyOverview />} />
+            <Route path="/dashboard/agency" element={<AgencyOverview />} />
+            <Route path="/dashboard/agency/overview" element={<Navigate to="/dashboard/agency" replace />} />
+            <Route path="/dashboard/agency/inbox" element={<Navigate to="/dashboard/agency/applicants" replace />} />
+            <Route path="/dashboard/agency/applicants" element={<AgencyApplicants />} />
             <Route path="/dashboard/agency/casting" element={<AgencyCasting />} />
             <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
             <Route path="/dashboard/agency/boards" element={<AgencyBoards />} />
             <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
+            <Route path="/dashboard/agency/signed" element={<AgencySigned />} />
+            <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
+            <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
             <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
             <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
+            <Route path="/dashboard/agency/team" element={<AgencySettings />} />
             <Route path="/dashboard/agency/messages" element={<AgencyMessages />} />
             <Route path="/dashboard/agency/activity" element={<AgencyActivity />} />
           </Route>
