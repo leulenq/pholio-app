@@ -546,8 +546,8 @@ export async function getUnreadMessageCount() {
 /**
  * Get global agency activity feed
  */
-export async function getAgencyActivity() {
-  return apiClient.get('/activity');
+export async function getAgencyActivity(limit) {
+  return apiClient.get(`/activity${limit ? `?limit=${limit}` : ''}`);
 }
 
 // ============================================================================
@@ -688,6 +688,19 @@ export async function snoozeReminder(reminderId, snoozeUntil) {
  */
 export async function deleteReminder(reminderId) {
   return apiClient.delete(`/reminders/${reminderId}`);
+}
+
+export async function getAgencyNotifications(options = {}) {
+  const limit = options.limit ? `?limit=${options.limit}` : '';
+  return request(`/notifications${limit}`);
+}
+
+export async function markAgencyNotificationRead(id) {
+  return request(`/notifications/${id}/read`, { method: 'PATCH', body: {} });
+}
+
+export async function markAllAgencyNotificationsRead() {
+  return request('/notifications/read-all', { method: 'POST', body: {} });
 }
 
 export default {

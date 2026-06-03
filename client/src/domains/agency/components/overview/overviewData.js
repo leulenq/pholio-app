@@ -55,6 +55,57 @@ export function selectAlerts(data) {
   return Array.isArray(data?.alerts) ? data.alerts : [];
 }
 
+export function selectPulse(data) {
+  const p = data?.pulse || {};
+  return {
+    newToday: p.newToday ?? 0,
+    closingWeek: p.closingWeek ?? 0,
+    idleTalent: p.idleTalent ?? 0,
+    avgMatchScore: p.avgMatchScore ?? null,
+    discoverableCount: p.discoverableCount ?? 0,
+    newTalentWeek: p.newTalentWeek ?? 0,
+  };
+}
+
+export function selectTalentMix(data) {
+  return Array.isArray(data?.talentMix) ? data.talentMix : [];
+}
+
+// "Where to go next" — derive recommended actions from pulse + roster mix, by urgency.
+export function buildNextMoves(pulse, talentMix = []) {
+  const moves = [];
+  if (pulse.closingWeek > 0) {
+    moves.push({
+      id: 'closing', tone: 'urgent',
+      text: `${pulse.closingWeek} board${pulse.closingWeek === 1 ? '' : 's'} close this week — finalize submissions`,
+      cta: { label: 'Review casting', to: '/dashboard/agency/casting' },
+    });
+  }
+  if (pulse.idleTalent > 0) {
+    moves.push({
+      id: 'idle', tone: 'default',
+      text: `${pulse.idleTalent} signed talent not submitted in 30 days`,
+      cta: { label: 'Activate roster', to: '/dashboard/agency/roster' },
+    });
+  }
+  const thin = [...talentMix].sort((a, b) => a.pct - b.pct)[0];
+  if (thin && talentMix.length > 1 && thin.pct <= 15) {
+    moves.push({
+      id: 'thin', tone: 'default',
+      text: `Low ${thin.name} representation on roster (${thin.pct}%)`,
+      cta: { label: 'Scout talent', to: '/dashboard/agency/discover' },
+    });
+  }
+  if (pulse.newTalentWeek > 0) {
+    moves.push({
+      id: 'newtalent', tone: 'positive',
+      text: `${pulse.newTalentWeek} new discoverable talent joined this week`,
+      cta: { label: 'Discover', to: '/dashboard/agency/discover' },
+    });
+  }
+  return moves;
+}
+
 // /overview/recent-applicants returns:
 // { applicationId, profileId, name, location, profileImage, matchScore, slug, isNew }
 export function mapApplicant(a) {

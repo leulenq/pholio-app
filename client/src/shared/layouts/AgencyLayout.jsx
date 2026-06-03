@@ -77,7 +77,15 @@ export default function AgencyLayout() {
   const unreadMessages = threads.filter((t) => t.unread).length;
   const isDiscover = location.pathname === '/dashboard/agency/discover';
   const season = 'SS26';
-  const place = (profile?.agency_location || profile?.location || 'Studio').toUpperCase();
+  // Cross-board context (agencies run many boards) — not anchored to one location/board.
+  const activeBoards = kpis.activeCastings;
+  const pipelineTotal = (overview?.pipeline || []).reduce((s, r) => s + (r.count || 0), 0);
+  const statusSegments = [
+    `${season} Season`,
+    activeBoards ? `${activeBoards} Active Board${activeBoards === 1 ? '' : 's'}` : null,
+    pipelineTotal ? `${pipelineTotal} in Pipeline` : null,
+    nowLabel(),
+  ].filter(Boolean);
 
   const shellClass = [
     'ag-shell',
@@ -104,7 +112,7 @@ export default function AgencyLayout() {
               <button className="ag-hamburger" aria-label="Open navigation" onClick={() => setDrawerOpen(true)}>
                 <Menu size={18} />
               </button>
-              <div className="ag-masthead-status">The Floor &nbsp;·&nbsp; {season} Season &nbsp;·&nbsp; {place} &nbsp;·&nbsp; {nowLabel()}</div>
+              <div className="ag-masthead-status">{statusSegments.join('   ·   ')}</div>
             </div>
             <div className="ag-masthead-actions">
               <TeamPresence members={team} />
