@@ -1,10 +1,10 @@
-const Stripe = require('stripe');
-const config = require('../../config');
+const Stripe = require("stripe");
+const config = require("../../config");
 
 // Initialize Stripe with secret key
 const stripe = config.stripe.secretKey
   ? new Stripe(config.stripe.secretKey, {
-      apiVersion: '2024-12-18.acacia'
+      apiVersion: "2024-12-18.acacia",
     })
   : null;
 
@@ -17,13 +17,15 @@ const stripe = config.stripe.secretKey
  */
 async function getOrCreateCustomer(userId, email, name = null) {
   if (!stripe) {
-    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    throw new Error(
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.",
+    );
   }
 
   // Check if customer already exists by metadata
   const existingCustomers = await stripe.customers.list({
     email,
-    limit: 1
+    limit: 1,
   });
 
   if (existingCustomers.data.length > 0) {
@@ -36,11 +38,35 @@ async function getOrCreateCustomer(userId, email, name = null) {
     name: name || undefined,
     metadata: {
       userId: userId,
-      source: 'pholio'
-    }
+      source: "pholio",
+    },
   });
 
   return customer;
+}
+
+/**
+ * Resolve the Stripe price ID for a billing interval.
+ * @param {('monthly'|'annual')} interval
+ * @returns {string} Stripe price ID
+ */
+function resolvePriceId(interval = "monthly") {
+  if (interval === "annual") {
+    const id = config.stripe.priceIdAnnual;
+    if (!id) {
+      throw new Error(
+        "Stripe annual price is not configured. Set STRIPE_PRICE_ID_ANNUAL.",
+      );
+    }
+    return id;
+  }
+  const id = config.stripe.priceIdMonthly || config.stripe.priceId;
+  if (!id) {
+    throw new Error(
+      "Stripe monthly price is not configured. Set STRIPE_PRICE_ID_MONTHLY (or STRIPE_PRICE_ID).",
+    );
+  }
+  return id;
 }
 
 /**
@@ -48,40 +74,36 @@ async function getOrCreateCustomer(userId, email, name = null) {
  * @param {string} customerId - Stripe customer ID
  * @param {string} userId - User ID (UUID)
  * @param {string} userEmail - User email
+ * @param {('monthly'|'annual')} interval - Billing interval
  * @returns {Promise<Object>} Stripe Checkout Session
  */
-async function createCheckoutSession(customerId, userId, userEmail) {
+async function createCheckoutSession(
+  customerId,
+  userId,
+  userEmail,
+  interval = "monthly",
+) {
   if (!stripe) {
-    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    throw new Error(
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.",
+    );
   }
 
-  if (!config.stripe.priceId) {
-    throw new Error('Stripe Price ID is not configured. Please set STRIPE_PRICE_ID environment variable.');
-  }
+  const priceId = resolvePriceId(interval);
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: config.stripe.priceId,
-        quantity: 1
-      }
-    ],
-    mode: 'subscription',
+    payment_method_types: ["card"],
+    line_items: [{ price: priceId, quantity: 1 }],
+    mode: "subscription",
     subscription_data: {
       trial_period_days: 14,
-      metadata: {
-        userId: userId
-      }
+      metadata: { userId: userId },
     },
     success_url: `${config.stripe.baseUrl}/stripe/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${config.stripe.baseUrl}/pro/upgrade?canceled=true`,
-    metadata: {
-      userId: userId,
-      userEmail: userEmail
-    },
-    allow_promotion_codes: true
+    cancel_url: `${config.stripe.baseUrl}/dashboard/talent/settings?canceled=true`,
+    metadata: { userId: userId, userEmail: userEmail, interval },
+    allow_promotion_codes: true,
   });
 
   return session;
@@ -94,12 +116,14 @@ async function createCheckoutSession(customerId, userId, userEmail) {
  */
 async function createCustomerPortalSession(customerId) {
   if (!stripe) {
-    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    throw new Error(
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.",
+    );
   }
 
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${config.stripe.baseUrl}/pro/upgrade`
+    return_url: `${config.stripe.baseUrl}/pro/upgrade`,
   });
 
   return session;
@@ -112,7 +136,9 @@ async function createCustomerPortalSession(customerId) {
  */
 async function getSubscription(subscriptionId) {
   if (!stripe) {
-    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    throw new Error(
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.",
+    );
   }
 
   return await stripe.subscriptions.retrieve(subscriptionId);
@@ -126,14 +152,16 @@ async function getSubscription(subscriptionId) {
  */
 async function cancelSubscription(subscriptionId, immediately = false) {
   if (!stripe) {
-    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    throw new Error(
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.",
+    );
   }
 
   if (immediately) {
     return await stripe.subscriptions.cancel(subscriptionId);
   } else {
     return await stripe.subscriptions.update(subscriptionId, {
-      cancel_at_period_end: true
+      cancel_at_period_end: true,
     });
   }
 }
@@ -146,17 +174,21 @@ async function cancelSubscription(subscriptionId, immediately = false) {
  */
 async function verifyWebhookSignature(payload, signature) {
   if (!stripe) {
-    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+    throw new Error(
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.",
+    );
   }
 
   if (!config.stripe.webhookSecret) {
-    throw new Error('Stripe webhook secret is not configured. Please set STRIPE_WEBHOOK_SECRET environment variable.');
+    throw new Error(
+      "Stripe webhook secret is not configured. Please set STRIPE_WEBHOOK_SECRET environment variable.",
+    );
   }
 
   return stripe.webhooks.constructEvent(
     payload,
     signature,
-    config.stripe.webhookSecret
+    config.stripe.webhookSecret,
   );
 }
 
@@ -167,6 +199,6 @@ module.exports = {
   createCustomerPortalSession,
   getSubscription,
   cancelSubscription,
-  verifyWebhookSignature
+  verifyWebhookSignature,
+  resolvePriceId,
 };
-
