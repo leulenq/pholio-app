@@ -1,0 +1,429 @@
+/* Shared Zone Sub-Component Styles */
+
+/* Portfolio Grid */
+.pf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.pf-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.pf-grid-img {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: block;
+}
+
+.pf-grid-img:hover {
+  opacity: 0.88;
+}
+
+.pf-grid-empty {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 16px 0;
+  text-align: center;
+}
+
+/* Portfolio Strip */
+.pf-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 24px;
+  scrollbar-width: none;
+}
+
+.pf-strip::-webkit-scrollbar { display: none; }
+
+.pf-strip-img {
+  width: 80px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pf-strip-img:hover { opacity: 0.88; }
+
+/* Section Skeleton */
+.skel-block {
+  background: linear-gradient(90deg, #F1F0EE 25%, #EDE9E4 50%, #F1F0EE 75%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+
+@keyframes skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Notes Editor */
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.note-entry {
+  border-left: 2px solid #EDE9E4;
+  padding: 4px 0 4px 12px;
+}
+
+.note-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.note-text {
+  font-size: 13px;
+  color: #0f172a;
+  line-height: 1.5;
+}
+
+.notes-add-btn {
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
+  cursor: pointer;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  text-align: left;
+}
+
+.notes-add-btn:hover { color: #C9A55A; }
+
+.notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notes-textarea {
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid #EDE9E4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.notes-textarea:focus { border-color: #C9A55A; }
+
+.notes-editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Zone section wrapper */
+.zone-section {
+  margin-bottom: 24px;
+}
+
+.zone-section-header {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #9b9082;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 9px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ddd5c6;
+}
+
+/* Measurements strip (shared) */
+.measure-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.measure-chip {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid #e7ddca;
+  border-radius: 4px;
+  padding: 11px 8px;
+  text-align: center;
+}
+
+.measure-label {
+  font-size: 8.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #9b9082;
+  display: block;
+}
+
+.measure-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: #16130D;
+  margin-top: 3px;
+  display: block;
+}
+
+/* Attributes row */
+.attr-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.attr-pill {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid #e7ddca;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: #4a443c;
+}
+
+.attr-pill-label {
+  color: #9b9082;
+  margin-right: 4px;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+/* Bio */
+.zone-bio {
+  font-size: 13.5px;
+  color: #4a443c;
+  line-height: 1.65;
+  font-family: 'Noto Serif Display', serif;
+  margin-bottom: 24px;
+}
+
+/* Booking summary */
+.booking-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.booking-stat {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid #e7ddca;
+  border-radius: 4px;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.booking-stat-label {
+  font-size: 8.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #9b9082;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.booking-stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #16130D;
+}
+
+/* Application status card */
+.app-status-card {
+  border-left: 3px solid #C9A55A;
+  background: #FAF8F5;
+  border-radius: 0 10px 10px 0;
+  padding: 14px 16px;
+  margin-bottom: 24px;
+}
+
+.app-status-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.app-status-card-date {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+/* Quick stats row (Overview) */
+.quick-stats {
+  display: flex;
+  margin-bottom: 26px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #ddd5c6;
+}
+
+.quick-stat {
+  flex: 1;
+  padding: 0 18px;
+  border-left: 1px solid #e2dac9;
+  text-align: left;
+}
+.quick-stat:first-child { border-left: none; padding-left: 0; }
+
+.quick-stat-label {
+  font-size: 8.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #9b9082;
+  display: block;
+  margin-bottom: 9px;
+}
+
+.quick-stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 500;
+  color: #16130D;
+  line-height: 1;
+}
+
+/* Error state */
+.zone-error {
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 16px 0;
+  text-align: center;
+}
+
+.zone-error-retry {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #C9A55A;
+  font-weight: 600;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+/* Timeline */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.timeline-entry {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid #F1F0EE;
+  font-size: 12.5px;
+}
+
+.timeline-entry:last-child { border-bottom: none; }
+
+.timeline-icon {
+  color: #C9A55A;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.timeline-label {
+  flex: 1;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.timeline-time {
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.timeline-show-more {
+  font-size: 12px;
+  color: #C9A55A;
+  font-weight: 600;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 8px 0 0;
+}
+
+.timeline-empty {
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 8px 0;
+  font-style: italic;
+}
+
+/* Button styles (duplicated from TalentPanel.css for zone component independence) */
+.tp-btn {
+  height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+.tp-btn--primary {
+  background: #C9A55A;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.tp-btn--primary:hover {
+  background: #B8956A;
+  transform: translateY(-1px);
+}
+
+.tp-btn--secondary {
+  background: transparent;
+  border-color: #EDE9E4;
+  color: #0f172a;
+}
+
+.tp-btn--secondary:hover { background: rgba(0,0,0,0.03); }
+
+.tp-btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
