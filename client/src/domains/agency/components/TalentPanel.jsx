@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { X, UserPlus, Check, Download, MessageCircle, Star, LayoutGrid, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Maximize2, UserPlus, Check, Download, MessageCircle, Star, LayoutGrid, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TalentStatusBadge } from './ui/TalentStatusBadge';
 import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
@@ -26,6 +27,7 @@ const getInitials = (name) => {
  * @param {Function} onAction - (action, talent) => void. Falls back to toast if absent.
  */
 export const TalentPanel = ({ talent, context = 'roster', onClose, onAction }) => {
+  const navigate = useNavigate();
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [carouselImages, setCarouselImages] = useState(null);
 
@@ -157,9 +159,21 @@ export const TalentPanel = ({ talent, context = 'roster', onClose, onAction }) =
             </>
           )}
 
-          <button className="tp-close-btn" onClick={onClose} aria-label="Close panel">
-            <X size={17} />
-          </button>
+          <div className="tp-hero-controls">
+            {talent.applicationId && (
+              <button
+                className="tp-ctl-btn"
+                onClick={() => navigate(`/dashboard/agency/talent/${talent.applicationId}`)}
+                aria-label="Open full profile"
+                title="Full profile"
+              >
+                <Maximize2 size={15} strokeWidth={1.8} />
+              </button>
+            )}
+            <button className="tp-ctl-btn" onClick={onClose} aria-label="Close panel">
+              <X size={16} strokeWidth={1.8} />
+            </button>
+          </div>
 
           <div className="tp-identity">
             <div className="tp-eyebrow">
@@ -167,7 +181,7 @@ export const TalentPanel = ({ talent, context = 'roster', onClose, onAction }) =
             </div>
             <h2 className="tp-name">{talent.name}</h2>
             <div className="tp-identity-row">
-              <TalentStatusBadge status={talent.status || 'available'} />
+              <TalentStatusBadge status={talent.status || 'available'} onDark />
               {talent.match ? (
                 <span className="tp-match"><strong>{talent.match}</strong> match</span>
               ) : null}

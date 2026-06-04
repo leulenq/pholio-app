@@ -1,0 +1,38 @@
+/* TalentStatusBadge — calm, static, editorial. No pulsing. */
+.ts-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid #e2dac9;
+  color: #6b6256;
+  white-space: nowrap;
+}
+.ts-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #b3a89a;
+  flex: none;
+}
+.ts-badge--sage .ts-dot { background: #7d9b82; }
+.ts-badge--gold .ts-dot { background: #c9a55a; }
+.ts-badge--ink .ts-dot { background: #16130d; }
+.ts-badge--green .ts-dot { background: #5b8f73; }
+.ts-badge--slate .ts-dot { background: #8a8175; }
+.ts-badge--muted .ts-dot { background: #b3a89a; }
+
+/* over a dark hero / portrait */
+.ts-badge--on-dark {
+  background: rgba(20, 17, 11, 0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border-color: rgba(239, 233, 220, 0.2);
+  color: #efe9dc;
+}

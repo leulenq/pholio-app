@@ -34,6 +34,7 @@ import AgencyActivity from './domains/agency/pages/ActivityPage';
 import AgencyInterviews from './domains/agency/pages/InterviewsPage';
 import AgencyReminders from './domains/agency/pages/RemindersPage';
 import AgencySigned from './domains/agency/pages/SignedPage';
+import AgencyTalentView from './domains/agency/pages/TalentFullView';
 
 function App() {
   return (
@@ -91,6 +92,7 @@ function App() {
             <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
             <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
             <Route path="/dashboard/agency/team" element={<AgencySettings />} />
+            <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />
             <Route path="/dashboard/agency/messages" element={<AgencyMessages />} />
             <Route path="/dashboard/agency/activity" element={<AgencyActivity />} />
           </Route>

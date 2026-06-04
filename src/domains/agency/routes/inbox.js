@@ -2416,6 +2416,7 @@ router.get(
         application: {
           id: application.id,
           status: application.status,
+          match_score: application.match_score,
           created_at: application.created_at,
           accepted_at: application.accepted_at,
           declined_at: application.declined_at,

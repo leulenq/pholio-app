@@ -63,26 +63,35 @@
   background: radial-gradient(120% 80% at 70% 20%, rgba(201,165,90,.12), transparent 60%), #1b160e;
 }
 
-/* close */
-.tp-close-btn {
+/* hero controls (close + expand) */
+.tp-hero-controls {
   position: absolute;
   top: 16px;
   right: 16px;
   z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+.tp-ctl-btn {
   width: 34px;
   height: 34px;
-  background: rgba(20, 17, 11, 0.42);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(239, 233, 220, 0.18);
-  border-radius: 4px;
+  background: rgba(20, 17, 11, 0.28);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(239, 233, 220, 0.22);
+  border-radius: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #EFE9DC;
-  transition: background 0.2s, border-color 0.2s;
+  color: rgba(244, 238, 226, 0.82);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
-.tp-close-btn:hover { background: rgba(20, 17, 11, 0.62); border-color: rgba(201, 165, 90, 0.5); }
+.tp-ctl-btn:hover {
+  background: rgba(20, 17, 11, 0.5);
+  border-color: var(--ag-gold, #C9A55A);
+  color: #fff;
+}
 
 /* carousel */
 .tp-carousel-arrow {
