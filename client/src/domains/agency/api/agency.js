@@ -315,6 +315,13 @@ export async function addToBoard(boardId, applicationId) {
 }
 
 /**
+ * Assign an application to a board (real endpoint; moves it onto the board).
+ */
+export async function assignToBoard(applicationId, boardId) {
+  return apiClient.post(`/applications/${applicationId}/assign-board`, { board_id: boardId });
+}
+
+/**
  * Remove applicant from board
  */
 export async function removeFromBoard(boardId, applicationId) {

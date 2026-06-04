@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { X, Maximize2, UserPlus, Check, Download, MessageCircle, Star, LayoutGrid, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TalentStatusBadge } from './ui/TalentStatusBadge';
+import { TalentActionBar } from './talent/TalentActionBar';
+import { TalentThread } from './talent/TalentThread';
 import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
 import { RosterZone } from './zones/RosterZone';
 import { OverviewZone } from './zones/OverviewZone';
 import './TalentPanel.css';
+
+const scrollToThread = () =>
+  document.getElementById('talent-thread')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
 const getInitials = (name) => {
   const parts = (name || '').trim().split(' ');
@@ -26,7 +30,7 @@ const getInitials = (name) => {
  * @param {Function} onClose
  * @param {Function} onAction - (action, talent) => void. Falls back to toast if absent.
  */
-export const TalentPanel = ({ talent, context = 'roster', onClose, onAction }) => {
+export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
   const navigate = useNavigate();
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [carouselImages, setCarouselImages] = useState(null);
@@ -46,14 +50,6 @@ export const TalentPanel = ({ talent, context = 'roster', onClose, onAction }) =
 
   const images = carouselImages || (talent.photo ? [{ path: talent.photo, alt: talent.name }] : []);
   const multi = images.length > 1;
-
-  // All actions route through here so callers get a single onAction hook.
-  // Discover "Add to Board" falls through to the coming-soon toast because
-  // there is no applicationId in the discover context.
-  const handleAction = (action) => {
-    if (onAction) onAction(action, talent);
-    else toast.success('Coming soon');
-  };
 
   const renderZone = () => {
     // setCarouselImages is a stable React state setter — safe to pass as a prop.
@@ -191,52 +187,23 @@ export const TalentPanel = ({ talent, context = 'roster', onClose, onAction }) =
 
         {/* ZONE A — ACTION STRIP (part of fixed header, does not scroll) */}
         <div className="tp-action-strip">
-          {context === 'discover' && (
-            <button className="tp-btn tp-btn--primary" onClick={() => handleAction('invite')}>
-              <UserPlus size={16} /> Invite
-            </button>
-          )}
-          {['applicants', 'overview'].includes(context) && (
-            <button className="tp-btn tp-btn--primary" onClick={() => handleAction('accept')}>
-              <Check size={16} /> Accept
-            </button>
-          )}
-          {context === 'roster' && (
-            <button className="tp-btn tp-btn--primary" onClick={() => handleAction('download-comp-card')}>
-              <Download size={16} /> Comp Card
-            </button>
-          )}
-          {['roster', 'overview'].includes(context) && (
-            <button className="tp-btn tp-btn--secondary" onClick={() => handleAction('message')}>
-              <MessageCircle size={16} /> Message
-            </button>
-          )}
-          {context === 'applicants' && (
-            <button className="tp-btn tp-btn--secondary" onClick={() => handleAction('shortlist')}>
-              <Star size={16} /> Shortlist
-            </button>
-          )}
-          <button
-            className="tp-btn tp-btn--secondary tp-btn--icon"
-            title="Add to Board"
-            onClick={() => handleAction('add-to-board')}
-          >
-            <LayoutGrid size={16} />
-          </button>
-          {context === 'applicants' && (
-            <button
-              className="tp-btn tp-btn--secondary tp-btn--icon tp-btn--danger"
-              title="Reject"
-              onClick={() => handleAction('reject')}
-            >
-              <XCircle size={16} />
-            </button>
-          )}
+          <TalentActionBar
+            applicationId={talent.applicationId}
+            profileId={talent.profileId}
+            status={talent.status}
+            context={context}
+            onMessage={scrollToThread}
+          />
         </div>
 
         {/* ZONE B — CONTEXT BODY */}
         <div className="tp-body">
           {renderZone()}
+          {talent.applicationId && (
+            <div className="tp-thread-wrap">
+              <TalentThread applicationId={talent.applicationId} />
+            </div>
+          )}
         </div>
       </motion.div>
     </>

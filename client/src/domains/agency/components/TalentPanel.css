@@ -222,3 +222,5 @@
 .tp-body::-webkit-scrollbar { width: 5px; }
 .tp-body::-webkit-scrollbar-track { background: transparent; }
 .tp-body::-webkit-scrollbar-thumb { background: #ddd5c6; border-radius: 3px; }
+
+.tp-thread-wrap { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--ag-rule, #ddd5c6); }
