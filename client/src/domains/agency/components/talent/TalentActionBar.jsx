@@ -1,14 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Check, Star, MessageCircle, LayoutGrid, X, UserPlus, Download } from 'lucide-react';
 import { getBoards, inviteTalent } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import './TalentActionBar.css';
 
-export function TalentActionBar({ applicationId, profileId, status, context = 'overview', onMessage }) {
+// Download a talent comp card PDF (same flow the talent dashboard uses).
+async function downloadCompCard(slug) {
+  const res = await fetch(`/pdf/${slug}?download=1`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Comp card unavailable');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pholio-${slug}-compcard.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function TalentActionBar({ applicationId, profileId, slug, status, context = 'overview', onMessage }) {
+  const qc = useQueryClient();
   const { accept, shortlist, decline, addToBoard, isPending } = useTalentActions(applicationId);
   const [boardOpen, setBoardOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const boardRef = useRef(null);
 
   const { data: boards = [] } = useQuery({
@@ -18,6 +35,12 @@ export function TalentActionBar({ applicationId, profileId, status, context = 'o
     select: (d) => (Array.isArray(d) ? d : []),
   });
 
+  const invite = useMutation({
+    mutationFn: () => inviteTalent(profileId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['agency'] }); toast.success('Talent invited to apply'); },
+    onError: (e) => toast.error(e?.message || 'Could not send invite'),
+  });
+
   useEffect(() => {
     if (!boardOpen) return undefined;
     const h = (e) => { if (boardRef.current && !boardRef.current.contains(e.target)) setBoardOpen(false); };
@@ -25,24 +48,37 @@ export function TalentActionBar({ applicationId, profileId, status, context = 'o
     return () => document.removeEventListener('mousedown', h);
   }, [boardOpen]);
 
+  const handleCompCard = async () => {
+    if (!slug) return;
+    setDownloading(true);
+    try {
+      await downloadCompCard(slug);
+    } catch (e) {
+      toast.error(e?.message || 'Could not generate comp card');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const isShortlisted = status === 'shortlisted';
   const isAccepted = status === 'accepted' || status === 'booked';
   const isPipeline = context === 'applicants' || context === 'overview';
 
+  const compCardBtn = slug && (
+    <button className={`tact-btn${context === 'roster' ? ' tact-btn--primary' : ''}`} disabled={downloading} onClick={handleCompCard}>
+      <Download size={15} /> {downloading ? 'Preparing…' : 'Comp Card'}
+    </button>
+  );
+
   return (
     <div className="tact-row">
       {context === 'discover' && (
-        <button className="tact-btn tact-btn--primary" onClick={() =>
-          inviteTalent(profileId).then(() => toast.success('Talent invited')).catch(() => toast.error('Could not invite'))}>
-          <UserPlus size={15} /> Invite
+        <button className="tact-btn tact-btn--primary" disabled={invite.isPending} onClick={() => invite.mutate()}>
+          <UserPlus size={15} /> {invite.isPending ? 'Inviting…' : 'Invite'}
         </button>
       )}
 
-      {context === 'roster' && (
-        <button className="tact-btn" onClick={() => toast.success('Comp card — coming soon')}>
-          <Download size={15} /> Comp Card
-        </button>
-      )}
+      {context === 'roster' && compCardBtn}
 
       {isPipeline && applicationId && (
         <>
@@ -79,6 +115,8 @@ export function TalentActionBar({ applicationId, profileId, status, context = 'o
           )}
         </div>
       )}
+
+      {context !== 'roster' && context !== 'discover' && compCardBtn}
 
       {isPipeline && applicationId && (
         <button className="tact-btn tact-btn--icon tact-btn--danger" title="Decline" disabled={isPending} onClick={() => decline.mutate()}>

@@ -63,6 +63,7 @@ export default function TalentFullView() {
           <TalentActionBar
             applicationId={applicationId}
             profileId={profile?.id}
+            slug={profile?.slug}
             status={application?.status}
             context="overview"
             onMessage={scrollToThread}

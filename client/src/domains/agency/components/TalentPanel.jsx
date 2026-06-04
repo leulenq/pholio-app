@@ -190,6 +190,7 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
           <TalentActionBar
             applicationId={talent.applicationId}
             profileId={talent.profileId}
+            slug={talent.slug}
             status={talent.status}
             context={context}
             onMessage={scrollToThread}

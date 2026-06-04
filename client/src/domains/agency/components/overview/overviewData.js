@@ -123,5 +123,6 @@ export function mapApplicant(a) {
     location: a.location || a.city || null,
     status: a.status || a.application_status || 'available',
     match: a.matchScore ?? a.match ?? a.match_score ?? 0,
+    slug: a.slug || null,
   };
 }
