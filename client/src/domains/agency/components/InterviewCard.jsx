@@ -178,7 +178,7 @@ export default function InterviewCard({ interview }) {
               value={editData.notes}
               onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
               rows={2}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+              className="agency-textarea"
             />
           </div>
           <div className="flex gap-2">

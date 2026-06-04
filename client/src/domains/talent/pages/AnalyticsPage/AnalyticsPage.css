@@ -18,91 +18,24 @@
   animation: intel-entrance 0.4s ease both;
 }
 
-/* ── Masthead (dark ink) ─────────────────────────────────────────────────── */
+/* ── Compact page header ─────────────────────────────────────────────────── */
 
-.intel-masthead {
-  background: #050505;
-  padding: clamp(48px, 5vw, 80px) clamp(32px, 5.4vw, 72px) 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.intel-masthead::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 30% 50%, rgba(201,165,90,0.06) 0%, transparent 60%);
-  pointer-events: none;
-}
-
-.intel-masthead-inner {
-  position: relative;
-  z-index: 1;
-  max-width: 1200px;
-}
-
-.intel-masthead-top {
+.intel-compact-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 40px;
+  padding: 20px clamp(32px, 5.4vw, 72px);
+  border-bottom: 1px solid rgba(26,26,26,0.06);
+  background: #FAF7F2;
 }
 
-.intel-masthead-copy { flex: 1; }
-
-.intel-kicker {
-  display: block;
+.intel-compact-title {
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: #C9A55A;
-  margin-bottom: 20px;
-}
-
-.intel-display {
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(2.8rem, 6vw, 5rem);
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.02;
-  color: rgba(245,240,230,0.92);
-  margin: 0 0 20px;
-}
-
-.intel-display em {
-  font-style: italic;
-  color: #C8A96E;
-}
-
-.intel-lede {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 15px;
-  font-weight: 300;
-  line-height: 1.65;
-  color: rgba(245,240,230,0.42);
-  margin: 0 0 24px;
-  max-width: 44ch;
-}
-
-.intel-tier-pill {
-  display: inline-block;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 100px;
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(245,240,230,0.5);
-}
-
-.intel-tier-pill--studio {
-  border-color: #C9A55A;
-  color: #C9A55A;
+  color: rgba(26,26,26,0.42);
 }
 
 /* Time range selector */
@@ -111,8 +44,8 @@
   display: flex;
   gap: 4px;
   align-items: center;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(26,26,26,0.04);
+  border: 1px solid rgba(26,26,26,0.08);
   border-radius: 8px;
   padding: 3px;
   flex-shrink: 0;
@@ -130,15 +63,15 @@
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: rgba(245,240,230,0.38);
+  color: rgba(26,26,26,0.38);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.intel-time-btn:hover:not(:disabled) { color: rgba(245,240,230,0.8); }
+.intel-time-btn:hover:not(:disabled) { color: rgba(26,26,26,0.8); }
 
 .intel-time-btn--active {
-  background: rgba(201,165,90,0.15);
+  background: rgba(201,165,90,0.12);
   color: #C9A55A;
 }
 
@@ -148,82 +81,6 @@
 }
 
 .intel-time-lock { opacity: 0.5; }
-
-/* Hero KPI row */
-
-.intel-kpi-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid rgba(255,255,255,0.06);
-  margin-top: 32px;
-}
-
-.intel-kpi {
-  padding: 28px 24px;
-  border-right: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.intel-kpi:last-child { border-right: none; }
-
-.intel-kpi-icon { color: rgba(245,240,230,0.2); }
-
-.intel-kpi-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: rgba(245,240,230,0.35);
-}
-
-.intel-kpi-value {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
-  font-weight: 500;
-  color: rgba(245,240,230,0.92);
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.intel-kpi-delta {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.intel-kpi-delta--up   { color: #C9A55A; }
-.intel-kpi-delta--down { color: rgba(245,240,230,0.35); }
-
-/* Loading skeleton */
-
-.intel-skel {
-  border-radius: 4px;
-  background: rgba(255,255,255,0.07);
-  background-image: linear-gradient(90deg,
-    rgba(255,255,255,0.05) 0%,
-    rgba(255,255,255,0.12) 50%,
-    rgba(255,255,255,0.05) 100%);
-  background-size: 200% 100%;
-  animation: intel-shimmer 1.8s linear infinite;
-}
-
-.intel-skel--title {
-  height: clamp(2.8rem, 6vw, 5rem);
-  width: 240px;
-  margin-bottom: 24px;
-}
-
-.intel-skel--kpi { height: 2rem; width: 80px; }
-
-/* Hairline transition */
-
-.intel-hairline {
-  height: 1px;
-  background: linear-gradient(to right, transparent, rgba(201,165,90,0.38), transparent);
-}
 
 /* ── Body (cream) ────────────────────────────────────────────────────────── */
 
@@ -973,21 +830,116 @@
   padding: 32px 0;
 }
 
+/* ── Cohort Heatmap (Pholio branded) ─────────────────────────────────────── */
+
+.pheatmap-wrap { margin-top: 8px; }
+
+.pheatmap-scroll { overflow-x: auto; }
+
+.pheatmap-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4px;
+}
+
+.pheatmap-th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(26,26,26,0.35);
+  padding: 0 4px 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pheatmap-th--label { text-align: left; padding-left: 0; min-width: 100px; }
+
+.pheatmap-row-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(26,26,26,0.42);
+  padding: 4px 12px 4px 0;
+  white-space: nowrap;
+}
+
+.pheatmap-td { padding: 2px; }
+
+.pheatmap-cell {
+  height: 36px;
+  min-width: 56px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  transition: transform 0.15s ease;
+}
+
+.pheatmap-cell:hover { transform: scale(1.05); }
+
+.pheat-baseline { background: #1A1A1A; color: rgba(245,240,230,0.85); }
+.pheat-5 { background: #C9A55A; color: rgba(26,26,26,0.88); }
+.pheat-4 { background: rgba(201,165,90,0.60); color: rgba(26,26,26,0.78); }
+.pheat-3 { background: rgba(201,165,90,0.35); color: rgba(26,26,26,0.65); }
+.pheat-2 { background: rgba(201,165,90,0.18); color: rgba(26,26,26,0.50); }
+.pheat-1 { background: rgba(201,165,90,0.08); color: rgba(26,26,26,0.35); }
+.pheat-null { background: rgba(26,26,26,0.03); color: transparent; }
+
+.pheatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+.pheatmap-legend-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(26,26,26,0.32);
+}
+
+.pheatmap-legend-scale { display: flex; gap: 3px; }
+
+.pheatmap-legend-swatch { width: 20px; height: 12px; border-radius: 2px; }
+
+.pheatmap-empty { padding: 40px 0 24px; text-align: center; }
+
+.pheatmap-empty-title {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(26,26,26,0.52);
+  margin: 0 0 6px;
+}
+
+.pheatmap-empty-lede {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  color: rgba(26,26,26,0.36);
+  margin: 0;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) {
-  .intel-masthead-top { flex-direction: column; }
-  .intel-kpi-row { grid-template-columns: repeat(2, 1fr); }
-  .intel-kpi:nth-child(2) { border-right: none; }
-  .intel-kpi:nth-child(1),
-  .intel-kpi:nth-child(2) { border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .intel-compact-header { flex-direction: column; align-items: flex-start; gap: 12px; }
   .signal-pro-row { grid-template-columns: 1fr; }
   .pattern-stats { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 640px) {
-  .intel-kpi-row { grid-template-columns: 1fr; }
   .intel-body { padding: 24px 20px 48px; }
+  .intel-compact-header { padding: 16px 20px; }
   .reach-stat-row { grid-template-columns: 1fr; }
   .signal-funnel-bar { grid-template-columns: 110px 1fr 48px; }
   .market-row { grid-template-columns: 1fr auto; }

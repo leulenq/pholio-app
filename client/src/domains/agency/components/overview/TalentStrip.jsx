@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import MatchScoreBadge from '../ui/MatchScoreBadge';
 
 // Horizontal media strip of talent (headshots + match) — content-backed, scrollable.
 export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
@@ -16,7 +17,14 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
           {talents.map((t) => (
             <button key={t.id} className="ov-strip-card" onClick={() => onSelect(t)}>
               <span className="ov-strip-img" style={{ backgroundImage: t.photo ? `url(${t.photo})` : 'none' }}>
-                {t.match ? <span className="ov-strip-match">{t.match}</span> : null}
+                {t.match != null ? (
+                  <MatchScoreBadge
+                    score={t.match}
+                    size="xs"
+                    tone="overlay"
+                    className="ov-strip-match"
+                  />
+                ) : null}
               </span>
               <span className="ov-strip-name">{t.name}</span>
               <span className="ov-strip-meta">{t.typeLabel}{t.city ? ` · ${t.city}` : ''}</span>

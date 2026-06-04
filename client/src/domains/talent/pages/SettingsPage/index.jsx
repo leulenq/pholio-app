@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Camera, Mail, Monitor, Check, CreditCard, ExternalLink,
+  Camera, Mail, Monitor, Check, CreditCard,
 } from 'lucide-react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
@@ -15,27 +15,78 @@ import './SettingsPage.css';
 const EASING = [0.22, 1, 0.36, 1];
 
 const SECTIONS = [
-  { id: 'account',       label: 'Account',       group: 'IDENTITY',     desc: 'Name, email, locale' },
-  { id: 'notifications', label: 'Notifications',  group: 'PREFERENCES',  desc: 'Alerts and digest frequency' },
-  { id: 'privacy',       label: 'Privacy',        group: 'PREFERENCES',  desc: 'Visibility, portfolio, blocklist' },
-  { id: 'display',       label: 'Display',        group: 'PREFERENCES',  desc: 'Watermark and comp card layout' },
-  { id: 'subscription',  label: 'Subscription',   group: 'YOUR PLAN',    desc: 'Plan and billing' },
-  { id: 'security',      label: 'Security',       group: 'YOUR PLAN',    desc: 'Password and access' },
-  { id: 'data',          label: 'Data & Privacy', group: 'LEGAL',        desc: 'Export, cookies, retention' },
-  { id: 'danger',        label: 'Danger Zone',    group: 'LEGAL',        desc: 'Account actions' },
+  { id: 'account',       label: 'Account' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'privacy',       label: 'Privacy' },
+  { id: 'display',       label: 'Display' },
+  { id: 'subscription',  label: 'Subscription' },
+  { id: 'security',      label: 'Security' },
+  { id: 'data',          label: 'Data' },
+  { id: 'danger',        label: 'Danger Zone' },
 ];
 
-const GROUPS = ['IDENTITY', 'PREFERENCES', 'YOUR PLAN', 'LEGAL'];
+function useTalentSettings() {
+  return useQuery({
+    queryKey: ['talent-settings'],
+    queryFn: talentApi.getSettings,
+    select: (d) => d?.settings ?? d,
+  });
+}
 
-function CardHeader({ chapter, title, meta }) {
+function useSettingsMutation(options = {}) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => talentApi.updateSettings(data),
+    onSuccess: (response) => {
+      const settings = response?.settings ?? response;
+      if (settings) queryClient.setQueryData(['talent-settings'], { success: true, settings });
+      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+      options.onSuccess?.(settings);
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to save settings');
+      options.onError?.(error);
+    },
+  });
+}
+
+function parseJsonArray(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return raw ? [raw] : [];
+  }
+}
+
+function formatDisplayDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function CardHeader({ title }) {
   return (
     <div className="ts-card-hd">
       <div className="ts-card-hd-row">
         <div className="ts-card-hd-main">
-          {chapter ? <span className="ts-card-chapter">{chapter}</span> : null}
           <h2 className="ts-card-title">{title}</h2>
         </div>
-        {meta ? <span className="ts-card-meta">{meta}</span> : null}
       </div>
     </div>
   );
@@ -45,7 +96,6 @@ export default function SettingsPage() {
   const { section } = useParams();
   const activeSection = section || 'account';
   const navigate = useNavigate();
-  const activeMeta = SECTIONS.find(s => s.id === activeSection) ?? SECTIONS[0];
 
   return (
     <div className="ts-page">
@@ -57,56 +107,31 @@ export default function SettingsPage() {
       >
         <header className="ts-page-header">
           <div className="ts-page-header-main">
-            <span className="ts-page-kicker">Your workspace</span>
             <h1 className="ts-page-title">Settings</h1>
             <div className="ts-page-sweep" aria-hidden="true" />
-          </div>
-          <div className="ts-page-header-meta">
-            <span className="ts-page-meta-label">Viewing</span>
-            <span className="ts-page-meta-value">{activeMeta.label}</span>
-            <span className="ts-page-meta-desc">{activeMeta.desc}</span>
           </div>
         </header>
 
         <div className="ts-layout">
-          {/* Sidebar */}
           <aside className="ts-sidebar">
             <nav className="ts-nav" aria-label="Settings sections">
-              {GROUPS.map(group => (
-                <div key={group} className="ts-nav-group">
-                  <span className="ts-nav-group-label">{group}</span>
-                  {SECTIONS.filter(s => s.group === group).map(s => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className={`ts-nav-item${activeSection === s.id ? ' active' : ''}`}
-                      onClick={() => { if (activeSection !== s.id) navigate(`/dashboard/talent/settings/${s.id}`); }}
-                      aria-current={activeSection === s.id ? 'page' : undefined}
-                    >
-                      {activeSection === s.id && (
-                        <motion.div layoutId="ts-nav-bar" className="ts-nav-bar" />
-                      )}
-                      <span className="ts-nav-dot" aria-hidden="true" />
-                      <span className="ts-nav-text">
-                        <span className="ts-nav-label">{s.label}</span>
-                        <span className="ts-nav-desc">{s.desc}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
+              {SECTIONS.map(s => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`ts-nav-item${activeSection === s.id ? ' active' : ''}`}
+                  onClick={() => { if (activeSection !== s.id) navigate(`/dashboard/talent/settings/${s.id}`); }}
+                  aria-current={activeSection === s.id ? 'page' : undefined}
+                >
+                  {activeSection === s.id && (
+                    <motion.div layoutId="ts-nav-bar" className="ts-nav-bar" />
+                  )}
+                  <span className="ts-nav-label">{s.label}</span>
+                </button>
               ))}
             </nav>
-
-            <div className="ts-support">
-              <span className="ts-support-eyebrow">Need Help?</span>
-              <p className="ts-support-text">Questions about your account or billing?</p>
-              <a href="mailto:support@pholio.studio" className="ts-support-link">
-                support@pholio.studio <ExternalLink size={11} aria-hidden="true" />
-              </a>
-            </div>
           </aside>
 
-          {/* Main content */}
           <main className="ts-main">
             <AnimatePresence mode="wait">
               <motion.div
@@ -135,14 +160,29 @@ export default function SettingsPage() {
 
 function AccountSection() {
   const { profile, updateProfile, isUpdatingProfile } = useAuth();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const profileLanguage = parseJsonArray(profile?.languages)[0] || 'English';
   const [form, setForm] = useState(() => ({
     first_name: profile?.first_name || '',
     last_name:  profile?.last_name  || '',
     phone:      profile?.phone      || '',
-    language:   profile?.language   || 'en',
+    language:   profileLanguage,
     timezone:   profile?.timezone   || 'America/New_York',
   }));
   const [isChanged, setIsChanged] = useState(false);
+
+  useEffect(() => {
+    if (!profile || isChanged) return;
+    setForm({
+      first_name: profile.first_name || '',
+      last_name:  profile.last_name  || '',
+      phone:      profile.phone      || '',
+      language:   parseJsonArray(profile.languages)[0] || 'English',
+      timezone:   profile.timezone   || 'America/New_York',
+    });
+  }, [profile, isChanged]);
 
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -154,7 +194,7 @@ function AccountSection() {
       first_name: profile?.first_name || '',
       last_name:  profile?.last_name  || '',
       phone:      profile?.phone      || '',
-      language:   profile?.language   || 'en',
+      language:   parseJsonArray(profile?.languages)[0] || 'English',
       timezone:   profile?.timezone   || 'America/New_York',
     });
     setIsChanged(false);
@@ -162,7 +202,13 @@ function AccountSection() {
 
   const handleSave = async () => {
     try {
-      await updateProfile(form);
+      await updateProfile({
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone: form.phone,
+        timezone: form.timezone,
+        languages: form.language ? [form.language] : [],
+      });
       toast.success('Account updated');
       setIsChanged(false);
     } catch {
@@ -170,9 +216,37 @@ function AccountSection() {
     }
   };
 
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('media', file);
+    formData.append('image_type', 'portfolio');
+    formData.append('shot_type', 'headshot');
+    formData.append('style_type', 'studio');
+    formData.append('status', 'active');
+
+    setIsUploadingPhoto(true);
+    try {
+      const result = await talentApi.uploadMedia(formData);
+      const uploaded = result?.images?.[0];
+      if (uploaded?.id) {
+        await updateProfile({ primary_photo_id: uploaded.id });
+      }
+      await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      toast.success('Profile photo updated');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to upload profile photo');
+    } finally {
+      setIsUploadingPhoto(false);
+      event.target.value = '';
+    }
+  };
+
   return (
     <div className="ts-card">
-      <CardHeader chapter="Identity" title="Account" meta="Profile & locale" />
+      <CardHeader title="Account" />
       <div className="ts-card-inner">
         <div className="ts-avatar-section">
           <div
@@ -180,17 +254,31 @@ function AccountSection() {
             role="button"
             tabIndex={0}
             aria-label="Upload profile photo"
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click(); }}
-            onClick={() => toast.info('Photo upload coming soon')}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+            onClick={() => fileInputRef.current?.click()}
           >
-            <Camera size={22} className="ts-avatar-icon" aria-hidden="true" />
+            {profile?.photo_url_primary ? (
+              <img className="ts-avatar-img" src={profile.photo_url_primary} alt="" />
+            ) : (
+              <Camera size={22} className="ts-avatar-icon" aria-hidden="true" />
+            )}
             <div className="ts-avatar-overlay" aria-hidden="true">
               <Camera size={16} color="white" />
             </div>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={handlePhotoUpload}
+            disabled={isUploadingPhoto}
+          />
           <div>
-            <div className="ts-label">Profile Photo</div>
-            <div className="ts-avatar-action-text">Click to upload a headshot</div>
+            <div className="ts-label">Photo</div>
+            <div className="ts-avatar-action-text">
+              {isUploadingPhoto ? 'Uploading…' : 'Upload headshot'}
+            </div>
           </div>
         </div>
 
@@ -261,15 +349,15 @@ function AccountSection() {
                 value={form.language}
                 onChange={handleChange}
               >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-                <option value="it">Italiano</option>
-                <option value="pt">Português</option>
-                <option value="ja">日本語</option>
-                <option value="zh">中文</option>
-                <option value="ko">한국어</option>
+                <option value="English">English</option>
+                <option value="Spanish">Español</option>
+                <option value="French">Français</option>
+                <option value="German">Deutsch</option>
+                <option value="Italian">Italiano</option>
+                <option value="Portuguese">Português</option>
+                <option value="Japanese">日本語</option>
+                <option value="Chinese (Simplified)">中文</option>
+                <option value="Korean">한국어</option>
               </select>
             </div>
             <div className="ts-field">
@@ -325,15 +413,15 @@ function AccountSection() {
 }
 
 const EMAIL_TOGGLES = [
-  { key: 'emailNotifications', label: 'Email Notifications',  desc: 'All account-related emails' },
-  { key: 'profileViews',       label: 'Profile View Alerts',  desc: 'When an agency views your profile' },
-  { key: 'applicationUpdates', label: 'Application Updates',  desc: 'Status changes on your applications' },
-  { key: 'marketing',          label: 'Marketing & Tips',     desc: 'Feature announcements and editorial tips' },
+  { key: 'emailNotifications', label: 'Account Email',       desc: 'Account updates' },
+  { key: 'profileViews',       label: 'Profile Views',       desc: 'Agency views' },
+  { key: 'applicationUpdates', label: 'Applications',        desc: 'Status changes' },
+  { key: 'marketing',          label: 'Product Updates',     desc: 'Announcements and tips' },
 ];
 
 const INAPP_TOGGLES = [
-  { key: 'inAppApplications', label: 'Application Updates', desc: 'In-dashboard application status alerts' },
-  { key: 'newMessages',       label: 'New Messages',        desc: 'Direct messages from agencies' },
+  { key: 'inAppApplications', label: 'Applications', desc: 'Dashboard alerts' },
+  { key: 'newMessages',       label: 'Messages',     desc: 'Agency messages' },
 ];
 
 const FREQ_OPTIONS = [
@@ -343,24 +431,28 @@ const FREQ_OPTIONS = [
 ];
 
 function NotificationsSection() {
-  const [prefs, setPrefs] = useState({
-    emailNotifications: true,
-    profileViews:       true,
-    applicationUpdates: true,
-    marketing:          false,
-    inAppApplications:  true,
-    newMessages:        true,
+  const { data: settings, isLoading } = useTalentSettings();
+  const notifications = settings?.notifications || {};
+  const prefs = {
+    emailNotifications: notifications.emailNotifications ?? true,
+    profileViews:       notifications.profileViews       ?? true,
+    applicationUpdates: notifications.applicationUpdates ?? true,
+    marketing:          notifications.marketing          ?? false,
+    inAppApplications:  notifications.inAppApplications  ?? true,
+    newMessages:        notifications.newMessages        ?? true,
+  };
+  const emailFrequency = notifications.emailFrequency || 'immediate';
+  const mutation = useSettingsMutation({
+    onSuccess: () => toast.success('Preference saved'),
   });
-  const [emailFrequency, setEmailFrequency] = useState('immediate');
 
   const handleToggle = (key) => {
-    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
-    toast.success('Preference saved');
+    const next = { ...prefs, [key]: !prefs[key] };
+    mutation.mutate({ notifications: { ...next, emailFrequency } });
   };
 
   const handleFrequency = (value) => {
-    setEmailFrequency(value);
-    toast.success('Digest frequency updated');
+    mutation.mutate({ notifications: { ...prefs, emailFrequency: value } });
   };
 
   const renderRow = ({ key, label, desc }) => (
@@ -374,6 +466,7 @@ function NotificationsSection() {
           type="checkbox"
           checked={prefs[key]}
           onChange={() => handleToggle(key)}
+          disabled={mutation.isPending}
         />
         <span className="ts-slider" />
         <span className="sr-only">{label}</span>
@@ -381,14 +474,16 @@ function NotificationsSection() {
     </div>
   );
 
+  if (isLoading) return <div className="ts-loading"><span>Loading…</span></div>;
+
   return (
     <div className="ts-card">
-      <CardHeader chapter="Preferences" title="Notifications" meta="Email & in-app" />
+      <CardHeader title="Notifications" />
       <div className="ts-toggle-list">
         <div className="ts-notif-freq">
           <div className="ts-toggle-info">
-            <span className="ts-toggle-label">Email Delivery</span>
-            <span className="ts-toggle-desc">How often to batch email notifications</span>
+            <span className="ts-toggle-label">Email Frequency</span>
+            <span className="ts-toggle-desc">Notification timing</span>
           </div>
           <div className="ts-freq-options" role="group" aria-label="Email frequency">
             {FREQ_OPTIONS.map(opt => (
@@ -404,7 +499,7 @@ function NotificationsSection() {
             ))}
           </div>
         </div>
-        <span className="ts-toggle-group-label">By Email</span>
+        <span className="ts-toggle-group-label">Email</span>
         {EMAIL_TOGGLES.map(renderRow)}
         <span className="ts-toggle-group-label">In App</span>
         {INAPP_TOGGLES.map(renderRow)}
@@ -414,11 +509,7 @@ function NotificationsSection() {
 }
 
 function PrivacySection() {
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['talent-settings'],
-    queryFn:  talentApi.getSettings,
-    select:   (d) => d?.settings,
-  });
+  const { data: settings, isLoading } = useTalentSettings();
 
   if (isLoading || !settings) {
     return <div className="ts-loading"><span>Loading…</span></div>;
@@ -428,39 +519,35 @@ function PrivacySection() {
 }
 
 function PrivacySectionForm({ initialSettings }) {
-  const queryClient = useQueryClient();
-  const [blockedAgencies, setBlockedAgencies] = useState([]);
+  const [blockedAgencies, setBlockedAgencies] = useState(initialSettings.blockedAgencies || []);
   const [blockInput, setBlockInput] = useState('');
   const [form, setForm] = useState(() => ({
     slug:           initialSettings.slug          || '',
     isPublic:       initialSettings.isPublic      ?? true,
     isDiscoverable: initialSettings.isDiscoverable ?? false,
-    showContact:    true,
+    showContact:    initialSettings.showContact    ?? true,
   }));
   const [isChanged, setIsChanged] = useState(false);
+  const mutation = useSettingsMutation();
 
   const addBlockedAgency = () => {
     const name = blockInput.trim();
     if (!name || blockedAgencies.includes(name)) return;
-    setBlockedAgencies(prev => [...prev, name]);
+    const next = [...blockedAgencies, name];
+    setBlockedAgencies(next);
     setBlockInput('');
-    toast.success(`${name} blocked`);
+    mutation.mutate({ blockedAgencies: next }, {
+      onSuccess: () => toast.success(`${name} blocked`),
+    });
   };
 
   const removeBlockedAgency = (name) => {
-    setBlockedAgencies(prev => prev.filter(a => a !== name));
-    toast.success(`${name} unblocked`);
+    const next = blockedAgencies.filter(a => a !== name);
+    setBlockedAgencies(next);
+    mutation.mutate({ blockedAgencies: next }, {
+      onSuccess: () => toast.success(`${name} unblocked`),
+    });
   };
-
-  const mutation = useMutation({
-    mutationFn: (data) => talentApi.updateSettings(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
-      toast.success('Privacy settings saved');
-      setIsChanged(false);
-    },
-    onError: () => toast.error('Failed to save settings'),
-  });
 
   const set = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -473,17 +560,28 @@ function PrivacySectionForm({ initialSettings }) {
 
   const handleSave = () => {
     if (slugError) { toast.error(slugError); return; }
-    mutation.mutate({ slug: form.slug, isPublic: form.isPublic });
+    mutation.mutate({
+      slug: form.slug,
+      isPublic: form.isPublic,
+      isDiscoverable: form.isDiscoverable,
+      showContact: form.showContact,
+      blockedAgencies,
+    }, {
+      onSuccess: () => {
+        toast.success('Privacy settings saved');
+        setIsChanged(false);
+      },
+    });
   };
 
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <CardHeader chapter="Preferences" title="Privacy & Portfolio" meta="Visibility & slug" />
+        <CardHeader title="Privacy" />
 
         <div className="ts-card-inner ts-form-body">
           <div className="ts-field">
-            <label className="ts-label" htmlFor="ts-slug">Your Portfolio Slug</label>
+            <label className="ts-label" htmlFor="ts-slug">Portfolio Slug</label>
             <div className="ts-input-prefix-wrap">
               <span className="ts-input-prefix">pholio.studio/p/</span>
               <input
@@ -499,7 +597,7 @@ function PrivacySectionForm({ initialSettings }) {
             </div>
             {slugError
               ? <span className="ts-input-help ts-input-help--error">{slugError}</span>
-              : <span className="ts-input-help">Share this link with agencies and clients.</span>
+              : <span className="ts-input-help">Your public portfolio link.</span>
             }
           </div>
 
@@ -518,8 +616,8 @@ function PrivacySectionForm({ initialSettings }) {
 
           <div className="ts-toggle-row ts-toggle-row--inline">
             <div className="ts-toggle-info">
-              <span className="ts-toggle-label">Allow Search Indexing</span>
-              <span className="ts-toggle-desc">Let search engines index your portfolio page</span>
+              <span className="ts-toggle-label">Search Indexing</span>
+              <span className="ts-toggle-desc">Allow search engines</span>
             </div>
             <label className="ts-switch">
               <input
@@ -534,8 +632,8 @@ function PrivacySectionForm({ initialSettings }) {
 
           <div className="ts-toggle-row ts-toggle-row--inline">
             <div className="ts-toggle-info">
-              <span className="ts-toggle-label">Show Contact Information</span>
-              <span className="ts-toggle-desc">Display email and phone on your public portfolio</span>
+              <span className="ts-toggle-label">Contact Info</span>
+              <span className="ts-toggle-desc">Show email and phone</span>
             </div>
             <label className="ts-switch">
               <input
@@ -563,10 +661,10 @@ function PrivacySectionForm({ initialSettings }) {
 
       {/* Agency blocklist */}
       <div className="ts-card">
-        <CardHeader chapter="Agency control" title="Agency Blocklist" meta="Access restrictions" />
+        <CardHeader title="Agency Blocklist" />
         <div className="ts-card-inner ts-form-body">
           <p className="ts-toggle-desc" style={{ margin: 0 }}>
-            Agencies on this list cannot view your profile or submit applications on your behalf.
+            Blocked agencies cannot view your profile.
           </p>
           {blockedAgencies.length > 0 && (
             <div className="ts-blocklist">
@@ -578,6 +676,7 @@ function PrivacySectionForm({ initialSettings }) {
                     className="ts-btn ts-btn-ghost"
                     style={{ padding: '4px 0', fontSize: '12px' }}
                     onClick={() => removeBlockedAgency(name)}
+                    disabled={mutation.isPending}
                   >
                     Unblock
                   </button>
@@ -601,7 +700,7 @@ function PrivacySectionForm({ initialSettings }) {
               type="button"
               className="ts-btn ts-btn-secondary"
               onClick={addBlockedAgency}
-              disabled={!blockInput.trim()}
+              disabled={!blockInput.trim() || mutation.isPending}
             >
               Block
             </button>
@@ -612,43 +711,76 @@ function PrivacySectionForm({ initialSettings }) {
   );
 }
 
-const MOCK_INVOICES = [
-  { id: '#INV-003', date: 'May 01, 2026', amount: '$29.00' },
-  { id: '#INV-002', date: 'Apr 01, 2026', amount: '$29.00' },
-  { id: '#INV-001', date: 'Mar 01, 2026', amount: '$29.00' },
-];
-
 function SubscriptionSection() {
+  const { data: settings, isLoading } = useTalentSettings();
+  const [isOpeningBilling, setIsOpeningBilling] = useState(false);
+  const subscription = settings?.subscription;
+  const invoices = settings?.invoices || [];
+
+  const openBilling = async () => {
+    if (subscription?.isPro || subscription?.stripeCustomerId) {
+      window.location.href = '/stripe/customer-portal';
+      return;
+    }
+
+    setIsOpeningBilling(true);
+    try {
+      const session = await talentApi.createCheckoutSession();
+      if (session?.url) {
+        window.location.href = session.url;
+      } else {
+        window.location.href = '/pro/upgrade';
+      }
+    } catch (error) {
+      toast.error(error?.message || 'Unable to open billing');
+      setIsOpeningBilling(false);
+    }
+  };
+
+  if (isLoading || !subscription) {
+    return <div className="ts-loading"><span>Loading…</span></div>;
+  }
+
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
         <div className="ts-plan-card">
           <div className="ts-plan-left">
-            <span className="ts-plan-name">Studio+</span>
+            <span className="ts-plan-name">{subscription.planName}</span>
             <div className="ts-plan-price">
-              <span className="ts-plan-price-num">$29</span>
-              <span className="ts-plan-price-unit">/month</span>
+              <span className="ts-plan-price-num">{subscription.priceLabel}</span>
+              <span className="ts-plan-price-unit">{subscription.priceUnit}</span>
             </div>
-            <span className="ts-plan-renewal">Next renewal: June 1, 2026</span>
+            <span className="ts-plan-renewal">
+              {subscription.renewalDate
+                ? `Next renewal: ${formatDisplayDate(subscription.renewalDate)}`
+                : subscription.isPro
+                  ? 'Billing is managed through Stripe'
+                  : 'Upgrade to unlock Studio+ features'}
+            </span>
             <button
               type="button"
               className="ts-btn ts-btn-ghost"
               style={{ marginTop: '16px', padding: '6px 14px', fontSize: '12px' }}
-              onClick={() => toast.info('Plan management coming soon')}
+              onClick={openBilling}
+              disabled={isOpeningBilling}
             >
-              Change Plan
+              {isOpeningBilling ? 'Opening…' : subscription.isPro ? 'Manage Plan' : 'Upgrade Plan'}
             </button>
           </div>
           <div className="ts-plan-right">
             <div className="ts-payment-method">
               <CreditCard size={15} aria-hidden="true" />
-              <span className="ts-payment-label">•••• 4242</span>
+              <span className="ts-payment-label">
+                {subscription.stripeCustomerId ? 'Stripe billing' : 'No payment method'}
+              </span>
             </div>
             <button
               type="button"
               className="ts-btn ts-btn-ghost"
               style={{ padding: '5px 12px', fontSize: '12px' }}
-              onClick={() => toast.info('Payment method management coming soon')}
+              onClick={openBilling}
+              disabled={isOpeningBilling}
             >
               Update Payment
             </button>
@@ -657,8 +789,13 @@ function SubscriptionSection() {
       </div>
 
       <div className="ts-card">
-        <CardHeader chapter="Your plan" title="Invoice History" meta="Billing records" />
-        {MOCK_INVOICES.map(inv => (
+        <CardHeader title="Invoices" />
+        {invoices.length === 0 && (
+          <div className="ts-card-inner">
+            <span className="ts-blocklist-empty">No invoices available yet</span>
+          </div>
+        )}
+        {invoices.map(inv => (
           <div key={inv.id} className="ts-invoice-row">
             <span className="ts-invoice-id">{inv.id}</span>
             <span className="ts-invoice-date">{inv.date}</span>
@@ -669,7 +806,7 @@ function SubscriptionSection() {
             <button
               type="button"
               className="ts-invoice-download"
-              onClick={() => toast.info('Invoice download coming soon')}
+              onClick={() => downloadJson(`pholio-invoice-${inv.id}.json`, inv)}
             >
               Download
             </button>
@@ -680,15 +817,19 @@ function SubscriptionSection() {
   );
 }
 
-const MOCK_SESSIONS = [
-  { device: 'Chrome on macOS',   location: 'New York, NY',    time: '2 minutes ago', active: true },
-  { device: 'Safari on iPhone',  location: 'New York, NY',    time: '3 days ago',    active: false },
-  { device: 'Chrome on Windows', location: 'Los Angeles, CA', time: '2 weeks ago',   active: false },
-];
-
 function SecuritySection() {
   const { profile } = useAuth();
+  const { data: settings, isLoading } = useTalentSettings();
+  const queryClient = useQueryClient();
   const [isSendingReset, setIsSendingReset] = useState(false);
+  const revokeMutation = useMutation({
+    mutationFn: talentApi.revokeSession,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+      toast.success('Session revoked');
+    },
+    onError: (error) => toast.error(error?.message || 'Failed to revoke session'),
+  });
 
   const handlePasswordReset = async () => {
     if (!profile?.email) return;
@@ -706,7 +847,7 @@ function SecuritySection() {
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <CardHeader chapter="Security" title="Security" meta="Credentials" />
+        <CardHeader title="Security" />
         <div className="ts-card-inner ts-form-body">
           <div className="ts-field">
             <label className="ts-label" htmlFor="ts-sec-email">Email Address</label>
@@ -720,13 +861,13 @@ function SecuritySection() {
                 disabled
               />
             </div>
-            <span className="ts-input-help">Primary authentication email. Managed by Firebase.</span>
+            <span className="ts-input-help">Primary sign-in email.</span>
           </div>
 
           <div className="ts-credential-row">
             <div className="ts-toggle-info">
-              <span className="ts-toggle-label">Account Password</span>
-              <span className="ts-toggle-desc">Send a reset link to your email address</span>
+              <span className="ts-toggle-label">Password</span>
+              <span className="ts-toggle-desc">Send a reset link</span>
             </div>
             <button
               type="button"
@@ -738,20 +879,19 @@ function SecuritySection() {
             </button>
           </div>
 
-          <div className="ts-credential-row">
-            <div className="ts-toggle-info">
-              <span className="ts-toggle-label">Two-Factor Authentication</span>
-              <span className="ts-toggle-desc">Add an extra layer of security to your account</span>
-            </div>
-            <span className="ts-badge ts-badge--coming-soon">Coming Soon</span>
-          </div>
         </div>
       </div>
 
       <div className="ts-card">
-        <CardHeader chapter="Recent activity" title="Sessions" meta="Signed-in devices" />
-        {MOCK_SESSIONS.map((s, i) => (
-          <div key={i} className="ts-session-row">
+        <CardHeader title="Sessions" />
+        {isLoading && <div className="ts-loading"><span>Loading…</span></div>}
+        {!isLoading && (!settings?.sessions || settings.sessions.length === 0) && (
+          <div className="ts-card-inner">
+            <span className="ts-blocklist-empty">No active browser sessions found</span>
+          </div>
+        )}
+        {!isLoading && settings?.sessions?.map((s) => (
+          <div key={s.id} className="ts-session-row">
             <div className="ts-session-icon" aria-hidden="true">
               <Monitor size={14} />
             </div>
@@ -759,10 +899,22 @@ function SecuritySection() {
               <span className="ts-session-device">{s.device}</span>
               <span className="ts-session-location">{s.location}</span>
             </div>
-            <span className="ts-session-time">{s.time}</span>
+            <span className="ts-session-time">
+              {s.expiresAt ? `Expires ${formatDisplayDate(s.expiresAt)}` : 'Session'}
+            </span>
             <span className={`ts-badge ${s.active ? 'ts-badge--active' : 'ts-badge--expired'}`}>
               {s.active ? 'Active' : 'Expired'}
             </span>
+            {!s.isCurrent && (
+              <button
+                type="button"
+                className="ts-invoice-download"
+                onClick={() => revokeMutation.mutate(s.id)}
+                disabled={revokeMutation.isPending}
+              >
+                Revoke
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -777,32 +929,39 @@ const LAYOUT_OPTIONS = [
 ];
 
 function DisplaySection() {
-  const [prefs, setPrefs] = useState({
-    watermark:  false,
-    cardLayout: 'editorial',
-    coverImage: 'first',
+  const { data: settings, isLoading } = useTalentSettings();
+  const prefs = {
+    watermark:  settings?.display?.watermark  ?? false,
+    cardLayout: settings?.display?.cardLayout ?? 'editorial',
+    coverImage: settings?.display?.coverImage ?? 'first',
+  };
+  const mutation = useSettingsMutation({
+    onSuccess: () => toast.success('Display preference saved'),
   });
 
   const set = (key, value) => {
-    setPrefs(prev => ({ ...prev, [key]: value }));
-    toast.success('Display preference saved');
+    const next = { ...prefs, [key]: value };
+    mutation.mutate({ display: next });
   };
+
+  if (isLoading) return <div className="ts-loading"><span>Loading…</span></div>;
 
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <CardHeader chapter="Portfolio" title="Display" meta="Comp card & watermark" />
+        <CardHeader title="Display" />
         <div className="ts-toggle-list">
           <div className="ts-toggle-row">
             <div className="ts-toggle-info">
-              <span className="ts-toggle-label">Pholio Watermark</span>
-              <span className="ts-toggle-desc">Add a subtle Pholio badge to portfolio images</span>
+              <span className="ts-toggle-label">Watermark</span>
+              <span className="ts-toggle-desc">Add Pholio badge</span>
             </div>
             <label className="ts-switch">
               <input
                 type="checkbox"
                 checked={prefs.watermark}
                 onChange={() => set('watermark', !prefs.watermark)}
+                disabled={mutation.isPending}
               />
               <span className="ts-slider" />
               <span className="sr-only">Pholio watermark</span>
@@ -831,7 +990,7 @@ function DisplaySection() {
       </div>
 
       <div className="ts-card">
-        <CardHeader chapter="Portfolio cover" title="Cover Image" meta="Public portfolio" />
+        <CardHeader title="Cover Image" />
         <div className="ts-card-inner">
           <div className="ts-field">
             <label className="ts-label" htmlFor="ts-cover">Default Cover</label>
@@ -846,7 +1005,7 @@ function DisplaySection() {
               <option value="featured">Manually pinned image</option>
             </select>
             <span className="ts-input-help">
-              Appears at the top of your public portfolio and on comp cards.
+              Used for your portfolio and comp cards.
             </span>
           </div>
         </div>
@@ -856,26 +1015,57 @@ function DisplaySection() {
 }
 
 function DataSection() {
-  const [cookies, setCookies] = useState({ analytics: true, marketing: false });
+  const { data: settings, isLoading } = useTalentSettings();
+  const queryClient = useQueryClient();
+  const cookies = {
+    analytics: settings?.cookies?.analytics ?? true,
+    marketing: settings?.cookies?.marketing ?? false,
+  };
   const [isExporting, setIsExporting] = useState(false);
+  const cookieMutation = useSettingsMutation({
+    onSuccess: () => toast.success('Cookie preference saved'),
+  });
+  const erasureMutation = useMutation({
+    mutationFn: talentApi.requestDataErasure,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+      toast.info('Erasure request submitted — our team will respond within 30 days');
+    },
+    onError: (error) => toast.error(error?.message || 'Failed to submit erasure request'),
+  });
 
   const handleExport = async () => {
     setIsExporting(true);
-    await new Promise(r => setTimeout(r, 900));
-    toast.success("Data export requested — you'll receive an email within 24 hours");
-    setIsExporting(false);
+    try {
+      const result = await talentApi.requestDataExport();
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadJson(`pholio-data-export-${stamp}.json`, result?.export || result);
+      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+      toast.success('Data export downloaded');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to export data');
+    } finally {
+      setIsExporting(false);
+    }
   };
+
+  const handleCookieToggle = (key) => {
+    const next = { ...cookies, [key]: !cookies[key] };
+    cookieMutation.mutate({ cookies: next });
+  };
+
+  if (isLoading) return <div className="ts-loading"><span>Loading…</span></div>;
 
   return (
     <div className="ts-card-stack">
       <div className="ts-card">
-        <CardHeader chapter="Legal" title="Your Data" meta="Export & erasure" />
+        <CardHeader title="Data" />
         <div className="ts-card-inner ts-form-body">
           <div className="ts-data-row">
             <div className="ts-action-info">
-              <span className="ts-action-label">Download Your Data</span>
+              <span className="ts-action-label">Download Data</span>
               <span className="ts-action-desc">
-                Export a ZIP of your profile, images, applications, and account history (GDPR / CCPA).
+                Export profile, images, applications, and account history.
               </span>
             </div>
             <button
@@ -889,29 +1079,30 @@ function DataSection() {
           </div>
           <div className="ts-data-row">
             <div className="ts-action-info">
-              <span className="ts-action-label">Right to Erasure</span>
+              <span className="ts-action-label">Erase Data</span>
               <span className="ts-action-desc">
-                Request permanent deletion of all personal data. Separate from account deletion — processed within 30 days.
+                Request permanent deletion of personal data.
               </span>
             </div>
             <button
               type="button"
               className="ts-btn ts-btn-ghost"
-              onClick={() => toast.info('Erasure request submitted — our team will respond within 30 days')}
+              onClick={() => erasureMutation.mutate()}
+              disabled={erasureMutation.isPending}
             >
-              Submit Request
+              {erasureMutation.isPending ? 'Submitting…' : settings?.data?.erasureRequestedAt ? 'Request Submitted' : 'Submit Request'}
             </button>
           </div>
         </div>
       </div>
 
       <div className="ts-card">
-        <CardHeader chapter="Cookie preferences" title="Tracking" meta="Consent controls" />
+        <CardHeader title="Tracking" />
         <div className="ts-toggle-list">
           {[
-            { key: 'essential', label: 'Essential',  desc: 'Required for authentication and core functionality', locked: true },
-            { key: 'analytics', label: 'Analytics',  desc: 'Help us understand how you use Pholio to improve the product' },
-            { key: 'marketing', label: 'Marketing',  desc: 'Personalised announcements and partner promotions' },
+            { key: 'essential', label: 'Essential',  desc: 'Required for sign-in', locked: true },
+            { key: 'analytics', label: 'Analytics',  desc: 'Product improvement' },
+            { key: 'marketing', label: 'Marketing',  desc: 'Announcements and promotions' },
           ].map(({ key, label, desc, locked }) => (
             <div key={key} className="ts-toggle-row">
               <div className="ts-toggle-info">
@@ -924,10 +1115,7 @@ function DataSection() {
                   checked={locked ? true : cookies[key]}
                   disabled={locked}
                   onChange={() => {
-                    if (!locked) {
-                      setCookies(prev => ({ ...prev, [key]: !prev[key] }));
-                      toast.success('Cookie preference saved');
-                    }
+                    if (!locked) handleCookieToggle(key);
                   }}
                 />
                 <span className="ts-slider" />
@@ -942,23 +1130,58 @@ function DataSection() {
 }
 
 function DangerZoneSection() {
+  const queryClient = useQueryClient();
+  const { data: settings } = useTalentSettings();
+  const deactivateMutation = useMutation({
+    mutationFn: talentApi.deactivateAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      toast.success('Account deactivated');
+    },
+    onError: (error) => toast.error(error?.message || 'Failed to deactivate account'),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: talentApi.deleteAccount,
+    onSuccess: (result) => {
+      toast.success('Account deleted');
+      window.location.href = result?.redirect || '/login';
+    },
+    onError: (error) => toast.error(error?.message || 'Failed to delete account'),
+  });
+
+  const handleDeactivate = () => {
+    const confirmed = window.confirm(
+      'Deactivate your account? Your public profile will be hidden and agencies will not be able to discover you.',
+    );
+    if (confirmed) deactivateMutation.mutate();
+  };
+
+  const handleDelete = () => {
+    const confirmed = window.confirm(
+      'Permanently delete your Pholio account and all related data? This cannot be undone.',
+    );
+    if (confirmed) deleteMutation.mutate();
+  };
+
   return (
     <div className="ts-card ts-card--danger">
-      <CardHeader chapter="Irreversible actions" title="Danger Zone" meta="Proceed with care" />
+      <CardHeader title="Danger Zone" />
 
       <div className="ts-action-row">
         <div className="ts-action-info">
           <span className="ts-action-label">Deactivate Account</span>
           <span className="ts-action-desc">
-            Temporarily hide your profile and suspend access. Reactivate any time.
+            Hide your profile and suspend access.
           </span>
         </div>
         <button
           type="button"
           className="ts-btn ts-btn-danger-ghost"
-          onClick={() => toast.error('This action requires confirmation — coming soon')}
+          onClick={handleDeactivate}
+          disabled={deactivateMutation.isPending || settings?.account?.isDeactivated}
         >
-          Deactivate
+          {deactivateMutation.isPending ? 'Deactivating…' : settings?.account?.isDeactivated ? 'Deactivated' : 'Deactivate'}
         </button>
       </div>
 
@@ -966,15 +1189,16 @@ function DangerZoneSection() {
         <div className="ts-action-info">
           <span className="ts-action-label">Delete Account</span>
           <span className="ts-action-desc">
-            Permanently delete all data, images, and applications. This cannot be undone.
+            Permanently delete your account.
           </span>
         </div>
         <button
           type="button"
           className="ts-btn ts-btn-danger"
-          onClick={() => toast.error('This action requires confirmation — coming soon')}
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
         >
-          Delete Account
+          {deleteMutation.isPending ? 'Deleting…' : 'Delete Account'}
         </button>
       </div>
     </div>

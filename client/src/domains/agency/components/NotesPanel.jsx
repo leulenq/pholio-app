@@ -118,7 +118,7 @@ export default function NotesPanel({ applicationId }) {
             value={newNoteText}
             onChange={(e) => setNewNoteText(e.target.value)}
             placeholder="Write a note..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="agency-textarea"
             rows={3}
             autoFocus
           />
@@ -164,7 +164,7 @@ export default function NotesPanel({ applicationId }) {
                   <textarea
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="agency-textarea"
                     rows={3}
                     autoFocus
                   />

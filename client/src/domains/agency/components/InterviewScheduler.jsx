@@ -222,7 +222,7 @@ export default function InterviewScheduler({ applicationId, talentName, onClose 
               onChange={(e) => handleChange('notes', e.target.value)}
               placeholder="Add any notes or agenda items for the interview..."
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+              className="agency-textarea"
             />
           </div>
 

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getApplicationDetails } from '../api/agency';
+import MatchScoreBadge from '../components/ui/MatchScoreBadge';
 import { TalentStatusBadge } from '../components/ui/TalentStatusBadge';
 import { TalentActionBar } from '../components/talent/TalentActionBar';
 import { TalentThread } from '../components/talent/TalentThread';
@@ -81,7 +82,14 @@ export default function TalentFullView() {
           <h1 className="tfv-name">{name}</h1>
           <div className="tfv-id-row">
             <TalentStatusBadge status={application?.status || 'available'} />
-            {match != null && <span className="tfv-match"><strong>{Math.round(match)}</strong> match</span>}
+            {match != null && (
+              <MatchScoreBadge
+                score={match}
+                size="md"
+                tone="light"
+                className="tfv-match"
+              />
+            )}
           </div>
           {bio && <p className="tfv-lead">{bio}</p>}
           <div className="tfv-ledger">

@@ -14,7 +14,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 524px;
+  width: 580px;
   max-width: 92vw;
   background: var(--ag-canvas, #F7F3EC);
   border-left: 1px solid #e4ddcd;
@@ -168,22 +168,12 @@
   margin-top: 13px;
 }
 .tp-match {
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(244, 238, 226, 0.62);
-}
-.tp-match strong {
-  font-family: 'Playfair Display', serif;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--ag-gold, #C9A55A);
-  margin-right: 3px;
+  align-self: center;
 }
 
 /* ---------- ACTION STRIP ---------- */
 .tp-action-strip {
-  padding: 15px 24px;
+  padding: 15px 16px;
   background: transparent;
   border-bottom: 1px solid var(--ag-rule, #ddd5c6);
   display: flex;
@@ -218,9 +208,12 @@
   flex: 1;
   overflow-y: auto;
   padding: 24px 24px 56px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
-.tp-body::-webkit-scrollbar { width: 5px; }
-.tp-body::-webkit-scrollbar-track { background: transparent; }
-.tp-body::-webkit-scrollbar-thumb { background: #ddd5c6; border-radius: 3px; }
+.tp-body::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
 
 .tp-thread-wrap { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--ag-rule, #ddd5c6); }

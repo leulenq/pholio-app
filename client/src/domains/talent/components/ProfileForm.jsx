@@ -47,10 +47,12 @@ const SectionCard = ({ icon: Icon, title, completion, children }) => {
 export default function ProfileForm() {
   const { profile, images, updateProfile, isUpdating } = useProfile();
   const { data: referenceLanguages = [], isLoading: languagesLoading } = useReferenceLanguages();
-  const languageOptions = referenceLanguages.map((lang) => ({
-    value: lang.name,
-    label: lang.name,
-  }));
+  const languageOptions = referenceLanguages
+    .map((lang) => ({
+      value: lang.name,
+      label: lang.name,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
   
   const formMethods = useForm({
     resolver: zodResolver(talentProfileUpdateSchema),

@@ -30,9 +30,9 @@ const PholioTagInput = ({
     const trimmedInput = inputValue.trim();
     if (!trimmedInput) return;
 
-    // Don't add duplicates
-    if (!value.includes(trimmedInput)) {
-      onChange?.([...value, trimmedInput]);
+    const safeValue = Array.isArray(value) ? value : [];
+    if (!safeValue.includes(trimmedInput)) {
+      onChange?.([...safeValue, trimmedInput]);
     }
     setInputValue('');
   };
@@ -75,7 +75,7 @@ const PholioTagInput = ({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={addTag}
-          placeholder={safeValue.length === 0 ? placeholder : "Add another..."}
+          placeholder={safeValue.length === 0 ? placeholder : "+"}
           disabled={disabled}
         />
       </div>

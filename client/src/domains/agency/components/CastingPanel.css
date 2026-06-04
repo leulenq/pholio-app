@@ -406,23 +406,40 @@
 .cp-note-textarea {
   width: 100%;
   min-height: 90px;
-  background: #faf9f7;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-family: inherit;
-  resize: none;
+  background: #ffffff;
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  border-radius: 2px;
+  padding: 12px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  color: #1a1a1a;
+  box-shadow: none;
   outline: none;
-  color: #0f172a;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  resize: none;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
 }
 
-.cp-note-textarea:focus {
-  border-color: #C9A55A;
-  box-shadow: 0 0 0 4px rgba(201, 165, 90, 0.1);
+.cp-note-textarea::placeholder {
+  color: rgba(26, 26, 26, 0.42);
+  font-style: normal;
+  font-weight: 300;
 }
+
+.cp-note-textarea:hover:not(:focus) {
+  border-color: rgba(26, 26, 26, 0.16);
+  background: #ffffff;
+}
+
+.cp-note-textarea:focus {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+}
+
 
 /* AI Signals */
 .cp-signal-row {

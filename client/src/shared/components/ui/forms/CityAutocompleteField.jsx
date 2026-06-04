@@ -18,6 +18,7 @@ function filterCities(query) {
     (c) =>
       c.label.toLowerCase().includes(q) ||
       c.name.toLowerCase().includes(q) ||
+      (c.state && c.state.toLowerCase().includes(q)) ||
       c.country.toLowerCase().includes(q)
   );
 }
@@ -185,30 +186,30 @@ const CityAutocompleteField = forwardRef(function CityAutocompleteField(
             <X size={16} aria-hidden />
           </button>
         )}
-      </div>
 
-      {showList && (
-        <ul
-          id={listboxId}
-          className="pholio-custom-select-dropdown pholio-autocomplete-dropdown"
-          role="listbox"
-        >
-          {suggestions.map((city, index) => (
-            <li
-              key={city.label}
-              id={`${listboxId}-opt-${index}`}
-              role="option"
-              aria-selected={highlightedIndex === index}
-              className={`pholio-select-option ${highlightedIndex === index ? 'pholio-autocomplete-option-active' : ''}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setHighlightedIndex(index)}
-              onClick={() => pickCity(city)}
-            >
-              {city.label}
-            </li>
-          ))}
-        </ul>
-      )}
+        {showList && (
+          <ul
+            id={listboxId}
+            className="pholio-custom-select-dropdown pholio-autocomplete-dropdown"
+            role="listbox"
+          >
+            {suggestions.map((city, index) => (
+              <li
+                key={city.label}
+                id={`${listboxId}-opt-${index}`}
+                role="option"
+                aria-selected={highlightedIndex === index}
+                className={`pholio-select-option ${highlightedIndex === index ? 'pholio-autocomplete-option-active' : ''}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                onClick={() => pickCity(city)}
+              >
+                {city.label}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {error && (
         <span id={errorId} className="pholio-error-message" role="alert">

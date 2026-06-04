@@ -379,15 +379,16 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 4px;
-  background: rgba(201, 165, 90, 0.1); /* Lighter track */
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05); /* quiet full-width track */
   z-index: 50;
 }
 
 .cinematic-progress-bar {
   height: 100%;
   background: var(--cinematic-accent);
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(201, 165, 90, 0.4);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Legacy styles support */
@@ -1874,4 +1875,444 @@
     align-items: center;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GUIDED SHELL — Back control
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Shell-level back control — top-left, leaves the current step */
+.cine-back {
+  position: fixed;
+  top: 2.2rem;
+  left: 2.2rem;
+  z-index: 41;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+}
+
+.cine-back:hover {
+  color: var(--cinematic-accent);
+}
+
+.cine-back svg {
+  transition: transform 0.3s ease;
+}
+
+.cine-back:hover svg {
+  transform: translateX(-3px);
+}
+
+/* Forward primary action — the back control's tone, facing forward.
+   Used for Continue / Next / Confirm / Finish. Not a button: borderless,
+   uppercase, letter-spaced, faint → gold, chevron slides on hover. */
+.cine-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0.5rem 0.5rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.64rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+}
+
+.cine-next:hover:not(:disabled) {
+  color: var(--cinematic-accent);
+}
+
+.cine-next:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.cine-next svg {
+  opacity: 0.55;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.cine-next:hover:not(:disabled) svg {
+  transform: translateX(3px);
+  opacity: 1;
+}
+
+/* Secondary / quiet action — Edit and sub-step Back. Mirrors the shell back. */
+.cine-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.56rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+}
+
+.cine-sub:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cine-sub svg {
+  transition: transform 0.3s ease;
+}
+
+.cine-sub--back:hover svg {
+  transform: translateX(-3px);
+}
+
+@media (max-width: 520px) {
+  .cine-stage {
+    top: 1.7rem;
+  }
+  .cine-back {
+    top: 1.4rem;
+    left: 1.2rem;
+  }
+  .cine-back span {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   IDENTITY — selectable options (gender step)
+   Pure typography: dim serif words, no dividers. Selected = gold italic,
+   echoing the gold italic accent in the headline. Quiet and clean.
+   ═══════════════════════════════════════════════════════════════════════ */
+.identity-options {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0 auto;
+}
+
+.identity-option {
+  background: none;
+  border: none;
+  border-radius: 0; /* override the global pill `button { border-radius: 999px }` */
+  padding: 0.6rem 1.5rem;
+  cursor: pointer;
+  font-family: var(--cinematic-font-serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.38);
+  transition: color 0.3s ease;
+}
+
+.identity-option:hover {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.identity-option.is-selected {
+  color: var(--cinematic-accent);
+  font-style: italic;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PORTRAIT — premium media surface adapted for onboarding (dark)
+   Borrows the /media tab language: mono kickers, numbered frames, gold Cover
+   tag, crisp 2px edges, gold solid button — translated to the cinematic dark.
+   ═══════════════════════════════════════════════════════════════════════ */
+.pt-surface {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.pt-mono {
+  font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
+}
+
+.pt-kicker {
+  display: block;
+  font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--cinematic-accent);
+  margin-bottom: 1rem;
+}
+
+.pt-sub {
+  font-family: var(--cinematic-font-sans);
+  font-weight: 300;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.42);
+  max-width: 44ch;
+  margin: 1.1rem auto 0;
+}
+
+.pt-dropzone {
+  position: relative;
+  width: 100%;
+  outline: none;
+}
+
+/* Empty — one inviting frame for the first photo */
+.pt-empty {
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  border: 1px dashed rgba(201, 165, 90, 0.25);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.015);
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+}
+
+.pt-empty:hover {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: rgba(201, 165, 90, 0.03);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.pt-empty-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 165, 90, 0.22);
+  background: rgba(201, 165, 90, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cinematic-accent);
+}
+
+.pt-empty-label {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Frame grid */
+.pt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.pt-frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0d0d0d;
+  box-shadow: 0 12px 30px -18px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.pt-frame.is-cover {
+  border-color: rgba(201, 165, 90, 0.45);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.25), 0 12px 30px -18px rgba(201, 165, 90, 0.3);
+}
+
+.pt-frame-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+}
+
+.pt-frame-index {
+  position: absolute;
+  top: 7px;
+  left: 9px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.pt-tag-cover {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--cinematic-accent);
+  color: #100d08;
+}
+
+.pt-frame-actions {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 7px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pt-frame:hover .pt-frame-actions {
+  opacity: 1;
+}
+
+.pt-frame-action {
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  background: rgba(18, 18, 18, 0.85);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.pt-frame-action:hover {
+  background: rgba(28, 28, 28, 0.95);
+  color: var(--cinematic-accent);
+  border-color: rgba(201, 165, 90, 0.4);
+}
+
+.pt-frame-action-danger:hover {
+  color: #d06a6a;
+  border-color: rgba(208, 106, 106, 0.4);
+}
+
+.pt-frame-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--cinematic-accent);
+  backdrop-filter: blur(2px);
+}
+
+.pt-frame-error {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #b04848;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Add tile */
+.pt-add {
+  aspect-ratio: 4 / 5;
+  border: 1px dashed rgba(201, 165, 90, 0.22);
+  border-radius: 2px;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  color: rgba(201, 165, 90, 0.5);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.pt-add:hover {
+  border-color: rgba(201, 165, 90, 0.5);
+  color: var(--cinematic-accent);
+  background: rgba(201, 165, 90, 0.03);
+}
+
+.pt-add-label {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Drag-over overlay */
+.pt-drag-overlay {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed rgba(201, 165, 90, 0.5);
+  border-radius: 2px;
+  background: rgba(201, 165, 90, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: rgba(201, 165, 90, 0.8);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  pointer-events: none;
+  backdrop-filter: blur(3px);
+  z-index: 20;
+}
+
+/* Mono helper / tips line */
+.pt-helper {
+  margin-top: 1.7rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.pt-count {
+  margin-bottom: 0.9rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 480px) {
+  .pt-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
+}
+
 

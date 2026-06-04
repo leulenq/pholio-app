@@ -1,33 +1,20 @@
-import { useState } from 'react';
+import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Tag, Plus, Clock, Calendar } from 'lucide-react';
-import ActionButtonGroup from './ActionButtonGroup';
-import MatchScoreRing from './ui/MatchScoreRing';
-import { TalentTypePill } from './ui/TalentTypePill';
-import { TalentStatusBadge } from './ui/TalentStatusBadge';
-import NotesPanel from './NotesPanel';
-import ActivityTimeline from './ActivityTimeline';
-import TagManager from './TagManager';
-import MessageThread from './MessageThread';
-import ReminderSection from './ReminderSection';
-import InterviewSection from './InterviewSection';
+import { motion } from 'framer-motion';
+import { X } from 'lucide-react';
+import { TalentPanel } from './TalentPanel';
 import {
-  getApplicationDetails, acceptApplication, declineApplication,
-  archiveApplication, updateCastingApplicationStage,
-  fetchRosterProfile, getProfilePreview,
+  getApplicationDetails,
+  acceptApplication,
+  declineApplication,
+  archiveApplication,
+  updateCastingApplicationStage,
+  fetchRosterProfile,
+  getProfilePreview,
+  inviteTalent,
 } from '../api/agency';
-import { formatDistanceToNowStrict } from 'date-fns';
-import { ActionFailureNotice, EmptyErrorState } from '../../../shared/components/states';
-import './TalentDetailPanel.css';
-
-const TABS_BY_CONTEXT = {
-  inbox: ['Bio', 'Notes', 'History', 'Messages'],
-  roster: ['Bio', 'Notes', 'Bookings', 'Messages'],
-  casting: ['Bio', 'Notes', 'Match', 'History'],
-  discover: ['Bio', 'Portfolio'],
-};
+import { EmptyErrorState } from '../../../shared/components/states';
 
 export default function TalentDetailPanel({
   applicationId,
@@ -37,8 +24,6 @@ export default function TalentDetailPanel({
   onClose,
   mode = 'fixed',
 }) {
-  const [activeTab, setActiveTab] = useState('Bio');
-  const [actionError, setActionError] = useState(null);
   const queryClient = useQueryClient();
 
   // Fetch data based on context
@@ -54,230 +39,154 @@ export default function TalentDetailPanel({
     enabled: !!(applicationId || profileId),
   });
 
-  const handleAction = async (action) => {
-    if (!applicationId) return;
-    setActionError(null);
+  const handleAction = async (action, talent) => {
+    // Determine the ID depending on the context
+    const appId = applicationId || talent?.applicationId;
+    const profId = profileId || talent?.profileId;
+
     try {
-      if (action === 'accept') await acceptApplication(applicationId);
-      else if (action === 'decline') await declineApplication(applicationId);
-      else if (action === 'shortlist') await updateCastingApplicationStage(applicationId, { status: 'shortlisted' });
-      else if (action === 'archive') await archiveApplication(applicationId);
+      if (action === 'accept') {
+        if (!appId) throw new Error('Application ID is required for this action.');
+        await acceptApplication(appId);
+        toast.success('Application accepted');
+      } else if (action === 'reject' || action === 'decline') {
+        if (!appId) throw new Error('Application ID is required for this action.');
+        await declineApplication(appId);
+        toast.success('Application declined');
+      } else if (action === 'shortlist') {
+        if (!appId) throw new Error('Application ID is required for this action.');
+        await updateCastingApplicationStage(appId, { status: 'shortlisted' });
+        toast.success('Application shortlisted');
+      } else if (action === 'archive') {
+        if (!appId) throw new Error('Application ID is required for this action.');
+        await archiveApplication(appId);
+        toast.success('Application archived');
+      } else if (action === 'invite') {
+        if (!profId) throw new Error('Profile ID is required for this action.');
+        await inviteTalent(profId);
+        toast.success('Invitation sent');
+      } else {
+        toast.success('Coming soon');
+        return;
+      }
+      
+      // Invalidate queries to refresh lists
       queryClient.invalidateQueries({ queryKey: ['agency'] });
+      queryClient.invalidateQueries({ queryKey: ['discover'] });
+      
+      // Close the panel after action
+      onClose();
     } catch (err) {
       const message = err?.message || 'That action could not be completed';
       console.error('Action failed:', err);
-      setActionError(message);
       toast.error(message);
     }
   };
 
-  const tabs = TABS_BY_CONTEXT[context] || TABS_BY_CONTEXT.inbox;
-
-  if (mode === 'drawer') {
-    return (
-      <AnimatePresence>
-        <motion.div className="ag-detail-backdrop" onClick={onClose}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        />
-        <motion.div className="ag-detail-panel ag-detail-panel--drawer"
-          initial={{ x: 480 }} animate={{ x: 0 }} exit={{ x: 480 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-        >
-          <PanelContent
-            detail={detail} isLoading={isLoading} isError={isError} refetch={refetch}
-            context={context} activeTab={activeTab} setActiveTab={setActiveTab} tabs={tabs}
-            onClose={onClose} onAction={handleAction} applicationId={applicationId}
-            actionError={actionError} onDismissActionError={() => setActionError(null)}
-          />
-        </motion.div>
-      </AnimatePresence>
-    );
-  }
-
-  // Fixed mode
-  return (
-    <div className="ag-detail-panel ag-detail-panel--fixed">
-      <PanelContent
-        detail={detail} isLoading={isLoading} isError={isError} refetch={refetch}
-        context={context} activeTab={activeTab} setActiveTab={setActiveTab} tabs={tabs}
-        onClose={onClose} onAction={handleAction} applicationId={applicationId}
-        actionError={actionError} onDismissActionError={() => setActionError(null)}
-      />
-    </div>
-  );
-}
-
-function PanelContent({
-  detail, isLoading, isError, refetch, context, activeTab, setActiveTab, tabs,
-  onClose, onAction, applicationId, actionError, onDismissActionError,
-}) {
   if (isError) {
     return (
-      <div className="ag-detail-panel__inner ag-detail-panel__inner--error">
-        <button className="ag-detail-panel__close" onClick={onClose}><X size={18} /></button>
-        <EmptyErrorState
-          variant="compact"
-          title="Profile unavailable"
-          body="We could not load this talent profile. Try again."
-          retry={{ label: 'Try again', onClick: () => refetch() }}
+      <>
+        <motion.div
+          className="talent-panel-scrim"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
         />
-      </div>
+        <motion.div
+          className="talent-panel"
+          initial={{ x: 480 }}
+          animate={{ x: 0 }}
+          exit={{ x: 480 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+        >
+          <div className="tp-hero" style={{ height: 'auto', padding: '2rem' }}>
+            <button className="tp-close-btn" onClick={onClose} aria-label="Close panel">
+              <X size={18} />
+            </button>
+            <EmptyErrorState
+              variant="compact"
+              title="Profile unavailable"
+              body="We could not load this talent profile. Try again."
+              retry={{ label: 'Try again', onClick: () => refetch() }}
+            />
+          </div>
+        </motion.div>
+      </>
     );
   }
 
   if (isLoading || !detail) {
     return (
-      <div className="ag-detail-panel__loading">
-        <div className="ag-detail-panel__skeleton-hero" />
-        <div className="ag-detail-panel__skeleton-lines">
-          <div className="ag-detail-panel__skeleton-line" style={{ width: '60%' }} />
-          <div className="ag-detail-panel__skeleton-line" style={{ width: '40%' }} />
-          <div className="ag-detail-panel__skeleton-line" style={{ width: '50%' }} />
-        </div>
-      </div>
+      <>
+        <motion.div
+          className="talent-panel-scrim"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        />
+        <motion.div
+          className="talent-panel"
+          initial={{ x: 480 }}
+          animate={{ x: 0 }}
+          exit={{ x: 480 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+        >
+          <div className="tp-hero">
+            <div className="tp-hero-fallback">...</div>
+            <button className="tp-close-btn" onClick={onClose} aria-label="Close panel">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="tp-action-strip">
+            <div className="tp-btn tp-btn--secondary" style={{ width: '100px', height: '36px', opacity: 0.2 }} />
+          </div>
+          <div className="tp-body" style={{ padding: '2rem' }}>
+            <div style={{ height: '20px', background: 'rgba(255,255,255,0.1)', marginBottom: '10px', borderRadius: '4px', width: '60%' }} />
+            <div style={{ height: '80px', background: 'rgba(255,255,255,0.05)', marginBottom: '10px', borderRadius: '4px' }} />
+            <div style={{ height: '40px', background: 'rgba(255,255,255,0.05)', marginBottom: '10px', borderRadius: '4px' }} />
+          </div>
+        </motion.div>
+      </>
     );
   }
 
-  const {
-    name, first_name, last_name, photo, hero_image_path,
-    type, archetype, age, height_cm, city, location,
-    bio_curated, bio_raw, status, match_score,
-    created_at, accepted_at, tags, measurements,
-  } = detail;
+  // Map backend model detail properties to TalentPanel talent shape
+  const profile = detail.profile || (context === 'roster' || context === 'discover' ? detail : null);
+  const application = detail.application || (context === 'inbox' || context === 'casting' ? detail : null);
 
-  const displayName = name || `${first_name || ''} ${last_name || ''}`.trim();
-  const heroImg = hero_image_path || photo;
-  const displayType = type || archetype;
+  const displayName = profile?.name || `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Talent';
+  const displayPhoto = profile?.images?.find(img => img.is_primary)?.path || profile?.photo || profile?.hero_image_path || null;
+  const displayType = (profile?.type || profile?.archetype || 'editorial').toLowerCase();
+  const displayStatus = application?.status || profile?.status || 'available';
+  const displayLocation = profile?.city || profile?.location || null;
+
+  const mappedTalent = {
+    id: profile?.id || detail.id,
+    profileId: profileId || profile?.id || detail.id,
+    applicationId: applicationId || application?.id || detail.id,
+    name: displayName,
+    photo: displayPhoto,
+    type: displayType,
+    status: displayStatus,
+    location: displayLocation,
+  };
+
+  // Map contexts: inbox -> applicants, casting -> applicants, roster -> roster, discover -> discover
+  let mappedContext = context;
+  if (context === 'inbox' || context === 'casting') {
+    mappedContext = 'applicants';
+  } else if (context === 'overview') {
+    mappedContext = 'overview';
+  }
 
   return (
-    <div className="ag-detail-panel__inner">
-      {/* Hero */}
-      <div className="ag-detail-panel__hero">
-        {heroImg && <img src={heroImg} alt={displayName} className="ag-detail-panel__hero-img" />}
-        <div className="ag-detail-panel__hero-gradient" />
-        <button className="ag-detail-panel__close" onClick={onClose}><X size={18} /></button>
-        {status && <TalentStatusBadge status={status} className="ag-detail-panel__status-badge" />}
-      </div>
-
-      {/* Identity */}
-      <div className="ag-detail-panel__identity">
-        <h2 className="ag-detail-panel__name">{displayName}</h2>
-        <div className="ag-detail-panel__meta">
-          {displayType && <TalentTypePill type={displayType} />}
-          {age && <span>{age}</span>}
-          {height_cm && <span>{height_cm}cm</span>}
-          {(city || location) && <span>{city || location}</span>}
-        </div>
-        <div className="ag-detail-panel__sub-meta">
-          {context === 'inbox' && created_at && (
-            <span>Applied {formatDistanceToNowStrict(new Date(created_at), { addSuffix: true })}</span>
-          )}
-          {context === 'roster' && accepted_at && (
-            <span>Signed {formatDistanceToNowStrict(new Date(accepted_at), { addSuffix: true })}</span>
-          )}
-          {match_score != null && (
-            <span className="ag-detail-panel__score">
-              Score: <MatchScoreRing score={match_score} size="sm" /> {match_score}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {actionError && (
-        <ActionFailureNotice
-          title="Action failed"
-          body={actionError}
-          retry={{ label: 'Dismiss', onClick: onDismissActionError }}
-        />
-      )}
-
-      {/* Actions */}
-      <div className="ag-detail-panel__actions">
-        <ActionButtonGroup context={context} currentStatus={status} onAction={onAction} />
-      </div>
-
-      {/* Tabs */}
-      <div className="ag-detail-panel__tabs">
-        {tabs.map(tab => (
-          <button
-            key={tab}
-            className={`ag-detail-panel__tab ${activeTab === tab ? 'is-active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div className="ag-detail-panel__tab-content">
-        {activeTab === 'Bio' && (
-          <div className="ag-detail-panel__bio">
-            {(bio_curated || bio_raw) && (
-              <p className="ag-detail-panel__bio-text">{bio_curated || bio_raw}</p>
-            )}
-            {measurements && (
-              <div className="ag-detail-panel__measurements">
-                {measurements.bust && <div><span>Bust</span><strong>{measurements.bust}</strong></div>}
-                {measurements.waist && <div><span>Waist</span><strong>{measurements.waist}</strong></div>}
-                {measurements.hips && <div><span>Hips</span><strong>{measurements.hips}</strong></div>}
-                {measurements.shoe && <div><span>Shoe</span><strong>{measurements.shoe}</strong></div>}
-              </div>
-            )}
-          </div>
-        )}
-        {activeTab === 'Notes' && applicationId && <NotesPanel applicationId={applicationId} />}
-        {activeTab === 'History' && applicationId && <ActivityTimeline applicationId={applicationId} />}
-        {activeTab === 'Messages' && applicationId && (
-          <MessageThread applicationId={applicationId} />
-        )}
-        {activeTab === 'Bookings' && (
-          <div className="ag-detail-panel__bookings">
-            <p className="ag-detail-panel__empty-tab">Booking history will appear here.</p>
-          </div>
-        )}
-        {activeTab === 'Match' && detail.match_details && (
-          <div className="ag-detail-panel__match-breakdown">
-            {Object.entries(detail.match_details).map(([key, val]) => (
-              <div key={key} className="ag-detail-panel__match-row">
-                <span className="ag-detail-panel__match-label">{key}</span>
-                <div className="ag-detail-panel__match-bar">
-                  <div className="ag-detail-panel__match-fill" style={{ width: `${val}%` }} />
-                </div>
-                <span className="ag-detail-panel__match-pct">{val}%</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {activeTab === 'Portfolio' && detail.images && (
-          <div className="ag-detail-panel__portfolio">
-            {detail.images.map(img => (
-              <img key={img.id} src={img.path} alt="" className="ag-detail-panel__portfolio-img" />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Bottom: Tags + Quick Links */}
-      {(context === 'inbox' || context === 'roster' || context === 'casting') && (
-        <div className="ag-detail-panel__bottom">
-          {applicationId && (
-            <div className="ag-detail-panel__section">
-              <TagManager applicationId={applicationId} tags={tags || []} />
-            </div>
-          )}
-          {(context === 'inbox' || context === 'roster') && applicationId && (
-            <>
-              <div className="ag-detail-panel__section">
-                <ReminderSection applicationId={applicationId} compact />
-              </div>
-              <div className="ag-detail-panel__section">
-                <InterviewSection applicationId={applicationId} compact />
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+    <TalentPanel
+      talent={mappedTalent}
+      context={mappedContext}
+      onClose={onClose}
+      onAction={handleAction}
+    />
   );
 }

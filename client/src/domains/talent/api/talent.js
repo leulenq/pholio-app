@@ -32,6 +32,16 @@ export const talentApi = {
   // Analytics
   getAnalytics: (days) => apiClient.get(`/analytics${days ? `?days=${days}` : ''}`),
   getActivity: () => apiClient.get('/activity'),
+
+  // Notifications (high-signal bell center)
+  getNotifications: (options = {}) => {
+    const limit = options.limit ? `?limit=${options.limit}` : '';
+    return apiClient.get(`/notifications${limit}`);
+  },
+  markNotificationRead: (id) =>
+    apiClient.patch(`/notifications/${id}/read`, {}),
+  markAllNotificationsRead: () =>
+    apiClient.post('/notifications/read-all', {}),
   getSummary: () => apiClient.get('/summary'),
   getTimeseries: (days = 30) => apiClient.get(`/timeseries?days=${days}`),
   getSessions: (days = 30) => apiClient.get(`/sessions?days=${days}`),
@@ -50,6 +60,11 @@ export const talentApi = {
   // Settings
   getSettings: () => apiClient.get('/settings'),
   updateSettings: (data) => apiClient.put('/settings', data),
+  requestDataExport: () => apiClient.post('/settings/data-export', {}),
+  requestDataErasure: () => apiClient.post('/settings/erasure-request', {}),
+  deactivateAccount: () => apiClient.post('/settings/deactivate', {}),
+  deleteAccount: () => apiClient.delete('/settings/account'),
+  revokeSession: (id) => apiClient.delete(`/settings/sessions/${encodeURIComponent(id)}`),
 
   // PDF
   getPdfCustomization: () => apiClient.get('/pdf-customization'),

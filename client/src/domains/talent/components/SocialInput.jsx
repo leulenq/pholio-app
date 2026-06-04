@@ -3,6 +3,11 @@ import { Controller } from 'react-hook-form';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { PholioInput } from '../../../shared/components/ui/forms';
+import {
+  looksLikeUrl,
+  normalizeSocialFieldValue,
+  normalizeUrl,
+} from '../../../shared/lib/normalize-social-field';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
 /**
@@ -21,34 +26,24 @@ export const SocialInput = ({
   fullWidth = false,
   type = 'text',
   inputMode,
-  autoComplete
+  autoComplete,
 }) => {
-  const looksLikeUrl = (input) =>
-    /:\/\//.test(input) || /^www\./i.test(input) || /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(input);
+  const fieldConfig = {
+    base: base || '',
+    prefix: prefix || '',
+  };
 
-  const normalizeUrl = (input) => {
-    const trimmed = input.trim();
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed.replace(/^\/+/, '')}`;
+  const applyNormalization = (raw) => {
+    const val = String(raw ?? '').trim();
+    if (!val) return null;
+    return normalizeSocialFieldValue(val, fieldConfig);
   };
 
   const handleBlur = (e) => {
-    let val = e.target.value.trim();
-    if (!val) return;
-
-    // If the user pasted a URL-like value, normalize scheme instead of prepending base + slug.
-    if (looksLikeUrl(val)) {
-      setValue(name, normalizeUrl(val), { shouldDirty: true, shouldValidate: true });
-      return;
-    }
-
-    // Auto-prefix logic for plain handles/slugs.
-    if (base) {
-      if (prefix && val.startsWith(prefix)) {
-        val = val.substring(prefix.length);
-      }
-      const merged = `${base}${val}`.replace(/([^:]\/)\/+/g, '$1');
-      setValue(name, merged, { shouldDirty: true, shouldValidate: true });
+    const normalized = applyNormalization(e.target.value);
+    if (normalized == null) return;
+    if (normalized !== e.target.value) {
+      setValue(name, normalized, { shouldDirty: true, shouldValidate: true });
     }
   };
 
@@ -60,9 +55,7 @@ export const SocialInput = ({
         return;
       }
     }
-    {
-      toast.error('Please enter a valid URL to test');
-    }
+    toast.error('Please enter a valid URL to test');
   };
 
   return (
@@ -102,3 +95,5 @@ export const SocialInput = ({
     </div>
   );
 };
+
+export { looksLikeUrl, normalizeUrl };

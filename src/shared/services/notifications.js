@@ -1,0 +1,421 @@
+/**
+ * Event-driven user notifications with dedupe/grouping via group_key.
+ */
+
+const { randomUUID } = require("crypto");
+const knex = require("../db/knex");
+
+const NOTIFICATION_TYPES = {
+  AGENCY_PROFILE_VIEW: "agency_profile_view",
+  APPLICATION_SUBMITTED: "application_submitted",
+  APPLICATION_STATUS: "application_status",
+  PROFILE_NOT_SUBMISSION_READY: "profile_not_submission_ready",
+  CONFIRMATION: "confirmation",
+};
+
+const PRIORITIES = {
+  LOW: "low",
+  NORMAL: "normal",
+  HIGH: "high",
+};
+
+function parseMetadata(raw) {
+  if (!raw) return {};
+  if (typeof raw === "object") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function serializeMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object") return null;
+  return JSON.stringify(metadata);
+}
+
+function getTimeAgo(date) {
+  if (!date) return "";
+  const now = new Date();
+  const then = new Date(date);
+  const diffMs = now - then;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return then.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatNotificationRow(row) {
+  const metadata = parseMetadata(row.metadata);
+  const lastAt = row.last_occurred_at || row.created_at;
+  const count = Number(row.occurrence_count) || 1;
+
+  return {
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    body: row.body || "",
+    routeTarget: row.route_target,
+    priority: row.priority,
+    isRead: row.read_at != null,
+    readAt: row.read_at,
+    createdAt: row.created_at,
+    lastOccurredAt: lastAt,
+    timeAgo: getTimeAgo(lastAt),
+    occurrenceCount: count,
+    grouped: count > 1,
+    sourceType: row.source_type,
+    sourceId: row.source_id,
+    metadata,
+  };
+}
+
+/**
+ * Upsert by (user_id, group_key). Re-opens unread when a grouped event recurs.
+ */
+async function upsertUserNotification({
+  userId,
+  type,
+  title,
+  body = "",
+  routeTarget,
+  priority = PRIORITIES.NORMAL,
+  groupKey = null,
+  sourceType = null,
+  sourceId = null,
+  metadata = {},
+  reopenOnRepeat = true,
+}) {
+  if (!userId || !type || !title || !routeTarget) {
+    return null;
+  }
+
+  const now = knex.fn.now();
+  const metaJson = serializeMetadata(metadata);
+
+  if (groupKey) {
+    const existing = await knex("notifications")
+      .where({ user_id: userId, group_key: groupKey })
+      .first();
+
+    if (existing) {
+      const nextCount = Number(existing.occurrence_count || 1) + 1;
+      await knex("notifications")
+        .where({ id: existing.id })
+        .update({
+          type,
+          title,
+          body,
+          route_target: routeTarget,
+          priority,
+          source_type: sourceType,
+          source_id: sourceId,
+          metadata: metaJson,
+          occurrence_count: nextCount,
+          last_occurred_at: now,
+          updated_at: now,
+          read_at: reopenOnRepeat && nextCount > 1 ? null : existing.read_at,
+        });
+      return existing.id;
+    }
+  }
+
+  const id = randomUUID();
+  await knex("notifications").insert({
+    id,
+    user_id: userId,
+    type,
+    title,
+    body,
+    route_target: routeTarget,
+    priority,
+    group_key: groupKey,
+    source_type: sourceType,
+    source_id: sourceId,
+    metadata: metaJson,
+    occurrence_count: 1,
+    read_at: null,
+    last_occurred_at: now,
+    created_at: now,
+    updated_at: now,
+  });
+
+  return id;
+}
+
+async function createUserNotification(payload) {
+  return upsertUserNotification(payload);
+}
+
+async function listUserNotifications(userId, { limit = 40 } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 40, 1), 100);
+
+  const rows = await knex("notifications")
+    .where({ user_id: userId })
+    .orderBy("last_occurred_at", "desc")
+    .limit(safeLimit);
+
+  const unreadRow = await knex("notifications")
+    .where({ user_id: userId })
+    .whereNull("read_at")
+    .count({ total: "*" })
+    .first();
+
+  return {
+    notifications: rows.map(formatNotificationRow),
+    unreadCount: Number(unreadRow?.total || 0),
+  };
+}
+
+async function getUnreadCount(userId) {
+  const row = await knex("notifications")
+    .where({ user_id: userId })
+    .whereNull("read_at")
+    .count({ total: "*" })
+    .first();
+  return Number(row?.total || 0);
+}
+
+async function markNotificationRead(userId, notificationId) {
+  const updated = await knex("notifications")
+    .where({ id: notificationId, user_id: userId })
+    .update({ read_at: knex.fn.now(), updated_at: knex.fn.now() });
+  return updated > 0;
+}
+
+async function markAllNotificationsRead(userId) {
+  await knex("notifications")
+    .where({ user_id: userId })
+    .whereNull("read_at")
+    .update({ read_at: knex.fn.now(), updated_at: knex.fn.now() });
+}
+
+async function getTalentUserIdForProfile(profileId) {
+  const profile = await knex("profiles")
+    .where({ id: profileId })
+    .select("user_id")
+    .first();
+  return profile?.user_id || null;
+}
+
+function applicationStatusCopy(status, agencyName) {
+  const agency = agencyName || "An agency";
+  const map = {
+    pending: {
+      title: "Application under review",
+      body: `${agency} is reviewing your submission.`,
+    },
+    submitted: {
+      title: "Application under review",
+      body: `${agency} is reviewing your submission.`,
+    },
+    shortlisted: {
+      title: "You were shortlisted",
+      body: `${agency} moved your application forward.`,
+    },
+    accepted: {
+      title: "Application accepted",
+      body: `${agency} accepted your application.`,
+    },
+    booked: {
+      title: "Booking confirmed",
+      body: `${agency} marked your application as booked.`,
+    },
+    declined: {
+      title: "Application closed",
+      body: `${agency} declined this application.`,
+    },
+    passed: {
+      title: "Application closed",
+      body: `${agency} passed on this application.`,
+    },
+    archived: {
+      title: "Application archived",
+      body: `${agency} archived this application.`,
+    },
+  };
+  return (
+    map[status] || {
+      title: "Application updated",
+      body: `${agency} updated your application status.`,
+    }
+  );
+}
+
+const NOTIFY_STATUSES = new Set([
+  "submitted",
+  "pending",
+  "shortlisted",
+  "accepted",
+  "booked",
+  "declined",
+  "passed",
+  "archived",
+]);
+
+async function notifyTalentApplicationSubmitted({
+  userId,
+  applicationId,
+  agencyId,
+  agencyName,
+}) {
+  const name = agencyName || "the agency";
+  return upsertUserNotification({
+    userId,
+    type: NOTIFICATION_TYPES.APPLICATION_SUBMITTED,
+    title: "Application submitted",
+    body: `Your application to ${name} is in review.`,
+    routeTarget: `/dashboard/talent/applications?application=${applicationId}`,
+    priority: PRIORITIES.HIGH,
+    groupKey: `application_submitted:${applicationId}`,
+    sourceType: "application",
+    sourceId: applicationId,
+    metadata: { agencyId, agencyName: name, status: "pending" },
+    reopenOnRepeat: false,
+  });
+}
+
+async function notifyTalentApplicationStatusChange({
+  userId,
+  applicationId,
+  agencyId,
+  agencyName,
+  status,
+}) {
+  if (!NOTIFY_STATUSES.has(status)) return null;
+
+  const copy = applicationStatusCopy(status, agencyName);
+  return upsertUserNotification({
+    userId,
+    type: NOTIFICATION_TYPES.APPLICATION_STATUS,
+    title: copy.title,
+    body: copy.body,
+    routeTarget: `/dashboard/talent/applications?application=${applicationId}`,
+    priority:
+      status === "accepted" || status === "booked"
+        ? PRIORITIES.HIGH
+        : PRIORITIES.NORMAL,
+    groupKey: `application_status:${applicationId}:${status}`,
+    sourceType: "application",
+    sourceId: applicationId,
+    metadata: { agencyId, agencyName, status },
+    reopenOnRepeat: false,
+  });
+}
+
+async function notifyTalentAgencyProfileView({ userId, agencyId, agencyName }) {
+  const name = agencyName || "An agency";
+  const notificationId = await upsertUserNotification({
+    userId,
+    type: NOTIFICATION_TYPES.AGENCY_PROFILE_VIEW,
+    title: `${name} viewed your profile`,
+    body: "An agency reviewed your portfolio in Scout.",
+    routeTarget: "/dashboard/talent/analytics",
+    priority: PRIORITIES.NORMAL,
+    groupKey: `agency_view:${agencyId}`,
+    sourceType: "agency",
+    sourceId: agencyId,
+    metadata: { agencyId, agencyName: name },
+    reopenOnRepeat: true,
+  });
+
+  if (notificationId) {
+    await refreshAgencyViewNotificationTitle(notificationId, name);
+  }
+
+  return notificationId;
+}
+
+async function refreshAgencyViewNotificationTitle(notificationId, agencyName) {
+  const row = await knex("notifications").where({ id: notificationId }).first();
+  if (!row) return;
+  const count = Number(row.occurrence_count) || 1;
+  const name = agencyName || "An agency";
+  let title = `${name} viewed your profile`;
+  let body = "An agency reviewed your portfolio in Scout.";
+
+  if (count > 1) {
+    title = `${name} showed repeat interest`;
+    body =
+      count === 2
+        ? "This agency viewed your profile again."
+        : `This agency viewed your profile ${count} times recently.`;
+  }
+
+  await knex("notifications")
+    .where({ id: notificationId })
+    .update({ title, body, updated_at: knex.fn.now() });
+}
+
+async function notifyTalentProfileNotSubmissionReady({
+  userId,
+  missingLabels = [],
+}) {
+  const preview =
+    missingLabels.length > 0
+      ? `Missing: ${missingLabels.slice(0, 3).join(", ")}${missingLabels.length > 3 ? "…" : ""}`
+      : "Add required photos and profile fields before submitting.";
+
+  return upsertUserNotification({
+    userId,
+    type: NOTIFICATION_TYPES.PROFILE_NOT_SUBMISSION_READY,
+    title: "Profile no longer submission-ready",
+    body: preview,
+    routeTarget: "/dashboard/talent/profile?gate=true",
+    priority: PRIORITIES.HIGH,
+    groupKey: `profile_readiness:${userId}`,
+    sourceType: "profile",
+    sourceId: null,
+    metadata: { missingLabels },
+    reopenOnRepeat: true,
+  });
+}
+
+async function notifyTalentConfirmation({
+  userId,
+  title,
+  body,
+  routeTarget,
+  groupKey,
+  metadata = {},
+}) {
+  return upsertUserNotification({
+    userId,
+    type: NOTIFICATION_TYPES.CONFIRMATION,
+    title,
+    body,
+    routeTarget,
+    priority: PRIORITIES.NORMAL,
+    groupKey,
+    sourceType: "confirmation",
+    sourceId: null,
+    metadata,
+    reopenOnRepeat: false,
+  });
+}
+
+module.exports = {
+  NOTIFICATION_TYPES,
+  PRIORITIES,
+  upsertUserNotification,
+  createUserNotification,
+  listUserNotifications,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+  getTalentUserIdForProfile,
+  notifyTalentApplicationSubmitted,
+  notifyTalentApplicationStatusChange,
+  notifyTalentAgencyProfileView,
+  refreshAgencyViewNotificationTitle,
+  notifyTalentProfileNotSubmissionReady,
+  notifyTalentConfirmation,
+  formatNotificationRow,
+  getTimeAgo,
+};

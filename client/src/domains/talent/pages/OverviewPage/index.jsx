@@ -199,7 +199,7 @@ export default function OverviewPage() {
               <div className="ov-book-header">
                 <div className="ov-book-title-group">
                   <div>
-                    <span className="ov-kicker-muted">The Book</span>
+                    <span className="ov-kicker-muted">Portfolio</span>
                     <span className="ov-book-title-text">
                       The <em>Book.</em>
                     </span>

@@ -36,14 +36,12 @@
   padding: 40px 48px 48px;
 }
 
-/* ─── Page header (greeting pattern — design spec §4.1, Brand Reference sec-head) ─── */
+/* ─── Page header ─── */
 .ts-page-header {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 40px;
-  margin-bottom: 40px;
-  padding-bottom: 28px;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  padding-bottom: 22px;
   border-bottom: 1px solid var(--ts-border);
 }
 
@@ -54,19 +52,9 @@
   min-width: 0;
 }
 
-.ts-page-kicker {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ts-text-faint);
-  margin-bottom: 12px;
-}
-
 .ts-page-title {
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 300;
   letter-spacing: -0.025em;
   line-height: 0.95;
@@ -75,53 +63,18 @@
 }
 
 .ts-page-sweep {
-  width: 140px;
+  width: 112px;
   height: 1px;
-  margin-top: 22px;
+  margin-top: 18px;
   background: linear-gradient(to right, rgba(201, 165, 90, 0.85), transparent 78%);
   transform-origin: left;
-}
-
-.ts-page-header-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  flex-shrink: 0;
-  max-width: 220px;
-}
-
-.ts-page-meta-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ag-text-4, #c8c2ba);
-  margin-bottom: 6px;
-}
-
-.ts-page-meta-value {
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.25rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  color: var(--ts-text-soft);
-}
-
-.ts-page-meta-desc {
-  margin-top: 6px;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.45;
-  color: var(--ts-text-faint);
 }
 
 /* ─── Two-column layout ─── */
 .ts-layout {
   display: grid;
-  grid-template-columns: 232px 1fr;
-  gap: 40px;
+  grid-template-columns: 184px 1fr;
+  gap: 32px;
   align-items: start;
 }
 
@@ -136,38 +89,19 @@
 .ts-nav {
   display: flex;
   flex-direction: column;
-  padding: 6px;
+  padding: 8px;
   background: var(--ts-surface);
   border: 1px solid var(--ts-border);
-  border-radius: var(--ts-radius-lg);
+  border-radius: var(--ts-radius);
   box-shadow: var(--ts-shadow-sm);
-}
-
-.ts-nav-group { margin-bottom: 2px; }
-.ts-nav-group + .ts-nav-group {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--ts-border);
-}
-
-.ts-nav-group-label {
-  display: block;
-  font-family: var(--ag-font-mono, 'SF Mono', monospace);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ts-text-faint);
-  padding: 6px 12px 8px;
 }
 
 .ts-nav-item {
   display: flex;
   align-items: center;
-  gap: 11px;
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -186,24 +120,12 @@
 .ts-nav-bar {
   position: absolute;
   left: 0;
-  top: 18%;
-  bottom: 18%;
+  top: 22%;
+  bottom: 22%;
   width: 2px;
   background: var(--ts-gold);
   border-radius: 0 2px 2px 0;
 }
-
-.ts-nav-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(201, 165, 90, 0.35);
-  flex-shrink: 0;
-  transition: background 0.2s var(--ts-ease);
-}
-.ts-nav-item.active .ts-nav-dot { background: var(--ts-gold); }
-
-.ts-nav-text { display: flex; flex-direction: column; gap: 2px; }
 
 .ts-nav-label {
   font-size: 13px;
@@ -212,52 +134,6 @@
   transition: color 0.2s var(--ts-ease);
 }
 .ts-nav-item.active .ts-nav-label { color: #8a7040; }
-
-.ts-nav-desc {
-  font-size: 10px;
-  color: var(--ts-text-faint);
-  line-height: 1.35;
-}
-
-/* ─── Support callout ─── */
-.ts-support {
-  margin-top: 20px;
-  padding: 18px;
-  border-radius: var(--ts-radius);
-  border: 1px solid var(--ts-border);
-  background: var(--ts-surface);
-  box-shadow: var(--ts-shadow-sm);
-}
-
-.ts-support-eyebrow {
-  display: block;
-  font-family: var(--ag-font-mono, monospace);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ts-gold);
-  margin-bottom: 6px;
-}
-
-.ts-support-text {
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--ts-text-soft);
-  margin: 0 0 10px 0;
-}
-
-.ts-support-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #8a7040;
-  text-decoration: none;
-  transition: color 0.2s var(--ts-ease);
-}
-.ts-support-link:hover { color: var(--ts-gold); }
 
 /* ─── Main content ─── */
 .ts-main { min-width: 0; }
@@ -277,30 +153,16 @@
   gap: 20px;
 }
 
-/* Card header — Brand Reference .ctx .head */
 .ts-card-hd {
   position: relative;
-  padding: 22px 28px 20px;
+  padding: 18px 28px;
   border-bottom: 1px solid var(--ts-border);
   background: var(--ts-surface);
 }
 
-.ts-card-hd::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 28px;
-  right: 28px;
-  height: 1px;
-  background: linear-gradient(to right, transparent, rgba(201, 165, 90, 0.45), transparent);
-  pointer-events: none;
-}
-
 .ts-card-hd-row {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
+  align-items: center;
 }
 
 .ts-card-hd-main {
@@ -310,35 +172,14 @@
   min-width: 0;
 }
 
-.ts-card-chapter {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ts-gold);
-  margin-bottom: 10px;
-}
-
 .ts-card-title {
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 300;
   letter-spacing: -0.01em;
   line-height: 1.15;
   color: var(--ts-text);
   margin: 0;
-}
-
-.ts-card-meta {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ts-text-faint);
-  text-align: right;
-  padding-bottom: 2px;
 }
 
 .ts-card-inner { padding: 24px 28px; }
@@ -356,14 +197,6 @@
   background: #fffaf9;
   border-color: rgba(192, 57, 43, 0.18);
   box-shadow: var(--ts-shadow-sm);
-}
-
-.ts-card--danger .ts-card-hd::before {
-  background: linear-gradient(to right, transparent, rgba(192, 57, 43, 0.28), transparent);
-}
-
-.ts-card--danger .ts-card-chapter {
-  color: rgba(192, 57, 43, 0.72);
 }
 
 /* ─── Forms ─── */
@@ -589,6 +422,13 @@
 .ts-avatar:hover .ts-avatar-overlay { opacity: 1; }
 
 .ts-avatar-icon { color: var(--ts-text-faint); }
+
+.ts-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 
 .ts-avatar-overlay {
   position: absolute;
@@ -1054,13 +894,6 @@
     flex-wrap: nowrap;
   }
   .ts-nav::-webkit-scrollbar { display: none; }
-  .ts-nav-group {
-    display: contents;
-    margin: 0;
-    padding: 0;
-    border: none;
-  }
-  .ts-nav-group-label { display: none; }
 
   .ts-nav-item {
     flex-direction: row;
@@ -1071,24 +904,7 @@
     min-width: max-content;
   }
   .ts-nav-bar { display: none; }
-  .ts-nav-dot { display: none; }
-  .ts-nav-desc { display: none; }
   .ts-nav-label { font-size: 12px; }
-  .ts-support { display: none; }
-}
-
-/* ─── Responsive: mobile ─── */
-@media (max-width: 900px) {
-  .ts-page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
-  }
-  .ts-page-header-meta {
-    align-items: flex-start;
-    text-align: left;
-    max-width: none;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1097,9 +913,7 @@
   .ts-page-sweep { width: 100px; margin-top: 16px; }
   .ts-field-row { grid-template-columns: 1fr; }
   .ts-card-hd, .ts-card-inner, .ts-card-footer { padding-left: 18px; padding-right: 18px; }
-  .ts-card-hd::before { left: 18px; right: 18px; }
   .ts-card-hd-row { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .ts-card-meta { text-align: left; padding-bottom: 0; }
   .ts-toggle-row, .ts-invoice-row, .ts-session-row,
   .ts-action-row, .ts-notif-freq { padding-left: 18px; padding-right: 18px; }
   .ts-toggle-group-label { padding-left: 18px; padding-right: 18px; }

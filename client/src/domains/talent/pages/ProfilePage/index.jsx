@@ -21,7 +21,6 @@ import CreditsEditor from '../../../../shared/components/ui/forms/CreditsEditor'
 import { Controller } from 'react-hook-form';
 import ProfileNav from '../../components/ProfileNav';
 import ProfileStrengthSidebar from '../../components/ProfileStrengthSidebar';
-import ProfileReadinessAudit from '../../components/ProfileReadinessAudit';
 import { calculateProfileStrength } from '../../../../shared/utils/profileScoring';
 import {
   Section,
@@ -36,6 +35,7 @@ import { SocialSection } from './SocialSection';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { parseApiFailure } from '../../../../shared/lib/api-error-message';
 import { useReferenceLanguages } from '../../../../shared/hooks/useReferenceLanguages';
+import { flushProfileFormForSave } from './flushProfileFormForSave';
 
 import styles from './ProfilePage.module.css';
 
@@ -235,10 +235,12 @@ export default function ProfilePage() {
 
   const languageOptions = useMemo(
     () =>
-      referenceLanguages.map((lang) => ({
-        value: lang.name,
-        label: lang.name,
-      })),
+      referenceLanguages
+        .map((lang) => ({
+          value: lang.name,
+          label: lang.name,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
     [referenceLanguages],
   );
   
@@ -257,10 +259,11 @@ export default function ProfilePage() {
     reset,
     setError,
     control,
+    getValues,
     formState: { errors, isDirty, isSubmitting } 
   } = useForm({
     resolver: zodResolver(profileSchema),
-    mode: 'onBlur',
+    mode: 'onTouched',
     defaultValues: {
       seeking_representation: false,
       representation_status: 'not_seeking',
@@ -273,16 +276,13 @@ export default function ProfilePage() {
     }
   });
 
-  // Explicitly register custom fields that use setValue instead of standard inputs
+  // Register setValue-only fields not wired through register() or Controller
   useEffect(() => {
     const customFields = [
-      'hero_image_path', 'height_cm', 'weight_kg', 'shoe_size', 
-      'bust', 'waist', 'hips', 'inseam_cm', 
+      'hero_image_path', 'height_cm', 'weight_kg', 'shoe_size',
+      'bust', 'waist', 'hips', 'inseam_cm',
       'tattoos', 'piercings', 'availability_travel', 'drivers_license', 'passport_ready',
-      'languages', 'specialties', 'comfort_levels', 'modeling_categories', 
-      'union_membership', 'previous_representations', 'experience_details',
       'work_eligibility',
-      'representation_status'
     ];
     customFields.forEach(field => register(field));
   }, [register]);
@@ -460,7 +460,7 @@ export default function ProfilePage() {
     () => calculateProfileStrength(strengthValues),
     [strengthValues],
   );
-  const { isCoreReady, missingCoreItems, fieldCompletion, scrollTargetByKey } = profileStrength;
+  const { isCoreReady, missingCoreItems, fieldCompletion } = profileStrength;
 
   const scrollToProfileSection = (sectionId) => {
     const goPhotos = sectionId === 'photos-tab' || sectionId === 'hero-section';
@@ -491,6 +491,15 @@ export default function ProfilePage() {
 
   const authUserPredicate = (q) =>
     Array.isArray(q.queryKey) && q.queryKey[0] === 'auth-user';
+
+  const onInvalid = useCallback((fieldErrors) => {
+    const firstField = Object.keys(fieldErrors)[0];
+    const firstError = firstField ? fieldErrors[firstField] : null;
+    const message = firstError?.message || 'Review the highlighted fields, then save again.';
+    pholioToast.error('Check a few details', {
+      description: message,
+    });
+  }, []);
 
   const onSubmit = async (data) => {
     const requestId = saveRequestRef.current + 1;
@@ -617,8 +626,8 @@ export default function ProfilePage() {
       const validationErrors = topLevelErrors || nestedErrors;
 
       if ((error.status === 400 || error.status === 422) && validationErrors) {
-        pholioToast.error('Validation failed. Please check the form.', {
-          description: 'Some profile fields need attention before we can save.',
+        pholioToast.error('Check a few details', {
+          description: 'Review the highlighted fields, then save again.',
         });
 
         Object.keys(validationErrors).forEach((field) => {
@@ -638,6 +647,21 @@ export default function ProfilePage() {
       pholioToast.fromFailure(failure);
     }
   };
+
+  const handleSaveProfile = async () => {
+    if (isSubmitting) return;
+
+    const wasDirty = isDirty;
+    const { normalized, pendingCommit } = await flushProfileFormForSave(setValue, getValues);
+
+    if (!wasDirty && !normalized && !pendingCommit) {
+      pholioToast.info('No changes to save');
+      return;
+    }
+
+    handleSubmit(onSubmit, onInvalid)();
+  };
+
   // Get hero display data from form values
   const firstName = values.first_name || 'Your';
   const lastName = values.last_name || 'Name';
@@ -677,18 +701,11 @@ export default function ProfilePage() {
 
   const isGateEntry = searchParams.get('gate') === 'true';
 
-  const heightDisplay = values.height_cm
-    ? unitSystem === 'imperial'
-      ? (() => {
-          const { ft, in: inches } = cmToFeetInches(values.height_cm);
-          return `${ft}'${inches}"`;
-        })()
-      : `${values.height_cm} cm`
-    : null;
-
-  const heroStatsLine = [heightDisplay, values.eye_color]
-    .filter(Boolean)
-    .join(' · ');
+  const bookingStatus = values.current_agency
+    ? `Represented by ${values.current_agency}`
+    : values.seeking_representation || values.representation_status === 'seeking'
+      ? 'Seeking representation'
+      : null;
 
   const showReadinessGate = isGateEntry && !isCoreReady;
   const isStudioPlus = !!subscription?.isPro;
@@ -782,12 +799,8 @@ export default function ProfilePage() {
               style={{ transformOrigin: 'left' }}
             />
 
-            {values.work_status ? (
-              <p className={styles.heroRole}>{String(values.work_status)}</p>
-            ) : null}
-
-            {heroStatsLine ? (
-              <p className={styles.heroStats}>{heroStatsLine}</p>
+            {bookingStatus ? (
+              <p className={styles.heroRole}>{bookingStatus}</p>
             ) : null}
 
             {showReadinessGate ? (
@@ -833,28 +846,17 @@ export default function ProfilePage() {
           <ProfileNav
             onNavClick={() => setNavOpen(false)}
             activeSection={activeSection}
-            fieldCompletion={fieldCompletion}
           />
         </aside>
 
         {/* Center - Form Fields */}
         <main className={styles.centerContent}>
-          {readinessAuditOpen && (
-            <ProfileReadinessAudit
-              fieldCompletion={fieldCompletion}
-              scrollTargetByKey={scrollTargetByKey}
-              isRequiredComplete={profileStrength.isRequiredComplete}
-              onItemClick={(sectionId) => {
-                scrollToProfileSection(sectionId);
-                setReadinessAuditOpen(false);
-              }}
-              onClose={() => setReadinessAuditOpen(false)}
-            />
-          )}
-
           <form
             id="profile-form"
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSaveProfile();
+            }}
             className={`${styles.profileForms} ${isSubmitting ? styles.formSaving : ''}`}
             aria-busy={isSubmitting}
           >
@@ -1205,6 +1207,7 @@ export default function ProfilePage() {
           title="Market Positioning"
           titleEmphasis="Positioning"
           description="Your core modeling categories and market lanes."
+          showDivider={false}
         >
           <div className={styles.formStack}>
             <Controller
@@ -1378,26 +1381,11 @@ export default function ProfilePage() {
         <ProfileStrengthSidebar
           strength={profileStrength}
           isSaving={isSubmitting}
-          isDisabled={!isDirty || isSubmitting}
+          hasChanges={isDirty}
           auditOpen={readinessAuditOpen}
-          onToggleAudit={() => {
-            setReadinessAuditOpen((open) => {
-              const next = !open;
-              if (next) {
-                window.setTimeout(() => {
-                  document.getElementById('readiness-audit-title')?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                  });
-                }, 50);
-              }
-              return next;
-            });
-          }}
+          onToggleAudit={() => setReadinessAuditOpen((open) => !open)}
           onSaveClick={() => {
-            if (Object.keys(errors).length > 0) {
-              pholioToast.error('Please fix validation errors before saving');
-            }
+            void handleSaveProfile();
           }}
           onItemClick={scrollToProfileSection}
         />

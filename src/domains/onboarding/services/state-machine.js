@@ -1,23 +1,16 @@
 /**
- * Casting Call State Machine (V2)
- * Non-linear onboarding flow for "Project Casting Call"
+ * Casting Call State Machine
+ * Linear onboarding flow for the talent "Casting Call".
  *
- * Flow:
- * Entry → Scout/Vibe (parallel) → Reveal → Done
+ * Live flow:
+ *   entry → gender → scout → measurements → profile → done
  *
- * Key difference from v1:
- * - Scout and Vibe can be completed in ANY order
- * - Reveal unlocks when BOTH are complete
- * - State machine tracks parallel progress
+ * The server is the source of truth for which step the user is on. Each step
+ * persists its data and transitions forward via transitionTo(); the client
+ * reads current_step + step_data from /onboarding/status to resume on reload.
  *
- * Part of Phase 1: Backend Infrastructure
- */
-
-/**
- * Transition configuration for Casting Call flow (V3 - Linear)
- *
- * New linear flow:
- * Entry → Scout → Measurements → Profile → Reveal → Done
+ * Legacy states (identity, verification_pending) are retained only so older
+ * in-flight profiles can still advance; they are not part of the live path.
  */
 const TRANSITIONS_V2 = {
   identity: {
@@ -112,6 +105,10 @@ function getState(profile) {
         completed_steps: state.completed_steps || [],
         step_data: state.step_data || {},
         started_at: state.started_at || new Date().toISOString(),
+        // Surface AI predictions written by scout/confirm so the client can
+        // pre-fill and resume the measurements step. Without this passthrough
+        // they stay buried in onboarding_state_json and never reach /status.
+        predictions: state.predictions || null,
       };
     } catch (e) {
       console.warn(

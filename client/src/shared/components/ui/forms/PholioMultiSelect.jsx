@@ -84,123 +84,125 @@ const PholioMultiSelect = ({
     <div className={`pholio-form-group ${disabled ? 'disabled' : ''}`} ref={containerRef}>
       {label && <label htmlFor={id} className="pholio-label">{label}</label>}
       
-      <div 
-        className={`pholio-custom-select-trigger ${isOpen ? 'open' : ''} ${error ? 'error' : ''}`}
-        onClick={(e) => {
-          if (!disabled) {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsOpen(!isOpen);
-          }
-        }}
-        tabIndex={0}
-        role="combobox"
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        id={id}
-        onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            setIsOpen(false);
-            return;
-          }
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setIsOpen((prev) => !prev);
-          }
-          if (e.key === 'ArrowDown' && !isOpen) {
-            e.preventDefault();
-            setIsOpen(true);
-          }
-        }}
-        onBlur={(e) => {
-          if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
-          const nextFocus = e.relatedTarget;
-          if (containerRef.current?.contains(nextFocus)) return;
-          blurTimeoutRef.current = setTimeout(() => {
-            setIsOpen(false);
-          }, 120);
-        }}
-      >
-        <div className="pholio-tags-container pr-8">
-          {safeValue.length === 0 && (
-            <span className="selected-value placeholder text-gray-400 italic">
-              {placeholder}
-            </span>
-          )}
-          
-          {safeValue.map(val => {
-             const opt = options.find(o => o.value === val);
-             return (
-               <span 
-                 key={val} 
-                 className="pholio-tag"
-                 onClick={(e) => e.stopPropagation()}
-               >
-                 {opt ? opt.label : val}
-                 <X 
-                   size={14} 
-                   className="pholio-tag-remove"
-                   onClick={(e) => removeTag(e, val)}
-                 />
-               </span>
-             );
-          })}
+      <div className="pholio-select-control-wrapper">
+        <div 
+          className={`pholio-custom-select-trigger ${isOpen ? 'open' : ''} ${error ? 'error' : ''}`}
+          onClick={(e) => {
+            if (!disabled) {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsOpen(!isOpen);
+            }
+          }}
+          tabIndex={0}
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          id={id}
+          onKeyDown={(e) => {
+            if (disabled) return;
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setIsOpen(false);
+              return;
+            }
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsOpen((prev) => !prev);
+            }
+            if (e.key === 'ArrowDown' && !isOpen) {
+              e.preventDefault();
+              setIsOpen(true);
+            }
+          }}
+          onBlur={(e) => {
+            if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+            const nextFocus = e.relatedTarget;
+            if (containerRef.current?.contains(nextFocus)) return;
+            blurTimeoutRef.current = setTimeout(() => {
+              setIsOpen(false);
+            }, 120);
+          }}
+        >
+          <div className="pholio-tags-container pr-8">
+            {safeValue.length === 0 && (
+              <span className="selected-value placeholder text-gray-400 italic">
+                {placeholder}
+              </span>
+            )}
+            
+            {safeValue.map(val => {
+               const opt = options.find(o => o.value === val);
+               return (
+                 <span 
+                   key={val} 
+                   className="pholio-tag"
+                   onClick={(e) => e.stopPropagation()}
+                 >
+                   {opt ? opt.label : val}
+                   <X 
+                     size={14} 
+                     className="pholio-tag-remove"
+                     onClick={(e) => removeTag(e, val)}
+                   />
+                 </span>
+               );
+            })}
+          </div>
+
+          <ChevronDown size={16} className={`chevron-icon absolute right-4 top-1/2 -translate-y-1/2 ${isOpen ? 'rotate' : ''}`} />
         </div>
 
-        <ChevronDown size={16} className={`chevron-icon absolute right-4 top-1/2 -translate-y-1/2 ${isOpen ? 'rotate' : ''}`} />
+        {isOpen && (
+          <div className="pholio-custom-select-dropdown" role="listbox">
+            {searchable && (
+              <div
+                className="pholio-multiselect-search"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <Search size={14} aria-hidden className="pholio-multiselect-search-icon" />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  className="pholio-multiselect-search-input"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.stopPropagation();
+                      setIsOpen(false);
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {filteredOptions.length === 0 ? (
+              <div className="pholio-multiselect-empty" role="status">
+                {emptyMessage}
+              </div>
+            ) : (
+              filteredOptions.map((option) => {
+                const isSelected = safeValue.includes(option.value);
+                return (
+                  <div
+                    key={option.value}
+                    className={`pholio-select-option ${isSelected ? 'selected' : ''}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelect(option.value)}
+                    role="option"
+                    aria-selected={isSelected}
+                  >
+                    <span>{option.label}</span>
+                    {isSelected && <Check size={14} className="check-icon" />}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
-
-      {isOpen && (
-        <div className="pholio-custom-select-dropdown" role="listbox">
-          {searchable && (
-            <div
-              className="pholio-multiselect-search"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <Search size={14} aria-hidden className="pholio-multiselect-search-icon" />
-              <input
-                ref={searchInputRef}
-                type="search"
-                className="pholio-multiselect-search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.stopPropagation();
-                    setIsOpen(false);
-                  }
-                }}
-              />
-            </div>
-          )}
-          {filteredOptions.length === 0 ? (
-            <div className="pholio-multiselect-empty" role="status">
-              {emptyMessage}
-            </div>
-          ) : (
-            filteredOptions.map((option) => {
-              const isSelected = safeValue.includes(option.value);
-              return (
-                <div
-                  key={option.value}
-                  className={`pholio-select-option ${isSelected ? 'selected' : ''}`}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleSelect(option.value)}
-                  role="option"
-                  aria-selected={isSelected}
-                >
-                  <span>{option.label}</span>
-                  {isSelected && <Check size={14} className="check-icon" />}
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
       
       {error && (
         <span className="pholio-error-message" role="alert">

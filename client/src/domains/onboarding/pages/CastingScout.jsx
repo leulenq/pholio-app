@@ -1,9 +1,9 @@
 /**
- * Casting Scout - Step 2: The Look
- * UI derived from /dashboard/talent/media — same 3-column grid card pattern,
- * gold upload button trigger, hover overlay actions.
- * Dark-adapted for the cinematic onboarding background.
- * Backend upload logic unchanged.
+ * Casting Scout — "Portrait" step.
+ * A premium Pholio media surface (borrowing the /media tab language: mono
+ * kickers, numbered frames, gold Cover tag, crisp 2px edges) adapted to the
+ * dark cinematic onboarding shell. The chosen frame is then scanned by the
+ * scout AI to read the talent's look. Upload/scan logic is unchanged.
  */
 
 import React, { useState, useCallback, useRef } from 'react';
@@ -16,8 +16,9 @@ import { TransferFailureNotice } from '../../../shared/components/states';
 
 import { ThinkingText } from './ThinkingText';
 import { CinematicDivider } from './CinematicDivider';
+import { CinematicNextButton } from './CinematicNextButton';
 
-import { Sun, EyeOff, ScanFace, Plus, X, Check, Loader2, ArrowRight, Upload, Star } from 'lucide-react';
+import { Plus, X, Star, Loader2, Camera, Upload } from 'lucide-react';
 
 const MAX_PHOTOS = 9;
 
@@ -74,6 +75,8 @@ export default function CastingScout({ onComplete, userName }) {
     noDragEventsBubbling: true,
   });
 
+  const openPicker = () => fileInputRef.current?.click();
+
   /* ── delete ── */
   const del = (id) => {
     setPhotos(p => {
@@ -83,14 +86,13 @@ export default function CastingScout({ onComplete, userName }) {
     });
   };
 
-  /* ── set primary ── */
+  /* ── set primary (cover) ── */
   const setPrimary = async (photoId, imageId) => {
     try {
-      // Optimistically update UI
       setPhotos(p => p.map(x => ({ ...x, isPrimary: x.id === photoId })));
       await primarySwapMutation.mutateAsync({ imageId });
-    } catch (err) {
-      toast.error('Failed to set primary photo');
+    } catch {
+      toast.error('Failed to set cover photo');
     }
   };
 
@@ -126,9 +128,14 @@ export default function CastingScout({ onComplete, userName }) {
     });
   };
 
-  const hasOneDone = photos.some(p => p.status === 'done');
+  const doneCount = photos.filter(p => p.status === 'done').length;
+  const hasOneDone = doneCount > 0;
   const anyLoading = photos.some(p => p.status === 'uploading');
   const hasUploadErrors = photos.some((p) => p.status === 'error');
+
+  const greeting = userName && userName !== 'New' && userName !== 'User'
+    ? `${userName}, show us your *look*`
+    : 'Show us your *look*';
 
   return (
     <motion.div
@@ -138,10 +145,11 @@ export default function CastingScout({ onComplete, userName }) {
     >
       <AnimatePresence mode="wait">
 
-        {/* ══════════  SCAN  ══════════ */}
+        {/* ══════════  SCAN MOMENT  ══════════ */}
         {scanPhoto ? (
           <motion.div key="scan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full text-center">
-            <div className="mx-auto" style={{ maxWidth: 420 }}>
+            <span className="pt-kicker">Reading your look</span>
+            <div className="mx-auto" style={{ maxWidth: 380, marginTop: '1.5rem' }}>
               <div className="scout-scan-frame">
                 <motion.img src={scanPhoto.previewUrl} alt=""
                   className="scout-scan-image"
@@ -181,34 +189,34 @@ export default function CastingScout({ onComplete, userName }) {
 
         ) : (
 
-          /* ══════════  MEDIA GRID UPLOAD  ══════════ */
-          <motion.div key="grid"
+          /* ══════════  MEDIA SURFACE  ══════════ */
+          <motion.div key="surface"
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97 }}
-            className="w-full text-center"
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="w-full"
           >
-            {/* Heading */}
+            {/* Onboarding header — one-line heading + gold divider, matching
+                the other sections. */}
             <ThinkingText
-              text={
-                userName && userName !== 'New' && userName !== 'User'
-                  ? `Hey ${userName}, show us your *look*`
-                  : 'Show us your *look*'
-              }
+              text={greeting}
               className="cinematic-question"
-              style={{ marginBottom: '1.5rem' }}
+              style={{ marginBottom: '1rem', whiteSpace: 'nowrap' }}
             />
-            <CinematicDivider delay={0.5} style={{ marginBottom: '2.5rem' }} />
+            <CinematicDivider delay={0.5} style={{ marginTop: '1.5rem', marginBottom: '2.5rem' }} />
 
-            {hasUploadErrors && (
-              <TransferFailureNotice
-                title="Some uploads failed"
-                body="One or more photos did not upload. Remove failed items and try again."
-                retry={{ label: 'Dismiss', onClick: () => setPhotos((p) => p.filter((x) => x.status !== 'error')) }}
-                className="sg-transfer-error"
-              />
+            <div className="pt-surface">
+              {hasUploadErrors && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <TransferFailureNotice
+                  title="Some uploads failed"
+                  body="One or more photos did not upload. Remove failed items and try again."
+                  retry={{ label: 'Dismiss', onClick: () => setPhotos((p) => p.filter((x) => x.status !== 'error')) }}
+                  className="sg-transfer-error"
+                />
+              </div>
             )}
 
-            {/* Hidden native file input */}
+            {/* Hidden native input */}
             <input
               ref={fileInputRef}
               type="file" multiple className="hidden"
@@ -217,115 +225,69 @@ export default function CastingScout({ onComplete, userName }) {
               onChange={e => { if (e.target.files?.length) addFiles(Array.from(e.target.files)); e.target.value = ''; }}
             />
 
-            {/* Count — only shown once photos exist */}
+            {/* Count */}
             {photos.length > 0 && (
-              <p className="sg-count" style={{ marginBottom: '0.75rem' }}>
+              <p className="pt-count">
                 {photos.length} / {MAX_PHOTOS}
               </p>
             )}
 
-            {/* ── Grid wrapper: info trigger + drop zone ── */}
-            <div className="sg-grid-wrap">
-
-              {/* Gold 'i' info trigger — always top-right */}
-              <div className="sg-info-trigger" aria-label="Photo tips">
-                <span className="sg-info-icon">i</span>
-                <div className="sg-info-panel" role="tooltip">
-                  <p className="sg-info-title">Photo tips</p>
-                  <ul className="sg-info-list">
-                    <li>Best in natural light</li>
-                    <li>Face the camera</li>
-                    <li>Avoid sunglasses</li>
-                    <li>Clear solo shot</li>
-                  </ul>
-                </div>
-              </div>
-
-              {/* Drop zone */}
-              <div
-                {...getRootProps()}
-                className={`sg-root${isDragActive ? ' sg-root--dragging' : ''}`}
-              >
+            {/* Drop zone: empty frame, or the frame grid */}
+            <div {...getRootProps()} className="pt-dropzone">
               <input {...getInputProps()} />
 
               {photos.length === 0 ? (
-                /* Empty state — click or drag to start */
                 <motion.div
-                  className="sg-empty"
-                  onClick={() => fileInputRef.current?.click()}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
+                  className="pt-empty"
+                  onClick={openPicker}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
                 >
-                  <div className="sg-empty-icon">
-                    <Upload size={24} strokeWidth={1.4} />
-                  </div>
-                  <p className="sg-empty-label">Drag &amp; drop or tap to upload</p>
+                  <span className="pt-empty-icon">
+                    <Camera size={22} strokeWidth={1.4} />
+                  </span>
+                  <span className="pt-empty-label">Add your photo</span>
                 </motion.div>
               ) : (
-                /* Photo grid — mirrors studio-grid */
-                <div className="sg-grid">
+                <div className="pt-grid">
                   <AnimatePresence>
                     {photos.map((photo, idx) => (
                       <motion.div
                         key={photo.id}
-                        className="sg-card group"
+                        className={`pt-frame${photo.isPrimary ? ' is-cover' : ''}`}
                         layout
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.92 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.88 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
                         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        {/* First uploaded = primary indicator */}
-                        {photo.isPrimary && (
-                          <div className="sg-primary-badge">Primary</div>
-                        )}
+                        <img src={photo.previewUrl} alt="" className="pt-frame-img" />
+                        <span className="pt-frame-index">{String(idx + 1).padStart(2, '0')}</span>
+                        {photo.isPrimary && <span className="pt-tag-cover">Cover</span>}
 
-                        <motion.img
-                          src={photo.previewUrl} alt=""
-                          className="sg-card-img"
-                          initial={{ filter: 'blur(10px)', scale: 1.04 }}
-                          animate={{ filter: 'blur(0px)', scale: 1 }}
-                          transition={{ duration: 0.6 }}
-                        />
-
-                        {/* Hover overlay (mirrors portfolio-image-overlay) */}
-                        <div className="sg-card-overlay" />
-
-                        {/* Status */}
                         {photo.status === 'uploading' && (
-                          <div className="sg-card-loading">
-                            <Loader2 size={20} className="animate-spin" style={{ color: '#C9A55A' }} />
+                          <div className="pt-frame-loading">
+                            <Loader2 size={18} className="animate-spin" />
                           </div>
                         )}
-                        {photo.status === 'done' && (
-                          <div className="sg-card-tick">
-                            <Check size={10} strokeWidth={3} />
-                          </div>
-                        )}
-                        {photo.status === 'error' && (
-                          <div className="sg-card-error">!</div>
-                        )}
+                        {photo.status === 'error' && <div className="pt-frame-error">!</div>}
 
-                        {/* Hover action — primary & delete */}
-                        {!scanPhoto && photo.status === 'done' && (
-                          <div className="sg-card-actions">
+                        {photo.status === 'done' && (
+                          <div className="pt-frame-actions">
                             {!photo.isPrimary && (
                               <button
                                 type="button"
-                                className="sg-action-btn sg-action-primary"
+                                className="pt-frame-action"
+                                title="Make cover"
                                 onClick={e => { e.stopPropagation(); setPrimary(photo.id, photo.result.imageId); }}
-                                title="Set as Primary"
-                                style={{ marginRight: '4px' }}
                               >
                                 <Star size={13} />
                               </button>
                             )}
                             <button
                               type="button"
-                              className="sg-action-btn sg-action-delete"
-                              onClick={e => { e.stopPropagation(); del(photo.id); }}
+                              className="pt-frame-action pt-frame-action-danger"
                               title="Remove"
+                              onClick={e => { e.stopPropagation(); del(photo.id); }}
                             >
                               <X size={13} />
                             </button>
@@ -335,18 +297,18 @@ export default function CastingScout({ onComplete, userName }) {
                     ))}
                   </AnimatePresence>
 
-                  {/* Add-more card — always last in grid */}
                   {photos.length < MAX_PHOTOS && (
                     <motion.button
                       type="button"
-                      className="sg-card-add"
-                      onClick={() => fileInputRef.current?.click()}
+                      className="pt-add"
+                      onClick={openPicker}
                       layout
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      initial={{ opacity: 0, scale: 0.92 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <Plus size={18} strokeWidth={1.2} />
+                      <Plus size={18} strokeWidth={1.3} />
+                      <span className="pt-add-label">Add</span>
                     </motion.button>
                   )}
                 </div>
@@ -355,53 +317,36 @@ export default function CastingScout({ onComplete, userName }) {
               {/* Drag overlay */}
               <AnimatePresence>
                 {isDragActive && (
-                  <motion.div className="sg-drag-overlay"
+                  <motion.div className="pt-drag-overlay"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   >
-                    <Upload size={28} strokeWidth={1.2} />
+                    <Upload size={24} strokeWidth={1.3} />
                     <span>Drop to add</span>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>{/* /sg-root */}
-            </div>{/* /sg-grid-wrap */}
+            </div>
 
-            {/* ── Tips ── */}
-            <motion.div className="scout-tips" style={{ marginTop: '1.8rem' }}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.0 }}
-            >
-              {[
-                { icon: Sun,     label: 'Natural light' },
-                { icon: EyeOff,  label: 'No sunglasses' },
-                { icon: ScanFace,label: 'Face the camera' },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="scout-tip">
-                  <Icon size={13} strokeWidth={1.5} />
-                  <span>{label}</span>
-                </div>
-              ))}
-            </motion.div>
+            {/* Helper / tips */}
+            <p className="pt-helper">
+              Natural light · Face the camera · No sunglasses · JPG, PNG, WEBP
+            </p>
 
-            {/* ── Continue ── */}
+            {/* Continue */}
             <AnimatePresence>
               {hasOneDone && !anyLoading && (
-                <motion.div className="scout-continue-wrap"
-                  initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                <motion.div
+                  className="mt-2"
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <button type="button" className="scout-continue-btn" onClick={handleContinue}>
-                    <span>Continue</span>
-                    <ArrowRight size={15} strokeWidth={2.2} />
-                  </button>
-                  <p className="scout-continue-hint">
-                    {photos.filter(p => p.status === 'done').length} photo
-                    {photos.filter(p => p.status === 'done').length !== 1 ? 's' : ''} ready
-                  </p>
+                  <CinematicNextButton onClick={handleContinue}>Continue</CinematicNextButton>
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
-        )}
+          </div>
+        </motion.div>
+      )}
       </AnimatePresence>
     </motion.div>
   );

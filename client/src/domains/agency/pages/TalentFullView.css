@@ -35,8 +35,7 @@
 .tfv-eyebrow { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--ag-gold); margin-bottom: 12px; }
 .tfv-name { font-family: 'Noto Serif Display', 'Playfair Display', serif; font-size: 44px; font-weight: 500; color: #16130D; line-height: 1.04; margin: 0; }
 .tfv-id-row { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
-.tfv-match { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #9b9082; }
-.tfv-match strong { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600; color: #16130D; margin-right: 3px; }
+.tfv-match { align-self: center; }
 .tfv-lead {
   font-family: 'Noto Serif Display', serif; font-size: 14.5px; line-height: 1.65; color: #4a443c;
   margin: 20px 0 0; max-width: 60ch;

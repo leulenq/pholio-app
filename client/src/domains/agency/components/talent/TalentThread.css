@@ -101,30 +101,42 @@
 /* ---------- COMPOSER ---------- */
 .tt-composer {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
-  background: #fff;
-  border: 1px solid #e0d8c7;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  border-radius: 2px;
   padding: 8px 8px 8px 13px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.tt-composer:hover:not(:focus-within) {
+  border-color: rgba(26, 26, 26, 0.16);
 }
 .tt-composer:focus-within {
-  border-color: var(--ag-gold, #C9A55A);
-  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.12);
+  border-color: rgba(201, 165, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
 }
 .tt-composer-input {
   flex: 1;
-  border: none;
-  outline: none;
-  resize: none;
-  background: none;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #16130D;
-  max-height: 120px;
-  padding: 4px 0;
+  border: none !important;
+  outline: none !important;
+  resize: none !important;
+  background: transparent !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: #16130D !important;
+  max-height: 120px !important;
+  padding: 4px 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+}
+.tt-composer-input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 .tt-composer-input::placeholder { color: #b3a89a; }
 .tt-composer-send {
@@ -132,7 +144,7 @@
   width: 34px;
   height: 34px;
   border: none;
-  border-radius: 6px;
+  border-radius: 2px;
   background: var(--ag-gold, #C9A55A);
   color: #16130D;
   display: flex;
@@ -150,7 +162,7 @@
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid #ece4d4;
   border-left: 2px solid var(--ag-gold, #C9A55A);
-  border-radius: 5px;
+  border-radius: 2px;
   padding: 12px 14px;
   margin-bottom: 10px;
 }
@@ -162,10 +174,11 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid #e7ddca;
-  border-radius: 8px;
-  padding: 14px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0 0 16px;
+  border-bottom: 1px solid rgba(26, 26, 26, 0.08);
 }
 .tt-form-label {
   font-size: 8.5px;
@@ -176,25 +189,36 @@
 .tt-followrow { display: flex; gap: 9px; }
 .tt-field {
   flex: 1;
-  background: #fff;
-  border: 1px solid #e0d8c7;
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: #16130D;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  background: #ffffff !important;
+  border: 1px solid rgba(26, 26, 26, 0.08) !important;
+  border-radius: 2px !important;
+  padding: 10px 12px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 300 !important;
+  color: #16130D !important;
+  outline: none !important;
+  box-shadow: none !important;
+  height: auto !important;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 .tt-field::placeholder { color: #b3a89a; }
-.tt-field:focus { border-color: var(--ag-gold, #C9A55A); box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.12); }
-.tt-field--date { color: #6b6256; }
+.tt-field:hover:not(:focus) {
+  border-color: rgba(26, 26, 26, 0.16) !important;
+  background: #ffffff !important;
+}
+.tt-field:focus {
+  border-color: rgba(201, 165, 90, 0.5) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12) !important;
+}
+.tt-field--date { color: #6b6256 !important; }
 .tt-form-btn {
   flex: none;
   height: 40px;
   padding: 0 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: 2px;
   background: var(--ag-gold, #C9A55A);
   color: #16130D;
   font-size: 12px;

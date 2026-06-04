@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
-import { Lock, ChevronDown, Bell, Sparkles } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Lock, ChevronDown, Bell } from 'lucide-react';
 import { useAuth } from '../../../domains/auth/hooks/useAuth';
 import { useFlash } from '../../hooks/useFlash';
 import { getTalentHeaderTone } from '../../utils/talentHeaderTone';
 import { TALENT_NAV_SECTIONS } from '../../constants/talentNav';
-import { talentApi } from '../../../domains/talent/api/talent';
 import { postLogoutAndRedirectToMarketing } from '../../lib/logout';
+import NotificationCenter, {
+  useNotificationUnreadCount,
+} from '../../components/NotificationCenter/NotificationCenter';
+import '../../components/NotificationCenter/NotificationCenter.css';
 import './TalentLayout.css';
 
 export default function TalentLayout({ outletContext = {}, children }) {
@@ -23,40 +25,7 @@ export default function TalentLayout({ outletContext = {}, children }) {
   const notificationsRef = useRef(null);
   const notificationsButtonRef = useRef(null);
 
-  // Fetch activities (talent notifications)
-  const { data: activitiesData, isLoading, isError } = useQuery({
-    queryKey: ['talent-activity'],
-    queryFn: () => talentApi.getActivity(),
-    refetchInterval: 30000, // Refetch every 30 seconds
-  });
-
-  const activities = Array.isArray(activitiesData) ? activitiesData : [];
-
-  // Local read status state
-  const [readIds, setReadIds] = useState(() => {
-    try {
-      const stored = localStorage.getItem('pholio_read_activities');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-
-  const unreadCount = activities.filter(act => act.id && !readIds.has(act.id)).length;
-
-  const markAllAsRead = () => {
-    const newRead = new Set([...readIds, ...activities.map(act => act.id)]);
-    setReadIds(newRead);
-    localStorage.setItem('pholio_read_activities', JSON.stringify([...newRead]));
-  };
-
-  const markAsRead = (id) => {
-    if (readIds.has(id)) return;
-    const newRead = new Set([...readIds, id]);
-    const arr = [...newRead].slice(-100); // Keep last 100 to avoid infinite growth
-    setReadIds(new Set(arr));
-    localStorage.setItem('pholio_read_activities', JSON.stringify(arr));
-  };
+  const unreadCount = useNotificationUnreadCount();
 
   const firstName = profile?.first_name || profile?.name?.split(' ')[0] || '';
   const lastName = profile?.last_name || profile?.name?.split(' ').slice(1)[0] || '';
@@ -162,7 +131,6 @@ export default function TalentLayout({ outletContext = {}, children }) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Sparkles size={14} aria-hidden />
                 Upgrade
               </a>
               <span className="tl-header-actions-divider" aria-hidden="true" />
@@ -175,61 +143,32 @@ export default function TalentLayout({ outletContext = {}, children }) {
             <button
               ref={notificationsButtonRef}
               type="button"
-              className={`tl-action-icon${isNotificationsOpen ? ' is-open' : ''}`}
-              aria-label="Notifications"
+              className={`tl-action-icon${isNotificationsOpen ? ' is-open' : ''}${unreadCount > 0 ? ' has-unread' : ''}`}
+              aria-label={
+                unreadCount > 0
+                  ? `Notifications, ${unreadCount} unread`
+                  : 'Notifications'
+              }
               aria-haspopup="true"
               aria-expanded={isNotificationsOpen}
               aria-controls="tl-notifications-panel"
               onClick={() => setIsNotificationsOpen((open) => !open)}
             >
               <Bell size={18} strokeWidth={1.5} />
-              {unreadCount > 0 && <span className="tl-action-badge">{unreadCount}</span>}
+              {unreadCount > 0 && (
+                <span className="tl-action-badge" aria-hidden>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
 
             {isNotificationsOpen && (
-              <div id="tl-notifications-panel" className="tl-notifications-panel" aria-label="Notifications">
-                <div className="tl-notifications-panel-head">
-                  <h3 className="tl-notifications-panel-title">Notifications</h3>
-                  {unreadCount > 0 && (
-                    <button className="tl-notifications-mark-read" onClick={markAllAsRead}>
-                      Mark all read
-                    </button>
-                  )}
-                </div>
-
-                <div className="tl-notifications-list-container">
-                  {isLoading && (
-                    <div className="tl-notifications-state">Loading activities...</div>
-                  )}
-                  {isError && (
-                    <div className="tl-notifications-state">Could not load activities.</div>
-                  )}
-                  {!isLoading && !isError && activities.length === 0 && (
-                    <div className="tl-notifications-state">All caught up.</div>
-                  )}
-                  {!isLoading && !isError && activities.length > 0 && (
-                    <ul className="tl-notifications-list">
-                      {activities.map((activity) => {
-                        const isUnread = !readIds.has(activity.id);
-                        return (
-                          <li
-                            key={activity.id}
-                            className={`tl-notifications-item${isUnread ? ' is-unread' : ''}`}
-                            onClick={() => markAsRead(activity.id)}
-                          >
-                            <span className="tl-notifications-icon" aria-hidden="true">
-                              {activity.icon || '📝'}
-                            </span>
-                            <div className="tl-notifications-item-content">
-                              <p className="tl-notifications-item-message">{activity.message}</p>
-                              <span className="tl-notifications-item-time">{activity.timeAgo}</span>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
+              <div
+                id="tl-notifications-panel"
+                className="tl-notifications-panel"
+                aria-label="Notifications"
+              >
+                <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
               </div>
             )}
           </div>

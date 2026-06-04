@@ -1,0 +1,201 @@
+/* ── ConfirmationDialog — Pholio brand, airy layout ── */
+.cfd-overlay {
+  --cfd-surface: var(--ag-surface-1, #ffffff);
+  --cfd-ink: var(--ag-text-0, #1a1815);
+  --cfd-body: var(--ag-text-2, #6b6560);
+  --cfd-border: var(--ag-border, rgba(26, 24, 21, 0.08));
+  --cfd-border-strong: var(--ag-border-strong, rgba(26, 24, 21, 0.14));
+  --cfd-danger: var(--ag-danger, #c0392b);
+  --cfd-danger-dim: var(--ag-danger-dim, rgba(192, 57, 43, 0.08));
+  --cfd-warning: var(--ag-warning, #c2850e);
+  --cfd-warning-dim: var(--ag-warning-dim, rgba(194, 133, 14, 0.1));
+  --cfd-info: var(--ag-info, #3b7dd8);
+  --cfd-info-dim: var(--ag-info-dim, rgba(59, 125, 216, 0.08));
+  --cfd-sans: var(--ag-font-body, 'Inter', system-ui, sans-serif);
+  --cfd-ease: var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1));
+  --cfd-radius: var(--ag-radius-lg, 12px);
+
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 18, 16, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  font-family: var(--cfd-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.cfd-shell {
+  width: 100%;
+  max-width: 400px;
+  background: var(--cfd-surface);
+  border-radius: var(--cfd-radius);
+  border: 1px solid var(--cfd-border);
+  box-shadow: var(--ag-shadow-lg, 0 12px 40px rgba(26, 24, 21, 0.1));
+  overflow: hidden;
+}
+
+.cfd-body {
+  padding: 32px 32px 28px;
+}
+
+.cfd-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 20px;
+  border-radius: var(--ag-radius-full, 999px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cfd-icon--danger {
+  background: var(--cfd-danger-dim);
+  color: var(--cfd-danger);
+}
+
+.cfd-icon--warning {
+  background: var(--cfd-warning-dim);
+  color: var(--cfd-warning);
+}
+
+.cfd-icon--info {
+  background: var(--cfd-info-dim);
+  color: var(--cfd-info);
+}
+
+.cfd-copy {
+  margin-bottom: 28px;
+}
+
+.cfd-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--cfd-ink);
+  letter-spacing: -0.01em;
+}
+
+.cfd-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--cfd-body);
+}
+
+.cfd-count {
+  margin: 12px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cfd-ink);
+}
+
+.cfd-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cfd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: var(--ag-radius-md, 8px);
+  font-family: var(--cfd-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--ag-duration, 200ms) var(--cfd-ease),
+    border-color var(--ag-duration, 200ms) var(--cfd-ease),
+    color var(--ag-duration, 200ms) var(--cfd-ease);
+}
+
+.cfd-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cfd-btn--ghost {
+  border: 1px solid var(--cfd-border-strong);
+  background: transparent;
+  color: var(--cfd-ink);
+}
+
+.cfd-btn--ghost:hover:not(:disabled) {
+  background: var(--ag-surface-2, #f5f2ee);
+}
+
+.cfd-btn--danger {
+  border: 1px solid var(--cfd-danger);
+  background: var(--cfd-danger);
+  color: #fff;
+}
+
+.cfd-btn--danger:hover:not(:disabled) {
+  background: #a93226;
+  border-color: #a93226;
+}
+
+.cfd-btn--warning {
+  border: 1px solid var(--cfd-warning);
+  background: var(--cfd-warning);
+  color: #fff;
+}
+
+.cfd-btn--warning:hover:not(:disabled) {
+  background: #a8740c;
+  border-color: #a8740c;
+}
+
+.cfd-btn--info {
+  border: 1px solid var(--cfd-info);
+  background: var(--cfd-info);
+  color: #fff;
+}
+
+.cfd-btn--info:hover:not(:disabled) {
+  background: #2f6bc0;
+  border-color: #2f6bc0;
+}
+
+.cfd-spin {
+  animation: cfd-spin 0.8s linear infinite;
+}
+
+@keyframes cfd-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 480px) {
+  .cfd-body {
+    padding: 28px 24px 24px;
+  }
+
+  .cfd-foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .cfd-btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cfd-overlay *,
+  .cfd-spin {
+    animation: none !important;
+    transition: none !important;
+  }
+}

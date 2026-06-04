@@ -4,6 +4,9 @@ const { requireRole } = require("../../auth/middleware/require-auth");
 const { v4: uuidv4 } = require("uuid");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const logActivity = require("./agency-log-activity");
+const {
+  notifyAgencyInterviewScheduled,
+} = require("../../../shared/services/agency-notifications");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
@@ -78,6 +81,26 @@ router.post(
         },
       );
 
+      const profile = application.profile_id
+        ? await knex("profiles")
+            .where({ id: application.profile_id })
+            .select("first_name", "last_name")
+            .first()
+        : null;
+      const talentName = profile
+        ? [profile.first_name, profile.last_name].filter(Boolean).join(" ")
+        : null;
+
+      notifyAgencyInterviewScheduled({
+        agencyId,
+        applicationId,
+        interviewId,
+        talentName,
+        proposedDatetime: proposed_datetime,
+      }).catch((err) =>
+        console.error("[Interviews] Notification failed:", err),
+      );
+
       const interview = await knex("interviews")
         .where({ id: interviewId })
         .first();
@@ -114,7 +137,7 @@ router.get(
         .leftJoin("profiles", "talent.id", "profiles.user_id")
         .select(
           "interviews.*",
-          "talent.name as talent_name",
+          knex.raw("(profiles.first_name || ' ' || profiles.last_name) as talent_name"),
           "talent.email as talent_email",
           "profiles.slug as talent_slug",
         );

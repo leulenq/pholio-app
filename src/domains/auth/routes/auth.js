@@ -40,9 +40,12 @@ function redirectForSession(session) {
     return "/";
   }
 
+  // Agency onboarding has been removed/bypassed
+  /*
   if (session.role === "AGENCY" && !session.agencyOnboardingCompletedAt) {
     return "/dashboard/agency/onboarding";
   }
+  */
 
   return redirectForRole(session.role);
 }
@@ -653,10 +656,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     });
 
     const sessionRedirect = redirectForSession(req.session);
-    const redirectUrl =
-      req.session.role === "AGENCY" && !req.session.agencyOnboardingCompletedAt
-        ? sessionRedirect
-        : nextPath || sessionRedirect;
+    const redirectUrl = nextPath || sessionRedirect;
     console.log("[Login] Redirecting to:", redirectUrl);
 
     // If request is JSON or Accept header requests JSON, return JSON response with redirect URL
@@ -820,7 +820,13 @@ router.post(["/logout", "/api/logout"], (req, res) => {
       console.error("[Logout] Error destroying session:", err);
     }
 
-    res.clearCookie("connect.sid");
+    const cookieDomain =
+      process.env.COOKIE_DOMAIN ||
+      (process.env.NODE_ENV === "production" ? ".pholio.studio" : "localhost");
+    res.clearCookie("connect.sid", {
+      domain: cookieDomain,
+      path: "/",
+    });
 
     if (isJson) {
       return res.json({ success: true, redirect: redirectUrl });

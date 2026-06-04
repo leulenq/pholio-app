@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
   AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import {
-  Eye, Download, Briefcase, TrendingUp, Lock,
-} from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useAuth } from '../../auth/hooks/useAuth';
@@ -126,69 +124,12 @@ function TimeRangeSelector({ value, onChange, isPro }) {
   );
 }
 
-function HeroKPIRow({ views, viewsDelta, downloads, completeness, appsCount, appsLoading, isPro, isLoading }) {
-  const kpis = [
-    { label: 'Profile Views',        value: isLoading   ? '—' : views.toLocaleString(),    delta: isPro ? viewsDelta : null, Icon: Eye        },
-    { label: 'Comp Card Downloads',  value: isLoading   ? '—' : downloads.toLocaleString(), delta: null,                     Icon: Download   },
-    { label: 'Agency Submissions',   value: appsLoading ? '—' : String(appsCount),          delta: null,                     Icon: Briefcase  },
-    { label: 'Visibility Score',     value: isLoading   ? '—' : `${completeness}%`,         delta: null,                     Icon: TrendingUp },
-  ];
+function CompactPageHeader({ timeRange, onTimeRangeChange, isPro }) {
   return (
-    <div className="intel-kpi-row">
-      {kpis.map(({ label, value, delta, Icon }) => (
-        <div key={label} className="intel-kpi">
-          <Icon size={14} className="intel-kpi-icon" aria-hidden />
-          <span className="intel-kpi-label">{label}</span>
-          <span className="intel-kpi-value">{value}</span>
-          {isPro && delta !== null && delta !== 0 && (
-            <span className={`intel-kpi-delta ${delta > 0 ? 'intel-kpi-delta--up' : 'intel-kpi-delta--down'}`}>
-              {delta > 0 ? '↑' : '↓'} {Math.abs(delta)}%
-            </span>
-          )}
-        </div>
-      ))}
+    <div className="intel-compact-header">
+      <span className="intel-compact-title">Analytics</span>
+      <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} isPro={isPro} />
     </div>
-  );
-}
-
-function IntelMasthead({ profile, summary, subscription, appsCount, appsLoading, timeRange, onTimeRangeChange, isLoading }) {
-  const isPro        = !!subscription?.isPro;
-  const views        = asNum(summary?.views?.total);
-  const viewsDelta   = asNum(summary?.views?.changePct ?? summary?.views?.changePercent ?? summary?.views?.deltaPct);
-  const downloads    = asNum(summary?.downloads?.total);
-  const completeness = asNum(summary?.completeness?.percentage);
-  const profileId    = profile?.id?.slice(0, 3)?.toUpperCase() ?? '···';
-
-  return (
-    <header className="intel-masthead">
-      <div className="intel-masthead-inner">
-        <div className="intel-masthead-top">
-          <div className="intel-masthead-copy">
-            <span className="intel-kicker">Intel · PH-{profileId}</span>
-            {isLoading
-              ? <div className="intel-skel intel-skel--title" aria-hidden />
-              : <h1 className="intel-display">The <em>Intel.</em></h1>}
-            <p className="intel-lede">Profile signals, agency interest, and performance intelligence.</p>
-            <span className={`intel-tier-pill${isPro ? ' intel-tier-pill--studio' : ''}`}>
-              {isPro ? 'Studio+ Member' : 'Free'}
-            </span>
-          </div>
-          <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} isPro={isPro} />
-        </div>
-
-        <HeroKPIRow
-          views={views}
-          viewsDelta={viewsDelta}
-          downloads={downloads}
-          completeness={completeness}
-          appsCount={appsCount}
-          appsLoading={appsLoading}
-          isPro={isPro}
-          isLoading={isLoading}
-        />
-      </div>
-      <div className="intel-hairline" />
-    </header>
   );
 }
 
@@ -550,15 +491,13 @@ function PatternChapter({ cohorts, isPro }) {
 }
 
 export default function AnalyticsView() {
-  const { profile, subscription } = useAuth();
+  const { subscription } = useAuth();
   const isPro = !!(subscription?.isPro ||
     new URLSearchParams(window.location.search).get('debug') === 'pro');
-  const [timeRange, setTimeRange] = useState(7);
-  useEffect(() => {
-    if (isPro) setTimeRange(prev => (prev === 7 ? 30 : prev));
-  }, [isPro]);
+  const [rangeOverride, setRangeOverride] = useState(null);
+  const timeRange = rangeOverride ?? (isPro ? 30 : 7);
 
-  const { analytics, summary, timeseries, detailedStats, sessions, cohorts,
+  const { analytics, timeseries, detailedStats, sessions, cohorts,
     isLoading, isError, refetch } = useAnalytics(timeRange, { includeAdvanced: isPro });
 
   const { data: appsPayload, isPending: appsLoading } = useQuery({
@@ -571,13 +510,14 @@ export default function AnalyticsView() {
 
   if (isError && !isLoading) {
     return (
-      <div className="intel-masthead" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', padding: '48px clamp(32px,5.4vw,72px)' }}>
+      <div className="analytics-page" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', padding: '48px clamp(32px,5.4vw,72px)' }}>
         <div>
-          <span className="intel-kicker">Intel</span>
-          <h1 className="intel-display" style={{ marginBottom: 16 }}>Something went <em>wrong.</em></h1>
-          <p className="intel-lede">We couldn't load your Intel right now.</p>
+          <h1 style={{ fontFamily: 'Noto Serif Display,Georgia,serif', fontSize: 'clamp(2rem,4vw,3.2rem)', fontWeight: 400, color: '#1A1A1A', letterSpacing: '-0.02em', marginBottom: 12 }}>
+            Something went <em style={{ fontStyle: 'italic', color: '#C8A96E' }}>wrong.</em>
+          </h1>
+          <p style={{ fontFamily: 'Inter,sans-serif', fontSize: 15, fontWeight: 300, color: 'rgba(26,26,26,0.52)', marginBottom: 24 }}>We couldn't load your Analytics right now.</p>
           <button onClick={() => refetch()} style={{
-            marginTop: 24, padding: '10px 24px', borderRadius: 8,
+            padding: '10px 24px', borderRadius: 8,
             background: 'rgba(201,165,90,0.14)', border: '1px solid rgba(201,165,90,0.28)',
             color: '#C9A55A', fontFamily: 'Inter', fontSize: 13, cursor: 'pointer',
           }}>Try again</button>
@@ -587,17 +527,8 @@ export default function AnalyticsView() {
   }
 
   return (
-    <div>
-      <IntelMasthead
-        profile={profile}
-        summary={summary}
-        subscription={subscription}
-        appsCount={applications.length}
-        appsLoading={appsLoading}
-        timeRange={timeRange}
-        onTimeRangeChange={setTimeRange}
-        isLoading={isLoading}
-      />
+    <div className="analytics-page">
+      <CompactPageHeader timeRange={timeRange} onTimeRangeChange={setRangeOverride} isPro={isPro} />
       <div className="intel-body">
         <ReachChapter   timeseries={timeseries}   analytics={analytics}  isPro={isPro} />
         <SignalChapter  analytics={analytics}      sessions={sessions}    detailedStats={detailedStats} isPro={isPro} />

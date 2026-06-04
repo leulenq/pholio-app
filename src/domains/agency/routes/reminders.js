@@ -107,7 +107,7 @@ router.get(
         .leftJoin("profiles", "talent.id", "profiles.user_id")
         .select(
           "reminders.*",
-          "talent.name as talent_name",
+          knex.raw("(profiles.first_name || ' ' || profiles.last_name) as talent_name"),
           "talent.email as talent_email",
           "profiles.slug as talent_slug",
         );

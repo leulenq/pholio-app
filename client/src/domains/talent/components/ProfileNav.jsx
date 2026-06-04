@@ -1,12 +1,10 @@
 import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { buildNavGapBySection } from './profileReadinessItems';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
 const NAV_ITEMS = [
   { id: 'identity', label: 'Personal Details' },
   { id: 'heritage', label: 'Heritage & Background' },
-  { id: 'photos', label: 'Photos' },
   { id: 'appearance', label: 'Physical Attributes' },
   { id: 'credits', label: 'Credits & Experience' },
   { id: 'training', label: 'Training & Skills' },
@@ -18,16 +16,11 @@ const NAV_ITEMS = [
 
 const VALID_NAV_IDS = new Set(NAV_ITEMS.map((item) => item.id));
 
-const ProfileNav = ({ onNavClick, activeSection, fieldCompletion }) => {
+const ProfileNav = ({ onNavClick, activeSection }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
   const resolvedTab =
-    rawTab && VALID_NAV_IDS.has(rawTab) ? rawTab : 'identity';
-
-  const navGaps = useMemo(
-    () => (fieldCompletion ? buildNavGapBySection(fieldCompletion) : {}),
-    [fieldCompletion],
-  );
+    rawTab && VALID_NAV_IDS.has(rawTab) ? rawTab : (rawTab === 'photos' ? null : 'identity');
 
   const activeId = useMemo(() => {
     const navIdFromSection = activeSection === 'photos-tab' ? 'photos' : activeSection;
@@ -52,7 +45,6 @@ const ProfileNav = ({ onNavClick, activeSection, fieldCompletion }) => {
       <ol className={styles.navList}>
         {NAV_ITEMS.map(({ id, label }, index) => {
           const isActive = activeId === id;
-          const hasGap = !!navGaps[id];
           return (
             <li key={id} className={styles.navListItem}>
               <button
@@ -64,12 +56,7 @@ const ProfileNav = ({ onNavClick, activeSection, fieldCompletion }) => {
                 <span className={styles.navNum} aria-hidden="true">
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                <span className={styles.navLabelWrap}>
-                  <span className={styles.navLabel}>{label}</span>
-                  {hasGap ? (
-                    <span className={styles.navGapDot} title="Has incomplete fields" aria-label="Incomplete" />
-                  ) : null}
-                </span>
+                <span className={styles.navLabel}>{label}</span>
               </button>
             </li>
           );

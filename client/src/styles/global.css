@@ -1568,8 +1568,8 @@ nav.primary-nav a[aria-current="page"] {
 }
 
 .button,
-button,
-input[type="submit"] {
+body:not(.is-agency) button,
+body:not(.is-agency) input[type="submit"] {
   font-family: var(--font-sans);
   border: none;
   border-radius: 999px;
@@ -2107,13 +2107,13 @@ input[type="submit"] {
   overflow-x: auto;
 }
 
-table {
+body:not(.is-agency) table {
   width: 100%;
   border-collapse: collapse;
 }
 
-table th,
-table td {
+body:not(.is-agency) table th,
+body:not(.is-agency) table td {
   padding: 0.9rem 0.75rem;
   border-bottom: 1px solid var(--color-border);
   text-align: left;
@@ -2154,23 +2154,23 @@ table td {
   color: rgba(15, 23, 42, 0.45);
 }
 
-form {
+body:not(.is-agency) form {
   display: grid;
   gap: 1.5rem;
 }
 
-label {
+body:not(.is-agency) label {
   font-size: 0.85rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(15, 23, 42, 0.65);
 }
 
-input[type="text"],
-input[type="email"],
-input[type="tel"],
-textarea,
-select {
+body:not(.is-agency) input[type="text"],
+body:not(.is-agency) input[type="email"],
+body:not(.is-agency) input[type="tel"],
+body:not(.is-agency) textarea,
+body:not(.is-agency) select {
   padding: 0.9rem 1.15rem;
   border-radius: 999px;
   border: 1px solid var(--color-border);
@@ -2179,18 +2179,56 @@ select {
   transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
-textarea {
+body:not(.is-agency) textarea {
   border-radius: 24px;
   min-height: 160px;
   resize: vertical;
 }
 
-input:focus,
-textarea:focus,
-select:focus {
+body:not(.is-agency) input:focus,
+body:not(.is-agency) textarea:focus,
+body:not(.is-agency) select:focus {
   border-color: rgba(201, 165, 90, 0.65);
   box-shadow: 0 0 0 4px rgba(201, 165, 90, 0.12);
 }
+
+body.is-agency input[type="text"],
+body.is-agency input[type="email"],
+body.is-agency input[type="tel"],
+body.is-agency textarea,
+body.is-agency select {
+  padding: 0.9rem 1.15rem;
+  border-radius: 2px;
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  background: #ffffff;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.is-agency textarea {
+  border-radius: 2px;
+  min-height: 160px;
+  resize: vertical;
+}
+
+body.is-agency input[type="text"]:hover:not(:focus),
+body.is-agency input[type="email"]:hover:not(:focus),
+body.is-agency input[type="tel"]:hover:not(:focus),
+body.is-agency textarea:hover:not(:focus),
+body.is-agency select:hover:not(:focus) {
+  border-color: rgba(26, 26, 26, 0.16);
+  background: #ffffff;
+}
+
+body.is-agency input:focus,
+body.is-agency textarea:focus,
+body.is-agency select:focus {
+  outline: none;
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+}
+
 
 .form-grid {
   display: grid;

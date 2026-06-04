@@ -9,6 +9,8 @@ import {
 } from 'firebase/auth';
 import { Loader2, AlertCircle, Instagram, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
+import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
+import { useAuthenticatedEntryRedirect } from '../../hooks/useAuthenticatedEntryRedirect';
 import GradientText from '../../../../shared/components/ui/GradientText';
 import styles from './LoginPage.module.css';
 
@@ -25,39 +27,23 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  useAuthenticatedEntryRedirect();
+
   useEffect(() => {
-    let cancelled = false;
+    if (!forceLogin) return undefined;
 
-    async function checkSession() {
-      try {
-        if (forceLogin) {
-          await signOut(auth).catch(() => {});
-          await fetch('/api/logout', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { Accept: 'application/json' },
-          }).catch(() => {});
-          return;
-        }
-
-        const response = await fetch('/api/session', {
-          credentials: 'include',
-          headers: { Accept: 'application/json' },
-        });
-        const data = await response.json();
-        if (!cancelled && data?.authenticated && data?.redirect) {
-          navigate(data.redirect);
-        }
-      } catch {
-        // Ignore session bootstrap failures on login page
-      }
+    async function clearSession() {
+      await signOut(auth).catch(() => {});
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      }).catch(() => {});
     }
 
-    checkSession();
-    return () => {
-      cancelled = true;
-    };
-  }, [forceLogin, navigate]);
+    clearSession();
+    return undefined;
+  }, [forceLogin]);
 
   const from = location.state?.from?.pathname
     || searchParams.get('redirect')
@@ -176,6 +162,7 @@ export default function LoginPage() {
         throw new Error(errorMessage);
       }
 
+      notifyAuthChange({ authenticated: true });
       window.location.href = data.redirect || from;
     } catch (err) {
       setError(err.message || 'Server connection failed. Please try again.');

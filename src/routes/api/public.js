@@ -11,6 +11,12 @@ const {
   listReferenceLanguages,
 } = require("../../shared/lib/language-reference");
 
+function dashboardPathForRole(role) {
+  if (role === "TALENT") return "/dashboard/talent";
+  if (role === "AGENCY") return "/dashboard/agency";
+  return "/";
+}
+
 // GET /api/public/languages — canonical language list for profile forms
 router.get("/languages", async (req, res) => {
   try {
@@ -275,13 +281,19 @@ router.get("/session", async (req, res) => {
         authenticated: true,
         role: user.role,
         user: { email: user.email },
+        dashboardPath: dashboardPathForRole(user.role),
       };
+
+      if (user.role === "AGENCY") {
+        responseData.onboardingComplete = true;
+      }
 
       if (user.role === "TALENT") {
         const profile = await knex("profiles")
           .where({ user_id: user.id })
           .first();
         if (profile) {
+          responseData.onboardingComplete = !!profile.onboarding_completed_at;
           responseData.profile = {
             first_name: profile.first_name,
             last_name: profile.last_name,

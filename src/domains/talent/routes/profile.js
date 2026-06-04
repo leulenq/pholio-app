@@ -22,6 +22,10 @@ const {
 } = require("../../onboarding/validation/essentials-check");
 const { computeProfileStatus } = require("../services/profile-status");
 const {
+  captureSubmissionReadiness,
+  notifyIfSubmissionReadinessLost,
+} = require("../../../shared/services/notify-profile-readiness");
+const {
   upsertTextEmbedding,
   buildProfileText,
 } = require("../../ai/embeddings");
@@ -461,6 +465,8 @@ router.put(
         .json({ success: false, message: "Profile not found" });
     }
 
+    const wasSubmissionReady = await captureSubmissionReadiness(profile.id);
+
     // Update Logic (Common for Create-then-Update or just Update)
     const updateData = {
       updated_at: knex.fn.now(),
@@ -824,6 +830,8 @@ router.put(
       profileForCompleteness,
       images,
     );
+
+    await notifyIfSubmissionReadinessLost(profile.id, wasSubmissionReady);
 
     const responseProfile = pickTalentProfileForApi(updatedProfile);
     formatProfileDateOfBirthForApi(responseProfile);

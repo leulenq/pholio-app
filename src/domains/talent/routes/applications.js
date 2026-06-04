@@ -3,6 +3,12 @@ const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const asyncHandler = require("express-async-handler");
+const {
+  notifyTalentApplicationSubmitted,
+} = require("../../../shared/services/notifications");
+const {
+  notifyAgencyNewApplication,
+} = require("../../../shared/services/agency-notifications");
 
 async function getProfileBySessionUserId(userId) {
   return knex("profiles").where({ user_id: userId }).first();
@@ -233,6 +239,39 @@ router.post(
       });
     }
 
+    const agency = await knex("agencies")
+      .where({ id: agencyId })
+      .select("name")
+      .first();
+
+    try {
+      await notifyTalentApplicationSubmitted({
+        userId: req.session.userId,
+        applicationId,
+        agencyId,
+        agencyName: agency?.name,
+      });
+    } catch (notifyErr) {
+      console.error(
+        "[Applications] Submission notification failed:",
+        notifyErr,
+      );
+    }
+
+    const talentName = [profile.first_name, profile.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    try {
+      await notifyAgencyNewApplication({
+        agencyId,
+        applicationId,
+        talentName: talentName || profile.name || "A talent",
+      });
+    } catch (notifyErr) {
+      console.error("[Applications] Agency notification failed:", notifyErr);
+    }
+
     res.json({ success: true, id: applicationId });
   }),
 );
@@ -324,9 +363,34 @@ router.post(
       })
       .returning("id");
 
-    // Track as "redirect" source if we had a column? For now just create.
+    const applicationId = typeof appId === "object" ? appId.id : appId;
 
-    res.json({ success: true, id: appId });
+    const agency = await knex("agencies")
+      .where({ id: agencyId })
+      .select("name")
+      .first();
+    const talentName = [profile.first_name, profile.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    try {
+      await notifyTalentApplicationSubmitted({
+        userId: req.session.userId,
+        applicationId,
+        agencyId,
+        agencyName: agency?.name,
+      });
+      await notifyAgencyNewApplication({
+        agencyId,
+        applicationId,
+        talentName: talentName || "A talent",
+      });
+    } catch (notifyErr) {
+      console.error("[Redirect Apply] Notification failed:", notifyErr);
+    }
+
+    res.json({ success: true, id: applicationId });
   }),
 );
 

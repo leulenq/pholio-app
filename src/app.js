@@ -343,8 +343,11 @@ const sessionMiddleware = session({
     sameSite: "lax",
     secure: config.nodeEnv === "production",
     maxAge: 1000 * 60 * 60 * 24 * 7,
-    // Allow cookies across subdomains (www.pholio.studio and app.pholio.studio)
-    domain: config.nodeEnv === "production" ? ".pholio.studio" : undefined,
+    // Share session across marketing (www) and app subdomains in production;
+    // in development, pin to localhost so :3001 / :5173 / :3000 share the cookie.
+    domain:
+      process.env.COOKIE_DOMAIN ||
+      (config.nodeEnv === "production" ? ".pholio.studio" : "localhost"),
   },
   // Custom error handler for session store operations
   // This prevents session store errors from crashing the app

@@ -32,6 +32,61 @@
   display: block;
 }
 
+.pholio-multiselect-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.06);
+  margin-bottom: 4px;
+  background: rgba(26, 24, 21, 0.02);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.pholio-multiselect-search:focus-within {
+  background: rgba(201, 165, 90, 0.03);
+  border-bottom-color: rgba(201, 165, 90, 0.25);
+}
+
+.pholio-multiselect-search-icon {
+  flex-shrink: 0;
+  color: var(--pholio-gold, #C9A55A);
+  opacity: 0.7;
+}
+
+.pholio-multiselect-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  color: var(--pholio-text-dark, #1a1815);
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.pholio-multiselect-search-input:focus,
+.pholio-multiselect-search-input:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.pholio-multiselect-search-input::placeholder {
+  color: var(--pholio-text-muted, #9a948d);
+  font-weight: 300;
+  font-style: italic;
+}
+
+.pholio-multiselect-empty {
+  padding: 12px 14px;
+  font-size: 0.875rem;
+  color: var(--pholio-text-muted, #6b6560);
+  font-style: italic;
+}
+
 /* Inputs, Selects, Textareas - Shared Luxury Styles */
 .pholio-input,
 .pholio-select,
@@ -297,6 +352,11 @@
   }
 }
 
+.pholio-select-control-wrapper {
+  position: relative;
+  width: 100%;
+}
+
 /* Custom Select Dropdown Styling */
 .pholio-custom-select-trigger {
   position: relative;
@@ -356,42 +416,70 @@
 /* Dropdown Menu */
 .pholio-custom-select-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: white;
-  border: 1px solid var(--pholio-border);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--pholio-border, #e2e8f0);
   border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
-  z-index: 9999; /* Ensure it floats above fixed footers */
+  box-shadow: 0 16px 48px rgba(26, 24, 21, 0.08);
+  z-index: 9999;
   max-height: 250px;
   overflow-y: auto;
-  animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: dropdownFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 6px;
 }
 
+/* Custom Scrollbar for Dropdown Menu */
+.pholio-custom-select-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+.pholio-custom-select-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+.pholio-custom-select-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(201, 165, 90, 0.2);
+  border-radius: 999px;
+}
+.pholio-custom-select-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 165, 90, 0.4);
+}
+
 @keyframes dropdownFadeIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { 
+    opacity: 0; 
+    transform: translateY(-8px) scale(0.98); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
 }
 
 /* Options */
 .pholio-select-option {
-  padding: 10px 12px;
+  padding: 8px 12px;
+  margin: 2px 0;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  color: var(--pholio-text-dark);
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--pholio-text-dark, #1a1815);
   cursor: pointer;
   border-radius: 4px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background 0.1s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(0);
 }
 
-.pholio-select-option:hover {
-  background: #F5F5F7;
-  color: #0A0A0A;
+.pholio-select-option:hover,
+.pholio-autocomplete-option-active {
+  background: rgba(201, 165, 90, 0.05) !important;
+  color: var(--pholio-gold, #C9A55A) !important;
+  transform: translateX(3px);
 }
 
 .pholio-select-option.selected {
@@ -402,6 +490,12 @@
 
 .check-icon {
   color: var(--pholio-gold);
+  animation: checkPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes checkPop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 /* Error State */
@@ -424,57 +518,81 @@
   gap: 8px;
   width: 100%;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--pholio-border);
-  transition: border-color 0.2s ease;
+  padding: 8px 12px;
+  background: #f8f8f7; /* Very light brand off-whitewell */
+  border: 1px solid transparent;
+  border-radius: 8px;
+  min-height: 50px;
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.01);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   cursor: text;
 }
 
 .pholio-tags-wrapper.error {
-  border-bottom-color: var(--pholio-error);
+  border-color: var(--pholio-error);
+  background-color: #fffafa;
 }
 
 .pholio-tags-wrapper:focus-within {
-  border-bottom-color: var(--pholio-gold);
+  border-color: rgba(201, 165, 90, 0.3);
+  background: #ffffff;
+  box-shadow: 
+    0 0 0 5px rgba(201, 165, 90, 0.12),
+    inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
+/* Premium Capsule Tags / Badges */
+.pholio-tag,
 .pholio-premium-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: transparent;
+  background: rgba(201, 165, 90, 0.05); /* Soft branded warm gold tint */
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: 999px; /* Capsule shape */
   font-family: 'Inter', sans-serif;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
-  color: var(--pholio-text-dark);
-  border: 1px solid var(--pholio-border);
+  color: var(--pholio-text-dark, #1a1815);
+  border: 1px solid rgba(201, 165, 90, 0.18); /* Subtle gold border */
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
 }
 
+/* Hover State - Soft transition to danger red on hover */
+.pholio-tag:hover,
 .pholio-premium-tag:hover {
-  border-color: #b04848;
-  background: rgba(176, 72, 72, 0.04);
-  color: #b04848;
+  border-color: var(--color-error, #ef4444);
+  background: rgba(239, 68, 68, 0.04);
+  color: var(--color-error, #ef4444);
 }
 
+/* Remove Icon (X) */
+.pholio-tag-remove,
 .pholio-tag-x {
   opacity: 0.5;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+  color: currentColor;
 }
 
+.pholio-tag:hover .pholio-tag-remove,
 .pholio-premium-tag:hover .pholio-tag-x {
   opacity: 1;
+  transform: scale(1.1);
 }
 
 .pholio-premium-tag-input {
-  min-width: 140px;
+  min-width: 80px;
+  flex: 1;
   background: transparent !important;
   border: none !important;
   font-family: 'Inter', sans-serif;
   font-size: 14px;
+  font-weight: 300;
   color: var(--pholio-text-dark);
   padding: 0 !important;
   margin: 0 !important;
@@ -491,8 +609,32 @@
 }
 
 .pholio-premium-tag-input::placeholder {
-  color: var(--pholio-placeholder);
-  font-weight: 300;
+  color: var(--pholio-text-light, #94a3b8) !important;
+  opacity: 0.55 !important;
+  font-weight: 300 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.05em !important;
+  font-style: normal !important;
+  transition: opacity 0.25s ease, color 0.25s ease;
+}
+
+.pholio-tags-wrapper:focus-within .pholio-premium-tag-input::placeholder {
+  color: var(--pholio-text-muted, #64748b) !important;
+  opacity: 0.9 !important;
+}
+
+/* Container for MultiSelect tags inside custom-select-trigger */
+.pholio-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+
+/* Adjust select trigger padding if it contains tags */
+.pholio-custom-select-trigger:has(.pholio-tags-container) {
+  padding: 6px 12px;
 }
 
 /* Autocomplete / combobox (city, country) */
@@ -545,37 +687,4 @@
   background: #f5f5f7;
 }
 
-.pholio-multiselect-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px 6px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 4px;
-}
 
-.pholio-multiselect-search-icon {
-  flex-shrink: 0;
-  color: var(--pholio-text-muted, #6b6560);
-}
-
-.pholio-multiselect-search-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 0.875rem;
-  color: var(--pholio-text-dark, #1a1815);
-}
-
-.pholio-multiselect-search-input::placeholder {
-  color: var(--pholio-text-muted, #9a948d);
-}
-
-.pholio-multiselect-empty {
-  padding: 12px 14px;
-  font-size: 0.875rem;
-  color: var(--pholio-text-muted, #6b6560);
-  font-style: italic;
-}

@@ -16,8 +16,8 @@ import { CinematicNextButton, CinematicBackButton } from './CinematicNextButton'
 import { ThinkingText } from './ThinkingText';
 import { CinematicDivider } from './CinematicDivider';
 
-function CastingProfile({ onComplete, gender }) {
-  const [profileStep, setProfileStep] = useState(1); // 1: location, 2: experience
+function CastingProfile({ onComplete, gender, initialProfileStep }) {
+  const [profileStep, setProfileStep] = useState(initialProfileStep || 1); // 1: location, 2: experience
   const [location, setLocation] = useState('');
   const [experienceLevel, setExperienceLevel] = useState('beginner');
   const profileMutation = useCastingProfile();

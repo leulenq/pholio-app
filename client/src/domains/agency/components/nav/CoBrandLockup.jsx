@@ -27,11 +27,10 @@ function agencyTreatment(name) {
 
 // Co-brand lockup: Pholio wordmark (always the talent text logo) · gold divider ·
 // the agency's logo OR name — one horizontal composition.
-export default function CoBrandLockup({ profile, collapsed, onToggle }) {
+export default function CoBrandLockup({ profile, collapsed }) {
   const agencyName = profile?.agency_name || 'Agency';
   const logoPath = profile?.agency_logo_path || profile?.logo_path;
   const logo = logoPath ? `/${logoPath}` : null;
-  const location = profile?.agency_location || profile?.location || '';
   const members = profile?.member_count;
 
   const treatment = logo ? null : agencyTreatment(agencyName);
@@ -39,12 +38,12 @@ export default function CoBrandLockup({ profile, collapsed, onToggle }) {
 
   return (
     <div className="ag-rail-header">
-      <div className={`ag-cobrand${stacked ? ' ag-cobrand--stacked' : ''}`}>
+      <div className={`ag-cobrand${stacked ? ' ag-cobrand--stacked' : ''}`} style={{ justifyContent: 'center' }}>
         <span className="ag-cobrand-pholio">PHOLIO</span>
         {!collapsed && (
           <>
             <span className="ag-cobrand-div" aria-hidden="true" />
-            <span className="ag-cobrand-agency">
+            <span className="ag-cobrand-agency" style={{ justifyContent: 'center' }}>
               {logo ? (
                 <img className="ag-cobrand-logo" src={logo} alt={agencyName} />
               ) : stacked ? (
@@ -59,18 +58,10 @@ export default function CoBrandLockup({ profile, collapsed, onToggle }) {
             </span>
           </>
         )}
-        <button
-          className="ag-rail-collapse"
-          onClick={onToggle}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-expanded={!collapsed}
-        >
-          {collapsed ? '»' : '«'}
-        </button>
       </div>
       {!collapsed && (
-        <div className="ag-rail-meta">
-          Powering{location ? ` · ${location}` : ''}{members ? ` · ${members} members` : ''}
+        <div className="ag-rail-meta" style={{ textAlign: 'center' }}>
+          Powering {members ? `${members} members` : 'Agency'}
         </div>
       )}
     </div>

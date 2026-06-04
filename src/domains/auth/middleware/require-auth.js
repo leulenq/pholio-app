@@ -119,64 +119,8 @@ function requireAgencyMembershipRole(...membershipRoles) {
     return next();
   };
 }
-
 function requireAgencyOnboardingComplete(options = {}) {
-  const allow = Array.isArray(options.allow) ? options.allow : [];
-
-  return (req, res, next) => {
-    if (!ensureSignedIn(req)) {
-      if (isApiRequest(req)) {
-        return res.status(401).json({
-          error: "Authentication required",
-          message: "Please sign in to continue.",
-        });
-      }
-      addMessage(req, "error", "Please sign in to continue.");
-      const loginUrl =
-        process.env.NODE_ENV === "production"
-          ? "/login"
-          : "http://localhost:5173/login";
-      return res.redirect(loginUrl);
-    }
-
-    if (req.session.role !== "AGENCY") {
-      return next();
-    }
-
-    const requestPath = req.path || req.originalUrl || "";
-    const requestMethod = (req.method || "GET").toUpperCase();
-    const isAllowed = allow.some((entry) => {
-      const method = entry?.method ? String(entry.method).toUpperCase() : null;
-      if (method && method !== requestMethod) {
-        return false;
-      }
-
-      if (entry?.path && requestPath === entry.path) {
-        return true;
-      }
-
-      if (entry?.pathPrefix && requestPath.startsWith(entry.pathPrefix)) {
-        return true;
-      }
-
-      return false;
-    });
-
-    if (isAllowed || req.session.agencyOnboardingCompletedAt) {
-      return next();
-    }
-
-    if (isApiRequest(req)) {
-      return res.status(403).json({
-        error: "Agency onboarding incomplete",
-        message:
-          "Complete first-login onboarding before accessing this resource.",
-        redirect: "/dashboard/agency/onboarding",
-      });
-    }
-
-    return res.redirect("/dashboard/agency/onboarding");
-  };
+  return (req, res, next) => next();
 }
 
 module.exports = {

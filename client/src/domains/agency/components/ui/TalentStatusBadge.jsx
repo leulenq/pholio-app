@@ -18,12 +18,12 @@ const STATUS = {
   inactive:    { label: 'Inactive',     tone: 'muted' },
 };
 
-export const TalentStatusBadge = ({ status, onDark }) => {
+export const TalentStatusBadge = ({ status, onDark, hideDot }) => {
   if (!status) return null;
   const s = STATUS[status] || STATUS.available;
   return (
     <span className={`ts-badge ts-badge--${s.tone}${onDark ? ' ts-badge--on-dark' : ''}`}>
-      <span className="ts-dot" aria-hidden="true" />
+      {!hideDot && <span className="ts-dot" aria-hidden="true" />}
       {s.label}
     </span>
   );

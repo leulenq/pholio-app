@@ -1,6 +1,6 @@
 # Profile Persistence Test Report
 
-**Test Date:** 2026-05-25T23:50:53.186Z
+**Test Date:** 2026-06-04T23:13:18.682Z
 
 **Test User:** persistence.test@example.com
 
@@ -11,8 +11,19 @@
 | Metric | Value |
 |--------|-------|
 | Total Fields Tested | 55 |
-| Fields with Discrepancies | 0 |
-| Success Rate | 100.00% |
+| Fields with Discrepancies | 1 |
+| Success Rate | 98.18% |
 
-✅ **PERFECT!** All fields persisted correctly with no data loss.
+❌ **DISCREPANCIES DETECTED**
+
+## Detailed Discrepancy List
+
+### 1. languages
+
+- **DB Field:** languages
+- **Type:** json
+- **Input Value:** `["English","Spanish","Mandarin"]`
+- **Saved Value:** `["English","Spanish","Chinese (Simplified)"]`
+- **Reloaded Value:** `["English","Spanish","Chinese (Simplified)"]`
+- ⚠️ **INPUT → SAVE ISSUE:** JSON mismatch: ["English","Spanish","Mandarin"] vs ["English","Spanish","Chinese (Simplified)"]
 

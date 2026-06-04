@@ -3,7 +3,6 @@
 //   node scripts/seed-agency-demo.js
 "use strict";
 
-const knex = require("knex")(require("../knexfile.js"));
 const { randomUUID } = require("crypto");
 
 const AGENCY_EMAIL = "agency@example.com";
@@ -189,12 +188,17 @@ const BOARDS = [
   { name: "Aritzia Fall", client: "Aritzia", closes: null, slots: 9 },
 ];
 
-async function main() {
+async function seedAgencyDemo(knex) {
   const agency = await knex("users")
     .where({ email: AGENCY_EMAIL, role: "AGENCY" })
     .first();
   if (!agency) throw new Error(`Agency user ${AGENCY_EMAIL} not found`);
-  const aid = agency.id;
+
+  const membership = await knex("agency_memberships")
+    .where({ user_id: agency.id, status: "ACTIVE" })
+    .orderBy("created_at", "asc")
+    .first();
+  const aid = membership?.agency_id || agency.id;
 
   // Give the workspace a real name/location for the co-brand + masthead.
   await knex("agencies").where({ id: aid }).update({
@@ -203,7 +207,7 @@ async function main() {
     updated_at: new Date(),
   });
   await knex("users")
-    .where({ id: aid })
+    .where({ id: agency.id })
     .update({ agency_name: AGENCY_NAME, agency_location: AGENCY_LOCATION });
 
   // ---- wipe prior demo (this agency only) ----
@@ -447,10 +451,16 @@ async function main() {
   );
 }
 
-main()
-  .then(() => knex.destroy())
-  .catch((e) => {
-    console.error("SEED ERROR:", e.message);
-    knex.destroy();
-    process.exit(1);
-  });
+if (require.main === module) {
+  const knex = require("knex")(require("../knexfile.js"));
+
+  seedAgencyDemo(knex)
+    .then(() => knex.destroy())
+    .catch((e) => {
+      console.error("SEED ERROR:", e.message);
+      knex.destroy();
+      process.exit(1);
+    });
+}
+
+module.exports = { seedAgencyDemo };

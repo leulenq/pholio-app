@@ -1,8 +1,10 @@
-import { AlertTriangle, Info, X } from 'lucide-react';
+import React from 'react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, Info, Loader2 } from 'lucide-react';
+import './ConfirmationDialog.css';
 
 /**
- * ConfirmationDialog Component
- * Modal dialog for confirming bulk actions
+ * ConfirmationDialog — simple confirm/cancel modal
  */
 export default function ConfirmationDialog({
   isOpen,
@@ -10,82 +12,92 @@ export default function ConfirmationDialog({
   message,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
-  variant = 'danger', // 'danger', 'warning', 'info'
+  variant = 'danger',
   count,
+  isConfirming = false,
   onConfirm,
-  onCancel
+  onCancel,
 }) {
-  if (!isOpen) return null;
+  React.useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !isConfirming) onCancel?.();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen, isConfirming, onCancel]);
+
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const variantStyles = {
-    danger: {
-      icon: AlertTriangle,
-      iconColor: 'text-red-600',
-      iconBg: 'bg-red-100',
-      confirmButton: 'bg-red-600 hover:bg-red-700 text-white'
-    },
-    warning: {
-      icon: AlertTriangle,
-      iconColor: 'text-yellow-600',
-      iconBg: 'bg-yellow-100',
-      confirmButton: 'bg-yellow-600 hover:bg-yellow-700 text-white'
-    },
-    info: {
-      icon: Info,
-      iconColor: 'text-blue-600',
-      iconBg: 'bg-blue-100',
-      confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white'
-    }
+    danger: { icon: AlertTriangle, iconClass: 'cfd-icon--danger', btnClass: 'cfd-btn--danger' },
+    warning: { icon: AlertTriangle, iconClass: 'cfd-icon--warning', btnClass: 'cfd-btn--warning' },
+    info: { icon: Info, iconClass: 'cfd-icon--info', btnClass: 'cfd-btn--info' },
   };
 
-  const style = variantStyles[variant];
+  const style = variantStyles[variant] || variantStyles.danger;
   const Icon = style.icon;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        {/* Header */}
-        <div className="flex items-start gap-4 p-6">
-          <div className={`flex-shrink-0 w-12 h-12 rounded-full ${style.iconBg} flex items-center justify-center`}>
-            <Icon className={`w-6 h-6 ${style.iconColor}`} />
+  return createPortal(
+    <div
+      className="cfd-overlay"
+      role="presentation"
+      onClick={() => { if (!isConfirming) onCancel?.(); }}
+    >
+      <div
+        className="cfd-shell"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cfd-title"
+        aria-describedby="cfd-message"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="cfd-body">
+          <div className={`cfd-icon ${style.iconClass}`}>
+            <Icon size={18} aria-hidden="true" />
           </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {title}
-            </h3>
-            <p className="text-sm text-gray-600">
-              {message}
-            </p>
+
+          <div className="cfd-copy">
+            <h3 id="cfd-title" className="cfd-title">{title}</h3>
+            <p id="cfd-message" className="cfd-message">{message}</p>
             {count !== undefined && (
-              <p className="mt-2 text-sm font-medium text-gray-900">
+              <p className="cfd-count">
                 {count} applicant{count !== 1 ? 's' : ''} will be affected.
               </p>
             )}
           </div>
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 rounded-b-lg">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-md transition-colors font-medium"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            className={`px-4 py-2 rounded-md transition-colors font-medium ${style.confirmButton}`}
-          >
-            {confirmLabel}
-          </button>
+          <div className="cfd-foot">
+            <button
+              type="button"
+              className="cfd-btn cfd-btn--ghost"
+              disabled={isConfirming}
+              onClick={onCancel}
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              className={`cfd-btn ${style.btnClass}`}
+              disabled={isConfirming}
+              onClick={onConfirm}
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 size={14} className="cfd-spin" aria-hidden="true" />
+                  {confirmLabel}
+                </>
+              ) : confirmLabel}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

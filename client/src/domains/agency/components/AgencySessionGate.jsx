@@ -43,13 +43,5 @@ export default function AgencySessionGate() {
     return <Navigate to={data.redirect || '/login'} replace />;
   }
 
-  if (data.redirect === '/dashboard/agency/onboarding' && location.pathname !== '/dashboard/agency/onboarding') {
-    return <Navigate to="/dashboard/agency/onboarding" replace />;
-  }
-
-  if (data.redirect === '/dashboard/agency' && location.pathname === '/dashboard/agency/onboarding') {
-    return <Navigate to="/dashboard/agency" replace />;
-  }
-
   return <Outlet />;
 }

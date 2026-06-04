@@ -71,6 +71,15 @@ export default function AgencyLayout() {
     return () => document.removeEventListener('keydown', h);
   }, [closePanel]);
 
+  // Toggle body class for style scoping
+  useEffect(() => {
+    document.body.classList.add('is-agency');
+    return () => {
+      document.body.classList.remove('is-agency');
+    };
+  }, []);
+
+
   const kpis = selectKpis(overview);
   const memberRole = team.find((m) => m.userId === profile?.id)?.membership_role;
   const profileWithMeta = { ...profile, member_count: team.length || undefined };
@@ -100,9 +109,17 @@ export default function AgencyLayout() {
 
       <aside className="ag-rail">
         <div className="ag-grain" />
-        <CoBrandLockup profile={profileWithMeta} collapsed={collapsed} onToggle={toggle} />
+        <CoBrandLockup profile={profileWithMeta} collapsed={collapsed} />
         <RailNav counts={{ applicants: kpis.pendingReview, casting: kpis.activeCastings, team: team.length || undefined }} />
         <MemberAccountChip profile={profile} role={memberRole} />
+        <button
+          className="ag-rail-collapse"
+          onClick={toggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? '»' : '«'}
+        </button>
       </aside>
 
       <div className="ag-body">

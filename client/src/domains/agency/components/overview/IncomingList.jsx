@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import MatchScoreBadge from '../ui/MatchScoreBadge';
 
 export default function IncomingList({ applicants, onSelect }) {
   return (
@@ -18,7 +19,14 @@ export default function IncomingList({ applicants, onSelect }) {
               <span className="ov-incoming-name">{a.name}</span>
               <span className="ov-incoming-meta">{a.typeLabel}{a.city ? ` · ${a.city}` : ''}</span>
             </span>
-            <span className="ov-incoming-match">{a.match}</span>
+            {a.match != null ? (
+              <MatchScoreBadge
+                score={a.match}
+                size="sm"
+                tone="light"
+                className="ov-incoming-match"
+              />
+            ) : null}
           </button>
         ))
       )}

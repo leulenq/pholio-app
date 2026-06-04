@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, Star, MessageCircle, LayoutGrid, X, UserPlus, Download } from 'lucide-react';
+import { Check, Star, LayoutGrid, X, UserPlus, Download } from 'lucide-react';
 import { getBoards, inviteTalent } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import './TalentActionBar.css';
@@ -72,29 +72,26 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
 
   return (
     <div className="tact-row">
+      {compCardBtn}
+
       {context === 'discover' && (
         <button className="tact-btn tact-btn--primary" disabled={invite.isPending} onClick={() => invite.mutate()}>
           <UserPlus size={15} /> {invite.isPending ? 'Inviting…' : 'Invite'}
         </button>
       )}
 
-      {context === 'roster' && compCardBtn}
-
       {isPipeline && applicationId && (
         <>
           <button className="tact-btn tact-btn--primary" disabled={isPending || isAccepted} onClick={() => accept.mutate()}>
             <Check size={15} /> {isAccepted ? 'Accepted' : 'Accept'}
           </button>
+          <button className="tact-btn tact-btn--danger" disabled={isPending} onClick={() => decline.mutate()}>
+            <X size={15} /> Decline
+          </button>
           <button className="tact-btn" disabled={isPending || isShortlisted} onClick={() => shortlist.mutate()}>
             <Star size={15} /> {isShortlisted ? 'Shortlisted' : 'Shortlist'}
           </button>
         </>
-      )}
-
-      {applicationId && (
-        <button className="tact-btn" onClick={onMessage}>
-          <MessageCircle size={15} /> Message
-        </button>
       )}
 
       {applicationId && (
@@ -114,14 +111,6 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
             </div>
           )}
         </div>
-      )}
-
-      {context !== 'roster' && context !== 'discover' && compCardBtn}
-
-      {isPipeline && applicationId && (
-        <button className="tact-btn tact-btn--icon tact-btn--danger" title="Decline" disabled={isPending} onClick={() => decline.mutate()}>
-          <X size={15} />
-        </button>
       )}
     </div>
   );

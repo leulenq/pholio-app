@@ -346,6 +346,14 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       });
     }
 
+    if (!isDemo && profile.is_public === false) {
+      console.log("[Portfolio] Profile is private for slug:", slug);
+      return res.status(404).render("errors/404", {
+        title: "Profile not found",
+        layout: "layout",
+      });
+    }
+
     // Render portfolio page
     res.locals.currentPage = "portfolio";
     // Use pro layout for pro portfolios (no header/footer), regular layout for free

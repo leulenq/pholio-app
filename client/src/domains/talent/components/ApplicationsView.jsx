@@ -1,30 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
-  ArrowLeft,
   ArrowUpRight,
-  BookOpen,
   Building2,
   Check,
   ChevronDown,
   CircleDashed,
   Clock,
-  Eye,
   ExternalLink,
-  FileText,
-  IdCard,
-  Image,
   Loader2,
   Lock,
-  Mail,
   MapPin,
   Send,
-  UserCheck,
-  XCircle,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import ProfileGateBanner from '../../../shared/components/gating/ProfileGateBanner';
@@ -160,17 +153,6 @@ function metricLabel(count, singular, plural) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function profileDisplayName(profile) {
-  const parts = [profile?.first_name, profile?.last_name].filter(Boolean);
-  return parts.length ? parts.join(' ') : 'Your profile';
-}
-
-function profileLocation(profile) {
-  return [profile?.city, profile?.state || profile?.region, profile?.country]
-    .filter(Boolean)
-    .join(', ') || profile?.location || 'Location pending';
-}
-
 function imageUrl(image) {
   return image?.public_url || image?.url || image?.path || null;
 }
@@ -196,21 +178,6 @@ function measurementValue(profile, keys) {
   return null;
 }
 
-function heightLabel(profile) {
-  const heightCm = measurementValue(profile, ['height_cm']);
-  if (!heightCm) return 'Missing height';
-  const totalInches = Math.round(Number(heightCm) / 2.54);
-  if (!Number.isFinite(totalInches)) return `${heightCm} cm`;
-  return `${Math.floor(totalInches / 12)}'${totalInches % 12}"`;
-}
-
-function bodyStatsLabel(profile) {
-  const bust = measurementValue(profile, ['bust', 'bust_cm']);
-  const waist = measurementValue(profile, ['waist', 'waist_cm']);
-  const hips = measurementValue(profile, ['hips', 'hips_cm']);
-  if (!bust || !waist || !hips) return 'Measurements incomplete';
-  return `${bust} / ${waist} / ${hips}`;
-}
 
 function agencyTypeLabel(agency) {
   return agency?.division || agency?.type || agency?.agency_type || 'Open representation';
@@ -283,6 +250,7 @@ export default function ApplicationsView() {
       });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       queryClient.invalidateQueries({ queryKey: ['talent-agencies'] });
+      queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
       toast.success('Application submitted');
     },
     onError: (err) => {
@@ -674,425 +642,261 @@ function AgencyApplicationModal({
   onSubmissionConsentChange,
   submittedApplication,
 }) {
-  const [activeStep, setActiveStep] = useState('agency');
+  const [noteOpen, setNoteOpen] = useState(false);
+
   const hasAgencies = agencies.length > 0;
   const site = websiteUrl(selectedAgency?.agency_website);
-  const profileName = profileDisplayName(profile);
   const visibleImages = images.filter((image) => !image.exclude_from_agency && imageUrl(image));
   const selectedImages = selectedMediaSetId === 'current'
     ? visibleImages
     : visibleImages.filter((image) => image.set_id === selectedMediaSetId);
-  const previewImages = selectedImages.length ? selectedImages.slice(0, 6) : visibleImages.slice(0, 6);
-  const hasHeadshot = selectedImages.some((image) => hasShotType(image, ['headshot']));
-  const hasFullBody = selectedImages.some((image) =>
-    hasShotType(image, ['full_length', 'full_body', 'three_quarter']),
-  );
-  const hasMeasurements = !!measurementValue(profile, ['height_cm']) &&
-    !!measurementValue(profile, ['bust', 'bust_cm']) &&
-    !!measurementValue(profile, ['waist', 'waist_cm']) &&
-    !!measurementValue(profile, ['hips', 'hips_cm']);
+
+  const hasHeadshot     = selectedImages.some((img) => hasShotType(img, ['headshot']));
+  const hasFullBody     = selectedImages.some((img) => hasShotType(img, ['full_length', 'full_body', 'three_quarter']));
+  const hasMeasurements = !!measurementValue(profile, ['height_cm'])  &&
+                          !!measurementValue(profile, ['bust', 'bust_cm'])  &&
+                          !!measurementValue(profile, ['waist', 'waist_cm']) &&
+                          !!measurementValue(profile, ['hips', 'hips_cm']);
   const hasContact = !!profile?.email && !!profile?.phone;
+
   const checks = [
-    { label: 'Agency selected', detail: selectedAgency?.name || 'Choose an agency', complete: !!selectedAgency },
-    { label: 'Headshot image', detail: 'One agency-visible headshot', complete: hasHeadshot },
-    { label: 'Full-body image', detail: 'One full-length or three-quarter frame', complete: hasFullBody },
-    { label: 'Measurements', detail: 'Height plus bust, waist, and hips', complete: hasMeasurements },
-    { label: 'Contact details', detail: 'Email and phone available to the agency', complete: hasContact },
+    { label: 'Headshot',     complete: hasHeadshot },
+    { label: 'Full-body',    complete: hasFullBody },
+    { label: 'Measurements', complete: hasMeasurements },
+    { label: 'Contact',      complete: hasContact },
   ];
-  const missingChecks = checks.filter((check) => !check.complete);
-  const readinessLabel = missingChecks.length === 0
-    ? 'Ready'
-    : `Missing ${missingChecks.length} ${missingChecks.length === 1 ? 'item' : 'items'}`;
+  const missingChecks = checks.filter((c) => !c.complete);
+
   const compCardOptions = [
-    { id: 'current', label: 'Current comp card', detail: profile?.pdf_theme || 'Default Pholio card' },
-    { id: 'agency', label: 'Agency review card', detail: 'Stats-forward layout' },
-    { id: 'editorial', label: 'Editorial card', detail: 'Image-led presentation' },
+    { id: 'current',   label: 'Current comp card' },
+    { id: 'agency',    label: 'Agency review card' },
+    { id: 'editorial', label: 'Editorial card' },
   ];
-  const selectedMediaSetName =
-    selectedMediaSetId === 'current'
-      ? 'Current book'
-      : mediaSets.find((set) => set.id === selectedMediaSetId)?.name || 'Selected image set';
-  const selectedCompCardName =
-    compCardOptions.find((option) => option.id === selectedCompCardId)?.label || 'Current comp card';
+  const selectedMediaSetName = selectedMediaSetId === 'current'
+    ? 'Current book'
+    : mediaSets.find((s) => s.id === selectedMediaSetId)?.name || 'Selected image set';
+  const selectedCompCardName = compCardOptions.find((o) => o.id === selectedCompCardId)?.label || 'Current comp card';
+
   const canSubmit = hasAgencies && selectedAgency && !isBlocked && missingChecks.length === 0 && hasSubmissionConsent;
   const packagePayload = {
-    agencyName: selectedAgency?.name || null,
-    agencyLocation: selectedAgency?.agency_location || null,
-    mediaSetId: selectedMediaSetId,
-    mediaSetName: selectedMediaSetName,
-    compCardId: selectedCompCardId,
-    compCardName: selectedCompCardName,
-    imageIds: selectedImages.map((image) => image.id),
-    readiness: readinessLabel,
+    agencyName:       selectedAgency?.name           || null,
+    agencyLocation:   selectedAgency?.agency_location || null,
+    mediaSetId:       selectedMediaSetId,
+    mediaSetName:     selectedMediaSetName,
+    compCardId:       selectedCompCardId,
+    compCardName:     selectedCompCardName,
+    imageIds:         selectedImages.map((img) => img.id),
+    readiness:        missingChecks.length === 0 ? 'Ready' : `Missing ${missingChecks.length}`,
     consentConfirmed: hasSubmissionConsent,
   };
-  const packageItems = [
-    {
-      icon: FileText,
-      label: profileName,
-      detail: profileLocation(profile),
-    },
-    {
-      icon: BookOpen,
-      label: selectedMediaSetName,
-      detail: `${selectedImages.length || visibleImages.length} agency-visible images`,
-    },
-    {
-      icon: IdCard,
-      label: selectedCompCardName,
-      detail: bodyStatsLabel(profile),
-    },
-    {
-      icon: Mail,
-      label: 'Contact',
-      detail: profile?.email && profile?.phone ? 'Email and phone included' : 'Contact details incomplete',
-    },
-  ];
-  const steps = [
-    { id: 'agency', label: 'Agency' },
-    { id: 'package', label: 'Package' },
-    { id: 'checks', label: 'Checks' },
-    { id: 'preview', label: 'Preview' },
-    { id: 'note', label: 'Note' },
-    { id: 'confirm', label: 'Confirm' },
-  ];
-  const activeStepIndex = Math.max(0, steps.findIndex((step) => step.id === activeStep));
-  const isFirstStep = activeStepIndex === 0;
-  const isFinalStep = activeStepIndex === steps.length - 1;
-  const goToPreviousStep = () => {
-    if (!isFirstStep) setActiveStep(steps[activeStepIndex - 1].id);
-  };
-  const goToNextStep = () => {
-    if (!isFinalStep) setActiveStep(steps[activeStepIndex + 1].id);
-  };
+
+  // portfolio frames: fill a 3×3 contact sheet (9 cells); empty cells stay dark
+  const frames = Array.from({ length: 9 }, (_, i) => selectedImages[i] || visibleImages[i] || null);
+
+  const agencyMeta = [
+    selectedAgency?.agency_location,
+    agencyTypeLabel(selectedAgency),
+  ].filter(Boolean).join(' · ');
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   return (
-    <div className="app-application-modal" role="dialog" aria-modal="true" aria-labelledby="app-apply-modal-title">
-      <button type="button" className="app-application-modal__backdrop" aria-label="Close application" onClick={onClose} />
-      <div className="app-application-modal__panel">
-        <div className="app-application-modal__chrome">
-          <span className="app-kicker">Apply New</span>
-          <button type="button" className="app-modal-close" onClick={onClose} aria-label="Close application">
-            <XCircle size={18} aria-hidden />
-          </button>
-        </div>
+    /* Backdrop — clicking it closes the modal */
+    <div
+      className="agnapp"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="agnapp-title"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Modal box — all content lives here, no z-index fights */}
+      <div className="agnapp__box" onMouseDown={(e) => e.stopPropagation()}>
 
+        {/* Close button — inside the box, always on top */}
+        <button
+          type="button"
+          className="agnapp__close"
+          onClick={onClose}
+          aria-label="Close"
+          disabled={isSubmitting}
+        >
+          <X size={14} strokeWidth={2} aria-hidden />
+        </button>
+
+        {/* ── Success ───────────────────────────────────────── */}
         {submittedApplication ? (
-          <div className="app-submit-success" role="status">
-            <div className="app-submit-success__mark">
-              <Check size={22} aria-hidden />
-            </div>
-            <span className="app-kicker">Submitted</span>
-            <h2>{submittedApplication.agency?.name || selectedAgency?.name || 'Agency'} has your package.</h2>
-            <p>
-              Submitted {dateLabel(submittedApplication.submittedAt)}. This now appears in Application history as an
-              active submission while the agency reviews your materials.
-            </p>
-            <div className="app-submit-success__next">
-              <div>
-                <span>Package</span>
-                <strong>{selectedMediaSetName}</strong>
-              </div>
-              <div>
-                <span>Comp Card</span>
-                <strong>{selectedCompCardName}</strong>
-              </div>
-              <div>
-                <span>Next</span>
-                <strong>Agency review</strong>
-              </div>
-            </div>
-            <button type="button" className="app-primary-action" onClick={onClose}>
-              Back to Market
-            </button>
+          <div className="agnapp__sent" role="status">
+            <span className="agnapp__sent-check" aria-hidden>&#10003;</span>
+            <p className="agnapp__sent-pre">Submitted to</p>
+            <h2 id="agnapp-title" className="agnapp__sent-name">
+              {submittedApplication.agency?.name || selectedAgency?.name || 'Agency'}
+            </h2>
+            <p className="agnapp__sent-when">{dateLabel(submittedApplication.submittedAt)}</p>
+            <dl className="agnapp__sent-meta">
+              <div><dt>Portfolio</dt><dd>{selectedMediaSetName}</dd></div>
+              <div><dt>Comp card</dt><dd>{selectedCompCardName}</dd></div>
+              <div><dt>Status</dt><dd>Under review</dd></div>
+            </dl>
+            <button type="button" className="agnapp__sent-done" onClick={onClose}>Done</button>
           </div>
+
         ) : !hasAgencies ? (
-          <div className="app-application-empty">
-            <CircleDashed size={26} strokeWidth={1.4} aria-hidden />
-            <h3>No open agencies are available right now</h3>
-            <p>Every current agency is already represented in your ledger.</p>
+          <div className="agnapp__none">
+            <CircleDashed size={26} strokeWidth={1.3} aria-hidden />
+            <p>Every available agency is already in your ledger.</p>
           </div>
+
         ) : (
           <>
-            <div className="app-application-shell">
-              <aside className="app-application-rail">
-                <div className={`app-readiness-badge ${missingChecks.length === 0 ? 'app-readiness-badge--ready' : ''}`}>
-                  <span>{readinessLabel}</span>
-                  <strong>{monthlyLimitLabel} this month</strong>
+            {/* ── Left: controls ──────────────────────────────── */}
+            <div className="agnapp__left">
+              <div className="agnapp__left-body">
+                <p className="agnapp__pre">Submitting to</p>
+
+                <div className="agnapp__who">
+                  {selectedAgency?.profile_image && (
+                    <div className="agnapp__who-thumb" aria-hidden>
+                      <img src={selectedAgency.profile_image} alt="" />
+                    </div>
+                  )}
+                  <h2 id="agnapp-title" className="agnapp__who-name">
+                    {selectedAgency?.name || 'Select an agency'}
+                  </h2>
                 </div>
 
-                <div className="app-stepper" aria-label="Application sections">
-                  {steps.map((step, index) => (
-                    <button
-                      key={step.id}
-                      type="button"
-                      className={`app-stepper__item ${activeStep === step.id ? 'app-stepper__item--active' : ''}`}
-                      onClick={() => setActiveStep(step.id)}
+                {agencyMeta && <p className="agnapp__who-meta">{agencyMeta}</p>}
+                {site && (
+                  <a href={site} target="_blank" rel="noreferrer" className="agnapp__who-site">
+                    View agency ↗
+                  </a>
+                )}
+
+                {agencies.length > 1 && (
+                  <div className="agnapp__swap">
+                    <select
+                      value={selectedAgencyId || ''}
+                      onChange={(e) => onSelectAgency(e.target.value)}
+                      aria-label="Change agency"
                     >
-                      <span>{String(index + 1).padStart(2, '0')}</span>
-                      {step.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="app-rail-summary">
-                  <span className="app-kicker">Sending To</span>
-                  <strong>{selectedAgency?.name || 'Select agency'}</strong>
-                  <p>{selectedMediaSetName} / {selectedCompCardName}</p>
-                </div>
-              </aside>
-
-              <main className="app-application-stage">
-                <div className="app-modal-step">
-                  {activeStep === 'agency' && (
-                    <section className="app-modal-section app-modal-section--agency" aria-label="Agency context">
-                      <div className="app-modal-section__head">
-                        <span className="app-kicker">Agency Context</span>
-                        {site && (
-                          <a href={site} target="_blank" rel="noreferrer" aria-label="Open agency site">
-                            <ExternalLink size={14} aria-hidden />
-                          </a>
-                        )}
-                      </div>
-                      <div className="app-modal-agency">
-                        <div className="app-modal-agency__mark" aria-hidden>
-                          {selectedAgency?.profile_image ? (
-                            <img src={selectedAgency.profile_image} alt="" />
-                          ) : (
-                            <Building2 size={22} strokeWidth={1.4} aria-hidden />
-                          )}
-                        </div>
-                        <div>
-                          <h3>{selectedAgency?.name || 'Select an agency'}</h3>
-                          <p>
-                            <MapPin size={13} aria-hidden />
-                            {selectedAgency?.agency_location || 'Global'}
-                          </p>
-                          <strong>{agencyTypeLabel(selectedAgency)}</strong>
-                        </div>
-                      </div>
-                      <p className="app-modal-agency__note">
-                        {selectedAgency?.agency_description || 'Accepting polished profile packages from new talent.'}
-                      </p>
-                      <div className="app-agency-select-wrap">
-                        <label htmlFor="agency-select">Change agency</label>
-                        <select id="agency-select" value={selectedAgencyId || ''} onChange={(event) => onSelectAgency(event.target.value)}>
-                          {agencies.map((agency) => (
-                            <option key={agency.id} value={agency.id}>
-                              {agency.name || 'Unnamed Agency'}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown size={14} aria-hidden />
-                      </div>
-                    </section>
-                  )}
-
-                  {activeStep === 'package' && (
-                    <section className="app-modal-section" aria-label="What Pholio will send">
-                      <div className="app-modal-section__head">
-                        <span className="app-kicker">What Pholio Will Send</span>
-                      </div>
-                      <div className="app-send-list">
-                        {packageItems.map((item) => {
-                          const ItemIcon = item.icon;
-                          return (
-                            <div key={item.label}>
-                              <ItemIcon size={15} strokeWidth={1.5} aria-hidden />
-                              <span>{item.label}</span>
-                              <strong>{item.detail}</strong>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="app-package-controls">
-                        <label>
-                          <span>Image set</span>
-                          <select value={selectedMediaSetId} onChange={(event) => onSelectedMediaSetIdChange(event.target.value)}>
-                            <option value="current">{mediaSetsLoading ? 'Loading image sets' : 'Current book'}</option>
-                            {mediaSets.map((set) => (
-                              <option key={set.id} value={set.id}>
-                                {set.name || `${set.kind || 'Image'} set`}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          <span>Comp card</span>
-                          <select value={selectedCompCardId} onChange={(event) => onSelectedCompCardIdChange(event.target.value)}>
-                            {compCardOptions.map((option) => (
-                              <option key={option.id} value={option.id}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                    </section>
-                  )}
-
-                  {activeStep === 'checks' && (
-                    <section className="app-modal-section" aria-label="Required checks">
-                      <div className="app-modal-section__head">
-                        <span className="app-kicker">Required Checks</span>
-                      </div>
-                      <div className="app-check-list">
-                        {checks.map((check) => (
-                          <div key={check.label} className={check.complete ? 'app-check app-check--complete' : 'app-check'}>
-                            {check.complete ? <Check size={14} aria-hidden /> : <AlertCircle size={14} aria-hidden />}
-                            <span>{check.label}</span>
-                            <strong>{check.detail}</strong>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {activeStep === 'preview' && (
-                    <section className="app-modal-section app-modal-section--preview" aria-label="Agency package preview">
-                      <div className="app-modal-section__head">
-                        <span className="app-kicker">Agency Preview</span>
-                        <Eye size={15} aria-hidden />
-                      </div>
-                      <div className="app-package-preview">
-                        <div className="app-package-preview__identity">
-                          <h3>{profileName}</h3>
-                          <p>{profileLocation(profile)}</p>
-                          <dl>
-                            <div>
-                              <dt>Height</dt>
-                              <dd>{heightLabel(profile)}</dd>
-                            </div>
-                            <div>
-                              <dt>Stats</dt>
-                              <dd>{bodyStatsLabel(profile)}</dd>
-                            </div>
-                            <div>
-                              <dt>Comp</dt>
-                              <dd>{selectedCompCardName}</dd>
-                            </div>
-                          </dl>
-                        </div>
-                        <div className="app-preview-images" aria-label="Selected images">
-                          {previewImages.length > 0 ? (
-                            previewImages.map((image) => (
-                              <div key={image.id} className="app-preview-image">
-                                <img src={imageUrl(image)} alt="" />
-                              </div>
-                            ))
-                          ) : (
-                            <div className="app-preview-image app-preview-image--empty">
-                              <Image size={18} aria-hidden />
-                              No images selected
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </section>
-                  )}
-
-                  {activeStep === 'note' && (
-                    <section className="app-modal-section app-modal-section--note" aria-label="Submission note">
-                      <label className="app-application-note">
-                        <span className="app-kicker">Submission Note</span>
-                        <textarea
-                          value={applicationNote}
-                          onChange={(event) => onApplicationNoteChange(event.target.value.slice(0, 1200))}
-                          placeholder="Add a concise professional note or leave blank."
-                          rows={4}
-                        />
-                        <small>{applicationNote.length}/1200</small>
-                      </label>
-                    </section>
-                  )}
-
-                  {activeStep === 'confirm' && (
-                    <section className="app-modal-section app-modal-section--consent" aria-label="Consent and confirmation">
-                      <div className="app-modal-section__head">
-                        <span className="app-kicker">Consent And Confirmation</span>
-                      </div>
-                      <label className="app-consent-check">
-                        <input
-                          type="checkbox"
-                          checked={hasSubmissionConsent}
-                          onChange={(event) => onSubmissionConsentChange(event.target.checked)}
-                        />
-                        <span>
-                          I agree to submit my selected profile assets, measurements, images, comp card, and contact details
-                          to {selectedAgency?.name || 'this agency'} for review.
-                        </span>
-                      </label>
-                      {isBlocked && (
-                        <p className="app-modal-warning">Complete required profile fields before applying through Market.</p>
-                      )}
-                      {!isBlocked && missingChecks.length > 0 && (
-                        <p className="app-modal-warning">Resolve the missing checks before submitting this package.</p>
-                      )}
-                    </section>
-                  )}
-                </div>
-
-                <div className="app-application-modal__actions">
-                  <div className="app-step-status">
-                    {isFinalStep ? <UserCheck size={14} aria-hidden /> : <span>{activeStepIndex + 1} / {steps.length}</span>}
-                    <span>
-                      {isFinalStep && canSubmit
-                        ? 'Package is ready for agency review.'
-                        : isFinalStep
-                          ? 'Review the package requirements before sending.'
-                          : steps[activeStepIndex + 1]
-                            ? `Next: ${steps[activeStepIndex + 1].label}`
-                            : 'Ready to confirm'}
-                    </span>
+                      {agencies.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name || 'Unnamed Agency'}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={11} aria-hidden />
                   </div>
-                  <div className="app-step-actions">
-                    <button
-                      type="button"
-                      className="app-secondary-action"
-                      onClick={goToPreviousStep}
-                      disabled={isFirstStep}
+                )}
+
+                <div className="agnapp__pkg">
+                  <div className="agnapp__sel">
+                    <select
+                      value={selectedMediaSetId}
+                      onChange={(e) => onSelectedMediaSetIdChange(e.target.value)}
+                      aria-label="Image set"
                     >
-                      <ArrowLeft size={13} aria-hidden />
-                      Back
-                    </button>
-                    {isFinalStep ? (
+                      <option value="current">{mediaSetsLoading ? 'Loading…' : 'Current book'}</option>
+                      {mediaSets.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name || `${s.kind || 'Image'} set`}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={11} aria-hidden />
+                  </div>
+                  <div className="agnapp__sel">
+                    <select
+                      value={selectedCompCardId}
+                      onChange={(e) => onSelectedCompCardIdChange(e.target.value)}
+                      aria-label="Comp card"
+                    >
+                      {compCardOptions.map((o) => (
+                        <option key={o.id} value={o.id}>{o.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={11} aria-hidden />
+                  </div>
+                </div>
+
+                {missingChecks.length > 0 && (
+                  <p className="agnapp__missing">
+                    {missingChecks.map((c) => c.label).join(' · ')} not complete
+                  </p>
+                )}
+
+                {noteOpen ? (
+                  <div className="agnapp__note-wrap">
+                    <textarea
+                      className="agnapp__note"
+                      value={applicationNote}
+                      onChange={(e) => onApplicationNoteChange(e.target.value.slice(0, 1200))}
+                      placeholder={`A note to ${selectedAgency?.name || 'the agency'}…`}
+                      rows={4}
+                      autoFocus
+                    />
+                    <small className="agnapp__note-ct">{applicationNote.length} / 1200</small>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    className="app-primary-action"
-                    onClick={() => onSubmit(selectedAgency, packagePayload)}
-                    disabled={!canSubmit || isSubmitting}
+                    className="agnapp__note-trigger"
+                    onClick={() => setNoteOpen(true)}
                   >
-                    {isBlocked ? (
-                      <>
-                        <Lock size={14} aria-hidden />
-                        Locked
-                      </>
-                    ) : isSubmitting ? (
-                      <>
-                        <Loader2 size={14} className="app-spin" aria-hidden />
-                        Sending
-                      </>
-                    ) : (
-                      <>
-                        <Send size={14} aria-hidden />
-                        Submit Application
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <button type="button" className="app-primary-action" onClick={goToNextStep}>
-                    Next
-                    <ArrowUpRight size={14} aria-hidden />
+                    + Add a note
                   </button>
                 )}
+              </div>
+
+              <div className="agnapp__left-foot">
+                <label className="agnapp__consent">
+                  <input
+                    type="checkbox"
+                    checked={hasSubmissionConsent}
+                    onChange={(e) => onSubmissionConsentChange(e.target.checked)}
+                  />
+                  <span>
+                    I consent to sharing my profile with {selectedAgency?.name || 'this agency'}.
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  className="agnapp__submit"
+                  onClick={() => onSubmit(selectedAgency, packagePayload)}
+                  disabled={!canSubmit || isSubmitting}
+                >
+                  {isBlocked ? (
+                    <><Lock size={13} aria-hidden />Profile incomplete</>
+                  ) : isSubmitting ? (
+                    <><Loader2 size={13} className="app-spin" aria-hidden />Submitting</>
+                  ) : (
+                    'Submit'
+                  )}
+                </button>
+
+                <p className="agnapp__limit">{monthlyLimitLabel} this month</p>
+              </div>
+            </div>
+
+            {/* ── Right: portfolio contact sheet ──────────────── */}
+            <div className="agnapp__right" aria-hidden="true">
+              <div className="agnapp__sheet">
+                {frames.map((img, i) => (
+                  <div key={i} className="agnapp__frame">
+                    {img && <img src={imageUrl(img)} alt="" />}
                   </div>
-                </div>
-              </main>
+                ))}
+              </div>
+              <div className="agnapp__sheet-bar">
+                <span>{selectedImages.length || visibleImages.length} images</span>
+                <span className="agnapp__sheet-sep" />
+                <span>{selectedMediaSetName}</span>
+              </div>
             </div>
           </>
         )}
-      </div>
+
+      </div>{/* .agnapp__box */}
     </div>
   );
 }
@@ -1165,7 +969,7 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
               </>
             ) : (
               <>
-                <XCircle size={13} aria-hidden />
+                <X size={13} aria-hidden />
                 Withdraw
               </>
             )}

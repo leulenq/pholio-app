@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Display:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Noto Serif Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-ink: #050505;
+  --color-ink-soft: #0F0F0F;
+  --color-ink-panel: #141414;
+  --color-cream: #F5F5F5;
+  --color-cream-warm: #F5F0E8;
+  --color-cream-dark: #EDE8DD;
+  --color-gold: #C9A55A;
+  --color-gold-warm: #C8A96E;
+  --color-gold-light: #D4BC8A;
+  --color-gold-dark: #A8894E;
+}
+
+@layer base {
+  body {
+    @apply bg-ink text-cream font-sans antialiased selection:bg-gold selection:text-ink;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+  }
+}
+
+@layer components {
+  .serif { @apply font-serif; }
+  .mono { @apply font-mono uppercase text-[10px] tracking-[0.2em]; }
+  .label { @apply font-sans text-[11px] font-semibold uppercase tracking-[0.18em] text-gold; }
+}

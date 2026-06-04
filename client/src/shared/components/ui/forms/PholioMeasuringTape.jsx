@@ -2,6 +2,35 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import styles from './PholioMeasuringTape.module.css';
 
 /**
+ * Helper to parse user entered measurement strings.
+ * Supports feet and inches notation (e.g. 5'11", 5-11, 5 11) for imperial height (unit: 'in'),
+ * as well as normal numeric strings for other cases.
+ */
+const parseValue = (str, currentUnit, minVal, maxVal) => {
+  let val;
+  const cleanStr = str.trim();
+  
+  if (currentUnit === 'in') {
+    // Look for feet and inches format: e.g. 5'11", 5-11, 5 11, 5ft 11
+    const ftInMatch = cleanStr.match(/^(\d+)\s*(?:'|ft|’|′|-)\s*(\d+)?\s*(?:"|in|”|″)?$/i) 
+      || cleanStr.match(/^(\d+)\s+(\d+)\s*(?:"|in|”|″)?$/i);
+      
+    if (ftInMatch) {
+      const feet = parseInt(ftInMatch[1], 10);
+      const inches = ftInMatch[2] ? parseInt(ftInMatch[2], 10) : 0;
+      val = feet * 12 + inches;
+    } else {
+      val = parseFloat(cleanStr);
+    }
+  } else {
+    val = parseFloat(cleanStr);
+  }
+  
+  if (isNaN(val)) return null;
+  return Math.max(minVal, Math.min(maxVal, val));
+};
+
+/**
  * PholioMeasuringTape - A premium horizontal slider that looks like a measuring tape.
  * @param {number} value - The current value
  * @param {function} onChange - Callback for value changes
@@ -26,6 +55,18 @@ const PholioMeasuringTape = ({
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editVal, setEditVal] = useState('');
+  const inputRef = useRef(null);
+
+  // Auto-focus input when entering edit mode
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
 
   // Each small tick width based on size
   const tickWidth = size === 'small' ? 8 : 10;
@@ -118,11 +159,54 @@ const PholioMeasuringTape = ({
   const hasValue = value !== null && value !== undefined && value !== '';
   const displayVal = hasValue ? (formatter ? formatter(value) : value) : '--';
 
+  const handleDoubleClick = () => {
+    const initialText = hasValue ? (formatter ? formatter(value) : String(value)) : '';
+    setEditVal(initialText);
+    setIsEditing(true);
+  };
+
+  const handleCommit = () => {
+    const parsed = parseValue(editVal, unit, min, max);
+    if (parsed !== null && !isNaN(parsed)) {
+      const stepped = Math.round(parsed / step) * step;
+      onChange(stepped);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCommit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+    }
+  };
+
   return (
     <div className={`${styles.tapeWrapper} ${styles[size]} ${className} ${!hasValue ? styles.tapeUnset : ''}`}>
       {/* Current Value Display */}
       <div className={`${styles.valueDisplay} ${!hasValue ? styles.valueDisplayUnset : ''}`}>
-        <span className={styles.value}>{displayVal}</span>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            className={styles.editInput}
+            value={editVal}
+            onChange={(e) => setEditVal(e.target.value)}
+            onBlur={handleCommit}
+            onKeyDown={handleKeyDown}
+          />
+        ) : (
+          <span 
+            className={styles.value} 
+            onDoubleClick={handleDoubleClick}
+            style={{ cursor: 'text' }}
+            title="Double-click to type"
+          >
+            {displayVal}
+          </span>
+        )}
         <span className={styles.unit}>{unit}</span>
       </div>
 

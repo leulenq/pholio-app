@@ -11,64 +11,202 @@ import { X } from 'lucide-react';
 import './PholioForms.css';
 
 /** Common countries for quick pick; any string remains valid via free-text input. */
-const COMMON_COUNTRIES = [
-  'Argentina',
-  'Australia',
-  'Austria',
-  'Belgium',
-  'Brazil',
-  'Canada',
-  'Chile',
-  'China',
-  'Colombia',
-  'Czech Republic',
-  'Denmark',
-  'Egypt',
-  'Finland',
-  'France',
-  'Germany',
-  'Greece',
-  'Hong Kong',
-  'Hungary',
-  'India',
-  'Indonesia',
-  'Ireland',
-  'Israel',
-  'Italy',
-  'Japan',
-  'Malaysia',
-  'Mexico',
-  'Netherlands',
-  'New Zealand',
-  'Nigeria',
-  'Norway',
-  'Peru',
-  'Philippines',
-  'Poland',
-  'Portugal',
-  'Romania',
-  'Russia',
-  'Saudi Arabia',
-  'Singapore',
-  'South Africa',
-  'South Korea',
-  'Spain',
-  'Sweden',
-  'Switzerland',
-  'Taiwan',
-  'Thailand',
-  'Turkey',
-  'Ukraine',
-  'United Arab Emirates',
-  'United Kingdom',
-  'United States',
-  'Vietnam',
+const COMMON_NATIONALITIES = [
+  'Afghan',
+  'Albanian',
+  'Algerian',
+  'American',
+  'Andorran',
+  'Angolan',
+  'Argentine',
+  'Armenian',
+  'Australian',
+  'Austrian',
+  'Azerbaijani',
+  'Bahamian',
+  'Bahraini',
+  'Bangladeshi',
+  'Barbadian',
+  'Belarusian',
+  'Belgian',
+  'Belizean',
+  'Beninese',
+  'Bhutanese',
+  'Bolivian',
+  'Bosnian',
+  'Brazilian',
+  'British',
+  'Bruneian',
+  'Bulgarian',
+  'Burkinabé',
+  'Burmese',
+  'Burundian',
+  'Cambodian',
+  'Cameroonian',
+  'Canadian',
+  'Cape Verdean',
+  'Central African',
+  'Chadian',
+  'Chilean',
+  'Chinese',
+  'Colombian',
+  'Comoran',
+  'Congolese',
+  'Costa Rican',
+  'Croatian',
+  'Cuban',
+  'Cypriot',
+  'Czech',
+  'Danish',
+  'Djiboutian',
+  'Dominican',
+  'Dutch',
+  'East Timorese',
+  'Ecuadorian',
+  'Egyptian',
+  'Emirati',
+  'English',
+  'Equatorial Guinean',
+  'Eritrean',
+  'Estonian',
+  'Ethiopian',
+  'Fijian',
+  'Filipino',
+  'Finnish',
+  'French',
+  'Gabonese',
+  'Gambian',
+  'Georgian',
+  'German',
+  'Ghanaian',
+  'Greek',
+  'Grenadian',
+  'Guatemalan',
+  'Guinean',
+  'Guyanese',
+  'Haitian',
+  'Honduran',
+  'Hungarian',
+  'Icelandic',
+  'Indian',
+  'Indonesian',
+  'Iranian',
+  'Iraqi',
+  'Irish',
+  'Israeli',
+  'Italian',
+  'Ivorian',
+  'Jamaican',
+  'Japanese',
+  'Jordanian',
+  'Kazakh',
+  'Kenyan',
+  'Kiribati',
+  'Kuwaiti',
+  'Kyrgyz',
+  'Laotian',
+  'Latvian',
+  'Lebanese',
+  'Liberian',
+  'Libyan',
+  'Liechtenstein',
+  'Lithuanian',
+  'Luxembourgish',
+  'Macedonian',
+  'Malagasy',
+  'Malawian',
+  'Malaysian',
+  'Maldivian',
+  'Malian',
+  'Maltese',
+  'Marshallese',
+  'Mauritanian',
+  'Mauritian',
+  'Mexican',
+  'Micronesian',
+  'Moldovan',
+  'Monegasque',
+  'Mongolian',
+  'Montenegrin',
+  'Moroccan',
+  'Mozambican',
+  'Namibian',
+  'Nauruan',
+  'Nepalese',
+  'New Zealander',
+  'Nicaraguan',
+  'Nigerian',
+  'Nigerien',
+  'North Korean',
+  'Norwegian',
+  'Omani',
+  'Pakistani',
+  'Palauan',
+  'Palestinian',
+  'Panamanian',
+  'Papua New Guinean',
+  'Paraguayan',
+  'Peruvian',
+  'Polish',
+  'Portuguese',
+  'Qatari',
+  'Romanian',
+  'Russian',
+  'Rwandan',
+  'Saint Lucian',
+  'Salvadoran',
+  'Samoan',
+  'San Marinese',
+  'São Toméan',
+  'Saudi',
+  'Scottish',
+  'Senegalese',
+  'Serbian',
+  'Seychellois',
+  'Sierra Leonean',
+  'Singaporean',
+  'Slovak',
+  'Slovenian',
+  'Solomon Islander',
+  'Somali',
+  'South African',
+  'South Korean',
+  'Spanish',
+  'Sri Lankan',
+  'Sudanese',
+  'Surinamese',
+  'Swazi',
+  'Swedish',
+  'Swiss',
+  'Syrian',
+  'Taiwanese',
+  'Tajik',
+  'Tanzanian',
+  'Thai',
+  'Togolese',
+  'Tongan',
+  'Trinidadian',
+  'Tunisian',
+  'Turkish',
+  'Turkmen',
+  'Tuvaluan',
+  'Ugandan',
+  'Ukrainian',
+  'Uruguayan',
+  'Uzbek',
+  'Vanuatuan',
+  'Venezuelan',
+  'Vietnamese',
+  'Welsh',
+  'Yemeni',
+  'Zambian',
+  'Zimbabwean',
 ];
 
-function filterCountries(query) {
+function filterNationalities(query) {
   const q = String(query ?? '').trim().toLowerCase();
-  if (!q) return COMMON_COUNTRIES;
-  return COMMON_COUNTRIES.filter((c) => c.toLowerCase().includes(q));
+  if (!q) return COMMON_NATIONALITIES;
+  return COMMON_NATIONALITIES.filter((c) => c.toLowerCase().includes(q));
 }
 
 const CountrySelectField = forwardRef(function CountrySelectField(
@@ -77,7 +215,7 @@ const CountrySelectField = forwardRef(function CountrySelectField(
     error,
     value = '',
     onChange,
-    placeholder = 'Country or region',
+    placeholder = 'Nationality (e.g. American)',
     disabled = false,
     className = '',
     id: providedId,
@@ -97,7 +235,7 @@ const CountrySelectField = forwardRef(function CountrySelectField(
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const blurTimeoutRef = useRef(null);
 
-  const suggestions = useMemo(() => filterCountries(value), [value]);
+  const suggestions = useMemo(() => filterNationalities(value), [value]);
 
   const clearBlurTimeout = useCallback(() => {
     if (blurTimeoutRef.current != null) {
@@ -234,30 +372,30 @@ const CountrySelectField = forwardRef(function CountrySelectField(
             <X size={16} aria-hidden />
           </button>
         )}
-      </div>
 
-      {showList && (
-        <ul
-          id={listboxId}
-          className="pholio-custom-select-dropdown pholio-autocomplete-dropdown"
-          role="listbox"
-        >
-          {suggestions.map((country, index) => (
-            <li
-              key={country}
-              id={`${listboxId}-opt-${index}`}
-              role="option"
-              aria-selected={highlightedIndex === index}
-              className={`pholio-select-option ${highlightedIndex === index ? 'pholio-autocomplete-option-active' : ''}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setHighlightedIndex(index)}
-              onClick={() => pickCountry(country)}
-            >
-              {country}
-            </li>
-          ))}
-        </ul>
-      )}
+        {showList && (
+          <ul
+            id={listboxId}
+            className="pholio-custom-select-dropdown pholio-autocomplete-dropdown"
+            role="listbox"
+          >
+            {suggestions.map((country, index) => (
+              <li
+                key={country}
+                id={`${listboxId}-opt-${index}`}
+                role="option"
+                aria-selected={highlightedIndex === index}
+                className={`pholio-select-option ${highlightedIndex === index ? 'pholio-autocomplete-option-active' : ''}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                onClick={() => pickCountry(country)}
+              >
+                {country}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {error && (
         <span id={errorId} className="pholio-error-message" role="alert">

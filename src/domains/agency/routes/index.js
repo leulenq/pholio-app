@@ -9,5 +9,7 @@ router.use(require("./interviews"));
 router.use(require("./reminders"));
 router.use(require("./messages"));
 router.use(require("./overview"));
+router.use(require("./notifications"));
+router.use(require("./activity"));
 
 module.exports = router;

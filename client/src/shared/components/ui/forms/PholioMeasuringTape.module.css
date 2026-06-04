@@ -19,6 +19,39 @@
   line-height: 1;
 }
 
+.editInput {
+  font-family: 'Noto Serif Display', serif !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  line-height: 1 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid #C9A55A !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  text-align: center;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 85px;
+  height: 24px !important;
+  vertical-align: baseline !important;
+  transition: border-color 0.2s ease;
+}
+
+.editInput:focus,
+.editInput:focus-visible {
+  border-bottom-color: #A6845C !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
 .unit {
   font-family: 'Inter', sans-serif;
   font-size: 13px;
@@ -30,6 +63,12 @@
 /* Size: Small */
 .small .value {
   font-size: 18px;
+}
+
+.small .editInput {
+  font-size: 18px !important;
+  height: 18px !important;
+  width: 65px;
 }
 
 .small .unit {

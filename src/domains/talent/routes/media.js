@@ -10,6 +10,10 @@ const path = require("path");
 const config = require("../../../config");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const { logActivity } = require("../services/shared-utils");
+const {
+  captureSubmissionReadiness,
+  notifyIfSubmissionReadinessLost,
+} = require("../../../shared/services/notify-profile-readiness");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const {
   parseImageStructuredFieldsFromBody,
@@ -1052,6 +1056,10 @@ router.delete(
     if (media.user_id !== userId)
       return res.status(403).json({ success: false, message: "Unauthorized" });
 
+    const wasSubmissionReady = await captureSubmissionReadiness(
+      media.profile_id,
+    );
+
     // 1. Delete from R2 if storage_key exists
     if (media.storage_key) {
       try {
@@ -1141,6 +1149,8 @@ router.delete(
     }
 
     await knex("images").where({ id: mediaId }).delete();
+
+    await notifyIfSubmissionReadinessLost(media.profile_id, wasSubmissionReady);
 
     return res.json({
       success: true,

@@ -3,6 +3,7 @@ import { useCallback, useRef } from 'react';
 import { talentApi } from '../api/talent';
 import { useFlash } from '../../../shared/hooks/useFlash';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
 
 export function useMedia() {
   const queryClient = useQueryClient();
@@ -25,6 +26,7 @@ export function useMedia() {
     mutationFn: (id) => talentApi.deleteMedia(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
       flash('success', 'Image deleted');
     },
     onError: (err) => flash('error', err.message || 'Delete failed')

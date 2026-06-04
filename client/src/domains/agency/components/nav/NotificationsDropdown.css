@@ -71,14 +71,26 @@
 }
 
 /* ── Notification item ── */
+.nd-list > li {
+  list-style: none;
+}
+
 .nd-item {
+  width: 100%;
   display: flex;
   align-items: flex-start;
   gap: 12px;
   padding: 10px 12px;
+  border: none;
   border-bottom: 1px solid var(--ag-border);
-  cursor: default;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   transition: background 0.15s ease;
+}
+
+.nd-item:hover {
+  background: var(--ag-surface-2);
 }
 
 .nd-item:last-child {

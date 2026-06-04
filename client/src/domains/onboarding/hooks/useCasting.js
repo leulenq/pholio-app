@@ -79,6 +79,25 @@ export function useCastingEntry() {
 }
 
 /**
+ * Hook: Gender step (persist gender, advance state → scout)
+ */
+export function useCastingGender() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ gender }) => {
+      return castingRequest('/gender', {
+        method: 'POST',
+        body: JSON.stringify({ gender })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
+    }
+  });
+}
+
+/**
  * Hook: Scout step (photo upload)
  */
 export function useCastingScout() {

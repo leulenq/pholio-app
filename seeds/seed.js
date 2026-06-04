@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
+const { seedAgencyDemo } = require("../scripts/seed-agency-demo");
 
 async function seedDemoData(knex, talentId, profileId) {
   const now = new Date();
@@ -546,4 +547,5 @@ exports.seed = async function seed(knex) {
   }
 
   await seedDemoData(knex, talentId, profileId);
+  await seedAgencyDemo(knex);
 };

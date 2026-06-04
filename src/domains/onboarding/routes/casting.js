@@ -13,7 +13,6 @@
  */
 
 const express = require("express");
-const { z } = require("zod");
 const { v4: uuidv4 } = require("uuid");
 const router = express.Router();
 
@@ -55,26 +54,6 @@ function invalidOnboardingSequence(res, state, message) {
     completed_steps: state.completed_steps || [],
   });
 }
-
-/**
- * Validation Schemas
- */
-
-// Vibe signals validation
-const vibeSchema = z.object({
-  ambition_type: z.enum(["editorial", "commercial", "hybrid"], {
-    required_error: "Career ambition is required",
-    invalid_type_error: "Must be one of: editorial, commercial, hybrid",
-  }),
-  travel_willingness: z.enum(["high", "moderate", "low"], {
-    required_error: "Travel willingness is required",
-    invalid_type_error: "Must be one of: high, moderate, low",
-  }),
-  comfort_level: z.enum(["adventurous", "moderate", "cautious"], {
-    required_error: "Comfort level is required",
-    invalid_type_error: "Must be one of: adventurous, moderate, cautious",
-  }),
-});
 
 /**
  * POST /onboarding/entry
@@ -475,6 +454,89 @@ router.post(
 );
 
 /**
+ * POST /onboarding/gender
+ * Persist the talent's gender and advance the state machine to "scout".
+ *
+ * This is the server counterpart to the client gender step. Without it the
+ * server stays parked at "gender" while the client moves on, and the later
+ * scout → measurements transition is rejected as out of sequence. Gender is
+ * also the one essential we would otherwise lose on a mid-flow reload, since
+ * it was previously only persisted at the very end (/profile).
+ *
+ * Idempotent: gender is always saved; the step only advances when the user is
+ * actually on the gender step, so re-submits or out-of-order calls don't 403.
+ */
+router.post(
+  ["/onboarding/gender", "/casting/gender"],
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { gender } = req.body;
+
+      if (!gender || !String(gender).trim()) {
+        return res.status(400).json({
+          error: "Gender required",
+          message: "Please select how you identify before continuing.",
+        });
+      }
+
+      const profile = await knex("profiles")
+        .where({ user_id: req.session.userId })
+        .first();
+
+      if (!profile) {
+        return res.status(404).json({
+          error: "Profile not found",
+          message: "Please complete entry step first",
+        });
+      }
+
+      // Preserve multi-word labels (e.g. "Non-Binary", "Prefer not to say")
+      const normalizedGender = String(gender).trim();
+
+      const state = getState(profile);
+
+      // Only drive the state machine forward when we're on the gender step.
+      // Otherwise just persist the value so the call stays idempotent.
+      let updatePayload = {
+        gender: normalizedGender,
+        updated_at: knex.fn.now(),
+      };
+
+      if (state.current_step === "gender") {
+        const transition = transitionTo(
+          state,
+          "scout",
+          { gender: normalizedGender },
+          knex,
+        );
+
+        if (!transition) {
+          return invalidOnboardingSequence(
+            res,
+            state,
+            "Select your gender when the gender step is active.",
+          );
+        }
+
+        updatePayload = { ...transition, gender: normalizedGender };
+      }
+
+      await knex("profiles").where({ id: profile.id }).update(updatePayload);
+
+      return res.json({
+        success: true,
+        next_step: "scout",
+        message: "Gender saved",
+      });
+    } catch (error) {
+      console.error("[Casting Gender] Error:", error);
+      return next(error);
+    }
+  },
+);
+
+/**
  * POST /onboarding/scout
  * Visual Interview: Single photo upload with AI analysis
  *
@@ -513,11 +575,25 @@ router.post(
       const { v4: uuidv4 } = require("uuid");
       const imageId = uuidv4();
 
-      // Check if profile already has images to determine if this should be primary
-      const existingImages = await knex("images")
+      // Become primary if there's no existing *locally uploaded* photo yet.
+      // A seeded remote avatar (e.g. the Google profile picture inserted at
+      // entry — path is a URL, no absolute_path) must NOT count: it isn't on
+      // disk, so scout/confirm could never read it for analysis. The user's
+      // uploaded digi is the real casting photo and should be analyzed.
+      const existingLocalImage = await knex("images")
         .where({ profile_id: profile.id })
+        .whereNotNull("absolute_path")
         .first();
-      const isPrimary = !existingImages;
+      const isPrimary = !existingLocalImage;
+
+      // Demote any existing primary (e.g. the seeded Google avatar) BEFORE
+      // inserting the new one. The `one_primary_per_profile` constraint forbids
+      // two primaries existing simultaneously, so the order matters.
+      if (isPrimary) {
+        await knex("images")
+          .where({ profile_id: profile.id })
+          .update({ is_primary: false });
+      }
 
       // Save image to the images table
       await knex("images").insert({
@@ -528,15 +604,6 @@ router.post(
         is_primary: isPrimary,
         label: "Scout photo",
         created_at: knex.fn.now(),
-      });
-
-      // photo_url_primary and hero_image_path updates REMOVED as columns are consolidated
-
-      console.log("[Onboarding] Scout image uploaded:", {
-        profileId: profile.id,
-        imageId,
-        isPrimary,
-        absolutePath,
       });
 
       return res.json({
@@ -623,9 +690,21 @@ router.post(
       if (!profile) return res.status(404).json({ error: "Profile not found" });
 
       // Find the primary image
-      const primaryImage = await knex("images")
+      let primaryImage = await knex("images")
         .where({ profile_id: profile.id, is_primary: true })
         .first();
+
+      // Defense-in-depth: if the primary is a remote seed with no file on disk
+      // (e.g. a Google avatar), fall back to the most recent local upload so we
+      // analyze a real, readable photo instead of failing.
+      if (primaryImage && !primaryImage.absolute_path) {
+        const localImage = await knex("images")
+          .where({ profile_id: profile.id })
+          .whereNotNull("absolute_path")
+          .orderBy("created_at", "desc")
+          .first();
+        if (localImage) primaryImage = localImage;
+      }
 
       if (!primaryImage) {
         return res.status(400).json({ error: "No primary image set" });
@@ -743,187 +822,6 @@ router.post(
 );
 
 /**
- * POST /onboarding/vibe
- * DEPRECATED: This route is not used in the current casting flow
- * The new flow is: entry → scout → measurements → profile → done
- * Kept for backward compatibility with old data only
- *
- * Original purpose: Maverick Chat - 3-question psychographic assessment
- * Collected: ambition, travel willingness, and comfort level signals
- */
-/* DEPRECATED - Commenting out unused route
-router.post('/onboarding/vibe', requireRole('TALENT'), async (req, res, next) => {
-  try {
-    const profile = await knex('profiles')
-      .where({ user_id: req.session.userId })
-      .first();
-
-    if (!profile) {
-      return res.status(404).json({
-        error: 'Profile not found',
-        message: 'Please complete entry step first'
-      });
-    }
-
-    // Validate vibe signals
-    const parsed = vibeSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(422).json({
-        error: 'Validation failed',
-        errors: parsed.error.flatten().fieldErrors,
-        message: 'Please provide valid responses to all questions'
-      });
-    }
-
-    const data = parsed.data;
-
-    // Collect vibe signals
-    await SignalCollector.collectVibeSignals(profile.id, {
-      ambition_type: data.ambition_type,
-      travel_willingness: data.travel_willingness,
-      comfort_level: data.comfort_level
-    });
-
-    // Transition state
-    const state = getState(profile);
-    const updatePayload = transitionTo(state, 'vibe', {
-      questions_answered: 3,
-      ambition: data.ambition_type
-    }, knex);
-
-    await knex('profiles')
-      .where({ id: profile.id })
-      .update(updatePayload);
-
-    // Get updated state to check if can reveal
-    const updatedProfile = await knex('profiles')
-      .where({ id: profile.id })
-      .first();
-    const updatedState = getState(updatedProfile);
-
-    // Track completion
-    await OnboardingAnalytics.trackCompletion(profile.id, 'vibe', null, {
-      ambition: data.ambition_type
-    });
-
-    return res.json({
-      success: true,
-      can_complete: canComplete(updatedState),
-      next_steps: getNextSteps(updatedState),
-      message: 'Responses recorded successfully'
-    });
-
-  } catch (error) {
-    console.error('[Casting Vibe] Error:', error);
-    return next(error);
-  }
-});
-*/
-
-/**
- * GET /onboarding/reveal
- * DEPRECATED: This route is not used in the current casting flow
- * The new flow is: entry → scout → measurements → profile → done
- * Kept for backward compatibility with old data only
- *
- * Original purpose: Calculate and display archetype after scout + vibe
- * Required: scout and vibe completion
- * Returned: archetype scores and radar chart data
- */
-/* DEPRECATED - Commenting out unused route
-router.get('/onboarding/reveal', requireRole('TALENT'), async (req, res, next) => {
-  try {
-    const profile = await knex('profiles')
-      .where({ user_id: req.session.userId })
-      .first();
-
-    if (!profile) {
-      return res.status(404).json({
-        error: 'Profile not found',
-        message: 'Please complete entry step first'
-      });
-    }
-
-    // Check if both scout and vibe are complete
-    const state = getState(profile);
-    if (!canComplete(state)) {
-      return res.status(403).json({
-        error: 'Prerequisites not met',
-        message: 'Please complete both photo upload and questions before viewing your archetype',
-        completed_steps: state.completed_steps,
-        required_steps: ['scout', 'vibe']
-      });
-    }
-
-    // Get signals record
-    const signals = await SignalCollector.getSignalsByProfileId(profile.id);
-
-    if (!signals) {
-      return res.status(404).json({
-        error: 'Signals not found',
-        message: 'Could not find your casting call data'
-      });
-    }
-
-    // Calculate archetype (if not already calculated)
-    let archetype;
-    if (signals.archetype_label) {
-      // Already calculated - return stored results
-      archetype = {
-        commercial: parseFloat(signals.archetype_commercial_pct),
-        editorial: parseFloat(signals.archetype_editorial_pct),
-        lifestyle: parseFloat(signals.archetype_lifestyle_pct),
-        label: signals.archetype_label
-      };
-    } else {
-      // Calculate now
-      archetype = await SignalCollector.calculateArchetype(signals.id);
-    }
-
-    // Transition state to reveal
-    const updatePayload = transitionTo(state, 'reveal', {
-      archetype_calculated: true
-    }, knex);
-
-    await knex('profiles')
-      .where({ id: profile.id })
-      .update(updatePayload);
-
-    // Prepare radar chart data
-    const radarData = {
-      labels: ['Commercial', 'Editorial', 'Lifestyle'],
-      datasets: [{
-        label: 'Your Archetype',
-        data: [archetype.commercial, archetype.editorial, archetype.lifestyle]
-      }]
-    };
-
-    // Track reveal view
-    await OnboardingAnalytics.trackCompletion(profile.id, 'reveal', null, {
-      archetype_label: archetype.label
-    });
-
-    return res.json({
-      success: true,
-      archetype: {
-        label: archetype.label,
-        commercial_pct: archetype.commercial,
-        editorial_pct: archetype.editorial,
-        lifestyle_pct: archetype.lifestyle,
-        breakdown: archetype.breakdown || null
-      },
-      radar_data: radarData,
-      message: 'Your model archetype has been calculated'
-    });
-
-  } catch (error) {
-    console.error('[Casting Reveal] Error:', error);
-    return next(error);
-  }
-});
-*/
-
-/**
  * GET /onboarding/status
  * Status Polling: Get current onboarding state
  *
@@ -949,8 +847,21 @@ router.get(
 
       return res.json({
         success: true,
+        // Persisted profile values so the client can rehydrate collected answers
+        // after a mid-flow reload instead of resuming with empty local state.
         profile: {
           first_name: profile.first_name || null,
+          gender: profile.gender || null,
+          city:
+            profile.city && profile.city !== "Not specified"
+              ? profile.city
+              : null,
+          experience_level: profile.experience_level || null,
+          height_cm: profile.height_cm || null,
+          weight_kg: profile.weight_kg || null,
+          bust_cm: profile.bust_cm || null,
+          waist_cm: profile.waist_cm || null,
+          hips_cm: profile.hips_cm || null,
         },
         state: {
           current_step: state.current_step,
@@ -960,6 +871,7 @@ router.get(
           version: state.version || "v2_onboarding",
           started_at: state.started_at || null,
           predictions: state.predictions || null,
+          step_data: state.step_data || {},
         },
       });
     } catch (error) {
@@ -1401,40 +1313,5 @@ router.post(
     }
   },
 );
-
-/**
- * Helper: Infer build from AI predictions
- * @param {Object} predictions - AI predictions object
- * @returns {string} Build type: athletic, slender, curvy, average
- */
-function inferBuildFromPredictions(predictions) {
-  if (!predictions) return "average";
-
-  const { bust, waist, hips } = predictions;
-
-  // If we have measurements, infer build
-  if (bust && waist && hips) {
-    const bustWaistRatio = bust / waist;
-    const hipWaistRatio = hips / waist;
-
-    // Curvy: pronounced curves (high ratios)
-    if (bustWaistRatio >= 1.3 && hipWaistRatio >= 1.3) {
-      return "curvy";
-    }
-
-    // Slender: minimal curves (low ratios)
-    if (bustWaistRatio <= 1.15 && hipWaistRatio <= 1.15) {
-      return "slender";
-    }
-
-    // Athletic: moderate curves with more rectangular shape
-    if (bustWaistRatio >= 1.15 && bustWaistRatio <= 1.25) {
-      return "athletic";
-    }
-  }
-
-  // Default
-  return "average";
-}
 
 module.exports = router;

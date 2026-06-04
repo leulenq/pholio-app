@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { fadeVariants, childVariants } from './animations';
 import { useCastingMeasurements, useCastingStatus } from '../hooks/useCasting';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react';
 
 import { ThinkingText } from './ThinkingText';
 import { CinematicDivider } from './CinematicDivider';
@@ -18,10 +18,10 @@ import { CinematicNextButton, CinematicBackButton } from './CinematicNextButton'
 const IN_PER_CM = 0.393701;
 const KG_TO_LBS = 2.20462;
 
-function CastingMeasurements({ photoData: propPhotoData, onComplete }) {
+function CastingMeasurements({ photoData: propPhotoData, onComplete, initialStep }) {
   const { data: status } = useCastingStatus();
   const scoutStepData = status?.state?.step_data?.scout || {};
-  
+
   const photoData = propPhotoData || {
     photo_url: scoutStepData.photo_url,
     predictions: status?.state?.predictions || scoutStepData.predictions
@@ -30,8 +30,8 @@ function CastingMeasurements({ photoData: propPhotoData, onComplete }) {
   // Global Unit Toggle
   const [unitSystem, setUnitSystem] = useState('imperial'); // 'imperial' or 'metric'
 
-  // Wizard Step
-  const [step, setStep] = useState('height'); // height -> weight -> bust -> waist -> hips -> review
+  // Wizard Step (initialStep is a dev-preview entry point; defaults to 'height')
+  const [step, setStep] = useState(initialStep || 'height'); // height -> weight -> bust -> waist -> hips -> review
 
   // Measurements State (Always stored in Metric internally)
   const [measurements, setMeasurements] = useState({
@@ -174,29 +174,6 @@ function CastingMeasurements({ photoData: propPhotoData, onComplete }) {
     return Math.abs(currentVal - predictedValues[key]) < 0.1;
   };
 
-  // --- Render Components ---
-
-  const AIBadge = ({ hasPrediction, matchesPrediction }) => (
-    <AnimatePresence>
-      {hasPrediction && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-[10px] font-medium tracking-[0.2em] uppercase px-4 py-1.5 rounded-full backdrop-blur-sm whitespace-nowrap"
-          style={{
-            color: matchesPrediction ? '#C9A55A' : 'rgba(255,255,255,0.35)',
-            background: matchesPrediction ? 'rgba(201,165,90,0.08)' : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${matchesPrediction ? 'rgba(201,165,90,0.2)' : 'rgba(255,255,255,0.08)'}`,
-          }}
-        >
-          <span className="text-xs">{matchesPrediction ? '✦' : '✎'}</span>
-          {matchesPrediction ? 'AI Predicted' : 'Adjusted'}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-
   // --- Interaction Helpers (Drag & Keyboard) ---
   
 
@@ -304,10 +281,6 @@ const PrecisionDeck = ({ value, onAdjust, isAi, hasPrediction, unitLabel, type, 
   return (
     <div className="w-full flex flex-col items-center justify-end h-[55vh] pb-40 relative pointer-events-none">
 
-
-       <AIBadge hasPrediction={hasPrediction} matchesPrediction={isAi && !isDragging} />
-
-
        {/* Main Value Display with Arrows */}
        <div className="mb-auto mt-auto flex items-center justify-center gap-12 w-full max-w-4xl px-4 relative z-40 pointer-events-auto">
 
@@ -363,6 +336,31 @@ const PrecisionDeck = ({ value, onAdjust, isAi, hasPrediction, unitLabel, type, 
             )}
             <div className="text-xs uppercase tracking-[0.4em] text-[#C9A55A] mt-6 font-medium flex justify-center gap-2">
               {unitLabel}
+            </div>
+            {/* Quiet estimate cue — a single premium icon, present only while
+                the value is still our estimate; it slips away once you adjust it. */}
+            <div className="h-6 mt-3 flex items-center justify-center pointer-events-none">
+              <AnimatePresence>
+                {hasPrediction && isAi && !isDragging && (
+                  <motion.span
+                    key="estimate-cue"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative flex items-center text-[#C9A55A]/70 pointer-events-auto group cursor-help"
+                    aria-label="We predicted this from your photo"
+                  >
+                    <Sparkles size={15} strokeWidth={1.6} />
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute bottom-full left-1/2 mb-2.5 -translate-x-1/2 whitespace-nowrap rounded-[3px] border border-[#C9A55A]/20 bg-[#100d08]/95 px-3 py-1.5 text-[10px] tracking-wide text-white/70 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                    >
+                      We predicted this from your photo
+                    </span>
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 

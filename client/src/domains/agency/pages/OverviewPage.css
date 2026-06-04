@@ -95,7 +95,7 @@
 .ov-incoming-pic { width: 42px; height: 54px; border-radius: 3px; background-size: cover; background-position: center; flex: none; box-shadow: 0 3px 10px rgba(20,18,14,.2); background-color: #e7e2d8; }
 .ov-incoming-name { display: block; font-weight: 600; font-size: 13px; color: #16130D; }
 .ov-incoming-meta { display: block; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: #9b9082; margin-top: 3px; }
-.ov-incoming-match { margin-left: auto; font-family: 'Playfair Display', serif; font-size: 22px; color: #16130D; }
+.match-score-badge.ov-incoming-match { margin-left: auto; }
 
 /* ---------- NEXT MOVES ---------- */
 .ov-moves { display: flex; flex-direction: column; gap: 9px; }
@@ -107,11 +107,21 @@
 .ov-move-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
 
 /* ---------- TALENT STRIP (media) ---------- */
-.ov-strip { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+.ov-strip {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+.ov-strip::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
 .ov-strip-card { flex: 0 0 134px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
 .ov-strip-img { display: block; position: relative; height: 170px; border-radius: 5px; background-size: cover; background-position: center top; background-color: #e7e2d8; box-shadow: 0 4px 14px rgba(20,18,14,.16); transition: transform .2s, box-shadow .2s; }
 .ov-strip-card:hover .ov-strip-img { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(20,18,14,.22); }
-.ov-strip-match { position: absolute; top: 8px; right: 8px; background: rgba(20,17,11,.78); color: var(--ag-gold); font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 600; padding: 2px 7px; border-radius: 3px; }
+.match-score-badge.ov-strip-match { position: absolute; top: 8px; right: 8px; }
 .ov-strip-name { display: block; font-size: 12.5px; font-weight: 600; color: #16130D; margin-top: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-strip-meta { display: block; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: #9b9082; margin-top: 3px; }
 

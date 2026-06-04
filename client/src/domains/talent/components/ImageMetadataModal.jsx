@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Camera, Crop, EyeOff, Image as ImageIcon, Save, Shield, Tags, X } from 'lucide-react';
+import { AlignLeft, Calendar, Camera, Crop, EyeOff, Image as ImageIcon, Save, Shield, Tags, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
 import './ImageMetadataModal.css';
@@ -82,9 +82,9 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
       role: initialMetadata.role || null,
       tags: Array.isArray(initialMetadata.tags) ? initialMetadata.tags : [],
       credits: {
-        photographer: initialCredits.photographer || '',
-        mua: initialCredits.mua || '',
-        stylist: initialCredits.stylist || '',
+        photographer: (initialCredits.photographer || '').replace(/^@/, ''),
+        mua: (initialCredits.mua || '').replace(/^@/, ''),
+        stylist: (initialCredits.stylist || '').replace(/^@/, ''),
       },
       caption: initialMetadata.caption || '',
       visibility: initialMetadata.visibility || 'public'
@@ -115,11 +115,12 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
   };
 
   const updateCredit = (field, value) => {
+    const cleaned = value.replace(/^@/, '');
     setFormData(prev => ({
       ...prev,
       metadata: { 
         ...prev.metadata, 
-        credits: { ...prev.metadata.credits, [field]: value } 
+        credits: { ...prev.metadata.credits, [field]: cleaned } 
       }
     }));
   };
@@ -358,19 +359,55 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                 <Camera size={15} />
                 <h3>Credits</h3>
               </div>
-              <div className="imd-grid">
-                <label className="imd-grid__wide">
+              <div className="imd-credits-grid">
+                <label>
                   <span className="imd-label">Photographer</span>
-                  <input type="text" className="imd-input" placeholder="@photographer" value={formData.metadata.credits.photographer} onChange={(e) => updateCredit('photographer', e.target.value)} />
+                  <div className="imd-credit-input-wrap">
+                    <span className="imd-credit-prefix">@</span>
+                    <input
+                      type="text"
+                      className="imd-credit-input"
+                      placeholder="photographer"
+                      value={formData.metadata.credits.photographer}
+                      onChange={(e) => updateCredit('photographer', e.target.value)}
+                    />
+                  </div>
                 </label>
                 <label>
                   <span className="imd-label">Makeup artist</span>
-                  <input type="text" className="imd-input" placeholder="@mua" value={formData.metadata.credits.mua} onChange={(e) => updateCredit('mua', e.target.value)} />
+                  <div className="imd-credit-input-wrap">
+                    <span className="imd-credit-prefix">@</span>
+                    <input
+                      type="text"
+                      className="imd-credit-input"
+                      placeholder="mua"
+                      value={formData.metadata.credits.mua}
+                      onChange={(e) => updateCredit('mua', e.target.value)}
+                    />
+                  </div>
                 </label>
                 <label>
                   <span className="imd-label">Stylist</span>
-                  <input type="text" className="imd-input" placeholder="@stylist" value={formData.metadata.credits.stylist} onChange={(e) => updateCredit('stylist', e.target.value)} />
+                  <div className="imd-credit-input-wrap">
+                    <span className="imd-credit-prefix">@</span>
+                    <input
+                      type="text"
+                      className="imd-credit-input"
+                      placeholder="stylist"
+                      value={formData.metadata.credits.stylist}
+                      onChange={(e) => updateCredit('stylist', e.target.value)}
+                    />
+                  </div>
                 </label>
+              </div>
+            </section>
+
+            <section className="imd-section">
+              <div className="imd-section__head">
+                <AlignLeft size={15} />
+                <h3>Caption & Story</h3>
+              </div>
+              <div className="imd-grid">
                 <label className="imd-grid__wide">
                   <span className="imd-label">Caption</span>
                   <textarea rows="3" className="imd-input imd-textarea" placeholder="Add a description or context" value={formData.metadata.caption} onChange={(e) => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, caption: e.target.value } }))} />

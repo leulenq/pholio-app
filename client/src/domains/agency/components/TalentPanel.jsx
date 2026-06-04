@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { X, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import MatchScoreBadge from './ui/MatchScoreBadge';
 import { TalentStatusBadge } from './ui/TalentStatusBadge';
 import { TalentActionBar } from './talent/TalentActionBar';
 import { TalentThread } from './talent/TalentThread';
@@ -177,9 +178,14 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
             </div>
             <h2 className="tp-name">{talent.name}</h2>
             <div className="tp-identity-row">
-              <TalentStatusBadge status={talent.status || 'available'} onDark />
+              <TalentStatusBadge status={talent.status || 'available'} onDark hideDot />
               {talent.match ? (
-                <span className="tp-match"><strong>{talent.match}</strong> match</span>
+                <MatchScoreBadge
+                  score={talent.match}
+                  size="md"
+                  tone="dark"
+                  className="tp-match"
+                />
               ) : null}
             </div>
           </div>

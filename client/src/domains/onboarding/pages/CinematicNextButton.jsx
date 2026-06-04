@@ -1,41 +1,25 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 
-export const CinematicNextButton = ({ onClick, children, icon: Icon = ChevronRight, disabled }) => (
-  <motion.button
-    onClick={onClick}
-    disabled={disabled}
-    whileHover={disabled ? {} : { scale: 1.03 }}
-    whileTap={disabled ? {} : { scale: 0.97 }}
-    className="
-      group relative mx-auto py-4 px-2
-      flex items-center gap-3
-      text-white/50 font-serif italic tracking-[0.15em] text-xl
-      transition-colors duration-300
-      hover:text-[#C9A55A]
-      disabled:opacity-30 disabled:cursor-not-allowed
-    "
-  >
-     <span>{children}</span>
-     <Icon size={20} strokeWidth={1.5} className="opacity-50 group-hover:opacity-100 transition-opacity" />
-  </motion.button>
+/**
+ * Restrained onboarding actions, modelled on the shell's top-left Back control:
+ * borderless, uppercase, letter-spaced, faint → gold on hover, with a chevron
+ * that slides. Deliberately not traditional buttons.
+ *
+ * CinematicNextButton — forward primary action (Continue / Next / Confirm / Finish).
+ * CinematicBackButton — quiet secondary action (Back / Edit).
+ */
+
+export const CinematicNextButton = ({ onClick, children, icon: Icon = ArrowRight, disabled }) => (
+  <button type="button" onClick={onClick} disabled={disabled} className="cine-next">
+    <span>{children}</span>
+    <Icon size={14} strokeWidth={1.6} aria-hidden="true" />
+  </button>
 );
 
-export const CinematicBackButton = ({ onClick, children = 'BACK' }) => (
-  <motion.button
-    onClick={onClick}
-    whileHover={{ scale: 1.03 }}
-    whileTap={{ scale: 0.97 }}
-    className="
-      group mx-auto py-3 px-2
-      flex items-center gap-2
-      text-white/20 font-sans text-[10px] uppercase tracking-[0.2em]
-      transition-colors duration-300
-      hover:text-white/60
-    "
-  >
-    <ChevronLeft size={12} strokeWidth={1.5} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+export const CinematicBackButton = ({ onClick, children = 'Back' }) => (
+  <button type="button" onClick={onClick} className="cine-sub cine-sub--back">
+    <ArrowLeft size={13} strokeWidth={1.6} aria-hidden="true" />
     <span>{children}</span>
-  </motion.button>
+  </button>
 );
