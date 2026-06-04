@@ -13,7 +13,8 @@ import AttentionStrip from '../components/overview/AttentionStrip';
 import BoardsTable from '../components/overview/BoardsTable';
 import ActivityFeed from '../components/overview/ActivityFeed';
 import NextMoves from '../components/overview/NextMoves';
-import IncomingList from '../components/overview/IncomingList';
+import TalentStrip from '../components/overview/TalentStrip';
+import TeamModule from '../components/overview/TeamModule';
 import { TalentPanel } from '../components/TalentPanel';
 import './OverviewPage.css';
 
@@ -25,7 +26,7 @@ function greeting() {
 export default function OverviewPage() {
   const [selected, setSelected] = useState(null);
   const { data: overview } = useAgencyOverview();
-  const { data: applicants = [] } = useRecentApplicants(6);
+  const { data: applicants = [] } = useRecentApplicants(12);
   const { data: boards = [] } = useBoards();
   const { data: activity = [] } = useAgencyActivity(7);
   const { data: profile } = useQuery({ queryKey: ['agency-profile'], queryFn: getAgencyProfile, staleTime: 5 * 60 * 1000 });
@@ -36,6 +37,7 @@ export default function OverviewPage() {
   const talentMix = selectTalentMix(overview);
   const nextMoves = buildNextMoves(pulse, talentMix);
   const incoming = applicants.map(mapApplicant);
+  const topMatches = [...incoming].sort((a, b) => (b.match || 0) - (a.match || 0)).slice(0, 10);
   const firstName = profile?.first_name || 'there';
 
   const sublineParts = [
@@ -70,11 +72,17 @@ export default function OverviewPage() {
 
       <StatLedger stats={ledger} />
       <AttentionStrip items={attention} />
+      <TalentStrip
+        title="Top matches today"
+        talents={topMatches}
+        onSelect={setSelected}
+        viewAllTo="/dashboard/agency/applicants"
+      />
       <BoardsTable boards={boards} stages={stages} />
 
       <div className="ov-grid-3">
         <ActivityFeed items={activity} />
-        <IncomingList applicants={incoming} onSelect={setSelected} />
+        <TeamModule />
         <NextMoves moves={nextMoves} />
       </div>
 

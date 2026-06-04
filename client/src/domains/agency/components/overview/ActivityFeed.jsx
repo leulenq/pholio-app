@@ -30,7 +30,13 @@ export default function ActivityFeed({ items }) {
         <div className="ov-activity">
           {items.map((a) => (
             <div key={a.id} className="ov-act-row">
-              <span className={`ov-act-dot ov-act-dot--${TONE[a.activity_type] || 'muted'}`} aria-hidden="true" />
+              {a.talentImage ? (
+                <span className="ov-act-av" style={{ backgroundImage: `url(${a.talentImage})` }}>
+                  <span className={`ov-act-pip ov-act-pip--${TONE[a.activity_type] || 'muted'}`} aria-hidden="true" />
+                </span>
+              ) : (
+                <span className={`ov-act-dot ov-act-dot--${TONE[a.activity_type] || 'muted'}`} aria-hidden="true" />
+              )}
               <div className="ov-act-body">
                 <span className="ov-act-text">
                   {a.talentName && <strong>{a.talentName}</strong>} {a.description}

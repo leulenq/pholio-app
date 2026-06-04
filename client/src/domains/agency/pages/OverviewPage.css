@@ -58,6 +58,10 @@
 .ov-tr--head { padding: 0 12px 9px; border-bottom: 1px solid var(--ag-rule); font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase; color: #9b9082; }
 .ov-tr:not(.ov-tr--head):hover { background: rgba(201,165,90,.06); }
 .ov-td-r { text-align: right; justify-self: end; }
+.ov-td-board { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.ov-stack { display: flex; flex: none; }
+.ov-stack-av { width: 26px; height: 26px; border-radius: 50%; background-size: cover; background-position: center; border: 1.5px solid #faf6ef; background-color: #e7e2d8; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.ov-stack-av + .ov-stack-av { margin-left: -9px; }
 .ov-td-name { font-size: 13.5px; font-weight: 600; color: #16130D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-td-closes { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6b6256; }
 .ov-td-closes.is-soon { color: #c0563f; font-weight: 700; }
@@ -101,3 +105,30 @@
 .ov-move--positive { border-left-color: #7d9b82; }
 .ov-move-text { display: block; font-size: 11.5px; line-height: 1.4; color: #4a443c; }
 .ov-move-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
+
+/* ---------- TALENT STRIP (media) ---------- */
+.ov-strip { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+.ov-strip-card { flex: 0 0 134px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
+.ov-strip-img { display: block; position: relative; height: 170px; border-radius: 5px; background-size: cover; background-position: center top; background-color: #e7e2d8; box-shadow: 0 4px 14px rgba(20,18,14,.16); transition: transform .2s, box-shadow .2s; }
+.ov-strip-card:hover .ov-strip-img { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(20,18,14,.22); }
+.ov-strip-match { position: absolute; top: 8px; right: 8px; background: rgba(20,17,11,.78); color: var(--ag-gold); font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 600; padding: 2px 7px; border-radius: 3px; }
+.ov-strip-name { display: block; font-size: 12.5px; font-weight: 600; color: #16130D; margin-top: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-strip-meta { display: block; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: #9b9082; margin-top: 3px; }
+
+/* ---------- ACTIVITY AVATARS ---------- */
+.ov-act-av { position: relative; width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; flex: none; background-color: #e7e2d8; box-shadow: 0 1px 4px rgba(0,0,0,.16); }
+.ov-act-pip { position: absolute; bottom: -1px; right: -1px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #f7f3ec; background: #c9bfa9; }
+.ov-act-pip--gold { background: var(--ag-gold); }
+.ov-act-pip--positive { background: #7d9b82; }
+.ov-act-pip--muted { background: #c9bfa9; }
+
+/* ---------- TEAM ---------- */
+.ov-team { display: flex; flex-direction: column; }
+.ov-team-member { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid #ece4d4; }
+.ov-team-avatar { width: 34px; height: 34px; border-radius: 50%; background: #efe7d6; color: #8a7a55; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex: none; border: 1.5px solid #e2d9c4; }
+.ov-team-avatar.is-owner { background: #16130D; color: var(--ag-gold); border-color: #2c2619; }
+.ov-team-info { display: flex; flex-direction: column; min-width: 0; }
+.ov-team-name { font-size: 12.5px; font-weight: 600; color: #16130D; }
+.ov-team-role { font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: #9b9082; margin-top: 2px; }
+.ov-team-add { display: inline-block; margin-top: 13px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); text-decoration: none; font-weight: 600; }
+.ov-team-add:hover { text-decoration: underline; }

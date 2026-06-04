@@ -20,6 +20,12 @@ const {
   mapCastingStageToApplicationStatus,
 } = require("./casting-stage-helpers");
 const logActivity = require("./agency-log-activity");
+const {
+  notifyTalentForApplicationStatus,
+} = require("../../../shared/services/notify-talent-application");
+const {
+  notifyTalentAgencyProfileView,
+} = require("../../../shared/services/notifications");
 
 const agencyMemberCreateSchema = z.object({
   email: z
@@ -53,10 +59,8 @@ function serializeAgencyMember(row) {
   };
 }
 
-
 const router = express.Router();
 mountAgencyApiGuard(router);
-
 
 // GET /api/agency/boards - List all boards for agency
 router.get(
@@ -70,6 +74,27 @@ router.get(
         .where({ agency_id: agencyId })
         .orderBy("sort_order", "asc")
         .orderBy("created_at", "asc");
+
+      // Up to 4 talent headshots per board (content-backed preview thumbnails)
+      const allBoardIds = boards.map((b) => b.id);
+      const previewRows = allBoardIds.length
+        ? await knex("board_applications as ba")
+            .join("applications as a", "a.id", "ba.application_id")
+            .join("images as img", "img.profile_id", "a.profile_id")
+            .whereIn("ba.board_id", allBoardIds)
+            .where("img.is_primary", true)
+            .select(
+              "ba.board_id",
+              knex.raw("COALESCE(img.public_url, img.path) as url"),
+            )
+            .orderBy(["ba.board_id", "ba.created_at"])
+        : [];
+      const previewByBoard = {};
+      previewRows.forEach((r) => {
+        if (!previewByBoard[r.board_id]) previewByBoard[r.board_id] = [];
+        if (previewByBoard[r.board_id].length < 4)
+          previewByBoard[r.board_id].push(r.url);
+      });
 
       // Get application counts for each board
       const boardsWithCounts = await Promise.all(
@@ -96,6 +121,7 @@ router.get(
             application_count: parseInt(count?.count || 0),
             submitted_count: parseInt(submittedCount?.count || 0),
             booked_count: parseInt(bookedCount?.count || 0),
+            preview: previewByBoard[board.id] || [],
           };
         }),
       );
@@ -833,7 +859,6 @@ router.get(
   },
 );
 
-
 // POST /api/agency/applications/:applicationId/accept - Accept application
 router.post(
   "/api/agency/applications/:applicationId/accept",
@@ -871,6 +896,13 @@ router.post(
         "Application accepted",
         { old_status: oldStatus, new_status: "accepted" },
       );
+
+      await notifyTalentForApplicationStatus({
+        application,
+        agencyId,
+        newStatus: "accepted",
+        previousStatus: oldStatus,
+      });
 
       // Send email notification (async, non-blocking)
       (async () => {
@@ -970,6 +1002,13 @@ router.patch(
         { old_status: application.status, new_status: requestedStatus },
       );
 
+      await notifyTalentForApplicationStatus({
+        application,
+        agencyId,
+        newStatus: requestedStatus,
+        previousStatus: application.status,
+      });
+
       return res.json({
         success: true,
         data: {
@@ -1023,6 +1062,13 @@ router.post(
         "Application declined",
         { old_status: oldStatus, new_status: "declined" },
       );
+
+      await notifyTalentForApplicationStatus({
+        application,
+        agencyId,
+        newStatus: "declined",
+        previousStatus: oldStatus,
+      });
 
       // Send email notification (async, non-blocking)
       (async () => {
@@ -1274,6 +1320,13 @@ router.patch(
             bulk_operation: true,
           },
         );
+
+        await notifyTalentForApplicationStatus({
+          application,
+          agencyId,
+          newStatus: requestedStatus,
+          previousStatus: application.status,
+        });
       }
 
       return res.json({
@@ -1413,7 +1466,6 @@ router.post(
     }
   },
 );
-
 
 // GET /api/agency/me - Get current agency profile
 router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
@@ -2310,7 +2362,6 @@ router.delete(
   },
 );
 
-
 // GET /api/agency/applications/:applicationId/details - Get full application details
 router.get(
   "/api/agency/applications/:applicationId/details",
@@ -2829,35 +2880,49 @@ router.get(
 
       // Get recent applications with profile data
       const recentApplications = await knex("applications")
-        .where({ agency_id: agencyId })
+        .where({ "applications.agency_id": agencyId })
         .join("profiles", "applications.profile_id", "profiles.id")
         .join("users", "profiles.user_id", "users.id")
-        .leftJoin("board_applications", function () {
-          this.on(
-            "applications.id",
-            "=",
-            "board_applications.application_id",
-          ).andOn("board_applications.is_primary", "=", knex.raw("?", [true]));
-        })
-        .leftJoin("boards", "board_applications.board_id", "boards.id")
         .select(
           "applications.id as application_id",
           "applications.status as application_status",
           "applications.created_at as application_created_at",
+          "applications.match_score as app_match",
           "profiles.id as profile_id",
           "profiles.first_name",
           "profiles.last_name",
-          "profiles.profile_image",
           "profiles.city",
-          "profiles.country",
-          "profiles.height",
-          "profiles.age",
+          "profiles.archetype",
+          "profiles.height_cm",
+          "profiles.date_of_birth",
           "profiles.slug",
           "users.email as user_email",
-          "board_applications.match_score",
         )
         .orderBy("applications.created_at", "desc")
         .limit(limit);
+
+      // Primary headshot per profile (separate query avoids row duplication)
+      const recentPids = recentApplications.map((a) => a.profile_id);
+      const primaryImages = recentPids.length
+        ? await knex("images")
+            .whereIn("profile_id", recentPids)
+            .where({ is_primary: true })
+            .select("profile_id", "public_url", "path")
+        : [];
+      const imageByProfile = {};
+      primaryImages.forEach((im) => {
+        if (!imageByProfile[im.profile_id])
+          imageByProfile[im.profile_id] = im.public_url || im.path;
+      });
+
+      const ageFrom = (dob) => {
+        if (!dob) return null;
+        const d = new Date(dob);
+        if (Number.isNaN(d.getTime())) return null;
+        return Math.floor(
+          (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000),
+        );
+      };
 
       // Format the response
       const formatted = recentApplications.map((app) => {
@@ -2866,19 +2931,17 @@ router.get(
           new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const fullName =
           `${app.first_name || ""} ${app.last_name || ""}`.trim() || "Unknown";
-        const location =
-          [app.city, app.country].filter(Boolean).join(", ") ||
-          "Location not specified";
 
         return {
           applicationId: app.application_id,
           profileId: app.profile_id,
           name: fullName,
-          location: location,
-          height: app.height || "N/A",
-          age: app.age || "N/A",
-          profileImage: app.profile_image || "/images/default-avatar.png",
-          matchScore: app.match_score ? Math.round(app.match_score) : null,
+          archetype: app.archetype || null,
+          location: app.city || "Location not specified",
+          height: app.height_cm || null,
+          age: ageFrom(app.date_of_birth),
+          profileImage: imageByProfile[app.profile_id] || null,
+          matchScore: app.app_match ? Math.round(app.app_match) : null,
           isNew: isNew,
           slug: app.slug,
           createdAt: app.application_created_at,
@@ -3210,6 +3273,21 @@ router.get(
       const images = await knex("images")
         .where({ profile_id: profileId })
         .orderBy(["sort", "created_at"]);
+
+      const agencyId = getSessionAgencyId(req);
+      if (agencyId && profile.user_id) {
+        const agency = await knex("agencies")
+          .where({ id: agencyId })
+          .select("name")
+          .first();
+        notifyTalentAgencyProfileView({
+          userId: profile.user_id,
+          agencyId,
+          agencyName: agency?.name,
+        }).catch((err) =>
+          console.error("[Discover Preview] Notification failed:", err),
+        );
+      }
 
       return res.json({
         success: true,

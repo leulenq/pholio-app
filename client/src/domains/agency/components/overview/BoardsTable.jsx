@@ -61,7 +61,16 @@ export default function BoardsTable({ boards, stages = [] }) {
             const soon = c && /(today|tomorrow|^[123]d$)/.test(c);
             return (
               <Link key={b.id} to="/dashboard/agency/casting" className="ov-tr" role="row">
-                <span className="ov-td-name">{b.name}</span>
+                <span className="ov-td-board">
+                  {b.preview && b.preview.length > 0 && (
+                    <span className="ov-stack">
+                      {b.preview.slice(0, 4).map((u, i) => (
+                        <span key={i} className="ov-stack-av" style={{ backgroundImage: `url(${u})` }} />
+                      ))}
+                    </span>
+                  )}
+                  <span className="ov-td-name">{b.name}</span>
+                </span>
                 <span className={`ov-td-closes${soon ? ' is-soon' : ''}`}>{c || '—'}</span>
                 <span className="ov-td-num ov-td-r">{inReview}</span>
                 <span className="ov-td-num ov-td-r">{booked}</span>
