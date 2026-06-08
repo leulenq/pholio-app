@@ -1285,6 +1285,58 @@ div.ro-th {
 
 .ro-bulk-clear:hover { background: rgba(255,255,255,0.14); color: white; }
 
+/* ── Insight Signal (row name dot) ── */
+.ro-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rs-signal {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.rs-signal--attention   { background: #C0392B; }
+.rs-signal--opportunity { background: var(--ro-gold); }
+.rs-signal--growth      { background: #2D8A56; }
+
+/* ── Insight Chip (grid card) ── */
+.rs-card-signal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.rs-card-signal-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rs-card-signal--attention   .rs-card-signal-dot { background: #C0392B; }
+.rs-card-signal--opportunity .rs-card-signal-dot { background: var(--ro-gold); }
+.rs-card-signal--growth      .rs-card-signal-dot { background: #2D8A56; }
+
+.rs-card-signal-label {
+  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.rs-card-signal--attention   .rs-card-signal-label { color: #C0392B; }
+.rs-card-signal--opportunity .rs-card-signal-label { color: var(--ro-gold); }
+.rs-card-signal--growth      .rs-card-signal-label { color: #2D8A56; }
+
 /* ── Responsive ── */
 @media (max-width: 1100px) {
   .ro-page { padding: 0 24px 24px; }

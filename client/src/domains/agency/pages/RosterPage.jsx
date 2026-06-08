@@ -95,6 +95,20 @@ const ROSTER = [
   { id: '22', name: 'Marcus Lee',        gender: 'male',   type: 'runway',     status: 'available', location: 'New York',    height: 187, bust: 96,  waist: 77, hips: 93,  lastBooking: daysAgo(6),   dateAdded: new Date('2023-11-10'), tags: ['Runway', 'High Fashion', 'Menswear'],      img: u('1519631017489-f6d55b50ed4a'), email: 'marcus.l@example.com',   phone: '+1 212 555 2222', notes: 'Versatile runway model. Strong luxury and streetwear range.' },
 ];
 
+// Static mock insight data keyed by talent id.
+// Shape: { type: 'attention' | 'opportunity' | 'growth', text: string }
+const TALENT_INSIGHTS = {
+  '1':  { type: 'opportunity', text: 'Sofia has strong Paris editorial credentials but has worked exclusively in US commercial boards this quarter. Her market position may be narrowing.' },
+  '7':  { type: 'attention',   text: 'Marcus has been inactive for 4 months. A re-engagement call may revive the relationship before he explores other representation.' },
+  '8':  { type: 'opportunity', text: "Yuki is available and matches 2 active runway board briefs by profile and measurements. She hasn't been submitted to either." },
+  '9':  { type: 'growth',      text: "Chloe's profile is missing key measurements. Completing this section could improve her placement in editorial casting searches." },
+  '12': { type: 'growth',      text: "Alex's portfolio lacks editorial samples. Adding variety beyond commercial work could unlock higher-value booking opportunities." },
+  '13': { type: 'opportunity', text: 'Isabelle just completed Paris Fashion Week and is actively available. She matches 2 open runway board briefs that haven\'t been filled.' },
+  '14': { type: 'attention',   text: 'Kofi has been inactive for nearly 7 months — the longest gap on your current roster. Consider a reactivation conversation or a mutual exit.' },
+};
+
+const INSIGHT_LABEL = { attention: 'Attention', opportunity: 'Opportunity', growth: 'Growth' };
+
 // Precomputed roster-wide status counts (always over full ROSTER, not filtered view)
 const ROSTER_STATS = ROSTER.reduce(
   (acc, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; },
@@ -177,7 +191,15 @@ function RosterRow({ talent: t, isSelected, onSelect, onOpen, isActive, highligh
 
       {/* Name */}
       <div className="ro-col-name">
-        <span className="ro-name">{t.name}</span>
+        <div className="ro-name-row">
+          <span className="ro-name">{t.name}</span>
+          {TALENT_INSIGHTS[t.id] && (
+            <span
+              className={`rs-signal rs-signal--${TALENT_INSIGHTS[t.id].type}`}
+              title={TALENT_INSIGHTS[t.id].text}
+            />
+          )}
+        </div>
         <span className="ro-location"><MapPin size={10} />{t.location}</span>
       </div>
 
@@ -255,6 +277,12 @@ function RosterCard({ talent: t, isSelected, onSelect, onOpen }) {
       {/* Info */}
       <div className="ro-card-info">
         <div className="ro-card-name">{t.name}</div>
+        {TALENT_INSIGHTS[t.id] && (
+          <div className={`rs-card-signal rs-card-signal--${TALENT_INSIGHTS[t.id].type}`}>
+            <span className="rs-card-signal-dot" />
+            <span className="rs-card-signal-label">{INSIGHT_LABEL[TALENT_INSIGHTS[t.id].type]}</span>
+          </div>
+        )}
         <div className="ro-card-meta">
           <span><MapPin size={10} />{t.location}</span>
           <span>{t.height}cm</span>
@@ -337,6 +365,7 @@ const toTalentObject = (t) => !t ? null : ({
   location: t.location || null,
   measurements: { height: t.height || null, bust: t.bust || null, waist: t.waist || null, hips: t.hips || null },
   bio: t.notes || null,
+  insight: TALENT_INSIGHTS[t.id] || null,
 });
 
 // ── Main Page ─────────────────────────────────────────────────
