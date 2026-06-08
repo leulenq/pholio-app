@@ -4,11 +4,11 @@
 // Pipeline statuses arrive as display labels (Submitted, Shortlisted, Booked,
 // Passed, Declined); we key colors off the lowercased label.
 const PIPELINE_COLORS = {
-  submitted: '#c4bba8',
+  booked: '#050505',
   shortlisted: '#C9A55A',
-  booked: '#7d9b82',
-  passed: '#16130D',
-  declined: '#e3dac9',
+  submitted: '#2D2A26',
+  passed: '#6B6560',
+  declined: '#C8C2BA',
 };
 
 // The overview endpoint returns each KPI as a wrapper object, not a scalar:
@@ -104,6 +104,128 @@ export function buildNextMoves(pulse, talentMix = []) {
     });
   }
   return moves;
+}
+
+const ATTENTION_PRIORITY = ['review', 'closing', 'new', 'idle'];
+
+function attentionScore(item) {
+  let score = item.n || 0;
+  if (item.tone === 'urgent') score += 1000;
+  if (item.tone === 'positive') score += 100;
+  return score;
+}
+
+export function buildAttentionItems(kpis, pulse) {
+  return [
+    {
+      key: 'review',
+      n: kpis.pendingReview,
+      label: 'Awaiting review',
+      sub: kpis.pendingOldestDaysAgo ? `oldest ${kpis.pendingOldestDaysAgo}d` : 'all current',
+      to: '/dashboard/agency/applicants',
+      tone: (kpis.pendingOldestDaysAgo || 0) >= 14 ? 'urgent' : 'default',
+      cta: 'Review applications',
+      context: kpis.activeCastings > 0
+        ? { n: kpis.activeCastings, label: kpis.activeCastings === 1 ? 'active casting' : 'active castings' }
+        : null,
+    },
+    {
+      key: 'closing',
+      n: pulse.closingWeek,
+      label: 'Close this week',
+      sub: kpis.castingsClosingToday ? `${kpis.castingsClosingToday} today` : 'across boards',
+      to: '/dashboard/agency/casting',
+      tone: kpis.castingsClosingToday > 0 ? 'urgent' : 'default',
+      cta: 'Open casting',
+      context: kpis.activeCastings > 0
+        ? { n: kpis.activeCastings, label: 'active total' }
+        : null,
+    },
+    {
+      key: 'new',
+      n: pulse.newToday,
+      label: 'New today',
+      sub: 'awaiting triage',
+      to: '/dashboard/agency/applicants',
+      tone: 'positive',
+      cta: 'Triage inbox',
+      context: kpis.pendingReview > 0
+        ? { n: kpis.pendingReview, label: 'total pending' }
+        : null,
+    },
+    {
+      key: 'idle',
+      n: pulse.idleTalent,
+      label: 'Idle bench',
+      sub: 'unsubmitted 30d',
+      to: '/dashboard/agency/roster',
+      tone: 'default',
+      cta: 'Activate roster',
+      context: kpis.rosterSize > 0
+        ? { n: kpis.rosterSize, label: 'on roster' }
+        : null,
+    },
+  ];
+}
+
+export function pickOverviewHero(attention) {
+  const active = attention.filter((a) => a.n > 0);
+  if (!active.length) {
+    return {
+      kind: 'clear',
+      key: 'clear',
+      label: 'All caught up',
+      sub: 'No boards closing today and inbox is current.',
+      to: '/dashboard/agency/discover',
+      cta: 'Scout talent',
+      tone: 'positive',
+    };
+  }
+
+  const sorted = [...active].sort((a, b) => {
+    const toneDiff = attentionScore(b) - attentionScore(a);
+    if (toneDiff !== 0) return toneDiff;
+    return ATTENTION_PRIORITY.indexOf(a.key) - ATTENTION_PRIORITY.indexOf(b.key);
+  });
+
+  const top = sorted[0];
+  return { kind: 'action', ...top };
+}
+
+export function buildHealthStats(kpis) {
+  const rosterHint = kpis.rosterChangeThisMonth
+    ? `+${kpis.rosterChangeThisMonth} this month`
+    : null;
+  const castingHint = kpis.castingsClosingToday
+    ? `${kpis.castingsClosingToday} close today`
+    : kpis.activeCastings ? 'active now' : null;
+  const placementHint = kpis.placementLastSeason != null
+    ? `was ${kpis.placementLastSeason}%`
+    : null;
+
+  return [
+    {
+      label: 'Active castings',
+      value: kpis.activeCastings,
+      hint: castingHint,
+    },
+    {
+      label: 'Roster',
+      value: kpis.rosterSize,
+      hint: rosterHint,
+    },
+    {
+      label: 'Placement rate',
+      value: kpis.placementRate,
+      suffix: '%',
+      hint: placementHint,
+    },
+    {
+      label: 'In market',
+      value: kpis.utilization,
+      hint: kpis.utilizationPct ? `${kpis.utilizationPct}% of roster` : 'on submission',
+    },
+  ];
 }
 
 // /overview/recent-applicants returns:
