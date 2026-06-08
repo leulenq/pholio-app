@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { X, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Maximize2, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import MatchScoreBadge from './ui/MatchScoreBadge';
 import { TalentStatusBadge } from './ui/TalentStatusBadge';
 import { TalentActionBar } from './talent/TalentActionBar';
@@ -10,6 +10,7 @@ import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
 import { RosterZone } from './zones/RosterZone';
 import { OverviewZone } from './zones/OverviewZone';
+import { getTalentSiteLink } from './zones/profileHydration';
 import './TalentPanel.css';
 
 const scrollToThread = () =>
@@ -29,44 +30,52 @@ const getInitials = (name) => {
  * @param {Object} talent - { id, profileId, applicationId, name, photo, type, status, location }
  * @param {'discover'|'applicants'|'roster'|'overview'} context
  * @param {Function} onClose
- * @param {Function} onAction - (action, talent) => void. Falls back to toast if absent.
  */
 export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
   const navigate = useNavigate();
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [carouselImages, setCarouselImages] = useState(null);
+  const [profileHydrated, setProfileHydrated] = useState(null);
 
-  // Reset carousel state when a different talent is opened.
-  // Hooks must be called unconditionally; early return is after them.
+  const handleProfileHydrated = useCallback((payload) => {
+    if (!payload) return;
+    setProfileHydrated(payload);
+    if (payload.images?.length) setCarouselImages(payload.images);
+  }, []);
+
   useEffect(() => {
-    const reset = () => {
-      setCarouselIdx(0);
-      setCarouselImages(null);
-    };
-    reset();
+    setCarouselIdx(0);
+    setCarouselImages(null);
+    setProfileHydrated(null);
   }, [talent?.id]);
 
-  // Guard after hooks — callers always gate on truthy talent, but be explicit.
   if (!talent) return null;
 
   const images = carouselImages || (talent.photo ? [{ path: talent.photo, alt: talent.name }] : []);
   const multi = images.length > 1;
 
+  const bio = profileHydrated?.bio || talent.bio || null;
+  const siteLink = getTalentSiteLink({
+    isPro: profileHydrated?.isPro,
+    slug: profileHydrated?.slug || talent.slug,
+    portfolioUrl: profileHydrated?.portfolioUrl,
+  });
+  const matchScore = talent.match ?? profileHydrated?.matchScore ?? null;
+
   const renderZone = () => {
-    // setCarouselImages is a stable React state setter — safe to pass as a prop.
     switch (context) {
       case 'discover':
         return (
           <DiscoverZone
             profileId={talent.profileId}
-            onImagesLoaded={setCarouselImages}
+            onProfileHydrated={handleProfileHydrated}
           />
         );
       case 'applicants':
         return (
           <ApplicantsZone
             applicationId={talent.applicationId}
-            onImagesLoaded={setCarouselImages}
+            onProfileHydrated={handleProfileHydrated}
           />
         );
       case 'roster':
@@ -74,14 +83,15 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
           <RosterZone
             profileId={talent.profileId}
             applicationId={talent.applicationId}
-            onImagesLoaded={setCarouselImages}
+            onProfileHydrated={handleProfileHydrated}
+            insight={talent.insight}
           />
         );
       case 'overview':
         return (
           <OverviewZone
             applicationId={talent.applicationId}
-            onImagesLoaded={setCarouselImages}
+            onProfileHydrated={handleProfileHydrated}
           />
         );
       default:
@@ -105,7 +115,6 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
         exit={{ x: '100%' }}
         transition={{ type: 'spring', stiffness: 240, damping: 30, mass: 0.9 }}
       >
-        {/* ZONE A — EDITORIAL HERO */}
         <div className="tp-hero">
           {images.length > 0 ? (
             <>
@@ -174,14 +183,27 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
 
           <div className="tp-identity">
             <div className="tp-eyebrow">
-              {(talent.type || 'editorial')}{talent.location ? ` · ${talent.location}` : ''}
+              {(talent.type || talent.typeLabel || 'editorial')}{talent.location || talent.city ? ` · ${talent.location || talent.city}` : ''}
             </div>
             <h2 className="tp-name">{talent.name}</h2>
+            {bio && <p className="tp-bio">{bio}</p>}
+            {siteLink && (
+              <a
+                className="tp-site-link"
+                href={siteLink.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {siteLink.label}
+                <ArrowUpRight size={11} strokeWidth={2} aria-hidden="true" />
+              </a>
+            )}
             <div className="tp-identity-row">
               <TalentStatusBadge status={talent.status || 'available'} onDark hideDot />
-              {talent.match ? (
+              {matchScore != null ? (
                 <MatchScoreBadge
-                  score={talent.match}
+                  score={matchScore}
                   size="md"
                   tone="dark"
                   className="tp-match"
@@ -191,19 +213,17 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
           </div>
         </div>
 
-        {/* ZONE A — ACTION STRIP (part of fixed header, does not scroll) */}
         <div className="tp-action-strip">
           <TalentActionBar
             applicationId={talent.applicationId}
             profileId={talent.profileId}
-            slug={talent.slug}
+            slug={profileHydrated?.slug || talent.slug}
             status={talent.status}
             context={context}
             onMessage={scrollToThread}
           />
         </div>
 
-        {/* ZONE B — CONTEXT BODY */}
         <div className="tp-body">
           {renderZone()}
           {talent.applicationId && (

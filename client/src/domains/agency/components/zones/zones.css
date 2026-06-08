@@ -236,7 +236,7 @@
   letter-spacing: 0.1em;
 }
 
-/* Bio */
+/* Bio (full profile view) */
 .zone-bio {
   font-size: 13.5px;
   color: #4a443c;
@@ -300,40 +300,6 @@
   font-size: 12px;
   color: #64748b;
   margin-top: 6px;
-}
-
-/* Quick stats row (Overview) */
-.quick-stats {
-  display: flex;
-  margin-bottom: 26px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid #ddd5c6;
-}
-
-.quick-stat {
-  flex: 1;
-  padding: 0 18px;
-  border-left: 1px solid #e2dac9;
-  text-align: left;
-}
-.quick-stat:first-child { border-left: none; padding-left: 0; }
-
-.quick-stat-label {
-  font-size: 8.5px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: #9b9082;
-  display: block;
-  margin-bottom: 9px;
-}
-
-.quick-stat-value {
-  font-family: 'Playfair Display', serif;
-  font-size: 26px;
-  font-weight: 500;
-  color: #16130D;
-  line-height: 1;
 }
 
 /* Error state */
@@ -448,4 +414,67 @@
   padding: 0 10px;
   font-size: 12px;
   border-radius: 6px;
+}
+
+/* ── Advisory Block (Roster panel context) ── */
+.zone-advisory {
+  position: relative;
+  display: flex;
+  margin-bottom: 16px;
+  padding: 14px 16px 14px 20px;
+  border-radius: 8px;
+  background: var(--advisory-bg, rgba(201,165,90,0.06));
+  border: 1px solid var(--advisory-border, rgba(201,165,90,0.2));
+  overflow: hidden;
+}
+
+.zone-advisory-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--advisory-accent, #C9A55A);
+}
+
+.zone-advisory--attention {
+  --advisory-accent: #C0392B;
+  --advisory-bg: rgba(192,57,43,0.04);
+  --advisory-border: rgba(192,57,43,0.18);
+}
+
+.zone-advisory--opportunity {
+  --advisory-accent: #C9A55A;
+  --advisory-bg: rgba(201,165,90,0.06);
+  --advisory-border: rgba(201,165,90,0.22);
+}
+
+.zone-advisory--growth {
+  --advisory-accent: #2D8A56;
+  --advisory-bg: rgba(45,138,86,0.04);
+  --advisory-border: rgba(45,138,86,0.18);
+}
+
+.zone-advisory-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.zone-advisory-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--advisory-accent, #C9A55A);
+}
+
+.zone-advisory-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #4a443c;
+  margin: 0;
 }

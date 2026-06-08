@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchRosterProfile } from '../../api/agency';
 import { PortfolioGrid } from './PortfolioGrid';
 import { SectionSkeleton } from './SectionSkeleton';
+import { buildProfileHydration } from './profileHydration';
 import './zones.css';
 
-// Columns are flat: height_cm, bust_cm, waist_cm, hips_cm (integers in cm)
 const formatMeasurement = (val) => (val != null ? `${val} cm` : '—');
 
 const formatBookingDate = (ts) => {
@@ -18,19 +18,19 @@ const formatCurrency = (val) => {
   return `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 };
 
-export const RosterZone = ({ profileId, onImagesLoaded }) => {
+export const RosterZone = ({ profileId, onProfileHydrated, insight }) => {
   const profileQuery = useQuery({
     queryKey: ['roster-profile', profileId],
     queryFn: () => fetchRosterProfile(profileId),
     enabled: !!profileId,
   });
 
-  // Hydrate hero carousel once images are available
   useEffect(() => {
-    if (profileQuery.data?.profile?.images?.length > 0) {
-      onImagesLoaded?.(profileQuery.data.profile.images);
-    }
-  }, [profileQuery.data, onImagesLoaded]);
+    const profile = profileQuery.data?.profile;
+    if (!profile) return;
+    const hydration = buildProfileHydration(profile, profile.images);
+    if (hydration) onProfileHydrated?.(hydration);
+  }, [profileQuery.data, onProfileHydrated]);
 
   if (profileQuery.isLoading) {
     return (
@@ -55,17 +55,25 @@ export const RosterZone = ({ profileId, onImagesLoaded }) => {
 
   const { profile, bookings } = profileQuery.data || {};
   const images = profile?.images || [];
-  // Measurement columns are flat on the profile row: height_cm, bust_cm, waist_cm, hips_cm
-  const bio = profile?.bio_curated || profile?.bio_raw;
 
   return (
     <div>
-      {/* Portfolio Grid */}
+      {insight && (
+        <div className={`zone-advisory zone-advisory--${insight.type}`}>
+          <div className="zone-advisory-accent" />
+          <div className="zone-advisory-body">
+            <span className="zone-advisory-label">
+              {insight.type === 'attention' ? 'Attention' : insight.type === 'opportunity' ? 'Opportunity' : 'Growth'}
+            </span>
+            <p className="zone-advisory-text">{insight.text}</p>
+          </div>
+        </div>
+      )}
+
       <div className="zone-section">
         <PortfolioGrid images={images} />
       </div>
 
-      {/* Measurements — flat columns: height_cm, bust_cm, waist_cm, hips_cm */}
       <div className="measure-strip">
         {[
           { label: 'Height', value: profile?.height_cm },
@@ -80,7 +88,6 @@ export const RosterZone = ({ profileId, onImagesLoaded }) => {
         ))}
       </div>
 
-      {/* Booking Summary */}
       <div className="booking-summary">
         <div className="booking-stat">
           <span className="booking-stat-label">Last Booking</span>
@@ -95,14 +102,6 @@ export const RosterZone = ({ profileId, onImagesLoaded }) => {
           <span className="booking-stat-value">{formatCurrency(bookings?.commission_earned)}</span>
         </div>
       </div>
-
-      {/* Bio */}
-      {bio && (
-        <div className="zone-section">
-          <div className="zone-section-header">Bio</div>
-          <p className="zone-bio">{bio}</p>
-        </div>
-      )}
     </div>
   );
 };
