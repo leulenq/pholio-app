@@ -7,9 +7,9 @@ import { useBoards, useAgencyActivity } from '../hooks/useOverviewModules';
 import {
   selectKpis, selectPipeline, selectPulse, selectTalentMix,
   buildNextMoves, mapApplicant,
+  buildAttentionItems, pickOverviewHero,
 } from '../components/overview/overviewData';
-import StatLedger from '../components/overview/StatLedger';
-import AttentionStrip from '../components/overview/AttentionStrip';
+import OverviewPulse from '../components/overview/OverviewPulse';
 import BoardsTable from '../components/overview/BoardsTable';
 import ActivityFeed from '../components/overview/ActivityFeed';
 import NextMoves from '../components/overview/NextMoves';
@@ -26,7 +26,7 @@ function greeting() {
 export default function OverviewPage() {
   const [selected, setSelected] = useState(null);
   const { data: overview } = useAgencyOverview();
-  const { data: applicants = [] } = useRecentApplicants(12);
+  const { data: applicants = [] } = useRecentApplicants(24);
   const { data: boards = [] } = useBoards();
   const { data: activity = [] } = useAgencyActivity(7);
   const { data: profile } = useQuery({ queryKey: ['agency-profile'], queryFn: getAgencyProfile, staleTime: 5 * 60 * 1000 });
@@ -37,7 +37,7 @@ export default function OverviewPage() {
   const talentMix = selectTalentMix(overview);
   const nextMoves = buildNextMoves(pulse, talentMix);
   const incoming = applicants.map(mapApplicant);
-  const topMatches = [...incoming].sort((a, b) => (b.match || 0) - (a.match || 0)).slice(0, 10);
+  const topMatches = [...incoming].sort((a, b) => (b.match || 0) - (a.match || 0)).slice(0, 20);
   const firstName = profile?.first_name || 'there';
 
   const sublineParts = [
@@ -47,19 +47,9 @@ export default function OverviewPage() {
   ].filter(Boolean);
   const subline = sublineParts.length ? sublineParts.join('   ·   ') : 'Your roster is all caught up.';
 
-  const ledger = [
-    { label: 'Active Castings', value: kpis.activeCastings, delta: kpis.castingsClosingToday ? `${kpis.castingsClosingToday} close today` : 'none closing', deltaTone: 'gold' },
-    { label: 'Roster Size', value: kpis.rosterSize, delta: kpis.rosterChangeThisMonth ? `↑ ${kpis.rosterChangeThisMonth} this month` : 'steady', deltaTone: 'up' },
-    { label: 'Placement Rate', value: kpis.placementRate, suffix: '%', delta: kpis.placementLastSeason != null ? `from ${kpis.placementLastSeason}%` : null, deltaTone: 'up' },
-    { label: 'In Market', value: kpis.utilization, delta: 'on submission', deltaTone: 'neutral' },
-  ];
-
-  const attention = [
-    { key: 'review', n: kpis.pendingReview, label: 'Awaiting review', sub: kpis.pendingOldestDaysAgo ? `oldest ${kpis.pendingOldestDaysAgo}d` : 'all current', to: '/dashboard/agency/applicants', tone: (kpis.pendingOldestDaysAgo || 0) >= 14 ? 'urgent' : 'default' },
-    { key: 'closing', n: pulse.closingWeek, label: 'Close this week', sub: kpis.castingsClosingToday ? `${kpis.castingsClosingToday} today` : 'across boards', to: '/dashboard/agency/casting', tone: kpis.castingsClosingToday > 0 ? 'urgent' : 'default' },
-    { key: 'new', n: pulse.newToday, label: 'New today', sub: 'awaiting triage', to: '/dashboard/agency/applicants', tone: 'positive' },
-    { key: 'idle', n: pulse.idleTalent, label: 'Idle bench', sub: 'unsubmitted 30d', to: '/dashboard/agency/roster', tone: 'default' },
-  ];
+  const attention = buildAttentionItems(kpis, pulse);
+  const hero = pickOverviewHero(attention);
+  const pulseActions = attention.filter((a) => a.key !== hero.key && a.n > 0);
 
   return (
     <motion.div className="ov-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -70,8 +60,7 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <StatLedger stats={ledger} />
-      <AttentionStrip items={attention} />
+      <OverviewPulse hero={hero} actions={pulseActions} />
       <TalentStrip
         title="Top matches today"
         talents={topMatches}
