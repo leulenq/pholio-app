@@ -15,6 +15,7 @@ import {
 import { TalentTypePill } from '../components/ui/TalentTypePill';
 import { TalentStatusBadge } from '../components/ui/TalentStatusBadge';
 import { TalentPanel } from '../components/TalentPanel';
+import RosterIntelligenceStrip from '../components/roster/RosterIntelligenceStrip';
 import './RosterPage.css';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -93,6 +94,12 @@ const ROSTER = [
   { id: '21', name: 'Aria Kessler',      gender: 'female', type: 'plus',       status: 'booking',   location: 'Berlin',      height: 172, bust: 105, waist: 84, hips: 113, lastBooking: daysAgo(1),   dateAdded: new Date('2024-02-28'), tags: ['Plus', 'Editorial', 'Body Positive'],      img: u('1522337360801-87f68b78db42'), email: 'aria.k@example.com',     phone: '+49 30 555 2121', notes: 'On booking for H&M body positive campaign.' },
   { id: '22', name: 'Marcus Lee',        gender: 'male',   type: 'runway',     status: 'available', location: 'New York',    height: 187, bust: 96,  waist: 77, hips: 93,  lastBooking: daysAgo(6),   dateAdded: new Date('2023-11-10'), tags: ['Runway', 'High Fashion', 'Menswear'],      img: u('1519631017489-f6d55b50ed4a'), email: 'marcus.l@example.com',   phone: '+1 212 555 2222', notes: 'Versatile runway model. Strong luxury and streetwear range.' },
 ];
+
+// Precomputed roster-wide status counts (always over full ROSTER, not filtered view)
+const ROSTER_STATS = ROSTER.reduce(
+  (acc, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; },
+  { available: 0, booking: 0, hold: 0, inactive: 0 },
+);
 
 // ── NL Intent Parser ──────────────────────────────────────────
 function parseIntent(q) {
@@ -392,16 +399,57 @@ export default function RosterPage() {
   const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
 
   return (
-    <div className={`ro-page${activePanel ? ' ro-page--panel-open' : ''}`}>
+    <motion.div
+      className={`ro-page${activePanel ? ' ro-page--panel-open' : ''}`}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+    >
 
-      {/* ── Command Bar ── */}
+      {/* ── Page Header ── */}
+      <header className="rs-header">
+        <div>
+          <span className="rs-eyebrow">Signed Talent</span>
+          <h1 className="rs-title">Roster</h1>
+          <p className="rs-subline">
+            {ROSTER_STATS.available} available&nbsp;&nbsp;·&nbsp;&nbsp;
+            {ROSTER_STATS.booking} on booking&nbsp;&nbsp;·&nbsp;&nbsp;
+            {ROSTER_STATS.hold} on hold&nbsp;&nbsp;·&nbsp;&nbsp;
+            {ROSTER_STATS.inactive} inactive
+          </p>
+        </div>
+        <button className="rs-add-btn">
+          <Plus size={15} />Add Talent
+        </button>
+      </header>
+
+      {/* ── Stat Ledger ── */}
+      <div className="rs-ledger">
+        {[
+          { label: 'Available',  value: ROSTER_STATS.available, tone: 'positive' },
+          { label: 'On Booking', value: ROSTER_STATS.booking,   tone: 'gold'     },
+          { label: 'On Hold',    value: ROSTER_STATS.hold,      tone: 'neutral'  },
+          { label: 'Inactive',   value: ROSTER_STATS.inactive,  tone: 'mute'     },
+        ].map((s, i) => (
+          <motion.div
+            key={s.label}
+            className={`rs-stat rs-stat--${s.tone}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 + i * 0.07, duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <span className="rs-stat-num">{s.value}</span>
+            <span className="rs-stat-label">{s.label}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* ── AI Intelligence Strip ── */}
+      <RosterIntelligenceStrip />
+
+      {/* ── Command Bar (search + filters) ── */}
       <div className="ro-command-bar">
         <div className="ro-command-left">
-          <div className="flex flex-col mr-6">
-            <h1 className="ro-page-title m-0">Talent Roster</h1>
-            <span className="text-[10px] font-bold text-[#C9A55A] uppercase tracking-[0.1em] mt-0.5 ml-0.5">NATYGEN MODELS</span>
-          </div>
-          
           {/* Search */}
           <div className="ro-search-wrap">
             <Search size={15} className="ro-search-icon" />
@@ -425,26 +473,21 @@ export default function RosterPage() {
 
           {/* View toggle */}
           <div className="flex items-center gap-1 p-1 bg-[#f0ede8] rounded-md">
-            <button 
+            <button
               className={`p-1.5 rounded-md transition-all ${view === 'rows' ? 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-              onClick={() => setView('rows')} 
+              onClick={() => setView('rows')}
               title="Compact rows"
             >
               <Rows size={16} strokeWidth={2.4} />
             </button>
-            <button 
-              className={`p-1.5 rounded-md transition-all ${view === 'grid' ? 'active bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-              onClick={() => setView('grid')} 
+            <button
+              className={`p-1.5 rounded-md transition-all ${view === 'grid' ? 'bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+              onClick={() => setView('grid')}
               title="Card grid"
             >
               <LayoutGrid size={16} strokeWidth={2.4} />
             </button>
           </div>
-
-          {/* Add talent */}
-          <button className="ro-add-btn">
-            <Plus size={15} />Add Talent
-          </button>
         </div>
       </div>
 
@@ -584,6 +627,6 @@ export default function RosterPage() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

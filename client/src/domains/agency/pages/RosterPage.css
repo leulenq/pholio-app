@@ -25,6 +25,114 @@
   --ro-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ── Page Header ── */
+.rs-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 8px 0 20px;
+}
+
+.rs-eyebrow {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ag-gold);
+  font-weight: 600;
+  margin-bottom: 9px;
+  font-family: var(--ag-font-body);
+}
+
+.rs-title {
+  font-family: var(--ag-font-display);
+  font-size: 34px;
+  color: #16130D;
+  line-height: 1.02;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.rs-subline {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9b9082;
+  margin: 11px 0 0;
+  font-family: var(--ag-font-body);
+}
+
+.rs-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #16130D;
+  color: #FAF8F5;
+  border: 1px solid #16130D;
+  border-radius: 6px;
+  padding: 11px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: var(--ag-font-body);
+  box-shadow: 0 8px 20px rgba(20, 18, 14, 0.16);
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.rs-add-btn:hover {
+  background: var(--ag-gold);
+  border-color: var(--ag-gold);
+  color: #16130D;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(184, 149, 106, 0.3);
+}
+
+/* ── Stat Ledger ── */
+.rs-ledger {
+  display: flex;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2dac9;
+}
+
+.rs-stat {
+  flex: 0 0 auto;
+  padding: 0 32px;
+  border-left: 1px solid #e2dac9;
+}
+
+.rs-stat:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.rs-stat-num {
+  font-family: var(--ag-font-display);
+  font-size: 36px;
+  color: #16130D;
+  line-height: 1;
+  display: block;
+}
+
+.rs-stat-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9b9082;
+  margin-top: 10px;
+  display: block;
+  font-family: var(--ag-font-body);
+}
+
+.rs-stat--positive .rs-stat-num { color: #2D8A56; }
+.rs-stat--gold     .rs-stat-num { color: var(--ag-gold); }
+.rs-stat--neutral  .rs-stat-num { color: #16130D; }
+.rs-stat--mute     .rs-stat-num { color: #b3a89a; }
+
 /* ── Page Shell ── */
 .ro-page {
   display: flex;
@@ -48,7 +156,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 20px 0 16px;
+  padding: 12px 0 12px;
   border-bottom: 1px solid var(--ro-border);
   flex-shrink: 0;
 }
