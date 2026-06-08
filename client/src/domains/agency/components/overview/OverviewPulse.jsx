@@ -13,7 +13,7 @@ function PriorityBand({ hero }) {
         <div className="ov-pulse-priority-main ov-pulse-priority-main--clear">
           <div className="ov-pulse-priority-copy">
             <span className="ov-pulse-priority-headline">{hero.label}</span>
-            <span className="ov-pulse-priority-sub">{hero.sub}</span>
+            {hero.sub && <span className="ov-pulse-priority-sub">{hero.sub}</span>}
             {hero.to && (
               <Link to={hero.to} className="ov-pulse-priority-cta">
                 {hero.cta} <ArrowUpRight size={12} strokeWidth={1.75} aria-hidden="true" />
@@ -52,7 +52,7 @@ function PriorityBand({ hero }) {
   );
 }
 
-export default function OverviewPulse({ hero, actions }) {
+export default function OverviewPulse({ hero, actions = [] }) {
   return (
     <motion.section
       className="ov-module ov-pulse"
