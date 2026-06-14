@@ -23,6 +23,13 @@ export const PROFILE_SOCIAL_FIELD_CONFIG = {
   video_reel_url: { base: '', prefix: '' },
 };
 
+export const AGENCY_SOCIAL_FIELD_CONFIG = {
+  agency_instagram_handle: { base: 'https://instagram.com/', prefix: '@' },
+  agency_tiktok_handle: { base: 'https://tiktok.com/@', prefix: '@' },
+  agency_twitter_handle: { base: 'https://x.com/', prefix: '@' },
+  agency_youtube_handle: { base: 'https://youtube.com/', prefix: '' },
+};
+
 /**
  * Normalize a social / portfolio field value (same rules as SocialInput blur handler).
  * @param {string|null|undefined} rawValue
@@ -67,4 +74,23 @@ export function normalizeProfileSocialFields(values, setValue) {
   }
 
   return changed;
+}
+
+/**
+ * Apply blur-time normalization for agency social fields.
+ * @returns {Record<string, string|null>} normalized values (empty strings → null)
+ */
+export function normalizeAgencySocialFields(values) {
+  const out = { ...values };
+
+  for (const [field, config] of Object.entries(AGENCY_SOCIAL_FIELD_CONFIG)) {
+    const current = out[field];
+    if (current == null || String(current).trim() === '') {
+      out[field] = null;
+      continue;
+    }
+    out[field] = normalizeSocialFieldValue(current, config) || null;
+  }
+
+  return out;
 }

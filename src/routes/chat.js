@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Groq = require("groq-sdk");
+const config = require("../config");
 const knex = require("../shared/db/knex");
 const { v4: uuidv4 } = require("uuid");
 const { requireRole } = require("../domains/auth/middleware/require-auth");
@@ -226,10 +227,10 @@ router.post(
         },
       ];
 
-      // Call Groq API with Maverick model
+      // Call Groq API (text model — configurable via GROQ_TEXT_MODEL)
       const completion = await groq.chat.completions.create({
         messages: messages,
-        model: "meta-llama/llama-4-maverick-17b-128e-instruct", // Maverick model for onboarding
+        model: config.groq.textModel,
         temperature: 1,
         max_completion_tokens: 1024,
         top_p: 1,

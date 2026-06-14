@@ -1,5 +1,4 @@
-import MatchScoreRing from './ui/MatchScoreRing';
-import { TalentTypePill } from './ui/TalentTypePill';
+import MatchScore from './ui/MatchScore';
 
 export default function KanbanCard({ application, onClick, isSelected }) {
   const { name, photo, type, match_score } = application;
@@ -11,16 +10,16 @@ export default function KanbanCard({ application, onClick, isSelected }) {
     >
       <img src={photo || '/placeholder-avatar.png'} alt={name} className="ag-kanban-card__avatar" />
       <div className="ag-kanban-card__info">
-        <span className="ag-kanban-card__name">{name}</span>
-        <div className="ag-kanban-card__meta">
-          <TalentTypePill type={type} size="sm" />
+        <div className="ag-kanban-card__name-row">
+          <span className="ag-kanban-card__name">{name}</span>
+          {match_score != null && <MatchScore score={match_score} size="xs" />}
         </div>
+        {type && (
+          <div className="ag-kanban-card__meta">
+            <span className="ag-kanban-card__type">{type}</span>
+          </div>
+        )}
       </div>
-      {match_score != null && (
-        <div className="ag-kanban-card__score">
-          <MatchScoreRing score={match_score} size="sm" />
-        </div>
-      )}
     </div>
   );
 }

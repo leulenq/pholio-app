@@ -12,7 +12,10 @@
  */
 exports.up = async function up(knex) {
   // Enable pgvector extension (required for VECTOR type)
-  await knex.raw('CREATE EXTENSION IF NOT EXISTS vector;');
+  const isPostgres = knex.client.config.client === 'pg' || knex.client.config.client === 'postgresql';
+  if (isPostgres) {
+    await knex.raw('CREATE EXTENSION IF NOT EXISTS vector;');
+  }
   
   await knex.schema.table('profiles', (table) => {
     table.decimal('vibe_score', 3, 1).nullable().comment('AI-calculated vibe score (0-10)');

@@ -1,20 +1,25 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
+const EASE = [0.16, 1, 0.3, 1];
+
 export default function TalentSpotlight() {
   return (
-    <div style={{
-      position: 'absolute',
-      inset: 0,
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'flex-end',
-      background: '#0a0a0a',
-    }}>
-      {/* Stock Photo Background */}
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '48px 56px',
+        background: '#0A0908',
+      }}
+    >
+      {/* Editorial photo */}
       <img
-        src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=2070&auto=format&fit=crop"
+        src="https://images.unsplash.com/photo-1697395156382-28715ad30ca9?q=80&w=1400&auto=format&fit=crop"
         alt=""
         style={{
           position: 'absolute',
@@ -22,193 +27,165 @@ export default function TalentSpotlight() {
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          objectPosition: 'center top',
+          objectPosition: 'center',
+          filter: 'saturate(0.82) contrast(1.04) brightness(0.92)',
         }}
       />
 
-      {/* Dark Overlay for Contrast */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.4)',
-        zIndex: 1,
-      }} />
+      {/* Tonal wash for legibility */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(105deg, rgba(10,9,8,0.74) 0%, rgba(10,9,8,0.30) 48%, rgba(10,9,8,0.55) 100%)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(to top, rgba(10,9,8,0.88) 0%, rgba(10,9,8,0.10) 40%, transparent 70%)',
+        }}
+      />
+      {/* Soft gold light streak */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-20%',
+          right: '-10%',
+          width: '90%',
+          height: '140%',
+          background:
+            'linear-gradient(135deg, rgba(201,165,90,0.07) 0%, transparent 55%)',
+          transform: 'rotate(-14deg)',
+          pointerEvents: 'none',
+        }}
+      />
 
-      {/* Gradient Overlay */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'linear-gradient(to top, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.4) 40%, transparent 80%)',
-        zIndex: 2,
-      }} />
+      {/* Logo */}
+      <motion.a
+        href="/"
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: EASE }}
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          fontFamily: "var(--ag-font-serif, 'Playfair Display', serif)",
+          fontWeight: 400,
+          letterSpacing: '0.32em',
+          color: '#C9A55A',
+          fontSize: '15px',
+          textTransform: 'uppercase',
+          textDecoration: 'none',
+          alignSelf: 'flex-start',
+        }}
+      >
+        Pholio
+      </motion.a>
 
-      {/* Decorative diagonal light streaks */}
-      <div style={{
-        position: 'absolute',
-        top: '-15%',
-        right: '-5%',
-        width: '100%',
-        height: '140%',
-        background: 'linear-gradient(135deg, rgba(184,149,106,0.06) 0%, transparent 60%)',
-        transform: 'rotate(-12deg)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute',
-        top: '-25%',
-        right: '-15%',
-        width: '100%',
-        height: '140%',
-        background: 'linear-gradient(135deg, rgba(184,149,106,0.03) 0%, transparent 50%)',
-        transform: 'rotate(-25deg)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Bottom Content */}
-      <div style={{ position: 'relative', zIndex: 10, padding: '56px' }}>
-        {/* Brand Name */}
+      {/* Headline */}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
+        }}
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          margin: '0 0 5vh',
+          maxWidth: '14ch',
+        }}
+      >
+        {/* Eyebrow */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <p style={{ 
-            fontSize: '11px', 
-            color: '#B8956A', 
-            letterSpacing: '0.2em', 
-            textTransform: 'uppercase', 
-            marginBottom: '16px',
-            fontWeight: 700,
-            fontFamily: "var(--ag-font-sans, 'Inter', sans-serif)"
-          }}>
-            Pholio.studio
-          </p>
-          <h2 style={{ 
-            fontFamily: "var(--ag-font-serif, 'Playfair Display', Georgia, serif)",
-            fontSize: 'clamp(2rem, 3.5vw, 3rem)', 
-            color: '#FFFFFF', 
-            fontWeight: 400, 
-            lineHeight: 1.1,
-            marginBottom: '20px',
-            letterSpacing: '-0.02em',
-          }}>
-            The Standard for <br />
-            <span style={{ fontStyle: 'italic' }}>Modern Industry.</span>
-          </h2>
-          <p style={{ 
-            fontSize: '15px', 
-            color: 'rgba(255,255,255,0.7)', 
-            maxWidth: '520px', 
-            lineHeight: 1.6,
-            marginBottom: '16px',
-            fontFamily: "var(--ag-font-sans, 'Inter', sans-serif)"
-          }}>
-            Bridge the gap between ambitious creativity and surgical precision. 
-            Whether you are defining a prestige portfolio or curating the next 
-            generation of excellence, Pholio is your definitive competitive edge.
-          </p>
-          <p style={{ 
-            fontSize: '13px', 
-            color: 'rgba(255,255,255,0.4)', 
-            marginBottom: '40px',
-            fontFamily: "var(--ag-font-sans, 'Inter', sans-serif)"
-          }}>
-            A community of <span style={{ color: '#B8956A', fontWeight: 600 }}>2,000+</span> luxury partners
-          </p>
-        </motion.div>
-
-        {/* Glassmorphic Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          variants={{
+            hidden: { opacity: 0, y: 14 },
+            visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
+          }}
           style={{
-            background: 'rgba(255,255,255,0.04)',
-            backdropFilter: 'blur(32px)',
-            WebkitBackdropFilter: 'blur(32px)',
-            border: '1px solid rgba(184,149,106,0.15)',
-            borderRadius: '16px',
-            padding: '32px',
-            maxWidth: '460px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            marginBottom: '26px',
           }}
         >
-          <h3 style={{ 
-            fontFamily: "var(--ag-font-serif, 'Playfair Display', Georgia, serif)",
-            fontSize: '1.35rem', 
-            color: '#FFFFFF', 
-            fontWeight: 400, 
-            lineHeight: 1.3,
-            marginBottom: '16px',
-          }}>
-            "Pholio has redefined the professional relationship. It brings a new level of clarity and prestige to every interaction."
-          </h3>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <p style={{ 
-                fontSize: '13px', 
-                color: '#FFFFFF', 
-                fontWeight: 600,
-                fontFamily: "var(--ag-font-sans, 'Inter', sans-serif)"
-              }}>
-                Sarah Jenkins
-              </p>
-              <p style={{ 
-                fontSize: '11px', 
-                color: 'rgba(255,255,255,0.4)', 
-                fontFamily: "var(--ag-font-sans, 'Inter', sans-serif)",
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                Creative Director, Nexus
-              </p>
-            </div>
-            {/* Avatar Stack */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {[
-                'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=80&h=80&fit=crop&crop=face',
-                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face',
-                'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face',
-              ].map((src, i) => (
-                <div 
-                  key={i}
-                  style={{ 
-                    width: '38px', 
-                    height: '38px', 
-                    borderRadius: '50%', 
-                    overflow: 'hidden',
-                    border: '2px solid #0A0A0A',
-                    marginLeft: i > 0 ? '-12px' : '0',
-                    position: 'relative',
-                    zIndex: 3 - i,
-                  }}
-                >
-                  <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-              ))}
-              <div style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                background: 'rgba(184,149,106,0.3)',
-                border: '2px solid #0A0A0A',
-                marginLeft: '-12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '10px',
-                fontWeight: 800,
-                color: '#B8956A',
-                backdropFilter: 'blur(4px)'
-              }}>
-                2k+
-              </div>
-            </div>
-          </div>
+          <span
+            style={{
+              width: '40px',
+              height: '1px',
+              background: 'rgba(201,165,90,0.7)',
+            }}
+          />
+          <span
+            style={{
+              fontFamily: "var(--ag-font-sans, 'Inter', sans-serif)",
+              fontSize: '12px',
+              fontWeight: 600,
+              letterSpacing: '0.32em',
+              textTransform: 'uppercase',
+              color: '#D8BE86',
+            }}
+          >
+            The Talent Platform
+          </span>
         </motion.div>
-      </div>
+
+        {/* Display headline — mixed roman / italic accent */}
+        <motion.h1
+          variants={{
+            hidden: { opacity: 0, y: 22 },
+            visible: { opacity: 1, y: 0, transition: { duration: 0.95, ease: EASE } },
+          }}
+          style={{
+            margin: 0,
+            fontFamily:
+              "var(--font-display, 'Noto Serif Display'), 'Playfair Display', Georgia, serif",
+            fontWeight: 500,
+            fontSize: 'clamp(3.25rem, 6vw, 6rem)',
+            lineHeight: 0.98,
+            letterSpacing: '-0.035em',
+            color: '#FBF8F3',
+            textShadow: '0 2px 40px rgba(0,0,0,0.45)',
+          }}
+        >
+          Where careers
+          <br />
+          are{' '}
+          <span
+            style={{
+              fontStyle: 'italic',
+              fontWeight: 500,
+              color: '#E7CF9C',
+            }}
+          >
+            made
+          </span>
+          <span style={{ color: '#C9A55A' }}>.</span>
+        </motion.h1>
+      </motion.div>
+
+      {/* Copyright */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.4, ease: EASE }}
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          margin: 0,
+          fontSize: '11px',
+          letterSpacing: '0.04em',
+          color: 'rgba(255,255,255,0.42)',
+          fontFamily: "var(--ag-font-sans, 'Inter', sans-serif)",
+        }}
+      >
+        &copy; {new Date().getFullYear()} Pholio. All rights reserved.
+      </motion.p>
     </div>
   );
 }
-
-

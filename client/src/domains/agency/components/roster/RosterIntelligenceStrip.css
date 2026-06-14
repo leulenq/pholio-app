@@ -1,173 +1,139 @@
 /* ============================================================
-   Roster Intelligence Strip — AI Advisory Surface
-   Collapsible section between stat ledger and command bar.
+   Roster Intelligence Strip — always-open editorial advisory
    ============================================================ */
 
 .rs-intel {
-  border: 1px solid var(--ag-border);
-  border-radius: var(--ag-radius-lg);
-  background: var(--ag-surface-1);
-  overflow: hidden;
-  margin-bottom: 16px;
-  box-shadow: var(--ag-shadow-sm);
+  margin-bottom: 20px;
 }
 
-.rs-intel-header {
+.rs-intel-eyebrow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 11px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  transition: background var(--ag-duration) var(--ag-ease);
+  gap: 7px;
+  margin-bottom: 11px;
 }
 
-.rs-intel-header:hover {
-  background: var(--ag-surface-2);
-}
-
-.rs-intel-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rs-intel-sparkle {
-  color: var(--ag-gold);
+.rs-intel-spark {
+  color: #C9A55A;
   flex-shrink: 0;
 }
 
 .rs-intel-label {
-  font-family: var(--ag-font-body);
+  font-family: 'Inter', sans-serif;
   font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ag-text-2);
+  letter-spacing: 0.18em;
+  color: #9b9082;
 }
 
-.rs-intel-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  background: var(--ag-gold-muted);
+.rs-intel-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #C9A55A;
+  background: rgba(201, 165, 90, 0.1);
+  border: 1px solid rgba(201, 165, 90, 0.18);
   border-radius: 100px;
-  font-family: var(--ag-font-body);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--ag-gold);
+  padding: 1px 8px;
 }
 
-.rs-intel-chevron {
-  color: var(--ag-text-3);
-  flex-shrink: 0;
-  transition: transform 0.2s var(--ag-ease);
-}
-
-.rs-intel-chevron--open {
-  transform: rotate(180deg);
-}
-
-.rs-intel-cards {
+/* 3-column grid — cards sit edge to edge */
+.rs-intel-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--ag-border);
-  overflow: hidden;
+  gap: 10px;
 }
 
-.rs-intel-card {
+/* Individual signal card */
+.rs-signal-card {
   position: relative;
   display: flex;
-  background: var(--card-bg, var(--ag-surface-1));
   padding: 16px 18px 18px 22px;
-  border-right: 1px solid var(--ag-border);
-  transition: background var(--ag-duration) var(--ag-ease);
+  border-radius: 8px;
+  background: var(--sig-bg);
+  border: 1px solid var(--sig-border);
+  overflow: hidden;
+  cursor: default;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.rs-intel-card:last-child {
-  border-right: none;
+.rs-signal-card:hover {
+  background: color-mix(in srgb, var(--sig-bg) 80%, white 20%);
 }
 
-.rs-intel-card:hover {
-  background: var(--ag-surface-2);
-}
-
-.rs-intel-card-accent {
+/* Colored left accent bar */
+.rs-signal-bar {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--card-accent, var(--ag-gold));
-  border-radius: 0 1px 1px 0;
+  background: var(--sig-accent);
+  border-radius: 0 1.5px 1.5px 0;
 }
 
-.rs-intel-card-body {
+.rs-signal-content {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
 }
 
-.rs-intel-card-type {
-  font-family: var(--ag-font-body);
-  font-size: 9px;
-  font-weight: 700;
+.rs-signal-type {
+  font-family: 'Inter', sans-serif;
+  font-size: 8.5px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--card-accent, var(--ag-gold));
+  letter-spacing: 0.18em;
+  color: var(--sig-accent);
 }
 
-.rs-intel-card-title {
-  font-family: var(--ag-font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ag-text-0);
+.rs-signal-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #16130D;
   line-height: 1.3;
+  margin: 1px 0 0;
 }
 
-.rs-intel-card-text {
-  font-family: var(--ag-font-body);
+.rs-signal-text {
+  font-family: 'Inter', sans-serif;
   font-size: 11.5px;
   line-height: 1.58;
-  color: var(--ag-text-2);
+  color: #5a544d;
   margin: 2px 0 0;
 }
 
-.rs-intel-card-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  font-family: var(--ag-font-body);
-  font-size: 9.5px;
+.rs-signal-cta {
+  margin-top: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--card-accent, var(--ag-gold));
+  letter-spacing: 0.1em;
+  color: var(--sig-accent);
+  background: none;
+  border: none;
   cursor: pointer;
   padding: 0;
-  margin-top: 6px;
+  text-align: left;
+  transition: opacity 0.15s;
   align-self: flex-start;
-  transition: opacity var(--ag-duration-fast) var(--ag-ease);
 }
 
-.rs-intel-card-cta:hover {
-  opacity: 0.65;
-}
+.rs-signal-cta:hover { opacity: 0.65; }
 
 @media (max-width: 1100px) {
-  .rs-intel-cards {
+  .rs-intel-grid {
     grid-template-columns: 1fr 1fr;
   }
-  .rs-intel-card:nth-child(2) {
-    border-right: none;
+}
+
+@media (max-width: 700px) {
+  .rs-intel-grid {
+    grid-template-columns: 1fr;
   }
 }

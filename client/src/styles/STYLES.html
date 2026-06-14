@@ -1,0 +1,1652 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pholio Client Styling Reference</title>
+  <style>
+    /* ==========================================================================
+       Inlined from global.css so this file can be opened directly.
+       ========================================================================== */
+    :root {
+      --font-serif: 'Noto Serif Display', 'Times New Roman', serif;
+      --font-sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      --color-bg: #faf9f7;
+      --color-text: #0f172a;
+      --color-muted: #475569;
+      --color-border: rgba(15, 23, 42, 0.1);
+      --color-accent: #C9A55A;
+      --max-width: 1240px;
+      --header-height: 80px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+      scroll-behavior: smooth;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+
+    body {
+      margin: 0;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 4px;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+    }
+
+    .lucide {
+      flex-shrink: 0;
+    }
+
+    button > .lucide:only-child,
+    a > .lucide:only-child {
+      display: block;
+      pointer-events: none;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -999px;
+      top: -999px;
+      background: var(--color-text);
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      z-index: 1000;
+    }
+
+    .skip-link:focus {
+      left: 1.5rem;
+      top: 1.5rem;
+    }
+
+    .container {
+      width: min(90%, var(--max-width));
+      margin: 0 auto;
+    }
+
+    .button,
+    :where(body:not(.is-agency)) button,
+    :where(body:not(.is-agency)) input[type="submit"] {
+      font-family: var(--font-sans);
+      border: none;
+      border-radius: 999px;
+      padding: 0.75rem 1.75rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: transform 220ms ease, box-shadow 220ms ease, background 220ms ease;
+    }
+
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    :where(body:not(.is-agency)) table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    :where(body:not(.is-agency)) table th,
+    :where(body:not(.is-agency)) table td {
+      padding: 0.9rem 0.75rem;
+      border-bottom: 1px solid var(--color-border);
+      text-align: left;
+    }
+
+    :where(body) input[type="text"],
+    :where(body) input[type="email"],
+    :where(body) input[type="password"],
+    :where(body) input[type="tel"],
+    :where(body) input[type="number"],
+    :where(body) textarea,
+    :where(body) select {
+      width: 100%;
+      height: 44px;
+      padding: 10px 14px;
+      background: #FFFFFF;
+      border: 1px solid rgba(26, 24, 21, 0.12);
+      border-radius: 8px;
+      font-family: var(--ag-font-body, 'Inter', sans-serif);
+      font-size: 14px;
+      font-weight: 400;
+      color: #1A1815;
+      box-shadow: 0 1px 2px rgba(26, 24, 21, 0.04) inset;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    :where(body) textarea {
+      min-height: 120px;
+      resize: none;
+      height: auto;
+    }
+
+    :where(body) input:focus,
+    :where(body) textarea:focus,
+    :where(body) select:focus {
+      background: #FFFFFF;
+      border-color: #C9A55A;
+      box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15), 0 1px 2px rgba(26, 24, 21, 0.04) inset;
+    }
+
+    :where(body) input:hover:not(:focus),
+    :where(body) textarea:hover:not(:focus),
+    :where(body) select:hover:not(:focus) {
+      border-color: rgba(26, 24, 21, 0.22);
+    }
+
+    :where(body) input::placeholder,
+    :where(body) textarea::placeholder {
+      color: #A39E99;
+      opacity: 1;
+    }
+
+    :where(body:not(.is-agency)) form {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    :where(body:not(.is-agency)) label {
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(15, 23, 42, 0.65);
+    }
+
+    /* ==========================================================================
+       Standalone visualization styles.
+       ========================================================================== */
+    :root {
+      --viz-ink: #171412;
+      --viz-ink-soft: #5d5650;
+      --viz-paper: #fffdfa;
+      --viz-line: rgba(26, 24, 21, 0.12);
+      --viz-line-strong: rgba(26, 24, 21, 0.2);
+      --viz-gold: #C9A55A;
+      --viz-gold-dark: #8f6f2f;
+      --viz-blue: #2f6f91;
+      --viz-green: #2f7d59;
+      --viz-plum: #5d4767;
+      --viz-red: #b4473d;
+      --viz-radius: 8px;
+      --viz-shadow: 0 18px 40px rgba(23, 20, 18, 0.08);
+      --ag-surface-1: #ffffff;
+      --ag-text-0: #1A1815;
+      --ag-text-2: #6B6560;
+      --ag-text-3: #9C958E;
+      --ag-font-display: Georgia, 'Times New Roman', serif;
+      --ag-font-body: var(--font-sans);
+    }
+
+    .viz-body {
+      background:
+        linear-gradient(180deg, #f9f7f2 0, #faf9f7 440px, #f2f6f4 100%);
+      color: var(--viz-ink);
+    }
+
+    .viz-hero {
+      border-bottom: 1px solid var(--viz-line);
+      background: #171412;
+      color: #fffdfa;
+    }
+
+    .viz-hero-inner {
+      width: min(94%, 1320px);
+      min-height: 520px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 44px;
+      align-items: center;
+      padding: 72px 0 58px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 22px;
+      color: #e9d7ad;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 28px;
+      height: 1px;
+      background: currentColor;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 720px;
+      margin-bottom: 22px;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 4rem;
+      font-weight: 400;
+      line-height: 1.02;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      color: rgba(255, 253, 250, 0.72);
+      font-size: 1.04rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .hero-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 0.78rem 1.1rem;
+      border-radius: 999px;
+      background: #fffdfa;
+      color: #171412;
+      font-weight: 700;
+    }
+
+    .hero-action.secondary {
+      border: 1px solid rgba(255, 253, 250, 0.25);
+      background: transparent;
+      color: #fffdfa;
+    }
+
+    .hero-action svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .hero-panel {
+      border: 1px solid rgba(255, 253, 250, 0.18);
+      border-radius: var(--viz-radius);
+      background: rgba(255, 253, 250, 0.07);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.24);
+      overflow: hidden;
+    }
+
+    .panel-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255, 253, 250, 0.12);
+      color: rgba(255, 253, 250, 0.72);
+      font-size: 0.8rem;
+    }
+
+    .traffic {
+      display: inline-flex;
+      gap: 7px;
+    }
+
+    .traffic i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--viz-gold);
+    }
+
+    .traffic i:nth-child(2) {
+      background: var(--viz-blue);
+    }
+
+    .traffic i:nth-child(3) {
+      background: var(--viz-green);
+    }
+
+    .specimen-window {
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .specimen-line {
+      display: grid;
+      grid-template-columns: 98px 1fr;
+      gap: 14px;
+      align-items: center;
+      color: rgba(255, 253, 250, 0.8);
+      font-size: 0.85rem;
+    }
+
+    .specimen-line code {
+      color: #f0dba8;
+      font-size: 0.78rem;
+    }
+
+    .swatch-row {
+      display: flex;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .swatch-row span {
+      display: block;
+      height: 34px;
+      min-width: 48px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 253, 250, 0.12);
+      flex: 1;
+    }
+
+    .viz-layout {
+      width: min(94%, 1320px);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 32px;
+      padding: 32px 0 72px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+      border: 1px solid var(--viz-line);
+      border-radius: var(--viz-radius);
+      background: rgba(255, 253, 250, 0.86);
+      box-shadow: 0 12px 30px rgba(23, 20, 18, 0.06);
+      overflow: hidden;
+    }
+
+    .toc-header {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--viz-line);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--viz-ink-soft);
+    }
+
+    .toc a {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 10px;
+      padding: 12px 18px;
+      border-bottom: 1px solid rgba(26, 24, 21, 0.06);
+      color: var(--viz-ink-soft);
+      font-size: 0.9rem;
+    }
+
+    .toc a:last-child {
+      border-bottom: 0;
+    }
+
+    .toc a:hover,
+    .toc a.active {
+      background: #f3eee4;
+      color: var(--viz-ink);
+    }
+
+    .toc .num {
+      color: var(--viz-gold-dark);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.74rem;
+      font-weight: 800;
+    }
+
+    .viz-content {
+      display: grid;
+      gap: 34px;
+      min-width: 0;
+    }
+
+    .section {
+      scroll-margin-top: 22px;
+      border-top: 1px solid var(--viz-line);
+      padding-top: 30px;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      padding: 0 0 22px;
+      border-bottom: 1px solid var(--viz-line);
+    }
+
+    .section-kicker {
+      margin-bottom: 9px;
+      color: var(--viz-gold-dark);
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .section h2 {
+      margin-bottom: 8px;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 2rem;
+      font-weight: 400;
+      line-height: 1.12;
+    }
+
+    .section-head p {
+      max-width: 760px;
+      color: var(--viz-ink-soft);
+      margin-bottom: 0;
+    }
+
+    .section-body {
+      padding: 24px 0 0;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .metric {
+      border: 1px solid rgba(255, 253, 250, 0.14);
+      border-radius: var(--viz-radius);
+      padding: 16px;
+      background: rgba(255, 253, 250, 0.08);
+    }
+
+    .metric strong {
+      display: block;
+      color: #fffdfa;
+      font-size: 1.55rem;
+      line-height: 1;
+    }
+
+    .metric span {
+      color: rgba(255, 253, 250, 0.66);
+      font-size: 0.78rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 12px;
+      border: 1px solid var(--viz-line);
+      border-radius: 999px;
+      background: #f8f5ef;
+      color: var(--viz-ink-soft);
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .info-card,
+    .file-card,
+    .token-card,
+    .rule-card,
+    .demo-block {
+      border: 1px solid var(--viz-line);
+      border-radius: var(--viz-radius);
+      background: #ffffff;
+    }
+
+    .info-card,
+    .file-card,
+    .token-card {
+      padding: 18px;
+    }
+
+    .info-card h3,
+    .file-card h3,
+    .token-card h3,
+    .rule-card h3,
+    .demo-block h3 {
+      margin-bottom: 8px;
+      font-size: 1rem;
+      line-height: 1.25;
+    }
+
+    .info-card p,
+    .file-card p,
+    .token-card p,
+    .rule-card p,
+    .demo-block p {
+      color: var(--viz-ink-soft);
+      font-size: 0.92rem;
+      margin-bottom: 0;
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .flow-step {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      border: 1px solid var(--viz-line);
+      border-radius: var(--viz-radius);
+      padding: 14px;
+      background: #fff;
+    }
+
+    .flow-step b {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #171412;
+      color: #fffdfa;
+      font-size: 0.8rem;
+    }
+
+    .flow-step code,
+    code,
+    pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .flow-step code {
+      color: var(--viz-ink);
+      font-size: 0.88rem;
+      overflow-wrap: anywhere;
+    }
+
+    .flow-step span {
+      color: var(--viz-ink-soft);
+      font-size: 0.82rem;
+    }
+
+    .token-card {
+      display: grid;
+      gap: 12px;
+      min-height: 164px;
+    }
+
+    .token-swatch {
+      height: 54px;
+      border-radius: 6px;
+      border: 1px solid var(--viz-line);
+      background: var(--swatch);
+    }
+
+    .token-card code {
+      color: var(--viz-gold-dark);
+      font-size: 0.82rem;
+      overflow-wrap: anywhere;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1px solid var(--viz-line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #fbfaf7;
+      color: var(--viz-ink-soft);
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .rule-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .search-field {
+      position: relative;
+    }
+
+    .search-field input {
+      padding-left: 42px;
+    }
+
+    .search-field svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      transform: translateY(-50%);
+      color: var(--viz-ink-soft);
+      pointer-events: none;
+    }
+
+    .rule-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .rule-card {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1.2fr) minmax(240px, 0.8fr);
+      gap: 18px;
+      padding: 18px;
+      align-items: start;
+    }
+
+    .rule-num {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #f3eee4;
+      color: var(--viz-gold-dark);
+      font-weight: 900;
+      font-size: 0.78rem;
+    }
+
+    .selector-stack {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .selector-stack code {
+      display: block;
+      border: 1px solid rgba(26, 24, 21, 0.08);
+      border-radius: 6px;
+      padding: 7px 9px;
+      background: #fbfaf7;
+      color: #2d2a26;
+      font-size: 0.76rem;
+      overflow-wrap: anywhere;
+    }
+
+    .rule-preview {
+      border: 1px solid rgba(26, 24, 21, 0.1);
+      border-radius: var(--viz-radius);
+      min-height: 112px;
+      padding: 14px;
+      background: #f8faf9;
+      overflow: hidden;
+    }
+
+    .preview-boxes {
+      display: flex;
+      gap: 10px;
+      align-items: end;
+      height: 84px;
+    }
+
+    .box-model {
+      width: 64px;
+      height: 64px;
+      padding: 10px;
+      border: 6px solid var(--viz-gold);
+      background: #e6f0ef;
+    }
+
+    .box-model span {
+      display: block;
+      height: 100%;
+      background: var(--viz-blue);
+      border-radius: 3px;
+    }
+
+    .type-preview {
+      display: grid;
+      gap: 8px;
+    }
+
+    .type-preview strong {
+      font-size: 1.25rem;
+      line-height: 1.1;
+    }
+
+    .link-preview a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--viz-ink);
+      font-weight: 700;
+    }
+
+    .focus-sample {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .sample-button {
+      background: var(--viz-gold);
+      color: #171412;
+      font-weight: 800;
+      box-shadow: 0 8px 18px rgba(201, 165, 90, 0.22);
+    }
+
+    .sample-button.dark {
+      background: #171412;
+      color: #fffdfa;
+      box-shadow: none;
+    }
+
+    .drawn-focus {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 4px;
+    }
+
+    .image-preview img {
+      width: 100%;
+      max-height: 108px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--viz-line);
+    }
+
+    .icon-demo {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .icon-only {
+      display: inline-grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      padding: 0;
+      background: #171412;
+      color: #fffdfa;
+    }
+
+    .icon-only svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .skip-demo {
+      display: inline-flex;
+      background: var(--color-text);
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .container-demo {
+      border: 1px dashed var(--viz-line-strong);
+      padding: 14px;
+      background: #fffdfa;
+    }
+
+    .container-demo .container {
+      min-height: 56px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--viz-gold);
+      background: rgba(201, 165, 90, 0.12);
+      color: var(--viz-gold-dark);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .mini-table {
+      min-width: 560px;
+      background: #fff;
+      font-size: 0.86rem;
+    }
+
+    .input-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .guard-demo {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .guard-panel {
+      border: 1px solid var(--viz-line);
+      border-radius: var(--viz-radius);
+      padding: 16px;
+      background: #fff;
+    }
+
+    .guard-panel.is-off {
+      background: #f8faf9;
+    }
+
+    .unstyled-button {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--viz-line-strong);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--viz-ink-soft);
+      font: inherit;
+      cursor: default;
+    }
+
+    .source-code {
+      margin: 0;
+      border: 1px solid var(--viz-line);
+      border-radius: var(--viz-radius);
+      padding: 18px;
+      background: #171412;
+      color: #f7efe0;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      overflow: auto;
+      white-space: pre;
+    }
+
+    .source-code .muted {
+      color: #b8aca0;
+    }
+
+    .utility-demo {
+      display: grid;
+      gap: 14px;
+    }
+
+    .pholio-card-demo {
+      border: 1px solid rgba(26, 24, 21, 0.05);
+      border-radius: 20px;
+      padding: 20px;
+      background: var(--ag-surface-1);
+      box-shadow:
+        0 2px 8px rgba(26, 24, 21, 0.04),
+        0 8px 24px -8px rgba(26, 24, 21, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 1);
+    }
+
+    .pholio-label-demo {
+      margin: 0 0 14px;
+      color: var(--ag-text-3);
+      font-size: 0.6875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .pholio-heading-demo {
+      margin: 0 0 8px;
+      color: var(--ag-text-0);
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+    }
+
+    .agency-textarea-demo {
+      min-height: 124px;
+      border-radius: 2px;
+    }
+
+    .status-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .demo-block > .section-body {
+      padding: 18px;
+    }
+
+    .status-table th {
+      color: var(--viz-ink-soft);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+    }
+
+    .status-table td:first-child {
+      font-weight: 800;
+    }
+
+    .status-table code {
+      color: var(--viz-gold-dark);
+      font-size: 0.8rem;
+    }
+
+    .dead {
+      color: var(--viz-red);
+      font-weight: 800;
+    }
+
+    .footer-note {
+      padding: 22px 0 0;
+      color: var(--viz-ink-soft);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 1100px) {
+      .viz-hero-inner,
+      .viz-layout,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+      }
+
+      .toc nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .rule-card {
+        grid-template-columns: 48px minmax(0, 1fr);
+      }
+
+      .rule-preview {
+        grid-column: 2;
+      }
+    }
+
+    @media (max-width: 760px) {
+      h1 {
+        font-size: 2.45rem;
+      }
+
+      .viz-hero-inner {
+        min-height: auto;
+        padding: 48px 0 34px;
+      }
+
+      .section-head,
+      .rule-toolbar,
+      .guard-demo {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-row,
+      .grid-3,
+      .grid-4,
+      .toc nav {
+        grid-template-columns: 1fr;
+      }
+
+      .section-body,
+      .section-head {
+        padding-left: 0;
+        padding-right: 0;
+      }
+
+      .section-head {
+        padding-bottom: 18px;
+      }
+
+      .section-body {
+        padding-top: 18px;
+      }
+
+      .demo-block > .section-body {
+        padding: 18px;
+      }
+
+      .rule-card {
+        grid-template-columns: 1fr;
+      }
+
+      .rule-preview {
+        grid-column: auto;
+      }
+
+      .flow-step {
+        grid-template-columns: 40px minmax(0, 1fr);
+      }
+
+      .flow-step span {
+        grid-column: 2;
+      }
+    }
+  </style>
+</head>
+<body class="viz-body">
+  <a class="skip-link" href="#content">Skip to style reference</a>
+
+  <header class="viz-hero">
+    <div class="viz-hero-inner">
+      <div>
+        <p class="eyebrow">Client styling reference</p>
+        <h1>Pholio global CSS, tokens, and shared primitives.</h1>
+        <p class="hero-copy">
+          A standalone visual companion to <code>client/src/styles/STYLES.md</code>. It maps the style cascade, shows where each global rule belongs, and renders the key primitives from <code>global.css</code> so behavior can be checked without running the React app.
+        </p>
+        <div class="hero-actions" aria-label="Page shortcuts">
+          <a class="hero-action" href="#global-rules">
+            <svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            Review global.css
+          </a>
+          <a class="hero-action secondary" href="#quick-guide">
+            <svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5ZM8 7h6M8 11h6M8 15h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            What goes where
+          </a>
+        </div>
+        <div class="metric-row" aria-label="Reference stats">
+          <div class="metric"><strong>245</strong><span>global.css lines</span></div>
+          <div class="metric"><strong>13</strong><span>global rule groups</span></div>
+          <div class="metric"><strong>9</strong><span>local root vars</span></div>
+          <div class="metric"><strong>1</strong><span>agency body guard</span></div>
+        </div>
+      </div>
+
+      <div class="hero-panel" aria-label="Style system preview">
+        <div class="panel-bar">
+          <span>styles/global.css</span>
+          <span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+        <div class="specimen-window">
+          <div class="specimen-line">
+            <code>:root</code>
+            <div class="swatch-row" aria-hidden="true">
+              <span style="background:#faf9f7"></span>
+              <span style="background:#0f172a"></span>
+              <span style="background:#475569"></span>
+              <span style="background:#C9A55A"></span>
+            </div>
+          </div>
+          <div class="specimen-line">
+            <code>button</code>
+            <button class="sample-button">Talent action</button>
+          </div>
+          <div class="specimen-line">
+            <code>input</code>
+            <input type="text" value="Gold focus ring, 44px height" aria-label="Preview input">
+          </div>
+          <div class="specimen-line">
+            <code>.container</code>
+            <div class="container-demo"><div class="container">min(90%, 1240px)</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="content" class="viz-layout">
+    <aside class="toc" aria-label="Reference navigation">
+      <div class="toc-header">Reference map</div>
+      <nav>
+        <a href="#cascade"><span class="num">01</span><span>Load order</span></a>
+        <a href="#files"><span class="num">02</span><span>Files</span></a>
+        <a href="#tokens"><span class="num">03</span><span>Tokens</span></a>
+        <a href="#global-rules"><span class="num">04</span><span>Global rules</span></a>
+        <a href="#specimens"><span class="num">05</span><span>Specimens</span></a>
+        <a href="#utilities"><span class="num">06</span><span>Utilities</span></a>
+        <a href="#component-css"><span class="num">07</span><span>Component CSS</span></a>
+        <a href="#quick-guide"><span class="num">08</span><span>Quick guide</span></a>
+      </nav>
+    </aside>
+
+    <div class="viz-content">
+      <section class="section" id="cascade">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Cascade</p>
+            <h2>Load order is the contract.</h2>
+            <p>The React SPA builds its cascade from token layers first, then global primitives, then utilities, then Tailwind. Component CSS is imported by JSX and should stay local to the component that owns it.</p>
+          </div>
+          <span class="pill">client/src</span>
+        </div>
+        <div class="section-body">
+          <div class="flow" aria-label="CSS load order">
+            <div class="flow-step"><b>1</b><code>main.jsx -> styles/agency-tokens.css</code><span>Agency token layer: <code>--ag-*</code> and legacy <code>--agency-*</code> aliases.</span></div>
+            <div class="flow-step"><b>2</b><code>main.jsx -> styles/agency-dark-overrides.css</code><span>Scoped Tailwind-to-token remaps inside <code>.ag</code>.</span></div>
+            <div class="flow-step"><b>3</b><code>index.css -> styles/tokens.css</code><span>Talent and shared token layer: <code>--color-*</code>, spacing, radii, shadows.</span></div>
+            <div class="flow-step"><b>4</b><code>index.css -> styles/global.css</code><span>Base resets, document rules, focus rings, forms, buttons, tables.</span></div>
+            <div class="flow-step"><b>5</b><code>index.css -> styles/utilities.css</code><span>Layout helpers, gold Tailwind shims, shared Pholio presentation classes.</span></div>
+            <div class="flow-step"><b>6</b><code>index.css -> tailwindcss + @theme</code><span>Tailwind utility layer with Pholio gold and display font extensions.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="files">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">File-by-file</p>
+            <h2>Each stylesheet has a narrow job.</h2>
+            <p>The global stylesheet should stay small and boring. Tokens define raw values, utilities provide shared primitives, and component CSS handles product-specific layout.</p>
+          </div>
+          <span class="pill">styles directory</span>
+        </div>
+        <div class="section-body">
+          <div class="grid-3">
+            <article class="file-card">
+              <h3>agency-tokens.css</h3>
+              <p>Warm editorial agency system: surfaces, gold, text scale, semantic colors, shadows, typography, layout, radii, spacing, z-index, legacy aliases, and error primitives.</p>
+            </article>
+            <article class="file-card">
+              <h3>agency-dark-overrides.css</h3>
+              <p>Scoped <code>.ag</code> remaps for Tailwind-authored components so classes like <code>bg-white</code> and <code>text-gray-900</code> resolve to agency tokens.</p>
+            </article>
+            <article class="file-card">
+              <h3>tokens.css</h3>
+              <p>Talent and shared token layer for primary gold, text colors, warm backgrounds, borders, semantics, type sizes, spacing, radii, shadows, and transitions.</p>
+            </article>
+            <article class="file-card">
+              <h3>global.css</h3>
+              <p>App-wide browser behavior: reset, base document styles, link defaults, focus rings, icons, skip link, container, buttons, tables, forms, and labels.</p>
+            </article>
+            <article class="file-card">
+              <h3>utilities.css</h3>
+              <p>Lightweight layout utilities, explicit gold utility shims, <code>font-display</code>, dashboard keyframes, <code>pholio-card</code>, labels, scrollbar hiding, and agency textarea.</p>
+            </article>
+            <article class="file-card">
+              <h3>Component CSS</h3>
+              <p>Co-located files own component-specific styling. Prefixes like <code>ag-*</code>, <code>tp-*</code>, <code>ro-*</code>, and <code>cas-*</code> keep selectors readable.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tokens">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Tokens</p>
+            <h2>The global file declares only what it consumes.</h2>
+            <p><code>global.css</code> defines 9 local variables. Broader design values should live in <code>tokens.css</code> or <code>agency-tokens.css</code> to avoid a second source of truth.</p>
+          </div>
+          <span class="pill">:root</span>
+        </div>
+        <div class="section-body">
+          <div class="grid-4">
+            <article class="token-card"><span class="token-swatch" style="--swatch:#faf9f7"></span><h3>Warm canvas</h3><code>--color-bg: #faf9f7</code><p>Default app background.</p></article>
+            <article class="token-card"><span class="token-swatch" style="--swatch:#0f172a"></span><h3>Primary text</h3><code>--color-text: #0f172a</code><p>Document body color.</p></article>
+            <article class="token-card"><span class="token-swatch" style="--swatch:#475569"></span><h3>Muted text</h3><code>--color-muted: #475569</code><p>Local muted reference.</p></article>
+            <article class="token-card"><span class="token-swatch" style="--swatch:#C9A55A"></span><h3>Accent gold</h3><code>--color-accent: #C9A55A</code><p>Focus ring and brand accent.</p></article>
+            <article class="token-card"><span class="token-swatch" style="--swatch:rgba(15,23,42,0.1)"></span><h3>Border</h3><code>--color-border</code><p>Table dividers and subtle rule work.</p></article>
+            <article class="token-card"><span class="token-swatch" style="--swatch:#ffffff"></span><h3>Sans stack</h3><code>--font-sans</code><p>Inter with system fallbacks.</p></article>
+            <article class="token-card"><span class="token-swatch" style="--swatch:#f6efe4"></span><h3>Serif stack</h3><code>--font-serif</code><p>Noto Serif Display with fallbacks.</p></article>
+            <article class="token-card"><span class="token-swatch" style="--swatch:#e6f0ef"></span><h3>Layout caps</h3><code>--max-width / --header-height</code><p>1240px content cap and 80px header constant.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="global-rules">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">global.css</p>
+            <h2>All 13 global rule groups.</h2>
+            <p>Use the filter to find selectors, behavior, or ownership notes. Each row corresponds to a section in the live stylesheet.</p>
+          </div>
+          <span class="pill">245 lines</span>
+        </div>
+        <div class="section-body">
+          <div class="rule-toolbar">
+            <div class="search-field">
+              <svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+              <input id="ruleFilter" type="text" placeholder="Filter by selector, rule, or note..." aria-label="Filter global rules">
+            </div>
+            <span class="pill" id="ruleCount">13 groups</span>
+          </div>
+
+          <div class="rule-list" id="ruleList">
+            <article class="rule-card" data-rule="root vars variables font stacks color bg text muted border accent max width header height">
+              <span class="rule-num">01</span>
+              <div>
+                <h3>:root vars</h3>
+                <p>Declares only variables consumed by <code>global.css</code>: font stacks, canvas, text, border, accent, content width, and header height.</p>
+                <div class="selector-stack"><code>:root</code></div>
+              </div>
+              <div class="rule-preview"><div class="swatch-row"><span style="background:#faf9f7"></span><span style="background:#0f172a"></span><span style="background:#475569"></span><span style="background:#C9A55A"></span></div></div>
+            </article>
+
+            <article class="rule-card" data-rule="box model reset before after box sizing border box universal selector">
+              <span class="rule-num">02</span>
+              <div>
+                <h3>Box-model reset</h3>
+                <p>Forces elements and pseudo-elements to include padding and border inside declared width.</p>
+                <div class="selector-stack"><code>*, *::before, *::after</code></div>
+              </div>
+              <div class="rule-preview"><div class="preview-boxes"><div class="box-model"><span></span></div><p>Padding and border stay inside the box.</p></div></div>
+            </article>
+
+            <article class="rule-card" data-rule="document base html body font size scroll behavior reduced motion background text line height">
+              <span class="rule-num">03</span>
+              <div>
+                <h3>Document base</h3>
+                <p>Sets 16px root type, smooth scrolling, warm canvas, Inter body stack, 1.6 line-height, and reduced-motion scroll fallback.</p>
+                <div class="selector-stack"><code>html</code><code>@media (prefers-reduced-motion: reduce)</code><code>body</code></div>
+              </div>
+              <div class="rule-preview type-preview"><strong>Warm document canvas</strong><span>Readable body copy with consistent line-height across talent and auth pages.</span></div>
+            </article>
+
+            <article class="rule-card" data-rule="links anchor color inherit text decoration none chrome component">
+              <span class="rule-num">04</span>
+              <div>
+                <h3>Links</h3>
+                <p>Removes default browser link chrome. Components opt back into underlines, gold states, or nav treatments locally.</p>
+                <div class="selector-stack"><code>a</code></div>
+              </div>
+              <div class="rule-preview link-preview"><a href="#global-rules">Inherited link, no underline <span aria-hidden="true">-></span></a></div>
+            </article>
+
+            <article class="rule-card" data-rule="focus rings focus-visible keyboard accessibility outline gold button input textarea select">
+              <span class="rule-num">05</span>
+              <div>
+                <h3>Focus rings</h3>
+                <p>Keyboard focus receives a 2px Pholio gold outline with 4px offset across core interactive elements.</p>
+                <div class="selector-stack"><code>a:focus-visible</code><code>button:focus-visible</code><code>input, textarea, select:focus-visible</code></div>
+              </div>
+              <div class="rule-preview focus-sample"><button class="sample-button drawn-focus">Visible focus</button><input type="text" value="Focused input" aria-label="Focused input preview"></div>
+            </article>
+
+            <article class="rule-card" data-rule="images img max width display block prevent overflow baseline gap">
+              <span class="rule-num">06</span>
+              <div>
+                <h3>Images</h3>
+                <p>Images are block-level and constrained to their parent width, preventing layout overflow and inline baseline gaps.</p>
+                <div class="selector-stack"><code>img</code></div>
+              </div>
+              <div class="rule-preview image-preview"><img alt="Abstract warm color sample" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 220'%3E%3Crect width='640' height='220' fill='%23fffdfa'/%3E%3Crect x='36' y='34' width='170' height='152' rx='10' fill='%23C9A55A'/%3E%3Crect x='232' y='34' width='170' height='152' rx='10' fill='%232f6f91'/%3E%3Crect x='428' y='34' width='170' height='152' rx='10' fill='%235d4767'/%3E%3C/svg%3E"></div>
+            </article>
+
+            <article class="rule-card" data-rule="lucide icons flex shrink pointer events icon only buttons links">
+              <span class="rule-num">07</span>
+              <div>
+                <h3>Lucide icons</h3>
+                <p>Icons do not shrink inside flex rows. Icon-only button and link SVGs avoid absorbing pointer events from the parent target.</p>
+                <div class="selector-stack"><code>.lucide</code><code>button > .lucide:only-child</code><code>a > .lucide:only-child</code></div>
+              </div>
+              <div class="rule-preview icon-demo"><button class="icon-only" aria-label="Icon only sample"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button><span>Parent owns the click target.</span></div>
+            </article>
+
+            <article class="rule-card" data-rule="skip link accessibility wcag bypass blocks focus hidden off screen">
+              <span class="rule-num">08</span>
+              <div>
+                <h3>Skip link</h3>
+                <p>Hidden off-screen by default, then revealed at the top-left when keyboard focused for WCAG 2.4.1 bypass navigation.</p>
+                <div class="selector-stack"><code>.skip-link</code><code>.skip-link:focus</code></div>
+              </div>
+              <div class="rule-preview"><span class="skip-demo">Skip to style reference</span></div>
+            </article>
+
+            <article class="rule-card" data-rule="container content max width centered min 90 percent 1240px">
+              <span class="rule-num">09</span>
+              <div>
+                <h3>Content container</h3>
+                <p>Shared centered wrapper for talent and auth layouts using <code>width: min(90%, var(--max-width))</code>.</p>
+                <div class="selector-stack"><code>.container</code></div>
+              </div>
+              <div class="rule-preview container-demo"><div class="container">Centered max-width wrapper</div></div>
+            </article>
+
+            <article class="rule-card" data-rule="button reset talent auth submit agency guard body not is agency radius padding cursor transition">
+              <span class="rule-num">10</span>
+              <div>
+                <h3>Global button reset</h3>
+                <p>Normalizes bare talent/auth buttons and submit inputs while avoiding agency pages through the <code>.is-agency</code> body guard.</p>
+                <div class="selector-stack"><code>.button</code><code>:where(body:not(.is-agency)) button</code><code>:where(body:not(.is-agency)) input[type=&quot;submit&quot;]</code></div>
+              </div>
+              <div class="rule-preview focus-sample"><button class="sample-button">Button</button><input class="sample-button dark" type="submit" value="Submit"></div>
+            </article>
+
+            <article class="rule-card" data-rule="table reset responsive overflow scroll th td padding border collapse agency guard">
+              <span class="rule-num">11</span>
+              <div>
+                <h3>Table reset</h3>
+                <p>Provides horizontal scrolling plus collapsed, readable talent table defaults. Agency tables remain fully custom.</p>
+                <div class="selector-stack"><code>.table-responsive</code><code>:where(body:not(.is-agency)) table</code><code>th, td</code></div>
+              </div>
+              <div class="rule-preview table-responsive"><table class="mini-table"><thead><tr><th>Name</th><th>Status</th><th>Owner</th></tr></thead><tbody><tr><td>Portfolio</td><td>Live</td><td>Talent</td></tr><tr><td>Casting</td><td>Review</td><td>Agency</td></tr></tbody></table></div>
+            </article>
+
+            <article class="rule-card" data-rule="canonical form inputs textarea select height padding border radius focus hover placeholder">
+              <span class="rule-num">12</span>
+              <div>
+                <h3>Canonical form inputs</h3>
+                <p>Unifies talent and auth inputs: full width, 44px height, white surface, 8px radius, warm border, gold focus halo, muted placeholders.</p>
+                <div class="selector-stack"><code>:where(body) input[type=&quot;text&quot;]</code><code>textarea</code><code>select</code><code>::placeholder</code></div>
+              </div>
+              <div class="rule-preview input-grid"><input type="email" placeholder="name@pholio.com" aria-label="Email sample"><select aria-label="Select sample"><option>Editorial board</option><option>Talent board</option></select></div>
+            </article>
+
+            <article class="rule-card" data-rule="form label defaults grid gap uppercase label agency guard body not is agency">
+              <span class="rule-num">13</span>
+              <div>
+                <h3>Form and label defaults</h3>
+                <p>Talent/auth forms get a grid gap and uppercase labels. Agency pages opt out and use dedicated form styling.</p>
+                <div class="selector-stack"><code>:where(body:not(.is-agency)) form</code><code>:where(body:not(.is-agency)) label</code></div>
+              </div>
+              <div class="rule-preview"><form><label for="rule-demo-label">Display name</label><input id="rule-demo-label" type="text" value="Mara Chen"></form></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="specimens">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Rendered primitives</p>
+            <h2>Behavior you can see at a glance.</h2>
+            <p>These examples use the same global selectors that app pages inherit. They are intentionally plain so component CSS remains responsible for final product polish.</p>
+          </div>
+          <span class="pill">live samples</span>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="demo-block">
+              <div class="section-body">
+                <h3>Talent/auth form baseline</h3>
+                <form>
+                  <label for="name">Talent name</label>
+                  <input id="name" type="text" placeholder="Add name">
+                  <label for="bio">Short bio</label>
+                  <textarea id="bio" placeholder="Write a short portfolio note"></textarea>
+                  <label for="market">Market</label>
+                  <select id="market"><option>New York</option><option>Los Angeles</option><option>Paris</option></select>
+                  <input class="sample-button" type="submit" value="Save profile">
+                </form>
+              </div>
+            </div>
+
+            <div class="demo-block">
+              <div class="section-body">
+                <h3>Agency guard behavior</h3>
+                <p>The actual selector checks the <code>body</code> class. This visual shows the intended split.</p>
+                <div class="guard-demo">
+                  <div class="guard-panel">
+                    <p class="section-kicker">body:not(.is-agency)</p>
+                    <button class="sample-button">Global reset active</button>
+                  </div>
+                  <div class="guard-panel is-off">
+                    <p class="section-kicker">body.is-agency</p>
+                    <span class="unstyled-button">Agency owns button style</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="demo-block">
+              <div class="section-body">
+                <h3>Responsive table shell</h3>
+                <div class="table-responsive">
+                  <table>
+                    <thead>
+                      <tr><th>Rule</th><th>Owner</th><th>Guarded</th><th>Notes</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>Buttons</td><td>Talent/Auth</td><td>Yes</td><td>Agency pages use <code>ag-*</code>.</td></tr>
+                      <tr><td>Inputs</td><td>Shared</td><td>No</td><td>Agency forms override by specificity.</td></tr>
+                      <tr><td>Tables</td><td>Talent</td><td>Yes</td><td>Custom agency data grids stay untouched.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="demo-block">
+              <div class="section-body">
+                <h3>Accessibility primitives</h3>
+                <div class="chip-list">
+                  <span class="skip-demo">Skip link focus state</span>
+                  <button class="icon-only" aria-label="Icon button sample"><svg class="lucide" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+                  <button class="sample-button drawn-focus">Focus-visible</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="utilities">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">utilities.css</p>
+            <h2>Shared helpers that sit after global.css.</h2>
+            <p>Utilities include a small Tailwind-like layout layer, explicit gold shims, and shared dashboard presentation classes. They should be reused only when the behavior is genuinely cross-component.</p>
+          </div>
+          <span class="pill">208 lines</span>
+        </div>
+        <div class="section-body">
+          <div class="grid-3">
+            <article class="info-card">
+              <h3>Layout helpers</h3>
+              <p><code>.flex</code>, <code>.grid</code>, <code>.gap-4</code>, <code>.space-y-6</code>, responsive grid columns, width helpers, and simple text utilities.</p>
+            </article>
+            <article class="info-card">
+              <h3>Gold shims</h3>
+              <p><code>.text-gold-500</code>, <code>.bg-gold-500</code>, opacity variants, border variants, hover states, focus border, and <code>.ring-gold-500</code>.</p>
+            </article>
+            <article class="info-card">
+              <h3>Shared components</h3>
+              <p><code>.pholio-card</code>, <code>.pholio-label</code>, <code>.pholio-section-heading</code>, <code>.scrollbar-hide</code>, and <code>.agency-textarea</code>.</p>
+            </article>
+          </div>
+
+          <div class="grid-2" style="margin-top:18px">
+            <div class="pholio-card-demo">
+              <p class="pholio-label-demo">Shared component token</p>
+              <h3 class="pholio-heading-demo">Pholio card + label + heading</h3>
+              <p style="margin-bottom:0;color:var(--ag-text-2)">Use for dashboard-level repeated surfaces, not as a generic wrapper around entire page sections.</p>
+            </div>
+            <div class="utility-demo">
+              <textarea class="agency-textarea-demo" placeholder="Agency textarea specimen"></textarea>
+              <div class="chip-list">
+                <span class="chip" style="color:#C9A55A">text-gold-500</span>
+                <span class="chip" style="background:rgba(201,165,90,0.1)">bg-gold-500/10</span>
+                <span class="chip" style="border-color:rgba(201,165,90,0.3)">border-gold-500/30</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="component-css">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Component CSS pattern</p>
+            <h2>Use short prefixes and local ownership.</h2>
+            <p>Co-located CSS files should use a BEM-like prefix tied to the component or domain, while agency-domain components should consume <code>--ag-*</code> tokens directly.</p>
+          </div>
+          <span class="pill">local CSS</span>
+        </div>
+        <div class="section-body">
+          <div class="grid-4">
+            <article class="info-card"><h3><code>ag-*</code></h3><p>Agency shell, navigation, and shared agency UI.</p></article>
+            <article class="info-card"><h3><code>tp-*</code></h3><p>TalentPanel.</p></article>
+            <article class="info-card"><h3><code>tm-*</code></h3><p>TeamModal.</p></article>
+            <article class="info-card"><h3><code>iv-*</code></h3><p>InterviewCard.</p></article>
+            <article class="info-card"><h3><code>dd-*</code></h3><p>DiscoverDetail.</p></article>
+            <article class="info-card"><h3><code>ov-*</code></h3><p>OverviewPage and OverviewPulse.</p></article>
+            <article class="info-card"><h3><code>ro-*</code></h3><p>RosterPage.</p></article>
+            <article class="info-card"><h3><code>rws-*</code></h3><p>RosterWorkspace.</p></article>
+            <article class="info-card"><h3><code>cas-*</code></h3><p>CastingPage and CastingPanel.</p></article>
+            <article class="info-card"><h3><code>tfv-*</code></h3><p>TalentFullView.</p></article>
+            <article class="info-card"><h3><code>an-*</code></h3><p>AnalyticsPage in the agency domain.</p></article>
+            <article class="info-card"><h3>Rule</h3><p>Style the specific component locally unless the pattern is reused across the system.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="quick-guide">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">What goes where</p>
+            <h2>Quick routing for future CSS work.</h2>
+            <p>Use this table to keep the cascade clean and avoid adding broad behavior to the wrong layer.</p>
+          </div>
+          <span class="pill">decision table</span>
+        </div>
+        <div class="section-body">
+          <div class="table-responsive">
+            <table class="status-table">
+              <thead>
+                <tr><th>I need to...</th><th>File to touch</th><th>Why</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Add a new agency token</td><td><code>agency-tokens.css</code></td><td>Agency dashboard consumes <code>--ag-*</code>.</td></tr>
+                <tr><td>Add talent/shared token</td><td><code>tokens.css</code></td><td>Talent dashboard and shared utilities consume <code>--color-*</code>, spacing, and radii.</td></tr>
+                <tr><td>Fix global browser behavior</td><td><code>global.css</code></td><td>Only resets, document base, focus, forms, tables, and shared primitives belong here.</td></tr>
+                <tr><td>Add a gold Tailwind utility</td><td><code>utilities.css</code></td><td>Tailwind v4 theme does not generate every needed gold utility.</td></tr>
+                <tr><td>Add a shared component pattern</td><td><code>utilities.css</code></td><td>Only if the pattern is reused across dashboard contexts.</td></tr>
+                <tr><td>Style one component</td><td><code>&lt;Component&gt;.css</code></td><td>Component-specific selectors should stay co-located.</td></tr>
+                <tr><td>Override Tailwind inside agency shell</td><td><code>agency-dark-overrides.css</code></td><td>Scoped <code>.ag</code> remaps keep agency UI token-driven.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="dead-files">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Inventory note</p>
+            <h2>Dead files are documented, not imported.</h2>
+            <p>These files currently pose no runtime cost because they are not imported by <code>index.css</code> or components, but they clutter the directory.</p>
+          </div>
+          <span class="pill">safe later cleanup</span>
+        </div>
+        <div class="section-body">
+          <div class="table-responsive">
+            <table class="status-table">
+              <thead><tr><th>File</th><th>Lines</th><th>Status</th><th>Reason</th></tr></thead>
+              <tbody>
+                <tr><td><code>styles/analytics.css</code></td><td>1,719</td><td class="dead">Dead</td><td>Legacy analytics CSS. <code>AnalyticsPage.css</code> replaced it.</td></tr>
+                <tr><td><code>styles/dashboard-shell.css</code></td><td>275</td><td class="dead">Dead</td><td>Legacy talent shell replaced by <code>TalentLayout.css</code> and Tailwind.</td></tr>
+                <tr><td><code>styles/dashboard.css</code></td><td>173</td><td class="dead">Dead</td><td>Legacy sidebar layout, not imported in current codebase.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="source-snippet">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Core selectors</p>
+            <h2>The high-risk global selectors in one place.</h2>
+            <p>These are the selectors most likely to affect broad app behavior. Keep changes deliberate and verify talent/auth and agency contexts separately.</p>
+          </div>
+          <span class="pill">audit block</span>
+        </div>
+        <div class="section-body">
+          <pre class="source-code"><code>:where(body:not(.is-agency)) button,
+:where(body:not(.is-agency)) input[type="submit"] { ... }
+
+:where(body:not(.is-agency)) table,
+:where(body:not(.is-agency)) table th,
+:where(body:not(.is-agency)) table td { ... }
+
+:where(body) input[type="text"],
+:where(body) input[type="email"],
+:where(body) input[type="password"],
+:where(body) input[type="tel"],
+:where(body) input[type="number"],
+:where(body) textarea,
+:where(body) select { ... }
+
+:where(body:not(.is-agency)) form,
+:where(body:not(.is-agency)) label { ... }</code></pre>
+          <p class="footer-note">Generated from the current <code>STYLES.md</code> and live <code>global.css</code> context in <code>client/src/styles/</code>.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const filter = document.getElementById('ruleFilter');
+    const rules = Array.from(document.querySelectorAll('.rule-card'));
+    const count = document.getElementById('ruleCount');
+
+    function updateRules() {
+      const query = filter.value.trim().toLowerCase();
+      let visible = 0;
+      rules.forEach((rule) => {
+        const haystack = `${rule.textContent} ${rule.dataset.rule}`.toLowerCase();
+        const match = !query || haystack.includes(query);
+        rule.hidden = !match;
+        if (match) visible += 1;
+      });
+      count.textContent = `${visible} group${visible === 1 ? '' : 's'}`;
+    }
+
+    filter.addEventListener('input', updateRules);
+
+    const navLinks = Array.from(document.querySelectorAll('.toc a'));
+    const sections = navLinks
+      .map((link) => document.querySelector(link.getAttribute('href')))
+      .filter(Boolean);
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          navLinks.forEach((link) => {
+            link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`);
+          });
+        });
+      }, { rootMargin: '-25% 0px -60% 0px', threshold: 0.01 });
+
+      sections.forEach((section) => observer.observe(section));
+    }
+  </script>
+</body>
+</html>

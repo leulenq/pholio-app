@@ -56,6 +56,7 @@ function contentTypeForExt(ext) {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".png": "image/png",
+    ".svg": "image/svg+xml",
     ".webp": "image/webp",
   };
   return map[ext] || "application/octet-stream";
@@ -132,6 +133,22 @@ const upload = multer({
   limits: { fileSize: config.maxUploadBytes },
 });
 
+/** Agency workspace logos — PNG or SVG to preserve transparency in the rail lockup. */
+const AGENCY_LOGO_MIMES = new Set(["image/png", "image/svg+xml"]);
+const AGENCY_LOGO_EXTS = new Set([".png", ".svg"]);
+
+const agencyLogoFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const ok = AGENCY_LOGO_MIMES.has(file.mimetype) && AGENCY_LOGO_EXTS.has(ext);
+  cb(ok ? null : new Error("Agency logo must be a PNG or SVG file"), ok);
+};
+
+const uploadAgencyLogo = multer({
+  storage,
+  fileFilter: agencyLogoFileFilter,
+  limits: { fileSize: config.maxUploadBytes },
+});
+
 /**
  * Process image and return metadata for DB persistence
  * Handles WebP conversion and thumbnail generation, uploading to R2 if needed.
@@ -200,6 +217,34 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       .webp({ quality: quality })
       .toBuffer();
 
+    // Comp card intelligence: measure dimensions + forensics at upload time
+    // so the composition engine never has to fetch pixels in the render
+    // path. Best-effort — failures never block the upload.
+    let imageIntel = null;
+    try {
+      const meta = await sharp(processedBuffer).metadata();
+      const { measureImage } = require("../../domains/pdf/composition/image-forensics");
+      const forensics = await measureImage(processedBuffer);
+      // Subject matte (P1) — best-effort; null unless the matte dep is
+      // installed and runnable. Flows to the front engine's cutout /
+      // negative-space layers when present.
+      let matte = null;
+      try {
+        const { computeMatte } = require("../../domains/pdf/composition/perception/matte");
+        matte = await computeMatte(processedBuffer);
+      } catch {
+        matte = null;
+      }
+      imageIntel = {
+        width: meta.width || null,
+        height: meta.height || null,
+        ...(forensics ? { forensics } : {}),
+        ...(matte ? { matte } : {}),
+      };
+    } catch (intelErr) {
+      imageIntel = null;
+    }
+
     const thumbBuffer = await sharp(imageBuffer)
       .resize({ width: thumbWidth, withoutEnlargement: true })
       .webp({ quality: thumbQuality })
@@ -264,6 +309,7 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       storageKey: storageKey,
       publicUrl: publicUrl,
       absolutePath: absolutePath,
+      imageIntel,
     };
   } catch (err) {
     console.error("[Uploader] Error processing image:", err.message, {
@@ -283,4 +329,88 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
   }
 }
 
-module.exports = { upload, processImage, s3 };
+/**
+ * Process agency logo — PNG (raster) or SVG (vector), preserving transparency.
+ */
+async function processAgencyLogo(
+  file,
+  { agencyId, maxWidth = 400, maxHeight = 400 } = {},
+) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const isSvg = file.mimetype === "image/svg+xml" || ext === ".svg";
+  const isPng = file.mimetype === "image/png" || ext === ".png";
+
+  if (!isSvg && !isPng) {
+    throw new Error("Agency logo must be a PNG or SVG file");
+  }
+
+  const id = agencyId || "unknown";
+  const type = "agencies";
+  const isR2Key = !!file.key;
+  const isR2 = isR2Key || (useR2 && !!file.buffer);
+  const uuid = isR2Key
+    ? path.basename(file.key, path.extname(file.key))
+    : uuidv4();
+  const prefix = getR2Prefix(id, type);
+  const logoExt = isSvg ? ".svg" : ".png";
+  const logoKey = `${prefix}/logos/${uuid}${logoExt}`;
+  const contentType = isSvg ? "image/svg+xml" : "image/png";
+
+  const imageBuffer = await resolveImageBuffer(file, isR2Key);
+  if (!imageBuffer?.length) {
+    throw new Error("Empty image buffer");
+  }
+
+  const processedBuffer = isSvg
+    ? imageBuffer
+    : await sharp(imageBuffer)
+        .resize({
+          width: maxWidth,
+          height: maxHeight,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .png({ compressionLevel: 9, adaptiveFiltering: true })
+        .toBuffer();
+
+  if (isR2) {
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: config.r2.bucket,
+        Key: logoKey,
+        Body: processedBuffer,
+        ContentType: contentType,
+      }),
+    );
+    const publicUrl = r2PublicUrlForKey(logoKey);
+    return {
+      path: publicUrl,
+      storageKey: logoKey,
+      publicUrl,
+      absolutePath: null,
+    };
+  }
+
+  const processedPath = path.join(config.uploadsDir, `${uuid}${logoExt}`);
+  fs.writeFileSync(processedPath, processedBuffer);
+
+  try {
+    if (file.path) fs.unlinkSync(file.path);
+  } catch (e) {}
+
+  const publicUrl = `/uploads/${uuid}${logoExt}`;
+  return {
+    path: publicUrl,
+    storageKey: null,
+    publicUrl,
+    absolutePath: processedPath,
+  };
+}
+
+module.exports = {
+  upload,
+  uploadAgencyLogo,
+  processImage,
+  processAgencyLogo,
+  s3,
+};

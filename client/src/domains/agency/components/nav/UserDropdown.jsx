@@ -52,7 +52,7 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
   const navLinks = [
     { label: 'Settings',           icon: Settings, to: '/dashboard/agency/settings?tab=profile' },
     { label: 'Billing & Invoices', icon: Receipt,  to: '/dashboard/agency/settings?tab=billing' },
-    { label: 'Team Members',       icon: Users,    to: '/dashboard/agency/settings?tab=team'    },
+    { label: 'Team Members',       icon: Users,    to: '/dashboard/agency/team'               },
   ];
 
   async function handleLogout() {

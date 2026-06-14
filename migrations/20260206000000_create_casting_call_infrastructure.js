@@ -14,7 +14,7 @@ exports.up = async function up(knex) {
   await knex.schema.createTable('onboarding_signals', (table) => {
     // Primary key
     if (isPostgres) {
-      table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+      table.uuid('id').primary().defaultTo(knex.fn.uuid());
     } else {
       table.uuid('id').primary();
     }

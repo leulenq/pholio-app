@@ -88,7 +88,6 @@ export default function ProfileStrengthSidebar({
             </span>
           </div>
           <div className={styles.statusContainer}>
-            <span className={`${styles.statusDot} ${styles[statusColor]}`} aria-hidden="true" />
             <span className={styles.statusLabel}>{ui.label}</span>
           </div>
           {hasUnsavedChanges && (

@@ -5,14 +5,19 @@ const {
   requireRole,
   requireAgencyMembershipRole,
 } = require("../../auth/middleware/require-auth");
-const { upload, processImage } = require("../../../shared/lib/uploader");
+const {
+  upload,
+  uploadAgencyLogo,
+  processImage,
+  processAgencyLogo,
+} = require("../../../shared/lib/uploader");
 const { v4: uuidv4 } = require("uuid");
 const { sendApplicationStatusEmail } = require("../../../shared/lib/email");
 const {
   getSessionActorUserId,
   getSessionAgencyId,
 } = require("../services/context");
-const { embed, toVectorLiteral } = require("../../ai/embeddings");
+const { searchDiscoverableTalent } = require("../services/discover-search");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const { recalculateBoardScores } = require("./recalculate-board-scores");
 const {
@@ -27,17 +32,23 @@ const {
   notifyTalentAgencyProfileView,
 } = require("../../../shared/services/notifications");
 
-const agencyMemberCreateSchema = z.object({
+const { recordAuditEvent } = require("../services/audit");
+const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
+
+const addTeamMemberSchema = z.object({
   email: z
     .string()
     .trim()
     .email()
     .transform((value) => value.toLowerCase()),
-  membership_role: z.enum(["ADMIN", "MEMBER"]).optional().default("MEMBER"),
+  membership_role: z
+    .enum(["ADMIN", "AGENT", "SCOUT", "VIEWER"])
+    .optional()
+    .default("SCOUT"),
 });
 
 const agencyMemberUpdateSchema = z.object({
-  membership_role: z.enum(["ADMIN", "MEMBER"]),
+  membership_role: z.enum(["ADMIN", "AGENT", "SCOUT", "VIEWER"]),
 });
 
 function serializeAgencyMember(row) {
@@ -50,7 +61,8 @@ function serializeAgencyMember(row) {
     last_name: row.last_name,
     full_name:
       [row.first_name, row.last_name].filter(Boolean).join(" ") || row.email,
-    membership_role: row.membership_role,
+    membership_role: normalizePresetRole(row.membership_role),
+    preset_role: normalizePresetRole(row.membership_role),
     status: row.membership_status,
     invited_at: row.invited_at,
     joined_at: row.joined_at,
@@ -666,6 +678,7 @@ router.get(
           "users.email as owner_email",
           "applications.status as application_status",
           "applications.id as application_id",
+          "applications.match_score as match_score",
           "applications.created_at as application_created_at",
         )
         .leftJoin("users", "profiles.user_id", "users.id")
@@ -888,9 +901,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "status_change",
         "Application accepted",
@@ -993,9 +1006,9 @@ router.patch(
         });
 
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "status_change",
         `Application moved to ${requestedStatus}`,
@@ -1054,9 +1067,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "status_change",
         "Application declined",
@@ -1134,9 +1147,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "status_change",
         "Application archived",
@@ -1229,9 +1242,9 @@ router.post(
       // Log activities for each
       for (const app of applications) {
         await logActivity(
+          req,
           knex,
           app.id,
-          agencyId,
           agencyId,
           "status_change",
           "Application accepted (bulk)",
@@ -1308,9 +1321,9 @@ router.patch(
 
       for (const application of applications) {
         await logActivity(
+          req,
           knex,
           application.id,
-          agencyId,
           agencyId,
           "status_change",
           `Application moved to ${requestedStatus} (bulk)`,
@@ -1386,9 +1399,9 @@ router.post(
       // Log activities for each
       for (const app of applications) {
         await logActivity(
+          req,
           knex,
           app.id,
-          agencyId,
           agencyId,
           "status_change",
           "Application declined (bulk)",
@@ -1445,9 +1458,9 @@ router.post(
       // Log activities for each
       for (const app of applications) {
         await logActivity(
+          req,
           knex,
           app.id,
-          agencyId,
           agencyId,
           "status_change",
           "Application archived (bulk)",
@@ -1492,6 +1505,11 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
         agency_brand_color: agency.brand_color,
         agency_description: agency.description,
         agency_website: agency.website,
+        agency_instagram_handle: agency.instagram_handle,
+        agency_tiktok_handle: agency.tiktok_handle,
+        agency_twitter_handle: agency.twitter_handle,
+        agency_youtube_handle: agency.youtube_handle,
+        agency_video_reel_url: agency.video_reel_url,
         agency_location: agency.location,
         notify_new_applications: agency.notify_new_applications,
         notify_status_changes: agency.notify_status_changes,
@@ -1525,6 +1543,11 @@ router.put(
         agency_location,
         agency_website,
         agency_description,
+        agency_instagram_handle,
+        agency_tiktok_handle,
+        agency_twitter_handle,
+        agency_youtube_handle,
+        agency_video_reel_url,
       } = req.body;
 
       const updateData = {};
@@ -1543,6 +1566,16 @@ router.put(
         agencyUpdateData.website = agency_website || null;
       if (agency_description !== undefined)
         agencyUpdateData.description = agency_description || null;
+      if (agency_instagram_handle !== undefined)
+        agencyUpdateData.instagram_handle = agency_instagram_handle || null;
+      if (agency_tiktok_handle !== undefined)
+        agencyUpdateData.tiktok_handle = agency_tiktok_handle || null;
+      if (agency_twitter_handle !== undefined)
+        agencyUpdateData.twitter_handle = agency_twitter_handle || null;
+      if (agency_youtube_handle !== undefined)
+        agencyUpdateData.youtube_handle = agency_youtube_handle || null;
+      if (agency_video_reel_url !== undefined)
+        agencyUpdateData.video_reel_url = agency_video_reel_url || null;
 
       if (Object.keys(agencyUpdateData).length > 0) {
         agencyUpdateData.updated_at = knex.fn.now();
@@ -1615,36 +1648,46 @@ router.post(
   },
 );
 
+function handleAgencyLogoUpload(req, res, next) {
+  uploadAgencyLogo.single("agency_logo")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        error: err.message || "Agency logo must be a PNG or SVG file",
+      });
+    }
+    next();
+  });
+}
+
 // POST /api/agency/branding - Update agency branding (logo and color)
 router.post(
   "/api/agency/branding",
   requireRole("AGENCY"),
   requireAgencyMembershipRole("OWNER", "ADMIN"),
-  upload.single("agency_logo"),
+  handleAgencyLogoUpload,
   async (req, res, next) => {
     try {
-      const actorUserId = getSessionActorUserId(req);
       const agencyId = getSessionAgencyId(req);
       const { agency_brand_color, remove_logo } = req.body;
 
       const updateData = {};
 
       if (remove_logo === "true") {
-        // Remove existing logo
         const agency = await knex("agencies").where({ id: agencyId }).first();
-        if (agency && agency.logo_path) {
-          // Delete file from storage if needed
+        if (agency?.logo_path) {
           updateData.logo_path = null;
         }
       } else if (req.file) {
-        // Process and save new logo
-        const processedImage = await processImage(req.file, {
-          agencyId: agencyId,
+        const processedImage = await processAgencyLogo(req.file, {
+          agencyId,
           maxWidth: 400,
           maxHeight: 400,
-          quality: 90,
         });
-        updateData.logo_path = processedImage.path;
+        const logoPath = processedImage.path || "";
+        updateData.logo_path = logoPath.startsWith("http")
+          ? logoPath
+          : logoPath.replace(/^\//, "");
       }
 
       if (agency_brand_color !== undefined) {
@@ -1659,11 +1702,16 @@ router.post(
       return res.json({
         success: true,
         message: "Branding updated successfully",
+        data: { logo_path: updateData.logo_path || null },
         logo_path: updateData.logo_path || null,
       });
     } catch (error) {
       console.error("[Agency Branding API] Error:", error);
-      return res.status(500).json({ error: "Failed to update branding" });
+      const isLogoTypeError = /png|svg/i.test(error?.message || "");
+      const message = isLogoTypeError
+        ? error.message
+        : "Failed to update branding";
+      return res.status(isLogoTypeError ? 400 : 500).json({ error: message });
     }
   },
 );
@@ -1739,109 +1787,127 @@ router.get("/api/agency/team", requireRole("AGENCY"), async (req, res) => {
 });
 
 // POST /api/agency/team - Add an existing agency user to this agency
-router.post(
-  "/api/agency/team",
-  requireRole("AGENCY"),
-  requireAgencyMembershipRole("OWNER", "ADMIN"),
-  async (req, res) => {
-    try {
-      const agencyId = getSessionAgencyId(req);
-      const parsed = agencyMemberCreateSchema.safeParse(req.body);
+router.post("/api/agency/team", requireRole("AGENCY"), async (req, res) => {
+  try {
+    const agencyId = getSessionAgencyId(req);
+    const actorUserId = getSessionActorUserId(req);
+    const actorMembershipId = req.session.agencyMembershipId || null;
+    const actorRole = normalizePresetRole(req.session.agencyMembershipRole);
+    const parsed = addTeamMemberSchema.safeParse(req.body);
 
-      if (!parsed.success) {
-        return res.status(400).json({
-          error: "Invalid team member payload",
-          details: parsed.error.flatten(),
-        });
-      }
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Invalid team member payload",
+        details: parsed.error.flatten(),
+      });
+    }
 
-      const { email, membership_role } = parsed.data;
-      const user = await knex("users").where({ email, role: "AGENCY" }).first();
+    const { email, membership_role } = parsed.data;
 
-      if (!user) {
-        return res.status(404).json({
-          error: "Agency user not found",
-          message:
-            "Only existing provisioned agency logins can be added in this phase.",
-        });
-      }
+    if (!canAssignRole(actorRole, membership_role)) {
+      return res.status(403).json({
+        error: "You cannot assign this role",
+        membership_role,
+      });
+    }
+    const user = await knex("users").where({ email, role: "AGENCY" }).first();
 
-      let membership = await knex("agency_memberships")
-        .where({ agency_id: agencyId, user_id: user.id })
-        .first();
+    if (!user) {
+      return res.status(404).json({
+        error: "Agency user not found",
+        message:
+          "Only existing provisioned agency logins can be added in this phase.",
+      });
+    }
 
-      if (membership && membership.status === "ACTIVE") {
-        return res
-          .status(409)
-          .json({ error: "User is already an active member of this agency" });
-      }
+    let membership = await knex("agency_memberships")
+      .where({ agency_id: agencyId, user_id: user.id })
+      .first();
 
-      if (membership) {
-        await knex("agency_memberships")
-          .where({ id: membership.id })
-          .update({
-            membership_role,
-            status: "ACTIVE",
-            invited_at: membership.invited_at || knex.fn.now(),
-            joined_at: membership.joined_at || knex.fn.now(),
-            updated_at: knex.fn.now(),
-          });
-      } else {
-        await knex("agency_memberships").insert({
-          id: uuidv4(),
-          agency_id: agencyId,
-          user_id: user.id,
+    if (membership && membership.status === "ACTIVE") {
+      return res
+        .status(409)
+        .json({ error: "User is already an active member of this agency" });
+    }
+
+    if (membership) {
+      await knex("agency_memberships")
+        .where({ id: membership.id })
+        .update({
           membership_role,
           status: "ACTIVE",
-          invited_at: knex.fn.now(),
-          joined_at: knex.fn.now(),
-          created_at: knex.fn.now(),
+          invited_at: membership.invited_at || knex.fn.now(),
+          joined_at: membership.joined_at || knex.fn.now(),
           updated_at: knex.fn.now(),
         });
-      }
-
-      membership = await knex("agency_memberships as am")
-        .join("users as u", "u.id", "am.user_id")
-        .where({
-          "am.agency_id": agencyId,
-          "am.user_id": user.id,
-        })
-        .select(
-          "am.id as membership_id",
-          "am.agency_id",
-          "am.user_id",
-          "am.membership_role",
-          "am.status as membership_status",
-          "am.invited_at",
-          "am.joined_at",
-          "am.created_at",
-          "am.updated_at",
-          "u.email",
-          "u.first_name",
-          "u.last_name",
-        )
-        .first();
-
-      return res.status(201).json({
-        success: true,
-        data: serializeAgencyMember(membership),
+    } else {
+      await knex("agency_memberships").insert({
+        id: uuidv4(),
+        agency_id: agencyId,
+        user_id: user.id,
+        membership_role,
+        status: "ACTIVE",
+        invited_at: knex.fn.now(),
+        joined_at: knex.fn.now(),
+        created_at: knex.fn.now(),
+        updated_at: knex.fn.now(),
       });
-    } catch (error) {
-      console.error("[Agency Team API] Error adding member:", error);
-      return res.status(500).json({ error: "Failed to add team member" });
     }
-  },
-);
+
+    membership = await knex("agency_memberships as am")
+      .join("users as u", "u.id", "am.user_id")
+      .where({
+        "am.agency_id": agencyId,
+        "am.user_id": user.id,
+      })
+      .select(
+        "am.id as membership_id",
+        "am.agency_id",
+        "am.user_id",
+        "am.membership_role",
+        "am.status as membership_status",
+        "am.invited_at",
+        "am.joined_at",
+        "am.created_at",
+        "am.updated_at",
+        "u.email",
+        "u.first_name",
+        "u.last_name",
+      )
+      .first();
+
+    await recordAuditEvent({
+      agencyId,
+      actorMembershipId,
+      actorUserId,
+      eventType: "team.member_added",
+      targetType: "membership",
+      targetId: membership.membership_id,
+      summary: `Added ${email} as ${membership_role}`,
+      afterState: { email, membership_role },
+      req,
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: serializeAgencyMember(membership),
+    });
+  } catch (error) {
+    console.error("[Agency Team API] Error adding member:", error);
+    return res.status(500).json({ error: "Failed to add team member" });
+  }
+});
 
 // PATCH /api/agency/team/:membershipId - Update membership role
 router.patch(
   "/api/agency/team/:membershipId",
   requireRole("AGENCY"),
-  requireAgencyMembershipRole("OWNER", "ADMIN"),
   async (req, res) => {
     try {
       const agencyId = getSessionAgencyId(req);
       const actorUserId = getSessionActorUserId(req);
+      const actorMembershipId = req.session.agencyMembershipId || null;
+      const actorRole = normalizePresetRole(req.session.agencyMembershipRole);
       const { membershipId } = req.params;
       const parsed = agencyMemberUpdateSchema.safeParse(req.body);
 
@@ -1849,6 +1915,13 @@ router.patch(
         return res.status(400).json({
           error: "Invalid membership update payload",
           details: parsed.error.flatten(),
+        });
+      }
+
+      if (!canAssignRole(actorRole, parsed.data.membership_role)) {
+        return res.status(403).json({
+          error: "You cannot assign this role",
+          membership_role: parsed.data.membership_role,
         });
       }
 
@@ -1875,6 +1948,19 @@ router.patch(
       await knex("agency_memberships").where({ id: membershipId }).update({
         membership_role: parsed.data.membership_role,
         updated_at: knex.fn.now(),
+      });
+
+      await recordAuditEvent({
+        agencyId,
+        actorMembershipId,
+        actorUserId,
+        eventType: "team.role_changed",
+        targetType: "membership",
+        targetId: membershipId,
+        summary: `Role changed to ${parsed.data.membership_role}`,
+        beforeState: { membership_role: membership.membership_role },
+        afterState: { membership_role: parsed.data.membership_role },
+        req,
       });
 
       const updatedMembership = await knex("agency_memberships as am")
@@ -1911,11 +1997,11 @@ router.patch(
 router.delete(
   "/api/agency/team/:membershipId",
   requireRole("AGENCY"),
-  requireAgencyMembershipRole("OWNER", "ADMIN"),
   async (req, res) => {
     try {
       const agencyId = getSessionAgencyId(req);
       const actorUserId = getSessionActorUserId(req);
+      const actorMembershipId = req.session.agencyMembershipId || null;
       const { membershipId } = req.params;
 
       const membership = await knex("agency_memberships")
@@ -1941,6 +2027,22 @@ router.delete(
       await knex("agency_memberships").where({ id: membershipId }).update({
         status: "INACTIVE",
         updated_at: knex.fn.now(),
+      });
+
+      await recordAuditEvent({
+        agencyId,
+        actorMembershipId,
+        actorUserId,
+        eventType: "team.member_deactivated",
+        targetType: "membership",
+        targetId: membershipId,
+        summary: `Removed team member from agency`,
+        beforeState: {
+          status: membership.status,
+          membership_role: membership.membership_role,
+        },
+        afterState: { status: "INACTIVE" },
+        req,
       });
 
       return res.json({
@@ -1970,9 +2072,9 @@ router.get(
           "profiles.last_name",
           "profiles.city",
           "profiles.height_cm",
-          "profiles.bust",
-          "profiles.waist",
-          "profiles.hips",
+          "profiles.bust_cm as bust",
+          "profiles.waist_cm as waist",
+          "profiles.hips_cm as hips",
           "profiles.age",
           "profiles.bio_curated",
           "applications.id as application_id",
@@ -2238,9 +2340,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "note_added",
         "Note added",
@@ -2297,9 +2399,9 @@ router.put(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "note_edited",
         "Note edited",
@@ -2345,9 +2447,9 @@ router.delete(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "note_deleted",
         "Note deleted",
@@ -3042,209 +3144,18 @@ router.get(
 );
 
 // GET /api/agency/discover - Get discoverable talent (for React frontend)
-// Supports optional ?q= parameter for semantic (vibe) search via pgvector.
+// Supports optional ?q= parameter for multi-vector semantic search via pgvector.
 router.get(
   "/api/agency/discover",
   requireRole("AGENCY"),
   async (req, res, next) => {
     try {
-      const {
-        sort = "az",
-        city = "",
-        letter = "",
-        search = "",
-        min_height = "",
-        max_height = "",
-        min_age = "",
-        max_age = "",
-        gender = "",
-        eye_color = "",
-        hair_color = "",
-        archetype = "",
-        experience_level = "",
-        page = "1",
-        limit = "20",
-        q = "", // semantic / vibe search query
-      } = req.query;
-
       const agencyId = getSessionAgencyId(req);
-      const pageNum = Math.max(1, parseInt(page, 10) || 1);
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-      const offset = (pageNum - 1) * limitNum;
-
-      // Get existing application profile IDs
-      const existingApplicationProfileIds = await knex("applications")
-        .where({ agency_id: agencyId })
-        .pluck("profile_id");
-
-      let query = knex("profiles")
-        .select("profiles.*", "users.email as owner_email")
-        .leftJoin("users", "profiles.user_id", "users.id")
-        .where({
-          "profiles.is_discoverable": true,
-          "profiles.profile_status": "active",
-        })
-        .whereNotNull("profiles.bio_curated");
-
-      // Exclude profiles that already have applications
-      if (existingApplicationProfileIds.length > 0) {
-        query = query.whereNotIn("profiles.id", existingApplicationProfileIds);
-      }
-
-      // Apply filters
-      if (city) {
-        query = query.whereILike("profiles.city", `%${city}%`);
-      }
-
-      if (letter) {
-        query = query.whereILike("profiles.last_name", `${letter}%`);
-      }
-
-      if (search) {
-        query = query.andWhere((qb) => {
-          qb.whereILike("profiles.first_name", `%${search}%`).orWhereILike(
-            "profiles.last_name",
-            `%${search}%`,
-          );
-        });
-      }
-
-      const minHeightNumber = parseInt(min_height, 10);
-      const maxHeightNumber = parseInt(max_height, 10);
-      if (!Number.isNaN(minHeightNumber)) {
-        query = query.where("profiles.height_cm", ">=", minHeightNumber);
-      }
-      if (!Number.isNaN(maxHeightNumber)) {
-        query = query.where("profiles.height_cm", "<=", maxHeightNumber);
-      }
-
-      const minAgeNumber = parseInt(min_age, 10);
-      const maxAgeNumber = parseInt(max_age, 10);
-      if (!Number.isNaN(minAgeNumber)) {
-        query = query.where("profiles.age", ">=", minAgeNumber);
-      }
-      if (!Number.isNaN(maxAgeNumber)) {
-        query = query.where("profiles.age", "<=", maxAgeNumber);
-      }
-
-      if (gender) {
-        query = query.where("profiles.gender", gender);
-      }
-
-      if (eye_color) {
-        query = query.where("profiles.eye_color", eye_color);
-      }
-
-      if (hair_color) {
-        query = query.where("profiles.hair_color", hair_color);
-      }
-
-      if (archetype) {
-        query = query.where("profiles.archetype", archetype);
-      }
-
-      if (experience_level) {
-        query = query.where("profiles.experience_level", experience_level);
-      }
-
-      // Get total count before applying sort/pagination
-      const countQuery = query
-        .clone()
-        .clearSelect()
-        .clearOrder()
-        .count("* as count");
-      const [countResult] = await countQuery;
-      const totalCount = parseInt(countResult?.count || 0, 10);
-      const totalPages = Math.ceil(totalCount / limitNum);
-
-      // ── Sort: semantic (vibe) search if ?q= provided, else normal sort ────
-      const isPostgres =
-        knex.client.config.client === "pg" ||
-        knex.client.config.client === "postgresql";
-      let usedSemanticSort = false;
-
-      if (q && isPostgres && process.env.OPENAI_API_KEY) {
-        try {
-          const queryEmbedding = await embed(q);
-          const vectorLiteral = toVectorLiteral(queryEmbedding);
-
-          query = query
-            .leftJoin("talent_text_embeddings as tte", function () {
-              this.on("tte.profile_id", "=", "profiles.id").andOnVal(
-                "tte.source",
-                "full_profile",
-              );
-            })
-            .select(
-              knex.raw("tte.embedding <=> ?::vector as vibe_distance", [
-                vectorLiteral,
-              ]),
-            )
-            .orderByRaw("tte.embedding <=> ?::vector ASC NULLS LAST", [
-              vectorLiteral,
-            ]);
-
-          usedSemanticSort = true;
-          console.log(`[Discover] Semantic sort active — query: "${q}"`);
-        } catch (embedErr) {
-          console.warn(
-            "[Discover] Semantic sort failed, using default sort:",
-            embedErr.message,
-          );
-        }
-      }
-
-      if (!usedSemanticSort) {
-        if (sort === "city") {
-          query = query.orderBy(["profiles.city", "profiles.last_name"]);
-        } else if (sort === "newest") {
-          query = query.orderBy("profiles.created_at", "desc");
-        } else {
-          query = query.orderBy(["profiles.last_name", "profiles.first_name"]);
-        }
-      }
-
-      // Apply pagination
-      query = query.limit(limitNum).offset(offset);
-
-      const profiles = await query;
-
-      // Fetch images
-      const profileIds = profiles.map((p) => p.id);
-      const allImages =
-        profileIds.length > 0
-          ? await knex("images")
-              .whereIn("profile_id", profileIds)
-              .orderBy(["profile_id", "sort", "created_at"])
-          : [];
-
-      const imagesByProfile = {};
-      allImages.forEach((img) => {
-        if (!imagesByProfile[img.profile_id]) {
-          imagesByProfile[img.profile_id] = [];
-        }
-        imagesByProfile[img.profile_id].push(img);
+      const result = await searchDiscoverableTalent(knex, {
+        agencyId,
+        ...req.query,
       });
-
-      profiles.forEach((profile) => {
-        profile.images = imagesByProfile[profile.id] || [];
-      });
-
-      return res.json({
-        profiles,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total: totalCount,
-          totalPages: totalPages,
-          hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1,
-        },
-        meta: {
-          semantic_search: usedSemanticSort,
-          query: usedSemanticSort ? q : null,
-        },
-      });
+      return res.json(result);
     } catch (error) {
       console.error("[API/Agency/Discover] Error:", error);
       return next(error);

@@ -1,6 +1,5 @@
-import MatchScoreRing from './ui/MatchScoreRing';
-import { TalentTypePill } from './ui/TalentTypePill';
 import { formatDistanceToNowStrict } from 'date-fns';
+import MatchScore from './ui/MatchScore';
 import './RichRow.css';
 
 export default function RichRow({
@@ -12,7 +11,7 @@ export default function RichRow({
 }) {
   const {
     name, photo, type, height_cm, match_score,
-    created_at, tags = [], status, viewed,
+    created_at, tags = [], viewed,
   } = application;
 
   const timeAgo = created_at
@@ -51,13 +50,13 @@ export default function RichRow({
       <div className="ag-rich-row__content">
         <div className="ag-rich-row__line1">
           <span className="ag-rich-row__name">{name}</span>
-          <span className="ag-rich-row__meta">
-            {match_score != null && <MatchScoreRing score={match_score} size="sm" />}
+          <span className="ag-rich-row__right">
+            {match_score != null && <MatchScore score={match_score} size="xs" />}
             <span className="ag-rich-row__time">{timeAgo}</span>
           </span>
         </div>
         <div className="ag-rich-row__line2">
-          <TalentTypePill type={type} size="sm" />
+          {type && <span className="ag-rich-row__type">{type}</span>}
           {height_cm && <span className="ag-rich-row__stat">{height_cm}cm</span>}
         </div>
         {tags.length > 0 && (

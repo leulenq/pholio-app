@@ -4,8 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getApplicationDetails } from '../api/agency';
-import MatchScoreBadge from '../components/ui/MatchScoreBadge';
-import { TalentStatusBadge } from '../components/ui/TalentStatusBadge';
 import { TalentActionBar } from '../components/talent/TalentActionBar';
 import { TalentThread } from '../components/talent/TalentThread';
 import { PortfolioGrid } from '../components/zones/PortfolioGrid';
@@ -50,7 +48,6 @@ export default function TalentFullView() {
 
   const ledger = [
     { label: 'Status', value: application?.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : '—' },
-    { label: 'Match', value: match != null ? `${Math.round(match)}%` : '—' },
     { label: 'Days Active', value: application?.created_at ? daysAgo(application.created_at) : '—' },
     { label: 'Height', value: profile?.height_cm ? `${profile.height_cm}` : '—', suffix: profile?.height_cm ? 'cm' : '' },
   ];
@@ -78,19 +75,11 @@ export default function TalentFullView() {
           {hero ? <img src={hero} alt={name} /> : <span className="tfv-portrait-fallback">{name.charAt(0)}</span>}
         </div>
         <div className="tfv-identity">
-          <div className="tfv-eyebrow">{archetype}{location ? ` · ${location}` : ''}</div>
-          <h1 className="tfv-name">{name}</h1>
-          <div className="tfv-id-row">
-            <TalentStatusBadge status={application?.status || 'available'} />
-            {match != null && (
-              <MatchScoreBadge
-                score={match}
-                size="md"
-                tone="light"
-                className="tfv-match"
-              />
-            )}
+          <div className="tfv-sub-row">
+            {(archetype || location) && <p className="tfv-sub">{archetype}{location ? ` · ${location}` : ''}</p>}
+            {match != null && <span className="tfv-match-num">{match}</span>}
           </div>
+          <h1 className="tfv-name">{name}</h1>
           {bio && <p className="tfv-lead">{bio}</p>}
           <div className="tfv-ledger">
             {ledger.map((s) => (

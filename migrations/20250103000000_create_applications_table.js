@@ -17,7 +17,7 @@ exports.up = async function up(knex) {
       .inTable('agencies')
       .onDelete('CASCADE');
     table
-      .enu('status', ['pending', 'accepted', 'archived', 'declined'])
+      .enu('status', ['pending', 'submitted', 'shortlisted', 'booked', 'passed', 'accepted', 'archived', 'declined'])
       .notNullable()
       .defaultTo('pending');
     table.timestamp('declined_at').nullable();

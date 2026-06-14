@@ -1,6 +1,8 @@
 const {
   requireRole,
   requireAgencyOnboardingComplete,
+  loadAgencyPermissions,
+  enforceAgencyRoutePermissions,
 } = require("../../auth/middleware/require-auth");
 
 const AGENCY_ONBOARDING_ALLOW = [
@@ -22,6 +24,8 @@ function mountAgencyApiGuard(router) {
     requireAgencyOnboardingComplete({
       allow: AGENCY_ONBOARDING_ALLOW,
     }),
+    loadAgencyPermissions,
+    enforceAgencyRoutePermissions(),
   );
 }
 

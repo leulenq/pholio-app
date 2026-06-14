@@ -3,6 +3,7 @@ const router = express.Router();
 
 router.use(require("./roster"));
 router.use(require("./inbox"));
+router.use(require("./team-rbac"));
 router.use(require("./casting"));
 router.use(require("./tags"));
 router.use(require("./interviews"));

@@ -101,6 +101,33 @@ module.exports = {
   // Groq AI configuration
   groq: {
     apiKey: process.env.GROQ_API_KEY,
+    // Text/JSON: query understanding, rerank, chat (replaces deprecated llama-4-maverick)
+    textModel: process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile",
+    // Vision: Scout headshot analysis (same model as analyzeProfileImage.js)
+    visionModel:
+      process.env.GROQ_VISION_MODEL ||
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+  },
+  // OpenAI — Discover semantic search embeddings (text-embedding-3-small)
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+  },
+  // Hybrid Discover retrieval (multi-channel + RRF + Groq rerank)
+  discover: {
+    hybrid:
+      process.env.DISCOVER_HYBRID === "true" ||
+      process.env.DISCOVER_HYBRID === "1",
+    retrievalTopK: parseInt(process.env.DISCOVER_RETRIEVAL_TOP_K, 10) || 80,
+    rerankTopK: parseInt(process.env.DISCOVER_RERANK_TOP_K, 10) || 50,
+    rerankProvider: process.env.DISCOVER_RERANK_PROVIDER || "groq",
+    minRerankScore: parseFloat(process.env.DISCOVER_MIN_RERANK_SCORE) || 40,
+    rrfK: parseInt(process.env.DISCOVER_RRF_K, 10) || 60,
+    // Legacy single-vector fusion (deprecated when hybrid on)
+    maxDistance: parseFloat(process.env.DISCOVER_MAX_DISTANCE) || 0.55,
+    fusionTextWeight:
+      parseFloat(process.env.DISCOVER_FUSION_TEXT_WEIGHT) || 0.6,
+    fusionImageWeight:
+      parseFloat(process.env.DISCOVER_FUSION_IMAGE_WEIGHT) || 0.4,
   },
   // Cloudflare R2 configuration
   r2: {
@@ -113,5 +140,24 @@ module.exports = {
       `https://${process.env.R2_BUCKET}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     region: "auto",
+  },
+  // Agency RBAC — set AGENCY_RBAC_ENFORCE=false to log-only during rollout
+  agencyRbacEnforce:
+    process.env.AGENCY_RBAC_ENFORCE !== "false" &&
+    process.env.AGENCY_RBAC_ENFORCE !== "0",
+  appUrl:
+    process.env.APP_URL ||
+    process.env.BASE_URL ||
+    process.env.URL ||
+    "http://localhost:3000",
+  // Instagram API with Instagram Login (Meta App Dashboard → Instagram → API setup)
+  instagram: {
+    appId: process.env.INSTAGRAM_APP_ID,
+    appSecret: process.env.INSTAGRAM_APP_SECRET,
+    redirectUri:
+      process.env.INSTAGRAM_REDIRECT_URI ||
+      `${process.env.APP_URL || "http://localhost:3000"}/api/auth/instagram/callback`,
+    scope:
+      process.env.INSTAGRAM_OAUTH_SCOPE || "instagram_business_basic",
   },
 };

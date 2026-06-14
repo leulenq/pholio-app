@@ -3,16 +3,6 @@
    Dark AI universe · editorial luxury · warm black + gold
    ============================================================ */
 
-/* ── Orbiting border animation via CSS @property ── */
-@property --dc-orbit {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes dcOrbit {
-  to { --dc-orbit: 360deg; }
-}
 
 @keyframes dcWavePulse {
   0%, 100% { opacity: 0.5; transform: scaleY(1);   }
@@ -36,13 +26,20 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Fixed background ── */
+/* ── Fixed background (main column only — must not cover the rail) ── */
 .dc-bg {
   position: fixed;
-  inset: 0;
-  z-index: -2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--ag-rail-w);
+  z-index: 0;
   background: #010100;
   pointer-events: none;
+}
+
+.ag-shell--discover.ag-shell--collapsed .dc-bg {
+  left: var(--ag-rail-w-collapsed);
 }
 
 .dc-bg-veil {
@@ -55,11 +52,25 @@
 /* ── Neural dot grid substrate ── */
 .dc-neural {
   position: fixed;
-  inset: 0;
-  z-index: -1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--ag-rail-w);
+  z-index: 1;
   pointer-events: none;
   background-image: radial-gradient(circle, rgba(201, 165, 90, 0.055) 1px, transparent 1px);
   background-size: 38px 38px;
+}
+
+.ag-shell--discover.ag-shell--collapsed .dc-neural {
+  left: var(--ag-rail-w-collapsed);
+}
+
+@media (max-width: 1024px) {
+  .ag-shell--discover .dc-bg,
+  .ag-shell--discover .dc-neural {
+    left: 0;
+  }
 }
 
 /* ============================================================
@@ -72,7 +83,7 @@
   justify-content: center;
   padding: 96px 24px 72px;
   position: relative;
-  z-index: 2;
+  z-index: 3; /* above results so the intent panel can overhang them */
 }
 
 .dc-threshold-inner {
@@ -125,74 +136,79 @@
 }
 
 /* ============================================================
-   SEARCH BAR
-   Outer div (1.5px padding) = animated border via conic-gradient.
-   Inner shell (.dc-bar-shell) has dark bg covering the center.
+   SEARCH BAR — underline only, no container, no decoration.
+   The input IS the bar. Typography and the gold hairline do
+   all the work; everything else is removed.
    ============================================================ */
 .dc-bar {
-  --dc-orbit: 0deg;
   position: relative;
-  max-width: 720px;
+  max-width: 680px;
   margin: 0 auto;
-  transition: box-shadow 0.5s ease;
+  z-index: 5;
 }
 
-.dc-bar--on {
-  /* Remove orbit gradient for a cleaner look */
+/* the gold hairline — the only structural element */
+.dc-bar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: rgba(201, 165, 90, 0.28);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+  pointer-events: none;
+}
+.dc-bar--on::after {
+  background: rgba(201, 165, 90, 0.68);
+  box-shadow: 0 2px 22px -6px rgba(201, 165, 90, 0.38);
 }
 
 .dc-bar-shell {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
+  height: 72px;
+  gap: 12px;
   background: transparent;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 0 10px;
-  height: 68px;
 }
 
-.dc-bar-gem {
-  font-size: 16px;
-  color: rgba(201, 165, 90, 0.45);
-  flex-shrink: 0;
-  transition: color 0.3s ease;
-}
-
-.dc-bar--on .dc-bar-gem {
-  color: #C9A55A;
-}
-
-/* ── Input field area ── */
 .dc-bar-field {
   position: relative;
   flex: 1;
   height: 100%;
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
-.dc-bar-input {
+/* hard override — prevent global agency input box styles */
+.dc-page .dc-bar-input,
+body.is-agency .dc-bar-input {
   position: relative;
   z-index: 1;
   width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
   font-family: 'Playfair Display', Georgia, serif;
   font-style: italic;
-  font-size: 1.0625rem;
-  color: rgba(250, 248, 245, 0.9);
-  caret-color: #C9A55A;
-  padding: 0;
+  font-size: 1.2rem;
   line-height: 1;
+  color: rgba(250, 248, 245, 0.92);
+  caret-color: #C9A55A;
 }
-
-.dc-bar-input::selection {
-  background: rgba(201, 165, 90, 0.2);
+.dc-page .dc-bar-input:focus,
+body.is-agency .dc-bar-input:focus {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
+.dc-bar-input::selection { background: rgba(201, 165, 90, 0.2); }
 
-/* ── Cycling placeholder ── */
+/* cycling placeholder */
 .dc-bar-ph {
   position: absolute;
   inset: 0;
@@ -200,47 +216,125 @@
   align-items: center;
   font-family: 'Playfair Display', Georgia, serif;
   font-style: italic;
-  font-size: 1.0625rem;
-  color: rgba(201, 165, 90, 0.38);
+  font-size: 1.2rem;
+  color: rgba(201, 165, 90, 0.32);
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: opacity 0.42s ease;
+  transition: opacity 0.5s ease;
   z-index: 0;
 }
-
 .dc-bar-ph--in  { opacity: 1; }
 .dc-bar-ph--out { opacity: 0; }
 
-/* ── Right-side controls ── */
+/* clear — bare × with no background */
 .dc-bar-clear {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  color: rgba(250, 248, 245, 0.3);
   cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
+}
+.dc-bar-clear:hover { color: rgba(250, 248, 245, 0.75); }
+
+/* ============================================================
+   INLINE PREDICTION (ghost completion)
+   A transparent mirror of the typed text offsets the gold ghost
+   suffix so it sits exactly where the next character would land.
+   ============================================================ */
+.dc-ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.dc-ghost-typed { color: transparent; }
+.dc-ghost-rest { color: rgba(201, 165, 90, 0.35); }
+
+/* ============================================================
+   CASTING SUGGESTIONS — an extension of the bar, not a dropdown.
+   No border-box, no shadow-box. Just the briefs, below the hairline.
+   ============================================================ */
+.dc-intel {
+  position: absolute;
+  top: 100%;            /* flush below the hairline */
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding-top: 2px;
+  transform-origin: top center;
 }
 
-.dc-bar-clear:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: #ffffff;
+.dc-intel-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 4px;
 }
 
-.dc-bar-enter {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.2);
+.dc-intel-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 11px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: none;
+}
+
+.dc-intel-row-idx {
+  width: 26px;
   flex-shrink: 0;
-  letter-spacing: 0.05em;
-  user-select: none;
+  font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(201, 165, 90, 0.35);
+  transition: color 0.2s ease;
+}
+.dc-intel-row:hover .dc-intel-row-idx { color: rgba(201, 165, 90, 0.7); }
+
+.dc-intel-row-text {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.3;
+  color: rgba(250, 248, 245, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s ease;
+}
+.dc-intel-row:hover .dc-intel-row-text { color: rgba(250, 248, 245, 0.9); }
+
+.dc-intel-row-arrow {
+  flex-shrink: 0;
+  margin-left: 10px;
+  color: transparent;
+  transform: translateX(-4px);
+  transition: color 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dc-intel-row:hover .dc-intel-row-arrow {
+  color: rgba(201, 165, 90, 0.6);
+  transform: translateX(0);
 }
 
 /* ============================================================
@@ -292,47 +386,23 @@
   margin: 0 auto;
 }
 
-/* ── Section header ── */
+/* ── Section header — one restrained line ── */
 .dc-curated-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 36px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(201, 165, 90, 0.1);
+  margin: 0 0 28px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
 }
 
-.dc-curated-head-l {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.dc-wave {
-  flex-shrink: 0;
-  transform-origin: left center;
-  animation: dcWavePulse 2.4s ease-in-out infinite;
-}
-
-.dc-curated-label {
+.dc-curated-head em {
   font-family: 'Playfair Display', Georgia, serif;
   font-style: italic;
-  font-size: 1rem;
-  color: rgba(250, 248, 245, 0.52);
+  font-size: 1.18em;
   letter-spacing: 0.01em;
-}
-
-.dc-curated-count {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.32);
-  white-space: nowrap;
-}
-
-.dc-gem-inline {
-  color: rgba(201, 165, 90, 0.48);
+  text-transform: none;
+  color: rgba(235, 207, 138, 0.85);
 }
 
 /* ============================================================
@@ -340,202 +410,257 @@
    CSS columns for natural organic stagger
    ============================================================ */
 .dc-grid {
-  columns: 3;
-  column-gap: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  align-items: start;
 }
 
+/* ── Card — art-directed portrait; type lives on the image ── */
 .dc-card {
-  break-inside: avoid;
-  margin-bottom: 18px;
-  cursor: pointer;
   position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  cursor: pointer;
+  border-radius: 14px;
+  background: #0D0B09;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 16px 38px -24px rgba(0, 0, 0, 0.9);
+  transition:
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── Card frame ── */
-.dc-card-frame {
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #0D0B09;
+.dc-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 0 0 1px rgba(201, 165, 90, 0.28),
+    0 34px 64px -30px rgba(0, 0, 0, 0.95);
 }
 
 .dc-card-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
   transition:
-    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    filter 0.4s ease;
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.55s ease;
 }
 
 .dc-card:hover .dc-card-img {
   transform: scale(1.05);
-  filter: brightness(1.06);
+  filter: brightness(0.82) saturate(1.02);
 }
 
-/* Persistent bottom gradient */
-.dc-card-grad {
+.dc-card-img--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 100% at 50% 0%, #1c1610 0%, #0d0b09 70%);
+}
+
+.dc-card-img--empty span {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 3rem;
+  color: rgba(201, 165, 90, 0.35);
+}
+
+/* Restrained scrim — light at rest, deepens on hover for the controls */
+.dc-card-shade {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.8)  0%,
-    rgba(0, 0, 0, 0.15) 45%,
-    transparent         65%
+    rgba(0, 0, 0, 0.66) 0%,
+    rgba(0, 0, 0, 0.18) 30%,
+    transparent 52%
   );
+  opacity: 0.9;
+  transition: opacity 0.55s ease, background 0.55s ease;
   pointer-events: none;
 }
 
-/* ── Archetype pill — top left ── */
-.dc-card-type {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 4px 10px;
-  border-radius: 100px;
-  border: 1px solid;
+.dc-card:hover .dc-card-shade {
+  opacity: 1;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.84) 0%,
+    rgba(0, 0, 0, 0.42) 42%,
+    rgba(0, 0, 0, 0.06) 70%,
+    transparent 100%
+  );
+}
+
+/* ── Match — light marker, top-left, no box ── */
+/* Name + match share a baseline; the score belongs to the identity block */
+.dc-card-namerow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dc-card-namerow .dc-card-name {
+  flex: 1;
+  min-width: 0;
+}
+
+/* typography lives in MatchScore; layout only */
+.dc-card-score {
+  align-self: baseline;
+}
+
+.dc-card-featured {
+  flex: none;
+  align-self: baseline;
   font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  line-height: 1;
-  z-index: 10;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  color: rgba(201, 165, 90, 0.82);
+  padding: 3px 0 1px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
 }
 
-/* ── Resonance ring — top right ── */
-.dc-card-ring {
+/* ── Identity — integrated bottom-left ── */
+.dc-card-body {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 10;
-}
-
-/* ── Identity — always visible ── */
-.dc-card-id {
-  position: absolute;
-  bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px 14px 14px;
-  z-index: 10;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.dc-card:hover .dc-card-id {
-  transform: translateY(-6px);
+  bottom: 0;
+  padding: 18px 18px 19px;
+  z-index: 3;
 }
 
 .dc-card-name {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1rem;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.95);
-  line-height: 1.2;
-  margin-bottom: 3px;
-}
-
-.dc-card-city {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
+  font-size: 1.32rem;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.005em;
+  color: #fff;
+  line-height: 1.12;
+  margin: 0;
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.55);
 }
 
-/* ── Hover reveal panel ── */
-.dc-card-reveal {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 18px 14px 16px;
-  background: rgba(6, 4, 2, 0.82);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-top: 1px solid rgba(201, 165, 90, 0.1);
-  transform: translateY(100%);
-  transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 20;
-}
-
-.dc-card:hover .dc-card-reveal {
-  transform: translateY(0);
-}
-
-.dc-card-stats {
+.dc-card-line {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.65);
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
+
+.dc-card-line .dc-card-arch { color: rgba(201, 165, 90, 0.95); }
+.dc-card-line .dc-card-loc { color: rgba(255, 255, 255, 0.62); }
 
 .dc-dot {
-  color: rgba(255, 255, 255, 0.22);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(201, 165, 90, 0.6);
+  flex-shrink: 0;
 }
 
-.dc-card-exp {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.6);
-  margin-bottom: 12px;
+/* ── Reveal — controls appear only on interaction ── */
+.dc-card-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.dc-card-btns {
+.dc-card-reveal-inner {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.36s ease 0.05s,
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s;
+}
+
+.dc-card:hover .dc-card-reveal { grid-template-rows: 1fr; }
+.dc-card:hover .dc-card-reveal-inner { opacity: 1; transform: translateY(0); }
+
+/* Vital stats — structured, comp-card treatment (gold label / serif value) */
+.dc-card-stats {
   display: flex;
-  gap: 8px;
+  align-items: flex-end;
+  margin-top: 15px;
 }
 
-.dc-btn-ghost {
-  flex: 1;
-  height: 34px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 12px;
+.dc-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dc-stat:not(:first-child) {
+  margin-left: 18px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.dc-stat-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.9);
+}
+
+.dc-stat-value {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.05rem;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
 }
 
-.dc-btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-}
-
-.dc-btn-gold {
-  flex: 1;
-  height: 34px;
-  border-radius: 6px;
-  background: #C9A55A;
-  border: none;
-  color: #0D0B09;
-  font-size: 12px;
-  font-weight: 600;
+.dc-card-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.dc-btn-gold:hover {
-  background: #D9B46A;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(201, 165, 90, 0.3);
+/* Refined text controls — no boxes */
+.dc-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.22s ease;
 }
+
+.dc-act svg { transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
+
+.dc-act--invite { color: #E8CD86; }
+.dc-act--invite:hover { color: #F5DE9C; }
+.dc-act--invite:hover svg { transform: translateX(3px); }
+.dc-act--invite:disabled { color: rgba(232, 205, 134, 0.5); cursor: default; }
+
+.dc-act--invited { color: #94a3b8 !important; cursor: default; pointer-events: none; }
+
+.dc-act--view { color: rgba(255, 255, 255, 0.5); }
+.dc-act--view:hover { color: rgba(255, 255, 255, 0.92); }
 
 /* ============================================================
    RESONANCE RING
@@ -827,7 +952,7 @@
    RESPONSIVE
    ============================================================ */
 @media (max-width: 1100px) {
-  .dc-grid { columns: 2; }
+  .dc-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -856,7 +981,7 @@
     padding: 0 20px 60px;
   }
 
-  .dc-grid { columns: 1; }
+  .dc-grid { grid-template-columns: 1fr; }
 
   /* Panel slides up from bottom on mobile */
   .dc-panel {
@@ -876,4 +1001,110 @@
 
 @media (min-width: 769px) and (max-width: 1100px) {
   .dc-panel { width: min(420px, 55vw); }
+}
+
+/* ============================================================
+   REFRESH — agency-branded semantic discovery (night mode)
+   ============================================================ */
+
+/* eyebrow spark (lucide) */
+.dc-eyebrow-spark { color: #C9A55A; animation: dcShimmer 3s ease-in-out infinite; }
+
+/* subhead under the headline */
+.dc-sub {
+  max-width: 540px; margin: -34px auto 40px; /* pull up toward headline */
+  font-size: 13.5px; line-height: 1.65; letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.46);
+}
+
+/* gold submit button */
+/* bare arrow — no pill, no background */
+.dc-bar-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: rgba(201, 165, 90, 0.45);
+  cursor: pointer;
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+.dc-bar--on .dc-bar-go { color: rgba(201, 165, 90, 0.8); }
+.dc-bar-go:hover { color: #C9A55A; transform: translateX(2px); }
+
+/* example intent suggestions (replace fake chips) */
+.dc-suggest {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px; margin-top: 26px;
+}
+.dc-suggest-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.5); margin-right: 4px;
+}
+.dc-suggest-pill {
+  padding: 7px 15px; border-radius: 100px;
+  background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(250, 248, 245, 0.62); font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
+  cursor: pointer; transition: all 0.2s ease;
+}
+.dc-suggest-pill:hover {
+  background: rgba(201, 165, 90, 0.1); border-color: rgba(201, 165, 90, 0.4); color: #C9A55A;
+  transform: translateY(-1px);
+}
+
+/* results header — kicker + serif title + AI badge */
+.dc-results-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
+  margin-bottom: 22px;
+}
+.dc-kicker {
+  display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.7); margin-bottom: 10px;
+}
+.dc-results-title {
+  font-family: 'Playfair Display', Georgia, serif; font-weight: 400;
+  font-size: clamp(1.5rem, 2.4vw, 2rem); line-height: 1.1; letter-spacing: -0.01em;
+  color: rgba(250, 248, 245, 0.92); margin: 0; max-width: 60ch;
+}
+.dc-results-q { font-style: italic; color: rgba(250, 248, 245, 0.62); }
+.dc-results-head-r { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+
+.dc-ai-badge {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 6px 12px; border-radius: 100px;
+  background: rgba(201, 165, 90, 0.1); border: 1px solid rgba(201, 165, 90, 0.32);
+  color: #C9A55A; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.dc-thinking {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.7); white-space: nowrap;
+}
+.dc-thinking-dots { animation: dcShimmer 1.1s ease-in-out infinite; }
+
+/* serif ledger — agency shell vocabulary on dark */
+.dc-ledger {
+  display: flex; margin-bottom: 32px; padding-bottom: 24px;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.12);
+}
+.dc-stat { flex: 0 0 auto; padding: 0 34px; border-left: 1px solid rgba(255, 255, 255, 0.08); }
+.dc-stat:first-child { border-left: none; padding-left: 0; }
+.dc-stat-num {
+  font-family: 'Playfair Display', Georgia, serif; font-size: 34px; line-height: 1; display: block;
+  color: rgba(250, 248, 245, 0.92);
+}
+.dc-stat-label {
+  display: block; margin-top: 10px; font-size: 9px; font-weight: 600; letter-spacing: 0.18em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.4);
+}
+.dc-stat--gold .dc-stat-num { color: #C9A55A; }
+.dc-stat--mute .dc-stat-num { color: rgba(255, 255, 255, 0.38); }
+
+@media (max-width: 768px) {
+  .dc-sub { margin: -22px auto 30px; }
+  .dc-results-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .dc-ledger { flex-wrap: wrap; gap: 18px 0; }
+  .dc-stat { padding: 0 22px; }
 }

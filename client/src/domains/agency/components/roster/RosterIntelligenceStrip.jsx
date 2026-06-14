@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sparkles } from 'lucide-react';
 import './RosterIntelligenceStrip.css';
 
-const INTELLIGENCE = [
+const SIGNALS = [
   {
     id: 'idle-bench',
     type: 'attention',
@@ -12,7 +11,7 @@ const INTELLIGENCE = [
     cta: 'Review bench',
   },
   {
-    id: 'editorial-gap',
+    id: 'runway-gap',
     type: 'opportunity',
     title: 'Runway opportunity gap',
     body: 'Isabelle Laurent and Yuki Tanaka match 2 active runway board briefs by profile and measurements. Neither has been submitted yet.',
@@ -21,70 +20,52 @@ const INTELLIGENCE = [
   {
     id: 'profile-gap',
     type: 'growth',
-    title: 'Profile gaps limiting discoverability',
+    title: 'Profile gaps limiting reach',
     body: 'Chloe Anderson and Alex Chen have incomplete profiles. Completing measurement fields improves placement in semantic casting searches.',
-    cta: 'Review profiles',
+    cta: 'Complete profiles',
   },
 ];
 
-const TYPE_CONFIG = {
-  attention:   { accent: '#C0392B', bg: 'rgba(192,57,43,0.035)',  label: 'Attention'   },
-  opportunity: { accent: '#C9A55A', bg: 'rgba(201,165,90,0.06)',  label: 'Opportunity' },
-  growth:      { accent: '#2D8A56', bg: 'rgba(45,138,86,0.04)',   label: 'Growth'      },
+const TYPE = {
+  attention:   { accent: '#C0392B', bg: 'rgba(192,57,43,0.042)',  border: 'rgba(192,57,43,0.14)', label: 'Attention'   },
+  opportunity: { accent: '#C9A55A', bg: 'rgba(201,165,90,0.055)', border: 'rgba(201,165,90,0.22)', label: 'Opportunity' },
+  growth:      { accent: '#2D8A56', bg: 'rgba(45,138,86,0.042)',  border: 'rgba(45,138,86,0.14)', label: 'Growth'      },
 };
 
 export default function RosterIntelligenceStrip() {
-  const [open, setOpen] = useState(true);
-
   return (
     <div className="rs-intel">
-      <button className="rs-intel-header" onClick={() => setOpen(o => !o)}>
-        <div className="rs-intel-header-left">
-          <Sparkles size={12} className="rs-intel-sparkle" />
-          <span className="rs-intel-label">Roster Intelligence</span>
-          <span className="rs-intel-count">{INTELLIGENCE.length}</span>
-        </div>
-        <ChevronDown
-          size={13}
-          className={`rs-intel-chevron${open ? ' rs-intel-chevron--open' : ''}`}
-        />
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key="cards"
-            className="rs-intel-cards"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
-            style={{ overflow: 'hidden' }}
-          >
-            {INTELLIGENCE.map((item, i) => {
-              const cfg = TYPE_CONFIG[item.type];
-              return (
-                <motion.div
-                  key={item.id}
-                  className="rs-intel-card"
-                  style={{ '--card-accent': cfg.accent, '--card-bg': cfg.bg }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.07, duration: 0.2 }}
-                >
-                  <div className="rs-intel-card-accent" />
-                  <div className="rs-intel-card-body">
-                    <span className="rs-intel-card-type">{cfg.label}</span>
-                    <span className="rs-intel-card-title">{item.title}</span>
-                    <p className="rs-intel-card-text">{item.body}</p>
-                    <button className="rs-intel-card-cta">{item.cta} →</button>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="rs-intel-header">
+        <Sparkles size={11} className="rs-intel-spark" aria-hidden="true" />
+        <span className="rs-intel-label">Roster Intelligence</span>
+      </div>
+      <div className="rs-intel-grid">
+        {SIGNALS.map((signal, i) => {
+          const cfg = TYPE[signal.type];
+          return (
+            <motion.div
+              key={signal.id}
+              className={`rs-signal-card rs-signal-card--${signal.type}`}
+              style={{
+                '--sig-accent': cfg.accent,
+                '--sig-bg':     cfg.bg,
+                '--sig-border': cfg.border,
+              }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.09, duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <div className="rs-signal-bar" />
+              <div className="rs-signal-content">
+                <span className="rs-signal-type">{cfg.label}</span>
+                <strong className="rs-signal-title">{signal.title}</strong>
+                <p className="rs-signal-text">{signal.body}</p>
+                <button className="rs-signal-cta">{signal.cta} →</button>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

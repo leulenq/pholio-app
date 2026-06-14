@@ -257,7 +257,6 @@ export default function MediaWorkspace() {
 
         <motion.header className="mw-masthead" {...ARRIVE}>
           <div className="mw-masthead__copy">
-            <span className="mw-kicker">The Book</span>
             <h1 className="mw-h1">
               The <em>Book.</em>
             </h1>
@@ -281,7 +280,6 @@ export default function MediaWorkspace() {
 
         <section aria-label="Frame library" className="mw-library">
           <div className="mw-section-head">
-            <span className="mw-kicker">I — Library</span>
             <h2 className="mw-h2">Your frames</h2>
           </div>
 

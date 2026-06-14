@@ -36,6 +36,8 @@
 .tfv-name { font-family: 'Noto Serif Display', 'Playfair Display', serif; font-size: 44px; font-weight: 500; color: #16130D; line-height: 1.04; margin: 0; }
 .tfv-id-row { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
 .tfv-match { align-self: center; }
+.tfv-sub-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.tfv-match-num { flex: none; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: rgba(184, 149, 106, 0.72); }
 .tfv-lead {
   font-family: 'Noto Serif Display', serif; font-size: 14.5px; line-height: 1.65; color: #4a443c;
   margin: 20px 0 0; max-width: 60ch;

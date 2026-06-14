@@ -13,7 +13,8 @@
   --ag-surface-3: #F5F2EE;  /* interactive surface — active states, inputs (same tone, distinct role) */
   --ag-surface-4: #EDE9E3;           /* active states, inputs */
 
-  /* ---- Gold ---- */
+  /* ---- Pholio platform gold (fixed — never agency-branded) ---- */
+  --ag-pholio-gold: #C9A55A;
   --ag-gold: #C9A55A;
   --ag-gold-dim: rgba(201, 165, 90, 0.65);
   --ag-gold-muted: rgba(201, 165, 90, 0.12);
@@ -31,7 +32,7 @@
   --ag-border: rgba(26,24,21,0.08);
   --ag-border-strong: rgba(26,24,21,0.14);          /* canonical name */
   --ag-border-hover: rgba(26,24,21,0.14);            /* alias for --ag-border-strong — keep during migration */
-  --ag-border-gold: rgba(201,165,90,0.25);
+  --ag-border-gold: rgba(201, 165, 90, 0.25);
   --ag-border-error: rgba(220,38,38,0.5);
   --ag-border-warning: rgba(234,179,8,0.5);
   --ag-border-success: rgba(34,197,94,0.5);
@@ -50,7 +51,7 @@
   --ag-shadow-sm: 0 1px 3px rgba(26,24,21,0.06);
   --ag-shadow-md: 0 4px 20px rgba(26,24,21,0.08);
   --ag-shadow-lg: 0 12px 40px rgba(26,24,21,0.12);
-  --ag-shadow-gold: 0 0 20px rgba(201,165,90,0.15);
+  --ag-shadow-gold: 0 0 20px rgba(201, 165, 90, 0.15);
 
   /* ---- Typography ---- */
   --ag-font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
@@ -147,9 +148,10 @@
      Legacy aliases — maps old --agency-* tokens to new --ag-*
      Used by sub-pages (Boards, Discover, Analytics, etc.)
      ============================================================ */
-  --agency-primary: var(--ag-gold);
-  --agency-primary-hover: var(--ag-gold-hover);
-  --agency-primary-light: var(--ag-gold-ghost);
+  /* Agency workspace accent — defaults match Pholio gold; overridden on .ag-shell when branded */
+  --agency-primary: #C9A55A;
+  --agency-primary-hover: #B8956A;
+  --agency-primary-light: rgba(201, 165, 90, 0.08);
   --agency-gold: var(--ag-gold);
   --agency-gold-hover: var(--ag-gold-hover);
 

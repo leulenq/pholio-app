@@ -6,7 +6,7 @@
  */
 exports.up = async function up(knex) {
   await knex.schema.createTable('profile_photos', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('profile_id').notNullable()
       .references('id')
       .inTable('profiles')

@@ -314,4 +314,4 @@ function selectCompCardImages(images, options) {
   return { heroImage, gridImages };
 }
 
-module.exports = { selectCompCardImages };
+module.exports = { selectCompCardImages, deriveCompCardRole };

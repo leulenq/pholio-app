@@ -167,8 +167,12 @@ AWS_SECRET_ACCESS_KEY=
 AWS_REGION=
 S3_BUCKET_NAME=
 
-# Groq (AI photo analysis)
+# Groq (AI photo analysis, casting Scout/Director)
 GROQ_API_KEY=
+
+# OpenAI (Discover semantic search — text-embedding-3-small @ 512 dims)
+# Required for agency Discover ?q= vector search. Get key: https://platform.openai.com/api-keys
+OPENAI_API_KEY=
 
 # Email
 SMTP_HOST=
@@ -217,6 +221,7 @@ AWS_REGION=...
 S3_BUCKET_NAME=...
 
 GROQ_API_KEY=...
+OPENAI_API_KEY=sk-...
 COMMISSION_RATE=0.25
 MAX_UPLOAD_MB=8
 ```
@@ -249,6 +254,19 @@ npm run seed             # Load seed data
 Migrations live in `migrations/` as numbered Knex files (`YYYYMMDDhhmmss_description.js`). All primary keys are UUIDs.
 
 > **Note:** PostgreSQL stores `date_of_birth` as a full ISO timestamp. The frontend handles both `"1995-03-15"` and `"1995-03-15T05:00:00.000Z"` formats.
+
+### Discover semantic search (Postgres + OpenAI)
+
+Agency Discover natural-language search (`GET /api/agency/discover?q=...`) uses OpenAI **text-embedding-3-small** (512 dimensions). **SQLite dev** stores vectors in `talent_embedding_cache` and runs semantic search in-process. **Postgres production** uses pgvector.
+
+1. Add `OPENAI_API_KEY` to `.env` ([platform.openai.com/api-keys](https://platform.openai.com/api-keys))
+2. Verify the key: `npm run verify:embeddings`
+3. Index talent: `npm run backfill:discover` (works on SQLite and Postgres)
+4. Restart the API (`npm run dev:all`) and search in **Discover** — response `meta.semantic_search` should be `true`
+
+For production at launch, use Postgres/Neon (`DB_CLIENT=pg`) so vectors live in pgvector tables. Local SQLite is fine for pre-launch dev.
+
+Optional tuning: `DISCOVER_MAX_DISTANCE` (default `0.55`), `DISCOVER_FUSION_TEXT_WEIGHT` (`0.6`), `DISCOVER_FUSION_IMAGE_WEIGHT` (`0.4`).
 
 ---
 

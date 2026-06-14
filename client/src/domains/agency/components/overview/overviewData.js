@@ -51,10 +51,6 @@ export function selectPipeline(data) {
   });
 }
 
-export function selectAlerts(data) {
-  return Array.isArray(data?.alerts) ? data.alerts : [];
-}
-
 export function selectPulse(data) {
   const p = data?.pulse || {};
   return {
@@ -106,126 +102,107 @@ export function buildNextMoves(pulse, talentMix = []) {
   return moves;
 }
 
-const ATTENTION_PRIORITY = ['review', 'closing', 'new', 'idle'];
+const DOCKET_PRIORITY = ['review', 'closing', 'new', 'idle'];
 
-function attentionScore(item) {
-  let score = item.n || 0;
-  if (item.tone === 'urgent') score += 1000;
-  if (item.tone === 'positive') score += 100;
-  return score;
+// "today" / "tomorrow" / weekday name for a board close date within the week.
+function closesWhen(date) {
+  const days = Math.ceil((date.getTime() - Date.now()) / 86400000);
+  if (days <= 0) return 'closes today';
+  if (days === 1) return 'closes tomorrow';
+  return `closes ${date.toLocaleDateString('en-US', { weekday: 'long' })}`;
 }
 
-export function buildAttentionItems(kpis, pulse) {
-  return [
-    {
+// Boards closing in the next 7 days, soonest first, with valid dates only.
+function closingBoards(boards) {
+  const now = Date.now();
+  const horizon = now + 7 * 86400000;
+  return boards
+    .filter((b) => b.is_active !== false && b.closes_at)
+    .map((b) => ({ name: b.name, date: new Date(b.closes_at) }))
+    .filter((b) => !Number.isNaN(b.date.getTime()))
+    .filter((b) => b.date.getTime() <= horizon && b.date.getTime() >= now - 86400000)
+    .sort((a, b) => a.date - b.date);
+}
+
+// Today's docket — the prioritized daily agenda above the fold. Each row is a
+// strong figure + a specific statement (real boards, real ages, real scores)
+// + one direct action. Rows appear only when actionable; urgent first.
+export function buildDocket(kpis, pulse, boards = [], incoming = []) {
+  const rows = [];
+  const faces = incoming.map((a) => a.photo).filter(Boolean).slice(0, 5);
+
+  if (kpis.pendingReview > 0) {
+    const oldest = kpis.pendingOldestDaysAgo;
+    rows.push({
       key: 'review',
-      n: kpis.pendingReview,
-      label: 'Awaiting review',
-      sub: kpis.pendingOldestDaysAgo ? `oldest ${kpis.pendingOldestDaysAgo}d` : 'all current',
+      figure: kpis.pendingReview,
+      statement: `applicant${kpis.pendingReview === 1 ? '' : 's'} awaiting review`,
+      sub: oldest ? `Oldest waiting ${oldest} day${oldest === 1 ? '' : 's'}` : null,
+      avgMatch: pulse.avgMatchScore,
+      faces,
       to: '/dashboard/agency/applicants',
-      tone: (kpis.pendingOldestDaysAgo || 0) >= 14 ? 'urgent' : 'default',
       cta: 'Review applications',
-      context: kpis.activeCastings > 0
-        ? { n: kpis.activeCastings, label: kpis.activeCastings === 1 ? 'active casting' : 'active castings' }
-        : null,
-    },
-    {
-      key: 'closing',
-      n: pulse.closingWeek,
-      label: 'Close this week',
-      sub: kpis.castingsClosingToday ? `${kpis.castingsClosingToday} today` : 'across boards',
-      to: '/dashboard/agency/casting',
-      tone: kpis.castingsClosingToday > 0 ? 'urgent' : 'default',
-      cta: 'Open casting',
-      context: kpis.activeCastings > 0
-        ? { n: kpis.activeCastings, label: 'active total' }
-        : null,
-    },
-    {
-      key: 'new',
-      n: pulse.newToday,
-      label: 'New today',
-      sub: 'awaiting triage',
-      to: '/dashboard/agency/applicants',
-      tone: 'positive',
-      cta: 'Triage inbox',
-      context: kpis.pendingReview > 0
-        ? { n: kpis.pendingReview, label: 'total pending' }
-        : null,
-    },
-    {
-      key: 'idle',
-      n: pulse.idleTalent,
-      label: 'Idle bench',
-      sub: 'unsubmitted 30d',
-      to: '/dashboard/agency/roster',
-      tone: 'default',
-      cta: 'Activate roster',
-      context: kpis.rosterSize > 0
-        ? { n: kpis.rosterSize, label: 'on roster' }
-        : null,
-    },
-  ];
-}
-
-export function pickOverviewHero(attention) {
-  const active = attention.filter((a) => a.n > 0);
-  if (!active.length) {
-    return {
-      kind: 'clear',
-      key: 'clear',
-      label: 'All caught up',
-      sub: 'No boards closing today and inbox is current.',
-      to: '/dashboard/agency/discover',
-      cta: 'Scout talent',
-      tone: 'positive',
-    };
+      tone: (oldest || 0) >= 14 ? 'urgent' : 'default',
+    });
   }
 
-  const sorted = [...active].sort((a, b) => {
-    const toneDiff = attentionScore(b) - attentionScore(a);
-    if (toneDiff !== 0) return toneDiff;
-    return ATTENTION_PRIORITY.indexOf(a.key) - ATTENTION_PRIORITY.indexOf(b.key);
+  if (pulse.closingWeek > 0) {
+    const closing = closingBoards(boards);
+    const named = closing.slice(0, 2)
+      .map((b) => `“${b.name}” ${closesWhen(b.date)}`)
+      .join(', ');
+    const more = closing.length > 2 ? ` · ${closing.length - 2} more` : '';
+    const todayCount = kpis.castingsClosingToday
+      || closing.filter((b) => closesWhen(b.date) === 'closes today').length;
+    rows.push({
+      key: 'closing',
+      figure: pulse.closingWeek,
+      statement: `board${pulse.closingWeek === 1 ? '' : 's'} close this week`,
+      sub: named ? `${named}${more}` : null,
+      avgMatch: null,
+      to: '/dashboard/agency/casting',
+      cta: 'Open casting',
+      tone: todayCount > 0 ? 'urgent' : 'default',
+    });
+  }
+
+  if (pulse.newToday > 0) {
+    const strong = incoming.filter((a) => (a.match || 0) >= 85).length;
+    rows.push({
+      key: 'new',
+      figure: pulse.newToday,
+      statement: `new applicant${pulse.newToday === 1 ? '' : 's'} today`,
+      sub: strong ? `${strong} scoring 85 or higher` : null,
+      avgMatch: null,
+      faces,
+      to: '/dashboard/agency/applicants',
+      cta: 'Triage inbox',
+      tone: 'positive',
+    });
+  }
+
+  if (pulse.idleTalent > 0) {
+    rows.push({
+      key: 'idle',
+      figure: pulse.idleTalent,
+      statement: `talent idle on the bench`,
+      sub: kpis.rosterSize
+        ? `Of ${kpis.rosterSize} on roster · no submissions in 30 days`
+        : 'No submissions in 30 days',
+      avgMatch: null,
+      to: '/dashboard/agency/roster',
+      cta: 'Activate roster',
+      tone: 'default',
+    });
+  }
+
+  rows.sort((a, b) => {
+    const urgency = (a.tone === 'urgent' ? 0 : 1) - (b.tone === 'urgent' ? 0 : 1);
+    if (urgency !== 0) return urgency;
+    return DOCKET_PRIORITY.indexOf(a.key) - DOCKET_PRIORITY.indexOf(b.key);
   });
 
-  const top = sorted[0];
-  return { kind: 'action', ...top };
-}
-
-export function buildHealthStats(kpis) {
-  const rosterHint = kpis.rosterChangeThisMonth
-    ? `+${kpis.rosterChangeThisMonth} this month`
-    : null;
-  const castingHint = kpis.castingsClosingToday
-    ? `${kpis.castingsClosingToday} close today`
-    : kpis.activeCastings ? 'active now' : null;
-  const placementHint = kpis.placementLastSeason != null
-    ? `was ${kpis.placementLastSeason}%`
-    : null;
-
-  return [
-    {
-      label: 'Active castings',
-      value: kpis.activeCastings,
-      hint: castingHint,
-    },
-    {
-      label: 'Roster',
-      value: kpis.rosterSize,
-      hint: rosterHint,
-    },
-    {
-      label: 'Placement rate',
-      value: kpis.placementRate,
-      suffix: '%',
-      hint: placementHint,
-    },
-    {
-      label: 'In market',
-      value: kpis.utilization,
-      hint: kpis.utilizationPct ? `${kpis.utilizationPct}% of roster` : 'on submission',
-    },
-  ];
+  return { rows: rows.slice(0, 4), allClear: rows.length === 0 };
 }
 
 // /overview/recent-applicants returns:

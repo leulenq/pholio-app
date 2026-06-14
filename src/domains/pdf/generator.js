@@ -115,6 +115,27 @@ async function renderCompCard(slug, theme = null, opts = null) {
           ),
         );
       }
+      const genEngine = opts && opts.engine;
+      if (genEngine != null && genEngine !== "") {
+        url.searchParams.set(
+          "engine",
+          String(Array.isArray(genEngine) ? genEngine[0] : genEngine),
+        );
+      }
+      const genUnits = opts && opts.units;
+      if (genUnits != null && genUnits !== "") {
+        url.searchParams.set(
+          "units",
+          String(Array.isArray(genUnits) ? genUnits[0] : genUnits),
+        );
+      }
+      const genPrint = opts && opts.print;
+      if (genPrint != null && genPrint !== "") {
+        url.searchParams.set(
+          "print",
+          String(Array.isArray(genPrint) ? genPrint[0] : genPrint),
+        );
+      }
       target = url.toString();
 
       console.log("[renderCompCard] Target URL:", target);
@@ -208,6 +229,7 @@ async function renderCompCard(slug, theme = null, opts = null) {
 
     try {
       const page = await browser.newPage();
+      let viewResponse = null;
 
       // Set viewport size to match PDF dimensions (important for proper rendering)
       await page.setViewport({
@@ -216,10 +238,60 @@ async function renderCompCard(slug, theme = null, opts = null) {
         deviceScaleFactor: 2, // Higher DPI for better quality
       });
 
+      // ── P4 vision jury (opt-in) ───────────────────────────────────────
+      // Render each front candidate to a PNG, let llama-4-scout rank them,
+      // then re-render the winning candidate. Opt-in (adds K front renders
+      // + one Groq call); silently skipped without a key or on any failure.
+      const juryOn =
+        opts && opts.jury && process.env.GROQ_API_KEY && config.nodeEnv !== "test";
+      if (juryOn) {
+        try {
+          const { rankFrontCandidates } = require("./composition/front-program/jury");
+          const K = 5;
+          const candUrl = (i) => {
+            const u = new URL(target);
+            u.searchParams.set("candidate", String(i));
+            return u.toString();
+          };
+          const renderPng = async (program) => {
+            await page.goto(candUrl(program.index), {
+              waitUntil: "networkidle0",
+              timeout: 30000,
+            });
+            await page.evaluate(async () => {
+              try { await document.fonts.ready; } catch (e) { /* continue */ }
+            });
+            await new Promise((r) => setTimeout(r, 400));
+            const el = await page.$("#front");
+            if (!el) return null;
+            return Buffer.from(await el.screenshot({ type: "png" }));
+          };
+          const candidates = Array.from({ length: K }, (_, i) => ({
+            program: { index: i },
+            score: 0, // flat aesthetics here → vision-led blend (documented)
+          }));
+          const ranked = await rankFrontCandidates({
+            candidates,
+            renderPng,
+            timeoutMs: 14000,
+          });
+          if (ranked && Number.isInteger(ranked.winnerIndex)) {
+            target = candUrl(ranked.winnerIndex);
+            console.log(
+              `[renderCompCard] jury winner candidate ${ranked.winnerIndex}: ${ranked.rationale || ""}`,
+            );
+          }
+        } catch (juryErr) {
+          console.warn("[renderCompCard] jury skipped:", juryErr.message);
+        }
+      }
+
       // Navigate to PDF view URL with timeout
       try {
         console.log("[renderCompCard] Navigating to PDF view URL:", target);
-        await page.goto(target, {
+        // Keep the response: the composed view exposes wordmark geometry +
+        // portfolio URL via headers, consumed for PDF link post-processing.
+        viewResponse = await page.goto(target, {
           waitUntil: "networkidle0",
           timeout: 30000, // 30 second timeout
         });
@@ -397,6 +469,57 @@ async function renderCompCard(slug, theme = null, opts = null) {
         // Normalize to Buffer so Express sends binary PDF bytes instead of JSON.
         if (!Buffer.isBuffer(buffer)) {
           buffer = Buffer.from(buffer);
+        }
+
+        // Premium portfolio link: when the composed view exposed wordmark
+        // geometry headers, stamp clickable link annotations + metadata onto
+        // the finished PDF. Fail-soft — a post-processing problem never
+        // blocks the card. Headers appear only once the composed engine v2
+        // emits them; until then this block no-ops with a debug log.
+        try {
+          const headers = viewResponse ? viewResponse.headers() : {};
+          const portfolioUrl = headers["x-compcard-portfolio-url"];
+          const parseMark = (value, pageIndex) => {
+            if (!value) return null;
+            const parts = String(value).split(",").map(Number);
+            if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) {
+              return null;
+            }
+            const [xIn, yIn, wIn, hIn] = parts;
+            return { pageIndex, xIn, yIn, wIn, hIn };
+          };
+          const wordmarks = [
+            parseMark(headers["x-compcard-wordmark-front"], 0),
+            parseMark(headers["x-compcard-wordmark-back"], 1),
+          ].filter(Boolean);
+
+          if (portfolioUrl && wordmarks.length) {
+            const {
+              embedPortfolioLink,
+            } = require("./composition/portfolio-link");
+            const title =
+              headers["x-compcard-title"] || `${slug} — Comp Card`;
+            buffer = await embedPortfolioLink(buffer, {
+              url: portfolioUrl,
+              title,
+              subject: portfolioUrl,
+              wordmarks,
+            });
+            console.log(
+              "[portfolio-link] wordmark link embedded:",
+              portfolioUrl,
+              `(${wordmarks.length} page(s))`,
+            );
+          } else {
+            console.log(
+              "[portfolio-link] no wordmark headers on view response; skipping link embed",
+            );
+          }
+        } catch (linkError) {
+          console.warn(
+            "[portfolio-link] post-processing failed, serving unannotated PDF:",
+            linkError.message,
+          );
         }
 
         console.log(

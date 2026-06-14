@@ -62,9 +62,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "reminder_created",
         "Reminder set",
@@ -107,7 +107,9 @@ router.get(
         .leftJoin("profiles", "talent.id", "profiles.user_id")
         .select(
           "reminders.*",
-          knex.raw("(profiles.first_name || ' ' || profiles.last_name) as talent_name"),
+          knex.raw(
+            "(profiles.first_name || ' ' || profiles.last_name) as talent_name",
+          ),
           "talent.email as talent_email",
           "profiles.slug as talent_slug",
         );
@@ -284,9 +286,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         reminder.application_id,
-        agencyId,
         agencyId,
         "reminder_completed",
         "Reminder completed",

@@ -1,36 +1,46 @@
 import {
   LayoutGrid, Activity, Inbox, Clapperboard, CalendarClock,
-  Users, Compass, UsersRound, BarChart3,
+  Contact, Telescope, Building2, BarChart3,
 } from 'lucide-react';
 
+/** Collapse toggle sits after this group label in the rail. */
+export const AGENCY_NAV_COLLAPSE_AFTER = 'Pipeline';
+
+/**
+ * Sidebar IA follows how agencies work day to day:
+ * 1. Home — command center (ungrouped for hierarchy)
+ * 2. Pipeline — acquisition workflow in funnel order
+ * 3. Roster — signed talent management (separate mental mode)
+ * 4. Organization — team, audit trail, reporting
+ */
 export const AGENCY_NAV_GROUPS = [
   {
-    label: 'Monitor',
+    label: null,
     items: [
-      { label: 'Overview', to: '/dashboard/agency', end: true, icon: LayoutGrid },
-      { label: 'Activity', to: '/dashboard/agency/activity', icon: Activity },
+      { label: 'Overview', to: '/dashboard/agency', icon: LayoutGrid, end: true, permission: 'overview.view' },
     ],
   },
   {
     label: 'Pipeline',
     items: [
-      { label: 'Applicants', to: '/dashboard/agency/applicants', icon: Inbox, countKey: 'applicants' },
-      { label: 'Casting', to: '/dashboard/agency/casting', icon: Clapperboard, countKey: 'casting' },
-      { label: 'Interviews', to: '/dashboard/agency/interviews', icon: CalendarClock },
+      { label: 'Casting',      to: '/dashboard/agency/casting',    icon: Clapperboard,  countKey: 'casting',    permission: 'boards.view'            },
+      { label: 'Applications', to: '/dashboard/agency/applicants', icon: Inbox,         countKey: 'applicants', permission: 'applications.view_list' },
+      { label: 'Interviews',   to: '/dashboard/agency/interviews', icon: CalendarClock,                              permission: 'interviews.view'        },
+      { label: 'Scout',        to: '/dashboard/agency/discover',   icon: Telescope,                                  permission: 'discover.search'        },
     ],
   },
   {
     label: 'Roster',
     items: [
-      { label: 'Talent', to: '/dashboard/agency/roster', icon: Users },
-      { label: 'Discover', to: '/dashboard/agency/discover', icon: Compass },
+      { label: 'Roster', to: '/dashboard/agency/roster', icon: Contact, permission: 'roster.view' },
     ],
   },
   {
-    label: 'Agency',
+    label: 'Organization',
     items: [
-      { label: 'Team', to: '/dashboard/agency/team', icon: UsersRound, countKey: 'team' },
-      { label: 'Analytics', to: '/dashboard/agency/analytics', icon: BarChart3 },
+      { label: 'Team',      to: '/dashboard/agency/team',      icon: Building2, countKey: 'team', permission: 'team.view'              },
+      { label: 'Activity',  to: '/dashboard/agency/activity',  icon: Activity,                           permission: 'org.view_activity'      },
+      { label: 'Analytics', to: '/dashboard/agency/analytics', icon: BarChart3,                           permission: 'org.view_analytics'     },
     ],
   },
 ];

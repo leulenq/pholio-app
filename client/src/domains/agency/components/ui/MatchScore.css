@@ -1,0 +1,82 @@
+/* ============================================================
+   MatchScore — number-only, material, no container.
+   The numeral carries the design: a serif figure with a metallic
+   tonal fill (background-clip:text) and depth via drop-shadow.
+   Strength (high/mid/low) and surface (light/dark/overlay) are
+   graded within one system.
+   ============================================================ */
+.match-score {
+  display: inline-block;
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  -webkit-font-smoothing: antialiased;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* default ink — overridden per tone/strength below */
+  background-image: linear-gradient(180deg, #403a30 0%, #1f1c16 100%);
+  flex: none;
+  transition: filter 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Optical sizes ── */
+.match-score--xs { font-size: 14px; letter-spacing: -0.01em; }
+.match-score--sm { font-size: 17px; }
+.match-score--md { font-size: 22px; }
+.match-score--lg { font-size: 32px; letter-spacing: -0.02em; }
+
+/* ── Strength: weight + (high) gold fill ── */
+.match-score--low { font-weight: 400; }
+.match-score--mid { font-weight: 500; }
+.match-score--high {
+  font-weight: 600;
+  background-image: linear-gradient(176deg, #ECD08A 0%, #C9A55A 56%, #B0883F 100%);
+}
+
+/* ── LIGHT surface (cards, rows on cream/white) ── */
+.match-score--light.match-score--mid {
+  background-image: linear-gradient(180deg, #403a30 0%, #1f1c16 100%);
+  filter: drop-shadow(0 1px 1px rgba(20, 18, 14, 0.16));
+}
+.match-score--light.match-score--low {
+  background-image: linear-gradient(180deg, #a39b8d 0%, #847c6f 100%);
+  filter: drop-shadow(0 1px 1px rgba(20, 18, 14, 0.08));
+}
+.match-score--light.match-score--high {
+  filter: drop-shadow(0 1px 1px rgba(150, 112, 50, 0.28));
+}
+
+/* ── DARK surface (solid dark panels/headers) ── */
+.match-score--dark.match-score--mid {
+  background-image: linear-gradient(180deg, #f3eee4 0%, #ccc5b6 100%);
+  filter: drop-shadow(0 1px 10px rgba(0, 0, 0, 0.4));
+}
+.match-score--dark.match-score--low {
+  background-image: linear-gradient(180deg, #b6aea0 0%, #8d8678 100%);
+  filter: drop-shadow(0 1px 8px rgba(0, 0, 0, 0.35));
+}
+.match-score--dark.match-score--high {
+  filter: drop-shadow(0 1px 10px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 16px rgba(201, 165, 90, 0.3));
+}
+
+/* ── OVERLAY surface ──
+   For a numeral set inside a card's own controlled zone (a photo's bottom
+   gradient / scrim), NOT floating on raw pixels. The host owns the contrast;
+   the numeral stays a clean figure with a fine legibility shadow. */
+.match-score--overlay.match-score--mid {
+  background-image: linear-gradient(180deg, #fcf9f3 0%, #ddd6c9 100%);
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.5));
+}
+.match-score--overlay.match-score--low {
+  background-image: linear-gradient(180deg, #e2dcd0 0%, #b0a899 100%);
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45));
+}
+.match-score--overlay.match-score--high {
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 0 14px rgba(201, 165, 90, 0.34));
+}

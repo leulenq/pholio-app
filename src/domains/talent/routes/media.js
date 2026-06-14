@@ -618,6 +618,11 @@ router.post(
               absolute_path: processed.absolute_path,
               label: "Portfolio image",
               sort: sort,
+              // Upload-time measurements (dimensions + forensics) keep the
+              // comp card render path free of pixel fetches.
+              ...(processed.imageIntel
+                ? { metadata: JSON.stringify(processed.imageIntel) }
+                : {}),
               ...structuredInsert,
             });
 

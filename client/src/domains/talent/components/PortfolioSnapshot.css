@@ -147,10 +147,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  /* Glassmorphism over the visuals */
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .visual-mock {

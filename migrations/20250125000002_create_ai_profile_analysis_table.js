@@ -8,7 +8,7 @@ exports.up = async function up(knex) {
   const isPostgres = knex.client.config.client === 'pg' || knex.client.config.client === 'postgresql';
   
   await knex.schema.createTable('ai_profile_analysis', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('profile_id').notNullable().unique()
       .references('id')
       .inTable('profiles')

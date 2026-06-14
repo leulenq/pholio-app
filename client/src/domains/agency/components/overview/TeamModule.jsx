@@ -26,7 +26,7 @@ export default function TeamModule() {
     <section className="ov-module">
       <div className="ov-module-head">
         <h2 className="ov-module-title">Team{team.length ? <span className="ov-module-count">{team.length}</span> : null}</h2>
-        <Link to="/dashboard/agency/settings?tab=team" className="ov-module-link">Manage</Link>
+        <Link to="/dashboard/agency/team" className="ov-module-link">Manage</Link>
       </div>
       <div className="ov-team">
         {team.map((m) => (
@@ -38,7 +38,7 @@ export default function TeamModule() {
             </span>
           </div>
         ))}
-        <Link to="/dashboard/agency/settings?tab=team" className="ov-team-add">+ Invite member</Link>
+        <Link to="/dashboard/agency/team" className="ov-team-add">+ Invite member</Link>
       </div>
     </section>
   );

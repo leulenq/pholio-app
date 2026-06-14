@@ -17,12 +17,8 @@ function renderTitle(title, titleEmphasis) {
   );
 }
 
-/**
- * Editorial profile section — kicker, serif title, restrained body.
- */
 export const Section = ({
   id,
-  kicker,
   title,
   titleEmphasis,
   description,
@@ -34,7 +30,6 @@ export const Section = ({
     {showDivider && <hr className={styles.sectionDivider} aria-hidden="true" />}
     <div className={styles.sectionHeader}>
       <div className={styles.sectionTitleGroup}>
-        {kicker && <p className={styles.sectionKicker}>{kicker}</p>}
         {title ? renderTitle(title, titleEmphasis) : null}
         {description && <p className={styles.sectionDescription}>{description}</p>}
       </div>

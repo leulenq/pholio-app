@@ -1,4 +1,12 @@
 const { addMessage } = require("../../../shared/middleware/context");
+const config = require("../../../config");
+const { hasPermission } = require("../../agency/lib/permissions");
+const {
+  resolveEffectivePermissionsFromSession,
+} = require("../../agency/services/permissions");
+const {
+  resolveRoutePermission,
+} = require("../../agency/lib/route-permissions");
 
 function ensureSignedIn(req) {
   return Boolean(req.session && req.session.userId);
@@ -123,9 +131,124 @@ function requireAgencyOnboardingComplete(options = {}) {
   return (req, res, next) => next();
 }
 
+async function loadAgencyPermissions(req, _res, next) {
+  if (!req.session || req.session.role !== "AGENCY") {
+    return next();
+  }
+
+  try {
+    if (!req.agencyPermissions) {
+      req.agencyPermissions = await resolveEffectivePermissionsFromSession(
+        req.session,
+      );
+    }
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function requireAgencyPermission(...permissions) {
+  return async (req, res, next) => {
+    if (!ensureSignedIn(req)) {
+      if (isApiRequest(req)) {
+        return res.status(401).json({
+          error: "Authentication required",
+          message: "Please sign in to continue.",
+        });
+      }
+      addMessage(req, "error", "Please sign in to continue.");
+      const loginUrl =
+        process.env.NODE_ENV === "production"
+          ? "/login"
+          : "http://localhost:5173/login";
+      return res.redirect(loginUrl);
+    }
+
+    if (req.session.role !== "AGENCY") {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Agency access required.",
+      });
+    }
+
+    if (!req.agencyPermissions) {
+      req.agencyPermissions = await resolveEffectivePermissionsFromSession(
+        req.session,
+      );
+    }
+
+    const missing = permissions.filter(
+      (p) => !hasPermission(req.agencyPermissions, p),
+    );
+
+    if (missing.length) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to perform this action.",
+        requiredPermissions: permissions,
+        missingPermissions: missing,
+        presetRole: req.session.agencyMembershipRole || null,
+      });
+    }
+
+    return next();
+  };
+}
+
+function enforceAgencyRoutePermissions() {
+  return async (req, res, next) => {
+    if (!req.session || req.session.role !== "AGENCY") {
+      return next();
+    }
+
+    const path = req.originalUrl?.split("?")[0] || req.path || "";
+    if (!path.startsWith("/api/agency")) {
+      return next();
+    }
+
+    const required = resolveRoutePermission(req.method, path);
+    if (!required) {
+      return next();
+    }
+
+    if (!req.agencyPermissions) {
+      req.agencyPermissions = await resolveEffectivePermissionsFromSession(
+        req.session,
+      );
+    }
+
+    if (hasPermission(req.agencyPermissions, required)) {
+      return next();
+    }
+
+    if (!config.agencyRbacEnforce) {
+      console.warn("[RBAC] Permission violation (enforce off):", {
+        path,
+        method: req.method,
+        required,
+        presetRole: req.session.agencyMembershipRole,
+        memberUserId: req.session.memberUserId,
+      });
+      return next();
+    }
+
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "You do not have permission to perform this action.",
+      requiredPermissions: [required],
+      missingPermissions: [required],
+      presetRole: req.session.agencyMembershipRole || null,
+    });
+  };
+}
+
 module.exports = {
   requireAuth,
   requireRole,
   requireAgencyMembershipRole,
   requireAgencyOnboardingComplete,
+  loadAgencyPermissions,
+  requireAgencyPermission,
+  enforceAgencyRoutePermissions,
 };

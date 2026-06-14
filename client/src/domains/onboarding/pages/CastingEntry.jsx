@@ -3,7 +3,7 @@
  * Brand-compliant auth selection: Google, Instagram, or Manual
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   GoogleAuthProvider, 
@@ -24,6 +24,10 @@ import { MARKETING_SITE_URL } from '../../../shared/lib/logout';
 import { ThinkingText } from './ThinkingText';
 import { CinematicDivider } from './CinematicDivider';
 import { InlineErrorText } from '../../../shared/components/states';
+import {
+  isInstagramAuthConfigured,
+  startInstagramAuth,
+} from '../../auth/lib/instagram-auth';
 
 function CastingEntry({ onComplete, onProgress }) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -46,7 +50,12 @@ function CastingEntry({ onComplete, onProgress }) {
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [instagramEnabled, setInstagramEnabled] = useState(false);
   // verificationCode state removed as we use Firebase link now
+
+  useEffect(() => {
+    isInstagramAuthConfigured().then(setInstagramEnabled);
+  }, []);
   
   const handleGoogleSignIn = async () => {
     setIsAuthenticating(true);
@@ -63,6 +72,16 @@ function CastingEntry({ onComplete, onProgress }) {
       toast.error(error.message || 'Authentication failed');
       setIsAuthenticating(false);
     }
+  };
+
+  const handleInstagramSignIn = async () => {
+    if (!instagramEnabled) {
+      toast.info('Instagram signup is not configured yet. Use Google or email.');
+      return;
+    }
+
+    setIsAuthenticating(true);
+    startInstagramAuth({ flow: 'signup' });
   };
 
   const handleNextManual = () => {
@@ -231,7 +250,7 @@ function CastingEntry({ onComplete, onProgress }) {
               {/* Option 2: Instagram */}
               <button
                 type="button"
-                onClick={() => toast.info('Instagram signup coming soon!')}
+                onClick={handleInstagramSignIn}
                 disabled={isAuthenticating}
                 className="w-full flex items-center justify-center gap-3 px-6 py-4 text-white rounded-lg font-medium shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:shadow-[0_8px_22px_rgba(220,39,67,0.26)] hover:-translate-y-px transition-all duration-200 disabled:opacity-50 disabled:hover:translate-y-0"
                 style={{ background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)' }}

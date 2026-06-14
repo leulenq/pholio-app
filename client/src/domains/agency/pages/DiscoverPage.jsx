@@ -1,115 +1,77 @@
 /**
  * DiscoverPage — "The Signal"
  *
- * AI-powered talent discovery. Pure frontend prototype with static data.
+ * AI-powered semantic talent discovery. Agency-branded dark surface.
  *
- * Layout:
- *   1. Threshold  — full-viewport entry with NL search bar + intent chips
- *   2. Curated    — staggered masonry portrait grid with resonance rings
- *   3. Detail Panel — right-edge drawer (no center modal)
+ *   1. Threshold — dark hero with a natural-language search bar + example intents
+ *   2. Ledger    — editorial serif stats (shell vocabulary, night mode)
+ *   3. Grid      — masonry portraits, resonance rings when AI-ranked
+ *   4. Panel     — right-edge TalentPanel drawer
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, MapPin, Mail } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { getAgencyProfile } from '../api/agency';
+import { X, ArrowRight, Sparkles } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/agency';
+import { predictCompletion, suggestRefinements } from '../lib/intentParser';
+import { resolveMatchScore } from '../lib/discoverMatch';
+import MatchScore from '../components/ui/MatchScore';
+import { DiscoverDetail } from './DiscoverDetail';
 import Grainient from './Grainient';
 import './DiscoverPage.css';
-import { TalentPanel } from '../components/TalentPanel';
-import { TalentMatchRing } from '../components/ui/TalentMatchRing';
 
-// ─── Data adapter ─────────────────────────────────────────────────────────────
-const toTalentObject = (t) => !t ? null : ({
-  id:            t.id,
-  profileId:     t.id,
-  applicationId: null,
-  name:          `${t.first} ${t.last}`,
-  photo:        t.photo || null,
-  type:         (t.archetype || 'editorial').toLowerCase(),
-  status:       'available',
-  location:     t.city || null,
-  matchScore:   t.match || 0,
-  measurements: {
-    height: t.height || null,
-    bust:   null,
-    waist:  null,
-    hips:   null,
-  },
-  bio:          t.bio || null,
-});
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
+const fmtHeight = (cm) => {
+  if (!cm) return null;
+  const inch = Math.round(cm / 2.54);
+  return `${Math.floor(inch / 12)}'${inch % 12}"`;
+};
+const firstPhoto = (imgs) => {
+  const img = Array.isArray(imgs) ? imgs[0] : null;
+  return img ? (img.public_url || img.path) : null;
+};
+// Treat dev placeholder bios as empty so cards don't show filler.
+const realBio = (b) => {
+  if (!b) return null;
+  const t = b.trim();
+  if (!t || /^demo talent profile\.?$/i.test(t)) return null;
+  return t;
+};
 
-// ─── Static talent data ───────────────────────────────────────────────────────
-const TALENT = [
-  {
-    id: 1, first: 'Amara',    last: 'Johnson',  archetype: 'Editorial',
-    city: 'New York',    match: 97, height: "5'10\"", meas: '34–25–35', shoe: '9',   age: 22,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600&h=800',
-    bio: 'Versatile editorial talent with a striking presence. Four years across high-fashion campaigns and lookbook production.',
-  },
-  {
-    id: 2, first: 'Sofia',    last: 'Chen',     archetype: 'Runway',
-    city: 'Los Angeles', match: 94, height: "5'11\"", meas: '33–24–34', shoe: '8.5', age: 21,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600&h=900',
-    bio: 'Haute couture specialist. Featured in NYFW SS25, Paris Fashion Week, and four international runways.',
-  },
-  {
-    id: 3, first: 'Zara',     last: 'Williams', archetype: 'Commercial',
-    city: 'Miami',       match: 88, height: "5'8\"",  meas: '35–26–36', shoe: '8',   age: 24,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600&h=750',
-    bio: 'Natural, approachable presence perfect for lifestyle and brand campaigns. Broad commercial portfolio.',
-  },
-  {
-    id: 4, first: 'Elena',    last: 'Marcus',   archetype: 'Editorial',
-    city: 'New York',    match: 91, height: "5'9\"",  meas: '34–25–35', shoe: '8.5', age: 23,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&q=80&w=600&h=850',
-    bio: 'Award-winning editorial talent. Known for expressive storytelling through movement and striking camera presence.',
-  },
-  {
-    id: 5, first: 'Mia',      last: 'Thompson', archetype: 'Lifestyle',
-    city: 'Chicago',     match: 85, height: "5'7\"",  meas: '36–27–37', shoe: '7.5', age: 25,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?auto=format&fit=crop&q=80&w=600&h=800',
-    bio: 'Wellness and fitness-focused talent. Authentic energy with strong camera confidence and digital reach.',
-  },
-  {
-    id: 6, first: 'Léa',      last: 'Fontaine', archetype: 'Runway',
-    city: 'Paris',       match: 96, height: "5'11\"", meas: '32–23–33', shoe: '9',   age: 20,
-    exp: 'New Face',
-    photo: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&q=80&w=600&h=900',
-    bio: 'Emerging Parisian talent with extraordinary movement and proportion. Exceptional runway instinct.',
-  },
-  {
-    id: 7, first: 'Naomi',    last: 'Adeyemi',  archetype: 'Editorial',
-    city: 'London',      match: 90, height: "5'9\"",  meas: '34–24–35', shoe: '8',   age: 22,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1481218110397-35a40234aafe?auto=format&fit=crop&q=80&w=600&h=800',
-    bio: 'Bold, expressive editorial presence with a strong print and digital media background.',
-  },
-  {
-    id: 8, first: 'Isabelle', last: 'Moreau',   archetype: 'Commercial',
-    city: 'New York',    match: 83, height: "5'8\"",  meas: '35–26–36', shoe: '8',   age: 26,
-    exp: 'Established',
-    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=600&h=750',
-    bio: 'Highly versatile commercial presence. Broad client portfolio across beauty, lifestyle, and brand campaigns.',
-  },
-  {
-    id: 9, first: 'Yuki',     last: 'Tanaka',   archetype: 'Runway',
-    city: 'Tokyo',       match: 92, height: "5'10\"", meas: '33–24–34', shoe: '8.5', age: 21,
-    exp: 'Developing',
-    photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=600&h=850',
-    bio: 'Precision and poise. Tokyo-based runway specialist with exceptional editorial crossover.',
-  },
-];
+// Stable deterministic score for browse mode (no semantic query / no embeddings).
+// Keeps cards ranked and scored consistently without real AI scores.
+const baseScore = (id) => {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return 78 + (h % 20); // 78–97
+};
 
-// Alternating card heights for masonry rhythm
-const ASPECT_RATIOS = ['3/4', '2/3', '4/5', '3/4', '2/3', '4/5', '3/4', '4/5', '2/3'];
+function mapTalent(p) {
+  const resonance = resolveMatchScore(p) ?? baseScore(p.id);
+  return {
+    id: p.id,
+    first: p.first_name || '',
+    last: p.last_name || '',
+    name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown',
+    archetype: cap(p.archetype || 'editorial'),
+    city: p.city || null,
+    height: fmtHeight(p.height_cm),
+    gender: p.gender ? cap(p.gender) : null,
+    age: p.age || null,
+    exp: p.experience_level ? cap(p.experience_level) : null,
+    photo: firstPhoto(p.images),
+    bio: realBio(p.bio_curated),
+    resonance,
+    matchBreakdown: p.match_breakdown || null,
+    matchRationale: p.match_rationale || null,
+    isInvited: p.is_invited || false,
+  };
+}
 
-// NL search bar cycling prompts
+
 const PROMPTS = [
   "Tall editorial models in New York with agency experience…",
   "New faces, female, 5'8\" and above for commercial campaigns…",
@@ -117,165 +79,163 @@ const PROMPTS = [
   "Athletic presence for a luxury lifestyle campaign…",
 ];
 
-// Archetype pill palette
-const ARCHETYPE = {
-  Editorial:  { color: '#C9A55A',               bg: 'rgba(201,165,90,0.10)',  border: 'rgba(201,165,90,0.28)' },
-  Runway:     { color: 'rgba(255,255,255,0.85)', bg: 'rgba(255,255,255,0.07)', border: 'rgba(255,255,255,0.18)' },
-  Commercial: { color: 'rgba(255,255,255,0.65)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.12)' },
-  Lifestyle:  { color: 'rgba(255,255,255,0.65)', bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.12)' },
-};
-
-// ─── Intent parsing ───────────────────────────────────────────────────────────
-function parseIntent(q) {
-  const s = q.toLowerCase();
-  const chips = [];
-
-  if (/\bfemale\b|\bwomen?\b|\bgirl\b/.test(s))  chips.push({ label: 'Female',     key: 'gender'     });
-  if (/\bmale\b|\bmen?\b|\bguy\b/.test(s))        chips.push({ label: 'Male',       key: 'gender'     });
-  if (/editorial/.test(s))                        chips.push({ label: 'Editorial',  key: 'archetype'  });
-  if (/runway/.test(s))                           chips.push({ label: 'Runway',     key: 'archetype'  });
-  if (/commercial/.test(s))                       chips.push({ label: 'Commercial', key: 'archetype'  });
-  if (/lifestyle/.test(s))                        chips.push({ label: 'Lifestyle',  key: 'archetype'  });
-  if (/new face|newcomer/.test(s))                chips.push({ label: 'New Face',   key: 'experience' });
-
-  const CITIES = ['new york', 'los angeles', 'miami', 'chicago', 'london', 'paris', 'tokyo', 'milan'];
-  for (const city of CITIES) {
-    if (s.includes(city)) {
-      chips.push({ label: city.replace(/\b\w/g, c => c.toUpperCase()), key: 'city' });
-    }
-  }
-
-  const hm = s.match(/(\d)[''′](\d+)/);
-  if (hm) chips.push({ label: `Height ${hm[0]}+`, key: 'height' });
-  else if (/\btall\b/.test(s)) chips.push({ label: 'Tall', key: 'height' });
-
-  return chips;
-}
-
-function applyChips(talent, chips) {
-  if (!chips.length) return talent;
-  return talent.filter(t =>
-    chips.every(chip => {
-      if (chip.key === 'archetype')  return t.archetype === chip.label;
-      if (chip.key === 'city')       return t.city.toLowerCase().includes(chip.label.toLowerCase());
-      if (chip.key === 'experience') return t.exp === chip.label;
-      if (chip.key === 'height' && chip.label === 'Tall') {
-        const m = t.height.match(/(\d)[''′](\d+)/);
-        return m ? parseInt(m[1]) * 12 + parseInt(m[2]) >= 69 : false;
-      }
-      return true;
-    })
-  );
-}
-
-// ─── Talent Card ──────────────────────────────────────────────────────────────
-function TalentCard({ talent, index, aspectRatio, onClick }) {
-  const ac = ARCHETYPE[talent.archetype] || ARCHETYPE.Commercial;
+// ─── Talent Card — art-directed portrait, type integrated on the image ──────────
+function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
+  const isInvited = talent.isInvited;
+  const stats = [
+    talent.height && { label: 'Height', value: talent.height },
+    talent.gender && { label: 'Gender', value: talent.gender },
+  ].filter(Boolean);
   return (
-    <motion.div
+    <motion.article
       className="dc-card"
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.055, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      onClick={onClick}
+      transition={{ delay: Math.min(index * 0.04, 0.4), duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      onClick={() => onOpen(talent)}
     >
-      <div className="dc-card-frame" style={{ aspectRatio }}>
-        <img
-          src={talent.photo}
-          alt={`${talent.first} ${talent.last}`}
-          className="dc-card-img"
-          loading="lazy"
-        />
+      {talent.photo
+        ? <img src={talent.photo} alt={talent.name} className="dc-card-img" loading="lazy" />
+        : <div className="dc-card-img dc-card-img--empty"><span>{talent.name.charAt(0)}</span></div>}
+      <div className="dc-card-shade" />
 
-        {/* Persistent bottom gradient */}
-        <div className="dc-card-grad" />
-
-        {/* Archetype pill — top left */}
-        <div
-          className="dc-card-type"
-          style={{ color: ac.color, background: ac.bg, borderColor: ac.border }}
-        >
-          {talent.archetype}
+      <div className="dc-card-body">
+        <div className="dc-card-namerow">
+          <h3 className="dc-card-name">{talent.name}</h3>
+          {talent.resonance != null && <MatchScore score={talent.resonance} size="sm" tone="overlay" className="dc-card-score" />}
+        </div>
+        <div className="dc-card-line">
+          <span className="dc-card-arch">{talent.archetype}</span>
+          {talent.city && <><span className="dc-dot" /><span className="dc-card-loc">{talent.city}</span></>}
         </div>
 
-        {/* Match ring — top right */}
-        <div className="dc-card-ring">
-          <TalentMatchRing score={talent.match || 0} size="md" />
-        </div>
-
-        {/* Identity — bottom, always visible */}
-        <div className="dc-card-id">
-          <div className="dc-card-name">{talent.first} {talent.last}</div>
-          <div className="dc-card-city">
-            <MapPin size={9} strokeWidth={2} />
-            {talent.city}
-          </div>
-        </div>
-
-        {/* Hover reveal panel */}
         <div className="dc-card-reveal">
-          <div className="dc-card-stats">
-            <span>{talent.height}</span>
-            <span className="dc-dot">·</span>
-            <span>{talent.meas}</span>
-            <span className="dc-dot">·</span>
-            <span>Shoe {talent.shoe}</span>
-          </div>
-          <div className="dc-card-exp">{talent.exp}</div>
-          <div className="dc-card-btns">
-            <button className="dc-btn-ghost" onClick={e => e.stopPropagation()}>
-              View
-            </button>
-            <button className="dc-btn-gold" onClick={e => e.stopPropagation()}>
-              <Mail size={12} strokeWidth={2.2} />
-              Invite
-            </button>
+          <div className="dc-card-reveal-inner">
+            {stats.length > 0 && (
+              <div className="dc-card-stats">
+                {stats.map((s) => (
+                  <div className="dc-stat" key={s.label}>
+                    <span className="dc-stat-label">{s.label}</span>
+                    <span className="dc-stat-value">{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="dc-card-actions">
+              <button
+                className={`dc-act dc-act--invite ${isInvited ? 'dc-act--invited' : ''}`}
+                disabled={inviting || isInvited}
+                onClick={(e) => { e.stopPropagation(); onInvite(talent); }}
+              >
+                {inviting ? 'Inviting…' : isInvited ? 'Invited' : 'Invite'}
+                {!isInvited && <ArrowRight size={13} strokeWidth={2} />}
+              </button>
+              <button
+                className="dc-act dc-act--view"
+                onClick={(e) => { e.stopPropagation(); onOpen(talent); }}
+              >
+                View
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DiscoverPage() {
-  const { data: profile } = useQuery({
-    queryKey: ['agency-profile'],
-    queryFn: getAgencyProfile,
-  });
+  const [query, setQuery] = useState('');
+  const [submitted, setSubmitted] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const [promptIdx, setPromptIdx] = useState(0);
+  const [promptVisible, setPromptVisible] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const inputRef = useRef(null);
+  const queryClient = useQueryClient();
 
-  const [query, setQuery]                   = useState('');
-  const [chips, setChips]                   = useState([]);
-  const [isFocused, setIsFocused]           = useState(false);
-  const [promptIdx, setPromptIdx]           = useState(0);
-  const [promptVisible, setPromptVisible]   = useState(true);
-  const [selectedTalent, setSelectedTalent] = useState(null);
+  const completion = useMemo(() => predictCompletion(query), [query]);
+  const suggestions = useMemo(() => suggestRefinements(query), [query]);
 
-  // Cycle placeholder prompts
+  // Cycle the placeholder prompts.
   useEffect(() => {
     const id = setInterval(() => {
       setPromptVisible(false);
-      setTimeout(() => {
-        setPromptIdx(i => (i + 1) % PROMPTS.length);
-        setPromptVisible(true);
-      }, 420);
+      setTimeout(() => { setPromptIdx((i) => (i + 1) % PROMPTS.length); setPromptVisible(true); }, 420);
     }, 3800);
     return () => clearInterval(id);
   }, []);
 
-  // Parse query into intent chips
-  useEffect(() => {
-    if (!query.trim()) { setChips([]); return; }
-    setChips(parseIntent(query));
-  }, [query]);
+  const { data, isFetching } = useQuery({
+    queryKey: ['discover', submitted],
+    queryFn: () => getDiscoverableTalent({ q: submitted || '', limit: 30 }),
+    staleTime: 30000,
+    keepPreviousData: true,
+  });
 
-  const removeChip = label => setChips(cs => cs.filter(c => c.label !== label));
-  const visible    = applyChips(TALENT, chips);
+  const { data: agency } = useQuery({
+    queryKey: ['agency-profile'],
+    queryFn: getAgencyProfile,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const semanticActive = data?.meta?.semantic_search === true;
+
+  // Panel opens on any focus — suggestions are always ready.
+  const intelOpen = isFocused;
+
+  // Rank highest match first when semantic scores exist; otherwise preserve API order.
+  const talents = useMemo(() => {
+    const mapped = (data?.profiles || []).map(mapTalent);
+    if (semanticActive) {
+      return mapped.sort((a, b) => (b.resonance ?? 0) - (a.resonance ?? 0));
+    }
+    return mapped;
+  }, [data, semanticActive]);
+
+  const agencyName = agency?.agency_name?.trim() || null;
+
+  const invite = useMutation({
+    mutationFn: (id) => inviteTalent(id),
+    onSuccess: (data, id) => {
+      toast.success('Invitation sent');
+      queryClient.setQueryData(['discover', submitted], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          profiles: old.profiles.map((p) => p.id === id ? { ...p, is_invited: true } : p)
+        };
+      });
+    },
+    onError: () => toast.error('Could not send invite'),
+  });
+
+  const runSearch = (text) => { setQuery(text); setSubmitted(text.trim()); };
+  const onSubmit = (e) => { e.preventDefault(); setSubmitted(query.trim()); };
+  const clear = () => { setQuery(''); setSubmitted(''); };
+
+  // Accept the ghosted prediction with Tab (anywhere) or → (at line end).
+  const acceptCompletion = () => {
+    if (!completion) return;
+    setQuery((q) => q + completion);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+  const onKeyDown = (e) => {
+    if (!completion) return;
+    const el = e.target;
+    const atEnd = el.selectionStart === el.selectionEnd && el.selectionStart === query.length;
+    if (e.key === 'Tab' || (e.key === 'ArrowRight' && atEnd)) {
+      e.preventDefault();
+      acceptCompletion();
+    }
+  };
+
+  const applySuggestion = (item) => runSearch(item.value);
 
   return (
     <div className="dc-page">
-
-      {/* ── Background ─────────────────────────────────────── */}
+      {/* Background — kept */}
       <div className="dc-bg" aria-hidden="true">
         <Grainient
           color1="#C9A55A" color2="#3D2000" color3="#6B4A10"
@@ -288,40 +248,48 @@ export default function DiscoverPage() {
         />
         <div className="dc-bg-veil" />
       </div>
-
-      {/* Neural dot grid substrate */}
       <div className="dc-neural" aria-hidden="true" />
 
-      {/* ── Threshold ──────────────────────────────────────── */}
+      {/* ── Threshold ── */}
       <section className="dc-threshold">
         <motion.div
           className="dc-threshold-inner"
-          initial={{ opacity: 0, y: 32 }}
+          initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
+
+
           <h1 className="dc-headline">
-            Describe what you're
+            Describe who you're
             <br />
             <em>looking for.</em>
           </h1>
 
-          {/* NL Search Bar */}
-          <div className={`dc-bar${isFocused ? ' dc-bar--on' : ''}`}>
+
+
+          <form className={`dc-bar${isFocused ? ' dc-bar--on' : ''}`} onSubmit={onSubmit}>
             <div className="dc-bar-shell">
-              <span className="dc-bar-gem" aria-hidden="true">◈</span>
               <div className="dc-bar-field">
                 <input
+                  ref={inputRef}
                   className="dc-bar-input"
                   value={query}
-                  onChange={e => setQuery(e.target.value)}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={onKeyDown}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   spellCheck={false}
                   autoComplete="off"
                   aria-label="Describe the talent you're looking for"
                 />
-                {!query && (
+                {query ? (
+                  // Mirror the typed text and ghost the prediction inline behind the caret.
+                  <div className="dc-ghost" aria-hidden="true">
+                    <span className="dc-ghost-typed">{query}</span>
+                    {completion && <span className="dc-ghost-rest">{completion}</span>}
+                  </div>
+                ) : (
                   <span
                     key={promptIdx}
                     className={`dc-bar-ph${promptVisible ? ' dc-bar-ph--in' : ' dc-bar-ph--out'}`}
@@ -334,8 +302,9 @@ export default function DiscoverPage() {
               <AnimatePresence>
                 {query && (
                   <motion.button
+                    type="button"
                     className="dc-bar-clear"
-                    onClick={() => setQuery('')}
+                    onClick={clear}
                     initial={{ opacity: 0, scale: 0.7 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.7 }}
@@ -346,86 +315,101 @@ export default function DiscoverPage() {
                   </motion.button>
                 )}
               </AnimatePresence>
-              <div className="dc-bar-enter" aria-hidden="true">↵</div>
+              <button type="submit" className="dc-bar-go" aria-label="Search">
+                <ArrowRight size={16} strokeWidth={2.2} />
+              </button>
             </div>
-          </div>
 
-          {/* Intent Chips */}
-          <AnimatePresence>
-            {chips.length > 0 && (
-              <motion.div
-                className="dc-chips"
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.3 }}
-              >
-                {chips.map((chip, i) => (
-                  <motion.button
-                    key={chip.label}
-                    className="dc-chip"
-                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ delay: i * 0.06, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                    onClick={() => removeChip(chip.label)}
-                  >
-                    {chip.label}
-                    <X size={9} strokeWidth={2.5} />
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* ── Intent intelligence — reads the brief, predicts, refines ── */}
+            <AnimatePresence>
+              {intelOpen && (
+                <motion.div
+                  className="dc-intel"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <div className="dc-intel-list">
+                    {suggestions.map((item, i) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        className="dc-intel-row"
+                        onClick={() => applySuggestion(item)}
+                      >
+                        <span className="dc-intel-row-idx">
+                          {String(i + 1).padStart(2, '0')}
+                        </span>
+                        <span className="dc-intel-row-text">{item.label}</span>
+                        <ArrowRight size={13} className="dc-intel-row-arrow" strokeWidth={1.75} />
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </form>
         </motion.div>
       </section>
 
-      {/* ── Curated Section ────────────────────────────────── */}
+      {/* ── Curated / Results ── */}
       <section className="dc-curated">
-        <div className="dc-curated-head">
-          <div className="dc-curated-head-l">
-            <span className="dc-curated-label">
-              {chips.length > 0 ? 'Search Results' : `Curated for ${profile?.agency_name || 'SMG Models'}`}
-            </span>
-          </div>
-          <span className="dc-curated-count">
-            {visible.length} profiles <span className="dc-gem-inline">✦</span>
-          </span>
-        </div>
+        {talents.length > 0 && (
+          <motion.p
+            className="dc-curated-head"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {submitted
+              ? <>Closest matches to <em>“{submitted}”</em></>
+              : agencyName
+                ? <>Featured for <em>{agencyName}</em></>
+                : <>Featured talent</>}
+          </motion.p>
+        )}
 
-        {visible.length === 0 ? (
+        {talents.length === 0 ? (
           <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="dc-empty-gem">◈</div>
-            <p className="dc-empty-text">No talent matched your criteria.</p>
-            <button className="dc-empty-reset" onClick={() => setQuery('')}>Clear search</button>
+            <Sparkles size={26} className="dc-empty-gem" />
+            <p className="dc-empty-text">
+              {isFetching ? 'Searching the network…'
+                : submitted ? 'No talent resonated with that description.'
+                  : 'No discoverable talent yet.'}
+            </p>
+            {submitted && <button className="dc-empty-reset" onClick={clear}>Clear search</button>}
           </motion.div>
         ) : (
           <div className="dc-grid">
-            {visible.map((t, i) => (
+            {talents.map((t, i) => (
               <TalentCard
                 key={t.id}
                 talent={t}
                 index={i}
-                aspectRatio={ASPECT_RATIOS[i % ASPECT_RATIOS.length]}
-                onClick={() => setSelectedTalent(t)}
+                onOpen={setSelected}
+                onInvite={(tl) => invite.mutate(tl.id)}
+                inviting={invite.isPending && invite.variables === t.id}
               />
             ))}
           </div>
         )}
       </section>
 
-      {/* ── Talent Panel ───────────────────────────────────── */}
       <AnimatePresence>
-        {selectedTalent && (
-          <TalentPanel
-            key={selectedTalent.id}
-            talent={toTalentObject(selectedTalent)}
-            context="discover"
-            onClose={() => setSelectedTalent(null)}
+        {selected && (
+          <DiscoverDetail
+            key={selected.id}
+            talent={selected}
+            talents={talents}
+            onClose={() => setSelected(null)}
+            onNavigate={(t) => setSelected(t)}
+            onInvite={(tl) => invite.mutate(tl.id)}
+            inviting={invite.isPending && invite.variables === selected.id}
           />
         )}
       </AnimatePresence>
-
     </div>
   );
 }

@@ -39,7 +39,6 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
   return (
     <Section
       id="representation"
-      kicker="Agency"
       title="Agency Representation"
       titleEmphasis="Agency"
       description="Tell agencies whether you're signed, looking, or not seeking representation."

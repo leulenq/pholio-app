@@ -1,21 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
+import { useLocation, Link } from 'react-router-dom';
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  signOut
+  signOut,
 } from 'firebase/auth';
-import { Loader2, AlertCircle, Instagram, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
+import { markAuthEntryTransition } from '../../../../shared/lib/pholio-auth/entry-transition';
 import { useAuthenticatedEntryRedirect } from '../../hooks/useAuthenticatedEntryRedirect';
-import GradientText from '../../../../shared/components/ui/GradientText';
+import {
+  isInstagramAuthConfigured,
+  startInstagramAuth,
+} from '../../lib/instagram-auth';
 import styles from './LoginPage.module.css';
 
+const GoogleIcon = () => (
+  <img
+    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+    alt=""
+    width={18}
+    height={18}
+    style={{ flexShrink: 0 }}
+  />
+);
+
+const InstagramIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="2" y="2" width="20" height="20" rx="5.5" stroke="#fff" strokeWidth="2" />
+    <circle cx="12" cy="12" r="4.6" stroke="#fff" strokeWidth="2" />
+    <circle cx="17.4" cy="6.6" r="1.3" fill="#fff" />
+  </svg>
+);
+
 export default function LoginPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const forceLogin = searchParams.get('force') === '1';
@@ -26,8 +47,14 @@ export default function LoginPage() {
   const [resetSent, setResetSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isInstagramLoading, setIsInstagramLoading] = useState(false);
+  const [instagramEnabled, setInstagramEnabled] = useState(false);
 
   useAuthenticatedEntryRedirect();
+
+  useEffect(() => {
+    isInstagramAuthConfigured().then(setInstagramEnabled);
+  }, []);
 
   useEffect(() => {
     if (!forceLogin) return undefined;
@@ -66,6 +93,18 @@ export default function LoginPage() {
       );
       setIsGoogleLoading(false);
     }
+  };
+
+  const handleInstagramSignIn = async () => {
+    setError(null);
+
+    if (!instagramEnabled) {
+      setError('Instagram sign-in is not configured yet. Use email or Google for now.');
+      return;
+    }
+
+    setIsInstagramLoading(true);
+    startInstagramAuth({ flow: 'login', next: from });
   };
 
   const handleEmailSignIn = async (e) => {
@@ -127,9 +166,9 @@ export default function LoginPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          Accept: 'application/json',
         },
-        body: JSON.stringify({ firebase_token: idToken })
+        body: JSON.stringify({ firebase_token: idToken }),
       });
 
       const contentType = response.headers.get('content-type');
@@ -163,6 +202,7 @@ export default function LoginPage() {
       }
 
       notifyAuthChange({ authenticated: true });
+      markAuthEntryTransition();
       window.location.href = data.redirect || from;
     } catch (err) {
       setError(err.message || 'Server connection failed. Please try again.');
@@ -171,26 +211,15 @@ export default function LoginPage() {
     }
   };
 
-  const busy = isLoading || isGoogleLoading;
+  const busy = isLoading || isGoogleLoading || isInstagramLoading;
 
   return (
-    <div className="w-full max-w-md mx-auto relative">
+    <div className={styles.root}>
       <div className={styles.grain} aria-hidden="true" />
 
       {/* Heading */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 className={styles.heading}>
-          <GradientText
-            colors={['#c9a559', '#c9a559', '#D4BC8A', '#c9a559']}
-            animationSpeed={14}
-            showBorder={false}
-          >
-            Welcome back.
-          </GradientText>
-        </h1>
-        <p className={styles.subtitle}>
-          Sign in to your Pholio account.
-        </p>
+      <div className={styles.heading}>
+        <h1 className={styles.title}>Welcome back.</h1>
       </div>
 
       {/* Success banner */}
@@ -215,19 +244,14 @@ export default function LoginPage() {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={busy}
-          className={styles.socialButton}
+          className={styles.socialGoogle}
           aria-label="Sign in with Google"
         >
           {isGoogleLoading ? (
             <Loader2 className="animate-spin" size={18} />
           ) : (
             <>
-              <img
-                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                alt=""
-                width={18}
-                height={18}
-              />
+              <GoogleIcon />
               <span>Google</span>
             </>
           )}
@@ -235,13 +259,19 @@ export default function LoginPage() {
 
         <button
           type="button"
-          onClick={(e) => { e.preventDefault(); }}
+          onClick={handleInstagramSignIn}
           disabled={busy}
-          className={styles.socialButton}
+          className={styles.socialInstagram}
           aria-label="Sign in with Instagram"
         >
-          <Instagram size={18} />
-          <span>Instagram</span>
+          {isInstagramLoading ? (
+            <Loader2 className="animate-spin" size={18} />
+          ) : (
+            <>
+              <InstagramIcon />
+              <span>Instagram</span>
+            </>
+          )}
         </button>
       </div>
 
@@ -279,7 +309,7 @@ export default function LoginPage() {
         </div>
 
         {/* Password */}
-        <div className={styles.formGroup} style={{ marginBottom: '8px' }}>
+        <div className={`${styles.formGroup} ${styles.passwordGroup}`}>
           <label htmlFor="login-password" className={styles.label}>
             Password
           </label>
@@ -301,40 +331,37 @@ export default function LoginPage() {
               className={styles.passwordToggle}
               onClick={() => setShowPassword((prev) => !prev)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-          <div className={styles.forgotRow}>
-            <button
-              type="button"
-              onClick={handleForgotPassword}
               disabled={busy}
-              className={styles.forgotLink}
             >
-              Forgot Password?
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={busy}
+            className={styles.forgotLink}
+          >
+            Forgot password?
+          </button>
         </div>
 
         {/* Submit */}
-        <button
-          type="submit"
-          disabled={busy}
-          className={styles.submitButton}
-        >
-          {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'LOGIN'}
+        <button type="submit" disabled={busy} className={styles.submitButton}>
+          {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Sign in'}
         </button>
       </form>
 
-      {/* Sign Up Link */}
-      <div className={styles.signupRow}>
-        <p className={styles.signupText}>
-          Don&apos;t have an account?{' '}
-          <Link to="/onboarding" className={styles.signupLink}>
-            Sign up for free
-          </Link>
-        </p>
+      {/* Footer */}
+      <div className={styles.footerRow}>
+        <span>New here?</span>
+        <Link to="/onboarding" className={styles.footerLink}>
+          Join as talent
+        </Link>
+        <span className={styles.footerDot}>·</span>
+        <Link to="/onboarding?type=agency" className={styles.footerLink}>
+          Bring your agency
+        </Link>
       </div>
     </div>
   );

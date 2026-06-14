@@ -162,11 +162,8 @@
 }
 
 /* Card Style */
-/* Dark Glass Card Style */
 .cinematic-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 2rem;
   padding: 3rem 2rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); /* Darker shadow */
@@ -295,9 +292,8 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 2rem; /* Larger icon */
-  opacity: 1; /* Full opacity */
-  backdrop-filter: blur(4px);
+  font-size: 2rem;
+  opacity: 1;
 }
 
 .cinematic-arrow-btn:hover {

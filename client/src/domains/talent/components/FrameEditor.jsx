@@ -218,7 +218,6 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         {/* ── Head ── */}
         <header className="fe-head">
           <div className="fe-head__left">
-            <span className="fe-kicker">Frame editor</span>
             <nav className="fe-tabs" role="tablist">
               <button
                 type="button" role="tab"

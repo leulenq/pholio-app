@@ -28,6 +28,7 @@ const {
 const {
   upsertTextEmbedding,
   buildProfileText,
+  reindexDiscoverProfile,
 } = require("../../ai/embeddings");
 const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const {
@@ -781,7 +782,7 @@ router.put(
       updatedProfile.profile_status = newStatus;
     }
 
-    // Update full-profile text embedding (best-effort, Postgres-only)
+    // Update full-profile + discover_index embeddings (best-effort, Postgres-only)
     try {
       const profileText = buildProfileText(updatedProfile);
       if (profileText) {
@@ -792,6 +793,7 @@ router.put(
           profileText,
         );
       }
+      await reindexDiscoverProfile(knex, profile.id);
     } catch (embErr) {
       console.warn(
         "[Profile API] Text embedding failed (non-blocking):",

@@ -1,5 +1,26 @@
 # Lessons Learned
 
+## 2026-06-11 — Enumerated design options read as templates
+
+- When the user asks for output that is "uniquely designed per X," any system
+  built from enumerated choices (layout families, named grids, variant lists,
+  fixed tone palettes) will eventually be called out as a template engine —
+  even when seeded per-user. The bar is a continuous/parametric design space
+  where the *data itself* (image geometry, image pixels, category, archetype)
+  produces the parameters, and no two outputs share a recognizable skeleton.
+- Pattern to reach for: generative solvers (constrained recursive
+  partition for layout), measured signals (dominant color, luminance quiet
+  zones) driving palette/type placement, and continuous ranges (type scale
+  ratios, margins, pacing) instead of variant enums. Keep determinism via
+  seeds; keep taste via hard bounds, not fixed options.
+- This mirrors the login-redesign lesson: "rebuild from scratch" /
+  "uniquely designed" means a real structural departure, not re-skinning.
+
+## 2026-06-07 — Instruction sync before implementation
+
+- When the user interrupts implementation to point at repository agent docs, stop the active feature work immediately and verify `CLAUDE.md` / `AGENTS.md` alignment before continuing. If a Codex-facing guide already exists, update or clarify that canonical file instead of creating a second competing instruction document.
+- Treat "first" ordering language literally: complete the requested instruction/documentation grounding before returning to UI or code changes.
+
 ## 2026-06-04 — Premium visual feedback
 
 - When the user calls out a high-value dashboard signal as visually weak, upgrade it as a reusable system component instead of styling one instance. The match score appears in overview cards, rows, drawers, and full profiles, so a shared badge with fixed dimensions, tones, and browser verification prevents uneven polish.

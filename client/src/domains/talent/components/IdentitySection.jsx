@@ -40,7 +40,6 @@ export const IdentitySection = ({
   return (
     <Section
       id="identity"
-      kicker="Legal"
       title="Personal Details"
       titleEmphasis="Details"
       description="Your core information visible to agencies."

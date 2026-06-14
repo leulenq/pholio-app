@@ -12,5 +12,5 @@ export function useRailCollapsed() {
   }, [collapsed]);
 
   const toggle = useCallback(() => setCollapsed((c) => !c), []);
-  return { collapsed, toggle };
+  return { collapsed, toggle, setCollapsed };
 }

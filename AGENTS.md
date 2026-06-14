@@ -2,6 +2,8 @@
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
+This Codex guide is based on `CLAUDE.md`. When `CLAUDE.md` changes, re-sync this file and keep only agent-name-specific wording different unless the user explicitly asks for Codex-only rules.
+
 ## Project Overview
 
 Pholio is a full-stack talent portfolio and agency management platform. Talent users create portfolios with images, generate PDF comp cards, and apply to agencies. Agency users manage talent rosters, review applications, and track commissions.
@@ -28,8 +30,25 @@ Pholio is a full-stack talent portfolio and agency management platform. Talent u
 **The Landing Page is the Gold Standard.** The `landing/components/` Studio+ and Agency Perspective scene components define the aesthetic language for the entire Pholio app.
 
 - **Motion:** Highly dynamic, spring-based Framer Motion physics (`stiffness: 55, damping: 16`). The app must feel alive, tactile, and responsive (hover scales, smooth entrances, scroll-tied animations). Do not build static, lifeless pages.
-- **Aesthetics:** High-polish tech/SaaS (glassmorphism, glowing radial gradients, gamification, floating UI) blended with editorial serif typography.
+- **Aesthetics:** High-polish tech/SaaS (glowing radial gradients, gamification, floating UI) blended with editorial serif typography.
 - **Standard Transition:** `all 0.2s cubic-bezier(0.4, 0, 0.2, 1)`; smooth: `0.3s` same easing.
+
+## 🚫 Banned UI Patterns (NEVER implement these)
+
+The following patterns have been explicitly removed from the codebase and must never be reintroduced:
+
+1. **Eyebrow text / kicker above a headline** — any small uppercase or letter-spaced label sitting above a heading (`className="*-eyebrow"`, `className="*-kicker"`, `kicker=` prop). Use the heading alone.
+2. **Pill chip version of the eyebrow** — same pattern rendered as a rounded pill above a title.
+3. **Hero eyebrow / pill chip** — tiny label above an oversized hero headline, in any form.
+4. **Status badges (green / yellow / red)** — do not use `TalentStatusBadge` or any coloured dot/pill that encodes "available / on booking / inactive" status. Show status as plain text or color a stripe/dot that is not a badge component.
+5. **New / Beta / Live / AI-powered badges** — no floating chips declaring a feature tier or freshness.
+6. **Accent dot paired with a badge** — no dot + pill combos as decorative metadata.
+7. **Cards with tiny metadata chips in the corner** — no `MatchScoreBadge`, `TalentTypePill`, or equivalent chip components overlaid on card corners or photo thumbnails. Render type/score as plain text inline.
+8. **Glass cards with `backdrop-filter: blur()`** — no frosted-glass effect on cards, panels, or buttons. `backdrop-filter` is permitted only on full-screen scrims/overlays (`position: fixed; inset: 0`) where it is a functional dimmer, not a decorative style.
+9. **Tiny count badge on nav or cards** — no `<span className="ag-nav-count">` or equivalent counter bubbles attached to navigation items.
+10. **Pulsing dots / status indicators** — no animated or static colored dots next to text (like 'Strong Profile' or 'Live') to indicate status or completeness. Use plain text labels without dots instead.
+
+Violating any of these rules requires explicit approval and a design discussion first.
 
 ## Common Commands
 

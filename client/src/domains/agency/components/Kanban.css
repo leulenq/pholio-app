@@ -133,7 +133,3 @@
 .ag-kanban-card__meta {
   margin-top: 2px;
 }
-
-.ag-kanban-card__score {
-  flex-shrink: 0;
-}

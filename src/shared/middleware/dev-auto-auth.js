@@ -95,6 +95,7 @@ async function devAutoAuth(req, res, next) {
         req.session.userId = agencyContext.agency.id;
         req.session.memberUserId = user.id;
         req.session.agencyId = agencyContext.agency.id;
+        req.session.agencyMembershipId = agencyContext.membership?.id || null;
         req.session.agencyMembershipRole =
           agencyContext.membership?.membership_role || "OWNER";
         req.session.agencyOnboardingCompletedAt =

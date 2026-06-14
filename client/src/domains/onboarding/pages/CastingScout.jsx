@@ -148,7 +148,6 @@ export default function CastingScout({ onComplete, userName }) {
         {/* ══════════  SCAN MOMENT  ══════════ */}
         {scanPhoto ? (
           <motion.div key="scan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full text-center">
-            <span className="pt-kicker">Reading your look</span>
             <div className="mx-auto" style={{ maxWidth: 380, marginTop: '1.5rem' }}>
               <div className="scout-scan-frame">
                 <motion.img src={scanPhoto.previewUrl} alt=""

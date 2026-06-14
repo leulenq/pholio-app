@@ -35,10 +35,8 @@ const {
   getNextSteps,
   initialState,
 } = require("../services/state-machine");
-const {
-  verifyGoogleToken,
-  normalizeGoogleUser,
-} = require("../services/providers/google");
+const { verifyGoogleToken } = require("../services/providers/google");
+const { normalizeOAuthUser } = require("../services/providers/oauth-user");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const OnboardingAnalytics = require("../analytics/onboarding-events");
 const {
@@ -88,8 +86,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         });
       }
 
-      // Normalize Google user data
-      const providerUser = normalizeGoogleUser(decodedToken);
+      const providerUser = normalizeOAuthUser(decodedToken);
 
       if (!providerUser || !providerUser.uid) {
         return res.status(401).json({
@@ -98,18 +95,24 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         });
       }
 
-      // Check if user exists
-      user = await knex("users")
-        .where({ firebase_uid: providerUser.uid })
-        .orWhere({ email: providerUser.email })
-        .first();
+      const normalizedEmail = providerUser.email
+        ? providerUser.email.toLowerCase().trim()
+        : `instagram_${providerUser.uid.replace(":", "_")}@pholio.me`;
+
+      let userQuery = knex("users").where({ firebase_uid: providerUser.uid });
+      if (providerUser.email) {
+        userQuery = userQuery.orWhere({
+          email: providerUser.email.toLowerCase().trim(),
+        });
+      }
+      user = await userQuery.first();
 
       // Create user if doesn't exist
       if (!user) {
         const userId = uuidv4();
         await knex("users").insert({
           id: userId,
-          email: providerUser.email,
+          email: normalizedEmail,
           firebase_uid: providerUser.uid,
           role: "TALENT",
           created_at: knex.fn.now(),
@@ -154,6 +157,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           height_cm: 0,
           bio_raw: "",
           bio_curated: "",
+          instagram_handle: providerUser.instagram_handle || null,
           ...initial,
           visibility_mode: "private_intake",
           services_locked: true,
@@ -190,9 +194,8 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
 
       hasOAuthData = true;
 
-      // Collect entry signals
       await SignalCollector.collectEntrySignals(profile.id, {
-        oauth_provider: "google",
+        oauth_provider: providerUser.oauth_provider || "google",
         inferred_location: null,
         inferred_bio_keywords: [],
       });

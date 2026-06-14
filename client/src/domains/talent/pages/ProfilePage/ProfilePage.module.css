@@ -813,9 +813,7 @@
   left: 0 !important;
   right: 0 !important;
   z-index: 9999 !important;
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #FFFFFF;
   border: 1px solid var(--pf-hair);
   border-radius: var(--pf-radius-sm);
   box-shadow: 0 12px 36px rgba(26, 24, 21, 0.08);

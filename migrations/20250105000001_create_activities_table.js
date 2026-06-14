@@ -4,7 +4,7 @@
  */
 exports.up = function(knex) {
   return knex.schema.createTable('activities', function(table) {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('user_id').notNullable();
     table.string('activity_type').notNullable(); // 'profile_updated', 'image_uploaded', 'pdf_downloaded', 'portfolio_viewed'
     table.jsonb('metadata').defaultTo('{}'); // Additional activity data (e.g., image count, theme used)

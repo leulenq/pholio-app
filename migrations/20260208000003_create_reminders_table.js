@@ -6,7 +6,7 @@
 
 exports.up = function(knex) {
   return knex.schema.createTable('reminders', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('application_id').notNullable();
     table.uuid('agency_id').notNullable();
 

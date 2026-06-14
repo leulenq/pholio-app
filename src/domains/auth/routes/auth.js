@@ -23,6 +23,14 @@ const {
   resolveAgencyContextForMemberUser,
 } = require("../../agency/services/context");
 const {
+  isInstagramUid,
+  normalizeOAuthUser,
+} = require("../../onboarding/services/providers/oauth-user");
+const {
+  loadPermissionsArrayForSession,
+} = require("../../agency/services/permissions");
+const { normalizePresetRole } = require("../../agency/lib/permissions");
+const {
   getIPGeolocation,
   createVerifiedLocationIntel,
 } = require("../../../shared/lib/geolocation");
@@ -186,21 +194,25 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
   try {
     // Verify Firebase ID token
     const decodedToken = await verifyIdToken(idToken);
-    const firebaseUid = decodedToken.uid;
-    const email = decodedToken.email;
-    const displayName = decodedToken.name || null; // Extract display name
-    const photoURL = decodedToken.picture || null; // Extract photo URL
+    const providerUser = normalizeOAuthUser(decodedToken);
+    const firebaseUid = providerUser.uid;
+    const email = providerUser.email;
+    const displayName = providerUser.name || null;
+    const photoURL = providerUser.picture || null;
+    const instagramHandle = providerUser.instagram_handle || null;
 
     // Parse name into first_name and last_name
-    let firstName = null;
-    let lastName = null;
-    if (displayName) {
+    let firstName = providerUser.first_name || null;
+    let lastName = providerUser.last_name || null;
+    if (!firstName && displayName) {
       const nameParts = displayName.trim().split(/\s+/);
       firstName = nameParts[0] || null;
       lastName = nameParts.slice(1).join(" ") || null;
     }
 
-    if (!firebaseUid || !email) {
+    const isInstagramAuth = isInstagramUid(firebaseUid);
+
+    if (!firebaseUid || (!email && !isInstagramAuth)) {
       console.log("[Login] Invalid token data:", { firebaseUid, email });
 
       // If request is JSON or Accept header requests JSON, return JSON error response
@@ -232,7 +244,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     let user = await knex("users").where({ firebase_uid: firebaseUid }).first();
 
     // Fallback: Try to find user by email (for migration period)
-    if (!user) {
+    if (!user && email) {
       const normalizedEmail = email.toLowerCase().trim();
       user = await knex("users").where({ email: normalizedEmail }).first();
 
@@ -413,13 +425,16 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
         const safeFirstName = firstName || "User";
         const safeLastName = lastName || null;
         const safeCity = ipGeolocationData?.city || "TBD";
+        const safeEmail = email
+          ? email.toLowerCase().trim()
+          : `instagram_${firebaseUid.replace(":", "_")}@pholio.me`;
 
         await knex.transaction(async (trx) => {
           const userId = uuidv4();
 
           await trx("users").insert({
             id: userId,
-            email: email.toLowerCase().trim(),
+            email: safeEmail,
             firebase_uid: firebaseUid,
             role,
             first_name: safeFirstName,
@@ -450,6 +465,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               phone: null,
               height_cm: 0,
               is_pro: false,
+              instagram_handle: instagramHandle,
               // Setup correct state machine baseline
               ...startState,
               // Mark onboarding done so the gate lets them into the dashboard.
@@ -508,13 +524,15 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           console.log(
             "[Login] Unique constraint hit — looking up existing user...",
           );
-          user =
-            (await knex("users")
-              .where({ firebase_uid: firebaseUid })
-              .first()) ||
-            (await knex("users")
+          user = await knex("users")
+            .where({ firebase_uid: firebaseUid })
+            .first();
+
+          if (!user && email) {
+            user = await knex("users")
               .where({ email: email.toLowerCase().trim() })
-              .first());
+              .first();
+          }
 
           if (!user) {
             const msg =
@@ -628,6 +646,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       req.session.userId = agencyContext.agency.id;
       req.session.memberUserId = user.id;
       req.session.agencyId = agencyContext.agency.id;
+      req.session.agencyMembershipId = agencyContext.membership?.id || null;
       req.session.agencyMembershipRole =
         agencyContext.membership?.membership_role || null;
       req.session.agencyOnboardingCompletedAt =
@@ -638,6 +657,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       req.session.role = user.role;
       delete req.session.memberUserId;
       delete req.session.agencyId;
+      delete req.session.agencyMembershipId;
       delete req.session.agencyMembershipRole;
       delete req.session.agencyOnboardingCompletedAt;
     }
@@ -841,15 +861,31 @@ router.get("/api/session", async (req, res) => {
     return res.json({ authenticated: false });
   }
 
-  return res.json({
+  const payload = {
     authenticated: true,
     role: req.session.role,
     agencyId: req.session.agencyId || null,
     memberUserId: req.session.memberUserId || null,
+    agencyMembershipId: req.session.agencyMembershipId || null,
+    agencyMembershipRole: req.session.agencyMembershipRole || null,
+    presetRole: req.session.agencyMembershipRole
+      ? normalizePresetRole(req.session.agencyMembershipRole)
+      : null,
     agencyOnboardingCompletedAt:
       req.session.agencyOnboardingCompletedAt || null,
     redirect: redirectForSession(req.session),
-  });
+  };
+
+  if (req.session.role === "AGENCY") {
+    try {
+      payload.permissions = await loadPermissionsArrayForSession(req.session);
+    } catch (error) {
+      console.error("[Session] Failed to load agency permissions:", error);
+      payload.permissions = [];
+    }
+  }
+
+  return res.json(payload);
 });
 
 module.exports = router;

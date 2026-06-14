@@ -77,11 +77,8 @@ export default function ProfileGateBanner({
       <div className="profile-gate__rule" aria-hidden />
 
       <div className="profile-gate__mast profile-gate__mast--blocked">
-        <span className="profile-gate__kicker profile-gate__kicker--blocked">
-          <Lock size={12} aria-hidden />
-          {featureLabel || 'Profile requirement'}
-        </span>
         <TitleTag className="profile-gate__title">
+          <Lock size={14} aria-hidden />
           {featureName} needs a <em>complete</em> profile.
         </TitleTag>
         <p className="profile-gate__copy">{description}</p>

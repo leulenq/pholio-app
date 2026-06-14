@@ -48,7 +48,6 @@ export default function ErrorStateCard({
       role="alert"
       aria-live="polite"
     >
-      {eyebrow ? <p className="ph-error-eyebrow">{eyebrow}</p> : null}
       <div className="ph-error-icon-wrap" aria-hidden="true">
         <Icon size={20} />
       </div>

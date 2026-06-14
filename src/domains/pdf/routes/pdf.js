@@ -13,6 +13,7 @@ const {
   validateCustomization,
 } = require("../themes");
 const { selectCompCardImages } = require("../comp-card-selector");
+const { composeCompCard } = require("../composition");
 const { resolveCompCardArtDirection } = require("../style-engine");
 const { evaluateCompCardGuardrails } = require("../guardrails");
 const {
@@ -49,6 +50,7 @@ const pdfTemplateDir = config.isServerless
     )
   : path.join(__dirname, "..", "templates");
 const TEMPLATE_STANDARD = path.join(pdfTemplateDir, "compcard-standard.ejs");
+const TEMPLATE_COMPOSED = path.join(pdfTemplateDir, "compcard-composed.ejs");
 const TEMPLATE_LEGACY = path.join(pdfTemplateDir, "compcard.ejs");
 
 // Helper function to log analytics event (non-blocking)
@@ -293,32 +295,44 @@ function getDemoProfile(slug) {
       {
         id: "demo-img-1",
         profile_id: "demo-elara-k",
-        path: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=75",
+        path: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=70",
         label: "Headshot",
+        width: 1200,
+        height: 1800,
+        shot_type: "headshot",
         sort: 1,
         created_at: new Date(),
       },
       {
         id: "demo-img-2",
         profile_id: "demo-elara-k",
-        path: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=75",
+        path: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=70",
         label: "Editorial",
+        width: 900,
+        height: 1125,
+        style_type: "editorial",
         sort: 2,
         created_at: new Date(),
       },
       {
         id: "demo-img-3",
         profile_id: "demo-elara-k",
-        path: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=600&q=75",
+        path: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=70",
         label: "Runway",
+        width: 900,
+        height: 1247,
+        shot_type: "full_length",
         sort: 3,
         created_at: new Date(),
       },
       {
         id: "demo-img-4",
         profile_id: "demo-elara-k",
-        path: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=600&q=75",
+        path: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=70",
         label: "Portfolio",
+        width: 900,
+        height: 1350,
+        style_type: "lifestyle",
         sort: 4,
         created_at: new Date(),
       },
@@ -559,8 +573,361 @@ async function loadArchetype(profileId) {
   }
 }
 
+// Resolve the comp-card engine from ?engine=. Default is the composed
+// engine; anything explicitly 'classic' keeps the legacy standard path.
+// layoutFamily / styleVariant are classic-engine art-direction controls, so a
+// caller sending them without an explicit engine expects classic output
+// (existing preset UI and saved links keep working under the new default).
+function resolveCompCardEngine(req) {
+  const raw = String(normalizeQueryValue(req.query.engine) ?? "")
+    .trim()
+    .toLowerCase();
+  if (raw === "classic") return "classic";
+  if (raw === "composed") return "composed";
+  const layoutFamily = normalizeQueryValue(req.query.layoutFamily);
+  const styleVariant = normalizeQueryValue(req.query.styleVariant);
+  if (
+    (layoutFamily != null && layoutFamily !== "") ||
+    (styleVariant != null && styleVariant !== "")
+  ) {
+    return "classic";
+  }
+  return "composed";
+}
+
+// Resolve ?units= into a stats-formatter units preference (or undefined).
+function resolveUnitsPreference(req) {
+  const raw = String(normalizeQueryValue(req.query.units) ?? "")
+    .trim()
+    .toLowerCase();
+  return ["dual", "imperial", "metric"].includes(raw) ? raw : undefined;
+}
+
+// In-process forensics cache (keyed by image id + source) so repeat renders
+// — especially the demo profile, which has no DB row to cache into — never
+// re-fetch and re-measure the same pixels. Bounded to stay small.
+const forensicsMemoryCache = new Map();
+const FORENSICS_MEMORY_CACHE_MAX = 200;
+
+/**
+ * Image forensics for the composed view: cached measurements from
+ * images.metadata.forensics when present, otherwise measured now (local
+ * uploads via fs, remote via fetch with a hard per-image timeout) inside a
+ * total time budget. Fresh measurements are cached back best-effort.
+ * Always resolves to a Map — failures yield null entries, never throws.
+ */
+async function loadCompCardForensics(images, { isDemo } = {}) {
+  const result = new Map();
+  const rows = Array.isArray(images) ? images.filter((i) => i && i.id != null) : [];
+  if (!rows.length) return result;
+
+  let forensicsModule;
+  try {
+    forensicsModule = require("../composition/image-forensics");
+  } catch {
+    return result;
+  }
+
+  const parseMeta = (metadata) => {
+    if (!metadata) return {};
+    if (typeof metadata === "object") return metadata;
+    try {
+      return JSON.parse(metadata) || {};
+    } catch {
+      return {};
+    }
+  };
+
+  const cacheKey = (img) => `${img.id}:${img.public_url || img.path || ""}`;
+  const toMeasure = [];
+  for (const img of rows) {
+    const cached = parseMeta(img.metadata).forensics;
+    if (cached && cached.version === forensicsModule.FORENSICS_VERSION) {
+      result.set(img.id, cached);
+    } else if (forensicsMemoryCache.has(cacheKey(img))) {
+      result.set(img.id, forensicsMemoryCache.get(cacheKey(img)));
+    } else {
+      toMeasure.push(img);
+    }
+  }
+  // Tests must stay offline and deterministic: cached forensics only.
+  if (!toMeasure.length || process.env.NODE_ENV === "test") return result;
+
+  const fetchBuffer = async (img) => {
+    const src = img.public_url || img.path || null;
+    if (!src) return null;
+    if (/^https?:\/\//i.test(src)) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2000);
+      try {
+        const response = await fetch(src, { signal: controller.signal });
+        if (!response.ok) return null;
+        return Buffer.from(await response.arrayBuffer());
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    const fs = require("fs/promises");
+    const path = require("path");
+    const relative = src.replace(/^\//, "");
+    const candidates = [
+      path.join(process.cwd(), relative),
+      path.join(process.cwd(), "public", relative),
+    ];
+    for (const candidate of candidates) {
+      try {
+        return await fs.readFile(candidate);
+      } catch {
+        /* try next */
+      }
+    }
+    return null;
+  };
+
+  try {
+    // Total budget: never let forensics make a render feel slow.
+    const measured = await Promise.race([
+      forensicsModule.forensicsForImages(toMeasure, {
+        fetchBuffer,
+        timeoutMs: 2200,
+        concurrency: 3,
+      }),
+      new Promise((resolve) => setTimeout(() => resolve(new Map()), 4500)),
+    ]);
+    for (const [id, forensics] of measured) {
+      result.set(id, forensics);
+      if (!forensics) continue;
+      const img = toMeasure.find((i) => i.id === id);
+      // Always cache in-process (covers demo rows with no DB row)…
+      if (forensicsMemoryCache.size >= FORENSICS_MEMORY_CACHE_MAX) {
+        forensicsMemoryCache.delete(forensicsMemoryCache.keys().next().value);
+      }
+      if (img) forensicsMemoryCache.set(cacheKey(img), forensics);
+      // …and back to the DB best-effort for real profiles.
+      if (!isDemo) {
+        const metadata = { ...parseMeta(img && img.metadata), forensics };
+        knex("images")
+          .where({ id })
+          .update({ metadata: JSON.stringify(metadata) })
+          .catch(() => {});
+      }
+    }
+  } catch (error) {
+    console.warn("[compcard-forensics] measurement failed:", error.message);
+  }
+  return result;
+}
+
+// Render the composed-engine comp card. Returns true when a response was
+// sent; false when composition/rendering failed and the caller should fall
+// back to the classic path (resilience: a composed failure never 500s when
+// the classic template can still serve the card).
+async function renderComposedView(req, res, data, isDemo) {
+  const { profile, images } = data;
+  try {
+    const seed = normalizeCompCardSeed(req.query.seed);
+    const locks = parseCompCardLocks(req);
+    const unitsPreference = resolveUnitsPreference(req);
+    const generationMode = resolveGenerationMode(req);
+    const wantsMeta = normalizeQueryValue(req.query.meta) === "1";
+    // ?print=1 → 0.125in-bleed canvas (5.75×8.75) for print shops. The PDF
+    // stays RGB — online printers convert; CMYK proofing is the shop's step.
+    const printBleed = normalizeQueryValue(req.query.print) === "1";
+    const archetype = await loadArchetype(profile.id);
+    const forensicsById = await loadCompCardForensics(images, { isDemo });
+    // Subject mattes (P1): read cached masks from image metadata when the
+    // matte step has run (requires @imgly/background-removal-node at upload).
+    // Absent today ⇒ empty map ⇒ the front engine skips mask-dependent
+    // structures. Cheap, cache-only, never blocks.
+    const matteById = {};
+    for (const img of images || []) {
+      if (!img || img.id == null) continue;
+      try {
+        const meta = typeof img.metadata === "string" ? JSON.parse(img.metadata) : img.metadata;
+        if (meta && meta.matte && Array.isArray(meta.matte.maskGrid)) {
+          matteById[img.id] = meta.matte;
+        }
+      } catch {
+        /* no matte for this image */
+      }
+    }
+
+    // Representation: a represented talent's card leads with the agency.
+    let representation = null;
+    if (!isDemo && profile.partner_agency_id) {
+      try {
+        const agency = await knex("agencies")
+          .where({ id: profile.partner_agency_id })
+          .select("name")
+          .first();
+        representation = agency?.name || null;
+      } catch {
+        representation = null;
+      }
+    }
+
+    const { plan, statsBlock, guardrailReport } = await composeCompCard({
+      profile,
+      images: images || [],
+      archetype,
+      options: {
+        seed,
+        locks: { heroId: locks.heroId, gridIds: locks.gridIds },
+        unitsPreference,
+        mode: generationMode,
+        forensicsById,
+        briefStore: isDemo
+          ? null
+          : {
+              load: async () => {
+                try {
+                  const raw = profile.pdf_design_brief;
+                  if (!raw) return null;
+                  return typeof raw === "string" ? JSON.parse(raw) : raw;
+                } catch {
+                  return null;
+                }
+              },
+              save: (payload) =>
+                knex("profiles")
+                  .where({ id: profile.id })
+                  .update({ pdf_design_brief: JSON.stringify(payload) })
+                  .catch(() => {}),
+            },
+        // Meta requests power the dashboard panel — they must be fast and
+        // deterministic, never waiting on the Groq planning layer. Candidate
+        // renders (jury rasterizer, ?candidate=N) likewise skip the brief:
+        // 5× re-authoring would be slow and the front program is
+        // deterministic per candidate regardless.
+        aiAdvice:
+          wantsMeta || normalizeQueryValue(req.query.candidate) != null
+            ? false
+            : undefined,
+        // v4 front-page design-program synthesis (grammar-sampled element
+        // tree). Default on for the composed engine; ?front=legacy opts out.
+        frontEngine:
+          normalizeQueryValue(req.query.front) === "legacy" ? "legacy" : "program",
+        // ?candidate=N forces a specific front candidate — used by the jury
+        // rasterizer (render each candidate's front, rank, re-render winner).
+        frontCandidateIndex: (() => {
+          const n = parseInt(normalizeQueryValue(req.query.candidate), 10);
+          return Number.isInteger(n) && n >= 0 && n < 5 ? n : null;
+        })(),
+        matteById,
+        representation,
+      },
+    });
+
+    // ?meta=1 — JSON design summary for the dashboard comp card surface
+    // (same information the rendered card itself exposes; no extra fields).
+    if (wantsMeta) {
+      res.json({
+        engine: "composed",
+        seed: toSafeMetadataToken(seed, "auto", 96),
+        toneProfile: plan.toneProfile,
+        voice: plan.typography.voiceId,
+        display: plan.typography.display,
+        booking: plan.back.booking
+          ? { mode: plan.back.booking.mode, label: plan.back.booking.label }
+          : null,
+        photoCount: plan.back.layout.cells.length + (plan.front.imageId ? 1 : 0),
+        warnings: plan.warnings,
+        guardrails: {
+          status: guardrailReport.status,
+          blockingIssues: guardrailReport.blockingIssues.map((c) => c.message),
+          warnings: guardrailReport.warnings.map((c) => c.message),
+        },
+      });
+      return true;
+    }
+
+    const imagesById = {};
+    (images || []).forEach((img) => {
+      if (img && img.id != null) imagesById[img.id] = img;
+    });
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    // Premium portfolio link: the wordmark rects + short URL travel to the
+    // PDF generator as headers; it stamps clickable link annotations.
+    // PRODUCTION URL SAFETY: the printed/annotated URL must be the PUBLIC
+    // app URL — during PDF generation the request host is the internal
+    // Puppeteer target (localhost in dev), which must never be baked into a
+    // card. `baseUrl` stays request-derived for image srcs only (Puppeteer
+    // fetches those from the local server).
+    const { shortPortfolioUrl } = require("../composition/portfolio-link");
+    const portfolioUrl = shortPortfolioUrl(profile, config.appUrl || baseUrl);
+    if (portfolioUrl) {
+      plan.wordmark.href = portfolioUrl;
+      // Human-readable cue printed beside the wordmark — tells print readers
+      // the portfolio exists and is OCR/Lens-friendly.
+      plan.wordmark.displayUrl = portfolioUrl.replace(/^https?:\/\//i, "");
+    }
+
+    res.locals.layout = false;
+    // Render to a string first so any template error can still fall back to
+    // the classic path (nothing has been written to the response yet).
+    const html = await new Promise((resolve, reject) => {
+      res.render(
+        TEMPLATE_COMPOSED,
+        {
+          layout: false,
+          title: `${profile.first_name} ${profile.last_name} - Comp Card`,
+          profile,
+          plan,
+          statsBlock,
+          imagesById,
+          watermark: !profile.is_pro,
+          baseUrl,
+          printBleed,
+          frontProgram: plan.frontProgram || null,
+        },
+        (err, output) => (err ? reject(err) : resolve(output)),
+      );
+    });
+
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.set("X-CompCard-Engine", "composed");
+    res.set("X-CompCard-Seed", toSafeMetadataToken(seed, "auto", 96));
+    const bleedOffset = printBleed ? 0.125 : 0;
+    const markHeader = (rect) =>
+      rect
+        ? [rect.x + bleedOffset, rect.y + bleedOffset, rect.w, rect.h].join(",")
+        : null;
+    const frontMark = markHeader(plan.wordmark && plan.wordmark.front);
+    const backMark = markHeader(plan.wordmark && plan.wordmark.back);
+    if (portfolioUrl && frontMark && backMark) {
+      res.set("X-CompCard-Portfolio-Url", portfolioUrl);
+      res.set("X-CompCard-Wordmark-Front", frontMark);
+      res.set("X-CompCard-Wordmark-Back", backMark);
+      // Header-safe title: printable ASCII only (HTTP headers are latin1;
+      // spaces are fine — toSafeMetadataToken would mangle them).
+      const headerTitle = `${profile.first_name} ${profile.last_name} - Comp Card`
+        .replace(/[^\x20-\x7E]/g, "")
+        .trim()
+        .slice(0, 120);
+      if (headerTitle) res.set("X-CompCard-Title", headerTitle);
+    }
+    res.send(html);
+    return true;
+  } catch (error) {
+    console.error("[renderComposedView] ERROR:", error.message);
+    // If headers already went out we cannot fall back; report handled.
+    return res.headersSent;
+  }
+}
+
 // Helper function to render the new 2-page standard comp card
 async function renderStandardView(req, res, data, isDemo) {
+  const engine = resolveCompCardEngine(req);
+  if (engine === "composed") {
+    const handled = await renderComposedView(req, res, data, isDemo);
+    if (handled) return;
+    console.warn(
+      "[renderStandardView] composed engine failed — falling back to classic",
+    );
+    res.set("X-CompCard-Engine", "classic-fallback");
+  }
+
   const { profile, images } = data;
 
   // Theme selection: for standard cards, default is pholio-standard
@@ -1453,6 +1820,12 @@ router.get("/pdf/:slug", async (req, res, next) => {
       styleVariant: req.query.styleVariant,
       lockHeroId: req.query.lockHeroId,
       lockGridIds: req.query.lockGridIds,
+      engine: req.query.engine,
+      units: req.query.units,
+      print: req.query.print,
+      // ?jury=1 → render front candidates and rank them with the vision jury
+      // before the final render (opt-in; adds candidate renders + a Groq call).
+      jury: normalizeQueryValue(req.query.jury) === "1",
     });
     const buffer = Buffer.isBuffer(rawPdf) ? rawPdf : Buffer.from(rawPdf);
 
@@ -2686,5 +3059,39 @@ router.delete(
     }
   },
 );
+
+// Short portfolio link — the URL encoded on comp card NFC tags / QR codes
+// and annotated onto digital PDFs (see composition/portfolio-link.js).
+// Public, no auth: a casting director tapping a card must land instantly.
+router.get("/p/:slug", async (req, res) => {
+  const slug = String(req.params.slug || "").trim();
+  if (!slug) return res.redirect(302, "/");
+  try {
+    const profile = await knex("profiles")
+      .where({ slug })
+      .select("id", "slug")
+      .first();
+    if (!profile) return res.redirect(302, "/");
+
+    // Best-effort analytics — never allowed to affect the redirect.
+    try {
+      const { randomUUID } = require("crypto");
+      await knex("analytics").insert({
+        id: randomUUID(),
+        profile_id: profile.id,
+        event_type: "compcard_link_open",
+        event_source: "compcard",
+        metadata: JSON.stringify({ via: "short-link" }),
+      });
+    } catch {
+      /* analytics is observability, not behavior */
+    }
+
+    return res.redirect(302, `/portfolio/${encodeURIComponent(profile.slug)}`);
+  } catch (error) {
+    console.warn("[compcard-link] lookup failed:", error.message);
+    return res.redirect(302, "/");
+  }
+});
 
 module.exports = router;

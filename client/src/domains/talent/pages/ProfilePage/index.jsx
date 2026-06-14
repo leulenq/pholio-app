@@ -933,7 +933,6 @@ export default function ProfilePage() {
               <div className={styles.movementCard}>
         <Section
           id="credits"
-          kicker="Experience"
           title="Credits & Experience"
           titleEmphasis="Experience"
           description="Your experience and past work."
@@ -973,7 +972,6 @@ export default function ProfilePage() {
 
         <Section
           id="training"
-          kicker="Training"
           title="Training & Skills"
           titleEmphasis="Skills"
           description="Your professional background and skills."
@@ -1029,7 +1027,6 @@ export default function ProfilePage() {
 
         <Section
           id="roles"
-          kicker="Roles"
           title="Roles & Style"
           titleEmphasis="Style"
           description="What kind of work you specialize in."
@@ -1203,7 +1200,6 @@ export default function ProfilePage() {
 
         <Section
           id="market"
-          kicker="Categories"
           title="Market Positioning"
           titleEmphasis="Positioning"
           description="Your core modeling categories and market lanes."
@@ -1278,7 +1274,6 @@ export default function ProfilePage() {
 
         <Section
           id="contact"
-          kicker="Emergency"
           title="Contact & Emergency"
           titleEmphasis="Emergency"
           description="Emergency contact information."

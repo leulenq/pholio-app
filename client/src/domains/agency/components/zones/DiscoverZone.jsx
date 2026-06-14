@@ -3,23 +3,24 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchProfileDetails } from '../../api/agency';
 import { PortfolioGrid } from './PortfolioGrid';
 import { SectionSkeleton } from './SectionSkeleton';
+import { buildProfileHydration } from './profileHydration';
 import './zones.css';
 
 const formatMeasurement = (val) => (val != null ? `${val} cm` : '—');
 
-export const DiscoverZone = ({ profileId, onImagesLoaded }) => {
+export const DiscoverZone = ({ profileId, onProfileHydrated }) => {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['profile', profileId],
     queryFn: () => fetchProfileDetails(profileId),
     enabled: !!profileId,
   });
 
-  // Hydrate hero carousel once images are available
   useEffect(() => {
-    if (data?.profile?.images?.length > 0) {
-      onImagesLoaded?.(data.profile.images);
-    }
-  }, [data, onImagesLoaded]);
+    const profile = data?.profile;
+    if (!profile) return;
+    const hydration = buildProfileHydration(profile, profile.images);
+    if (hydration) onProfileHydrated?.(hydration);
+  }, [data, onProfileHydrated]);
 
   if (isLoading) {
     return (
@@ -43,26 +44,14 @@ export const DiscoverZone = ({ profileId, onImagesLoaded }) => {
 
   const profile = data?.profile || {};
   const images = profile.images || [];
-  const bio = profile.bio_curated || profile.bio_raw;
-  // Columns are flat: height_cm, bust_cm, waist_cm, hips_cm (integers in cm)
   const hasAttributes = profile.eye_color || profile.hair_color || profile.nationality;
 
   return (
     <div>
-      {/* Portfolio Grid */}
       <div className="zone-section">
         <PortfolioGrid images={images} />
       </div>
 
-      {/* Bio */}
-      {bio && (
-        <div className="zone-section">
-          <div className="zone-section-header">Bio</div>
-          <p className="zone-bio">{bio}</p>
-        </div>
-      )}
-
-      {/* Measurements — flat columns from profiles table */}
       <div className="measure-strip">
         {[
           { label: 'Height', value: profile.height_cm },
@@ -77,7 +66,6 @@ export const DiscoverZone = ({ profileId, onImagesLoaded }) => {
         ))}
       </div>
 
-      {/* Attributes */}
       {hasAttributes && (
         <div className="attr-row">
           {profile.eye_color && (

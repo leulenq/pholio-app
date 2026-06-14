@@ -191,7 +191,6 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
       <section className="imd-shell" aria-label="Edit image details" onClick={e => e.stopPropagation()}>
         <aside className="imd-preview" aria-label="Selected image preview">
           <div className="imd-preview__bar">
-            <span className="imd-kicker">Frame details</span>
             <button type="button" onClick={onClose} className="imd-icon-btn" aria-label="Close details">
               <X size={18} />
             </button>
@@ -212,7 +211,6 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
         <div className="imd-panel">
           <header className="imd-header">
             <div>
-              <span className="imd-kicker">Curation</span>
               <h2 className="imd-title">Image details</h2>
             </div>
             <span className="imd-frame-id">{image.id ? `ID ${image.id}` : 'Portfolio frame'}</span>

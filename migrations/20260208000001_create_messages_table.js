@@ -6,7 +6,7 @@
 
 exports.up = function(knex) {
   return knex.schema.createTable('messages', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('application_id').notNullable();
     table.uuid('sender_id').notNullable(); // user_id of sender (agency or talent)
     table.string('sender_type', 20).notNullable(); // 'AGENCY' or 'TALENT'

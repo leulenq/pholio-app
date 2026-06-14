@@ -180,6 +180,25 @@ async function getUserByEmail(email) {
   }
 }
 
+/**
+ * Mint a Firebase custom auth token (e.g. Instagram OAuth bridge).
+ * @param {string} uid
+ * @param {Object} [claims]
+ * @returns {Promise<string>}
+ */
+async function createCustomToken(uid, claims = {}) {
+  const auth = getAuth();
+  if (!auth) {
+    throw new Error("Firebase Admin not initialized");
+  }
+
+  try {
+    return await auth.createCustomToken(uid, claims);
+  } catch (error) {
+    throw new Error(`Custom token creation failed: ${error.message}`);
+  }
+}
+
 module.exports = {
   initializeFirebaseAdmin,
   getAuth,
@@ -188,4 +207,5 @@ module.exports = {
   deleteUser,
   getUser,
   getUserByEmail,
+  createCustomToken,
 };

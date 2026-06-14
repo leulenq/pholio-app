@@ -54,7 +54,6 @@ export function IdentitySection({
 
       <Section
         id="heritage"
-        kicker="Heritage"
         title="Heritage & Background"
         titleEmphasis="Background"
         description="Helps match you with diverse casting calls."

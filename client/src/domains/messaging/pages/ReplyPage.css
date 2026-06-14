@@ -1,0 +1,233 @@
+.reply-page {
+  min-height: 100vh;
+  background: var(--ag-surface-0, #faf8f5);
+  color: var(--ag-text-0, #1a1815);
+  display: flex;
+  flex-direction: column;
+}
+
+.reply-page__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.reply-page__center--error h1 {
+  font-family: var(--font-display, 'Playfair Display', serif);
+  font-size: 1.5rem;
+  color: var(--ag-text-0, #1a1815);
+  margin: 0;
+}
+
+.reply-page__spinner {
+  animation: reply-spin 0.8s linear infinite;
+  color: var(--ag-gold, #b8956a);
+}
+
+@keyframes reply-spin {
+  to { transform: rotate(360deg); }
+}
+
+.reply-page__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--ag-surface-1, #fff);
+  border-bottom: 1px solid rgba(26, 24, 21, 0.08);
+  flex-wrap: wrap;
+}
+
+.reply-page__brand {
+  font-family: var(--font-display, 'Playfair Display', serif);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ag-gold, #b8956a);
+}
+
+.reply-page__header-copy {
+  flex: 1;
+  min-width: 200px;
+}
+
+.reply-page__header-copy h1 {
+  margin: 0;
+  font-family: var(--font-display, 'Playfair Display', serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.reply-page__header-copy p {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.reply-page__dashboard-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--ag-gold, #b8956a);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.reply-page__dashboard-link:hover {
+  opacity: 0.8;
+}
+
+.reply-page__link-btn {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 10px 20px;
+  background: var(--ag-gold, #b8956a);
+  color: #fff;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.reply-page__link-btn:hover {
+  background: var(--ag-gold-hover, #a6845c);
+}
+
+.reply-page__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 16px 32px;
+}
+
+.reply-page__thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-bottom: 16px;
+  min-height: 280px;
+}
+
+.reply-page__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.reply-page__msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 85%;
+}
+
+.reply-page__msg--in {
+  align-self: flex-start;
+}
+
+.reply-page__msg--out {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.reply-page__bubble {
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reply-page__msg--in .reply-page__bubble {
+  background: var(--ag-surface-1, #fff);
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  box-shadow: 0 2px 8px rgba(26, 24, 21, 0.04);
+}
+
+.reply-page__msg--out .reply-page__bubble {
+  background: var(--ag-gold, #b8956a);
+  color: #fff;
+}
+
+.reply-page__meta {
+  font-size: 0.75rem;
+  color: var(--ag-text-2, #6b6560);
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.reply-page__composer {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 16px;
+  background: var(--ag-surface-1, #fff);
+  border-radius: 16px;
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  box-shadow: 0 4px 20px rgba(26, 24, 21, 0.06);
+}
+
+.reply-page__composer textarea {
+  flex: 1;
+  border: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  background: transparent;
+  color: var(--ag-text-0, #1a1815);
+  outline: none;
+}
+
+.reply-page__composer textarea::placeholder {
+  color: var(--ag-text-2, #6b6560);
+}
+
+.reply-page__send {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--ag-gold, #b8956a);
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.reply-page__send:hover:not(:disabled) {
+  background: var(--ag-gold-hover, #a6845c);
+}
+
+.reply-page__send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .reply-page__header {
+    padding: 16px;
+  }
+
+  .reply-page__main {
+    padding: 16px 12px 24px;
+  }
+}

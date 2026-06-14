@@ -1,18 +1,20 @@
 const { v4: uuidv4 } = require("uuid");
+const { getSessionActorUserId } = require("../services/context");
 
 async function logActivity(
+  req,
   knex,
   applicationId,
   agencyId,
-  userId,
   activityType,
   description,
   metadata = {},
 ) {
   try {
-    const activityUserId = userId
+    const actorUserId = getSessionActorUserId(req);
+    const activityUserId = actorUserId
       ? await knex("users")
-          .where({ id: userId })
+          .where({ id: actorUserId })
           .first()
           .then((row) => row?.id || null)
       : null;

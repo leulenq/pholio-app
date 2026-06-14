@@ -1,0 +1,451 @@
+<%/*
+  compcard-composed.ejs — atelier-engine 2-page comp card (5.5in × 8.5in).
+
+  v2: renders ABSOLUTE GEOMETRY from the composition plan. There are no grid
+  templates or layout classes — every rect (hero, name band, photo cells,
+  stats block, contact, wordmark) arrives in inches from the layout solver
+  and is positioned absolutely, so the markup imposes no skeleton of its own.
+
+  LOCALS CONTRACT (supplied by renderComposedView in routes/pdf.js):
+    title       string
+    profile     object                — profiles row (first_name, last_name, is_pro)
+    plan        CompositionPlan v2    — composition-director output:
+                  .palette { background, text, muted, accent, rule }
+                  .typography { display, body, nameSize, nameTracking, nameCase,
+                                nameWeight, statSize, statLabelSize, contactSize }
+                  .front { imageId, crop, geometry: FrontGeometry, treatment,
+                           name { placement, align, rotation }, statLine|null,
+                           showContactBlock }
+                  .back  { layout: BackLayout (cells/statsBlock/nameBlock/
+                           contactBlock/wordmark, all inch rects), statsPlacement,
+                           contact { line } }
+                  .wordmark { front: rect, back: rect }   — the link target rects
+    statsBlock  StatsBlock            — stats-formatter output (.lines, .inline)
+    imagesById  object                — { [imageId]: image row }
+    watermark   boolean               — non-pro watermark overlay
+    baseUrl     string                — origin for relative image paths
+
+  Print conventions: @page 5.5in 8.5in margin 0, .comp-card-page wrapper
+  (generator.js checks for it), break-after: page, Google Fonts via <link>.
+  Plain text everywhere — no badges, pills, chips or backdrop-filter. The
+  gradient scrim behind on-image names is a legibility device, not glass.
+*/%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title><%= title %></title>
+  <%
+    const safePlan = (typeof plan !== 'undefined' && plan) ? plan : {};
+    const palette = safePlan.palette || {};
+    const typography = safePlan.typography || {};
+    const front = safePlan.front || {};
+    const back = safePlan.back || {};
+    const layout = back.layout || {};
+    const geometry = front.geometry || {};
+    const wordmarks = safePlan.wordmark || {};
+    const statsLines = (typeof statsBlock !== 'undefined' && statsBlock && Array.isArray(statsBlock.lines))
+      ? statsBlock.lines : [];
+    const statsInline = (typeof statsBlock !== 'undefined' && statsBlock && statsBlock.inline) || '';
+    const contactLine = (back.contact && back.contact.line) ? back.contact.line : '';
+    const safeImagesById = (typeof imagesById !== 'undefined' && imagesById) ? imagesById : {};
+    const showWatermark = (typeof watermark !== 'undefined') ? Boolean(watermark) : true;
+    const origin = (typeof baseUrl !== 'undefined' && baseUrl) ? baseUrl : '';
+
+    // Print export: 0.125in bleed canvas (5.75 × 8.75 trim-plus-bleed).
+    // All geometry stays in trim coordinates and is offset by the bleed;
+    // page-edge-bleeding imagery extends THROUGH the bleed to the new edge.
+    const BLEED = (typeof printBleed !== 'undefined' && printBleed) ? 0.125 : 0;
+    const PAGE_W_IN = 5.5 + 2 * BLEED;
+    const PAGE_H_IN = 8.5 + 2 * BLEED;
+
+    const bg = palette.background || '#FFFFFF';
+    const text = palette.text || '#1A1815';
+    const muted = palette.muted || '#6B6560';
+    const accent = palette.accent || '#B8956A';
+    const rule = palette.rule || '#D9D9D9';
+
+    const displayFont = typography.display || 'Inter';
+    const bodyFont = typography.body || 'Inter';
+    const nameSize = typography.nameSize || '24pt';
+    const nameTracking = typography.nameTracking || '0.08em';
+    const nameCase = typography.nameCase === 'capitalize' ? 'capitalize' : 'uppercase';
+    const nameWeight = typography.nameWeight || 500;
+    const statSize = typography.statSize || '8pt';
+    const statLabelSize = typography.statLabelSize || '6.5pt';
+    const contactSize = typography.contactSize || '7pt';
+
+    const fullName = `${(profile && profile.first_name) || ''} ${(profile && profile.last_name) || ''}`.trim() || 'Untitled';
+
+    const rectStyle = (r, bleedEdges) => {
+      if (!r) return 'display:none;';
+      const edges = Array.isArray(bleedEdges) ? bleedEdges : [];
+      let x = r.x + BLEED;
+      let y = r.y + BLEED;
+      let w = r.w;
+      let h = r.h;
+      if (BLEED) {
+        if (edges.includes('left')) { x -= BLEED; w += BLEED; }
+        if (edges.includes('right')) { w += BLEED; }
+        if (edges.includes('top')) { y -= BLEED; h += BLEED; }
+        if (edges.includes('bottom')) { h += BLEED; }
+      }
+      return `left:${x}in;top:${y}in;width:${w}in;height:${h}in;`;
+    };
+
+    const imgSrc = (imageId) => {
+      const row = imageId != null ? safeImagesById[imageId] : null;
+      if (!row) return null;
+      const src = row.public_url || row.path || null;
+      if (!src) return null;
+      return /^https?:\/\//i.test(src) ? src : `${origin}${src.startsWith('/') ? '' : '/'}${src}`;
+    };
+
+    const heroSrc = imgSrc(front.imageId);
+    const heroCrop = front.crop || {};
+    const nameBand = geometry.nameBand || null;
+    const nameOnImage = Boolean(nameBand && nameBand.onImage);
+    const nameInk = nameOnImage && nameBand.inkOn === 'light' ? '#FFFFFF' : text;
+    const verticalName = Boolean(front.name && front.name.rotation === -90 && front.treatment === 'full-bleed');
+    const cells = Array.isArray(layout.cells) ? layout.cells : [];
+    const statsRect = layout.statsBlock || null;
+    const statsColumn = Boolean(statsRect && statsRect.orientation === 'column');
+
+    // v3: the director supplies a library-built fonts URL (curated families
+    // + their real weights); the inline builder remains as a fallback.
+    let fontsUrl = typography.fontsUrl || null;
+    if (!fontsUrl) {
+      const families = new Set([displayFont, bodyFont, 'Inter']);
+      const familyParam = [...families].map((f) => {
+        const weights = f === 'Inter' ? '300;400;500;600;700' : '400;500;600';
+        return `family=${f.replace(/ /g, '+')}:wght@${weights}`;
+      }).join('&');
+      fontsUrl = `https://fonts.googleapis.com/css2?${familyParam}&display=swap`;
+    }
+
+    // v3: measured contrast control — scrim direction + strength come from
+    // the contrast engine, not fixed values.
+    const scrim = front.scrim || null;
+    const scrimAlpha = scrim ? Math.min(0.72, Math.max(0.15, scrim.strength)) : 0;
+    const scrimColor = scrim && scrim.direction === 'lighten' ? '250,249,246' : '10,9,8';
+
+    // Brand mark: ALWAYS gold (brand rule) — bright gold over dark imagery,
+    // deep gold on paper. Placement + alignment decided by the engine from
+    // quiet zones and interference. The ↗ cue + short URL signal that the
+    // mark opens the talent's live portfolio (link annotation / NFC / OCR).
+    const wordmarkGold = wordmarks.tone === 'gold-bright' ? '#C9A55A' : '#A6845C';
+    const wordmarkJustify = wordmarks.align === 'left' ? 'flex-start' : 'flex-end';
+    const wordmarkUrl = wordmarks.displayUrl || null;
+
+    // Booking block: representation or BOOKINGS framing (industry standard).
+    const booking = back.booking || null;
+  %>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="<%= fontsUrl %>">
+  <style>
+    @page { size: <%= PAGE_W_IN %>in <%= PAGE_H_IN %>in; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { background: <%= bg %>; }
+    body { font-family: '<%= bodyFont %>', sans-serif; color: <%= text %>; }
+
+    .comp-card-page {
+      position: relative;
+      width: <%= PAGE_W_IN %>in;
+      height: <%= PAGE_H_IN %>in;
+      overflow: hidden;
+      background: <%= bg %>;
+      break-after: page;
+    }
+    .comp-card-page:last-child { break-after: auto; }
+
+    .abs { position: absolute; }
+    .cell img, .hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .hero { overflow: hidden; }
+    .cell { overflow: hidden; }
+    .cell-empty { width: 100%; height: 100%; background: <%= rule %>; opacity: 0.18; }
+
+    .name {
+      font-family: '<%= displayFont %>', serif;
+      font-size: <%= nameSize %>;
+      font-weight: <%= nameWeight %>;
+      letter-spacing: <%= nameTracking %>;
+      text-transform: <%= nameCase %>;
+      line-height: 1.04;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .name--left { align-items: flex-start; text-align: left; }
+    .name--center { align-items: center; text-align: center; }
+
+    /* Legibility scrim for on-image names — a gradient, not glass. The
+       alpha is solved by the contrast engine from the measured band luma. */
+    .scrim-top, .scrim-bottom {
+      position: absolute;
+      left: 0; right: 0;
+      height: 1.7in;
+      pointer-events: none;
+    }
+    .scrim-top { top: 0; background: linear-gradient(to bottom, rgba(<%= scrimColor %>,<%= scrimAlpha %>), rgba(<%= scrimColor %>,0)); }
+    .scrim-bottom { bottom: 0; background: linear-gradient(to top, rgba(<%= scrimColor %>,<%= scrimAlpha %>), rgba(<%= scrimColor %>,0)); }
+
+    .vertical-spine {
+      position: absolute;
+      left: 0.28in;
+      top: 0.25in;
+      height: 8in;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      display: flex;
+      align-items: center;
+    }
+
+    .stat-line-front {
+      font-size: 6.5pt;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    .back-name {
+      font-family: '<%= displayFont %>', serif;
+      font-weight: <%= nameWeight %>;
+      letter-spacing: <%= nameTracking %>;
+      text-transform: <%= nameCase %>;
+      display: flex;
+      align-items: center;
+    }
+
+    .stats { display: flex; overflow: hidden; }
+    .stats--column {
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 0.085in;
+      border-left: 0.75pt solid <%= rule %>;
+      padding-left: 0.12in;
+    }
+    .stats--strip {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-content: center;
+      column-gap: 0.22in;
+      row-gap: 0.06in;
+      border-top: 0.75pt solid <%= rule %>;
+      padding-top: 0.1in;
+    }
+    .stat { display: flex; flex-direction: column; gap: 0.014in; }
+    .stat-label {
+      font-size: <%= statLabelSize %>;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: <%= accent %>;
+    }
+    .stat-value { font-size: <%= statSize %>; color: <%= text %>; }
+
+    .contact {
+      font-size: <%= contactSize %>;
+      letter-spacing: 0.06em;
+      color: <%= muted %>;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .wordmark {
+      font-family: 'Inter', sans-serif;
+      font-size: 6.5pt;
+      font-weight: 600;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      color: <%= wordmarkGold %>;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: <%= wordmarkJustify %>;
+      gap: 0.018in;
+    }
+    .wordmark .mark-url {
+      font-size: 4.6pt;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
+      opacity: 0.85;
+    }
+
+    .non-pro-mark {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 34pt;
+      font-weight: 600;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: rgba(26,24,21,0.06);
+      transform: rotate(-32deg);
+    }
+  </style>
+</head>
+<body data-compcard-engine="composed" data-compcard-seed="<%= safePlan.seedUsed || 'auto' %>" data-compcard-tone="<%= safePlan.toneProfile || '' %>">
+
+  <%
+    // v4: when a synthesized front PROGRAM is supplied, render its element
+    // tree (a grammar-sampled composition); otherwise the legacy front.
+    const fp = (typeof frontProgram !== 'undefined' && frontProgram && Array.isArray(frontProgram.elements))
+      ? frontProgram : null;
+    const fpEls = fp ? fp.elements.slice().sort((a, b) => (a.z || 0) - (b.z || 0)) : [];
+    const fpScrim = (e) => {
+      if (!e.scrim) return '';
+      const a = Math.min(0.72, Math.max(0.15, e.scrim.strength || 0.4));
+      const col = e.scrim.direction === 'lighten' ? '250,249,246' : '10,9,8';
+      const edge = e.scrim.edge === 'top' ? 'to bottom' : 'to top';
+      const pos = e.scrim.edge === 'top' ? 'top:0;' : 'bottom:0;';
+      return `<div class="abs" style="left:0;right:0;${pos}height:1.7in;pointer-events:none;background:linear-gradient(${edge}, rgba(${col},${a}), rgba(${col},0));"></div>`;
+    };
+  %>
+  <%/* ───────────── PAGE 1 — FRONT ───────────── */%>
+  <% if (fp) { %>
+  <div class="comp-card-page" id="front" data-structure="<%= fp.structure %>">
+    <% fpEls.forEach((e) => { %>
+      <% if (e.type === 'colorPlane') { %>
+        <div class="abs" style="<%= rectStyle(e.rect, e.bleedEdges) %> background: <%= e.fill %>; z-index: <%= Math.round((e.z||0)*10) %>;"></div>
+      <% } else if (e.type === 'photo') { const src = heroSrc; %>
+        <div class="abs hero" style="<%= rectStyle(e.rect, e.bleedEdges) %> z-index: <%= Math.round((e.z||0)*10) %>;">
+          <% if (src) { %><img src="<%= src %>" alt="<%= fullName %>" style="object-position: <%= (heroCrop.objectPosition || '50% 50%') %>;"><% } else { %><div class="cell-empty"></div><% } %>
+        </div>
+        <% if (e.scrimForName) { %><%- fpScrim(e.scrimForName) %><% } %>
+      <% } else if (e.type === 'ghost') { %>
+        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; overflow: hidden;">
+          <span style="font-family: '<%= displayFont %>', serif; font-size: <%= e.sizePt %>pt; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: <%= e.color %>; opacity: <%= e.opacity %>; white-space: nowrap; line-height: 1;"><%= fullName %></span>
+        </div>
+      <% } else if (e.type === 'band') { %>
+        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; background: <%= e.fill %>;"></div>
+      <% } else if (e.type === 'rule' && e.variant === 'frame') { %>
+        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; border: <%= (e.weight||0.01) %>in solid <%= e.color %>;"></div>
+      <% } else if (e.type === 'name') { const lines = e.stacked && fullName.includes(' ') ? [fullName.split(/\s+/)[0], fullName.split(/\s+/).slice(1).join(' ')] : [fullName]; %>
+        <% if (e.scrim) { %><%- fpScrim(e) %><% } %>
+        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : 'align-items: flex-start;' %>">
+          <% lines.forEach((ln) => { %><span style="font-family: '<%= displayFont %>', serif; font-size: <%= e.sizePt %>pt; font-weight: <%= nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= nameCase %>; line-height: 1.05; white-space: nowrap;"><%= ln %></span><% }); %>
+        </div>
+      <% } else if (e.type === 'contact') { %>
+        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg);' : '' %>">
+          <span style="font-family: 'Inter', sans-serif; font-size: <%= e.sizePt %>pt; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap;"><%= e.text %></span>
+        </div>
+      <% } %>
+    <% }); %>
+    <%/* Front carries no wordmark — the gold signature lives on the back. */%>
+    <% if (showWatermark) { %><div class="non-pro-mark">Pholio</div><% } %>
+  </div>
+  <% } else { %>
+  <div class="comp-card-page" id="front">
+    <div class="abs hero" style="<%= rectStyle(geometry.hero, geometry.hero.bleedEdges) %>">
+      <% if (heroSrc) { %>
+        <img src="<%= heroSrc %>" alt="<%= fullName %>"
+             style="object-position: <%= (heroCrop.objectPosition || '50% 50%') %>;">
+      <% } else { %>
+        <div class="cell-empty"></div>
+      <% } %>
+      <% if (nameOnImage && scrim && !verticalName) { %>
+        <div class="<%= (front.name && front.name.placement === 'top') ? 'scrim-top' : 'scrim-bottom' %>"></div>
+      <% } %>
+    </div>
+
+    <% if (verticalName) { %>
+      <div class="vertical-spine name name--left" style="color: <%= nameInk %>;">
+        <span><%= fullName %></span>
+      </div>
+    <% } else { %>
+      <div class="abs name name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>"
+           style="<%= rectStyle(nameBand) %> color: <%= nameInk %>;">
+        <% const nameLines = (front.name && Array.isArray(front.name.lines)) ? front.name.lines : [fullName]; %>
+        <% nameLines.forEach((line) => { %><span style="white-space: nowrap;"><%= line %></span><% }); %>
+        <% if (front.showContactBlock && contactLine) { %>
+          <span style="font-family:'Inter',sans-serif;font-size:<%= contactSize %>;font-weight:400;letter-spacing:0.1em;text-transform:none;margin-top:0.06in;color:<%= nameOnImage && nameInk === '#FFFFFF' ? 'rgba(255,255,255,0.78)' : muted %>;">
+            <%= contactLine %>
+          </span>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% const frontStatText = front.statLineText || statsInline; %>
+    <% if (front.statLine && frontStatText) { %>
+      <div class="abs stat-line-front"
+           style="<%= rectStyle(front.statLine) %> color: <%= nameOnImage && nameInk === '#FFFFFF' ? 'rgba(255,255,255,0.85)' : muted %>;">
+        <span style="overflow:hidden;text-overflow:ellipsis;"><%= frontStatText %></span>
+      </div>
+    <% } %>
+
+    <%/* Front carries no wordmark — the gold signature lives on the back. */%>
+    <% if (showWatermark) { %><div class="non-pro-mark">Pholio</div><% } %>
+  </div>
+  <% } %>
+
+  <%/* ───────────── PAGE 2 — BACK ───────────── */%>
+  <div class="comp-card-page" id="back">
+    <div class="abs back-name name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>"
+         style="<%= rectStyle(layout.nameBlock) %> font-size: calc(<%= nameSize %> * 0.42); justify-content: <%= (front.name && front.name.align) === 'center' ? 'center' : 'flex-start' %>;">
+      <span><%= fullName %></span>
+    </div>
+
+    <% cells.forEach((cell) => { const src = imgSrc(cell.imageId); const contained = cell.crop && cell.crop.fit === 'contain'; %>
+      <div class="abs cell" style="<%= rectStyle(cell, cell.bleedEdges) %>">
+        <% if (src) { %>
+          <img src="<%= src %>" alt=""
+               style="object-position: <%= (cell.crop && cell.crop.objectPosition) || '50% 50%' %>;<%= contained ? ' object-fit: contain;' : '' %>">
+        <% } else { %>
+          <div class="cell-empty"></div>
+        <% } %>
+      </div>
+    <% }); %>
+
+    <% if (statsRect && statsLines.length) { %>
+      <div class="abs stats <%= statsColumn ? 'stats--column' : 'stats--strip' %>"
+           style="<%= rectStyle(statsRect) %>">
+        <% statsLines.forEach((line) => { %>
+          <div class="stat">
+            <span class="stat-label"><%= line.label %></span>
+            <span class="stat-value"><%= line.value %></span>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <% if (booking && (booking.primary || booking.line)) { %>
+      <%/* Representation and direct bookings share one premium hierarchy:
+           micro label / primary channel / supporting line. */%>
+      <div class="abs contact" style="<%= rectStyle(layout.contactBlock) %> flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.022in; white-space: normal;">
+        <% if (booking.label) { %>
+          <span style="font-size: 5.4pt; letter-spacing: 0.22em; text-transform: uppercase; color: <%= accent %>;"><%= booking.label %></span>
+        <% } %>
+        <% if (booking.primary) { %>
+          <span style="font-size: 8pt; font-weight: 500; letter-spacing: 0.04em; color: <%= text %>; white-space: nowrap;"><%= booking.primary %></span>
+        <% } %>
+        <% if (booking.line) { %><span style="white-space: nowrap;"><%= booking.line %></span><% } %>
+      </div>
+    <% } else if (contactLine) { %>
+      <div class="abs contact" style="<%= rectStyle(layout.contactBlock) %>">
+        <span><%= contactLine %></span>
+      </div>
+    <% } %>
+
+    <%/* Back carries the gold wordmark signature; no watermark here. */%>
+    <div class="abs wordmark" style="<%= rectStyle(layout.wordmark) %> align-items: flex-end;">
+      <span>Pholio</span>
+      <% if (wordmarkUrl) { %><span class="mark-url"><%= wordmarkUrl %></span><% } %>
+    </div>
+  </div>
+</body>
+</html>

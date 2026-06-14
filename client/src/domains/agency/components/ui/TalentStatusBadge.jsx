@@ -9,6 +9,8 @@ import './TalentStatusBadge.css';
  */
 const STATUS = {
   available:   { label: 'Available',    tone: 'sage' },
+  booking:     { label: 'On Booking',   tone: 'gold' },
+  hold:        { label: 'On Hold',      tone: 'slate' },
   submitted:   { label: 'Submitted',    tone: 'slate' },
   underReview: { label: 'Under Review', tone: 'gold' },
   shortlisted: { label: 'Shortlisted',  tone: 'ink' },
@@ -18,12 +20,11 @@ const STATUS = {
   inactive:    { label: 'Inactive',     tone: 'muted' },
 };
 
-export const TalentStatusBadge = ({ status, onDark, hideDot }) => {
+export const TalentStatusBadge = ({ status, onDark }) => {
   if (!status) return null;
   const s = STATUS[status] || STATUS.available;
   return (
     <span className={`ts-badge ts-badge--${s.tone}${onDark ? ' ts-badge--on-dark' : ''}`}>
-      {!hideDot && <span className="ts-dot" aria-hidden="true" />}
       {s.label}
     </span>
   );

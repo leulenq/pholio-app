@@ -1,6 +1,5 @@
-import MatchScoreRing from './ui/MatchScoreRing';
-import { TalentTypePill } from './ui/TalentTypePill';
 import { ClipboardList, MessageCircle, Bookmark } from 'lucide-react';
+import MatchScore from './ui/MatchScore';
 import './TalentCard.css';
 
 const STATUS_COLORS = {
@@ -59,10 +58,10 @@ export default function TalentCard({
       <div className="ag-talent-card__info">
         <div className="ag-talent-card__row1">
           <span className="ag-talent-card__name">{name}</span>
-          {matchScore != null && <MatchScoreRing score={matchScore} size="sm" />}
+          {matchScore != null && <MatchScore score={matchScore} size="sm" />}
         </div>
         <div className="ag-talent-card__row2">
-          <TalentTypePill type={type} size="sm" />
+          {type && <span className="ag-talent-card__type">{type}</span>}
           {height_cm && <span className="ag-talent-card__stat">{height_cm}cm</span>}
         </div>
         {tags.length > 0 && (

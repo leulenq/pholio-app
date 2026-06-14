@@ -91,9 +91,6 @@ function applicationsArray(payload) {
 function ChapterHeader({ number, slug, title, lede }) {
   return (
     <div className="intel-chapter-header">
-      <span className="intel-chapter-kicker">
-        {number != null ? `${String(number).padStart(2, '0')} · ` : ''}{slug}
-      </span>
       <h2 className="intel-chapter-title">The <em>{title}</em></h2>
       {lede && <p className="intel-chapter-lede">{lede}</p>}
     </div>

@@ -64,9 +64,9 @@ router.post(
           });
 
           await logActivity(
+            req,
             knex,
             app.id,
-            agencyId,
             agencyId,
             "tag_added",
             `Tag "${tag.trim()}" added (bulk)`,
@@ -130,9 +130,9 @@ router.post(
 
         if (deleted > 0) {
           await logActivity(
+            req,
             knex,
             app.id,
-            agencyId,
             agencyId,
             "tag_removed",
             `Tag "${tag.trim()}" removed (bulk)`,
@@ -236,9 +236,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "tag_added",
         `Tag "${tag.trim()}" added`,
@@ -292,9 +292,9 @@ router.delete(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "tag_removed",
         `Tag "${existingTag.tag}" removed`,

@@ -201,15 +201,10 @@ router.get(
           "p.first_name",
           "p.last_name",
           "p.city",
-          "p.country",
           "p.height_cm",
           "p.bust_cm",
           "p.waist_cm",
           "p.hips_cm",
-          "p.bust",
-          "p.waist",
-          "p.hips",
-          "p.hero_image_path",
           "p.archetype",
         )
         .orderBy([
@@ -251,8 +246,7 @@ router.get(
           profileImages.find((image) => image.is_primary) ||
           profileImages[0] ||
           null;
-        const location =
-          [row.city, row.country].filter(Boolean).join(", ") || null;
+        const location = row.city || null;
 
         return {
           id: row.application_id,

@@ -2,6 +2,9 @@ const express = require("express");
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { sendNewMessageEmail } = require("../../../shared/lib/email");
+const {
+  issueReplyTokenForApplication,
+} = require("../../messaging/services/message-reply-tokens");
 const { getSessionActorUserId } = require("../services/context");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const logActivity = require("./agency-log-activity");
@@ -185,25 +188,33 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "message_sent",
         "Message sent to talent",
         { message_preview: message.trim().substring(0, 100) },
       );
 
-      // Send email notification (async, non-blocking)
+      // Send email notification with magic reply link (async, non-blocking)
       (async () => {
         try {
-          // Get talent info
-          const talent = await knex("users")
-            .where({ id: application.talent_id })
+          const talent = await knex("applications as a")
+            .join("profiles as p", "a.profile_id", "p.id")
+            .join("users as u", "p.user_id", "u.id")
+            .where("a.id", applicationId)
+            .select(
+              "u.email",
+              "u.first_name",
+              "u.last_name",
+              "p.first_name as profile_first_name",
+              "p.last_name as profile_last_name",
+            )
             .first();
 
-          // Get agency info
           const agency = await knex("agencies").where({ id: agencyId }).first();
+          const replyToken = await issueReplyTokenForApplication(applicationId);
 
           if (talent && talent.email && agency) {
             const messagePreview =
@@ -211,11 +222,19 @@ router.post(
                 ? message.trim().substring(0, 150) + "..."
                 : message.trim();
 
+            const recipientName =
+              [talent.profile_first_name, talent.profile_last_name]
+                .filter(Boolean)
+                .join(" ") ||
+              [talent.first_name, talent.last_name].filter(Boolean).join(" ") ||
+              "there";
+
             await sendNewMessageEmail({
               to: talent.email,
-              recipientName: talent.name || "there",
+              recipientName,
               senderName: agency.name || "An agency",
               messagePreview,
+              replyUrl: replyToken?.replyUrl || null,
             });
           }
         } catch (emailError) {

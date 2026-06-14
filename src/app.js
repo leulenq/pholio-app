@@ -21,6 +21,7 @@ const ejs = require("ejs");
 const ejsLayouts = require("express-ejs-layouts");
 
 const authRoutes = require("./domains/auth/routes/auth");
+const instagramAuthRoutes = require("./domains/auth/routes/instagram-auth");
 // Casting-call onboarding API (source of truth for server routes under /onboarding/* and /casting/*).
 // TODO(deprecation): `domains/onboarding/routes/apply-essentials.js` (EJS /apply/essentials) is not
 // mounted here; the React SPA at /onboarding plus `domains/onboarding/routes/casting.js` are the
@@ -525,7 +526,11 @@ app.get("/api/migrate/status", async (req, res) => {
 });
 
 // Authentication routes (early for session establishment)
+app.use(instagramAuthRoutes);
 app.use("/", authRoutes);
+
+// Magic-link message replies (token auth, no login required)
+app.use("/", require("./domains/messaging/routes/message-reply"));
 
 // High-frequency API routes (chat/scout - used in onboarding flow)
 // These are moved higher to reduce middleware processing overhead
@@ -623,6 +628,8 @@ app.get(
     "/reveal",
     "/apply",
     "/login",
+    "/reply",
+    "/reply/*",
   ],
   (req, res) => {
     // Development: Redirect to Vite dev server

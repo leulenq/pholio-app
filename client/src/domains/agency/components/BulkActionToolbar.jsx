@@ -1,6 +1,18 @@
 import { motion } from 'framer-motion';
 import { Star, X, Archive, Tag, ClipboardList, MessageCircle, ArrowRight, Trash2 } from 'lucide-react';
+import { useAgencyPermissions } from '../hooks/useAgencyPermissions';
 import './BulkActionToolbar.css';
+
+const ACTION_PERMISSIONS = {
+  shortlist: 'applications.bulk_update_status',
+  decline: 'applications.bulk_decline',
+  archive: 'applications.bulk_archive',
+  tag: 'tags.bulk_add',
+  'add-to-board': 'boards.assign_application',
+  message: 'messages.send',
+  'move-stage': 'applications.bulk_update_status',
+  remove: 'applications.bulk_archive',
+};
 
 const ACTIONS = {
   inbox: [
@@ -23,7 +35,13 @@ const ACTIONS = {
 };
 
 export default function BulkActionToolbar({ selectedCount, context = 'inbox', onAction, onClearSelection }) {
-  const actions = ACTIONS[context] || ACTIONS.inbox;
+  const { can } = useAgencyPermissions();
+  const actions = (ACTIONS[context] || ACTIONS.inbox).filter((action) => {
+    const permission = ACTION_PERMISSIONS[action.key];
+    return !permission || can(permission);
+  });
+
+  if (actions.length === 0) return null;
 
   return (
     <motion.div
@@ -35,7 +53,7 @@ export default function BulkActionToolbar({ selectedCount, context = 'inbox', on
     >
       <span className="ag-bulk-toolbar__count">{selectedCount} selected</span>
       <div className="ag-bulk-toolbar__actions">
-        {actions.map(a => {
+        {actions.map((a) => {
           const Icon = a.icon;
           return (
             <button key={a.key} className="ag-bulk-toolbar__btn" onClick={() => onAction(a.key)}>

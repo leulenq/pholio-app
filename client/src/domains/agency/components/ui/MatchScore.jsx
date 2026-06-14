@@ -1,29 +1,39 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import styles from './MatchScore.module.css';
+import { normalizeScore, resolveTier } from '../../lib/matchTier';
+import './MatchScore.css';
 
 /**
- * MatchScore Component
- * A premium, radial visualization for talent match percentages.
- * 
- * @param {number} score - The match percentage (0-100)
- * @param {string} size - 'sm', 'md', 'lg' (default: 'md')
+ * MatchScore — the core match score figure, number-only.
+ *
+ * The design lives in the numeral itself: a serif figure with a metallic tonal
+ * fill and material depth, no container. Strength is read through tone and
+ * presence (high = gold + weight + lift; low = muted + recessive), all within
+ * one system.
+ *
+ * @param {number} score   0–100
+ * @param {'light'|'dark'|'overlay'} tone  rendering surface (default light)
+ * @param {'xs'|'sm'|'md'|'lg'} size       optical size (default md)
  */
-const MatchScore = ({ score = 0, size = 'md' }) => {
-  const isHighMatch = score >= 90;
-  const isMedMatch = score >= 75 && score < 90;
-
-  const sizeClass = styles[`size-${size}`] || styles['size-md'];
-  const matchClass = isHighMatch ? styles.highMatch : isMedMatch ? styles.medMatch : styles.lowMatch;
+export default function MatchScore({
+  score = 0,
+  tone = 'light',
+  size = 'md',
+  className = '',
+}) {
+  const normalized = normalizeScore(score);
+  const strength = resolveTier(normalized);
 
   return (
-    <div className={`${styles.container} ${sizeClass} ${matchClass}`}>
-      <div className={styles.content}>
-        <span className={styles.percentage}>{score}</span>
-        <span className={styles.label}>%</span>
-      </div>
-    </div>
+    <span
+      className={[
+        'match-score',
+        `match-score--${tone}`,
+        `match-score--${size}`,
+        `match-score--${strength}`,
+        className,
+      ].filter(Boolean).join(' ')}
+      aria-label={`${normalized} match score`}
+    >
+      {normalized}
+    </span>
   );
-};
-
-export default MatchScore;
+}

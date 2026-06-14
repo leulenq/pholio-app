@@ -333,6 +333,8 @@ exports.seed = async function seed(knex) {
     email: "agency@example.com",
     password_hash: passwordHash,
     role: "AGENCY",
+    first_name: "Sarah",
+    last_name: "Chen",
   });
 
   await knex("agencies").insert({

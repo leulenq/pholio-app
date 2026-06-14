@@ -75,7 +75,6 @@
   color: white;
   transition: all 0.2s;
   z-index: 10;
-  backdrop-filter: blur(4px);
 }
 
 .cp-close-btn:hover {
@@ -89,6 +88,12 @@
   right: 16px;
 }
 
+.cp-name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
 .cp-name {
   font-family: 'Playfair Display', serif;
   font-size: 26px;
@@ -97,8 +102,11 @@
   letter-spacing: -0.025em;
   margin: 0 0 6px;
   line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
 .cp-hero-pills {
   display: flex;
   align-items: center;
@@ -126,18 +134,8 @@
 
 .cp-score-badge {
   position: absolute;
-  bottom: 14px;
-  right: 16px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #C9A55A;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(4px);
-  padding: 4px 12px;
-  border-radius: 9999px;
+  bottom: 12px;
+  right: 14px;
 }
 
 /* ── Zone 2: Action Bar ─────────────────────────────────────── */

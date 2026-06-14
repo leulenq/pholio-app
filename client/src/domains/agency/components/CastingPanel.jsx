@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Zap, Target, TrendingUp, AlertCircle, PenLine } from 'lucide-react';
+import MatchScore from './ui/MatchScore';
 import './CastingPanel.css';
 
 const STAGES = ['Applied', 'Shortlisted', 'Interview', 'Offered', 'Booked'];
@@ -88,7 +89,10 @@ export const CastingPanel = ({ candidate, casting, onClose, onAction }) => {
           </button>
 
           <div className="cp-hero-identity">
-            <h2 className="cp-name">{candidate.name}</h2>
+            <div className="cp-name-row">
+              <h2 className="cp-name">{candidate.name}</h2>
+              {candidate.score != null && <MatchScore score={candidate.score} size="md" tone="overlay" />}
+            </div>
             <div className="cp-hero-pills">
               {candidate.archetype && (
                 <span className="cp-pill cp-pill--archetype">{candidate.archetype}</span>
@@ -97,9 +101,6 @@ export const CastingPanel = ({ candidate, casting, onClose, onAction }) => {
             </div>
           </div>
 
-          {candidate.score != null && (
-            <div className="cp-score-badge">✦ {candidate.score}% Match</div>
-          )}
         </div>
 
         {/* ── ZONE 2: ACTION BAR ── */}

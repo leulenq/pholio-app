@@ -78,9 +78,9 @@ export default function BoardsTable({ boards, stages = [] }) {
                 <span className="ov-minibar">
                   {total > 0 && (
                     <>
-                      <i style={{ width: `${(inReview / total) * 100}%`, background: '#C9A55A' }} />
-                      <i style={{ width: `${(booked / total) * 100}%`, background: '#7d9b82' }} />
-                      <i style={{ width: `${(rest / total) * 100}%`, background: '#d8cfbb' }} />
+                      <i style={{ width: `${(inReview / total) * 100}%`, background: '#2D2A26' }} />
+                      <i style={{ width: `${(booked / total) * 100}%`, background: '#050505' }} />
+                      <i style={{ width: `${(rest / total) * 100}%`, background: '#C8C2BA' }} />
                     </>
                   )}
                 </span>

@@ -280,7 +280,7 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
         {/* ── STEP 1: SCORE HERO ──────────────────────────────────── */}
         {step === 1 && (
           <motion.div key="score" className="reveal-step reveal-step-tappable" variants={stepVariants} initial="initial" animate="animate" exit="exit" onClick={() => setStep(2)}>
-            <motion.p className="reveal-eyebrow" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.8 }}>
+            <motion.p className="reveal-step-label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.8 }}>
               Casting Readiness Score
             </motion.p>
 
@@ -308,7 +308,7 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
         {/* ── STEP 2: LOOK PROFILE ────────────────────────────────── */}
         {step === 2 && (
           <motion.div key="look" className="reveal-step reveal-step-tappable" variants={stepVariants} initial="initial" animate="animate" exit="exit" onClick={() => setStep(3)}>
-            <motion.p className="reveal-eyebrow" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.6 }}>
+            <motion.p className="reveal-step-label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.6 }}>
               Your Look Profile
             </motion.p>
 
@@ -345,7 +345,6 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
         {step === 3 && (
           <motion.div key="radar" className="reveal-step reveal-step-tappable" variants={stepVariants} initial="initial" animate="animate" exit="exit" onClick={() => setStep(4)}>
             <motion.div className="reveal-section-header" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <span className="reveal-section-eyebrow">Your Range</span>
               <h2 className="reveal-section-title">Market Fit Analysis</h2>
             </motion.div>
 
@@ -374,7 +373,6 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
         {step === 4 && (
           <motion.div key="bars" className="reveal-step reveal-step-tappable" variants={stepVariants} initial="initial" animate="animate" exit="exit" onClick={() => setStep(5)}>
             <motion.div className="reveal-section-header" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <span className="reveal-section-eyebrow">The Breakdown</span>
               <h2 className="reveal-section-title">Category Scores</h2>
             </motion.div>
 
@@ -407,9 +405,9 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
           <motion.div key="verdict" className="reveal-step" variants={stepVariants} initial="initial" animate="animate" exit="exit">
             {topCategory && (
               <>
-                <motion.span className="reveal-verdict-eyebrow" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
+                <motion.p className="reveal-step-label" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
                   Strongest Market
-                </motion.span>
+                </motion.p>
 
                 <motion.h2
                   className="reveal-verdict-category"

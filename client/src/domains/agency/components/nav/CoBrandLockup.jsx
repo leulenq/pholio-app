@@ -1,9 +1,6 @@
 import React from 'react';
+import { resolveAgencyLogoUrl } from '../../lib/agency-branding';
 
-// Decide how to render the agency side of the lockup:
-//  - short names stay on one line
-//  - long multi-word names become a stacked wordmark (up to 3 lines)
-//  - a single long word stays on one line (nothing sensible to stack)
 const ONE_LINE_MAX = 13;
 
 function stackLines(words, maxLines = 3) {
@@ -25,12 +22,10 @@ function agencyTreatment(name) {
   return { mode: 'line', text: trimmed };
 }
 
-// Co-brand lockup: Pholio wordmark (always the talent text logo) · gold divider ·
-// the agency's logo OR name — one horizontal composition.
+/** Co-brand lockup: Pholio wordmark · agency PNG/SVG logo (preferred) or name fallback. */
 export default function CoBrandLockup({ profile, collapsed }) {
   const agencyName = profile?.agency_name || 'Agency';
-  const logoPath = profile?.agency_logo_path || profile?.logo_path;
-  const logo = logoPath ? `/${logoPath}` : null;
+  const logo = resolveAgencyLogoUrl(profile);
   const members = profile?.member_count;
 
   const treatment = logo ? null : agencyTreatment(agencyName);
@@ -38,12 +33,18 @@ export default function CoBrandLockup({ profile, collapsed }) {
 
   return (
     <div className="ag-rail-header">
-      <div className={`ag-cobrand${stacked ? ' ag-cobrand--stacked' : ''}`} style={{ justifyContent: 'center' }}>
+      <div
+        className={[
+          'ag-cobrand',
+          stacked && !logo ? 'ag-cobrand--stacked' : '',
+          logo && !collapsed ? 'ag-cobrand--logo' : '',
+        ].filter(Boolean).join(' ')}
+      >
         <span className="ag-cobrand-pholio">PHOLIO</span>
         {!collapsed && (
           <>
             <span className="ag-cobrand-div" aria-hidden="true" />
-            <span className="ag-cobrand-agency" style={{ justifyContent: 'center' }}>
+            <span className="ag-cobrand-agency">
               {logo ? (
                 <img className="ag-cobrand-logo" src={logo} alt={agencyName} />
               ) : stacked ? (
@@ -59,7 +60,7 @@ export default function CoBrandLockup({ profile, collapsed }) {
           </>
         )}
       </div>
-      {!collapsed && (
+      {!collapsed && !logo && (
         <div className="ag-rail-meta" style={{ textAlign: 'center' }}>
           Powering {members ? `${members} members` : 'Agency'}
         </div>

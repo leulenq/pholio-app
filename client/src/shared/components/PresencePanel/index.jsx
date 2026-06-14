@@ -29,7 +29,6 @@ export default function PresencePanel({ score = 0, interpretation = '', actions 
     <div className="pp-panel">
       {/* Score zone */}
       <div className="pp-score-zone">
-        <span className="pp-eyebrow">Profile Strength</span>
         <div className="pp-number">{score}</div>
         <div className="pp-denom">/ 100</div>
         <div className={`pp-status pp-status--${statusKey}`}>
@@ -43,7 +42,6 @@ export default function PresencePanel({ score = 0, interpretation = '', actions 
 
       {/* Content zone */}
       <div className="pp-content-zone">
-        <span className="pp-eyebrow pp-content-eyebrow">How you're presenting</span>
         <p className="pp-interpretation">{interpretation}</p>
         {showActions && (
           <ul className="pp-actions" aria-label="Profile improvements">

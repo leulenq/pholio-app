@@ -4,7 +4,7 @@
  */
 exports.up = function(knex) {
   return knex.schema.createTable('analytics', function(table) {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('profile_id').notNullable();
     table.string('event_type').notNullable(); // 'view', 'download', 'share'
     table.string('event_source').defaultTo('web'); // 'web', 'api', 'email'

@@ -58,10 +58,9 @@
   height: 28px;
   border-radius: 8px;
   border: none;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.95);
   color: var(--ag-text-1);
   cursor: pointer;
-  backdrop-filter: blur(4px);
 }
 
 .ag-talent-card__qbtn:hover {

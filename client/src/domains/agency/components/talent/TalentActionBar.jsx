@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Check, Star, LayoutGrid, X, UserPlus, Download } from 'lucide-react';
 import { getBoards, inviteTalent } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
+import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
 import './TalentActionBar.css';
 
 // Download a talent comp card PDF (same flow the talent dashboard uses).
@@ -23,6 +24,7 @@ async function downloadCompCard(slug) {
 
 export function TalentActionBar({ applicationId, profileId, slug, status, context = 'overview', onMessage }) {
   const qc = useQueryClient();
+  const { can } = useAgencyPermissions();
   const { accept, shortlist, decline, addToBoard, isPending } = useTalentActions(applicationId);
   const [boardOpen, setBoardOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -64,7 +66,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
   const isAccepted = status === 'accepted' || status === 'booked';
   const isPipeline = context === 'applicants' || context === 'overview';
 
-  const compCardBtn = slug && (
+  const compCardBtn = slug && can('talent.download_comp_card') && (
     <button className={`tact-btn${context === 'roster' ? ' tact-btn--primary' : ''}`} disabled={downloading} onClick={handleCompCard}>
       <Download size={15} /> {downloading ? 'Preparing…' : 'Comp Card'}
     </button>
@@ -74,7 +76,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
     <div className="tact-row">
       {compCardBtn}
 
-      {context === 'discover' && (
+      {context === 'discover' && can('discover.invite') && (
         <button className="tact-btn tact-btn--primary" disabled={invite.isPending} onClick={() => invite.mutate()}>
           <UserPlus size={15} /> {invite.isPending ? 'Inviting…' : 'Invite'}
         </button>
@@ -82,19 +84,25 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
 
       {isPipeline && applicationId && (
         <>
-          <button className="tact-btn tact-btn--primary" disabled={isPending || isAccepted} onClick={() => accept.mutate()}>
-            <Check size={15} /> {isAccepted ? 'Accepted' : 'Accept'}
-          </button>
-          <button className="tact-btn tact-btn--danger" disabled={isPending} onClick={() => decline.mutate()}>
-            <X size={15} /> Decline
-          </button>
-          <button className="tact-btn" disabled={isPending || isShortlisted} onClick={() => shortlist.mutate()}>
-            <Star size={15} /> {isShortlisted ? 'Shortlisted' : 'Shortlist'}
-          </button>
+          {can('applications.accept') && (
+            <button className="tact-btn tact-btn--primary" disabled={isPending || isAccepted} onClick={() => accept.mutate()}>
+              <Check size={15} /> {isAccepted ? 'Accepted' : 'Accept'}
+            </button>
+          )}
+          {can('applications.decline') && (
+            <button className="tact-btn tact-btn--danger" disabled={isPending} onClick={() => decline.mutate()}>
+              <X size={15} /> Decline
+            </button>
+          )}
+          {can('applications.update_status') && (
+            <button className="tact-btn" disabled={isPending || isShortlisted} onClick={() => shortlist.mutate()}>
+              <Star size={15} /> {isShortlisted ? 'Shortlisted' : 'Shortlist'}
+            </button>
+          )}
         </>
       )}
 
-      {applicationId && (
+      {applicationId && can('boards.assign_application') && (
         <div className="tact-board" ref={boardRef}>
           <button className="tact-btn tact-btn--icon" title="Add to board" onClick={() => setBoardOpen((o) => !o)}>
             <LayoutGrid size={15} />

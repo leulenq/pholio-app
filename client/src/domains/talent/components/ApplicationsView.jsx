@@ -338,7 +338,6 @@ export default function ApplicationsView() {
     return (
       <div className="applications-view-container">
         <section className="app-error-state" role="alert">
-          <span className="app-kicker">Market</span>
           <h1>Couldn&apos;t load the market ledger.</h1>
           <p>
             {isProfileMissing
@@ -370,7 +369,6 @@ export default function ApplicationsView() {
     <div className="applications-view-container">
       <header className="app-hero">
         <div className="app-hero__copy" data-tour="market-hero">
-          <span className="app-kicker">Market</span>
           <h1 className="app-title">
             The <em>Market.</em>
           </h1>
@@ -404,7 +402,6 @@ export default function ApplicationsView() {
 
       <section className="app-proofline" aria-label="Application status summary">
         <div className="app-proofline__lead">
-          <span className="app-kicker">Signal</span>
           <strong>{metricLabel(activeCount, 'live submission', 'live submissions')}</strong>
         </div>
         <div className="app-proofline__track" aria-hidden>
@@ -420,7 +417,6 @@ export default function ApplicationsView() {
       <div className="app-workspace">
         <section className="app-ledger" aria-labelledby="application-ledger-title">
           <div className="app-section-head" data-tour="app-ledger">
-            <span className="app-kicker">Ledger</span>
             <h2 id="application-ledger-title">Application history</h2>
             <div className="app-filter-row" aria-label="Filter applications">
               {FILTERS.map((filter) => (
@@ -490,7 +486,6 @@ export default function ApplicationsView() {
             />
           ) : (
             <div className="app-detail-empty">
-              <span className="app-kicker">Detail</span>
               <p>No application selected.</p>
             </div>
           )}
@@ -499,7 +494,6 @@ export default function ApplicationsView() {
 
       <section className="app-discovery" id="app-discovery" aria-labelledby="application-discovery-title">
         <div className="app-section-head app-section-head--discovery" data-tour="agency-discovery">
-          <span className="app-kicker">Open Agencies</span>
           <h2 id="application-discovery-title">Next submissions</h2>
           <p>{agenciesQuery.isLoading ? 'Loading agencies' : `${openAgencies.length} available`}</p>
         </div>
@@ -911,7 +905,6 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
   return (
     <div className="app-detail">
       <div className="app-detail__mast">
-        <span className="app-kicker">Selected Application</span>
         <div className="app-detail__agency">
           <div className="app-detail__mark" aria-hidden>
             {app.agency_logo ? <img src={app.agency_logo} alt="" /> : <span>{agencyInitial(app.agency_name)}</span>}
@@ -949,7 +942,6 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
       </div>
 
       <div className="app-detail__next">
-        <span className="app-kicker">Next Signal</span>
         <p>{config.next}</p>
       </div>
 

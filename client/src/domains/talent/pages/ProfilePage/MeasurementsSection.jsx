@@ -22,7 +22,6 @@ export function MeasurementsSection({
   return (
     <Section
       id="appearance"
-      kicker="Stats"
       title="Physical Attributes"
       titleEmphasis="Attributes"
       description="Vital statistics for casting searches."

@@ -68,9 +68,9 @@ router.post(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         applicationId,
-        agencyId,
         agencyId,
         "interview_scheduled",
         "Interview scheduled",
@@ -137,7 +137,9 @@ router.get(
         .leftJoin("profiles", "talent.id", "profiles.user_id")
         .select(
           "interviews.*",
-          knex.raw("(profiles.first_name || ' ' || profiles.last_name) as talent_name"),
+          knex.raw(
+            "(profiles.first_name || ' ' || profiles.last_name) as talent_name",
+          ),
           "talent.email as talent_email",
           "profiles.slug as talent_slug",
         );
@@ -250,9 +252,9 @@ router.patch(
       // Log activity if rescheduled
       if (proposed_datetime !== undefined) {
         await logActivity(
+          req,
           knex,
           interview.application_id,
-          agencyId,
           agencyId,
           "interview_rescheduled",
           "Interview rescheduled",
@@ -306,9 +308,9 @@ router.delete(
 
       // Log activity
       await logActivity(
+        req,
         knex,
         interview.application_id,
-        agencyId,
         agencyId,
         "interview_cancelled",
         "Interview cancelled",

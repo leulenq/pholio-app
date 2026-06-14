@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { X, Maximize2, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
-import MatchScoreBadge from './ui/MatchScoreBadge';
-import { TalentStatusBadge } from './ui/TalentStatusBadge';
 import { TalentActionBar } from './talent/TalentActionBar';
 import { TalentThread } from './talent/TalentThread';
 import { DiscoverZone } from './zones/DiscoverZone';
@@ -11,6 +9,7 @@ import { ApplicantsZone } from './zones/ApplicantsZone';
 import { RosterZone } from './zones/RosterZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
+import MatchScore from './ui/MatchScore';
 import './TalentPanel.css';
 
 const scrollToThread = () =>
@@ -182,34 +181,28 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
           </div>
 
           <div className="tp-identity">
-            <div className="tp-eyebrow">
-              {(talent.type || talent.typeLabel || 'editorial')}{talent.location || talent.city ? ` · ${talent.location || talent.city}` : ''}
-            </div>
-            <h2 className="tp-name">{talent.name}</h2>
-            {bio && <p className="tp-bio">{bio}</p>}
-            {siteLink && (
-              <a
-                className="tp-site-link"
-                href={siteLink.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {siteLink.label}
-                <ArrowUpRight size={11} strokeWidth={2} aria-hidden="true" />
-              </a>
+            {siteLink ? (
+              <h2 className="tp-name">
+                <a
+                  className="tp-name-link"
+                  href={siteLink.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`Open ${talent.name}'s portfolio site`}
+                >
+                  {talent.name}
+                  <ArrowUpRight className="tp-name-arrow" size={17} strokeWidth={1.75} aria-hidden="true" />
+                </a>
+              </h2>
+            ) : (
+              <h2 className="tp-name">{talent.name}</h2>
             )}
-            <div className="tp-identity-row">
-              <TalentStatusBadge status={talent.status || 'available'} onDark hideDot />
-              {matchScore != null ? (
-                <MatchScoreBadge
-                  score={matchScore}
-                  size="md"
-                  tone="dark"
-                  className="tp-match"
-                />
-              ) : null}
+            <div className="tp-meta-row">
+              <span className="tp-meta-type">{talent.type || talent.typeLabel || 'editorial'}{talent.location || talent.city ? ` · ${talent.location || talent.city}` : ''}</span>
+              {matchScore != null && <MatchScore score={matchScore} size="md" tone="dark" />}
             </div>
+            {bio && <p className="tp-bio">{bio}</p>}
           </div>
         </div>
 

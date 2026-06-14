@@ -151,7 +151,6 @@ export function SocialSection({ control, setValue, errors }) {
   return (
     <Section
       id="socials"
-      kicker="Social"
       title="Socials & Media"
       titleEmphasis="Media"
       description="Link your profiles and portfolio."

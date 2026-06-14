@@ -21,6 +21,7 @@ const path = require("path");
 const Groq = require("groq-sdk");
 const config = require("../../config");
 const { scoreFromImageAnalysis, buildDescriptorPrompt } = require("./scoring");
+const { reindexDiscoverProfile } = require("./embeddings");
 
 // ─── Groq client (lazy init) ────────────────────────────────────────────────
 
@@ -171,6 +172,15 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
       lookType: castingAnalysis.lookType,
       descriptor: descriptor ? "Generated" : "Failed",
     });
+
+    try {
+      await reindexDiscoverProfile(knex, profileId);
+    } catch (reindexErr) {
+      console.warn(
+        "[MasterVision] discover_index re-index failed (non-blocking):",
+        reindexErr.message,
+      );
+    }
 
     // Return measurement estimates for onboarding prefill
     return measurementEstimates;

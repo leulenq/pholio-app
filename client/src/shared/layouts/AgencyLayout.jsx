@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Bell, MessageSquare, Settings, Menu } from 'lucide-react';
+import { Bell, MessageSquare, Settings, Menu } from 'lucide-react';
 import { getAgencyProfile, getMessageThreads } from '../../domains/agency/api/agency';
 import { useAgencyTeam } from '../../domains/agency/hooks/useAgencyTeam';
 import { useAgencyOverview } from '../../domains/agency/hooks/useAgencyOverview';
@@ -13,6 +13,7 @@ import MemberAccountChip from '../../domains/agency/components/nav/MemberAccount
 import TeamPresence from '../../domains/agency/components/nav/TeamPresence';
 import MessagesDropdown from '../../domains/agency/components/nav/MessagesDropdown';
 import NotificationsDropdown from '../../domains/agency/components/nav/NotificationsDropdown';
+import { applyAgencyBrandTheme } from '../../domains/agency/lib/agency-branding';
 import './AgencyLayout.css';
 
 function nowLabel() {
@@ -21,10 +22,11 @@ function nowLabel() {
 
 export default function AgencyLayout() {
   const location = useLocation();
-  const { collapsed, toggle } = useRailCollapsed();
+  const { collapsed, toggle, setCollapsed } = useRailCollapsed();
   const [openPanel, setOpenPanel] = useState(null); // 'messages' | 'notifications'
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const shellRef = useRef(null);
   const messagesRef = useRef(null);
   const notificationsRef = useRef(null);
   const messagesBtnRef = useRef(null);
@@ -50,6 +52,19 @@ export default function AgencyLayout() {
     const reset = () => { setOpenPanel(null); setDrawerOpen(false); };
     reset();
   }, [location.pathname]);
+
+  // Autocollapse sidebar when leaving overview tab
+  const prevPathRef = useRef(location.pathname);
+  useEffect(() => {
+    const prev = prevPathRef.current;
+    const curr = location.pathname;
+    const isOverview = (p) => p === '/dashboard/agency' || p === '/dashboard/agency/';
+    
+    if (isOverview(prev) && !isOverview(curr)) {
+      setCollapsed(true);
+    }
+    prevPathRef.current = curr;
+  }, [location.pathname, setCollapsed]);
 
   // Outside click closes the open dropdown.
   useEffect(() => {
@@ -79,12 +94,18 @@ export default function AgencyLayout() {
     };
   }, []);
 
+  // Agency accent on workspace shell only — Pholio wordmark stays platform gold.
+  useLayoutEffect(() => {
+    applyAgencyBrandTheme(profile?.agency_brand_color, shellRef.current);
+  }, [profile?.agency_brand_color]);
+
 
   const kpis = selectKpis(overview);
   const memberRole = team.find((m) => m.userId === profile?.id)?.membership_role;
   const profileWithMeta = { ...profile, member_count: team.length || undefined };
   const unreadMessages = threads.filter((t) => t.unread).length;
-  const isDiscover = location.pathname === '/dashboard/agency/discover';
+  const isDiscover = location.pathname.startsWith('/dashboard/agency/discover');
+  const isRoster = location.pathname === '/dashboard/agency/roster';
   const season = 'SS26';
   // Cross-board context (agencies run many boards) — not anchored to one location/board.
   const activeBoards = kpis.activeCastings;
@@ -104,26 +125,22 @@ export default function AgencyLayout() {
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={shellClass}>
+    <div ref={shellRef} className={shellClass}>
       {drawerOpen && <div className="ag-rail-overlay" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
       <aside className="ag-rail">
         <div className="ag-grain" />
         <CoBrandLockup profile={profileWithMeta} collapsed={collapsed} />
-        <RailNav counts={{ applicants: kpis.pendingReview, casting: kpis.activeCastings, team: team.length || undefined }} />
+        <RailNav
+          counts={{ applicants: kpis.pendingReview, casting: kpis.activeCastings, team: team.length || undefined }}
+          collapsed={collapsed}
+          onToggleCollapse={toggle}
+        />
         <MemberAccountChip profile={profile} role={memberRole} />
-        <button
-          className="ag-rail-collapse"
-          onClick={toggle}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-expanded={!collapsed}
-        >
-          {collapsed ? '»' : '«'}
-        </button>
       </aside>
 
       <div className="ag-body">
-        <main className="ag-main">
+        <main className={`ag-main${isDiscover ? ' ag-main--discover' : ''}${isRoster ? ' ag-main--roster' : ''}`}>
           <header className="ag-masthead">
             <div className="ag-masthead-left">
               <button className="ag-hamburger" aria-label="Open navigation" onClick={() => setDrawerOpen(true)}>
@@ -134,7 +151,6 @@ export default function AgencyLayout() {
             <div className="ag-masthead-actions">
               <TeamPresence members={team} />
               <span style={{ width: 1, height: 16, background: '#e0d8c7' }} aria-hidden="true" />
-              <button className="ag-topbar-icon" aria-label="Search"><Search size={17} /></button>
               <div ref={messagesRef} style={{ position: 'relative' }}>
                 <button ref={messagesBtnRef} className="ag-topbar-icon" aria-label="Messages" aria-expanded={openPanel === 'messages'}
                   onClick={() => setOpenPanel((p) => (p === 'messages' ? null : 'messages'))}>

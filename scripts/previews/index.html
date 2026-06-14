@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pholio Email Templates — Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FAF8F5;
+      color: #1A1815;
+      line-height: 1.5;
+    }
+    .header {
+      padding: 48px 24px 32px;
+      text-align: center;
+      border-bottom: 1px solid #EDE9E3;
+      background: #fff;
+    }
+    .header h1 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-weight: 400;
+      font-size: 2rem;
+      letter-spacing: 0.08em;
+      color: #C9A55A;
+      text-transform: uppercase;
+      margin: 0 0 8px;
+    }
+    .header p { margin: 0; color: #6B6560; max-width: 520px; margin-inline: auto; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+    .category { margin-bottom: 40px; }
+    .category h2 {
+      font-family: Georgia, serif;
+      font-size: 1.125rem;
+      font-weight: 400;
+      color: #1A1815;
+      margin: 0 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #EDE9E3;
+    }
+    .grid { display: grid; gap: 16px; }
+    @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card {
+      background: #fff;
+      border: 1px solid #EDE9E3;
+      border-radius: 12px;
+      padding: 20px;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover {
+      border-color: rgba(201,165,90,0.35);
+      box-shadow: 0 4px 20px rgba(26,24,21,0.06);
+    }
+    .card h3 { margin: 0 0 6px; font-size: 1rem; font-weight: 600; }
+    .card .subject { font-size: 0.8125rem; color: #9C958E; margin-bottom: 8px; font-family: 'Courier New', monospace; }
+    .card p { margin: 0 0 16px; font-size: 0.875rem; color: #6B6560; }
+    .card a {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #C9A55A;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .card a:hover { background: #B8956A; }
+    .note {
+      margin-top: 32px;
+      padding: 16px 20px;
+      background: #fff;
+      border: 1px solid #EDE9E3;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      color: #6B6560;
+    }
+    .note strong { color: #1A1815; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>Pholio</h1>
+    <p>Transactional email template previews — warm editorial luxury, inline-styled for email clients.</p>
+  </header>
+  <div class="wrap">
+    
+    <section class="category">
+      <h2>Auth & onboarding</h2>
+      <div class="grid">
+        
+        <article class="card">
+          <h3>Welcome Talent</h3>
+          <div class="subject">Subject: Welcome to Pholio</div>
+          <p>Sent after a new talent account is created (email or Google sign-up).</p>
+          <a href="./welcome-talent.html" target="_blank">Open preview →</a>
+        </article>
+        <article class="card">
+          <h3>Welcome Agency</h3>
+          <div class="subject">Subject: Welcome to Pholio — Elite Models</div>
+          <p>Sent after agency / partners sign-up is complete.</p>
+          <a href="./welcome-agency.html" target="_blank">Open preview →</a>
+        </article>
+        <article class="card">
+          <h3>Verify Email</h3>
+          <div class="subject">Subject: Verify your email address</div>
+          <p>Email verification with button + optional 6-digit code fallback.</p>
+          <a href="./verify-email.html" target="_blank">Open preview →</a>
+        </article>
+      </div>
+    </section>
+    <section class="category">
+      <h2>Auth & security</h2>
+      <div class="grid">
+        
+        <article class="card">
+          <h3>Password Reset</h3>
+          <div class="subject">Subject: Reset your Pholio password</div>
+          <p>Password reset request (replaces generic Firebase email when wired).</p>
+          <a href="./password-reset.html" target="_blank">Open preview →</a>
+        </article>
+        <article class="card">
+          <h3>Password Changed</h3>
+          <div class="subject">Subject: Your Pholio password was changed</div>
+          <p>Security confirmation after a successful password change.</p>
+          <a href="./password-changed.html" target="_blank">Open preview →</a>
+        </article>
+        <article class="card">
+          <h3>Magic Sign In</h3>
+          <div class="subject">Subject: Your Pholio sign-in link</div>
+          <p>Passwordless one-tap sign-in link.</p>
+          <a href="./magic-sign-in.html" target="_blank">Open preview →</a>
+        </article>
+      </div>
+    </section>
+    <section class="category">
+      <h2>Agency ↔ Talent</h2>
+      <div class="grid">
+        
+        <article class="card">
+          <h3>New Message</h3>
+          <div class="subject">Subject: New message from Elite Models</div>
+          <p>Agency message notification with magic-link reply.</p>
+          <a href="./new-message.html" target="_blank">Open preview →</a>
+        </article>
+        <article class="card">
+          <h3>Application Accepted</h3>
+          <div class="subject">Subject: Your application to Elite Models has been accepted</div>
+          <p>Talent notified when an agency accepts their application.</p>
+          <a href="./application-accepted.html" target="_blank">Open preview →</a>
+        </article>
+        <article class="card">
+          <h3>Application Declined</h3>
+          <div class="subject">Subject: Application update from Elite Models</div>
+          <p>Talent notified when an agency passes on their application.</p>
+          <a href="./application-declined.html" target="_blank">Open preview →</a>
+        </article>
+        <article class="card">
+          <h3>Agency Invite Talent</h3>
+          <div class="subject">Subject: Elite Models has invited you to apply on Pholio</div>
+          <p>Agency discovers talent on Discover and sends an invite.</p>
+          <a href="./agency-invite-talent.html" target="_blank">Open preview →</a>
+        </article>
+      </div>
+    </section>
+    <section class="category">
+      <h2>Agency team</h2>
+      <div class="grid">
+        
+        <article class="card">
+          <h3>Team Invite</h3>
+          <div class="subject">Subject: You've been invited to Elite Models on Pholio</div>
+          <p>Agency owner invites a booker, agent, or scout to the team.</p>
+          <a href="./team-invite.html" target="_blank">Open preview →</a>
+        </article>
+      </div>
+    </section>
+    <div class="note">
+      <strong>Today in production:</strong> Password reset uses Firebase's default email (not yet these templates).
+      Application status, agency invites, and new-message notifications use <code>src/shared/lib/email.js</code>.
+      Auth templates above are ready to wire when you switch to a custom email provider (Resend, SendGrid, Postmark).
+    </div>
+  </div>
+</body>
+</html>

@@ -6,7 +6,7 @@
 
 exports.up = function(knex) {
   return knex.schema.createTable('filter_presets', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('agency_id').notNullable();
     table.string('name', 100).notNullable();
     table.text('filters').notNullable(); // JSON string of filter state

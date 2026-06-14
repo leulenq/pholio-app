@@ -4,8 +4,6 @@
 @import './styles/tokens.css';
 @import './styles/global.css';
 @import './styles/utilities.css';
-@import './styles/analytics.css';
-@import './styles/dashboard-shell.css';
 
 @import "tailwindcss";
 

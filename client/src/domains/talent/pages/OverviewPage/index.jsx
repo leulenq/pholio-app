@@ -199,7 +199,6 @@ export default function OverviewPage() {
               <div className="ov-book-header">
                 <div className="ov-book-title-group">
                   <div>
-                    <span className="ov-kicker-muted">Portfolio</span>
                     <span className="ov-book-title-text">
                       The <em>Book.</em>
                     </span>
@@ -223,7 +222,6 @@ export default function OverviewPage() {
                   >
                     <img src={imageUrl(photoSlots[0])} alt="Featured portfolio" className="ov-book-photo" />
                     <div className="ov-book-featured-overlay" aria-hidden>
-                      <span className="ov-book-featured-eyebrow">Featured Cover</span>
                       <p className="ov-book-featured-caption">
                         {firstName || 'Featured frame'}
                       </p>
@@ -296,7 +294,6 @@ export default function OverviewPage() {
             <div className="ov-readiness">
               <div className="ov-readiness-header">
                 <div>
-                  <span className="ov-kicker-muted">Readiness</span>
                   <h2 className="ov-readiness-title">
                     The <em>Audit.</em>
                   </h2>
@@ -362,7 +359,6 @@ export default function OverviewPage() {
             <div className="ov-exposure">
               <div className="ov-exposure-header">
                 <div>
-                  <span className="ov-kicker-muted">Exposure</span>
                   <h2 className="ov-exposure-title">
                     The <em>Market.</em>
                   </h2>
@@ -507,7 +503,6 @@ export default function OverviewPage() {
           >
             <div className="ov-website-header">
               <div>
-                <span className="ov-kicker-muted">Studio+</span>
                 <h2 id="ov-website-heading" className="ov-website-title">
                   Your <em>Website.</em>
                 </h2>

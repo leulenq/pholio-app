@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Clock } from 'lucide-react';
 import { getApplicationDetails, getTimeline } from '../../api/agency';
-import { TalentStatusBadge } from '../ui/TalentStatusBadge';
 import { PortfolioStrip } from './PortfolioStrip';
 import { SectionSkeleton } from './SectionSkeleton';
+import { buildProfileHydration } from './profileHydration';
 import './zones.css';
 
 const formatDate = (ts) =>
@@ -18,7 +18,7 @@ const timeAgo = (ts) => {
   return `${days} days ago`;
 };
 
-export const ApplicantsZone = ({ applicationId, onImagesLoaded }) => {
+export const ApplicantsZone = ({ applicationId, onProfileHydrated }) => {
   const [showAllTimeline, setShowAllTimeline] = useState(false);
 
   const appQuery = useQuery({
@@ -33,17 +33,19 @@ export const ApplicantsZone = ({ applicationId, onImagesLoaded }) => {
     enabled: !!applicationId,
   });
 
-  // Hydrate hero carousel once images are available
   useEffect(() => {
-    if (appQuery.data?.profile?.images?.length > 0) {
-      onImagesLoaded?.(appQuery.data.profile.images);
+    const { profile } = appQuery.data || {};
+    if (!profile) return;
+    const hydration = buildProfileHydration(profile, profile.images);
+    if (hydration) {
+      onProfileHydrated?.({
+        ...hydration,
+        matchScore: appQuery.data?.application?.match_score ?? null,
+      });
     }
-  }, [appQuery.data, onImagesLoaded]);
+  }, [appQuery.data, onProfileHydrated]);
 
-  const isLoading = appQuery.isLoading;
-  const isError = appQuery.isError;
-
-  if (isLoading) {
+  if (appQuery.isLoading) {
     return (
       <div>
         <SectionSkeleton lines={1} height={72} />
@@ -54,7 +56,7 @@ export const ApplicantsZone = ({ applicationId, onImagesLoaded }) => {
     );
   }
 
-  if (isError) {
+  if (appQuery.isError) {
     return (
       <div className="zone-error">
         Couldn't load application details.
@@ -71,16 +73,14 @@ export const ApplicantsZone = ({ applicationId, onImagesLoaded }) => {
 
   return (
     <div>
-      {/* Application Status Card */}
       {application && (
         <div className="app-status-card">
           <div className="app-status-card-label">Application Status</div>
-          <TalentStatusBadge status={application.status} />
+          <span className="app-status-text">{application.status}</span>
           <div className="app-status-card-date">Applied {formatDate(application.created_at)}</div>
         </div>
       )}
 
-      {/* Portfolio Strip */}
       {images.length > 0 && (
         <div className="zone-section">
           <div className="zone-section-header">Portfolio</div>
@@ -88,7 +88,6 @@ export const ApplicantsZone = ({ applicationId, onImagesLoaded }) => {
         </div>
       )}
 
-      {/* Activity Timeline */}
       <div className="zone-section">
         <div className="zone-section-header"><Clock size={13} /> Activity</div>
         {timeline.length === 0 ? (

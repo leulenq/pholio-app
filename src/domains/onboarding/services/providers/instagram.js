@@ -1,57 +1,156 @@
 /**
- * Instagram OAuth Provider Helper (Stub)
- * Structure for future Instagram OAuth implementation
+ * Instagram OAuth Provider (Instagram API with Instagram Login)
+ * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
  */
 
-/**
- * Verify Instagram OAuth code (STUB)
- * TODO: Implement Instagram OAuth code exchange
- * 
- * @param {string} code - Instagram OAuth authorization code
- * @returns {Promise<Object>} User data: {instagram_id, handle, picture, email}
- */
-async function verifyInstagramCode(code) {
-  // STUB: Return mock data for now
-  // TODO: Implement actual Instagram OAuth flow:
-  // 1. Exchange code for access token
-  // 2. Use access token to fetch user info from Instagram Graph API
-  // 3. Return normalized user data
-  
-  if (!code || typeof code !== 'string') {
-    throw new Error('Invalid code: code is required');
+const config = require("../../../../config");
+
+const INSTAGRAM_AUTH_URL = "https://api.instagram.com/oauth/authorize";
+const INSTAGRAM_TOKEN_URL = "https://api.instagram.com/oauth/access_token";
+const INSTAGRAM_GRAPH_URL = "https://graph.instagram.com";
+
+function isInstagramConfigured() {
+  return Boolean(
+    config.instagram?.appId &&
+      config.instagram?.appSecret &&
+      config.instagram?.redirectUri,
+  );
+}
+
+function buildInstagramAuthorizeUrl(state) {
+  if (!isInstagramConfigured()) {
+    throw new Error("Instagram OAuth is not configured");
   }
 
-  // Stub implementation - returns mock data
-  // In production, this would:
-  // - Exchange code for access token via Instagram API
-  // - Fetch user profile from Instagram Graph API
-  // - Extract handle, profile picture, etc.
-  // - Note: Instagram doesn't provide email in basic OAuth flow
-  
-  return {
-    instagram_id: `stub_${Date.now()}`, // Placeholder
-    handle: null, // Would come from Instagram API
-    picture: null, // Would come from Instagram API
-    email: null // Instagram doesn't provide email
-  };
+  const params = new URLSearchParams({
+    client_id: config.instagram.appId,
+    redirect_uri: config.instagram.redirectUri,
+    scope: config.instagram.scope,
+    response_type: "code",
+    state,
+  });
+
+  return `${INSTAGRAM_AUTH_URL}?${params.toString()}`;
 }
 
 /**
- * Normalize Instagram user data (STUB)
+ * Exchange authorization code for access token and fetch profile.
+ * @param {string} code - Instagram OAuth authorization code
+ * @returns {Promise<Object>} {instagram_id, handle, picture, email}
+ */
+async function verifyInstagramCode(code) {
+  if (!code || typeof code !== "string") {
+    throw new Error("Invalid code: code is required");
+  }
+
+  if (!isInstagramConfigured()) {
+    throw new Error("Instagram OAuth is not configured");
+  }
+
+  const tokenResponse = await fetch(INSTAGRAM_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: config.instagram.appId,
+      client_secret: config.instagram.appSecret,
+      grant_type: "authorization_code",
+      redirect_uri: config.instagram.redirectUri,
+      code,
+    }),
+  });
+
+  const tokenPayload = await tokenResponse.json().catch(() => ({}));
+  if (!tokenResponse.ok) {
+    const message =
+      tokenPayload.error_message ||
+      tokenPayload.error?.message ||
+      tokenPayload.error ||
+      "Instagram token exchange failed";
+    throw new Error(message);
+  }
+
+  const shortLivedToken = tokenPayload.access_token;
+  const instagramUserId = String(
+    tokenPayload.user_id || tokenPayload.id || "",
+  ).trim();
+
+  if (!shortLivedToken || !instagramUserId) {
+    throw new Error("Instagram token response missing access token or user id");
+  }
+
+  let accessToken = shortLivedToken;
+  try {
+    const longLivedUrl = new URL(`${INSTAGRAM_GRAPH_URL}/access_token`);
+    longLivedUrl.searchParams.set("grant_type", "ig_exchange_token");
+    longLivedUrl.searchParams.set(
+      "client_secret",
+      config.instagram.appSecret,
+    );
+    longLivedUrl.searchParams.set("access_token", shortLivedToken);
+
+    const longLivedResponse = await fetch(longLivedUrl);
+    const longLivedPayload = await longLivedResponse.json().catch(() => ({}));
+    if (longLivedResponse.ok && longLivedPayload.access_token) {
+      accessToken = longLivedPayload.access_token;
+    }
+  } catch (error) {
+    console.warn(
+      "[Instagram OAuth] Long-lived token exchange failed, using short-lived token:",
+      error.message,
+    );
+  }
+
+  const profileUrl = new URL(`${INSTAGRAM_GRAPH_URL}/v25.0/me`);
+  profileUrl.searchParams.set(
+    "fields",
+    "user_id,username,account_type,profile_picture_url",
+  );
+  profileUrl.searchParams.set("access_token", accessToken);
+
+  const profileResponse = await fetch(profileUrl);
+  const profilePayload = await profileResponse.json().catch(() => ({}));
+  if (!profileResponse.ok) {
+    const message =
+      profilePayload.error?.message ||
+      profilePayload.error_message ||
+      "Failed to fetch Instagram profile";
+    throw new Error(message);
+  }
+
+  return normalizeInstagramUser({
+    id: profilePayload.user_id || instagramUserId,
+    username: profilePayload.username,
+    profile_picture_url: profilePayload.profile_picture_url,
+    account_type: profilePayload.account_type,
+  });
+}
+
+/**
  * @param {Object} instagramData - Instagram API response data
- * @returns {Object} Normalized user data: {instagram_id, handle, picture, email}
+ * @returns {Object} Normalized user data
  */
 function normalizeInstagramUser(instagramData) {
-  // STUB: Structure for future implementation
+  const handle = instagramData?.username || instagramData?.handle || null;
+  const normalizedHandle = handle
+    ? handle.startsWith("@")
+      ? handle
+      : `@${handle}`
+    : null;
+
   return {
-    instagram_id: instagramData?.id || instagramData?.instagram_id || null,
-    handle: instagramData?.username || instagramData?.handle || null,
+    instagram_id: String(
+      instagramData?.id || instagramData?.instagram_id || instagramData?.user_id || "",
+    ),
+    handle: normalizedHandle,
     picture: instagramData?.profile_picture_url || instagramData?.picture || null,
-    email: null // Instagram doesn't provide email in OAuth flow
+    email: null,
+    account_type: instagramData?.account_type || null,
   };
 }
 
 module.exports = {
+  isInstagramConfigured,
+  buildInstagramAuthorizeUrl,
   verifyInstagramCode,
-  normalizeInstagramUser
+  normalizeInstagramUser,
 };

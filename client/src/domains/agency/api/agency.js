@@ -394,6 +394,28 @@ export async function removeAgencyTeamMember(membershipId) {
   return apiClient.delete(`/team/${membershipId}`);
 }
 
+/**
+ * Get effective + custom permissions for a team member
+ */
+export async function getTeamMemberPermissions(membershipId) {
+  return apiClient.get(`/team/${membershipId}/permissions`);
+}
+
+/**
+ * Apply custom ALLOW/DENY permission grants
+ */
+export async function updateTeamMemberPermissions(membershipId, grants) {
+  return apiClient.put(`/team/${membershipId}/permissions`, { grants });
+}
+
+/**
+ * Revoke a custom permission grant
+ */
+export async function revokeTeamMemberPermission(membershipId, permissionKey, effect = 'ALLOW') {
+  const query = effect ? `?effect=${encodeURIComponent(effect)}` : '';
+  return apiClient.delete(`/team/${membershipId}/permissions/${permissionKey}${query}`);
+}
+
 // ============================================================================
 // Notes API
 // ============================================================================

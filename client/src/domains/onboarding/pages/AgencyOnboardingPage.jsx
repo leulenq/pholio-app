@@ -28,6 +28,7 @@ import {
   updateAgencySettings,
   updateAgencyTeamMember,
 } from '../../agency/api/agency';
+import { validateAgencyLogoFile, resolveAgencyLogoUrl } from '../../agency/lib/agency-branding';
 import LoadingSpinner from '../../../shared/components/shared/LoadingSpinner';
 import OnboardingSteps, { STEPS } from './OnboardingSteps';
 import '../styles/AgencyOnboardingPage.css';
@@ -94,7 +95,7 @@ export default function AgencyOnboardingPage() {
       notify_status_changes: profile.notify_status_changes ?? true,
       default_view: profile.default_view || 'overview',
     });
-    setLogoPreview(profile.agency_logo_path ? `/${profile.agency_logo_path}` : null);
+    setLogoPreview(resolveAgencyLogoUrl(profile));
   }, [navigate, profile]);
 
   const profileMutation = useMutation({
@@ -109,7 +110,10 @@ export default function AgencyOnboardingPage() {
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ['agency-profile'] });
       if (data?.logo_path) {
-        setLogoPreview(`/${data.logo_path}`);
+        const next = data.logo_path.startsWith('http')
+          ? data.logo_path
+          : `/${String(data.logo_path).replace(/^\//, '')}`;
+        setLogoPreview(next);
       }
     },
   });
@@ -203,13 +207,19 @@ export default function AgencyOnboardingPage() {
 
   const handleLogoUpload = (event) => {
     const file = event.target.files?.[0];
-    if (!file) {
+    if (!file) return;
+
+    const err = validateAgencyLogoFile(file);
+    if (err) {
+      toast.error(err);
+      event.target.value = '';
       return;
     }
 
     const formData = new FormData();
     formData.append('agency_logo', file);
     brandingMutation.mutate(formData);
+    event.target.value = '';
   };
 
   const openLogoPicker = () => {
@@ -361,7 +371,7 @@ export default function AgencyOnboardingPage() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept=".png,.svg,image/png,image/svg+xml"
                       // Do not use the `hidden` attribute: some browsers throw SecurityError on programmatic click().
                       style={{
                         position: 'absolute',

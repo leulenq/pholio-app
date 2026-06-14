@@ -58,7 +58,6 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
         <div className="pem-stage">
           <header className="pem-stage__top">
             <div>
-              <span className="pem-kicker">Crop studio</span>
               <h2>Refine frame</h2>
             </div>
             <button type="button" className="pem-icon-btn" onClick={onClose} aria-label="Close crop editor">
@@ -87,7 +86,6 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
 
         <aside className="pem-controls">
           <div className="pem-controls__head">
-            <span className="pem-kicker">Composition</span>
             <p>Portfolio crop</p>
           </div>
 

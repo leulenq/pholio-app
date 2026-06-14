@@ -100,12 +100,6 @@ export default function OverviewView() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="ov-hero-eyebrow">
-              <span className="ov-mono">Dashboard</span>
-              <span className={`ov-tier-pill ${isPro ? 'ov-tier-pill--studio' : 'ov-tier-pill--free'}`}>
-                {isPro ? 'Studio+ Member' : 'Free'}
-              </span>
-            </div>
 
             {profileLoading ? (
               <span className="ov-skel ov-skel--name" aria-hidden />
@@ -179,7 +173,6 @@ export default function OverviewView() {
                       className="ov-book-photo"
                     />
                     <div className="ov-book-featured-overlay" aria-hidden>
-                      <span className="ov-book-featured-eyebrow">Featured Cover</span>
                       <p className="ov-book-featured-caption">Your best work</p>
                     </div>
                   </Link>

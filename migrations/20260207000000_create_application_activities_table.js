@@ -4,7 +4,7 @@
  */
 exports.up = function(knex) {
   return knex.schema.createTable('application_activities', (table) => {
-    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v4()'));
+    table.uuid('id').primary().defaultTo(knex.fn.uuid());
     table.uuid('application_id').notNullable()
       .references('id').inTable('applications').onDelete('CASCADE');
     table.uuid('agency_id').notNullable()

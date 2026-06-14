@@ -77,7 +77,6 @@ export default function ApplyModal({ agency, onClose }) {
       >
         {/* Header row */}
         <div className="apm-header">
-          <span className="apm-kicker">Application</span>
           <button
             ref={closeRef}
             className="apm-close"

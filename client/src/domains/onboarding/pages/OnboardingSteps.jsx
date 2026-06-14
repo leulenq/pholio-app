@@ -23,7 +23,6 @@ export default function OnboardingSteps({
   return (
     <section className="agency-onboarding__shell">
       <aside className="agency-onboarding__rail">
-        <span className="agency-onboarding__eyebrow">First Login Setup</span>
         <h1>Build a workspace your agency can actually start using today.</h1>
         <p>
           This setup gets the organization, brand system, team access, and working defaults in place

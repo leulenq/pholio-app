@@ -39,7 +39,7 @@ export const TalentTypePill = ({ type, dark }) => {
         letterSpacing: '0.04em',
         textTransform: 'uppercase',
         padding: '3px 8px',
-        borderRadius: '20px',
+        borderRadius: '4px',
         display: 'inline-flex',
         alignItems: 'center',
         whiteSpace: 'nowrap',

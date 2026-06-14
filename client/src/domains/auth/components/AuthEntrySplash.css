@@ -1,0 +1,327 @@
+/* AuthEntrySplash — minimalist post-login transition.
+   One loading element: the talent shell's gold sweep line translated into
+   a circular spinner travelling the border of the profile icon. */
+
+.auth-entry {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.auth-entry--talent {
+  background: #050505;
+  color: rgba(245, 240, 232, 0.88);
+}
+
+.auth-entry--agency {
+  background: #f7f3ec;
+  color: #1a1815;
+}
+
+/* ---------- Atmosphere (shared design language) ---------- */
+
+.auth-entry__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+.auth-entry--talent .auth-entry__grain {
+  opacity: 0.028;
+  mix-blend-mode: screen;
+}
+
+/* Agency uses the command-center grain (.ag-grain language) */
+.auth-entry--agency .auth-entry__grain {
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px 120px;
+}
+
+.auth-entry__glow {
+  position: absolute;
+  width: min(80vw, 620px);
+  height: min(80vw, 620px);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  pointer-events: none;
+  animation: auth-entry-breathe 7s ease-in-out infinite;
+}
+
+.auth-entry--talent .auth-entry__glow {
+  background: radial-gradient(
+    circle,
+    rgba(201, 165, 90, 0.08) 0%,
+    rgba(201, 165, 90, 0.02) 38%,
+    transparent 66%
+  );
+}
+
+.auth-entry--agency .auth-entry__glow {
+  background: radial-gradient(
+    circle,
+    rgba(201, 165, 90, 0.1) 0%,
+    rgba(201, 165, 90, 0.03) 40%,
+    transparent 68%
+  );
+}
+
+/* ---------- Layout ---------- */
+
+.auth-entry__center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 44px;
+  padding: 0 32px;
+  /* optical centering */
+  transform: translateY(-2vh);
+}
+
+/* ---------- Welcome headline ---------- */
+
+.auth-entry__headline {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 0.3em;
+  max-width: min(92vw, 640px);
+  font-family: 'Noto Serif Display', var(--ag-font-serif, 'Playfair Display'), Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(2.1rem, 5vw, 3.2rem);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.auth-entry--talent .auth-entry__headline {
+  color: rgba(245, 240, 232, 0.92);
+}
+
+.auth-entry--agency .auth-entry__headline {
+  color: #1a1815;
+}
+
+.auth-entry__word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.auth-entry__word--em {
+  font-style: italic;
+  color: var(--ag-gold, #c9a55a);
+}
+
+/* ---------- Agency lockup ---------- */
+
+/* Mirrors the rail's .ag-cobrand treatment, scaled for the splash moment */
+.auth-entry__lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  max-width: min(92vw, 560px);
+}
+
+.auth-entry__wordmark {
+  flex: none;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ag-pholio-gold, #c9a55a);
+}
+
+.auth-entry__lockup-div {
+  flex: none;
+  width: 1px;
+  align-self: stretch;
+  min-height: 22px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(201, 165, 90, 0.5),
+    transparent
+  );
+}
+
+.auth-entry__agency-name {
+  min-width: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: #16130d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Profile icon + sweep ring ---------- */
+
+.auth-entry__icon {
+  position: relative;
+}
+
+.auth-entry__icon--talent {
+  width: 116px;
+  height: 116px;
+}
+
+.auth-entry__icon--agency {
+  width: 100px;
+  height: 100px;
+}
+
+.auth-entry__icon-float {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Faint full track the sweep travels on — the circular "hairline" */
+.auth-entry__icon-float::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.auth-entry--talent .auth-entry__icon-float::before {
+  border: 1px solid rgba(200, 169, 110, 0.16);
+}
+
+.auth-entry--agency .auth-entry__icon-float::before {
+  border: 1px solid rgba(201, 165, 90, 0.22);
+}
+
+/* The sweep itself: transparent → gold → transparent, bent into a circle,
+   orbiting the icon border */
+.auth-entry__icon-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 242deg,
+    rgba(200, 169, 110, 0.22) 268deg,
+    #c8a96e 300deg,
+    rgba(200, 169, 110, 0.22) 332deg,
+    transparent 358deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: auth-entry-orbit 2.4s linear infinite;
+}
+
+.auth-entry__icon-avatar {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-entry--talent .auth-entry__icon-avatar {
+  background: #0a0a0a;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.auth-entry--agency .auth-entry__icon-avatar {
+  background: var(--ag-surface-1, #fff);
+  box-shadow: 0 14px 40px rgba(26, 24, 21, 0.1);
+}
+
+.auth-entry__icon-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.auth-entry__icon-fallback {
+  font-family: var(--ag-font-sans, 'Inter', sans-serif);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.auth-entry--talent .auth-entry__icon-fallback {
+  color: rgba(245, 240, 232, 0.42);
+}
+
+.auth-entry--agency .auth-entry__icon-fallback {
+  color: var(--ag-text-3, #9c958e);
+}
+
+/* ---------- Screen-reader text ---------- */
+
+.auth-entry__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes auth-entry-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes auth-entry-breathe {
+  0%, 100% {
+    opacity: 0.7;
+    transform: translate(-50%, -52%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -52%) scale(1.05);
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-entry__glow,
+  .auth-entry__icon-ring {
+    animation: none;
+  }
+}

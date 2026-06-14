@@ -29,11 +29,8 @@
   }
 }
 
-/* Glassmorphic floating card */
 .card {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #FFFFFF;
   border: 1px solid rgba(201, 165, 90, 0.14);
   border-radius: var(--ag-radius-lg, 12px);
   padding: 26px 24px;
@@ -125,42 +122,6 @@
   color: var(--ag-text-1, #2D2A26);
 }
 
-.statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  position: relative;
-  background-color: currentColor;
-  flex-shrink: 0;
-}
-
-.statusDot::after {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: -3px;
-  right: -3px;
-  bottom: -3px;
-  border-radius: 50%;
-  border: 1px solid currentColor;
-  opacity: 0.45;
-  animation: pulseGlow 2.2s infinite ease-in-out;
-}
-
-@keyframes pulseGlow {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.85;
-  }
-  50% {
-    transform: scale(2.0);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0.85;
-  }
-}
 
 .unsavedHint {
   margin: 6px 0 0;
@@ -425,47 +386,34 @@
   border-top: 1px solid var(--ag-border, rgba(26,24,21,0.08));
 }
 
-/* Luxury CTA button with spring hover scale and shadows */
+/* Canonical primary button styling based on .mw-btn-gold */
 .saveButton {
-  width: 100%;
-  padding: 14px 20px;
-  background: var(--ag-gold, #C9A55A);
-  border: 1px solid var(--ag-gold, #C9A55A);
-  border-radius: var(--ag-radius-md, 8px);
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: #ffffff;
-  cursor: pointer;
-  transition: 
-    background-color 0.2s var(--ag-ease),
-    border-color 0.2s var(--ag-ease),
-    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.2s var(--ag-ease);
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  box-shadow: 0 4px 14px rgba(201, 165, 90, 0.15);
+  gap: 8px;
+  width: 100%;
+  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 11px 18px;
+  border: 1px solid var(--ag-gold, #C9A55A);
+  border-radius: 2px;
+  background: var(--ag-gold, #C9A55A);
+  color: #050505;
+  cursor: pointer;
+  transition: background 0.2s var(--ag-ease, ease), border-color 0.2s var(--ag-ease, ease);
 }
 
 .saveButton:hover:not(:disabled) {
-  background: var(--ag-gold-hover, #B8956A);
-  border-color: var(--ag-gold-hover, #B8956A);
-  transform: translateY(-1.5px);
-  box-shadow: 0 6px 20px rgba(201, 165, 90, 0.25);
-}
-
-.saveButton:active:not(:disabled) {
-  transform: translateY(0);
+  background: #D4BC8A;
+  border-color: #D4BC8A;
 }
 
 .saveButton:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .saveButtonMuted:not(:disabled) {

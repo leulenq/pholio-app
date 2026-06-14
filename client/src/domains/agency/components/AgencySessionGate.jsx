@@ -2,6 +2,14 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import LoadingSpinner from '../../../shared/components/shared/LoadingSpinner';
+import AuthEntrySplash from '../../auth/components/AuthEntrySplash';
+import {
+  resolveAgencyEntryAvatar,
+  resolveEntryDisplayName,
+} from '../../auth/lib/entry-identity';
+import { useAuthEntryTransition } from '../../auth/hooks/useAuthEntryTransition';
+import { getAgencyProfile } from '../api/agency';
+import { AgencyPermissionsProvider } from '../context/AgencyPermissionsProvider';
 
 async function getSession() {
   const response = await fetch('/api/session', {
@@ -25,12 +33,32 @@ export default function AgencySessionGate() {
     staleTime: 0,
     refetchOnMount: 'always',
   });
+  const { data: agencyProfile } = useQuery({
+    queryKey: ['agency-profile'],
+    queryFn: getAgencyProfile,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { showEntrySplash, isEntrySplashExiting, entryStartedAt } = useAuthEntryTransition(!isLoading);
+
+  const entrySplash = showEntrySplash ? (
+    <AuthEntrySplash
+      variant="agency"
+      startedAt={entryStartedAt}
+      exiting={isEntrySplashExiting}
+      agencyName={agencyProfile?.agency_name}
+      avatarUrl={resolveAgencyEntryAvatar(agencyProfile)}
+      avatarInitials={resolveEntryDisplayName(agencyProfile, 'agency').slice(0, 2).toUpperCase()}
+    />
+  ) : null;
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#faf9f7]">
-        <LoadingSpinner size="lg" />
-      </div>
+      entrySplash || (
+        <div className="flex items-center justify-center h-screen bg-[#faf9f7]">
+          <LoadingSpinner size="lg" />
+        </div>
+      )
     );
   }
 
@@ -43,5 +71,10 @@ export default function AgencySessionGate() {
     return <Navigate to={data.redirect || '/login'} replace />;
   }
 
-  return <Outlet />;
+  return (
+    <AgencyPermissionsProvider session={data}>
+      {entrySplash}
+      <Outlet />
+    </AgencyPermissionsProvider>
+  );
 }
