@@ -1,7 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Pholio">
-  <rect width="32" height="32" fill="#050505"/>
-  <g fill="#C9A55A">
-    <path d="M9.75 8.25h5.1c4.35 0 6.85 2.15 6.85 5.85 0 3.25-2.05 5.35-5.55 5.75l7.45 9.85h-3.85l-6.55-8.65h-1.35v8.65H9.75V8.25zm3.1 2.35v7.45h3.55c2.55 0 3.95-1.25 3.95-3.7 0-2.5-1.4-3.75-3.95-3.75h-3.55z"/>
-    <circle cx="23.35" cy="25.15" r="1.3"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Pholio">
+  <!-- Near-black ground, rounded for app icon contexts -->
+  <rect width="100" height="100" rx="22" fill="#050505"/>
+
+  <!-- Stem body -->
+  <rect x="20" y="14" width="14" height="68" fill="#C9A55A"/>
+
+  <!-- Top-left cap serif (left extension only — right side blends into bowl) -->
+  <rect x="14" y="14" width="6" height="5" fill="#C9A55A"/>
+
+  <!-- Bottom bilateral serif -->
+  <rect x="14" y="77" width="25" height="5" fill="#C9A55A"/>
+
+  <!-- Bowl with Didone high-contrast counter:
+       outer D-shape minus inner ellipse via evenodd
+       thin walls at top/bottom (4 px), thick wall at right (≈13 px) -->
+  <path
+    fill="#C9A55A"
+    fill-rule="evenodd"
+    d="M 34 14 C 78 14 78 52 34 52 L 34 14 Z
+       M 54 33 A 10 15 0 0 0 34 33 A 10 15 0 0 0 54 33 Z"
+  />
+
+  <!-- Period mark — the brand signature -->
+  <circle cx="79" cy="81" r="6" fill="#C9A55A"/>
 </svg>
