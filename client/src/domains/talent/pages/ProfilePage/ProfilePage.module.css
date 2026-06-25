@@ -1390,7 +1390,8 @@
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
+  text-transform: none;
   color: var(--pf-text-faint);
 }
 
@@ -1409,6 +1410,8 @@
   background: #fff;
   cursor: pointer;
   text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
   transition:
     border-color 0.2s var(--pf-ease-std),
     background 0.2s var(--pf-ease-std),
@@ -1454,6 +1457,7 @@
   font-weight: 300;
   line-height: 1.1;
   letter-spacing: 0;
+  text-transform: none;
   color: var(--pf-text);
   transition: color 0.2s var(--pf-ease-std);
 }
@@ -1468,6 +1472,8 @@
   font-size: 12px;
   font-weight: 300;
   line-height: 1.55;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--pf-text-soft);
   display: block;
 }
@@ -1508,6 +1514,7 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0;
+  text-transform: none;
 }
 
 .repPremiumField :global(.pholio-textarea) {
@@ -1848,6 +1855,12 @@
 .platformTwitter .platformConnect:hover { color: #000; border-color: rgba(0, 0, 0, 0.3); }
 .platformYoutube .platformConnect:hover { color: #ff0000; border-color: rgba(255, 0, 0, 0.3); }
 .platformOnlyfans .platformConnect:hover { color: #00AFF0; border-color: rgba(0, 175, 240, 0.3); }
+
+.platformInstagram :global(.pholio-input):focus { border-color: #cc2366; box-shadow: 0 0 0 1px #cc2366; }
+.platformTiktok :global(.pholio-input):focus { border-color: #000; box-shadow: 0 0 0 1px #000; }
+.platformTwitter :global(.pholio-input):focus { border-color: #000; box-shadow: 0 0 0 1px #000; }
+.platformYoutube :global(.pholio-input):focus { border-color: #ff0000; box-shadow: 0 0 0 1px #ff0000; }
+.platformOnlyfans :global(.pholio-input):focus { border-color: #00AFF0; box-shadow: 0 0 0 1px #00AFF0; }
 
 .platformConnected.platformInstagram .platformIconWrapper { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #fff; }
 .platformConnected.platformTiktok .platformIconWrapper { background: #000; color: #fff; }
