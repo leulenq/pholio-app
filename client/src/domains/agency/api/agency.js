@@ -47,7 +47,7 @@ async function request(endpoint, options = {}) {
     let data;
     try {
       data = await response.json();
-    } catch (err) {
+    } catch {
       data = null;
     }
 
@@ -195,6 +195,13 @@ export async function declineApplication(applicationId) {
  */
 export async function shortlistApplication(applicationId) {
   return apiClient.patch(`/applications/${applicationId}/status`, { status: 'shortlisted' });
+}
+
+/**
+ * Keep an application on file (soft outcome — future consideration, not a hard decline).
+ */
+export async function keepOnFileApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'kept_on_file' });
 }
 
 /**
@@ -744,6 +751,7 @@ export default {
   acceptApplication,
   declineApplication,
   shortlistApplication,
+  keepOnFileApplication,
   archiveApplication,
   getDiscoverableTalent,
   getProfilePreview,

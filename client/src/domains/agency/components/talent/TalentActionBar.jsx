@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, Star, LayoutGrid, X, UserPlus, Download } from 'lucide-react';
+import { Check, Star, LayoutGrid, X, UserPlus, Download, Bookmark } from 'lucide-react';
 import { getBoards, inviteTalent } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
@@ -22,10 +22,10 @@ async function downloadCompCard(slug) {
   URL.revokeObjectURL(url);
 }
 
-export function TalentActionBar({ applicationId, profileId, slug, status, context = 'overview', onMessage }) {
+export function TalentActionBar({ applicationId, profileId, slug, status, context = 'overview' }) {
   const qc = useQueryClient();
   const { can } = useAgencyPermissions();
-  const { accept, shortlist, decline, addToBoard, isPending } = useTalentActions(applicationId);
+  const { accept, shortlist, decline, keepOnFile, addToBoard, isPending } = useTalentActions(applicationId);
   const [boardOpen, setBoardOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const boardRef = useRef(null);
@@ -64,6 +64,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
 
   const isShortlisted = status === 'shortlisted';
   const isAccepted = status === 'accepted' || status === 'booked';
+  const isKeptOnFile = status === 'kept_on_file';
   const isPipeline = context === 'applicants' || context === 'overview';
 
   const compCardBtn = slug && can('talent.download_comp_card') && (
@@ -97,6 +98,16 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
           {can('applications.update_status') && (
             <button className="tact-btn" disabled={isPending || isShortlisted} onClick={() => shortlist.mutate()}>
               <Star size={15} /> {isShortlisted ? 'Shortlisted' : 'Shortlist'}
+            </button>
+          )}
+          {can('applications.update_status') && (
+            <button
+              className="tact-btn"
+              disabled={isPending || isKeptOnFile}
+              onClick={() => keepOnFile.mutate()}
+              title="Keep on file for future consideration (a soft pass, not a decline)"
+            >
+              <Bookmark size={15} /> {isKeptOnFile ? 'On File' : 'Keep on File'}
             </button>
           )}
         </>

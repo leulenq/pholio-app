@@ -1,0 +1,1185 @@
+/* ============================================================
+   APPLY EXPERIENCE — full-screen talent submission surface.
+   Speaks the /applications editorial-ledger language: it reuses
+   ApplicationsView.css (.app-* classes, --app-* tokens, cream
+   canvas). This file only adds the pieces that surface lacks —
+   the full-screen frame, the curation gallery, and a quiet
+   scene progress — all in the same editorial vocabulary.
+   ============================================================ */
+
+.apply-experience {
+  min-height: 100vh;
+}
+
+/* ── top hierarchy: back first, then step context ────────── */
+
+.apply-head {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2.4vw, 26px);
+  margin-bottom: clamp(22px, 3.5vw, 40px);
+}
+
+/* ── open editorial mast (no enclosing box) ──────────────── */
+
+.apply-mast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(24px, 5vw, 64px);
+  margin-bottom: clamp(28px, 4.5vw, 54px);
+  animation: app-entrance 0.5s var(--app-ease) both;
+}
+
+.apply-mast__lede {
+  max-width: 46rem;
+}
+
+.apply-mast--compact .apply-mast__lede {
+  max-width: 40rem;
+}
+
+.apply-mast__title {
+  margin: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  font-weight: 300;
+  letter-spacing: 0;
+  line-height: 1.03;
+  text-wrap: balance;
+}
+
+.apply-mast__standfirst {
+  max-width: 38rem;
+  margin: clamp(10px, 1.5vw, 16px) 0 0;
+  color: var(--app-text-soft);
+  font-size: clamp(0.94rem, 1.2vw, 1.05rem);
+  font-weight: 300;
+  line-height: 1.55;
+}
+
+.apply-mast--compact {
+  margin-bottom: clamp(20px, 3vw, 34px);
+}
+
+.apply-mast--compact .apply-mast__title {
+  font-size: clamp(1.7rem, 3vw, 2.45rem);
+}
+
+/* recipient stamp — "addressed to", top-right of the mast */
+.apply-recipient {
+  flex: none;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  max-width: 280px;
+  padding: 14px 18px;
+  border: 1px solid var(--app-hair);
+  border-top: 2px solid var(--app-gold);
+  background: color-mix(in srgb, var(--app-cream-warm) 60%, #fff);
+}
+
+.apply-recipient__crest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid var(--app-hair-gold);
+  border-radius: 2px;
+  background: var(--app-cream-warm);
+  color: var(--app-gold);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.25rem;
+  font-style: italic;
+  font-weight: 300;
+}
+
+.apply-recipient__crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.apply-recipient__copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.apply-recipient__copy strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 300;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apply-recipient__loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-text-faint);
+  font-size: 11px;
+}
+
+/* ── scene wrapper + footer (open, hairline divider only) ── */
+
+.apply-scene {
+  min-width: 0;
+  animation: app-entrance 0.45s var(--app-ease) both;
+}
+
+.apply-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px 24px;
+  margin-top: clamp(52px, 8vw, 96px);
+  padding-top: 28px;
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-foot__meta {
+  margin: 0;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  font-weight: 300;
+}
+
+.apply-foot__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Scene 1 — Address, as an open two-column stage ──────── */
+
+.apply-address {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(48px, 8vw, 140px);
+  align-items: start;
+}
+
+.apply-address--focused {
+  display: block;
+}
+
+.apply-houses-col {
+  min-width: 0;
+}
+
+.apply-houses {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin-inline: -18px; /* let the black fill bleed past the text edges (ledger language) */
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-houses__label {
+  display: block;
+  margin: 0 0 16px;
+  color: var(--app-text-soft);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+  font-weight: 300;
+  line-height: 1.1;
+}
+
+/* Agency row — identical selection language to /applications history:
+   black fill wiped in on hover/selected, sharp edges, text flips to light. */
+.apply-house {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(16px, 2vw, 24px);
+  width: 100%;
+  min-height: 98px;
+  padding: 22px 18px 24px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--app-hair);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.apply-house::before {
+  content: '';
+  position: absolute;
+  inset: 0 calc(100% + 1px) 0 0;
+  background: var(--app-ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: inset 0.38s var(--app-ease), opacity 0.38s var(--app-ease);
+}
+
+.apply-house:hover::before,
+.apply-house--on::before {
+  inset: 0;
+  opacity: 1;
+}
+
+.apply-house > * {
+  position: relative;
+  z-index: 1;
+}
+
+.apply-house--solo {
+  cursor: default;
+}
+
+.apply-house--skeleton {
+  min-height: 98px;
+  cursor: default;
+}
+
+.apply-house--skeleton::before {
+  display: none;
+}
+
+.apply-house__num {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  color: var(--app-gold);
+}
+
+.apply-house__copy {
+  min-width: 0;
+  display: grid;
+  gap: 9px;
+  align-self: center;
+}
+
+.apply-house__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.45rem, 2.3vw, 2.05rem);
+  font-weight: 300;
+  letter-spacing: 0;
+  line-height: 1.16;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.25s var(--app-ease);
+}
+
+.apply-house:hover .apply-house__name,
+.apply-house--on .apply-house__name {
+  color: var(--app-ink-text);
+}
+
+.apply-house__loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--app-text-faint);
+  font-size: 12px;
+  line-height: 1.25;
+  transition: color 0.25s var(--app-ease);
+}
+
+.apply-house:hover .apply-house__loc,
+.apply-house--on .apply-house__loc {
+  color: var(--app-ink-faint);
+}
+
+.apply-relink {
+  margin: clamp(20px, 3vw, 28px) 0 0;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.25s var(--app-ease);
+}
+
+.apply-relink:hover {
+  color: var(--app-gold);
+}
+
+/* ── agency dossier ──────────────────────────────────────────
+   Non-focused: a quiet stacked rail (the chooser's right column).
+   Focused (locked review): the agency becomes the page hero — a wide,
+   confident masthead over an asymmetric editorial brief, using the
+   canvas deliberately rather than splitting content into two columns. */
+
+.apply-dossier {
+  min-width: 0;
+  animation: app-entrance 0.4s var(--app-ease) both;
+}
+
+.apply-dossier--focused {
+  max-width: 1180px;
+}
+
+/* hero / masthead — crest · identity · match signal */
+.apply-dossier__hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(18px, 2.4vw, 30px);
+}
+
+.apply-dossier--focused .apply-dossier__hero {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(26px, 3.5vw, 52px);
+  padding-bottom: clamp(28px, 4vw, 48px);
+  border-bottom: 1px solid var(--app-hair-gold);
+}
+
+.apply-dossier__crest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border: 1px solid var(--app-hair-gold);
+  border-radius: 2px;
+  background:
+    linear-gradient(135deg, rgba(201, 165, 90, 0.13), transparent 48%),
+    var(--app-cream-warm);
+  color: var(--app-gold);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.6rem;
+  font-style: italic;
+  font-weight: 300;
+}
+
+.apply-dossier--focused .apply-dossier__crest {
+  width: clamp(104px, 11vw, 148px);
+  height: clamp(104px, 11vw, 148px);
+  font-size: clamp(2.6rem, 5vw, 4rem);
+  box-shadow: 0 24px 60px -36px rgba(26, 24, 21, 0.75);
+}
+
+.apply-dossier__crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.apply-dossier__herocopy {
+  min-width: 0;
+}
+
+.apply-dossier__name {
+  margin: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.5rem, 2.4vw, 1.95rem);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1.02;
+  overflow-wrap: anywhere;
+}
+
+.apply-dossier--focused .apply-dossier__name {
+  font-size: clamp(2.4rem, 5.4vw, 4.6rem);
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+/* location — prominent identity, not a quiet meta crumb */
+.apply-dossier__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: clamp(10px, 1.4vw, 14px) 0 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.1rem, 1.6vw, 1.45rem);
+  font-weight: 300;
+  line-height: 1.1;
+}
+
+.apply-dossier--focused .apply-dossier__location {
+  margin-top: clamp(16px, 2vw, 22px);
+  font-size: clamp(1.3rem, 2vw, 1.85rem);
+}
+
+.apply-dossier__location svg {
+  flex: none;
+  color: var(--app-gold);
+}
+
+/* external link — the agency's actual domain, clearly */
+.apply-dossier__site {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: clamp(10px, 1.4vw, 14px);
+  color: var(--app-text-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: gap 0.25s var(--app-ease), color 0.25s var(--app-ease);
+}
+
+.apply-dossier__site svg {
+  color: var(--app-gold);
+}
+
+.apply-dossier__site:hover {
+  gap: 9px;
+  color: var(--app-gold);
+}
+
+/* match — an editorial signal with real presence (scale, not chrome) */
+.apply-match {
+  flex: none;
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+
+.apply-match__label {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.apply-match__num {
+  margin: 4px 0 2px;
+  color: var(--app-gold);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(2.4rem, 4vw, 3.6rem);
+  line-height: 0.9;
+  font-variant-numeric: lining-nums;
+}
+
+.apply-dossier--focused .apply-match__num {
+  font-size: clamp(3.2rem, 5.5vw, 5rem);
+}
+
+.apply-match__tier {
+  color: var(--app-text-soft);
+  font-size: 12px;
+  font-weight: 300;
+}
+
+/* info row beneath the hero — the house's voice + the boards it's scouting */
+.apply-dossier__info {
+  min-width: 0;
+}
+
+.apply-dossier--focused .apply-dossier__info {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(36px, 6vw, 92px);
+  align-items: start;
+  margin-top: clamp(30px, 4vw, 48px);
+}
+
+.apply-dossier__desc {
+  max-width: 38rem;
+  margin: clamp(14px, 2vw, 20px) 0 0;
+  color: var(--app-text-soft);
+  font-size: clamp(0.95rem, 1.3vw, 1.05rem);
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+.apply-dossier--focused .apply-dossier__desc {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.45vw, 1.22rem);
+  line-height: 1.8;
+}
+
+/* boards now open — divisions the agency is scouting, as an editorial roster */
+.apply-boards {
+  margin-top: clamp(20px, 3vw, 28px);
+}
+
+.apply-dossier--focused .apply-boards {
+  margin-top: 0;
+}
+
+.apply-boards__label {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.apply-boards__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apply-boards__list li {
+  padding: 8px 16px;
+  border: 1px solid var(--app-hair-gold);
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(0.95rem, 1.3vw, 1.12rem);
+  font-weight: 300;
+  line-height: 1;
+  background: color-mix(in srgb, var(--app-cream-warm) 50%, #fff);
+}
+
+/* the fit section sits full-width below the info row */
+.apply-dossier--focused .apply-fit {
+  margin-top: clamp(36px, 5vw, 60px);
+  padding-top: clamp(28px, 4vw, 44px);
+}
+
+/* requirements run two-up so the section uses its full width and reads composed */
+.apply-dossier--focused .apply-fit__list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: clamp(40px, 6vw, 96px);
+}
+
+.apply-dossier--focused .apply-fit__pressure {
+  max-width: 52rem;
+}
+
+/* what the house looks for — an editorial requirements ledger, not a chart.
+   Each standard expectation reads as a line: requirement vs. your readiness. */
+.apply-fit {
+  margin-top: clamp(24px, 3.5vw, 36px);
+  padding-top: clamp(20px, 3vw, 28px);
+  border-top: 1px solid var(--app-hair-gold);
+}
+
+.apply-fit__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.apply-fit__head h3 {
+  margin: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.3rem, 2.2vw, 1.95rem);
+  font-weight: 300;
+  line-height: 1.05;
+}
+
+.apply-fit__verdict {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.apply-fit__verdict em {
+  color: var(--app-text-faint);
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+
+.apply-fit__list {
+  margin: clamp(16px, 2.4vw, 22px) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-fit__list li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--app-hair);
+}
+
+.apply-fit__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  align-self: center;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: 999px;
+  color: #fff;
+}
+
+.apply-fit__list li.is-met .apply-fit__mark {
+  border-color: var(--app-gold);
+  background: var(--app-gold);
+}
+
+.apply-fit__list li.is-open .apply-fit__mark::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--app-text-faint);
+}
+
+.apply-fit__req {
+  min-width: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+  font-weight: 300;
+  line-height: 1.2;
+}
+
+.apply-fit__list li.is-open .apply-fit__req {
+  color: var(--app-text-soft);
+}
+
+.apply-fit__status {
+  flex: none;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.apply-fit__list li.is-met .apply-fit__status {
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.apply-fit__list li.is-open .apply-fit__status {
+  color: var(--app-text-faint);
+}
+
+.apply-fit__pressure {
+  margin: clamp(16px, 2.4vw, 22px) 0 0;
+  max-width: 44rem;
+  color: var(--app-text-soft);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+@media (max-width: 680px) {
+  .apply-fit__list li {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .apply-fit__status {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
+/* PholioButton's secondary/ghost are tuned for dark shells; this surface is
+   cream, so re-tone them dark-on-light to read premium here. */
+.apply-experience .pholio-btn--secondary {
+  color: var(--app-text);
+  border-color: var(--app-hair-strong);
+}
+
+.apply-experience .pholio-btn--secondary:hover:not(:disabled) {
+  border-color: var(--app-hair-gold);
+  color: var(--app-gold);
+  background: transparent;
+}
+
+/* ── quiet scene progress (no numbers, mono labels) ──────── */
+
+.apply-waypoints {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+}
+
+.apply-waypoints__dot {
+  color: var(--app-text-faint);
+  font-size: 10px;
+}
+
+.apply-waypoints button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+  cursor: pointer;
+  transition: color 0.25s var(--app-ease);
+}
+
+.apply-waypoints button:disabled {
+  cursor: default;
+}
+
+.apply-waypoints button.is-done:not(:disabled):hover {
+  color: var(--app-gold);
+}
+
+.apply-waypoints button.is-done {
+  color: var(--app-text-soft);
+}
+
+.apply-waypoints button.is-on {
+  color: var(--app-gold);
+}
+
+/* ── scene transition wrapper ───────────────────────────── */
+
+.apply-scene {
+  min-width: 0;
+}
+
+/* ── curate ─────────────────────────────────────────────── */
+
+.apply-curate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 392px);
+  gap: clamp(34px, 6vw, 92px);
+  align-items: start;
+}
+
+.apply-curate__main {
+  min-width: 0;
+}
+
+.apply-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(18px, 3vw, 32px);
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--app-hair);
+}
+
+.apply-set {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 0 14px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--app-text-faint);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 300;
+  cursor: pointer;
+  transition: color 0.25s var(--app-ease), border-color 0.25s var(--app-ease);
+}
+
+.apply-set:hover {
+  color: var(--app-text);
+}
+
+.apply-set.is-on {
+  color: var(--app-text);
+  border-bottom-color: var(--app-gold);
+}
+
+.apply-set span {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--app-gold);
+}
+
+.apply-curate__count {
+  margin: 0 0 18px;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  font-weight: 300;
+}
+
+.apply-curate__count strong {
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 300;
+}
+
+.apply-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 10px;
+}
+
+.apply-frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: var(--app-cream-warm);
+  cursor: pointer;
+  transition: border-color 0.25s var(--app-ease), transform 0.25s var(--app-ease);
+}
+
+.apply-frame:hover {
+  border-color: var(--app-hair-gold);
+  transform: translateY(-2px);
+}
+
+.apply-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: filter 0.3s var(--app-ease), opacity 0.3s var(--app-ease);
+}
+
+.apply-frame.is-out img {
+  filter: grayscale(1);
+  opacity: 0.34;
+}
+
+.apply-frame__toggle {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--app-radius);
+  background: rgba(5, 5, 5, 0.74);
+  color: #fff;
+  pointer-events: none;
+}
+
+.apply-frame.is-out .apply-frame__toggle {
+  background: var(--app-gold);
+  color: var(--app-ink, #050505);
+}
+
+.apply-frame__held {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 7px 9px;
+  background: linear-gradient(to top, rgba(5, 5, 5, 0.72), transparent);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-frames__empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 40px 0;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* curate aside */
+
+.apply-curate__aside {
+  min-width: 0;
+  display: grid;
+  gap: clamp(28px, 4vw, 40px);
+}
+
+.apply-block__head {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--app-hair-gold);
+}
+
+.apply-block__head h3 {
+  margin: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.5rem, 2.6vw, 2.2rem);
+  font-weight: 300;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+/* selected comp-card preview in the curate aside */
+
+.apply-cardpreview {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  padding: clamp(18px, 2.4vw, 26px);
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.7), transparent 56%),
+    color-mix(in srgb, var(--app-cream-warm) 70%, #fff);
+  border: 1px solid var(--app-hair);
+}
+
+.apply-cardpreview .apply-cardthumb {
+  --thumb-w: 196;
+}
+
+.apply-cardpreview__cap {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* comp-card choices, as ledger rows */
+
+.apply-cardpicks {
+  display: grid;
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-cardpick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  gap: 14px;
+  align-items: center;
+  padding: 15px 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--app-hair);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: padding 0.25s var(--app-ease), color 0.25s var(--app-ease);
+}
+
+.apply-cardpick:hover {
+  padding-inline: 10px;
+  color: var(--app-gold);
+}
+
+.apply-cardpick__text {
+  min-width: 0;
+}
+
+.apply-cardpick strong {
+  display: block;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 300;
+  line-height: 1.1;
+}
+
+.apply-cardpick small {
+  display: block;
+  margin-top: 4px;
+  color: var(--app-text-faint);
+  font-size: 12px;
+  font-weight: 300;
+}
+
+.apply-cardpick--on strong {
+  color: var(--app-gold);
+}
+
+.apply-cardpick svg {
+  color: var(--app-gold);
+}
+
+/* ── review + comp-card column ──────────────────────────── */
+
+.apply-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(36px, 6vw, 88px);
+  align-items: start;
+}
+
+.apply-review__main {
+  min-width: 0;
+  max-width: 600px;
+  display: grid;
+  gap: clamp(26px, 3.5vw, 38px);
+}
+
+.apply-review__main .app-package-readiness,
+.apply-review__main .app-application-note {
+  margin-top: 0;
+}
+
+.apply-note-lbl {
+  display: block;
+  color: var(--app-text-soft);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* compact one-line readiness (no big serif checklist on the final step) */
+.apply-readyline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apply-readyline li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+}
+
+.apply-readyline li.is-ok {
+  color: rgba(69, 96, 58, 0.95);
+}
+
+.apply-readyline li svg {
+  flex: none;
+}
+
+/* small, controls-free comp-card preview (not the full atelier) */
+.apply-card {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+/* Mirrors the proven /media CompCard clip+frame: the /pdf/view doc is
+   528×1632 (front 816 stacked over back 816). We clip to the front page
+   (aspect 5.5/8.5) and scale the full-height iframe to the thumb width. */
+.apply-cardthumb {
+  --thumb-w: 232; /* unitless: feeds both the px width and the scale factor */
+  position: relative;
+  width: calc(var(--thumb-w) * 1px);
+  max-width: 100%;
+  aspect-ratio: 5.5 / 8.5;
+  overflow: hidden;
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: #fff;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+}
+
+.apply-cardthumb iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 528px;
+  height: 1632px;
+  border: 0;
+  transform-origin: top left;
+  transform: scale(calc(var(--thumb-w) / 528));
+  pointer-events: none;
+}
+
+.apply-card__cap {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* ── responsive ─────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .apply-address,
+  .apply-curate,
+  .apply-review {
+    grid-template-columns: 1fr;
+  }
+
+  /* info row + requirements collapse to a single column */
+  .apply-dossier--focused .apply-dossier__info,
+  .apply-dossier--focused .apply-fit__list {
+    grid-template-columns: 1fr;
+    gap: clamp(24px, 5vw, 40px);
+  }
+
+  .apply-dossier--focused .apply-dossier__desc {
+    max-width: 40rem;
+  }
+}
+
+@media (max-width: 600px) {
+  /* stack the masthead so the large name and match never crowd the crest */
+  .apply-dossier--focused .apply-dossier__hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .apply-dossier--focused .apply-match {
+    grid-column: 1 / -1;
+    justify-items: start;
+    text-align: left;
+    margin-top: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apply-experience *,
+  .apply-experience *::before,
+  .apply-experience *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -34,6 +34,10 @@ const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const {
   normalizeProfileLanguages,
 } = require("../../../shared/lib/language-reference");
+const {
+  normalizeBookingLaneList,
+  normalizeBookingLaneSlug,
+} = require("../../../shared/constants/booking-lanes");
 const path = require("path");
 const config = require("../../../config");
 const { z } = require("zod");
@@ -48,6 +52,12 @@ const {
   getCurrentStep,
   getState,
 } = require("../../onboarding/services/state-machine");
+const {
+  canCollectSensitiveProfileFields,
+  listSensitiveProfileUpdateFields,
+  isMinorProfile,
+  minorPublicExposureAllowed,
+} = require("../../../shared/lib/talent-age");
 
 /**
  * Allowlisted profile columns for GET/PUT JSON (excludes raw vectors / embeddings).
@@ -95,6 +105,7 @@ const TALENT_PROFILE_API_KEYS = [
   "fit_score_swim_fitness",
   "fit_scores_calculated_at",
   "gender",
+  "guardian_consent_at",
   "hair_color",
   "hair_length",
   "hair_type",
@@ -119,6 +130,7 @@ const TALENT_PROFILE_API_KEYS = [
   "onboarding_completed_at",
   "onboarding_stage",
   "onboarding_state_json",
+  "onlyfans_url",
   "partner_agency_id",
   "passport_ready",
   "pdf_customizations",
@@ -165,6 +177,7 @@ const TALENT_PROFILE_API_KEYS = [
   "weight_lbs",
   "weight_unit",
   "work_eligibility",
+  "work_permit_on_file",
   "work_status",
   "youtube_handle",
   "youtube_url",
@@ -180,6 +193,97 @@ function pickTalentProfileForApi(row) {
     }
   }
   return out;
+}
+
+function parseJsonArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value !== "string") return [];
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return trimmed
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+}
+
+async function loadProfileBookingLanePayload(profileId, legacyModelingCategories) {
+  if (!profileId) {
+    return {
+      booking_primary_lane: null,
+      booking_secondary_lanes: [],
+      booking_lanes: [],
+    };
+  }
+
+  const hasJoinTable = await knex.schema.hasTable("profile_booking_lanes");
+  if (!hasJoinTable) {
+    const legacyLanes = normalizeBookingLaneList(
+      parseJsonArray(legacyModelingCategories),
+    );
+    return {
+      booking_primary_lane: legacyLanes[0] || null,
+      booking_secondary_lanes: legacyLanes.slice(1, 4),
+      booking_lanes: legacyLanes.map((laneSlug, index) => ({
+        lane_slug: laneSlug,
+        priority: index + 1,
+        source: "legacy_modeling_categories",
+        confidence: null,
+      })),
+    };
+  }
+
+  const rows = await knex("profile_booking_lanes")
+    .where({ profile_id: profileId })
+    .orderBy("priority", "asc")
+    .orderBy("lane_slug", "asc")
+    .select("lane_slug", "priority", "source", "confidence");
+
+  const normalizedRows = rows
+    .map((row) => ({
+      ...row,
+      lane_slug: normalizeBookingLaneSlug(row.lane_slug),
+    }))
+    .filter((row) => row.lane_slug);
+
+  const laneSlugs = normalizedRows.map((row) => row.lane_slug);
+  return {
+    booking_primary_lane: laneSlugs[0] || null,
+    booking_secondary_lanes: laneSlugs.slice(1, 4),
+    booking_lanes: normalizedRows,
+  };
+}
+
+async function syncProfileBookingLanes(profileId, primaryLane, secondaryLanes) {
+  const primary = normalizeBookingLaneSlug(primaryLane);
+  const secondary = normalizeBookingLaneList(secondaryLanes).filter(
+    (laneSlug) => laneSlug !== primary,
+  );
+  const lanes = [primary, ...secondary].filter(Boolean).slice(0, 4);
+  const hasJoinTable = await knex.schema.hasTable("profile_booking_lanes");
+  if (!hasJoinTable) return lanes;
+
+  await knex.transaction(async (trx) => {
+    await trx("profile_booking_lanes").where({ profile_id: profileId }).del();
+    if (!lanes.length) return;
+
+    await trx("profile_booking_lanes").insert(
+      lanes.map((laneSlug, index) => ({
+        profile_id: profileId,
+        lane_slug: laneSlug,
+        priority: index + 1,
+        source: "talent_selected",
+        updated_at: trx.fn.now(),
+      })),
+    );
+  });
+
+  return lanes;
 }
 
 function formatProfileDateOfBirthForApi(profilePayload) {
@@ -246,12 +350,18 @@ function normalizeOptionalIso(raw) {
 
 function mapProfileImagesForApi(rows) {
   if (!Array.isArray(rows)) return [];
-  return rows.map((img) => ({
-    ...img,
-    metadata: normalizeImageMetadataForApi(img.metadata),
-    captured_at: normalizeOptionalIso(img.captured_at),
-    retouched_at: normalizeOptionalIso(img.retouched_at),
-  }));
+  return rows.map((img) => {
+    const metadata = normalizeImageMetadataForApi(img.metadata);
+    const band = metadata?.ai?.classification?.band;
+    const classification_status = band === "pending" ? "pending" : "ready";
+    return {
+      ...img,
+      metadata,
+      classification_status,
+      captured_at: normalizeOptionalIso(img.captured_at),
+      retouched_at: normalizeOptionalIso(img.retouched_at),
+    };
+  });
 }
 
 function resolveMeasurementCm(data, cmKey, aliasKey) {
@@ -369,8 +479,13 @@ router.get(
 
     const publicProfile = pickTalentProfileForApi(profile);
     formatProfileDateOfBirthForApi(publicProfile);
+    const bookingLanePayload = await loadProfileBookingLanePayload(
+      profile.id,
+      profile.modeling_categories,
+    );
     response.profile = {
       ...publicProfile,
+      ...bookingLanePayload,
       email: user.email,
       hero_image_path: derivedHeroPath,
       photo_url_primary: derivedPublicUrl,
@@ -542,6 +657,7 @@ router.put(
       updateData.training = data.training_summary;
     if (data.training !== undefined) updateData.training = data.training;
     mapField("portfolio_url");
+    mapField("onlyfans_url");
     mapField("reference_name");
     mapField("reference_email");
     mapField("reference_phone");
@@ -565,6 +681,46 @@ router.put(
       updateData.drivers_license = data.drivers_license;
     if (data.passport_ready !== undefined)
       updateData.passport_ready = data.passport_ready;
+
+    if (data.guardian_consent_recorded !== undefined) {
+      if (data.guardian_consent_recorded) {
+        if (!profile.guardian_consent_at) {
+          updateData.guardian_consent_at = new Date().toISOString();
+        }
+      } else {
+        updateData.guardian_consent_at = null;
+        updateData.is_public = false;
+      }
+    }
+    if (data.work_permit_on_file !== undefined) {
+      updateData.work_permit_on_file = !!data.work_permit_on_file;
+    }
+
+    const mergedForPolicy = { ...profile, ...updateData };
+    const sensitiveAttempted = listSensitiveProfileUpdateFields(data).filter(
+      (key) =>
+        data[key] !== undefined &&
+        data[key] !== null &&
+        data[key] !== "",
+    );
+    if (
+      sensitiveAttempted.length > 0 &&
+      !canCollectSensitiveProfileFields(mergedForPolicy)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Date of birth and guardian consent are required before measurements or weight can be saved.",
+        code: "MINOR_CONSENT_REQUIRED",
+      });
+    }
+
+    if (
+      isMinorProfile(mergedForPolicy) &&
+      !minorPublicExposureAllowed(mergedForPolicy)
+    ) {
+      updateData.is_public = false;
+    }
 
     // JSON fields - Knex handles stringifying for most drivers, but Postgres prefers objects
     // However, the error "invalid input syntax for type json" often occurs when a stringly-nested object is sent.
@@ -712,6 +868,31 @@ router.put(
       }
     }
 
+    const shouldSyncBookingLanes =
+      data.booking_primary_lane !== undefined ||
+      data.booking_secondary_lanes !== undefined;
+    let syncedBookingLanes = null;
+    if (shouldSyncBookingLanes) {
+      const currentLanePayload = await loadProfileBookingLanePayload(
+        profile.id,
+        profile.modeling_categories,
+      );
+      syncedBookingLanes = await syncProfileBookingLanes(
+        profile.id,
+        data.booking_primary_lane !== undefined
+          ? data.booking_primary_lane
+          : currentLanePayload.booking_primary_lane,
+        data.booking_secondary_lanes !== undefined
+          ? data.booking_secondary_lanes
+          : currentLanePayload.booking_secondary_lanes,
+      );
+
+      // Legacy compatibility until all consumers are moved off modeling_categories.
+      updateData.modeling_categories = syncedBookingLanes.length
+        ? formatJson(syncedBookingLanes)
+        : null;
+    }
+
     // Perform Update only when actual profile fields changed.
     const hasProfileFieldChanges = Object.keys(updateData).some(
       (key) => key !== "updated_at",
@@ -773,15 +954,6 @@ router.put(
       .where({ id: profile.id })
       .first();
 
-    // Recompute and persist profile_status after every save
-    const newStatus = computeProfileStatus(updatedProfile);
-    if (newStatus !== updatedProfile.profile_status) {
-      await knex("profiles")
-        .where({ id: profile.id })
-        .update({ profile_status: newStatus });
-      updatedProfile.profile_status = newStatus;
-    }
-
     // Update full-profile + discover_index embeddings (best-effort, Postgres-only)
     try {
       const profileText = buildProfileText(updatedProfile);
@@ -833,11 +1005,23 @@ router.put(
       images,
     );
 
+    const newStatus = computeProfileStatus(profileForCompleteness, images);
+    if (newStatus !== updatedProfile.profile_status) {
+      await knex("profiles")
+        .where({ id: profile.id })
+        .update({ profile_status: newStatus });
+      updatedProfile.profile_status = newStatus;
+    }
+
     await notifyIfSubmissionReadinessLost(profile.id, wasSubmissionReady);
 
     const responseProfile = pickTalentProfileForApi(updatedProfile);
     formatProfileDateOfBirthForApi(responseProfile);
     parseProfileImageAnalysisForApi(responseProfile);
+    const responseBookingLanePayload = await loadProfileBookingLanePayload(
+      updatedProfile.id,
+      updatedProfile.modeling_categories,
+    );
 
     const primaryImage = images.find((img) => img.is_primary) || images[0];
     const derivedHeroPath = primaryImage ? primaryImage.path : null;
@@ -848,6 +1032,7 @@ router.put(
     return apiResponse.success(res, {
       profile: {
         ...responseProfile,
+        ...responseBookingLanePayload,
         email: user.email,
         hero_image_path: derivedHeroPath,
         photo_url_primary: derivedPublicUrl,

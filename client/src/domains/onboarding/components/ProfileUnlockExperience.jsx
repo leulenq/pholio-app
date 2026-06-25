@@ -122,8 +122,13 @@ export default function ProfileUnlockExperience({
 
   // Navigate to applications when the silent transition phase fires
   useEffect(() => {
-    if (phase === 'nav') navigate('/dashboard/talent/applications');
-  }, [phase, navigate]);
+    if (phase !== 'nav') return;
+    if (isTargeted && targetAgency?.id) {
+      navigate(`/dashboard/talent/applications/apply?agency=${encodeURIComponent(targetAgency.id)}`);
+      return;
+    }
+    navigate('/dashboard/talent/applications');
+  }, [phase, navigate, isTargeted, targetAgency?.id]);
 
   // Auto-close after done
   useEffect(() => {

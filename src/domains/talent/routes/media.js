@@ -20,6 +20,60 @@ const {
   parseImageRightsPatchFromBody,
   imageRightsRowToApi,
 } = require("../../../shared/lib/validation");
+const { runImageClassification } = require("../services/run-image-classification");
+const { enqueuePitsJob } = require("../services/pits-queue");
+const {
+  logClassificationFeedback,
+} = require("../services/image-classification-policy");
+const {
+  isMinorProfile,
+  minorSensitiveFieldsUnlocked,
+} = require("../../../shared/lib/talent-age");
+
+const SENSITIVE_SHOT_TYPES = new Set(["full_length", "full_body"]);
+
+function minorBlocksSensitiveImage(profile, patch = {}) {
+  if (!profile || !isMinorProfile(profile) || minorSensitiveFieldsUnlocked(profile)) {
+    return null;
+  }
+  const shot = patch.shot_type;
+  if (shot && SENSITIVE_SHOT_TYPES.has(String(shot).toLowerCase())) {
+    return "Guardian consent is required before tagging full-length imagery.";
+  }
+  const role = patch.role;
+  if (role === "full_body") {
+    return "Guardian consent is required before tagging full-length imagery.";
+  }
+  return null;
+}
+
+function respondMinorImageBlock(res, message) {
+  return res.status(403).json({
+    success: false,
+    message,
+    code: "MINOR_CONSENT_REQUIRED",
+  });
+}
+
+/** Normalize processImage() return (camelCase) for DB columns (snake_case). */
+function fieldsFromProcessed(processed) {
+  if (!processed || typeof processed !== "object") {
+    return {
+      path: null,
+      public_url: null,
+      storage_key: null,
+      absolute_path: null,
+      imageIntel: null,
+    };
+  }
+  return {
+    path: processed.path || processed.publicUrl || null,
+    public_url: processed.publicUrl || processed.public_url || null,
+    storage_key: processed.storageKey || processed.storage_key || null,
+    absolute_path: processed.absolutePath || processed.absolute_path || null,
+    imageIntel: processed.imageIntel || processed.image_intel || null,
+  };
+}
 
 const IMAGE_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -152,6 +206,13 @@ function sanitizeIncomingMetadataPatch(metadata) {
     };
   }
 
+  if (Object.hasOwn(metadata, "ai")) {
+    const ai = metadata.ai;
+    if (ai && typeof ai === "object" && !Array.isArray(ai)) {
+      out.ai = ai;
+    }
+  }
+
   return out;
 }
 
@@ -244,7 +305,51 @@ function structuredFieldsFromImageRow(image) {
   };
 }
 
+function classificationStatusFromMetadata(metadata) {
+  const m =
+    metadata && typeof metadata === "object"
+      ? metadata
+      : parseImageMetadataFromDb(metadata);
+  const band = m?.ai?.classification?.band;
+  if (band === "pending") return "pending";
+  return "ready";
+}
+
+function buildInitialUploadMetadata(imageIntel) {
+  const base =
+    imageIntel && typeof imageIntel === "object" ? { ...imageIntel } : {};
+  return {
+    ...base,
+    ai: {
+      classification: {
+        band: "pending",
+        source: "pending",
+        confirmed: false,
+      },
+    },
+  };
+}
+
+function mergeMetadataWithAi(currentMetadata, sanitizedIncoming) {
+  const merged = { ...currentMetadata, ...sanitizedIncoming };
+  if (sanitizedIncoming.ai && typeof sanitizedIncoming.ai === "object") {
+    merged.ai = {
+      ...(currentMetadata.ai || {}),
+      ...sanitizedIncoming.ai,
+      classification: {
+        ...(currentMetadata.ai?.classification || {}),
+        ...(sanitizedIncoming.ai.classification || {}),
+      },
+    };
+  }
+  return merged;
+}
+
 function toPublicImagePayload(image, metadataOverride) {
+  const metadata =
+    metadataOverride !== undefined
+      ? metadataOverride
+      : parseImageMetadataFromDb(image.metadata);
   return {
     id: image.id,
     profile_id: image.profile_id,
@@ -256,10 +361,8 @@ function toPublicImagePayload(image, metadataOverride) {
     created_at: image.created_at,
     updated_at: image.updated_at,
     has_original: !!(image.original_path || image.original_public_url),
-    metadata:
-      metadataOverride !== undefined
-        ? metadataOverride
-        : parseImageMetadataFromDb(image.metadata),
+    metadata,
+    classification_status: classificationStatusFromMetadata(metadata),
     ...structuredFieldsFromImageRow(image),
   };
 }
@@ -587,7 +690,17 @@ router.post(
       }
     }
 
+    const uploadBlock = minorBlocksSensitiveImage(profile, structuredInsert);
+    if (uploadBlock) {
+      return respondMinorImageBlock(res, uploadBlock);
+    }
+    const hasCapturedAtColumn = await knex.schema.hasColumn(
+      "images",
+      "captured_at",
+    );
+
     const uploadedImages = [];
+    const uploadedImageIds = [];
     const failedFiles = [];
     let heroSet = false;
     const processedArtifacts = [];
@@ -602,27 +715,26 @@ router.post(
         for (const file of req.files) {
           try {
             const processed = await processImage(file, profile.id);
+            const stored = fieldsFromProcessed(processed);
             processedArtifacts.push({
-              storage_key: processed.storage_key,
-              absolute_path: processed.absolute_path,
+              storage_key: stored.storage_key,
+              absolute_path: stored.absolute_path,
             });
             const imageId = uuidv4();
             const sort = nextSort++;
+            const initialMetadata = buildInitialUploadMetadata(stored.imageIntel);
 
             await trx("images").insert({
               id: imageId,
               profile_id: profile.id,
-              path: processed.path,
-              public_url: processed.public_url,
-              storage_key: processed.storage_key,
-              absolute_path: processed.absolute_path,
+              path: stored.path,
+              public_url: stored.public_url,
+              storage_key: stored.storage_key,
+              absolute_path: stored.absolute_path,
               label: "Portfolio image",
               sort: sort,
-              // Upload-time measurements (dimensions + forensics) keep the
-              // comp card render path free of pixel fetches.
-              ...(processed.imageIntel
-                ? { metadata: JSON.stringify(processed.imageIntel) }
-                : {}),
+              metadata: JSON.stringify(initialMetadata),
+              ...(hasCapturedAtColumn ? { captured_at: trx.fn.now() } : {}),
               ...structuredInsert,
             });
 
@@ -643,18 +755,20 @@ router.post(
 
             uploadedImages.push({
               id: imageId,
-              path: processed.path,
-              public_url: processed.public_url,
+              path: stored.path,
+              public_url: stored.public_url,
               is_primary: becamePrimary,
-              metadata: {},
+              metadata: initialMetadata,
               label: "Portfolio image",
               sort: sort,
               profile_id: profile.id,
               created_at: new Date().toISOString(),
+              classification_status: "pending",
               ...structuredFieldsFromImageRow({
                 ...structuredInsert,
               }),
             });
+            uploadedImageIds.push(imageId);
           } catch (fileError) {
             const err = new Error("Failed to process image");
             err.fileName = file.originalname || "Unknown file";
@@ -715,6 +829,13 @@ router.post(
         imageCount: uploadedImages.length,
         totalImages: totalImages,
       });
+
+      for (const imageId of uploadedImageIds) {
+        enqueuePitsJob(profile.id, () => runImageClassification(knex, imageId))
+          .catch((err) =>
+            console.warn("[PITS] classification failed:", imageId, err.message),
+          );
+      }
 
       return res.json({
         success: true,
@@ -922,7 +1043,13 @@ router.put(
     const userId = req.session.userId;
 
     const image = await knex("images")
-      .select("images.*")
+      .select(
+        "images.*",
+        "profiles.date_of_birth",
+        "profiles.dob",
+        "profiles.guardian_consent_at",
+        "profiles.work_permit_on_file",
+      )
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
       .where("profiles.user_id", userId)
@@ -941,7 +1068,7 @@ router.put(
     if (req.body.metadata !== undefined) {
       const incoming = normalizeIncomingMetadataPatch(req.body);
       const sanitizedIncoming = sanitizeIncomingMetadataPatch(incoming);
-      updatedMetadata = { ...currentMetadata, ...sanitizedIncoming };
+      updatedMetadata = mergeMetadataWithAi(currentMetadata, sanitizedIncoming);
       const metadataSizeBytes = Buffer.byteLength(
         JSON.stringify(updatedMetadata),
         "utf8",
@@ -961,6 +1088,10 @@ router.put(
         success: false,
         message: structuredParsed.error,
       });
+    }
+    const patchBlock = minorBlocksSensitiveImage(image, structuredParsed.values);
+    if (patchBlock) {
+      return respondMinorImageBlock(res, patchBlock);
     }
     if (structuredParsed.values.set_id) {
       const setRow = await knex("image_sets")
@@ -985,14 +1116,28 @@ router.put(
       });
     }
 
+    if (typeof patch.metadata === "object") {
+      patch.metadata = JSON.stringify(patch.metadata);
+    }
+
     await knex("images").where({ id: imageId }).update(patch);
 
     const fresh = await knex("images").where({ id: imageId }).first();
 
+    await logClassificationFeedback(knex, {
+      imageId,
+      profileId: image.profile_id,
+      beforeMeta: currentMetadata,
+      afterRow: fresh,
+    }).catch(() => {});
+
     return res.json({
       success: true,
       message: "Image details updated",
-      image: toPublicImagePayload(fresh, updatedMetadata),
+      image: toPublicImagePayload(
+        fresh,
+        parseImageMetadataFromDb(fresh.metadata),
+      ),
     });
   }),
 );
@@ -1181,7 +1326,14 @@ router.patch(
     }
 
     const image = await knex("images")
-      .select("images.*", "profiles.user_id")
+      .select(
+        "images.*",
+        "profiles.user_id",
+        "profiles.date_of_birth",
+        "profiles.dob",
+        "profiles.guardian_consent_at",
+        "profiles.work_permit_on_file",
+      )
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
       .where("profiles.user_id", userId)
@@ -1191,6 +1343,11 @@ router.patch(
       return res
         .status(404)
         .json({ success: false, message: "Image not found" });
+
+    const roleBlock = minorBlocksSensitiveImage(image, { role });
+    if (roleBlock) {
+      return respondMinorImageBlock(res, roleBlock);
+    }
 
     const isPostgres =
       knex.client.config.client === "pg" ||
@@ -1277,13 +1434,33 @@ router.post(
     // Only intermediate edits are deleted; the very first original is always preserved.
     let intermediateToDelete = null;
 
+    const stored = fieldsFromProcessed(processed);
+
     await knex.transaction(async (trx) => {
-      const updatePatch = {
-        path: processed.path,
-        public_url: processed.public_url,
-        storage_key: processed.storage_key,
-        absolute_path: processed.absolute_path,
+      const currentMeta = parseImageMetadataFromDb(image.metadata);
+      const userLocked = currentMeta?.ai?.classification?.source === "user";
+      const initialMetadata = buildInitialUploadMetadata(stored.imageIntel);
+      const mergedMeta = {
+        ...currentMeta,
+        width: initialMetadata.width ?? currentMeta.width,
+        height: initialMetadata.height ?? currentMeta.height,
+        forensics: initialMetadata.forensics ?? currentMeta.forensics,
+        ai: initialMetadata.ai,
       };
+
+      const updatePatch = {
+        path: stored.path,
+        public_url: stored.public_url,
+        storage_key: stored.storage_key,
+        absolute_path: stored.absolute_path,
+        metadata: JSON.stringify(mergedMeta),
+      };
+
+      if (!userLocked) {
+        updatePatch.shot_type = null;
+        updatePatch.style_type = null;
+        updatePatch.image_type = null;
+      }
 
       if (!image.original_path) {
         // First replacement: save the original file references — do NOT delete them.
@@ -1321,6 +1498,16 @@ router.post(
     }
 
     const fresh = await knex("images").where({ id: imageId }).first();
+
+    enqueuePitsJob(image.profile_id, () => runImageClassification(knex, imageId))
+      .catch((err) =>
+        console.warn(
+          "[PITS] replace classification failed:",
+          imageId,
+          err.message,
+        ),
+      );
+
     return res.json({
       success: true,
       message: "Image replaced",

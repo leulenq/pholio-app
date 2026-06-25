@@ -7,6 +7,9 @@ const logActivity = require("./agency-log-activity");
 const {
   notifyAgencyInterviewScheduled,
 } = require("../../../shared/services/agency-notifications");
+const {
+  notifyTalentForInterview,
+} = require("../../../shared/services/notify-talent-interview");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
@@ -104,6 +107,15 @@ router.post(
       const interview = await knex("interviews")
         .where({ id: interviewId })
         .first();
+
+      // Tell the talent — previously they had no signal an interview existed.
+      notifyTalentForInterview({
+        interview,
+        agencyId,
+        variant: "scheduled",
+      }).catch((err) =>
+        console.error("[Interviews] Talent notification failed:", err),
+      );
 
       return res.json({
         success: true,
@@ -270,6 +282,20 @@ router.patch(
         .where({ id: interviewId })
         .first();
 
+      // Notify the talent when the time moved or the interview was cancelled.
+      let talentVariant = null;
+      if (proposed_datetime !== undefined) talentVariant = "rescheduled";
+      else if (status === "cancelled") talentVariant = "cancelled";
+      if (talentVariant) {
+        notifyTalentForInterview({
+          interview: updated,
+          agencyId,
+          variant: talentVariant,
+        }).catch((err) =>
+          console.error("[Interviews] Talent notification failed:", err),
+        );
+      }
+
       return res.json({
         success: true,
         data: updated,
@@ -305,6 +331,15 @@ router.delete(
         status: "cancelled",
         updated_at: knex.fn.now(),
       });
+
+      // Notify the talent the interview is off.
+      notifyTalentForInterview({
+        interview,
+        agencyId,
+        variant: "cancelled",
+      }).catch((err) =>
+        console.error("[Interviews] Talent notification failed:", err),
+      );
 
       // Log activity
       await logActivity(

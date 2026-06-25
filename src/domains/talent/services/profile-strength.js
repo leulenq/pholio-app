@@ -1,27 +1,74 @@
 /**
- * Calculates profile strength based on unified Pholio Canonical Model.
+ * Agency-aligned profile readiness scoring (Pholio canonical model).
  *
- * Total Weighting (100%):
- * A. Required (60%) - Core fields that gate platform access.
- * B. Improve (40%) - Depth fields that enhance the profile.
+ * Required (60 pts) — minimum credible agency submission package:
+ *   Identity, full stats block (height + B/W/H), headshot + full-body digitals.
+ *
+ * Improve (40 pts) — depth agencies scan for when shortlisting:
+ *   Look details, bio, social proof, professional context, contact.
  */
+
+const { analyzeBookReadiness, analyzeDigitalsReadiness } = require("./profile-readiness-images");
+const {
+  hasGuardianConsent,
+  hasWorkPermitOnFile,
+  isMinorProfile,
+  minorSensitiveFieldsUnlocked,
+} = require("../../../shared/lib/talent-age");
+
+const REQUIRED_POINTS = 60;
+const IMPROVE_POINTS = 40;
+
 const calculateProfileStrength = (data) => {
-  if (!data)
+  const emptyCompletion = {
+    name: false,
+    city: false,
+    dob: false,
+    gender: false,
+    height: false,
+    measurements: false,
+    photo_headshot: false,
+    photo_full_body: false,
+    photo_profile: false,
+    photo_smile: false,
+    photo_back: false,
+    photo_editorial: false,
+    photo_lifestyle: false,
+    bio: false,
+    look: false,
+    shoe: false,
+    weight: false,
+    skin: false,
+    status: false,
+    exp: false,
+    training: false,
+    social: false,
+    contact: false,
+    guardian_consent: false,
+    work_permit: false,
+  };
+
+  if (!data) {
     return {
       score: 0,
+      requiredScore: 0,
+      improveScore: 0,
+      isRequiredComplete: false,
       isCoreReady: false,
       missingCoreItems: [],
       nextSteps: [],
+      allNextSteps: [],
+      fieldCompletion: emptyCompletion,
     };
+  }
 
   let requiredScore = 0;
   let improveScore = 0;
-  const missingFields = []; // { label, impact: 'Critical' | 'High' | 'Medium', link, points, tier: 'Required' | 'Improve' }
+  const missingFields = [];
 
-  // Treat whitespace-only strings as absent; booleans (including false) count as present.
   const isPresent = (val) => {
     if (val === null || val === undefined || val === "") return false;
-    if (typeof val === "string" && val.trim() === "") return false;
+    if (typeof val === "string") return val.trim() !== "";
     return true;
   };
 
@@ -36,249 +83,320 @@ const calculateProfileStrength = (data) => {
         return JSON.parse(val);
       }
       return val;
-    } catch (e) {
+    } catch {
       return [];
     }
   };
 
-  // --- A. REQUIRED FIELDS (60 Points) ---
-  // Aligned with backend/essentials-check.js + Onboarding Steps
+  const pushMissing = (entry) => {
+    missingFields.push(entry);
+  };
 
-  // 1. Identity (20 pts)
+  // --- REQUIRED (60) ---
+
   const hasName = isPresent(data.first_name) && isPresent(data.last_name);
   const hasCity =
     isPresent(data.city) && String(data.city).trim() !== "Not specified";
   const hasDOB = isPresent(data.date_of_birth) || isPresent(data.dob);
   const hasGender = isPresent(data.gender);
+  const minor = isMinorProfile(data);
+  const unlocked = minorSensitiveFieldsUnlocked(data);
+  const sensitiveRequired = !minor || unlocked;
 
   if (hasName) requiredScore += 8;
   else
-    missingFields.push({
+    pushMissing({
+      key: "name",
       label: "Legal Name",
+      why: "Agencies file submissions under your legal name for contracts and casting.",
       impact: "Critical",
-      link: "/dashboard/talent/profile?tab=details",
+      link: "/dashboard/talent/profile?tab=identity",
       points: 8,
       tier: "Required",
     });
 
   if (hasCity) requiredScore += 4;
   else
-    missingFields.push({
+    pushMissing({
+      key: "city",
       label: "Home City",
+      why: "Bookers match you to local castings and travel radius first.",
       impact: "Critical",
-      link: "/dashboard/talent/profile?tab=details",
+      link: "/dashboard/talent/profile?tab=identity",
       points: 4,
       tier: "Required",
     });
 
   if (hasDOB) requiredScore += 4;
   else
-    missingFields.push({
+    pushMissing({
+      key: "dob",
       label: "Birth Date",
+      why: "Age range is a primary filter — agencies need this before reviewing your book.",
       impact: "Critical",
-      link: "/dashboard/talent/profile?tab=details",
+      link: "/dashboard/talent/profile?tab=identity",
       points: 4,
       tier: "Required",
     });
 
   if (hasGender) requiredScore += 4;
   else
-    missingFields.push({
+    pushMissing({
+      key: "gender",
       label: "Gender",
+      why: "Board fit and category routing depend on accurate gender presentation.",
       impact: "Critical",
-      link: "/dashboard/talent/profile?tab=details",
+      link: "/dashboard/talent/profile?tab=identity",
       points: 4,
       tier: "Required",
     });
 
-  // 2. Physicals (25 pts)
-  const hasHeight = isPresent(data.height_cm) && data.height_cm > 0;
+  const hasHeight = isPresent(data.height_cm) && Number(data.height_cm) > 0;
   const hasMeasurements =
     (isPresent(data.bust) ||
       isPresent(data.bust_cm) ||
-      isPresent(data.chest)) &&
+      isPresent(data.chest) ||
+      isPresent(data.chest_cm)) &&
     (isPresent(data.waist) || isPresent(data.waist_cm)) &&
     (isPresent(data.hips) || isPresent(data.hips_cm));
 
-  if (hasHeight) requiredScore += 10;
+  if (hasHeight) requiredScore += 8;
   else
-    missingFields.push({
+    pushMissing({
+      key: "height",
       label: "Height",
+      why: "Height is the first stat agents scan on every submission.",
       impact: "Critical",
-      link: "/dashboard/talent/profile?tab=physical",
-      points: 10,
+      link: "/dashboard/talent/profile?tab=appearance",
+      points: 8,
       tier: "Required",
     });
 
-  if (hasMeasurements) requiredScore += 15;
-  else
-    missingFields.push({
-      label: "Measurements (Bust/Waist/Hips)",
-      impact: "Critical",
-      link: "/dashboard/talent/profile?tab=physical",
-      points: 15,
-      tier: "Required",
-    });
+  if (sensitiveRequired) {
+    if (hasMeasurements) requiredScore += 12;
+    else
+      pushMissing({
+        key: "measurements",
+        label: "Measurements (Bust/Waist/Hips)",
+        why: "Bust, waist, and hips let agencies assess fit without a fitting.",
+        impact: "Critical",
+        link: "/dashboard/talent/profile?tab=appearance",
+        points: 12,
+        tier: "Required",
+      });
+  }
 
-  // 3. Imagery (15 pts) — align with GET /api/talent/profile: hero falls back to first gallery image
-  const hasGalleryImage = Array.isArray(data.images) && data.images.length > 0;
+  if (minor) {
+    if (hasGuardianConsent(data)) requiredScore += 8;
+    else
+      pushMissing({
+        key: "guardian_consent",
+        label: "Guardian Consent",
+        why: "A parent or guardian must consent before we collect measurements or full-length imagery.",
+        impact: "Critical",
+        link: "/dashboard/talent/profile?tab=identity",
+        points: 8,
+        tier: "Required",
+      });
+
+    if (hasWorkPermitOnFile(data)) requiredScore += 4;
+    else
+      pushMissing({
+        key: "work_permit",
+        label: "Work Permit on File",
+        why: "Minors need a current work permit on record before booking in most markets.",
+        impact: "Critical",
+        link: "/dashboard/talent/profile?tab=identity",
+        points: 4,
+        tier: "Required",
+      });
+  }
+
+  const book = analyzeBookReadiness(data.images);
+  const digitals = analyzeDigitalsReadiness(data.images);
   const hasHeadshot =
+    book.hasHeadshot ||
     isPresent(data.primary_photo_id) ||
-    (data.images &&
-      data.images.some((img) => img.is_primary || img.isPrimary)) ||
-    isPresent(data.hero_image_path) ||
-    hasGalleryImage;
-  if (hasHeadshot) requiredScore += 15;
+    isPresent(data.hero_image_path);
+  const hasFullBody = book.hasFullBody;
+
+  if (hasHeadshot) requiredScore += 8;
   else
-    missingFields.push({
-      label: "Primary Photo",
+    pushMissing({
+      key: "photo_headshot",
+      label: "Headshot",
+      why: "A clean, natural headshot is the first image on every agency digitals set.",
       impact: "Critical",
-      link: "/dashboard/talent/profile?tab=photos",
-      points: 15,
+      link: "/dashboard/talent/media",
+      points: 8,
       tier: "Required",
     });
 
-  // --- B. IMPROVE FIELDS (40 Points) ---
+  if (sensitiveRequired) {
+    if (hasFullBody) requiredScore += 12;
+    else
+      pushMissing({
+        key: "photo_full_body",
+        label: "Full-Body Photo",
+        why: "Agents need a head-to-toe frame to verify proportions and stance.",
+        impact: "Critical",
+        link: "/dashboard/talent/media",
+        points: 12,
+        tier: "Required",
+      });
+  }
 
-  // 1. Profile Depth (10 pts)
+  // --- IMPROVE (40) ---
+
   const bioSource = data.bio ?? data.bio_raw ?? "";
-  const bioLength = String(bioSource).trim().length;
-  const hasBio = bioLength > 50;
-  const hasPronouns = isPresent(data.pronouns);
-  if (hasBio) improveScore += 7;
+  const hasBio = String(bioSource).trim().length > 50;
+  if (hasBio) improveScore += 6;
   else
-    missingFields.push({
+    pushMissing({
+      key: "bio",
       label: "Professional Bio",
+      why: "A short bio gives context beyond stats — training, market, and personality.",
       impact: "Medium",
-      link: "/dashboard/talent/profile?tab=details",
-      points: 7,
-      tier: "Improve",
-    });
-  if (hasPronouns) improveScore += 3;
-  else
-    missingFields.push({
-      label: "Pronouns",
-      impact: "Low",
-      link: "/dashboard/talent/profile?tab=details",
-      points: 3,
+      link: "/dashboard/talent/profile?tab=identity",
+      points: 6,
       tier: "Improve",
     });
 
-  // 2. Physical Depth (10 pts)
-  const hasWeight = isPresent(data.weight_kg) && data.weight_kg > 0;
-  const hasBasicLook = isPresent(data.eye_color) && isPresent(data.hair_color);
+  const hasLook = isPresent(data.eye_color) && isPresent(data.hair_color);
+  if (hasLook) improveScore += 5;
+  else
+    pushMissing({
+      key: "look",
+      label: "Eye & Hair Color",
+      why: "Hair and eye color belong on every comp-card stats block.",
+      impact: "Medium",
+      link: "/dashboard/talent/profile?tab=appearance",
+      points: 5,
+      tier: "Improve",
+    });
+
   const hasShoe = isPresent(data.shoe_size);
+  if (hasShoe) improveScore += 4;
+  else
+    pushMissing({
+      key: "shoe",
+      label: "Shoe Size",
+      why: "Footwear sizing is standard on agency stats sheets and castings.",
+      impact: "Low",
+      link: "/dashboard/talent/profile?tab=appearance",
+      points: 4,
+      tier: "Improve",
+    });
+
+  const hasWeight = isPresent(data.weight_kg) && Number(data.weight_kg) > 0;
+  if (sensitiveRequired) {
+    if (hasWeight) improveScore += 2;
+    else
+      pushMissing({
+        key: "weight",
+        label: "Weight",
+        why: "Some markets list weight alongside measurements for fit checks.",
+        impact: "Low",
+        link: "/dashboard/talent/profile?tab=appearance",
+        points: 2,
+        tier: "Improve",
+      });
+  }
+
   const hasPhysicalDetails =
     isPresent(data.skin_tone) ||
     data.tattoos === true ||
     data.piercings === true;
-
-  if (hasWeight) improveScore += 2;
-  else
-    missingFields.push({
-      label: "Weight",
-      impact: "Low",
-      link: "/dashboard/talent/profile?tab=physical",
-      points: 2,
-      tier: "Improve",
-    });
-  if (hasBasicLook) improveScore += 3;
-  else
-    missingFields.push({
-      label: "Eye & Hair Color",
-      impact: "Low",
-      link: "/dashboard/talent/profile?tab=physical",
-      points: 3,
-      tier: "Improve",
-    });
-  if (hasShoe) improveScore += 2;
-  else
-    missingFields.push({
-      label: "Shoe Size",
-      impact: "Low",
-      link: "/dashboard/talent/profile?tab=physical",
-      points: 2,
-      tier: "Improve",
-    });
   if (hasPhysicalDetails) improveScore += 3;
   else
-    missingFields.push({
-      label: "Skin Tone or Tattoos",
+    pushMissing({
+      key: "skin",
+      label: "Skin Tone & Markings",
+      why: "Visible tattoos, piercings, and skin tone prevent set-day surprises.",
       impact: "Medium",
-      link: "/dashboard/talent/profile?tab=physical",
+      link: "/dashboard/talent/profile?tab=appearance",
       points: 3,
       tier: "Improve",
     });
 
-  // 3. Professional Depth (10 pts)
   const hasStatus = isPresent(data.work_status);
+  if (hasStatus) improveScore += 4;
+  else
+    pushMissing({
+      key: "status",
+      label: "Work Status",
+      why: "Availability signals whether you can take bookings now.",
+      impact: "Medium",
+      link: "/dashboard/talent/profile?tab=roles",
+      points: 4,
+      tier: "Improve",
+    });
+
+  const hasExpLevel = isPresent(data.experience_level);
+  if (hasExpLevel) improveScore += 3;
+  else
+    pushMissing({
+      key: "exp",
+      label: "Experience Level",
+      why: "New faces and working talent are pitched differently to clients.",
+      impact: "Low",
+      link: "/dashboard/talent/profile?tab=credits",
+      points: 3,
+      tier: "Improve",
+    });
+
   const training = String(data.training || data.training_summary || "").trim();
   const skills = parseJSON(data.specialties);
   const languages = parseJSON(data.languages);
-  const hasExpLevel = isPresent(data.experience_level);
   const skillsList = Array.isArray(skills) ? skills : [];
   const languagesList = Array.isArray(languages) ? languages : [];
   const hasTrainingSkills =
     training.length > 30 || skillsList.length > 0 || languagesList.length > 0;
-
-  if (hasStatus) improveScore += 4;
-  else
-    missingFields.push({
-      label: "Work Status",
-      impact: "Medium",
-      link: "/dashboard/talent/profile?tab=details",
-      points: 4,
-      tier: "Improve",
-    });
-  if (hasExpLevel) improveScore += 2;
-  else
-    missingFields.push({
-      label: "Experience Level",
-      impact: "Low",
-      link: "/dashboard/talent/profile?tab=details",
-      points: 2,
-      tier: "Improve",
-    });
   if (hasTrainingSkills) improveScore += 4;
   else
-    missingFields.push({
-      label: "Training, Skills, or Languages",
+    pushMissing({
+      key: "training",
+      label: "Training & Specialties",
+      why: "Skills and languages show bookers what you can do once the brief fits.",
       impact: "Medium",
-      link: "/dashboard/talent/profile?tab=details",
+      link: "/dashboard/talent/profile?tab=training",
       points: 4,
       tier: "Improve",
     });
 
-  // 4. Social & Contact (10 pts)
   const hasSocial =
     isPresent(data.instagram_handle) || isPresent(data.portfolio_url);
-  const hasEmergency = isPresent(data.emergency_contact_name);
-
-  if (hasSocial) improveScore += 7;
+  if (hasSocial) improveScore += 6;
   else
-    missingFields.push({
-      label: "Social Links",
+    pushMissing({
+      key: "social",
+      label: "Social or Portfolio Link",
+      why: "Instagram and portfolio links are how scouts verify your current look.",
       impact: "Medium",
-      link: "/dashboard/talent/profile?tab=details",
-      points: 7,
+      link: "/dashboard/talent/profile?tab=socials",
+      points: 6,
       tier: "Improve",
     });
 
-  if (hasEmergency) improveScore += 3;
+  const hasContact = isPresent(data.email) && isPresent(data.phone);
+  if (hasContact) improveScore += 3;
   else
-    missingFields.push({
-      label: "Emergency Contact",
-      impact: "Low",
-      link: "/dashboard/talent/profile?tab=details",
+    pushMissing({
+      key: "contact",
+      label: "Email & Phone",
+      why: "Agencies need direct contact details to follow up on submissions.",
+      impact: "Medium",
+      link: "/dashboard/talent/settings",
       points: 3,
       tier: "Improve",
     });
 
-  // --- Calculation ---
-  const percentage = Math.min(Math.round(requiredScore + improveScore), 100);
-  const isRequiredComplete = requiredScore === 60;
+  const percentage = Math.min(
+    Math.round(requiredScore + improveScore),
+    REQUIRED_POINTS + IMPROVE_POINTS,
+  );
+  const isRequiredComplete = !missingFields.some((f) => f.tier === "Required");
 
-  // Sort missing fields: Required first, then by points DESC
   const sortedMissing = missingFields.sort((a, b) => {
     if (a.tier === "Required" && b.tier !== "Required") return -1;
     if (a.tier !== "Required" && b.tier === "Required") return 1;
@@ -286,70 +404,104 @@ const calculateProfileStrength = (data) => {
   });
 
   const nextSteps = sortedMissing.map((f) => ({
+    key: f.key,
     title: f.label,
     action: f.label,
+    why: f.why,
     link: f.link,
     impact: f.impact,
     tier: f.tier,
   }));
 
-  // If complete, suggest maintenance
   if (percentage === 100) {
     nextSteps.push({
-      title: "Maintenance",
-      action: "Update Measurements",
-      link: "/dashboard/talent/profile?tab=physical",
+      key: "maintenance",
+      title: "Keep digitals current",
+      action: "Refresh measurements and photos",
+      why: "Agencies expect stats and digitals updated every 8–12 weeks.",
+      link: "/dashboard/talent/profile?tab=appearance",
       impact: "Optional",
       tier: "Improve",
     });
   }
+
+  const fieldCompletion = {
+    name: hasName,
+    city: hasCity,
+    dob: hasDOB,
+    gender: hasGender,
+    height: hasHeight,
+    measurements: hasMeasurements,
+    photo_headshot: hasHeadshot,
+    photo_full_body: hasFullBody,
+    photo_profile: digitals.hasProfile,
+    photo_smile: digitals.hasSmile,
+    photo_back: digitals.hasBack,
+    photo_editorial: digitals.hasEditorial,
+    photo_lifestyle: digitals.hasLifestyle,
+    bio: hasBio,
+    look: hasLook,
+    shoe: hasShoe,
+    weight: hasWeight,
+    skin: hasPhysicalDetails,
+    status: hasStatus,
+    exp: hasExpLevel,
+    training: hasTrainingSkills,
+    social: hasSocial,
+    contact: hasContact,
+    guardian_consent: minor ? hasGuardianConsent(data) : false,
+    work_permit: minor ? hasWorkPermitOnFile(data) : false,
+  };
 
   return {
     score: percentage,
     requiredScore,
     improveScore,
     isRequiredComplete,
-    isCoreReady: isRequiredComplete, // Now strictly tied to all required fields
+    isCoreReady: isRequiredComplete,
     missingCoreItems: sortedMissing
       .filter((f) => f.tier === "Required")
       .map((f) => f.label),
     nextSteps: nextSteps.slice(0, 3),
     allNextSteps: nextSteps,
+    fieldCompletion,
+    bookReadiness: book,
+    digitalsReadiness: digitals,
   };
 };
 
 const getStrengthUI = (score, isRequiredComplete = false) => {
   if (!isRequiredComplete) {
     return {
-      label: "Action Needed",
-      color: "#ef4444",
-      message: "Complete missing required fields to unlock your profile",
+      label: "Build your package",
+      color: "#C0392B",
+      message: "Complete the essentials agencies expect on every submission.",
       status: "locked",
     };
   }
 
   if (score < 85) {
     return {
-      label: "Profile Ready",
+      label: "Submission ready",
       color: "#C9A55A",
-      message: "Required info set. Add depth to stand out.",
+      message: "Core package set. Add look details and socials to stand out.",
       status: "improvement",
     };
   }
 
   if (score < 100) {
     return {
-      label: "Strong Profile",
-      color: "#22c55e",
-      message: "Your profile is highly competitive",
+      label: "Strong package",
+      color: "#2D8A56",
+      message: "Your profile matches what bookers look for when shortlisting.",
       status: "improvement",
     };
   }
 
   return {
-    label: "Perfect Profile",
+    label: "Agency grade",
     color: "#C9A55A",
-    message: "100% complete",
+    message: "Complete and current — ready for agency review.",
     status: "perfect",
   };
 };
@@ -358,11 +510,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     calculateProfileStrength,
     getStrengthUI,
+    REQUIRED_POINTS,
+    IMPROVE_POINTS,
   };
-} else if (typeof exports !== "undefined") {
-  exports.calculateProfileStrength = calculateProfileStrength;
-  exports.getStrengthUI = getStrengthUI;
-} else if (typeof window !== "undefined") {
-  window.calculateProfileStrength = calculateProfileStrength;
-  window.getStrengthUI = getStrengthUI;
 }

@@ -20,9 +20,7 @@ export default function TalentDetailPanel({
   applicationId,
   profileId,
   context = 'inbox',
-  boardId,
   onClose,
-  mode = 'fixed',
 }) {
   const queryClient = useQueryClient();
 
@@ -183,6 +181,7 @@ export default function TalentDetailPanel({
 
   return (
     <TalentPanel
+      key={mappedTalent.id}
       talent={mappedTalent}
       context={mappedContext}
       onClose={onClose}

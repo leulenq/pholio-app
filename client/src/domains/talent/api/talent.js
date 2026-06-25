@@ -50,10 +50,20 @@ export const talentApi = {
 
   // Applications
   getApplications: () => apiClient.get('/applications'),
+  getApplicationActivity: (id) => apiClient.get(`/applications/${id}/activity`),
   getApplicationPromptContext: () => apiClient.get('/applications/prompt-context'),
   getAgencies: () => apiClient.get('/agencies'),
   createApplication: (data) => apiClient.post('/applications', data),
   withdrawApplication: (id) => apiClient.post(`/applications/${id}/withdraw`),
+
+  // Interviews
+  getInterviews: () => apiClient.get('/interviews'),
+  respondToInterview: (id, body) => apiClient.post(`/interviews/${id}/respond`, body),
+
+  // Messages (per application)
+  getApplicationMessages: (id) => apiClient.get(`/applications/${id}/messages`),
+  sendApplicationMessage: (id, message) =>
+    apiClient.post(`/applications/${id}/messages`, { message }),
   
   setDiscoverability: (isDiscoverable) => apiClient.post('/discoverability', { isDiscoverable }), // Logic moved to proper endpoint
 

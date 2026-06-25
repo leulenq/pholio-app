@@ -719,49 +719,6 @@
   margin: 0;
 }
 
-/* Visibility Index bar */
-.ov-visibility {
-  grid-column: span 2;
-}
-
-.ov-visibility-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.ov-visibility-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(245, 240, 230, 0.38);
-}
-
-.ov-visibility-note {
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 11px;
-  font-style: italic;
-  color: var(--ov-gold-warm);
-  letter-spacing: 0.04em;
-}
-
-.ov-vis-track {
-  height: 6px;
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 100px;
-  overflow: hidden;
-}
-
-.ov-vis-fill {
-  height: 100%;
-  background: var(--ov-gold);
-  border-radius: 100px;
-  box-shadow: 0 0 12px rgba(201, 165, 90, 0.4);
-}
-
 /* ═══════════════════════════════════════════
    IDENTITY ARTIFACTS
 ═══════════════════════════════════════════ */

@@ -1,5 +1,31 @@
 # Lessons Learned
 
+## 2026-06-24 — Restoring reverted UI work
+
+- After another editor touches the same UI surface, verify both JSX and CSS before assuming a component is still restored. The profile index rollback left the simplified JSX in place but reverted the nested-scroll/active-row CSS, so restoration checks need to include presentation selectors and responsive overrides.
+- When a user asks to restore previous direction, include follow-up corrections from the same thread as part of the target state. For Booking Lanes, the restored state includes extra separation from license fields, no "Define the briefs..." paragraph, and no divider treatment.
+
+## 2026-06-24 — Profile scroll tracking in talent shell
+
+- Talent dashboard pages scroll inside `.tl-content`, not `window`. Profile section
+  tracking and deep-link scrolling must resolve the page's scrollable ancestor
+  before binding listeners or computing target offsets; otherwise the nav can
+  remain stuck on the initial section.
+
+## 2026-06-22 — Apply experience hierarchy and intelligence
+
+- When a user chooses a specific agency before entering the apply flow, the UI
+  must honor that decision as a focused single-agency composition. Do not keep
+  chooser/sidebar framing, "Applying to" labels, or change-agency affordances in
+  the first viewport unless the user entered from a broad apply-new path.
+- "Premium" in the talent apply surface means better hierarchy and richer
+  decision support, not more badges or status decoration. Avoid pulsing/status
+  dots and standalone website links; integrate actions into the identity lockup
+  and surface location as primary identity.
+- Agency fit guidance should read as Pholio Intelligence: wants, strengths,
+  missing signals, and weak/strong fit areas. A plain checklist or paragraph
+  does not meet the bar for an agency decision surface.
+
 ## 2026-06-11 — Enumerated design options read as templates
 
 - When the user asks for output that is "uniquely designed per X," any system

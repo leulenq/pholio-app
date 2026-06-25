@@ -1,14 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertCircle,
   ArrowUpRight,
-  Building2,
   Check,
-  ChevronDown,
   CircleDashed,
-  Clock,
   ExternalLink,
   Loader2,
   Lock,
@@ -17,30 +13,26 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import ProfileGateBanner from '../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../shared/utils/profileGating';
 import { talentApi } from '../api/talent';
+import { statusConfig } from '../utils/applicationStatus';
+import ApplicationInterviews from './ApplicationInterviews';
+import ApplicationMessages from './ApplicationMessages';
 import './ApplicationsView.css';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'active', label: 'Active' },
-  { id: 'accepted', label: 'Accepted' },
+  { id: 'accepted', label: 'Won' },
   { id: 'closed', label: 'Closed' },
 ];
 
 function asArray(payload) {
   if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  return [];
-}
-
-function asMediaSets(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.sets)) return payload.sets;
   if (Array.isArray(payload?.data)) return payload.data;
   return [];
 }
@@ -81,61 +73,6 @@ function websiteUrl(value) {
   return `https://${trimmed}`;
 }
 
-function statusConfig(status) {
-  const normalized = String(status || 'pending').toLowerCase();
-  const configs = {
-    pending: {
-      label: 'Under Review',
-      short: 'Review',
-      tone: 'pending',
-      icon: Clock,
-      next: 'Agency review is open.',
-      detail: 'The agency has your current profile and book.',
-    },
-    reviewing: {
-      label: 'In Review',
-      short: 'Review',
-      tone: 'pending',
-      icon: Clock,
-      next: 'Agency review is active.',
-      detail: 'Your application is moving through the agency queue.',
-    },
-    shortlisted: {
-      label: 'Shortlisted',
-      short: 'Shortlist',
-      tone: 'accepted',
-      icon: Check,
-      next: 'Watch for a direct agency signal.',
-      detail: 'Your application has been marked for closer review.',
-    },
-    accepted: {
-      label: 'Accepted',
-      short: 'Accepted',
-      tone: 'accepted',
-      icon: Check,
-      next: 'Prepare for agency follow-up.',
-      detail: 'The agency has accepted your application.',
-    },
-    declined: {
-      label: 'Not Selected',
-      short: 'Closed',
-      tone: 'closed',
-      icon: AlertCircle,
-      next: 'This thread is closed.',
-      detail: 'Keep the book current for future submissions.',
-    },
-    rejected: {
-      label: 'Not Selected',
-      short: 'Closed',
-      tone: 'closed',
-      icon: AlertCircle,
-      next: 'This thread is closed.',
-      detail: 'Keep the book current for future submissions.',
-    },
-  };
-  return configs[normalized] || configs.pending;
-}
-
 function applicationMatchesFilter(app, filter) {
   if (filter === 'all') return true;
   const config = statusConfig(app.status);
@@ -153,50 +90,13 @@ function metricLabel(count, singular, plural) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function imageUrl(image) {
-  return image?.public_url || image?.url || image?.path || null;
-}
-
-function normalizeToken(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_');
-}
-
-function hasShotType(image, types) {
-  const shot = normalizeToken(image?.shot_type);
-  const imageType = normalizeToken(image?.image_type);
-  return types.includes(shot) || types.includes(imageType);
-}
-
-function measurementValue(profile, keys) {
-  for (const key of keys) {
-    const value = profile?.[key];
-    if (value !== null && value !== undefined && value !== '') return value;
-  }
-  return null;
-}
-
-
-function agencyTypeLabel(agency) {
-  return agency?.division || agency?.type || agency?.agency_type || 'Open representation';
-}
-
 export default function ApplicationsView() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { profile, subscription, images: authImages = [] } = useAuth();
+  const { profile, subscription, images } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
-  const [applyingId, setApplyingId] = useState(null);
-  const [isApplyFlowOpen, setIsApplyFlowOpen] = useState(false);
-  const [selectedAgencyId, setSelectedAgencyId] = useState(null);
-  const [selectedMediaSetId, setSelectedMediaSetId] = useState('current');
-  const [selectedCompCardId, setSelectedCompCardId] = useState('current');
-  const [applicationNote, setApplicationNote] = useState('');
-  const [hasSubmissionConsent, setHasSubmissionConsent] = useState(false);
-  const [submittedApplication, setSubmittedApplication] = useState(null);
 
   const applicationsQuery = useQuery({
     queryKey: ['applications'],
@@ -208,14 +108,6 @@ export default function ApplicationsView() {
   const agenciesQuery = useQuery({
     queryKey: ['talent-agencies'],
     queryFn: talentApi.getAgencies,
-    staleTime: 1000 * 60 * 3,
-    retry: 1,
-  });
-
-  const mediaSetsQuery = useQuery({
-    queryKey: ['talent-media-sets'],
-    queryFn: talentApi.getMediaSets,
-    enabled: isApplyFlowOpen,
     staleTime: 1000 * 60 * 3,
     retry: 1,
   });
@@ -232,37 +124,6 @@ export default function ApplicationsView() {
     },
   });
 
-  const applyMutation = useMutation({
-    mutationFn: talentApi.createApplication,
-    onSuccess: (_data, variables) => {
-      setApplyingId(null);
-      setApplicationNote('');
-      setHasSubmissionConsent(false);
-      setSubmittedApplication({
-        agency: {
-          id: variables?.agencyId,
-          name: variables?.submissionPackage?.agencyName,
-          agency_location: variables?.submissionPackage?.agencyLocation,
-        },
-        submittedAt: new Date().toISOString(),
-        mediaSetId: variables?.submissionPackage?.mediaSetId,
-        compCardId: variables?.submissionPackage?.compCardId,
-      });
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
-      queryClient.invalidateQueries({ queryKey: ['talent-agencies'] });
-      queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
-      toast.success('Application submitted');
-    },
-    onError: (err) => {
-      setApplyingId(null);
-      if (err?.data?.upgradeRequired) {
-        toast.error('Monthly application limit reached.');
-        return;
-      }
-      toast.error(err?.message || 'Failed to submit application');
-    },
-  });
-
   const applications = useMemo(
     () =>
       asArray(applicationsQuery.data).sort(
@@ -271,18 +132,28 @@ export default function ApplicationsView() {
     [applicationsQuery.data],
   );
 
+  const [searchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('application');
+
   const agencies = useMemo(() => asArray(agenciesQuery.data), [agenciesQuery.data]);
-  const mediaSets = useMemo(() => asMediaSets(mediaSetsQuery.data), [mediaSetsQuery.data]);
-  const gating = useMemo(() => checkGatingStatus(profile), [profile]);
+  const gating = useMemo(() => checkGatingStatus(profile, images), [profile, images]);
   const applicationGate = getProfileGateFeature('/dashboard/talent/applications');
 
-  const selectedApplication = applications.find((app) => app.id === selectedId) || applications[0] || null;
+  const selectedApplication =
+    applications.find((app) => app.id === selectedId) ||
+    (deepLinkId ? applications.find((app) => app.id === deepLinkId) : null) ||
+    applications[0] ||
+    null;
   const filteredApplications = applications.filter((app) => applicationMatchesFilter(app, activeFilter));
-  const appliedAgencyIds = new Set(applications.map((app) => app.agency_id).filter(Boolean));
+  const appliedAgencyIds = new Set(
+    applications
+      .filter((app) => app.status !== 'withdrawn')
+      .map((app) => app.agency_id)
+      .filter(Boolean),
+  );
   const openAgencies = agencies
     .filter((agency) => !appliedAgencyIds.has(agency.id))
     .slice(0, 6);
-  const selectedAgency = agencies.find((agency) => agency.id === selectedAgencyId) || openAgencies[0] || null;
 
   const activeCount = applications.filter((app) => statusConfig(app.status).tone === 'pending').length;
   const acceptedCount = applications.filter((app) => statusConfig(app.status).tone === 'accepted').length;
@@ -297,35 +168,8 @@ export default function ApplicationsView() {
   const monthlyLimitLabel = isPro ? 'Unlimited' : `${monthCount}/5`;
 
   const openApplyFlow = (agency = null) => {
-    if (agency?.id) {
-      setSelectedAgencyId(agency.id);
-    } else if (!selectedAgencyId && openAgencies[0]?.id) {
-      setSelectedAgencyId(openAgencies[0].id);
-    }
-    setSubmittedApplication(null);
-    setHasSubmissionConsent(false);
-    setIsApplyFlowOpen(true);
-  };
-
-  const closeApplyFlow = () => {
-    setIsApplyFlowOpen(false);
-    setApplicationNote('');
-    setHasSubmissionConsent(false);
-    setSubmittedApplication(null);
-  };
-
-  const handleApply = (agency, submissionPackage) => {
-    if (gating.isBlocked) {
-      toast.info('Complete your required profile fields before submitting to an agency.');
-      return;
-    }
-    if (!agency?.id) return;
-    setApplyingId(agency.id);
-    applyMutation.mutate({
-      agencyId: agency.id,
-      note: applicationNote.trim() || undefined,
-      submissionPackage,
-    });
+    const params = agency?.id ? `?agency=${encodeURIComponent(agency.id)}` : '';
+    navigate(`/dashboard/talent/applications/apply${params}`);
   };
 
   const confirmWithdraw = () => {
@@ -346,19 +190,18 @@ export default function ApplicationsView() {
           </p>
           <div className="app-error-actions">
             {isProfileMissing && (
-              <a href="/dashboard/talent/profile" className="app-primary-action">
+              <PholioButton as="a" href="/dashboard/talent/profile" variant="solid">
                 Profile
                 <ArrowUpRight size={14} aria-hidden />
-              </a>
+              </PholioButton>
             )}
-            <button
-              type="button"
-              className="app-secondary-action"
+            <PholioButton
+              variant="secondary"
               onClick={() => applicationsQuery.refetch()}
               disabled={applicationsQuery.isFetching}
             >
-              {applicationsQuery.isFetching ? 'Retrying' : 'Retry'}
-            </button>
+              {applicationsQuery.isFetching ? 'Checking...' : 'Try Again'}
+            </PholioButton>
           </div>
         </section>
       </div>
@@ -374,10 +217,9 @@ export default function ApplicationsView() {
           </h1>
           <div className="app-hero__sweep" aria-hidden />
           <p className="app-standfirst">Market submissions, decisions, and next moves.</p>
-          <button type="button" className="app-primary-action" onClick={() => openApplyFlow()}>
-            <Send size={14} aria-hidden />
-            Apply New
-          </button>
+          <PholioButton variant="solid" onClick={() => openApplyFlow()}>
+            Apply New <Send size={14} aria-hidden />
+          </PholioButton>
         </div>
 
         <dl className="app-market-index" aria-label="Application summary">
@@ -390,7 +232,7 @@ export default function ApplicationsView() {
             <dd>{applicationsQuery.isLoading ? '-' : activeCount}</dd>
           </div>
           <div>
-            <dt>Accepted</dt>
+            <dt>Won</dt>
             <dd>{applicationsQuery.isLoading ? '-' : acceptedCount}</dd>
           </div>
           <div>
@@ -409,7 +251,7 @@ export default function ApplicationsView() {
         </div>
         <div className="app-proofline__states">
           <span>{metricLabel(activeCount, 'under review', 'under review')}</span>
-          <span>{metricLabel(acceptedCount, 'accepted', 'accepted')}</span>
+          <span>{metricLabel(acceptedCount, 'won', 'won')}</span>
           <span>{metricLabel(closedCount, 'closed', 'closed')}</span>
         </div>
       </section>
@@ -469,6 +311,12 @@ export default function ApplicationsView() {
                 );
               })}
             </ol>
+          ) : applications.length === 0 ? (
+            <div className="app-empty-state">
+              <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
+              <h3>You haven&apos;t applied yet</h3>
+              <p>Browse agencies below and submit your first application.</p>
+            </div>
           ) : (
             <div className="app-empty-state">
               <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
@@ -539,17 +387,12 @@ export default function ApplicationsView() {
                   type="button"
                   className="app-agency-card__apply"
                   onClick={() => openApplyFlow(agency)}
-                  disabled={applyMutation.isPending || gating.isBlocked}
+                  disabled={gating.isBlocked}
                 >
                   {gating.isBlocked ? (
                     <>
                       <Lock size={14} aria-hidden />
                       Locked
-                    </>
-                  ) : applyingId === agency.id ? (
-                    <>
-                      <Loader2 size={14} className="app-spin" aria-hidden />
-                      Applying
                     </>
                   ) : (
                     <>
@@ -579,318 +422,6 @@ export default function ApplicationsView() {
         onConfirm={confirmWithdraw}
         onCancel={() => setWithdrawingApplication(null)}
       />
-
-      {isApplyFlowOpen &&
-        createPortal(
-          <AgencyApplicationModal
-            agencies={openAgencies}
-            selectedAgency={selectedAgency}
-            selectedAgencyId={selectedAgencyId}
-            onSelectAgency={setSelectedAgencyId}
-            onClose={closeApplyFlow}
-            onSubmit={handleApply}
-            isSubmitting={applyMutation.isPending && applyingId === selectedAgency?.id}
-            isBlocked={gating.isBlocked}
-            profile={profile}
-            images={authImages}
-            mediaSets={mediaSets}
-            mediaSetsLoading={mediaSetsQuery.isLoading}
-            selectedMediaSetId={selectedMediaSetId}
-            onSelectedMediaSetIdChange={setSelectedMediaSetId}
-            selectedCompCardId={selectedCompCardId}
-            onSelectedCompCardIdChange={setSelectedCompCardId}
-            monthlyLimitLabel={monthlyLimitLabel}
-            applicationNote={applicationNote}
-            onApplicationNoteChange={setApplicationNote}
-            hasSubmissionConsent={hasSubmissionConsent}
-            onSubmissionConsentChange={setHasSubmissionConsent}
-            submittedApplication={submittedApplication}
-          />,
-          document.body,
-        )}
-    </div>
-  );
-}
-
-function AgencyApplicationModal({
-  agencies,
-  selectedAgency,
-  selectedAgencyId,
-  onSelectAgency,
-  onClose,
-  onSubmit,
-  isSubmitting,
-  isBlocked,
-  profile,
-  images,
-  mediaSets,
-  mediaSetsLoading,
-  selectedMediaSetId,
-  onSelectedMediaSetIdChange,
-  selectedCompCardId,
-  onSelectedCompCardIdChange,
-  monthlyLimitLabel,
-  applicationNote,
-  onApplicationNoteChange,
-  hasSubmissionConsent,
-  onSubmissionConsentChange,
-  submittedApplication,
-}) {
-  const [noteOpen, setNoteOpen] = useState(false);
-
-  const hasAgencies = agencies.length > 0;
-  const site = websiteUrl(selectedAgency?.agency_website);
-  const visibleImages = images.filter((image) => !image.exclude_from_agency && imageUrl(image));
-  const selectedImages = selectedMediaSetId === 'current'
-    ? visibleImages
-    : visibleImages.filter((image) => image.set_id === selectedMediaSetId);
-
-  const hasHeadshot     = selectedImages.some((img) => hasShotType(img, ['headshot']));
-  const hasFullBody     = selectedImages.some((img) => hasShotType(img, ['full_length', 'full_body', 'three_quarter']));
-  const hasMeasurements = !!measurementValue(profile, ['height_cm'])  &&
-                          !!measurementValue(profile, ['bust', 'bust_cm'])  &&
-                          !!measurementValue(profile, ['waist', 'waist_cm']) &&
-                          !!measurementValue(profile, ['hips', 'hips_cm']);
-  const hasContact = !!profile?.email && !!profile?.phone;
-
-  const checks = [
-    { label: 'Headshot',     complete: hasHeadshot },
-    { label: 'Full-body',    complete: hasFullBody },
-    { label: 'Measurements', complete: hasMeasurements },
-    { label: 'Contact',      complete: hasContact },
-  ];
-  const missingChecks = checks.filter((c) => !c.complete);
-
-  const compCardOptions = [
-    { id: 'current',   label: 'Current comp card' },
-    { id: 'agency',    label: 'Agency review card' },
-    { id: 'editorial', label: 'Editorial card' },
-  ];
-  const selectedMediaSetName = selectedMediaSetId === 'current'
-    ? 'Current book'
-    : mediaSets.find((s) => s.id === selectedMediaSetId)?.name || 'Selected image set';
-  const selectedCompCardName = compCardOptions.find((o) => o.id === selectedCompCardId)?.label || 'Current comp card';
-
-  const canSubmit = hasAgencies && selectedAgency && !isBlocked && missingChecks.length === 0 && hasSubmissionConsent;
-  const packagePayload = {
-    agencyName:       selectedAgency?.name           || null,
-    agencyLocation:   selectedAgency?.agency_location || null,
-    mediaSetId:       selectedMediaSetId,
-    mediaSetName:     selectedMediaSetName,
-    compCardId:       selectedCompCardId,
-    compCardName:     selectedCompCardName,
-    imageIds:         selectedImages.map((img) => img.id),
-    readiness:        missingChecks.length === 0 ? 'Ready' : `Missing ${missingChecks.length}`,
-    consentConfirmed: hasSubmissionConsent,
-  };
-
-  // portfolio frames: fill a 3×3 contact sheet (9 cells); empty cells stay dark
-  const frames = Array.from({ length: 9 }, (_, i) => selectedImages[i] || visibleImages[i] || null);
-
-  const agencyMeta = [
-    selectedAgency?.agency_location,
-    agencyTypeLabel(selectedAgency),
-  ].filter(Boolean).join(' · ');
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  return (
-    /* Backdrop — clicking it closes the modal */
-    <div
-      className="agnapp"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="agnapp-title"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      {/* Modal box — all content lives here, no z-index fights */}
-      <div className="agnapp__box" onMouseDown={(e) => e.stopPropagation()}>
-
-        {/* Close button — inside the box, always on top */}
-        <button
-          type="button"
-          className="agnapp__close"
-          onClick={onClose}
-          aria-label="Close"
-          disabled={isSubmitting}
-        >
-          <X size={14} strokeWidth={2} aria-hidden />
-        </button>
-
-        {/* ── Success ───────────────────────────────────────── */}
-        {submittedApplication ? (
-          <div className="agnapp__sent" role="status">
-            <span className="agnapp__sent-check" aria-hidden>&#10003;</span>
-            <p className="agnapp__sent-pre">Submitted to</p>
-            <h2 id="agnapp-title" className="agnapp__sent-name">
-              {submittedApplication.agency?.name || selectedAgency?.name || 'Agency'}
-            </h2>
-            <p className="agnapp__sent-when">{dateLabel(submittedApplication.submittedAt)}</p>
-            <dl className="agnapp__sent-meta">
-              <div><dt>Portfolio</dt><dd>{selectedMediaSetName}</dd></div>
-              <div><dt>Comp card</dt><dd>{selectedCompCardName}</dd></div>
-              <div><dt>Status</dt><dd>Under review</dd></div>
-            </dl>
-            <button type="button" className="agnapp__sent-done" onClick={onClose}>Done</button>
-          </div>
-
-        ) : !hasAgencies ? (
-          <div className="agnapp__none">
-            <CircleDashed size={26} strokeWidth={1.3} aria-hidden />
-            <p>Every available agency is already in your ledger.</p>
-          </div>
-
-        ) : (
-          <>
-            {/* ── Left: controls ──────────────────────────────── */}
-            <div className="agnapp__left">
-              <div className="agnapp__left-body">
-                <p className="agnapp__pre">Submitting to</p>
-
-                <div className="agnapp__who">
-                  {selectedAgency?.profile_image && (
-                    <div className="agnapp__who-thumb" aria-hidden>
-                      <img src={selectedAgency.profile_image} alt="" />
-                    </div>
-                  )}
-                  <h2 id="agnapp-title" className="agnapp__who-name">
-                    {selectedAgency?.name || 'Select an agency'}
-                  </h2>
-                </div>
-
-                {agencyMeta && <p className="agnapp__who-meta">{agencyMeta}</p>}
-                {site && (
-                  <a href={site} target="_blank" rel="noreferrer" className="agnapp__who-site">
-                    View agency ↗
-                  </a>
-                )}
-
-                {agencies.length > 1 && (
-                  <div className="agnapp__swap">
-                    <select
-                      value={selectedAgencyId || ''}
-                      onChange={(e) => onSelectAgency(e.target.value)}
-                      aria-label="Change agency"
-                    >
-                      {agencies.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name || 'Unnamed Agency'}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} aria-hidden />
-                  </div>
-                )}
-
-                <div className="agnapp__pkg">
-                  <div className="agnapp__sel">
-                    <select
-                      value={selectedMediaSetId}
-                      onChange={(e) => onSelectedMediaSetIdChange(e.target.value)}
-                      aria-label="Image set"
-                    >
-                      <option value="current">{mediaSetsLoading ? 'Loading…' : 'Current book'}</option>
-                      {mediaSets.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name || `${s.kind || 'Image'} set`}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} aria-hidden />
-                  </div>
-                  <div className="agnapp__sel">
-                    <select
-                      value={selectedCompCardId}
-                      onChange={(e) => onSelectedCompCardIdChange(e.target.value)}
-                      aria-label="Comp card"
-                    >
-                      {compCardOptions.map((o) => (
-                        <option key={o.id} value={o.id}>{o.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} aria-hidden />
-                  </div>
-                </div>
-
-                {missingChecks.length > 0 && (
-                  <p className="agnapp__missing">
-                    {missingChecks.map((c) => c.label).join(' · ')} not complete
-                  </p>
-                )}
-
-                {noteOpen ? (
-                  <div className="agnapp__note-wrap">
-                    <textarea
-                      className="agnapp__note"
-                      value={applicationNote}
-                      onChange={(e) => onApplicationNoteChange(e.target.value.slice(0, 1200))}
-                      placeholder={`A note to ${selectedAgency?.name || 'the agency'}…`}
-                      rows={4}
-                      autoFocus
-                    />
-                    <small className="agnapp__note-ct">{applicationNote.length} / 1200</small>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="agnapp__note-trigger"
-                    onClick={() => setNoteOpen(true)}
-                  >
-                    + Add a note
-                  </button>
-                )}
-              </div>
-
-              <div className="agnapp__left-foot">
-                <label className="agnapp__consent">
-                  <input
-                    type="checkbox"
-                    checked={hasSubmissionConsent}
-                    onChange={(e) => onSubmissionConsentChange(e.target.checked)}
-                  />
-                  <span>
-                    I consent to sharing my profile with {selectedAgency?.name || 'this agency'}.
-                  </span>
-                </label>
-
-                <button
-                  type="button"
-                  className="agnapp__submit"
-                  onClick={() => onSubmit(selectedAgency, packagePayload)}
-                  disabled={!canSubmit || isSubmitting}
-                >
-                  {isBlocked ? (
-                    <><Lock size={13} aria-hidden />Profile incomplete</>
-                  ) : isSubmitting ? (
-                    <><Loader2 size={13} className="app-spin" aria-hidden />Submitting</>
-                  ) : (
-                    'Submit'
-                  )}
-                </button>
-
-                <p className="agnapp__limit">{monthlyLimitLabel} this month</p>
-              </div>
-            </div>
-
-            {/* ── Right: portfolio contact sheet ──────────────── */}
-            <div className="agnapp__right" aria-hidden="true">
-              <div className="agnapp__sheet">
-                {frames.map((img, i) => (
-                  <div key={i} className="agnapp__frame">
-                    {img && <img src={imageUrl(img)} alt="" />}
-                  </div>
-                ))}
-              </div>
-              <div className="agnapp__sheet-bar">
-                <span>{selectedImages.length || visibleImages.length} images</span>
-                <span className="agnapp__sheet-sep" />
-                <span>{selectedMediaSetName}</span>
-              </div>
-            </div>
-          </>
-        )}
-
-      </div>{/* .agnapp__box */}
     </div>
   );
 }
@@ -901,6 +432,19 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
   const site = websiteUrl(app.agency_website);
   const canWithdraw = config.tone === 'pending';
   const age = daysSince(app.created_at);
+
+  // No scheduler exists to auto-expire stale applications, so surface a calm,
+  // truthful cue when an active application has gone quiet for a while.
+  const daysWaiting = daysSince(app.updated_at || app.created_at);
+  const isStale = config.tone === 'pending' && daysWaiting !== null && daysWaiting >= 21;
+
+  const activityQuery = useQuery({
+    queryKey: ['application-activity', app.id],
+    queryFn: () => talentApi.getApplicationActivity(app.id),
+    enabled: !!app.id,
+    staleTime: 1000 * 30,
+  });
+  const history = asArray(activityQuery.data);
 
   return (
     <div className="app-detail">
@@ -943,17 +487,54 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
 
       <div className="app-detail__next">
         <p>{config.next}</p>
+        {isStale && (
+          <p className="app-detail__stale">
+            It&apos;s been {daysWaiting} days without an update. You can reach out via the
+            agency&apos;s site, or withdraw to free this slot.
+          </p>
+        )}
       </div>
+
+      <ApplicationInterviews applicationId={app.id} />
+
+      <ApplicationMessages applicationId={app.id} agencyName={app.agency_name} />
+
+      <div className="app-detail__history">
+        <span className="app-detail__history-title">History</span>
+        <ol className="app-detail__history-list">
+          <li className="app-detail__history-row">
+            <span className="app-detail__history-dot" aria-hidden />
+            <span className="app-detail__history-label">Submitted</span>
+            <span className="app-detail__history-date">{dateLabel(app.created_at)}</span>
+          </li>
+          {history.map((row) => (
+            <li key={row.id} className="app-detail__history-row">
+              <span className="app-detail__history-dot" aria-hidden />
+              <span className="app-detail__history-label">
+                {statusConfig(row.metadata?.new_status).label}
+              </span>
+              <span className="app-detail__history-date">{dateLabel(row.created_at)}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {app.note && (
+        <div className="app-detail__note">
+          <span className="app-detail__note-title">Your note</span>
+          <p className="app-detail__note-text">{app.note}</p>
+        </div>
+      )}
 
       <div className="app-detail__actions">
         {site && (
-          <a href={site} target="_blank" rel="noreferrer" className="app-secondary-action">
-            Agency Site
-            <ExternalLink size={13} aria-hidden />
-          </a>
+          <PholioButton as="a" href={site} target="_blank" rel="noreferrer" variant="secondary">
+            Visit Agency
+            <ArrowUpRight size={14} aria-hidden />
+          </PholioButton>
         )}
         {canWithdraw && (
-          <button type="button" className="app-withdraw-action" onClick={onWithdraw} disabled={isWithdrawing}>
+          <PholioButton variant="danger" onClick={onWithdraw} disabled={isWithdrawing}>
             {isWithdrawing ? (
               <>
                 <Loader2 size={13} className="app-spin" aria-hidden />
@@ -965,7 +546,7 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
                 Withdraw
               </>
             )}
-          </button>
+          </PholioButton>
         )}
       </div>
 

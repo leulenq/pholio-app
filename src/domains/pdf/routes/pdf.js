@@ -33,6 +33,7 @@ const {
 } = require("../layouts");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const knex = require("../../../shared/db/knex");
+const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
 const QRCode = require("qrcode");
 const config = require("../../../config");
 const { v4: uuidv4 } = require("uuid");
@@ -172,6 +173,15 @@ async function verifyProfileOwnership(req, profileSlug) {
   }
 
   return { authorized: true, profile };
+}
+
+function renderMinorPdfBlocked(res) {
+  return renderSimpleError(
+    res,
+    403,
+    "Unavailable",
+    "Guardian consent is required before this comp card can be shared publicly.",
+  );
 }
 
 // Multer configuration for agency logo uploads
@@ -1407,6 +1417,10 @@ router.get("/pdf/view/:slug", async (req, res, next) => {
       );
     }
 
+    if (!isDemo && !minorPublicExposureAllowed(data.profile)) {
+      return renderMinorPdfBlocked(res);
+    }
+
     const diagnosticsMode =
       req.query.diagnostics === "1" ||
       req.query.spec === "1" ||
@@ -1680,6 +1694,13 @@ router.get("/pdf/:slug", async (req, res, next) => {
     }
 
     const { profile } = data;
+
+    if (!isDemo && !minorPublicExposureAllowed(profile)) {
+      return res.status(403).json({
+        error: "Guardian consent is required before this comp card can be shared publicly.",
+        code: "MINOR_CONSENT_REQUIRED",
+      });
+    }
 
     // Get theme from query parameter
     let themeKey = req.query.theme || profile.pdf_theme || getDefaultTheme();

@@ -88,20 +88,16 @@ async function computeProfileCompleteness(profileId) {
 
   // Maintain backward compatibility for essentials
   const essentials = {
-    photos: profilePhotos.length > 0 || images.length > 0,
+    photos: strengthResult.bookReadiness?.hasBookBasics ?? false,
     height: hasValue(profile.height_cm),
     measurements:
-      hasValue(profile.bust_cm) ||
-      hasValue(profile.waist_cm) ||
-      hasValue(profile.hips_cm),
+      (hasValue(profile.bust_cm) || hasValue(profile.bust) || hasValue(profile.chest)) &&
+      (hasValue(profile.waist_cm) || hasValue(profile.waist)) &&
+      (hasValue(profile.hips_cm) || hasValue(profile.hips)),
     city: hasValue(profile.city),
   };
 
-  const essentialsMet =
-    essentials.photos &&
-    essentials.height &&
-    essentials.measurements &&
-    essentials.city;
+  const essentialsMet = strengthResult.isCoreReady;
 
   const optional = {
     bio: hasValue(profile.bio_raw) || hasValue(profile.bio_curated),

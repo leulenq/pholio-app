@@ -1,0 +1,119 @@
+/* ============================================================
+   PholioButton — Unified Talent Button System
+   ============================================================ */
+
+.pholio-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  transition: border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  box-sizing: border-box;
+}
+
+.pholio-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Base structural sizing */
+.pholio-btn--md {
+  padding: 12px 16px;
+  font-size: 10px;
+  min-height: 38px;
+}
+
+.pholio-btn--sm {
+  padding: 8px 12px;
+  font-size: 9px;
+  min-height: 32px;
+}
+
+.pholio-btn--lg {
+  padding: 14px 24px;
+  font-size: 11px;
+  min-height: 44px;
+}
+
+.pholio-btn--full {
+  width: 100%;
+}
+
+/* Primary emphasis (Gold) */
+.pholio-btn--primary {
+  background: transparent;
+  color: #C8A96E; /* var(--ov-gold-warm) */
+  border: 1px solid rgba(201, 165, 90, 0.4);
+}
+
+.pholio-btn--primary:hover:not(:disabled) {
+  border-color: rgba(201, 165, 90, 0.8);
+  color: #D4BC8A; /* A slightly lighter gold */
+  background: rgba(201, 165, 90, 0.04);
+}
+
+/* Solid emphasis (Pholio Black) for light backgrounds */
+.pholio-btn--solid {
+  background: #1A1815;
+  color: #FFFFFF;
+  border: 1px solid rgba(201, 165, 90, 0.6); /* Gold around it */
+  box-shadow: 0 4px 12px rgba(26, 24, 21, 0.08);
+}
+
+.pholio-btn--solid:hover:not(:disabled) {
+  background: #2D2A25; /* slightly lighter ink */
+  border-color: rgba(201, 165, 90, 1); /* solid gold on hover */
+  color: #FFFFFF;
+  box-shadow: 0 6px 16px rgba(26, 24, 21, 0.12);
+}
+
+/* Secondary emphasis (Neutral) */
+.pholio-btn--secondary {
+  background: transparent;
+  color: rgba(245, 240, 232, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pholio-btn--secondary:hover:not(:disabled) {
+  border-color: rgba(201, 165, 90, 0.35); /* Subtle gold border on hover */
+  color: #C8A96E; /* Subtle gold text on hover */
+  background: rgba(201, 165, 90, 0.06); /* Same as ov-audit-cta */
+}
+
+/* Ghost emphasis (Transparent) */
+.pholio-btn--ghost {
+  background: transparent;
+  color: rgba(245, 240, 232, 0.5);
+  border: 1px solid transparent;
+}
+
+.pholio-btn--ghost:hover:not(:disabled) {
+  color: rgba(245, 240, 232, 0.9);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: transparent;
+}
+
+/* Danger emphasis (Red) */
+.pholio-btn--danger {
+  background: transparent;
+  color: rgba(220, 38, 38, 0.8);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.pholio-btn--danger:hover:not(:disabled) {
+  border-color: rgba(220, 38, 38, 0.6);
+  color: rgba(239, 68, 68, 1);
+  background: rgba(220, 38, 38, 0.04);
+}

@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ClipboardList } from 'lucide-react';
 import { getStrengthUI } from '../../../shared/utils/profileScoring';
 import { buildReadinessLists } from './profileReadinessItems';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import styles from './ProfileStrengthSidebar.module.css';
 
-function GlanceGap({ item, tier, scrollTargetByKey, onItemClick }) {
+function ReadinessGap({ item, tier, scrollTargetByKey, onItemClick, showWhy = false }) {
   const targetSection = scrollTargetByKey[item.key];
-  const dotClass = tier === 'required' ? styles.dotRed : styles.dotSlate;
 
   return (
     <button
@@ -16,10 +16,14 @@ function GlanceGap({ item, tier, scrollTargetByKey, onItemClick }) {
       onClick={() => targetSection && onItemClick?.(targetSection)}
       disabled={!targetSection}
     >
-      <span className={`${styles.dot} ${dotClass}`} aria-hidden="true" />
-      <span className={styles.gapLabel}>{item.label}</span>
+      <span className={styles.gapCopy}>
+        <span className={styles.gapLabel}>{item.label}</span>
+        {showWhy && item.why ? (
+          <span className={styles.gapWhy}>{item.why}</span>
+        ) : null}
+      </span>
       {tier === 'required' ? (
-        <span className={styles.badgeRed}>Required</span>
+        <span className={styles.gapTier}>Essential</span>
       ) : null}
     </button>
   );
@@ -27,6 +31,7 @@ function GlanceGap({ item, tier, scrollTargetByKey, onItemClick }) {
 
 export default function ProfileStrengthSidebar({
   strength,
+  profile = null,
   isSaving,
   hasChanges,
   onSaveClick,
@@ -38,37 +43,42 @@ export default function ProfileStrengthSidebar({
   const ui = getStrengthUI(score, isRequiredComplete);
   const hasUnsavedChanges = hasChanges && !isSaving;
 
-  const { missingRequired, missingImprove, topGaps } = buildReadinessLists(fieldCompletion);
+  const { missingRequired, missingImprove, topGaps } = buildReadinessLists(
+    fieldCompletion,
+    profile,
+  );
   const totalGaps = missingRequired.length + missingImprove.length;
   const isComplete = isRequiredComplete && missingImprove.length === 0;
 
-  const statusColor = isRequiredComplete ? (score === 100 ? 'statusGold' : 'statusGreen') : 'statusRed';
-  const progressColor = isRequiredComplete ? (score === 100 ? 'statusGold' : 'progressGreen') : 'progressRed';
+  const progressColor = isRequiredComplete
+    ? (score === 100 ? 'statusGold' : 'progressGreen')
+    : 'progressRed';
 
-  // Smooth numerical count-up animation for the score
-  const [displayScore, setDisplayScore] = React.useState(0);
+  const [displayScore, setDisplayScore] = React.useState(score);
+  const displayScoreRef = useRef(score);
 
-  React.useEffect(() => {
-    let start = displayScore;
+  useEffect(() => {
+    const start = displayScoreRef.current;
     const end = score;
-    if (start === end) return;
+    if (start === end) {
+      return undefined;
+    }
 
-    const duration = 750; // ms
+    const duration = 750;
     const startTime = performance.now();
     let animationFrameId;
 
     const animate = (currentTime) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-
-      // Ease out quad
       const easeProgress = progress * (2 - progress);
       const currentScore = Math.round(start + (end - start) * easeProgress);
-
       setDisplayScore(currentScore);
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);
+      } else {
+        displayScoreRef.current = end;
       }
     };
 
@@ -77,46 +87,44 @@ export default function ProfileStrengthSidebar({
   }, [score]);
 
   return (
-    <aside className={styles.sidebar} aria-label="Profile readiness">
+    <aside className={styles.sidebar} aria-label="Profile completeness">
       <div className={styles.card}>
         <div className={styles.header}>
-          <span className={styles.title}>Readiness</span>
+          <span className={styles.smallTitle}>Profile readiness</span>
           <div className={styles.scoreBlock}>
             <span className={styles.score} aria-live="polite">
               {displayScore}
               <span className={styles.percentSign}>%</span>
             </span>
           </div>
-          <div className={styles.statusContainer}>
-            <span className={styles.statusLabel}>{ui.label}</span>
-          </div>
-          {hasUnsavedChanges && (
-            <p className={styles.unsavedHint}>Unsaved changes</p>
-          )}
+          {hasUnsavedChanges ? (
+            <p className={styles.unsavedHint}>Unsaved changes — save to sync your score</p>
+          ) : null}
         </div>
 
         <div className={styles.progressContainer}>
           <div className={styles.progressBarTrack}>
-            {/* 60% Core Milestone */}
-            <div 
-              className={`${styles.tick} ${score >= 60 ? styles.tickActive : ''}`} 
+            <div
+              className={`${styles.tick} ${score >= 60 ? styles.tickActive : ''}`}
               style={{ left: '60%' }}
             >
-              <span className={`${styles.tickLabel} ${score >= 60 ? styles.tickLabelActive : ''}`}>Core</span>
+              <span className={`${styles.tickLabel} ${score >= 60 ? styles.tickLabelActive : ''}`}>
+                Core
+              </span>
             </div>
 
-            {/* 85% Strong Milestone */}
-            <div 
-              className={`${styles.tick} ${score >= 85 ? styles.tickActive : ''}`} 
+            <div
+              className={`${styles.tick} ${score >= 85 ? styles.tickActive : ''}`}
               style={{ left: '85%' }}
             >
-              <span className={`${styles.tickLabel} ${score >= 85 ? styles.tickLabelActive : ''}`}>Strong</span>
+              <span className={`${styles.tickLabel} ${score >= 85 ? styles.tickLabelActive : ''}`}>
+                Strong
+              </span>
             </div>
 
-            {/* Animated progress fill via Framer Motion */}
             <motion.div
               className={`${styles.progressFill} ${styles[progressColor]}`}
-              initial={{ width: 0 }}
+              initial={false}
               animate={{ width: `${score}%` }}
               transition={{ type: 'spring', stiffness: 55, damping: 16 }}
               role="progressbar"
@@ -131,14 +139,14 @@ export default function ProfileStrengthSidebar({
         {isComplete ? (
           <div className={styles.completeBrief}>
             <Check size={20} className={styles.checkIcon} aria-hidden="true" />
-            <p>Profile complete — ready for agency review.</p>
+            <p>Submission package complete — ready for agency review.</p>
           </div>
         ) : topGaps.length > 0 ? (
           <div className={styles.gapsBlock}>
             <p className={styles.gapsLabel}>Next up</p>
             <div className={styles.gapList}>
               {topGaps.map((item) => (
-                <GlanceGap
+                <ReadinessGap
                   key={item.key}
                   item={item}
                   tier={item.tier}
@@ -150,7 +158,7 @@ export default function ProfileStrengthSidebar({
           </div>
         ) : null}
 
-        {totalGaps > 0 && (
+        {totalGaps > 0 ? (
           <button
             type="button"
             className={`${styles.auditToggle} ${auditOpen ? styles.auditToggleActive : ''}`}
@@ -160,15 +168,14 @@ export default function ProfileStrengthSidebar({
             <ClipboardList size={15} aria-hidden="true" />
             {auditOpen ? 'Hide full checklist' : `View full checklist (${totalGaps})`}
           </button>
-        )}
+        ) : null}
 
-        {/* Smooth Expand/Collapse Checklist Audit Panel via Framer Motion */}
         <AnimatePresence initial={false}>
-          {auditOpen && totalGaps > 0 && (
-            <motion.div 
+          {auditOpen && totalGaps > 0 ? (
+            <motion.div
               key="audit-panel"
-              className={styles.auditPanel} 
-              role="region" 
+              className={styles.auditPanel}
+              role="region"
               aria-label="Full profile checklist"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
@@ -176,53 +183,44 @@ export default function ProfileStrengthSidebar({
               transition={{ type: 'spring', stiffness: 80, damping: 18 }}
               style={{ overflow: 'hidden' }}
             >
-              {missingRequired.length > 0 && (
+              {missingRequired.length > 0 ? (
                 <div className={styles.auditSection}>
-                  <p className={styles.auditSectionLabel}>Required</p>
+                  <p className={styles.auditSectionLabel}>Essentials</p>
                   {missingRequired.map((item) => (
-                    <button
+                    <ReadinessGap
                       key={item.key}
-                      type="button"
-                      className={styles.gapItem}
-                      onClick={() => {
-                        const target = scrollTargetByKey[item.key];
-                        if (target) onItemClick?.(target);
-                      }}
-                    >
-                      <span className={`${styles.dot} ${styles.dotRed}`} aria-hidden="true" />
-                      <span className={styles.gapLabel}>{item.label}</span>
-                      <span className={styles.badgeRed}>Required</span>
-                    </button>
+                      item={item}
+                      tier="required"
+                      scrollTargetByKey={scrollTargetByKey}
+                      onItemClick={onItemClick}
+                    />
                   ))}
                 </div>
-              )}
-              {missingImprove.length > 0 && (
+              ) : null}
+              {missingImprove.length > 0 ? (
                 <div className={styles.auditSection}>
-                  <p className={styles.auditSectionLabel}>Improve</p>
+                  <p className={styles.auditSectionLabel}>Strengthen</p>
                   {missingImprove.map((item) => (
-                    <button
+                    <ReadinessGap
                       key={item.key}
-                      type="button"
-                      className={styles.gapItem}
-                      onClick={() => {
-                        const target = scrollTargetByKey[item.key];
-                        if (target) onItemClick?.(target);
-                      }}
-                    >
-                      <span className={`${styles.dot} ${styles.dotSlate}`} aria-hidden="true" />
-                      <span className={styles.gapLabel}>{item.label}</span>
-                    </button>
+                      item={item}
+                      tier="improve"
+                      scrollTargetByKey={scrollTargetByKey}
+                      onItemClick={onItemClick}
+                    />
                   ))}
                 </div>
-              )}
+              ) : null}
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
 
         <div className={styles.saveContainer}>
-          <motion.button
-            type="button"
-            className={`${styles.saveButton} ${!hasChanges && !isSaving ? styles.saveButtonMuted : ''}`}
+          <PholioButton
+            as={motion.button}
+            variant={!hasChanges && !isSaving ? 'secondary' : 'solid'}
+            className={styles.saveButton}
+            fullWidth
             onClick={onSaveClick}
             disabled={isSaving}
             aria-disabled={!hasChanges && !isSaving}
@@ -237,7 +235,7 @@ export default function ProfileStrengthSidebar({
             ) : (
               'Save profile'
             )}
-          </motion.button>
+          </PholioButton>
         </div>
       </div>
     </aside>

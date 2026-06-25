@@ -50,13 +50,6 @@
 }
 
 /* ── Editorial primitives ── */
-.mw-kicker {
-  font-family: var(--mw-mono);
-  font-size: 10px;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--mw-gold);
-}
 .mw-h1 {
   font-family: var(--mw-serif);
   font-weight: 400;
@@ -96,43 +89,6 @@
   color: var(--mw-text-faint);
 }
 
-/* Buttons */
-.mw-btn-gold {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mw-sans);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 11px 18px;
-  border: 1px solid var(--mw-gold);
-  border-radius: 2px;
-  background: var(--mw-gold);
-  color: var(--mw-ink);
-  cursor: pointer;
-  transition: background 0.2s var(--mw-ease), border-color 0.2s var(--mw-ease);
-}
-.mw-btn-gold:hover { background: var(--mw-gold-light); border-color: var(--mw-gold-light); }
-.mw-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.mw-btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--mw-sans);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 10px 16px;
-  border: 1px solid var(--mw-hair-strong);
-  border-radius: 2px;
-  background: transparent;
-  color: var(--mw-text);
-  cursor: pointer;
-  transition: border-color 0.2s var(--mw-ease), color 0.2s var(--mw-ease);
-}
-.mw-btn-ghost:hover { border-color: rgba(26, 26, 26, 0.32); }
-
 /* Gold center-fade divider */
 .mw-divider {
   height: 1px;
@@ -141,6 +97,10 @@
   opacity: 0.7;
 }
 @media (max-width: 720px) { .mw-divider { margin: 48px 0; } }
+
+.mw-comp-card {
+  margin-top: 0;
+}
 
 /* ── Masthead ── */
 .mw-masthead {
@@ -155,7 +115,12 @@
 .mw-masthead__meta { margin-top: 6px; }
 
 /* ── Section head ── */
-.mw-section-head { margin-bottom: 32px; display: flex; flex-direction: column; gap: 12px; }
+.mw-section-head {
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .mw-root * { animation: none !important; transition: none !important; }
@@ -233,6 +198,23 @@
   color: rgba(255, 255, 255, 0.85);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
+
+.mw-frame__foot {
+  padding: 8px 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mw-frame__status-line {
+  margin: 0;
+  font-family: var(--mw-sans);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--mw-text-soft, rgba(26, 26, 26, 0.62));
+}
+
+/* Legacy — prefer mw-frame__status-line */
 .mw-tag {
   position: absolute;
   top: 8px;
@@ -268,8 +250,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 2px;
   background: rgba(250, 247, 242, 0.92);

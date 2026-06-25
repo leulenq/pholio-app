@@ -13,16 +13,16 @@ const COMP_CARD_ROLES = [
 ];
 
 const IMAGE_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'digital', label: 'Digital' },
-  { value: 'portfolio', label: 'Portfolio' },
+  { value: '', label: 'Unplaced' },
+  { value: 'digital', label: 'Digitals' },
+  { value: 'portfolio', label: 'Book' },
   { value: 'comp_card', label: 'Comp card' },
   { value: 'campaign', label: 'Campaign' },
-  { value: 'test', label: 'Test' },
+  { value: 'test', label: 'Test shoot' },
 ];
 
 const SHOT_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
+  { value: '', label: 'Unplaced' },
   { value: 'headshot', label: 'Headshot' },
   { value: 'three_quarter', label: 'Three-quarter' },
   { value: 'full_length', label: 'Full length' },
@@ -33,7 +33,7 @@ const SHOT_TYPE_OPTIONS = [
 ];
 
 const STYLE_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
+  { value: '', label: 'Unplaced' },
   { value: 'editorial', label: 'Editorial' },
   { value: 'commercial', label: 'Commercial' },
   { value: 'lifestyle', label: 'Lifestyle' },
@@ -264,29 +264,29 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
             <section className="imd-section">
               <div className="imd-section__head">
                 <ImageIcon size={15} />
-                <h3>Catalog</h3>
+                <h3>Frame read</h3>
               </div>
               <div className="imd-grid">
                 <label>
-                  <span className="imd-label">Image type</span>
+                  <span className="imd-label">Use</span>
                   <select className="imd-input" value={formData.image_type} onChange={(e) => setFormData((prev) => ({ ...prev, image_type: e.target.value }))}>
                     {IMAGE_TYPE_OPTIONS.map((o) => <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
                   </select>
                 </label>
                 <label>
-                  <span className="imd-label">Shot type</span>
+                  <span className="imd-label">Framing</span>
                   <select className="imd-input" value={formData.shot_type} onChange={(e) => setFormData((prev) => ({ ...prev, shot_type: e.target.value }))}>
                     {SHOT_TYPE_OPTIONS.map((o) => <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
                   </select>
                 </label>
                 <label>
-                  <span className="imd-label">Style</span>
+                  <span className="imd-label">Register</span>
                   <select className="imd-input" value={formData.style_type} onChange={(e) => setFormData((prev) => ({ ...prev, style_type: e.target.value }))}>
                     {STYLE_TYPE_OPTIONS.map((o) => <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
                   </select>
                 </label>
                 <label>
-                  <span className="imd-label">Status</span>
+                  <span className="imd-label">Library state</span>
                   <select className="imd-input" value={formData.status} onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}>
                     {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>

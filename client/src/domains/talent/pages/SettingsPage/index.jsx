@@ -10,6 +10,10 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { auth } from '../../../../shared/lib/firebase';
+import {
+  isMinorProfile,
+  minorPublicExposureAllowed,
+} from '../../../../shared/utils/talentAge';
 import './SettingsPage.css';
 
 const EASING = [0.22, 1, 0.36, 1];
@@ -519,6 +523,9 @@ function PrivacySection() {
 }
 
 function PrivacySectionForm({ initialSettings }) {
+  const { profile } = useAuth();
+  const minorBlocked =
+    isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
   const [blockedAgencies, setBlockedAgencies] = useState(initialSettings.blockedAgencies || []);
   const [blockInput, setBlockInput] = useState('');
   const [form, setForm] = useState(() => ({
@@ -562,9 +569,9 @@ function PrivacySectionForm({ initialSettings }) {
     if (slugError) { toast.error(slugError); return; }
     mutation.mutate({
       slug: form.slug,
-      isPublic: form.isPublic,
+      isPublic: minorBlocked ? false : form.isPublic,
       isDiscoverable: form.isDiscoverable,
-      showContact: form.showContact,
+      showContact: minorBlocked ? false : form.showContact,
       blockedAgencies,
     }, {
       onSuccess: () => {
@@ -606,12 +613,18 @@ function PrivacySectionForm({ initialSettings }) {
             <select
               id="ts-visibility"
               className="ts-select"
-              value={form.isPublic ? 'public' : 'private'}
+              value={(minorBlocked ? false : form.isPublic) ? 'public' : 'private'}
               onChange={e => set('isPublic', e.target.value === 'public')}
+              disabled={minorBlocked}
             >
               <option value="public">Public — anyone can view</option>
               <option value="private">Private — hidden from search</option>
             </select>
+            {minorBlocked ? (
+              <span className="ts-input-help">
+                Guardian consent is required before a minor profile can be made public.
+              </span>
+            ) : null}
           </div>
 
           <div className="ts-toggle-row ts-toggle-row--inline">
@@ -638,8 +651,11 @@ function PrivacySectionForm({ initialSettings }) {
             <label className="ts-switch">
               <input
                 type="checkbox"
-                checked={form.showContact}
-                onChange={() => set('showContact', !form.showContact)}
+                checked={minorBlocked ? false : form.showContact}
+                disabled={minorBlocked}
+                onChange={() => {
+                  if (!minorBlocked) set('showContact', !form.showContact);
+                }}
               />
               <span className="ts-slider" />
               <span className="sr-only">Show contact information</span>

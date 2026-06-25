@@ -17,8 +17,30 @@ export function MeasurementsSection({
   unitSystem,
   setUnitSystem,
   shoeRegion,
-  setShoeRegion
+  setShoeRegion,
+  measurementsLocked = false,
 }) {
+  if (measurementsLocked) {
+    return (
+      <Section
+        id="appearance"
+        title="Physical Attributes"
+        titleEmphasis="Attributes"
+        description="Vital statistics for casting searches."
+        showDivider={false}
+      >
+        <div className={styles.measurementsLocked}>
+          <p className={styles.measurementsLockedCopy}>
+            Measurements and weight stay locked until a parent or guardian consents in Personal Details.
+          </p>
+          <a href="#identity" className={styles.measurementsLockedLink}>
+            Record guardian consent
+          </a>
+        </div>
+      </Section>
+    );
+  }
+
   return (
     <Section
       id="appearance"

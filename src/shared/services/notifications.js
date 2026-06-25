@@ -9,6 +9,7 @@ const NOTIFICATION_TYPES = {
   AGENCY_PROFILE_VIEW: "agency_profile_view",
   APPLICATION_SUBMITTED: "application_submitted",
   APPLICATION_STATUS: "application_status",
+  INTERVIEW_SCHEDULED: "interview_scheduled",
   PROFILE_NOT_SUBMISSION_READY: "profile_not_submission_ready",
   CONFIRMATION: "confirmation",
 };
@@ -239,6 +240,10 @@ function applicationStatusCopy(status, agencyName) {
       title: "Application archived",
       body: `${agency} archived this application.`,
     },
+    kept_on_file: {
+      title: "Kept on file",
+      body: `${agency} is keeping your profile on file for future openings.`,
+    },
   };
   return (
     map[status] || {
@@ -257,6 +262,7 @@ const NOTIFY_STATUSES = new Set([
   "declined",
   "passed",
   "archived",
+  "kept_on_file",
 ]);
 
 async function notifyTalentApplicationSubmitted({

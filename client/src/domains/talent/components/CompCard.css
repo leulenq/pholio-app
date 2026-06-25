@@ -141,6 +141,31 @@
 .cc-unlock { font-family: var(--mw-sans); font-size: 12px; color: var(--mw-gold); text-decoration: none; }
 .cc-flip-hint { opacity: 0.85; }
 
+/*
+ * Official "Add to Apple Wallet" badge — Apple-provided artwork, never
+ * restyled or recreated. Sits directly on the cream workspace surface per
+ * Apple's light-background guidance; no chip/box, no shadow, aspect preserved.
+ */
+.cc-wallet { display: inline-flex; align-items: center; transition: opacity 0.2s var(--mw-ease); }
+.cc-wallet:hover { opacity: 0.85; }
+.cc-wallet img { display: block; height: 40px; width: auto; }
+
+.cc-gate {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--ag-surface-0, #faf8f5);
+}
+
+.cc-gate__copy {
+  margin: 0;
+  color: var(--ag-text-2, #6b6560);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cc-card__flip { transition: none; }
   .cc-veil__ring { animation: none; }

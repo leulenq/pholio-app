@@ -47,6 +47,7 @@ The following patterns have been explicitly removed from the codebase and must n
 8. **Glass cards with `backdrop-filter: blur()`** — no frosted-glass effect on cards, panels, or buttons. `backdrop-filter` is permitted only on full-screen scrims/overlays (`position: fixed; inset: 0`) where it is a functional dimmer, not a decorative style.
 9. **Tiny count badge on nav or cards** — no `<span className="ag-nav-count">` or equivalent counter bubbles attached to navigation items.
 10. **Pulsing dots / status indicators** — no animated or static colored dots next to text (like 'Strong Profile' or 'Live') to indicate status or completeness. Use plain text labels without dots instead.
+11. **Draggable/Resizable Textboxes** — no textbox or textarea should be draggable/resizable by the user. Always enforce `resize: none` on textareas.
 
 Violating any of these rules requires explicit approval and a design discussion first.
 

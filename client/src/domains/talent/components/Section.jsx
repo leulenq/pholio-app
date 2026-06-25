@@ -25,8 +25,9 @@ export const Section = ({
   children,
   showDivider = true,
   headerAction,
+  className,
 }) => (
-  <section id={id} className={styles.section}>
+  <section id={id} className={`${styles.section} ${className || ''}`}>
     {showDivider && <hr className={styles.sectionDivider} aria-hidden="true" />}
     <div className={styles.sectionHeader}>
       <div className={styles.sectionTitleGroup}>

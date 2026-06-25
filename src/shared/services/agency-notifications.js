@@ -7,7 +7,10 @@ const { upsertUserNotification, PRIORITIES } = require("./notifications");
 
 const AGENCY_NOTIFICATION_TYPES = {
   APPLICATION_RECEIVED: "application_received",
+  APPLICATION_WITHDRAWN: "application_withdrawn",
   INTERVIEW_SCHEDULED: "interview_scheduled",
+  INTERVIEW_RESPONSE: "interview_response",
+  MESSAGE_RECEIVED: "message_received",
 };
 
 async function getAgencyMemberUserIds(agencyId) {
@@ -122,10 +125,81 @@ async function notifyAgencyInterviewScheduled({
   });
 }
 
+async function notifyAgencyApplicationWithdrawn({
+  agencyId,
+  applicationId,
+  talentName,
+}) {
+  const name = talentName || "A talent";
+  return notifyAgencyMembers({
+    agencyId,
+    type: AGENCY_NOTIFICATION_TYPES.APPLICATION_WITHDRAWN,
+    title: "Application withdrawn",
+    body: `${name} withdrew their application.`,
+    routeTarget: `/dashboard/agency/inbox?application=${applicationId}`,
+    groupKey: `agency_app_withdrawn:${applicationId}`,
+    sourceType: "application",
+    sourceId: applicationId,
+    metadata: { applicationId, talentName: name },
+    priority: PRIORITIES.NORMAL,
+    reopenOnRepeat: false,
+  });
+}
+
+async function notifyAgencyInterviewResponse({
+  agencyId,
+  applicationId,
+  interviewId,
+  talentName,
+  response,
+}) {
+  const name = talentName || "Talent";
+  const accepted = response === "accepted";
+  return notifyAgencyMembers({
+    agencyId,
+    type: AGENCY_NOTIFICATION_TYPES.INTERVIEW_RESPONSE,
+    title: accepted ? "Interview accepted" : "Interview declined",
+    body: `${name} ${accepted ? "accepted" : "declined"} the interview.`,
+    routeTarget: `/dashboard/agency/inbox?application=${applicationId}`,
+    groupKey: `agency_interview_response:${interviewId}`,
+    sourceType: "interview",
+    sourceId: interviewId,
+    metadata: { applicationId, interviewId, response },
+    priority: PRIORITIES.HIGH,
+    reopenOnRepeat: true,
+  });
+}
+
+async function notifyAgencyNewMessage({
+  agencyId,
+  applicationId,
+  talentName,
+  preview,
+}) {
+  const name = talentName || "A talent";
+  const snippet = preview ? `: "${preview}"` : ".";
+  return notifyAgencyMembers({
+    agencyId,
+    type: AGENCY_NOTIFICATION_TYPES.MESSAGE_RECEIVED,
+    title: "New message",
+    body: `${name} replied${snippet}`,
+    routeTarget: `/dashboard/agency/inbox?application=${applicationId}`,
+    groupKey: `agency_message:${applicationId}`,
+    sourceType: "application",
+    sourceId: applicationId,
+    metadata: { applicationId, talentName: name },
+    priority: PRIORITIES.HIGH,
+    reopenOnRepeat: true,
+  });
+}
+
 module.exports = {
   AGENCY_NOTIFICATION_TYPES,
   getAgencyMemberUserIds,
   notifyAgencyMembers,
   notifyAgencyNewApplication,
+  notifyAgencyApplicationWithdrawn,
   notifyAgencyInterviewScheduled,
+  notifyAgencyInterviewResponse,
+  notifyAgencyNewMessage,
 };

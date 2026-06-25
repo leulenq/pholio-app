@@ -1,3 +1,134 @@
+# PITS Frontend Polish — 2026-06-24
+
+- [x] Rewrite PITS-facing copy so it reads as Pholio studio intelligence, not backend taxonomy output.
+- [x] Redesign the image review strip and frame captions with quiet editorial treatment.
+- [x] Rename visible classification controls without changing backend payload fields.
+- [x] Refine Digitals guidance copy and presentation to feel ambient and brand-native.
+- [x] Run focused frontend lint and build verification.
+
+## Review
+
+- Replaced "Suggested / Confirm / photo type / sorting" UI copy with "Studio reads", "Reads as", "Frame read", "Framing", "Register", and "Use".
+- Removed raw classifier reasoning from the review strip so backend analysis does not leak into the interface.
+- Restyled the review strip as a quiet editorial band with restrained rules and thumbnail/copy hierarchy rather than a rounded suggestion card.
+- Updated frame captions, completion toasts, timeout copy, editor controls, and legacy metadata modal labels to use the same Pholio-facing vocabulary.
+- Changed Digitals guidance from "suggestions" and "tag" language to calm refinements.
+- Verification: focused ESLint passed for touched frontend files via `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/eslint/bin/eslint.js ...`.
+- Verification: client production build passed via `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build`; Vite still reports the existing large-chunk warning.
+
+# Profile Index Simplification — 2026-06-24
+
+- [x] Simplify the profile index header and remove descriptive copy.
+- [x] Remove nested-scroll presentation from the index sidebar.
+- [x] Fix active-section detection so Contact wins when it is the viewed section.
+- [x] Run focused frontend lint for changed files.
+
+## Review
+- Header now reads "Index" with no intro copy.
+- Left index no longer has its own `max-height` / `overflow-y` scroll behavior.
+- Active-section tracking now scores the known profile sections against the `.tl-content` scroll viewport instead of accepting arbitrary `section[id]` observer order.
+- Follow-up fix: the first pass listened to `window`, but talent pages scroll inside `.tl-content`, so the nav could stay stuck on the initial section.
+- Verification: `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/eslint/bin/eslint.js src/domains/talent/components/ProfileNav.jsx src/domains/talent/pages/ProfilePage/index.jsx` passed from `client/`.
+- Verification: `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build` passed from `client/`.
+
+# Profile Completeness Panel Polish — 2026-06-24
+
+- [x] Replace the generic right-panel "Readiness" label.
+- [x] Rewrite the profile-strength message copy and improve spacing from the progress bar.
+- [x] Restyle the save action so it works on the light panel and still aligns with the shared Pholio button system.
+- [x] Run focused frontend lint and build verification.
+
+## Review
+- Right panel title is now "Profile Signal" instead of the generic readiness eyebrow.
+- Strong-package copy now reads as a Pholio-native agency signal, and the message has more separation from the progress bar.
+- Save action keeps the shared `PholioButton` base but has light-panel scoped colors for unchanged and actionable states.
+- Verification: focused ESLint passed for sidebar/profile files and `profileScoring.js`.
+- Verification: `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build` passed from `client/`.
+
+# Booking Lanes Product Model — 2026-06-24
+
+- [x] Replace Market Positioning with Booking Lanes in the profile tab.
+- [x] Add canonical lane taxonomy shared by client and server.
+- [x] Add `booking_lanes` and `profile_booking_lanes` data model with legacy backfill from `modeling_categories`.
+- [x] Expose `booking_primary_lane`, `booking_secondary_lanes`, and `booking_lanes` through the talent profile API.
+- [x] Stop bio/scoring copy from treating Special Skills as booking lanes.
+- [x] Update discover/embedding text to prefer booking lanes for market routing.
+- [x] Run focused frontend lint, backend syntax checks, client build, and temp SQLite migration verification.
+
+## Review
+- Profile tab now presents a primary booking lane plus up to three secondary lanes, with explanatory copy distinguishing lanes from Special Skills.
+- The backend stores lanes in a normalized join table while mirroring to legacy `profiles.modeling_categories` for compatibility.
+- Bio writer no longer falls back from lanes to `specialties`; skills stay capabilities.
+- Verification: focused ESLint passed for touched client files.
+- Verification: `node --check` passed for touched backend modules and migration.
+- Verification: `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build` passed from `client/`.
+- Verification: temp SQLite migrate passed and confirmed 12 `booking_lanes` rows plus `profile_booking_lanes` table.
+
+# Profile Index + Booking Lanes Restoration — 2026-06-24
+
+- [x] Restore the simplified integrated index sidebar after external editor rollback.
+- [x] Restore the Booking Lanes field treatment and spacing after external editor rollback.
+- [x] Keep the later Booking Lanes cleanup: no "Define the briefs..." copy and no divider treatment.
+- [x] Run focused frontend lint for restored profile files.
+
+## Review
+- Index sidebar is back to the simple "Index" heading, editorial active row, and no nested scroll container.
+- Booking Lanes is back as a primary lane plus secondary lanes control, with the distinct skills-vs-lanes note preserved.
+- Verification: focused ESLint passed for `ProfileNav.jsx`, `Section.jsx`, and `ProfilePage/index.jsx`.
+- Verification: `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build` passed from `client/`.
+
+# Apply Experience Redesign — Premium submission flow (2026-06-22)
+
+Replace the clunky, form-like talent→agency apply flow with a dedicated, non-modal,
+immersive **submission experience** (curating & sending a package, not filling fields).
+
+## Direction (confirmed by user: "Your decision. Build fresh components.")
+- Flow: immersive, one focus per scene — Address → Curate → Voice → Send → Arrival.
+- Scope: production-ready. Codebase: fresh components, reuse API + hooks + routing.
+- System: Pholio Talent Studio (Noto Serif Display, pill buttons, pressed-paper fields,
+  spring motion, image-first, cinematic arrival); `--app-*` palette for continuity.
+- Fix old ApplyWorkspace violations: no `app-kicker` eyebrows, no `01/02` markers,
+  no dense readiness tables, no toast-only completion.
+
+## Build
+- [ ] pages/ApplyPage/ApplyExperience.jsx (orchestrator + scenes + motion)
+- [ ] pages/ApplyPage/ApplyExperience.css (standalone talent styling)
+- [ ] pages/ApplyPage/index.jsx → render ApplyExperience
+- [ ] delete superseded components/ApplyWorkspace.jsx
+
+## Preserve: agency select + ?agency= preselect, exclude applied; media-set + image
+include/exclude; comp-card choice + live CompCard; readiness gate (headshot/full-body/
+measurements/contact); digitals advisory; monthly limit + upgrade error; note ≤1200 +
+consent; profile gate; empty/error/loading/arrival states; prefers-reduced-motion.
+
+## Verify
+- [x] cd client && npm run lint (scoped); build green.
+- [ ] walk the flow live (auth-gated SPA route — pending a logged-in session).
+
+## Course-correction (user feedback)
+- First pass invented a new aesthetic (ambient gold "aura", pill buttons, immersive
+  `--apx-*` scenes). User: **"wrong, never use again. Use the /applications design
+  philosophy. Make it full screen."** Saved to memory:
+  feedback_apply_uses_applications_language.
+- Rebuilt in the editorial-ledger language: reuses `ApplicationsView.css` (`.app-*`
+  classes, `--app-*` tokens, cream canvas), `PholioButton` (solid/secondary), serif
+  weight-300 titles, `app-kicker` mono micro-labels, `app-agency-option` list,
+  `app-application-package`, `app-package-readiness`, `app-submit-success` arrival.
+  CSS-entrance scene transitions (no framer/spring). `ApplyExperience.css` now only
+  adds the full-screen frame, curation gallery, and quiet mono waypoints.
+- Full screen: route moved OUT of `DashboardLayoutShell` to a standalone route (like
+  `/reveal`), so no sidebar/topbar chrome.
+- Flow: Address → Curate → Send (+ arrival). Note+consent folded into Send.
+- Second pass feedback: selected agency address scene still reads dull and too
+  top-heavy. Fixes required: remove the Open status dot entirely, reduce mast
+  dominance, integrate website as an icon action beside agency identity, make
+  location core identity, compose the logo intentionally, redesign "What this
+  house looks for" as a Pholio Intelligence fit surface, fix open-agency row
+  vertical clipping, and make `?agency=` Compose land in a focused single-agency
+  experience with no Apply New/sidebar framing.
+
+---
+
 # Comp Card Production Audit + /media Surface Rebuild (2026-06-12)
 
 Report: docs/comp-card-production-audit.md. 283 PDF-domain tests green
@@ -776,3 +907,30 @@ all front/back combos valid (Backstage, Sedcard24, models.com show packages).
       validity incl. FL portrait, photo-set response, determinism). 332
       PDF-domain tests green; 6-card live batch shows feature-row / mosaic /
       uniform-grid / feature-column backs + filled fronts.
+
+---
+
+# Talent Profile Socials: OnlyFans Link — 2026-06-24
+
+- [x] Replace the Website / Portfolio social card with OnlyFans.
+- [x] Add persisted `onlyfans_url` profile field through migration, API, and validation.
+- [x] Verify targeted UI/helper lint, backend syntax, diff whitespace, and local migration apply.
+- [ ] Note: full client validation lint is blocked by pre-existing unused vars in `client/src/shared/lib/validation.js`; TypeScript schema is ignored by current ESLint config.
+
+## Review
+- Socials grid now renders OnlyFans in the former Website / Portfolio slot.
+- Saving uses `onlyfans_url`, leaving existing public portfolio behavior untouched.
+- OnlyFans card now has its own brand treatment instead of reusing portfolio gold.
+
+---
+
+# Talent Profile Tab: Remove Website Analytics + Index Redesign — 2026-06-24
+
+- [x] Remove Studio+ website analytics section from the profile tab.
+- [x] Remove the profile tab analytics hook/imports and dead derived metrics.
+- [x] Redesign the left Profile Index as an editorial Pholio navigation surface.
+- [x] Verify targeted lint, diff whitespace, and client production build.
+
+## Review
+- Profile tab no longer fetches or renders website analytics.
+- Left index now has a serif title, contextual intro, vertical rule, and crafted active row styling.

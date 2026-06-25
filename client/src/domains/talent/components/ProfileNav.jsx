@@ -19,13 +19,11 @@ const VALID_NAV_IDS = new Set(NAV_ITEMS.map((item) => item.id));
 const ProfileNav = ({ onNavClick, activeSection }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
-  const resolvedTab =
-    rawTab && VALID_NAV_IDS.has(rawTab) ? rawTab : (rawTab === 'photos' ? null : 'identity');
+  const resolvedTab = rawTab && VALID_NAV_IDS.has(rawTab) ? rawTab : 'identity';
 
   const activeId = useMemo(() => {
-    const navIdFromSection = activeSection === 'photos-tab' ? 'photos' : activeSection;
-    if (navIdFromSection && NAV_ITEMS.some((item) => item.id === navIdFromSection)) {
-      return navIdFromSection;
+    if (activeSection && NAV_ITEMS.some((item) => item.id === activeSection)) {
+      return activeSection;
     }
     return resolvedTab;
   }, [resolvedTab, activeSection]);
@@ -41,7 +39,9 @@ const ProfileNav = ({ onNavClick, activeSection }) => {
 
   return (
     <nav className={styles.profileNav} aria-label="Profile sections">
-      <p className={styles.navIndexLabel}>Index</p>
+      <div className={styles.navHeader}>
+        <h2 className={styles.navTitle}>Index</h2>
+      </div>
       <ol className={styles.navList}>
         {NAV_ITEMS.map(({ id, label }, index) => {
           const isActive = activeId === id;
@@ -53,10 +53,12 @@ const ProfileNav = ({ onNavClick, activeSection }) => {
                 className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
                 aria-current={isActive ? 'true' : undefined}
               >
-                <span className={styles.navNum} aria-hidden="true">
-                  {String(index + 1).padStart(2, '0')}
+                <span className={styles.navMarker} aria-hidden="true">
+                  <span className={styles.navNum}>{String(index + 1).padStart(2, '0')}</span>
                 </span>
-                <span className={styles.navLabel}>{label}</span>
+                <span className={styles.navLabelWrap}>
+                  <span className={styles.navLabel}>{label}</span>
+                </span>
               </button>
             </li>
           );

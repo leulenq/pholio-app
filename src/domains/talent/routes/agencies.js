@@ -27,7 +27,22 @@ router.get(
         "website as agency_website",
         "description as agency_description",
         "logo_path as profile_image",
+        "open_boards",
       );
+
+    // Normalize open_boards (JSON text on SQLite, array on PG) to a string[].
+    const parseOpenBoards = (value) => {
+      if (Array.isArray(value)) return value.filter(Boolean);
+      if (typeof value === "string" && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    };
 
     // 2. Calculate Match Scores (Mock Heuristic)
     const scoredAgencies = agencies.map((agency) => {
@@ -62,6 +77,7 @@ router.get(
 
       return {
         ...agency,
+        open_boards: parseOpenBoards(agency.open_boards),
         matchScore: score,
         matchBreakdown: isPro ? breakdown : null, // Hide breakdown for free users? Or backend sends it but frontend hides?
         // Requirement: "Match Scores: Not visible" for Free.

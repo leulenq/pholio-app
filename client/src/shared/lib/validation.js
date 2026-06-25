@@ -295,6 +295,7 @@ export const talentProfileUpdateSchema = z
     experience_level: experienceLevelSchema,
     training: trainingSchema,
     portfolio_url: portfolioUrlSchema,
+    onlyfans_url: portfolioUrlSchema,
     instagram_handle: socialMediaHandleSchema,
     instagram_url: socialMediaUrlSchema,
     twitter_handle: socialMediaHandleSchema,

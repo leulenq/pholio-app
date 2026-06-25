@@ -12,7 +12,7 @@ Rules:
 - Target roughly 35 to 80 words unless context is extremely limited
 - Use ONLY verified facts provided in VERIFIED CONTEXT
 - Never invent credits, clients, agencies, publications, campaigns, training, locations, or years of experience
-- Prioritize the strongest booking-relevant signals: market, modeling lane, meaningful experience, training, and real differentiators
+- Prioritize the strongest booking-relevant signals: market, booking lane, meaningful experience, training, and real differentiators
 - Omit weak, repetitive, admin, or irrelevant details even if they appear in context
 - Do not turn the bio into a resume dump
 - Do not include raw measurements or internal metadata
@@ -32,7 +32,7 @@ Write a short agency-ready bio for ${context.name}.
 
 Focus on the strongest and most relevant signals only. Prioritize:
 1. market/location if useful
-2. primary modeling lanes
+2. primary booking lanes
 3. meaningful experience or training
 4. one or two real differentiators
 

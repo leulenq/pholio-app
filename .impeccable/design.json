@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-14T00:00:00.000Z",
+  "title": "Design System: Pholio Agency Command Center",
+  "extensions": {
+    "colorMeta": {
+      "gold": { "role": "primary", "displayName": "Pholio Gold", "canonical": "#C9A55A", "tonalRamp": ["#3A2E14", "#5C4A22", "#7E6630", "#9F8243", "#C9A55A", "#D8BC83", "#E7D3AC", "#F4ECDC"] },
+      "canvas": { "role": "neutral", "displayName": "Warm Cream Canvas", "canonical": "#FAF8F5", "tonalRamp": ["#2A2620", "#433D34", "#6B6255", "#9C9281", "#C8C2BA", "#EDE9E3", "#F5F2EE", "#FAF8F5"] },
+      "ink": { "role": "neutral", "displayName": "Warm Ink", "canonical": "#1A1815", "tonalRamp": ["#141210", "#1A1815", "#2D2A26", "#4A453F", "#6B6560", "#9C958E", "#C8C2BA", "#EDE9E3"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Playfair)", "purpose": "Page mastheads and hero moments. Sparing." },
+      "headline": { "displayName": "Headline (Playfair)", "purpose": "Section and page titles." },
+      "title": { "displayName": "Title (Inter)", "purpose": "Card titles, panel headers, primary-button text." },
+      "body": { "displayName": "Body (Inter)", "purpose": "Default operational text; prose caps 65-75ch." },
+      "label": { "displayName": "Label (Inter, uppercase)", "purpose": "Field labels and metadata keys only — never an eyebrow above a heading." }
+    },
+    "shadows": [
+      { "name": "ambient-sm", "value": "0 1px 3px rgba(26,24,21,0.06)", "purpose": "Resting cards needing faint separation from canvas." },
+      { "name": "float-md", "value": "0 4px 20px rgba(26,24,21,0.08)", "purpose": "Dropdowns, popovers, hover-lifted cards." },
+      { "name": "overlay-lg", "value": "0 12px 40px rgba(26,24,21,0.12)", "purpose": "Side panels and modals — true overlays." },
+      { "name": "gold-glow", "value": "0 0 20px rgba(201,165,90,0.15)", "purpose": "Reserved emphasis for selected/celebrated elements; never ambient." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Color and opacity transitions." },
+      { "name": "ease-spring", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Scale, translate, and entrance transitions." },
+      { "name": "duration", "value": "200ms", "purpose": "Default transition duration (fast=150ms, slow=400ms)." }
+    ],
+    "breakpoints": [
+      { "name": "panel", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single highest-priority action per view — gold fill, dark ink text.",
+      "html": "<button class=\"ds-btn-primary\">Add to roster</button>",
+      "css": ".ds-btn-primary { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.9375rem; height: 40px; padding: 0 18px; color: #141210; background: #C9A55A; border: none; border-radius: 8px; cursor: pointer; transition: background 200ms cubic-bezier(0.4,0,0.2,1), transform 200ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-primary:hover { background: #B8956A; transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201,165,90,0.25); } .ds-btn-primary:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White surface, hairline border — non-primary actions.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.9375rem; height: 40px; padding: 0 18px; color: #2D2A26; background: #FFFFFF; border: 1px solid rgba(26,24,21,0.14); border-radius: 8px; cursor: pointer; transition: background 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-secondary:hover { background: #F5F2EE; border-color: rgba(26,24,21,0.22); } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201,165,90,0.25); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Warm white field with inset shadow and a gold focus halo.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search talent\" />",
+      "css": ".ds-input { width: 100%; height: 44px; padding: 10px 14px; font-family: 'Inter', sans-serif; font-size: 14px; color: #1A1815; background: #FFFFFF; border: 1px solid rgba(26,24,21,0.12); border-radius: 8px; box-shadow: inset 0 1px 2px rgba(26,24,21,0.04); transition: all 0.2s cubic-bezier(0.4,0,0.2,1); outline: none; } .ds-input::placeholder { color: #A39E99; } .ds-input:hover:not(:focus) { border-color: rgba(26,24,21,0.22); } .ds-input:focus { border-color: #C9A55A; box-shadow: 0 0 0 3px rgba(201,165,90,0.15), inset 0 1px 2px rgba(26,24,21,0.04); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White paper panel on the cream canvas — flat at rest, lifts on hover.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Sienna Vale</h3><p class=\"ds-card-meta\">Editorial · Match 92</p></div>",
+      "css": ".ds-card { background: #FFFFFF; border: 1px solid rgba(26,24,21,0.08); border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(26,24,21,0.06); transition: box-shadow 200ms cubic-bezier(0.4,0,0.2,1), transform 200ms cubic-bezier(0.16,1,0.3,1); } .ds-card:hover { box-shadow: 0 4px 20px rgba(26,24,21,0.08); transform: translateY(-2px); } .ds-card-title { margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 1.125rem; color: #1A1815; } .ds-card-meta { margin: 4px 0 0; font-family: 'Inter', sans-serif; font-size: 0.8125rem; color: #6B6560; }"
+    },
+    {
+      "name": "Section Masthead",
+      "kind": "custom",
+      "refersTo": "headline",
+      "description": "Editorial serif heading — the agency's printed-catalogue voice.",
+      "html": "<h1 class=\"ds-masthead\">Roster</h1>",
+      "css": ".ds-masthead { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; font-size: 2.5rem; line-height: 1.1; letter-spacing: -0.01em; color: #1A1815; margin: 0; text-wrap: balance; }"
+    },
+    {
+      "name": "Command Rail Item",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Vertical nav item on the deep ink rail — gold marks active, no count bubbles.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-rail-item ds-rail-item--active\" href=\"#\">Roster</a><a class=\"ds-rail-item\" href=\"#\">Inbox</a></nav>",
+      "css": ".ds-rail { display: flex; flex-direction: column; gap: 2px; padding: 12px; background: #141210; border-radius: 12px; width: 200px; } .ds-rail-item { display: block; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 500; color: rgba(255,255,255,0.6); border-radius: 8px; text-decoration: none; transition: background 200ms cubic-bezier(0.4,0,0.2,1), color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-rail-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); } .ds-rail-item--active { color: #C9A55A; background: rgba(201,165,90,0.1); } .ds-rail-item:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(201,165,90,0.5); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Editorial Ledger",
+    "overview": "The agency surface is a luxury casting book rendered as software — warm cream stock, gold-foil detailing, a confident serif masthead — given the density and speed of a modern operations tool. A booker should scan a hundred talent, triage an inbox, and move cards across a casting board without the interface ever raising its voice. Authority comes from typography and restraint, not chrome. It is deliberately a separate design system from the talent dashboard: same material (warm neutrals, one gold, Inter body) but its own serif (Playfair Display), tighter motion, and a working-tool density the talent side never reaches for.",
+    "keyCharacteristics": [
+      "Warm cream canvas (#FAF8F5), white panels, a single gold accent used sparingly.",
+      "Playfair Display serif for headlines; Inter for everything operational.",
+      "Density with composure — many signals, low visual noise.",
+      "Soft warm shadows + tonal cream layering for depth; never glass.",
+      "Motion is quick and state-conveying (150-200ms), not choreographed."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Gold appears on ≤10% of any screen. It marks the single most important action or the current selection — its rarity is what makes it read as luxury.", "section": "colors" },
+      { "name": "The Tone-Not-Badge Rule", "body": "Talent availability and pipeline state are carried by plain text or a single non-badge dot/stripe in a semantic color — never a colored pill badge.", "section": "colors" },
+      { "name": "The Serif-For-Identity Rule", "body": "Playfair appears only at the masthead/section-title tier. It is forbidden in buttons, labels, table cells, and data.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest and lift by tone on hover. A shadow is earned by a state change or by being a literal overlay.", "section": "elevation" },
+      { "name": "The No-Glass Rule", "body": "backdrop-filter: blur() is permitted only on a full-screen functional scrim. On any card, panel, toolbar, or button it is forbidden.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the canvas warm cream (#FAF8F5) with white paper panels.",
+      "Do reserve gold (#C9A55A) for the single most important action or current selection (≤10% of a screen).",
+      "Do use Playfair Display only at masthead/section-title tier; Inter for every control, label, and data cell.",
+      "Do convey depth by tonal cream layering first, soft warm shadows second.",
+      "Do render talent status as plain text or one non-badge dot/stripe.",
+      "Do show match score and talent type as plain inline text on cards.",
+      "Do provide prefers-reduced-motion fallbacks and keep :focus-visible gold rings."
+    ],
+    "donts": [
+      "Don't place a small uppercase / letter-spaced eyebrow or kicker above any heading.",
+      "Don't use status badges encoding available / on booking / inactive.",
+      "Don't add New / Beta / Live / AI-powered feature badges or accent-dot-plus-badge combos.",
+      "Don't overlay tiny metadata chips in card corners or on photo thumbnails.",
+      "Don't use backdrop-filter: blur() on cards, panels, toolbars, or buttons.",
+      "Don't attach count-bubble badges to nav items or cards.",
+      "Don't use a border-left/border-right greater than 1px as a colored accent stripe.",
+      "Don't use gradient text (background-clip: text).",
+      "Don't let the surface go cold blue-and-white SaaS admin."
+    ]
+  }
+}

@@ -1,21 +1,31 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
 import {
   arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Plus, Star, Edit2, Crop, Trash2, EyeOff, Loader2 } from 'lucide-react';
+import { Plus, Star, Edit2, Crop, Trash2, EyeOff, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMedia } from '../hooks/useMedia';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { TransferFailureNotice } from '../../../shared/components/states';
 import { parseApiFailure } from '../../../shared/lib/api-error-message';
+import { getClassificationState, formatTypeLabel } from '../../../shared/utils/imageClassification';
+import { talentApi } from '../api/talent';
 import FrameEditor from './FrameEditor';
+import ClassificationReviewStrip, { FrameTypeCaption } from './ClassificationReviewStrip';
+import DigitalsBookPanel from './DigitalsBookPanel';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
+import PholioButton from '../../../shared/components/ui/PholioButton';
+import { checkGatingStatus } from '../../../shared/utils/profileGating';
 import CompCard from './CompCard';
+import CompCardGate from './CompCardGate';
 import './MediaWorkspace.css';
+import './ClassificationReviewStrip.css';
+import './DigitalsBookPanel.css';
 
 const ARRIVE = {
   initial: { opacity: 0, y: 12 },
@@ -74,7 +84,7 @@ function showInvalidToasts(invalid) {
 }
 function markBroken(e) { e.currentTarget.classList.add('mw-frame__img--failed'); }
 
-function PortfolioFrame({ image, index, onSetCover, onEdit, onCrop, onDelete, settingCoverId }) {
+function PortfolioFrame({ image, index, onSetCover, onEdit, onCrop, onDelete, settingCoverId, classificationTimedOut }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: image.id });
   const style = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
@@ -93,10 +103,14 @@ function PortfolioFrame({ image, index, onSetCover, onEdit, onCrop, onDelete, se
           alt={metadataFor(image).caption || `Portfolio frame ${index + 1}`}
           className={`mw-frame__img ${isPrivate ? 'mw-frame__img--private' : ''}`}
           loading="lazy" decoding="async" draggable={false} onError={markBroken}
+          onClick={(e) => { e.stopPropagation(); onEdit(image); }}
         />
         <span className="mw-frame__index">{String(index + 1).padStart(2, '0')}</span>
-        {isCover && <span className="mw-tag mw-tag--cover">Cover</span>}
-        {isPrivate && !isCover && <span className="mw-tag mw-tag--private"><EyeOff size={9} aria-hidden="true" />Private</span>}
+        {isCover ? (
+          <span className="mw-frame__cover-mark" aria-label="Cover frame" title="Cover frame">
+            <Star size={14} fill="currentColor" aria-hidden="true" />
+          </span>
+        ) : null}
 
         <div className="mw-frame__actions" aria-label="Frame actions">
           {!isCover && (
@@ -113,13 +127,23 @@ function PortfolioFrame({ image, index, onSetCover, onEdit, onCrop, onDelete, se
             onClick={(e) => { e.stopPropagation(); onDelete(image.id); }}><Trash2 size={14} aria-hidden="true" /></button>
         </div>
       </div>
+      <div className="mw-frame__foot">
+        {isPrivate ? (
+          <p className="mw-frame__status-line">
+            Private
+          </p>
+        ) : null}
+        <FrameTypeCaption image={image} classificationTimedOut={classificationTimedOut} />
+      </div>
     </article>
   );
 }
 
 export default function MediaWorkspace() {
+  const shouldReduce = useReducedMotion();
   const { images, upload, deleteImage, reorder, setHero, replaceImage, restoreImage, isUploading, isLoading } = useMedia();
-  const { profile } = useAuth();
+  const { profile, refetch: refetchAuth } = useAuth();
+  const queryClient = useQueryClient();
 
   const [localImages, setLocalImages] = React.useState(images || []);
   const [editor, setEditor] = React.useState(null); // { image, mode: 'details'|'crop' }
@@ -127,12 +151,100 @@ export default function MediaWorkspace() {
   const [settingCoverId, setSettingCoverId] = React.useState(null);
   const [uploadError, setUploadError] = React.useState(null);
   const fileInputRef = React.useRef(null);
+  const pollStartedRef = React.useRef(null);
+  const prevClassRef = React.useRef(new Map());
+  const toastedAutoRef = React.useRef(new Set());
+  const [classificationTimedOutIds, setClassificationTimedOutIds] = React.useState(() => new Set());
+  const timeoutToastedRef = React.useRef(false);
 
   React.useEffect(() => { setLocalImages(images || []); }, [images]);
   React.useEffect(() => { document.title = 'Portfolio | Pholio'; }, []);
 
+  React.useEffect(() => {
+    for (const img of localImages) {
+      const prev = prevClassRef.current.get(img.id);
+      const state = getClassificationState(img);
+      if (
+        prev?.status === 'pending'
+        && state.status === 'ready'
+        && state.source === 'auto'
+        && state.shotType
+        && !toastedAutoRef.current.has(img.id)
+      ) {
+        toastedAutoRef.current.add(img.id);
+        const label = formatTypeLabel(state.shotType, state.imageType, state.styleType);
+        toast(`Pholio read this as ${label}`, {
+          action: {
+            label: 'Clear read',
+            onClick: () => {
+              talentApi.updateMedia(img.id, {
+                shot_type: null,
+                image_type: null,
+                style_type: null,
+                metadata: {
+                  ...(typeof img.metadata === 'object' ? img.metadata : {}),
+                  ai: {
+                    classification: {
+                      source: 'user',
+                      confirmed: true,
+                      band: 'ask',
+                    },
+                  },
+                },
+              }).then(() => {
+                queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+              }).catch(() => {
+                toast.error('Could not clear the frame read');
+              });
+            },
+          },
+        });
+      }
+      prevClassRef.current.set(img.id, state);
+    }
+  }, [localImages, queryClient]);
+
+  const hasPendingClassification = React.useMemo(
+    () => localImages.some((img) => getClassificationState(img).status === 'pending'),
+    [localImages],
+  );
+
+  React.useEffect(() => {
+    if (!hasPendingClassification) {
+      pollStartedRef.current = null;
+      timeoutToastedRef.current = false;
+      setClassificationTimedOutIds(new Set());
+      return undefined;
+    }
+    if (!pollStartedRef.current) pollStartedRef.current = Date.now();
+    const interval = setInterval(() => {
+      if (Date.now() - pollStartedRef.current > 30000) {
+        clearInterval(interval);
+        const stillPending = localImages
+          .filter((img) => getClassificationState(img).status === 'pending')
+          .map((img) => img.id);
+        if (stillPending.length > 0) {
+          setClassificationTimedOutIds(new Set(stillPending));
+          if (!timeoutToastedRef.current) {
+            timeoutToastedRef.current = true;
+            toast.error('Some frames need a manual read. Open details to place them.');
+          }
+        }
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      refetchAuth?.();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [hasPendingClassification, queryClient, refetchAuth, localImages]);
+
   const frames = localImages;
   const visibleCount = frames.filter((img) => !isHiddenFromMarket(img)).length;
+
+  const compCardGating = React.useMemo(
+    () => checkGatingStatus(profile, images),
+    [profile, images],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -205,6 +317,11 @@ export default function MediaWorkspace() {
   const handleUpdateMetadata = (id, patch) =>
     setLocalImages((prev) => prev.map((img) => (img.id === id ? { ...img, ...patch } : img)));
 
+  const handleClassificationConfirm = (id, nextImage) => {
+    setLocalImages((prev) => prev.map((img) => (img.id === id ? { ...img, ...nextImage } : img)));
+    queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+  };
+
   const handleReplace = async (blob) => {
     if (!editor) return;
     try { await replaceImage(editor.image.id, blob); setEditor(null); }
@@ -255,7 +372,7 @@ export default function MediaWorkspace() {
           disabled={isUploading}
         />
 
-        <motion.header className="mw-masthead" {...ARRIVE}>
+        <motion.header className="mw-masthead" {...(shouldReduce ? {} : ARRIVE)}>
           <div className="mw-masthead__copy">
             <h1 className="mw-h1">
               The <em>Book.</em>
@@ -265,9 +382,9 @@ export default function MediaWorkspace() {
               {frames.length} {frames.length === 1 ? 'frame' : 'frames'} · {visibleCount} visible to agencies
             </span>
           </div>
-          <button type="button" className="mw-btn-gold" onClick={openFilePicker} disabled={isUploading}>
+          <PholioButton variant="solid" onClick={openFilePicker} disabled={isUploading}>
             <Plus size={15} aria-hidden="true" /> {isUploading ? 'Adding…' : 'Add images'}
-          </button>
+          </PholioButton>
         </motion.header>
 
         {uploadError && (
@@ -280,8 +397,14 @@ export default function MediaWorkspace() {
 
         <section aria-label="Frame library" className="mw-library">
           <div className="mw-section-head">
-            <h2 className="mw-h2">Your frames</h2>
+            <DigitalsBookPanel images={frames} />
           </div>
+
+          <ClassificationReviewStrip
+            images={frames}
+            onConfirm={handleClassificationConfirm}
+            onEdit={(img) => setEditor({ image: img, mode: 'details' })}
+          />
 
           {isLoading ? (
             <div className="mw-grid">
@@ -294,8 +417,8 @@ export default function MediaWorkspace() {
                   <SortableContext items={frames.map((i) => i.id)} strategy={rectSortingStrategy}>
                     {frames.map((image, index) => (
                       <motion.div key={image.id}
-                        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.32, delay: index * 0.035, ease: [0.22, 1, 0.36, 1] }}>
+                        initial={shouldReduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: shouldReduce ? 0 : 0.32, delay: shouldReduce ? 0 : index * 0.035, ease: [0.22, 1, 0.36, 1] }}>
                         <PortfolioFrame
                           image={image} index={index}
                           onSetCover={handleSetCover}
@@ -303,6 +426,7 @@ export default function MediaWorkspace() {
                           onCrop={(img) => setEditor({ image: img, mode: 'crop' })}
                           onDelete={setDeleteId}
                           settingCoverId={settingCoverId}
+                          classificationTimedOut={classificationTimedOutIds.has(image.id)}
                         />
                       </motion.div>
                     ))}
@@ -318,9 +442,9 @@ export default function MediaWorkspace() {
           ) : (
             <div className="mw-empty">
               <span className="mw-empty__title">No frames yet.</span>
-              <button type="button" className="mw-btn-gold" onClick={openFilePicker} disabled={isUploading}>
-                <Plus size={15} aria-hidden="true" /> Add images
-              </button>
+              <PholioButton variant="solid" onClick={openFilePicker} disabled={isUploading}>
+                <Upload size={14} aria-hidden /> Upload Media
+              </PholioButton>
               <p className="mw-helper">JPEG · PNG · WEBP — up to 5MB, 12 at a time</p>
             </div>
           )}
@@ -328,8 +452,17 @@ export default function MediaWorkspace() {
 
         <div className="mw-divider" aria-hidden="true" />
 
-        <section aria-label="Comp card">
-          <CompCard images={frames} profile={profile} />
+        <section aria-label="Comp card" className="mw-comp-card">
+          {compCardGating.isBlocked ? (
+            <CompCardGate
+              missingTasks={compCardGating.missingTasks}
+              missingFields={compCardGating.missingFields}
+              completedCount={compCardGating.completedCount}
+              totalRequired={compCardGating.totalRequired}
+            />
+          ) : (
+            <CompCard images={frames} profile={profile} />
+          )}
         </section>
       </div>
     </div>

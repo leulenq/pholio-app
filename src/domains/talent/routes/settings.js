@@ -12,6 +12,12 @@ const {
   isSubscriptionActive,
 } = require("../../../shared/lib/subscriptions");
 const { v4: uuidv4 } = require("uuid");
+const {
+  isMinorProfile,
+  minorPublicExposureAllowed,
+  canCollectSensitiveProfileFields,
+  isSensitiveImageShotType,
+} = require("../../../shared/lib/talent-age");
 
 const DEFAULT_NOTIFICATIONS = {
   emailFrequency: "immediate",
@@ -371,7 +377,19 @@ router.put(
     }
 
     if (isPublic !== undefined) {
-      profileUpdate.is_public = !!isPublic;
+      const wantsPublic = !!isPublic;
+      if (
+        wantsPublic &&
+        isMinorProfile(profile) &&
+        !minorPublicExposureAllowed(profile)
+      ) {
+        return apiResponse.error(
+          res,
+          "Guardian consent is required before a minor profile can be made public.",
+          403,
+        );
+      }
+      profileUpdate.is_public = wantsPublic;
     }
 
     if (isDiscoverable !== undefined) {
@@ -417,11 +435,24 @@ router.put(
       }
 
       if (showContact !== undefined || blockedAgencies !== undefined) {
+        const effectiveShowContact =
+          showContact !== undefined ? !!showContact : undefined;
+        if (
+          effectiveShowContact &&
+          isMinorProfile(profile) &&
+          !minorPublicExposureAllowed(profile)
+        ) {
+          return apiResponse.error(
+            res,
+            "Guardian consent is required before contact details can be shown publicly.",
+            403,
+          );
+        }
         update.privacy_preferences = jsonForDb(
           sanitizePrivacy({
             ...DEFAULT_PRIVACY,
             ...parseJson(row.privacy_preferences, {}),
-            ...(showContact !== undefined ? { showContact } : {}),
+            ...(showContact !== undefined ? { showContact: effectiveShowContact } : {}),
             ...(blockedAgencies !== undefined ? { blockedAgencies } : {}),
           }),
         );

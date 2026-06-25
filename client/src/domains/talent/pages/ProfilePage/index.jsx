@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { pholioToast } from '../../../../shared/lib/pholio-toast';
 import { motion } from 'framer-motion';
-import { Menu, X, Camera, Eye, Activity, MousePointerClick } from 'lucide-react';
+import { Menu, X, Camera } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { profileSchema } from '../../../../schemas/profileSchema';
@@ -30,12 +30,20 @@ import { cmToFeetInches } from '../../../../shared/utils/measurementConversions'
 import { normalizePhoneInput } from '../../../../shared/lib/phone-format';
 import { IdentitySection } from './IdentitySection';
 import { MeasurementsSection } from './MeasurementsSection';
-import { PhotosSection } from './PhotosSection';
 import { SocialSection } from './SocialSection';
-import { useAnalytics } from '../../hooks/useAnalytics';
 import { parseApiFailure } from '../../../../shared/lib/api-error-message';
 import { useReferenceLanguages } from '../../../../shared/hooks/useReferenceLanguages';
 import { flushProfileFormForSave } from './flushProfileFormForSave';
+import {
+  isMinorProfile,
+  minorSensitiveFieldsUnlocked,
+} from '../../../../shared/utils/talentAge';
+import {
+  BOOKING_LANES,
+  BOOKING_LANE_BY_SLUG,
+  normalizeBookingLaneList,
+  normalizeBookingLaneSlug,
+} from '../../../../shared/constants/bookingLanes';
 
 import styles from './ProfilePage.module.css';
 
@@ -76,13 +84,8 @@ function normalizeEmergencyPhone(raw) {
   return normalized === '' ? null : normalized;
 }
 
-function toNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
 function deriveRepresentationStatus(profile) {
-  const seeking = !!profile.seeking_representation;
+  const seeking = toFormBoolean(profile.seeking_representation, false);
   const agency = profile.current_agency && String(profile.current_agency).trim();
   if (seeking) return 'seeking';
   if (agency) return 'represented';
@@ -103,7 +106,49 @@ function toPreviousRepresentationsText(value) {
   return typeof parsedValue === 'string' ? parsedValue : '';
 }
 
+function resolveBookingLaneFields(profile = {}) {
+  const legacyLanes = normalizeBookingLaneList(profile.modeling_categories);
+  const primary =
+    normalizeBookingLaneSlug(profile.booking_primary_lane) ||
+    legacyLanes[0] ||
+    null;
+  const secondary = normalizeBookingLaneList(
+    profile.booking_secondary_lanes || legacyLanes.slice(1),
+  ).filter((laneSlug) => laneSlug !== primary);
+
+  return {
+    booking_primary_lane: primary,
+    booking_secondary_lanes: secondary.slice(0, 3),
+    modeling_categories: legacyLanes,
+  };
+}
+
+function toFormBoolean(value, defaultValue = false) {
+  if (value === null || value === undefined) return defaultValue;
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
+    if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
+  }
+  return defaultValue;
+}
+
+function toFormTriStateBoolean(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (value === true || value === 1 || value === 'Yes' || value === 'yes') return true;
+  if (value === false || value === 0 || value === 'No' || value === 'no') return false;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1') return true;
+    if (normalized === 'false' || normalized === '0') return false;
+  }
+  return null;
+}
+
 function normalizeProfileForForm(profile = {}) {
+  const bookingLaneFields = resolveBookingLaneFields(profile);
   return {
     ...profile,
     // Map backend fields to frontend Zod schema
@@ -138,7 +183,7 @@ function normalizeProfileForForm(profile = {}) {
     current_agency: profile.current_agency ? String(profile.current_agency) : null,
     union_membership: toArrayField(profile.union_membership),
     comfort_levels: toArrayField(profile.comfort_levels),
-    modeling_categories: toArrayField(profile.modeling_categories),
+    ...bookingLaneFields,
     // Maintain JSON array or string structure for CreditsEditor
     experience_details: profile.experience_details
       ? (typeof profile.experience_details === 'string'
@@ -153,17 +198,13 @@ function normalizeProfileForForm(profile = {}) {
     representation_status: deriveRepresentationStatus(profile),
 
     // Preserve nulls for completeness checks
-    seeking_representation: !!profile.seeking_representation,
-    tattoos: !!profile.tattoos,
-    piercings: !!profile.piercings,
-    /** true / false / null — null means “not specified” for the UI (backend nullable boolean). */
-    work_eligibility:
-      profile.work_eligibility === true || profile.work_eligibility === 'Yes'
-        ? true
-        : profile.work_eligibility === false || profile.work_eligibility === 'No'
-          ? false
-          : null,
-    passport_ready: !!profile.passport_ready,
+    seeking_representation: toFormBoolean(profile.seeking_representation, false),
+    tattoos: toFormBoolean(profile.tattoos, false),
+    piercings: toFormBoolean(profile.piercings, false),
+    work_eligibility: toFormTriStateBoolean(profile.work_eligibility),
+    passport_ready: toFormBoolean(profile.passport_ready, false),
+    availability_travel: toFormBoolean(profile.availability_travel, false),
+    drivers_license: toFormBoolean(profile.drivers_license, false),
     // Ensure measurements are numbers for the inputs (backend sends numbers now)
     bust: profile.bust_cm ? Number(profile.bust_cm) : null,
     waist: profile.waist_cm ? Number(profile.waist_cm) : null,
@@ -176,6 +217,9 @@ function normalizeProfileForForm(profile = {}) {
     // Keep tag/array fields for multi-select rendering
     languages: toArrayField(profile.languages),
     specialties: toArrayField(profile.specialties),
+
+    guardian_consent_recorded: Boolean(profile.guardian_consent_at),
+    work_permit_on_file: toFormBoolean(profile.work_permit_on_file, false),
   };
 }
 
@@ -197,19 +241,6 @@ const COMFORT_LEVEL_OPTIONS = [
   { value: 'Body Paint', label: 'Body Paint' }
 ];
 
-const MODELING_CATEGORIES_OPTIONS = [
-  { value: 'Runway', label: 'Runway / Fashion Week' },
-  { value: 'Editorial', label: 'Editorial / Print' },
-  { value: 'Commercial', label: 'Commercial / Catalog' },
-  { value: 'Lifestyle', label: 'Lifestyle / E-commerce' },
-  { value: 'Swim/Fitness', label: 'Swim / Fitness' },
-  { value: 'Beauty', label: 'Beauty / Cosmetics' },
-  { value: 'Parts', label: 'Parts (Hands / Feet)' },
-  { value: 'Promotional', label: 'Promotional / Events' },
-  { value: 'Plus-size', label: 'Plus-Size / Curve' },
-  { value: 'Petite', label: 'Petite' }
-];
-
 const AVAILABILITY_OPTIONS = [
   { value: 'Full-Time', label: 'Full-Time' },
   { value: 'Part-Time', label: 'Part-Time' },
@@ -218,8 +249,180 @@ const AVAILABILITY_OPTIONS = [
   { value: 'By Appointment', label: 'By Appointment' }
 ];
 
+const MEDIA_PATH = '/dashboard/talent/media';
+const PROFILE_NAV_SECTION_IDS = [
+  'identity',
+  'heritage',
+  'appearance',
+  'credits',
+  'training',
+  'roles',
+  'representation',
+  'socials',
+  'contact',
+];
+
+function getLaneFitSignals(profileValues = {}) {
+  const signals = [
+    { slug: 'runway', score: profileValues.fit_score_runway },
+    { slug: 'editorial', score: profileValues.fit_score_editorial },
+    { slug: 'commercial', score: profileValues.fit_score_commercial },
+    { slug: 'lifestyle', score: profileValues.fit_score_lifestyle },
+    { slug: 'fitness', score: profileValues.fit_score_swim_fitness },
+  ]
+    .map((item) => ({
+      ...item,
+      score: Number(item.score),
+      lane: BOOKING_LANE_BY_SLUG[item.slug],
+    }))
+    .filter((item) => item.lane && Number.isFinite(item.score) && item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  return signals;
+}
+
+function BookingLanesControl({ primaryField, secondaryField, fitSignals = [] }) {
+  const primaryLane = normalizeBookingLaneSlug(primaryField.value);
+  const secondaryLanes = normalizeBookingLaneList(secondaryField.value)
+    .filter((laneSlug) => laneSlug !== primaryLane)
+    .slice(0, 3);
+
+  const handlePrimaryChange = (laneSlug) => {
+    primaryField.onChange(laneSlug);
+    secondaryField.onChange(secondaryLanes.filter((current) => current !== laneSlug));
+  };
+
+  const handleSecondaryToggle = (laneSlug) => {
+    if (laneSlug === primaryLane) return;
+    if (secondaryLanes.includes(laneSlug)) {
+      secondaryField.onChange(secondaryLanes.filter((current) => current !== laneSlug));
+      return;
+    }
+    if (secondaryLanes.length >= 3) {
+      secondaryField.onChange([...secondaryLanes.slice(1), laneSlug]);
+      return;
+    }
+    secondaryField.onChange([...secondaryLanes, laneSlug]);
+  };
+
+  return (
+    <div className={styles.bookingLanes}>
+      <div className={styles.bookingLaneGroup}>
+        <div className={styles.bookingLaneHead}>
+          <h4>Primary lane</h4>
+          <span>Choose one</span>
+        </div>
+        <div className={styles.bookingLaneGrid} role="radiogroup" aria-label="Primary booking lane">
+          {BOOKING_LANES.map((lane) => {
+            const isActive = primaryLane === lane.slug;
+            return (
+              <button
+                key={lane.slug}
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                className={`${styles.bookingLaneOption} ${isActive ? styles.bookingLaneOptionActive : ''}`}
+                onClick={() => handlePrimaryChange(lane.slug)}
+              >
+                <span className={styles.bookingLaneLabel}>{lane.label}</span>
+                <span className={styles.bookingLaneDescription}>{lane.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={styles.bookingLaneGroup}>
+        <div className={styles.bookingLaneHead}>
+          <h4>Secondary lanes</h4>
+          <span>{secondaryLanes.length}/3</span>
+        </div>
+        <div className={styles.bookingLaneSecondaryGrid} role="group" aria-label="Secondary booking lanes">
+          {BOOKING_LANES.map((lane) => {
+            const isPrimary = primaryLane === lane.slug;
+            const isActive = secondaryLanes.includes(lane.slug);
+            return (
+              <button
+                key={lane.slug}
+                type="button"
+                aria-pressed={isActive}
+                disabled={isPrimary}
+                className={`${styles.bookingLaneMini} ${isActive ? styles.bookingLaneMiniActive : ''}`}
+                onClick={() => handleSecondaryToggle(lane.slug)}
+              >
+                {lane.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={styles.bookingLaneNote}>
+        <p>
+          Booking lanes are market routes. Special Skills remain separate: languages, movement,
+          sports, instruments, licenses, and other capabilities.
+        </p>
+        {fitSignals.length > 0 ? (
+          <div className={styles.bookingLaneSignal} aria-label="Pholio lane signal">
+            <span>Pholio signal</span>
+            <p>{fitSignals.map((item) => `${item.lane.label} ${item.score}`).join(' · ')}</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function getScrollableAncestor(element) {
+  let parent = element?.parentElement;
+
+  while (parent && parent !== document.body) {
+    const { overflowY } = window.getComputedStyle(parent);
+    const canScroll = /(auto|scroll|overlay)/.test(overflowY) && parent.scrollHeight > parent.clientHeight;
+    if (canScroll) return parent;
+    parent = parent.parentElement;
+  }
+
+  return window;
+}
+
+function getScrollMetrics(scroller) {
+  if (scroller === window) {
+    return {
+      scrollTop: window.scrollY,
+      clientHeight: window.innerHeight,
+      scrollHeight: document.documentElement.scrollHeight,
+      rectTop: 0,
+      rectBottom: window.innerHeight,
+    };
+  }
+
+  const rect = scroller.getBoundingClientRect();
+  return {
+    scrollTop: scroller.scrollTop,
+    clientHeight: scroller.clientHeight,
+    scrollHeight: scroller.scrollHeight,
+    rectTop: rect.top,
+    rectBottom: rect.bottom,
+  };
+}
+
+function scrollElementIntoProfileView(element, scroller, offset = 100) {
+  const metrics = getScrollMetrics(scroller);
+  const targetTop = metrics.scrollTop + element.getBoundingClientRect().top - metrics.rectTop - offset;
+
+  if (scroller === window) {
+    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+    return;
+  }
+
+  scroller.scrollTo({ top: targetTop, behavior: 'smooth' });
+}
+
 export default function ProfilePage() {
-  const { subscription, images: authImages } = useAuth();
+  const { subscription, images: authImages, profile } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [bioImproveMode, setBioImproveMode] = useState(null);
   const [previousBio, setPreviousBio] = useState(null);
@@ -227,10 +430,10 @@ export default function ProfilePage() {
   const [readinessAuditOpen, setReadinessAuditOpen] = useState(false);
   const [gateItemsExpanded, setGateItemsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const pageRef = useRef(null);
   const saveRequestRef = useRef(0);
   const [unitSystem, setUnitSystem] = useState('metric'); // 'metric' or 'imperial'
   const [shoeRegion, setShoeRegion] = useState('US');
-  const { summary, isLoading: analyticsLoading, summaryError } = useAnalytics();
   const { data: referenceLanguages = [], isLoading: languagesLoading } = useReferenceLanguages();
 
   const languageOptions = useMemo(
@@ -379,51 +582,87 @@ export default function ProfilePage() {
     reloadProfile();
   }, [reloadProfile]);
 
-  // Scroll Spy Observer
+  // Active section tracking
   useEffect(() => {
-    // Only run if not loading
     if (isLoading) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            // Priority given to recently intersected element
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      {
-        root: null,
-        rootMargin: '-20% 0px -60% 0px', // Trigger when section hits top-middle part of screen
-        threshold: 0
-      }
-    );
+    const scroller = getScrollableAncestor(pageRef.current);
+    let frame = null;
 
-    const sections = document.querySelectorAll('section[id]');
-    sections.forEach((section) => observer.observe(section));
-    
-    // Also observe the hero
-    const hero = document.getElementById('hero-section');
-    if (hero) observer.observe(hero);
+    const resolveActiveSection = () => {
+      const sections = PROFILE_NAV_SECTION_IDS
+        .map((id) => document.getElementById(id))
+        .filter(Boolean);
+
+      if (!sections.length) return;
+
+      const metrics = getScrollMetrics(scroller);
+      const markerY = metrics.rectTop + Math.min(metrics.clientHeight * 0.35, 320);
+      const visibleSections = sections
+        .map((section) => ({
+          id: section.id,
+          rect: section.getBoundingClientRect(),
+        }))
+        .filter(({ rect }) => rect.bottom > metrics.rectTop && rect.top < metrics.rectBottom);
+
+      if (!visibleSections.length) return;
+
+      const isAtPageEnd = metrics.scrollTop + metrics.clientHeight >= metrics.scrollHeight - 12;
+      if (isAtPageEnd) {
+        const lastVisible = visibleSections[visibleSections.length - 1];
+        setActiveSection(lastVisible.id);
+        return;
+      }
+
+      const sectionAtMarker = visibleSections.find(({ rect }) => rect.top <= markerY && rect.bottom > markerY);
+      if (sectionAtMarker) {
+        setActiveSection(sectionAtMarker.id);
+        return;
+      }
+
+      const passedSections = visibleSections.filter(({ rect }) => rect.top <= markerY);
+      if (passedSections.length) {
+        setActiveSection(passedSections[passedSections.length - 1].id);
+        return;
+      }
+
+      setActiveSection(visibleSections[0].id);
+    };
+
+    const scheduleResolve = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        resolveActiveSection();
+      });
+    };
+
+    resolveActiveSection();
+    scroller.addEventListener('scroll', scheduleResolve, { passive: true });
+    window.addEventListener('resize', scheduleResolve);
 
     return () => {
-      sections.forEach((section) => observer.unobserve(section));
-      if (hero) observer.unobserve(hero);
+      if (frame) window.cancelAnimationFrame(frame);
+      scroller.removeEventListener('scroll', scheduleResolve);
+      window.removeEventListener('resize', scheduleResolve);
     };
   }, [isLoading]);
 
   // Handle Deep Linking / Query Params
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (!tab || isLoading) return;
+
+    if (tab === 'photos') {
+      navigate(MEDIA_PATH, { replace: true });
+      return;
+    }
 
     const sectionMap = {
       details: 'identity',
       identity: 'identity',
       heritage: 'heritage',
-      photos: 'photos-tab',
       physical: 'appearance',
       appearance: 'appearance',
       credits: 'credits',
@@ -441,51 +680,64 @@ export default function ProfilePage() {
       setTimeout(() => {
         const element = document.getElementById(targetId);
         if (element) {
-          const offset = 100; 
-          const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-          const offsetPosition = elementPosition - offset;
-          window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+          scrollElementIntoProfileView(element, getScrollableAncestor(pageRef.current));
         }
       }, 500);
     }
-  }, [searchParams, isLoading]);
+  }, [searchParams, isLoading, navigate]);
 
   const values = watch();
+  const measurementsLocked =
+    isMinorProfile({ date_of_birth: values.date_of_birth }) &&
+    !minorSensitiveFieldsUnlocked({
+      date_of_birth: values.date_of_birth,
+      guardian_consent_at: values.guardian_consent_recorded
+        ? profile?.guardian_consent_at || 'draft'
+        : null,
+    });
+  const readinessProfile = useMemo(
+    () => ({
+      date_of_birth: values.date_of_birth,
+      guardian_consent_at: values.guardian_consent_recorded
+        ? profile?.guardian_consent_at || 'draft'
+        : null,
+      work_permit_on_file: values.work_permit_on_file,
+    }),
+    [
+      values.date_of_birth,
+      values.guardian_consent_recorded,
+      values.work_permit_on_file,
+      profile?.guardian_consent_at,
+    ],
+  );
   const strengthValues = useMemo(
-    () => ({ ...values, images: Array.isArray(authImages) ? authImages : [] }),
-    [values, authImages],
+    () => ({
+      ...values,
+      email: values.email || profile?.email || '',
+      phone: profile?.phone || '',
+      images: Array.isArray(authImages) ? authImages : [],
+      guardian_consent_at: values.guardian_consent_recorded
+        ? profile?.guardian_consent_at || 'draft'
+        : null,
+      work_permit_on_file: values.work_permit_on_file,
+    }),
+    [values, authImages, profile?.email, profile?.phone, profile?.guardian_consent_at],
   );
 
   const profileStrength = useMemo(
     () => calculateProfileStrength(strengthValues),
     [strengthValues],
   );
-  const { isCoreReady, missingCoreItems, fieldCompletion } = profileStrength;
+  const { isCoreReady, missingCoreItems } = profileStrength;
 
   const scrollToProfileSection = (sectionId) => {
-    const goPhotos = sectionId === 'photos-tab' || sectionId === 'hero-section';
-    if (goPhotos) {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('tab', 'photos');
-        return next;
-      });
-      window.setTimeout(() => {
-        const el = document.getElementById('photos-tab');
-        if (el) {
-          const offset = 100;
-          const top = el.getBoundingClientRect().top + window.scrollY - offset;
-          window.scrollTo({ top, behavior: 'smooth' });
-        }
-      }, 400);
+    if (sectionId === 'media' || sectionId === 'photos-tab' || sectionId === 'hero-section') {
+      navigate(MEDIA_PATH);
       return;
     }
     const element = document.getElementById(sectionId);
     if (element) {
-      const offset = 100;
-      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-      const offsetPosition = elementPosition - offset;
-      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+      scrollElementIntoProfileView(element, getScrollableAncestor(pageRef.current));
     }
   };
 
@@ -532,7 +784,7 @@ export default function ProfilePage() {
          payload.training = payload.training_summary; // Map back to DB column
       }
       // Ensure specific JSON fields are arrays if they are strings (e.g. from backend raw or manual input)
-      ['ethnicity', 'comfort_levels', 'modeling_categories', 'union_membership'].forEach(field => {
+      ['ethnicity', 'comfort_levels', 'modeling_categories', 'booking_secondary_lanes', 'union_membership'].forEach(field => {
         if (typeof payload[field] === 'string') {
           try {
              payload[field] = JSON.parse(payload[field]);
@@ -544,6 +796,14 @@ export default function ProfilePage() {
           }
         }
       });
+      payload.booking_primary_lane = normalizeBookingLaneSlug(payload.booking_primary_lane);
+      payload.booking_secondary_lanes = normalizeBookingLaneList(payload.booking_secondary_lanes)
+        .filter((laneSlug) => laneSlug !== payload.booking_primary_lane)
+        .slice(0, 3);
+      payload.modeling_categories = [
+        payload.booking_primary_lane,
+        ...payload.booking_secondary_lanes,
+      ].filter(Boolean);
       // Previous representation is edited as plaintext in textarea; normalize to string list for backend JSON column.
       if (typeof payload.previous_representations === 'string') {
         const trimmedRepresentations = payload.previous_representations.trim();
@@ -672,7 +932,7 @@ export default function ProfilePage() {
   // Loading Skeleton
   if (isLoading) {
     return (
-      <div className={styles.pageContainer} aria-busy="true" aria-label="Loading profile...">
+      <div ref={pageRef} className={styles.pageContainer} aria-busy="true" aria-label="Loading profile...">
         <div className={`${styles.skeleton} ${styles.skeletonTitle}`} />
         <div className={`${styles.skeleton} ${styles.skeletonText}`} style={{ marginBottom: '48px' }} />
         
@@ -708,17 +968,9 @@ export default function ProfilePage() {
       : null;
 
   const showReadinessGate = isGateEntry && !isCoreReady;
-  const isStudioPlus = !!subscription?.isPro;
-  const websiteViews = toNumber(summary?.views?.total);
-  const websiteViewDelta = toNumber(
-    summary?.views?.changePct ?? summary?.views?.changePercent ?? summary?.views?.deltaPct
-  );
-  const engagementEvents = toNumber(
-    summary?.engagement?.total ?? summary?.clicks?.total ?? summary?.profileClicks?.total
-  );
 
   return (
-    <div className={styles.pageContainer}>
+    <div ref={pageRef} className={styles.pageContainer}>
       {/* Mobile Nav Toggle */}
       <button 
         className={styles.navToggle} 
@@ -753,21 +1005,11 @@ export default function ProfilePage() {
           ) : (
             <>
               <div className={styles.heroNoPhotoBg} aria-hidden="true" />
-              <button
-                type="button"
-                className={styles.addPhotoPrompt}
-                onClick={() => {
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set('tab', 'photos');
-                    return next;
-                  });
-                }}
-              >
+              <Link to={MEDIA_PATH} className={styles.addPhotoPrompt}>
                 <Camera size={20} strokeWidth={1.5} />
                 <span>Add primary photo</span>
                 <span className={styles.addPhotoHint}>Opens your book</span>
-              </button>
+              </Link>
             </>
           )}
         </div>
@@ -860,14 +1102,6 @@ export default function ProfilePage() {
             className={`${styles.profileForms} ${isSubmitting ? styles.formSaving : ''}`}
             aria-busy={isSubmitting}
           >
-        {searchParams.get('tab') === 'photos' ? (
-          <PhotosSection
-            onPhotoUploaded={(url) => {
-              setValue('hero_image_path', url, { shouldDirty: true });
-            }}
-          />
-        ) : (
-          <>
             <article className={styles.movement}>
               <header className={styles.movementHead}>
                 <p className={styles.movementKicker}>I — Identity</p>
@@ -916,6 +1150,7 @@ export default function ProfilePage() {
               setUnitSystem={setUnitSystem}
               shoeRegion={shoeRegion}
               setShoeRegion={setShoeRegion}
+              measurementsLocked={measurementsLocked}
             />
               </div>
             </article>
@@ -1200,53 +1435,29 @@ export default function ProfilePage() {
 
         <Section
           id="market"
-          title="Market Positioning"
-          titleEmphasis="Positioning"
-          description="Your core modeling categories and market lanes."
+          title="Booking Lanes"
+          titleEmphasis="Lanes"
+          description="The briefs your profile should be routed toward."
           showDivider={false}
+          className={styles.bookingLaneSection}
         >
-          <div className={styles.formStack}>
-            <Controller
-              name="modeling_categories"
-              control={control}
-              render={({ field }) => (
-                <fieldset className={styles.repFieldset}>
-                  <legend className={styles.repLegend}>Categories</legend>
-                  <div className={styles.repOptions} role="group" aria-label="Market Positioning">
-                    {MODELING_CATEGORIES_OPTIONS.map((opt, index) => {
-                      const numStr = String(index + 1).padStart(2, '0');
-                      const currentValues = field.value || [];
-                      const isActive = currentValues.includes(opt.value);
-                      return (
-                        <label
-                          key={opt.value}
-                          className={`${styles.repOption} ${isActive ? styles.repOptionActive : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            value={opt.value}
-                            checked={isActive}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                field.onChange([...currentValues, opt.value]);
-                              } else {
-                                field.onChange(currentValues.filter(v => v !== opt.value));
-                              }
-                            }}
-                            className={styles.repCheckboxHidden}
-                          />
-                          <span className={styles.repNum}>{numStr}</span>
-                          <span className={styles.repLabel}>
-                            {isActive ? <em>{opt.label}</em> : opt.label}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-              )}
-            />
-          </div>
+          <Controller
+            name="booking_primary_lane"
+            control={control}
+            render={({ field: primaryField }) => (
+              <Controller
+                name="booking_secondary_lanes"
+                control={control}
+                render={({ field: secondaryField }) => (
+                  <BookingLanesControl
+                    primaryField={primaryField}
+                    secondaryField={secondaryField}
+                    fitSignals={getLaneFitSignals(values)}
+                  />
+                )}
+              />
+            )}
+          />
         </Section>
               </div>
             </article>
@@ -1310,71 +1521,13 @@ export default function ProfilePage() {
               </div>
             </article>
 
-            {isStudioPlus ? (
-              <article className={styles.movement}>
-                <header className={styles.movementHead}>
-                  <p className={styles.movementKicker}>V — Studio+</p>
-                  <h2 className={styles.movementTitle}>
-                    Website <em>analytics</em>
-                  </h2>
-                  <p className={styles.movementLede}>
-                    Monitor how agencies discover and engage with your profile.
-                  </p>
-                </header>
-                <div className={styles.movementCard}>
-                  <section className={styles.studioAnalyticsSection} aria-label="Website analytics">
-                    {analyticsLoading ? (
-                      <p className={styles.studioAnalyticsMuted}>Loading analytics...</p>
-                    ) : summaryError ? (
-                      <p className={styles.studioAnalyticsMuted}>
-                        Analytics are temporarily unavailable.
-                      </p>
-                    ) : (
-                      <>
-                        <div className={styles.studioAnalyticsGrid}>
-                          <article className={styles.studioAnalyticsStat}>
-                            <span className={styles.studioAnalyticsLabel}>
-                              <Eye size={14} aria-hidden />
-                              Profile Views
-                            </span>
-                            <p className={styles.studioAnalyticsValue}>{websiteViews.toLocaleString()}</p>
-                            <span className={styles.studioAnalyticsMeta}>
-                              {websiteViewDelta >= 0 ? '+' : ''}
-                              {websiteViewDelta}% vs last period
-                            </span>
-                          </article>
-
-                          <article className={styles.studioAnalyticsStat}>
-                            <span className={styles.studioAnalyticsLabel}>
-                              <MousePointerClick size={14} aria-hidden />
-                              Engagement Events
-                            </span>
-                            <p className={styles.studioAnalyticsValue}>{engagementEvents.toLocaleString()}</p>
-                            <span className={styles.studioAnalyticsMeta}>
-                              Combined interactions from your public profile
-                            </span>
-                          </article>
-                        </div>
-
-                        <Link to="/dashboard/talent/analytics" className={styles.studioAnalyticsLink}>
-                          <Activity size={14} aria-hidden />
-                          Open detailed analytics
-                        </Link>
-                      </>
-                    )}
-                  </section>
-                </div>
-              </article>
-            ) : null}
-
-        </>
-      )}
           </form>
         </main>
 
         {/* Right Sidebar - Profile Strength */}
         <ProfileStrengthSidebar
           strength={profileStrength}
+          profile={readinessProfile}
           isSaving={isSubmitting}
           hasChanges={isDirty}
           auditOpen={readinessAuditOpen}

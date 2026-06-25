@@ -2,6 +2,9 @@ const express = require("express");
 const knex = require("../../../shared/db/knex");
 const logActivity = require("../../agency/routes/agency-log-activity");
 const {
+  notifyAgencyNewMessage,
+} = require("../../../shared/services/agency-notifications");
+const {
   validateReplyToken,
   touchReplyToken,
 } = require("../services/message-reply-tokens");
@@ -120,6 +123,24 @@ router.post(
       );
 
       await touchReplyToken(tokenId);
+
+      try {
+        const talentName = [
+          req.replyContext.talentFirstName,
+          req.replyContext.talentLastName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        await notifyAgencyNewMessage({
+          agencyId,
+          applicationId,
+          talentName: talentName || "A talent",
+          preview: trimmed.substring(0, 80),
+        });
+      } catch (notifyErr) {
+        console.error("[Message Reply] Agency notification failed:", notifyErr);
+      }
 
       const newMessage = await knex("messages")
         .where({ id: messageId })

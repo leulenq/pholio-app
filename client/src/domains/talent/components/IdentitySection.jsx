@@ -1,22 +1,12 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
 import { Sparkles } from 'lucide-react';
-import { PholioInput, PholioTextarea } from '../../../shared/components/ui/forms';
+import { PholioInput, PholioTextarea, PholioToggle } from '../../../shared/components/ui/forms';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
+import { computeAge, isMinorProfile } from '../../../shared/utils/talentAge';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
-
-function computeAge(dob) {
-  if (!dob) return null;
-  const birth = new Date(dob);
-  if (isNaN(birth.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age > 0 && age < 120 ? age : null;
-}
 
 /**
  * Identity Section
@@ -36,6 +26,7 @@ export const IdentitySection = ({
   watchDob
 }) => {
   const age = computeAge(watchDob);
+  const isMinor = isMinorProfile({ date_of_birth: watchDob });
   const hasBio = (bioValue || '').trim().length >= 10;
   return (
     <Section
@@ -143,6 +134,36 @@ export const IdentitySection = ({
           )}
         />
       </div>
+
+      {isMinor && (
+        <div className={`${styles.formRow} ${styles.minorComplianceBlock}`}>
+          <p className={styles.minorComplianceCopy}>
+            Guardian consent is required before measurements or full-length photos can be collected or shared publicly.
+          </p>
+          <Controller
+            name="guardian_consent_recorded"
+            control={control}
+            render={({ field }) => (
+              <PholioToggle
+                label="Guardian consent on file"
+                checked={!!field.value}
+                onChange={(event) => field.onChange(event.target.checked)}
+              />
+            )}
+          />
+          <Controller
+            name="work_permit_on_file"
+            control={control}
+            render={({ field }) => (
+              <PholioToggle
+                label="Work permit on file"
+                checked={!!field.value}
+                onChange={(event) => field.onChange(event.target.checked)}
+              />
+            )}
+          />
+        </div>
+      )}
 
       <div className={styles.formRow}>
         <div className={styles.bioHeader}>

@@ -76,11 +76,14 @@ async function loadEligibleProfileIds(knex, explicitFilters) {
     query.andWhere((qb) => {
       qb.where("profiles.archetype", archetype);
       if (isPostgresKnex(knex)) {
-        qb.orWhereRaw("profiles.specialties::jsonb @> ?::jsonb", [
+        qb.orWhereRaw("profiles.modeling_categories::jsonb @> ?::jsonb", [
+          JSON.stringify([archetype]),
+        ]).orWhereRaw("profiles.specialties::jsonb @> ?::jsonb", [
           JSON.stringify([archetype]),
         ]);
       } else {
-        qb.orWhere("profiles.specialties", "like", `%"${archetype}"%`);
+        qb.orWhere("profiles.modeling_categories", "like", `%"${archetype}"%`)
+          .orWhere("profiles.specialties", "like", `%"${archetype}"%`);
       }
     });
   }

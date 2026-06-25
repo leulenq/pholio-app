@@ -1,12 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowUpRight,
   ChevronRight,
   FileText,
-  Activity,
   TrendingUp,
   AlertCircle,
   Download,
@@ -18,6 +17,12 @@ import { useProfileStrength } from '../../hooks/useProfileStrength';
 import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessItems';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
+import { bucketCounts } from '../../utils/applicationStatus';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
+import {
+  isMinorProfile,
+  minorPublicExposureAllowed,
+} from '../../../../shared/utils/talentAge';
 import './OverviewPage.css';
 
 function imageUrl(img) {
@@ -108,6 +113,25 @@ export default function OverviewPage() {
       ? applicationsPayload.length
       : applicationsPayload?.data?.length || 0;
 
+  const applicationsList = Array.isArray(applicationsPayload)
+    ? applicationsPayload
+    : applicationsPayload?.data || [];
+  const standing = bucketCounts(applicationsList);
+
+  // Interviews awaiting the talent's response — the clearest "ball in your court" signal.
+  const { data: interviewsPayload } = useQuery({
+    queryKey: ['talent-interviews'],
+    queryFn: () => talentApi.getInterviews(),
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+  const interviewsList = Array.isArray(interviewsPayload)
+    ? interviewsPayload
+    : interviewsPayload?.data || [];
+  const interviewsNeedingResponse = interviewsList.filter(
+    (iv) => iv.status === 'pending' || iv.status === 'rescheduled',
+  ).length;
+
   const firstName = profile?.first_name || '';
   const imageCount = Array.isArray(images) ? images.length : 0;
   const greeting = getGreetingByTime();
@@ -138,6 +162,21 @@ export default function OverviewPage() {
   const readinessPct = asNum(completeness?.percentage);
 
   const { topGaps, totalGaps, isRequiredComplete, isLoading: auditLoading } = useProfileStrength();
+  const shouldReduce = useReducedMotion();
+
+  const isMinor = isMinorProfile(profile);
+  const guardianUnlocked = minorPublicExposureAllowed(profile);
+  const minorGated = isMinor && !guardianUnlocked;
+  const showPublicWebsite = isPro && !minorGated;
+  const showCompCardExport = !minorGated;
+  const auditCtaLabel = minorGated
+    ? 'Record guardian consent'
+    : isRequiredComplete
+      ? 'View Profile'
+      : 'Continue Audit';
+  const auditCtaTo = minorGated
+    ? '/dashboard/talent/profile?tab=identity'
+    : '/dashboard/talent/profile';
 
   const photoSlots = Array.isArray(images) ? images.slice(0, 5) : [];
   const extraCount = Math.max(0, imageCount - 5);
@@ -147,9 +186,9 @@ export default function OverviewPage() {
         <header className="ov-hero">
           <motion.div
             className="ov-hero-identity"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduce ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: shouldReduce ? 0 : 0.7, ease: [0.22, 1, 0.36, 1] }}
           >
             {profileLoading ? (
               <span className="ov-skel ov-skel--name" aria-hidden />
@@ -168,9 +207,9 @@ export default function OverviewPage() {
             <motion.div
               className="ov-hero-sweep"
               style={{ transformOrigin: 'left' }}
-              initial={{ scaleX: 0 }}
+              initial={shouldReduce ? false : { scaleX: 0 }}
               animate={{ scaleX: 1 }}
-              transition={{ duration: 0.9, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: shouldReduce ? 0 : 0.9, delay: shouldReduce ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
               aria-hidden
             />
 
@@ -347,9 +386,15 @@ export default function OverviewPage() {
                 <p className="ov-audit-more">+{totalGaps - 3} more</p>
               )}
 
-              <Link to="/dashboard/talent/profile" className="ov-audit-cta">
-                {isRequiredComplete ? 'View Profile' : 'Continue Audit'}
-              </Link>
+              {minorGated && (
+                <p className="ov-minor-notice">
+                  Guardian consent is required before measurements, full-length photos, or public sharing can be enabled.
+                </p>
+              )}
+
+              <PholioButton to={auditCtaTo} variant="primary">
+                {auditCtaLabel}
+              </PholioButton>
             </div>
           </div>
         </div>
@@ -386,14 +431,13 @@ export default function OverviewPage() {
                 <div className="ov-error-inline" role="alert">
                   <AlertCircle size={14} aria-hidden />
                   <span>Analytics unavailable.</span>
-                  <button
-                    type="button"
-                    className="ov-retry-btn"
+                  <PholioButton
+                    variant="ghost"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >
                     {isAnalyticsRefetching ? '…' : 'Retry'}
-                  </button>
+                  </PholioButton>
                 </div>
               ) : (
                 <>
@@ -413,27 +457,31 @@ export default function OverviewPage() {
                       <p className="ov-stat-label">Submissions</p>
                     </div>
                   </div>
-                  <div className="ov-readiness-track-wrap">
-                    <div className="ov-readiness-track-head">
-                      <span className="ov-visibility-label">Visibility Index</span>
-                      <span className="ov-readiness-track-pct">{readinessPct}%</span>
+
+                  {!appsPending && !appsError && appsCount > 0 && (
+                    <div className="ov-standing" aria-label="Application standing">
+                      <span className="ov-standing-item">
+                        <strong>{standing.active}</strong> active
+                      </span>
+                      <span className="ov-standing-item">
+                        <strong>{standing.won}</strong> won
+                      </span>
+                      <span className="ov-standing-item">
+                        <strong>{standing.closed}</strong> closed
+                      </span>
                     </div>
-                    <div
-                      className="ov-vis-track"
-                      role="progressbar"
-                      aria-valuenow={readinessPct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Profile readiness"
-                    >
-                      <motion.div
-                        className="ov-vis-fill"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${readinessPct}%` }}
-                        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                    </div>
-                  </div>
+                  )}
+
+                  {interviewsNeedingResponse > 0 && (
+                    <Link to="/dashboard/talent/applications" className="ov-standing-action">
+                      <span>
+                        {interviewsNeedingResponse}{' '}
+                        {interviewsNeedingResponse === 1 ? 'interview needs' : 'interviews need'} your response
+                      </span>
+                      <ArrowUpRight size={13} aria-hidden />
+                    </Link>
+                  )}
+
                 </>
               )}
             </div>
@@ -441,65 +489,60 @@ export default function OverviewPage() {
 
           <div className="ov-col-6">
             <div className="ov-artifacts">
-              <Link
-                to="/dashboard/talent/media"
-                className="ov-artifact-card ov-artifact-card--light"
-                aria-label="Build your comp card"
-              >
-                <div>
-                  <div className="ov-artifact-icon" aria-hidden>
-                    <FileText size={20} />
+              <div className="ov-artifact-card ov-artifact-card--light ov-artifact-card--feature">
+                {showCompCardExport ? (
+                  <>
+                    <Link
+                      to="/dashboard/talent/media"
+                      className="ov-artifact-main"
+                      aria-label="Build your comp card"
+                    >
+                      <div className="ov-artifact-icon" aria-hidden>
+                        <FileText size={20} />
+                      </div>
+                      <h3 className="ov-artifact-title">
+                        Digital <em>Comp Card</em>
+                      </h3>
+                      <p className="ov-artifact-desc">
+                        Your defining identity artifact — professional specs composed with your
+                        latest polaroids, export-ready for agency submission.
+                      </p>
+                    </Link>
+                    <div className="ov-artifact-footer">
+                      <Link to="/dashboard/talent/media" className="ov-artifact-action">
+                        <span>Export</span>
+                        <Download size={13} aria-hidden />
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <div className="ov-artifact-main ov-artifact-main--gated">
+                    <div className="ov-artifact-icon" aria-hidden>
+                      <FileText size={20} />
+                    </div>
+                    <h3 className="ov-artifact-title">
+                      Digital <em>Comp Card</em>
+                    </h3>
+                    <p className="ov-artifact-desc">
+                      Comp-card export unlocks after guardian consent is recorded on your profile.
+                    </p>
+                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
+                      Record guardian consent
+                    </PholioButton>
                   </div>
-                  <h3 className="ov-artifact-title">
-                    Digital <em>Comp Card</em>
-                  </h3>
-                  <p className="ov-artifact-desc">
-                    Generate professional specs with latest polaroids for agency submission.
-                  </p>
-                </div>
-                <div className="ov-artifact-footer">
-                  <span className="ov-artifact-badge">{imageCount > 0 ? 'Ready' : 'Add photos first'}</span>
-                  <div className="ov-artifact-action">
-                    <span>Export</span>
-                    <Download size={13} aria-hidden />
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                to="/dashboard/talent/media"
-                className="ov-artifact-card ov-artifact-card--dark"
-                aria-label="Intro reel"
-              >
-                <div>
-                  <div className="ov-artifact-icon" aria-hidden>
-                    <Activity size={20} />
-                  </div>
-                  <h3 className="ov-artifact-title">
-                    Intro <em>Reel</em>
-                  </h3>
-                  <p className="ov-artifact-desc">
-                    Capture a quick 30s screen-test to verify presence and personality.
-                  </p>
-                </div>
-                <div className="ov-artifact-footer">
-                  <span className="ov-artifact-badge ov-artifact-badge--missing">Missing</span>
-                  <div className="ov-artifact-action">
-                    <ArrowUpRight size={14} aria-hidden />
-                  </div>
-                </div>
-              </Link>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {isPro && (
+        {showPublicWebsite && (
           <motion.section
             className="ov-website"
             aria-labelledby="ov-website-heading"
-            initial={{ opacity: 0, y: 16 }}
+            initial={shouldReduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: shouldReduce ? 0 : 0.65, delay: shouldReduce ? 0 : 0.15, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ov-website-header">
               <div>
@@ -553,14 +596,13 @@ export default function OverviewPage() {
                 <div className="ov-error-inline ov-website-error" role="alert">
                   <AlertCircle size={14} aria-hidden />
                   <span>Website analytics unavailable.</span>
-                  <button
-                    type="button"
-                    className="ov-retry-btn"
+                  <PholioButton
+                    variant="ghost"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >
                     {isAnalyticsRefetching ? '…' : 'Retry'}
-                  </button>
+                  </PholioButton>
                 </div>
               ) : (
                 <div className="ov-website-analytics">

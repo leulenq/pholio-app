@@ -73,9 +73,6 @@ function lanesFromProfile(profile) {
   const categories = parseJsonArray(profile.modeling_categories);
   if (categories.length) return categories.slice(0, MAX_LANES);
 
-  const specialties = parseJsonArray(profile.specialties);
-  if (specialties.length) return specialties.slice(0, MAX_LANES);
-
   if (profile.archetype) {
     return [String(profile.archetype).replace(/ Icon$/, "")];
   }
@@ -118,7 +115,7 @@ function buildBioContext(profile = {}, options = {}) {
   if (lanes.length) {
     signals.push({
       key: "lanes",
-      label: "Lanes",
+      label: "Booking lanes",
       fact: lanes.join(", "),
       weight: 10,
     });

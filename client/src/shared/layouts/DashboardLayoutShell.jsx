@@ -20,7 +20,7 @@ export default function DashboardLayoutShell() {
   const { showEntrySplash, isEntrySplashExiting, entryStartedAt } = useAuthEntryTransition(!isLoading);
   const [promptContext, setPromptContext] = useState(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
-  const gating = checkGatingStatus(profile);
+  const gating = useMemo(() => checkGatingStatus(profile, images), [profile, images]);
   const { isBlocked } = gating;
   const isRouteGated = isBlocked && isRestrictedTalentRoute(location.pathname);
   const gateFeature = getProfileGateFeature(location.pathname);

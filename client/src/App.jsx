@@ -14,6 +14,7 @@ import ProfilePage from './domains/talent/pages/ProfilePage';
 import MediaPage from './domains/talent/pages/MediaPage';
 import AnalyticsPage from './domains/talent/pages/AnalyticsPage';
 import ApplicationsPage from './domains/talent/pages/ApplicationsPage';
+import ApplyPage from './domains/talent/pages/ApplyPage';
 import RevealPage from './domains/talent/pages/RevealPage';
 
 import SettingsPage from './domains/talent/pages/SettingsPage';
@@ -72,6 +73,9 @@ function App() {
         {/* Standalone Reveal */}
         <Route path="/reveal" element={<RevealPage />} />
         <Route path="/dashboard/talent/reveal" element={<RevealPage />} />
+
+        {/* Standalone full-screen submission studio (no dashboard chrome) */}
+        <Route path="/dashboard/talent/applications/apply" element={<ApplyPage />} />
 
         {/* Talent Dashboard Routes */}
         <Route element={<DashboardLayoutShell />}>

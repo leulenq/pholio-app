@@ -978,6 +978,7 @@ router.patch(
         "passed",
         "declined",
         "archived",
+        "kept_on_file",
       ];
 
       if (!allowedStatuses.includes(requestedStatus)) {
@@ -1295,6 +1296,7 @@ router.patch(
         "passed",
         "declined",
         "archived",
+        "kept_on_file",
       ];
 
       if (!allowedStatuses.includes(requestedStatus)) {

@@ -1,13 +1,20 @@
-/* Glance rail — compact, no nested scroll */
 .sidebar {
   grid-column: 3;
   grid-row: var(--pf-workspace-row, 2);
   position: sticky;
   top: var(--tl-topbar-h, 68px);
   align-self: start;
-  padding: 40px 40px 64px 24px;
+  padding: 16px 40px 64px 24px;
   border-left: 1px solid rgba(26, 26, 26, 0.08);
   z-index: 4;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (max-width: 1024px) {
@@ -32,9 +39,9 @@
 .card {
   background: #FFFFFF;
   border: 1px solid rgba(201, 165, 90, 0.14);
-  border-radius: var(--ag-radius-lg, 12px);
+  border-radius: 12px;
   padding: 26px 24px;
-  box-shadow: 
+  box-shadow:
     0 10px 30px -10px rgba(26, 24, 21, 0.06),
     0 1px 3px rgba(26, 24, 21, 0.02),
     0 0 25px rgba(201, 165, 90, 0.03);
@@ -61,21 +68,33 @@
 .header {
   position: relative;
   z-index: 1;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
+.smallTitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9C958E;
+  margin-bottom: 8px;
+  display: block;
+}
+
 .title {
   display: block;
-  font-family: var(--ag-font-mono, monospace);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--ag-gold, #c9a55a);
-  margin-bottom: 12px;
+  margin: 0 0 14px;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.08rem;
+  font-weight: 300;
+  font-style: italic;
+  letter-spacing: 0;
+  line-height: 1.1;
+  color: #2D2A26;
 }
 
 .scoreBlock {
@@ -85,23 +104,22 @@
   margin-bottom: 6px;
 }
 
-/* Refined editorial display serif score */
 .score {
-  font-family: var(--ag-font-serif, 'Playfair Display', Georgia, serif);
+  font-family: 'Noto Serif Display', Georgia, serif;
   font-size: 3.5rem;
   font-weight: 300;
   font-style: italic;
   letter-spacing: -0.02em;
-  color: var(--ag-text-0, #1A1815);
+  color: #C9A55A;
   line-height: 0.9;
 }
 
 .percentSign {
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-family: 'Inter', sans-serif;
   font-size: 1.5rem;
   font-weight: 300;
   font-style: normal;
-  color: var(--ag-text-2, #6B6560);
+  color: #6B6560;
   margin-left: 2px;
 }
 
@@ -114,50 +132,48 @@
 }
 
 .statusLabel {
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-family: 'Inter', sans-serif;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ag-text-1, #2D2A26);
+  color: #2D2A26;
 }
 
 
 .unsavedHint {
   margin: 6px 0 0;
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 300;
-  color: var(--ag-text-3, #9C958E);
+  color: #9C958E;
   font-style: italic;
 }
 
 /* Status colors map to pulsing dots */
 .statusRed {
-  color: var(--ag-danger, #C0392B);
+  color: #C0392B;
 }
 
 .statusGold {
-  color: var(--ag-gold, #C9A55A);
+  color: #C9A55A;
 }
 
 .statusGreen {
-  color: var(--ag-success, #2D8A56);
+  color: #2D8A56;
 }
 
 .progressContainer {
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--ag-border, rgba(26,24,21,0.08));
+  margin-bottom: 26px;
 }
 
 .statusMessage {
-  margin-top: 14px;
+  margin: 24px 0 0;
   font-size: 13px;
   font-weight: 300;
-  color: var(--ag-text-2, #6B6560);
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
-  line-height: 1.5;
+  color: #6B6560;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.65;
 }
 
 /* Luxury instrument progress track */
@@ -166,15 +182,15 @@
   width: 100%;
   height: 5px;
   background: rgba(26, 24, 21, 0.05);
-  border-radius: var(--ag-radius-full, 100px);
+  border-radius: 100px;
   margin-top: 10px;
 }
 
 .progressFill {
   height: 100%;
-  border-radius: var(--ag-radius-full, 100px);
+  border-radius: 100px;
   position: relative;
-  background: linear-gradient(90deg, var(--ag-gold, #c9a55a) 0%, #d4bc8a 100%);
+  background: linear-gradient(90deg, #c9a55a 0%, #d4bc8a 100%);
 }
 
 .progressFill::after {
@@ -187,16 +203,16 @@
   background: #ffffff;
   filter: blur(1.5px);
   opacity: 0.65;
-  border-radius: var(--ag-radius-full, 100px);
+  border-radius: 100px;
 }
 
 /* Dynamic colors for the progress bar fill */
 .progressRed {
-  background: linear-gradient(90deg, #d35f5f 0%, var(--ag-danger, #C0392B) 100%);
+  background: linear-gradient(90deg, #d35f5f 0%, #C0392B 100%);
 }
 
 .progressGreen {
-  background: linear-gradient(90deg, var(--ag-success, #2D8A56) 0%, #6bc38c 100%);
+  background: linear-gradient(90deg, #2D8A56 0%, #6bc38c 100%);
 }
 
 /* Milestone ticks on progress bar track */
@@ -209,7 +225,7 @@
   border-radius: 50%;
   background: rgba(26, 24, 21, 0.16);
   z-index: 2;
-  transition: all 0.3s var(--ag-ease);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tickActive {
@@ -221,17 +237,17 @@
   position: absolute;
   top: 10px;
   transform: translateX(-50%);
-  font-family: var(--ag-font-mono, monospace);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 8px;
   font-weight: 500;
   letter-spacing: 0.08em;
-  color: var(--ag-text-3, #9C958E);
+  color: #9C958E;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .tickLabelActive {
-  color: var(--ag-text-1, #2D2A26);
+  color: #2D2A26;
   font-weight: 600;
 }
 
@@ -240,12 +256,12 @@
 }
 
 .gapsLabel {
-  font-family: var(--ag-font-mono, monospace);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--ag-text-3, #9C958E);
+  color: #9C958E;
   margin: 0 0 10px;
 }
 
@@ -258,28 +274,55 @@
 /* Sleek, responsive gaps with subtle shift on hover */
 .gapItem {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  padding: 8px 6px;
+  padding: 10px 8px;
   border: none;
-  border-radius: var(--ag-radius-sm, 4px);
+  border-radius: 4px;
   background: transparent;
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: var(--ag-text-2, #6B6560);
+  color: #6B6560;
   text-align: left;
   cursor: pointer;
-  transition: 
+  transition:
     color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
     background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.gapCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.gapWhy {
+  font-size: 11px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: #9C958E;
+}
+
+.gapTier {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2D2A26;
+  padding-top: 2px;
+}
+
 .gapItem:hover:not(:disabled) {
-  color: var(--ag-text-0, #1A1815);
-  background: var(--ag-surface-2, #F5F2EE);
+  color: #1A1815;
+  background: #F5F2EE;
   transform: translateX(4px);
 }
 
@@ -288,37 +331,8 @@
 }
 
 .gapLabel {
-  flex: 1;
-  min-width: 0;
   line-height: 1.35;
-}
-
-.dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.dotRed {
-  background-color: var(--ag-danger, #C0392B);
-}
-
-.dotSlate {
-  background-color: var(--ag-text-3, #9C958E);
-  opacity: 0.55;
-}
-
-.badgeRed {
-  font-family: var(--ag-font-mono, monospace);
-  font-size: 8px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ag-danger, #C0392B);
-  background: var(--ag-danger-dim, rgba(192,57,43,0.08));
-  padding: 2px 6px;
-  border-radius: var(--ag-radius-sm, 4px);
-  flex-shrink: 0;
+  color: #2D2A26;
 }
 
 .completeBrief {
@@ -327,22 +341,22 @@
   gap: 10px;
   margin-bottom: 18px;
   padding: 12px;
-  background: var(--ag-success-dim, rgba(45,138,86,0.1));
-  border: 1px solid rgba(45,138,86,0.15);
-  border-radius: var(--ag-radius-md, 8px);
+  background: rgba(45, 138, 86, 0.1);
+  border: 1px solid rgba(45, 138, 86, 0.15);
+  border-radius: 8px;
 }
 
 .completeBrief p {
   margin: 0;
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 400;
-  color: var(--ag-success, #2D8A56);
+  color: #2D8A56;
   line-height: 1.5;
 }
 
 .checkIcon {
-  color: var(--ag-success, #2D8A56);
+  color: #2D8A56;
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -356,68 +370,67 @@
   gap: 8px;
   margin-bottom: 14px;
   padding: 10px 14px;
-  border: 1px solid var(--ag-border, rgba(26,24,21,0.08));
-  border-radius: var(--ag-radius-md, 8px);
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  border-radius: 8px;
   background: transparent;
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--ag-text-2, #6B6560);
+  color: #6B6560;
   cursor: pointer;
-  transition: all 0.2s var(--ag-ease);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .auditToggle:hover {
-  color: var(--ag-text-0, #1A1815);
-  border-color: var(--ag-gold-dim, rgba(201, 165, 90, 0.65));
-  background: var(--ag-gold-ghost, rgba(201, 165, 90, 0.08));
+  color: #1A1815;
+  border-color: rgba(201, 165, 90, 0.65);
+  background: rgba(201, 165, 90, 0.08);
 }
 
 .auditToggleActive {
-  color: var(--ag-text-0, #1A1815);
-  border-color: var(--ag-gold, #C9A55A);
-  background: var(--ag-gold-muted, rgba(201, 165, 90, 0.12));
+  color: #1A1815;
+  border-color: #C9A55A;
+  background: rgba(201, 165, 90, 0.12);
 }
 
 .saveContainer {
-  margin-top: 6px;
-  padding-top: 18px;
-  border-top: 1px solid var(--ag-border, rgba(26,24,21,0.08));
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
 }
 
-/* Canonical primary button styling based on .mw-btn-gold */
 .saveButton {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  font-family: var(--ag-font-body, 'Inter', sans-serif);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 11px 18px;
-  border: 1px solid var(--ag-gold, #C9A55A);
-  border-radius: 2px;
-  background: var(--ag-gold, #C9A55A);
-  color: #050505;
-  cursor: pointer;
-  transition: background 0.2s var(--ag-ease, ease), border-color 0.2s var(--ag-ease, ease);
+  min-height: 42px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  box-shadow: none;
 }
 
-.saveButton:hover:not(:disabled) {
-  background: #D4BC8A;
-  border-color: #D4BC8A;
+.saveButton:global(.pholio-btn--solid) {
+  background: #1A1815;
+  color: #FFFFFF;
+  border-color: rgba(201, 165, 90, 0.52);
+  box-shadow: 0 10px 24px rgba(26, 24, 21, 0.1);
 }
 
-.saveButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.saveButton:global(.pholio-btn--solid):hover:not(:disabled) {
+  background: #2D2A26;
+  border-color: rgba(201, 165, 90, 0.82);
+  box-shadow: 0 12px 28px rgba(26, 24, 21, 0.14);
 }
 
-.saveButtonMuted:not(:disabled) {
-  opacity: 0.7;
+.saveButton:global(.pholio-btn--secondary) {
+  background: #F8F5EF;
+  color: #6B6560;
+  border-color: rgba(26, 24, 21, 0.1);
+}
+
+.saveButton:global(.pholio-btn--secondary):hover:not(:disabled) {
+  background: rgba(201, 165, 90, 0.08);
+  border-color: rgba(201, 165, 90, 0.4);
+  color: #2D2A26;
 }
 
 .spinner {
@@ -448,7 +461,7 @@
 /* Audit panel region wrapper */
 .auditPanel {
   margin-top: 12px;
-  border-top: 1px solid var(--ag-border, rgba(26,24,21,0.08));
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
   padding-top: 14px;
   display: flex;
   flex-direction: column;
@@ -462,11 +475,11 @@
 }
 
 .auditSectionLabel {
-  font-family: var(--ag-font-mono, monospace);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ag-text-3, #9C958E);
+  color: #9C958E;
   margin-bottom: 6px;
 }

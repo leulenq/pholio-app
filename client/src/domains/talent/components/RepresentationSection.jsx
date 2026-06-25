@@ -51,13 +51,13 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
           render={({ field }) => (
             <fieldset className={styles.repFieldset}>
               <legend className={styles.repLegend}>Status</legend>
-              <div className={styles.repOptions} role="radiogroup" aria-label="Representation status">
+              <div className={styles.repSegmentedControl} role="radiogroup" aria-label="Representation status">
                 {OPTIONS.map((opt) => {
                   const isActive = field.value === opt.value;
                   return (
                     <label
                       key={opt.value}
-                      className={`${styles.repOption} ${isActive ? styles.repOptionActive : ''}`}
+                      className={`${styles.repSegment} ${isActive ? styles.repSegmentActive : ''}`}
                     >
                       <input
                         type="radio"
@@ -68,7 +68,6 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
                         onBlur={field.onBlur}
                         className={styles.repRadioHidden}
                       />
-                      <span className={styles.repNum}>{opt.num}</span>
                       <span className={styles.repLabel}>
                         {isActive ? <em>{opt.label}</em> : opt.label}
                       </span>
@@ -87,20 +86,24 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
         />
 
         {representationStatus === STATUS.REPRESENTED && (
-          <PholioInput
-            label="Current agency"
-            placeholder="e.g. Elite Model Management"
-            error={errors.current_agency}
-            {...register('current_agency')}
-          />
+          <div className={styles.repPremiumField}>
+            <PholioInput
+              label="Current agency"
+              placeholder="e.g. Elite Model Management"
+              error={errors.current_agency}
+              {...register('current_agency')}
+            />
+          </div>
         )}
 
-        <PholioTextarea
-          label="Previous Representation"
-          placeholder="List any previous agencies or management (one per line)..."
-          rows={3}
-          {...register('previous_representations')}
-        />
+        <div className={styles.repPremiumField}>
+          <PholioTextarea
+            label="Previous Representation"
+            placeholder="List any previous agencies or management (one per line)..."
+            rows={3}
+            {...register('previous_representations')}
+          />
+        </div>
       </div>
     </Section>
   );

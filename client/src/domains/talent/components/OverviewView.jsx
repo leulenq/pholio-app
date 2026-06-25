@@ -393,30 +393,6 @@ export default function OverviewView() {
                     </div>
                     <p className="ov-stat-label">Comp Card Downloads</p>
                   </div>
-
-                  <div className="ov-visibility">
-                    <div className="ov-visibility-head">
-                      <span className="ov-visibility-label">Visibility Index</span>
-                      {visibilityPct >= 60 && (
-                        <span className="ov-visibility-note">Above Category Avg</span>
-                      )}
-                    </div>
-                    <div
-                      className="ov-vis-track"
-                      role="progressbar"
-                      aria-valuenow={visibilityPct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Profile visibility index"
-                    >
-                      <motion.div
-                        className="ov-vis-fill"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${visibilityPct}%` }}
-                        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

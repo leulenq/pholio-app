@@ -1,4 +1,9 @@
 const { z } = require("zod");
+const {
+  BOOKING_LANE_SLUGS,
+  normalizeBookingLaneList,
+  normalizeBookingLaneSlug,
+} = require("../constants/booking-lanes");
 
 /**
  * Core field schemas
@@ -671,6 +676,7 @@ const applyProfileSchema = z
     experience_level: experienceLevelSchema,
     training: trainingSchema,
     portfolio_url: portfolioUrlSchema,
+    onlyfans_url: portfolioUrlSchema,
     instagram_handle: socialMediaHandleSchema,
     instagram_url: socialMediaUrlSchema,
     twitter_handle: socialMediaHandleSchema,
@@ -745,6 +751,13 @@ function normalizeTalentProfileUpdateBody(input) {
   mergeScalar("first_name", "firstName");
   mergeScalar("last_name", "lastName");
   mergeScalar("city", "location");
+  mergeScalar("booking_primary_lane", "primary_booking_lane");
+  mergeScalar("booking_primary_lane", "primaryBookingLane");
+
+  if (o.booking_secondary_lanes === undefined && input.secondaryBookingLanes !== undefined) {
+    o.booking_secondary_lanes = input.secondaryBookingLanes;
+  }
+  delete o.secondaryBookingLanes;
 
   const dobCanon = input.date_of_birth;
   const dobAlt1 = input.dateOfBirth;
@@ -764,6 +777,22 @@ function normalizeTalentProfileUpdateBody(input) {
 
   return o;
 }
+
+const bookingLaneSlugSchema = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    return normalizeBookingLaneSlug(value);
+  },
+  z
+    .string()
+    .refine((value) => BOOKING_LANE_SLUGS.has(value), "Invalid booking lane")
+    .nullable(),
+);
+
+const bookingSecondaryLanesSchema = z.preprocess(
+  (value) => normalizeBookingLaneList(value),
+  z.array(z.string().refine((value) => BOOKING_LANE_SLUGS.has(value))).max(3),
+);
 
 const talentProfileUpdateInnerSchema = z.object({
   first_name: nameSchema.optional(), // Keep required if provided, but optional in the partial update object
@@ -831,6 +860,7 @@ const talentProfileUpdateInnerSchema = z.object({
   experience_level: experienceLevelSchema.optional(),
   training: talentProfileTrainingFieldSchema,
   portfolio_url: portfolioUrlSchema,
+  onlyfans_url: optionalHttpUrlSchema,
   instagram_handle: socialMediaHandleSchema,
   instagram_url: socialMediaUrlSchema,
   twitter_handle: socialMediaHandleSchema,
@@ -917,11 +947,15 @@ const talentProfileUpdateInnerSchema = z.object({
     .or(z.null()),
   drivers_license: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
   passport_ready: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
+  guardian_consent_recorded: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
+  work_permit_on_file: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
   modeling_categories: z
     .array(z.string().trim().max(80))
     .max(50)
     .optional()
     .or(z.null()),
+  booking_primary_lane: bookingLaneSlugSchema.optional(),
+  booking_secondary_lanes: bookingSecondaryLanesSchema.optional(),
 });
 
 const talentProfileUpdateSchema = z.preprocess(
@@ -991,6 +1025,7 @@ const onboardingDraftSchema = z
     experience_level: experienceLevelSchema,
     training: trainingSchema,
     portfolio_url: portfolioUrlSchema,
+    onlyfans_url: portfolioUrlSchema,
     instagram_handle: socialMediaHandleSchema,
     twitter_handle: socialMediaHandleSchema,
     tiktok_handle: socialMediaHandleSchema,
@@ -1093,6 +1128,7 @@ const onboardingSubmitSchema = z
     experience_level: experienceLevelSchema,
     training: trainingSchema,
     portfolio_url: portfolioUrlSchema,
+    onlyfans_url: portfolioUrlSchema,
     instagram_handle: socialMediaHandleSchema,
     twitter_handle: socialMediaHandleSchema,
     tiktok_handle: socialMediaHandleSchema,
@@ -1220,17 +1256,22 @@ const onboardingCompleteSchema = z
 const IMAGE_TYPE_VALUES = [
   "digital",
   "portfolio",
-  "comp_card",
+  "comp_card", // legacy — still accepted from old records
   "campaign",
   "test",
+  "editorial",
+  "runway",
 ];
 
 const SHOT_TYPE_VALUES = [
   "headshot",
+  "beauty",
+  "half_body",
   "three_quarter",
   "full_length",
-  "profile_left",
-  "profile_right",
+  "profile",
+  "profile_left",  // legacy — kept for existing records
+  "profile_right", // legacy — kept for existing records
   "back",
   "detail",
 ];
@@ -1243,9 +1284,10 @@ const STYLE_TYPE_VALUES = [
   "ecommerce",
   "swimwear",
   "fitness",
+  "couture",
 ];
 
-const IMAGE_STATUS_VALUES = ["active", "archived", "retired", "test"];
+const IMAGE_STATUS_VALUES = ["active", "inactive", "archived", "retired", "test"];
 
 const IMAGE_STRUCTURED_KEYS = [
   "image_type",

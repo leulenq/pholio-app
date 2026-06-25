@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Controller } from 'react-hook-form';
-import { ExternalLink, Instagram, Twitter, Youtube, Globe, PlaySquare, Trash2 } from 'lucide-react';
+import { Instagram, Twitter, Youtube, PlaySquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Section, SocialInput } from '../../components/profile-index';
 import styles from './ProfilePage.module.css';
@@ -8,6 +8,14 @@ import styles from './ProfilePage.module.css';
 const TiktokIcon = ({ size = 24, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+);
+
+const OnlyFansIcon = ({ size = 24, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
+    <circle cx="8.2" cy="12" r="4.35" stroke="currentColor" strokeWidth="2.6" />
+    <path d="M13 8.2h7.2l-1 3.2h-3.15l-.62 2.1h2.95l-.93 3.05h-2.95l-1.05 3.25H10.1L13 8.2Z" fill="currentColor" />
+    <path d="M17.35 5.3h3.85l-.82 2.35h-3.78l.75-2.35Z" fill="currentColor" />
   </svg>
 );
 
@@ -56,15 +64,15 @@ const PLATFORMS = {
     actionText: 'Connect YouTube',
     isOAuth: true
   },
-  portfolio: {
-    id: 'portfolio_url',
-    name: 'Website / Portfolio',
-    icon: Globe,
-    brandClass: styles.platformPortfolio,
-    placeholder: 'https://yourwebsite.com',
-    base: '',
+  onlyfans: {
+    id: 'onlyfans_url',
+    name: 'OnlyFans',
+    icon: OnlyFansIcon,
+    brandClass: styles.platformOnlyfans,
+    placeholder: 'onlyfans.com/username',
+    base: 'https://onlyfans.com/',
     prefix: '',
-    actionText: 'Add Link',
+    actionText: 'Add OnlyFans',
     isOAuth: false
   },
   reel: {
@@ -160,7 +168,7 @@ export function SocialSection({ control, setValue, errors }) {
         <PlatformCard platformKey="tiktok" control={control} setValue={setValue} errors={errors} />
         <PlatformCard platformKey="twitter" control={control} setValue={setValue} errors={errors} />
         <PlatformCard platformKey="youtube" control={control} setValue={setValue} errors={errors} />
-        <PlatformCard platformKey="portfolio" control={control} setValue={setValue} errors={errors} />
+        <PlatformCard platformKey="onlyfans" control={control} setValue={setValue} errors={errors} />
         <PlatformCard platformKey="reel" control={control} setValue={setValue} errors={errors} />
       </div>
     </Section>

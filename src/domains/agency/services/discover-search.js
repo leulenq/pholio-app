@@ -150,11 +150,14 @@ function applyDiscoverFilters(query, filters, knex) {
     query.andWhere((qb) => {
       qb.where("profiles.archetype", archetype);
       if (isPostgresKnex(knex)) {
-        qb.orWhereRaw("profiles.specialties::jsonb @> ?::jsonb", [
+        qb.orWhereRaw("profiles.modeling_categories::jsonb @> ?::jsonb", [
+          JSON.stringify([archetype]),
+        ]).orWhereRaw("profiles.specialties::jsonb @> ?::jsonb", [
           JSON.stringify([archetype]),
         ]);
       } else {
-        qb.orWhere("profiles.specialties", "like", `%"${archetype}"%`);
+        qb.orWhere("profiles.modeling_categories", "like", `%"${archetype}"%`)
+          .orWhere("profiles.specialties", "like", `%"${archetype}"%`);
       }
     });
   }
@@ -386,9 +389,13 @@ function buildSemanticWhereClause(filters) {
   }
   if (filters.archetype) {
     clauses.push(
-      "(profiles.archetype = ? OR profiles.specialties::jsonb @> ?::jsonb)",
+      "(profiles.archetype = ? OR profiles.modeling_categories::jsonb @> ?::jsonb OR profiles.specialties::jsonb @> ?::jsonb)",
     );
-    bindings.push(filters.archetype, JSON.stringify([filters.archetype]));
+    bindings.push(
+      filters.archetype,
+      JSON.stringify([filters.archetype]),
+      JSON.stringify([filters.archetype]),
+    );
   }
   if (filters.experience_level) {
     clauses.push("profiles.experience_level = ?");

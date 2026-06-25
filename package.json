@@ -17,6 +17,8 @@
     "verify:embeddings": "node scripts/verify-openai-embeddings.js",
     "preview:emails": "node scripts/preview-all-emails.js",
     "backfill:discover": "node scripts/backfill-discover-embeddings.js",
+    "backfill:classification": "node scripts/backfill-image-classification.js",
+    "analyze:classification-feedback": "node scripts/analyze-classification-feedback.js",
     "test": "jest",
     "test:db": "node scripts/test-neon-connection.js",
     "postinstall": "node scripts/patch-express.js",

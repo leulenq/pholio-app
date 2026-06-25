@@ -94,11 +94,13 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
         <div className="ov-strip" ref={stripRef}>
           {talents.map((t) => (
             <button key={t.id} type="button" className="ov-strip-card" onClick={() => onSelect(t)}>
-              <span className="ov-strip-img" style={{ backgroundImage: t.photo ? `url(${t.photo})` : 'none' }} />
-              <span className="ov-strip-name-row">
-                <span className="ov-strip-name">{t.name}</span>
-                {t.match != null && <MatchScore score={t.match} size="xs" />}
+              <span className="ov-strip-photo">
+                <span className="ov-strip-img" style={{ backgroundImage: t.photo ? `url(${t.photo})` : 'none' }} />
+                {t.match != null && (
+                  <MatchScore score={t.match} size="sm" tone="overlay" className="ov-strip-score" />
+                )}
               </span>
+              <span className="ov-strip-name">{t.name}</span>
               <span className="ov-strip-meta">{t.typeLabel}{t.city ? ` · ${t.city}` : ''}</span>
             </button>
           ))}

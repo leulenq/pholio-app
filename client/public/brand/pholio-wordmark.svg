@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="144" viewBox="0 0 340 144" role="img" aria-label="Pholio">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Display:wght@400&amp;display=swap');
+      .pholio-wordmark {
+        font-family: 'Noto Serif Display', Georgia, serif;
+        font-size: 48px;
+        font-weight: 400;
+        letter-spacing: 0.2em;
+        fill: #C9A55A;
+        text-transform: uppercase;
+      }
+    </style>
+  </defs>
+  <text class="pholio-wordmark" x="24" y="102.72" dominant-baseline="alphabetic">PHOLIO</text>
+</svg>

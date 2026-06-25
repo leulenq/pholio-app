@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import { Download, RefreshCw, RotateCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { TransferFailureNotice } from '../../../shared/components/states';
+import PholioButton from '../../../shared/components/ui/PholioButton';
+import {
+  isMinorProfile,
+  minorPublicExposureAllowed,
+} from '../../../shared/utils/talentAge';
 import './CompCard.css';
 
 // One PDF "page" at 96dpi: 5.5in × 8.5in. The /pdf/view doc stacks two pages.
@@ -50,6 +55,7 @@ function nextSeed() {
 
 export default function CompCard({ images = [], profile }) {
   const slug = profile?.slug;
+  const minorGated = isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
 
   const [seed, setSeed] = React.useState('profile:preview');
   const [side, setSide] = React.useState('front');
@@ -91,14 +97,16 @@ export default function CompCard({ images = [], profile }) {
   }, [previewUrl]);
 
   const hasImages = (images || []).length > 0;
-  const blocked = !slug || !hasImages || meta?.guardrails?.status === 'fail';
+  const blocked = minorGated || !slug || !hasImages || meta?.guardrails?.status === 'fail';
   const suggestions = friendlySuggestions(meta);
-  const statusTone = blocked ? 'blocked' : suggestions.length > 0 ? 'warning' : 'ready';
-  const statusLabel = blocked
-    ? 'Needs photos'
-    : suggestions.length > 0
-      ? `${suggestions.length} ${suggestions.length === 1 ? 'note' : 'notes'}`
-      : 'Ready';
+  const statusTone = minorGated ? 'blocked' : blocked ? 'blocked' : suggestions.length > 0 ? 'warning' : 'ready';
+  const statusLabel = minorGated
+    ? 'Consent required'
+    : blocked
+      ? 'Needs photos'
+      : suggestions.length > 0
+        ? `${suggestions.length} ${suggestions.length === 1 ? 'note' : 'notes'}`
+        : 'Ready';
 
   const voiceLabel = meta && VOICE_LABELS[meta.voice];
   const flipped = side === 'back';
@@ -141,6 +149,17 @@ export default function CompCard({ images = [], profile }) {
       {downloadError && (
         <TransferFailureNotice title="Download interrupted" body={downloadError}
           retry={{ label: 'Retry download', onClick: handleDownload }} />
+      )}
+
+      {minorGated && (
+        <div className="cc-gate">
+          <p className="cc-gate__copy">
+            Guardian consent is required before your comp card can be previewed or exported.
+          </p>
+          <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
+            Record guardian consent
+          </PholioButton>
+        </div>
       )}
 
       <div className="cc-stage">
@@ -236,17 +255,28 @@ export default function CompCard({ images = [], profile }) {
           )}
 
           <div className="cc-download-row">
-            <button type="button" className="mw-btn-gold cc-download" onClick={handleDownload}
+            <PholioButton variant="solid" onClick={handleDownload}
               disabled={downloading || blocked}
-              title={blocked ? 'Add photos to generate your card' : 'Download PDF comp card'}>
+              title={blocked ? 'Add photos to generate your card' : 'Download PDF comp card'}
+              className="cc-download">
               {downloading ? <><span className="cc-spinner" aria-hidden="true" /> Composing…</> : <><Download size={15} aria-hidden="true" /> Download PDF</>}
-            </button>
+            </PholioButton>
             {blocked ? (
-              <Link to="/dashboard/talent/profile" className="cc-unlock">Complete your profile to unlock</Link>
+              <Link
+                to={minorGated ? '/dashboard/talent/profile?tab=identity' : '/dashboard/talent/profile'}
+                className="cc-unlock"
+              >
+                {minorGated ? 'Record guardian consent to unlock' : 'Complete your profile to unlock'}
+              </Link>
             ) : (
               <button type="button" className="cc-link-btn cc-flip-hint" onClick={previewUrl ? flip : undefined} disabled={!previewUrl}>
                 <RotateCw size={13} aria-hidden="true" /> Flip card
               </button>
+            )}
+            {!blocked && !minorGated && (
+              <a href="/api/talent/wallet/pass" className="cc-wallet" aria-label="Add to Apple Wallet">
+                <img src="/brand/add-to-apple-wallet-badge.svg" alt="Add to Apple Wallet" />
+              </a>
             )}
           </div>
         </div>

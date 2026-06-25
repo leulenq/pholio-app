@@ -8,7 +8,19 @@ const {
 } = require("../../../shared/services/notifications");
 const {
   notifyAgencyNewApplication,
+  notifyAgencyApplicationWithdrawn,
+  notifyAgencyNewMessage,
 } = require("../../../shared/services/agency-notifications");
+const logActivity = require("../../agency/routes/agency-log-activity");
+const { v4: uuidv4 } = require("uuid");
+
+// Statuses a talent may withdraw from (still in process). Terminal states stay put.
+const WITHDRAWABLE_STATUSES = new Set([
+  "pending",
+  "submitted",
+  "reviewing",
+  "shortlisted",
+]);
 
 async function getProfileBySessionUserId(userId) {
   return knex("profiles").where({ user_id: userId }).first();
@@ -51,6 +63,15 @@ router.get(
         "agencies.location as agency_location",
         "agencies.website as agency_website",
         "agencies.logo_path as agency_logo",
+        // The talent's submitted note lives in the messages table as the first
+        // TALENT-authored message for the application (see POST "/" below).
+        knex("messages as note_msg")
+          .select("note_msg.message")
+          .whereRaw("note_msg.application_id = applications.id")
+          .where("note_msg.sender_type", "TALENT")
+          .orderBy("note_msg.created_at", "asc")
+          .limit(1)
+          .as("note"),
       )
       .orderBy("applications.created_at", "desc");
 
@@ -148,16 +169,18 @@ router.post(
       });
     }
 
-    // 1. Check if already applied
+    // 1. Check if already applied. A previously withdrawn application can be
+    //    resubmitted (we revive that row below to preserve its history).
     const existingparams = { profile_id: profile.id, agency_id: agencyId };
     const existing = await knex("applications").where(existingparams).first();
-    if (existing) {
+    if (existing && existing.status !== "withdrawn") {
       return res.status(400).json({
         success: false,
         error: "Already applied to this agency",
-        message: "Already applied to this agency",
+        message: "You've already applied to this agency.",
       });
     }
+    const reapplying = !!existing;
 
     // 2. Check limits for Free Tier
     if (!profile.is_pro) {
@@ -183,20 +206,37 @@ router.post(
       }
     }
 
-    // 3. Create Application
-    const [insertedApplication] = await knex("applications")
-      .insert({
-        id: knex.raw("gen_random_uuid()"),
-        profile_id: profile.id,
-        agency_id: agencyId,
-        status: "pending",
-      })
-      .returning("id");
+    // 3. Create (or revive a withdrawn) Application
+    let applicationId;
+    if (reapplying) {
+      await knex("applications")
+        .where({ id: existing.id })
+        .update({ status: "pending", updated_at: knex.fn.now() });
+      applicationId = existing.id;
+      await logActivity(
+        req,
+        knex,
+        applicationId,
+        agencyId,
+        "status_change",
+        "Application resubmitted",
+        { old_status: "withdrawn", new_status: "pending" },
+      );
+    } else {
+      const [insertedApplication] = await knex("applications")
+        .insert({
+          id: knex.raw("gen_random_uuid()"),
+          profile_id: profile.id,
+          agency_id: agencyId,
+          status: "pending",
+        })
+        .returning("id");
 
-    const applicationId =
-      typeof insertedApplication === "object"
-        ? insertedApplication.id
-        : insertedApplication;
+      applicationId =
+        typeof insertedApplication === "object"
+          ? insertedApplication.id
+          : insertedApplication;
+    }
 
     const applicationNote = typeof note === "string" ? note.trim() : "";
     const hasSubmissionPackagesTable = await knex.schema.hasTable(
@@ -294,11 +334,11 @@ router.post(
       });
     }
 
-    const deleted = await knex("applications")
+    const application = await knex("applications")
       .where({ id, profile_id: profile.id })
-      .del();
+      .first();
 
-    if (!deleted) {
+    if (!application) {
       return res.status(404).json({
         success: false,
         error: "Application not found",
@@ -306,7 +346,225 @@ router.post(
       });
     }
 
+    if (!WITHDRAWABLE_STATUSES.has(application.status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot withdraw",
+        message: "This application can no longer be withdrawn.",
+      });
+    }
+
+    const previousStatus = application.status;
+
+    await knex("applications")
+      .where({ id, profile_id: profile.id })
+      .update({ status: "withdrawn", updated_at: knex.fn.now() });
+
+    // Preserve the journey: record the withdrawal in application history.
+    await logActivity(
+      req,
+      knex,
+      id,
+      application.agency_id,
+      "status_change",
+      "Application withdrawn",
+      { old_status: previousStatus, new_status: "withdrawn" },
+    );
+
+    // Let the agency know the talent stepped back.
+    try {
+      const talentName = [profile.first_name, profile.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      await notifyAgencyApplicationWithdrawn({
+        agencyId: application.agency_id,
+        applicationId: id,
+        talentName: talentName || profile.name || "A talent",
+      });
+    } catch (notifyErr) {
+      console.error("[Applications] Withdrawal notification failed:", notifyErr);
+    }
+
     res.json({ success: true });
+  }),
+);
+
+/**
+ * GET /api/talent/applications/:id/activity
+ * Status-change history (the lifecycle timeline) for one of the talent's
+ * applications. Read-only; scoped to the requesting talent's own profile.
+ */
+router.get(
+  "/:id/activity",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
+
+    const application = await knex("applications")
+      .where({ id, profile_id: profile.id })
+      .first();
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
+    }
+
+    const rows = await knex("application_activities")
+      .where({ application_id: id, activity_type: "status_change" })
+      .orderBy("created_at", "asc")
+      .select("id", "activity_type", "description", "metadata", "created_at");
+
+    const data = rows.map((row) => {
+      let metadata = row.metadata;
+      if (typeof metadata === "string") {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch {
+          metadata = {};
+        }
+      }
+      return {
+        id: row.id,
+        type: row.activity_type,
+        description: row.description,
+        metadata: metadata || {},
+        created_at: row.created_at,
+      };
+    });
+
+    res.json({ success: true, data });
+  }),
+);
+
+/**
+ * GET /api/talent/applications/:id/messages
+ * Conversation thread for one of the talent's applications. Marks the agency's
+ * messages as read on view.
+ */
+router.get(
+  "/:id/messages",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+
+    const application = await knex("applications")
+      .where({ id, profile_id: profile.id })
+      .first();
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
+    }
+
+    const messages = await knex("messages")
+      .where({ application_id: id })
+      .orderBy("created_at", "asc")
+      .select("id", "sender_type", "message", "attachment_url", "is_read", "created_at");
+
+    await knex("messages")
+      .where({ application_id: id, sender_type: "AGENCY", is_read: false })
+      .update({ is_read: true, read_at: knex.fn.now() });
+
+    res.json({ success: true, data: messages });
+  }),
+);
+
+/**
+ * POST /api/talent/applications/:id/messages
+ * Talent sends a message to the agency from inside the dashboard.
+ */
+router.post(
+  "/:id/messages",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const trimmed = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    if (!trimmed) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Message required", message: "Message is required." });
+    }
+    if (trimmed.length > 4000) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Too long", message: "Message is too long." });
+    }
+
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+
+    const application = await knex("applications")
+      .where({ id, profile_id: profile.id })
+      .first();
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
+    }
+
+    const messageId = uuidv4();
+    await knex("messages").insert({
+      id: messageId,
+      application_id: id,
+      sender_id: req.session.userId,
+      sender_type: "TALENT",
+      message: trimmed,
+      is_read: false,
+      created_at: knex.fn.now(),
+    });
+
+    await logActivity(
+      req,
+      knex,
+      id,
+      application.agency_id,
+      "message_sent",
+      "Talent sent a message",
+      { message_preview: trimmed.substring(0, 100), via: "dashboard" },
+    );
+
+    try {
+      const talentName =
+        [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
+        profile.name ||
+        "A talent";
+      await notifyAgencyNewMessage({
+        agencyId: application.agency_id,
+        applicationId: id,
+        talentName,
+        preview: trimmed.substring(0, 80),
+      });
+    } catch (notifyErr) {
+      console.error("[Applications] Message notification failed:", notifyErr);
+    }
+
+    const newMessage = await knex("messages").where({ id: messageId }).first();
+    res.json({ success: true, data: newMessage });
   }),
 );
 

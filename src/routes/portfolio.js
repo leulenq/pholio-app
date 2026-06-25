@@ -1,6 +1,7 @@
 const express = require("express");
 const knex = require("../shared/db/knex");
 const { toFeetInches } = require("../domains/talent/services/stats");
+const { minorPublicExposureAllowed } = require("../shared/lib/talent-age");
 const { v4: uuidv4 } = require("uuid");
 
 const router = express.Router();
@@ -348,6 +349,14 @@ router.get("/portfolio/:slug", async (req, res, next) => {
 
     if (!isDemo && profile.is_public === false) {
       console.log("[Portfolio] Profile is private for slug:", slug);
+      return res.status(404).render("errors/404", {
+        title: "Profile not found",
+        layout: "layout",
+      });
+    }
+
+    if (!isDemo && !minorPublicExposureAllowed(profile)) {
+      console.log("[Portfolio] Minor profile blocked without guardian consent:", slug);
       return res.status(404).render("errors/404", {
         title: "Profile not found",
         layout: "layout",

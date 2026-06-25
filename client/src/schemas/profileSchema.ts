@@ -7,12 +7,33 @@ const optionalNumber = z.union([
   z.null()
 ]).optional();
 
-// Helper for boolean that might come as string "true"/"false" from forms, or null from DB
-const coercedBoolean = z.union([
+/** SQLite / API may send booleans as 0/1 — normalize before Zod validation. */
+function toDbBoolean(val: unknown, defaultValue = false): boolean {
+  if (val === true || val === 1) return true;
+  if (val === false || val === 0) return false;
+  if (val === null || val === undefined || val === '') return defaultValue;
+  if (typeof val === 'string') {
+    const normalized = val.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
+    if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
+  }
+  return defaultValue;
+}
+
+function toNullableDbBoolean(val: unknown): boolean | null {
+  if (val === null || val === undefined || val === '' || val === 'unset') return null;
+  return toDbBoolean(val, false);
+}
+
+const coercedBoolean = z.preprocess(
+  (val) => toDbBoolean(val, false),
   z.boolean(),
-  z.string().transform(val => val === 'true'),
-  z.null().transform(() => false)
-]).default(false);
+).default(false);
+
+const nullableCoercedBoolean = z.preprocess(
+  (val) => toNullableDbBoolean(val),
+  z.union([z.boolean(), z.null()]),
+);
 
 export const profileSchema = z.object({
   // --- Identity ---
@@ -35,6 +56,9 @@ export const profileSchema = z.object({
   place_of_birth: z.string().nullable().optional(),
   bio: z.string().max(2000, "Bio must be less than 2000 characters").nullable().optional(),
   timezone: z.string().nullable().optional(),
+
+  guardian_consent_recorded: coercedBoolean.optional(),
+  work_permit_on_file: coercedBoolean.optional(),
 
   // --- Physical Attributes (All flattened for DB mapping) ---
   height_cm: optionalNumber,
@@ -63,13 +87,15 @@ export const profileSchema = z.object({
   // --- Professional & Availability ---
   work_status: z.string().nullable().optional(),
   /** true = authorized, false = not authorized, null = not specified (backend accepts boolean or null). */
-  work_eligibility: z.union([z.boolean(), z.null()]).optional(),
-  passport_ready: z.union([z.boolean(), z.null()]).optional().transform(v => v ?? false),
-  availability_travel: z.union([z.boolean(), z.null()]).optional().transform(v => v ?? false),
-  drivers_license: z.union([z.boolean(), z.null()]).optional().transform(v => v ?? false),
+  work_eligibility: nullableCoercedBoolean.optional(),
+  passport_ready: nullableCoercedBoolean.optional().transform((v) => v ?? false),
+  availability_travel: nullableCoercedBoolean.optional().transform((v) => v ?? false),
+  drivers_license: nullableCoercedBoolean.optional().transform((v) => v ?? false),
   availability_schedule: z.string().nullable().optional(),
   comfort_levels: z.union([z.string(), z.array(z.string())]).nullable().optional(),
   modeling_categories: z.union([z.string(), z.array(z.string())]).nullable().optional(),
+  booking_primary_lane: z.string().nullable().optional(),
+  booking_secondary_lanes: z.union([z.string(), z.array(z.string())]).nullable().optional(),
   union_membership: z.union([z.string(), z.array(z.string())]).nullable().optional(),
   
   playing_age_min: optionalNumber,
@@ -102,6 +128,11 @@ export const profileSchema = z.object({
   twitter_handle: z.string().nullable().optional().or(z.literal('')),
   youtube_handle: z.string().nullable().optional().or(z.literal('')),
   portfolio_url: z.union([
+    z.string().url("Must be a valid URL"),
+    z.literal(''),
+    z.null()
+  ]).optional(),
+  onlyfans_url: z.union([
     z.string().url("Must be a valid URL"),
     z.literal(''),
     z.null()

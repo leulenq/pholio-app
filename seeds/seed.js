@@ -12,41 +12,49 @@ async function seedDemoData(knex, talentId, profileId) {
       name: "Wilhelmina Models",
       location: "New York, NY",
       website: "https://wilhelmina.com",
+      openBoards: ["Women", "Men", "Curve", "New Faces"],
     },
     {
       name: "IMG Models",
       location: "New York, NY",
       website: "https://imgmodels.com",
+      openBoards: ["Women", "Men", "New Faces"],
     },
     {
       name: "Elite Model Management",
       location: "Paris, France",
       website: "https://elitemodel.com",
+      openBoards: ["Women", "Men", "Development"],
     },
     {
       name: "Ford Models",
       location: "New York, NY",
       website: "https://fordmodels.com",
+      openBoards: ["Women", "Men", "Commercial", "Petite"],
     },
     {
       name: "DNA Model Management",
       location: "Los Angeles, CA",
       website: "https://dnamodels.com",
+      openBoards: ["Women", "Men", "Development"],
     },
     {
       name: "The Society Management",
       location: "Los Angeles, CA",
       website: "https://thesocietymanagement.com",
+      openBoards: ["Women", "Men"],
     },
     {
       name: "Next Management",
       location: "New York, NY",
       website: "https://nextmanagement.com",
+      openBoards: ["Women", "Men", "Development", "Curve"],
     },
     {
       name: "Marilyn Agency",
       location: "Paris, France",
       website: "https://marilynagency.com",
+      openBoards: ["Women", "Men", "New Faces"],
     },
   ];
 
@@ -59,6 +67,7 @@ async function seedDemoData(knex, talentId, profileId) {
       name: ag.name,
       location: ag.location,
       website: ag.website,
+      open_boards: JSON.stringify(ag.openBoards),
       status: "ACTIVE",
     });
   }
@@ -410,6 +419,9 @@ exports.seed = async function seed(knex) {
     {
       label: "Headshot",
       sort: 1,
+      shot_type: "headshot",
+      image_type: "portfolio",
+      is_primary: true,
       path: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=1000&q=80",
     },
     {
@@ -420,6 +432,8 @@ exports.seed = async function seed(knex) {
     {
       label: "Runway",
       sort: 3,
+      shot_type: "full_length",
+      image_type: "portfolio",
       path: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=80",
     },
     {

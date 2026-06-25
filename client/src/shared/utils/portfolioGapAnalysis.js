@@ -1,82 +1,84 @@
 /**
- * portfolioGapAnalysis.js
- * Analyzes a talent's portfolio images to identify missing standard agency requirements.
+ * portfolioGapAnalysis.js — agency digitals checklist via structured shot/style fields.
  */
 
-// The "Gold Standard" Book Checklist
+import {
+  analyzeDigitalsReadiness,
+  isHeadshotImage,
+  isFullBodyImage,
+  isSmileHeadshot,
+} from './profileReadinessImages';
+
 const STANDARD_CHECKLIST = [
   {
     id: 'headshot',
     label: 'Clean Headshot',
     description: 'Face forward, neutral expression, minimal makeup.',
-    tags: ['Headshot', 'Beauty', 'Polaroid', 'Face']
+    met: (images) => images.some(isHeadshotImage),
   },
   {
     id: 'fullbody',
     label: 'Full Body Shot',
     description: 'Shows your proportions and physique clearly.',
-    tags: ['Full Body', 'Body', 'Fitness', 'Swim']
+    met: (images) => images.some(isFullBodyImage),
   },
   {
     id: 'side_profile',
     label: 'Side Profile',
     description: 'Profile view of your face (left or right).',
-    tags: ['Side Profile', 'Profile', 'Lateral']
+    met: (images) => analyzeDigitalsReadiness(images).hasProfile,
   },
   {
     id: 'smile',
     label: 'Smile / Commercial',
     description: 'Warm, approachable smile showing teeth.',
-    tags: ['Smile', 'Commercial', 'Lifestyle', 'Happy']
+    met: (images) => images.some(isSmileHeadshot),
   },
   {
     id: 'editorial',
     label: 'Editorial / Creative',
     description: 'High-fashion or styled creative work.',
-    tags: ['Editorial', 'Fashion', 'Creative', 'Studio']
-  }
+    met: (images) => analyzeDigitalsReadiness(images).hasEditorial,
+  },
+  {
+    id: 'back',
+    label: 'Back View',
+    description: 'Shows hair and back of head — common digitals slot.',
+    met: (images) => analyzeDigitalsReadiness(images).hasBack,
+  },
+  {
+    id: 'lifestyle',
+    label: 'Commercial / Lifestyle',
+    description: 'Styled portfolio shot for commercial or lifestyle markets.',
+    met: (images) => analyzeDigitalsReadiness(images).hasLifestyle,
+  },
 ];
 
-// Helper to check if an image matches any of the required tags (case-insensitive)
-function imageHasTag(image, tagList) {
-  if (!image || !image.metadata || !Array.isArray(image.metadata.tags)) return false;
-  return image.metadata.tags.some(t => 
-    tagList.some(reqTag => reqTag.toLowerCase() === t.toLowerCase())
-  );
-}
-
-/**
- * Analyzes the current set of images against the standard checklist.
- * @param {Array} images - Array of image objects from the DB
- * @returns {Object} result - { checks, score, missingCount }
- */
 export function analyzePortfolio(images = []) {
-  const checks = STANDARD_CHECKLIST.map(item => {
-    // Check if any image in the portfolio meets this requirement
-    const met = images.some(img => imageHasTag(img, item.tags));
-    return {
-      ...item,
-      met
-    };
-  });
+  const list = Array.isArray(images) ? images : [];
+  const checks = STANDARD_CHECKLIST.map((item) => ({
+    id: item.id,
+    label: item.label,
+    description: item.description,
+    met: item.met(list),
+  }));
 
-  // Calculate generic checks
-  const minCountMet = images.length >= 5;
+  const minCountMet = list.length >= 5;
   checks.unshift({
     id: 'min_count',
     label: 'At least 5 photos',
     description: 'Agencies need to see variety.',
     met: minCountMet,
-    tags: [] // Logic check, not tag check
   });
 
-  const metCount = checks.filter(c => c.met).length;
+  const metCount = checks.filter((c) => c.met).length;
   const score = Math.round((metCount / checks.length) * 100);
 
   return {
     checks,
     score,
     missingCount: checks.length - metCount,
-    isComplete: score === 100
+    isComplete: score === 100,
+    digitals: analyzeDigitalsReadiness(list),
   };
 }
