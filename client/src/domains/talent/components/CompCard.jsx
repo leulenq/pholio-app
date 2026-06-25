@@ -8,6 +8,7 @@ import {
   isMinorProfile,
   minorPublicExposureAllowed,
 } from '../../../shared/utils/talentAge';
+import CompCardStatsNudge from './CompCardStatsNudge';
 import './CompCard.css';
 
 // One PDF "page" at 96dpi: 5.5in × 8.5in. The /pdf/view doc stacks two pages.
@@ -165,6 +166,7 @@ export default function CompCard({ images = [], profile }) {
       <div className="cc-stage">
         {/* ── The card object ── */}
         <div className="cc-showcase">
+          {!minorGated && <CompCardStatsNudge profile={profile} />}
           <div
             className="cc-card"
             data-flipped={flipped ? 'true' : 'false'}

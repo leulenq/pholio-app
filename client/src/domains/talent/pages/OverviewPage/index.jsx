@@ -18,6 +18,7 @@ import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessI
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import { bucketCounts } from '../../utils/applicationStatus';
+import { analyzePackageIntelligence } from '../../../../shared/utils/packageIntelligence';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import {
   isMinorProfile,
@@ -136,6 +137,17 @@ export default function OverviewPage() {
   const imageCount = Array.isArray(images) ? images.length : 0;
   const greeting = getGreetingByTime();
 
+  // Submission-package read for the talent's digitals: surfaced as a plain-text
+  // KPI so the hero reflects how send-ready the package is, not just frame count.
+  const pkg = analyzePackageIntelligence({ images: Array.isArray(images) ? images : [] });
+  const missingCoreSlots = ['headshot', 'fullBody'].filter((slot) => !pkg.slots[slot]).length;
+  const packageLabel =
+    missingCoreSlots > 0
+      ? `${missingCoreSlots} to add`
+      : pkg.recency.isStale
+        ? 'Update digitals'
+        : 'Ready';
+
   const views = asNum(summary?.views?.total);
   const viewsDelta = parseChangePct(
     summary?.views?.changePct ?? summary?.views?.change
@@ -225,6 +237,10 @@ export default function OverviewPage() {
               <div className="ov-hero-kpi">
                 <span className="ov-hero-kpi-label">Submissions</span>
                 <span className="ov-hero-kpi-value">{appsPending || appsError ? '—' : appsCount}</span>
+              </div>
+              <div className="ov-hero-kpi">
+                <span className="ov-hero-kpi-label">Package</span>
+                <span className="ov-hero-kpi-value">{packageLabel}</span>
               </div>
             </div>
           </motion.div>

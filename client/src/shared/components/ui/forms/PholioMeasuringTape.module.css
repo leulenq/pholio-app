@@ -60,6 +60,28 @@
   text-transform: uppercase;
 }
 
+.manualHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: 3px;
+  color: #b4a798;
+  opacity: 0.2;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(0.5px);
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tapeWrapper:hover .manualHint,
+.valueDisplay:focus-within .manualHint {
+  color: #9c8c78;
+  opacity: 0.42;
+}
+
 /* Size: Small */
 .small .value {
   font-size: 18px;

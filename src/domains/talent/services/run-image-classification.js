@@ -2,10 +2,14 @@
 
 const { classifyShotHeuristic } = require("../../ai/heuristic-shot-classifier");
 const { classifyPortfolioImage } = require("../../ai/classify-portfolio-image");
+const { reindexDiscoverProfile } = require("../../ai/embeddings");
 const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
 const {
   applyClassificationPolicy,
 } = require("./image-classification-policy");
+
+const DISCOVER_REINDEX_DEBOUNCE_MS = 5000;
+const discoverReindexTimers = new Map();
 
 function parseMetadata(raw) {
   if (!raw) return {};
@@ -39,6 +43,32 @@ function extractImageIntel(metadata) {
     height: m.height ?? null,
     forensics: m.forensics ?? null,
   };
+}
+
+function scheduleDiscoverReindex(knex, profileId) {
+  if (!profileId) return;
+
+  const existingTimer = discoverReindexTimers.get(profileId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  const timer = setTimeout(() => {
+    discoverReindexTimers.delete(profileId);
+    reindexDiscoverProfile(knex, profileId).catch((err) => {
+      console.warn(
+        "[PITS] discover reindex failed:",
+        profileId,
+        err?.message || String(err),
+      );
+    });
+  }, DISCOVER_REINDEX_DEBOUNCE_MS);
+
+  if (typeof timer.unref === "function") {
+    timer.unref();
+  }
+
+  discoverReindexTimers.set(profileId, timer);
 }
 
 /**
@@ -95,6 +125,7 @@ async function runImageClassification(knex, imageId) {
     };
 
     await knex("images").where({ id: imageId }).update(updatePayload);
+    scheduleDiscoverReindex(knex, imageRow.profile_id);
   } catch (err) {
     console.warn("[PITS] runImageClassification failed:", imageId, err.message);
   }

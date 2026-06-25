@@ -76,6 +76,21 @@
 
 .app-msg__compose {
   display: flex;
+  flex-direction: column;
+}
+
+.app-msg__compose-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-msg__toolbar {
+  align-self: flex-start;
+}
+
+.app-msg__input-row {
+  display: flex;
   align-items: flex-end;
   gap: 8px;
 }

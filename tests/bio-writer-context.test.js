@@ -52,7 +52,7 @@ describe("bio-writer context-builder", () => {
   it("uses compact label format for prompts", () => {
     const formatted = formatContextForPrompt(buildBioContext(richProfile));
     expect(formatted).toMatch(/^Market: New York/);
-    expect(formatted).toContain("Lanes: Editorial");
+    expect(formatted).toContain("Booking lanes: Editorial");
     expect(formatted).not.toMatch(/^- /m);
   });
 

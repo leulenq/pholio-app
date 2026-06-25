@@ -14,9 +14,9 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { TransferFailureNotice } from '../../../shared/components/states';
 import { parseApiFailure } from '../../../shared/lib/api-error-message';
 import { getClassificationState, formatTypeLabel } from '../../../shared/utils/imageClassification';
+import FrameReadCaption from '../../../shared/components/frame/FrameReadCaption';
 import { talentApi } from '../api/talent';
 import FrameEditor from './FrameEditor';
-import ClassificationReviewStrip, { FrameTypeCaption } from './ClassificationReviewStrip';
 import DigitalsBookPanel from './DigitalsBookPanel';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import PholioButton from '../../../shared/components/ui/PholioButton';
@@ -111,6 +111,11 @@ function PortfolioFrame({ image, index, onSetCover, onEdit, onCrop, onDelete, se
             <Star size={14} fill="currentColor" aria-hidden="true" />
           </span>
         ) : null}
+        {isPrivate ? (
+          <span className="mw-frame__privacy-mark" aria-label="Private frame" title="Private frame">
+            <EyeOff size={13} aria-hidden="true" />
+          </span>
+        ) : null}
 
         <div className="mw-frame__actions" aria-label="Frame actions">
           {!isCover && (
@@ -128,12 +133,7 @@ function PortfolioFrame({ image, index, onSetCover, onEdit, onCrop, onDelete, se
         </div>
       </div>
       <div className="mw-frame__foot">
-        {isPrivate ? (
-          <p className="mw-frame__status-line">
-            Private
-          </p>
-        ) : null}
-        <FrameTypeCaption image={image} classificationTimedOut={classificationTimedOut} />
+        <FrameReadCaption image={image} classificationTimedOut={classificationTimedOut} />
       </div>
     </article>
   );
@@ -397,14 +397,12 @@ export default function MediaWorkspace() {
 
         <section aria-label="Frame library" className="mw-library">
           <div className="mw-section-head">
-            <DigitalsBookPanel images={frames} />
+            <DigitalsBookPanel
+              images={frames}
+              onConfirm={handleClassificationConfirm}
+              onEdit={(img) => setEditor({ image: img, mode: 'details' })}
+            />
           </div>
-
-          <ClassificationReviewStrip
-            images={frames}
-            onConfirm={handleClassificationConfirm}
-            onEdit={(img) => setEditor({ image: img, mode: 'details' })}
-          />
 
           {isLoading ? (
             <div className="mw-grid">

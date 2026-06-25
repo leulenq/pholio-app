@@ -20,6 +20,8 @@ export const IdentitySection = ({
   isImproving,
   improveMode,
   previousBio,
+  bioOptions = { length: 'standard', person: 'third' },
+  onBioOptionsChange,
   onBioRefine,
   onBioGenerate,
   handleUndoAI,
@@ -28,6 +30,13 @@ export const IdentitySection = ({
   const age = computeAge(watchDob);
   const isMinor = isMinorProfile({ date_of_birth: watchDob });
   const hasBio = (bioValue || '').trim().length >= 10;
+  const bioLength = bioOptions?.length === 'tight' ? 'tight' : 'standard';
+  const bioPerson = bioOptions?.person === 'first' ? 'first' : 'third';
+  const setBioOption = (patch) => {
+    if (onBioOptionsChange) {
+      onBioOptionsChange({ length: bioLength, person: bioPerson, ...patch });
+    }
+  };
   return (
     <Section
       id="identity"
@@ -197,6 +206,46 @@ export const IdentitySection = ({
           <p className={styles.bioLede}>
             Tell agencies what makes you unique.
           </p>
+          <div className={styles.bioModeControls}>
+            <div className={styles.bioModeGroup}>
+              <span className={styles.bioModeLabel}>Length</span>
+              <button
+                type="button"
+                onClick={() => setBioOption({ length: 'tight' })}
+                disabled={isImproving}
+                className={`${styles.bioModeBtn} ${bioLength === 'tight' ? styles.bioModeBtnActive : ''}`}
+              >
+                Tight
+              </button>
+              <button
+                type="button"
+                onClick={() => setBioOption({ length: 'standard' })}
+                disabled={isImproving}
+                className={`${styles.bioModeBtn} ${bioLength === 'standard' ? styles.bioModeBtnActive : ''}`}
+              >
+                Standard
+              </button>
+            </div>
+            <div className={styles.bioModeGroup}>
+              <span className={styles.bioModeLabel}>Voice</span>
+              <button
+                type="button"
+                onClick={() => setBioOption({ person: 'third' })}
+                disabled={isImproving}
+                className={`${styles.bioModeBtn} ${bioPerson === 'third' ? styles.bioModeBtnActive : ''}`}
+              >
+                Agency
+              </button>
+              <button
+                type="button"
+                onClick={() => setBioOption({ person: 'first' })}
+                disabled={isImproving}
+                className={`${styles.bioModeBtn} ${bioPerson === 'first' ? styles.bioModeBtnActive : ''}`}
+              >
+                Personal
+              </button>
+            </div>
+          </div>
         </div>
         <PholioTextarea
           label=""

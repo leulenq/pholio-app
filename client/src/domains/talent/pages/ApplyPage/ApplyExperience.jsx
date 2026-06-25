@@ -17,9 +17,17 @@ import { toast } from 'sonner';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../../shared/components/NotificationCenter/NotificationCenter';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
+import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import ProfileGateBanner from '../../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../../shared/utils/profileGating';
-import { analyzeDigitalsReadiness } from '../../../../shared/utils/profileReadinessImages';
+import { sendBlockerLabel } from '../../../../shared/utils/sendReadiness';
+import {
+  analyzeDigitalsReadiness,
+  isHeadshotImage,
+  isFullBodyImage,
+} from '../../../../shared/utils/profileReadinessImages';
+import { auditSubmissionPackage } from '../../../../shared/utils/packageIntelligence';
+import { DIGITALS_ADVISORY_ITEMS } from '../../../../shared/constants/frameTaxonomy';
 import { talentApi } from '../../api/talent';
 import '../../components/ApplicationsView.css';
 import './ApplyExperience.css';
@@ -54,13 +62,7 @@ const COMP_CARD_OPTIONS = [
   { id: 'editorial', label: 'Editorial card', detail: 'A lighter editorial presentation' },
 ];
 
-const DIGITALS_ADVISORY = [
-  { key: 'hasProfile', label: 'Side profile' },
-  { key: 'hasSmile', label: 'Smiling headshot' },
-  { key: 'hasBack', label: 'Back view' },
-  { key: 'hasEditorial', label: 'Editorial portfolio shot' },
-  { key: 'hasLifestyle', label: 'Commercial / lifestyle shot' },
-];
+const DIGITALS_ADVISORY = DIGITALS_ADVISORY_ITEMS;
 
 /* ── helpers ─────────────────────────────────────────────── */
 
@@ -107,12 +109,6 @@ function normalizeToken(value) {
     .replace(/[\s-]+/g, '_');
 }
 
-function hasShotType(image, types) {
-  const shot = normalizeToken(image?.shot_type);
-  const imageType = normalizeToken(image?.image_type);
-  return types.includes(shot) || types.includes(imageType);
-}
-
 function measurementValue(profile, keys) {
   for (const key of keys) {
     const value = profile?.[key];
@@ -121,21 +117,19 @@ function measurementValue(profile, keys) {
   return null;
 }
 
-function buildFitSignals({ checks, digitalsGaps, untypedCount }) {
+function buildFitSignals({ checks, untypedCount, recencyIsFresh }) {
   const has = (label) => !!checks.find((check) => check.label === label)?.complete;
-  const digitalsMet = digitalsGaps.length === 0;
 
-  // The universal submission standard, mapped to what the talent already has.
   const requirements = [
     {
       label: 'A clean, current headshot',
-      met: has('Headshot'),
-      note: 'Tag a headshot in your book',
+      met: has('Digital headshot'),
+      note: 'Tag a digital headshot in your book',
     },
     {
-      label: 'A full-length frame, head to toe',
-      met: has('Full-body'),
-      note: 'Add a full-length frame',
+      label: 'A full-length digital, head to toe',
+      met: has('Full-length digital'),
+      note: 'Add a clean digital full-length shot',
     },
     {
       label: 'Accurate measurements',
@@ -144,10 +138,8 @@ function buildFitSignals({ checks, digitalsGaps, untypedCount }) {
     },
     {
       label: 'Recent digitals',
-      met: digitalsMet,
-      note: digitalsGaps.length
-        ? `Missing ${digitalsGaps.map((gap) => gap.label.toLowerCase()).join(', ')}`
-        : 'Add recent digitals',
+      met: recencyIsFresh,
+      note: 'Refresh your digitals — agencies expect a current set',
     },
   ];
 
@@ -292,25 +284,86 @@ export default function ApplyExperience() {
     [setImages, excludedImageIds],
   );
 
+  const packageAudit = useMemo(
+    () => auditSubmissionPackage({ images: packageImages }),
+    [packageImages],
+  );
+
   const checks = useMemo(() => {
-    const hasHeadshot = packageImages.some((img) => hasShotType(img, ['headshot']));
-    const hasFullBody = packageImages.some((img) =>
-      hasShotType(img, ['full_length', 'full_body', 'three_quarter']),
-    );
+    const hasHeadshot = packageImages.some(isHeadshotImage);
+    const hasFullBody = packageImages.some(isFullBodyImage);
     const hasMeasurements =
       !!measurementValue(profile, ['height_cm']) &&
-      !!measurementValue(profile, ['bust', 'bust_cm']) &&
+      !!measurementValue(profile, ['bust', 'bust_cm', 'chest', 'chest_cm']) &&
       !!measurementValue(profile, ['waist', 'waist_cm']) &&
       !!measurementValue(profile, ['hips', 'hips_cm']);
     const hasContact = !!profile?.email && !!profile?.phone;
     return [
-      { label: 'Headshot', complete: hasHeadshot },
-      { label: 'Full-body', complete: hasFullBody },
-      { label: 'Measurements', complete: hasMeasurements },
-      { label: 'Contact', complete: hasContact },
+      {
+        key: 'photo_headshot',
+        label: 'Digital headshot',
+        complete: hasHeadshot,
+        note: 'Tag a digital headshot in your package',
+      },
+      {
+        key: 'photo_full_body',
+        label: 'Full-length digital',
+        complete: hasFullBody,
+        note: 'Add a clean digital full-length shot to your package',
+      },
+      {
+        key: 'digitals_recency',
+        label: 'Current digitals',
+        complete: !packageAudit.recency.isStale,
+        note: 'Refresh your digitals — agencies expect a current set',
+      },
+      {
+        key: 'measurements',
+        label: 'Measurements',
+        complete: hasMeasurements,
+        note: 'Complete height and core measurements',
+      },
+      {
+        key: 'contact',
+        label: 'Contact',
+        complete: hasContact,
+        note: 'Add email and phone in settings',
+      },
     ];
-  }, [packageImages, profile]);
-  const missingChecks = checks.filter((check) => !check.complete);
+  }, [packageImages, profile, packageAudit]);
+
+  const sendBlockers = useMemo(() => {
+    const packageGaps = checks
+      .filter((check) => !check.complete)
+      .map((check) => ({
+        key: check.key,
+        label: check.label,
+        task: check.note,
+      }));
+
+    if (Array.isArray(gating.sendBlockers)) {
+      const coveredKeys = new Set(gating.sendBlockers.map((blocker) => blocker.key));
+      return [
+        ...gating.sendBlockers,
+        ...packageGaps.filter((gap) => !coveredKeys.has(gap.key)),
+      ];
+    }
+
+    return packageGaps;
+  }, [checks, gating.sendBlockers]);
+
+  const isSendReady = useMemo(() => {
+    const packageReady = checks.every((check) => check.complete);
+    if (typeof gating.isSendReady === 'boolean') {
+      return gating.isSendReady && packageReady;
+    }
+    return gating.isCoreReady && packageReady;
+  }, [checks, gating.isCoreReady, gating.isSendReady]);
+
+  const missingChecks = useMemo(
+    () => checks.filter((check) => !check.complete),
+    [checks],
+  );
 
   const digitalsReadiness = useMemo(() => analyzeDigitalsReadiness(packageImages), [packageImages]);
   const digitalsGaps = useMemo(
@@ -321,6 +374,7 @@ export default function ApplyExperience() {
     () => packageImages.filter((img) => !normalizeToken(img?.shot_type)).length,
     [packageImages],
   );
+  const recencyIsFresh = !packageAudit.recency.isStale;
 
   const selectedMediaSetName =
     selectedMediaSetId === 'current'
@@ -336,11 +390,7 @@ export default function ApplyExperience() {
   }, [selectedAgency, packageImages.length]);
 
   const canSubmit =
-    !!selectedAgency &&
-    !gating.isBlocked &&
-    missingChecks.length === 0 &&
-    consent &&
-    !applyMutation.isPending;
+    !!selectedAgency && isSendReady && consent && !applyMutation.isPending;
 
   /* ── navigation ── */
 
@@ -360,8 +410,12 @@ export default function ApplyExperience() {
     });
 
   const handleSubmit = () => {
-    if (gating.isBlocked) {
+    if (!gating.isCoreReady) {
       toast.info('Complete your required profile fields before submitting to an agency.');
+      return;
+    }
+    if (!isSendReady) {
+      toast.info('Complete send requirements before submitting — contact, digitals, and your package.');
       return;
     }
     if (!selectedAgency?.id || !canSubmit) return;
@@ -489,7 +543,7 @@ export default function ApplyExperience() {
         </nav>
       </div>
 
-      {gating.isBlocked && (
+      {!gating.isCoreReady && (
         <ProfileGateBanner
           variant="compact"
           featureName={applicationGate.featureName}
@@ -497,6 +551,20 @@ export default function ApplyExperience() {
           description={applicationGate.description}
           {...gating}
         />
+      )}
+
+      {gating.isCoreReady && !isSendReady && sendBlockers.length > 0 && (
+        <section className="apply-send-gate" aria-label="Send requirements">
+          <p className="apply-foot__meta">Send requirements</p>
+          <ul className="apply-readyline">
+            {sendBlockers.map((blocker) => (
+              <li key={blocker.key || blocker.label} className="is-need">
+                <X size={12} aria-hidden />
+                {sendBlockerLabel(blocker)}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {/* On the locked review the agency becomes the page's own hero (rendered
@@ -540,6 +608,7 @@ export default function ApplyExperience() {
             checks={checks}
             digitalsGaps={digitalsGaps}
             untypedCount={untypedPackageCount}
+            recencyIsFresh={recencyIsFresh}
           />
         )}
 
@@ -572,6 +641,7 @@ export default function ApplyExperience() {
             mediaSetName={selectedMediaSetName}
             compCardName={selectedCompCardName}
             checks={checks}
+            packageAudit={packageAudit}
             note={note}
             onNoteChange={(v) => setNote(v.slice(0, 1200))}
             consent={consent}
@@ -583,8 +653,8 @@ export default function ApplyExperience() {
       <footer className="apply-foot">
         <p className="apply-foot__meta">
           {monthlyLimitLabel}
-          {sceneIndex === 2 && missingChecks.length > 0
-            ? ` · ${missingChecks.map((c) => c.label).join(', ')} still needed`
+          {sceneIndex === 2 && !isSendReady && sendBlockers.length > 0
+            ? ` · ${sendBlockers.map((blocker) => sendBlockerLabel(blocker)).join(', ')} still needed`
             : ''}
         </p>
         <div className="apply-foot__actions">
@@ -604,9 +674,13 @@ export default function ApplyExperience() {
             </PholioButton>
           ) : (
             <PholioButton variant="solid" onClick={handleSubmit} disabled={!canSubmit}>
-              {gating.isBlocked ? (
+              {!gating.isCoreReady ? (
                 <>
                   <Lock size={14} aria-hidden /> Profile incomplete
+                </>
+              ) : !isSendReady ? (
+                <>
+                  <Lock size={14} aria-hidden /> Send requirements
                 </>
               ) : applyMutation.isPending ? (
                 <>
@@ -639,6 +713,7 @@ function AddressScene({
   checks,
   digitalsGaps,
   untypedCount,
+  recencyIsFresh,
 }) {
   if (locked && selectedAgency) {
     return (
@@ -650,6 +725,7 @@ function AddressScene({
           checks={checks}
           digitalsGaps={digitalsGaps}
           untypedCount={untypedCount}
+          recencyIsFresh={recencyIsFresh}
         />
       </div>
     );
@@ -696,6 +772,7 @@ function AddressScene({
           checks={checks}
           digitalsGaps={digitalsGaps}
           untypedCount={untypedCount}
+          recencyIsFresh={recencyIsFresh}
         />
       )}
     </div>
@@ -727,8 +804,8 @@ function MatchMark({ score }) {
    a confident masthead (name, prominent location, site, match signal), the
    boards the agency is currently scouting, and the submission expectations
    that drive how to curate the package. */
-function AgencyDossier({ agency, site, focused = false, checks = [], digitalsGaps = [], untypedCount = 0 }) {
-  const fit = buildFitSignals({ checks, digitalsGaps, untypedCount });
+function AgencyDossier({ agency, site, focused = false, checks = [], digitalsGaps = [], untypedCount = 0, recencyIsFresh = false }) {
+  const fit = buildFitSignals({ checks, untypedCount, recencyIsFresh });
   const openBoards = Array.isArray(agency.open_boards) ? agency.open_boards.filter(Boolean) : [];
 
   return (
@@ -954,12 +1031,109 @@ function SendScene({
   mediaSetName,
   compCardName,
   checks,
+  packageAudit,
   note,
   onNoteChange,
   consent,
   onConsentChange,
 }) {
   const name = agency?.name || 'this agency';
+
+  const [assistBusy, setAssistBusy] = useState(false);
+  const [assistMode, setAssistMode] = useState(null);
+  const [previousNote, setPreviousNote] = useState(null);
+
+  const trimmedNote = note.trim();
+  const noteLen = trimmedNote.length;
+
+  const runAssist = async (mode) => {
+    setAssistMode(mode);
+    setAssistBusy(true);
+    const snapshot = note;
+    try {
+      const agencyPayload = {
+        agencyId: agency?.id || undefined,
+        agencyName: agency?.name || undefined,
+      };
+      let data;
+      if (mode === 'draft') {
+        data = await talentApi.draftSubmissionNote({
+          ...agencyPayload,
+          note: trimmedNote || undefined,
+        });
+      } else if (mode === 'sharpen') {
+        data = await talentApi.sharpenSubmissionNote({
+          ...agencyPayload,
+          note: trimmedNote,
+        });
+      } else {
+        data = await talentApi.shortenSubmissionNote({ note: trimmedNote });
+      }
+
+      const next = (data?.note || '').slice(0, 1200);
+      if (!next) {
+        toast.error('No note returned. Please try again.');
+        return;
+      }
+      setPreviousNote(snapshot);
+      onNoteChange(next);
+      toast.success(
+        mode === 'draft'
+          ? 'Note drafted'
+          : mode === 'sharpen'
+            ? 'Note sharpened'
+            : 'Note shortened',
+      );
+    } catch (err) {
+      if (err?.data?.details?.code === 'STUDIO_PLUS_REQUIRED') {
+        toast.error('Studio+ is required to use the note assistant.');
+      } else {
+        toast.error(err?.message || 'Could not update the note. Please try again.');
+      }
+    } finally {
+      setAssistBusy(false);
+      setAssistMode(null);
+    }
+  };
+
+  const handleUndoAssist = () => {
+    if (previousNote === null) return;
+    onNoteChange(previousNote);
+    setPreviousNote(null);
+    toast.info('Reverted to your original note');
+  };
+
+  const assistActions = [];
+  if (noteLen < 10) {
+    assistActions.push({
+      id: 'draft',
+      label: 'Draft a note',
+      onClick: () => runAssist('draft'),
+    });
+  } else {
+    assistActions.push({
+      id: 'sharpen',
+      label: 'Sharpen',
+      onClick: () => runAssist('sharpen'),
+    });
+    if (noteLen >= 50) {
+      assistActions.push({
+        id: 'shorten',
+        label: 'Shorten',
+        onClick: () => runAssist('shorten'),
+      });
+    }
+  }
+
+  const busyLabel =
+    assistMode === 'draft'
+      ? 'Drafting…'
+      : assistMode === 'sharpen'
+        ? 'Sharpening…'
+        : assistMode === 'shorten'
+          ? 'Shortening…'
+          : 'Working…';
+
   return (
     <div className="apply-review">
       <div className="apply-review__main">
@@ -987,8 +1161,24 @@ function SendScene({
           ))}
         </ul>
 
-        <label className="app-application-note" htmlFor="apply-note">
+        {packageAudit?.advisories?.length > 0 && (
+          <ul className="apply-package-audit" aria-label="Package notes">
+            {packageAudit.advisories.map((item) => (
+              <li key={`${item.id}-${item.imageIds?.[0] || 'global'}`}>{item.message}</li>
+            ))}
+          </ul>
+        )}
+
+        <div className="app-application-note">
           <span className="apply-note-lbl">A note to {name}</span>
+          <WritingAssistToolbar
+            className="apply-note-assist"
+            actions={assistActions}
+            busy={assistBusy}
+            busyLabel={busyLabel}
+            showUndo={previousNote !== null}
+            onUndo={handleUndoAssist}
+          />
           <textarea
             id="apply-note"
             value={note}
@@ -997,7 +1187,7 @@ function SendScene({
             rows={5}
           />
           <small>{note.length} / 1200</small>
-        </label>
+        </div>
 
         <label className="app-consent-check">
           <input

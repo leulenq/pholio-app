@@ -6,6 +6,12 @@ import {
   isMinorProfile,
   minorSensitiveFieldsUnlocked,
 } from '../../../shared/utils/talentAge';
+import { analyzePackageIntelligence, resolveReadinessGuidance } from '../../../shared/utils/packageIntelligence';
+import { readinessFieldLabel } from '../../../shared/constants/frameTaxonomy';
+import {
+  getDivisionReadinessConfig,
+  resolveTalentDivision,
+} from '../../../shared/constants/profileDivision';
 
 export const MINOR_REQUIRED_READINESS_ITEMS = [
   {
@@ -53,13 +59,13 @@ export const REQUIRED_READINESS_ITEMS = [
   },
   {
     key: 'photo_headshot',
-    label: 'Headshot',
+    label: readinessFieldLabel('photo_headshot', 'Digital Headshot'),
     why: 'A clean, natural headshot opens every agency digitals set.',
   },
   {
     key: 'photo_full_body',
-    label: 'Full-Body Photo',
-    why: 'A head-to-toe frame verifies proportions and stance.',
+    label: readinessFieldLabel('photo_full_body', 'Full-Length Digital'),
+    why: 'A head-to-toe digital frame verifies proportions and stance.',
   },
 ];
 
@@ -116,28 +122,33 @@ export const IMPROVE_READINESS_ITEMS = [
   },
   {
     key: 'photo_profile',
-    label: 'Side Profile',
+    label: readinessFieldLabel('photo_profile', 'Side Profile'),
     why: 'Bookers assess bone structure from a left or right profile digital.',
   },
   {
     key: 'photo_smile',
-    label: 'Smiling Headshot',
+    label: readinessFieldLabel('photo_smile', 'Smiling Headshot'),
     why: 'Commercial boards want at least one approachable smile in the set.',
   },
   {
     key: 'photo_back',
-    label: 'Back View',
+    label: readinessFieldLabel('photo_back', 'Back View'),
     why: 'A full-length back frame completes the standard digitals set.',
   },
   {
     key: 'photo_editorial',
-    label: 'Editorial Portfolio Shot',
+    label: readinessFieldLabel('photo_editorial', 'Editorial / Creative'),
     why: 'Styled editorial work shows high-fashion range beyond digitals.',
   },
   {
     key: 'photo_lifestyle',
-    label: 'Commercial / Lifestyle Shot',
+    label: readinessFieldLabel('photo_lifestyle', 'Commercial / Lifestyle'),
     why: 'Relatable lifestyle or commercial frames round out your book.',
+  },
+  {
+    key: 'digitals_recency',
+    label: readinessFieldLabel('digitals_recency', 'Current Digitals'),
+    why: 'Agencies expect digitals refreshed every 8-12 weeks.',
   },
 ];
 
@@ -170,6 +181,7 @@ export const READINESS_KEY_TO_NAV_ID = {
   photo_back: 'media',
   photo_editorial: 'media',
   photo_lifestyle: 'media',
+  digitals_recency: 'media',
 };
 
 /** Maps each readiness key to the Profile deep-link URL that scrolls to the correct section. */
@@ -188,6 +200,7 @@ export const READINESS_KEY_TO_PROFILE_URL = {
   photo_back: '/dashboard/talent/media',
   photo_editorial: '/dashboard/talent/media',
   photo_lifestyle: '/dashboard/talent/media',
+  digitals_recency: '/dashboard/talent/media',
   height: '/dashboard/talent/profile?tab=appearance',
   measurements: '/dashboard/talent/profile?tab=appearance',
   look: '/dashboard/talent/profile?tab=appearance',
@@ -225,34 +238,92 @@ function activeRequiredItems(profile = null) {
   return [...MINOR_REQUIRED_READINESS_ITEMS, ...base];
 }
 
-export function buildReadinessLists(fieldCompletion = {}, profile = null) {
+function sortImproveByDivision(items = [], config = null) {
+  if (!config) return items;
+
+  const emphasizeOrder = new Map(
+    (config.emphasizeImproveKeys || []).map((key, index) => [key, index]),
+  );
+  const deemphasizeKeys = new Set(config.deemphasizeImproveKeys || []);
+
+  const priorityBand = (key) => {
+    if (emphasizeOrder.has(key)) return 0;
+    if (deemphasizeKeys.has(key)) return 2;
+    return 1;
+  };
+
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const bandDiff = priorityBand(a.item.key) - priorityBand(b.item.key);
+      if (bandDiff !== 0) return bandDiff;
+
+      if (priorityBand(a.item.key) === 0) {
+        return emphasizeOrder.get(a.item.key) - emphasizeOrder.get(b.item.key);
+      }
+
+      return a.index - b.index;
+    })
+    .map(({ item }) => item);
+}
+
+export function buildReadinessLists(fieldCompletion = {}, profile = null, images = [], division = null) {
   const completion = buildMinorFieldCompletion(profile, fieldCompletion);
   const requiredDefs = activeRequiredItems(profile);
   const minor = isMinorProfile(profile);
   const unlocked = minorSensitiveFieldsUnlocked(profile);
+  const resolvedDivision = division || resolveTalentDivision(profile);
+  const divisionConfig = getDivisionReadinessConfig(resolvedDivision);
+  const pkg = Array.isArray(images) && images.length
+    ? analyzePackageIntelligence({ images })
+    : null;
 
-  const requiredItems = requiredDefs.map((item) => ({
-    ...item,
-    isComplete: !!completion[item.key],
-  }));
+  const applyGuidance = (item) => {
+    if (!pkg) return item;
+    const guided = resolveReadinessGuidance(item.key, pkg.advisories, {
+      label: item.label,
+      why: item.why,
+    });
+    return { ...item, label: guided.label, why: guided.why };
+  };
+
+  const requiredItems = requiredDefs.map((item) =>
+    applyGuidance({
+      ...item,
+      isComplete: !!completion[item.key],
+    }),
+  );
 
   const improveItems = IMPROVE_READINESS_ITEMS.filter((item) => {
     if (minor && !unlocked && item.key === 'weight') return false;
     return true;
-  }).map((item) => ({
-    ...item,
-    isComplete: !!completion[item.key],
-  }));
+  }).map((item) =>
+    applyGuidance({
+      ...item,
+      isComplete: !!completion[item.key],
+    }),
+  );
 
   const missingRequired = requiredItems.filter((i) => !i.isComplete);
-  const missingImprove = improveItems.filter((i) => !i.isComplete);
+  const missingImprove = sortImproveByDivision(
+    improveItems.filter((i) => !i.isComplete),
+    divisionConfig,
+  );
 
   const topGaps = [
     ...missingRequired.map((i) => ({ ...i, tier: 'required' })),
     ...missingImprove.map((i) => ({ ...i, tier: 'improve' })),
   ].slice(0, 3);
 
-  return { requiredItems, improveItems, missingRequired, missingImprove, topGaps };
+  return {
+    requiredItems,
+    improveItems,
+    missingRequired,
+    missingImprove,
+    topGaps,
+    division: resolvedDivision,
+    divisionConfig,
+  };
 }
 
 /** Nav section id → gap tier: required fields missing, or improve-only fields open. */

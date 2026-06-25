@@ -4,7 +4,10 @@ import { Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
 import { talentApi } from '../api/talent';
+import WritingAssistToolbar from '../../../shared/components/writing/WritingAssistToolbar';
 import './ApplicationMessages.css';
+
+const POLISH_MIN_LENGTH = 10;
 
 function asList(payload) {
   if (Array.isArray(payload)) return payload;
@@ -27,6 +30,7 @@ function timeLabel(value) {
 export default function ApplicationMessages({ applicationId, agencyName }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
+  const [prePolishDraft, setPrePolishDraft] = useState(null);
 
   const threadKey = ['application-messages', applicationId];
   const threadQuery = useQuery({
@@ -41,10 +45,35 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
     mutationFn: (text) => talentApi.sendApplicationMessage(applicationId, text),
     onSuccess: () => {
       setDraft('');
+      setPrePolishDraft(null);
       queryClient.invalidateQueries({ queryKey: threadKey });
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
     },
     onError: (err) => toast.error(err?.message || 'Could not send your message'),
+  });
+
+  const polish = useMutation({
+    mutationFn: () =>
+      talentApi.polishApplicationMessage({
+        message: draft,
+        agencyName: agencyName || undefined,
+      }),
+    onSuccess: (result) => {
+      const polished = result?.message || result?.data?.message;
+      if (!polished) {
+        toast.error('Polish returned an empty result');
+        return;
+      }
+      setPrePolishDraft(draft);
+      setDraft(polished);
+    },
+    onError: (err) => {
+      if (err?.status === 403) {
+        toast.error('Message Polish requires a Studio+ subscription');
+      } else {
+        toast.error(err?.message || 'Could not polish your message');
+      }
+    },
   });
 
   const submit = (e) => {
@@ -53,6 +82,16 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
     if (!text || send.isPending) return;
     send.mutate(text);
   };
+
+  const handleUndo = () => {
+    if (prePolishDraft !== null) {
+      setDraft(prePolishDraft);
+      setPrePolishDraft(null);
+    }
+  };
+
+  const showToolbar = draft.length >= POLISH_MIN_LENGTH;
+  const showUndo = prePolishDraft !== null;
 
   return (
     <div className="app-msg">
@@ -81,26 +120,43 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
       )}
 
       <form className="app-msg__compose" onSubmit={submit}>
-        <textarea
-          className="app-msg__input"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={`Message ${agencyName || 'the agency'}…`}
-          rows={2}
-          maxLength={4000}
-        />
-        <button
-          type="submit"
-          className="app-msg__send"
-          disabled={!draft.trim() || send.isPending}
-          aria-label="Send message"
-        >
-          {send.isPending ? (
-            <Loader2 size={14} className="app-spin" aria-hidden />
-          ) : (
-            <Send size={14} aria-hidden />
+        <div className="app-msg__compose-inner">
+          {showToolbar && (
+            <WritingAssistToolbar
+              className="app-msg__toolbar"
+              actions={[{ id: 'polish', label: 'Polish', onClick: () => polish.mutate() }]}
+              busy={polish.isPending}
+              busyLabel="Polishing…"
+              onUndo={handleUndo}
+              showUndo={showUndo}
+            />
           )}
-        </button>
+          <div className="app-msg__input-row">
+            <textarea
+              className="app-msg__input"
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                if (prePolishDraft !== null) setPrePolishDraft(null);
+              }}
+              placeholder={`Message ${agencyName || 'the agency'}…`}
+              rows={2}
+              maxLength={4000}
+            />
+            <button
+              type="submit"
+              className="app-msg__send"
+              disabled={!draft.trim() || send.isPending}
+              aria-label="Send message"
+            >
+              {send.isPending ? (
+                <Loader2 size={14} className="app-spin" aria-hidden />
+              ) : (
+                <Send size={14} aria-hidden />
+              )}
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   );

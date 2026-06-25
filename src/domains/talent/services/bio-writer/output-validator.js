@@ -59,7 +59,7 @@ function findUngroundedPhrases(bio, allowedPhrases) {
 /**
  * @param {string} bio
  * @param {Object} context
- * @param {{ existingBio?: string, mode?: string }} options
+ * @param {{ existingBio?: string, mode?: string, length?: 'tight'|'standard', person?: 'third'|'first' }} options
  * @returns {{ valid: boolean, rubric: object, ungrounded: string[] }}
  */
 function validateBioOutput(bio, context, options = {}) {
@@ -67,7 +67,11 @@ function validateBioOutput(bio, context, options = {}) {
     context,
     options.existingBio || "",
   );
-  const rubric = scoreBio(bio, { allowedPhrases });
+  const rubric = scoreBio(bio, {
+    allowedPhrases,
+    length: options.length,
+    person: options.person,
+  });
 
   const ungrounded = findUngroundedPhrases(bio, allowedPhrases);
   if (ungrounded.length >= 2) {

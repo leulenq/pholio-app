@@ -35,9 +35,7 @@ export function isDigitalSlot(img) {
     return false;
   }
   if (!imageType) {
-    const styling = String(parseAiSignals(img).styling_register || '').toLowerCase();
-    if (styling === 'editorial' || styling === 'polished') return false;
-    return true;
+    return false;
   }
   return false;
 }
@@ -54,11 +52,28 @@ export function isHeadshotImage(img) {
   return role === 'headshot';
 }
 
+function hasFullLengthFraming(img) {
+  if (!img) return false;
+  if (hasShotType(img, ['full_length', 'full_body', 'three_quarter'])) return true;
+  return parseMetadataRole(img) === 'full_body';
+}
+
 export function isFullBodyImage(img) {
   if (!img || !isDigitalSlot(img)) return false;
-  if (hasShotType(img, ['full_length', 'full_body', 'three_quarter'])) return true;
-  const role = parseMetadataRole(img);
-  return role === 'full_body';
+  return hasFullLengthFraming(img);
+}
+
+/** Full-length framing in book/portfolio work — does not satisfy digitals readiness. */
+export function isBookFullLengthImage(img) {
+  if (!img || isDigitalSlot(img)) return false;
+  return hasFullLengthFraming(img);
+}
+
+/** Headshot framing in book/portfolio work — does not satisfy digitals readiness. */
+export function isBookHeadshotImage(img) {
+  if (!img || isDigitalSlot(img)) return false;
+  if (hasShotType(img, ['headshot'])) return true;
+  return parseMetadataRole(img) === 'headshot';
 }
 
 export function isSmileHeadshot(img) {

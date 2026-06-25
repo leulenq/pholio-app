@@ -18,6 +18,7 @@ export function useProfileStrength() {
     const { missingRequired, missingImprove, topGaps } = buildReadinessLists(
       strength.fieldCompletion,
       profile,
+      images ?? [],
     );
     return {
       fieldCompletion: strength.fieldCompletion,

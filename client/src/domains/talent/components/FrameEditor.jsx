@@ -8,6 +8,12 @@ import {
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
 import { classificationFormDefaults } from '../../../shared/utils/imageClassification';
+import {
+  shotPickerOptions,
+  imageTypePickerOptions,
+  stylePickerOptions,
+  expressionPickerOptions,
+} from '../../../shared/constants/frameTaxonomy';
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
 import './FrameEditor.css';
 
@@ -16,43 +22,6 @@ const ASPECTS = [
   { val: 4 / 5, label: 'Editorial', meta: '4:5' },
   { val: 1, label: 'Square', meta: '1:1' },
   { val: 16 / 9, label: 'Wide', meta: '16:9' },
-];
-
-// Shot type — framing / composition of the subject
-const SHOT_TYPE_OPTIONS = [
-  { value: '', label: 'Unplaced' },
-  { value: 'headshot', label: 'Headshot' },
-  { value: 'beauty', label: 'Beauty / Close-up' },
-  { value: 'half_body', label: 'Half-body' },
-  { value: 'three_quarter', label: 'Three-quarter' },
-  { value: 'full_length', label: 'Full-length' },
-  { value: 'profile', label: 'Profile' },
-  { value: 'back', label: 'Back' },
-  { value: 'detail', label: 'Detail / Feature' },
-];
-
-// Image type — context or origin of the image
-const IMAGE_TYPE_OPTIONS = [
-  { value: '', label: 'Unplaced' },
-  { value: 'digital', label: 'Digitals / Go-sees' },
-  { value: 'portfolio', label: 'Portfolio' },
-  { value: 'test', label: 'Test shoot' },
-  { value: 'campaign', label: 'Campaign / Ad' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'runway', label: 'Runway / Show' },
-];
-
-// Style — visual register and market category
-const STYLE_TYPE_OPTIONS = [
-  { value: '', label: 'Unplaced' },
-  { value: 'editorial', label: 'Editorial / Fashion' },
-  { value: 'commercial', label: 'Commercial / Advertising' },
-  { value: 'lifestyle', label: 'Lifestyle' },
-  { value: 'beauty', label: 'Beauty / Skincare' },
-  { value: 'ecommerce', label: 'E-commerce / Catalogue' },
-  { value: 'swimwear', label: 'Swimwear / Lingerie' },
-  { value: 'fitness', label: 'Fitness / Athletic' },
-  { value: 'couture', label: 'Couture / Runway' },
 ];
 
 // Status — operational state (affects comp card eligibility)
@@ -423,38 +392,42 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                         <select className="fe-input" value={form.shot_type}
                           onChange={(e) => setForm((p) => ({ ...p, shot_type: e.target.value }))}>
                           {/* Show legacy profile_left/profile_right only if current image has that value */}
-                          {[
-                            ...SHOT_TYPE_OPTIONS,
-                            ...(form.shot_type === 'profile_left' ? [{ value: 'profile_left', label: 'Profile (left)' }] : []),
-                            ...(form.shot_type === 'profile_right' ? [{ value: 'profile_right', label: 'Profile (right)' }] : []),
-                          ].map((o) => <option key={`st-${o.value || 'ns'}`} value={o.value}>{o.label}</option>)}
+                          {shotPickerOptions(form.shot_type).map((o) => (
+                            <option key={`st-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
+                              {o.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
                       <label>
                         <span className="fe-label">Register</span>
                         <select className="fe-input" value={form.style_type}
                           onChange={(e) => setForm((p) => ({ ...p, style_type: e.target.value }))}>
-                          {STYLE_TYPE_OPTIONS.map((o) => <option key={`sty-${o.value || 'ns'}`} value={o.value}>{o.label}</option>)}
+                          {stylePickerOptions().map((o) => (
+                            <option key={`sty-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
+                              {o.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
                       <label>
                         <span className="fe-label">Use</span>
                         <select className="fe-input" value={form.image_type}
                           onChange={(e) => setForm((p) => ({ ...p, image_type: e.target.value }))}>
-                          {[
-                            ...IMAGE_TYPE_OPTIONS,
-                            ...(form.image_type === 'comp_card' ? [{ value: 'comp_card', label: 'Comp card (legacy)' }] : []),
-                          ].map((o) => <option key={`it-${o.value || 'ns'}`} value={o.value}>{o.label}</option>)}
+                          {imageTypePickerOptions(form.image_type).map((o) => (
+                            <option key={`it-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
+                              {o.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
                       <label>
                         <span className="fe-label">Expression</span>
                         <select className="fe-input" value={form.expression}
                           onChange={(e) => setForm((p) => ({ ...p, expression: e.target.value }))}>
-                          <option value="">Unplaced</option>
-                          <option value="neutral">Neutral</option>
-                          <option value="smile">Smile</option>
-                          <option value="serious">Serious</option>
+                          {expressionPickerOptions().map((o) => (
+                            <option key={`ex-${o.value || 'ns'}`} value={o.value}>{o.label}</option>
+                          ))}
                         </select>
                       </label>
                       <label>

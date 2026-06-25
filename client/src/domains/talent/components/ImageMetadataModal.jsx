@@ -3,44 +3,19 @@ import { createPortal } from 'react-dom';
 import { AlignLeft, Calendar, Camera, Crop, EyeOff, Image as ImageIcon, Save, Shield, Tags, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
+import {
+  shotPickerOptions,
+  imageTypePickerOptions,
+  stylePickerOptions,
+  COMP_CARD_SLOT_LABELS,
+} from '../../../shared/constants/frameTaxonomy';
 import './ImageMetadataModal.css';
 
 const COMP_CARD_ROLES = [
-  { id: 'headshot',  label: 'Headshot',  color: '#C9A55A' },
-  { id: 'full_body', label: 'Full Body', color: '#2563EB' },
-  { id: 'editorial', label: 'Editorial', color: '#7C3AED' },
-  { id: 'lifestyle', label: 'Lifestyle', color: '#059669' },
-];
-
-const IMAGE_TYPE_OPTIONS = [
-  { value: '', label: 'Unplaced' },
-  { value: 'digital', label: 'Digitals' },
-  { value: 'portfolio', label: 'Book' },
-  { value: 'comp_card', label: 'Comp card' },
-  { value: 'campaign', label: 'Campaign' },
-  { value: 'test', label: 'Test shoot' },
-];
-
-const SHOT_TYPE_OPTIONS = [
-  { value: '', label: 'Unplaced' },
-  { value: 'headshot', label: 'Headshot' },
-  { value: 'three_quarter', label: 'Three-quarter' },
-  { value: 'full_length', label: 'Full length' },
-  { value: 'profile_left', label: 'Profile (left)' },
-  { value: 'profile_right', label: 'Profile (right)' },
-  { value: 'back', label: 'Back' },
-  { value: 'detail', label: 'Detail' },
-];
-
-const STYLE_TYPE_OPTIONS = [
-  { value: '', label: 'Unplaced' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'lifestyle', label: 'Lifestyle' },
-  { value: 'beauty', label: 'Beauty' },
-  { value: 'ecommerce', label: 'E-commerce' },
-  { value: 'swimwear', label: 'Swimwear' },
-  { value: 'fitness', label: 'Fitness' },
+  { id: 'headshot', label: COMP_CARD_SLOT_LABELS.headshot },
+  { id: 'full_body', label: COMP_CARD_SLOT_LABELS.full_length },
+  { id: 'editorial', label: COMP_CARD_SLOT_LABELS.editorial },
+  { id: 'lifestyle', label: COMP_CARD_SLOT_LABELS.lifestyle },
 ];
 
 const STATUS_OPTIONS = [
@@ -270,19 +245,25 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                 <label>
                   <span className="imd-label">Use</span>
                   <select className="imd-input" value={formData.image_type} onChange={(e) => setFormData((prev) => ({ ...prev, image_type: e.target.value }))}>
-                    {IMAGE_TYPE_OPTIONS.map((o) => <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
+                    {imageTypePickerOptions(formData.image_type).map((o) => (
+                      <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
                   <span className="imd-label">Framing</span>
                   <select className="imd-input" value={formData.shot_type} onChange={(e) => setFormData((prev) => ({ ...prev, shot_type: e.target.value }))}>
-                    {SHOT_TYPE_OPTIONS.map((o) => <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
+                    {shotPickerOptions(formData.shot_type).map((o) => (
+                      <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
                   <span className="imd-label">Register</span>
                   <select className="imd-input" value={formData.style_type} onChange={(e) => setFormData((prev) => ({ ...prev, style_type: e.target.value }))}>
-                    {STYLE_TYPE_OPTIONS.map((o) => <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
+                    {stylePickerOptions().map((o) => (
+                      <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
@@ -329,7 +310,6 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, role: isActive ? null : role.id } }))}
                       className={`imd-role-chip ${isActive ? 'is-active' : ''}`}
-                      style={{ '--role-color': role.color }}
                     >
                       {role.label}
                     </button>

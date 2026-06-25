@@ -1,0 +1,65 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid rgba(201, 165, 90, 0.35);
+  border-radius: 999px;
+  background: rgba(201, 165, 90, 0.06);
+  color: #8a6d3f;
+  font-family: Inter, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: rgba(201, 165, 90, 0.12);
+  border-color: rgba(201, 165, 90, 0.55);
+}
+
+.actionBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.undoBtn {
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font-family: Inter, sans-serif;
+  font-size: 11.5px;
+  color: #6b6560;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.undoBtn:hover {
+  color: #1a1815;
+}
+
+@keyframes watSpin {
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: watSpin 0.8s linear infinite;
+}

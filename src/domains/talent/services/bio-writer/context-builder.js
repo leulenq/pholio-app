@@ -5,6 +5,11 @@
  * Aggressive exclusion of admin/noise; max ~6 high-signal lines for token efficiency.
  */
 
+const {
+  resolveTalentDivision,
+  getDivisionReadinessConfig,
+} = require("../../../../shared/constants/profile-division");
+
 const MAX_SIGNALS = 6;
 const MAX_CREDIT_LINES = 2;
 const MAX_LANES = 3;
@@ -186,11 +191,17 @@ function buildBioContext(profile = {}, options = {}) {
   const hasMinimumForGenerate =
     !!name && (!!market || lanes.length > 0) && hasProfessionalSignal;
 
+  const division = resolveTalentDivision(profile);
+  const divisionConfig = getDivisionReadinessConfig(division);
+
   return {
     name: name || "Talent",
     signals: prioritized,
     signalCount: prioritized.length,
     hasMinimumForGenerate,
+    division,
+    divisionLabel: divisionConfig.label,
+    divisionTagline: divisionConfig.tagline,
     existingBio: options.existingBio
       ? String(options.existingBio).trim()
       : null,

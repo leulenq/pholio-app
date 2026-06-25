@@ -1064,6 +1064,11 @@
   letter-spacing: 0;
 }
 
+.apply-note-assist {
+  margin-top: -4px;
+  margin-bottom: 4px;
+}
+
 /* compact one-line readiness (no big serif checklist on the final step) */
 .apply-readyline {
   display: flex;
@@ -1092,6 +1097,34 @@
 
 .apply-readyline li svg {
   flex: none;
+}
+
+/* pre-submit package notes — quiet advisory copy, no badges or chips */
+.apply-package-audit {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.apply-package-audit li {
+  position: relative;
+  padding-left: 16px;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.apply-package-audit li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 5px;
+  height: 1px;
+  background: var(--app-text-faint);
 }
 
 /* small, controls-free comp-card preview (not the full atelier) */

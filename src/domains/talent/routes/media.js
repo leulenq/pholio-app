@@ -1046,7 +1046,6 @@ router.put(
       .select(
         "images.*",
         "profiles.date_of_birth",
-        "profiles.dob",
         "profiles.guardian_consent_at",
         "profiles.work_permit_on_file",
       )
@@ -1330,7 +1329,6 @@ router.patch(
         "images.*",
         "profiles.user_id",
         "profiles.date_of_birth",
-        "profiles.dob",
         "profiles.guardian_consent_at",
         "profiles.work_permit_on_file",
       )

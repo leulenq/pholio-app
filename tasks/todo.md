@@ -13,6 +13,10 @@
 - Restyled the review strip as a quiet editorial band with restrained rules and thumbnail/copy hierarchy rather than a rounded suggestion card.
 - Updated frame captions, completion toasts, timeout copy, editor controls, and legacy metadata modal labels to use the same Pholio-facing vocabulary.
 - Changed Digitals guidance from "suggestions" and "tag" language to calm refinements.
+- Follow-up correction: removed the gold wash around Studio reads, replaced repeated "Later" actions with a close icon plus one per-frame "Hold" action, moved cover/private states onto the image as icon marks, and turned frame reads into structured square-edged signal components instead of loose text.
+- Follow-up correction: replaced the awkward right-aligned `Keep read / Refine / Hold` controls with an integrated square-edged decision rail under the read, using compact icons and a single primary action.
+- Follow-up correction: removed explanatory row copy and redesigned the Studio reads item as a horizontal scanline: larger thumbnail, compact state label, signal rail, and right-aligned actions on desktop.
+- Follow-up correction: removed `Studio reads` as a competing section and moved frame-read review rows inside the single `Digitals read` intelligence surface.
 - Verification: focused ESLint passed for touched frontend files via `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/eslint/bin/eslint.js ...`.
 - Verification: client production build passed via `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build`; Vite still reports the existing large-chunk warning.
 
@@ -76,6 +80,23 @@
 - Booking Lanes is back as a primary lane plus secondary lanes control, with the distinct skills-vs-lanes note preserved.
 - Verification: focused ESLint passed for `ProfileNav.jsx`, `Section.jsx`, and `ProfilePage/index.jsx`.
 - Verification: `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build` passed from `client/`.
+
+# Agency Representation Section Redesign — 2026-06-24
+
+- [x] Replace the basic segmented representation selector with a premium booking-path control.
+- [x] Make the represented agency field feel like an agency record instead of a loose form field.
+- [x] Refine previous representation as history, separate from current booking status.
+- [x] Run focused frontend lint and client build verification.
+
+## Review
+- Representation now presents three deliberate paths: seeking representation, represented, and direct bookings.
+- Active state uses restrained gold, editorial typography, and a clean icon treatment without status badges.
+- Current agency only appears for represented talent and is grouped as an agency record.
+- Follow-up correction: replaced the icon-card treatment with an integrated thin-rule selector so the section matches the rest of the profile tab.
+- Follow-up correction: restored the Booking Lanes-style choice surface, fixed option text casing, and removed representation-specific form label/input overrides so `Agency name` and `Previous representation` use the standard profile form treatment.
+- Verification: focused ESLint passed for `RepresentationSection.jsx` and `ProfilePage/index.jsx`.
+- Verification: `/Users/lenquanhone/.nvm/versions/node/v22.19.0/bin/node ./node_modules/vite/bin/vite.js build` passed from `client/`.
+- Latest verification note: focused ESLint still passes for `RepresentationSection.jsx`; a fresh full client build is currently blocked by an unrelated syntax error in `client/src/domains/talent/pages/ApplyPage/ApplyExperience.jsx:546`.
 
 # Apply Experience Redesign — Premium submission flow (2026-06-22)
 
@@ -934,3 +955,29 @@ all front/back combos valid (Backstage, Sedcard24, models.com show packages).
 ## Review
 - Profile tab no longer fetches or renders website analytics.
 - Left index now has a serif title, contextual intro, vertical rule, and crafted active row styling.
+
+# Contextual Readiness Narratives — 2026-06-24
+
+- [ ] Spec reviewed and approved
+- [ ] R1: Server templates + GET route (no Groq)
+- [ ] R2: Groq polish + cache + invalidation hooks
+- [ ] R3: Overview + sidebar UI
+- [ ] R4: Dashboard API + monitoring
+
+## Docs
+
+- Spec: `docs/superpowers/specs/2026-06-24-contextual-readiness-narratives-design.md`
+- Plan: `docs/superpowers/plans/2026-06-24-contextual-readiness-narratives.md`
+- Depends on: PITS + Package Intelligence (`docs/superpowers/plans/2026-06-24-pits-package-intelligence-final.md`)
+
+# Measurement Manual Entry Affordance — 2026-06-24
+
+- [x] Add a native, low-clutter hint that measurement values support manual entry.
+- [x] Preserve the existing double-click editing interaction.
+- [x] Run focused frontend lint for the touched component.
+
+## Review
+- Added a muted inline pencil hint beside measuring tape values that reads "Double-click" and brightens on hover/focus.
+- Left the existing double-click edit, blur commit, Enter commit, Escape cancel, drag, and scroll behavior unchanged.
+- Verification: focused ESLint passed for `PholioMeasuringTape.jsx`.
+- Verification: client production build passed; Vite still reports the existing large-chunk warning.

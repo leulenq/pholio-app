@@ -13,7 +13,10 @@ const settingsRouter = require("./settings");
 const pdfRouter = require("./pdf-custom");
 const dashboardRouter = require("./dashboard");
 const bioRouter = require("./bio"); // Bio refinement API
+const submissionNoteRouter = require("./submission-note"); // Submission cover-note writer
+const trainingSummaryRouter = require("./training-summary");
 const notificationsRouter = require("./notifications");
+const messagePolishRouter = require("./message-polish");
 
 // Mount API routes
 router.use("/api/talent/media", mediaRouter);
@@ -26,7 +29,10 @@ router.use("/api/talent", settingsRouter);
 router.use("/api/talent", pdfRouter);
 router.use("/api/talent", dashboardRouter);
 router.use("/api/talent/bio", bioRouter); // Bio refinement routes
+router.use("/api/talent/submission-note", submissionNoteRouter);
+router.use("/api/talent/training-summary", trainingSummaryRouter);
 router.use("/api/talent", notificationsRouter);
+router.use("/api/talent/message-polish", messagePolishRouter);
 
 // SPA catch-all — serves React app for all /dashboard/talent* routes
 router.get("/dashboard/talent{/*path}", requireRole("TALENT"), (req, res) => {

@@ -9,7 +9,7 @@ export default defineConfig(({ command }) => ({
   base: command === 'serve' ? '/' : '/dashboard-app/',
   build: {
     outDir: '../public/dashboard-app',
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   server: {
     port: 5173,

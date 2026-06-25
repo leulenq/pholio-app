@@ -1,7 +1,7 @@
 # Pholio Image Typing Service (PITS) — Design Spec
 
 **Date:** 2026-06-22  
-**Phase:** P0–P3 complete (2026-06-22).
+**Phase:** Production final (2026-06-24) — Package Intelligence foundation
 
 ---
 
@@ -395,7 +395,51 @@ Replace tag matching with `shot_type` / `style_type` / `analyzeBookReadiness()` 
 
 ---
 
-## 13. Spec self-review
+## 13. Production backfill runbook
+
+Use `scripts/backfill-image-classification.js` to classify historical images without blocking uploads.
+
+### 13.1 Preconditions
+
+- Run migrations first so `metadata.ai.classification` + feedback paths are current.
+- Confirm `GROQ_API_KEY` and storage access are available in the target environment.
+- Start with a bounded `--limit` and increase only after sample validation.
+
+### 13.2 Command patterns
+
+```bash
+# Inspect candidate rows only (no writes)
+node scripts/backfill-image-classification.js --all-pending --limit=200 --dry-run
+
+# Backfill only one profile (safe triage run)
+node scripts/backfill-image-classification.js --profile-id=<uuid> --all-pending --concurrency=2
+
+# Full pending backfill in controlled batches
+node scripts/backfill-image-classification.js --all-pending --limit=1000 --concurrency=3
+
+# Force reclassify recent rows regardless of prior metadata
+node scripts/backfill-image-classification.js --force --limit=200 --concurrency=3
+```
+
+### 13.3 Operational guidance
+
+- `--all-pending` selects any image missing `metadata.ai.classification.classified_at`.
+- `--dry-run` prints selected image IDs and profile IDs, then exits with no classification calls.
+- `--concurrency=N` controls script worker concurrency (default `3`), while each worker schedules jobs via `enqueuePitsJob` to preserve per-profile queue safety.
+- Prefer repeated bounded runs (`--limit`) over one very large pass for easier rollback/debug.
+
+### 13.4 Verification checklist
+
+- Spot-check random updated rows for:
+  - `metadata.ai.classification.classified_at` present
+  - `band` and `source` populated
+  - expected `shot_type/style_type/image_type` confidence objects
+- Run AI and dashboard regression tests after large batches.
+- If quality regresses, pause backfill and continue with `--dry-run` until thresholds/inputs are recalibrated.
+
+---
+
+## 14. Spec self-review
 
 - [x] No TBD sections — thresholds are initial values with calibration path
 - [x] Consistent with banned UI patterns

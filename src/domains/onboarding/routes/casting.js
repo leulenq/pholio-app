@@ -153,7 +153,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           slug,
           first_name: derivedFirstName,
           last_name: derivedLastName,
-          city: "Not specified",
+          city: null,
           height_cm: 0,
           bio_raw: "",
           bio_curated: "",
@@ -254,7 +254,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         slug,
         first_name: firstName,
         last_name: lastName,
-        city: "Not specified",
+        city: null,
         height_cm: 0,
         bio_raw: "",
         bio_curated: "",
@@ -606,6 +606,8 @@ router.post(
         absolute_path: absolutePath, // Reliable path to the optimized webp image
         is_primary: isPrimary,
         label: "Scout photo",
+        image_type: "digital",
+        shot_type: "headshot",
         created_at: knex.fn.now(),
       });
 
@@ -1025,7 +1027,13 @@ router.post(
         );
       }
 
-      updatePayload.city = city || "Not specified";
+      const normalizedCity =
+        typeof city === "string" ? city.trim() : "";
+      updatePayload.city =
+        normalizedCity &&
+        normalizedCity.toLowerCase() !== "not specified"
+          ? normalizedCity
+          : null;
       updatePayload.gender = gender
         ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase()
         : null;

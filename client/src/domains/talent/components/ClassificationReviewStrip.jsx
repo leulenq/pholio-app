@@ -1,13 +1,21 @@
 import React, { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { Bookmark, Check, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
-import PholioButton from '../../../shared/components/ui/PholioButton';
 import {
   getClassificationState,
   imageNeedsReview,
-  typeSignalParts,
+  frameTypeParts,
 } from '../../../shared/utils/imageClassification';
+import {
+  pitsSignalParts,
+  reviewStripCopy,
+} from '../../../shared/constants/frameTaxonomy';
+import FrameSignalStack from '../../../shared/components/frame/FrameSignalStack';
+import FrameReviewStateLabel from '../../../shared/components/frame/FrameReviewStateLabel';
+import { reviewStateLabel } from '../../../shared/components/frame/reviewStateLabel';
+import FrameReadCaption from '../../../shared/components/frame/FrameReadCaption';
+import '../../../shared/components/frame/FrameTaxonomy.css';
 import './ClassificationReviewStrip.css';
 
 function getImageUrl(image) {
@@ -17,51 +25,24 @@ function getImageUrl(image) {
   return `/uploads/${value.replace(/^\/+/, '')}`;
 }
 
-function ReadSignalStack({ signals, surface = 'strip' }) {
-  if (!signals.length) return null;
-  return (
-    <div className={`${surface}-read-signals`} aria-label="Frame read">
-      {signals.map((signal) => (
-        <span
-          key={`${signal.key}-${signal.label}`}
-          className={`${surface}-read-signal ${surface}-read-signal--${signal.key}`}
-        >
-          {signal.label}
-        </span>
-      ))}
-    </div>
-  );
+function parseSignals(image) {
+  try {
+    const meta = typeof image?.metadata === 'object' ? image.metadata : JSON.parse(image?.metadata || '{}');
+    return meta?.ai?.signals || meta?.ai?.classification?.signals || {};
+  } catch {
+    return {};
+  }
 }
 
-function reviewCopyFor(state, hasSignals) {
-  if (state.status === 'pending') {
-    return {
-      title: 'Reading frame',
-      detail: 'Pholio is placing the frame in your book.',
-    };
-  }
-  if (hasSignals) {
-    return {
-      title: 'Read ready',
-      detail: 'Keep it if the placement feels right, or refine the frame details.',
-    };
-  }
-  return {
-    title: 'Frame needs placement',
-    detail: 'Set the framing and use so agencies can scan the book cleanly.',
-  };
-}
-
-export default function ClassificationReviewStrip({ images = [], onConfirm, onEdit }) {
+export function ClassificationReviewRows({ images = [], onConfirm, onEdit }) {
   const [busyId, setBusyId] = useState(null);
-  const [open, setOpen] = useState(true);
 
   const reviewItems = useMemo(
     () => images.filter(imageNeedsReview),
     [images],
   );
 
-  if (reviewItems.length === 0 || !open) return null;
+  if (reviewItems.length === 0) return null;
 
   const holdReview = async (image) => {
     setBusyId(image.id);
@@ -122,104 +103,72 @@ export default function ClassificationReviewStrip({ images = [], onConfirm, onEd
   };
 
   return (
-    <section className="crs-strip" aria-label="Review frame reads">
-      <div className="crs-strip__head">
-        <div>
-          <p className="crs-strip__title">Studio reads</p>
-          <p className="crs-strip__summary">
-            {reviewItems.length} {reviewItems.length === 1 ? 'frame is' : 'frames are'} ready for placement.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="crs-strip__dismiss"
-          aria-label="Hide studio reads"
-          title="Hide studio reads"
-          onClick={() => setOpen(false)}
-        >
-          <X size={14} aria-hidden="true" />
-        </button>
-      </div>
-      <ul className="crs-strip__list">
-        {reviewItems.map((image) => {
-          const state = getClassificationState(image);
-          const signals = typeSignalParts(
-            state.suggestedShot || state.shotType,
-            state.suggestedImageType || state.imageType,
-            state.styleType,
-          );
-          const copy = reviewCopyFor(state, signals.length > 0);
-          return (
-            <li key={image.id} className="crs-strip__item">
-              <img src={getImageUrl(image)} alt="" className="crs-strip__thumb" />
-              <div className="crs-strip__copy">
-                <span className="crs-strip__label">{copy.title}</span>
-                <ReadSignalStack signals={signals} surface="crs" />
-                <span className="crs-strip__reason">{copy.detail}</span>
-              </div>
-              <div className="crs-strip__actions">
+    <ul className="crs-strip__list">
+      {reviewItems.map((image) => {
+        const state = getClassificationState(image);
+        const signals = parseSignals(image);
+        const imageType = state.suggestedImageType || state.imageType;
+        const parts = frameTypeParts(
+          state.suggestedShot || state.shotType,
+          imageType,
+          state.styleType,
+        );
+        const signalParts = pitsSignalParts(signals, imageType);
+        const copy = reviewStripCopy(state, parts.length > 0);
+        const showActions = state.status !== 'pending';
+
+        return (
+          <li key={image.id} className="crs-strip__item">
+            <img src={getImageUrl(image)} alt="" className="crs-strip__thumb" />
+            <div className="crs-strip__copy">
+              <FrameReviewStateLabel>{reviewStateLabel(state, parts.length > 0)}</FrameReviewStateLabel>
+              <FrameSignalStack parts={parts} signalParts={signalParts} surface="crs" />
+              <span className="crs-strip__reason">{copy.detail}</span>
+            </div>
+            {showActions ? (
+              <div className="crs-decision-rail" aria-label="Frame read actions">
                 {state.suggestedShot && state.status !== 'pending' ? (
-                  <PholioButton
-                    variant="solid"
-                    size="sm"
+                  <button
+                    type="button"
+                    className="crs-decision crs-decision--primary"
                     disabled={busyId === image.id}
                     onClick={() => acceptSuggestion(image)}
                   >
-                    Keep read
-                  </PholioButton>
+                    <Check size={13} aria-hidden="true" />
+                    <span>Keep</span>
+                  </button>
                 ) : null}
                 <button
                   type="button"
-                  className="crs-strip__link"
+                  className="crs-decision"
                   onClick={() => onEdit?.(image)}
                 >
-                  {state.suggestedShot ? 'Refine' : 'Place'}
+                  <SlidersHorizontal size={13} aria-hidden="true" />
+                  <span>{state.suggestedShot ? 'Refine' : 'Place'}</span>
                 </button>
                 {state.status !== 'pending' ? (
                   <button
                     type="button"
-                    className="crs-strip__link crs-strip__link--skip"
+                    className="crs-decision crs-decision--quiet"
                     disabled={busyId === image.id}
                     onClick={() => holdReview(image)}
                   >
-                    Hold
+                    <Bookmark size={13} aria-hidden="true" />
+                    <span>Hold</span>
                   </button>
                 ) : null}
               </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-export function FrameTypeCaption({ image, classificationTimedOut = false }) {
-  const state = getClassificationState(image);
-  if (state.status === 'pending') {
-    if (classificationTimedOut) {
-      return (
-        <span className="mw-frame__read-note mw-frame__read-note--ask">
-          Add a frame read
-        </span>
-      );
-    }
-    return <span className="mw-frame__read-note mw-frame__read-note--pending">Reading frame</span>;
-  }
-  if (state.band === 'suggest' || state.band === 'ask') {
-    const suggested = typeSignalParts(
-      state.suggestedShot || state.shotType,
-      state.suggestedImageType || state.imageType,
-      state.styleType,
-    );
-    if (suggested.length) return <ReadSignalStack signals={suggested} surface="mw-frame" />;
-    return (
-      <span className="mw-frame__read-note mw-frame__read-note--ask">
-        Add a frame read
-      </span>
-    );
-  }
-  const signals = typeSignalParts(state.shotType, state.imageType, state.styleType);
-  if (!signals.length) return null;
-  return <ReadSignalStack signals={signals} surface="mw-frame" />;
+export default ClassificationReviewRows;
+
+/** @deprecated Import FrameReadCaption from shared/components/frame instead */
+export function FrameTypeCaption(props) {
+  return <FrameReadCaption {...props} />;
 }

@@ -2,45 +2,11 @@
  * Client helpers for image intelligence display.
  */
 
-const SHOT_LABELS = {
-  headshot: 'Headshot',
-  beauty: 'Beauty close-up',
-  half_body: 'Half body',
-  three_quarter: 'Three-quarter',
-  full_length: 'Full length',
-  profile: 'Profile',
-  profile_left: 'Profile (left)',
-  profile_right: 'Profile (right)',
-  back: 'Back',
-  detail: 'Detail',
-};
-
-const IMAGE_TYPE_LABELS = {
-  digital: 'Digitals',
-  portfolio: 'Book',
-  comp_card: 'Comp card',
-  campaign: 'Campaign',
-  test: 'Test shoot',
-  editorial: 'Editorial',
-  runway: 'Runway',
-};
-
-const STYLE_LABELS = {
-  editorial: 'Editorial',
-  commercial: 'Commercial',
-  lifestyle: 'Lifestyle',
-  beauty: 'Beauty',
-  ecommerce: 'E-commerce',
-  swimwear: 'Swimwear',
-  fitness: 'Fitness',
-  couture: 'Couture',
-};
-
-function fallbackLabel(value) {
-  return String(value)
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
+import {
+  frameTypeParts,
+  formatFrameTypeLabel,
+  labelForShot,
+} from '../constants/frameTaxonomy';
 
 function parseMetadata(image) {
   if (!image?.metadata) return {};
@@ -82,33 +48,10 @@ export function getClassificationState(image) {
 }
 
 export function formatTypeLabel(shotType, imageType, styleType) {
-  return typeSignalParts(shotType, imageType, styleType)
-    .map((part) => part.label)
-    .join(' · ');
+  return formatFrameTypeLabel(shotType, imageType, styleType);
 }
 
-export function typeSignalParts(shotType, imageType, styleType) {
-  const parts = [];
-  if (shotType) {
-    parts.push({
-      key: 'framing',
-      label: SHOT_LABELS[shotType] || fallbackLabel(shotType),
-    });
-  }
-  if (imageType) {
-    parts.push({
-      key: 'use',
-      label: IMAGE_TYPE_LABELS[imageType] || fallbackLabel(imageType),
-    });
-  }
-  if (styleType) {
-    parts.push({
-      key: 'register',
-      label: STYLE_LABELS[styleType] || fallbackLabel(styleType),
-    });
-  }
-  return parts;
-}
+export { frameTypeParts, labelForShot as shotLabel };
 
 export function imageNeedsReview(image) {
   const meta = parseMetadata(image);
@@ -129,9 +72,4 @@ export function classificationFormDefaults(image) {
     style_type: image?.style_type ?? cls?.style_type?.value ?? '',
     expression: signals.expression ?? '',
   };
-}
-
-export function shotLabel(shotType) {
-  if (!shotType) return '';
-  return SHOT_LABELS[shotType] || fallbackLabel(shotType);
 }

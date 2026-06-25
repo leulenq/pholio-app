@@ -1,7 +1,8 @@
 /* Pholio Intelligence — collapsible, quiet refinements on The Book */
 
 .phi {
-  max-width: 68ch;
+  width: 100%;
+  max-width: 100%;
   margin: 0;
 }
 
@@ -71,14 +72,26 @@
   overflow: hidden;
 }
 
+.phi__inner {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.phi__reads {
+  max-width: 100%;
+}
+
 .phi__list {
   list-style: none;
-  margin: 18px 0 0;
+  margin: 0;
   padding: 2px 0 2px 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   border-left: 1px solid rgba(201, 165, 90, 0.24);
+  max-width: 68ch;
 }
 
 .phi__item {

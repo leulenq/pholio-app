@@ -199,6 +199,33 @@
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
+.mw-frame__cover-mark,
+.mw-frame__privacy-mark {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 2px;
+  background: rgba(5, 5, 5, 0.48);
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.85);
+}
+
+.mw-frame__cover-mark {
+  top: 8px;
+  right: 10px;
+  color: var(--mw-gold, #c9a55a);
+}
+
+.mw-frame__privacy-mark {
+  left: 10px;
+  bottom: 10px;
+}
+
 .mw-frame__foot {
   padding: 8px 4px 0;
   display: flex;
@@ -206,15 +233,7 @@
   gap: 2px;
 }
 
-.mw-frame__status-line {
-  margin: 0;
-  font-family: var(--mw-sans);
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--mw-text-soft, rgba(26, 26, 26, 0.62));
-}
-
-/* Legacy — prefer mw-frame__status-line */
+/* Legacy media tags retained for older markup. */
 .mw-tag {
   position: absolute;
   top: 8px;

@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import { COMP_CARD_SLOT_LABELS } from '../../../shared/constants/frameTaxonomy';
 import './ReadinessBar.css';
 
 const ROLE_SLOTS = [
-  { role: 'headshot',  label: 'Headshot',  color: '#C9A55A' },
-  { role: 'full_body', label: 'Full Body', color: '#2563EB' },
-  { role: 'editorial', label: 'Editorial', color: '#7C3AED' },
-  { role: 'lifestyle', label: 'Lifestyle', color: '#059669' },
+  { role: 'headshot', label: COMP_CARD_SLOT_LABELS.headshot },
+  { role: 'full_body', label: COMP_CARD_SLOT_LABELS.full_length },
+  { role: 'editorial', label: COMP_CARD_SLOT_LABELS.editorial },
+  { role: 'lifestyle', label: COMP_CARD_SLOT_LABELS.lifestyle },
 ];
 
 function parseRole(img) {
@@ -33,7 +34,7 @@ function imageFillsSlot(img, slotRole) {
       if (!hasShotType(img) && legacy === 'headshot') return true;
       return false;
     case 'full_body':
-      if (img.shot_type === 'full_length' || img.shot_type === 'three_quarter') return true;
+      if (img.shot_type === 'full_length' || img.shot_type === 'three_quarter' || img.shot_type === 'full_body') return true;
       if (!hasShotType(img) && legacy === 'full_body') return true;
       return false;
     case 'editorial':
@@ -77,20 +78,25 @@ export default function ReadinessBar({ images = [] }) {
     }
   }, [isComplete, collapsed]);
 
-  // If all roles filled, show compact "ready" state
   if (isComplete && collapsed) return null;
 
+  const statusText = isComplete
+    ? 'Comp card slots filled'
+    : `${filledCount} of ${total} comp card slots`;
+
   return (
-    <div className={`readiness-bar ${isComplete ? 'readiness-bar--complete' : ''}`}>
+    <div
+      className={`readiness-bar ${isComplete ? 'readiness-bar--complete' : ''}`}
+      aria-label={`Comp card slots: ${statusText}`}
+    >
       <div className="readiness-bar__header">
         <div className="readiness-bar__roles">
           {roleStatus.map(slot => (
             <div key={slot.role} className="readiness-bar__role">
               <div
                 className={`readiness-bar__circle ${slot.filled ? 'readiness-bar__circle--filled' : ''}`}
-                style={slot.filled ? { borderColor: slot.color, background: slot.color } : { borderColor: '#d1d5db' }}
               >
-                {slot.filled && <Check size={10} strokeWidth={3} color="#fff" />}
+                {slot.filled && <Check size={10} strokeWidth={3} />}
               </div>
               <span className={`readiness-bar__label ${slot.filled ? 'readiness-bar__label--filled' : ''}`}>
                 {slot.label}
@@ -101,13 +107,13 @@ export default function ReadinessBar({ images = [] }) {
 
         <div className="readiness-bar__status">
           <span className="readiness-bar__count">
-            {isComplete ? '✓ Comp card ready' : `${filledCount} of ${total} roles filled`}
+            {statusText}
           </span>
           {isComplete && (
             <button
               className="readiness-bar__collapse-btn"
               onClick={() => setCollapsed(true)}
-              aria-label="Dismiss readiness bar"
+              aria-label="Dismiss comp card slots bar"
             >
               <ChevronDown size={14} />
             </button>
@@ -115,7 +121,6 @@ export default function ReadinessBar({ images = [] }) {
         </div>
       </div>
 
-      {/* Progress bar */}
       {!isComplete && (
         <div className="readiness-bar__track">
           <div

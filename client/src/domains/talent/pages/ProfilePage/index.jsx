@@ -31,6 +31,7 @@ import { normalizePhoneInput } from '../../../../shared/lib/phone-format';
 import { IdentitySection } from './IdentitySection';
 import { MeasurementsSection } from './MeasurementsSection';
 import { SocialSection } from './SocialSection';
+import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import { parseApiFailure } from '../../../../shared/lib/api-error-message';
 import { useReferenceLanguages } from '../../../../shared/hooks/useReferenceLanguages';
 import { flushProfileFormForSave } from './flushProfileFormForSave';
@@ -425,7 +426,10 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [bioImproveMode, setBioImproveMode] = useState(null);
+  const [bioOptions, setBioOptions] = useState({ length: 'standard', person: 'third' });
   const [previousBio, setPreviousBio] = useState(null);
+  const [trainingImproveMode, setTrainingImproveMode] = useState(null);
+  const [previousTraining, setPreviousTraining] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
   const [readinessAuditOpen, setReadinessAuditOpen] = useState(false);
   const [gateItemsExpanded, setGateItemsExpanded] = useState(false);
@@ -510,7 +514,7 @@ export default function ProfilePage() {
     setBioImproveMode('refine');
 
     try {
-      const data = await talentApi.refineBio({ bio: currentBio.trim() });
+      const data = await talentApi.refineBio({ bio: currentBio.trim(), ...bioOptions });
       applyBioResult(data, 'Bio refined');
     } catch (error) {
       console.error('Bio refine failed:', error);
@@ -529,7 +533,7 @@ export default function ProfilePage() {
     setBioImproveMode('generate');
 
     try {
-      const data = await talentApi.generateBio();
+      const data = await talentApi.generateBio({ ...bioOptions });
       applyBioResult(data, 'Bio generated');
     } catch (error) {
       console.error('Bio generate failed:', error);
@@ -554,6 +558,93 @@ export default function ProfilePage() {
       setPreviousBio(null);
       pholioToast.info('Reverted to original bio');
     }
+  };
+
+  const applyTrainingSummaryResult = (data, modeLabel) => {
+    const nextSummary = data.summary;
+    if (!nextSummary) throw new Error('No training summary returned');
+    setValue('training_summary', nextSummary, { shouldDirty: true });
+    pholioToast.success(
+      `${modeLabel} (${data.wordCount ?? nextSummary.split(/\s+/).filter(Boolean).length} words)`,
+    );
+  };
+
+  const handleTrainingFormat = async () => {
+    const currentTraining = watch('training_summary');
+    if (!currentTraining || currentTraining.trim().length < 10) {
+      pholioToast.error('Write at least 10 characters before formatting');
+      return;
+    }
+
+    setPreviousTraining(currentTraining);
+    setTrainingImproveMode('format');
+
+    try {
+      const data = await talentApi.formatTrainingSummary({ text: currentTraining.trim() });
+      applyTrainingSummaryResult(data, 'Training formatted');
+    } catch (error) {
+      console.error('Training format failed:', error);
+      pholioToast.error(error.message || 'Failed to format training summary. Please try again.');
+      setPreviousTraining(null);
+    } finally {
+      setTrainingImproveMode(null);
+    }
+  };
+
+  const handleTrainingSummarize = async () => {
+    const currentTraining = watch('training_summary');
+    if (!currentTraining || currentTraining.trim().length < 40) {
+      pholioToast.error('Write at least 40 characters before summarizing');
+      return;
+    }
+
+    setPreviousTraining(currentTraining);
+    setTrainingImproveMode('summarize');
+
+    try {
+      const data = await talentApi.summarizeTrainingSummary({ text: currentTraining.trim() });
+      applyTrainingSummaryResult(data, 'Training summarized');
+    } catch (error) {
+      console.error('Training summarize failed:', error);
+      pholioToast.error(error.message || 'Failed to summarize training. Please try again.');
+      setPreviousTraining(null);
+    } finally {
+      setTrainingImproveMode(null);
+    }
+  };
+
+  const handleTrainingExpand = async () => {
+    const currentTraining = watch('training_summary') || '';
+    const trimmed = currentTraining.trim();
+
+    if (trimmed) {
+      setPreviousTraining(currentTraining);
+    }
+    setTrainingImproveMode('expand');
+
+    try {
+      const data = await talentApi.expandTrainingSummary(trimmed ? { text: trimmed } : {});
+      applyTrainingSummaryResult(data, 'Training draft ready');
+    } catch (error) {
+      console.error('Training expand failed:', error);
+      if (error.data?.details?.code === 'INSUFFICIENT_CONTEXT') {
+        pholioToast.error(
+          error.message || 'Add verified credits or training details before drafting',
+        );
+      } else {
+        pholioToast.error(error.message || 'Failed to draft training summary. Please try again.');
+      }
+      if (!trimmed) setPreviousTraining(null);
+    } finally {
+      setTrainingImproveMode(null);
+    }
+  };
+
+  const handleUndoTrainingAssist = () => {
+    if (previousTraining === null) return;
+    setValue('training_summary', previousTraining, { shouldDirty: true });
+    setPreviousTraining(null);
+    pholioToast.info('Reverted to original training summary');
   };
 
   const reloadProfile = useCallback(async () => {
@@ -687,6 +778,7 @@ export default function ProfilePage() {
   }, [searchParams, isLoading, navigate]);
 
   const values = watch();
+  const trainingSummaryValue = values.training_summary || '';
   const measurementsLocked =
     isMinorProfile({ date_of_birth: values.date_of_birth }) &&
     !minorSensitiveFieldsUnlocked({
@@ -1121,6 +1213,8 @@ export default function ProfilePage() {
               isImproving={!!bioImproveMode}
               improveMode={bioImproveMode}
               previousBio={previousBio}
+              bioOptions={bioOptions}
+              onBioOptionsChange={setBioOptions}
               onBioRefine={handleBioRefine}
               onBioGenerate={handleBioGenerate}
               handleUndoAI={handleUndoAI}
@@ -1212,6 +1306,44 @@ export default function ProfilePage() {
           description="Your professional background and skills."
         >
           <div className={styles.formStack}>
+            <WritingAssistToolbar
+              className={styles.trainingAssistToolbar}
+              actions={[
+                {
+                  id: 'format-training',
+                  label: 'Format list',
+                  onClick: () => {
+                    void handleTrainingFormat();
+                  },
+                  disabled: trainingSummaryValue.trim().length < 10,
+                },
+                {
+                  id: 'summarize-training',
+                  label: 'Summarize',
+                  onClick: () => {
+                    void handleTrainingSummarize();
+                  },
+                  disabled: trainingSummaryValue.trim().length < 40,
+                },
+                {
+                  id: 'expand-training',
+                  label: 'Draft from profile',
+                  onClick: () => {
+                    void handleTrainingExpand();
+                  },
+                },
+              ]}
+              busy={Boolean(trainingImproveMode)}
+              busyLabel={
+                trainingImproveMode === 'format'
+                  ? 'Formatting…'
+                  : trainingImproveMode === 'summarize'
+                    ? 'Summarizing…'
+                    : 'Drafting…'
+              }
+              showUndo={previousTraining !== null}
+              onUndo={handleUndoTrainingAssist}
+            />
             <PholioTextarea
               label="Training Summary"
               placeholder="List schools, workshops, and coaches..."
@@ -1528,6 +1660,7 @@ export default function ProfilePage() {
         <ProfileStrengthSidebar
           strength={profileStrength}
           profile={readinessProfile}
+          images={Array.isArray(authImages) ? authImages : []}
           isSaving={isSubmitting}
           hasChanges={isDirty}
           auditOpen={readinessAuditOpen}

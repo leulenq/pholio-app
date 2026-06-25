@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { PencilLine } from 'lucide-react';
 import styles from './PholioMeasuringTape.module.css';
 
 /**
@@ -208,6 +209,15 @@ const PholioMeasuringTape = ({
           </span>
         )}
         <span className={styles.unit}>{unit}</span>
+        {!isEditing && (
+          <span
+            className={styles.manualHint}
+            aria-hidden="true"
+            title="Double-click to edit"
+          >
+            <PencilLine size={10} strokeWidth={1.8} />
+          </span>
+        )}
       </div>
 
       {/* The Tape Container */}

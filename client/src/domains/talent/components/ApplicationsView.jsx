@@ -18,6 +18,8 @@ import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog
 import PholioButton from '../../../shared/components/ui/PholioButton';
 import ProfileGateBanner from '../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../shared/utils/profileGating';
+import { sendBlockerLabel } from '../../../shared/utils/sendReadiness';
+import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { talentApi } from '../api/talent';
 import { statusConfig } from '../utils/applicationStatus';
 import ApplicationInterviews from './ApplicationInterviews';
@@ -139,6 +141,38 @@ export default function ApplicationsView() {
   const gating = useMemo(() => checkGatingStatus(profile, images), [profile, images]);
   const applicationGate = getProfileGateFeature('/dashboard/talent/applications');
 
+  const { isSendReady, sendBlockers } = useMemo(() => {
+    if (typeof gating.isSendReady === 'boolean') {
+      return {
+        isSendReady: gating.isSendReady,
+        sendBlockers: gating.sendBlockers || [],
+      };
+    }
+
+    const strength = calculateProfileStrength({ ...profile, images: images ?? [] });
+    const blockers = [];
+
+    if (!strength.fieldCompletion.contact) {
+      blockers.push({
+        key: 'contact',
+        label: 'Email & Phone',
+        task: 'Add email and phone in settings',
+      });
+    }
+    if (!strength.fieldCompletion.digitals_recency) {
+      blockers.push({
+        key: 'digitals_recency',
+        label: 'Current Digitals',
+        task: 'Refresh your digitals — agencies expect a current set',
+      });
+    }
+
+    return {
+      isSendReady: strength.isCoreReady && blockers.length === 0,
+      sendBlockers: blockers,
+    };
+  }, [gating.isSendReady, gating.sendBlockers, profile, images]);
+
   const selectedApplication =
     applications.find((app) => app.id === selectedId) ||
     (deepLinkId ? applications.find((app) => app.id === deepLinkId) : null) ||
@@ -218,7 +252,8 @@ export default function ApplicationsView() {
           <div className="app-hero__sweep" aria-hidden />
           <p className="app-standfirst">Market submissions, decisions, and next moves.</p>
           <PholioButton variant="solid" onClick={() => openApplyFlow()}>
-            Apply New <Send size={14} aria-hidden />
+            {gating.isCoreReady && !isSendReady ? 'Prepare submission' : 'Apply New'}{' '}
+            <Send size={14} aria-hidden />
           </PholioButton>
         </div>
 
@@ -346,7 +381,7 @@ export default function ApplicationsView() {
           <p>{agenciesQuery.isLoading ? 'Loading agencies' : `${openAgencies.length} available`}</p>
         </div>
 
-        {gating.isBlocked && (
+        {!gating.isCoreReady && (
           <ProfileGateBanner
             variant="compact"
             featureName={applicationGate.featureName}
@@ -354,6 +389,18 @@ export default function ApplicationsView() {
             description={applicationGate.description}
             {...gating}
           />
+        )}
+
+        {gating.isCoreReady && !isSendReady && sendBlockers.length > 0 && (
+          <div className="app-send-list" role="status" aria-label="Send requirements">
+            {sendBlockers.map((blocker) => (
+              <div key={blocker.key || blocker.label}>
+                <CircleDashed size={14} aria-hidden />
+                <span>Send</span>
+                <strong>{sendBlockerLabel(blocker)}</strong>
+              </div>
+            ))}
+          </div>
         )}
 
         {agenciesQuery.isLoading ? (
@@ -387,12 +434,17 @@ export default function ApplicationsView() {
                   type="button"
                   className="app-agency-card__apply"
                   onClick={() => openApplyFlow(agency)}
-                  disabled={gating.isBlocked}
+                  disabled={!gating.isCoreReady}
                 >
-                  {gating.isBlocked ? (
+                  {!gating.isCoreReady ? (
                     <>
                       <Lock size={14} aria-hidden />
                       Locked
+                    </>
+                  ) : !isSendReady ? (
+                    <>
+                      Prepare
+                      <ArrowUpRight size={14} aria-hidden />
                     </>
                   ) : (
                     <>

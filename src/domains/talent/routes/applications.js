@@ -11,6 +11,9 @@ const {
   notifyAgencyApplicationWithdrawn,
   notifyAgencyNewMessage,
 } = require("../../../shared/services/agency-notifications");
+const {
+  validateSubmissionPackage,
+} = require("../services/validate-submission-package");
 const logActivity = require("../../agency/routes/agency-log-activity");
 const { v4: uuidv4 } = require("uuid");
 
@@ -181,6 +184,27 @@ router.post(
       });
     }
     const reapplying = !!existing;
+
+    const profileImages = await knex("images")
+      .where({ profile_id: profile.id })
+      .orderBy("sort", "asc");
+    let packageImages = profileImages;
+    const submittedImageIds = submissionPackage?.imageIds;
+    if (Array.isArray(submittedImageIds) && submittedImageIds.length > 0) {
+      const idSet = new Set(submittedImageIds);
+      packageImages = profileImages.filter((img) => idSet.has(img.id));
+    }
+    const packageValidation = validateSubmissionPackage(profile, packageImages);
+    if (!packageValidation.ok) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_package_incomplete",
+        message:
+          packageValidation.errors[0]?.message ||
+          "Your submission package is not ready to send.",
+        errors: packageValidation.errors,
+      });
+    }
 
     // 2. Check limits for Free Tier
     if (!profile.is_pro) {

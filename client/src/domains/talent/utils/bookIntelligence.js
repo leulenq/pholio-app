@@ -3,6 +3,9 @@
  * Reads portfolio gap analysis into calm, assistive refinements.
  */
 
+import { analyzePackageIntelligence } from '../../../shared/utils/packageIntelligence';
+import { PACKAGE_ADVISORY_COPY } from '../../../shared/constants/frameTaxonomy';
+
 const SUGGESTIONS = {
   min_count: {
     title: 'Build the range',
@@ -49,12 +52,36 @@ const PRIORITY = [
   'lifestyle',
 ];
 
-export function buildBookIntelligence(analysis) {
+// Quality advisories surfaced ahead of coverage gaps — these flag frames that
+// exist but read wrong for a digitals set, which agencies weigh heavily.
+const ADVISORY_PRIORITY = [
+  'book_full_length_not_digital',
+  'book_headshot_not_digital',
+  'stale_digitals',
+  'portfolio_as_digital',
+  'busy_background',
+];
+
+export function buildBookIntelligence(analysis, images = []) {
   const checks = analysis?.checks || [];
 
-  const suggestions = PRIORITY.filter((id) =>
-    checks.some((item) => item.id === id && !item.met),
+  const pkg = analyzePackageIntelligence({ images: Array.isArray(images) ? images : [] });
+  const advisoryIds = new Set((pkg.advisories || []).map((a) => a.id));
+  const qualitySuggestions = ADVISORY_PRIORITY.filter((id) => advisoryIds.has(id)).map(
+    (id) => ({ id, ...PACKAGE_ADVISORY_COPY[id] }),
+  );
+
+  const suppressGapIds = new Set();
+  if (advisoryIds.has('book_full_length_not_digital')) suppressGapIds.add('fullbody');
+  if (advisoryIds.has('book_headshot_not_digital')) suppressGapIds.add('headshot');
+
+  const gapSuggestions = PRIORITY.filter(
+    (id) =>
+      !suppressGapIds.has(id) &&
+      checks.some((item) => item.id === id && !item.met),
   ).map((id) => ({ id, ...SUGGESTIONS[id] }));
+
+  const suggestions = [...qualitySuggestions, ...gapSuggestions];
 
   const signalChecks = checks.filter((item) => item.id !== 'min_count');
   const covered = signalChecks.filter((item) => item.met).length;

@@ -9,7 +9,13 @@ export const talentApi = {
   updateProfile: (data) => apiClient.put('/profile', data),
   saveFitScores: (data) => apiClient.post('/profile/fit-scores', data),
   refineBio: (body) => apiClient.post('/bio/refine', body),
-  generateBio: () => apiClient.post('/bio/generate', {}),
+  generateBio: (body = {}) => apiClient.post('/bio/generate', body),
+  formatTrainingSummary: (body) => apiClient.post('/training-summary/format', body),
+  summarizeTrainingSummary: (body) => apiClient.post('/training-summary/summarize', body),
+  expandTrainingSummary: (body = {}) => apiClient.post('/training-summary/expand', body),
+  draftSubmissionNote: (body = {}) => apiClient.post('/submission-note/draft', body),
+  sharpenSubmissionNote: (body) => apiClient.post('/submission-note/sharpen', body),
+  shortenSubmissionNote: (body) => apiClient.post('/submission-note/shorten', body),
 
   // Media
   uploadMedia: (formData) => apiClient.post('/media', formData),
@@ -82,6 +88,10 @@ export const talentApi = {
 
   // Image role tagging (comp card)
   updateImageRole: (id, role) => apiClient.patch(`/media/${id}/role`, { role }),
+
+  // Message Polish (Studio+)
+  polishApplicationMessage: (body) =>
+    apiClient.post('/message-polish/polish', body),
 
   // Stripe (root `/stripe` route on API host, not under /api/talent)
   createCheckoutSession: () =>

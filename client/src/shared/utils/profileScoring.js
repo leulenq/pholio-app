@@ -3,6 +3,8 @@
  */
 
 import { analyzeBookReadiness, analyzeDigitalsReadiness } from './profileReadinessImages';
+import { analyzePackageIntelligence, resolveReadinessGuidance } from './packageIntelligence';
+import { DIGITALS_STALE_DAYS } from '../constants/packageIntelligence';
 import {
   hasGuardianConsent,
   hasWorkPermitOnFile,
@@ -12,6 +14,24 @@ import {
 
 export const REQUIRED_POINTS = 60;
 export const IMPROVE_POINTS = 40;
+const IMPROVE_FIELD_POINTS = {
+  bio: 4,
+  look: 4,
+  shoe: 3,
+  weight: 2,
+  skin: 2,
+  status: 2,
+  exp: 2,
+  training: 2,
+  social: 4,
+  contact: 1,
+  photo_profile: 2,
+  photo_smile: 2,
+  photo_back: 2,
+  photo_editorial: 3,
+  photo_lifestyle: 3,
+  digitals_recency: 2,
+};
 
 /** DOM section ids on the talent profile page (scroll targets). */
 export const PROFILE_STRENGTH_SCROLL_TARGETS = {
@@ -28,6 +48,7 @@ export const PROFILE_STRENGTH_SCROLL_TARGETS = {
   photo_back: 'media',
   photo_editorial: 'media',
   photo_lifestyle: 'media',
+  digitals_recency: 'media',
   bio: 'identity',
   look: 'appearance',
   weight: 'appearance',
@@ -57,6 +78,7 @@ export const calculateProfileStrength = (data) => {
     photo_back: false,
     photo_editorial: false,
     photo_lifestyle: false,
+    digitals_recency: false,
     bio: false,
     look: false,
     shoe: false,
@@ -157,50 +179,95 @@ export const calculateProfileStrength = (data) => {
 
   const book = analyzeBookReadiness(data.images);
   const digitals = analyzeDigitalsReadiness(data.images);
-  const hasHeadshot = book.hasHeadshot || isPresent(data.primary_photo_id) || isPresent(data.hero_image_path);
+  const pkg = analyzePackageIntelligence({ images: data.images || [] });
+  const hasHeadshot = book.hasHeadshot;
   const hasFullBody = book.hasFullBody;
 
   if (hasHeadshot) requiredScore += 8;
-  else pushMissing({ key: 'photo_headshot', label: 'Headshot', why: 'A clean, natural headshot is the first image on every agency digitals set.', impact: 'Critical', link: '/dashboard/talent/media', points: 8, tier: 'Required' });
+  else {
+    const headshotGuidance = resolveReadinessGuidance('photo_headshot', pkg.advisories, {
+      label: 'Digital Headshot',
+      why: 'A clean, natural headshot is the first image on every agency digitals set.',
+    });
+    pushMissing({
+      key: 'photo_headshot',
+      label: headshotGuidance.label,
+      why: headshotGuidance.why,
+      impact: 'Critical',
+      link: '/dashboard/talent/media',
+      points: 8,
+      tier: 'Required',
+    });
+  }
 
   if (sensitiveRequired) {
     if (hasFullBody) requiredScore += 12;
-    else pushMissing({ key: 'photo_full_body', label: 'Full-Body Photo', why: 'Agents need a head-to-toe frame to verify proportions and stance.', impact: 'Critical', link: '/dashboard/talent/media', points: 12, tier: 'Required' });
+    else {
+      const fullBodyGuidance = resolveReadinessGuidance('photo_full_body', pkg.advisories, {
+        label: 'Full-Length Digital',
+        why: 'Agents need a head-to-toe frame to verify proportions and stance.',
+      });
+      pushMissing({
+        key: 'photo_full_body',
+        label: fullBodyGuidance.label,
+        why: fullBodyGuidance.why,
+        impact: 'Critical',
+        link: '/dashboard/talent/media',
+        points: 12,
+        tier: 'Required',
+      });
+    }
+  }
+
+  const hasRecencyAnchor = hasHeadshot || hasFullBody;
+  const hasCurrentDigitals = hasRecencyAnchor && !pkg.recency.isStale;
+  if (hasCurrentDigitals) {
+    improveScore += IMPROVE_FIELD_POINTS.digitals_recency;
+  } else if (pkg.recency.isStale && hasRecencyAnchor) {
+    pushMissing({
+      key: 'digitals_recency',
+      label: 'Current Digitals',
+      why: `Agencies expect digitals refreshed within ${DIGITALS_STALE_DAYS} days.`,
+      impact: 'Medium',
+      link: '/dashboard/talent/media',
+      points: IMPROVE_FIELD_POINTS.digitals_recency,
+      tier: 'Improve',
+    });
   }
 
   const bioSource = data.bio ?? data.bio_raw ?? '';
   const hasBio = String(bioSource).trim().length > 50;
-  if (hasBio) improveScore += 6;
-  else pushMissing({ key: 'bio', label: 'Professional Bio', why: 'A short bio gives context beyond stats — training, market, and personality.', impact: 'Medium', link: '/dashboard/talent/profile?tab=identity', points: 6, tier: 'Improve' });
+  if (hasBio) improveScore += IMPROVE_FIELD_POINTS.bio;
+  else pushMissing({ key: 'bio', label: 'Professional Bio', why: 'A short bio gives context beyond stats — training, market, and personality.', impact: 'Medium', link: '/dashboard/talent/profile?tab=identity', points: IMPROVE_FIELD_POINTS.bio, tier: 'Improve' });
 
   const hasLook = isPresent(data.eye_color) && isPresent(data.hair_color);
-  if (hasLook) improveScore += 5;
-  else pushMissing({ key: 'look', label: 'Eye & Hair Color', why: 'Hair and eye color belong on every comp-card stats block.', impact: 'Medium', link: '/dashboard/talent/profile?tab=appearance', points: 5, tier: 'Improve' });
+  if (hasLook) improveScore += IMPROVE_FIELD_POINTS.look;
+  else pushMissing({ key: 'look', label: 'Eye & Hair Color', why: 'Hair and eye color belong on every comp-card stats block.', impact: 'Medium', link: '/dashboard/talent/profile?tab=appearance', points: IMPROVE_FIELD_POINTS.look, tier: 'Improve' });
 
   const hasShoe = isPresent(data.shoe_size);
-  if (hasShoe) improveScore += 4;
-  else pushMissing({ key: 'shoe', label: 'Shoe Size', why: 'Footwear sizing is standard on agency stats sheets and castings.', impact: 'Low', link: '/dashboard/talent/profile?tab=appearance', points: 4, tier: 'Improve' });
+  if (hasShoe) improveScore += IMPROVE_FIELD_POINTS.shoe;
+  else pushMissing({ key: 'shoe', label: 'Shoe Size', why: 'Footwear sizing is standard on agency stats sheets and castings.', impact: 'Low', link: '/dashboard/talent/profile?tab=appearance', points: IMPROVE_FIELD_POINTS.shoe, tier: 'Improve' });
 
   const hasWeight = isPresent(data.weight_kg) && Number(data.weight_kg) > 0;
   if (sensitiveRequired) {
-    if (hasWeight) improveScore += 2;
-    else pushMissing({ key: 'weight', label: 'Weight', why: 'Some markets list weight alongside measurements for fit checks.', impact: 'Low', link: '/dashboard/talent/profile?tab=appearance', points: 2, tier: 'Improve' });
+    if (hasWeight) improveScore += IMPROVE_FIELD_POINTS.weight;
+    else pushMissing({ key: 'weight', label: 'Weight', why: 'Some markets list weight alongside measurements for fit checks.', impact: 'Low', link: '/dashboard/talent/profile?tab=appearance', points: IMPROVE_FIELD_POINTS.weight, tier: 'Improve' });
   }
 
   const hasPhysicalDetails =
     isPresent(data.skin_tone) ||
     data.tattoos === true ||
     data.piercings === true;
-  if (hasPhysicalDetails) improveScore += 3;
-  else pushMissing({ key: 'skin', label: 'Skin Tone & Markings', why: 'Visible tattoos, piercings, and skin tone prevent set-day surprises.', impact: 'Medium', link: '/dashboard/talent/profile?tab=appearance', points: 3, tier: 'Improve' });
+  if (hasPhysicalDetails) improveScore += IMPROVE_FIELD_POINTS.skin;
+  else pushMissing({ key: 'skin', label: 'Skin Tone & Markings', why: 'Visible tattoos, piercings, and skin tone prevent set-day surprises.', impact: 'Medium', link: '/dashboard/talent/profile?tab=appearance', points: IMPROVE_FIELD_POINTS.skin, tier: 'Improve' });
 
   const hasStatus = isPresent(data.work_status);
-  if (hasStatus) improveScore += 4;
-  else pushMissing({ key: 'status', label: 'Work Status', why: 'Availability signals whether you can take bookings now.', impact: 'Medium', link: '/dashboard/talent/profile?tab=roles', points: 4, tier: 'Improve' });
+  if (hasStatus) improveScore += IMPROVE_FIELD_POINTS.status;
+  else pushMissing({ key: 'status', label: 'Work Status', why: 'Availability signals whether you can take bookings now.', impact: 'Medium', link: '/dashboard/talent/profile?tab=roles', points: IMPROVE_FIELD_POINTS.status, tier: 'Improve' });
 
   const hasExpLevel = isPresent(data.experience_level);
-  if (hasExpLevel) improveScore += 3;
-  else pushMissing({ key: 'exp', label: 'Experience Level', why: 'New faces and working talent are pitched differently to clients.', impact: 'Low', link: '/dashboard/talent/profile?tab=credits', points: 3, tier: 'Improve' });
+  if (hasExpLevel) improveScore += IMPROVE_FIELD_POINTS.exp;
+  else pushMissing({ key: 'exp', label: 'Experience Level', why: 'New faces and working talent are pitched differently to clients.', impact: 'Low', link: '/dashboard/talent/profile?tab=credits', points: IMPROVE_FIELD_POINTS.exp, tier: 'Improve' });
 
   const training = String(data.training || data.training_summary || '').trim();
   const skills = parseJSON(data.specialties);
@@ -208,16 +275,31 @@ export const calculateProfileStrength = (data) => {
   const skillsList = Array.isArray(skills) ? skills : [];
   const languagesList = Array.isArray(languages) ? languages : [];
   const hasTrainingSkills = training.length > 30 || skillsList.length > 0 || languagesList.length > 0;
-  if (hasTrainingSkills) improveScore += 4;
-  else pushMissing({ key: 'training', label: 'Training & Specialties', why: 'Skills and languages show bookers what you can do once the brief fits.', impact: 'Medium', link: '/dashboard/talent/profile?tab=training', points: 4, tier: 'Improve' });
+  if (hasTrainingSkills) improveScore += IMPROVE_FIELD_POINTS.training;
+  else pushMissing({ key: 'training', label: 'Training & Specialties', why: 'Skills and languages show bookers what you can do once the brief fits.', impact: 'Medium', link: '/dashboard/talent/profile?tab=training', points: IMPROVE_FIELD_POINTS.training, tier: 'Improve' });
 
   const hasSocial = isPresent(data.instagram_handle) || isPresent(data.portfolio_url);
-  if (hasSocial) improveScore += 6;
-  else pushMissing({ key: 'social', label: 'Social or Portfolio Link', why: 'Instagram and portfolio links are how scouts verify your current look.', impact: 'Medium', link: '/dashboard/talent/profile?tab=socials', points: 6, tier: 'Improve' });
+  if (hasSocial) improveScore += IMPROVE_FIELD_POINTS.social;
+  else pushMissing({ key: 'social', label: 'Social or Portfolio Link', why: 'Instagram and portfolio links are how scouts verify your current look.', impact: 'Medium', link: '/dashboard/talent/profile?tab=socials', points: IMPROVE_FIELD_POINTS.social, tier: 'Improve' });
 
   const hasContact = isPresent(data.email) && isPresent(data.phone);
-  if (hasContact) improveScore += 3;
-  else pushMissing({ key: 'contact', label: 'Email & Phone', why: 'Agencies need direct contact details to follow up on submissions.', impact: 'Medium', link: '/dashboard/talent/settings', points: 3, tier: 'Improve' });
+  if (hasContact) improveScore += IMPROVE_FIELD_POINTS.contact;
+  else pushMissing({ key: 'contact', label: 'Email & Phone', why: 'Agencies need direct contact details to follow up on submissions.', impact: 'Medium', link: '/dashboard/talent/settings', points: IMPROVE_FIELD_POINTS.contact, tier: 'Improve' });
+
+  if (digitals.hasProfile) improveScore += IMPROVE_FIELD_POINTS.photo_profile;
+  else pushMissing({ key: 'photo_profile', label: 'Profile Digital (Side View)', why: 'A side profile helps agencies confirm facial structure and neck line.', impact: 'Low', link: '/dashboard/talent/media', points: IMPROVE_FIELD_POINTS.photo_profile, tier: 'Improve' });
+
+  if (digitals.hasSmile) improveScore += IMPROVE_FIELD_POINTS.photo_smile;
+  else pushMissing({ key: 'photo_smile', label: 'Smiling Digital', why: 'A smiling frame shows commercial range and approachability.', impact: 'Low', link: '/dashboard/talent/media', points: IMPROVE_FIELD_POINTS.photo_smile, tier: 'Improve' });
+
+  if (digitals.hasBack) improveScore += IMPROVE_FIELD_POINTS.photo_back;
+  else pushMissing({ key: 'photo_back', label: 'Back View Digital', why: 'Back-view digitals help agencies evaluate posture and line.', impact: 'Low', link: '/dashboard/talent/media', points: IMPROVE_FIELD_POINTS.photo_back, tier: 'Improve' });
+
+  if (digitals.hasEditorial) improveScore += IMPROVE_FIELD_POINTS.photo_editorial;
+  else pushMissing({ key: 'photo_editorial', label: 'Editorial Portfolio Frame', why: 'An editorial frame demonstrates shape control and booking range.', impact: 'Medium', link: '/dashboard/talent/media', points: IMPROVE_FIELD_POINTS.photo_editorial, tier: 'Improve' });
+
+  if (digitals.hasLifestyle) improveScore += IMPROVE_FIELD_POINTS.photo_lifestyle;
+  else pushMissing({ key: 'photo_lifestyle', label: 'Lifestyle/Commercial Frame', why: 'Commercial-style imagery helps agencies pitch you for lifestyle briefs.', impact: 'Medium', link: '/dashboard/talent/media', points: IMPROVE_FIELD_POINTS.photo_lifestyle, tier: 'Improve' });
 
   const percentage = Math.min(Math.round(requiredScore + improveScore), REQUIRED_POINTS + IMPROVE_POINTS);
   const isRequiredComplete = !missingFields.some((f) => f.tier === 'Required');
@@ -264,6 +346,7 @@ export const calculateProfileStrength = (data) => {
     photo_back: digitals.hasBack,
     photo_editorial: digitals.hasEditorial,
     photo_lifestyle: digitals.hasLifestyle,
+    digitals_recency: !pkg.recency.isStale,
     bio: hasBio,
     look: hasLook,
     shoe: hasShoe,
@@ -306,18 +389,18 @@ export const getStrengthUI = (score, isRequiredComplete = false) => {
 
   if (score < 85) {
     return {
-      label: 'Submission ready',
+      label: 'Essentials complete',
       color: '#C9A55A',
-      message: 'Essentials complete. Add details to strengthen your profile.',
+      message: 'Add look details and contact to strengthen your package.',
       status: 'improvement',
     };
   }
 
   if (score < 100) {
     return {
-      label: 'Submission ready',
+      label: 'Strong package',
       color: '#2D8A56',
-      message: 'Ready for agency review.',
+      message: 'Your profile matches what bookers look for when shortlisting.',
       status: 'improvement',
     };
   }
@@ -325,7 +408,7 @@ export const getStrengthUI = (score, isRequiredComplete = false) => {
   return {
     label: 'Agency grade',
     color: '#C9A55A',
-    message: 'Ready for agency review.',
+    message: 'Complete and current — ready for agency review.',
     status: 'perfect',
   };
 };

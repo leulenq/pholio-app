@@ -8,54 +8,52 @@ import {
   isFullBodyImage,
   isSmileHeadshot,
 } from './profileReadinessImages';
+import { analyzePackageIntelligence } from './packageIntelligence';
+import { DIGITALS_STALE_DAYS, BOOK_MIN_FRAME_COUNT } from '../constants/packageIntelligence';
+import { READINESS_CHECKLIST_COPY } from '../constants/frameTaxonomy';
 
 const STANDARD_CHECKLIST = [
   {
     id: 'headshot',
-    label: 'Clean Headshot',
-    description: 'Face forward, neutral expression, minimal makeup.',
+    ...READINESS_CHECKLIST_COPY.headshot,
     met: (images) => images.some(isHeadshotImage),
   },
   {
     id: 'fullbody',
-    label: 'Full Body Shot',
-    description: 'Shows your proportions and physique clearly.',
+    ...READINESS_CHECKLIST_COPY.fullbody,
     met: (images) => images.some(isFullBodyImage),
   },
   {
     id: 'side_profile',
-    label: 'Side Profile',
-    description: 'Profile view of your face (left or right).',
+    ...READINESS_CHECKLIST_COPY.side_profile,
     met: (images) => analyzeDigitalsReadiness(images).hasProfile,
   },
   {
     id: 'smile',
-    label: 'Smile / Commercial',
-    description: 'Warm, approachable smile showing teeth.',
+    ...READINESS_CHECKLIST_COPY.smile,
     met: (images) => images.some(isSmileHeadshot),
   },
   {
     id: 'editorial',
-    label: 'Editorial / Creative',
-    description: 'High-fashion or styled creative work.',
+    ...READINESS_CHECKLIST_COPY.editorial,
     met: (images) => analyzeDigitalsReadiness(images).hasEditorial,
   },
   {
     id: 'back',
-    label: 'Back View',
-    description: 'Shows hair and back of head — common digitals slot.',
+    ...READINESS_CHECKLIST_COPY.back,
     met: (images) => analyzeDigitalsReadiness(images).hasBack,
   },
   {
     id: 'lifestyle',
-    label: 'Commercial / Lifestyle',
-    description: 'Styled portfolio shot for commercial or lifestyle markets.',
+    ...READINESS_CHECKLIST_COPY.lifestyle,
     met: (images) => analyzeDigitalsReadiness(images).hasLifestyle,
   },
 ];
 
 export function analyzePortfolio(images = []) {
   const list = Array.isArray(images) ? images : [];
+  const pkg = analyzePackageIntelligence({ images: list });
+
   const checks = STANDARD_CHECKLIST.map((item) => ({
     id: item.id,
     label: item.label,
@@ -63,12 +61,18 @@ export function analyzePortfolio(images = []) {
     met: item.met(list),
   }));
 
-  const minCountMet = list.length >= 5;
+  const minCountMet = list.length >= BOOK_MIN_FRAME_COUNT;
   checks.unshift({
     id: 'min_count',
-    label: 'At least 5 photos',
-    description: 'Agencies need to see variety.',
+    ...READINESS_CHECKLIST_COPY.min_count,
     met: minCountMet,
+  });
+
+  checks.push({
+    id: 'recency',
+    label: READINESS_CHECKLIST_COPY.recency.label,
+    description: `Reshoot your digitals within ${DIGITALS_STALE_DAYS} days to stay current.`,
+    met: !pkg.recency.isStale,
   });
 
   const metCount = checks.filter((c) => c.met).length;
@@ -79,6 +83,7 @@ export function analyzePortfolio(images = []) {
     score,
     missingCount: checks.length - metCount,
     isComplete: score === 100,
-    digitals: analyzeDigitalsReadiness(list),
+    digitals: pkg.digitals,
+    package: pkg,
   };
 }

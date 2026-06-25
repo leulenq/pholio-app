@@ -31,6 +31,8 @@ export function IdentitySection({
   isImproving,
   improveMode,
   previousBio,
+  bioOptions,
+  onBioOptionsChange,
   onBioRefine,
   onBioGenerate,
   handleUndoAI,
@@ -46,6 +48,8 @@ export function IdentitySection({
         isImproving={isImproving}
         improveMode={improveMode}
         previousBio={previousBio}
+        bioOptions={bioOptions}
+        onBioOptionsChange={onBioOptionsChange}
         onBioRefine={onBioRefine}
         onBioGenerate={onBioGenerate}
         handleUndoAI={handleUndoAI}
