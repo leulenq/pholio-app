@@ -11,9 +11,21 @@ const STATUS = {
 };
 
 const OPTIONS = [
-  { value: STATUS.SEEKING, num: '01', label: 'Seeking', hint: 'Open to representation' },
-  { value: STATUS.REPRESENTED, num: '02', label: 'Represented', hint: 'Currently signed' },
-  { value: STATUS.NOT_SEEKING, num: '03', label: 'Not seeking', hint: 'Freelance / independent' }
+  {
+    value: STATUS.SEEKING,
+    label: 'Seeking representation',
+    hint: 'Your profile can be routed to agencies and development boards.',
+  },
+  {
+    value: STATUS.REPRESENTED,
+    label: 'Represented',
+    hint: 'Your current agency should be visible as the booking route.',
+  },
+  {
+    value: STATUS.NOT_SEEKING,
+    label: 'Direct bookings',
+    hint: 'Inquiries should route directly through your profile contact.',
+  }
 ];
 
 /**
@@ -39,25 +51,25 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
   return (
     <Section
       id="representation"
-      title="Agency Representation"
+      title="Agency representation"
       titleEmphasis="Agency"
-      description="Tell agencies whether you're signed, looking, or not seeking representation."
+      description="Set the booking path agencies should understand before they shortlist you."
       showDivider={false}
     >
-      <div className={styles.formStack}>
+      <div className={styles.repSurface}>
         <Controller
           name="representation_status"
           control={control}
           render={({ field }) => (
-            <fieldset className={styles.repFieldset}>
-              <legend className={styles.repLegend}>Status</legend>
-              <div className={styles.repSegmentedControl} role="radiogroup" aria-label="Representation status">
+            <fieldset className={`${styles.repFieldset} ${styles.repPathGroup}`}>
+              <legend className={styles.repLegend}>Representation status</legend>
+              <div className={styles.repPathGrid} role="radiogroup" aria-label="Representation status">
                 {OPTIONS.map((opt) => {
                   const isActive = field.value === opt.value;
                   return (
                     <label
                       key={opt.value}
-                      className={`${styles.repSegment} ${isActive ? styles.repSegmentActive : ''}`}
+                      className={`${styles.repPathOption} ${isActive ? styles.repPathOptionActive : ''}`}
                     >
                       <input
                         type="radio"
@@ -69,7 +81,7 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
                         className={styles.repRadioHidden}
                       />
                       <span className={styles.repLabel}>
-                        {isActive ? <em>{opt.label}</em> : opt.label}
+                        {opt.label}
                       </span>
                       <span className={styles.repHint}>{opt.hint}</span>
                     </label>
@@ -86,21 +98,23 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
         />
 
         {representationStatus === STATUS.REPRESENTED && (
-          <div className={styles.repPremiumField}>
+          <div className={styles.repDetailGroup}>
             <PholioInput
-              label="Current agency"
+              label="Agency name"
               placeholder="e.g. Elite Model Management"
               error={errors.current_agency}
+              className={styles.repPremiumField}
               {...register('current_agency')}
             />
           </div>
         )}
 
-        <div className={styles.repPremiumField}>
+        <div className={styles.repDetailGroup}>
           <PholioTextarea
-            label="Previous Representation"
-            placeholder="List any previous agencies or management (one per line)..."
+            label="Previous representation"
+            placeholder="List previous agencies or management, one per line"
             rows={3}
+            className={styles.repPremiumField}
             {...register('previous_representations')}
           />
         </div>
