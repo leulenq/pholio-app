@@ -293,25 +293,6 @@
   border-radius: 6px;
 }
 
-.gapItemAudit:hover:not(:disabled),
-.gapItemAudit:focus-visible:not(:disabled) {
-  transform: none;
-}
-
-.gapItem:hover:not(:disabled),
-.gapItem:focus-visible:not(:disabled) {
-  color: #1A1815;
-  background: #F5F2EE;
-  transform: translateX(4px);
-  z-index: 2;
-}
-
-.gapItemAudit:hover:not(:disabled),
-.gapItemAudit:focus-visible:not(:disabled) {
-  transform: none;
-  z-index: 2;
-}
-
 .gapTier {
   flex-shrink: 0;
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
@@ -328,6 +309,7 @@
   color: #1A1815;
   background: #F5F2EE;
   transform: translateX(4px);
+  z-index: 2;
 }
 
 .gapItemAudit:hover:not(:disabled),
@@ -351,7 +333,7 @@
   left: 8px;
   right: 8px;
   bottom: calc(100% + 8px);
-  z-index: 3;
+  z-index: 4;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid rgba(26, 24, 21, 0.12);
@@ -376,37 +358,6 @@
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-}
-
-.gapWhyReveal {
-  display: block;
-  max-height: 0;
-  margin-top: 0;
-  padding: 0 10px;
-  overflow: hidden;
-  opacity: 0;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.45;
-  color: #FAF8F5;
-  background: #1A1815;
-  border-radius: 6px;
-  border: 1px solid rgba(26, 24, 21, 0.12);
-  box-shadow: 0 8px 20px rgba(26, 24, 21, 0.12);
-  transition:
-    max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    margin-top 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    padding 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gapItemAudit:hover .gapWhyReveal,
-.gapItemAudit:focus-visible .gapWhyReveal {
-  max-height: 5rem;
-  margin-top: 8px;
-  padding: 8px 10px;
-  opacity: 1;
 }
 
 .completeBrief {
@@ -473,12 +424,14 @@
   margin-top: 12px;
   border-top: 1px solid rgba(26, 24, 21, 0.08);
   padding-top: 14px;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: visible;
   background: #FFFFFF;
 }
 
 .auditPanelScroll {
-  padding: 2px 4px 10px 0;
+  padding: 52px 4px 12px 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -489,6 +442,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: relative;
 }
 
 .auditSectionLabel {
@@ -571,15 +525,6 @@
 
   .gapTooltip {
     transition: none;
-  }
-
-  .gapWhyReveal {
-    transition: none;
-  }
-
-  .gapItemAudit:hover .gapWhyReveal,
-  .gapItemAudit:focus-visible .gapWhyReveal {
-    max-height: none;
   }
 
   .gapItem:hover:not(:disabled) {
