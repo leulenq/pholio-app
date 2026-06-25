@@ -39,7 +39,7 @@ const config = require('../../config');
 // Initialize Groq client
 const Groq = require('groq-sdk');
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || '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'
+  apiKey: process.env.GROQ_API_KEY
 });
 
 /**
