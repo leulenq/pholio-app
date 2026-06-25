@@ -12,10 +12,8 @@ const TiktokIcon = ({ size = 24, className }) => (
 );
 
 const OnlyFansIcon = ({ size = 24, className }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
-    <circle cx="8.2" cy="12" r="4.35" stroke="currentColor" strokeWidth="2.6" />
-    <path d="M13 8.2h7.2l-1 3.2h-3.15l-.62 2.1h2.95l-.93 3.05h-2.95l-1.05 3.25H10.1L13 8.2Z" fill="currentColor" />
-    <path d="M17.35 5.3h3.85l-.82 2.35h-3.78l.75-2.35Z" fill="currentColor" />
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+    <path d="M24 4.003h-4.015c-3.45 0-5.3.197-6.748 1.957a7.996 7.996 0 1 0 2.103 9.211c3.182-.231 5.39-2.134 6.085-5.173 0 0-2.399.585-4.43 0 4.018-.777 6.333-3.037 7.005-5.995zM5.61 11.999A2.391 2.391 0 0 1 9.28 9.97a2.966 2.966 0 0 1 2.998-2.528h.008c-.92 1.778-1.407 3.352-1.998 5.263A2.392 2.392 0 0 1 5.61 12Zm2.386-7.996a7.996 7.996 0 1 0 7.996 7.996 7.996 7.996 0 0 0-7.996-7.996Zm0 10.394A2.399 2.399 0 1 1 10.395 12a2.396 2.396 0 0 1-2.399 2.398Z" />
   </svg>
 );
 
