@@ -104,11 +104,17 @@ function hasRecordedDateOfBirth(profile) {
 
 /**
  * Sensitive stats require DOB on file and minor consent when under 18.
+ *
+ * Fail-closed on age: without a present, valid DOB we cannot prove the talent is
+ * an adult, so sensitive measurement collection is denied. Returning false for a
+ * missing/unparseable DOB is intentional and must not be relaxed.
+ *
  * @param {object|null|undefined} profile
  * @param {Date} [referenceDate]
  * @returns {boolean}
  */
 function canCollectSensitiveProfileFields(profile, referenceDate = new Date()) {
+  // No verifiable age on file => deny (fail closed).
   if (!hasRecordedDateOfBirth(profile)) return false;
   return minorSensitiveFieldsUnlocked(profile, referenceDate);
 }
@@ -132,11 +138,26 @@ function isSensitiveImageShotType(shotType) {
 
 /**
  * Public portfolio / comp-card exposure allowed for this profile.
+ *
+ * Fail-closed on age: a profile with no recorded (or unparseable) DOB is NOT
+ * cleared for public exposure / contact display. Previously a missing DOB made
+ * `isMinorProfile` return false, which let an age-unknown profile pass as if it
+ * were an adult. Because minors are self-declared via a NULLABLE date_of_birth,
+ * "age unknown" must be treated as "not cleared" until a valid DOB (and, when it
+ * indicates a minor, guardian consent) is on file.
+ *
+ * Allowed only when: a valid DOB is present AND (the talent is an adult OR a
+ * minor with guardian consent recorded). A normal adult with a valid DOB still
+ * passes unchanged.
+ *
  * @param {object|null|undefined} profile
  * @param {Date} [referenceDate]
  * @returns {boolean}
  */
 function minorPublicExposureAllowed(profile, referenceDate = new Date()) {
+  // No verifiable age on file => deny (fail closed).
+  if (!hasRecordedDateOfBirth(profile)) return false;
+  // Adults with a valid DOB are allowed; minors require guardian consent.
   if (!isMinorProfile(profile, referenceDate)) return true;
   return hasGuardianConsent(profile);
 }

@@ -57,6 +57,7 @@ const {
   listSensitiveProfileUpdateFields,
   isMinorProfile,
   minorPublicExposureAllowed,
+  hasRecordedDateOfBirth,
 } = require("../../../shared/lib/talent-age");
 
 /**
@@ -712,6 +713,27 @@ router.put(
         message:
           "Date of birth and guardian consent are required before measurements or weight can be saved.",
         code: "MINOR_CONSENT_REQUIRED",
+      });
+    }
+
+    // Adult-content field: onlyfans_url must never be collected for a minor, and
+    // fails closed when no verifiable adult DOB is on file. Clearing the field
+    // (empty/null) is always permitted. Mirrors the MINOR_CONSENT_REQUIRED gate
+    // used for sensitive measurements above.
+    const onlyfansAttempted =
+      data.onlyfans_url !== undefined &&
+      data.onlyfans_url !== null &&
+      data.onlyfans_url !== "";
+    if (
+      onlyfansAttempted &&
+      (!hasRecordedDateOfBirth(mergedForPolicy) ||
+        isMinorProfile(mergedForPolicy))
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This field is not available for accounts without a verified adult date of birth.",
+        code: "ADULT_DOB_REQUIRED",
       });
     }
 
