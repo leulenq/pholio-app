@@ -10,6 +10,9 @@ const {
 const {
   listReferenceLanguages,
 } = require("../../shared/lib/language-reference");
+const {
+  minorPublicExposureAllowed,
+} = require("../../shared/lib/talent-age");
 
 function dashboardPathForRole(role) {
   if (role === "TALENT") return "/dashboard/talent";
@@ -43,7 +46,15 @@ router.get("/home", async (req, res) => {
     let elaraImages = [];
 
     try {
-      elaraProfile = await knex("profiles").where({ slug: "elara-k" }).first();
+      elaraProfile = await knex("profiles")
+        .where({ slug: "elara-k" })
+        .where(function publicVisible() {
+          this.whereNull("is_public").orWhere("is_public", true);
+        })
+        .first();
+      if (elaraProfile && !minorPublicExposureAllowed(elaraProfile)) {
+        elaraProfile = null;
+      }
 
       // Alias legacy measurement fields
       if (elaraProfile) {
@@ -80,57 +91,65 @@ router.get("/home", async (req, res) => {
     let floatingTalentsWithImages = [];
 
     try {
+      // Shared filter builder: only profiles that are public and have a shareable
+      // primary image. Fetches date_of_birth and guardian_consent_at so the
+      // in-process minor check (minorPublicExposureAllowed) has the data it needs.
+      function applyFloatingTalentFilters(query) {
+        return query
+          .select(
+            "profiles.*",
+            "profiles.date_of_birth",
+            "profiles.guardian_consent_at",
+          )
+          .whereNot({ slug: "elara-k" })
+          // Profile must be publicly visible (NULL treated as true per column default)
+          .where(function profileIsPublic() {
+            this.whereNull("is_public").orWhere("is_public", true);
+          })
+          .whereExists(function publicPrimaryImageExists() {
+            this.select("*")
+              .from("images")
+              .whereRaw("images.profile_id = profiles.id")
+              .andWhere("images.is_primary", true)
+              .where(function publicShareableStatus() {
+                this.whereNull("images.status").orWhere(
+                  "images.status",
+                  "active",
+                );
+              })
+              .where(function notExcludedFromPublic() {
+                this.whereNull("images.exclude_from_public").orWhere(
+                  "images.exclude_from_public",
+                  false,
+                );
+              });
+          });
+      }
+
+      // Fetch extra candidates so we still have 4 after the minor post-filter
+      const CARD_LIMIT = 4;
+      const FETCH_LIMIT = CARD_LIMIT * 4; // generous overselect
+
       if (config.dbClient === "pg") {
-        floatingTalents = await knex("profiles")
-          .whereNot({ slug: "elara-k" })
-          .whereExists(function publicPrimaryImageExists() {
-            this.select("*")
-              .from("images")
-              .whereRaw("images.profile_id = profiles.id")
-              .andWhere("images.is_primary", true)
-              .where(function publicShareableStatus() {
-                this.whereNull("images.status").orWhere(
-                  "images.status",
-                  "active",
-                );
-              })
-              .where(function notExcludedFromPublic() {
-                this.whereNull("images.exclude_from_public").orWhere(
-                  "images.exclude_from_public",
-                  false,
-                );
-              });
-          })
-          .limit(4)
+        const candidates = await applyFloatingTalentFilters(
+          knex("profiles"),
+        )
+          .limit(FETCH_LIMIT)
           .orderByRaw("RANDOM()");
+        floatingTalents = candidates
+          .filter((t) => minorPublicExposureAllowed(t))
+          .slice(0, CARD_LIMIT);
       } else {
-        // SQLite: use a simple approach - get all and shuffle in JS, or just order by id
-        floatingTalents = await knex("profiles")
-          .whereNot({ slug: "elara-k" })
-          .whereExists(function publicPrimaryImageExists() {
-            this.select("*")
-              .from("images")
-              .whereRaw("images.profile_id = profiles.id")
-              .andWhere("images.is_primary", true)
-              .where(function publicShareableStatus() {
-                this.whereNull("images.status").orWhere(
-                  "images.status",
-                  "active",
-                );
-              })
-              .where(function notExcludedFromPublic() {
-                this.whereNull("images.exclude_from_public").orWhere(
-                  "images.exclude_from_public",
-                  false,
-                );
-              });
-          })
-          .limit(10)
+        // SQLite: shuffle in JS then apply minor post-filter
+        const candidates = await applyFloatingTalentFilters(
+          knex("profiles"),
+        )
+          .limit(FETCH_LIMIT)
           .orderBy("created_at", "desc");
-        // Shuffle and take first 4
-        floatingTalents = floatingTalents
+        floatingTalents = candidates
           .sort(() => Math.random() - 0.5)
-          .slice(0, 4);
+          .filter((t) => minorPublicExposureAllowed(t))
+          .slice(0, CARD_LIMIT);
       }
 
       // For each floating talent, get their first image
