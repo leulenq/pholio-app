@@ -3,6 +3,7 @@ const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const asyncHandler = require("express-async-handler");
+const crypto = require("crypto");
 const {
   notifyTalentApplicationSubmitted,
 } = require("../../../shared/services/notifications");
@@ -27,6 +28,62 @@ const WITHDRAWABLE_STATUSES = new Set([
 
 async function getProfileBySessionUserId(userId) {
   return knex("profiles").where({ user_id: userId }).first();
+}
+
+/**
+ * Verify an agency-invitation token for the /redirect-apply flow.
+ *
+ * Fail-closed HMAC verification. The invite link that lands a talent on a
+ * portfolio (`?ref=agency&agencyId=<id>&token=<token>`) MUST carry a token
+ * minted by the agency-invite issuance side using the SAME secret/scheme:
+ *
+ *   token = HMAC_SHA256(process.env.AGENCY_INVITE_SECRET, `${agencyId}`)
+ *           encoded as lowercase hex
+ *
+ * Optionally the token may be bound to a specific profile by signing
+ * `${agencyId}:${profileId}` instead; we accept either binding so issuance can
+ * choose. There is currently NO issuance code in the repo that mints this
+ * token — until that is built, this endpoint correctly rejects every request.
+ *
+ * Security notes:
+ * - If AGENCY_INVITE_SECRET is unset, we reject (never accept arbitrary tokens).
+ * - Comparison uses crypto.timingSafeEqual to avoid timing oracles.
+ *
+ * @param {string} token - hex-encoded HMAC from the invite link
+ * @param {string} agencyId - agency the invite is for
+ * @param {string} profileId - the authenticated talent's profile id
+ * @returns {boolean} true only if the token is a valid signature
+ */
+function verifyAgencyInviteToken(token, agencyId, profileId) {
+  const secret = process.env.AGENCY_INVITE_SECRET;
+  if (!secret || typeof token !== "string" || !agencyId) {
+    return false;
+  }
+
+  // Token must be lowercase hex of the right length for an SHA-256 HMAC (64 chars).
+  if (!/^[0-9a-f]{64}$/i.test(token)) {
+    return false;
+  }
+
+  const providedBuf = Buffer.from(token, "hex");
+
+  // Accept either an agency-only binding or an agency+profile binding so the
+  // issuance side can pick the stricter form without breaking verification.
+  const payloads = [`${agencyId}`, `${agencyId}:${profileId}`];
+  for (const payload of payloads) {
+    const expected = crypto
+      .createHmac("sha256", secret)
+      .update(payload)
+      .digest();
+    if (
+      providedBuf.length === expected.length &&
+      crypto.timingSafeEqual(providedBuf, expected)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -609,17 +666,24 @@ router.post(
       });
     }
 
-    // verify token (Mock logic for now, or check against stored invitation)
-    // In production: jwt.verify(token, process.env.AGENCY_INVITE_SECRET)
-    // For now, accept any token that is passed (assuming validity checked on generation or non-critical for this tier)
-    // Or check if token matches agencyId simply
-
     const profile = await getProfileBySessionUserId(req.session.userId);
     if (!profile) {
       return res.status(404).json({
         success: false,
         error: "Profile not found",
         message: "Profile not found",
+      });
+    }
+
+    // Verify the agency-invite token before bypassing the application limit.
+    // Fail-closed: forged/missing tokens (and an unset secret) are rejected.
+    // See verifyAgencyInviteToken() for the expected token format that the
+    // invite-issuance side must produce.
+    if (!verifyAgencyInviteToken(token, agencyId, profile.id)) {
+      return res.status(403).json({
+        success: false,
+        error: "Invalid invitation token",
+        message: "Invalid invitation token",
       });
     }
 
