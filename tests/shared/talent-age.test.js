@@ -4,6 +4,7 @@ const {
   hasGuardianConsent,
   minorSensitiveFieldsUnlocked,
   minorPublicExposureAllowed,
+  canCollectSensitiveProfileFields,
   parseDateOfBirthParts,
 } = require('../../src/shared/lib/talent-age');
 
@@ -49,5 +50,19 @@ describe('talent-age policy', () => {
   test('missing DOB is not treated as minor', () => {
     expect(isMinorProfile({}, REF)).toBe(false);
     expect(minorSensitiveFieldsUnlocked({}, REF)).toBe(true);
+  });
+
+  test('missing DOB fails closed for public exposure and sensitive collection', () => {
+    // No DOB => age unknown => must be DENIED (fail closed), even though the
+    // profile is not classified as a minor.
+    expect(minorPublicExposureAllowed({}, REF)).toBe(false);
+    expect(minorPublicExposureAllowed({ date_of_birth: null }, REF)).toBe(false);
+    expect(minorPublicExposureAllowed({ date_of_birth: 'not-a-date' }, REF)).toBe(false);
+    expect(canCollectSensitiveProfileFields({}, REF)).toBe(false);
+
+    // Adult with a valid DOB is unaffected by the fail-closed change.
+    const adult = { date_of_birth: '1998-01-01' };
+    expect(minorPublicExposureAllowed(adult, REF)).toBe(true);
+    expect(canCollectSensitiveProfileFields(adult, REF)).toBe(true);
   });
 });
