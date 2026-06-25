@@ -13,7 +13,6 @@ const {
 } = require("../../../shared/lib/subscriptions");
 const { v4: uuidv4 } = require("uuid");
 const {
-  isMinorProfile,
   minorPublicExposureAllowed,
   canCollectSensitiveProfileFields,
   isSensitiveImageShotType,
@@ -378,14 +377,10 @@ router.put(
 
     if (isPublic !== undefined) {
       const wantsPublic = !!isPublic;
-      if (
-        wantsPublic &&
-        isMinorProfile(profile) &&
-        !minorPublicExposureAllowed(profile)
-      ) {
+      if (wantsPublic && !minorPublicExposureAllowed(profile)) {
         return apiResponse.error(
           res,
-          "Guardian consent is required before a minor profile can be made public.",
+          "A valid date of birth is required (and guardian consent for minors) before a profile can be made public.",
           403,
         );
       }
@@ -437,14 +432,10 @@ router.put(
       if (showContact !== undefined || blockedAgencies !== undefined) {
         const effectiveShowContact =
           showContact !== undefined ? !!showContact : undefined;
-        if (
-          effectiveShowContact &&
-          isMinorProfile(profile) &&
-          !minorPublicExposureAllowed(profile)
-        ) {
+        if (effectiveShowContact && !minorPublicExposureAllowed(profile)) {
           return apiResponse.error(
             res,
-            "Guardian consent is required before contact details can be shown publicly.",
+            "A valid date of birth is required (and guardian consent for minors) before contact details can be shown publicly.",
             403,
           );
         }

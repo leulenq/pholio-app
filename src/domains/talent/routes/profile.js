@@ -737,10 +737,9 @@ router.put(
       });
     }
 
-    if (
-      isMinorProfile(mergedForPolicy) &&
-      !minorPublicExposureAllowed(mergedForPolicy)
-    ) {
+    // Fail closed: force private whenever public exposure isn't cleared
+    // (no verifiable adult DOB on file, or an unconsented minor).
+    if (!minorPublicExposureAllowed(mergedForPolicy)) {
       updateData.is_public = false;
     }
 
