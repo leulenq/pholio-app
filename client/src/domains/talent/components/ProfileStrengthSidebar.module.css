@@ -64,17 +64,11 @@
   max-height: calc(100vh - var(--tl-topbar-h, 68px) - 24px);
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(26, 24, 21, 0.16) transparent;
+  scrollbar-width: none;
 }
 
 .cardAuditOpen::-webkit-scrollbar {
-  width: 4px;
-}
-
-.cardAuditOpen::-webkit-scrollbar-thumb {
-  background: rgba(26, 24, 21, 0.16);
-  border-radius: 100px;
+  display: none;
 }
 
 .header {
@@ -296,16 +290,26 @@
 }
 
 .gapItemAudit {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
   border-radius: 6px;
-  padding: 8px 8px;
 }
 
 .gapItemAudit:hover:not(:disabled),
 .gapItemAudit:focus-visible:not(:disabled) {
   transform: none;
+}
+
+.gapItem:hover:not(:disabled),
+.gapItem:focus-visible:not(:disabled) {
+  color: #1A1815;
+  background: #F5F2EE;
+  transform: translateX(4px);
+  z-index: 2;
+}
+
+.gapItemAudit:hover:not(:disabled),
+.gapItemAudit:focus-visible:not(:disabled) {
+  transform: none;
+  z-index: 2;
 }
 
 .gapTier {
