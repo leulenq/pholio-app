@@ -7,14 +7,7 @@
   padding: 16px 40px 64px 24px;
   border-left: 1px solid rgba(26, 26, 26, 0.08);
   z-index: 4;
-  max-height: calc(100vh - 16px);
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.sidebar::-webkit-scrollbar {
-  display: none;
+  overflow: visible;
 }
 
 @media (max-width: 1024px) {
@@ -50,9 +43,9 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  isolation: isolate;
 }
 
-/* Subtle glowing radial gradient in the top-right corner of the card */
 .card::before {
   content: '';
   position: absolute;
@@ -65,6 +58,25 @@
   z-index: 0;
 }
 
+.cardAuditOpen {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--tl-topbar-h, 68px) - 24px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(26, 24, 21, 0.16) transparent;
+}
+
+.cardAuditOpen::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cardAuditOpen::-webkit-scrollbar-thumb {
+  background: rgba(26, 24, 21, 0.16);
+  border-radius: 100px;
+}
+
 .header {
   position: relative;
   z-index: 1;
@@ -72,6 +84,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  flex-shrink: 0;
 }
 
 .smallTitle {
@@ -83,18 +96,6 @@
   color: #9C958E;
   margin-bottom: 8px;
   display: block;
-}
-
-.title {
-  display: block;
-  margin: 0 0 14px;
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.08rem;
-  font-weight: 300;
-  font-style: italic;
-  letter-spacing: 0;
-  line-height: 1.1;
-  color: #2D2A26;
 }
 
 .scoreBlock {
@@ -123,24 +124,6 @@
   margin-left: 2px;
 }
 
-/* Elegant status indicator instead of standard sharp pills */
-.statusContainer {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.statusLabel {
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #2D2A26;
-}
-
-
 .unsavedHint {
   margin: 6px 0 0;
   font-family: 'Inter', sans-serif;
@@ -150,33 +133,24 @@
   font-style: italic;
 }
 
-/* Status colors map to pulsing dots */
-.statusRed {
-  color: #C0392B;
-}
-
-.statusGold {
-  color: #C9A55A;
-}
-
-.statusGreen {
-  color: #2D8A56;
-}
-
 .progressContainer {
   margin-bottom: 26px;
+  flex-shrink: 0;
 }
 
 .statusMessage {
-  margin: 24px 0 0;
+  margin: 20px 0 0;
   font-size: 13px;
   font-weight: 300;
   color: #6B6560;
   font-family: 'Inter', sans-serif;
-  line-height: 1.65;
+  line-height: 1.55;
 }
 
-/* Luxury instrument progress track */
+.progressInstrument {
+  position: relative;
+}
+
 .progressBarTrack {
   position: relative;
   width: 100%;
@@ -206,7 +180,6 @@
   border-radius: 100px;
 }
 
-/* Dynamic colors for the progress bar fill */
 .progressRed {
   background: linear-gradient(90deg, #d35f5f 0%, #C0392B 100%);
 }
@@ -215,7 +188,6 @@
   background: linear-gradient(90deg, #2D8A56 0%, #6bc38c 100%);
 }
 
-/* Milestone ticks on progress bar track */
 .tick {
   position: absolute;
   top: 50%;
@@ -233,10 +205,16 @@
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
 }
 
-.tickLabel {
+.progressLabels {
+  position: relative;
+  width: 100%;
+  height: 18px;
+  margin-top: 10px;
+}
+
+.progressLabel {
   position: absolute;
-  top: 10px;
-  transform: translateX(-50%);
+  top: 0;
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 8px;
   font-weight: 500;
@@ -246,13 +224,26 @@
   white-space: nowrap;
 }
 
-.tickLabelActive {
+.progressLabelCore {
+  left: 60%;
+  transform: translateX(-100%);
+  padding-right: 14px;
+}
+
+.progressLabelStrong {
+  left: 85%;
+  transform: translateX(0);
+  padding-left: 14px;
+}
+
+.progressLabelActive {
   color: #2D2A26;
   font-weight: 600;
 }
 
 .gapsBlock {
   margin-bottom: 18px;
+  flex-shrink: 0;
 }
 
 .gapsLabel {
@@ -269,12 +260,14 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: relative;
+  z-index: 2;
 }
 
-/* Sleek, responsive gaps with subtle shift on hover */
 .gapItem {
+  position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
@@ -294,19 +287,25 @@
     transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.gapCopy {
+.gapRow {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
-.gapWhy {
-  font-size: 11px;
-  font-weight: 300;
-  line-height: 1.45;
-  color: #9C958E;
+.gapItemAudit {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 6px;
+  padding: 8px 8px;
+}
+
+.gapItemAudit:hover:not(:disabled),
+.gapItemAudit:focus-visible:not(:disabled) {
+  transform: none;
 }
 
 .gapTier {
@@ -317,13 +316,19 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #2D2A26;
-  padding-top: 2px;
+  padding-top: 1px;
 }
 
-.gapItem:hover:not(:disabled) {
+.gapItem:hover:not(:disabled),
+.gapItem:focus-visible:not(:disabled) {
   color: #1A1815;
   background: #F5F2EE;
   transform: translateX(4px);
+}
+
+.gapItemAudit:hover:not(:disabled),
+.gapItemAudit:focus-visible:not(:disabled) {
+  transform: none;
 }
 
 .gapItem:disabled {
@@ -333,6 +338,71 @@
 .gapLabel {
   line-height: 1.35;
   color: #2D2A26;
+  flex: 1;
+  min-width: 0;
+}
+
+.gapTooltip {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  z-index: 3;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(26, 24, 21, 0.12);
+  background: #1A1815;
+  color: #FAF8F5;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: 0 10px 28px rgba(26, 24, 21, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.18s;
+  pointer-events: none;
+}
+
+.gapItem:hover .gapTooltip,
+.gapItem:focus-visible .gapTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.gapWhyReveal {
+  display: block;
+  max-height: 0;
+  margin-top: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  opacity: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #FAF8F5;
+  background: #1A1815;
+  border-radius: 6px;
+  border: 1px solid rgba(26, 24, 21, 0.12);
+  box-shadow: 0 8px 20px rgba(26, 24, 21, 0.12);
+  transition:
+    max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-top 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gapItemAudit:hover .gapWhyReveal,
+.gapItemAudit:focus-visible .gapWhyReveal {
+  max-height: 5rem;
+  margin-top: 8px;
+  padding: 8px 10px;
+  opacity: 1;
 }
 
 .completeBrief {
@@ -344,6 +414,7 @@
   background: rgba(45, 138, 86, 0.1);
   border: 1px solid rgba(45, 138, 86, 0.15);
   border-radius: 8px;
+  flex-shrink: 0;
 }
 
 .completeBrief p {
@@ -361,14 +432,13 @@
   margin-top: 1px;
 }
 
-/* Beautiful outline button for checklist toggle */
 .auditToggle {
   width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
   padding: 10px 14px;
   border: 1px solid rgba(26, 24, 21, 0.08);
   border-radius: 8px;
@@ -380,6 +450,7 @@
   color: #6B6560;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
 }
 
 .auditToggle:hover {
@@ -394,10 +465,47 @@
   background: rgba(201, 165, 90, 0.12);
 }
 
+.auditPanel {
+  margin-top: 12px;
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
+  padding-top: 14px;
+  flex: 1 0 auto;
+  background: #FFFFFF;
+}
+
+.auditPanelScroll {
+  padding: 2px 4px 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #FFFFFF;
+}
+
+.auditSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.auditSectionLabel {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9C958E;
+  margin: 0 0 6px;
+}
+
 .saveContainer {
   margin-top: 8px;
   padding-top: 20px;
   border-top: 1px solid rgba(26, 24, 21, 0.08);
+  flex-shrink: 0;
+}
+
+.cardAuditOpen .saveContainer {
+  margin-top: auto;
 }
 
 .saveButton {
@@ -456,30 +564,21 @@
   .spinner {
     animation: none;
   }
-}
 
-/* Audit panel region wrapper */
-.auditPanel {
-  margin-top: 12px;
-  border-top: 1px solid rgba(26, 24, 21, 0.08);
-  padding-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+  .gapTooltip {
+    transition: none;
+  }
 
-.auditSection {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+  .gapWhyReveal {
+    transition: none;
+  }
 
-.auditSectionLabel {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #9C958E;
-  margin-bottom: 6px;
+  .gapItemAudit:hover .gapWhyReveal,
+  .gapItemAudit:focus-visible .gapWhyReveal {
+    max-height: none;
+  }
+
+  .gapItem:hover:not(:disabled) {
+    transform: none;
+  }
 }
