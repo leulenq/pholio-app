@@ -29,7 +29,7 @@ import './ApplicationsView.css';
 const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'active', label: 'Active' },
-  { id: 'accepted', label: 'Won' },
+  { id: 'accepted', label: 'Signed' },
   { id: 'closed', label: 'Closed' },
 ];
 
@@ -78,9 +78,9 @@ function websiteUrl(value) {
 function applicationMatchesFilter(app, filter) {
   if (filter === 'all') return true;
   const config = statusConfig(app.status);
-  if (filter === 'active') return config.tone === 'pending';
-  if (filter === 'accepted') return config.tone === 'accepted';
-  if (filter === 'closed') return config.tone === 'closed';
+  if (filter === 'active') return ['inReview', 'advancing'].includes(config.group);
+  if (filter === 'accepted') return config.group === 'signed';
+  if (filter === 'closed') return config.group === 'closed';
   return true;
 }
 
@@ -189,9 +189,9 @@ export default function ApplicationsView() {
     .filter((agency) => !appliedAgencyIds.has(agency.id))
     .slice(0, 6);
 
-  const activeCount = applications.filter((app) => statusConfig(app.status).tone === 'pending').length;
-  const acceptedCount = applications.filter((app) => statusConfig(app.status).tone === 'accepted').length;
-  const closedCount = applications.filter((app) => statusConfig(app.status).tone === 'closed').length;
+  const activeCount = applications.filter((app) => ['inReview', 'advancing'].includes(statusConfig(app.status).group)).length;
+  const acceptedCount = applications.filter((app) => statusConfig(app.status).group === 'signed').length;
+  const closedCount = applications.filter((app) => statusConfig(app.status).group === 'closed').length;
   const monthCount = applications.filter((app) => {
     if (!app.created_at) return false;
     const created = new Date(app.created_at);
@@ -267,7 +267,7 @@ export default function ApplicationsView() {
             <dd>{applicationsQuery.isLoading ? '-' : activeCount}</dd>
           </div>
           <div>
-            <dt>Won</dt>
+            <dt>Signed</dt>
             <dd>{applicationsQuery.isLoading ? '-' : acceptedCount}</dd>
           </div>
           <div>
@@ -286,7 +286,7 @@ export default function ApplicationsView() {
         </div>
         <div className="app-proofline__states">
           <span>{metricLabel(activeCount, 'under review', 'under review')}</span>
-          <span>{metricLabel(acceptedCount, 'won', 'won')}</span>
+          <span>{metricLabel(acceptedCount, 'signed', 'signed')}</span>
           <span>{metricLabel(closedCount, 'closed', 'closed')}</span>
         </div>
       </section>

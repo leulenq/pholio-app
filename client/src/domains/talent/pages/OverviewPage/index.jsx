@@ -18,11 +18,12 @@ import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessI
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import { bucketCounts } from '../../utils/applicationStatus';
+import { deriveRepresentationStatus } from '../../utils/representationStatus';
 import { analyzePackageIntelligence } from '../../../../shared/utils/packageIntelligence';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import {
   isMinorProfile,
-  minorPublicExposureAllowed,
+  minorSensitiveFieldsUnlocked,
 } from '../../../../shared/utils/talentAge';
 import './OverviewPage.css';
 
@@ -173,22 +174,44 @@ export default function OverviewPage() {
   const sparkMax = Math.max(1, ...websiteSparkline);
   const readinessPct = asNum(completeness?.percentage);
 
-  const { topGaps, totalGaps, isRequiredComplete, isLoading: auditLoading } = useProfileStrength();
+  const { topGaps, totalGaps, isRequiredComplete, fieldCompletion, isLoading: auditLoading } = useProfileStrength();
   const shouldReduce = useReducedMotion();
 
-  const isMinor = isMinorProfile(profile);
-  const guardianUnlocked = minorPublicExposureAllowed(profile);
-  const minorGated = isMinor && !guardianUnlocked;
+  // Representation status — derived from existing application data; no new fetch.
+  // v1: a talent signed offline (no accepted application) reads as unrepresented
+  // until the structured talent_representation table (v2, deferred) is built.
+  const repStatus = deriveRepresentationStatus(applicationsList);
+  // Compact hero label: fits the KPI column width.
+  const repHeroLabel = {
+    signed: 'Represented',
+    in_conversation: 'Advancing',
+    submitted: 'Submitted',
+    unrepresented: 'None yet',
+  }[repStatus.state] ?? '—';
+
+  const minor = isMinorProfile(profile);
+  const sensitiveUnlocked = minorSensitiveFieldsUnlocked(profile);
+  const minorGated = minor && !sensitiveUnlocked;
   const showPublicWebsite = isPro && !minorGated;
-  const showCompCardExport = !minorGated;
+
+  // Digitals recency: fieldCompletion.digitals_recency is false when existing digital
+  // images are older than DIGITALS_STALE_DAYS (client-side signal, no new date math).
+  const isDigitalsStale = fieldCompletion?.digitals_recency === false;
+  // Cap displayed readiness at 98 when stale so it never reads as fully complete.
+  const displayReadinessPct = isDigitalsStale ? Math.min(readinessPct, 98) : readinessPct;
+
   const auditCtaLabel = minorGated
     ? 'Record guardian consent'
-    : isRequiredComplete
-      ? 'View Profile'
-      : 'Continue Audit';
+    : isDigitalsStale
+      ? 'Reshoot your digitals'
+      : isRequiredComplete
+        ? 'View Profile'
+        : 'Continue Audit';
   const auditCtaTo = minorGated
     ? '/dashboard/talent/profile?tab=identity'
-    : '/dashboard/talent/profile';
+    : isDigitalsStale
+      ? '/dashboard/talent/media'
+      : '/dashboard/talent/profile';
 
   const photoSlots = Array.isArray(images) ? images.slice(0, 5) : [];
   const extraCount = Math.max(0, imageCount - 5);
@@ -227,12 +250,14 @@ export default function OverviewPage() {
 
             <div className="ov-hero-kpis" aria-label="Performance summary">
               <div className="ov-hero-kpi">
-                <span className="ov-hero-kpi-label">Profile Views</span>
-                <span className="ov-hero-kpi-value">{views.toLocaleString()}</span>
+                <span className="ov-hero-kpi-label">Representation</span>
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : repHeroLabel}
+                </span>
               </div>
               <div className="ov-hero-kpi">
                 <span className="ov-hero-kpi-label">Readiness</span>
-                <span className="ov-hero-kpi-value">{readinessPct}%</span>
+                <span className="ov-hero-kpi-value">{displayReadinessPct}%</span>
               </div>
               <div className="ov-hero-kpi">
                 <span className="ov-hero-kpi-label">Submissions</span>
@@ -248,6 +273,43 @@ export default function OverviewPage() {
 
         <div className="ov-hairline" aria-hidden />
 
+        {/* ── Representation — Section 1: the single most important standing fact ── */}
+        <motion.section
+          className="ov-representation"
+          aria-label="Representation status"
+          initial={shouldReduce ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: shouldReduce ? 0 : 0.6,
+            delay: shouldReduce ? 0 : 0.1,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+        >
+          <div className="ov-representation-body">
+            {appsPending || appsError ? (
+              <span className="ov-skel" style={{ width: 180, height: '1.4rem', borderRadius: 4 }} aria-hidden />
+            ) : (
+              <p className="ov-representation-status">
+                {repStatus.label}
+                {repStatus.agency ? (
+                  <span className="ov-representation-agency"> · {repStatus.agency}</span>
+                ) : null}
+              </p>
+            )}
+            {!appsPending && !appsError && repStatus.state === 'unrepresented' && (
+              <p className="ov-representation-note">
+                Signed offline? Your agency can link this account to update your standing.
+              </p>
+            )}
+          </div>
+          {!appsPending && !appsError && (
+            <Link to={repStatus.action.to} className="ov-representation-action">
+              {repStatus.action.label}
+              <ArrowUpRight size={13} aria-hidden />
+            </Link>
+          )}
+        </motion.section>
+
         <div className="ov-grid">
           <div className="ov-col-8">
             <div className="ov-book">
@@ -258,12 +320,12 @@ export default function OverviewPage() {
                       The <em>Book.</em>
                     </span>
                     <span className="ov-book-count">
-                      {imageCount} {imageCount === 1 ? 'frame' : 'frames'}
+                      {imageCount} {imageCount === 1 ? 'image' : 'images'}
                     </span>
                   </div>
                 </div>
-                <Link to="/dashboard/talent/media" className="ov-book-manage" aria-label="Manage portfolio frames">
-                  Manage Frames <ArrowUpRight size={12} aria-hidden />
+                <Link to="/dashboard/talent/media" className="ov-book-manage" aria-label="Manage portfolio images">
+                  Manage images <ArrowUpRight size={12} aria-hidden />
                 </Link>
               </div>
 
@@ -289,7 +351,7 @@ export default function OverviewPage() {
                     role="listitem"
                     aria-label="Add first portfolio image"
                   >
-                    <span className="ov-book-empty-headline">Add a frame</span>
+                    <span className="ov-book-empty-headline">Add an image</span>
                     <span className="ov-book-empty-sub">Your cover image</span>
                   </Link>
                 )}
@@ -325,7 +387,7 @@ export default function OverviewPage() {
                     aria-label={`${extraCount} more images`}
                   >
                     <span className="ov-book-more-count">+{extraCount}</span>
-                    <span className="ov-book-more-label">Frames</span>
+                    <span className="ov-book-more-label">Images</span>
                   </Link>
                 ) : photoSlots[4] ? (
                   <Link
@@ -350,11 +412,11 @@ export default function OverviewPage() {
               <div className="ov-readiness-header">
                 <div>
                   <h2 className="ov-readiness-title">
-                    The <em>Audit.</em>
+                    Submission <em>Readiness</em>
                   </h2>
                 </div>
-                <div className="ov-readiness-pct" aria-label={`${readinessPct}% complete`}>
-                  {readinessPct}
+                <div className="ov-readiness-pct" aria-label={`${displayReadinessPct}% complete`}>
+                  {displayReadinessPct}
                   <sup>%</sup>
                 </div>
               </div>
@@ -421,7 +483,7 @@ export default function OverviewPage() {
               <div className="ov-exposure-header">
                 <div>
                   <h2 className="ov-exposure-title">
-                    The <em>Market.</em>
+                    Your <em>Reach.</em>
                   </h2>
                 </div>
                 {!analyticsLoading && !summaryError && viewsDelta > 0 && (
@@ -462,7 +524,7 @@ export default function OverviewPage() {
                       <div className="ov-stat-number">
                         <span className="ov-stat-value">{views.toLocaleString()}</span>
                       </div>
-                      <p className="ov-stat-label">Global Views (30d)</p>
+                      <p className="ov-stat-label">Profile views (30d)</p>
                     </div>
                     <div>
                       <div className="ov-stat-number">
@@ -477,10 +539,13 @@ export default function OverviewPage() {
                   {!appsPending && !appsError && appsCount > 0 && (
                     <div className="ov-standing" aria-label="Application standing">
                       <span className="ov-standing-item">
-                        <strong>{standing.active}</strong> active
+                        <strong>{standing.inReview}</strong> in review
                       </span>
                       <span className="ov-standing-item">
-                        <strong>{standing.won}</strong> won
+                        <strong>{standing.advancing}</strong> advancing
+                      </span>
+                      <span className="ov-standing-item">
+                        <strong>{standing.signed}</strong> signed
                       </span>
                       <span className="ov-standing-item">
                         <strong>{standing.closed}</strong> closed
@@ -506,7 +571,37 @@ export default function OverviewPage() {
           <div className="ov-col-6">
             <div className="ov-artifacts">
               <div className="ov-artifact-card ov-artifact-card--light ov-artifact-card--feature">
-                {showCompCardExport ? (
+                {minorGated ? (
+                  <div className="ov-artifact-main ov-artifact-main--gated">
+                    <div className="ov-artifact-icon" aria-hidden>
+                      <FileText size={20} />
+                    </div>
+                    <h3 className="ov-artifact-title">
+                      Digital <em>Comp Card</em>
+                    </h3>
+                    <p className="ov-artifact-desc">
+                      Comp-card export unlocks after guardian consent is recorded on your profile.
+                    </p>
+                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
+                      Record guardian consent
+                    </PholioButton>
+                  </div>
+                ) : !isRequiredComplete ? (
+                  <div className="ov-artifact-main ov-artifact-main--gated">
+                    <div className="ov-artifact-icon" aria-hidden>
+                      <FileText size={20} />
+                    </div>
+                    <h3 className="ov-artifact-title">
+                      Digital <em>Comp Card</em>
+                    </h3>
+                    <p className="ov-artifact-desc">
+                      Complete your required profile fields to unlock comp card export.
+                    </p>
+                    <PholioButton to="/dashboard/talent/profile" variant="secondary">
+                      Complete your card
+                    </PholioButton>
+                  </div>
+                ) : (
                   <>
                     <Link
                       to="/dashboard/talent/media"
@@ -531,21 +626,6 @@ export default function OverviewPage() {
                       </Link>
                     </div>
                   </>
-                ) : (
-                  <div className="ov-artifact-main ov-artifact-main--gated">
-                    <div className="ov-artifact-icon" aria-hidden>
-                      <FileText size={20} />
-                    </div>
-                    <h3 className="ov-artifact-title">
-                      Digital <em>Comp Card</em>
-                    </h3>
-                    <p className="ov-artifact-desc">
-                      Comp-card export unlocks after guardian consent is recorded on your profile.
-                    </p>
-                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
-                      Record guardian consent
-                    </PholioButton>
-                  </div>
                 )}
               </div>
             </div>
