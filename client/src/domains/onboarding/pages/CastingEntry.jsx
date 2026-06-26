@@ -19,7 +19,10 @@ import { useTypeToFocus } from '../../../shared/hooks/useTypeToFocus';
 import { toast } from 'sonner';
 import { fadeVariants, containerVariants, childVariants } from './animations';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { MARKETING_SITE_URL } from '../../../shared/lib/logout';
+import {
+  LegalAcceptanceField,
+  legalAcceptancePayload,
+} from '../../../shared/components/LegalAcceptanceField';
 
 import { ThinkingText } from './ThinkingText';
 import { CinematicDivider } from './CinematicDivider';
@@ -34,6 +37,7 @@ function CastingEntry({ onComplete, onProgress }) {
   const [manualStep, setManualStep] = useState(0); // 0: choice, 1: name, 2: email, 3: password, 4: verify
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const entryMutation = useCastingEntry();
   
   const inputRef = React.useRef(null);
@@ -58,13 +62,19 @@ function CastingEntry({ onComplete, onProgress }) {
   }, []);
   
   const handleGoogleSignIn = async () => {
+    if (!legalAccepted) {
+      toast.error('Please accept the Terms and Privacy Policy to continue');
+      return;
+    }
     setIsAuthenticating(true);
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const token = await result.user.getIdToken();
-      // Google users are verified by default typically, but let's just proceed
-      const response = await entryMutation.mutateAsync({ firebase_token: token });
+      const response = await entryMutation.mutateAsync({
+        firebase_token: token,
+        ...legalAcceptancePayload(legalAccepted),
+      });
       toast.success(`Welcome, ${result.user.displayName}!`);
       onComplete({ hasOAuthData: response.has_oauth_data, method: 'google' });
     } catch (error) {
@@ -75,6 +85,10 @@ function CastingEntry({ onComplete, onProgress }) {
   };
 
   const handleInstagramSignIn = async () => {
+    if (!legalAccepted) {
+      toast.error('Please accept the Terms and Privacy Policy to continue');
+      return;
+    }
     if (!instagramEnabled) {
       toast.info('Instagram signup is not configured yet. Use Google or email.');
       return;
@@ -100,6 +114,10 @@ function CastingEntry({ onComplete, onProgress }) {
     if (manualStep < 3) {
       setManualStep(manualStep + 1);
     } else {
+      if (!legalAccepted) {
+        toast.error('Please accept the Terms and Privacy Policy to continue');
+        return;
+      }
       handleManualSignup();
     }
   };
@@ -147,7 +165,11 @@ function CastingEntry({ onComplete, onProgress }) {
           
         // Complete the entry on backend and proceed
         const token = await auth.currentUser.getIdToken();
-        const response = await entryMutation.mutateAsync({ firebase_token: token, name: formData.name });
+        const response = await entryMutation.mutateAsync({
+          firebase_token: token,
+          name: formData.name,
+          ...legalAcceptancePayload(legalAccepted),
+        });
         
         setIsVerifying(false);
         onComplete({ 
@@ -222,11 +244,18 @@ function CastingEntry({ onComplete, onProgress }) {
             <div className="cinematic-label" style={{ marginBottom: '2.5rem', letterSpacing: '0.2em' }}>CREATE YOUR ACCOUNT</div>
             
             <div className="space-y-3">
+              <LegalAcceptanceField
+                checked={legalAccepted}
+                onChange={setLegalAccepted}
+                disabled={isAuthenticating}
+                className="mb-5 px-1"
+              />
+
               {/* Option 1: Google */}
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                disabled={isAuthenticating}
+                disabled={isAuthenticating || !legalAccepted}
                 className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-lg font-medium shadow-[0_4px_12px_rgba(0,0,0,0.12)] hover:shadow-[0_8px_22px_rgba(201,165,90,0.18)] hover:-translate-y-px transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                 style={{ background: 'rgba(255, 255, 255, 0.96)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#1A1815' }}
               >
@@ -251,7 +280,7 @@ function CastingEntry({ onComplete, onProgress }) {
               <button
                 type="button"
                 onClick={handleInstagramSignIn}
-                disabled={isAuthenticating}
+                disabled={isAuthenticating || !legalAccepted}
                 className="w-full flex items-center justify-center gap-3 px-6 py-4 text-white rounded-lg font-medium shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:shadow-[0_8px_22px_rgba(220,39,67,0.26)] hover:-translate-y-px transition-all duration-200 disabled:opacity-50 disabled:hover:translate-y-0"
                 style={{ background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)' }}
               >
@@ -266,8 +295,14 @@ function CastingEntry({ onComplete, onProgress }) {
               {/* Option 3: Email */}
               <button
                 type="button"
-                onClick={() => setManualStep(1)}
-                disabled={isAuthenticating}
+                onClick={() => {
+                  if (!legalAccepted) {
+                    toast.error('Please accept the Terms and Privacy Policy to continue');
+                    return;
+                  }
+                  setManualStep(1);
+                }}
+                disabled={isAuthenticating || !legalAccepted}
                 className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-transparent border border-white/20 text-white/80 rounded-lg font-medium hover:border-[#C9A55A] hover:text-[#C9A55A] hover:bg-white/[0.04] hover:-translate-y-px transition-all duration-200 disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/60">
@@ -279,28 +314,6 @@ function CastingEntry({ onComplete, onProgress }) {
                 </span>
               </button>
             </div>
-
-            <p className="mt-8 text-xs text-white/35 font-sans tracking-wide">
-              By joining, you agree to our{' '}
-              <a
-                href={`${MARKETING_SITE_URL}/terms`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#8a7040] font-medium hover:text-[#C9A55A] transition-colors duration-200"
-              >
-                Terms
-              </a>{' '}
-              and{' '}
-              <a
-                href={`${MARKETING_SITE_URL}/privacy`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#8a7040] font-medium hover:text-[#C9A55A] transition-colors duration-200"
-              >
-                Privacy Policy
-              </a>
-              .
-            </p>
           </motion.div>
         </motion.div>
       )}

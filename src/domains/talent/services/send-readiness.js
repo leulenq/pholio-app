@@ -2,6 +2,9 @@
 
 const { calculateProfileStrength } = require("./profile-strength");
 const { auditSubmissionPackage } = require("./package-intelligence");
+const {
+  validateImagesForDistribution,
+} = require("../../../shared/lib/image-rights");
 
 function isPresent(value) {
   if (value === null || value === undefined || value === "") return false;
@@ -44,11 +47,12 @@ function hasRequiredContact(profile) {
   return Boolean(email && phone);
 }
 
-function evaluateSendReadiness(profile, images = []) {
+function evaluateSendReadiness(profile, images = [], rightsMap = new Map()) {
   const list = Array.isArray(images) ? images : [];
   const strength = calculateProfileStrength({ ...(profile || {}), images: list });
   const audit = auditSubmissionPackage({ images: list });
   const sendBlockers = [];
+  const rightsValidation = validateImagesForDistribution(list, rightsMap);
 
   if (!strength.isCoreReady) {
     sendBlockers.push({
@@ -90,6 +94,15 @@ function evaluateSendReadiness(profile, images = []) {
       code: "missing_contact",
       key: "contact",
       message: "Add email and phone in settings.",
+    });
+  }
+  if (!rightsValidation.ok) {
+    sendBlockers.push({
+      code: "missing_distribution_rights",
+      key: "distribution_rights",
+      message:
+        "Some package images are missing distribution rights. Add rights details before applying.",
+      errors: rightsValidation.errors,
     });
   }
 

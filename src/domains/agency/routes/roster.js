@@ -1,6 +1,7 @@
 const express = require("express");
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
+const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
 const { addMessage } = require("../../../shared/middleware/context");
 const {
   sendRejectedApplicantEmail,
@@ -12,6 +13,10 @@ const {
   getSessionAgencyId,
 } = require("../services/context");
 const { v4: uuidv4 } = require("uuid");
+const {
+  applyViewerVisibilityFilter,
+  ensureModerationColumnChecked,
+} = require("../../../shared/lib/content-moderation");
 
 const router = express.Router();
 
@@ -216,6 +221,9 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
+      // Warm the moderation-column cache so applyViewerVisibilityFilter is
+      // a safe no-op when the column doesn't exist yet (deploy-before-migrate).
+      await ensureModerationColumnChecked(knex);
       // Get images
       const images = await knex("images")
         .where({ profile_id: profileId })
@@ -228,6 +236,7 @@ router.get(
             false,
           );
         })
+        .modify((qb) => applyViewerVisibilityFilter(qb))
         .orderBy(["sort", "created_at"])
         .limit(5);
 
@@ -271,6 +280,20 @@ router.post(
             .json({ error: "Profile not found or not discoverable" });
         }
         addMessage(req, "error", "Profile not found or not discoverable");
+        return res.redirect("/dashboard/agency/discover");
+      }
+
+      if (
+        profile.user_id &&
+        (await isAgencyBlockedForTalent(knex, profile.user_id, agencyId))
+      ) {
+        if (req.headers.accept?.includes("application/json")) {
+          return res.status(403).json({
+            error: "Contact blocked",
+            message: "This talent has blocked contact from your agency.",
+          });
+        }
+        addMessage(req, "error", "This talent has blocked contact from your agency.");
         return res.redirect("/dashboard/agency/discover");
       }
 

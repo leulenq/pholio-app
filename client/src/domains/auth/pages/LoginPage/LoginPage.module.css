@@ -12,6 +12,10 @@
   margin-bottom: 30px;
 }
 
+.legalRow {
+  margin-bottom: 20px;
+}
+
 .title {
   font-family: var(--ag-font-serif, 'Playfair Display', Georgia, serif);
   font-style: italic;

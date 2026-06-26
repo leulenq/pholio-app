@@ -1,0 +1,258 @@
+/* Premium Pholio billing modal — pre-Stripe handoff */
+
+.ph-billing-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 5, 5, 0.72);
+}
+
+.ph-billing-modal {
+  width: min(100%, 520px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: #faf8f5;
+  box-shadow: 0 32px 80px rgba(5, 5, 5, 0.35);
+}
+
+.ph-billing-modal__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 28px 32px;
+  text-align: center;
+  background: #050505;
+  color: rgba(245, 240, 232, 0.9);
+}
+
+.ph-billing-modal__hero::after {
+  content: '';
+  width: 120px;
+  height: 1px;
+  margin-top: 24px;
+  background: linear-gradient(to right, transparent, rgba(200, 169, 110, 0.55), transparent);
+}
+
+.ph-billing-modal__title {
+  margin: 22px 0 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.35rem, 4vw, 1.65rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: rgba(245, 240, 232, 0.96);
+}
+
+.ph-billing-modal__lede {
+  margin: 10px 0 0;
+  max-width: 36ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 300;
+  line-height: 1.55;
+  color: rgba(245, 240, 232, 0.52);
+}
+
+.ph-billing-modal__body {
+  padding: 24px 28px 28px;
+}
+
+.ph-billing-modal__plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.ph-billing-plan {
+  display: flex;
+  min-height: 96px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid rgba(26, 24, 21, 0.1);
+  border-radius: 12px;
+  background: #fff;
+  color: #1a1815;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ph-billing-plan:hover {
+  border-color: rgba(201, 165, 90, 0.45);
+}
+
+.ph-billing-plan.is-selected {
+  border-color: #c9a55a;
+  background: rgba(201, 165, 90, 0.08);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.14);
+}
+
+.ph-billing-plan__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b6560;
+}
+
+.ph-billing-plan.is-selected .ph-billing-plan__label {
+  color: #a8894e;
+}
+
+.ph-billing-plan__price {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1;
+  color: #1a1815;
+}
+
+.ph-billing-plan__unit {
+  margin-left: 2px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6b6560;
+}
+
+.ph-billing-plan__note {
+  font-size: 0.75rem;
+  color: #9c958e;
+}
+
+.ph-billing-disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.ph-billing-disclosure__text {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: #6b6560;
+}
+
+.ph-billing-disclosure__text strong {
+  font-weight: 600;
+  color: #1a1815;
+}
+
+.ph-billing-disclosure__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #1a1815;
+  cursor: pointer;
+}
+
+.ph-billing-disclosure__check input {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #c9a55a;
+}
+
+.ph-billing-link {
+  color: #c9a55a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ph-billing-link:hover {
+  opacity: 0.85;
+}
+
+.ph-billing-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.ph-billing-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ph-billing-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ph-billing-btn--ghost {
+  padding: 12px 16px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #6b6560;
+}
+
+.ph-billing-btn--ghost:hover:not(:disabled) {
+  color: #1a1815;
+}
+
+.ph-billing-btn--primary {
+  padding: 12px 18px;
+  border: 1px solid #c9a55a;
+  background: #c9a55a;
+  color: #1a1815;
+}
+
+.ph-billing-btn--primary:hover:not(:disabled) {
+  background: #b8956a;
+  border-color: #b8956a;
+}
+
+.ph-billing-modal__secure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 18px 0 0;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9c958e;
+}
+
+@media (max-width: 520px) {
+  .ph-billing-modal-scrim {
+    padding: 16px;
+    align-items: flex-end;
+  }
+
+  .ph-billing-modal__hero {
+    padding: 28px 20px 24px;
+  }
+
+  .ph-billing-modal__body {
+    padding: 20px;
+  }
+
+  .ph-billing-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .ph-billing-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

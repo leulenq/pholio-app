@@ -59,6 +59,12 @@ export const profileSchema = z.object({
 
   guardian_consent_recorded: coercedBoolean.optional(),
   work_permit_on_file: coercedBoolean.optional(),
+  guardian_email: z
+    .string()
+    .email("Enter a valid guardian email")
+    .nullable()
+    .optional()
+    .or(z.literal("")),
 
   // --- Physical Attributes (All flattened for DB mapping) ---
   height_cm: optionalNumber,

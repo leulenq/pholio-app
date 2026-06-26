@@ -98,6 +98,25 @@ export function useCastingGender() {
 }
 
 /**
+ * Hook: Birthdate step (persist date of birth, advance state → scout)
+ */
+export function useCastingBirthdate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ date_of_birth }) => {
+      return castingRequest('/birthdate', {
+        method: 'POST',
+        body: JSON.stringify({ date_of_birth })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
+    }
+  });
+}
+
+/**
  * Hook: Scout step (photo upload)
  */
 export function useCastingScout() {

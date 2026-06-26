@@ -15,6 +15,7 @@ const {
 const { errorHandler } = require("./shared/middleware/error-handler");
 const cookieParser = require("cookie-parser");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
+const { requireActiveAccount } = require("./domains/auth/middleware/require-auth");
 
 // +++ 1. ADD THIS LINE +++
 const ejs = require("ejs");
@@ -37,6 +38,8 @@ const scoutRoutes = require("./routes/scout");
 const apiRoutes = require("./routes/api");
 const publicRoutes = require("./routes/api/public");
 const portfolioRoutes = require("./routes/portfolio");
+const moderationRoutes = require("./domains/moderation/routes/reports");
+const guardianConsentRoutes = require("./domains/talent/routes/guardian-consent");
 
 const app = express();
 
@@ -407,31 +410,76 @@ if (process.env.AUTH_PASSTHROUGH_ENABLED === "1") {
 
 app.use(attachLocals);
 
-// Rate limiters: skipped in serverless (Netlify Functions) because the in-memory store
-// is shared across all users hitting the same Lambda instance — causing everyone to get
-// blocked after just 10 combined requests. Netlify's edge handles DDoS/abuse at the CDN level.
-if (!config.isServerless) {
-  const authLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: rateLimitKeyGenerator,
-    validate: { ip: false },
-  });
+// Rate limiters: always enabled. Serverless uses higher per-instance limits because
+// the in-memory store is shared across users on the same Lambda instance.
+const rateLimitMax = {
+  auth: config.isServerless ? 15 : 10,
+  upload: config.isServerless ? 60 : 20,
+  message: config.isServerless ? 30 : 15,
+  report: config.isServerless ? 20 : 10,
+};
 
-  const uploadLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 20,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: rateLimitKeyGenerator,
-    validate: { ip: false },
-  });
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.auth,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
 
-  app.use(["/login", "/signup"], authLimiter);
-  app.use("/upload", uploadLimiter);
-}
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.upload,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
+const messageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.message,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
+const reportsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.report,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
+app.use(["/login", "/signup"], authLimiter);
+app.use("/upload", uploadLimiter);
+app.use("/api/talent/media", uploadLimiter);
+app.use((req, res, next) => {
+  if (req.method !== "POST") return next();
+  const path = (req.originalUrl || req.path || "").split("?")[0];
+  const isAgencyMessage = /^\/api\/agency\/applications\/[^/]+\/messages$/.test(
+    path,
+  );
+  const isTalentMessage = /^\/api\/talent\/applications\/[^/]+\/messages$/.test(
+    path,
+  );
+  if (isAgencyMessage || isTalentMessage) {
+    return messageLimiter(req, res, next);
+  }
+  return next();
+});
+app.use((req, res, next) => {
+  if (req.method !== "POST") return next();
+  const path = (req.originalUrl || req.path || "").split("?")[0];
+  if (path === "/api/reports") {
+    return reportsLimiter(req, res, next);
+  }
+  return next();
+});
 
 // Migration endpoint (protected by secret token)
 // Call this once after deployment to set up database tables
@@ -540,7 +588,11 @@ app.use("/", scoutRoutes);
 // API Routes
 app.use("/api", apiRoutes);
 app.use("/api/public", publicRoutes);
-app.use("/", agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
+app.use("/api", moderationRoutes);
+// Guardian consent (token-verified). Mounted before onboarding-gated routes so the
+// public guardian-facing surfaces (page + verify) are reachable without a session.
+app.use("/", guardianConsentRoutes);
+app.use("/", requireActiveAccount(), agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
 
 // Application/onboarding routes (casting API; see TODO on onboardingRoutes require above)
 app.use("/", onboardingRoutes);
@@ -556,7 +608,7 @@ app.use("/", portfolioRoutes);
 // Dashboard routes (protected by onboarding middleware).
 // requireProfileUnlocked is not applied here: it only redirects HTML and would block
 // /api/talent/* needed to complete essentials; comp card / PDF locking stays per-route in domain routers.
-app.use("/", requireOnboardingComplete, dashboardTalentRoutes);
+app.use("/", requireOnboardingComplete, requireActiveAccount(), dashboardTalentRoutes);
 // Agency dashboard routes handled by agencyDomainRoutes above
 
 // PDF generation routes (public viewing routes don't need unlock check)

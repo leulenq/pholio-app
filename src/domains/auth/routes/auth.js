@@ -9,6 +9,7 @@ const {
 } = require("../../../shared/lib/validation");
 const { addMessage } = require("../../../shared/middleware/context");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const { recordLegalAcceptance } = require("../../../shared/lib/legal-acceptance");
 const {
   verifyIdToken,
   createUser: createFirebaseUser,
@@ -103,6 +104,8 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
   // Support both JSON and form-encoded requests
   let idToken = null;
   let nextPath = null;
+  const termsAccepted = req.body?.terms_accepted === true;
+  const privacyAccepted = req.body?.privacy_accepted === true;
 
   // Check if request is JSON
   if (
@@ -421,6 +424,20 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               });
         }
 
+      if (role === "TALENT" && (!termsAccepted || !privacyAccepted)) {
+          const msg =
+            "You must accept the Terms of Service and Privacy Policy to create an account.";
+          return isJsonRequest
+            ? res.status(400).json({ success: false, error: msg })
+            : res.status(400).render("auth/login", {
+                title: "Sign in",
+                values: req.body,
+                errors: { email: [msg] },
+                layout: "layout",
+                currentPage: "login",
+              });
+        }
+
         // Safe fallbacks for all required DB fields so INSERT never fails
         const safeFirstName = firstName || "User";
         const safeLastName = lastName || null;
@@ -443,6 +460,11 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
 
           // Create a profile row for TALENT users so the dashboard loads immediately
           if (role === "TALENT") {
+            await recordLegalAcceptance(trx, userId, {
+              terms: true,
+              privacy: true,
+            });
+
             const slug = await ensureUniqueSlug(
               trx,
               "profiles",

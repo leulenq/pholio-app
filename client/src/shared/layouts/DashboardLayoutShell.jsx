@@ -13,6 +13,7 @@ import { checkGatingStatus, getProfileGateFeature, isRestrictedTalentRoute } fro
 import { talentApi } from '../../domains/talent/api/talent';
 import ProfileUnlockExperience from '../../domains/onboarding/components/ProfileUnlockExperience';
 import ProfileGateBanner from '../components/gating/ProfileGateBanner';
+import LegalAcceptanceGate from '../components/LegalAcceptanceGate';
 
 export default function DashboardLayoutShell() {
   const { profile, images, isLoading, error } = useAuth();
@@ -85,7 +86,7 @@ export default function DashboardLayoutShell() {
   }
 
   return (
-    <>
+    <LegalAcceptanceGate>
       {entrySplash}
       <TalentLayout outletContext={{ ...gating }}>
         {isRouteGated ? (
@@ -105,6 +106,6 @@ export default function DashboardLayoutShell() {
         profile={profile}
         onClose={dismissPrompt}
       />
-    </>
+    </LegalAcceptanceGate>
   );
 }

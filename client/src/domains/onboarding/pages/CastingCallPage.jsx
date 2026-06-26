@@ -11,12 +11,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { talentApi } from '../../talent/api/talent';
 import { useCastingComplete, useCastingStatus } from '../hooks/useCasting';
+import { SubscriptionCheckoutModal } from '../../../shared/components/SubscriptionCheckoutDisclosure';
+import CheckoutHandoff from '../../../shared/components/billing/CheckoutHandoff';
+import { useBrandedStripeCheckout } from '../../../shared/hooks/useBrandedStripeCheckout';
 
 // Step Components
 import CastingEntry from './CastingEntry';
 import CastingScout from './CastingScout';
 import CastingMeasurements from './CastingMeasurements';
 import CastingGender from './CastingGender';
+import CastingBirthdate from './CastingBirthdate';
 import CastingProfile from './CastingProfile';
 import OnboardingDevPanel from '../dev/OnboardingDevPanel';
 import { PREVIEW_SEED, PREVIEW_STEPS, parsePreviewParam } from '../dev/onboardingPreview';
@@ -30,6 +34,7 @@ const DEV_PREVIEW = import.meta.env.DEV;
 // the finishing preloader follows it).
 const RAIL_STEPS = [
   { view: 'gender', label: 'Identity' },
+  { view: 'birthdate', label: 'Birthdate' },
   { view: 'scout', label: 'Portrait' },
   { view: 'measurements', label: 'Measurements' },
   { view: 'profile', label: 'Details' },
@@ -80,6 +85,12 @@ function CastingCallPage() {
   // Step 1.5: Gender Complete (gender already persisted by CastingGender)
   const handleGenderComplete = (data) => {
     setProfileData(prev => ({ ...prev, gender: data.gender }));
+    setCurrentView('birthdate');
+  };
+
+  // Step 1.6: Birthdate Complete
+  const handleBirthdateComplete = (data) => {
+    setProfileData(prev => ({ ...prev, date_of_birth: data.date_of_birth, age: data.age }));
     setCurrentView('scout');
   };
 
@@ -98,6 +109,31 @@ function CastingCallPage() {
   // Step 4: Profile Complete → Done
   const completeMutation = useCastingComplete();
   const [isFinishing, setIsFinishing] = useState(false);
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
+  const { handoffOpen, redirectToCheckout } = useBrandedStripeCheckout(
+    (payload) => talentApi.createCheckoutSession(payload),
+  );
+
+  const finishToReveal = () => {
+    setTimeout(() => navigate('/reveal'), 2800);
+  };
+
+  const handleCheckoutConfirm = async (payload) => {
+    setCheckoutModalOpen(false);
+    setIsOpeningCheckout(true);
+    try {
+      const data = await redirectToCheckout(payload);
+      if (!data?.url) {
+        finishToReveal();
+      }
+    } catch (checkoutError) {
+      console.error('[CastingCallPage] Stripe checkout failed, falling back to reveal:', checkoutError);
+      finishToReveal();
+    } finally {
+      setIsOpeningCheckout(false);
+    }
+  };
 
   const handleProfileComplete = async (profile) => {
     setProfileData(prev => ({ ...prev, ...profile }));
@@ -115,19 +151,12 @@ function CastingCallPage() {
     // Paid plan → Stripe checkout, decoupled from the /complete result so a
     // failed safety-net call never strands a paying user.
     if (plan === 'studio') {
-      try {
-        const data = await talentApi.createCheckoutSession();
-        if (data?.url) {
-          window.location.href = data.url;
-          return;
-        }
-      } catch (checkoutError) {
-        console.error('[CastingCallPage] Stripe checkout failed, falling back to reveal:', checkoutError);
-      }
+      setCheckoutModalOpen(true);
+      return;
     }
 
     // Hold the preloader for a cinematic beat before navigating
-    setTimeout(() => navigate('/reveal'), 2800);
+    finishToReveal();
   };
 
   // Step 5: Complete - Redirect to dashboard
@@ -173,10 +202,12 @@ function CastingCallPage() {
     if (!status?.state) return;
 
     let { current_step } = status.state;
-    // Map legacy 'identity' state to the new flow's actual next step
+    // Map legacy states to the new flow's actual next step
     if (current_step === 'identity') {
-      current_step = 'scout';
+      current_step = 'birthdate';
     }
+    // Legacy gender→scout profiles that haven't submitted birthdate yet: redirect to birthdate
+    // (No mapping needed: they will land on 'gender' and the normal flow handles it)
 
     // Resume from where the user left off (skip 'done' — no auto-forward).
     if (currentView === 'entry' && current_step !== 'entry' && current_step !== 'done') {
@@ -241,7 +272,7 @@ function CastingCallPage() {
 
   // Cinematic preloader shown during the isFinishing → navigate('/reveal') transition
 
-  const steps = ['entry', 'gender', 'scout', 'measurements', 'profile', 'complete'];
+  const steps = ['entry', 'gender', 'birthdate', 'scout', 'measurements', 'profile', 'complete'];
   const currentStepIndex = steps.indexOf(currentView);
 
   // Calculate Progress
@@ -376,6 +407,13 @@ function CastingCallPage() {
                 />
               )}
 
+              {currentView === 'birthdate' && (
+                <CastingBirthdate
+                  key="birthdate"
+                  onComplete={handleBirthdateComplete}
+                />
+              )}
+
               {currentView === 'scout' && (
                 <CastingScout
                   key="scout"
@@ -438,6 +476,14 @@ function CastingCallPage() {
           }}
         />
       )}
+
+      <CheckoutHandoff open={handoffOpen} planLabel="Studio+" />
+      <SubscriptionCheckoutModal
+        open={checkoutModalOpen}
+        onClose={() => setCheckoutModalOpen(false)}
+        onConfirm={handleCheckoutConfirm}
+        isLoading={isOpeningCheckout}
+      />
     </div>
   );
 }

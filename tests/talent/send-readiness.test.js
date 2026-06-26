@@ -26,12 +26,14 @@ function freshDigitals() {
       shot_type: "headshot",
       image_type: "digital",
       captured_at: daysAgo(10),
+      rights_status: "cleared",
     },
     {
       id: "full",
       shot_type: "full_length",
       image_type: "digital",
       captured_at: daysAgo(10),
+      rights_status: "cleared",
     },
   ];
 }
@@ -57,12 +59,14 @@ describe("evaluateSendReadiness", () => {
         shot_type: "headshot",
         image_type: "digital",
         captured_at: daysAgo(100),
+        rights_status: "cleared",
       },
       {
         id: "full",
         shot_type: "full_length",
         image_type: "digital",
         captured_at: daysAgo(100),
+        rights_status: "cleared",
       },
     ]);
 
@@ -109,6 +113,29 @@ describe("evaluateSendReadiness", () => {
     expect(withoutChest.isSendReady).toBe(false);
     expect(
       withoutChest.sendBlockers.some((b) => b.code === "missing_measurements"),
+    ).toBe(true);
+  });
+
+  test("missing distribution rights blocks send readiness", () => {
+    const result = evaluateSendReadiness(BASE_PROFILE, [
+      {
+        id: "headshot",
+        shot_type: "headshot",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+        rights_status: "cleared",
+      },
+      {
+        id: "full",
+        shot_type: "full_length",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+    ]);
+
+    expect(result.isSendReady).toBe(false);
+    expect(
+      result.sendBlockers.some((b) => b.code === "missing_distribution_rights"),
     ).toBe(true);
   });
 });

@@ -13,14 +13,17 @@ describe('resolvePriceId', () => {
   });
 
   test('monthly interval resolves to the monthly price', () => {
-    config.stripe.priceIdAnnual = 'price_annual_x';
     config.stripe.priceIdMonthly = 'price_monthly_x';
     expect(resolvePriceId('monthly')).toBe('price_monthly_x');
   });
 
-  test('unknown/missing interval defaults to monthly', () => {
+  test('missing interval defaults to monthly', () => {
     config.stripe.priceIdMonthly = 'price_monthly_x';
     expect(resolvePriceId(undefined)).toBe('price_monthly_x');
+  });
+
+  test('unsupported intervals default to monthly', () => {
+    config.stripe.priceIdMonthly = 'price_monthly_x';
     expect(resolvePriceId('weekly')).toBe('price_monthly_x');
   });
 
@@ -31,6 +34,12 @@ describe('resolvePriceId', () => {
   });
 
   test('throws a clear error when the resolved price is missing', () => {
+    config.stripe.priceIdMonthly = undefined;
+    config.stripe.priceId = undefined;
+    expect(() => resolvePriceId('monthly')).toThrow(/monthly price/i);
+  });
+
+  test('throws a clear error when annual price is missing', () => {
     config.stripe.priceIdAnnual = undefined;
     expect(() => resolvePriceId('annual')).toThrow(/annual price/i);
   });

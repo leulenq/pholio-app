@@ -36,7 +36,12 @@ export function IdentitySection({
   onBioRefine,
   onBioGenerate,
   handleUndoAI,
-  watchDob
+  watchDob,
+  guardianStatus,
+  onSendGuardianLink,
+  guardianSending,
+  guardianLinkSent,
+  guardianSentTo,
 }) {
   return (
     <>
@@ -54,6 +59,11 @@ export function IdentitySection({
         onBioGenerate={onBioGenerate}
         handleUndoAI={handleUndoAI}
         watchDob={watchDob}
+        guardianStatus={guardianStatus}
+        onSendGuardianLink={onSendGuardianLink}
+        guardianSending={guardianSending}
+        guardianLinkSent={guardianLinkSent}
+        guardianSentTo={guardianSentTo}
       />
 
       <Section

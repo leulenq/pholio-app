@@ -3,6 +3,7 @@ import { Controller } from 'react-hook-form';
 import { Instagram, Twitter, Youtube, PlaySquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Section, SocialInput } from '../../components/profile-index';
+import { isMinorProfile } from '../../../shared/utils/talentAge';
 import styles from './ProfilePage.module.css';
 
 const TiktokIcon = ({ size = 24, className }) => (
@@ -153,7 +154,8 @@ const PlatformCard = ({ platformKey, control, setValue, errors }) => {
   );
 };
 
-export function SocialSection({ control, setValue, errors }) {
+export function SocialSection({ control, setValue, errors, dateOfBirth }) {
+  const hideOnlyFans = isMinorProfile({ date_of_birth: dateOfBirth });
   return (
     <Section
       id="socials"
@@ -166,7 +168,9 @@ export function SocialSection({ control, setValue, errors }) {
         <PlatformCard platformKey="tiktok" control={control} setValue={setValue} errors={errors} />
         <PlatformCard platformKey="twitter" control={control} setValue={setValue} errors={errors} />
         <PlatformCard platformKey="youtube" control={control} setValue={setValue} errors={errors} />
-        <PlatformCard platformKey="onlyfans" control={control} setValue={setValue} errors={errors} />
+        {!hideOnlyFans && (
+          <PlatformCard platformKey="onlyfans" control={control} setValue={setValue} errors={errors} />
+        )}
         <PlatformCard platformKey="reel" control={control} setValue={setValue} errors={errors} />
       </div>
     </Section>

@@ -4,6 +4,7 @@
  */
 
 const nodemailer = require("nodemailer");
+const config = require("../../config");
 const {
   buildNewMessageEmailHtml,
   buildApplicationStatusEmailHtml,
@@ -15,19 +16,35 @@ const {
   buildPasswordChangedEmailHtml,
   buildMagicSignInEmailHtml,
   buildTeamInviteEmailHtml,
-} = require("./email-templates");
+  buildGuardianConsentEmailHtml,
+} = require("./pholio-email");
 
-// Create transporter (development mode - logs to console)
-const transporter = {
-  sendMail: async (mailOptions) => {
-    console.log("[Email] Would send:", {
-      to: mailOptions.to,
-      subject: mailOptions.subject,
-      text: mailOptions.text?.substring(0, 200) + "...",
-    });
-    return { messageId: "dev-" + Date.now() };
-  },
-};
+// Create transporter: use SMTP if configured, otherwise fallback to development mock logger
+let transporter;
+if (config.smtp?.host) {
+  transporter = nodemailer.createTransport({
+    host: config.smtp.host,
+    port: config.smtp.port,
+    secure: config.smtp.port === 465,
+    auth: {
+      user: config.smtp.user,
+      pass: config.smtp.pass,
+    },
+  });
+  console.log("[Email] Initialized REAL SMTP transporter with host:", config.smtp.host);
+} else {
+  transporter = {
+    sendMail: async (mailOptions) => {
+      console.log("[Email] Would send (SMTP not configured):", {
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        text: mailOptions.text?.substring(0, 200) + "...",
+      });
+      return { messageId: "dev-" + Date.now() };
+    },
+  };
+  console.log("[Email] Initialized MOCK development transporter");
+}
 
 /**
  * Send email
@@ -35,7 +52,7 @@ const transporter = {
 async function sendEmail({ to, subject, html, text }) {
   try {
     const mailOptions = {
-      from: "Pholio <noreply@pholio.studio>",
+      from: config.smtp?.from || "Pholio <noreply@pholio.studio>",
       to,
       subject,
       html,
@@ -204,6 +221,29 @@ async function sendTeamInviteEmail({
   return sendEmail({ to, subject, html });
 }
 
+async function sendGuardianConsentEmail({
+  to,
+  guardianName,
+  talentName,
+  talentPhotoUrl,
+  talentCity,
+  consentUrl,
+  expiresDays = 7,
+}) {
+  const subject = talentName
+    ? `Consent requested for ${talentName} on Pholio`
+    : "Guardian consent requested on Pholio";
+  const html = buildGuardianConsentEmailHtml({
+    guardianName,
+    talentName,
+    talentPhotoUrl,
+    talentCity,
+    consentUrl,
+    expiresDays,
+  });
+  return sendEmail({ to, subject, html });
+}
+
 module.exports = {
   sendEmail,
   sendApplicationStatusEmail,
@@ -216,4 +256,5 @@ module.exports = {
   sendPasswordChangedEmail,
   sendMagicSignInEmail,
   sendTeamInviteEmail,
+  sendGuardianConsentEmail,
 };

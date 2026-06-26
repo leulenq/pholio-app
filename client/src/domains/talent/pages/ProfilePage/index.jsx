@@ -38,6 +38,7 @@ import { flushProfileFormForSave } from './flushProfileFormForSave';
 import {
   isMinorProfile,
   minorSensitiveFieldsUnlocked,
+  SENSITIVE_MEASUREMENT_FIELDS,
 } from '../../../../shared/utils/talentAge';
 import {
   BOOKING_LANES,
@@ -159,29 +160,29 @@ function normalizeProfileForForm(profile = {}) {
     last_name: profile.last_name || '',
     email: profile.email || '',
 
-    city: profile.city ? String(profile.city) : null,
-    city_secondary: profile.city_secondary ? String(profile.city_secondary) : null,
-    gender: profile.gender ? String(profile.gender) : null,
-    pronouns: profile.pronouns ? String(profile.pronouns) : null,
-    date_of_birth: toDateInputValue(profile.date_of_birth),
+    city: profile.city ? String(profile.city) : '',
+    city_secondary: profile.city_secondary ? String(profile.city_secondary) : '',
+    gender: profile.gender ? String(profile.gender) : '',
+    pronouns: profile.pronouns ? String(profile.pronouns) : '',
+    date_of_birth: toDateInputValue(profile.date_of_birth) || '',
     ethnicity: toArrayField(profile.ethnicity),
-    nationality: profile.nationality ? String(profile.nationality) : null,
-    place_of_birth: profile.place_of_birth ? String(profile.place_of_birth) : null,
-    timezone: profile.timezone ? String(profile.timezone) : null,
+    nationality: profile.nationality ? String(profile.nationality) : '',
+    place_of_birth: profile.place_of_birth ? String(profile.place_of_birth) : '',
+    timezone: profile.timezone ? String(profile.timezone) : '',
 
     // Details
-    dress_size: profile.dress_size ? String(profile.dress_size) : null,
-    hair_length: profile.hair_length ? String(profile.hair_length) : null,
-    hair_color: profile.hair_color ? String(profile.hair_color) : null,
-    hair_type: profile.hair_type ? String(profile.hair_type) : null,
-    eye_color: profile.eye_color ? String(profile.eye_color) : null,
-    skin_tone: profile.skin_tone ? String(profile.skin_tone) : null,
-    body_type: profile.body_type ? String(profile.body_type) : null,
+    dress_size: profile.dress_size ? String(profile.dress_size) : '',
+    hair_length: profile.hair_length ? String(profile.hair_length) : '',
+    hair_color: profile.hair_color ? String(profile.hair_color) : '',
+    hair_type: profile.hair_type ? String(profile.hair_type) : '',
+    eye_color: profile.eye_color ? String(profile.eye_color) : '',
+    skin_tone: profile.skin_tone ? String(profile.skin_tone) : '',
+    body_type: profile.body_type ? String(profile.body_type) : '',
 
     // Professional
-    work_status: profile.work_status ? String(profile.work_status) : null,
-    availability_schedule: profile.availability_schedule ? String(profile.availability_schedule) : null,
-    current_agency: profile.current_agency ? String(profile.current_agency) : null,
+    work_status: profile.work_status ? String(profile.work_status) : '',
+    availability_schedule: profile.availability_schedule ? String(profile.availability_schedule) : '',
+    current_agency: profile.current_agency ? String(profile.current_agency) : '',
     union_membership: toArrayField(profile.union_membership),
     comfort_levels: toArrayField(profile.comfort_levels),
     ...bookingLaneFields,
@@ -190,11 +191,11 @@ function normalizeProfileForForm(profile = {}) {
       ? (typeof profile.experience_details === 'string'
           ? parseJsonMaybeArray(profile.experience_details)
           : profile.experience_details)
-      : null,
-    previous_representations: toPreviousRepresentationsText(profile.previous_representations),
-    emergency_contact_name: profile.emergency_contact_name ? String(profile.emergency_contact_name) : null,
-    emergency_contact_phone: profile.emergency_contact_phone ? String(profile.emergency_contact_phone) : null,
-    emergency_contact_relationship: profile.emergency_contact_relationship ? String(profile.emergency_contact_relationship) : null,
+      : '',
+    previous_representations: toPreviousRepresentationsText(profile.previous_representations) || '',
+    emergency_contact_name: profile.emergency_contact_name ? String(profile.emergency_contact_name) : '',
+    emergency_contact_phone: profile.emergency_contact_phone ? String(profile.emergency_contact_phone) : '',
+    emergency_contact_relationship: profile.emergency_contact_relationship ? String(profile.emergency_contact_relationship) : '',
 
     representation_status: deriveRepresentationStatus(profile),
 
@@ -207,19 +208,23 @@ function normalizeProfileForForm(profile = {}) {
     availability_travel: toFormBoolean(profile.availability_travel, false),
     drivers_license: toFormBoolean(profile.drivers_license, false),
     // Ensure measurements are numbers for the inputs (backend sends numbers now)
-    bust: profile.bust_cm ? Number(profile.bust_cm) : null,
-    waist: profile.waist_cm ? Number(profile.waist_cm) : null,
-    hips: profile.hips_cm ? Number(profile.hips_cm) : null,
+    bust: profile.bust_cm ? Number(profile.bust_cm) : '',
+    waist: profile.waist_cm ? Number(profile.waist_cm) : '',
+    hips: profile.hips_cm ? Number(profile.hips_cm) : '',
 
     // Map backend fields to frontend names
     training_summary: profile.training || '', // Map 'training' col to 'training_summary'
-    experience_level: profile.experience_level ? String(profile.experience_level) : null,
+    experience_level: profile.experience_level ? String(profile.experience_level) : '',
 
     // Keep tag/array fields for multi-select rendering
     languages: toArrayField(profile.languages),
     specialties: toArrayField(profile.specialties),
 
     guardian_consent_recorded: Boolean(profile.guardian_consent_at),
+    guardian_email: profile.guardian_email ? String(profile.guardian_email) : '',
+    guardian_consent_status:
+      profile.guardian_consent_status ||
+      (profile.guardian_consent_at ? 'verified' : 'none'),
     work_permit_on_file: toFormBoolean(profile.work_permit_on_file, false),
   };
 }
@@ -431,6 +436,9 @@ export default function ProfilePage() {
   const [trainingImproveMode, setTrainingImproveMode] = useState(null);
   const [previousTraining, setPreviousTraining] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [guardianSending, setGuardianSending] = useState(false);
+  const [guardianLinkSent, setGuardianLinkSent] = useState(false);
+  const [guardianSentTo, setGuardianSentTo] = useState('');
   const [readinessAuditOpen, setReadinessAuditOpen] = useState(false);
   const [gateItemsExpanded, setGateItemsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -548,6 +556,74 @@ export default function ProfilePage() {
       if (!currentBio?.trim()) setPreviousBio(null);
     } finally {
       setBioImproveMode(null);
+    }
+  };
+
+  const handleSendGuardianLink = async () => {
+    // Firefox auto-fill can bypass React onChange. Fallback to reading the DOM input directly.
+    const rhfEmail = getValues('guardian_email') || '';
+    const domEmail = document.querySelector('input[name="guardian_email"]')?.value || '';
+    const email = (rhfEmail || domEmail).trim();
+    const dateOfBirth = getValues('date_of_birth') || '';
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('guardian_email', {
+        type: 'manual',
+        message: 'Enter a valid guardian email first',
+      });
+      pholioToast.error('Enter a valid guardian email first');
+      return;
+    }
+
+    if (!dateOfBirth) {
+      setError('date_of_birth', {
+        type: 'manual',
+        message: 'Add your date of birth before requesting guardian consent',
+      });
+      pholioToast.error('Add your date of birth first');
+      return;
+    }
+
+    if (!isMinorProfile({ date_of_birth: dateOfBirth })) {
+      pholioToast.error('Guardian consent is only required for talent under 18');
+      return;
+    }
+
+    setGuardianSending(true);
+    setGuardianLinkSent(false);
+    setGuardianSentTo('');
+
+    try {
+      const result = await talentApi.requestGuardianConsent(email, { dateOfBirth });
+      setValue('guardian_consent_status', 'pending', { shouldDirty: false });
+      setValue('guardian_email', email, { shouldDirty: false });
+      const sentTo = result?.guardian_email || email;
+      setGuardianSentTo(sentTo);
+      setGuardianLinkSent(true);
+      pholioToast.success(`Verification link sent to ${sentTo}`);
+    } catch (error) {
+      console.error('Guardian consent request failed:', error);
+      const code =
+        error?.data?.details?.code ||
+        error?.data?.error?.code ||
+        error?.data?.code;
+      if (code === 'DOB_REQUIRED') {
+        setError('date_of_birth', {
+          type: 'manual',
+          message: 'Add your date of birth before requesting guardian consent',
+        });
+      } else if (code === 'NOT_A_MINOR') {
+        pholioToast.error('Guardian consent is only required for talent under 18');
+        return;
+      } else if (code === 'EMAIL_DELIVERY_FAILED') {
+        pholioToast.error(
+          error.message || 'We could not deliver the verification email. Check the address and try again.',
+        );
+        return;
+      }
+      pholioToast.error(error.message || 'Could not send the verification link');
+    } finally {
+      setGuardianSending(false);
     }
   };
 
@@ -929,6 +1005,12 @@ export default function ProfilePage() {
         }
       }
 
+      if (measurementsLocked) {
+        for (const field of SENSITIVE_MEASUREMENT_FIELDS) {
+          delete payload[field];
+        }
+      }
+
       const res = await talentApi.updateProfile(payload);
       if (saveRequestRef.current !== requestId) return;
 
@@ -1219,6 +1301,11 @@ export default function ProfilePage() {
               onBioGenerate={handleBioGenerate}
               handleUndoAI={handleUndoAI}
               watchDob={watch('date_of_birth')}
+              guardianStatus={watch('guardian_consent_status')}
+              onSendGuardianLink={handleSendGuardianLink}
+              guardianSending={guardianSending}
+              guardianLinkSent={guardianLinkSent}
+              guardianSentTo={guardianSentTo}
             />
               </div>
             </article>
@@ -1613,7 +1700,12 @@ export default function ProfilePage() {
           watch={watch}
         />
 
-        <SocialSection control={control} setValue={setValue} errors={errors} />
+        <SocialSection
+          control={control}
+          setValue={setValue}
+          errors={errors}
+          dateOfBirth={watch('date_of_birth')}
+        />
 
         <Section
           id="contact"

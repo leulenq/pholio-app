@@ -13,6 +13,10 @@ const {
 const {
   minorPublicExposureAllowed,
 } = require("../../shared/lib/talent-age");
+const {
+  applyViewerVisibilityFilter,
+  ensureModerationColumnChecked,
+} = require("../../shared/lib/content-moderation");
 
 function dashboardPathForRole(role) {
   if (role === "TALENT") return "/dashboard/talent";
@@ -40,6 +44,11 @@ router.get("/languages", async (req, res) => {
 // GET /api/public/home
 router.get("/home", async (req, res) => {
   try {
+    // Warm the moderation-column cache once per request so that all
+    // applyViewerVisibilityFilter calls below are safe no-ops when the
+    // column doesn't exist yet (deploy-before-migrate window).
+    await ensureModerationColumnChecked(knex);
+
     // Load Elara Keats data for homepage demo (main featured talent)
     // Use fallback data if database query fails
     let elaraProfile = null;
@@ -75,6 +84,7 @@ router.get("/home", async (req, res) => {
               false,
             );
           })
+          .modify((qb) => applyViewerVisibilityFilter(qb))
           .orderBy("sort", "asc");
       }
     } catch (dbError) {
@@ -122,7 +132,10 @@ router.get("/home", async (req, res) => {
                   "images.exclude_from_public",
                   false,
                 );
-              });
+              })
+              .modify((qb) =>
+                applyViewerVisibilityFilter(qb, "images.moderation_status"),
+              );
           });
       }
 
@@ -167,6 +180,7 @@ router.get("/home", async (req, res) => {
                   false,
                 );
               })
+              .modify((qb) => applyViewerVisibilityFilter(qb))
               .first();
             return {
               ...talent,

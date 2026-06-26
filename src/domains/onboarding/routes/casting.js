@@ -35,9 +35,14 @@ const {
   getNextSteps,
   initialState,
 } = require("../services/state-machine");
+const {
+  parseDateOfBirthParts,
+  computeAge,
+} = require("../../../shared/lib/talent-age");
 const { verifyGoogleToken } = require("../services/providers/google");
 const { normalizeOAuthUser } = require("../services/providers/oauth-user");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const { recordLegalAcceptance } = require("../../../shared/lib/legal-acceptance");
 const OnboardingAnalytics = require("../analytics/onboarding-events");
 const {
   updateProfileCompleteness,
@@ -61,7 +66,17 @@ function invalidOnboardingSequence(res, state, message) {
  */
 router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
   try {
-    const { firebase_token, manual_signup, name, email, password } = req.body;
+    const {
+      firebase_token,
+      manual_signup,
+      name,
+      email,
+      password,
+      terms_accepted,
+      privacy_accepted,
+    } = req.body;
+    const termsAccepted = terms_accepted === true;
+    const privacyAccepted = privacy_accepted === true;
 
     let user,
       profile,
@@ -109,13 +124,26 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
 
       // Create user if doesn't exist
       if (!user) {
+        if (!termsAccepted) {
+          return res.status(400).json({
+            error: "Terms acceptance required",
+            message: "You must accept the Terms of Service to create an account",
+          });
+        }
+
         const userId = uuidv4();
-        await knex("users").insert({
-          id: userId,
-          email: normalizedEmail,
-          firebase_uid: providerUser.uid,
-          role: "TALENT",
-          created_at: knex.fn.now(),
+        await knex.transaction(async (trx) => {
+          await trx("users").insert({
+            id: userId,
+            email: normalizedEmail,
+            firebase_uid: providerUser.uid,
+            role: "TALENT",
+            created_at: knex.fn.now(),
+          });
+          await recordLegalAcceptance(trx, userId, {
+            terms: true,
+            privacy: privacyAccepted,
+          });
         });
 
         user = await knex("users").where({ id: userId }).first();
@@ -218,17 +246,30 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         });
       }
 
+      if (!termsAccepted) {
+        return res.status(400).json({
+          error: "Terms acceptance required",
+          message: "You must accept the Terms of Service to create an account",
+        });
+      }
+
       // Create user
       const userId = uuidv4();
       const bcrypt = require("bcrypt");
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      await knex("users").insert({
-        id: userId,
-        email,
-        password_hash: hashedPassword,
-        role: "TALENT",
-        created_at: knex.fn.now(),
+      await knex.transaction(async (trx) => {
+        await trx("users").insert({
+          id: userId,
+          email,
+          password_hash: hashedPassword,
+          role: "TALENT",
+          created_at: knex.fn.now(),
+        });
+        await recordLegalAcceptance(trx, userId, {
+          terms: true,
+          privacy: privacyAccepted,
+        });
       });
 
       user = await knex("users").where({ id: userId }).first();
@@ -509,7 +550,7 @@ router.post(
       if (state.current_step === "gender") {
         const transition = transitionTo(
           state,
-          "scout",
+          "birthdate",
           { gender: normalizedGender },
           knex,
         );
@@ -529,11 +570,114 @@ router.post(
 
       return res.json({
         success: true,
-        next_step: "scout",
+        next_step: "birthdate",
         message: "Gender saved",
       });
     } catch (error) {
       console.error("[Casting Gender] Error:", error);
+      return next(error);
+    }
+  },
+);
+
+/**
+ * POST /onboarding/birthdate
+ * Persist the talent's date of birth and advance the state machine to "scout".
+ *
+ * Validates: YYYY-MM-DD format, not in the future, minimum age 13 (COPPA floor).
+ * Idempotent: date_of_birth is always saved; the step only advances when the
+ * profile is actually on the birthdate step, so re-submits stay safe.
+ */
+router.post(
+  ["/onboarding/birthdate", "/casting/birthdate"],
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { date_of_birth } = req.body;
+
+      if (!date_of_birth || !String(date_of_birth).trim()) {
+        return res.status(400).json({
+          error: "DOB_REQUIRED",
+          message: "Date of birth is required.",
+        });
+      }
+
+      const dobStr = String(date_of_birth).trim();
+
+      const parts = parseDateOfBirthParts(dobStr);
+      if (!parts) {
+        return res.status(400).json({
+          error: "DOB_INVALID",
+          message: "Please provide a valid date in YYYY-MM-DD format.",
+        });
+      }
+
+      // Must not be in the future
+      const dobDate = new Date(`${dobStr}T00:00:00.000Z`);
+      if (dobDate > new Date()) {
+        return res.status(400).json({
+          error: "DOB_FUTURE",
+          message: "Date of birth cannot be in the future.",
+        });
+      }
+
+      // COPPA minimum age: 13
+      const age = computeAge(dobStr);
+      if (age === null || age < 13) {
+        return res.status(400).json({
+          error: "DOB_TOO_YOUNG",
+          message: "You must be at least 13 years old to create an account.",
+        });
+      }
+
+      const profile = await knex("profiles")
+        .where({ user_id: req.session.userId })
+        .first();
+
+      if (!profile) {
+        return res.status(404).json({
+          error: "Profile not found",
+          message: "Please complete entry step first",
+        });
+      }
+
+      const state = getState(profile);
+
+      // Only advance the state machine when on the birthdate step.
+      // Otherwise just persist the value idempotently.
+      let updatePayload = {
+        date_of_birth: dobStr,
+        updated_at: knex.fn.now(),
+      };
+
+      if (state.current_step === "birthdate") {
+        const transition = transitionTo(
+          state,
+          "scout",
+          { date_of_birth: dobStr, age },
+          knex,
+        );
+
+        if (!transition) {
+          return invalidOnboardingSequence(
+            res,
+            state,
+            "Submit your date of birth when the birthdate step is active.",
+          );
+        }
+
+        updatePayload = { ...transition, date_of_birth: dobStr };
+      }
+
+      await knex("profiles").where({ id: profile.id }).update(updatePayload);
+
+      return res.json({
+        success: true,
+        next_step: "scout",
+        message: "Date of birth saved",
+      });
+    } catch (error) {
+      console.error("[Casting Birthdate] Error:", error);
       return next(error);
     }
   },
@@ -559,6 +703,13 @@ router.post(
         return res.status(404).json({
           error: "Profile not found",
           message: "Please complete entry step first",
+        });
+      }
+
+      if (!profile.date_of_birth) {
+        return res.status(403).json({
+          error: "DOB_REQUIRED",
+          message: "Please enter your date of birth before uploading photos.",
         });
       }
 
@@ -1001,12 +1152,13 @@ router.post(
       });
       console.log("[Casting Profile] Profile ID:", profile.id);
 
-      // Relaxed Validation: Allow any gender string (e.g. custom input)
-      // if (gender && !validGenders.includes(gender.toLowerCase())) { ... }
-
-      // Relaxed Validation: Allow any string to match Dashboard behavior
-      // This allows "Emerging", "Established" etc without failing
-      // if (experience_level && !validLevels.includes(experience_level)) { ... }
+      // Gate: DOB must be on file before we allow onboarding completion.
+      if (!profile.date_of_birth || !parseDateOfBirthParts(profile.date_of_birth)) {
+        return res.status(400).json({
+          error: "DOB_REQUIRED",
+          message: "Date of birth is required to complete your profile. Please go back and enter your birthdate.",
+        });
+      }
 
       const state = getState(profile);
       const updatePayload = transitionTo(

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title || 'Guardian Consent · Pholio' %></title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #FAF7F2; color: #1A1A1A; font-family: Georgia, "Times New Roman", serif; }
+    .wrap { text-align: center; padding: 48px 24px; max-width: 520px; }
+    .mark { color: #C9A55A; letter-spacing: 0.2em; font-size: 14px; margin-bottom: 24px; }
+    h1 { font-weight: 400; font-size: 28px; margin: 0 0 16px; }
+    p { font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.6; color: rgba(26,26,26,0.62); }
+    .icon { font-size: 40px; line-height: 1; margin-bottom: 16px; }
+    a { color: #C9A55A; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="mark">PHOLIO</div>
+    <% if (ok) { %>
+      <div class="icon" aria-hidden="true">&#10003;</div>
+      <h1>Consent confirmed</h1>
+      <p>
+        Thank you. Your consent has been recorded. The talent can now share their
+        measurements, full-length photos, and portfolio with agencies on Pholio.
+      </p>
+      <p>You can safely close this window.</p>
+    <% } else { %>
+      <div class="icon" aria-hidden="true">&#9888;</div>
+      <h1>This link is no longer valid</h1>
+      <% if (reason === 'expired') { %>
+        <p>This consent link has expired. Please ask the talent to send a new verification link.</p>
+      <% } else if (reason === 'revoked') { %>
+        <p>This link was replaced by a newer request. Please use the most recent email, or ask the talent to resend.</p>
+      <% } else { %>
+        <p>We couldn't verify this consent link. Please ask the talent to send a new verification link.</p>
+      <% } %>
+    <% } %>
+  </div>
+</body>
+</html>

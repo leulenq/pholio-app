@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
-const { requireRole } = require("../../auth/middleware/require-auth");
+const { requireRole, requireActiveAccount } = require("../../auth/middleware/require-auth");
+const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
 const asyncHandler = require("express-async-handler");
 const crypto = require("crypto");
 const {
@@ -15,6 +16,7 @@ const {
 const {
   validateSubmissionPackage,
 } = require("../services/validate-submission-package");
+const { loadImageRightsMap } = require("../../../shared/lib/image-rights");
 const logActivity = require("../../agency/routes/agency-log-activity");
 const { v4: uuidv4 } = require("uuid");
 
@@ -229,6 +231,14 @@ router.post(
       });
     }
 
+    if (await isAgencyBlockedForTalent(knex, req.session.userId, agencyId)) {
+      return res.status(403).json({
+        success: false,
+        error: "Agency blocked",
+        message: "You have blocked this agency.",
+      });
+    }
+
     // 1. Check if already applied. A previously withdrawn application can be
     //    resubmitted (we revive that row below to preserve its history).
     const existingparams = { profile_id: profile.id, agency_id: agencyId };
@@ -251,7 +261,13 @@ router.post(
       const idSet = new Set(submittedImageIds);
       packageImages = profileImages.filter((img) => idSet.has(img.id));
     }
-    const packageValidation = validateSubmissionPackage(profile, packageImages);
+    const rightsMap = await loadImageRightsMap(
+      knex,
+      packageImages.map((img) => img.id),
+    );
+    const packageValidation = validateSubmissionPackage(profile, packageImages, {
+      rightsMap,
+    });
     if (!packageValidation.ok) {
       return res.status(400).json({
         success: false,
@@ -576,6 +592,7 @@ router.get(
 router.post(
   "/:id/messages",
   requireRole("TALENT"),
+  requireActiveAccount(),
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const trimmed = typeof req.body?.message === "string" ? req.body.message.trim() : "";
@@ -672,6 +689,14 @@ router.post(
         success: false,
         error: "Profile not found",
         message: "Profile not found",
+      });
+    }
+
+    if (await isAgencyBlockedForTalent(knex, req.session.userId, agencyId)) {
+      return res.status(403).json({
+        success: false,
+        error: "Agency blocked",
+        message: "You have blocked this agency.",
       });
     }
 

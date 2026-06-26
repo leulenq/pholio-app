@@ -31,6 +31,27 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archived' },
 ];
 
+const RIGHTS_STATUS_OPTIONS = [
+  { value: '', label: 'Unset' },
+  { value: 'pending', label: 'Pending review' },
+  { value: 'cleared', label: 'Cleared for distribution' },
+  { value: 'licensed', label: 'Licensed' },
+  { value: 'owned', label: 'Owned' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'restricted', label: 'Restricted' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'denied', label: 'Denied' },
+];
+
+const LICENSE_TYPE_OPTIONS = [
+  { value: '', label: 'Unset' },
+  { value: 'owned', label: 'Owned by talent' },
+  { value: 'licensed', label: 'Licensed use' },
+  { value: 'model_release', label: 'Model release on file' },
+  { value: 'agency_permission', label: 'Agency permission' },
+  { value: 'editorial_release', label: 'Editorial release' },
+];
+
 function isoToDateInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -56,6 +77,11 @@ function getImageUrl(value) {
   return value.startsWith('/') ? value : `/uploads/${value}`;
 }
 
+function toText(value) {
+  if (value == null) return '';
+  return String(value);
+}
+
 export default function FrameEditor({ image, initialMode = 'details', mediaSets = [], onClose, onUpdate, onReplace, onRestore }) {
   const [mode, setMode] = useState(initialMode);
 
@@ -70,6 +96,15 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
 
   // Details state
   const [saving, setSaving] = useState(false);
+  const [rights, setRights] = useState({
+    license_type: '',
+    rights_status: '',
+    copyright_owner: '',
+    photographer_name: '',
+  });
+  const [rightsLoaded, setRightsLoaded] = useState(false);
+  const [rightsLoading, setRightsLoading] = useState(true);
+  const [rightsError, setRightsError] = useState('');
   const initialMeta = readMetadata(image.metadata);
   const initialCredits = initialMeta.credits || {};
   const classDefaults = classificationFormDefaults(image);
@@ -97,6 +132,37 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
   });
 
   const imageSrc = getImageUrl(image.public_url || image.path);
+
+  React.useEffect(() => {
+    let active = true;
+    setRightsLoading(true);
+    setRightsLoaded(false);
+    setRightsError('');
+    talentApi.getImageRights(image.id)
+      .then((res) => {
+        if (!active) return;
+        const row = res?.rights || {};
+        setRights({
+          license_type: toText(row.license_type),
+          rights_status: toText(row.rights_status),
+          copyright_owner: toText(row.copyright_owner),
+          photographer_name: toText(row.photographer_name),
+        });
+        setRightsLoaded(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRightsError('Rights metadata is unavailable right now.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setRightsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [image.id]);
 
   const onCropComplete = useCallback((_, pixels) => { setCroppedAreaPixels(pixels); }, []);
 
@@ -129,6 +195,17 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const normalizedRightsStatus = rights.rights_status.trim().toLowerCase();
+      const hasLicenseType = rights.license_type.trim().length > 0;
+      const hasCredit = rights.copyright_owner.trim().length > 0
+        || rights.photographer_name.trim().length > 0;
+      if (normalizedRightsStatus === 'cleared' && (!hasLicenseType || !hasCredit)) {
+        toast.error(
+          "Set a license type and either copyright owner or photographer before marking rights as cleared.",
+        );
+        return;
+      }
+
       const payload = {
         image_type: form.image_type || null,
         shot_type: form.shot_type || null,
@@ -162,6 +239,14 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
       };
       const res = await talentApi.updateMedia(image.id, payload);
       if (res.success) {
+        if (rightsLoaded) {
+          await talentApi.updateImageRights(image.id, {
+            license_type: rights.license_type || null,
+            rights_status: rights.rights_status || null,
+            copyright_owner: rights.copyright_owner || null,
+            photographer_name: rights.photographer_name || null,
+          });
+        }
         const next = res.image;
         onUpdate(image.id, next ? {
           metadata: next.metadata,
@@ -376,6 +461,79 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                         <input type="checkbox" checked={form.exclude_from_agency}
                           onChange={(e) => setForm((p) => ({ ...p, exclude_from_agency: e.target.checked }))} />
                         <span>Exclude from agency</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Rights */}
+                  <div className="fe-section">
+                    <div className="fe-section__head">
+                      <Shield size={14} aria-hidden="true" />
+                      <h3>Rights</h3>
+                    </div>
+                    {rightsError ? (
+                      <p className="fe-rights-error">{rightsError}</p>
+                    ) : (
+                      <p className="fe-rights-note">
+                        Required for comp card export and agency distribution.
+                      </p>
+                    )}
+                    <div className="fe-grid">
+                      <label>
+                        <span className="fe-label">License type</span>
+                        <select
+                          className="fe-input"
+                          value={rights.license_type}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, license_type: e.target.value }))}
+                        >
+                          {LICENSE_TYPE_OPTIONS.map((option) => (
+                            <option key={`license-${option.value || 'empty'}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="fe-label">Rights status</span>
+                        <select
+                          className="fe-input"
+                          value={rights.rights_status}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, rights_status: e.target.value }))}
+                        >
+                          {RIGHTS_STATUS_OPTIONS.map((option) => (
+                            <option key={`status-${option.value || 'empty'}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="fe-label">Copyright owner</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="Name or entity"
+                          value={rights.copyright_owner}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, copyright_owner: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label">Photographer</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="Photographer name"
+                          value={rights.photographer_name}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, photographer_name: e.target.value }))}
+                        />
                       </label>
                     </div>
                   </div>

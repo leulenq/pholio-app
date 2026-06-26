@@ -34,6 +34,7 @@ const {
 
 const { recordAuditEvent } = require("../services/audit");
 const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
+const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
 
 const addTeamMemberSchema = z.object({
   email: z
@@ -3237,6 +3238,16 @@ router.post(
         return res
           .status(404)
           .json({ error: "Profile not found or not discoverable" });
+      }
+
+      if (
+        profile.user_id &&
+        (await isAgencyBlockedForTalent(knex, profile.user_id, agencyId))
+      ) {
+        return res.status(403).json({
+          error: "Contact blocked",
+          message: "This talent has blocked contact from your agency.",
+        });
       }
 
       const existingApplication = await knex("applications")

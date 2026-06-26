@@ -1,7 +1,7 @@
 [build]
   # Run patch script first (strips browser fields from iconv-lite/readable-stream/pg
   # and silences extend-node.js) so esbuild bundles server-side versions correctly.
-  command = "node scripts/patch-express.js && npm run build:function && npm run generate:favicons && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
+  command = "node scripts/patch-express.js && npm run build:function && npm run generate:favicons && npm run setup:sender-avatar && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
   publish = "public"
 
 [build.environment]

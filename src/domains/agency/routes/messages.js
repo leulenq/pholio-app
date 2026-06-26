@@ -1,6 +1,13 @@
 const express = require("express");
 const knex = require("../../../shared/db/knex");
-const { requireRole } = require("../../auth/middleware/require-auth");
+const {
+  requireRole,
+  requireActiveAccount,
+} = require("../../auth/middleware/require-auth");
+const {
+  isAgencyBlockedForTalent,
+  validateHttpsAttachmentUrl,
+} = require("../../../shared/lib/blocked-agencies");
 const { sendNewMessageEmail } = require("../../../shared/lib/email");
 const {
   issueReplyTokenForApplication,
@@ -152,6 +159,7 @@ router.get(
 router.post(
   "/api/agency/applications/:applicationId/messages",
   requireRole("AGENCY"),
+  requireActiveAccount(),
   async (req, res, next) => {
     try {
       const { applicationId } = req.params;
@@ -163,6 +171,15 @@ router.post(
         return res.status(400).json({ error: "Message is required" });
       }
 
+      if (message.trim().length > 4000) {
+        return res.status(400).json({ error: "Message is too long" });
+      }
+
+      const attachmentCheck = validateHttpsAttachmentUrl(attachment_url);
+      if (!attachmentCheck.ok) {
+        return res.status(400).json({ error: attachmentCheck.error });
+      }
+
       // Verify application belongs to this agency
       const application = await knex("applications")
         .where({ id: applicationId, agency_id: agencyId })
@@ -170,6 +187,25 @@ router.post(
 
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
+      }
+
+      const talentProfile = await knex("profiles")
+        .where({ id: application.profile_id })
+        .select("user_id")
+        .first();
+
+      if (
+        talentProfile?.user_id &&
+        (await isAgencyBlockedForTalent(
+          knex,
+          talentProfile.user_id,
+          agencyId,
+        ))
+      ) {
+        return res.status(403).json({
+          error: "Contact blocked",
+          message: "This talent has blocked contact from your agency.",
+        });
       }
 
       const { v4: uuidv4 } = require("uuid");
@@ -181,7 +217,7 @@ router.post(
         sender_id: actorUserId,
         sender_type: "AGENCY",
         message: message.trim(),
-        attachment_url: attachment_url || null,
+        attachment_url: attachmentCheck.value,
         is_read: false,
         created_at: knex.fn.now(),
       });

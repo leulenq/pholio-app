@@ -2,7 +2,7 @@ import React, { forwardRef, useId } from 'react';
 import InlineErrorText from '../../states/InlineErrorText';
 import './PholioForms.css';
 
-const PholioInput = forwardRef(({ label, error, prefix, className = '', id: providedId, ...props }, ref) => {
+const PholioInput = forwardRef(({ label, error, prefix, className = '', id: providedId, value, ...props }, ref) => {
   const generatedId = useId();
   const inputId = providedId || `input-${generatedId}`;
   const hasPrefix = !!prefix;
@@ -23,6 +23,7 @@ const PholioInput = forwardRef(({ label, error, prefix, className = '', id: prov
           className={`pholio-input ${error ? 'has-error' : ''}`}
           aria-invalid={!!error}
           aria-describedby={errorId}
+          value={value === null ? '' : value}
           {...props}
         />
       </div>

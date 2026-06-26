@@ -55,7 +55,7 @@ describe("evaluateCompCardGuardrails", () => {
     ).toBe(true);
   });
 
-  test("warns when rights metadata is missing or low print size", () => {
+  test("fails when rights metadata is missing and warns on low print size", () => {
     const images = [
       image("img-1", { metadata: null, width: 900, height: 1300 }),
       image("img-2"),
@@ -71,10 +71,16 @@ describe("evaluateCompCardGuardrails", () => {
       mode: "draft",
     });
 
-    expect(report.status).toBe("warn");
-    expect(report.warningCount).toBeGreaterThan(0);
+    expect(report.status).toBe("fail");
+    expect(report.blockingIssueCount).toBeGreaterThan(0);
     expect(
       report.checks.some((check) => check.id === "print-min-resolution"),
+    ).toBe(true);
+    expect(
+      report.checks.some(
+        (check) =>
+          check.id === "rights-metadata-present" && check.level === "error",
+      ),
     ).toBe(true);
   });
 });

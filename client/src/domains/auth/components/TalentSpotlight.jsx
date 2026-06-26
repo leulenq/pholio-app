@@ -153,9 +153,9 @@ export default function TalentSpotlight() {
             textShadow: '0 2px 40px rgba(0,0,0,0.45)',
           }}
         >
-          Where careers
+          Your portfolio,
           <br />
-          are{' '}
+          built with{' '}
           <span
             style={{
               fontStyle: 'italic',
@@ -163,7 +163,7 @@ export default function TalentSpotlight() {
               color: '#E7CF9C',
             }}
           >
-            made
+            intention
           </span>
           <span style={{ color: '#C9A55A' }}>.</span>
         </motion.h1>

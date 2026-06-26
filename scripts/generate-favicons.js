@@ -8,10 +8,7 @@ const path = require("path");
 const sharp = require("sharp");
 
 const ROOT = path.join(__dirname, "..");
-const SOURCE = path.join(
-  ROOT,
-  "client/public/brand/pholio-02-wordmark-primary.jpg",
-);
+const SOURCE = path.join(ROOT, "client/public/brand/pholio-brand-mark.png");
 const OUT_DIRS = [
   path.join(ROOT, "client/public"),
   path.join(ROOT, "public"),

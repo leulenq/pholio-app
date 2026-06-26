@@ -16,6 +16,10 @@ import {
   isInstagramAuthConfigured,
   startInstagramAuth,
 } from '../../lib/instagram-auth';
+import {
+  LegalAcceptanceField,
+  legalAcceptancePayload,
+} from '../../../../shared/components/LegalAcceptanceField';
 import styles from './LoginPage.module.css';
 
 const GoogleIcon = () => (
@@ -49,6 +53,7 @@ export default function LoginPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isInstagramLoading, setIsInstagramLoading] = useState(false);
   const [instagramEnabled, setInstagramEnabled] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   useAuthenticatedEntryRedirect();
 
@@ -168,7 +173,10 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({ firebase_token: idToken }),
+        body: JSON.stringify({
+          firebase_token: idToken,
+          ...legalAcceptancePayload(legalAccepted),
+        }),
       });
 
       const contentType = response.headers.get('content-type');
@@ -237,6 +245,15 @@ export default function LoginPage() {
           <span>{error}</span>
         </div>
       )}
+
+      {/* Legal acceptance (required for new accounts) */}
+      <div className={styles.legalRow}>
+        <LegalAcceptanceField
+          checked={legalAccepted}
+          onChange={setLegalAccepted}
+          disabled={busy}
+        />
+      </div>
 
       {/* Social Login */}
       <div className={styles.socialRow}>

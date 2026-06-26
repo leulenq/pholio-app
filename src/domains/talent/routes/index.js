@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const path = require("path");
 const { requireRole } = require("../../auth/middleware/require-auth");
+const {
+  requireTalentLegalAcceptance,
+} = require("../../../shared/middleware/require-legal-acceptance");
 
 const profileRouter = require("./profile");
 const mediaRouter = require("./media");
@@ -17,6 +20,8 @@ const submissionNoteRouter = require("./submission-note"); // Submission cover-n
 const trainingSummaryRouter = require("./training-summary");
 const notificationsRouter = require("./notifications");
 const messagePolishRouter = require("./message-polish");
+
+router.use(requireTalentLegalAcceptance());
 
 // Mount API routes
 router.use("/api/talent/media", mediaRouter);

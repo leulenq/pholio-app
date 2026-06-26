@@ -1,5 +1,12 @@
 # Lessons Learned
 
+## 2026-06-25 — Billing scope distinctions
+
+- Do not collapse separate billing concepts into one rule. "Agencies have no
+  self-serve in-app billing" does not mean removing marketing-site
+  enterprise/contact-sales offers, and "Studio+ is $9.99/month" does not rule
+  out an annual Stripe price when the business also defines one.
+
 ## 2026-06-24 — Restoring reverted UI work
 
 - After another editor touches the same UI surface, verify both JSX and CSS before assuming a component is still restored. The profile index rollback left the simplified JSX in place but reverted the nested-scroll/active-row CSS, so restoration checks need to include presentation selectors and responsive overrides.

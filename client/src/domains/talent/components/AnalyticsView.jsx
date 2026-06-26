@@ -88,7 +88,7 @@ function applicationsArray(payload) {
   return [];
 }
 
-function ChapterHeader({ number, slug, title, lede }) {
+function ChapterHeader({ title, lede }) {
   return (
     <div className="intel-chapter-header">
       <h2 className="intel-chapter-title">The <em>{title}</em></h2>
@@ -320,7 +320,7 @@ function SignalChapter({ analytics, sessions, detailedStats, isPro }) {
             <p className="signal-locked-copy">
               See which hours your profile gets the most attention — and plan your updates accordingly.
             </p>
-            <a href="/pricing" className="signal-locked-link">Upgrade to Studio+</a>
+            <Link to="/dashboard/talent/settings/subscription" className="signal-locked-link">Upgrade to Studio+</Link>
           </div>
         </div>
       )}
@@ -444,7 +444,7 @@ function PatternChapter({ cohorts, isPro }) {
             <p className="pattern-ghost-copy">
               See which weeks your viewers come back — and which cohorts lose interest.
             </p>
-            <a href="/pricing" className="pattern-ghost-link">Upgrade to Studio+</a>
+            <Link to="/dashboard/talent/settings/subscription" className="pattern-ghost-link">Upgrade to Studio+</Link>
           </div>
         </div>
       </motion.section>

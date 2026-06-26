@@ -24,8 +24,13 @@ const TRANSITIONS_V2 = {
     parallel: [],
   },
   gender: {
-    next: ["scout"],
+    next: ["birthdate", "scout"], // birthdate is the new required next; scout kept for legacy in-flight profiles
     prev: "entry",
+    parallel: [],
+  },
+  birthdate: {
+    next: ["scout"],
+    prev: "gender",
     parallel: [],
   },
   verification_pending: {

@@ -1,0 +1,61 @@
+.legal-gate-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(26, 24, 21, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.legal-gate-panel {
+  width: min(100%, 440px);
+  padding: 28px;
+  border-radius: 16px;
+  background: var(--ag-surface-1, #fff);
+  box-shadow: 0 24px 48px rgba(26, 24, 21, 0.15);
+}
+
+.legal-gate-title {
+  margin: 0 0 12px;
+  font-family: var(--font-display, 'Playfair Display', serif);
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--ag-text-0, #1a1815);
+}
+
+.legal-gate-lead {
+  margin: 0 0 20px;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.legal-gate-check span {
+  color: var(--ag-text-0, #1a1815) !important;
+}
+
+.legal-gate-check a {
+  color: var(--ag-gold, #b8956a) !important;
+}
+
+.legal-gate-submit {
+  margin-top: 20px;
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: var(--ag-gold, #b8956a);
+  color: #1a1815;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.legal-gate-submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

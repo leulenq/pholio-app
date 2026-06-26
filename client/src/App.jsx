@@ -41,11 +41,14 @@ import AgencySigned from './domains/agency/pages/SignedPage';
 import AgencyTalentView from './domains/agency/pages/TalentFullView';
 import ReplyPage from './domains/messaging/pages/ReplyPage';
 import AuthEntrySplashPreview from './domains/auth/pages/AuthEntrySplashPreview';
+import ModerationQueuePage from './domains/moderation/pages/ModerationQueuePage';
+import CookieConsentBanner from './shared/components/CookieConsentBanner';
 
 function App() {
   return (
     <ErrorBoundary>
       <PholioAuthBridge />
+      <CookieConsentBanner />
       <Routes>
         {/* Root redirects */}
         <Route path="/" element={<Navigate to="/dashboard/talent" replace />} />
@@ -86,6 +89,7 @@ function App() {
           <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
           <Route path="/dashboard/talent/settings" element={<SettingsPage />} />
           <Route path="/dashboard/talent/settings/:section" element={<SettingsPage />} />
+          <Route path="/dashboard/moderation" element={<ModerationQueuePage />} />
           <Route path="/dashboard" element={<Navigate to="/dashboard/talent" replace />} />
         </Route>
 

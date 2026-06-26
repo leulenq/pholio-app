@@ -1,6 +1,8 @@
 const path = require("path");
 const os = require("os");
-require("dotenv").config();
+
+const ROOT_DIR = path.join(__dirname, "..");
+require("dotenv").config({ path: path.join(ROOT_DIR, ".env") });
 
 const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || "0.25");
 const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || "8");
@@ -159,5 +161,13 @@ module.exports = {
       `${process.env.APP_URL || "http://localhost:3000"}/api/auth/instagram/callback`,
     scope:
       process.env.INSTAGRAM_OAUTH_SCOPE || "instagram_business_basic",
+  },
+  // SMTP Email configuration
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.EMAIL_FROM || "Pholio <noreply@pholio.studio>",
   },
 };

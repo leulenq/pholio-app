@@ -5,7 +5,7 @@
 
 export const MINOR_AGE_THRESHOLD = 18;
 
-const SENSITIVE_MEASUREMENT_FIELDS = new Set([
+export const SENSITIVE_MEASUREMENT_FIELDS = new Set([
   'bust',
   'waist',
   'hips',

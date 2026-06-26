@@ -59,6 +59,7 @@ const {
   minorPublicExposureAllowed,
   hasRecordedDateOfBirth,
 } = require("../../../shared/lib/talent-age");
+const { getConsentStatus } = require("../services/guardian-consent");
 
 /**
  * Allowlisted profile columns for GET/PUT JSON (excludes raw vectors / embeddings).
@@ -107,6 +108,7 @@ const TALENT_PROFILE_API_KEYS = [
   "fit_scores_calculated_at",
   "gender",
   "guardian_consent_at",
+  "guardian_email",
   "hair_color",
   "hair_length",
   "hair_type",
@@ -484,12 +486,15 @@ router.get(
       profile.id,
       profile.modeling_categories,
     );
+    const consentStatus = await getConsentStatus(knex, profile);
     response.profile = {
       ...publicProfile,
       ...bookingLanePayload,
       email: user.email,
       hero_image_path: derivedHeroPath,
       photo_url_primary: derivedPublicUrl,
+      guardian_consent_status: consentStatus.status,
+      guardian_email: consentStatus.guardianEmail,
     };
 
     // Calculate completeness
@@ -683,15 +688,13 @@ router.put(
     if (data.passport_ready !== undefined)
       updateData.passport_ready = data.passport_ready;
 
-    if (data.guardian_consent_recorded !== undefined) {
-      if (data.guardian_consent_recorded) {
-        if (!profile.guardian_consent_at) {
-          updateData.guardian_consent_at = new Date().toISOString();
-        }
-      } else {
-        updateData.guardian_consent_at = null;
-        updateData.is_public = false;
-      }
+    // Guardian consent is no longer self-attested. Verified consent can only be
+    // established via the token flow (see services/guardian-consent.js). Here we
+    // ONLY honor clearing consent; a truthy guardian_consent_recorded is ignored
+    // so a minor cannot unlock sensitive fields by toggling a switch.
+    if (data.guardian_consent_recorded === false) {
+      updateData.guardian_consent_at = null;
+      updateData.is_public = false;
     }
     if (data.work_permit_on_file !== undefined) {
       updateData.work_permit_on_file = !!data.work_permit_on_file;
@@ -1039,6 +1042,9 @@ router.put(
     const responseProfile = pickTalentProfileForApi(updatedProfile);
     formatProfileDateOfBirthForApi(responseProfile);
     parseProfileImageAnalysisForApi(responseProfile);
+    const updatedConsentStatus = await getConsentStatus(knex, updatedProfile);
+    responseProfile.guardian_consent_status = updatedConsentStatus.status;
+    responseProfile.guardian_email = updatedConsentStatus.guardianEmail;
     const responseBookingLanePayload = await loadProfileBookingLanePayload(
       updatedProfile.id,
       updatedProfile.modeling_categories,

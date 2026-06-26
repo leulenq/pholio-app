@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
-const { requireRole } = require("../../auth/middleware/require-auth");
+const { requireRole, requireActiveAccount } = require("../../auth/middleware/require-auth");
 const { upload, processImage, s3 } = require("../../../shared/lib/uploader");
 const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { v4: uuidv4 } = require("uuid");
@@ -29,8 +29,59 @@ const {
   isMinorProfile,
   minorSensitiveFieldsUnlocked,
 } = require("../../../shared/lib/talent-age");
+const {
+  MODERATION_STATUS,
+  MODERATION_QUEUE_STATUS,
+  analyzeImageBuffer,
+} = require("../../../shared/lib/content-moderation");
+const {
+  screenImageForCsam,
+  recordCsamEscalation,
+} = require("../../../shared/lib/csam-moderation");
 
 const SENSITIVE_SHOT_TYPES = new Set(["full_length", "full_body"]);
+
+/**
+ * Best-effort removal of an image's stored artifacts (processed, thumbnail,
+ * originals, and any local copy). Used when content moderation rejects an
+ * upload — rejected bytes must not be retained.
+ */
+async function purgeStoredImageArtifacts({ storage_key, absolute_path }) {
+  const ops = [];
+  if (storage_key) {
+    // Derive all related R2 keys using the same segment-marker logic as
+    // account-deletion.js:deriveRelatedKeys. The old `||` chain was buggy —
+    // split(...)[0] is always truthy, so keys without "/processed/" got the
+    // entire storage_key as the prefix (orphaning originals/thumbnails in R2).
+    const SEGMENTS = ["/processed/", "/originals/", "/thumbnails/"];
+    const marker = SEGMENTS.find((m) => storage_key.includes(m));
+    const ext = path.extname(storage_key);
+    const baseName = path.basename(storage_key, ext).replace(/_400w$/, "");
+    const keys = new Set([storage_key]);
+    if (marker && baseName) {
+      const prefix = storage_key.split(marker)[0];
+      keys.add(`${prefix}/processed/${baseName}.webp`);
+      keys.add(`${prefix}/thumbnails/${baseName}_400w.webp`);
+      for (const origExt of [".jpg", ".jpeg", ".png", ".webp"]) {
+        keys.add(`${prefix}/originals/${baseName}${origExt}`);
+      }
+    }
+    for (const Key of keys) {
+      ops.push(
+        s3.send(new DeleteObjectCommand({ Bucket: config.r2.bucket, Key })),
+      );
+    }
+  }
+  if (absolute_path) {
+    ops.push(fs.unlink(absolute_path).catch(() => {}));
+    ops.push(
+      fs.unlink(absolute_path.replace(".webp", "_400w.webp")).catch(() => {}),
+    );
+  }
+  await Promise.allSettled(ops);
+}
+
+router.use(requireActiveAccount());
 
 function minorBlocksSensitiveImage(profile, patch = {}) {
   if (!profile || !isMinorProfile(profile) || minorSensitiveFieldsUnlocked(profile)) {
@@ -90,6 +141,15 @@ const IMAGE_VISIBILITY_ALLOWED = new Set(["public", "private"]);
 const IMAGE_SET_KIND_MAX = 64;
 const IMAGE_SET_KIND_REGEX = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 const IMAGE_SET_NAME_MAX = 120;
+
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalizeRightsStatus(value) {
+  if (value == null) return "";
+  return String(value).trim().toLowerCase();
+}
 
 function isUuid(value) {
   return typeof value === "string" && IMAGE_ID_REGEX.test(value);
@@ -698,12 +758,22 @@ router.post(
       "images",
       "captured_at",
     );
+    const hasModerationColumns = await knex.schema.hasColumn(
+      "images",
+      "moderation_status",
+    );
+    const hasModerationQueue = hasModerationColumns
+      ? await knex.schema.hasTable("moderation_queue")
+      : false;
+    const hasImageRightsTable = await knex.schema.hasTable("image_rights");
 
     const uploadedImages = [];
     const uploadedImageIds = [];
     const failedFiles = [];
     let heroSet = false;
+    let firstUploadedImageId = null;
     const processedArtifacts = [];
+    const rejectedArtifacts = [];
     try {
       await knex.transaction(async (trx) => {
         const maxSortRow = await trx("images")
@@ -720,6 +790,55 @@ router.post(
               storage_key: stored.storage_key,
               absolute_path: stored.absolute_path,
             });
+
+            // --- Content moderation (legal audit Phase 1) ---
+            // Analyze the exact processed bytes we persisted. Fails toward
+            // `review`; never auto-approves uncertain content.
+            let moderation;
+            try {
+              moderation = await analyzeImageBuffer(processed.processedBuffer);
+            } catch (modErr) {
+              moderation = {
+                status: MODERATION_STATUS.REVIEW,
+                reason: "moderation_error",
+                flags: { error: modErr.message },
+              };
+            }
+            const modStatus = moderation.status;
+            let isRejected = modStatus === MODERATION_STATUS.REJECTED;
+            let isReview = modStatus === MODERATION_STATUS.REVIEW;
+
+            const csamScreen = await screenImageForCsam(processed.processedBuffer, {
+              moderationFlags: moderation.flags,
+              moderationReason: moderation.reason,
+            });
+            if (csamScreen.shouldBlock) {
+              isRejected = true;
+            }
+            if (csamScreen.shouldEscalate) {
+              isReview = true;
+            }
+            const effectiveModStatus = isRejected
+              ? MODERATION_STATUS.REJECTED
+              : isReview
+                ? MODERATION_STATUS.REVIEW
+                : modStatus;
+
+            if (isRejected) {
+              // Do not persist the image row; schedule the stored bytes for
+              // removal after the transaction commits.
+              rejectedArtifacts.push({
+                storage_key: stored.storage_key,
+                absolute_path: stored.absolute_path,
+              });
+              failedFiles.push({
+                name: file.originalname || "Unknown file",
+                message:
+                  "Image was blocked by automated content moderation and was not saved.",
+              });
+              continue;
+            }
+
             const imageId = uuidv4();
             const sort = nextSort++;
             const initialMetadata = buildInitialUploadMetadata(stored.imageIntel);
@@ -735,11 +854,71 @@ router.post(
               sort: sort,
               metadata: JSON.stringify(initialMetadata),
               ...(hasCapturedAtColumn ? { captured_at: trx.fn.now() } : {}),
+              ...(hasModerationColumns
+                ? {
+                    moderation_status: effectiveModStatus,
+                    moderation_reason: moderation.reason || null,
+                    moderated_at: trx.fn.now(),
+                  }
+                : {}),
               ...structuredInsert,
             });
 
+            if (hasImageRightsTable) {
+              await trx("image_rights")
+                .insert({
+                  id: uuidv4(),
+                  image_id: imageId,
+                  copyright_owner: null,
+                  photographer_name: null,
+                  license_type: null,
+                  usage_scope: null,
+                  territory: null,
+                  start_at: null,
+                  expires_at: null,
+                  exclusive: false,
+                  model_release_ref: null,
+                  rights_status: null,
+                  notes: null,
+                  created_at: trx.fn.now(),
+                  updated_at: trx.fn.now(),
+                })
+                .onConflict("image_id")
+                .ignore();
+            }
+
+            // Images flagged for review are not visible to agencies/public
+            // until a moderator approves them — enqueue for human review.
+            if (isReview && hasModerationQueue) {
+              const queueFlags = {
+                ...(moderation.flags || {}),
+                ...(csamScreen.flags || {}),
+                ...(csamScreen.shouldEscalate ? { csam_escalation: true } : {}),
+              };
+              await trx("moderation_queue").insert({
+                id: uuidv4(),
+                image_id: imageId,
+                profile_id: profile.id,
+                status: MODERATION_QUEUE_STATUS.PENDING,
+                flags: JSON.stringify(queueFlags),
+                created_at: trx.fn.now(),
+              });
+            }
+
+            if (csamScreen.shouldEscalate) {
+              await recordCsamEscalation(trx, {
+                imageId,
+                profileId: profile.id,
+                provider: csamScreen.provider,
+                severity: csamScreen.severity,
+                flags: csamScreen.flags,
+              });
+            }
+
+            // Only auto-promote a visible (approved/pending) image to hero —
+            // a flagged image must never surface on the public profile.
             let becamePrimary = false;
-            if (!hasValidHero && !heroSet && uploadedImages.length === 0) {
+            if (!hasValidHero && !heroSet && !isReview) {
               await trx("images")
                 .where({ profile_id: profile.id })
                 .update({
@@ -764,17 +943,37 @@ router.post(
               profile_id: profile.id,
               created_at: new Date().toISOString(),
               classification_status: "pending",
+              moderation_status: hasModerationColumns ? effectiveModStatus : undefined,
               ...structuredFieldsFromImageRow({
                 ...structuredInsert,
               }),
             });
             uploadedImageIds.push(imageId);
+            if (!firstUploadedImageId) firstUploadedImageId = imageId;
           } catch (fileError) {
             const err = new Error("Failed to process image");
             err.fileName = file.originalname || "Unknown file";
             throw err;
           }
         }
+        // Fallback: if every uploaded image was flagged for review the in-loop
+        // promotion was skipped for all of them, leaving heroSet false. Guarantee
+        // the DB invariant (exactly one is_primary) by promoting the first
+        // uploaded image regardless of its moderation status. The visibility
+        // filter already hides review images from agencies/public, so this is
+        // safe — it only ensures the owner's profile has a cover image.
+        if (!hasValidHero && !heroSet && firstUploadedImageId) {
+          await trx("images")
+            .where({ profile_id: profile.id })
+            .update({
+              is_primary: knex.raw("CASE WHEN id = ? THEN ? ELSE ? END", [
+                firstUploadedImageId,
+                true,
+                false,
+              ]),
+            });
+        }
+
         await normalizeProfileImageSort(trx, profile.id);
       });
     } catch (batchError) {
@@ -807,6 +1006,15 @@ router.post(
         message: "Upload failed. No images were saved.",
         failedFiles,
       });
+    }
+
+    // Purge bytes for images rejected by moderation (best-effort, post-commit).
+    if (rejectedArtifacts.length > 0) {
+      await Promise.allSettled(
+        rejectedArtifacts.map((artifact) =>
+          purgeStoredImageArtifacts(artifact),
+        ),
+      );
     }
 
     if (uploadedImages.length > 0) {
@@ -993,10 +1201,29 @@ router.put(
       });
     }
 
+    const existingRightsRow = await knex("image_rights")
+      .where({ image_id: imageId })
+      .first();
+    const mergedRights = {
+      ...(existingRightsRow || {}),
+      ...pr.patch,
+    };
+    const mergedStatus = normalizeRightsStatus(mergedRights.rights_status);
+    if (mergedStatus === "cleared") {
+      const hasLicenseType = hasText(mergedRights.license_type);
+      const hasCredit = hasText(mergedRights.copyright_owner)
+        || hasText(mergedRights.photographer_name);
+      if (!hasLicenseType || !hasCredit) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "rights_status 'cleared' requires license_type and either copyright_owner or photographer_name.",
+        });
+      }
+    }
+
     await knex.transaction(async (trx) => {
-      const existing = await trx("image_rights")
-        .where({ image_id: imageId })
-        .first();
+      const existing = existingRightsRow;
       if (existing) {
         await trx("image_rights")
           .where({ image_id: imageId })

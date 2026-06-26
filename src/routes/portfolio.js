@@ -2,6 +2,10 @@ const express = require("express");
 const knex = require("../shared/db/knex");
 const { toFeetInches } = require("../domains/talent/services/stats");
 const { minorPublicExposureAllowed } = require("../shared/lib/talent-age");
+const {
+  applyViewerVisibilityFilter,
+  ensureModerationColumnChecked,
+} = require("../shared/lib/content-moderation");
 const { v4: uuidv4 } = require("uuid");
 
 const router = express.Router();
@@ -277,6 +281,9 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       try {
         profile = await knex("profiles").where({ slug: slug }).first();
         if (profile) {
+          // Warm the moderation-column cache once so applyViewerVisibilityFilter
+          // is a safe no-op if the column doesn't exist yet (deploy-before-migrate).
+          await ensureModerationColumnChecked(knex);
           // Public portfolio: only shareable images (active status, not excluded from public).
           // NULL status → treat as active; NULL exclude_from_public → treat as not excluded.
           images = await knex("images")
@@ -290,6 +297,7 @@ router.get("/portfolio/:slug", async (req, res, next) => {
                 false,
               );
             })
+            .modify((qb) => applyViewerVisibilityFilter(qb))
             .orderBy("sort");
           const primaryImage =
             images.find((img) => img.is_primary) || images[0];

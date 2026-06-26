@@ -377,6 +377,20 @@ select.fe-input {
 
 .fe-grid__wide { grid-column: 1 / -1; }
 
+.fe-rights-note {
+  margin: -6px 0 0;
+  color: var(--fe-cream-faint);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.fe-rights-error {
+  margin: -6px 0 0;
+  color: #fca5a5;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* ── Publishing ── */
 .fe-control-row {
   display: flex;

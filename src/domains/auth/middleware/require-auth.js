@@ -1,5 +1,6 @@
 const { addMessage } = require("../../../shared/middleware/context");
 const config = require("../../../config");
+const knex = require("../../../shared/db/knex");
 const { hasPermission } = require("../../agency/lib/permissions");
 const {
   resolveEffectivePermissionsFromSession,
@@ -196,6 +197,66 @@ function requireAgencyPermission(...permissions) {
   };
 }
 
+function resolveAccountUserId(session) {
+  if (!session) return null;
+  if (session.role === "AGENCY" && session.memberUserId) {
+    return session.memberUserId;
+  }
+  return session.userId || null;
+}
+
+function requireActiveAccount() {
+  return async (req, res, next) => {
+    if (!ensureSignedIn(req)) {
+      return next();
+    }
+
+    const accountUserId = resolveAccountUserId(req.session);
+    if (!accountUserId) {
+      return next();
+    }
+
+    try {
+      const user = await knex("users")
+        .where({ id: accountUserId })
+        .select("account_status")
+        .first();
+
+      // Missing user row (e.g. account deleted while session persists) — deny.
+      if (!user) {
+        if (isApiRequest(req)) {
+          return res.status(403).json({
+            error: "Account restricted",
+            message: "Account not found.",
+            accountStatus: "not_found",
+          });
+        }
+        return res.status(403).render("errors/403", { title: "Account restricted" });
+      }
+
+      const status = user.account_status || "active";
+      if (status !== "suspended" && status !== "banned") {
+        return next();
+      }
+
+      if (isApiRequest(req)) {
+        return res.status(403).json({
+          error: "Account restricted",
+          message:
+            status === "banned"
+              ? "Your account has been banned."
+              : "Your account is suspended.",
+          accountStatus: status,
+        });
+      }
+
+      return res.status(403).render("errors/403", { title: "Account restricted" });
+    } catch (error) {
+      return next(error);
+    }
+  };
+}
+
 function enforceAgencyRoutePermissions() {
   return async (req, res, next) => {
     if (!req.session || req.session.role !== "AGENCY") {
@@ -251,4 +312,5 @@ module.exports = {
   loadAgencyPermissions,
   requireAgencyPermission,
   enforceAgencyRoutePermissions,
+  requireActiveAccount,
 };

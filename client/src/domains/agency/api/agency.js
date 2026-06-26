@@ -784,6 +784,4 @@ export default {
   bulkArchiveApplications,
   bulkAddTag,
   bulkRemoveTag,
-  createCheckoutSession: () => apiClient.post('/stripe/create-checkout-session'),
-  getCustomerPortalSession: () => apiClient.get('/stripe/customer-portal'),
 };

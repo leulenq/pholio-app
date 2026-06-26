@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
+import ReportDialog from '../../../shared/components/ReportDialog';
 import { talentApi } from '../api/talent';
 import WritingAssistToolbar from '../../../shared/components/writing/WritingAssistToolbar';
 import './ApplicationMessages.css';
@@ -31,6 +32,7 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [prePolishDraft, setPrePolishDraft] = useState(null);
+  const [reportTarget, setReportTarget] = useState(null);
 
   const threadKey = ['application-messages', applicationId];
   const threadQuery = useQuery({
@@ -113,7 +115,24 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
               }`}
             >
               <p className="app-msg__text">{m.message}</p>
-              <span className="app-msg__time">{timeLabel(m.created_at)}</span>
+              <div className="app-msg__footer">
+                <span className="app-msg__time">{timeLabel(m.created_at)}</span>
+                {m.sender_type !== 'TALENT' && m.id && (
+                  <button
+                    type="button"
+                    className="app-msg__report"
+                    onClick={() =>
+                      setReportTarget({
+                        targetType: 'message',
+                        targetId: m.id,
+                        targetLabel: `message from ${agencyName || 'agency'}`,
+                      })
+                    }
+                  >
+                    Report
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ol>
@@ -158,6 +177,14 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
           </div>
         </div>
       </form>
+
+      <ReportDialog
+        open={Boolean(reportTarget)}
+        onClose={() => setReportTarget(null)}
+        targetType={reportTarget?.targetType}
+        targetId={reportTarget?.targetId}
+        targetLabel={reportTarget?.targetLabel}
+      />
     </div>
   );
 }

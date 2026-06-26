@@ -1,3 +1,43 @@
+# Billing + Payments Implementation — 2026-06-25
+
+- [x] Make Stripe checkout and customer portal talent-only.
+- [x] Stop granting Studio+ before Stripe confirms checkout.
+- [x] Replace fragile subscription update logic with webhook-safe upsert/sync helpers.
+- [x] Normalize Studio+ pricing to $9.99/month or $95.88/year with a 14-day trial in app settings and landing copy.
+- [x] Remove agency self-serve billing affordances and unused agency Stripe client methods.
+- [x] Route app upgrade CTAs to the talent billing surface instead of dead `/pricing` paths.
+- [x] Route landing Studio+ CTAs to the app billing/onboarding handoff without pricing drift.
+- [x] Preserve the landing Enterprise/contact-sales agency offering while keeping agencies out of app Stripe billing.
+- [x] Run focused backend tests and frontend/landing checks.
+
+## Review
+
+- Stripe routes now require `TALENT` only; agency app UI/API no longer exposes customer portal or checkout helpers.
+- Checkout creation requires billing disclosure acceptance, supports monthly and annual Studio+ intervals, and no longer creates a local trialing subscription before Stripe confirmation.
+- Stripe success/webhook flows upsert subscriptions from Stripe payloads and ignore unknown or non-talent customers, keeping entitlement sync tied to Stripe state.
+- App settings and onboarding use the required disclosure modal with monthly/annual selection; active subscription display derives monthly vs annual from the stored Stripe price ID.
+- Landing pricing keeps Free, Studio+, and Enterprise/contact-sales; Studio+ amounts and CTAs are centralized in `pholio-landing/lib/marketing-pricing.ts`.
+- Verification passed: `node --check` on touched backend billing modules; `npx jest tests/stripe-resolve-price.test.js --runInBand`; `npx jest tests/stripe/billing-disclosure.test.js --runInBand` outside sandbox for Supertest listener; focused client ESLint; client Vite build; landing Next build with NVM PATH.
+- Landing ESLint itself is still blocked by an existing ESLint 10 / Next config circular-reference loader error, so build/TypeScript was used as the landing verification gate.
+
+# Billing + Payments Audit — 2026-06-25
+
+- [x] Inventory pricing, billing, Stripe, subscription, trial, and entitlement surfaces across `pholio-app` and `pholio-landing`.
+- [x] Audit current pricing truth and copy consistency against Studio+ at $9.99/month with a 14-day free trial.
+- [x] Audit app/backend Stripe integration, webhook handling, subscription state, and gated access.
+- [x] Map the landing-to-app user flow for new and existing users.
+- [x] Identify production gaps, risks, and broken assumptions.
+- [x] Produce a practical implementation plan for a durable billing foundation.
+
+## Review
+
+- Audited `pholio-landing` pricing/copy/CTA surfaces and `pholio-app` backend, client, routes, migrations, settings, and entitlement checks.
+- Main production blocker: app creates a local `trialing` subscription and syncs `profiles.is_pro` during checkout-session creation, before Stripe confirms checkout.
+- Additional blockers: subscription update helper uses mismatched camelCase keys, guesses ID type by string length, and webhook paths do not reliably attach/update the local subscription row.
+- Pricing drift: landing shows `$9.99/month` plus a yearly `$7.99/month` option; app settings still displays `$29/month`; legal copy is generic and one Studio+ page says no card is required.
+- Cross-repo drift: landing Studio+ CTAs go to `app/signup?plan=studio`, not an authenticated app billing surface; app upgrade CTAs often go to `/pricing`, which is not an app route.
+- Verification: `npx jest tests/stripe-resolve-price.test.js --runInBand` passed, but current tests only cover price ID resolution.
+
 # PITS Frontend Polish — 2026-06-24
 
 - [x] Rewrite PITS-facing copy so it reads as Pholio studio intelligence, not backend taxonomy output.

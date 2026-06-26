@@ -20,8 +20,18 @@ const BASE_PROFILE = {
 describe("validateSubmissionPackage", () => {
   test("rejects portfolio-only book frames", () => {
     const result = validateSubmissionPackage(BASE_PROFILE, [
-      { id: "1", shot_type: "headshot", image_type: "portfolio" },
-      { id: "2", shot_type: "full_length", image_type: "portfolio" },
+      {
+        id: "1",
+        shot_type: "headshot",
+        image_type: "portfolio",
+        rights_status: "cleared",
+      },
+      {
+        id: "2",
+        shot_type: "full_length",
+        image_type: "portfolio",
+        rights_status: "cleared",
+      },
     ]);
     expect(result.ok).toBe(false);
     expect(result.errors.some((e) => e.code === "missing_digital_headshot")).toBe(true);
@@ -35,12 +45,14 @@ describe("validateSubmissionPackage", () => {
         shot_type: "headshot",
         image_type: "digital",
         captured_at: daysAgo(10),
+        rights_status: "cleared",
       },
       {
         id: "2",
         shot_type: "full_length",
         image_type: "digital",
         captured_at: daysAgo(10),
+        rights_status: "cleared",
       },
     ]);
     expect(result.ok).toBe(true);
@@ -54,12 +66,14 @@ describe("validateSubmissionPackage", () => {
         shot_type: "headshot",
         image_type: "digital",
         captured_at: daysAgo(100),
+        rights_status: "cleared",
       },
       {
         id: "2",
         shot_type: "full_length",
         image_type: "digital",
         captured_at: daysAgo(100),
+        rights_status: "cleared",
       },
     ]);
     expect(result.ok).toBe(false);
@@ -68,9 +82,31 @@ describe("validateSubmissionPackage", () => {
 
   test("rejects untyped frames without image_type digital", () => {
     const result = validateSubmissionPackage(BASE_PROFILE, [
-      { id: "1", shot_type: "headshot" },
-      { id: "2", shot_type: "full_length" },
+      { id: "1", shot_type: "headshot", rights_status: "cleared" },
+      { id: "2", shot_type: "full_length", rights_status: "cleared" },
     ]);
     expect(result.ok).toBe(false);
+  });
+
+  test("rejects package images without distribution rights", () => {
+    const result = validateSubmissionPackage(BASE_PROFILE, [
+      {
+        id: "1",
+        shot_type: "headshot",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+        rights_status: "cleared",
+      },
+      {
+        id: "2",
+        shot_type: "full_length",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+    ]);
+    expect(result.ok).toBe(false);
+    expect(
+      result.errors.some((e) => e.code === "missing_distribution_rights"),
+    ).toBe(true);
   });
 });

@@ -310,6 +310,9 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       publicUrl: publicUrl,
       absolutePath: absolutePath,
       imageIntel,
+      // Processed bytes are exposed so callers (e.g. content moderation) can
+      // analyze the exact image we persisted without re-fetching from storage.
+      processedBuffer,
     };
   } catch (err) {
     console.error("[Uploader] Error processing image:", err.message, {

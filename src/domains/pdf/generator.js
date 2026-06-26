@@ -21,9 +21,18 @@ async function loadProfile(slug) {
     const profile = await knex("profiles").where({ slug }).first();
     if (!profile) return null;
     const images = await knex("images")
-      .where({ profile_id: profile.id })
-      .orderBy("sort")
-      .orderBy("id");
+      .leftJoin("image_rights", "image_rights.image_id", "images.id")
+      .where({ "images.profile_id": profile.id })
+      .select(
+        "images.*",
+        "image_rights.rights_status as rights_status",
+        "image_rights.license_type as license_type",
+        "image_rights.copyright_owner as copyright_owner",
+        "image_rights.photographer_name as photographer_name",
+        "image_rights.model_release_ref as model_release_ref",
+      )
+      .orderBy("images.sort")
+      .orderBy("images.id");
 
     // Derive hero_image_path for backward compatibility in PDF views
     const primary = images.find((img) => img.is_primary) || images[0];

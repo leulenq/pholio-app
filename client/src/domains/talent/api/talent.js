@@ -8,6 +8,11 @@ export const talentApi = {
   getProfile: (options) => apiClient.get('/profile', options),
   updateProfile: (data) => apiClient.put('/profile', data),
   saveFitScores: (data) => apiClient.post('/profile/fit-scores', data),
+  requestGuardianConsent: (guardianEmail, { dateOfBirth } = {}) =>
+    apiClient.post('/guardian-consent/request', {
+      guardian_email: guardianEmail,
+      ...(dateOfBirth ? { date_of_birth: dateOfBirth } : {}),
+    }),
   refineBio: (body) => apiClient.post('/bio/refine', body),
   generateBio: (body = {}) => apiClient.post('/bio/generate', body),
   formatTrainingSummary: (body) => apiClient.post('/training-summary/format', body),
@@ -76,8 +81,9 @@ export const talentApi = {
   // Settings
   getSettings: () => apiClient.get('/settings'),
   updateSettings: (data) => apiClient.put('/settings', data),
+  getLegalStatus: (options) => apiClient.get('/settings/legal-status', options),
+  acceptLegalTerms: (body) => apiClient.post('/settings/legal-acceptance', body),
   requestDataExport: () => apiClient.post('/settings/data-export', {}),
-  requestDataErasure: () => apiClient.post('/settings/erasure-request', {}),
   deactivateAccount: () => apiClient.post('/settings/deactivate', {}),
   deleteAccount: () => apiClient.delete('/settings/account'),
   revokeSession: (id) => apiClient.delete(`/settings/sessions/${encodeURIComponent(id)}`),
@@ -94,6 +100,10 @@ export const talentApi = {
     apiClient.post('/message-polish/polish', body),
 
   // Stripe (root `/stripe` route on API host, not under /api/talent)
-  createCheckoutSession: () =>
-    apiClient.post('/create-checkout-session', {}, { baseURL: '/stripe' }),
+  createCheckoutSession: (body = {}) =>
+    apiClient.post(
+      '/create-checkout-session',
+      { interval: 'monthly', ...body },
+      { baseURL: '/stripe' },
+    ),
 };

@@ -1,13 +1,10 @@
 const MIN_REQUIRED_IMAGES = 5;
 const MIN_PRINT_SHORT_EDGE_PX = 1200;
-
-const RIGHTS_DENIED_VALUES = new Set([
-  "denied",
-  "blocked",
-  "forbidden",
-  "unlicensed",
-  "restricted",
-]);
+const {
+  RIGHTS_DENIED_STATUSES,
+  imageHasDistributionRights,
+} = require("../../shared/lib/image-rights");
+const RIGHTS_DENIED_VALUES = RIGHTS_DENIED_STATUSES;
 
 function parseMetadata(metadata) {
   if (!metadata) return {};
@@ -105,21 +102,22 @@ function checkRightsMetadata(selectedImages) {
   const checks = [];
   selectedImages.forEach((image) => {
     const rights = resolveRightsToken(image);
-    if (!rights) {
-      checks.push({
-        id: "rights-metadata-present",
-        level: "warn",
-        message: `Image ${image?.id || "unknown"} has no explicit rights metadata.`,
-      });
-      return;
-    }
-
     if (RIGHTS_DENIED_VALUES.has(rights)) {
       checks.push({
         id: "rights-permitted",
         level: "error",
         message: `Image ${image?.id || "unknown"} is marked as not licensed for use.`,
       });
+      return;
+    }
+
+    if (!imageHasDistributionRights(image, image)) {
+      checks.push({
+        id: "rights-metadata-present",
+        level: "error",
+        message: `Image ${image?.id || "unknown"} is missing distribution rights metadata.`,
+      });
+      return;
     }
   });
   return checks;
@@ -214,5 +212,6 @@ function evaluateCompCardGuardrails({
 module.exports = {
   MIN_REQUIRED_IMAGES,
   MIN_PRINT_SHORT_EDGE_PX,
+  RIGHTS_DENIED_VALUES,
   evaluateCompCardGuardrails,
 };

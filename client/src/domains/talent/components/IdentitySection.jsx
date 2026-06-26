@@ -25,7 +25,12 @@ export const IdentitySection = ({
   onBioRefine,
   onBioGenerate,
   handleUndoAI,
-  watchDob
+  watchDob,
+  guardianStatus = 'none',
+  onSendGuardianLink,
+  guardianSending = false,
+  guardianLinkSent = false,
+  guardianSentTo = '',
 }) => {
   const age = computeAge(watchDob);
   const isMinor = isMinorProfile({ date_of_birth: watchDob });
@@ -147,19 +152,59 @@ export const IdentitySection = ({
       {isMinor && (
         <div className={`${styles.formRow} ${styles.minorComplianceBlock}`}>
           <p className={styles.minorComplianceCopy}>
-            Guardian consent is required before measurements or full-length photos can be collected or shared publicly.
+            Because this talent is under 18, a parent or legal guardian must verify
+            consent before measurements or full-length photos can be collected or
+            shared publicly. We email the guardian a secure, one-time link.
           </p>
-          <Controller
-            name="guardian_consent_recorded"
-            control={control}
-            render={({ field }) => (
-              <PholioToggle
-                label="Guardian consent on file"
-                checked={!!field.value}
-                onChange={(event) => field.onChange(event.target.checked)}
-              />
-            )}
-          />
+
+          {guardianStatus === 'verified' ? (
+            <p className={styles.guardianConsentStatus}>
+              Guardian consent: <strong>Verified</strong>
+            </p>
+          ) : (
+            <>
+              <div className={styles.guardianConsentRow}>
+                <PholioInput
+                  label="Guardian email"
+                  type="email"
+                  placeholder="parent@example.com"
+                  error={errors.guardian_email}
+                  {...register('guardian_email')}
+                />
+                <button
+                  type="button"
+                  className={styles.guardianConsentBtn}
+                  onClick={() => {
+                    if (typeof onSendGuardianLink !== 'function') return;
+                    void onSendGuardianLink();
+                  }}
+                  disabled={guardianSending || typeof onSendGuardianLink !== 'function'}
+                >
+                  {guardianSending
+                    ? 'Sending…'
+                    : guardianStatus === 'pending'
+                      ? 'Resend verification link'
+                      : 'Send verification link'}
+                </button>
+              </div>
+              {guardianLinkSent && (
+                <p className={styles.guardianConsentSent} role="status">
+                  Verification link sent to{' '}
+                  <strong>{guardianSentTo || 'the guardian'}</strong>. Ask them to
+                  check their inbox and spam folder — the link expires in 7 days.
+                </p>
+              )}
+              <p className={styles.guardianConsentStatus}>
+                Guardian consent:{' '}
+                <strong>
+                  {guardianStatus === 'pending'
+                    ? 'Pending — awaiting guardian'
+                    : 'Not yet requested'}
+                </strong>
+              </p>
+            </>
+          )}
+
           <Controller
             name="work_permit_on_file"
             control={control}

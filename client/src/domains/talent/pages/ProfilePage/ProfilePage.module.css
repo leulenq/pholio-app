@@ -2155,6 +2155,79 @@
   line-height: 1.5;
 }
 
+.guardianConsentRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.guardianConsentRow > :first-child {
+  flex: 1;
+}
+
+.guardianConsentBtn {
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--ag-gold, #b8956a);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.guardianConsentBtn:hover:not(:disabled) {
+  background: var(--ag-gold-hover, #a6845c);
+  transform: translateY(-1px);
+}
+
+.guardianConsentBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.guardianConsentSent {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--pf-hair-gold);
+  background: rgba(201, 165, 90, 0.08);
+  color: var(--pf-text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.guardianConsentSent strong {
+  color: var(--pf-gold);
+  font-weight: 600;
+}
+
+.guardianConsentStatus {
+  margin: 0;
+  color: var(--ag-text-2, #6b6560);
+  font-size: 14px;
+}
+
+.guardianConsentStatus strong {
+  color: var(--ag-text-0, #1a1815);
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .guardianConsentRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .guardianConsentBtn {
+    width: 100%;
+  }
+}
+
 .measurementsLocked {
   display: grid;
   gap: 12px;

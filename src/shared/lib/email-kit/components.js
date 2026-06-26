@@ -14,7 +14,7 @@
  * are intentional and allowed — they are not kickers.
  */
 
-const { theme } = require("./theme");
+const { theme, brandMarkUrl } = require("./theme");
 
 /* ---------------------------------------------------------------- *
  * Utilities
@@ -70,8 +70,9 @@ function link(href, label) {
  * Wordmark
  * ---------------------------------------------------------------- */
 
-function wordmark({ align = "center", size = 26 } = {}) {
-  return `<a href="${theme.siteUrl}" style="font-family:${theme.fontDisplay};font-size:${size}px;font-weight:500;letter-spacing:0.14em;color:${theme.gold};text-decoration:none;text-transform:uppercase;display:inline-block;text-align:${align};">${theme.brandName}</a>`;
+function wordmark({ align = "center", width = 156 } = {}) {
+  const src = escapeHtml(brandMarkUrl());
+  return `<a href="${theme.siteUrl}" style="text-decoration:none;display:inline-block;line-height:0;text-align:${align};"><img src="${src}" alt="${theme.brandName}" width="${width}" style="display:inline-block;width:${width}px;max-width:100%;height:auto;border:0;outline:none;" /></a>`;
 }
 
 /* ---------------------------------------------------------------- *

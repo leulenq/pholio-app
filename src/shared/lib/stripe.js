@@ -1,5 +1,7 @@
 const Stripe = require("stripe");
 const config = require("../../config");
+const { STUDIO_PLUS_PLAN, normalizeBillingInterval } = require("./billing-plan");
+const { buildCheckoutBrandingSettings } = require("./stripe-checkout-branding");
 
 // Initialize Stripe with secret key
 const stripe = config.stripe.secretKey
@@ -22,16 +24,6 @@ async function getOrCreateCustomer(userId, email, name = null) {
     );
   }
 
-  // Check if customer already exists by metadata
-  const existingCustomers = await stripe.customers.list({
-    email,
-    limit: 1,
-  });
-
-  if (existingCustomers.data.length > 0) {
-    return existingCustomers.data[0];
-  }
-
   // Create new customer
   const customer = await stripe.customers.create({
     email,
@@ -46,12 +38,13 @@ async function getOrCreateCustomer(userId, email, name = null) {
 }
 
 /**
- * Resolve the Stripe price ID for a billing interval.
+ * Resolve the Stripe price ID for Studio+.
  * @param {('monthly'|'annual')} interval
  * @returns {string} Stripe price ID
  */
 function resolvePriceId(interval = "monthly") {
-  if (interval === "annual") {
+  const normalizedInterval = normalizeBillingInterval(interval);
+  if (normalizedInterval === "annual") {
     const id = config.stripe.priceIdAnnual;
     if (!id) {
       throw new Error(
@@ -60,6 +53,7 @@ function resolvePriceId(interval = "monthly") {
     }
     return id;
   }
+
   const id = config.stripe.priceIdMonthly || config.stripe.priceId;
   if (!id) {
     throw new Error(
@@ -82,6 +76,7 @@ async function createCheckoutSession(
   userId,
   userEmail,
   interval = "monthly",
+  options = {},
 ) {
   if (!stripe) {
     throw new Error(
@@ -89,21 +84,40 @@ async function createCheckoutSession(
     );
   }
 
-  const priceId = resolvePriceId(interval);
+  const normalizedInterval = normalizeBillingInterval(interval);
+  const priceId = resolvePriceId(normalizedInterval);
+  const trialEligible = options.trialEligible !== false;
+  const subscriptionData = {
+    metadata: { userId: userId },
+  };
+  if (trialEligible) {
+    subscriptionData.trial_period_days = STUDIO_PLUS_PLAN.trialDays;
+    subscriptionData.trial_settings = {
+      end_behavior: { missing_payment_method: "cancel" },
+    };
+  }
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
     mode: "subscription",
-    subscription_data: {
-      trial_period_days: 14,
-      metadata: { userId: userId },
-    },
+    payment_method_collection: "always",
+    subscription_data: subscriptionData,
     success_url: `${config.stripe.baseUrl}/stripe/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${config.stripe.baseUrl}/dashboard/talent/settings?canceled=true`,
-    metadata: { userId: userId, userEmail: userEmail, interval },
+    cancel_url: `${config.stripe.baseUrl}/dashboard/talent/settings/subscription?checkout=canceled`,
+    metadata: { userId: userId, userEmail: userEmail, interval: normalizedInterval },
     allow_promotion_codes: true,
+    branding_settings: buildCheckoutBrandingSettings(config),
+    custom_text: {
+      submit: {
+        message: `Begin your ${STUDIO_PLUS_PLAN.trialDays}-day Studio+ trial`,
+      },
+      after_submit: {
+        message:
+          "You'll return to Pholio when checkout is complete. Cancel anytime in Settings.",
+      },
+    },
   });
 
   return session;
@@ -123,7 +137,7 @@ async function createCustomerPortalSession(customerId) {
 
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${config.stripe.baseUrl}/pro/upgrade`,
+    return_url: `${config.stripe.baseUrl}/dashboard/talent/settings/subscription?billing=portal-return`,
   });
 
   return session;

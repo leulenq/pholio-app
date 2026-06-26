@@ -125,14 +125,12 @@ export default function TalentLayout({ outletContext = {}, children }) {
         <div className="tl-header-actions">
           {!isStudioPlus && (
             <>
-              <a
-                href="https://www.pholio.studio/pricing"
+              <Link
+                to="/dashboard/talent/settings/subscription"
                 className="tl-btn-upgrade"
-                target="_blank"
-                rel="noopener noreferrer"
               >
                 Upgrade
-              </a>
+              </Link>
               <span className="tl-header-actions-divider" aria-hidden="true" />
             </>
           )}

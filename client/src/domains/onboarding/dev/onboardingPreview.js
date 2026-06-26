@@ -41,6 +41,7 @@ export const PREVIEW_SEED = {
 export const PREVIEW_STEPS = [
   { view: 'entry', label: 'Entry · auth', subSteps: null },
   { view: 'gender', label: 'Identity', subSteps: null },
+  { view: 'birthdate', label: 'Birthdate', subSteps: null },
   { view: 'scout', label: 'Portrait', subSteps: null },
   {
     view: 'measurements',
