@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -9,7 +9,10 @@ import {
   Loader2,
   Lock,
   MapPin,
+  MessageSquare,
+  RotateCcw,
   Send,
+  Trash2,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,8 +31,9 @@ import './ApplicationsView.css';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'active', label: 'Active' },
-  { id: 'accepted', label: 'Signed' },
+  { id: 'inReview', label: 'In Review' },
+  { id: 'advancing', label: 'Advancing' },
+  { id: 'signed', label: 'Signed' },
   { id: 'closed', label: 'Closed' },
 ];
 
@@ -75,13 +79,37 @@ function websiteUrl(value) {
   return `https://${trimmed}`;
 }
 
+// Bare domain for an editorial site fact (e.g. "marilynagency.com").
+function domainLabel(url) {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+  }
+}
+
+// The agency's lead board/division — the "Review focus" a booker reviews against.
+function firstBoard(value) {
+  if (!value) return null;
+  let list = value;
+  if (typeof value === 'string') {
+    try {
+      list = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(list)) return null;
+  const cleaned = list.filter(Boolean);
+  return cleaned.length ? cleaned[0] : null;
+}
+
 function applicationMatchesFilter(app, filter) {
   if (filter === 'all') return true;
-  const config = statusConfig(app.status);
-  if (filter === 'active') return ['inReview', 'advancing'].includes(config.group);
-  if (filter === 'accepted') return config.group === 'signed';
-  if (filter === 'closed') return config.group === 'closed';
-  return true;
+  // Filter ids align 1:1 with the standing groups (inReview / advancing / signed / closed),
+  // so the filter row exposes the same tiers the activity legend shows.
+  return statusConfig(app.status).group === filter;
 }
 
 function agencyInitial(name) {
@@ -90,6 +118,16 @@ function agencyInitial(name) {
 
 function metricLabel(count, singular, plural) {
   return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function canResumeDraft(draft) {
+  if (!draft || draft.lifecycleState !== 'active') return false;
+  if (draft.canResume === false || draft.agency?.isBlocked) return false;
+  if (!draft.agency) return false;
+  if (!draft.agency.status) return true;
+  return ['active', 'available', 'open', 'accepting'].includes(
+    String(draft.agency.status).trim().toLowerCase(),
+  );
 }
 
 export default function ApplicationsView() {
@@ -108,10 +146,18 @@ export default function ApplicationsView() {
   });
 
   const agenciesQuery = useQuery({
-    queryKey: ['talent-agencies'],
+    queryKey: ['talent-agencies', 'apply-content-v2'],
     queryFn: talentApi.getAgencies,
     staleTime: 1000 * 60 * 3,
     retry: 1,
+  });
+
+  const draftsQuery = useQuery({
+    queryKey: ['application-drafts'],
+    queryFn: talentApi.listDrafts,
+    staleTime: 0,
+    retry: 1,
+    refetchOnMount: 'always',
   });
 
   const withdrawMutation = useMutation({
@@ -132,6 +178,31 @@ export default function ApplicationsView() {
         (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
       ),
     [applicationsQuery.data],
+  );
+  const drafts = useMemo(() => {
+    const lifecycleOrder = { active: 0, expired: 1, deleted: 2 };
+    return asArray(draftsQuery.data)
+      .filter(
+        (draft) =>
+          draft.lifecycleState === 'active' ||
+          ((draft.lifecycleState === 'deleted' || draft.lifecycleState === 'expired') &&
+            draft.isRecoverable),
+      )
+      .sort((a, b) => {
+        const stateDelta =
+          (lifecycleOrder[a.lifecycleState] ?? 3) - (lifecycleOrder[b.lifecycleState] ?? 3);
+        if (stateDelta !== 0) return stateDelta;
+        return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+      });
+  }, [draftsQuery.data]);
+  const activeDraftByAgencyId = useMemo(
+    () =>
+      new Map(
+        drafts
+          .filter((draft) => draft.lifecycleState === 'active' && draft.agencyId)
+          .map((draft) => [draft.agencyId, draft]),
+      ),
+    [drafts],
   );
 
   const [searchParams] = useSearchParams();
@@ -187,11 +258,14 @@ export default function ApplicationsView() {
   );
   const openAgencies = agencies
     .filter((agency) => !appliedAgencyIds.has(agency.id))
+    .sort(
+      (a, b) =>
+        Number(activeDraftByAgencyId.has(b.id)) - Number(activeDraftByAgencyId.has(a.id)),
+    )
     .slice(0, 6);
 
   const activeCount = applications.filter((app) => ['inReview', 'advancing'].includes(statusConfig(app.status).group)).length;
   const acceptedCount = applications.filter((app) => statusConfig(app.status).group === 'signed').length;
-  const closedCount = applications.filter((app) => statusConfig(app.status).group === 'closed').length;
   const monthCount = applications.filter((app) => {
     if (!app.created_at) return false;
     const created = new Date(app.created_at);
@@ -202,7 +276,7 @@ export default function ApplicationsView() {
   const monthlyLimitLabel = isPro ? 'Unlimited' : `${monthCount}/5`;
 
   const openApplyFlow = (agency = null) => {
-    const params = agency?.id ? `?agency=${encodeURIComponent(agency.id)}` : '';
+    const params = agency?.id ? `?agency=${encodeURIComponent(agency.id)}` : '?new=1';
     navigate(`/dashboard/talent/applications/apply${params}`);
   };
 
@@ -216,7 +290,7 @@ export default function ApplicationsView() {
     return (
       <div className="applications-view-container">
         <section className="app-error-state" role="alert">
-          <h1>Couldn&apos;t load the market ledger.</h1>
+          <h1>Couldn&apos;t load the market.</h1>
           <p>
             {isProfileMissing
               ? 'Profile setup needs attention before applications can load.'
@@ -250,11 +324,9 @@ export default function ApplicationsView() {
             The <em>Market.</em>
           </h1>
           <div className="app-hero__sweep" aria-hidden />
-          <p className="app-standfirst">Market submissions, decisions, and next moves.</p>
-          <PholioButton variant="solid" onClick={() => openApplyFlow()}>
-            {gating.isCoreReady && !isSendReady ? 'Prepare submission' : 'Apply New'}{' '}
-            <Send size={14} aria-hidden />
-          </PholioButton>
+          <p className="app-standfirst">
+            Open agencies, work in progress, and every submission on record.
+          </p>
         </div>
 
         <dl className="app-market-index" aria-label="Application summary">
@@ -277,24 +349,114 @@ export default function ApplicationsView() {
         </dl>
       </header>
 
-      <section className="app-proofline" aria-label="Application status summary">
-        <div className="app-proofline__lead">
-          <strong>{metricLabel(activeCount, 'live submission', 'live submissions')}</strong>
-        </div>
-        <div className="app-proofline__track" aria-hidden>
-          <span style={{ width: `${applications.length ? (activeCount / applications.length) * 100 : 0}%` }} />
-        </div>
-        <div className="app-proofline__states">
-          <span>{metricLabel(activeCount, 'under review', 'under review')}</span>
-          <span>{metricLabel(acceptedCount, 'signed', 'signed')}</span>
-          <span>{metricLabel(closedCount, 'closed', 'closed')}</span>
-        </div>
+      <section className="app-discovery" id="app-discovery" aria-label="Open agencies">
+        <p className="app-discovery__meta" data-tour="agency-discovery">
+          {agenciesQuery.isLoading ? 'Loading agencies' : `${openAgencies.length} open`}
+          {' · '}
+          {metricLabel(drafts.length, 'saved draft', 'saved drafts')}
+        </p>
+
+        {!gating.isCoreReady && (
+          <ProfileGateBanner
+            variant="compact"
+            featureName={applicationGate.featureName}
+            featureLabel={applicationGate.featureLabel}
+            description={applicationGate.description}
+            {...gating}
+          />
+        )}
+
+        {gating.isCoreReady && !isSendReady && sendBlockers.length > 0 && (
+          <div className="app-send-list" role="status" aria-label="Send requirements">
+            {sendBlockers.map((blocker) => (
+              <div key={blocker.key || blocker.label}>
+                <CircleDashed size={14} aria-hidden />
+                <span>Send</span>
+                <strong>{sendBlockerLabel(blocker)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {agenciesQuery.isLoading ? (
+          <div className="app-agency-grid">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="app-agency-card app-agency-card--skeleton" />
+            ))}
+          </div>
+        ) : openAgencies.length > 0 ? (
+          <div className="app-agency-grid">
+            {openAgencies.map((agency) => {
+              const agencyDraft = activeDraftByAgencyId.get(agency.id);
+              const draftCanResume = !agencyDraft || canResumeDraft(agencyDraft);
+              return (
+                <article key={agency.id} className="app-agency-card">
+                  <div className="app-agency-card__mark" aria-hidden>
+                    {agency.profile_image ? (
+                      <img src={agency.profile_image} alt="" />
+                    ) : (
+                      <span>{agencyInitial(agency.name)}</span>
+                    )}
+                  </div>
+                  <div className="app-agency-card__body">
+                    <h3>{agency.name || 'Unnamed Agency'}</h3>
+                    <p className="app-agency-card__location">
+                      <MapPin size={13} aria-hidden />
+                      {agency.agency_location || 'Global'}
+                    </p>
+                    <p className="app-agency-card__desc">
+                      {agency.agency_description || 'Open to new talent submissions.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="app-agency-card__apply"
+                    onClick={() => openApplyFlow(agency)}
+                    disabled={!gating.isCoreReady || !draftCanResume}
+                  >
+                    {!gating.isCoreReady ? (
+                      <>
+                        <Lock size={14} aria-hidden />
+                        Locked
+                      </>
+                    ) : !draftCanResume ? (
+                      <>
+                        <Lock size={14} aria-hidden />
+                        Unavailable
+                      </>
+                    ) : agencyDraft ? (
+                      <>
+                        Continue application
+                        <ArrowUpRight size={14} aria-hidden />
+                      </>
+                    ) : !isSendReady ? (
+                      <>
+                        Prepare
+                        <ArrowUpRight size={14} aria-hidden />
+                      </>
+                    ) : (
+                      <>
+                        Compose
+                        <ArrowUpRight size={14} aria-hidden />
+                      </>
+                    )}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="app-empty-state app-empty-state--discovery">
+            <Check size={28} strokeWidth={1.4} aria-hidden />
+            <h3>Every available agency is already in your ledger</h3>
+          </div>
+        )}
       </section>
 
       <div className="app-workspace">
         <section className="app-ledger" aria-labelledby="application-ledger-title">
           <div className="app-section-head" data-tour="app-ledger">
-            <h2 id="application-ledger-title">Application history</h2>
+            <h2 id="application-ledger-title">Submission history</h2>
             <div className="app-filter-row" aria-label="Filter applications">
               {FILTERS.map((filter) => (
                 <button
@@ -350,12 +512,12 @@ export default function ApplicationsView() {
             <div className="app-empty-state">
               <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
               <h3>You haven&apos;t applied yet</h3>
-              <p>Browse agencies below and submit your first application.</p>
+              <p>Browse agencies below and send your first submission.</p>
             </div>
           ) : (
             <div className="app-empty-state">
               <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
-              <h3>No applications in this view</h3>
+              <h3>No submissions in this view</h3>
             </div>
           )}
         </section>
@@ -369,105 +531,16 @@ export default function ApplicationsView() {
             />
           ) : (
             <div className="app-detail-empty">
-              <p>No application selected.</p>
+              <p>No submission selected.</p>
             </div>
           )}
         </aside>
       </div>
 
-      <section className="app-discovery" id="app-discovery" aria-labelledby="application-discovery-title">
-        <div className="app-section-head app-section-head--discovery" data-tour="agency-discovery">
-          <h2 id="application-discovery-title">Next submissions</h2>
-          <p>{agenciesQuery.isLoading ? 'Loading agencies' : `${openAgencies.length} available`}</p>
-        </div>
-
-        {!gating.isCoreReady && (
-          <ProfileGateBanner
-            variant="compact"
-            featureName={applicationGate.featureName}
-            featureLabel={applicationGate.featureLabel}
-            description={applicationGate.description}
-            {...gating}
-          />
-        )}
-
-        {gating.isCoreReady && !isSendReady && sendBlockers.length > 0 && (
-          <div className="app-send-list" role="status" aria-label="Send requirements">
-            {sendBlockers.map((blocker) => (
-              <div key={blocker.key || blocker.label}>
-                <CircleDashed size={14} aria-hidden />
-                <span>Send</span>
-                <strong>{sendBlockerLabel(blocker)}</strong>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {agenciesQuery.isLoading ? (
-          <div className="app-agency-grid">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="app-agency-card app-agency-card--skeleton" />
-            ))}
-          </div>
-        ) : openAgencies.length > 0 ? (
-          <div className="app-agency-grid">
-            {openAgencies.map((agency) => (
-              <article key={agency.id} className="app-agency-card">
-                <div className="app-agency-card__mark" aria-hidden>
-                  {agency.profile_image ? (
-                    <img src={agency.profile_image} alt="" />
-                  ) : (
-                    <span>{agencyInitial(agency.name)}</span>
-                  )}
-                </div>
-                <div className="app-agency-card__body">
-                  <h3>{agency.name || 'Unnamed Agency'}</h3>
-                  <p className="app-agency-card__location">
-                    <MapPin size={13} aria-hidden />
-                    {agency.agency_location || 'Global'}
-                  </p>
-                  <p className="app-agency-card__desc">
-                    {agency.agency_description || 'Open to new talent submissions.'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="app-agency-card__apply"
-                  onClick={() => openApplyFlow(agency)}
-                  disabled={!gating.isCoreReady}
-                >
-                  {!gating.isCoreReady ? (
-                    <>
-                      <Lock size={14} aria-hidden />
-                      Locked
-                    </>
-                  ) : !isSendReady ? (
-                    <>
-                      Prepare
-                      <ArrowUpRight size={14} aria-hidden />
-                    </>
-                  ) : (
-                    <>
-                      Compose
-                      <ArrowUpRight size={14} aria-hidden />
-                    </>
-                  )}
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="app-empty-state app-empty-state--discovery">
-            <Check size={28} strokeWidth={1.4} aria-hidden />
-            <h3>Every available agency is already in your ledger</h3>
-          </div>
-        )}
-      </section>
-
       <ConfirmationDialog
         isOpen={withdrawingApplication !== null}
-        title="Withdraw Application?"
-        message={`Withdraw the application to ${withdrawingApplication?.agency_name || 'this agency'}?`}
+        title="Withdraw submission?"
+        message={`Withdraw the submission to ${withdrawingApplication?.agency_name || 'this agency'}?`}
         confirmLabel="Withdraw"
         cancelLabel="Keep"
         variant="warning"
@@ -482,94 +555,70 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
   const config = statusConfig(app.status);
   const StatusIcon = config.icon;
   const site = websiteUrl(app.agency_website);
+  const domain = domainLabel(site);
+  const board = firstBoard(app.agency_open_boards);
   const canWithdraw = config.tone === 'pending';
   const age = daysSince(app.created_at);
 
   // No scheduler exists to auto-expire stale applications, so surface a calm,
-  // truthful cue when an active application has gone quiet for a while.
+  // truthful cue when an active submission has gone quiet for a while.
   const daysWaiting = daysSince(app.updated_at || app.created_at);
   const isStale = config.tone === 'pending' && daysWaiting !== null && daysWaiting >= 21;
 
-  const activityQuery = useQuery({
-    queryKey: ['application-activity', app.id],
-    queryFn: () => talentApi.getApplicationActivity(app.id),
-    enabled: !!app.id,
-    staleTime: 1000 * 30,
-  });
-  const history = asArray(activityQuery.data);
+  const [messagesOpen, setMessagesOpen] = useState(false);
+  const agencyShort = app.agency_name ? app.agency_name.split(' ')[0] : 'agency';
 
   return (
     <div className="app-detail">
       <div className="app-detail__mast">
-        <div className="app-detail__agency">
-          <div className="app-detail__mark" aria-hidden>
-            {app.agency_logo ? <img src={app.agency_logo} alt="" /> : <span>{agencyInitial(app.agency_name)}</span>}
-          </div>
-          <div>
-            <h2>{app.agency_name || 'Unknown Agency'}</h2>
-            <p>
-              <MapPin size={13} aria-hidden />
-              {app.agency_location || 'Location pending'}
-            </p>
-          </div>
-        </div>
+        <span className="app-detail__mark" aria-hidden>
+          {app.agency_logo ? <img src={app.agency_logo} alt="" /> : <span>{agencyInitial(app.agency_name)}</span>}
+        </span>
+        <h2 className="app-detail__name">{app.agency_name || 'Unknown Agency'}</h2>
       </div>
 
       <div className={`app-detail__status app-detail__status--${config.tone}`}>
-        <StatusIcon size={16} aria-hidden />
+        <StatusIcon size={15} aria-hidden />
         <span>{config.label}</span>
       </div>
 
-      <p className="app-detail__summary">{config.detail}</p>
+      <p className="app-detail__next">{config.next}</p>
+      {isStale && (
+        <p className="app-detail__stale">
+          {daysWaiting} days without a reply — message {agencyShort}, or withdraw to free the slot.
+        </p>
+      )}
 
-      <div className="app-detail__timeline">
+      <dl className="app-detail__facts">
         <div>
-          <span>Submitted</span>
-          <strong>{dateLabel(app.created_at)}</strong>
+          <dt>Market</dt>
+          <dd>{app.agency_location || 'Global'}</dd>
         </div>
-        <div>
-          <span>Updated</span>
-          <strong>{dateLabel(app.updated_at || app.created_at)}</strong>
-        </div>
-        <div>
-          <span>Age</span>
-          <strong>{age === null ? 'Pending' : `${age}d`}</strong>
-        </div>
-      </div>
-
-      <div className="app-detail__next">
-        <p>{config.next}</p>
-        {isStale && (
-          <p className="app-detail__stale">
-            It&apos;s been {daysWaiting} days without an update. You can reach out via the
-            agency&apos;s site, or withdraw to free this slot.
-          </p>
+        {board && (
+          <div>
+            <dt>Review focus</dt>
+            <dd>{board}</dd>
+          </div>
         )}
-      </div>
-
-      <ApplicationInterviews applicationId={app.id} />
-
-      <ApplicationMessages applicationId={app.id} agencyName={app.agency_name} />
-
-      <div className="app-detail__history">
-        <span className="app-detail__history-title">History</span>
-        <ol className="app-detail__history-list">
-          <li className="app-detail__history-row">
-            <span className="app-detail__history-dot" aria-hidden />
-            <span className="app-detail__history-label">Submitted</span>
-            <span className="app-detail__history-date">{dateLabel(app.created_at)}</span>
-          </li>
-          {history.map((row) => (
-            <li key={row.id} className="app-detail__history-row">
-              <span className="app-detail__history-dot" aria-hidden />
-              <span className="app-detail__history-label">
-                {statusConfig(row.metadata?.new_status).label}
-              </span>
-              <span className="app-detail__history-date">{dateLabel(row.created_at)}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
+        <div>
+          <dt>Submitted</dt>
+          <dd>{dateLabel(app.created_at)}</dd>
+        </div>
+        <div>
+          <dt>Age</dt>
+          <dd>{age === null ? 'Pending' : `${age} days`}</dd>
+        </div>
+        {domain && (
+          <div>
+            <dt>Agency site</dt>
+            <dd>
+              <a href={site} target="_blank" rel="noreferrer">
+                {domain}
+              </a>
+            </dd>
+          </div>
+        )}
+      </dl>
 
       {app.note && (
         <div className="app-detail__note">
@@ -578,27 +627,26 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         </div>
       )}
 
+      <ApplicationInterviews applicationId={app.id} />
+
       <div className="app-detail__actions">
-        {site && (
-          <PholioButton as="a" href={site} target="_blank" rel="noreferrer" variant="secondary">
-            Visit Agency
-            <ArrowUpRight size={14} aria-hidden />
-          </PholioButton>
-        )}
+        <button
+          type="button"
+          className="app-detail__act"
+          onClick={() => setMessagesOpen(true)}
+        >
+          <MessageSquare size={14} aria-hidden />
+          Message {agencyShort}
+        </button>
         {canWithdraw && (
-          <PholioButton variant="danger" onClick={onWithdraw} disabled={isWithdrawing}>
-            {isWithdrawing ? (
-              <>
-                <Loader2 size={13} className="app-spin" aria-hidden />
-                Withdrawing
-              </>
-            ) : (
-              <>
-                <X size={13} aria-hidden />
-                Withdraw
-              </>
-            )}
-          </PholioButton>
+          <button
+            type="button"
+            className="app-detail__withdraw"
+            onClick={onWithdraw}
+            disabled={isWithdrawing}
+          >
+            {isWithdrawing ? 'Withdrawing…' : 'Withdraw submission'}
+          </button>
         )}
       </div>
 
@@ -607,6 +655,51 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         <a href="/dashboard/talent/profile">Profile</a>
         <a href="/dashboard/talent/media">Comp Card</a>
       </div>
+
+      {messagesOpen && <MessageDock app={app} onClose={() => setMessagesOpen(false)} />}
     </div>
+  );
+}
+
+// On-demand messaging — a focused dock anchored bottom-right, opened from the
+// submission detail. Keeps the conversation out of the panel until it's wanted.
+function MessageDock({ app, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="app-msgdock__scrim"
+        aria-label="Close messages"
+        onClick={onClose}
+      />
+      <aside
+        className="app-msgdock"
+        role="dialog"
+        aria-label={`Messages with ${app.agency_name || 'agency'}`}
+      >
+        <header className="app-msgdock__head">
+          <span className="app-msgdock__title">{app.agency_name || 'Agency'}</span>
+          <button
+            type="button"
+            className="app-msgdock__close"
+            onClick={onClose}
+            aria-label="Close messages"
+          >
+            <X size={15} aria-hidden />
+          </button>
+        </header>
+        <div className="app-msgdock__body">
+          <ApplicationMessages applicationId={app.id} agencyName={app.agency_name} hideTitle />
+        </div>
+      </aside>
+    </>
   );
 }

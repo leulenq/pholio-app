@@ -14,6 +14,11 @@ function createKnexMock(seed = {}, schema = {}) {
     ai_profile_analysis: [...(seed.ai_profile_analysis || [])],
     talent_user_settings: [...(seed.talent_user_settings || [])],
     image_rights: [...(seed.image_rights || [])],
+    application_drafts: [...(seed.application_drafts || [])],
+    application_draft_events: [...(seed.application_draft_events || [])],
+    application_submission_requests: [
+      ...(seed.application_submission_requests || []),
+    ],
   };
 
   const tables = new Set([
@@ -201,8 +206,41 @@ describe("buildTalentDataExport", () => {
             copyright_owner: "Jane Doe",
           },
         ],
+        application_drafts: [
+          {
+            id: "draft-1",
+            profile_id: "profile-1",
+            agency_id: "agency-1",
+            lifecycle_state: "active",
+            payload: '{"note":"Work in progress"}',
+            updated_at: "2026-06-26T00:00:00.000Z",
+          },
+        ],
+        application_draft_events: [
+          {
+            id: "draft-event-1",
+            profile_id: "profile-1",
+            agency_id: "agency-1",
+            event_type: "saved",
+            created_at: "2026-06-26T00:00:00.000Z",
+          },
+        ],
+        application_submission_requests: [
+          {
+            id: "submission-request-1",
+            profile_id: "profile-1",
+            agency_id: "agency-1",
+            status: "completed",
+            created_at: "2026-06-27T00:00:00.000Z",
+          },
+        ],
       },
       {
+        tables: [
+          "application_drafts",
+          "application_draft_events",
+          "application_submission_requests",
+        ],
         profileColumns: ["vibe_score", "archetype"],
         imageColumns: ["path", "moderation_status"],
       },
@@ -249,6 +287,21 @@ describe("buildTalentDataExport", () => {
       id: "settings-1",
       user_id: "user-1",
     });
+    expect(result.application_drafts).toEqual([
+      expect.objectContaining({
+        id: "draft-1",
+        payload: '{"note":"Work in progress"}',
+      }),
+    ]);
+    expect(result.application_draft_events).toEqual([
+      expect.objectContaining({ id: "draft-event-1", event_type: "saved" }),
+    ]);
+    expect(result.application_submission_requests).toEqual([
+      expect.objectContaining({
+        id: "submission-request-1",
+        status: "completed",
+      }),
+    ]);
   });
 
   it("returns empty related collections when profile is missing", async () => {
@@ -267,6 +320,9 @@ describe("buildTalentDataExport", () => {
     expect(result.onboarding_signals).toBeNull();
     expect(result.ai_profile_analysis).toBeNull();
     expect(result.profile_ai_fields).toBeNull();
+    expect(result.application_drafts).toEqual([]);
+    expect(result.application_draft_events).toEqual([]);
+    expect(result.application_submission_requests).toEqual([]);
   });
 
   it("exports declared profile AI columns only when present on schema", async () => {

@@ -9,6 +9,29 @@ const {
 const { v4: uuidv4 } = require("uuid");
 
 const router = express.Router();
+const TRACKED_PORTFOLIO_EVENTS = new Set([
+  "bio_read",
+  "social_click",
+  "portfolio_click",
+  "scroll_depth",
+]);
+
+function isLikelyBot(userAgent = "") {
+  return /bot|crawler|spider|slurp|facebookexternalhit|linkedinbot|preview/i.test(
+    String(userAgent),
+  );
+}
+
+function shouldExcludeFromAnalytics(profile, req) {
+  const isOwner =
+    Boolean(req?.session?.userId) &&
+    req.session.userId === profile?.user_id;
+  return isOwner || isLikelyBot(req?.headers?.["user-agent"]);
+}
+
+function portfolioSessionCookieName(profileId) {
+  return `pholio_session_${String(profileId).replace(/[^a-z0-9]/gi, "")}`;
+}
 
 // Helper function to log analytics event (non-blocking)
 async function logAnalyticsEvent(
@@ -55,7 +78,8 @@ async function trackVisitorSession(profileId, req, res) {
 
   try {
     const visitorId = req.cookies.pholio_visitor_id || uuidv4();
-    const sessionId = req.cookies.pholio_session_id;
+    const sessionCookieName = portfolioSessionCookieName(profileId);
+    const sessionId = req.cookies[sessionCookieName];
 
     // Set visitor cookie (1 year)
     res.cookie("pholio_visitor_id", visitorId, {
@@ -67,7 +91,7 @@ async function trackVisitorSession(profileId, req, res) {
     if (sessionId) {
       // Check if session exists in DB and update last activity
       const existingSession = await knex("visitor_sessions")
-        .where({ id: sessionId })
+        .where({ id: sessionId, profile_id: profileId })
         .first();
       if (existingSession) {
         await knex("visitor_sessions")
@@ -95,7 +119,7 @@ async function trackVisitorSession(profileId, req, res) {
     });
 
     // Set session cookie (30 mins)
-    res.cookie("pholio_session_id", newSessionId, {
+    res.cookie(sessionCookieName, newSessionId, {
       maxAge: 30 * 60 * 1000,
       httpOnly: true,
       sameSite: "lax",
@@ -376,16 +400,20 @@ router.get("/portfolio/:slug", async (req, res, next) => {
     // Use pro layout for pro portfolios (no header/footer), regular layout for free
     const layoutType = profile.is_pro ? "portfolio-pro" : "layout";
 
-    // Track portfolio view (non-blocking)
-    logAnalyticsEvent(
-      profile.id,
-      "view",
-      { source: "web", slug: profile.slug },
-      req,
-    );
-
-    // Track visitor session (Tier 2)
-    trackVisitorSession(profile.id, req, res);
+    // Signed-in owner previews and automated crawlers do not represent audience
+    // traffic. Await tracking so the session cookie is written before render
+    // commits the response headers.
+    if (!shouldExcludeFromAnalytics(profile, req)) {
+      await Promise.all([
+        logAnalyticsEvent(
+          profile.id,
+          "view",
+          { source: "web", slug: profile.slug },
+          req,
+        ),
+        trackVisitorSession(profile.id, req, res),
+      ]);
+    }
 
     return res.render("portfolio/show", {
       title: `${profile.first_name} ${profile.last_name}`,
@@ -430,14 +458,29 @@ router.get("/portfolio/:slug", async (req, res, next) => {
 
 router.post("/portfolio/:slug/event", async (req, res) => {
   const slug = req.params.slug;
-  const { eventType, metadata } = req.body;
+  const { eventType, metadata } = req.body || {};
 
   try {
     const profile = await knex("profiles").where({ slug: slug }).first();
     if (profile) {
-      // Log event using the existing helper
-      await logAnalyticsEvent(profile.id, eventType, metadata, req);
-      return res.json({ success: true });
+      if (!TRACKED_PORTFOLIO_EVENTS.has(eventType)) {
+        return res.status(400).json({ error: "Unsupported analytics event" });
+      }
+
+      const safeMetadata =
+        metadata && typeof metadata === "object" && !Array.isArray(metadata)
+          ? metadata
+          : {};
+      if (JSON.stringify(safeMetadata).length > 2000) {
+        return res.status(400).json({ error: "Analytics metadata is too large" });
+      }
+
+      if (shouldExcludeFromAnalytics(profile, req)) {
+        return res.json({ success: true, recorded: false });
+      }
+
+      await logAnalyticsEvent(profile.id, eventType, safeMetadata, req);
+      return res.json({ success: true, recorded: true });
     }
     return res.status(404).json({ error: "Profile not found" });
   } catch (error) {

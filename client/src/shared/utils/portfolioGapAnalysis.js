@@ -50,11 +50,17 @@ const STANDARD_CHECKLIST = [
   },
 ];
 
-export function analyzePortfolio(images = []) {
-  const list = Array.isArray(images) ? images : [];
-  const pkg = analyzePackageIntelligence({ images: list });
+/** Checklist ids that coach for body imagery — withheld from unconsented minors. */
+const BODY_IMAGERY_CHECK_IDS = new Set(['fullbody', 'back']);
 
-  const checks = STANDARD_CHECKLIST.map((item) => ({
+export function analyzePortfolio(images = [], profile = null) {
+  const list = Array.isArray(images) ? images : [];
+  const pkg = analyzePackageIntelligence({ images: list, profile });
+  const suppressBodyImagery = pkg.suppressBodyImagery;
+
+  const checks = STANDARD_CHECKLIST.filter(
+    (item) => !(suppressBodyImagery && BODY_IMAGERY_CHECK_IDS.has(item.id)),
+  ).map((item) => ({
     id: item.id,
     label: item.label,
     description: item.description,

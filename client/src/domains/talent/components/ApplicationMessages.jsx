@@ -28,7 +28,7 @@ function timeLabel(value) {
   });
 }
 
-export default function ApplicationMessages({ applicationId, agencyName }) {
+export default function ApplicationMessages({ applicationId, agencyName, hideTitle = false }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [prePolishDraft, setPrePolishDraft] = useState(null);
@@ -97,7 +97,7 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
 
   return (
     <div className="app-msg">
-      <span className="app-msg__title">Messages</span>
+      {!hideTitle && <span className="app-msg__title">Messages</span>}
 
       {threadQuery.isLoading ? (
         <p className="app-msg__empty">Loading conversation…</p>
@@ -145,6 +145,7 @@ export default function ApplicationMessages({ applicationId, agencyName }) {
               className="app-msg__toolbar"
               actions={[{ id: 'polish', label: 'Polish', onClick: () => polish.mutate() }]}
               busy={polish.isPending}
+              busyActionId="polish"
               busyLabel="Polishing…"
               onUndo={handleUndo}
               showUndo={showUndo}

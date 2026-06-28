@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { analyzePortfolio } from '../../../shared/utils/portfolioGapAnalysis';
+import { analyzePackageIntelligence } from '../../../shared/utils/packageIntelligence';
 import { imageNeedsReview } from '../../../shared/utils/imageClassification';
 import { buildBookIntelligence } from '../utils/bookIntelligence';
 import { ClassificationReviewRows } from './ClassificationReviewStrip';
@@ -16,15 +17,30 @@ function countLabel(readCount, refinementCount) {
   return `${refinementCount} ${refinementCount === 1 ? 'refinement' : 'refinements'}`;
 }
 
-export default function DigitalsBookPanel({ images = [], onConfirm, onEdit }) {
-  const analysis = useMemo(() => analyzePortfolio(images), [images]);
+// Body-imagery coaching withheld from an unconsented minor — keeps the /media
+// "Digitals read" panel in agreement with the readiness path's consent gate.
+const SUPPRESSED_BODY_SUGGESTION_IDS = new Set([
+  'fullbody',
+  'back',
+  'book_full_length_not_digital',
+]);
+
+export default function DigitalsBookPanel({ images = [], profile = null, onConfirm, onEdit }) {
+  // Profile is threaded so minor-suppression activates: analyzePortfolio drops the
+  // body-imagery checks, and we strip any residual body suggestions below.
+  const analysis = useMemo(() => analyzePortfolio(images, profile), [images, profile]);
+  const pkg = useMemo(() => analyzePackageIntelligence({ images, profile }), [images, profile]);
   const intel = useMemo(() => buildBookIntelligence(analysis, images), [analysis, images]);
+  const suggestions = useMemo(() => {
+    if (!pkg.suppressBodyImagery) return intel.suggestions;
+    return intel.suggestions.filter((s) => !SUPPRESSED_BODY_SUGGESTION_IDS.has(s.id));
+  }, [intel.suggestions, pkg.suppressBodyImagery]);
   const reviewItems = useMemo(() => images.filter(imageNeedsReview), [images]);
   const [open, setOpen] = useState(true);
 
-  if (images.length === 0 || (intel.suggestions.length === 0 && reviewItems.length === 0)) return null;
+  if (images.length === 0 || (suggestions.length === 0 && reviewItems.length === 0)) return null;
 
-  const refinementCount = intel.suggestions.length;
+  const refinementCount = suggestions.length;
   const readCount = reviewItems.length;
   const segments = Array.from({ length: intel.total }, (_, i) => i < intel.covered);
 
@@ -67,9 +83,9 @@ export default function DigitalsBookPanel({ images = [], onConfirm, onEdit }) {
                   />
                 </div>
               ) : null}
-              {intel.suggestions.length > 0 ? (
+              {suggestions.length > 0 ? (
                 <ul className="phi__list">
-                  {intel.suggestions.map((s) => (
+                  {suggestions.map((s) => (
                     <li key={s.id} className="phi__item">
                       <span className="phi__item-title">{s.title}</span>
                       <span className="phi__item-text">{s.text}</span>

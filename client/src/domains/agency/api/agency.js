@@ -205,6 +205,21 @@ export async function keepOnFileApplication(applicationId) {
 }
 
 /**
+ * Request more from a submission (more digitals / specific shots / in-person) — an
+ * advancing state, not a decision.
+ */
+export async function requestMoreApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'requested_more' });
+}
+
+/**
+ * Invite the talent to a meeting / go-see — the advancing step before a signing decision.
+ */
+export async function requestMeetingApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'meeting_requested' });
+}
+
+/**
  * Archive application
  */
 export async function archiveApplication(applicationId) {
@@ -752,6 +767,8 @@ export default {
   declineApplication,
   shortlistApplication,
   keepOnFileApplication,
+  requestMoreApplication,
+  requestMeetingApplication,
   archiveApplication,
   getDiscoverableTalent,
   getProfilePreview,

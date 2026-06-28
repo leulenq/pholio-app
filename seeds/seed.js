@@ -54,7 +54,11 @@ async function seedDemoData(knex, talentId, profileId) {
       name: "Marilyn Agency",
       location: "Paris, France",
       website: "https://marilynagency.com",
-      openBoards: ["Women", "Men", "New Faces"],
+      description:
+        "Founded in Paris in 1985, Marilyn Agency represents women, men, celebrities, and new faces across editorial, runway, and luxury fashion. The house is known for developing internationally visible talent and maintaining a Paris-led point of view with New York reach.",
+      logoPath: "/agency-logos/marilyn-agency.svg",
+      brandColor: "#050505",
+      openBoards: ["Women", "Men", "Celebrities", "New Faces"],
     },
   ];
 
@@ -67,6 +71,9 @@ async function seedDemoData(knex, talentId, profileId) {
       name: ag.name,
       location: ag.location,
       website: ag.website,
+      description: ag.description || null,
+      logo_path: ag.logoPath || null,
+      brand_color: ag.brandColor || null,
       open_boards: JSON.stringify(ag.openBoards),
       status: "ACTIVE",
     });

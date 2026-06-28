@@ -4,10 +4,35 @@ const { requireLegalAcceptance } = require("../lib/legal-acceptance");
 const EXEMPT_SUFFIXES = [
   "/settings/legal-acceptance",
   "/settings/legal-status",
+  "/applications/submission-program-status",
+  "/applications/submission-program-acknowledgment",
 ];
 
-function isExemptPath(path) {
-  return EXEMPT_SUFFIXES.some((suffix) => path.endsWith(suffix));
+function resolveTalentApiPath(req) {
+  const raw = (req.originalUrl || req.path || "").split("?")[0];
+  const marker = "/api/talent";
+  const idx = raw.indexOf(marker);
+  if (idx >= 0) {
+    const suffix = raw.slice(idx + marker.length);
+    return suffix || "/";
+  }
+  return raw;
+}
+
+function isExemptPath(req) {
+  const path = resolveTalentApiPath(req);
+  const method = (req.method || "GET").toUpperCase();
+
+  if (EXEMPT_SUFFIXES.some((suffix) => path.endsWith(suffix))) {
+    return true;
+  }
+
+  // Dashboard bootstrap: allow read-only profile load while legal gate is shown.
+  if (method === "GET" && path === "/profile") {
+    return true;
+  }
+
+  return false;
 }
 
 function isApiRequest(req) {
@@ -29,8 +54,7 @@ function requireTalentLegalAcceptance() {
       return next();
     }
 
-    const path = req.path || "";
-    if (isExemptPath(path)) {
+    if (isExemptPath(req)) {
       return next();
     }
 

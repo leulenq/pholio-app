@@ -270,7 +270,7 @@ export default function OverviewView() {
 
               <div className="ov-checklist" role="list">
                 {auditLoading ? (
-                  [0, 1, 2].map((i) => (
+                  [0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="ov-check-item" role="listitem" style={{ pointerEvents: 'none' }}>
                       <div className="ov-check-left">
                         <div
@@ -291,10 +291,6 @@ export default function OverviewView() {
                     aria-label={`${item.label}${item.tier === 'required' ? ': Required' : ''}`}
                   >
                     <div className="ov-check-left">
-                      <div
-                        className={`ov-check-dot ${item.tier === 'required' ? 'ov-check-dot--critical' : 'ov-check-dot--improve'}`}
-                        aria-hidden
-                      />
                       <span className="ov-check-label">{item.label}</span>
                     </div>
                     <div className="ov-check-right">
@@ -307,8 +303,8 @@ export default function OverviewView() {
                 ))}
               </div>
 
-              {!auditLoading && totalGaps > 3 && (
-                <p className="ov-audit-more">+{totalGaps - 3} more</p>
+              {!auditLoading && totalGaps > 5 && (
+                <p className="ov-audit-more">+{totalGaps - 5} more</p>
               )}
 
               <Link to="/dashboard/talent/profile" className="ov-audit-cta">

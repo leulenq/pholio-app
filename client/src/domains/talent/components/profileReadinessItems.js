@@ -154,6 +154,13 @@ export const IMPROVE_READINESS_ITEMS = [
 
 const SENSITIVE_READINESS_KEYS = new Set(['measurements', 'photo_full_body', 'weight']);
 
+/**
+ * Improve-tier keys that coach for body imagery / measurement-adjacent frames.
+ * Withheld from a minor without guardian consent so /media and the readiness
+ * checklist never ask an unconsented minor for body imagery.
+ */
+const SENSITIVE_IMPROVE_KEYS = new Set(['weight', 'photo_back']);
+
 /** Map profile strength field keys → ProfileNav section ids for gap dots. */
 export const READINESS_KEY_TO_NAV_ID = {
   name: 'identity',
@@ -275,7 +282,7 @@ export function buildReadinessLists(fieldCompletion = {}, profile = null, images
   const resolvedDivision = division || resolveTalentDivision(profile);
   const divisionConfig = getDivisionReadinessConfig(resolvedDivision);
   const pkg = Array.isArray(images) && images.length
-    ? analyzePackageIntelligence({ images })
+    ? analyzePackageIntelligence({ images, profile })
     : null;
 
   const applyGuidance = (item) => {
@@ -295,7 +302,7 @@ export function buildReadinessLists(fieldCompletion = {}, profile = null, images
   );
 
   const improveItems = IMPROVE_READINESS_ITEMS.filter((item) => {
-    if (minor && !unlocked && item.key === 'weight') return false;
+    if (minor && !unlocked && SENSITIVE_IMPROVE_KEYS.has(item.key)) return false;
     return true;
   }).map((item) =>
     applyGuidance({
@@ -313,7 +320,7 @@ export function buildReadinessLists(fieldCompletion = {}, profile = null, images
   const topGaps = [
     ...missingRequired.map((i) => ({ ...i, tier: 'required' })),
     ...missingImprove.map((i) => ({ ...i, tier: 'improve' })),
-  ].slice(0, 3);
+  ].slice(0, 5);
 
   return {
     requiredItems,
@@ -341,7 +348,7 @@ export function buildNavGapBySection(fieldCompletion = {}, profile = null) {
   const unlocked = minorSensitiveFieldsUnlocked(profile);
 
   for (const item of IMPROVE_READINESS_ITEMS) {
-    if (minor && !unlocked && item.key === 'weight') continue;
+    if (minor && !unlocked && SENSITIVE_IMPROVE_KEYS.has(item.key)) continue;
     if (completion[item.key]) continue;
     const navId = READINESS_KEY_TO_NAV_ID[item.key];
     if (navId && gaps[navId] !== 'required') gaps[navId] = 'improve';

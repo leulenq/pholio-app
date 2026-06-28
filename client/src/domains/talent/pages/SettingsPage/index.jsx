@@ -9,6 +9,7 @@ import {
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
+import { purgeApplyDraftStorage } from '../ApplyPage/applicationDraftStorage';
 import { auth } from '../../../../shared/lib/firebase';
 import {
   isMinorProfile,
@@ -1291,6 +1292,7 @@ function DangerZoneSection() {
   const deleteMutation = useMutation({
     mutationFn: talentApi.deleteAccount,
     onSuccess: (result) => {
+      purgeApplyDraftStorage();
       toast.success('Account deleted');
       window.location.href = result?.redirect || '/login';
     },

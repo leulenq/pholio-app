@@ -1,13 +1,27 @@
 import {
   analyzeDigitalsReadiness,
+  analyzeDigitalsSet,
+  analyzeBookRange,
   isHeadshotImage,
   isFullBodyImage,
   isBookFullLengthImage,
   isBookHeadshotImage,
   isDigitalSlot,
 } from './profileReadinessImages';
+import { isMinorProfile, minorSensitiveFieldsUnlocked } from './talentAge';
 import { DIGITALS_STALE_DAYS } from '../constants/packageIntelligence';
 import { PACKAGE_ADVISORY_COPY, advisoryInline } from '../constants/frameTaxonomy';
+
+/**
+ * Body imagery (full-length / ¾ / back framing + measurement-adjacent coaching)
+ * must be withheld from a minor who lacks guardian consent. Mirrors the
+ * minorSensitiveFieldsUnlocked gate the readiness path already enforces, so the
+ * /media "Digitals read" panel and the profile readiness checklist agree.
+ */
+export function shouldSuppressBodyImagery(profile = null, now = new Date()) {
+  if (!profile) return false;
+  return isMinorProfile(profile, now) && !minorSensitiveFieldsUnlocked(profile, now);
+}
 
 function parseMetadata(raw) {
   if (!raw) return {};
@@ -55,7 +69,8 @@ function analyzeRecency(images, now = new Date()) {
   };
 }
 
-function buildAdvisories(images, slots, recency) {
+function buildAdvisories(images, slots, recency, options = {}) {
+  const { suppressBodyImagery = false } = options;
   const advisories = [];
   const list = images || [];
 
@@ -112,7 +127,9 @@ function buildAdvisories(images, slots, recency) {
       });
     }
   }
-  if (!slots.fullBody) {
+  // Full-length / body-imagery coaching is withheld from an unconsented minor —
+  // the readiness path withholds the same slot, so the surfaces must agree.
+  if (!slots.fullBody && !suppressBodyImagery) {
     const bookFullLength = list.filter(isBookFullLengthImage);
     if (bookFullLength.length) {
       advisories.push({
@@ -191,9 +208,12 @@ export function resolveReadinessGuidance(key, advisories = [], defaults = {}) {
   return defaults;
 }
 
-export function analyzePackageIntelligence({ images = [], now = new Date() } = {}) {
+export function analyzePackageIntelligence({ images = [], profile = null, now = new Date() } = {}) {
   const list = Array.isArray(images) ? images : [];
+  const suppressBodyImagery = shouldSuppressBodyImagery(profile, now);
   const digitals = analyzeDigitalsReadiness(list);
+  const digitalsSet = analyzeDigitalsSet(list, { suppressBodyImagery });
+  const bookRange = analyzeBookRange(list);
   const recency = analyzeRecency(list, now);
   const slots = {
     headshot: list.some(isHeadshotImage),
@@ -212,18 +232,25 @@ export function analyzePackageIntelligence({ images = [], now = new Date() } = {
     hasBookHeadshot: list.some(isBookHeadshotImage),
     bookFullLengthCount: list.filter(isBookFullLengthImage).length,
   };
-  const advisories = buildAdvisories(list, slots, recency);
+  const advisories = buildAdvisories(list, slots, recency, { suppressBodyImagery });
+  // When body imagery is suppressed the talent cannot be asked for a full-length
+  // frame, so it must not gate submission readiness.
+  const isSubmissionReady =
+    slots.headshot && (slots.fullBody || suppressBodyImagery) && !recency.isStale;
   return {
     slots,
     recency,
     advisories,
     digitals,
-    isSubmissionReady: slots.headshot && slots.fullBody && !recency.isStale,
+    digitalsSet,
+    bookRange,
+    suppressBodyImagery,
+    isSubmissionReady,
   };
 }
 
-export function auditSubmissionPackage({ images = [], now = new Date() } = {}) {
-  const intel = analyzePackageIntelligence({ images, now });
+export function auditSubmissionPackage({ images = [], profile = null, now = new Date() } = {}) {
+  const intel = analyzePackageIntelligence({ images, profile, now });
   return {
     ...intel,
     blockers: intel.advisories.filter((a) => a.severity === 'warn'),

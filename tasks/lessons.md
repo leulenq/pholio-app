@@ -1,5 +1,104 @@
 # Lessons Learned
 
+## 2026-06-27 — Preserve requested inline control structure
+
+- When a user asks for more authority in an inline control label, first adjust
+  color and weight. Do not infer that the label should move above the choices
+  or switch type families unless they explicitly request a structural hierarchy
+  change.
+- For Bio writer controls, Length and Voice remain inline mono labels. Their
+  distinction comes from bold gold text, not serif typography or stacked layout.
+- Shared selection baselines belong only to the selectable options. Extending
+  the line beneath an inline group label visually demotes that label into another
+  choice, even when its color and weight differ.
+
+## 2026-06-27 — Match control language to control semantics
+
+- A reference style is not a mandate to flatten every element into the same
+  role. In Bio, Length and Voice are group titles; place them above the option
+  row and give them typographic authority instead of styling them as peer
+  filter choices.
+- Writing actions are commands, not filters. When the requested reference moves
+  from Submission History filters to `/apply` navigation, use the bordered
+  architectural button family and preserve command hierarchy: quieter controls
+  for transformations, stronger treatment for the primary drafting action.
+- Express intelligence through precise state and hierarchy—a restrained
+  activity rule, scoped spinner, and clear primary action—not sparkles, pills,
+  glow, assistant mascots, or magic language.
+
+## 2026-06-27 — Writing controls inherit product navigation language
+
+- Do not present writing modes or AI-assisted actions as rounded prompt chips,
+  segmented controls, or sparkle-decorated utility buttons. That language reads
+  as a generic AI product and competes with Pholio's editorial hierarchy.
+- For compact Profile choices and writing actions, reuse the Submission History
+  filter pattern: transparent mono labels, generous spacing, one shared
+  hairline, and a restrained gold underline for selected or active work.
+- When the rejected treatment is implemented by a shared component, change the
+  shared component and audit every caller. Do not repair one screen while
+  leaving the same banned visual language available elsewhere.
+
+## 2026-06-27 — Verify seeded analytics through the live API
+
+- A database row count is not proof that a dashboard API can read the rows.
+  After seeding analytics, verify the authenticated live endpoint and its exact
+  date-window predicates before declaring the UI populated.
+- SQLite can store timestamps as both `YYYY-MM-DD HH:mm:ss` and ISO strings with
+  `T`/`Z`. Range predicates that bind JavaScript `Date` objects can return zero
+  against ISO text even though `DATE(column)` grouping still sees the rows.
+  Use SQLite `datetime(column)` / `datetime(?)` comparisons and regression-test
+  the ISO storage format.
+
+## 2026-06-27 — Analytics UI should keep copy and identity intentional
+
+- Do not add explanatory provenance copy to a premium overview card when the
+  metrics and states already communicate the source. Labels such as
+  "First-party portfolio analytics" become filler instead of increasing trust.
+- When correcting a public portfolio identity, preserve the approved link
+  treatment and change the canonical identity itself. For talent sites, the
+  overview identity is `pholio.studio/{talent-username}`.
+- Demo analytics seeders must target the named demo account explicitly and
+  replace that account's analytics transactionally. Never seed whichever
+  profile happens to sort first or append duplicate demo traffic.
+
+## 2026-06-27 — Scope button redesigns to named controls
+
+- When the approved target is Back and Next, attach dedicated classes to those
+  controls. Do not override a shared variant across the page, because that also
+  changes submit, retry, chooser, conflict, and shell actions that were not in
+  scope.
+- After narrowing the change, scan for the new selector/class and confirm every
+  match is an explicitly named target.
+
+## 2026-06-27 — Normalize timezone-less database timestamps as UTC
+
+- SQLite `CURRENT_TIMESTAMP` is UTC but returns a timezone-less string. Passing
+  that string directly to `new Date()` makes Node interpret it in the server's
+  local timezone, shifting the instant before the client formats it.
+- Normalize naive database timestamps by appending `Z` at the API boundary,
+  preserve explicit offsets and `Date` objects, and regression-test that a fresh
+  save timestamp remains close to the current instant.
+
+## 2026-06-26 — Applied migrations are immutable
+
+- Before extending an untracked or recently created migration, check the Knex
+  migration ledger. If it has already run anywhere in the active environment,
+  restore its original contract and add a forward migration; editing the applied
+  file leaves existing databases behind the code and produces runtime
+  "no column named" failures.
+- After applying the forward migration, verify the migration row and actual table
+  columns through the same configured database connection used by the API.
+
+## 2026-06-26 — Workspace chrome must inherit the shell
+
+- When adapting a dashboard workflow into a focused workspace, start from the
+  active dashboard shell header structure and tone before borrowing composition
+  from a reference. A custom top bar can make the page feel like a different
+  product even if the body uses Pholio tokens.
+- For apply-workspace framing, remove visible step labels when the direction is
+  an editorial workspace. Progress terms like Address, Curate, Send, and "Step
+  1 of 3" read as a separate flow system instead of a unified workspace.
+
 ## 2026-06-25 — Billing scope distinctions
 
 - Do not collapse separate billing concepts into one rule. "Agencies have no

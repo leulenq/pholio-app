@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { talentApi } from '../api/talent';
 import { useFlash } from '../../../shared/hooks/useFlash';
@@ -73,6 +73,24 @@ export function useMedia() {
       flash('error', err.message || 'Failed to set current media set')
   });
 
+  // Live image_sets — drives the dated digitals-set picker in the workspace.
+  const { data: setsData } = useQuery({
+    queryKey: ['talent-media-sets'],
+    queryFn: () => talentApi.getMediaSets(),
+    staleTime: 60_000,
+  });
+  const sets = setsData?.sets || [];
+
+  // Motion / video asset (URL reference — image binary pipeline untouched).
+  const addVideoMutation = useMutation({
+    mutationFn: (payload) => talentApi.addVideoAsset(payload),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      flash('success', data?.message || 'Motion asset added');
+    },
+    onError: (err) => flash('error', err.message || 'Failed to add motion asset'),
+  });
+
   const fetchSets = useCallback(() => talentApi.getMediaSets(), []);
 
   const replaceImage = async (id, blob) => {
@@ -113,9 +131,12 @@ export function useMedia() {
     deleteImage: deleteMutation.mutateAsync,
     reorder: reorderMutation.mutateAsync,
     setHero: setHeroMutation.mutateAsync,
+    sets,
     fetchSets,
     createSet: createSetMutation.mutateAsync,
     setCurrentSet: setCurrentSetMutation.mutateAsync,
+    addVideo: addVideoMutation.mutateAsync,
+    isAddingVideo: addVideoMutation.isPending,
     replaceImage,
     restoreImage,
   };

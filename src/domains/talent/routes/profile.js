@@ -119,6 +119,7 @@ const TALENT_PROFILE_API_KEYS = [
   "id",
   "image_analysis",
   "inseam_cm",
+  "measurements_updated_at",
   "instagram_handle",
   "instagram_url",
   "is_discoverable",
@@ -469,6 +470,11 @@ router.get(
         "set_id",
         "sort",
         "created_at",
+        // Motion assets (media-audit server-core) — surfaced so the grid can
+        // distinguish video from image frames.
+        "asset_kind",
+        "video_url",
+        "video_duration_seconds",
       );
 
     response.images = mapProfileImagesForApi(images);
@@ -917,6 +923,24 @@ router.put(
         : null;
     }
 
+    // Stamp the measurement-confirmation date whenever any measurement field
+    // changes, so the submission stats card can show a real "measured" date
+    // and flag a stale set (stats perish — agencies expect ≤3 months).
+    const MEASUREMENT_FIELDS = [
+      "height_cm",
+      "weight_kg",
+      "weight_lbs",
+      "bust_cm",
+      "waist_cm",
+      "hips_cm",
+      "inseam_cm",
+      "shoe_size",
+      "dress_size",
+    ];
+    if (MEASUREMENT_FIELDS.some((key) => key in updateData)) {
+      updateData.measurements_updated_at = knex.fn.now();
+    }
+
     // Perform Update only when actual profile fields changed.
     const hasProfileFieldChanges = Object.keys(updateData).some(
       (key) => key !== "updated_at",
@@ -1018,6 +1042,11 @@ router.put(
         "set_id",
         "sort",
         "created_at",
+        // Motion assets (media-audit server-core) — surfaced so the grid can
+        // distinguish video from image frames.
+        "asset_kind",
+        "video_url",
+        "video_duration_seconds",
       );
 
     const profileForCompleteness = {

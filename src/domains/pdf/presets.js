@@ -59,6 +59,9 @@ function normalizePresetInput(input = {}) {
     style_variant: toSafeToken(input.styleVariant, 64),
     lock_hero_id: toSafeToken(input.lockHeroId, 64),
     lock_grid_ids: normalizeLockGridIds(input.lockGridIds),
+    // Purpose: the board/division and market this card is tuned for.
+    board: toSafeToken(input.board, 64),
+    market: toSafeToken(input.market, 64),
   };
 }
 
@@ -75,6 +78,8 @@ function mapPresetRow(row) {
     styleVariant: row.style_variant || null,
     lockHeroId: row.lock_hero_id || null,
     lockGridIds: gridIds,
+    board: row.board || null,
+    market: row.market || null,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
     lastUsedAt: row.last_used_at || null,
@@ -93,6 +98,8 @@ function snapshotFromPresetRow(row) {
     lockGridIds: normalizeLockGridIds(
       parseJsonColumn(row?.lock_grid_ids) || [],
     ),
+    board: row?.board || null,
+    market: row?.market || null,
   };
 }
 
@@ -124,6 +131,8 @@ function toPresetPayload(row) {
     styleVariant: row.style_variant || null,
     lockHeroId: row.lock_hero_id || null,
     lockGridIds: gridIds,
+    board: row.board || null,
+    market: row.market || null,
   };
 }
 
@@ -137,6 +146,8 @@ function buildPresetInsert(profileId, normalizedInput) {
     style_variant: normalizedInput.style_variant,
     lock_hero_id: normalizedInput.lock_hero_id,
     lock_grid_ids: JSON.stringify(normalizedInput.lock_grid_ids),
+    board: normalizedInput.board,
+    market: normalizedInput.market,
     created_at: new Date(),
     updated_at: new Date(),
   };

@@ -3,7 +3,12 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const sharp = require("sharp");
-const { renderCompCard, loadProfile, toFeetInches } = require("../generator");
+const {
+  renderCompCard,
+  renderDigitalsSheet,
+  loadProfile,
+  toFeetInches,
+} = require("../generator");
 const {
   getTheme,
   isProTheme,
@@ -1619,6 +1624,157 @@ router.get("/pdf/view/:slug", async (req, res, next) => {
   }
 });
 
+/* ── Digitals sheet — the raw, dated set of digital frames + measurements that
+   agencies request. Distinct from the comp card (no composition engine). These
+   routes MUST be registered before "/pdf/:slug" so "digitals" isn't read as a
+   profile slug. ─────────────────────────────────────────────────────────── */
+
+const DIGITALS_SHOT_LABELS = {
+  headshot: "Headshot",
+  beauty: "Beauty",
+  three_quarter: "Three-quarter",
+  half_body: "Half body",
+  full_length: "Full length",
+  full_body: "Full length",
+  profile: "Profile",
+  profile_left: "Profile",
+  profile_right: "Profile",
+  back: "Back",
+  detail: "Detail",
+};
+
+function buildDigitalsSheetData(profile, images) {
+  const norm = (v) =>
+    String(v || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const fmtMonth = (d) => {
+    if (!d) return null;
+    const x = new Date(d);
+    return Number.isNaN(x.getTime())
+      ? null
+      : x.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  };
+  const resolveUrl = (img) => {
+    const u = img.public_url || img.path || "";
+    if (!u) return "";
+    if (u.startsWith("http") || u.startsWith("/")) return u;
+    return `/${u}`;
+  };
+
+  const digitals = (images || [])
+    .filter((img) => norm(img.image_type) === "digital")
+    .map((img) => ({
+      url: resolveUrl(img),
+      shotLabel: DIGITALS_SHOT_LABELS[norm(img.shot_type)] || "Digital",
+      capturedLabel: fmtMonth(img.captured_at) || "Undated",
+    }));
+
+  const measure = (keys) => {
+    for (const k of keys) {
+      const v = profile[k];
+      if (v !== null && v !== undefined && v !== "") return v;
+    }
+    return null;
+  };
+  const cmIn = (cm) => `${cm} cm / ${(Number(cm) / 2.54).toFixed(1)}″`;
+  const gender = norm(profile.gender);
+  const isMale = ["male", "man", "men", "m"].includes(gender);
+
+  const stats = [];
+  const heightCm = measure(["height_cm"]);
+  if (heightCm) {
+    const ftin = toFeetInches(heightCm);
+    stats.push({ label: "Height", value: `${heightCm} cm / ${ftin}` });
+  }
+  const bust = measure(["bust_cm", "bust", "chest_cm", "chest"]);
+  if (bust) stats.push({ label: isMale ? "Chest" : "Bust", value: cmIn(bust) });
+  const waist = measure(["waist_cm", "waist"]);
+  if (waist) stats.push({ label: "Waist", value: cmIn(waist) });
+  const hips = measure(["hips_cm", "hips"]);
+  if (hips) stats.push({ label: "Hips", value: cmIn(hips) });
+  const inseam = measure(["inseam_cm"]);
+  if (isMale && inseam) stats.push({ label: "Inseam", value: cmIn(inseam) });
+  const shoe = measure(["shoe_size"]);
+  if (shoe) stats.push({ label: "Shoe", value: String(shoe) });
+  const dress = measure(["dress_size"]);
+  if (dress) stats.push({ label: isMale ? "Suit" : "Dress", value: String(dress) });
+  const hair = measure(["hair_color", "hair"]);
+  const eyes = measure(["eye_color", "eyes"]);
+  if (hair || eyes) {
+    stats.push({
+      label: "Hair · Eyes",
+      value: [hair, eyes].filter(Boolean).join(" · "),
+    });
+  }
+
+  const name = [profile.first_name, profile.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || profile.name || "Talent";
+
+  return {
+    name,
+    location: profile.location || "Global",
+    digitals,
+    stats,
+    measuredLabel: fmtMonth(profile.measurements_updated_at),
+    generatedLabel: new Date().toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+  };
+}
+
+// GET /pdf/digitals/view/:slug — printable HTML the PDF renderer navigates to.
+router.get("/pdf/digitals/view/:slug", async (req, res, next) => {
+  try {
+    const data = await loadProfile(req.params.slug);
+    if (!data) return res.status(404).send("Profile not found");
+    if (!minorPublicExposureAllowed(data.profile)) {
+      return res
+        .status(403)
+        .send("Guardian consent is required before digitals can be shared.");
+    }
+    return res.render(path.join(pdfTemplateDir, "digitals-sheet.ejs"), {
+      layout: false,
+      ...buildDigitalsSheetData(data.profile, data.images),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// GET /pdf/digitals/:slug — the digitals sheet as a PDF (?download=1 to attach).
+router.get("/pdf/digitals/:slug", async (req, res, next) => {
+  const slug = req.params.slug;
+  try {
+    const data = await loadProfile(slug);
+    if (!data) return res.status(404).json({ error: "Profile not found" });
+    if (!minorPublicExposureAllowed(data.profile)) {
+      return res.status(403).json({
+        error:
+          "Guardian consent is required before digitals can be shared publicly.",
+        code: "MINOR_CONSENT_REQUIRED",
+      });
+    }
+    const rawPdf = await renderDigitalsSheet(slug);
+    const buffer = Buffer.isBuffer(rawPdf) ? rawPdf : Buffer.from(rawPdf);
+    if (req.query.download) {
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="pholio-${slug}-digitals.pdf"`,
+      );
+    } else {
+      res.setHeader("Content-Disposition", "inline");
+    }
+    res.contentType("application/pdf");
+    return res.send(buffer);
+  } catch (error) {
+    console.error("[Digitals PDF] Error:", error.message);
+    return next(error);
+  }
+});
+
 router.get("/pdf/:slug", async (req, res, next) => {
   const slug = req.params.slug;
   let data = null;
@@ -2149,6 +2305,8 @@ router.put(
               style_variant: normalized.style_variant,
               lock_hero_id: normalized.lock_hero_id,
               lock_grid_ids: JSON.stringify(normalized.lock_grid_ids),
+              board: normalized.board,
+              market: normalized.market,
               updated_at: trx.fn.now(),
             });
           updated = await trx("comp_card_presets")

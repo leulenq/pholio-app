@@ -974,6 +974,8 @@ router.patch(
       const allowedStatuses = [
         "submitted",
         "shortlisted",
+        "requested_more",
+        "meeting_requested",
         "accepted",
         "booked",
         "passed",
@@ -1292,6 +1294,8 @@ router.patch(
       const allowedStatuses = [
         "submitted",
         "shortlisted",
+        "requested_more",
+        "meeting_requested",
         "accepted",
         "booked",
         "passed",

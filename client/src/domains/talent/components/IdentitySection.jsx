@@ -252,43 +252,59 @@ export const IdentitySection = ({
             Tell agencies what makes you unique.
           </p>
           <div className={styles.bioModeControls}>
-            <div className={styles.bioModeGroup}>
+            <div
+              className={styles.bioModeGroup}
+              role="group"
+              aria-label="Bio length"
+            >
               <span className={styles.bioModeLabel}>Length</span>
-              <button
-                type="button"
-                onClick={() => setBioOption({ length: 'tight' })}
-                disabled={isImproving}
-                className={`${styles.bioModeBtn} ${bioLength === 'tight' ? styles.bioModeBtnActive : ''}`}
-              >
-                Tight
-              </button>
-              <button
-                type="button"
-                onClick={() => setBioOption({ length: 'standard' })}
-                disabled={isImproving}
-                className={`${styles.bioModeBtn} ${bioLength === 'standard' ? styles.bioModeBtnActive : ''}`}
-              >
-                Standard
-              </button>
+              <div className={styles.bioModeOptions}>
+                <button
+                  type="button"
+                  onClick={() => setBioOption({ length: 'tight' })}
+                  disabled={isImproving}
+                  aria-pressed={bioLength === 'tight'}
+                  className={`${styles.bioModeBtn} ${bioLength === 'tight' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Tight
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBioOption({ length: 'standard' })}
+                  disabled={isImproving}
+                  aria-pressed={bioLength === 'standard'}
+                  className={`${styles.bioModeBtn} ${bioLength === 'standard' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Standard
+                </button>
+              </div>
             </div>
-            <div className={styles.bioModeGroup}>
+            <div
+              className={styles.bioModeGroup}
+              role="group"
+              aria-label="Bio voice"
+            >
               <span className={styles.bioModeLabel}>Voice</span>
-              <button
-                type="button"
-                onClick={() => setBioOption({ person: 'third' })}
-                disabled={isImproving}
-                className={`${styles.bioModeBtn} ${bioPerson === 'third' ? styles.bioModeBtnActive : ''}`}
-              >
-                Agency
-              </button>
-              <button
-                type="button"
-                onClick={() => setBioOption({ person: 'first' })}
-                disabled={isImproving}
-                className={`${styles.bioModeBtn} ${bioPerson === 'first' ? styles.bioModeBtnActive : ''}`}
-              >
-                Personal
-              </button>
+              <div className={styles.bioModeOptions}>
+                <button
+                  type="button"
+                  onClick={() => setBioOption({ person: 'third' })}
+                  disabled={isImproving}
+                  aria-pressed={bioPerson === 'third'}
+                  className={`${styles.bioModeBtn} ${bioPerson === 'third' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Agency
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBioOption({ person: 'first' })}
+                  disabled={isImproving}
+                  aria-pressed={bioPerson === 'first'}
+                  className={`${styles.bioModeBtn} ${bioPerson === 'first' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Personal
+                </button>
+              </div>
             </div>
           </div>
         </div>

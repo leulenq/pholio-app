@@ -505,29 +505,43 @@
 .ov-checklist {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   flex: 1;
 }
 
 .ov-check-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background 0.15s var(--ov-ease-std),
-              border-color 0.15s var(--ov-ease-std),
-              transform 0.15s var(--ov-ease-std);
   text-decoration: none;
   color: inherit;
+  transition: background 0.22s var(--ov-ease);
+}
+
+.ov-check-item::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  background: var(--ov-gold);
+  border-radius: 2px;
+  opacity: 0;
+  transform: scaleY(0.4);
+  transition: opacity 0.22s var(--ov-ease), transform 0.22s var(--ov-ease);
 }
 
 .ov-check-item:hover {
-  background: rgba(255, 255, 255, 0.025);
-  border-color: var(--ov-border);
-  transform: translateX(4px);
+  background: rgba(201, 165, 90, 0.04);
+}
+
+.ov-check-item:hover::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .ov-check-left {

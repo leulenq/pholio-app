@@ -37,6 +37,111 @@ function parseActivityMetadata(rawMetadata) {
   return {};
 }
 
+function analyticsWindowDays(rawDays, fallback = 30) {
+  const parsed = Number.parseInt(rawDays, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, 1), 90);
+}
+
+function startOfUtcDay(date) {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
+function websiteAnalyticsWindow(days, now = new Date()) {
+  const currentStart = startOfUtcDay(
+    new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000),
+  );
+  const previousStart = new Date(
+    currentStart.getTime() - days * 24 * 60 * 60 * 1000,
+  );
+
+  return {
+    currentStart,
+    currentEnd: now,
+    previousStart,
+    previousEnd: currentStart,
+  };
+}
+
+function countValue(row) {
+  return Number(row?.total ?? row?.count ?? 0);
+}
+
+function calculatePeriodChange(current, previous) {
+  if (previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+function applyTimestampRange(
+  query,
+  {
+    column,
+    start,
+    end,
+    endInclusive = true,
+    isPostgres,
+  },
+) {
+  if (isPostgres) {
+    query.where(column, ">=", start);
+    query.where(column, endInclusive ? "<=" : "<", end);
+    return query;
+  }
+
+  query.whereRaw("datetime(??) >= datetime(?)", [
+    column,
+    start.toISOString(),
+  ]);
+  query.whereRaw(`datetime(??) ${endInclusive ? "<=" : "<"} datetime(?)`, [
+    column,
+    end.toISOString(),
+  ]);
+  return query;
+}
+
+function emptyWebsiteAnalytics(days) {
+  const { currentStart, currentEnd } = websiteAnalyticsWindow(days);
+  const series = [];
+
+  for (let offset = 0; offset < days; offset += 1) {
+    series.push({
+      date: new Date(
+        currentStart.getTime() + offset * 24 * 60 * 60 * 1000,
+      )
+        .toISOString()
+        .slice(0, 10),
+      visits: 0,
+    });
+  }
+
+  return {
+    status: "connected",
+    source: "first_party",
+    period: {
+      days,
+      start: currentStart.toISOString(),
+      end: currentEnd.toISOString(),
+    },
+    metrics: {
+      visits: 0,
+      uniqueVisitors: 0,
+      pageViews: 0,
+      outboundClicks: 0,
+    },
+    measurement: {
+      uniqueVisitors: "complete",
+    },
+    trend: {
+      visitsChangePct: null,
+      hasPriorBaseline: false,
+    },
+    series,
+    hasData: false,
+  };
+}
+
 /**
  * GET /api/talent/analytics
  * Get analytics data for the profile
@@ -45,6 +150,7 @@ router.get(
   "/analytics",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
+    const breakdownDays = analyticsWindowDays(req.query.days);
     const profile = await knex("profiles")
       .where({ user_id: req.session.userId })
       .first();
@@ -55,6 +161,7 @@ router.get(
         data: {
           views: { total: 0, thisWeek: 0, thisMonth: 0 },
           downloads: { total: 0, thisWeek: 0, thisMonth: 0, byTheme: [] },
+          website: emptyWebsiteAnalytics(breakdownDays),
         },
       });
     }
@@ -67,8 +174,7 @@ router.get(
         : knex.raw(`json_extract(metadata, '$.${path}') as ${path}`);
 
     // Dynamic Date Filter
-    const daysParam = req.query.days ? parseInt(req.query.days) : null;
-    const breakdownDays = daysParam || 30; // Default to 30 days for breakdowns if not specified
+    const daysParam = req.query.days ? breakdownDays : null;
 
     const filterDate = new Date();
     filterDate.setDate(filterDate.getDate() - breakdownDays);
@@ -158,6 +264,143 @@ router.get(
       .count({ total: "*" })
       .groupBy("theme");
 
+    const {
+      currentStart,
+      currentEnd,
+      previousStart,
+      previousEnd,
+    } = websiteAnalyticsWindow(breakdownDays);
+
+    const [
+      currentVisitsRow,
+      previousVisitsRow,
+      identifiedVisitsRow,
+      uniqueVisitorsRow,
+      websitePageViewsRow,
+      outboundClicksRow,
+      dailyVisits,
+    ] = await Promise.all([
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: previousStart,
+            end: previousEnd,
+            endInclusive: false,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .whereNotNull("visitor_id")
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .whereNotNull("visitor_id")
+        .countDistinct({ total: "visitor_id" })
+        .first(),
+      knex("analytics")
+        .where({ profile_id: profile.id, event_type: "view" })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "created_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("analytics")
+        .where({ profile_id: profile.id })
+        .whereIn("event_type", ["social_click", "portfolio_click"])
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "created_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .select(knex.raw("DATE(started_at) as date"))
+        .count({ total: "*" })
+        .groupBy("date")
+        .orderBy("date", "asc"),
+    ]);
+
+    const visits = countValue(currentVisitsRow);
+    const previousVisits = countValue(previousVisitsRow);
+    const identifiedVisits = countValue(identifiedVisitsRow);
+    const uniqueVisitors = countValue(uniqueVisitorsRow);
+    const pageViews = countValue(websitePageViewsRow);
+    const outboundClicks = countValue(outboundClicksRow);
+    const dailyVisitMap = new Map(
+      dailyVisits.map((row) => {
+        const date =
+          typeof row.date === "string"
+            ? row.date.slice(0, 10)
+            : new Date(row.date).toISOString().slice(0, 10);
+        return [date, countValue(row)];
+      }),
+    );
+    const websiteSeries = [];
+
+    for (let offset = 0; offset < breakdownDays; offset += 1) {
+      const date = new Date(
+        currentStart.getTime() + offset * 24 * 60 * 60 * 1000,
+      )
+        .toISOString()
+        .slice(0, 10);
+      websiteSeries.push({
+        date,
+        visits: dailyVisitMap.get(date) || 0,
+      });
+    }
+
     return res.json({
       success: true,
       data: {
@@ -190,6 +433,33 @@ router.get(
             (engagementMap.bio_read || 0) * 5 +
             (engagementMap.social_click || 0) * 10 +
             (engagementMap.portfolio_click || 0) * 10,
+        },
+        website: {
+          status: "connected",
+          source: "first_party",
+          period: {
+            days: breakdownDays,
+            start: currentStart.toISOString(),
+            end: currentEnd.toISOString(),
+          },
+          metrics: {
+            visits,
+            uniqueVisitors,
+            pageViews,
+            outboundClicks,
+          },
+          measurement: {
+            uniqueVisitors:
+              visits === 0 || identifiedVisits === visits
+                ? "complete"
+                : "partial",
+          },
+          trend: {
+            visitsChangePct: calculatePeriodChange(visits, previousVisits),
+            hasPriorBaseline: previousVisits > 0,
+          },
+          series: websiteSeries,
+          hasData: visits > 0 || pageViews > 0 || outboundClicks > 0,
         },
       },
     });

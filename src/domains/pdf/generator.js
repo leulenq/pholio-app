@@ -595,8 +595,79 @@ async function renderCompCard(slug, theme = null, opts = null) {
   }
 }
 
+/**
+ * Render the talent's DIGITALS SHEET to PDF — the raw, dated set of digital
+ * frames + measurements that agencies request ("send me your digitals").
+ * Distinct from the comp card: no composition engine, no styling — a clean
+ * contact sheet of the unretouched set. Navigates to /pdf/digitals/view/:slug.
+ */
+async function renderDigitalsSheet(slug) {
+  if (config.nodeEnv === "test") {
+    return Buffer.from(`Digitals sheet placeholder for ${slug}`);
+  }
+
+  let browser = null;
+  try {
+    const target = new URL(
+      `/pdf/digitals/view/${slug}`,
+      config.pdfBaseUrl,
+    ).toString();
+
+    const puppeteerArgs = [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
+      "--disable-gpu",
+    ];
+
+    let launchOptions = { headless: "new", args: puppeteerArgs };
+
+    if (config.isServerless && chromium) {
+      let executablePath = chromium.executablePath();
+      if (executablePath && typeof executablePath.then === "function") {
+        executablePath = await executablePath;
+      }
+      launchOptions.executablePath = executablePath;
+      launchOptions.args = [
+        ...chromium.args,
+        ...puppeteerArgs,
+        "--hide-scrollbars",
+        "--disable-web-security",
+      ];
+    } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    browser = await puppeteer.launch(launchOptions);
+    const page = await browser.newPage();
+    await page.goto(target, { waitUntil: "networkidle0", timeout: 30000 });
+    const buffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: "0", bottom: "0", left: "0", right: "0" },
+      preferCSSPageSize: true,
+      timeout: 30000,
+      tagged: false,
+    });
+    return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch {
+        /* ignore close errors */
+      }
+    }
+  }
+}
+
 module.exports = {
   loadProfile,
   renderCompCard,
+  renderDigitalsSheet,
   toFeetInches,
 };

@@ -53,6 +53,7 @@ const IMAGE_TYPE_LABELS = {
   portfolio: "Book",
   comp_card: "Comp card",
   campaign: "Campaign",
+  tearsheet: "Tearsheet",
   test: "Test shoot",
   editorial: "Book",
   runway: "Book",
@@ -63,7 +64,8 @@ const IMAGE_TYPE_PICKER_OPTIONS = [
   { value: "digital", label: "Digitals", hint: "Natural agency digitals or polaroids" },
   { value: "portfolio", label: "Book", hint: "Styled portfolio work" },
   { value: "test", label: "Test shoot", hint: "TFP or test day imagery" },
-  { value: "campaign", label: "Campaign", hint: "Published or ad work" },
+  { value: "campaign", label: "Campaign", hint: "Unpublished brand or ad work" },
+  { value: "tearsheet", label: "Tearsheet", hint: "Published page — publication, issue, credit" },
 ];
 
 const IMAGE_TYPE_LEGACY_ONLY = [

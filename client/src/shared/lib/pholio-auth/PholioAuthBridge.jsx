@@ -3,6 +3,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { notifyAuthChange, subscribeAuthChanges } from './broadcast';
 import { fetchPublicSession, syncFirebaseSession } from './session-api';
+import { purgeApplyDraftStorage } from '../../../domains/talent/pages/ApplyPage/applicationDraftStorage';
 
 /**
  * Keeps Express session aligned with Firebase auth and broadcasts changes
@@ -56,5 +57,6 @@ export async function logoutPholioSession() {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   }).catch(() => {});
+  purgeApplyDraftStorage();
   notifyAuthChange({ authenticated: false });
 }

@@ -13,10 +13,10 @@ const AGENCY_LOCATION = "New York, NY";
 const AGENCY_SLUG = "lumen-models";
 const AGENCY_WEBSITE = "https://lumenmodels.com";
 const AGENCY_DESCRIPTION =
-  "Lumen Model Management is a boutique agency representing editorial, runway, and commercial talent across North America and Europe. Founded in New York, we scout globally and place talent on luxury campaigns, fashion weeks, and brand lookbooks.";
-const AGENCY_LOGO =
-  "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=200&h=200&q=80";
+  "Lumen Model Management is a boutique New York agency focused on editorial, runway, commercial, and development talent. The team scouts selective new faces and builds polished books for luxury campaigns, fashion week packages, and brand lookbooks.";
+const AGENCY_LOGO = "/agency-logos/lumen-model-management.svg";
 const AGENCY_BRAND_COLOR = "#B8956A";
+const AGENCY_OPEN_BOARDS = ["Women", "Men", "Runway", "Development"];
 const OWNER_FIRST = "Sarah";
 const OWNER_LAST = "Chen";
 
@@ -322,6 +322,7 @@ async function seedAgencyDemo(knex) {
     description: AGENCY_DESCRIPTION,
     logo_path: AGENCY_LOGO,
     brand_color: AGENCY_BRAND_COLOR,
+    open_boards: JSON.stringify(AGENCY_OPEN_BOARDS),
     instagram_handle: "lumenmodels",
     tiktok_handle: "lumenmodels",
     twitter_handle: "lumenmodels",

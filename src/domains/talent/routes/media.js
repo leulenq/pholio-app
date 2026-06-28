@@ -19,6 +19,9 @@ const {
   parseImageStructuredFieldsFromBody,
   parseImageRightsPatchFromBody,
   imageRightsRowToApi,
+  parseImageModelReleasePatchFromBody,
+  imageModelReleaseRowToApi,
+  parseVideoAssetFromBody,
 } = require("../../../shared/lib/validation");
 const { runImageClassification } = require("../services/run-image-classification");
 const { enqueuePitsJob } = require("../services/pits-queue");
@@ -39,7 +42,51 @@ const {
   recordCsamEscalation,
 } = require("../../../shared/lib/csam-moderation");
 
-const SENSITIVE_SHOT_TYPES = new Set(["full_length", "full_body"]);
+// Body-revealing framing. An unconsented minor may not upload or make
+// agency/public-visible any of these. Extended beyond full-length framing
+// (audit P0 #1) to cover three-quarter / half-body framing too.
+const SENSITIVE_SHOT_TYPES = new Set([
+  "full_length",
+  "full_body",
+  "three_quarter",
+  "half_body",
+]);
+// Swim/body/fitness registers are body imagery regardless of framing tag.
+const SENSITIVE_STYLE_TYPES = new Set(["swimwear", "fitness"]);
+// PITS body-visibility signals that indicate a body frame (metadata.ai.signals).
+const SENSITIVE_BODY_VISIBILITY = new Set(["three_quarter", "full_length"]);
+
+const MINOR_BODY_BLOCK_MESSAGE =
+  "Guardian consent is required before uploading or sharing body imagery (full-length, three-quarter, swimwear, or fitness).";
+
+/** Read the PITS body_visibility signal from an image's metadata. */
+function bodyVisibilitySignalFromMetadata(metadata) {
+  const m = metadata && typeof metadata === "object" ? metadata : {};
+  const ai = m.ai && typeof m.ai === "object" ? m.ai : {};
+  const signals =
+    (ai.signals && typeof ai.signals === "object" && ai.signals) ||
+    (ai.classification &&
+      typeof ai.classification === "object" &&
+      ai.classification.signals) ||
+    null;
+  const raw = signals && typeof signals === "object" ? signals.body_visibility : null;
+  return raw ? String(raw).toLowerCase() : "";
+}
+
+/**
+ * Is the resolved image a body image by any signal (framing, register, role,
+ * or the PITS body_visibility signal)?
+ */
+function isSensitiveBodyImage({ shot_type, style_type, role, body_visibility } = {}) {
+  const shot = shot_type ? String(shot_type).toLowerCase() : "";
+  if (shot && SENSITIVE_SHOT_TYPES.has(shot)) return true;
+  if (role === "full_body") return true;
+  const style = style_type ? String(style_type).toLowerCase() : "";
+  if (style && SENSITIVE_STYLE_TYPES.has(style)) return true;
+  const bv = body_visibility ? String(body_visibility).toLowerCase() : "";
+  if (bv && SENSITIVE_BODY_VISIBILITY.has(bv)) return true;
+  return false;
+}
 
 /**
  * Best-effort removal of an image's stored artifacts (processed, thumbnail,
@@ -83,19 +130,23 @@ async function purgeStoredImageArtifacts({ storage_key, absolute_path }) {
 
 router.use(requireActiveAccount());
 
-function minorBlocksSensitiveImage(profile, patch = {}) {
+/**
+ * Returns a block message when an unconsented minor would upload or expose body
+ * imagery; null otherwise.
+ *
+ * `context` carries the resolved image state: shot_type, style_type, role,
+ * body_visibility (PITS signal). Pass `agencyVisible: false` to allow a minor to
+ * keep a body frame strictly private (the gate only blocks agency/public
+ * exposure when visibility is explicitly resolved). When `agencyVisible` is
+ * omitted the frame is treated as visible (default for uploads).
+ */
+function minorBlocksSensitiveImage(profile, context = {}) {
   if (!profile || !isMinorProfile(profile) || minorSensitiveFieldsUnlocked(profile)) {
     return null;
   }
-  const shot = patch.shot_type;
-  if (shot && SENSITIVE_SHOT_TYPES.has(String(shot).toLowerCase())) {
-    return "Guardian consent is required before tagging full-length imagery.";
-  }
-  const role = patch.role;
-  if (role === "full_body") {
-    return "Guardian consent is required before tagging full-length imagery.";
-  }
-  return null;
+  if (!isSensitiveBodyImage(context)) return null;
+  if (context.agencyVisible === false) return null;
+  return MINOR_BODY_BLOCK_MESSAGE;
 }
 
 function respondMinorImageBlock(res, message) {
@@ -263,6 +314,19 @@ function sanitizeIncomingMetadataPatch(metadata) {
         typeof credits.stylist === "string"
           ? credits.stylist.trim().slice(0, 120)
           : "",
+      // Tearsheet publication credit (audit P1 #9)
+      publication:
+        typeof credits.publication === "string"
+          ? credits.publication.trim().slice(0, 160)
+          : "",
+      issue:
+        typeof credits.issue === "string"
+          ? credits.issue.trim().slice(0, 80)
+          : "",
+      credit:
+        typeof credits.credit === "string"
+          ? credits.credit.trim().slice(0, 200)
+          : "",
     };
   }
 
@@ -362,6 +426,12 @@ function structuredFieldsFromImageRow(image) {
     captured_at: isoOrNull(image.captured_at),
     retouched_at: isoOrNull(image.retouched_at),
     set_id: image.set_id ?? null,
+    asset_kind: image.asset_kind || "image",
+    video_url: image.video_url ?? null,
+    video_duration_seconds:
+      image.video_duration_seconds == null
+        ? null
+        : Number(image.video_duration_seconds),
   };
 }
 
@@ -405,7 +475,7 @@ function mergeMetadataWithAi(currentMetadata, sanitizedIncoming) {
   return merged;
 }
 
-function toPublicImagePayload(image, metadataOverride) {
+function toPublicImagePayload(image, metadataOverride, extra = {}) {
   const metadata =
     metadataOverride !== undefined
       ? metadataOverride
@@ -424,7 +494,42 @@ function toPublicImagePayload(image, metadataOverride) {
     metadata,
     classification_status: classificationStatusFromMetadata(metadata),
     ...structuredFieldsFromImageRow(image),
+    ...extra,
   };
+}
+
+/**
+ * Derived release_on_file: true when a model-release artifact exists for the
+ * image OR the rights row carries a model_release_ref. Safe if the releases
+ * table has not been migrated yet.
+ */
+async function imageReleaseOnFile(imageId) {
+  let rightsRow = null;
+  try {
+    rightsRow = await knex("image_rights")
+      .where({ image_id: imageId })
+      .first();
+  } catch {
+    rightsRow = null;
+  }
+  let releaseRow = null;
+  const hasReleasesTable = await knex.schema
+    .hasTable("image_model_releases")
+    .catch(() => false);
+  if (hasReleasesTable) {
+    releaseRow = await knex("image_model_releases")
+      .where({ image_id: imageId })
+      .first()
+      .catch(() => null);
+  }
+  return Boolean(
+    (releaseRow &&
+      (releaseRow.release_ref ||
+        releaseRow.release_url ||
+        releaseRow.signer_name ||
+        releaseRow.signed_at)) ||
+      (rightsRow && rightsRow.model_release_ref),
+  );
 }
 
 async function normalizeProfileImageSort(trx, profileId) {
@@ -758,6 +863,10 @@ router.post(
       "images",
       "captured_at",
     );
+    // Only persist a client-provided shoot date when the column exists.
+    if (!hasCapturedAtColumn) {
+      delete structuredInsert.captured_at;
+    }
     const hasModerationColumns = await knex.schema.hasColumn(
       "images",
       "moderation_status",
@@ -853,7 +962,10 @@ router.post(
               label: "Portfolio image",
               sort: sort,
               metadata: JSON.stringify(initialMetadata),
-              ...(hasCapturedAtColumn ? { captured_at: trx.fn.now() } : {}),
+              // Recency honesty (audit P0 #3): never silently stamp
+              // captured_at = now(). A real shoot date comes only from the
+              // client (structuredInsert.captured_at, spread below); otherwise
+              // it stays NULL and the UI prompts for it later.
               ...(hasModerationColumns
                 ? {
                     moderation_status: effectiveModStatus,
@@ -1158,10 +1270,12 @@ router.get(
     }
 
     const row = await knex("image_rights").where({ image_id: imageId }).first();
+    const releaseOnFile = await imageReleaseOnFile(imageId);
 
     return res.json({
       success: true,
       rights: imageRightsRowToApi(row),
+      release_on_file: releaseOnFile,
     });
   }),
 );
@@ -1254,10 +1368,259 @@ router.put(
     });
 
     const row = await knex("image_rights").where({ image_id: imageId }).first();
+    const releaseOnFile = await imageReleaseOnFile(imageId);
 
     return res.json({
       success: true,
       rights: imageRightsRowToApi(row),
+      release_on_file: releaseOnFile,
+    });
+  }),
+);
+
+/**
+ * GET /api/talent/media/:id/model-release
+ * Fetch the model-release artifact for an image (P1 #6).
+ */
+router.get(
+  "/:id/model-release",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const imageId = req.params.id;
+    const userId = req.session.userId;
+
+    const image = await knex("images")
+      .select("images.id")
+      .leftJoin("profiles", "images.profile_id", "profiles.id")
+      .where("images.id", imageId)
+      .where("profiles.user_id", userId)
+      .first();
+
+    if (!image) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Image not found" });
+    }
+
+    const hasReleasesTable = await knex.schema.hasTable("image_model_releases");
+    const row = hasReleasesTable
+      ? await knex("image_model_releases").where({ image_id: imageId }).first()
+      : null;
+
+    return res.json({
+      success: true,
+      release: imageModelReleaseRowToApi(row),
+    });
+  }),
+);
+
+/**
+ * PUT /api/talent/media/:id/model-release
+ * Attach / record a model-release artifact (upsert). Ownership via profile.user_id.
+ */
+router.put(
+  "/:id/model-release",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const imageId = req.params.id;
+    const userId = req.session.userId;
+
+    const image = await knex("images")
+      .select("images.id")
+      .leftJoin("profiles", "images.profile_id", "profiles.id")
+      .where("images.id", imageId)
+      .where("profiles.user_id", userId)
+      .first();
+
+    if (!image) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Image not found" });
+    }
+
+    const hasReleasesTable = await knex.schema.hasTable("image_model_releases");
+    if (!hasReleasesTable) {
+      return res.status(503).json({
+        success: false,
+        message: "Model release storage is not available",
+      });
+    }
+
+    const pr = parseImageModelReleasePatchFromBody(req.body);
+    if (!pr.ok) {
+      return res.status(400).json({ success: false, message: pr.error });
+    }
+    if (!pr.patch || Object.keys(pr.patch).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No model release fields to update",
+      });
+    }
+
+    await knex.transaction(async (trx) => {
+      const existing = await trx("image_model_releases")
+        .where({ image_id: imageId })
+        .first();
+      if (existing) {
+        await trx("image_model_releases")
+          .where({ image_id: imageId })
+          .update({ ...pr.patch, updated_at: trx.fn.now() });
+      } else {
+        await trx("image_model_releases").insert({
+          id: uuidv4(),
+          image_id: imageId,
+          release_ref: null,
+          release_url: null,
+          signer_name: null,
+          signed_at: null,
+          parties: null,
+          notes: null,
+          ...pr.patch,
+          created_at: trx.fn.now(),
+          updated_at: trx.fn.now(),
+        });
+      }
+
+      // Mirror a pointer into image_rights.model_release_ref when present so the
+      // rights "cleared" logic and release_on_file stay consistent.
+      const ref = pr.patch.release_ref || pr.patch.release_url || null;
+      if (ref) {
+        const hasRights = await trx.schema.hasTable("image_rights");
+        if (hasRights) {
+          const rightsRow = await trx("image_rights")
+            .where({ image_id: imageId })
+            .first();
+          if (rightsRow) {
+            await trx("image_rights")
+              .where({ image_id: imageId })
+              .update({ model_release_ref: ref, updated_at: trx.fn.now() });
+          } else {
+            await trx("image_rights")
+              .insert({
+                id: uuidv4(),
+                image_id: imageId,
+                model_release_ref: ref,
+                exclusive: false,
+                created_at: trx.fn.now(),
+                updated_at: trx.fn.now(),
+              })
+              .onConflict("image_id")
+              .ignore();
+          }
+        }
+      }
+    });
+
+    const row = await knex("image_model_releases")
+      .where({ image_id: imageId })
+      .first();
+
+    return res.json({
+      success: true,
+      release: imageModelReleaseRowToApi(row),
+    });
+  }),
+);
+
+/**
+ * POST /api/talent/media/video
+ * Record a motion (video) asset by URL reference (P2 video). The image binary
+ * pipeline is untouched; this stores a row with asset_kind='video'.
+ * Body: { video_url, video_mime?, video_duration_seconds?, captured_at?, label?, set_id? }
+ */
+router.post(
+  "/video",
+  requireRole("TALENT"),
+  ensureProfile,
+  asyncHandler(async (req, res) => {
+    const profile = req.profile;
+
+    const hasAssetKind = await knex.schema.hasColumn("images", "asset_kind");
+    const hasVideoUrl = await knex.schema.hasColumn("images", "video_url");
+    if (!hasAssetKind || !hasVideoUrl) {
+      return res.status(503).json({
+        success: false,
+        message: "Motion assets are not available",
+      });
+    }
+
+    const parsed = parseVideoAssetFromBody(req.body);
+    if (!parsed.ok) {
+      return res.status(400).json({ success: false, message: parsed.error });
+    }
+
+    // Optional set association, validated against the profile.
+    const structuredParsed = parseImageStructuredFieldsFromBody(req.body);
+    if (!structuredParsed.ok) {
+      return res
+        .status(400)
+        .json({ success: false, message: structuredParsed.error });
+    }
+    const setId = structuredParsed.values.set_id || null;
+    if (setId) {
+      const setRow = await knex("image_sets")
+        .where({ id: setId, profile_id: profile.id })
+        .first();
+      if (!setRow) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid set_id for this profile" });
+      }
+    }
+
+    const hasDurationColumn = await knex.schema.hasColumn(
+      "images",
+      "video_duration_seconds",
+    );
+    const hasCapturedAtColumn = await knex.schema.hasColumn(
+      "images",
+      "captured_at",
+    );
+
+    const imageId = uuidv4();
+    const maxSortRow = await knex("images")
+      .where({ profile_id: profile.id })
+      .max({ maxSort: "sort" })
+      .first();
+    const sort = Number(maxSortRow?.maxSort || 0) + 1;
+
+    const insertRow = {
+      id: imageId,
+      profile_id: profile.id,
+      path: null,
+      public_url: null,
+      label: parsed.values.label || "Motion asset",
+      sort,
+      metadata: JSON.stringify({}),
+      asset_kind: "video",
+      video_url: parsed.values.video_url,
+      // A video is never a portfolio hero image.
+      is_primary: false,
+      ...(structuredParsed.values.image_type
+        ? { image_type: structuredParsed.values.image_type }
+        : {}),
+      ...(setId ? { set_id: setId } : {}),
+      ...(hasDurationColumn && parsed.values.video_duration_seconds != null
+        ? { video_duration_seconds: parsed.values.video_duration_seconds }
+        : {}),
+      ...(hasCapturedAtColumn && parsed.values.captured_at != null
+        ? { captured_at: parsed.values.captured_at }
+        : {}),
+    };
+
+    await knex("images").insert(insertRow);
+
+    const fresh = await knex("images").where({ id: imageId }).first();
+
+    await logActivity(req.session.userId, "video_asset_added", {
+      profileId: profile.id,
+      imageId,
+    }).catch(() => {});
+
+    return res.status(201).json({
+      success: true,
+      message: "Motion asset added",
+      image: toPublicImagePayload(fresh, undefined, { release_on_file: false }),
     });
   }),
 );
@@ -1315,7 +1678,31 @@ router.put(
         message: structuredParsed.error,
       });
     }
-    const patchBlock = minorBlocksSensitiveImage(image, structuredParsed.values);
+    // Resolve the post-update state (existing row + patch + merged metadata) so
+    // the minor gate evaluates what the image WOULD become — including the PITS
+    // body_visibility signal and whether it stays agency/public-visible.
+    const sv = structuredParsed.values;
+    const resolvedShot = Object.hasOwn(sv, "shot_type")
+      ? sv.shot_type
+      : image.shot_type;
+    const resolvedStyle = Object.hasOwn(sv, "style_type")
+      ? sv.style_type
+      : image.style_type;
+    const resolvedExcludeAgency = Object.hasOwn(sv, "exclude_from_agency")
+      ? sv.exclude_from_agency
+      : !!image.exclude_from_agency;
+    const resolvedExcludePublic = Object.hasOwn(sv, "exclude_from_public")
+      ? sv.exclude_from_public
+      : !!image.exclude_from_public;
+    const resolvedAgencyVisible =
+      !resolvedExcludeAgency || !resolvedExcludePublic;
+    const patchBlock = minorBlocksSensitiveImage(image, {
+      shot_type: resolvedShot,
+      style_type: resolvedStyle,
+      role: updatedMetadata?.role,
+      body_visibility: bodyVisibilitySignalFromMetadata(updatedMetadata),
+      agencyVisible: resolvedAgencyVisible,
+    });
     if (patchBlock) {
       return respondMinorImageBlock(res, patchBlock);
     }
@@ -1357,12 +1744,15 @@ router.put(
       afterRow: fresh,
     }).catch(() => {});
 
+    const releaseOnFile = await imageReleaseOnFile(imageId);
+
     return res.json({
       success: true,
       message: "Image details updated",
       image: toPublicImagePayload(
         fresh,
         parseImageMetadataFromDb(fresh.metadata),
+        { release_on_file: releaseOnFile },
       ),
     });
   }),
@@ -1569,7 +1959,16 @@ router.patch(
         .status(404)
         .json({ success: false, message: "Image not found" });
 
-    const roleBlock = minorBlocksSensitiveImage(image, { role });
+    const roleBlock = minorBlocksSensitiveImage(image, {
+      role,
+      shot_type: image.shot_type,
+      style_type: image.style_type,
+      body_visibility: bodyVisibilitySignalFromMetadata(
+        parseImageMetadataFromDb(image.metadata),
+      ),
+      agencyVisible:
+        !image.exclude_from_agency || !image.exclude_from_public,
+    });
     if (roleBlock) {
       return respondMinorImageBlock(res, roleBlock);
     }
@@ -1733,10 +2132,14 @@ router.post(
         ),
       );
 
+    const releaseOnFile = await imageReleaseOnFile(imageId);
+
     return res.json({
       success: true,
       message: "Image replaced",
-      image: toPublicImagePayload(fresh),
+      image: toPublicImagePayload(fresh, undefined, {
+        release_on_file: releaseOnFile,
+      }),
     });
   }),
 );
@@ -1816,10 +2219,13 @@ router.post(
     }
 
     const fresh = await knex("images").where({ id: imageId }).first();
+    const releaseOnFile = await imageReleaseOnFile(imageId);
     return res.json({
       success: true,
       message: "Original image restored",
-      image: toPublicImagePayload(fresh),
+      image: toPublicImagePayload(fresh, undefined, {
+        release_on_file: releaseOnFile,
+      }),
     });
   }),
 );

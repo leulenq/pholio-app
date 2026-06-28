@@ -3,6 +3,9 @@ const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const asyncHandler = require("express-async-handler");
+const {
+  getBlockedAgencyIds,
+} = require("../../../shared/lib/blocked-agencies");
 
 /**
  * GET /api/talent/agencies
@@ -18,7 +21,11 @@ router.get(
     const isPro = profile && profile.is_pro;
 
     // 1. Fetch Agencies as organizations, not login rows
-    const agencies = await knex("agencies")
+    const blockedAgencyIds = await getBlockedAgencyIds(
+      knex,
+      req.session.userId,
+    );
+    const agenciesQuery = knex("agencies")
       .where({ status: "ACTIVE" })
       .select(
         "id",
@@ -29,6 +36,13 @@ router.get(
         "logo_path as profile_image",
         "open_boards",
       );
+    // Blocked organizations remain visible in the dedicated draft-management
+    // list when a historical draft exists, but are never offered as a new
+    // application destination.
+    if (blockedAgencyIds.size > 0) {
+      agenciesQuery.whereNotIn("id", [...blockedAgencyIds]);
+    }
+    const agencies = await agenciesQuery;
 
     // Normalize open_boards (JSON text on SQLite, array on PG) to a string[].
     const parseOpenBoards = (value) => {

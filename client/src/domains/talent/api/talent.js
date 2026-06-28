@@ -32,6 +32,11 @@ export const talentApi = {
   setCurrentMediaSet: (setId) => apiClient.patch(`/media/sets/${setId}/current`, {}),
   getImageRights: (id) => apiClient.get(`/media/${id}/rights`),
   updateImageRights: (id, data) => apiClient.put(`/media/${id}/rights`, data),
+  // Model release artifact (P1 #6) — { release: {..., on_file} }
+  getModelRelease: (id) => apiClient.get(`/media/${id}/model-release`),
+  updateModelRelease: (id, data) => apiClient.put(`/media/${id}/model-release`, data),
+  // Motion / video asset by URL reference (P2 video) — body { video_url, video_mime?, video_duration_seconds?, captured_at?, label?, set_id?, image_type? }
+  addVideoAsset: (data) => apiClient.post('/media/video', data),
   setHeroImage: (id) => apiClient.put(`/media/${id}/hero`),
   deleteMedia: (id) => apiClient.delete(`/media/${id}`),
   replaceImageFile: (id, formData) => apiClient.post(`/media/${id}/replace`, formData),
@@ -66,6 +71,39 @@ export const talentApi = {
   getAgencies: () => apiClient.get('/agencies'),
   createApplication: (data) => apiClient.post('/applications', data),
   withdrawApplication: (id) => apiClient.post(`/applications/${id}/withdraw`),
+  getSubmissionProgramStatus: (options) =>
+    apiClient.get('/applications/submission-program-status', options),
+  acknowledgeSubmissionProgram: () =>
+    apiClient.post('/applications/submission-program-acknowledgment', { acknowledged: true }),
+
+  // Application drafts (one per agency — the in-progress submission dossier)
+  listDrafts: (options) =>
+    apiClient.get('/applications/drafts', options),
+  getLatestDraft: (options) =>
+    apiClient.get('/applications/drafts/latest', options),
+  getDraft: (agencyId, options) =>
+    apiClient.get(`/applications/drafts/${agencyId}`, options),
+  saveDraft: (agencyId, draft, options) =>
+    apiClient.put(`/applications/drafts/${agencyId}`, draft, options),
+  deleteDraft: (
+    agencyId,
+    { expectedVersion, expectedGeneration } = {},
+    options = {},
+  ) =>
+    apiClient.delete(`/applications/drafts/${encodeURIComponent(agencyId)}`, {
+      ...options,
+      body: JSON.stringify({ expectedVersion, expectedGeneration }),
+    }),
+  recoverDraft: (
+    agencyId,
+    { expectedGeneration } = {},
+    options,
+  ) =>
+    apiClient.post(
+      `/applications/drafts/${encodeURIComponent(agencyId)}/recover`,
+      { expectedGeneration },
+      options,
+    ),
 
   // Interviews
   getInterviews: () => apiClient.get('/interviews'),
@@ -94,6 +132,23 @@ export const talentApi = {
 
   // Image role tagging (comp card)
   updateImageRole: (id, role) => apiClient.patch(`/media/${id}/role`, { role }),
+
+  // Comp-card library (saved named variants — comp_card_presets). These live on
+  // the PDF router (`/api/pdf/presets/:slug`), not under `/api/talent`, and
+  // return raw `{ ok, presets|preset }` envelopes (not `{ success, data }`).
+  // A preset renders via `/pdf/view/:slug` with the preset's saved query
+  // (seed + locked hero/grid). "Default" is the most-recently-used preset:
+  // setDefault bumps `last_used_at` via the apply endpoint.
+  listCompCardPresets: (slug, options) =>
+    apiClient.get(`/presets/${encodeURIComponent(slug)}`, { baseURL: '/api/pdf', ...options }),
+  saveCompCardPreset: (slug, payload) =>
+    apiClient.post(`/presets/${encodeURIComponent(slug)}`, payload, { baseURL: '/api/pdf' }),
+  renameCompCardPreset: (slug, presetId, payload) =>
+    apiClient.put(`/presets/${encodeURIComponent(slug)}/${encodeURIComponent(presetId)}`, payload, { baseURL: '/api/pdf' }),
+  deleteCompCardPreset: (slug, presetId) =>
+    apiClient.delete(`/presets/${encodeURIComponent(slug)}/${encodeURIComponent(presetId)}`, { baseURL: '/api/pdf' }),
+  setDefaultCompCardPreset: (slug, presetId) =>
+    apiClient.post(`/presets/${encodeURIComponent(slug)}/${encodeURIComponent(presetId)}/apply`, {}, { baseURL: '/api/pdf' }),
 
   // Message Polish (Studio+)
   polishApplicationMessage: (body) =>

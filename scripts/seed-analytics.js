@@ -1,146 +1,178 @@
-const knex = require('../src/shared/db/knex');
-const { v4: uuidv4 } = require('uuid');
+"use strict";
+
+const knex = require("../src/shared/db/knex");
+const { v4: uuidv4 } = require("uuid");
+
+const TALENT_EMAIL = "talent@example.com";
+const DAYS = 30;
+
+function eventRow(profileId, eventType, createdAt, metadata, ipAddress) {
+  return {
+    id: uuidv4(),
+    profile_id: profileId,
+    event_type: eventType,
+    event_source: "web",
+    metadata: JSON.stringify(metadata),
+    ip_address: ipAddress,
+    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    created_at: createdAt.toISOString(),
+  };
+}
 
 async function seedAnalyticsData() {
   try {
-    console.log('🌱 Seeding Analytics Test Data...\n');
-
-    // Get the first profile (likely yours)
-    const profile = await knex('profiles')
-      .orderBy('created_at', 'asc')
-      .first();
+    const user = await knex("users").where({ email: TALENT_EMAIL }).first();
+    const profile = user
+      ? await knex("profiles").where({ user_id: user.id }).first()
+      : null;
 
     if (!profile) {
-      console.error('❌ No profiles found. Create a profile first.');
-      process.exit(1);
+      throw new Error(
+        `Mia Voss demo profile was not found for ${TALENT_EMAIL}. Run npm run seed first.`,
+      );
     }
 
-    console.log(`✓ Using profile: ${profile.first_name} ${profile.last_name} (${profile.slug})`);
-
-    // Generate data for the last 30 days
     const now = new Date();
-    const visitorIds = Array.from({ length: 15 }, () => uuidv4()); // 15 unique visitors
+    const currentUtcMidnight = Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+    );
+    const visitorIds = Array.from({ length: 18 }, () => uuidv4());
+    const referrers = [
+      null,
+      null,
+      "https://instagram.com",
+      "https://google.com",
+      "https://tiktok.com",
+    ];
+    const sessions = [];
+    const events = [];
 
-    let totalViews = 0;
-    let totalSessions = 0;
-    let totalEngagements = 0;
+    for (let daysBack = DAYS - 1; daysBack >= 0; daysBack -= 1) {
+      const dayIndex = DAYS - 1 - daysBack;
+      const dayStart = currentUtcMidnight - daysBack * 24 * 60 * 60 * 1000;
+      const weekday = new Date(dayStart).getUTCDay();
+      const weekendLift = weekday === 0 || weekday === 6 ? 2 : 0;
+      const dailyVisits = 4 + Math.floor(dayIndex / 5) + weekendLift;
 
-    // Generate daily data
-    for (let daysAgo = 30; daysAgo >= 0; daysAgo--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - daysAgo);
-
-      // More traffic on recent days and weekends
-      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-      const recencyBoost = 1 + (30 - daysAgo) / 30; // More recent = more traffic
-      const baseViews = Math.floor(Math.random() * 5) + 3;
-      const dailyViews = Math.floor(baseViews * recencyBoost * (isWeekend ? 1.5 : 1));
-
-      for (let v = 0; v < dailyViews; v++) {
-        // Pick a random visitor (70% returning, 30% new)
-        const isReturning = Math.random() > 0.3;
-        const visitorId = isReturning 
-          ? visitorIds[Math.floor(Math.random() * Math.min(visitorIds.length, 10))]
-          : visitorIds[visitorIds.length - 1];
-
+      for (let visitIndex = 0; visitIndex < dailyVisits; visitIndex += 1) {
+        const visitorIndex = (dayIndex * 3 + visitIndex) % visitorIds.length;
+        const visitorId = visitorIds[visitorIndex];
+        const referrer = referrers[(dayIndex + visitIndex) % referrers.length];
+        const ipAddress = `198.51.100.${20 + visitorIndex}`;
+        const normalVisitTime =
+          dayStart +
+          (9 + (visitIndex % 11)) * 60 * 60 * 1000 +
+          ((dayIndex * 7 + visitIndex * 11) % 60) * 60 * 1000;
+        const viewTime =
+          daysBack === 0
+            ? new Date(
+                now.getTime() -
+                  (dailyVisits - visitIndex + 3) * 2 * 60 * 1000,
+              )
+            : new Date(normalVisitTime);
         const sessionId = uuidv4();
-        const viewTime = new Date(date);
-        viewTime.setHours(Math.floor(Math.random() * 24));
-        viewTime.setMinutes(Math.floor(Math.random() * 60));
 
-        // Create visitor session
-        await knex('visitor_sessions').insert({
+        sessions.push({
           id: sessionId,
           profile_id: profile.id,
           visitor_id: visitorId,
-          started_at: viewTime,
-          last_activity_at: viewTime,
-          ip_address: `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-          user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-          referrer: Math.random() > 0.5 ? 'https://instagram.com' : (Math.random() > 0.5 ? 'https://google.com' : null),
-          is_returning: isReturning
+          started_at: viewTime.toISOString(),
+          last_activity_at: new Date(
+            viewTime.getTime() + 4 * 60 * 1000,
+          ).toISOString(),
+          ip_address: ipAddress,
+          user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+          referrer,
+          is_returning: dayIndex > 0 || visitorIndex < dayIndex,
         });
-        totalSessions++;
 
-        // Log view event
-        await knex('analytics').insert({
-          id: uuidv4(),
-          profile_id: profile.id,
-          event_type: 'view',
-          event_source: 'web',
-          metadata: JSON.stringify({ 
-            source: 'web', 
-            slug: profile.slug,
-            referrer: Math.random() > 0.5 ? 'https://instagram.com' : null
-          }),
-          ip_address: `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-          user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-          created_at: viewTime
-        });
-        totalViews++;
+        events.push(
+          eventRow(
+            profile.id,
+            "view",
+            viewTime,
+            { source: "web", slug: profile.slug, referrer },
+            ipAddress,
+          ),
+        );
 
-        // 60% chance of engagement
-        if (Math.random() > 0.4) {
-          const engagementTime = new Date(viewTime);
-          engagementTime.setSeconds(engagementTime.getSeconds() + Math.floor(Math.random() * 30) + 5);
+        if (visitIndex % 2 === 0) {
+          events.push(
+            eventRow(
+              profile.id,
+              "bio_read",
+              new Date(viewTime.getTime() + 60 * 1000),
+              { duration: 12 + visitIndex },
+              ipAddress,
+            ),
+          );
+        }
 
-          // Bio read
-          if (Math.random() > 0.3) {
-            await knex('analytics').insert({
-              id: uuidv4(),
-              profile_id: profile.id,
-              event_type: 'bio_read',
-              event_source: 'web',
-              metadata: JSON.stringify({ duration: Math.floor(Math.random() * 20) + 5 }),
-              ip_address: `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-              created_at: engagementTime
-            });
-            totalEngagements++;
-          }
+        if (visitIndex % 4 === 0) {
+          events.push(
+            eventRow(
+              profile.id,
+              "social_click",
+              new Date(viewTime.getTime() + 2 * 60 * 1000),
+              { platform: "instagram" },
+              ipAddress,
+            ),
+          );
+        }
 
-          // Social click (30% of engagements)
-          if (Math.random() > 0.7) {
-            await knex('analytics').insert({
-              id: uuidv4(),
-              profile_id: profile.id,
-              event_type: 'social_click',
-              event_source: 'web',
-              metadata: JSON.stringify({ platform: 'instagram' }),
-              ip_address: `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-              created_at: engagementTime
-            });
-            totalEngagements++;
-          }
+        if (visitIndex % 5 === 0) {
+          events.push(
+            eventRow(
+              profile.id,
+              "portfolio_click",
+              new Date(viewTime.getTime() + 3 * 60 * 1000),
+              { target: "portfolio" },
+              ipAddress,
+            ),
+          );
+        }
 
-          // Scroll depth (50% of engagements)
-          if (Math.random() > 0.5) {
-            await knex('analytics').insert({
-              id: uuidv4(),
-              profile_id: profile.id,
-              event_type: 'scroll_depth',
-              event_source: 'web',
-              metadata: JSON.stringify({ depth: Math.random() > 0.5 ? 75 : 100 }),
-              ip_address: `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-              created_at: engagementTime
-            });
-            totalEngagements++;
-          }
+        if (visitIndex % 2 === 1) {
+          events.push(
+            eventRow(
+              profile.id,
+              "scroll_depth",
+              new Date(viewTime.getTime() + 4 * 60 * 1000),
+              { percent: visitIndex % 3 === 0 ? 100 : 75 },
+              ipAddress,
+            ),
+          );
         }
       }
     }
 
-    console.log('\n✅ Seed Complete!');
-    console.log(`   📊 Total Views: ${totalViews}`);
-    console.log(`   👥 Visitor Sessions: ${totalSessions}`);
-    console.log(`   ⚡ Engagement Events: ${totalEngagements}`);
-    console.log(`   🔁 Unique Visitors: ${visitorIds.length}`);
-    console.log('\n🎉 Refresh your analytics dashboard to see the data!');
+    await knex.transaction(async (trx) => {
+      await trx("analytics").where({ profile_id: profile.id }).delete();
+      await trx("visitor_sessions").where({ profile_id: profile.id }).delete();
+      await trx.batchInsert("visitor_sessions", sessions, 100);
+      await trx.batchInsert("analytics", events, 100);
+    });
 
-    await knex.destroy();
+    const outboundClicks = events.filter((event) =>
+      ["social_click", "portfolio_click"].includes(event.event_type),
+    ).length;
+
+    console.log(`Seeded website analytics for ${profile.first_name} ${profile.last_name}.`);
+    console.log({
+      profile: profile.slug,
+      visits: sessions.length,
+      uniqueVisitors: visitorIds.length,
+      pageViews: sessions.length,
+      outboundClicks,
+      days: DAYS,
+    });
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    console.error(error);
-    process.exit(1);
+    console.error("Analytics seed failed:", error.message);
+    process.exitCode = 1;
+  } finally {
+    await knex.destroy();
   }
 }
 

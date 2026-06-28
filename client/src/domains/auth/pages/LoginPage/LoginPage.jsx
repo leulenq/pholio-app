@@ -11,6 +11,7 @@ import { Loader2, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
 import { markAuthEntryTransition } from '../../../../shared/lib/pholio-auth/entry-transition';
+import { purgeApplyDraftStorage } from '../../../talent/pages/ApplyPage/applicationDraftStorage';
 import { useAuthenticatedEntryRedirect } from '../../hooks/useAuthenticatedEntryRedirect';
 import {
   isInstagramAuthConfigured,
@@ -71,6 +72,7 @@ export default function LoginPage() {
         credentials: 'include',
         headers: { Accept: 'application/json' },
       }).catch(() => {});
+      purgeApplyDraftStorage();
     }
 
     clearSession();

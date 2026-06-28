@@ -16,9 +16,11 @@ import ProfileGateBanner from '../components/gating/ProfileGateBanner';
 import LegalAcceptanceGate from '../components/LegalAcceptanceGate';
 
 export default function DashboardLayoutShell() {
-  const { profile, images, isLoading, error } = useAuth();
+  const { profile, images, isLoading, isError, error } = useAuth();
   const location = useLocation();
-  const { showEntrySplash, isEntrySplashExiting, entryStartedAt } = useAuthEntryTransition(!isLoading);
+  const authBootstrapReady = !isLoading || isError;
+  const { showEntrySplash, isEntrySplashExiting, entryStartedAt } =
+    useAuthEntryTransition(authBootstrapReady);
   const [promptContext, setPromptContext] = useState(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const gating = useMemo(() => checkGatingStatus(profile, images), [profile, images]);
@@ -75,7 +77,7 @@ export default function DashboardLayoutShell() {
     />
   ) : null;
 
-  if (isLoading) {
+  if (isLoading && !isError) {
     return (
       entrySplash || (
         <div className="flex items-center justify-center h-screen bg-[#faf9f7]">

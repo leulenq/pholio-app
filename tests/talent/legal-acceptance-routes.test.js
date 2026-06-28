@@ -64,10 +64,22 @@ describe("talent legal acceptance enforcement", () => {
     return (req) => req.set("Cookie", `connect.sid=${encodeURIComponent(signed)}`);
   }
 
-  it("blocks /api/talent/profile without legal acceptance", async () => {
+  it("allows GET /api/talent/profile without legal acceptance for dashboard bootstrap", async () => {
     const auth = await withSession();
     const res = await auth(
       request(app).get("/api/talent/profile").set("Accept", "application/json"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data?.user?.id).toBe(TALENT_ID);
+  });
+
+  it("blocks profile writes without legal acceptance", async () => {
+    const auth = await withSession();
+    const res = await auth(
+      request(app)
+        .put("/api/talent/profile")
+        .set("Accept", "application/json")
+        .send({ first_name: "Blocked" }),
     );
     expect(res.status).toBe(403);
     expect(res.body.error).toBe("LEGAL_ACCEPTANCE_REQUIRED");

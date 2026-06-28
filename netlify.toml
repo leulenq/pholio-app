@@ -31,6 +31,9 @@
     "ejs", "express-ejs-layouts"
   ]
 
+[functions."cleanup-application-drafts"]
+  schedule = "@daily"
+
 ##
 # Serve the React SPA for app routes (login/dashboard/onboarding/reveal),
 # and only route backend API/auth requests to the Netlify function.

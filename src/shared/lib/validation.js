@@ -1258,10 +1258,15 @@ const IMAGE_TYPE_VALUES = [
   "portfolio",
   "comp_card", // legacy — still accepted from old records
   "campaign",
+  "tearsheet", // published editorial/campaign page (distinct from unpublished `campaign`)
   "test",
   "editorial",
   "runway",
 ];
+
+/** Allowed motion-asset MIME types (P2 video). */
+const VIDEO_MIME_VALUES = ["video/mp4", "video/webm", "video/quicktime"];
+const videoMimeSet = new Set(VIDEO_MIME_VALUES);
 
 const SHOT_TYPE_VALUES = [
   "headshot",
@@ -1585,6 +1590,190 @@ function imageRightsRowToApi(row) {
   };
 }
 
+/**
+ * Model-release artifact (P1 #6). A real release record attached to an image:
+ * file/url reference + signer + signed date + parties.
+ */
+const imageModelReleasePutSchema = z
+  .object({
+    release_ref: z
+      .union([z.string().trim().max(1024), z.literal(""), z.null()])
+      .optional(),
+    release_url: z
+      .union([z.string().trim().max(1024), z.literal(""), z.null()])
+      .optional(),
+    signer_name: z
+      .union([z.string().trim().max(200), z.literal(""), z.null()])
+      .optional(),
+    signed_at: z.union([z.string(), z.null()]).optional(),
+    // parties: free text or an array of names/{name, role}; stored as text/JSON.
+    parties: z
+      .union([
+        z.string().max(4000),
+        z.array(z.unknown()).max(50),
+        z.literal(""),
+        z.null(),
+      ])
+      .optional(),
+    notes: z.union([z.string().max(5000), z.literal(""), z.null()]).optional(),
+  })
+  .strict();
+
+function normalizePartiesField(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  if (Array.isArray(value)) {
+    try {
+      const json = JSON.stringify(value);
+      return json.length > 8000 ? json.slice(0, 8000) : json;
+    } catch {
+      return null;
+    }
+  }
+  return String(value).slice(0, 4000);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {{ ok: boolean, patch?: Record<string, unknown>, error?: string }}
+ */
+function parseImageModelReleasePatchFromBody(body) {
+  const parsed = imageModelReleasePutSchema.safeParse(body || {});
+  if (!parsed.success) {
+    const msg =
+      parsed.error.flatten().formErrors.join("; ") ||
+      "Invalid model release payload";
+    return { ok: false, error: msg };
+  }
+  const d = parsed.data;
+  const patch = {};
+  const trimOrNull = (v) =>
+    v === "" || v === null || v === undefined ? null : String(v).trim();
+
+  if (Object.hasOwn(d, "release_ref")) patch.release_ref = trimOrNull(d.release_ref);
+  if (Object.hasOwn(d, "release_url")) {
+    const url = trimOrNull(d.release_url);
+    if (url && !/^https?:\/\/.+/i.test(url)) {
+      return { ok: false, error: "release_url must start with http:// or https://" };
+    }
+    patch.release_url = url;
+  }
+  if (Object.hasOwn(d, "signer_name")) patch.signer_name = trimOrNull(d.signer_name);
+  if (Object.hasOwn(d, "signed_at")) {
+    if (d.signed_at === null || d.signed_at === "") patch.signed_at = null;
+    else {
+      const dt = new Date(d.signed_at);
+      if (Number.isNaN(dt.getTime())) {
+        return { ok: false, error: "Invalid signed_at" };
+      }
+      patch.signed_at = dt;
+    }
+  }
+  if (Object.hasOwn(d, "parties")) patch.parties = normalizePartiesField(d.parties);
+  if (Object.hasOwn(d, "notes")) {
+    patch.notes = d.notes === "" || d.notes === null ? null : String(d.notes).slice(0, 5000);
+  }
+  return { ok: true, patch };
+}
+
+function defaultImageModelReleaseApiShape() {
+  return {
+    release_ref: null,
+    release_url: null,
+    signer_name: null,
+    signed_at: null,
+    parties: null,
+    notes: null,
+    on_file: false,
+  };
+}
+
+function imageModelReleaseRowToApi(row) {
+  const base = defaultImageModelReleaseApiShape();
+  if (!row) return base;
+  const iso = (v) => {
+    if (!v) return null;
+    const d = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  };
+  let parties = row.parties ?? null;
+  if (typeof parties === "string" && parties.trim().startsWith("[")) {
+    try {
+      parties = JSON.parse(parties);
+    } catch {
+      /* keep string */
+    }
+  }
+  const onFile = Boolean(
+    row.release_ref || row.release_url || row.signer_name || row.signed_at,
+  );
+  return {
+    release_ref: row.release_ref ?? null,
+    release_url: row.release_url ?? null,
+    signer_name: row.signer_name ?? null,
+    signed_at: iso(row.signed_at),
+    parties,
+    notes: row.notes ?? null,
+    on_file: onFile,
+  };
+}
+
+/**
+ * Motion-asset (video) creation payload (P2 video). URL-referenced — the image
+ * binary pipeline is untouched.
+ * @param {unknown} body
+ * @returns {{ ok: boolean, values?: Record<string, unknown>, error?: string }}
+ */
+function parseVideoAssetFromBody(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, error: "Invalid video payload" };
+  }
+  const rawUrl = typeof body.video_url === "string" ? body.video_url.trim() : "";
+  if (!rawUrl) {
+    return { ok: false, error: "video_url is required" };
+  }
+  if (rawUrl.length > 1024 || !/^https?:\/\/.+/i.test(rawUrl)) {
+    return { ok: false, error: "video_url must be a valid http(s) URL" };
+  }
+
+  const values = { video_url: rawUrl };
+
+  if (Object.hasOwn(body, "video_mime") && body.video_mime != null && body.video_mime !== "") {
+    const mime = String(body.video_mime).trim().toLowerCase();
+    if (!videoMimeSet.has(mime)) {
+      return {
+        ok: false,
+        error: `video_mime must be one of: ${VIDEO_MIME_VALUES.join(", ")}`,
+      };
+    }
+    values.video_mime = mime;
+  }
+
+  if (
+    Object.hasOwn(body, "video_duration_seconds") &&
+    body.video_duration_seconds != null &&
+    body.video_duration_seconds !== ""
+  ) {
+    const dur = Number(body.video_duration_seconds);
+    if (!Number.isFinite(dur) || dur < 0 || dur > 86400) {
+      return { ok: false, error: "Invalid video_duration_seconds" };
+    }
+    values.video_duration_seconds = dur;
+  }
+
+  if (Object.hasOwn(body, "captured_at")) {
+    const r = parseOptionalIsoDate(body.captured_at, "captured_at");
+    if (!r.ok) return { ok: false, error: r.error };
+    values.captured_at = r.value;
+  }
+
+  if (Object.hasOwn(body, "label") && typeof body.label === "string") {
+    values.label = body.label.trim().slice(0, 200);
+  }
+
+  return { ok: true, values };
+}
+
 module.exports = {
   loginSchema,
   signupSchema,
@@ -1604,9 +1793,15 @@ module.exports = {
   STYLE_TYPE_VALUES,
   IMAGE_STATUS_VALUES,
   IMAGE_STRUCTURED_KEYS,
+  VIDEO_MIME_VALUES,
   parseImageStructuredFieldsFromBody,
   imageRightsPutSchema,
   parseImageRightsPatchFromBody,
   defaultImageRightsApiShape,
   imageRightsRowToApi,
+  imageModelReleasePutSchema,
+  parseImageModelReleasePatchFromBody,
+  defaultImageModelReleaseApiShape,
+  imageModelReleaseRowToApi,
+  parseVideoAssetFromBody,
 };

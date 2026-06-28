@@ -22,7 +22,7 @@ Pure-logic units (collapse persistence, data selectors) are written as tiny pure
 
 **Visual source of truth:** the approved mockup `docs/superpowers/specs/assets/2026-06-02-agency-command-center-mockup.html`. Open it in a browser while building — all exact colors, spacings, and structure come from it. The spec is `docs/superpowers/specs/2026-06-02-agency-command-center-shell-design.md`.
 
-**Commit discipline:** commit after each task. End commit messages with the Co-Authored-By trailer per repo convention.
+**Commit discipline:** commit after each task. Do not add AI co-author trailers — this repo attributes commits to the human owner only.
 
 ---
 

@@ -46,17 +46,34 @@ export const IMAGE_TYPE_LABELS = {
   portfolio: 'Book',
   comp_card: 'Comp card',
   campaign: 'Campaign',
+  tearsheet: 'Tearsheet',
   test: 'Test shoot',
   editorial: 'Book',
   runway: 'Book',
 };
+
+/**
+ * Asset kind labels — distinguishes still imagery from motion/showreel assets.
+ * Data contract: asset_kind ∈ { image, video }.
+ */
+export const ASSET_KIND_LABELS = {
+  image: 'Image',
+  video: 'Motion',
+};
+
+export function labelForAssetKind(assetKind) {
+  const slug = normalizeToken(assetKind);
+  if (!slug) return ASSET_KIND_LABELS.image;
+  return ASSET_KIND_LABELS[slug] || fallbackLabel(slug);
+}
 
 const IMAGE_TYPE_PICKER_OPTIONS = [
   { value: '', label: 'Unplaced', hint: '' },
   { value: 'digital', label: 'Digitals', hint: 'Natural agency digitals or polaroids' },
   { value: 'portfolio', label: 'Book', hint: 'Styled portfolio work' },
   { value: 'test', label: 'Test shoot', hint: 'TFP or test day imagery' },
-  { value: 'campaign', label: 'Campaign', hint: 'Published or ad work' },
+  { value: 'campaign', label: 'Campaign', hint: 'Unpublished brand or advertising work' },
+  { value: 'tearsheet', label: 'Tearsheet', hint: 'Published editorial or campaign page with credit' },
 ];
 
 const IMAGE_TYPE_LEGACY_ONLY = [

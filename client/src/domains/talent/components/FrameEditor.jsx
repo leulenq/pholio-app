@@ -65,6 +65,17 @@ function dateInputToPayload(value) {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/** License expiry read — drives the "expires in N days / expired" indicator. */
+function expiryState(expiresAtIso, now = new Date()) {
+  if (!expiresAtIso) return null;
+  const d = new Date(expiresAtIso);
+  if (Number.isNaN(d.getTime())) return null;
+  const days = Math.ceil((d.getTime() - now.getTime()) / 86400000);
+  if (days < 0) return { label: `Rights expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago`, expired: true };
+  if (days === 0) return { label: 'Rights expire today', expired: false };
+  return { label: `Rights expire in ${days} day${days === 1 ? '' : 's'}`, expired: false };
+}
+
 function readMetadata(metadata) {
   if (!metadata) return {};
   if (typeof metadata === 'object') return metadata;
@@ -101,10 +112,24 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
     rights_status: '',
     copyright_owner: '',
     photographer_name: '',
+    usage_scope: '',
+    territory: '',
+    start_at: '',
+    expires_at: '',
+    exclusive: false,
   });
   const [rightsLoaded, setRightsLoaded] = useState(false);
   const [rightsLoading, setRightsLoading] = useState(true);
   const [rightsError, setRightsError] = useState('');
+  const [releaseOnFile, setReleaseOnFile] = useState(false);
+  // Model-release artifact (P1 #6) — a real release record attached to the frame.
+  const [release, setRelease] = useState({
+    release_url: '',
+    signer_name: '',
+    signed_at: '',
+  });
+  const [releaseLoaded, setReleaseLoaded] = useState(false);
+  const [releaseDirty, setReleaseDirty] = useState(false);
   const initialMeta = readMetadata(image.metadata);
   const initialCredits = initialMeta.credits || {};
   const classDefaults = classificationFormDefaults(image);
@@ -115,6 +140,9 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         mua: initialCredits.mua || '',
         hair_stylist: initialCredits.hair_stylist || '',
         stylist: initialCredits.stylist || '',
+        publication: initialCredits.publication || '',
+        issue: initialCredits.issue || '',
+        credit: initialCredits.credit || '',
       },
       description: initialMeta.description || initialMeta.caption || '',
       visibility: initialMeta.visibility || 'public',
@@ -147,7 +175,13 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
           rights_status: toText(row.rights_status),
           copyright_owner: toText(row.copyright_owner),
           photographer_name: toText(row.photographer_name),
+          usage_scope: toText(row.usage_scope),
+          territory: toText(row.territory),
+          start_at: isoToDateInput(row.start_at),
+          expires_at: isoToDateInput(row.expires_at),
+          exclusive: !!row.exclusive,
         });
+        if (res?.release_on_file) setReleaseOnFile(true);
         setRightsLoaded(true);
       })
       .catch(() => {
@@ -158,6 +192,20 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         if (!active) return;
         setRightsLoading(false);
       });
+
+    talentApi.getModelRelease(image.id)
+      .then((res) => {
+        if (!active) return;
+        const row = res?.release || {};
+        setRelease({
+          release_url: toText(row.release_url || row.release_ref),
+          signer_name: toText(row.signer_name),
+          signed_at: isoToDateInput(row.signed_at),
+        });
+        if (row.on_file) setReleaseOnFile(true);
+        setReleaseLoaded(true);
+      })
+      .catch(() => { /* release is best-effort; rights UI still works */ });
 
     return () => {
       active = false;
@@ -191,6 +239,10 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
   const setCredit = (field, value) => setForm((p) => ({
     ...p, metadata: { ...p.metadata, credits: { ...p.metadata.credits, [field]: value } },
   }));
+  const setReleaseField = (field, value) => {
+    setReleaseDirty(true);
+    setRelease((p) => ({ ...p, [field]: value }));
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -206,6 +258,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         return;
       }
 
+      const isDigitalUse = String(form.image_type || '').toLowerCase() === 'digital';
       const payload = {
         image_type: form.image_type || null,
         shot_type: form.shot_type || null,
@@ -214,7 +267,8 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         exclude_from_public: form.exclude_from_public,
         exclude_from_agency: form.exclude_from_agency,
         captured_at: dateInputToPayload(form.captured_at),
-        retouched_at: dateInputToPayload(form.retouched_at),
+        // Digitals must stay raw — never persist a retouch date on a digital.
+        retouched_at: isDigitalUse ? null : dateInputToPayload(form.retouched_at),
         set_id: form.set_id || null,
         metadata: {
           ...form.metadata,
@@ -245,7 +299,21 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
             rights_status: rights.rights_status || null,
             copyright_owner: rights.copyright_owner || null,
             photographer_name: rights.photographer_name || null,
+            usage_scope: rights.usage_scope || null,
+            territory: rights.territory || null,
+            start_at: dateInputToPayload(rights.start_at),
+            expires_at: dateInputToPayload(rights.expires_at),
+            exclusive: !!rights.exclusive,
           });
+        }
+        if (releaseLoaded && releaseDirty) {
+          const releaseRes = await talentApi.updateModelRelease(image.id, {
+            release_url: release.release_url || null,
+            signer_name: release.signer_name || null,
+            signed_at: dateInputToPayload(release.signed_at),
+          });
+          if (releaseRes?.release?.on_file != null) setReleaseOnFile(!!releaseRes.release.on_file);
+          setReleaseDirty(false);
         }
         const next = res.image;
         onUpdate(image.id, next ? {
@@ -269,6 +337,9 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
     }
   };
 
+  const isDigitalUse = String(form.image_type || '').toLowerCase() === 'digital';
+  const isTearsheet = String(form.image_type || '').toLowerCase() === 'tearsheet';
+  const expiry = expiryState(dateInputToPayload(rights.expires_at));
   const currentAspect = ASPECTS.find((a) => Math.abs(a.val - aspect) < 0.01);
   const isPrivate = (
     form.metadata.visibility === 'private'
@@ -535,6 +606,109 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                             setRights((p) => ({ ...p, photographer_name: e.target.value }))}
                         />
                       </label>
+                      <label>
+                        <span className="fe-label">Usage scope</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="e.g. editorial, advertising, web"
+                          value={rights.usage_scope}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, usage_scope: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label">Territory</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="e.g. worldwide, US, EU"
+                          value={rights.territory}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, territory: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />License start</span>
+                        <input
+                          type="date"
+                          className="fe-input"
+                          value={rights.start_at}
+                          disabled={rightsLoading}
+                          onChange={(e) => setRights((p) => ({ ...p, start_at: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />License expiry</span>
+                        <input
+                          type="date"
+                          className="fe-input"
+                          value={rights.expires_at}
+                          disabled={rightsLoading}
+                          onChange={(e) => setRights((p) => ({ ...p, expires_at: e.target.value }))}
+                        />
+                      </label>
+                      <label className="fe-grid__wide fe-switch">
+                        <input
+                          type="checkbox"
+                          checked={rights.exclusive}
+                          disabled={rightsLoading}
+                          onChange={(e) => setRights((p) => ({ ...p, exclusive: e.target.checked }))}
+                        />
+                        <span>Exclusive license</span>
+                      </label>
+                    </div>
+                    {expiry ? (
+                      <p className={`fe-rights-expiry${expiry.expired ? ' fe-rights-expiry--expired' : ''}`}>
+                        {expiry.label}
+                        {expiry.expired ? ' — expired-rights frames are blocked from packages and export.' : ''}
+                      </p>
+                    ) : null}
+
+                    {/* Model release */}
+                    <div className="fe-release">
+                      <div className="fe-release__head">
+                        <span className="fe-label">Model release</span>
+                        <span className={`fe-release__state${releaseOnFile ? ' fe-release__state--on' : ''}`}>
+                          {releaseOnFile ? 'On file' : 'Not on file'}
+                        </span>
+                      </div>
+                      <div className="fe-grid">
+                        <label className="fe-grid__wide">
+                          <span className="fe-label">Release reference / URL</span>
+                          <input
+                            type="text"
+                            className="fe-input"
+                            placeholder="Link or document reference"
+                            value={release.release_url}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('release_url', e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          <span className="fe-label">Signer</span>
+                          <input
+                            type="text"
+                            className="fe-input"
+                            placeholder="Signer name"
+                            value={release.signer_name}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('signer_name', e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          <span className="fe-label"><Calendar size={12} aria-hidden="true" />Signed</span>
+                          <input
+                            type="date"
+                            className="fe-input"
+                            value={release.signed_at}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('signed_at', e.target.value)}
+                          />
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -627,11 +801,18 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                         <input type="date" className="fe-input" value={form.captured_at}
                           onChange={(e) => setForm((p) => ({ ...p, captured_at: e.target.value }))} />
                       </label>
-                      <label>
-                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />Retouched</span>
-                        <input type="date" className="fe-input" value={form.retouched_at}
-                          onChange={(e) => setForm((p) => ({ ...p, retouched_at: e.target.value }))} />
-                      </label>
+                      {isDigitalUse ? (
+                        <p className="fe-grid__wide fe-note-warn">
+                          Digitals must stay raw — retouching is disabled on this frame. Replacing it with a
+                          retouched version turns it into book work, not a digital.
+                        </p>
+                      ) : (
+                        <label>
+                          <span className="fe-label"><Calendar size={12} aria-hidden="true" />Retouched</span>
+                          <input type="date" className="fe-input" value={form.retouched_at}
+                            onChange={(e) => setForm((p) => ({ ...p, retouched_at: e.target.value }))} />
+                        </label>
+                      )}
                     </div>
                   </div>
 
@@ -642,6 +823,28 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       <h3>Credits</h3>
                     </div>
                     <div className="fe-grid">
+                      {isTearsheet ? (
+                        <>
+                          <label>
+                            <span className="fe-label">Publication</span>
+                            <input type="text" className="fe-input" placeholder="Vogue, Elle…"
+                              value={form.metadata.credits.publication}
+                              onChange={(e) => setCredit('publication', e.target.value)} />
+                          </label>
+                          <label>
+                            <span className="fe-label">Issue</span>
+                            <input type="text" className="fe-input" placeholder="March 2026"
+                              value={form.metadata.credits.issue}
+                              onChange={(e) => setCredit('issue', e.target.value)} />
+                          </label>
+                          <label className="fe-grid__wide">
+                            <span className="fe-label">Credit line</span>
+                            <input type="text" className="fe-input" placeholder="Story / editorial credit"
+                              value={form.metadata.credits.credit}
+                              onChange={(e) => setCredit('credit', e.target.value)} />
+                          </label>
+                        </>
+                      ) : null}
                       <label className="fe-grid__wide">
                         <span className="fe-label">Photographer</span>
                         <input type="text" className="fe-input" placeholder="@photographer"

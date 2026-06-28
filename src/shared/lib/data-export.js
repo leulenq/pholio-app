@@ -83,6 +83,36 @@ async function loadMessages(knex, applicationIds) {
     .orderBy("created_at", "asc");
 }
 
+async function loadApplicationDraftData(knex, profileId) {
+  if (!profileId || !(await knex.schema.hasTable("application_drafts"))) {
+    return {
+      application_drafts: [],
+      application_draft_events: [],
+      application_submission_requests: [],
+    };
+  }
+  const application_drafts = await knex("application_drafts")
+    .where({ profile_id: profileId })
+    .orderBy("updated_at", "desc");
+  let application_draft_events = [];
+  if (await knex.schema.hasTable("application_draft_events")) {
+    application_draft_events = await knex("application_draft_events")
+      .where({ profile_id: profileId })
+      .orderBy("created_at", "asc");
+  }
+  let application_submission_requests = [];
+  if (await knex.schema.hasTable("application_submission_requests")) {
+    application_submission_requests = await knex("application_submission_requests")
+      .where({ profile_id: profileId })
+      .orderBy("created_at", "asc");
+  }
+  return {
+    application_drafts,
+    application_draft_events,
+    application_submission_requests,
+  };
+}
+
 /**
  * Build a structured JSON export payload for a talent user.
  * @param {import('knex').Knex} knex
@@ -128,6 +158,7 @@ async function buildTalentDataExport(knex, userId) {
     loadImageRights(knex, imageIds),
     extractProfileAiFields(knex, profile),
   ]);
+  const draftData = await loadApplicationDraftData(knex, profileId);
 
   return {
     user: formatUserForExport(user),
@@ -135,6 +166,7 @@ async function buildTalentDataExport(knex, userId) {
     images,
     image_rights,
     applications,
+    ...draftData,
     messages,
     onboarding_signals,
     ai_profile_analysis,

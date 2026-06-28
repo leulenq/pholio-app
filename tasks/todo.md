@@ -1,3 +1,236 @@
+# Bio Writer Label Separation — 2026-06-27
+
+- [x] Keep Length and Voice inline with their choices.
+- [x] Limit each filter baseline to the selectable options.
+- [x] Run focused verification.
+
+## Review
+
+- Length and Voice remain inline, outside the selection baseline.
+- The hairline now begins with Tight/Standard and Agency/Personal only, making
+  the gold bold labels read clearly as group names.
+- Focused ESLint, `git diff --check`, and the client production build pass.
+
+# Bio Writer Inline Hierarchy Correction — 2026-06-27
+
+- [x] Restore Length and Voice to the inline control-row structure.
+- [x] Remove the stacked serif group-title treatment.
+- [x] Distinguish group labels using bold gold mono text only.
+- [x] Run focused verification.
+
+## Review
+
+- Length and Voice are restored to the same inline baseline as their choices.
+- Both labels remain mono uppercase but now use the Profile gold token and
+  `700` weight for distinction.
+- The Training & Skills architectural button refinement is unchanged.
+- `git diff --check` and the client production build pass.
+
+# Profile Writing Controls Refinement — 2026-06-27
+
+- [x] Move Bio Length and Voice into authoritative group-title positions.
+- [x] Restyle Training actions with the `/apply` Back/Next bordered architecture.
+- [x] Give Draft from profile the primary Next treatment and keep transformations secondary.
+- [x] Add a restrained busy/activity detail without generic AI iconography.
+- [x] Preserve the hairline shared-toolbar treatment for non-Training callers.
+- [x] Run focused lint, diff, and production-build verification.
+- [ ] Run rendered QA when the in-app browser connector is available.
+
+## Review
+
+- Bio group titles now sit above the option rows in a medium-weight editorial
+  serif, while Tight/Standard and Agency/Personal remain compact mono choices.
+- Training uses a scoped `architectural` writing-toolbar variant copied from the
+  `/apply` navigation family: 42px height, 2px radius, bordered cream structure,
+  precise hover lift, and restrained shadows.
+- Format list and Summarize use the quieter Back-button treatment. Draft from
+  profile uses the stronger Next-button border/background treatment.
+- Intelligence is communicated through an inset gold activity rule and a spinner
+  only on the active action; there are no pills, sparkles, glows, or magic copy.
+- Application-note and message writing controls keep the prior hairline action
+  treatment, so this refinement does not broaden the bordered variant beyond
+  Training.
+- Focused ESLint, `git diff --check`, and the client production build pass.
+- Browser visual QA remains unavailable because the in-app browser connector
+  fails before opening a tab.
+
+# Profile Writing Controls Redesign — 2026-06-27
+
+- [x] Rebuild Bio length/voice choices as hairline filter rows matching Submission History.
+- [x] Replace the shared writing-assist pill/chip treatment with the same filter-row language.
+- [x] Preserve disabled, busy, undo, keyboard-focus, and reduced-motion behavior.
+- [x] Verify Profile, application-note, and message-toolbar usages after the shared change.
+- [x] Run focused lint/build verification.
+- [ ] Run rendered QA when the in-app browser connector is available.
+
+## Review
+
+- Bio Length and Voice are now two compact shared-hairline rows using the same
+  mono spacing, quiet inactive labels, active text, and gold underline motion as
+  Submission History filters.
+- The shared `WritingAssistToolbar` no longer renders gold capsule chips or a
+  sparkle icon on every action. Training, application notes, and messages now
+  inherit the same transparent hairline action language.
+- Busy state is scoped to the action actually running instead of replacing every
+  action label; disabled, undo, focus-visible, and reduced-motion states remain.
+- Focused ESLint, `git diff --check`, and the client Vite production build pass.
+- Browser visual QA remains unavailable because the in-app browser connector
+  fails before opening a tab.
+
+# Mia Website Analytics Runtime Fix — 2026-06-27
+
+- [x] Reproduce the zero-state through the live development data path.
+- [x] Compare the seeded SQLite rows with the website analytics range query.
+- [x] Normalize SQLite website analytics range predicates with `datetime()`.
+- [x] Add an ISO-timestamp regression test.
+- [x] Verify the authenticated live API returns Mia's non-zero metrics and series.
+
+## Review
+
+- Root cause: the demo seed stores ISO timestamp strings, while the website API
+  bound JavaScript `Date` objects directly in SQLite range predicates. SQLite
+  grouped the rows by date but returned zero for the range counts.
+- Website analytics now uses native timestamp predicates on PostgreSQL and
+  `datetime(column)` / `datetime(?)` comparisons on SQLite.
+- Bumped the React Query website analytics contract key so the mounted overview
+  replaces its cached zero response immediately after the backend correction.
+- The live port-3000 response for Mia now reports 215 visits, 18 unique visitors,
+  215 page views, 121 outbound clicks, a 30-day series, and `hasData: true`.
+- Focused regression `website analytics counts ISO timestamps in SQLite` passes.
+
+# Studio+ Analytics Follow-up — 2026-06-27
+
+- [x] Remove nonessential analytics provenance/filler copy.
+- [x] Restore the original top-right URL link treatment.
+- [x] Change the visible and linked portfolio identity to `pholio.studio/{talent-username}`.
+- [x] Make the standalone analytics seed target Mia Voss explicitly and replace her demo traffic transactionally.
+- [x] Seed the active Mia Voss development account with current website analytics.
+- [x] Run focused lint/build/data verification.
+- [ ] Run rendered QA when the in-app browser connector is available.
+
+## Review
+
+- Removed the website analytics subtitle, chart provenance sentence, and footer provenance label while preserving functional metric and empty-state copy.
+- Restored the original compact rounded top-right link treatment and changed the shared display/destination value to `https://pholio.studio/{talent-username}`.
+- Reworked `scripts/seed-analytics.js` to resolve Mia through `talent@example.com`, replace only her sessions/events in one transaction, and produce a repeatable 30-day website dataset.
+- Added `npm run seed:analytics` and applied it to the active development database.
+- Active Mia dataset verified: 215 visits, 18 unique visitors, 215 page views, and 121 outbound clicks across 30 days.
+- Verification passed: seed script syntax, focused frontend ESLint, `git diff --check`, source scan for removed filler copy, and the client Vite production build.
+- Browser visual QA remains unavailable because the in-app browser connector fails before opening a tab.
+
+# Studio+ Overview Website Analytics — 2026-06-27
+
+- [x] Audit every overview website metric against its stored event/session source.
+- [x] Define a truthful first-party website analytics contract for visits, unique visitors, page views, outbound clicks, and the daily visit trend.
+- [x] Harden portfolio tracking so owner previews, bots, cross-profile session cookies, and arbitrary event names do not corrupt reporting.
+- [x] Make the displayed public portfolio URL and link destination use the same non-localhost canonical identity.
+- [x] Replace the hand-built spark bars with a restrained full-width Recharts visualization and clear empty/loading/error states.
+- [x] Add focused backend coverage and run frontend lint/build verification.
+- [ ] Visually verify the rendered overview when the in-app browser connector is available.
+
+## Review
+
+- Website reporting now comes from a dedicated first-party contract on `/api/talent/analytics`: visits and the daily trend use `visitor_sessions`; unique visitors use distinct persisted visitor IDs; page views use `view` events; outbound clicks use only `social_click` and `portfolio_click`.
+- Unique visitors are shown as unavailable when legacy session rows make identity coverage partial. Empty data, disconnected data, loading, and API errors are separate UI states; no estimates or seeded placeholders are presented as measured traffic.
+- Public portfolio GET/event tracking now excludes signed-in owner activity and known crawlers, awaits session creation before response headers commit, uses a profile-specific session cookie, and accepts only the four events emitted by the portfolio page.
+- Comp-card downloads and bio reads were removed from the overview website metric set.
+- The overview URL and its destination are now derived from one canonical public URL, with `https://app.pholio.studio` as the non-local fallback, so localhost is never exposed in the production-facing section.
+- Replaced the manual bar sparkline with a restrained full-width Recharts monotone area/line chart, custom tooltip, sparse grid, prior-period context, reduced-motion support, and responsive sizing.
+- Verification passed: backend syntax checks, focused frontend ESLint, `git diff --check`, client Vite production build, and three focused Supertest regressions covering the website contract, owner exclusion, and event whitelist.
+- The full pre-existing `overview-backend.test.js` suite still has three seed-state failures unrelated to this work (`is_pro` SQLite integer vs strict boolean, and absent seeded analytics). The three new focused tests pass.
+- Browser visual QA could not run because the in-app browser connector failed before opening a tab; this remains the only unchecked item.
+
+# Apply Workspace Editorial Frame — 2026-06-26
+
+- [x] Add a refined workspace header that uses the talent dashboard header DNA: wordmark left, "Submitting to" centered, exit action right.
+- [x] Rebuild the locked agency scene with the reference-inspired left editorial rail while preserving Pholio product logic on the right.
+- [x] Remove visible Address / Curate / Send / step-count navigation from the workspace.
+- [x] Restyle the apply workspace responsively using existing application tokens and without banned badge/glass/status-dot patterns.
+- [x] Run focused frontend verification.
+
+## Review
+
+- Header now follows the talent shell's three-zone topbar structure, serif PHOLIO wordmark treatment, centered mono navigation language, and right action placement.
+- Header center now reads `Submitting to {agency name}` when an agency is selected.
+- Left agency rail now shows `Established {date}` above the agency name when explicit establishment/founding data exists, with a fallback that reads founded/established years from current agency descriptions.
+- The custom progress row and visible step labels are removed; navigation remains in the footer actions where it supports the real flow.
+- The focused agency page now uses one continuous cream workspace with a left editorial rail and a right product/readiness brief.
+- Verification passed: focused ESLint for `ApplyExperience.jsx`; `git diff --check`; removed-label scan; `cd client && vite build`; local route probe returned HTTP 200. Vite still reports the existing large-chunk warning.
+- Browser visual QA was not available because the in-app browser connector failed before opening a tab in this session.
+
+# Apply Address Stage Redesign — 2026-06-26
+
+- [x] Rework the focused Address composition so the agency identity feels like an application stage.
+- [x] Add restrained motion, contrast, and layered editorial structure without making the page busy.
+- [x] Restructure the fit section for stronger rhythm and visual tension.
+- [x] Run focused frontend verification.
+
+## Review
+
+- Rebuilt the focused agency masthead as a high-contrast editorial stage with the agency logo, large serif identity, match signal, and subtle scanning hairline motion.
+- Increased emotional weight through contrast, layered linear texture, stronger type scale, and hover/motion on the stage, boards, and readiness ledger.
+- Reworked "What this house looks for" into an asymmetric editorial spread: headline/verdict/pressure on the left, requirement ledger on the right.
+- Added responsive collapse rules so the stage and fit spread remain usable on tablet/mobile.
+- Verification passed: `cd client && npx eslint src/domains/talent/pages/ApplyPage/ApplyExperience.jsx`; `cd client && npm run build`. Vite still reports the existing large-chunk warning.
+
+# Apply Agency Content Assets — 2026-06-26
+
+- [x] Trace the agency fields used by the talent apply experience.
+- [x] Add Marilyn and Lumen logo/content data for fresh seeds and existing databases.
+- [x] Verify migration and script syntax.
+
+## Review
+
+- The talent apply experience reads `website`, `description`, `logo_path`, and `open_boards` from `/api/talent/agencies`.
+- Added local agency logo SVG assets for Marilyn and Lumen under `public/agency-logos/`.
+- Mirrored those SVGs into `client/public/agency-logos/` so Vite dev serves `/agency-logos/...` at `localhost:5173`.
+- Updated fresh seed data for Marilyn and the Lumen demo seed with apply-facing descriptions, local logo paths, brand colors, and open boards.
+- Added `20260626120000_populate_apply_agency_content.js` to backfill existing `agencies` rows.
+- Verification passed: `node --check` for touched seed/migration files, plus an in-memory SQLite migration smoke test that confirmed both agency rows populate the fields consumed by `/applications/apply`.
+- Applied the migration locally with `npm run migrate` and confirmed the current database now has populated Marilyn and Lumen agency rows.
+- Bumped the `talent-agencies` React Query key to `apply-content-v2` so old cached agency rows are replaced on `/applications` and `/applications/apply`.
+- Verification passed: focused ESLint for `ApplicationsView.jsx` and `ApplyExperience.jsx`; `cd client && npm run build`. Vite still reports the existing large-chunk warning.
+
+# Apply Address Spacing Refinement — 2026-06-26
+
+- [x] Add back selective breathing room to the Address mast and fit section.
+- [x] Move the agency website action to a subtle icon beside the agency name.
+- [x] Run focused frontend verification.
+
+## Review
+
+- Added back modest top spacing through the apply shell, step header, focused dossier hero, and info row.
+- Gave "What this house looks for" more room with larger section spacing and slightly taller requirement rows.
+- Replaced the text website treatment with an icon-only external-link action beside the agency name.
+- Verification passed: `cd client && npx eslint src/domains/talent/pages/ApplyPage/ApplyExperience.jsx`; `cd client && npm run build`. Vite still reports the existing large-chunk warning.
+
+
+# Apply Address Compaction + Website Link — 2026-06-26
+
+- [x] Tighten the locked Address scene enough to fit normal desktop viewports without feeling compressed.
+- [x] Rework the agency website link as integrated editorial identity metadata.
+- [x] Run focused frontend verification.
+
+## Review
+
+- Reduced apply shell vertical padding, Address header spacing, agency crest/name/match scale, info-row rhythm, board spacing, and fit-list row padding.
+- Moved the website link into the agency identity metadata line beside location, styled as a subtle serif text link with a hairline divider/underline and gold arrow.
+- Removed unused `digitalsGaps` plumbing from `AgencyDossier` while keeping Curate-scene digitals guidance intact.
+- Verification passed: `cd client && npx eslint src/domains/talent/pages/ApplyPage/ApplyExperience.jsx`; `cd client && npm run build`. Vite still reports the existing large-chunk warning.
+
+# Apply Page Right-Side Layout Balance — 2026-06-26
+
+- [x] Identify the apply page layout constraints that leave the far-right canvas unused.
+- [x] Adjust the apply scene CSS so right-side content reaches farther right on wide screens.
+- [x] Run focused frontend verification for the touched apply page files.
+
+## Review
+
+- Removed the focused agency dossier max-width so the selected-agency address scene can span the available canvas.
+- Widened and right-aligned the Curate aside and Send comp-card column so those right-side surfaces reach farther toward the canvas edge on desktop.
+- Increased preview scale in the right columns while preserving the existing single-column mobile layout.
+- Verification: `cd client && npm run build` passed; Vite still reports the existing large chunk warning.
+
 # Billing + Payments Implementation — 2026-06-25
 
 - [x] Make Stripe checkout and customer portal talent-only.
@@ -1021,3 +1254,202 @@ all front/back combos valid (Backstage, Sedcard24, models.com show packages).
 - Left the existing double-click edit, blur commit, Enter commit, Escape cancel, drag, and scroll behavior unchanged.
 - Verification: focused ESLint passed for `PholioMeasuringTape.jsx`.
 - Verification: client production build passed; Vite still reports the existing large-chunk warning.
+
+---
+
+# Apply Draft Persistence — 2026-06-26
+
+- [x] Harden the draft data model with a saved workflow position, schema version,
+      optimistic concurrency version, client identity, and timestamps.
+- [x] Validate and normalize draft payloads server-side, including owned media
+      sets, image references, comp-card presets, current agency boards, and note
+      limits.
+- [x] Add authenticated draft read/write/delete APIs with explicit stale-write
+      conflicts and test coverage.
+- [x] Make final submission transactional so the application/package/message
+      commit and obsolete draft cleanup succeed or fail together.
+- [x] Persist every meaningful apply field, checkpoint on page navigation,
+      auto-save after idle edits, and keep a local crash buffer subordinate to
+      the server draft.
+- [x] Restore the saved page and valid media choices on route re-entry; surface
+      an explicit choice when a device-local recovery conflicts with a newer
+      server version.
+- [x] Add quiet Draft / Saving / Saved / Last saved / Save failed UI, explicit
+      Save draft and Save and exit actions, and unload warnings only while
+      critical changes are genuinely unsaved.
+- [x] Audit refresh, tab close, device switch, back navigation, failed save,
+      stale references, stale writes, and final submission with focused tests,
+      lint, build, and migration verification.
+- [ ] Complete browser visual QA when the in-app browser connection is available.
+
+## Review
+
+- Added a dedicated server-side draft aggregate that remains invisible to agency
+  inbox queries, with workflow position, schema and concurrency versions, client
+  identity, and authoritative save timestamps.
+- Draft reads and writes normalize agency boards and talent-owned image sets,
+  image IDs, digitals selections, and comp-card presets. Stale writes return the
+  latest server representation instead of silently applying last-write-wins.
+- The apply client now checkpoints page movement, auto-saves after 1.5 seconds
+  idle, writes an immediate same-device crash buffer, restores the latest draft
+  and saved page, and requires an explicit choice for divergent local/server
+  versions.
+- Header and footer UI expose Draft, Saving, Saved/Last saved, Save failed,
+  explicit Save draft, and Save and exit states without badges, glass, or status
+  dots. A 30-day-old draft gets a review reminder.
+- Final submission validates canonical server-owned references and commits the
+  application, package snapshot, first message, and draft deletion in one
+  transaction. A changed draft version aborts submission without deleting it.
+- Added `20260626180000_harden_application_drafts.js` because the original draft
+  migration had already been applied. Verified the active SQLite migration
+  ledger and actual columns after applying it.
+- Verification passed: focused ESLint; backend syntax checks; client Vite build;
+  3 application-draft integration tests including conflict and transactional
+  submit; 9 submission-program regression tests; `git diff --check`.
+- Browser visual QA could not run because the in-app browser connection rejected
+  setup before a tab opened. No external browser fallback was used.
+
+---
+
+# Apply Draft UI Refinement — 2026-06-27
+
+- [x] Remove the restored-draft banner and its dead state/styles.
+- [x] Keep the compact draft status beside Save and exit at responsive widths.
+- [x] Remove the footer Save draft action and its dead handler/styles.
+- [x] Confirm displayed save timestamps use the browser's local timezone.
+- [x] Run focused lint, build, and diff verification.
+
+## Review
+
+- Removed the restored/recovered draft banner, its state, component, and styles.
+- The only persistent draft UI is now the compact status immediately left of
+  Save and exit in the top-right workspace actions.
+- Removed the footer Save draft action, handler, icon import, and styles.
+- Mobile workspace chrome now reserves the right side for draft status and Save
+  and exit, hiding the centered agency line when horizontal space is limited.
+- Save timestamps use `Intl.DateTimeFormat` without a fixed `timeZone`, which
+  converts the server's timestamp to the browser user's local timezone.
+- Verification passed: focused ESLint, client Vite build, removed-UI scan, and
+  `git diff --check`. Vite retains the existing large-chunk warning.
+
+---
+
+# Apply Draft Timestamp Correction — 2026-06-27
+
+- [x] Trace the four-hour save-time shift to API timestamp serialization.
+- [x] Parse timezone-less SQLite draft timestamps as UTC.
+- [x] Add and run a regression assertion against the current instant.
+- [x] Run focused syntax, test, and diff verification.
+
+## Review
+
+- Root cause was server serialization, not the browser formatter: SQLite stored
+  `2026-06-27 03:16:32` as UTC, while Node parsed the missing offset as EDT.
+- Draft timestamp mapping now appends `Z` only to timezone-less database values,
+  while preserving `Date` objects and values with explicit offsets.
+- Verified the affected draft now maps to `2026-06-27T03:16:32.000Z`, which
+  formats in America/New_York as June 26 at 11:16 PM.
+- Verification passed: backend syntax checks, 3 focused integration tests
+  including a fresh-timestamp proximity assertion, and `git diff --check`.
+
+---
+
+# Apply Button System Redesign — 2026-06-27
+
+- [x] Replace the round black Next button with a dedicated editorial treatment.
+- [x] Give Back a coordinated lower-emphasis treatment.
+- [x] Restore shell, board, submit, retry, chooser, and conflict actions to their
+      original state after scope correction.
+- [x] Verify the redesign selectors match only explicit Back / Next controls.
+- [x] Run focused lint, build, and diff quality checks.
+
+## Review
+
+- The new geometry and restrained gold-outline treatment now applies only to
+  `apply-nav-button--back` and `apply-nav-button--next`.
+- Header Save and exit, Page 1 board selectors, submission, retry, chooser,
+  conflict, and all other button variants are restored to their prior styling
+  and behavior.
+- Verification passed: targeted selector scan, focused ESLint, client Vite
+  build, and `git diff --check`. Vite retains its existing large-chunk warning.
+- Browser visual QA remained unavailable because the in-app browser connection
+  rejected setup before opening a tab.
+
+---
+
+# Apply Draft Lifecycle Audit — 2026-06-27
+
+- [x] Inventory the draft data model, APIs, client state machine, tests, and
+      `/applications` integration.
+- [x] Research current save/resume, unload, concurrency, retention, and explicit
+      deletion guidance.
+- [x] Exercise create, resume, update, conflict, abandon, delete, submit, expiry,
+      and recovery paths without touching user-owned drafts.
+- [x] Audit accessibility, failure recovery, observability, security, privacy,
+      and multi-device behavior.
+- [x] Produce a prioritized product/engineering/QA/UX findings report and an
+      executable lifecycle test matrix with acceptance criteria.
+
+## Review
+
+- Full report: `tasks/apply-draft-lifecycle-audit.md`.
+- Verdict: the server-backed save foundation is sound, but the lifecycle is not
+  product-complete. `/applications` has no draft surface, delete has no UI or
+  reliable contract, expiry is not implemented, and route-level resume makes
+  `Apply New` ambiguous.
+- Two release-blocking server boundaries were identified: final submission can
+  omit the draft version and delete a newer draft, and final consent is not
+  enforced server-side.
+- Verified 3/3 existing draft integration tests, zero pending migrations, a
+  successful client production build, and isolated delete/stale behavior with
+  synthetic records only.
+- Live browser, mobile lifecycle, production data, and PostgreSQL concurrency
+  remain explicitly unverified and are covered by release-gate test cases in
+  the report.
+
+---
+
+# Apply Draft Production Readiness — 2026-06-27
+
+## Lifecycle contract
+
+- Active drafts are server-authoritative, one per profile and agency, and use
+  both an edit `version` and lifecycle `generation`.
+- Every save, delete, recovery, and submit mutation is conditional. Stale
+  clients receive the latest representation and never silently overwrite,
+  delete, submit, or recreate another client's work.
+- Delete is a seven-day recoverable soft delete. Deleted rows are tombstones;
+  an old local copy cannot recreate them through PUT.
+- Drafts expire after 90 days of inactivity, remain recoverable for seven days,
+  and are then purged. Expired/deleted drafts never auto-resume.
+- Final submit requires explicit consent, a current draft precondition, and an
+  idempotency key. Conversion and draft retirement remain transactional.
+- `/applications` owns draft discovery and management. Drafts are separate from
+  submitted history and never affect submitted counts or monthly limits.
+- `Apply New` always opens the agency chooser. Resume is always an explicit
+  draft action.
+- Browser-local data is a bounded crash buffer only. It is cleared on logout,
+  account deletion, confirmed draft deletion, and expiry/recovery replacement.
+
+## Work tracks
+
+- [ ] Backend: add lifecycle columns/migration, list/delete/recover/purge
+      semantics, mandatory conditional submit and consent, idempotency,
+      canonical media validation, schema migration handling, private caching,
+      export coverage, telemetry, and API tests.
+- [ ] `/applications`: add separate draft section, accurate states/counts,
+      explicit resume, delete confirmation, restore/undo, unavailable/expired
+      handling, scoped errors, and `Apply New` chooser semantics.
+- [ ] `/apply`: harden save durability, reconnect retry, in-app navigation,
+      truthful Save and exit behavior, tombstone/expiry conflicts, consent
+      invalidation, repair feedback, local-storage failure handling, and
+      logout/account cleanup.
+- [ ] Integration: reconcile shared API contracts and cache invalidation across
+      all three tracks.
+- [ ] Verification: apply migrations, run focused and full backend tests,
+      frontend lint/build/tests, synthetic lifecycle probes, and document any
+      browser/PostgreSQL limitations.
+
+## Review
+
+- Pending implementation.

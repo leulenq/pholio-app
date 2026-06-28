@@ -282,3 +282,11 @@ COOKIE_DOMAIN=.pholio.studio
 - **Simplicity First:** Make every change as simple as possible. Impact minimal code.
 - **No Laziness:** Find root causes. No temporary fixes. Senior developer standards.
 - **Minimal Impact:** Changes should only touch what's necessary. Avoid introducing bugs.
+
+## Commit Attribution
+
+All commits in this repository are attributed to the human owner only.
+
+- Never add `Co-authored-by` / `Co-Authored-By` trailers for Cursor, Claude Code, Codex, Anthropic, or OpenAI.
+- Never add `Made-with: Cursor`, `Claude-Session`, `Generated with Claude Code`, or similar lines.
+- Project Claude settings (`.claude/settings.json`) disable attribution; `.githooks/prepare-commit-msg` strips any that slip through.

@@ -1,3 +1,5 @@
+import { purgeApplyDraftStorage } from '../../domains/talent/pages/ApplyPage/applicationDraftStorage';
+
 /** Marketing site — used after dashboard sign-out. */
 export const MARKETING_SITE_URL = (
   import.meta.env.VITE_MARKETING_SITE_URL || 'https://www.pholio.studio'
@@ -28,5 +30,6 @@ export async function postLogoutAndRedirectToMarketing() {
     // Still leave the app even if the request fails.
   }
 
+  purgeApplyDraftStorage();
   window.location.href = target;
 }

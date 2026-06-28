@@ -3,7 +3,7 @@ import { Controller } from 'react-hook-form';
 import { Instagram, Twitter, Youtube, PlaySquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Section, SocialInput } from '../../components/profile-index';
-import { isMinorProfile } from '../../../shared/utils/talentAge';
+import { isMinorProfile } from '../../../../shared/utils/talentAge';
 import styles from './ProfilePage.module.css';
 
 const TiktokIcon = ({ size = 24, className }) => (

@@ -43,7 +43,7 @@ export function useAnalytics(days = 30, options = {}) {
   const includeAdvanced = options?.includeAdvanced === true;
 
   const analyticsQuery = useQuery({
-    queryKey: ['talent-analytics', days],
+    queryKey: ['talent-analytics', 'website-contract-v2', days],
     queryFn: () => talentApi.getAnalytics(days),
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 1
@@ -213,6 +213,7 @@ export function useAnalytics(days = 30, options = {}) {
       summaryQuery.isError ||
       timeseriesQuery.isError,
     /** Granular errors for overview UI (distinct from empty data states). */
+    analyticsError: analyticsQuery.isError,
     summaryError: summaryQuery.isError,
     activityError: activityQuery.isError,
     isAnalyticsRefetching,
@@ -244,4 +245,3 @@ export function useAnalytics(days = 30, options = {}) {
     }
   };
 }
-

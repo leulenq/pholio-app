@@ -12,6 +12,8 @@ function mapApplicationStatusToCastingStage(status) {
     case "pending":
       return "Applied";
     case "shortlisted":
+    case "requested_more":
+    case "meeting_requested":
       return "Shortlisted";
     case "accepted":
       return "Offered";

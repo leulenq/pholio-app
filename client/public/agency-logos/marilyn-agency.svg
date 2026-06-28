@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Marilyn Agency logo</title>
+  <desc id="desc">Black editorial monogram with Marilyn Agency wordmark.</desc>
+  <rect width="512" height="512" fill="#ffffff"/>
+  <g fill="#050505">
+    <path d="M116 316 176 158l44 158h-52l-11-42-16 42z"/>
+    <path d="M206 316 282 114l58 202h-58l-23-94-34 94z"/>
+    <path d="M321 316 391 114l57 202h-57l-21-90-31 90z"/>
+    <path d="M155 372h17l17 41 17-41h17v72h-15v-44l-15 35h-9l-15-35v44h-14z"/>
+    <path d="M241 372h15l27 72h-16l-5-15h-27l-5 15h-16zm-2 44h19l-9-27z"/>
+    <path d="M292 372h30c17 0 28 9 28 24 0 10-5 18-14 21l17 27h-18l-14-24h-14v24h-15zm29 35c9 0 14-4 14-11s-5-11-14-11h-14v22z"/>
+    <path d="M364 372h15v72h-15z"/>
+    <path d="M396 372h15v58h35v14h-50z"/>
+  </g>
+</svg>

@@ -3,6 +3,15 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
   ArrowUpRight,
   ChevronRight,
   FileText,
@@ -18,8 +27,6 @@ import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessI
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import { bucketCounts } from '../../utils/applicationStatus';
-import { deriveRepresentationStatus } from '../../utils/representationStatus';
-import { analyzePackageIntelligence } from '../../../../shared/utils/packageIntelligence';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import {
   isMinorProfile,
@@ -47,19 +54,39 @@ function parseChangePct(change) {
   return m ? asNum(m[0]) : 0;
 }
 
+const PUBLIC_PORTFOLIO_ORIGIN = 'https://pholio.studio';
+
 function portfolioShareUrl(slug) {
   if (!slug) return null;
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${origin}/portfolio/${slug}`;
+  return `${PUBLIC_PORTFOLIO_ORIGIN}/${encodeURIComponent(slug)}`;
 }
 
-function displayHost(url) {
+function displayPublicUrl(url) {
   if (!url) return '';
   try {
-    return new URL(url).host;
+    const parsed = new URL(url);
+    return `${parsed.host}${parsed.pathname}`.replace(/\/$/, '');
   } catch {
-    return url.replace(/^https?:\/\//, '');
+    return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   }
+}
+
+function chartDateLabel(value, options = { month: 'short', day: 'numeric' }) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
+}
+
+function WebsiteChartTooltip({ active, payload, label }) {
+  if (!active || !Array.isArray(payload) || payload.length === 0) return null;
+  const visits = asNum(payload[0]?.value);
+
+  return (
+    <div className="ov-website-tooltip">
+      <span>{chartDateLabel(label, { month: 'long', day: 'numeric' })}</span>
+      <strong>{visits.toLocaleString()} {visits === 1 ? 'visit' : 'visits'}</strong>
+    </div>
+  );
 }
 
 function getGreetingByTime(date = new Date()) {
@@ -83,13 +110,19 @@ function applicationsCount(payload) {
 
 
 export default function OverviewPage() {
-  const { profile, subscription, completeness, images, isLoading: profileLoading } = useAuth();
+  const {
+    profile,
+    subscription,
+    completeness,
+    images,
+    isLoading: profileLoading,
+  } = useAuth();
   const isPro = !!subscription?.isPro;
 
   const {
     summary,
     analytics,
-    timeseries,
+    analyticsError,
     summaryError,
     isLoading: analyticsLoading,
     isAnalyticsLoading,
@@ -138,56 +171,33 @@ export default function OverviewPage() {
   const imageCount = Array.isArray(images) ? images.length : 0;
   const greeting = getGreetingByTime();
 
-  // Submission-package read for the talent's digitals: surfaced as a plain-text
-  // KPI so the hero reflects how send-ready the package is, not just frame count.
-  const pkg = analyzePackageIntelligence({ images: Array.isArray(images) ? images : [] });
-  const missingCoreSlots = ['headshot', 'fullBody'].filter((slot) => !pkg.slots[slot]).length;
-  const packageLabel =
-    missingCoreSlots > 0
-      ? `${missingCoreSlots} to add`
-      : pkg.recency.isStale
-        ? 'Update digitals'
-        : 'Ready';
-
   const views = asNum(summary?.views?.total);
   const viewsDelta = parseChangePct(
     summary?.views?.changePct ?? summary?.views?.change
   );
   const websiteUrl = portfolioShareUrl(profile?.slug);
-  const websiteHost = displayHost(websiteUrl);
-
-  const siteViews = asNum(analytics?.views?.total ?? summary?.views?.total);
-  const siteDownloads = asNum(analytics?.downloads?.total ?? summary?.downloads?.total);
-  const engagement = analytics?.engagement?.counts || {};
-  const linkClicks =
-    asNum(engagement.social_click) + asNum(engagement.portfolio_click);
-  const bioReads = asNum(engagement.bio_read);
-  const topSource =
-    Array.isArray(analytics?.views?.latestSourceBreakdown) &&
-    analytics.views.latestSourceBreakdown.length > 0
-      ? analytics.views.latestSourceBreakdown[0]
-      : null;
-
-  const websiteSparkline = (Array.isArray(timeseries) ? timeseries : [])
-    .slice(-14)
-    .map((d) => asNum(d.views));
-  const sparkMax = Math.max(1, ...websiteSparkline);
+  const websiteDisplayUrl = displayPublicUrl(websiteUrl);
+  const websiteAnalytics = analytics?.website;
+  const websiteAnalyticsConnected = websiteAnalytics?.status === 'connected';
+  const websiteMetrics = websiteAnalytics?.metrics || {};
+  const siteVisits = asNum(websiteMetrics.visits);
+  const uniqueVisitors = asNum(websiteMetrics.uniqueVisitors);
+  const sitePageViews = asNum(websiteMetrics.pageViews);
+  const outboundClicks = asNum(websiteMetrics.outboundClicks);
+  const uniqueVisitorsComplete =
+    websiteAnalytics?.measurement?.uniqueVisitors === 'complete';
+  const websiteTrend = websiteAnalytics?.trend?.visitsChangePct;
+  const websiteSeries = Array.isArray(websiteAnalytics?.series)
+    ? websiteAnalytics.series.map((item) => ({
+        date: item.date,
+        visits: asNum(item.visits),
+      }))
+    : [];
+  const websiteGradientId = `ov-website-gradient-${React.useId().replace(/:/g, '')}`;
   const readinessPct = asNum(completeness?.percentage);
 
   const { topGaps, totalGaps, isRequiredComplete, fieldCompletion, isLoading: auditLoading } = useProfileStrength();
   const shouldReduce = useReducedMotion();
-
-  // Representation status — derived from existing application data; no new fetch.
-  // v1: a talent signed offline (no accepted application) reads as unrepresented
-  // until the structured talent_representation table (v2, deferred) is built.
-  const repStatus = deriveRepresentationStatus(applicationsList);
-  // Compact hero label: fits the KPI column width.
-  const repHeroLabel = {
-    signed: 'Represented',
-    in_conversation: 'Advancing',
-    submitted: 'Submitted',
-    unrepresented: 'None yet',
-  }[repStatus.state] ?? '—';
 
   const minor = isMinorProfile(profile);
   const sensitiveUnlocked = minorSensitiveFieldsUnlocked(profile);
@@ -248,67 +258,36 @@ export default function OverviewPage() {
               aria-hidden
             />
 
-            <div className="ov-hero-kpis" aria-label="Performance summary">
-              <div className="ov-hero-kpi">
-                <span className="ov-hero-kpi-label">Representation</span>
+            <div className="ov-hero-kpis" aria-label="Submission summary">
+              <div className="ov-hero-kpi ov-hero-kpi--lead">
                 <span className="ov-hero-kpi-value">
-                  {appsPending || appsError ? '—' : repHeroLabel}
+                  {appsPending || appsError ? '—' : appsCount}
                 </span>
-              </div>
-              <div className="ov-hero-kpi">
-                <span className="ov-hero-kpi-label">Readiness</span>
-                <span className="ov-hero-kpi-value">{displayReadinessPct}%</span>
-              </div>
-              <div className="ov-hero-kpi">
                 <span className="ov-hero-kpi-label">Submissions</span>
-                <span className="ov-hero-kpi-value">{appsPending || appsError ? '—' : appsCount}</span>
               </div>
               <div className="ov-hero-kpi">
-                <span className="ov-hero-kpi-label">Package</span>
-                <span className="ov-hero-kpi-value">{packageLabel}</span>
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : standing.inReview}
+                </span>
+                <span className="ov-hero-kpi-label">In review</span>
+              </div>
+              <div className="ov-hero-kpi">
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : standing.advancing}
+                </span>
+                <span className="ov-hero-kpi-label">Advancing</span>
+              </div>
+              <div className="ov-hero-kpi">
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : standing.signed}
+                </span>
+                <span className="ov-hero-kpi-label">Signed</span>
               </div>
             </div>
           </motion.div>
         </header>
 
         <div className="ov-hairline" aria-hidden />
-
-        {/* ── Representation — Section 1: the single most important standing fact ── */}
-        <motion.section
-          className="ov-representation"
-          aria-label="Representation status"
-          initial={shouldReduce ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: shouldReduce ? 0 : 0.6,
-            delay: shouldReduce ? 0 : 0.1,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-        >
-          <div className="ov-representation-body">
-            {appsPending || appsError ? (
-              <span className="ov-skel" style={{ width: 180, height: '1.4rem', borderRadius: 4 }} aria-hidden />
-            ) : (
-              <p className="ov-representation-status">
-                {repStatus.label}
-                {repStatus.agency ? (
-                  <span className="ov-representation-agency"> · {repStatus.agency}</span>
-                ) : null}
-              </p>
-            )}
-            {!appsPending && !appsError && repStatus.state === 'unrepresented' && (
-              <p className="ov-representation-note">
-                Signed offline? Your agency can link this account to update your standing.
-              </p>
-            )}
-          </div>
-          {!appsPending && !appsError && (
-            <Link to={repStatus.action.to} className="ov-representation-action">
-              {repStatus.action.label}
-              <ArrowUpRight size={13} aria-hidden />
-            </Link>
-          )}
-        </motion.section>
 
         <div className="ov-grid">
           <div className="ov-col-8">
@@ -423,7 +402,7 @@ export default function OverviewPage() {
 
               <div className="ov-checklist" role="list">
                 {auditLoading ? (
-                  [0, 1, 2].map((i) => (
+                  [0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="ov-check-item" role="listitem" style={{ pointerEvents: 'none' }}>
                       <div className="ov-check-left">
                         <span
@@ -444,10 +423,6 @@ export default function OverviewPage() {
                     aria-label={`${item.label}${item.tier === 'required' ? ': Required' : ''}`}
                   >
                     <div className="ov-check-left">
-                      <span
-                        className={`ov-check-mark ${item.tier === 'required' ? 'ov-check-mark--critical' : 'ov-check-mark--improve'}`}
-                        aria-hidden
-                      />
                       <span className="ov-check-label">{item.label}</span>
                     </div>
                     <div className="ov-check-right">
@@ -460,8 +435,8 @@ export default function OverviewPage() {
                 ))}
               </div>
 
-              {!auditLoading && totalGaps > 3 && (
-                <p className="ov-audit-more">+{totalGaps - 3} more</p>
+              {!auditLoading && totalGaps > 5 && (
+                <p className="ov-audit-more">+{totalGaps - 5} more</p>
               )}
 
               {minorGated && (
@@ -526,32 +501,7 @@ export default function OverviewPage() {
                       </div>
                       <p className="ov-stat-label">Profile views (30d)</p>
                     </div>
-                    <div>
-                      <div className="ov-stat-number">
-                        <span className="ov-stat-value ov-stat-value--gold">
-                          {appsPending || appsError ? '—' : appsCount}
-                        </span>
-                      </div>
-                      <p className="ov-stat-label">Submissions</p>
-                    </div>
                   </div>
-
-                  {!appsPending && !appsError && appsCount > 0 && (
-                    <div className="ov-standing" aria-label="Application standing">
-                      <span className="ov-standing-item">
-                        <strong>{standing.inReview}</strong> in review
-                      </span>
-                      <span className="ov-standing-item">
-                        <strong>{standing.advancing}</strong> advancing
-                      </span>
-                      <span className="ov-standing-item">
-                        <strong>{standing.signed}</strong> signed
-                      </span>
-                      <span className="ov-standing-item">
-                        <strong>{standing.closed}</strong> closed
-                      </span>
-                    </div>
-                  )}
 
                   {interviewsNeedingResponse > 0 && (
                     <Link to="/dashboard/talent/applications" className="ov-standing-action">
@@ -654,32 +604,14 @@ export default function OverviewPage() {
                   className="ov-website-live"
                 >
                   <Globe size={12} aria-hidden />
-                  <span>{websiteHost || 'Live site'}</span>
+                  <span>{websiteDisplayUrl}</span>
                   <ExternalLink size={11} aria-hidden />
                 </a>
               )}
             </div>
 
             <div className="ov-website-panel">
-              {websiteUrl ? (
-                <a
-                  href={websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ov-website-url"
-                >
-                  <span className="ov-website-url-label">Public URL</span>
-                  <span className="ov-website-url-path">/portfolio/{profile?.slug}</span>
-                  <ArrowUpRight size={14} className="ov-website-url-arrow" aria-hidden />
-                </a>
-              ) : (
-                <div className="ov-website-url ov-website-url--muted">
-                  <span className="ov-website-url-label">Public URL</span>
-                  <span className="ov-website-url-path">Set your handle in settings</span>
-                </div>
-              )}
-
-              {analyticsLoading || isAnalyticsLoading ? (
+              {isAnalyticsLoading ? (
                 <div className="ov-website-metrics ov-website-metrics--loading">
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="ov-website-stat">
@@ -688,7 +620,7 @@ export default function OverviewPage() {
                     </div>
                   ))}
                 </div>
-              ) : summaryError ? (
+              ) : analyticsError ? (
                 <div className="ov-error-inline ov-website-error" role="alert">
                   <AlertCircle size={14} aria-hidden />
                   <span>Website analytics unavailable.</span>
@@ -700,53 +632,132 @@ export default function OverviewPage() {
                     {isAnalyticsRefetching ? '…' : 'Retry'}
                   </PholioButton>
                 </div>
+              ) : !websiteAnalyticsConnected ? (
+                <div className="ov-website-unavailable">
+                  Website analytics are not connected yet. No estimates are shown.
+                </div>
               ) : (
                 <div className="ov-website-analytics">
                   <div className="ov-website-metrics">
                     <div className="ov-website-stat">
-                      <div className="ov-website-stat-row">
-                        <span className="ov-stat-value">{siteViews.toLocaleString()}</span>
-                        {viewsDelta > 0 && (
-                          <span className="ov-website-delta">+{viewsDelta}%</span>
-                        )}
-                      </div>
-                      <p className="ov-stat-label">Site visits (30d)</p>
+                      <span className="ov-stat-value">{siteVisits.toLocaleString()}</span>
+                      <p className="ov-stat-label">Visits</p>
                     </div>
                     <div className="ov-website-stat">
-                      <span className="ov-stat-value ov-stat-value--gold">
-                        {siteDownloads.toLocaleString()}
+                      <span className="ov-stat-value">
+                        {uniqueVisitorsComplete ? uniqueVisitors.toLocaleString() : '—'}
                       </span>
-                      <p className="ov-stat-label">Comp downloads</p>
-                    </div>
-                    <div className="ov-website-stat">
-                      <span className="ov-stat-value">{linkClicks.toLocaleString()}</span>
-                      <p className="ov-stat-label">Link clicks</p>
-                    </div>
-                    <div className="ov-website-stat">
-                      <span className="ov-stat-value">{bioReads.toLocaleString()}</span>
-                      <p className="ov-stat-label">
-                        {topSource?.label ? `Bio reads · ${topSource.label}` : 'Bio reads'}
+                      <p
+                        className="ov-stat-label"
+                        title={
+                          uniqueVisitorsComplete
+                            ? 'Distinct visitors'
+                            : 'Some legacy visits did not include a visitor ID'
+                        }
+                      >
+                        {uniqueVisitorsComplete ? 'Unique visitors' : 'Unique visitors unavailable'}
                       </p>
+                    </div>
+                    <div className="ov-website-stat">
+                      <span className="ov-stat-value">{sitePageViews.toLocaleString()}</span>
+                      <p className="ov-stat-label">Page views</p>
+                    </div>
+                    <div className="ov-website-stat">
+                      <span className="ov-stat-value">{outboundClicks.toLocaleString()}</span>
+                      <p className="ov-stat-label">Outbound clicks</p>
                     </div>
                   </div>
 
-                  {websiteSparkline.length > 1 && (
-                    <div className="ov-website-spark" aria-hidden>
-                      {websiteSparkline.map((v, i) => (
-                        <span
-                          key={i}
-                          className="ov-website-spark-bar"
-                          style={{ height: `${Math.max(8, (v / sparkMax) * 100)}%` }}
-                        />
-                      ))}
+                  <div className="ov-website-chart-block">
+                    <div className="ov-website-chart-header">
+                      <div>
+                        <h3 className="ov-website-chart-title">Visits over time</h3>
+                      </div>
+                      <p className="ov-website-period">
+                        {websiteAnalytics?.period?.days || 30} days
+                        {typeof websiteTrend === 'number'
+                          ? ` · ${websiteTrend > 0 ? '+' : ''}${websiteTrend}% vs prior period`
+                          : ' · No prior baseline'}
+                      </p>
                     </div>
-                  )}
+
+                    {websiteAnalytics.hasData && websiteSeries.some((point) => point.visits > 0) ? (
+                      <div
+                        className="ov-website-chart"
+                        role="img"
+                        aria-label={`Daily portfolio visits over the last ${websiteAnalytics?.period?.days || 30} days`}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart
+                            data={websiteSeries}
+                            margin={{ top: 12, right: 2, bottom: 0, left: 0 }}
+                          >
+                            <defs>
+                              <linearGradient id={websiteGradientId} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#C9A55A" stopOpacity={0.22} />
+                                <stop offset="100%" stopColor="#C9A55A" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid
+                              vertical={false}
+                              stroke="rgba(255,255,255,0.055)"
+                              strokeDasharray="2 8"
+                            />
+                            <XAxis
+                              dataKey="date"
+                              axisLine={false}
+                              tickLine={false}
+                              tickFormatter={(value) => chartDateLabel(value)}
+                              minTickGap={36}
+                              tick={{ fill: 'rgba(245,240,232,0.38)', fontSize: 10 }}
+                              dy={10}
+                            />
+                            <YAxis
+                              axisLine={false}
+                              tickLine={false}
+                              allowDecimals={false}
+                              width={28}
+                              tickCount={4}
+                              tick={{ fill: 'rgba(245,240,232,0.3)', fontSize: 10 }}
+                            />
+                            <Tooltip
+                              content={<WebsiteChartTooltip />}
+                              cursor={{ stroke: 'rgba(201,165,90,0.28)', strokeWidth: 1 }}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="visits"
+                              stroke="#C9A55A"
+                              strokeWidth={2}
+                              fill={`url(#${websiteGradientId})`}
+                              activeDot={{
+                                r: 4,
+                                fill: '#111111',
+                                stroke: '#C9A55A',
+                                strokeWidth: 2,
+                              }}
+                              dot={false}
+                              isAnimationActive={!shouldReduce}
+                              animationDuration={700}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="ov-website-chart-empty">
+                        <span>No visits recorded in this period.</span>
+                        <span>Tracking is connected and will populate after your portfolio is visited.</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <Link to="/dashboard/talent/analytics" className="ov-website-intel">
-                Full intel <ArrowUpRight size={12} aria-hidden />
-              </Link>
+              <div className="ov-website-footer">
+                <Link to="/dashboard/talent/analytics" className="ov-website-intel">
+                  Full analytics <ArrowUpRight size={12} aria-hidden />
+                </Link>
+              </div>
             </div>
           </motion.section>
         )}

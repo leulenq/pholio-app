@@ -9,11 +9,12 @@
     "dev": "nodemon server.js",
     "client:dev": "cd client && npm run dev",
     "client:build": "cd client && npm run build",
-    "dev:all": "concurrently \"npm run dev\" \"npm run client:dev\"",
+    "dev:all": "concurrently -k \"npm run dev\" \"wait-on tcp:127.0.0.1:3000 -t 60000 && npm run client:dev\"",
     "migrate": "knex migrate:latest",
     "migrate:status": "knex migrate:status",
     "migrate:rollback": "knex migrate:rollback",
     "seed": "knex seed:run",
+    "seed:analytics": "node scripts/seed-analytics.js",
     "verify:embeddings": "node scripts/verify-openai-embeddings.js",
     "preview:emails": "node scripts/preview-all-emails.js",
     "backfill:discover": "node scripts/backfill-discover-embeddings.js",
@@ -21,7 +22,8 @@
     "analyze:classification-feedback": "node scripts/analyze-classification-feedback.js",
     "test": "jest",
     "test:db": "node scripts/test-neon-connection.js",
-    "postinstall": "node scripts/patch-express.js",
+    "setup:hooks": "sh scripts/setup-git-hooks.sh",
+    "postinstall": "node scripts/patch-express.js && npm run setup:hooks",
     "build": "echo 'Build complete'",
     "build:function": "node_modules/.bin/esbuild netlify/function/server.js --bundle --platform=node --target=node20 --outfile=netlify/function-built/server.js --external:bcrypt --external:sharp --external:@img --external:@unrs --external:fsevents --external:sqlite3 --external:better-sqlite3 --external:mysql --external:mysql2 --external:tedious --external:oracledb --external:pg-native --external:pg-query-stream --external:mssql --external:@sparticuz/chromium --external:puppeteer --external:mime --external:zod --external:validator --external:ejs --external:express-ejs-layouts",
     "generate:favicons": "node scripts/generate-favicons.js",
@@ -80,6 +82,7 @@
     "nodemon": "^3.1.14",
     "supertest": "^7.2.2",
     "to-ico": "^1.1.5",
-    "tough-cookie": "^6.0.0"
+    "tough-cookie": "^6.0.0",
+    "wait-on": "^9.0.10"
   }
 }

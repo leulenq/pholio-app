@@ -1395,6 +1395,7 @@ export default function ProfilePage() {
           <div className={styles.formStack}>
             <WritingAssistToolbar
               className={styles.trainingAssistToolbar}
+              variant="architectural"
               actions={[
                 {
                   id: 'format-training',
@@ -1415,12 +1416,22 @@ export default function ProfilePage() {
                 {
                   id: 'expand-training',
                   label: 'Draft from profile',
+                  emphasis: 'primary',
                   onClick: () => {
                     void handleTrainingExpand();
                   },
                 },
               ]}
               busy={Boolean(trainingImproveMode)}
+              busyActionId={
+                trainingImproveMode === 'format'
+                  ? 'format-training'
+                  : trainingImproveMode === 'summarize'
+                    ? 'summarize-training'
+                    : trainingImproveMode === 'expand'
+                      ? 'expand-training'
+                      : null
+              }
               busyLabel={
                 trainingImproveMode === 'format'
                   ? 'Formatting…'

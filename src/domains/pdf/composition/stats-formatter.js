@@ -40,8 +40,15 @@ const SUIT_REGULAR_MAX_CM = 183;
 
 /** EU ≈ US shoe-size offsets by presentation track. */
 const SHOE_EU_OFFSET = { women: 31, men: 33 };
-/** EU ≈ US + 32 for dresses. */
-const DRESS_EU_OFFSET = 32;
+/**
+ * Dress-size conversions from the US convention. Standard women's grading:
+ *   US 4 = EU 36 = UK 8 = FR 38 = IT 40 (each step is +2 within a system).
+ * Offsets are relative to the US number.
+ */
+const DRESS_EU_OFFSET = 32; // EU ≈ US + 32
+const DRESS_UK_OFFSET = 4; // UK ≈ US + 4
+const DRESS_FR_OFFSET = 34; // FR ≈ US + 34 (EU + 2)
+const DRESS_IT_OFFSET = 36; // IT ≈ US + 36 (EU + 4)
 
 /** Bare numeric shoe sizes at/above this are assumed to already be EU. */
 const EU_SHOE_ASSUME_THRESHOLD = 32;
@@ -203,6 +210,47 @@ function renderDress(raw, units) {
  */
 function dressDual(raw) {
   return renderDress(raw, "dual");
+}
+
+/**
+ * Resolve a US dress size into the international systems agencies request on
+ * cross-market submissions (US / EU / UK / IT / FR). Keeps the printed card
+ * lean (US/EU) while exposing the full conversion set to callers that need it.
+ * @param {*} raw — raw `dress_size` value (US convention)
+ * @returns {{ numeric: boolean, us: number|string, eu?: number, uk?: number,
+ *   it?: number, fr?: number }|null} null when missing; `{ numeric:false, us }`
+ *   for non-numeric ("S") values.
+ */
+function dressConversions(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d+(?:\.\d+)?)$/);
+  if (!m) return { numeric: false, us: s };
+  const us = parseFloat(m[1]);
+  return {
+    numeric: true,
+    us,
+    eu: us + DRESS_EU_OFFSET,
+    uk: us + DRESS_UK_OFFSET,
+    it: us + DRESS_IT_OFFSET,
+    fr: us + DRESS_FR_OFFSET,
+  };
+}
+
+/**
+ * International dress strip (`UK 8 · IT 40 · FR 38`) for submission surfaces.
+ * @param {*} raw — raw `dress_size` value
+ * @returns {{ uk: string, it: string, fr: string }|null}
+ */
+function dressIntl(raw) {
+  const conv = dressConversions(raw);
+  if (!conv || !conv.numeric) return null;
+  return {
+    uk: `UK ${fmtNum(conv.uk)}`,
+    it: `IT ${fmtNum(conv.it)}`,
+    fr: `FR ${fmtNum(conv.fr)}`,
+  };
 }
 
 /**
@@ -639,4 +687,6 @@ module.exports = {
   cmToInchesHalf,
   shoeDual,
   dressDual,
+  dressConversions,
+  dressIntl,
 };

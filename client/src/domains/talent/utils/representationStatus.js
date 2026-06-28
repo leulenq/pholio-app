@@ -37,7 +37,7 @@ import { statusConfig } from './applicationStatus.js';
 // once the structured talent_representation table exists.
 export function deriveRepresentationStatus(applications = []) {
   const VIEW_APPLICATIONS = '/dashboard/talent/applications';
-  const APPLY = '/dashboard/talent/applications/apply';
+  const APPLY = '/dashboard/talent/applications/apply?new=1';
 
   let signedApp = null;
   let advancingApp = null;
@@ -53,9 +53,10 @@ export function deriveRepresentationStatus(applications = []) {
   if (signedApp) {
     return {
       state: 'signed',
-      label: 'Represented',
+      label: signedApp.agency_name ? 'Represented by' : 'Represented',
       agency: signedApp.agency_name || null,
-      action: { label: 'View representation', to: VIEW_APPLICATIONS },
+      agencyWebsite: signedApp.agency_website || null,
+      action: null,
     };
   }
 
@@ -64,6 +65,7 @@ export function deriveRepresentationStatus(applications = []) {
       state: 'in_conversation',
       label: 'In conversation',
       agency: advancingApp.agency_name || null,
+      agencyWebsite: advancingApp.agency_website || null,
       action: { label: 'View applications', to: VIEW_APPLICATIONS },
     };
   }

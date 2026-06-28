@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Lumen Model Management logo</title>
+  <desc id="desc">Minimal Lumen Model Management wordmark on a warm ivory field.</desc>
+  <rect width="512" height="512" fill="#FAF8F5"/>
+  <g fill="none" stroke="#1A1815" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 170v146h76"/>
+    <path d="M221 170v92c0 38 24 59 58 59s58-21 58-59v-92"/>
+    <path d="M385 316V170l66 92 66-92v146" transform="translate(-56 0)"/>
+  </g>
+  <path d="M286 153h55" stroke="#B8956A" stroke-width="12" stroke-linecap="round"/>
+  <g fill="#1A1815">
+    <path d="M116 378h11v42h25v10h-36z"/>
+    <path d="M165 378h11v52h-11z"/>
+    <path d="M191 378h13l15 36 15-36h13v52h-10v-33l-14 33h-8l-14-33v33h-10z"/>
+    <path d="M264 378h39v10h-28v11h25v9h-25v12h29v10h-40z"/>
+    <path d="M319 378h11l25 34v-34h11v52h-10l-26-35v35h-11z"/>
+  </g>
+  <text x="256" y="458" text-anchor="middle" fill="#6B6560" font-family="Inter, Arial, sans-serif" font-size="18" letter-spacing="4">MODEL MANAGEMENT</text>
+</svg>

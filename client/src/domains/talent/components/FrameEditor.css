@@ -391,6 +391,54 @@ select.fe-input {
   line-height: 1.4;
 }
 
+.fe-rights-expiry {
+  margin: 10px 0 0;
+  font-family: var(--fe-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fe-cream-soft);
+}
+
+.fe-rights-expiry--expired {
+  color: #fca5a5;
+}
+
+.fe-note-warn {
+  margin: 0;
+  font-family: var(--fe-sans);
+  font-size: 12px;
+  line-height: 1.45;
+  color: #e8c79a;
+}
+
+/* ── Model release ── */
+.fe-release {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--fe-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fe-release__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fe-release__state {
+  font-family: var(--fe-sans);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fe-cream-faint);
+}
+
+.fe-release__state--on {
+  color: var(--fe-gold);
+}
+
 /* ── Publishing ── */
 .fe-control-row {
   display: flex;

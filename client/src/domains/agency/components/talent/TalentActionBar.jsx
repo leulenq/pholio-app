@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, Star, LayoutGrid, X, UserPlus, Download, Bookmark } from 'lucide-react';
+import { Check, Star, LayoutGrid, X, UserPlus, Download, Bookmark, Camera, Calendar } from 'lucide-react';
 import { getBoards, inviteTalent } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
@@ -25,7 +25,7 @@ async function downloadCompCard(slug) {
 export function TalentActionBar({ applicationId, profileId, slug, status, context = 'overview' }) {
   const qc = useQueryClient();
   const { can } = useAgencyPermissions();
-  const { accept, shortlist, decline, keepOnFile, addToBoard, isPending } = useTalentActions(applicationId);
+  const { accept, shortlist, decline, keepOnFile, requestMore, requestMeeting, addToBoard, isPending } = useTalentActions(applicationId);
   const [boardOpen, setBoardOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const boardRef = useRef(null);
@@ -65,6 +65,8 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
   const isShortlisted = status === 'shortlisted';
   const isAccepted = status === 'accepted' || status === 'booked';
   const isKeptOnFile = status === 'kept_on_file';
+  const isRequestedMore = status === 'requested_more';
+  const isMeetingRequested = status === 'meeting_requested';
   const isPipeline = context === 'applicants' || context === 'overview';
 
   const compCardBtn = slug && can('talent.download_comp_card') && (
@@ -98,6 +100,26 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
           {can('applications.update_status') && (
             <button className="tact-btn" disabled={isPending || isShortlisted} onClick={() => shortlist.mutate()}>
               <Star size={15} /> {isShortlisted ? 'Shortlisted' : 'Shortlist'}
+            </button>
+          )}
+          {can('applications.update_status') && (
+            <button
+              className="tact-btn"
+              disabled={isPending || isRequestedMore}
+              onClick={() => requestMore.mutate()}
+              title="Ask for more digitals or specific shots before deciding"
+            >
+              <Camera size={15} /> {isRequestedMore ? 'More Requested' : 'Request More'}
+            </button>
+          )}
+          {can('applications.update_status') && (
+            <button
+              className="tact-btn"
+              disabled={isPending || isMeetingRequested}
+              onClick={() => requestMeeting.mutate()}
+              title="Invite this talent to a meeting / go-see"
+            >
+              <Calendar size={15} /> {isMeetingRequested ? 'Meeting Requested' : 'Request Meeting'}
             </button>
           )}
           {can('applications.update_status') && (

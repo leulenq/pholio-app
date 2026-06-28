@@ -8,7 +8,6 @@ import LoginPage from './domains/auth/pages/LoginPage/LoginPage';
 import InstagramCallbackPage from './domains/auth/pages/InstagramCallbackPage';
 import AgencyLayout from './shared/layouts/AgencyLayout';
 import AgencySessionGate from './domains/agency/components/AgencySessionGate';
-import DashboardPage from './domains/talent/pages/DashboardPage';
 import OverviewPage from './domains/talent/pages/OverviewPage';
 import ProfilePage from './domains/talent/pages/ProfilePage';
 import MediaPage from './domains/talent/pages/MediaPage';

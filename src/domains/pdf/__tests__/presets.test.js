@@ -25,6 +25,8 @@ describe("comp-card presets helpers", () => {
       style_variant: "dark-room",
       lock_hero_id: "heroid",
       lock_grid_ids: ["g-1", "g-2", "bad", null],
+      board: null,
+      market: null,
     });
   });
 
@@ -57,6 +59,8 @@ describe("comp-card presets helpers", () => {
       styleVariant: "linework",
       lockHeroId: "img-hero",
       lockGridIds: ["img-1", "img-2", null, null],
+      board: null,
+      market: null,
     });
     expect(mapped.query).toEqual({
       seed: "seed:abc",
@@ -74,6 +78,8 @@ describe("comp-card presets helpers", () => {
       styleVariant: "linework",
       lockHeroId: "img-hero",
       lockGridIds: ["img-1", "img-2", null, null],
+      board: null,
+      market: null,
     });
   });
 

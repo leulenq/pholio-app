@@ -1,4 +1,4 @@
-import { AlertCircle, Bookmark, Check, Clock, X } from 'lucide-react';
+import { AlertCircle, Bookmark, Calendar, Camera, Check, Clock, X } from 'lucide-react';
 
 // Single source of truth for how an application status is presented to talent.
 //
@@ -28,7 +28,7 @@ export function statusConfig(status) {
       group: 'inReview',
       icon: Clock,
       next: "The agency is reviewing — we'll notify you the moment this changes.",
-      detail: 'Your application has been submitted to the agency.',
+      detail: 'Your submission has been sent to the agency.',
     },
     reviewing: {
       label: 'In Review',
@@ -37,7 +37,7 @@ export function statusConfig(status) {
       group: 'inReview',
       icon: Clock,
       next: "The agency is reviewing — we'll notify you the moment this changes.",
-      detail: 'Your application is moving through the agency queue.',
+      detail: 'Your submission is moving through the agency queue.',
     },
     shortlisted: {
       label: 'Shortlisted',
@@ -46,7 +46,25 @@ export function statusConfig(status) {
       group: 'advancing',
       icon: Check,
       next: "You've advanced. We'll notify you if the agency takes the next step.",
-      detail: 'The agency flagged your application for closer review.',
+      detail: 'The agency flagged your submission for closer review.',
+    },
+    requested_more: {
+      label: 'More Requested',
+      short: 'More',
+      tone: 'pending',
+      group: 'advancing',
+      icon: Camera,
+      next: 'The agency asked for more — send the requested digitals or shots to keep this moving.',
+      detail: 'The agency wants additional digitals or specific shots before deciding.',
+    },
+    meeting_requested: {
+      label: 'Meeting Requested',
+      short: 'Meeting',
+      tone: 'pending',
+      group: 'advancing',
+      icon: Calendar,
+      next: 'The agency wants to meet — watch for go-see details, or reply to lock in a time.',
+      detail: 'The agency invited you to a meeting (a go-see).',
     },
     accepted: {
       label: 'Accepted',
@@ -54,17 +72,17 @@ export function statusConfig(status) {
       tone: 'accepted',
       group: 'signed',
       icon: Check,
-      next: 'The agency accepted your application — expect direct follow-up.',
-      detail: 'The agency has accepted your application.',
+      next: 'The agency wants to sign you — expect direct follow-up.',
+      detail: 'The agency has accepted your submission.',
     },
     booked: {
-      label: 'Booked',
-      short: 'Booked',
+      label: 'Represented',
+      short: 'Signed',
       tone: 'accepted',
       group: 'signed',
       icon: Check,
-      next: "You're booked — confirm the details directly with the agency.",
-      detail: 'The agency marked your application as booked.',
+      next: "You're represented — expect onboarding details directly from the agency.",
+      detail: 'The agency has taken you onto its roster.',
     },
     declined: {
       label: 'Not Selected',
@@ -72,8 +90,8 @@ export function statusConfig(status) {
       tone: 'closed',
       group: 'closed',
       icon: AlertCircle,
-      next: 'This application is closed. Keep your book current for future submissions.',
-      detail: 'The agency did not move forward with this application.',
+      next: 'This submission is closed. Keep your book current for future outreach.',
+      detail: 'The agency did not move forward with this submission.',
     },
     passed: {
       label: 'Not Selected',
@@ -81,8 +99,8 @@ export function statusConfig(status) {
       tone: 'closed',
       group: 'closed',
       icon: AlertCircle,
-      next: 'This application is closed. Keep your book current for future submissions.',
-      detail: 'The agency passed on this application.',
+      next: 'This submission is closed. Keep your book current for future outreach.',
+      detail: 'The agency passed on this submission.',
     },
     rejected: {
       label: 'Not Selected',
@@ -90,8 +108,8 @@ export function statusConfig(status) {
       tone: 'closed',
       group: 'closed',
       icon: AlertCircle,
-      next: 'This application is closed. Keep your book current for future submissions.',
-      detail: 'The agency did not move forward with this application.',
+      next: 'This submission is closed. Keep your book current for future outreach.',
+      detail: 'The agency did not move forward with this submission.',
     },
     archived: {
       label: 'Closed',
@@ -99,8 +117,8 @@ export function statusConfig(status) {
       tone: 'closed',
       group: 'closed',
       icon: AlertCircle,
-      next: 'The agency closed this application.',
-      detail: 'The agency archived this application.',
+      next: 'The agency closed this submission.',
+      detail: 'The agency archived this submission.',
     },
     withdrawn: {
       label: 'Withdrawn',
@@ -108,8 +126,8 @@ export function statusConfig(status) {
       tone: 'closed',
       group: 'closed',
       icon: X,
-      next: 'You withdrew this application. You can apply again anytime.',
-      detail: 'You withdrew this application.',
+      next: 'You withdrew this submission. You can submit again anytime.',
+      detail: 'You withdrew this submission.',
     },
     kept_on_file: {
       label: 'Kept on File',
@@ -132,8 +150,8 @@ export function statusConfig(status) {
       tone: 'pending',
       group: 'inReview',
       icon: Clock,
-      next: "We're syncing this application's status.",
-      detail: "This application's status is being updated.",
+      next: "We're syncing this submission's status.",
+      detail: "This submission's status is being updated.",
     }
   );
 }
@@ -144,7 +162,8 @@ export function statusConfig(status) {
 //
 // Groups:
 //   inReview  — pending, submitted, reviewing (agency has not decided)
-//   advancing — shortlisted, kept_on_file    (soft yes; NON-terminal)
+//   advancing — shortlisted, requested_more, meeting_requested, kept_on_file
+//               (soft yes; NON-terminal)
 //   signed    — accepted, booked             (positive outcome)
 //   closed    — declined, passed, rejected, archived, withdrawn
 export function bucketCounts(applications = []) {
