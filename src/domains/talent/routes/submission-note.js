@@ -18,14 +18,24 @@ async function resolveAgency({ agencyId, agencyName }) {
   if (agencyId) {
     const row = await knex("agencies")
       .where({ id: agencyId })
-      .select("name", "location")
+      .select("name", "location", "description", "open_boards")
       .first();
     if (row) {
-      return { name: row.name, location: row.location || null };
+      return {
+        name: row.name,
+        location: row.location || null,
+        description: row.description || null,
+        openBoards: row.open_boards || [],
+      };
     }
   }
   if (agencyName && String(agencyName).trim()) {
-    return { name: String(agencyName).trim(), location: null };
+    return {
+      name: String(agencyName).trim(),
+      location: null,
+      description: null,
+      openBoards: [],
+    };
   }
   return null;
 }
@@ -59,13 +69,14 @@ router.post(
     const profile = await requireStudioPlus(req, res);
     if (!profile) return;
 
-    const { agencyId, agencyName, note } = req.body || {};
+    const { agencyId, agencyName, targetBoards, note } = req.body || {};
     const agency = await resolveAgency({ agencyId, agencyName });
     const trimmedNote =
       note && typeof note === "string" ? note.trim() : "";
 
     const context = buildSubmissionContext(profile, {
       agency,
+      targetBoards,
       note: trimmedNote || undefined,
     });
 
@@ -87,7 +98,7 @@ router.post(
     const profile = await requireStudioPlus(req, res);
     if (!profile) return;
 
-    const { agencyId, agencyName, note } = req.body || {};
+    const { agencyId, agencyName, targetBoards, note } = req.body || {};
     if (!note || typeof note !== "string" || note.trim().length < 10) {
       return apiResponse.error(
         res,
@@ -100,6 +111,7 @@ router.post(
     const agency = await resolveAgency({ agencyId, agencyName });
     const context = buildSubmissionContext(profile, {
       agency,
+      targetBoards,
       note: trimmedNote,
     });
 

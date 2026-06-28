@@ -125,6 +125,7 @@ export default function CompCardGate({
               <PholioButton
                 to={primary.href || '/dashboard/talent/profile?gate=true'}
                 variant="solid"
+                system="dashboard"
                 fullWidth
               >
                 {primary.task || `Complete ${primary.label}`}

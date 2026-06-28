@@ -18,6 +18,7 @@ import { useProfileStrength } from '../hooks/useProfileStrength';
 import { READINESS_KEY_TO_PROFILE_URL } from './profileReadinessItems';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { talentApi } from '../api/talent';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './OverviewView.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -307,9 +308,16 @@ export default function OverviewView() {
                 <p className="ov-audit-more">+{totalGaps - 5} more</p>
               )}
 
-              <Link to="/dashboard/talent/profile" className="ov-audit-cta">
+              <PholioButton
+                to="/dashboard/talent/profile"
+                system="dashboard"
+                variant="inverse-primary"
+                fullWidth
+                style={{ marginTop: 20 }}
+              >
                 Continue Audit
-              </Link>
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </PholioButton>
             </div>
           </div>
 

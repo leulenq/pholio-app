@@ -1,5 +1,109 @@
 # Lessons Learned
 
+## 2026-06-28 — Shipping strong talent /apply + /applications UI (long redesign thread)
+
+### Match the existing design language — never invent one
+- Before designing any talent submission/market surface, READ the real source first:
+  `ApplicationsView.css` (`--app-*` tokens, `.app-*` classes) and `ApplyPage/ApplyExperience.{jsx,css}`.
+  Reuse warm-cream `--app-*` tokens, hairline rules, JetBrains-Mono micro-labels, Noto Serif Display
+  headings, square `var(--app-radius)` (6px) corners, gold `--app-gold`. The /apply flow IS the
+  /applications editorial-ledger language; do not author a parallel aesthetic.
+- When the user references an existing pattern ("like the page-1 board picker", "the agency sidebar
+  wordmark + divider + agency name", "the /apply facts rail", "use the attached image"), find that EXACT
+  component (`apply-board__opt`, agency `CoBrandLockup`, `apply-editorial-rail__facts`) and adapt it.
+  Don't approximate from memory.
+- Two SEPARATE design systems: talent (warm, motion-forward, Noto Serif Display, larger radius) vs
+  agency (composed, dense, Playfair, command-rail). Never blend them. See [[two-design-systems]].
+
+### Verify in the running app, not just build/lint
+- `npm run client:build` + `npx eslint <changed files>` (must be exit 0; repo-wide lint has pre-existing
+  errors) catch compile/unused only. They do NOT catch text overflow, inherited `text-transform`, leaked
+  `box-shadow`/`border-radius`, wrong focus colors, layout breakage, or whether the feature actually works.
+- Drive the real app with Puppeteer (system Chrome `/Applications/Google Chrome.app/...`, `headless:'new'`).
+  Vite :5173 serves source via HMR (no build needed for screenshots) and proxies `/api` to Express :3000;
+  `AUTH_PASSTHROUGH_ENABLED=1` auto-logs-in talent@example.com / agency@example.com by path/referer — just navigate.
+- PROBE the DOM; don't eyeball. `getComputedStyle` / `getBoundingClientRect` caught the real bugs here:
+  consent text uppercased by an ancestor rule, a "borderless" textarea still showing the global inset
+  "well" box-shadow, and the agency `<h1>` measured overflowing the rail.
+- To reach a specific apply step in a screenshot, seed an `application_drafts` row with `current_step_id`
+  set; the flow hydrates straight to it. Consent does NOT auto-restore from the draft — click the checkbox
+  in-browser to enable submit. The dev DB is reseeded periodically, so agency/profile/preset IDs change —
+  re-fetch current IDs from the DB before scripting; a stale id silently falls back to the chooser.
+
+### Codebase style gotchas (check these every time something looks off)
+- Bare `<button>` on talent pages inherits `border-radius:999px` from `global.css`
+  `:where(body:not(.is-agency)) button` → custom buttons MUST set `border-radius:0` or they render as pills.
+- `:where(body) textarea:focus { background:#fff; box-shadow: gold halo+inset }` (global.css) → override
+  background/border/box-shadow on any custom textarea focus or it flashes white.
+- A broad apply-experience rule uppercases `.app-consent-check` → use a dedicated class with explicit
+  `text-transform:none; letter-spacing:normal` for sentence-case consent.
+- `--app-*` tokens are scoped to `.applications-view-container`. Anything `createPortal`'d to `<body>`
+  (e.g. a success overlay) MUST re-declare the token set on its root, or it renders black/unstyled.
+- Size headings/values for the LONGEST real data, not the demo agency. The agency `<h1>` overflowed for
+  every long house name and only "Marilyn Agency" fit — fix with a smaller `clamp()` + `min-width:0;
+  overflow-wrap:anywhere; hyphens:auto`; add `overflow-wrap:anywhere` to mono value cells (long domains).
+
+### Motion
+- framer-motion ^12 is available. Spring physics (`stiffness ~58, damping ~16`), always a
+  `useReducedMotion()` crossfade fallback. No confetti / cheap success flash on premium moments.
+- For "no abrupt swap": keep a CONTINUOUS background ground (same cream) and animate only the inner content
+  (staggered rise). Fading an overlay over a different-colored bg causes a flash — don't.
+
+### Industry credibility (modeling domain) — use the `industry` skill KB
+- It's a "submission" not a job "application"; "digitals/polaroids" not "selfies"; "comp card" not
+  "business card"; "board/division" not "category". "Kept on file" is a soft-yes (advancing, never closed).
+  "Booked" belongs to the booking calendar, NOT a representation outcome. Strip invented/demo labels
+  ("Physiological stats", "Compiled voice", "editorial security protocol").
+- A submission note is SHORT (~40–80 words), optional, skippable; the package carries the facts — don't
+  overbuild it into a cover-letter form. Legal/handling copy: shared only with the named agency for
+  representation review, never published; acknowledgements = accuracy + 18+/guardian + "no guarantee".
+
+### Reading the user's direction
+- "You decide" / "whatever you deem best" = make a decisive call, state the reasoning in one line, and
+  DON'T ask. (Brought the agency rail back on the message step; named the flow "Secure Submission".)
+- Each surface must land FINAL, not a draft: no filler/placeholder copy, no clipping/overflow, real data
+  rendered (the actual comp-card front, real social icons + portfolio link, not a typed contact string).
+- Address EVERY sub-point of a multi-part request explicitly — the user enumerates deliberately.
+- "Do research first" / "launch a research agent" → do it (the submission-note research brief directly
+  shaped that screen). Otherwise ground inline with the industry KB + codebase + one targeted web search.
+- Respect intentional external edits flagged in system-reminders (the hero "The Market" rename was reverted
+  on purpose) — don't re-apply a prior change.
+- "Audit" = graded, cited findings (P0/P1/P2) tied to the real file/string + the credible fix, then
+  implement the agreed items — not a vague review.
+
+### Fix root causes, including adjacent pre-existing breakage
+- Submit 400'd on a missing `idempotencyKey` (client never sent one; server requires it) — a pre-existing
+  bug fully blocking submission. When a feature you're verifying is broken by something adjacent, FIX it
+  (`idempotencyKey: crypto.randomUUID()` in the mutate payload), don't route around it.
+- SQLite dev vs Postgres prod: status CHECK constraints diverge (status migrations were PG-only, so SQLite
+  silently rejected new statuses). An enum-touching migration must handle BOTH — SQLite needs a raw table
+  rebuild under `exports.config={transaction:false}` + `PRAGMA foreign_keys=OFF`; don't assert
+  `foreign_key_check` (pre-existing `application_notes` orphans from the legacy hard-delete withdraw flow).
+
+## 2026-06-28 — Legal notices must stand alone as legal instruments
+
+- Do not carry the user's task phrasing into published legal copy. A notice
+  must not say that it extends an in-product notice, references a workspace, or
+  narrates implementation steps unless that fact is legally necessary.
+- Separate legal notice drafting from product documentation. Use formal,
+  talent-facing provisions covering scope, data categories, purposes,
+  recipients, legal bases, retention, rights, withdrawal, and liability-relevant
+  limitations; remove product-tour language, marketing claims, and operational
+  filler.
+- When the user names industry notices as research anchors, restart the
+  research from those actual sources and distinguish source-backed industry
+  practice from assumptions drawn from local product copy.
+
+## 2026-06-28 — Use the canonical sibling landing repository
+
+- The production marketing site is the sibling repository at
+  `/Users/lenquanhone/Projects/pholio-landing`; `.pholio-landing-ref` inside
+  `pholio-app` is only a reference checkout and must not be treated as the
+  implementation target.
+- When a task spans the app and landing site, read product behavior from
+  `pholio-app` and make marketing-site changes only in the canonical sibling
+  repository.
+
 ## 2026-06-27 — Preserve requested inline control structure
 
 - When a user asks for more authority in an inline control label, first adjust

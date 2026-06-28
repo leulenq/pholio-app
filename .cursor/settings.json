@@ -2,6 +2,9 @@
   "plugins": {
     "superpowers": {
       "enabled": true
+    },
+    "stripe": {
+      "enabled": true
     }
   }
 }

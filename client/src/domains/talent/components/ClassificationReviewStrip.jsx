@@ -15,6 +15,7 @@ import FrameSignalStack from '../../../shared/components/frame/FrameSignalStack'
 import FrameReviewStateLabel from '../../../shared/components/frame/FrameReviewStateLabel';
 import { reviewStateLabel } from '../../../shared/components/frame/reviewStateLabel';
 import FrameReadCaption from '../../../shared/components/frame/FrameReadCaption';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import '../../../shared/components/frame/FrameTaxonomy.css';
 import './ClassificationReviewStrip.css';
 
@@ -128,34 +129,40 @@ export function ClassificationReviewRows({ images = [], onConfirm, onEdit }) {
             {showActions ? (
               <div className="crs-decision-rail" aria-label="Frame read actions">
                 {state.suggestedShot && state.status !== 'pending' ? (
-                  <button
+                  <PholioButton
                     type="button"
-                    className="crs-decision crs-decision--primary"
+                    variant="primary"
+                    size="sm"
+                    system="dashboard"
                     disabled={busyId === image.id}
                     onClick={() => acceptSuggestion(image)}
                   >
                     <Check size={13} aria-hidden="true" />
                     <span>Keep</span>
-                  </button>
+                  </PholioButton>
                 ) : null}
-                <button
+                <PholioButton
                   type="button"
-                  className="crs-decision"
+                  variant="secondary"
+                  size="sm"
+                  system="dashboard"
                   onClick={() => onEdit?.(image)}
                 >
                   <SlidersHorizontal size={13} aria-hidden="true" />
                   <span>{state.suggestedShot ? 'Refine' : 'Place'}</span>
-                </button>
+                </PholioButton>
                 {state.status !== 'pending' ? (
-                  <button
+                  <PholioButton
                     type="button"
-                    className="crs-decision crs-decision--quiet"
+                    variant="ghost"
+                    size="sm"
+                    system="dashboard"
                     disabled={busyId === image.id}
                     onClick={() => holdReview(image)}
                   >
                     <Bookmark size={13} aria-hidden="true" />
                     <span>Hold</span>
-                  </button>
+                  </PholioButton>
                 ) : null}
               </div>
             ) : null}

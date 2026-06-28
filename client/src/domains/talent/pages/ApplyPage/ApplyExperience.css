@@ -545,13 +545,19 @@
 }
 
 .apply-editorial-rail__identity h1 {
+  min-width: 0;
   margin: 0;
   color: var(--app-text);
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(3.35rem, 6.6vw, 5.2rem);
+  /* Sized to hold the longest house names ("…Management", "Wilhelmina") inside
+     the narrow rail; long words wrap/hyphenate rather than bleeding into the
+     workspace, so every agency renders, not just short two-word names. */
+  font-size: clamp(2.3rem, 4.4vw, 3.4rem);
   font-weight: 300;
   letter-spacing: 0;
-  line-height: 0.86;
+  line-height: 0.94;
+  overflow-wrap: anywhere;
+  hyphens: auto;
   text-wrap: balance;
 }
 
@@ -618,6 +624,7 @@
   letter-spacing: 0.14em;
   text-align: right;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .apply-editorial-rail__facts a {
@@ -3244,61 +3251,63 @@
   text-align: center;
 }
 
-/* Variant picker — a restrained list of saved cards (only when >1). Editorial
-   ledger rows, not chips: name + a quiet Default marker, gold dot when chosen. */
+/* Variant picker — mirrors the page-1 board cards: warm, architectural cards
+   with a serif name, a gold-tinted selected state, and a corner check. Not the
+   white rounded pills it used to be. */
 .apply-ccpicker {
   display: grid;
-  gap: 8px;
+  gap: clamp(10px, 1.4vw, 14px);
   margin: 0;
-  min-width: 18rem;
+  width: 100%;
 }
 
-/* Each variant is a framed, selectable row — hairline by default, gold-framed
-   with a tinted ground and a check when chosen. No dots, no pills. */
 .apply-ccpicker__opt {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  position: relative;
+  display: grid;
+  gap: 8px;
   width: 100%;
-  padding: 12px 14px;
+  padding: clamp(15px, 1.9vw, 19px) clamp(18px, 2.2vw, 22px);
   border: 1px solid var(--app-hair);
-  border-radius: 12px;
-  background: var(--app-surface-1, #fff);
-  cursor: pointer;
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 50%, #fff);
   text-align: left;
-  transition: border-color 0.2s var(--app-ease), background 0.2s var(--app-ease),
-    box-shadow 0.2s var(--app-ease);
+  cursor: pointer;
+  transition:
+    border-color 0.25s var(--app-ease),
+    transform 0.25s var(--app-ease),
+    background 0.25s var(--app-ease);
 }
 
 .apply-ccpicker__opt:hover {
-  border-color: var(--app-hair-strong, #d8d2c8);
+  border-color: var(--app-hair-gold);
+  transform: translateY(-2px);
 }
 
 .apply-ccpicker__opt.is-active {
-  border-color: var(--app-gold, #b8956a);
-  background: rgba(184, 149, 106, 0.06);
-  box-shadow: inset 0 0 0 1px var(--app-gold, #b8956a);
+  border-color: rgba(201, 165, 90, 0.5);
+  background: color-mix(in srgb, var(--app-gold) 8%, #fff);
 }
 
 .apply-ccpicker__text {
-  flex: 1 1 auto;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  gap: 7px;
+  padding-right: 26px;
 }
 
 .apply-ccpicker__name {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--app-text-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.15rem, 1.7vw, 1.4rem);
+  font-weight: 300;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
   transition: color 0.2s var(--app-ease);
 }
 
-.apply-ccpicker__opt.is-active .apply-ccpicker__name { color: var(--app-text); }
+.apply-ccpicker__opt.is-active .apply-ccpicker__name {
+  color: var(--app-gold);
+}
 
 .apply-ccpicker__sub {
   display: flex;
@@ -3311,7 +3320,7 @@
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 9px;
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--app-text-faint);
 }
@@ -3322,34 +3331,37 @@
   font-weight: 500;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--app-gold, #b8956a);
+  color: var(--app-gold);
 }
 
 .apply-ccpicker__check {
-  flex: 0 0 auto;
+  position: absolute;
+  top: clamp(14px, 1.8vw, 18px);
+  right: clamp(14px, 1.8vw, 18px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  color: var(--app-gold, #b8956a);
+  color: var(--app-gold);
 }
 
-/* facts read as a single quiet centred line: 5.5 × 8.5 · two-sided  ·  composed… */
+/* Facts — a structured spec list (hairline rows, mono key): the spec value reads
+   as data, the composed line reads as prose, so they're no longer flat-equal. */
 .apply-compcard__facts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: baseline;
-  gap: 6px clamp(18px, 3vw, 30px);
+  display: grid;
+  gap: 0;
   margin: 0;
-  padding-top: clamp(6px, 1.2vw, 10px);
+  width: 100%;
+  max-width: 22rem;
+  border-top: 1px solid var(--app-hair);
 }
 
 .apply-compcard__facts div {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(72px, 0.5fr) minmax(0, 1fr);
+  gap: 16px;
   align-items: baseline;
-  gap: 8px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--app-hair);
 }
 
 .apply-compcard__facts dt {
@@ -3364,40 +3376,88 @@
 
 .apply-compcard__facts dd {
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  text-align: right;
+}
+
+.apply-compcard__spec {
   color: var(--app-text);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.apply-compcard__spec-tag {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.apply-compcard__fact-note {
+  color: var(--app-text-soft);
+  font-family: 'Noto Serif Display', Georgia, serif;
   font-size: 13px;
+  font-style: italic;
   font-weight: 300;
+}
+
+/* Confirm + media action — the page-1 editorial register (serif-italic copy),
+   with "Open in media" anchored on its own line rather than floating inline. */
+.apply-compcard__send {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 30rem;
+  justify-items: center;
+}
+
+.apply-compcard__stage--picker .apply-compcard__send {
+  justify-items: start;
 }
 
 .apply-compcard__confirm {
   margin: 0;
-  max-width: 32rem;
   color: var(--app-text-soft);
-  font-size: 13px;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  font-style: italic;
   font-weight: 300;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .apply-compcard__media {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: 8px;
-  padding: 0;
+  padding: 0 0 3px;
   border: 0;
+  border-bottom: 1px solid var(--app-hair-strong);
+  border-radius: 0;
   background: transparent;
-  color: var(--app-text-faint);
+  color: var(--app-text);
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: color 0.25s var(--app-ease);
+  transition:
+    color 0.25s var(--app-ease),
+    border-color 0.25s var(--app-ease);
 }
 
 .apply-compcard__media:hover {
   color: var(--app-gold);
+  border-color: var(--app-gold);
 }
 
 .apply-compcard--gated {
@@ -3435,55 +3495,268 @@
     justify-content: center;
   }
 
+  .apply-compcard__stage--picker .apply-compcard__send {
+    justify-items: center;
+  }
+
   .apply-ccflip,
   .apply-compcard__stage--picker .apply-ccflip {
     --w: 320;
   }
 }
 
-/* ── 06 · The message — calm writing surface (~52% negative) ─ */
+/* ── 06 · The message — a composition surface ────────────────────────────────
+   Writing a document, not filling a field: a quiet letterhead, a composed
+   writing sheet (subtle warm panel, restrained radius, generous margins),
+   and an integrated assist footer. No side gadget. */
 
-.apply-message {
-  max-width: 40rem;
+.apply-compose {
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(440px, 58vh, 660px);
+  height: 100%;
+  max-width: 46rem;
+  animation: apply-stage-rise 0.5s var(--app-ease) both;
 }
 
-.apply-message .app-application-note textarea {
-  min-height: 200px;
-}
-
-/* ── 07 · Review & send — enclosed manifest (~44% negative) ─ */
-
-.apply-review {
-  display: grid;
-  gap: clamp(28px, 3.6vw, 42px);
-  max-width: 44rem;
-}
-
-.apply-manifest__label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--app-gold);
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.apply-manifest__list {
-  margin: 0;
-  border-top: 1px solid var(--app-hair);
-}
-
-.apply-manifest__list div {
-  display: grid;
-  grid-template-columns: minmax(130px, 0.5fr) minmax(0, 1fr);
-  gap: 20px;
-  padding: clamp(13px, 1.7vw, 17px) 0;
+.apply-compose__letterhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding-bottom: clamp(16px, 2vw, 22px);
   border-bottom: 1px solid var(--app-hair);
 }
 
-.apply-manifest__list dt {
+.apply-compose__to {
+  color: var(--app-text-soft);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+  font-weight: 300;
+}
+
+.apply-compose__to em {
+  color: var(--app-text);
+  font-style: italic;
+}
+
+.apply-compose__manifest {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* The sheet fills the available height so the surface reads as a page. */
+.apply-compose__sheet {
+  flex: 1;
+  min-height: clamp(260px, 40vh, 480px);
+  display: flex;
+  margin-top: clamp(20px, 2.6vw, 30px);
+}
+
+/* A composed writing surface, not a form field: a subtle warm panel with the
+   system's restrained radius and generous margins. */
+.apply-compose__input {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  box-sizing: border-box;
+  margin: 0;
+  padding: clamp(26px, 3vw, 40px) clamp(28px, 3.4vw, 46px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  box-shadow: none;
+  background-color: color-mix(in srgb, var(--app-cream-warm) 42%, #fff);
+  resize: none;
+  color: var(--app-text);
+  caret-color: var(--app-gold);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 32px;
+  letter-spacing: 0.005em;
+  transition:
+    border-color 0.2s var(--app-ease),
+    background-color 0.2s var(--app-ease);
+}
+
+/* No bright-white focus, no gold halo — stay on the same calm surface; the
+   border just warms to a quiet gold hairline (overrides the global field focus). */
+.apply-compose__input:focus {
+  outline: 0;
+  border-color: var(--app-hair-gold);
+  background-color: color-mix(in srgb, var(--app-cream-warm) 42%, #fff);
+  box-shadow: none;
+}
+
+.apply-compose__input::placeholder {
+  color: var(--app-text-faint);
+  font-weight: 300;
+}
+
+.apply-compose__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-top: clamp(14px, 1.8vw, 20px);
+}
+
+/* Assist — an integrated, secondary layer. Quiet text actions led by a single
+   pen mark; never a pill panel, a magic flourish, or a floating widget. */
+.apply-compose__assist {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.apply-compose__assist-icon {
+  color: var(--app-text-faint);
+}
+
+.apply-compose__assist-act,
+.apply-compose__assist-revert {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-text-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-compose__assist-act:hover:not(:disabled),
+.apply-compose__assist-revert:hover:not(:disabled) {
+  color: var(--app-gold);
+}
+
+.apply-compose__assist-revert {
+  color: var(--app-text-faint);
+}
+
+.apply-compose__assist-act:disabled,
+.apply-compose__assist-revert:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.apply-compose__count {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.apply-compose__count[data-long='true'] {
+  color: var(--app-gold-warm);
+}
+
+/* ── 07 · Review & send — a paper review document ────────────────────────────
+   The full package exactly as the agency receives it: a centred paper sheet with
+   a Pholio·agency masthead and per-section "Modify" jumps. Dispatch is the foot. */
+
+.apply-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(248px, 320px);
+  align-items: start;
+  gap: clamp(28px, 4vw, 60px);
+  width: 100%;
+}
+
+.apply-package {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: clamp(34px, 4.4vw, 60px) clamp(26px, 4vw, 54px) clamp(38px, 4.4vw, 56px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 14%, #fff);
+  box-shadow:
+    0 1px 2px rgba(26, 26, 26, 0.04),
+    0 20px 50px rgba(26, 26, 26, 0.06);
+}
+
+/* Masthead — Pholio wordmark · divider · agency (the agency-rail lockup idea),
+   then the talent as the subject of the package. */
+.apply-package__masthead {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(10px, 1.4vw, 15px);
+  padding-bottom: clamp(8px, 1.4vw, 16px);
+}
+
+.apply-package__lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: clamp(8px, 1.4vw, 14px);
+}
+
+.apply-package__pholio {
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+}
+
+.apply-package__lockup-div {
+  width: 1px;
+  height: 13px;
+  background: var(--app-hair-strong);
+}
+
+.apply-package__lockup-agency {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-package__kicker {
+  margin: 0;
+  color: var(--app-text-faint);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+}
+
+.apply-package__name {
+  margin: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(2.1rem, 4.4vw, 3.5rem);
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.apply-package__rule {
+  width: min(280px, 62%);
+  height: 1px;
+  margin: clamp(4px, 0.8vw, 10px) 0;
+  background: linear-gradient(to right, transparent, var(--app-hair-gold), transparent);
+}
+
+.apply-package__dest {
   margin: 0;
   color: var(--app-text-faint);
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
@@ -3491,16 +3764,454 @@
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  align-self: center;
 }
 
-.apply-manifest__list dd {
+/* Sections — hairline-divided, mono numbered title + quiet gold Modify. */
+.apply-package__sec {
+  margin-top: clamp(28px, 3.6vw, 44px);
+  padding-top: clamp(26px, 3.2vw, 40px);
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-package__sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: clamp(16px, 2.2vw, 24px);
+}
+
+.apply-package__sec-title {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.apply-package__modify {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-package__modify:hover {
+  color: var(--app-text);
+}
+
+/* I — Polaroid digitals */
+.apply-package__digitals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(12px, 1.6vw, 20px);
+}
+
+.apply-package__pol {
   margin: 0;
+  display: grid;
+  gap: clamp(10px, 1.2vw, 14px);
+  padding: clamp(9px, 1.1vw, 13px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 40%, #fff);
+}
+
+.apply-package__pol-img {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background: var(--app-cream-warm);
+}
+
+.apply-package__pol-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.apply-package__pol figcaption {
+  text-align: center;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* II — Stats */
+.apply-package__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  margin: 0;
+  border-left: 1px solid var(--app-hair);
+}
+
+.apply-package__stats div {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: clamp(14px, 1.8vw, 20px) 8px;
+  border-right: 1px solid var(--app-hair);
+  border-bottom: 1px solid var(--app-hair);
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-package__stats dt {
+  margin: 0;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.apply-package__stats dd {
+  margin: 0;
+  max-width: 100%;
   color: var(--app-text);
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(1.05rem, 1.5vw, 1.32rem);
+  font-size: clamp(1.2rem, 2vw, 1.65rem);
   font-weight: 300;
-  line-height: 1.15;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.apply-package__traits {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px clamp(28px, 4vw, 54px);
+  margin: clamp(18px, 2.2vw, 26px) 0 0;
+}
+
+.apply-package__traits div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.apply-package__traits dt {
+  margin: 0;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.apply-package__traits dd {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* III — Book */
+.apply-package__book {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.apply-package__frame {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--app-hair);
+  border-radius: 4px;
+  background: var(--app-cream-warm);
+}
+
+.apply-package__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.apply-package__count {
+  margin: clamp(12px, 1.4vw, 16px) 0 0;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* IV — Comp card: a real composed front preview beside its spec. */
+.apply-package__cc {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3vw, 38px);
+}
+
+.apply-package__cc-card {
+  --w: 164;
+  position: relative;
+  flex: 0 0 auto;
+  width: 164px;
+  aspect-ratio: 528 / 816;
+  overflow: hidden;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: 4px;
+  background: var(--app-cream-warm);
+}
+
+.apply-package__cc-card .apply-ccface {
+  position: absolute;
+  inset: 0;
+}
+
+.apply-package__cc-meta {
+  min-width: 0;
+  display: grid;
+  gap: 9px;
+  align-content: center;
+}
+
+.apply-package__cc-name {
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.2rem, 1.9vw, 1.55rem);
+  font-weight: 300;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.apply-package__cc-spec,
+.apply-package__cc-from {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.apply-package__cc-from {
+  color: var(--app-text-soft);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 11px;
+}
+
+/* V — Voice + contact */
+.apply-package__voice {
+  margin: 0;
+  padding: clamp(20px, 2.6vw, 30px) clamp(22px, 2.8vw, 32px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 40%, #fff);
+  color: var(--app-text-soft);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.05rem, 1.5vw, 1.28rem);
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.apply-package__contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px clamp(18px, 2.4vw, 28px);
+  margin-top: clamp(18px, 2.2vw, 26px);
+  padding-top: clamp(16px, 2vw, 22px);
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-package__contact-label {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-package__socials {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apply-package__social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  color: var(--app-text-soft);
+  transition:
+    border-color 0.2s var(--app-ease),
+    color 0.2s var(--app-ease);
+}
+
+.apply-package__social:hover {
+  border-color: var(--app-gold);
+  color: var(--app-gold);
+}
+
+.apply-package__portfolio {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--app-text-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+  text-decoration: none;
+  border-bottom: 1px solid var(--app-hair-strong);
+  padding-bottom: 2px;
+  transition:
+    color 0.2s var(--app-ease),
+    border-color 0.2s var(--app-ease);
+}
+
+.apply-package__portfolio:hover {
+  color: var(--app-gold);
+  border-color: var(--app-gold);
+}
+
+.apply-package__portfolio svg {
+  color: var(--app-text-faint);
+}
+
+.apply-package__empty {
+  margin: 0;
+  color: var(--app-text-faint);
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+/* Seal — handling language + readiness + consent. Dispatch lives in the foot. */
+/* The right column: the Secure Submission rail + the final submit, sticky as one. */
+.apply-review__rail {
+  min-width: 0;
+  position: sticky;
+  top: clamp(16px, 3vw, 32px);
+  align-self: start;
+  display: grid;
+  gap: clamp(14px, 1.6vw, 20px);
+}
+
+/* Secure Submission rail — the named flow + handling + acknowledgements + consent. */
+.apply-seal {
+  min-width: 0;
+  display: grid;
+  gap: clamp(16px, 1.8vw, 22px);
+  padding: clamp(22px, 2.4vw, 30px) clamp(20px, 2.2vw, 28px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 30%, #fff);
+}
+
+.apply-seal__flow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.apply-seal__flow::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--app-hair-gold);
+}
+
+.apply-seal__handling {
+  margin: 0;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.apply-seal__acks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 11px;
+}
+
+.apply-seal__acks li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--app-text-soft);
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.apply-seal__acks li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--app-gold);
+}
+
+.apply-seal__handling strong {
+  color: var(--app-text);
+  font-weight: 400;
+}
+
+/* Consent — a calm sentence, explicitly sentence-case (the shared apply-experience
+   label rule otherwise uppercases it). */
+.apply-seal__consent {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  color: var(--app-text-soft);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.apply-seal__consent input {
+  width: 16px;
+  height: 16px;
+  margin: 3px 0 0;
+  accent-color: var(--app-gold);
 }
 
 .apply-foot__actions {
@@ -3550,6 +4261,15 @@
   .apply-compcard__preview {
     justify-items: start;
   }
+
+  .apply-review {
+    grid-template-columns: 1fr;
+    gap: clamp(24px, 5vw, 36px);
+  }
+
+  .apply-seal {
+    position: static;
+  }
 }
 
 @media (max-width: 560px) {
@@ -3557,12 +4277,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .apply-stats__list div,
-  .apply-manifest__list div {
+  .apply-stats__list div {
     grid-template-columns: 1fr;
     gap: 5px;
   }
 
+  .apply-package__digitals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ============================================================
@@ -3872,4 +4594,244 @@
 
 .apply-digitals__minor-cta:hover {
   color: var(--app-gold-warm, var(--app-text));
+}
+
+/* ── 07 · The final submit — primary action below the Secure Submission rail ── */
+.apply-submit {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0 24px;
+  border: 1px solid var(--app-ink);
+  border-radius: var(--app-radius);
+  background: var(--app-ink);
+  color: var(--app-cream);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition:
+    background 0.25s var(--app-ease),
+    border-color 0.25s var(--app-ease),
+    color 0.25s var(--app-ease),
+    transform 0.25s var(--app-ease),
+    box-shadow 0.25s var(--app-ease);
+}
+
+.apply-submit svg {
+  color: var(--app-gold-light);
+}
+
+.apply-submit[data-state='ready']:hover {
+  background: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.2);
+}
+
+.apply-submit[data-state='sending'] {
+  cursor: default;
+}
+
+.apply-submit[data-state='locked'] {
+  background: transparent;
+  border-color: var(--app-hair-strong);
+  color: var(--app-text-faint);
+  cursor: not-allowed;
+}
+
+.apply-submit[data-state='locked'] svg {
+  color: var(--app-text-faint);
+}
+
+/* ── 07 · Submission success — full-screen, motion-led confirmation ──────────── */
+.apply-success {
+  /* Portaled to <body>, outside .applications-view-container — re-declare the
+     token set so the surface and its text resolve correctly. */
+  --app-cream: #faf7f2;
+  --app-cream-warm: #f5f0e8;
+  --app-gold: #c9a55a;
+  --app-gold-warm: #c8a96e;
+  --app-gold-light: #d4bc8a;
+  --app-ink: #050505;
+  --app-text: #1a1a1a;
+  --app-text-soft: rgba(26, 26, 26, 0.62);
+  --app-text-faint: rgba(26, 26, 26, 0.38);
+  --app-hair: rgba(26, 26, 26, 0.09);
+  --app-hair-strong: rgba(26, 26, 26, 0.16);
+  --app-hair-gold: rgba(201, 165, 90, 0.24);
+  --app-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-radius: 6px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: clamp(36px, 6vw, 88px) clamp(20px, 5vw, 64px);
+  color: var(--app-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(
+      130% 80% at 50% -10%,
+      color-mix(in srgb, var(--app-gold) 7%, var(--app-cream)) 0%,
+      var(--app-cream) 58%
+    ),
+    var(--app-cream);
+}
+
+.apply-success__inner {
+  width: 100%;
+  max-width: 40rem;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(15px, 1.9vw, 22px);
+}
+
+.apply-success__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(4px, 1vw, 10px);
+}
+
+.apply-success__pholio {
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+}
+
+.apply-success__brand-div {
+  width: 1px;
+  height: 13px;
+  background: var(--app-hair-strong);
+}
+
+.apply-success__brand-sub {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-success__seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid var(--app-hair-gold);
+  border-radius: 50%;
+  color: var(--app-gold);
+  background: color-mix(in srgb, var(--app-gold) 8%, #fff);
+}
+
+.apply-success__title {
+  margin: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 300;
+  letter-spacing: 0;
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.apply-success__lede {
+  margin: 0;
+  max-width: 32rem;
+  color: var(--app-text-soft);
+  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.apply-success__lede em {
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-style: italic;
+}
+
+.apply-success__receipt {
+  margin: 0;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-success__guidance {
+  display: grid;
+  gap: 10px;
+  margin-top: clamp(10px, 1.8vw, 18px);
+  max-width: 34rem;
+  padding: clamp(20px, 2.6vw, 28px) clamp(22px, 3vw, 32px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 30%, #fff);
+  text-align: left;
+}
+
+.apply-success__guidance-label {
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.apply-success__guidance p {
+  margin: 0;
+  color: var(--app-text-soft);
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+.apply-success__actions {
+  margin-top: clamp(8px, 1.4vw, 14px);
+}
+
+.apply-success__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 26px;
+  border: 1px solid var(--app-ink);
+  border-radius: var(--app-radius);
+  background: var(--app-ink);
+  color: var(--app-cream);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition:
+    background 0.25s var(--app-ease),
+    transform 0.25s var(--app-ease),
+    box-shadow 0.25s var(--app-ease);
+}
+
+.apply-success__action:hover {
+  background: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.2);
+}
+
+.apply-success__action svg {
+  color: var(--app-gold-light);
 }

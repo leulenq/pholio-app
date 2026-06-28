@@ -277,7 +277,7 @@ export default function CompCard({ images = [], profile }) {
           <p className="cc-gate__copy">
             Guardian consent is required before your comp card can be previewed or exported.
           </p>
-          <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
+          <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary" system="dashboard">
             Record guardian consent
           </PholioButton>
         </div>
@@ -347,11 +347,11 @@ export default function CompCard({ images = [], profile }) {
           <section className="cc-stage-block">
             <header className="cc-stage-head">
               <h3 className="cc-stage-title">This design</h3>
-              <button type="button" className="cc-ghost-btn"
+              <PholioButton type="button" variant="secondary" size="sm" system="dashboard"
                 onClick={() => { setSeed(nextSeed()); setActivePresetId(null); }}
                 disabled={!previewUrl} title="Compose another take of your card">
                 <RefreshCw size={13} aria-hidden="true" /> New direction
-              </button>
+              </PholioButton>
             </header>
             <p className="cc-stage-note">
               {voiceLabel
@@ -390,16 +390,18 @@ export default function CompCard({ images = [], profile }) {
                   onChange={(e) => setSaveName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveTake(); } }}
                 />
-                <button
+                <PholioButton
                   type="button"
-                  className="cc-lib__savebtn"
+                  variant="primary"
+                  size="sm"
+                  system="dashboard"
                   onClick={handleSaveTake}
                   disabled={blocked || saving || !saveName.trim()}
                   title={blocked ? 'Add photos to save a card' : 'Save this take to your library'}
                 >
                   {saving ? <span className="cc-spinner" aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
                   Save take
-                </button>
+                </PholioButton>
               </div>
 
               {/* Purpose — the board/lane this card is built for, and an optional
@@ -461,14 +463,14 @@ export default function CompCard({ images = [], profile }) {
                         </div>
                         <div className="cc-lib__actions">
                           {!isActive && (
-                            <button type="button" className="cc-link-btn" onClick={() => handleSelectPreset(preset)} disabled={busy}>
+                            <PholioButton type="button" variant="ghost" size="sm" system="dashboard" onClick={() => handleSelectPreset(preset)} disabled={busy}>
                               <Bookmark size={12} aria-hidden="true" /> Use
-                            </button>
+                            </PholioButton>
                           )}
                           {confirmDeleteId === preset.id ? (
                             <span className="cc-lib__confirm">
-                              <button type="button" className="cc-lib__confirmyes" onClick={() => handleDeletePreset(preset)} disabled={busy}>Remove</button>
-                              <button type="button" className="cc-lib__confirmno" onClick={() => setConfirmDeleteId(null)} disabled={busy}>Keep</button>
+                              <PholioButton type="button" variant="danger-ghost" size="sm" system="dashboard" onClick={() => handleDeletePreset(preset)} disabled={busy}>Remove</PholioButton>
+                              <PholioButton type="button" variant="ghost" size="sm" system="dashboard" onClick={() => setConfirmDeleteId(null)} disabled={busy}>Keep</PholioButton>
                             </span>
                           ) : (
                             <button type="button" className="cc-lib__del" onClick={() => setConfirmDeleteId(preset.id)} disabled={busy} aria-label={`Remove ${preset.name}`}>
@@ -496,7 +498,7 @@ export default function CompCard({ images = [], profile }) {
           )}
 
           <div className="cc-download-row">
-            <PholioButton variant="solid" onClick={handleDownload}
+            <PholioButton variant="solid" system="dashboard" onClick={handleDownload}
               disabled={downloading || blocked}
               title={blocked ? 'Add photos to generate your card' : 'Download PDF comp card'}
               className="cc-download">
@@ -510,9 +512,9 @@ export default function CompCard({ images = [], profile }) {
                 {minorGated ? 'Record guardian consent to unlock' : 'Complete your profile to unlock'}
               </Link>
             ) : (
-              <button type="button" className="cc-link-btn cc-flip-hint" onClick={previewUrl ? flip : undefined} disabled={!previewUrl}>
+              <PholioButton type="button" variant="ghost" size="sm" system="dashboard" className="cc-flip-hint" onClick={previewUrl ? flip : undefined} disabled={!previewUrl}>
                 <RotateCw size={13} aria-hidden="true" /> Flip card
-              </button>
+              </PholioButton>
             )}
             {!blocked && !minorGated && (
               <a href="/api/talent/wallet/pass" className="cc-wallet" aria-label="Add to Apple Wallet">

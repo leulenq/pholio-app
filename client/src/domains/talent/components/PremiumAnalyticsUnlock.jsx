@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import PholioBillingWordmark from '../../../shared/components/billing/PholioBillingWordmark';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import LockedMetricCard from './LockedMetricCard';
 import './PremiumAnalyticsUnlock.css';
 
@@ -24,13 +25,15 @@ export default function PremiumAnalyticsUnlock() {
               <li>Visitor audience breakdown</li>
               <li>Exportable PDF reports</li>
             </ul>
-            <a
+            <PholioButton
               href="/dashboard/talent/settings/subscription"
-              className="ph-premium-unlock__cta"
+              system="dashboard"
+              variant="inverse-primary"
+              style={{ marginTop: 32 }}
             >
               <span>Unlock Studio+</span>
               <ArrowRight size={18} aria-hidden="true" />
-            </a>
+            </PholioButton>
           </div>
 
           <div className="ph-premium-unlock__cards">

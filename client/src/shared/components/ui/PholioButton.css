@@ -117,3 +117,278 @@
   color: rgba(239, 68, 68, 1);
   background: rgba(220, 38, 38, 0.04);
 }
+
+/* ============================================================
+   Talent dashboard command system
+
+   Explicitly opted into with system="dashboard" so the isolated
+   Applications and Apply workflows retain their existing contract.
+   ============================================================ */
+
+.pholio-btn--dashboard {
+  --ph-btn-gold: #8a6224;
+  --ph-btn-gold-hover: #75501b;
+  --ph-btn-gold-border: #9f7940;
+  --ph-btn-ink: #211e1a;
+  --ph-btn-muted: #665f57;
+  --ph-btn-border: #d4cec5;
+  --ph-btn-surface: #ffffff;
+
+  gap: 8px;
+  border-radius: 3px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  line-height: 1;
+  text-transform: none;
+  box-shadow: none;
+  transition:
+    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pholio-btn--dashboard:focus-visible {
+  outline: 2px solid rgba(138, 98, 36, 0.42);
+  outline-offset: 3px;
+}
+
+/* Editorial Ledger is flat — hover is carried by colour, hairline, and the
+   primary's gold sweep, never by a lift. */
+.pholio-btn--dashboard:active:not(:disabled) {
+  transform: none;
+}
+
+.pholio-btn--dashboard:disabled,
+.pholio-btn--dashboard[aria-disabled='true'] {
+  opacity: 0.46;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.pholio-btn--dashboard-sm {
+  min-height: 34px;
+  padding: 8px 12px;
+  font-size: 11px;
+}
+
+.pholio-btn--dashboard-md {
+  min-height: 40px;
+  padding: 10px 16px;
+  font-size: 12px;
+}
+
+.pholio-btn--dashboard-lg {
+  min-height: 46px;
+  padding: 12px 20px;
+  font-size: 13px;
+}
+
+/* Primary — warm Pholio ink + gold trailing mark + D2 Edge Sweep.
+   The hover draws the wordmark's tapered gold hairline edge-to-edge along
+   the baseline; the brand line carries the interaction, never a solid bar. */
+.pholio-btn--dashboard-primary,
+.pholio-btn--dashboard-solid {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #1a1815;
+  background: #1a1815;
+  color: #faf7f2;
+  box-shadow: none;
+}
+
+/* a gold icon child reads as the trailing mark on ink — brand colour at rest */
+.pholio-btn--dashboard-primary > svg,
+.pholio-btn--dashboard-solid > svg {
+  color: #c8a96e;
+}
+
+.pholio-btn--dashboard-primary::after,
+.pholio-btn--dashboard-solid::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 1.5px;
+  border-radius: 999px;
+  opacity: 0.6;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, #c9a55a, transparent);
+  transition:
+    width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pholio-btn--dashboard-primary:hover:not(:disabled),
+.pholio-btn--dashboard-solid:hover:not(:disabled) {
+  border-color: #1a1815;
+  background: #100e0b;
+  color: #faf7f2;
+}
+
+.pholio-btn--dashboard-primary:hover:not(:disabled)::after,
+.pholio-btn--dashboard-solid:hover:not(:disabled)::after,
+.pholio-btn--dashboard-primary:focus-visible::after,
+.pholio-btn--dashboard-solid:focus-visible::after {
+  width: 100%;
+  opacity: 1;
+}
+
+/* Outline / secondary alternative — restrained hairline that turns to gold on
+   hover (no heavy fill flash); deep gold keeps text legible on cream. */
+.pholio-btn--dashboard-outline {
+  border: 1px solid var(--ph-btn-gold-border);
+  background: transparent;
+  color: #79531d;
+}
+
+.pholio-btn--dashboard-outline:hover:not(:disabled) {
+  border-color: var(--ph-btn-gold);
+  background: rgba(138, 98, 36, 0.06);
+  color: #684719;
+}
+
+.pholio-btn--dashboard-secondary {
+  border: 1px solid var(--ph-btn-border);
+  background: var(--ph-btn-surface);
+  color: var(--ph-btn-ink);
+}
+
+.pholio-btn--dashboard-secondary:hover:not(:disabled) {
+  border-color: var(--ph-btn-gold-border);
+  background: #fbf8f2;
+  color: #684719;
+}
+
+.pholio-btn--dashboard-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ph-btn-muted);
+}
+
+.pholio-btn--dashboard-ghost:hover:not(:disabled) {
+  border-color: rgba(138, 98, 36, 0.18);
+  background: rgba(138, 98, 36, 0.055);
+  color: #684719;
+}
+
+.pholio-btn--dashboard-inverse {
+  border: 1px solid rgba(245, 240, 232, 0.24);
+  background: transparent;
+  color: rgba(245, 240, 232, 0.82);
+}
+
+.pholio-btn--dashboard-inverse:hover:not(:disabled) {
+  border-color: rgba(190, 151, 85, 0.72);
+  background: rgba(190, 151, 85, 0.1);
+  color: #ffffff;
+}
+
+.pholio-btn--dashboard-inverse-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(245, 240, 232, 0.62);
+}
+
+.pholio-btn--dashboard-inverse-ghost:hover:not(:disabled) {
+  border-color: rgba(245, 240, 232, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+  color: #ffffff;
+}
+
+/* Inverse primary — the strong CTA on dark feature surfaces (#050505).
+   Cream "printed card" at rest; turns gold on hover. Carries the same D2
+   sweep mechanic as the light primary so the family reads on light and dark. */
+.pholio-btn--dashboard-inverse-primary {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #faf7f2;
+  background: #faf7f2;
+  color: #1a1815;
+}
+
+.pholio-btn--dashboard-inverse-primary > svg {
+  color: #a6843f;
+  transition: color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pholio-btn--dashboard-inverse-primary::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 1.5px;
+  border-radius: 999px;
+  opacity: 0.6;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, #a6843f, transparent);
+  transition:
+    width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pholio-btn--dashboard-inverse-primary:hover:not(:disabled) {
+  border-color: #c9a55a;
+  background: #c9a55a;
+  color: #1a1815;
+}
+
+.pholio-btn--dashboard-inverse-primary:hover:not(:disabled) > svg {
+  color: #1a1815;
+}
+
+/* on the gold hover the tapered line re-reads as engraved ink, extended full-width */
+.pholio-btn--dashboard-inverse-primary:hover:not(:disabled)::after,
+.pholio-btn--dashboard-inverse-primary:focus-visible::after {
+  width: 100%;
+  opacity: 0.85;
+  background: linear-gradient(to right, transparent, rgba(26, 24, 21, 0.6), transparent);
+}
+
+.pholio-btn--dashboard-danger {
+  border: 1px solid #9f3028;
+  background: #9f3028;
+  color: #ffffff;
+}
+
+.pholio-btn--dashboard-danger:hover:not(:disabled) {
+  border-color: #84261f;
+  background: #84261f;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(132, 38, 31, 0.14);
+}
+
+.pholio-btn--dashboard-danger-ghost {
+  border: 1px solid rgba(159, 48, 40, 0.38);
+  background: transparent;
+  color: #8f2c24;
+}
+
+.pholio-btn--dashboard-danger-ghost:hover:not(:disabled) {
+  border-color: rgba(159, 48, 40, 0.66);
+  background: rgba(159, 48, 40, 0.055);
+  color: #76221c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pholio-btn--dashboard {
+    transition: none;
+  }
+
+  .pholio-btn--dashboard:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .pholio-btn--dashboard-primary::after,
+  .pholio-btn--dashboard-solid::after,
+  .pholio-btn--dashboard-inverse-primary::after {
+    transition: none;
+  }
+}

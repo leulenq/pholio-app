@@ -11,7 +11,7 @@ const {
 const { validateNoteOutput } = require("./output-validator");
 const { MAX_CHARS } = require("./quality-rubric");
 
-const MAX_ATTEMPTS = 2;
+const MAX_ATTEMPTS = 3;
 
 function normalizeNote(text) {
   if (!text) return "";
@@ -32,7 +32,7 @@ async function callModel(userPrompt, { temperature = 0.5, maxTokens = 340 } = {}
 }
 
 /**
- * Run the model with rubric validation and a single retry on weak output.
+ * Run the model with rubric validation and bounded retries on weak output.
  */
 async function runWithValidation({
   context,
@@ -40,18 +40,17 @@ async function runWithValidation({
   mode,
   existingNote = "",
   maxTokens,
+  generate = callModel,
 }) {
   let lastIssues = [];
-  let lastNote = "";
-
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     const prompt =
       attempt === 0
         ? userPrompt
         : `${userPrompt}\n\n${buildRetryNudge(lastIssues)}`;
 
-    const raw = await callModel(prompt, {
-      temperature: attempt === 0 ? 0.5 : 0.4,
+    const raw = await generate(prompt, {
+      temperature: attempt === 0 ? 0.4 : 0.25,
       maxTokens,
     });
 
@@ -60,7 +59,6 @@ async function runWithValidation({
       continue;
     }
 
-    lastNote = raw;
     const validation = validateNoteOutput(raw, context, { existingNote, mode });
 
     if (validation.valid) {
@@ -74,32 +72,22 @@ async function runWithValidation({
     );
   }
 
-  if (lastNote && countWords(lastNote) >= 10) {
-    console.warn(
-      `[Submission Note] ${mode} returning best-effort after ${MAX_ATTEMPTS} attempts`,
-    );
-    const validation = validateNoteOutput(lastNote, context, {
-      existingNote,
-      mode,
-    });
-    return buildResult(lastNote, mode, context, validation, MAX_ATTEMPTS, true);
-  }
-
   throw new Error("Submission note output failed quality validation");
 }
 
-function buildResult(note, mode, context, validation, attempts, qualityWarning) {
-  // Hard guarantee on the application note limit.
-  const trimmed = note.length > MAX_CHARS ? note.slice(0, MAX_CHARS).trim() : note;
+function buildResult(note, mode, context, validation, attempts) {
+  if (note.length > MAX_CHARS) {
+    throw new Error("Validated submission note exceeded the character limit");
+  }
+
   return {
     mode,
-    note: trimmed,
-    wordCount: countWords(trimmed),
-    charCount: trimmed.length,
+    note,
+    wordCount: countWords(note),
+    charCount: note.length,
     qualityScore: validation.rubric.score,
     contextSignalsUsed: context.signalCount,
     attempts,
-    ...(qualityWarning ? { qualityWarning: true } : {}),
   };
 }
 
@@ -108,7 +96,7 @@ async function draftNote({ context }) {
     context,
     userPrompt: buildDraftPrompt(context),
     mode: "draft",
-    maxTokens: 340,
+    maxTokens: 280,
   });
 }
 
@@ -118,7 +106,7 @@ async function sharpenNote({ context, note }) {
     userPrompt: buildSharpenPrompt(context, note),
     mode: "sharpen",
     existingNote: note,
-    maxTokens: 340,
+    maxTokens: 280,
   });
 }
 
@@ -139,4 +127,5 @@ module.exports = {
   runWithValidation,
   normalizeNote,
   SYSTEM_PROMPT,
+  MAX_ATTEMPTS,
 };

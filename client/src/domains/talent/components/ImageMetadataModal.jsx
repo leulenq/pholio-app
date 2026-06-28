@@ -9,6 +9,7 @@ import {
   stylePickerOptions,
   COMP_CARD_SLOT_LABELS,
 } from '../../../shared/constants/frameTaxonomy';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './ImageMetadataModal.css';
 
 const COMP_CARD_ROLES = [
@@ -177,10 +178,10 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
               {selectedRole && <span className="imd-pill imd-pill--gold">{selectedRole.label}</span>}
             </div>
           </div>
-          <button type="button" onClick={() => onOpenEditor(image)} className="imd-crop-action">
+          <PholioButton type="button" variant="inverse" system="dashboard" fullWidth onClick={() => onOpenEditor(image)}>
             <Crop size={15} />
             Crop & rotate
-          </button>
+          </PholioButton>
         </aside>
 
         <div className="imd-panel">
@@ -395,10 +396,10 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
           </div>
 
           <footer className="imd-footer">
-            <button type="button" onClick={onClose} className="imd-secondary-btn">Cancel</button>
-            <button type="button" onClick={handleSave} disabled={loading} className="imd-primary-btn">
+            <PholioButton type="button" variant="secondary" system="dashboard" onClick={onClose}>Cancel</PholioButton>
+            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleSave} disabled={loading}>
               {loading ? 'Saving...' : <><Save size={15} />Save changes</>}
-            </button>
+            </PholioButton>
           </footer>
         </div>
       </section>

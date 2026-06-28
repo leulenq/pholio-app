@@ -1,3 +1,70 @@
+# Talent Dashboard Button System Audit — 2026-06-27
+
+- [x] Inventory button usage on Overview, Profile, Media, Analytics, Settings,
+  and talent-shell surfaces.
+- [x] Exclude `/dashboard/talent/applications`,
+  `/dashboard/talent/applications/apply`, and standalone `/apply` code from the
+  migration.
+- [x] Refine `PholioButton` into the reusable in-scope command-button template.
+- [x] Replace route-specific command-button families with `PholioButton`.
+- [x] Keep semantic controls (tabs, segmented choices, image tiles, drag
+  controls, and icon-only utilities) visually specialized.
+- [x] Verify no Applications/Apply caller opts into the revised treatment.
+- [x] Run focused lint, production build, and diff checks.
+- [ ] Run rendered browser QA when the in-app browser connection is available.
+
+## Audit
+
+- **Overview:** already uses `PholioButton`, but inherits a dark-surface-first
+  legacy palette that becomes low-contrast on light cards.
+- **Profile:** save uses `PholioButton`; add/remove/connect and writing actions
+  use local module or Tailwind treatments. Measurement units, booking lanes,
+  and readiness rows are semantic selectors and remain specialized.
+- **Media:** the highest-fragmentation surface. Download Digitals is the nearest
+  visual reference, while Start Set, upload actions, modal actions, comp-card
+  actions, editor footers, and metadata footers each define separate button
+  systems. Frame overlays, aspect ratios, visibility switches, and category
+  choices remain specialized controls.
+- **Analytics:** range controls are semantic filters; the error retry is an
+  inline one-off button and should use the shared template.
+- **Settings:** command actions use the isolated `ts-btn` family, invoice/session
+  text links use another family, and selectors use dedicated treatments. All
+  command actions should migrate; navigation, frequency, and layout selectors
+  remain specialized.
+- **Talent shell/shared overlays:** notification, consent, billing, and report
+  surfaces have separate product-wide contracts. Only talent-owned command
+  surfaces are included in this pass; icon-only dismiss/menu controls remain
+  utilities.
+- **Root inconsistency:** gold ranges from bright `#C9A55A`/`#C8A96E` to
+  unrelated neutral and dark treatments. Bright gold text on cream/white does
+  not maintain adequate contrast. The new command system will use a deeper
+  restrained gold for light-surface legibility while retaining a clear neutral,
+  ghost, and destructive hierarchy.
+
+## Review
+
+- Added the opt-in `system="dashboard"` treatment to `PholioButton` so the
+  existing Applications and Apply callers retain their exact legacy behavior.
+- Standardized 62 in-scope call sites across Overview, Profile, Media,
+  Analytics, Settings, and dashboard-owned modal actions. Removed the replaced
+  local `ts-*`, `mw-*`, `cc-*`, `fe-*`, `pem-*`, `imd-*`, and `crs-*` command
+  button style blocks.
+- Added primary, outline, secondary, ghost, inverse, and destructive variants
+  on a restrained 3px-radius structure derived from Download Digitals.
+- Changed command gold to `#8A6224`: approximately 5.14:1 contrast on
+  `#FAF8F5` and 5.45:1 on white.
+- Preserved semantic selectors, filters, upload/image tiles, thumbnail
+  selection, and icon-only controls as separate interaction patterns.
+- Applications/Apply contain zero `system="dashboard"` or
+  `buttonSystem="dashboard"` opt-ins. Separate Apply/Application worktree edits
+  appeared during this task and were preserved without modification.
+- Focused ESLint passes with the two pre-existing Settings/Credits hook rules
+  suppressed; the client production build and `git diff --check` pass. The
+  normal focused lint still reports those existing `set-state-in-effect` and
+  `purity` violations.
+- Rendered QA could not run because the in-app browser connection failed before
+  opening a tab.
+
 # Bio Writer Label Separation — 2026-06-27
 
 - [x] Keep Length and Voice inline with their choices.
@@ -1453,3 +1520,164 @@ all front/back combos valid (Backstage, Sedcard24, models.com show packages).
 ## Review
 
 - Pending implementation.
+
+---
+
+# Apply Page 6 Submission Note Writer — 2026-06-28
+
+## Research-backed contract
+
+- [x] Research current modeling- and talent-agency submission guidance using a
+      dedicated agent and primary agency submission pages.
+- [x] Audit the Page 6 client flow, writer route, verified context, prompts,
+      output rubric, retry behavior, and regression tests.
+- [x] Enrich the prompt with verified agency context without allowing invented
+      roster, client, reputation, or submission claims.
+- [x] Rework draft, sharpen, and shorten prompts around a concise modeling-note
+      structure: identity and intent, one or two evidence-bearing facts,
+      optional verified fit, and a courteous close.
+- [x] Strengthen validation for useful length, sentence structure, profile
+      grounding, duplicated letter wrappers, generic praise, desperation,
+      gimmicks, and unsupported superlatives.
+- [x] Ensure hard-invalid model output is retried and never returned as a
+      best-effort success.
+- [x] Expand focused tests for context safety, prompt policy, quality failures,
+      and grounded professional examples.
+- [x] Run focused Jest, lint/syntax, diff, and relevant build verification.
+
+## Audit
+
+- Official agency application flows are structured around identity, market,
+  measurements, contact details, and clean digitals; the note supplements the
+  package rather than carrying it.
+- No defensible universal average exists. A practical modeling-note target is
+  45–90 words, normally 3–5 short sentences; sparse profiles should be shorter
+  rather than padded with generic claims.
+- The current 1,200-character ceiling is only a storage/UI limit. The prompt
+  does not enforce a useful word target, and the rubric permits substantially
+  overlong prose.
+- The current writer demands a reason for choosing the agency while receiving
+  only its name and location. That makes genuine personalization impossible
+  and encourages generic or invented roster-fit language.
+- The agencies table already provides verified `description` and `open_boards`
+  fields. These can support restrained fit language when passed as untrusted
+  factual context and bounded before prompting.
+- Page 6 already renders a `To <agency>` letterhead. A generated greeting or
+  signature duplicates page chrome and wastes the short note; the writer
+  should return the message body only.
+- Existing validation catches first-person, filler, AI mentions, measurements,
+  and some invented proper nouns, but does not require clear intent, profile
+  grounding, a professional close, or reject flattery, pleading, gimmicks, and
+  duplicated letter wrappers.
+- After two failures the service currently returns the last output whenever it
+  has ten words, even if it failed the rubric. That contradicts a consistent
+  quality guarantee.
+
+## Review
+
+- Rebuilt the draft, sharpen, shorten, and retry instructions around a
+  research-backed modeling note: direct identity and intent, no more than two
+  useful facts, verified fit only, and a low-pressure close. Default generation
+  is 45–90 words; sparse profiles are explicitly kept shorter rather than
+  padded.
+- The note writer now receives bounded agency descriptions, agency-authored
+  open boards, and the talent's selected board. Selected boards are
+  server-validated against the agency's own open-board list before prompting.
+- Added the talent's bounded `specialties` as bookable-skill context alongside
+  market, booking lanes, credits, training, and languages.
+- Page 6 sends its selected board to draft/sharpen requests and no longer
+  suggests duplicating a salutation beneath its existing `To <agency>`
+  letterhead.
+- Expanded the output gate to require intent, profile grounding, selected-board
+  grounding when applicable, and a courteous close; it now rejects verbose
+  notes, wrappers, generic praise, pleading, emoji, measurements, unsupported
+  proper nouns, filler, and other industry-misaligned patterns.
+- Increased generation to three bounded attempts and removed best-effort
+  returns. Hard-invalid drafts now fail closed instead of reaching the talent.
+- Verification passed: 34 focused Jest tests, backend syntax checks,
+  `git diff --check`, and the client production build at the implementation
+  snapshot. The build retains its existing large-chunk warning.
+- Final focused Page 6 ESLint is not green because concurrent edits elsewhere
+  in `ApplyExperience.jsx` now contain nine unrelated errors: unused
+  `createPortal`, Framer Motion imports, `dateLabel`, and submit props, plus an
+  undefined `ApplySuccess`. The writer's two Page 6 changes are limited to the
+  verified target-board payload and aligned placeholder copy.
+- A live synthetic draft against the configured Groq model passed the final
+  gate at 51 words and a quality score of 90. Earlier live samples exposed
+  generic confidence/career language, missing identity, third-person agency
+  references, overpacked profile facts, and an awkward close; each failure mode
+  was converted into a prompt rule and regression check before the final run.
+- The broader suite reached 702 passing tests across 60 suites and 96 failures
+  across 14 suites, then retained existing open handles. Failures are unrelated
+  to this writer change and include stale test schemas (`account_status`),
+  legacy auth/legal fixtures, PDF guardrail expectations, and existing
+  date/completeness assertions.
+
+---
+
+# Full Submission Program Notice — 2026-06-28
+
+## Plan
+
+- [x] Audit the current `/apply` threshold, payload, draft, acknowledgment,
+      delivery, agency-access, retention, and withdrawal behavior as the product
+      source of truth.
+- [x] Research primary legal and regulatory sources relevant to modeling and
+      creative-industry submissions, including agency status, scams and fees,
+      minors, content rights, privacy, discrimination, and automated tools.
+- [x] Draft a standalone, talent-facing legal notice in formal privacy-counsel
+      language without product-tour, marketing, or prompt-derived filler.
+- [x] Implement `/legal/submission-program` in the canonical sibling
+      `pholio-landing` repository using its shared legal-document design.
+- [x] Verify the landing route with targeted lint/type/build checks and review
+      the final cross-repository diff.
+
+## Review
+
+- Replaced the rejected explanatory draft in full. The final notice is a
+  3,700-word, 18-section legal instrument covering controller and recipient
+  roles, data categories and sources, required/optional fields, purposes and
+  legal bases, sensitive data, copyrights and releases, minors, automated
+  processing, retention, withdrawal versus erasure, data-subject rights,
+  transfers, security, agency regulation, fees, and safety.
+- Research included Run Model Management, BEA scouting privacy, Photogenics
+  Media's submission agreement and privacy notice, Elite and established agency
+  comparators, LeadGrid retention guidance, FTC modeling-scam guidance, GDPR
+  Articles 5–22 and 44–49, CPPA notice/rights guidance, the California Talent
+  Agencies Act, the New York Fashion Workers Act, child-performer rules, and
+  U.S. Copyright Office photography guidance.
+- The notice does not import unverified comparator practices such as background
+  checks, government-ID collection, public social scouting, promotional image
+  licenses, biometric identification, or assurances that Agencies are licensed.
+- Added route metadata and a footer link to the new legal page.
+- Verification passed: `tsc --noEmit --incremental false`, `git diff --check`,
+  and the Next.js production build. The build statically generated
+  `/legal/submission-program`.
+- Targeted ESLint remains blocked by the repository's pre-existing ESLint 10 /
+  Next configuration circular-reference error. Browser QA was unavailable
+  because the in-app browser runtime lacked required sandbox metadata; the
+  production build and static route output were used as verification gates.
+- Existing legal constants still contain a placeholder mailing address. It must
+  be replaced with the company's approved notice address before publication.
+
+---
+
+# Talent Profile Tab Comprehensive Audit — 2026-06-28
+
+## Plan
+
+- [ ] Map `/dashboard/talent/profile` from route and UI controls through hooks,
+      API clients, Express middleware/routes, database schema, public profile
+      exposure, agency consumers, submissions, exports, and deletion.
+- [ ] Complete independent functional/data, modeling-industry, legal, and
+      security audits using specialist subagents and current authoritative
+      sources where external standards or law are involved.
+- [ ] Reproduce or verify high-risk findings with focused static checks, tests,
+      API/runtime probes, and SQLite/PostgreSQL compatibility review.
+- [ ] Reconcile duplicate/conflicting findings into one prioritized report with
+      exact code evidence, impact, remediation, verified safeguards, and
+      acknowledged coverage limits.
+
+## Review
+
+- Pending.

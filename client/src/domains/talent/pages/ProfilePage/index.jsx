@@ -1396,6 +1396,7 @@ export default function ProfilePage() {
             <WritingAssistToolbar
               className={styles.trainingAssistToolbar}
               variant="architectural"
+              buttonSystem="dashboard"
               actions={[
                 {
                   id: 'format-training',

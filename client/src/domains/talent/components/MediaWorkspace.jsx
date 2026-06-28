@@ -295,13 +295,15 @@ function DigitalsSetControl({ pkg, sets, onSelectSet, onCreateSet, busy, slug, h
             </select>
           </label>
         ) : null}
-        <button type="button" className="mw-digitals-set__new" disabled={busy} onClick={onCreateSet}>
+        <PholioButton type="button" variant="secondary" size="sm" system="dashboard" disabled={busy} onClick={onCreateSet}>
           <Plus size={14} aria-hidden="true" /> Start new dated set
-        </button>
+        </PholioButton>
         {hasDigitals && slug ? (
-          <button
+          <PholioButton
             type="button"
-            className="mw-digitals-set__download"
+            variant="outline"
+            size="sm"
+            system="dashboard"
             disabled={downloading}
             onClick={handleDownloadDigitals}
             title="Download your digitals as a dated PDF sheet"
@@ -312,7 +314,7 @@ function DigitalsSetControl({ pkg, sets, onSelectSet, onCreateSet, busy, slug, h
               <Download size={14} aria-hidden="true" />
             )}
             Download digitals
-          </button>
+          </PholioButton>
         ) : null}
       </div>
     </div>
@@ -340,8 +342,8 @@ function UploadDatePrompt({ count, onConfirm, onSkip, onCancel }) {
           <input type="date" max={today} value={value} onChange={(e) => setValue(e.target.value)} className="mw-modal__input" />
         </label>
         <div className="mw-modal__actions">
-          <button type="button" className="mw-modal__ghost" onClick={onSkip}>I&rsquo;m not sure — skip</button>
-          <PholioButton variant="solid" disabled={!value} onClick={() => onConfirm(dateInputToIso(value))}>
+          <PholioButton type="button" variant="secondary" system="dashboard" onClick={onSkip}>I&rsquo;m not sure — skip</PholioButton>
+          <PholioButton variant="solid" system="dashboard" disabled={!value} onClick={() => onConfirm(dateInputToIso(value))}>
             Add with date
           </PholioButton>
         </div>
@@ -395,8 +397,8 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
           </label>
         </div>
         <div className="mw-modal__actions">
-          <button type="button" className="mw-modal__ghost" onClick={onCancel}>Cancel</button>
-          <PholioButton variant="solid" disabled={busy || !url.trim()} onClick={submit}>
+          <PholioButton type="button" variant="secondary" system="dashboard" onClick={onCancel}>Cancel</PholioButton>
+          <PholioButton variant="solid" system="dashboard" disabled={busy || !url.trim()} onClick={submit}>
             {busy ? 'Adding…' : 'Add motion'}
           </PholioButton>
         </div>
@@ -754,6 +756,7 @@ export default function MediaWorkspace() {
           confirmLabel="Remove frame"
           cancelLabel="Cancel"
           variant="danger"
+          buttonSystem="dashboard"
           onConfirm={confirmDelete}
           onCancel={() => setDeleteId(null)}
         />
@@ -777,10 +780,10 @@ export default function MediaWorkspace() {
             </span>
           </div>
           <div className="mw-masthead__actions">
-            <PholioButton variant="ghost" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo}>
+            <PholioButton variant="outline" system="dashboard" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo}>
               <Film size={15} aria-hidden="true" /> Add motion
             </PholioButton>
-            <PholioButton variant="solid" onClick={openFilePicker} disabled={isUploading}>
+            <PholioButton variant="solid" system="dashboard" onClick={openFilePicker} disabled={isUploading}>
               <Plus size={15} aria-hidden="true" /> {isUploading ? 'Adding…' : 'Add images'}
             </PholioButton>
           </div>
@@ -816,7 +819,7 @@ export default function MediaWorkspace() {
           ) : (
             <div className="mw-empty">
               <span className="mw-empty__title">No frames yet.</span>
-              <PholioButton variant="solid" onClick={openFilePicker} disabled={isUploading}>
+              <PholioButton variant="solid" system="dashboard" onClick={openFilePicker} disabled={isUploading}>
                 <Upload size={14} aria-hidden /> Upload Media
               </PholioButton>
               <p className="mw-helper">JPEG · PNG · WEBP — up to 5MB, 12 at a time</p>

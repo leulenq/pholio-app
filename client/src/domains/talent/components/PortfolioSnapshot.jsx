@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Image as ImageIcon, ArrowRight, Eye, Camera } from 'lucide-react';
 import { useRecentPhotos } from '../../hooks/useRecentPhotos';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './PortfolioSnapshot.css';
 
 export const PortfolioSnapshot = () => {
@@ -80,9 +81,9 @@ export const PortfolioSnapshot = () => {
                 <p className="empty-description">
                   Agencies prioritize visuals. Upload at least 5 high-quality photos to unlock your full potential and get discovered.
                 </p>
-                <Link to="/dashboard/talent/media" className="empty-primary-btn">
-                   Upload Photos <ArrowRight size={18} />
-                </Link>
+                <PholioButton to="/dashboard/talent/media" system="dashboard" variant="primary">
+                  Upload Photos <ArrowRight size={18} />
+                </PholioButton>
              </div>
           </div>
         )}

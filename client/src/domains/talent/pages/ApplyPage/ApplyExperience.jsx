@@ -1,24 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowUpRight,
   Check,
   CircleDashed,
   Loader2,
+  Globe,
+  Instagram,
   Lock,
   MapPin,
+  Music2,
+  PenLine,
   Plus,
   RotateCw,
+  Send,
+  Twitter,
   X,
+  Youtube,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../../shared/components/NotificationCenter/NotificationCenter';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
-import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import ProfileGateBanner from '../../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../../shared/utils/profileGating';
 import { sendBlockerLabel } from '../../../../shared/utils/sendReadiness';
@@ -111,7 +119,7 @@ function formatSavedAt(value) {
 
 // Pages that take over the full workspace (rail steps aside) for an immersive,
 // breathing review of the visual work.
-const FULLSCREEN_PAGES = new Set(['digitals', 'stats', 'book', 'compcard']);
+const FULLSCREEN_PAGES = new Set(['digitals', 'stats', 'book', 'compcard', 'review']);
 
 /* Page 01 is agency-primary. A submission goes TO the agency (which decides
    placement); a board is optional context shown ONLY when the agency actually
@@ -491,6 +499,7 @@ export default function ApplyExperience() {
       setDraftStatus('submitted');
       setSubmitted({
         agency: { name: variables?.submissionPackage?.agencyName },
+        market: variables?.submissionPackage?.agencyLocation || null,
         submittedAt: new Date().toISOString(),
         mediaSetName: variables?.submissionPackage?.mediaSetName,
         compCardName: variables?.submissionPackage?.compCardName,
@@ -904,6 +913,13 @@ export default function ApplyExperience() {
     draftHydrated &&
     !applyMutation.isPending;
 
+  // The reason the submit is held, surfaced on the button when it can't fire yet.
+  const submitGateLabel = !gating.isCoreReady
+    ? 'Profile incomplete'
+    : !isSendReady
+      ? 'Complete requirements'
+      : null;
+
   /* ── navigation ── */
 
   const goTo = (index) => {
@@ -970,6 +986,7 @@ export default function ApplyExperience() {
     await persistDraftDocument(draftDocument);
     applyMutation.mutate({
       agencyId: selectedAgency.id,
+      idempotencyKey: crypto.randomUUID(),
       draftVersion: draftVersionRef.current,
       draftGeneration: draftGenerationRef.current,
       consentConfirmed: true,
@@ -1015,37 +1032,19 @@ export default function ApplyExperience() {
     );
   }
 
+  // Submission success takes over as a full-screen state. It uses the captured
+  // `submitted` payload (not selectedAgency, which the post-submit refetch drops
+  // from the open list), and shares the cream ground so the swap reads as a calm
+  // resolve rather than a hard cut.
   if (submitted) {
     return (
-      <div className="applications-view-container apply-experience">
-        <section className="app-submit-success" role="status">
-          <div className="app-submit-success__mark" aria-hidden>
-            <Check size={24} strokeWidth={1.4} />
-          </div>
-          <h2>Submitted to {submitted.agency?.name || selectedAgency?.name || 'Agency'}</h2>
-          <p>
-            Your package is now with the agency. {dateLabel(submitted.submittedAt)} ·{' '}
-            {submitted.frameCount} frames · Under review
-          </p>
-          <dl className="app-package-readiness">
-            <div>
-              <span>Book</span>
-              <strong>{submitted.mediaSetName || selectedMediaSetName}</strong>
-            </div>
-            <div>
-              <span>Comp card</span>
-              <strong>{submitted.compCardName || selectedCompCardName}</strong>
-            </div>
-            <div>
-              <span>Status</span>
-              <strong>Under review</strong>
-            </div>
-          </dl>
-          <PholioButton variant="solid" onClick={exitToMarket}>
-            Return to market <ArrowUpRight size={14} aria-hidden />
-          </PholioButton>
-        </section>
-      </div>
+      <ApplySuccess
+        firstName={(profile?.first_name || '').trim()}
+        agencyName={submitted.agency?.name || 'the agency'}
+        submittedAt={submitted.submittedAt}
+        market={submitted.market}
+        onExit={exitToMarket}
+      />
     );
   }
 
@@ -1070,7 +1069,9 @@ export default function ApplyExperience() {
     );
   }
 
-  if (!initialLoading && openAgencies.length === 0) {
+  // Only a chooser-mode empty state — a locked/deep-linked agency (and the
+  // post-submit success overlay) must still reach the main return below.
+  if (!initialLoading && !selectedAgency && openAgencies.length === 0) {
     return (
       <div className="applications-view-container apply-experience">
         <section className="app-application-empty">
@@ -1322,11 +1323,18 @@ export default function ApplyExperience() {
                 agency={selectedAgency}
                 note={note}
                 onNoteChange={(v) => setNote(v.slice(0, 1200))}
+                boardLabels={boardLabels}
+                digitalsCount={filledSlots}
+                compCardName={selectedCompCardName}
               />
             )}
             {page.id === 'review' && (
               <ReviewSendPage
                 agency={selectedAgency}
+                profile={profile}
+                stats={statsInfo}
+                digitalSet={digitalSet}
+                note={note}
                 boardLabels={boardLabels}
                 filledSlots={filledSlots}
                 stale={packageAudit.recency.isStale}
@@ -1334,10 +1342,17 @@ export default function ApplyExperience() {
                 statsDate={statsDate}
                 packageImages={packageImages}
                 compCardName={selectedCompCardName}
+                compCardSlug={profile?.slug}
+                compCardPreset={selectedCompCardPreset}
                 checks={checks}
                 packageAudit={packageAudit}
                 consent={consent}
                 onConsentChange={setConsent}
+                onModify={(id) => goTo(PAGES.findIndex((p) => p.id === id))}
+                onSubmit={handleSubmit}
+                canSubmit={canSubmit}
+                submitting={applyMutation.isPending}
+                submitGateLabel={submitGateLabel}
               />
             )}
           </div>
@@ -1359,33 +1374,15 @@ export default function ApplyExperience() {
           >
             Back
           </PholioButton>
-          {!isLastPage ? (
+          {/* On the review step the primary action lives below the Secure Submission
+              rail; the footer keeps only Back. */}
+          {!isLastPage && (
             <PholioButton
               variant="solid"
               className="apply-nav-button apply-nav-button--next"
               onClick={handleContinue}
             >
               Next page <ArrowUpRight size={14} aria-hidden />
-            </PholioButton>
-          ) : (
-            <PholioButton variant="solid" onClick={handleSubmit} disabled={!canSubmit}>
-              {!gating.isCoreReady ? (
-                <>
-                  <Lock size={14} aria-hidden /> Profile incomplete
-                </>
-              ) : !isSendReady ? (
-                <>
-                  <Lock size={14} aria-hidden /> Requirements
-                </>
-              ) : applyMutation.isPending ? (
-                <>
-                  <Loader2 size={14} className="app-spin" aria-hidden /> Sending
-                </>
-              ) : (
-                <>
-                  Send package <ArrowUpRight size={14} aria-hidden />
-                </>
-              )}
             </PholioButton>
           )}
         </div>
@@ -2298,24 +2295,29 @@ function CompCardPage({
           <dl className="apply-compcard__facts">
             <div>
               <dt>Format</dt>
-              <dd>5.5 × 8.5 · two-sided</dd>
+              <dd>
+                <span className="apply-compcard__spec">5.5 × 8.5</span>
+                <span className="apply-compcard__spec-tag">Two-sided</span>
+              </dd>
             </div>
             <div>
               <dt>Composed</dt>
-              <dd>From your book, always current</dd>
+              <dd className="apply-compcard__fact-note">From your book, always current</dd>
             </div>
           </dl>
 
-          <p className="apply-compcard__confirm">
-            {hasPicker
-              ? `${name} receives the ${previewPreset?.name || 'selected'} card. Keep more cards or change a design in media.`
-              : `This is the comp card ${name} receives — change its design in media.`}
+          <div className="apply-compcard__send">
+            <p className="apply-compcard__confirm">
+              {hasPicker
+                ? `${name} receives the ${previewPreset?.name || 'selected'} card. Keep more cards or change a design in media.`
+                : `This is the comp card ${name} receives — change its design in media.`}
+            </p>
             {onOpenMedia && (
               <button type="button" className="apply-compcard__media" onClick={onOpenMedia}>
                 Open in media <ArrowUpRight size={13} aria-hidden />
               </button>
             )}
-          </p>
+          </div>
         </div>
       </div>
     </div>
@@ -2355,7 +2357,9 @@ function CompCardFace({ slug, side, preset = null }) {
    06 — The message
    ════════════════════════════════════════════════════════════ */
 
-function MessagePage({ agency, note, onNoteChange }) {
+// Words, roughly. The research sweet spot is ~40–80 words; we cue brevity past 90
+// rather than hard-capping — a maximum is fine, a minimum would be wrong.
+function MessagePage({ agency, note, onNoteChange, boardLabels = [], digitalsCount = 0, compCardName }) {
   const name = agency?.name || 'this agency';
 
   const [assistBusy, setAssistBusy] = useState(false);
@@ -2364,6 +2368,7 @@ function MessagePage({ agency, note, onNoteChange }) {
 
   const trimmedNote = note.trim();
   const noteLen = trimmedNote.length;
+  const wordCount = trimmedNote ? trimmedNote.split(/\s+/).length : 0;
 
   const runAssist = async (mode) => {
     setAssistMode(mode);
@@ -2373,6 +2378,7 @@ function MessagePage({ agency, note, onNoteChange }) {
       const agencyPayload = {
         agencyId: agency?.id || undefined,
         agencyName: agency?.name || undefined,
+        targetBoards: boardLabels,
       };
       let data;
       if (mode === 'draft') {
@@ -2418,16 +2424,6 @@ function MessagePage({ agency, note, onNoteChange }) {
     toast.info('Reverted to your original note');
   };
 
-  const assistActions = [];
-  if (noteLen < 10) {
-    assistActions.push({ id: 'draft', label: 'Draft a note', onClick: () => runAssist('draft') });
-  } else {
-    assistActions.push({ id: 'sharpen', label: 'Sharpen', onClick: () => runAssist('sharpen') });
-    if (noteLen >= 50) {
-      assistActions.push({ id: 'shorten', label: 'Shorten', onClick: () => runAssist('shorten') });
-    }
-  }
-
   const busyLabel =
     assistMode === 'draft'
       ? 'Drafting…'
@@ -2437,27 +2433,88 @@ function MessagePage({ agency, note, onNoteChange }) {
           ? 'Shortening…'
           : 'Working…';
 
+  const isEmpty = noteLen < 10;
+  const board = boardLabels.find(Boolean);
+  const manifest = [
+    board ? `${board} board` : null,
+    digitalsCount ? `${digitalsCount} digitals` : null,
+    compCardName ? 'comp card' : null,
+  ]
+    .filter(Boolean)
+    .join('  ·  ');
+
   return (
-    <div className="apply-message">
-      <div className="app-application-note">
-        <span className="apply-note-lbl">A note to {name}</span>
-        <WritingAssistToolbar
-          className="apply-note-assist"
-          actions={assistActions}
-          busy={assistBusy}
-          busyActionId={assistMode}
-          busyLabel={busyLabel}
-          showUndo={previousNote !== null}
-          onUndo={handleUndoAssist}
-        />
+    <div className="apply-compose">
+      {/* Letterhead — a calm "to / what's attached" line so the note can stay
+          short; the package, not the prose, carries the facts. */}
+      <div className="apply-compose__letterhead">
+        <span className="apply-compose__to">
+          To <em>{name}</em>
+        </span>
+        {manifest && <span className="apply-compose__manifest">{manifest}</span>}
+      </div>
+
+      {/* The writing canvas — a full-height sheet, not a boxed input. */}
+      <div className="apply-compose__sheet">
         <textarea
           id="apply-note"
+          className="apply-compose__input"
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
-          placeholder={`A few honest lines for ${name} — who you are, why them.`}
-          rows={6}
+          placeholder="Introduce yourself, name the representation or board you're seeking, add one relevant fact, and close with thanks. Three or four short sentences is plenty."
+          aria-label={`Your note to ${name}`}
         />
-        <small>{note.length} / 1200</small>
+      </div>
+
+      {/* Assist + count — an integrated document footer, secondary to the page. */}
+      <div className="apply-compose__foot">
+        <div className="apply-compose__assist">
+          <PenLine className="apply-compose__assist-icon" size={13} aria-hidden />
+          {isEmpty ? (
+            <button
+              type="button"
+              className="apply-compose__assist-act"
+              onClick={() => runAssist('draft')}
+              disabled={assistBusy}
+            >
+              {assistBusy ? busyLabel : 'Draft a first note'}
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="apply-compose__assist-act"
+                onClick={() => runAssist('sharpen')}
+                disabled={assistBusy}
+              >
+                {assistBusy && assistMode === 'sharpen' ? busyLabel : 'Sharpen'}
+              </button>
+              {noteLen >= 50 && (
+                <button
+                  type="button"
+                  className="apply-compose__assist-act"
+                  onClick={() => runAssist('shorten')}
+                  disabled={assistBusy}
+                >
+                  {assistBusy && assistMode === 'shorten' ? busyLabel : 'Shorten'}
+                </button>
+              )}
+            </>
+          )}
+          {previousNote !== null && (
+            <button
+              type="button"
+              className="apply-compose__assist-revert"
+              onClick={handleUndoAssist}
+              disabled={assistBusy}
+            >
+              Revert
+            </button>
+          )}
+        </div>
+        <span className="apply-compose__count" data-long={wordCount > 90 ? 'true' : undefined}>
+          {wordCount === 0 ? 'Optional' : `${wordCount} ${wordCount === 1 ? 'word' : 'words'}`}
+        </span>
       </div>
     </div>
   );
@@ -2467,74 +2524,413 @@ function MessagePage({ agency, note, onNoteChange }) {
    07 — Review & send
    ════════════════════════════════════════════════════════════ */
 
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+
+const SECURE_FLOW_NAME = 'Secure Submission';
+
+// Linked social accounts from the talent's Pholio profile (icons, not a typed string).
+function profileSocials(profile) {
+  const clean = (h) => String(h || '').replace(/^@+/, '').trim();
+  const out = [];
+  if (profile?.instagram_handle)
+    out.push({ id: 'instagram', label: 'Instagram', Icon: Instagram, url: `https://instagram.com/${clean(profile.instagram_handle)}` });
+  if (profile?.twitter_handle)
+    out.push({ id: 'twitter', label: 'X', Icon: Twitter, url: `https://x.com/${clean(profile.twitter_handle)}` });
+  if (profile?.tiktok_handle)
+    out.push({ id: 'tiktok', label: 'TikTok', Icon: Music2, url: `https://tiktok.com/@${clean(profile.tiktok_handle)}` });
+  if (profile?.youtube_handle)
+    out.push({ id: 'youtube', label: 'YouTube', Icon: Youtube, url: `https://youtube.com/@${clean(profile.youtube_handle)}` });
+  return out;
+}
+
+// Page 07 — the submission review document: the full package exactly as the agency
+// receives it, each section openable back to its step; a Secure Submission rail
+// carries the acknowledgements. Dispatch is the footer.
 function ReviewSendPage({
   agency,
+  profile,
+  stats,
+  digitalSet,
+  note,
   boardLabels,
-  filledSlots,
-  stale,
-  statsReady,
-  statsDate,
   packageImages,
   compCardName,
+  compCardSlug,
+  compCardPreset,
   checks,
   packageAudit,
   consent,
   onConsentChange,
+  onModify,
+  onSubmit,
+  canSubmit,
+  submitting,
+  submitGateLabel,
 }) {
   const name = agency?.name || 'this agency';
-  const manifest = [
-    { label: 'To', value: name },
+  const talentName =
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Your name';
+  const location = agency?.agency_location || 'Global';
+  const boardLine = boardLabels?.length ? boardLabels.join(' · ') : null;
+  const gender = profile?.gender ? String(profile.gender) : null;
+  const division = gender
+    ? gender.charAt(0).toUpperCase() + gender.slice(1)
+    : boardLabels?.[0] || null;
+  const secondary = stats?.secondary || [];
+  const eyes = secondary.find((s) => s.label === 'Eyes')?.value;
+  const hair = secondary.find((s) => s.label === 'Hair')?.value;
+  const shoe = secondary.find((s) => s.label === 'Shoe')?.value;
+  const socials = profileSocials(profile);
+  const portfolio = websiteUrl(profile?.portfolio_url);
+  const portfolioLabel = agencyDomain(portfolio);
+  const minor = isMinorProfile(profile);
+  const hasContact = socials.length > 0 || !!portfolio;
+
+  const filledDigitals = (digitalSet || []).filter((slot) => slot.image);
+  const bookFrames = (packageImages || []).filter(isBookFrame);
+  const noteText = (note || '').trim();
+
+  const sections = [
     {
-      label: 'Board',
-      value: boardLabels.length ? boardLabels.join(', ') : 'Agency’s placement',
+      step: 'digitals',
+      title: 'Digitals',
+      body:
+        filledDigitals.length > 0 ? (
+          <div className="apply-package__digitals">
+            {filledDigitals.map((slot) => (
+              <figure key={slot.key} className="apply-package__pol">
+                <span className="apply-package__pol-img">
+                  <img src={imageUrl(slot.image)} alt={slot.label} loading="lazy" />
+                </span>
+                <figcaption>{slot.label}</figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <p className="apply-package__empty">No digitals placed yet.</p>
+        ),
     },
     {
-      label: 'Digitals',
-      value: `${filledSlots} of ${DIGITAL_SLOTS.length}${stale ? ' · aged' : filledSlots === DIGITAL_SLOTS.length ? ' · current' : ''}`,
+      step: 'stats',
+      title: 'Statistics',
+      body: stats?.hasAny ? (
+        <>
+          <dl className="apply-package__stats">
+            {stats.height && (
+              <div>
+                <dt>Height</dt>
+                <dd>{stats.height.cm} cm</dd>
+              </div>
+            )}
+            {(stats.vitals || []).map((v) => (
+              <div key={v.label}>
+                <dt>{v.label}</dt>
+                <dd>{v.cm} cm</dd>
+              </div>
+            ))}
+          </dl>
+          {(division || shoe || eyes || hair) && (
+            <dl className="apply-package__traits">
+              {division && (
+                <div>
+                  <dt>Division</dt>
+                  <dd>{division}</dd>
+                </div>
+              )}
+              {shoe && (
+                <div>
+                  <dt>Shoe</dt>
+                  <dd>{shoe}</dd>
+                </div>
+              )}
+              {eyes && (
+                <div>
+                  <dt>Eyes</dt>
+                  <dd>{eyes}</dd>
+                </div>
+              )}
+              {hair && (
+                <div>
+                  <dt>Hair</dt>
+                  <dd>{hair}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+        </>
+      ) : (
+        <p className="apply-package__empty">No measurements on file.</p>
+      ),
+    },
+    bookFrames.length > 0 && {
+      step: 'book',
+      title: 'Book',
+      body: (
+        <>
+          <div className="apply-package__book">
+            {bookFrames.slice(0, 8).map((img) => (
+              <span key={img.id} className="apply-package__frame">
+                <img src={imageUrl(img)} alt="" loading="lazy" />
+              </span>
+            ))}
+          </div>
+          <p className="apply-package__count">
+            {bookFrames.length} frame{bookFrames.length === 1 ? '' : 's'}
+          </p>
+        </>
+      ),
     },
     {
-      label: 'Stats',
-      value: statsReady ? `Complete${statsDate ? ` · ${statsDate}` : ''}` : 'Incomplete',
+      step: 'compcard',
+      title: 'Comp card',
+      body: (
+        <div className="apply-package__cc">
+          <div className="apply-package__cc-card">
+            <CompCardFace slug={compCardSlug} side="front" preset={compCardPreset} />
+          </div>
+          <div className="apply-package__cc-meta">
+            <span className="apply-package__cc-name">{compCardName}</span>
+            <span className="apply-package__cc-spec">5.5 × 8.5 in · two-sided</span>
+            <span className="apply-package__cc-from">Composed live from your book</span>
+          </div>
+        </div>
+      ),
     },
-    { label: 'Book', value: `${packageImages.length} frame${packageImages.length === 1 ? '' : 's'}` },
-    { label: 'Comp card', value: compCardName },
-  ];
+    {
+      step: 'message',
+      title: 'Note',
+      body: (
+        <>
+          {noteText ? (
+            <blockquote className="apply-package__voice">“{noteText}”</blockquote>
+          ) : (
+            <p className="apply-package__empty">No note added — your package stands on its own.</p>
+          )}
+          {hasContact && (
+            <div className="apply-package__contact">
+              <span className="apply-package__contact-label">Contact</span>
+              {socials.length > 0 && (
+                <div className="apply-package__socials">
+                  {socials.map((s) => (
+                    <a
+                      key={s.id}
+                      className="apply-package__social"
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={s.label}
+                      title={s.label}
+                    >
+                      <s.Icon size={17} aria-hidden />
+                    </a>
+                  ))}
+                </div>
+              )}
+              {portfolio && (
+                <a
+                  className="apply-package__portfolio"
+                  href={portfolio}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Globe size={13} aria-hidden />
+                  {portfolioLabel || 'Portfolio'}
+                </a>
+              )}
+            </div>
+          )}
+        </>
+      ),
+    },
+  ].filter(Boolean);
 
   return (
     <div className="apply-review">
-      <section className="apply-manifest" aria-label="Enclosed in this submission">
-        <span className="apply-manifest__label">Enclosed for {name}</span>
-        <dl className="apply-manifest__list">
-          {manifest.map((row) => (
-            <div key={row.label}>
-              <dt>{row.label}</dt>
-              <dd>{row.value}</dd>
+      <article className="apply-package" aria-label={`Submission for ${name}`}>
+        <header className="apply-package__masthead">
+          <div className="apply-package__lockup">
+            <span className="apply-package__pholio">PHOLIO</span>
+            <span className="apply-package__lockup-div" aria-hidden />
+            <span className="apply-package__lockup-agency">{name}</span>
+          </div>
+          <p className="apply-package__kicker">Representation submission</p>
+          <h1 className="apply-package__name">{talentName}</h1>
+          <span className="apply-package__rule" aria-hidden />
+          <p className="apply-package__dest">
+            {location}
+            {boardLine ? ` · ${boardLine}` : ''}
+          </p>
+        </header>
+
+        {sections.map((section, index) => (
+          <section key={section.step} className="apply-package__sec">
+            <div className="apply-package__sec-head">
+              <span className="apply-package__sec-title">
+                {ROMAN[index]} · {section.title}
+              </span>
+              {onModify && (
+                <button
+                  type="button"
+                  className="apply-package__modify"
+                  onClick={() => onModify(section.step)}
+                >
+                  <PenLine size={12} aria-hidden /> Modify
+                </button>
+              )}
             </div>
-          ))}
-        </dl>
-      </section>
-
-      <ul className="apply-readyline" aria-label="Profile readiness">
-        {checks.map((check) => (
-          <li key={check.label} className={check.complete ? 'is-ok' : 'is-need'}>
-            {check.complete ? <Check size={12} aria-hidden /> : <X size={12} aria-hidden />}
-            {check.label}
-          </li>
+            {section.body}
+          </section>
         ))}
-      </ul>
+      </article>
 
-      {packageAudit?.advisories?.length > 0 && (
-        <ul className="apply-package-audit" aria-label="Package notes">
-          {packageAudit.advisories.map((item) => (
-            <li key={`${item.id}-${item.imageIds?.[0] || 'global'}`}>{item.message}</li>
+      <div className="apply-review__rail">
+        <aside className="apply-seal" aria-label="Secure Submission">
+        <span className="apply-seal__flow">{SECURE_FLOW_NAME}</span>
+        <p className="apply-seal__handling">
+          Your package is delivered directly to <strong>{name}</strong> for representation review —
+          never published, never shared elsewhere.
+        </p>
+
+        <ul className="apply-seal__acks" aria-label="Acknowledgements">
+          <li>Your statistics and digitals are accurate, current, and unretouched.</li>
+          <li>
+            {minor
+              ? 'A parent or guardian has consented to this submission.'
+              : 'You are 18 or older and authorised to submit your own work.'}
+          </li>
+          <li>A submission is a request for review and does not guarantee representation.</li>
+        </ul>
+
+        <ul className="apply-readyline" aria-label="Profile readiness">
+          {checks.map((check) => (
+            <li key={check.label} className={check.complete ? 'is-ok' : 'is-need'}>
+              {check.complete ? <Check size={12} aria-hidden /> : <X size={12} aria-hidden />}
+              {check.label}
+            </li>
           ))}
         </ul>
-      )}
 
-      <label className="app-consent-check">
-        <input type="checkbox" checked={consent} onChange={(e) => onConsentChange(e.target.checked)} />
-        <span>I consent to sharing my profile, book, and comp card with {name}.</span>
-      </label>
+        {packageAudit?.advisories?.length > 0 && (
+          <ul className="apply-package-audit" aria-label="Package notes">
+            {packageAudit.advisories.map((item) => (
+              <li key={`${item.id}-${item.imageIds?.[0] || 'global'}`}>{item.message}</li>
+            ))}
+          </ul>
+        )}
+
+        <label className="apply-seal__consent">
+          <input type="checkbox" checked={consent} onChange={(e) => onConsentChange(e.target.checked)} />
+          <span>
+            I have reviewed this package and consent to submitting it to {name} through Pholio.
+          </span>
+        </label>
+        </aside>
+
+        <button
+          type="button"
+          className="apply-submit"
+          onClick={onSubmit}
+          disabled={!canSubmit}
+          data-state={submitting ? 'sending' : submitGateLabel ? 'locked' : 'ready'}
+        >
+          {submitting ? (
+            <>
+              <Loader2 size={15} className="app-spin" aria-hidden /> Submitting…
+            </>
+          ) : submitGateLabel ? (
+            <>
+              <Lock size={14} aria-hidden /> {submitGateLabel}
+            </>
+          ) : (
+            <>
+              Submit to {name} <Send size={15} aria-hidden />
+            </>
+          )}
+        </button>
+      </div>
     </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   Submission success — a full-screen, motion-led confirmation
+   ════════════════════════════════════════════════════════════ */
+
+function ApplySuccess({ firstName, agencyName, submittedAt, market, onExit }) {
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  const container = {
+    hidden: {},
+    show: {
+      transition: {
+        staggerChildren: reduce ? 0 : 0.08,
+        delayChildren: reduce ? 0 : 0.12,
+      },
+    },
+  };
+  const item = reduce
+    ? { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.3 } } }
+    : {
+        hidden: { opacity: 0, y: 18 },
+        show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 58, damping: 16 } },
+      };
+
+  const pace = market
+    ? `and can run longer at a busy ${market} house during peak casting`
+    : 'and can run longer during peak casting';
+  const guidance =
+    `${agencyName} reviews new submissions in batches, so you won’t always hear back right away — ` +
+    `a reply usually takes anywhere from a few days to a few weeks, ${pace}. ` +
+    `You’ll be notified through Pholio the moment ${agencyName} responds; nothing further is needed from you.`;
+
+  return createPortal(
+    <div className="apply-success" role="status" aria-live="polite">
+      <motion.div
+        className="apply-success__inner"
+        variants={container}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.span className="apply-success__brand" variants={item}>
+          <span className="apply-success__pholio">PHOLIO</span>
+          <span className="apply-success__brand-div" aria-hidden />
+          <span className="apply-success__brand-sub">Submission confirmed</span>
+        </motion.span>
+
+        <motion.span className="apply-success__seal" variants={item} aria-hidden>
+          <Check size={24} strokeWidth={1.6} />
+        </motion.span>
+
+        <motion.h1 className="apply-success__title" variants={item}>
+          Thank you{firstName ? `, ${firstName}` : ''}.
+        </motion.h1>
+        <motion.p className="apply-success__lede" variants={item}>
+          Your submission has been sent to <em>{agencyName}</em>.
+        </motion.p>
+        <motion.p className="apply-success__receipt" variants={item}>
+          {dateLabel(submittedAt)} · Under review
+        </motion.p>
+
+        <motion.div className="apply-success__guidance" variants={item}>
+          <span className="apply-success__guidance-label">What happens next</span>
+          <p>{guidance}</p>
+        </motion.div>
+
+        <motion.div className="apply-success__actions" variants={item}>
+          <button type="button" className="apply-success__action" onClick={onExit}>
+            Track this submission <ArrowUpRight size={15} aria-hidden />
+          </button>
+        </motion.div>
+      </motion.div>
+    </div>,
+    document.body,
   );
 }

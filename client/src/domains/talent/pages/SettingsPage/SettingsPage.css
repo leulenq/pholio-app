@@ -325,73 +325,6 @@
 }
 .ts-input--icon { padding-left: 40px; }
 
-/* ─── Buttons ─── */
-.ts-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px 18px;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s var(--ts-ease);
-  white-space: nowrap;
-}
-.ts-btn:disabled { opacity: 0.45; cursor: default; }
-.ts-btn:focus-visible {
-  outline: 2px solid rgba(201, 165, 90, 0.45);
-  outline-offset: 2px;
-}
-
-.ts-btn-primary {
-  background: var(--ts-gold);
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(26, 24, 21, 0.08);
-}
-.ts-btn-primary:hover:not(:disabled) {
-  background: var(--ag-gold-hover, #b8956a);
-}
-
-.ts-btn-secondary {
-  background: var(--ts-surface);
-  color: var(--ts-text-body);
-  border: 1px solid var(--ts-border-strong);
-}
-.ts-btn-secondary:hover:not(:disabled) {
-  background: var(--ts-cream-warm);
-  border-color: rgba(26, 24, 21, 0.2);
-}
-
-.ts-btn-ghost {
-  background: transparent;
-  color: #8a7040;
-  border: 1px solid rgba(201, 165, 90, 0.35);
-}
-.ts-btn-ghost:hover:not(:disabled) {
-  background: var(--ts-gold-ghost);
-  border-color: rgba(201, 165, 90, 0.5);
-}
-
-.ts-btn-danger {
-  background: var(--ag-danger, #c0392b);
-  color: #fff;
-}
-.ts-btn-danger:hover:not(:disabled) { background: #a93226; }
-
-.ts-btn-danger-ghost {
-  background: transparent;
-  color: var(--ag-danger, #c0392b);
-  border: 1px solid rgba(192, 57, 43, 0.28);
-}
-.ts-btn-danger-ghost:hover:not(:disabled) {
-  background: var(--ag-danger-dim, rgba(192, 57, 43, 0.06));
-  border-color: rgba(192, 57, 43, 0.4);
-}
-
 /* ─── Avatar ─── */
 .ts-avatar-section {
   display: flex;
@@ -730,18 +663,6 @@
   font-weight: 500;
   color: var(--ag-success, #2d8a56);
 }
-.ts-invoice-download {
-  background: transparent;
-  border: none;
-  color: #8a7040;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 4px 0;
-  transition: color 0.2s var(--ts-ease);
-}
-.ts-invoice-download:hover { color: var(--ts-gold); }
-
 /* ─── Credential / action rows ─── */
 .ts-credential-row {
   display: flex;

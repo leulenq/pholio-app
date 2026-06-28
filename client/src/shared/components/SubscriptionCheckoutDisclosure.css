@@ -251,7 +251,8 @@
     flex-direction: column-reverse;
   }
 
-  .ph-billing-btn {
+  .ph-billing-btn,
+  .ph-billing-modal__actions .pholio-btn {
     width: 100%;
     justify-content: center;
   }

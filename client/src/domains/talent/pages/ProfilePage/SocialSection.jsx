@@ -4,6 +4,7 @@ import { Instagram, Twitter, Youtube, PlaySquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Section, SocialInput } from '../../components/profile-index';
 import { isMinorProfile } from '../../../../shared/utils/talentAge';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
 import styles from './ProfilePage.module.css';
 
 const TiktokIcon = ({ size = 24, className }) => (
@@ -115,15 +116,15 @@ const PlatformCard = ({ platformKey, control, setValue, errors }) => {
                  )}
                </div>
                {isConnected ? (
-                 <button type="button" className={styles.platformDisconnect} onClick={() => { setValue(p.id, null, {shouldDirty: true}); setIsManual(false); }} title="Remove link">
+                 <PholioButton type="button" variant="danger-ghost" size="sm" system="dashboard" onClick={() => { setValue(p.id, null, {shouldDirty: true}); setIsManual(false); }} title="Remove link">
                    <Trash2 size={14} />
                    <span>Remove</span>
-                 </button>
+                 </PholioButton>
                ) : (
                  p.isOAuth && !showInput && (
-                   <button type="button" className={styles.platformConnect} onClick={() => toast.info(`${p.name} OAuth connection coming soon. Please use manual entry.`)}>
+                   <PholioButton type="button" variant="outline" size="sm" system="dashboard" onClick={() => toast.info(`${p.name} OAuth connection coming soon. Please use manual entry.`)}>
                      {p.actionText}
-                   </button>
+                   </PholioButton>
                  )
                )}
              </div>
@@ -143,9 +144,9 @@ const PlatformCard = ({ platformKey, control, setValue, errors }) => {
              )}
              
              {!showInput && !isConnected && p.isOAuth && (
-               <button type="button" className={styles.platformManualBtn} onClick={() => setIsManual(true)}>
+               <PholioButton type="button" variant="ghost" size="sm" system="dashboard" className={styles.platformManualBtn} onClick={() => setIsManual(true)}>
                  Add profile link manually
-               </button>
+               </PholioButton>
              )}
           </div>
         );

@@ -11,6 +11,7 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { talentApi } from '../api/talent';
 import CohortHeatmap from './CohortHeatmap';
 import SessionsBarChart from './SessionsBarChart';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 
 const CHAPTER_MOTION = {
   initial: { opacity: 0, y: 24 },
@@ -513,11 +514,9 @@ export default function AnalyticsView() {
             Something went <em style={{ fontStyle: 'italic', color: '#C8A96E' }}>wrong.</em>
           </h1>
           <p style={{ fontFamily: 'Inter,sans-serif', fontSize: 15, fontWeight: 300, color: 'rgba(26,26,26,0.52)', marginBottom: 24 }}>We couldn't load your Analytics right now.</p>
-          <button onClick={() => refetch()} style={{
-            padding: '10px 24px', borderRadius: 8,
-            background: 'rgba(201,165,90,0.14)', border: '1px solid rgba(201,165,90,0.28)',
-            color: '#C9A55A', fontFamily: 'Inter', fontSize: 13, cursor: 'pointer',
-          }}>Try again</button>
+          <PholioButton variant="outline" system="dashboard" onClick={() => refetch()}>
+            Try again
+          </PholioButton>
         </div>
       </div>
     );

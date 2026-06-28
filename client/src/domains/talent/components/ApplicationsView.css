@@ -1369,81 +1369,23 @@
 }
 
 .app-detail__next {
-  margin-top: 28px;
-  padding: 22px 0;
-  border-top: 1px solid var(--app-hair-gold);
-  border-bottom: 1px solid var(--app-hair);
-}
-
-.app-detail__next p {
-  margin: 10px 0 0;
+  margin: 18px 0 0;
+  max-width: 32rem;
   color: var(--app-text);
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(1.35rem, 2vw, 2rem);
+  font-size: clamp(1.3rem, 2vw, 1.9rem);
   font-style: italic;
   font-weight: 300;
-  line-height: 1.18;
+  line-height: 1.22;
 }
 
-.app-detail__next .app-detail__stale {
-  margin-top: 12px;
+.app-detail__stale {
+  margin: 12px 0 0;
+  max-width: 32rem;
   font-family: 'Inter', sans-serif;
   font-size: 12.5px;
-  font-style: normal;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--app-gold-warm);
-}
-
-.app-detail__history {
-  margin-top: 24px;
-}
-
-.app-detail__history-title {
-  display: block;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--app-text-faint);
-  margin-bottom: 14px;
-}
-
-.app-detail__history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.app-detail__history-row {
-  display: grid;
-  grid-template-columns: 10px 1fr auto;
-  align-items: center;
-  gap: 12px;
-}
-
-.app-detail__history-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--app-gold);
-  justify-self: center;
-}
-
-.app-detail__history-label {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: var(--app-text);
-}
-
-.app-detail__history-date {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--app-text-faint);
 }
 
 .app-detail__note {
@@ -1474,12 +1416,190 @@
   overflow-wrap: anywhere;
 }
 
-.app-detail__actions,
 .app-error-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 26px;
+}
+
+.app-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+  margin-top: 28px;
+}
+
+/* Primary editorial action — hairline-framed, mono, not a filled pill. */
+.app-detail__act {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 17px;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--app-ease),
+    color 0.2s var(--app-ease),
+    background 0.2s var(--app-ease);
+}
+
+.app-detail__act:hover {
+  border-color: var(--app-gold);
+  color: var(--app-gold);
+  background: rgba(201, 165, 90, 0.05);
+}
+
+/* Withdraw — a calm, destructive text action; danger only surfaces on hover. */
+.app-detail__withdraw {
+  padding: 0 0 3px;
+  border: 0;
+  border-bottom: 1px solid var(--app-hair-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 0.2s var(--app-ease),
+    border-color 0.2s var(--app-ease);
+}
+
+.app-detail__withdraw:hover:not(:disabled) {
+  color: rgba(116, 47, 47, 0.92);
+  border-color: rgba(116, 47, 47, 0.5);
+}
+
+.app-detail__withdraw:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── Message dock — on-demand conversation anchored bottom-right ──────────── */
+@keyframes app-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-msgdock__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.app-msgdock {
+  position: fixed;
+  right: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vw, 28px);
+  z-index: 41;
+  width: min(384px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: var(--app-radius);
+  background: var(--app-cream);
+  box-shadow: 0 24px 60px rgba(26, 26, 26, 0.18);
+  animation: app-dock-in 0.32s var(--app-ease) both;
+}
+
+.app-msgdock__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--app-hair);
+}
+
+.app-msgdock__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 300;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-msgdock__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--app-hair);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text-faint);
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--app-ease),
+    color 0.2s var(--app-ease);
+}
+
+.app-msgdock__close:hover {
+  border-color: var(--app-gold);
+  color: var(--app-gold);
+}
+
+.app-msgdock__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* The thread fills and scrolls; the composer stays pinned at the dock's base. */
+.app-msgdock .app-msg {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.app-msgdock .app-msg__thread,
+.app-msgdock .app-msg__empty {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.app-msgdock .app-msg__compose {
+  margin: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--app-hair);
+  background: var(--app-cream);
 }
 
 .app-detail__package {
@@ -1810,7 +1930,6 @@
     right: -12px;
   }
 
-  .app-detail__timeline,
   .app-agency-grid {
     grid-template-columns: 1fr;
   }
@@ -1827,15 +1946,6 @@
 
   .app-market-index {
     grid-template-columns: 1fr;
-  }
-
-  .app-activity__legend {
-    grid-template-columns: 1fr;
-  }
-
-  .app-detail__agency {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 14px;
   }
 
   .app-detail__mark {

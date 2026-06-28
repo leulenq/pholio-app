@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
+import PholioButton from './PholioButton';
 import './ConfirmationDialog.css';
 
 /**
@@ -15,6 +16,7 @@ export default function ConfirmationDialog({
   variant = 'danger',
   count,
   isConfirming = false,
+  buttonSystem = 'legacy',
   onConfirm,
   onCancel,
 }) {
@@ -73,27 +75,57 @@ export default function ConfirmationDialog({
           </div>
 
           <div className="cfd-foot">
-            <button
-              type="button"
-              className="cfd-btn cfd-btn--ghost"
-              disabled={isConfirming}
-              onClick={onCancel}
-            >
-              {cancelLabel}
-            </button>
-            <button
-              type="button"
-              className={`cfd-btn ${style.btnClass}`}
-              disabled={isConfirming}
-              onClick={onConfirm}
-            >
-              {isConfirming ? (
-                <>
-                  <Loader2 size={14} className="cfd-spin" aria-hidden="true" />
-                  {confirmLabel}
-                </>
-              ) : confirmLabel}
-            </button>
+            {buttonSystem === 'dashboard' ? (
+              <>
+                <PholioButton
+                  type="button"
+                  variant="secondary"
+                  system="dashboard"
+                  disabled={isConfirming}
+                  onClick={onCancel}
+                >
+                  {cancelLabel}
+                </PholioButton>
+                <PholioButton
+                  type="button"
+                  variant={variant === 'danger' ? 'danger' : 'primary'}
+                  system="dashboard"
+                  disabled={isConfirming}
+                  onClick={onConfirm}
+                >
+                  {isConfirming ? (
+                    <>
+                      <Loader2 size={14} className="cfd-spin" aria-hidden="true" />
+                      {confirmLabel}
+                    </>
+                  ) : confirmLabel}
+                </PholioButton>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="cfd-btn cfd-btn--ghost"
+                  disabled={isConfirming}
+                  onClick={onCancel}
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  type="button"
+                  className={`cfd-btn ${style.btnClass}`}
+                  disabled={isConfirming}
+                  onClick={onConfirm}
+                >
+                  {isConfirming ? (
+                    <>
+                      <Loader2 size={14} className="cfd-spin" aria-hidden="true" />
+                      {confirmLabel}
+                    </>
+                  ) : confirmLabel}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

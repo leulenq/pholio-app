@@ -332,10 +332,7 @@
   margin-top: 12px;
 }
 
-.pem-nudge-row button,
-.pem-reset-btn,
-.pem-primary-btn,
-.pem-secondary-btn {
+.pem-nudge-row button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -351,22 +348,14 @@
   transition: background 0.2s var(--pem-ease), border-color 0.2s var(--pem-ease), color 0.2s var(--pem-ease), opacity 0.2s var(--pem-ease);
 }
 
-.pem-nudge-row button,
-.pem-reset-btn,
-.pem-secondary-btn {
+.pem-nudge-row button {
   border: 1px solid var(--pem-hair-strong);
   background: transparent;
   color: var(--pem-text);
 }
 
-.pem-nudge-row button:hover,
-.pem-reset-btn:hover,
-.pem-secondary-btn:hover {
+.pem-nudge-row button:hover {
   border-color: rgba(26, 26, 26, 0.32);
-}
-
-.pem-reset-btn {
-  width: 100%;
 }
 
 .pem-footer {
@@ -376,22 +365,6 @@
   padding: 18px 24px;
   border-top: 1px solid var(--pem-hair);
   background: rgba(250, 247, 242, 0.92);
-}
-
-.pem-primary-btn {
-  border: 1px solid var(--pem-gold);
-  background: var(--pem-gold);
-  color: var(--pem-ink);
-}
-
-.pem-primary-btn:hover {
-  border-color: var(--pem-gold-light);
-  background: var(--pem-gold-light);
-}
-
-.pem-primary-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 @keyframes pem-arrive {

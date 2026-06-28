@@ -322,6 +322,7 @@ export default function ProfileStrengthSidebar({
           <PholioButton
             as={motion.button}
             variant={!hasChanges && !isSaving ? 'secondary' : 'solid'}
+            system="dashboard"
             className={styles.saveButton}
             fullWidth
             onClick={onSaveClick}

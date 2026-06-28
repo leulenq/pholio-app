@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Lock } from 'lucide-react';
 import { MARKETING_SITE_URL } from '../lib/logout';
 import PholioBillingWordmark from './billing/PholioBillingWordmark';
+import PholioButton from './ui/PholioButton';
 import './SubscriptionCheckoutDisclosure.css';
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -62,6 +63,7 @@ export function SubscriptionCheckoutModal({
   onConfirm,
   isLoading,
   subscription,
+  buttonSystem = 'legacy',
 }) {
   const reduceMotion = useReducedMotion();
   const [accepted, setAccepted] = useState(false);
@@ -175,22 +177,47 @@ export function SubscriptionCheckoutModal({
           />
 
           <div className="ph-billing-modal__actions">
-            <button
-              type="button"
-              className="ph-billing-btn ph-billing-btn--ghost"
-              onClick={handleClose}
-              disabled={isLoading}
-            >
-              Not now
-            </button>
-            <button
-              type="button"
-              className="ph-billing-btn ph-billing-btn--primary"
-              disabled={!accepted || isLoading}
-              onClick={handleConfirm}
-            >
-              {isLoading ? 'Preparing checkout…' : 'Continue to secure checkout'}
-            </button>
+            {buttonSystem === 'dashboard' ? (
+              <>
+                <PholioButton
+                  type="button"
+                  variant="secondary"
+                  system="dashboard"
+                  onClick={handleClose}
+                  disabled={isLoading}
+                >
+                  Not now
+                </PholioButton>
+                <PholioButton
+                  type="button"
+                  variant="primary"
+                  system="dashboard"
+                  disabled={!accepted || isLoading}
+                  onClick={handleConfirm}
+                >
+                  {isLoading ? 'Preparing checkout…' : 'Continue to secure checkout'}
+                </PholioButton>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="ph-billing-btn ph-billing-btn--ghost"
+                  onClick={handleClose}
+                  disabled={isLoading}
+                >
+                  Not now
+                </button>
+                <button
+                  type="button"
+                  className="ph-billing-btn ph-billing-btn--primary"
+                  disabled={!accepted || isLoading}
+                  onClick={handleConfirm}
+                >
+                  {isLoading ? 'Preparing checkout…' : 'Continue to secure checkout'}
+                </button>
+              </>
+            )}
           </div>
 
           <p className="ph-billing-modal__secure">

@@ -445,7 +445,7 @@ export default function OverviewPage() {
                 </p>
               )}
 
-              <PholioButton to={auditCtaTo} variant="primary">
+              <PholioButton to={auditCtaTo} variant="outline" system="dashboard">
                 {auditCtaLabel}
               </PholioButton>
             </div>
@@ -486,6 +486,7 @@ export default function OverviewPage() {
                   <span>Analytics unavailable.</span>
                   <PholioButton
                     variant="ghost"
+                    system="dashboard"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >
@@ -532,7 +533,7 @@ export default function OverviewPage() {
                     <p className="ov-artifact-desc">
                       Comp-card export unlocks after guardian consent is recorded on your profile.
                     </p>
-                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
+                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary" system="dashboard">
                       Record guardian consent
                     </PholioButton>
                   </div>
@@ -547,7 +548,7 @@ export default function OverviewPage() {
                     <p className="ov-artifact-desc">
                       Complete your required profile fields to unlock comp card export.
                     </p>
-                    <PholioButton to="/dashboard/talent/profile" variant="secondary">
+                    <PholioButton to="/dashboard/talent/profile" variant="secondary" system="dashboard">
                       Complete your card
                     </PholioButton>
                   </div>
@@ -626,6 +627,7 @@ export default function OverviewPage() {
                   <span>Website analytics unavailable.</span>
                   <PholioButton
                     variant="ghost"
+                    system="dashboard"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >

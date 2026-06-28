@@ -632,26 +632,8 @@ select.fe-input {
 }
 
 .fe-reset-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
   margin-top: 4px;
-  border: 1px dashed var(--fe-input-bd);
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  font-family: var(--fe-sans);
-  font-size: 11.5px;
-  font-weight: 300;
-  color: var(--fe-cream-faint);
-  transition: all 0.2s var(--fe-ease);
   align-self: flex-start;
-}
-
-.fe-reset-btn:hover {
-  border-color: var(--fe-border-mid);
-  color: var(--fe-cream-soft);
 }
 
 /* ── Footer ── */
@@ -668,92 +650,17 @@ select.fe-input {
   flex-shrink: 0;
 }
 
-.fe-cancel {
-  padding: 8px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
-  background: transparent;
-  cursor: pointer;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  color: rgba(245, 240, 232, 0.45);
-  transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.fe-cancel:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  color: rgba(245, 240, 232, 0.7);
-}
-
 .fe-restore {
   margin-right: auto;
-  padding: 6px 14px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: var(--fe-mono);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--fe-cream-faint);
-  border-radius: 4px;
-  transition: color 0.2s var(--fe-ease), background 0.2s var(--fe-ease);
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
 }
 
-.fe-restore:hover:not(:disabled) {
-  color: var(--fe-cream-soft);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.fe-restore:disabled { opacity: 0.3; cursor: not-allowed; }
-
-/* Primary — matches tl-btn-upgrade exactly: gold bg, ink text, radius 2px */
-.fe-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: 1px solid var(--fe-gold);
-  border-radius: 2px;
-  background: var(--fe-gold);
-  cursor: pointer;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--fe-ink);
-  line-height: 1;
-  transition:
-    background 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.fe-primary:hover:not(:disabled) {
-  background: #d4bc8a;
-  border-color: #d4bc8a;
-  color: var(--fe-ink);
-}
-
-.fe-primary:focus-visible {
-  outline: 2px solid rgba(201, 165, 90, 0.55);
-  outline-offset: 2px;
-}
-
-.fe-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-
-/* ── Spinner — ink on gold button ── */
+/* ── Spinner ── */
 .fe-spin {
   display: inline-block;
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(5, 5, 5, 0.2);
-  border-top-color: var(--fe-ink);
+  border: 2px solid rgba(255, 255, 255, 0.34);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: fe-spin-anim 0.7s linear infinite;
 }

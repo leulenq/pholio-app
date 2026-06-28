@@ -502,35 +502,6 @@
 
 .saveButton {
   min-height: 42px;
-  border-radius: 999px;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  box-shadow: none;
-}
-
-.saveButton:global(.pholio-btn--solid) {
-  background: #1A1815;
-  color: #FFFFFF;
-  border-color: rgba(201, 165, 90, 0.52);
-  box-shadow: 0 10px 24px rgba(26, 24, 21, 0.1);
-}
-
-.saveButton:global(.pholio-btn--solid):hover:not(:disabled) {
-  background: #2D2A26;
-  border-color: rgba(201, 165, 90, 0.82);
-  box-shadow: 0 12px 28px rgba(26, 24, 21, 0.14);
-}
-
-.saveButton:global(.pholio-btn--secondary) {
-  background: #F8F5EF;
-  color: #6B6560;
-  border-color: rgba(26, 24, 21, 0.1);
-}
-
-.saveButton:global(.pholio-btn--secondary):hover:not(:disabled) {
-  background: rgba(201, 165, 90, 0.08);
-  border-color: rgba(201, 165, 90, 0.4);
-  color: #2D2A26;
 }
 
 .spinner {

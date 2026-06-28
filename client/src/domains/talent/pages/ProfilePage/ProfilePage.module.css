@@ -1835,67 +1835,8 @@
   text-decoration: underline;
 }
 
-.platformConnect {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--pf-hair);
-  cursor: pointer;
-  background: transparent;
-  color: var(--pf-text);
-  white-space: nowrap;
-  transition: border-color 0.2s var(--pf-ease-std), color 0.2s var(--pf-ease-std);
-}
-
-.platformConnect:hover {
-  border-color: var(--pf-hair-strong);
-}
-
-.platformConnect:active {
-  transform: scale(0.98);
-}
-
-.platformDisconnect {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--pf-hair);
-  background: transparent;
-  color: var(--pf-text-soft);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s var(--pf-ease-std);
-}
-
-.platformDisconnect:hover {
-  border-color: #b04848;
-  color: #b04848;
-  background: rgba(176, 72, 72, 0.04);
-}
-
 .platformManualBtn {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--pf-text-faint);
-  background: none;
-  border: none;
-  text-align: left;
-  padding: 0;
-  cursor: pointer;
   align-self: flex-start;
-  transition: color 0.2s var(--pf-ease-std);
-}
-
-.platformManualBtn:hover {
-  color: var(--pf-text-soft);
-  text-decoration: underline;
 }
 
 .platformInputArea {
@@ -1903,13 +1844,6 @@
   padding-top: 12px;
   margin-top: 2px;
 }
-
-/* Brand specific styling */
-.platformInstagram .platformConnect:hover { color: #cc2366; border-color: rgba(204, 35, 102, 0.3); }
-.platformTiktok .platformConnect:hover { color: #000; border-color: rgba(0, 0, 0, 0.3); }
-.platformTwitter .platformConnect:hover { color: #000; border-color: rgba(0, 0, 0, 0.3); }
-.platformYoutube .platformConnect:hover { color: #ff0000; border-color: rgba(255, 0, 0, 0.3); }
-.platformOnlyfans .platformConnect:hover { color: #00AFF0; border-color: rgba(0, 175, 240, 0.3); }
 
 .platformInstagram :global(.pholio-input):focus { border-color: #cc2366; box-shadow: 0 0 0 1px #cc2366; }
 .platformTiktok :global(.pholio-input):focus { border-color: #000; box-shadow: 0 0 0 1px #000; }

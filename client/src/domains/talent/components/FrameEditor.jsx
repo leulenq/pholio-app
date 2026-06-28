@@ -15,6 +15,7 @@ import {
   expressionPickerOptions,
 } from '../../../shared/constants/frameTaxonomy';
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './FrameEditor.css';
 
 const ASPECTS = [
@@ -497,10 +498,10 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                     </div>
                   </div>
 
-                  <button type="button" className="fe-reset-btn" onClick={resetCrop}>
+                  <PholioButton type="button" variant="inverse" size="sm" system="dashboard" className="fe-reset-btn" onClick={resetCrop}>
                     <ScanLine size={14} aria-hidden="true" />
                     Reset composition
-                  </button>
+                  </PholioButton>
                 </>
               ) : (
                 <>
@@ -887,10 +888,10 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
 
         {/* ── Footer ── */}
         <footer className="fe-foot">
-          <button type="button" className="fe-cancel" onClick={onClose}>Cancel</button>
+          <PholioButton type="button" variant="inverse" system="dashboard" onClick={onClose}>Cancel</PholioButton>
           {image.has_original && onRestore && (
-            <button
-              type="button" className="fe-restore"
+            <PholioButton
+              type="button" variant="inverse-ghost" size="sm" system="dashboard" className="fe-restore"
               onClick={handleRestore}
               disabled={isRestoring || isProcessing || saving}
               title="Remove all edits and restore the original uploaded file"
@@ -898,20 +899,20 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
               {isRestoring
                 ? <><span className="fe-spin" aria-hidden="true" />Restoring…</>
                 : 'Restore original'}
-            </button>
+            </PholioButton>
           )}
           {mode === 'crop' ? (
-            <button type="button" className="fe-primary" onClick={handleApplyCrop} disabled={isProcessing || isRestoring}>
+            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleApplyCrop} disabled={isProcessing || isRestoring}>
               {isProcessing
                 ? <><span className="fe-spin" aria-hidden="true" />Processing…</>
                 : <><Crop size={15} aria-hidden="true" />Apply crop</>}
-            </button>
+            </PholioButton>
           ) : (
-            <button type="button" className="fe-primary" onClick={handleSave} disabled={saving || isRestoring}>
+            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleSave} disabled={saving || isRestoring}>
               {saving
                 ? <><span className="fe-spin" aria-hidden="true" />Saving…</>
                 : <><Save size={15} aria-hidden="true" />Save frame</>}
-            </button>
+            </PholioButton>
           )}
         </footer>
 

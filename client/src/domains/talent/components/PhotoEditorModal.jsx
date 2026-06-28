@@ -5,6 +5,7 @@ import { Crop, RotateCcw, RotateCw, Save, ScanLine, X, ZoomIn } from 'lucide-rea
 import { toast } from 'sonner';
 
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './PhotoEditorModal.css';
 
 const ASPECTS = [
@@ -151,19 +152,19 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
               </div>
             </div>
 
-            <button type="button" className="pem-reset-btn" onClick={resetCrop}>
+            <PholioButton type="button" variant="secondary" system="dashboard" fullWidth onClick={resetCrop}>
               <ScanLine size={14} />
               Reset composition
-            </button>
+            </PholioButton>
           </div>
 
           <footer className="pem-footer">
-            <button type="button" onClick={onClose} className="pem-secondary-btn">
+            <PholioButton type="button" variant="secondary" system="dashboard" onClick={onClose}>
               Cancel
-            </button>
-            <button type="button" onClick={handleSave} disabled={isProcessing} className="pem-primary-btn">
+            </PholioButton>
+            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleSave} disabled={isProcessing}>
               {isProcessing ? 'Processing...' : <><Save size={15} />Apply crop</>}
-            </button>
+            </PholioButton>
           </footer>
         </aside>
       </section>

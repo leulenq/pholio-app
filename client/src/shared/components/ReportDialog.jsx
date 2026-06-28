@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
+import PholioButton from './ui/PholioButton';
 
 const REASONS = [
   { value: 'harassment', label: 'Harassment or abuse' },
@@ -42,7 +43,14 @@ const TARGET_TYPES = [
  *                            If omitted, user enters it in the form.
  *   targetLabel {string}   — optional human-readable name shown in the heading
  */
-export default function ReportDialog({ open, onClose, targetType: targetTypeProp, targetId: targetIdProp, targetLabel }) {
+export default function ReportDialog({
+  open,
+  onClose,
+  targetType: targetTypeProp,
+  targetId: targetIdProp,
+  targetLabel,
+  buttonSystem = 'legacy',
+}) {
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
   const [targetType, setTargetType] = useState(targetTypeProp || '');
@@ -374,43 +382,67 @@ export default function ReportDialog({ open, onClose, targetType: targetTypeProp
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={pending}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '8px',
-                border: '1px solid var(--ag-border, rgba(26,24,21,0.12))',
-                background: 'transparent',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: 'var(--ag-text-1, #2d2a26)',
-                cursor: 'pointer',
-                transition: 'background 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--ag-surface-0, #faf8f5)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!reason || !targetType || !targetId.trim() || pending}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '8px',
-                border: 'none',
-                background: (reason && targetType && targetId.trim() && !pending) ? 'var(--ag-gold, #c9a55a)' : 'var(--ag-border, rgba(26,24,21,0.12))',
-                color: (reason && targetType && targetId.trim() && !pending) ? '#fff' : 'var(--ag-text-2, #6b6560)',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                cursor: (reason && targetType && targetId.trim() && !pending) ? 'pointer' : 'not-allowed',
-                transition: 'background 0.15s ease, color 0.15s ease',
-              }}
-            >
-              {pending ? 'Submitting…' : 'Submit report'}
-            </button>
+            {buttonSystem === 'dashboard' ? (
+              <>
+                <PholioButton
+                  type="button"
+                  variant="secondary"
+                  system="dashboard"
+                  onClick={onClose}
+                  disabled={pending}
+                >
+                  Cancel
+                </PholioButton>
+                <PholioButton
+                  type="submit"
+                  variant="primary"
+                  system="dashboard"
+                  disabled={!reason || !targetType || !targetId.trim() || pending}
+                >
+                  {pending ? 'Submitting…' : 'Submit report'}
+                </PholioButton>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={pending}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--ag-border, rgba(26,24,21,0.12))',
+                    background: 'transparent',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--ag-text-1, #2d2a26)',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--ag-surface-0, #faf8f5)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!reason || !targetType || !targetId.trim() || pending}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: (reason && targetType && targetId.trim() && !pending) ? 'var(--ag-gold, #c9a55a)' : 'var(--ag-border, rgba(26,24,21,0.12))',
+                    color: (reason && targetType && targetId.trim() && !pending) ? '#fff' : 'var(--ag-text-2, #6b6560)',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: (reason && targetType && targetId.trim() && !pending) ? 'pointer' : 'not-allowed',
+                    transition: 'background 0.15s ease, color 0.15s ease',
+                  }}
+                >
+                  {pending ? 'Submitting…' : 'Submit report'}
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>
