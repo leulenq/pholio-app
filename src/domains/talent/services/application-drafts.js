@@ -5,8 +5,10 @@ const {
   isDigitalSlot,
   hasShotType,
 } = require("./profile-readiness-images");
+const {
+  currentVersion: DRAFT_SCHEMA_VERSION,
+} = require("../../../../shared/application-draft-schema.json");
 
-const DRAFT_SCHEMA_VERSION = 1;
 const DRAFT_EXPIRES_AFTER_MS = 90 * 24 * 60 * 60 * 1000;
 const DRAFT_RECOVERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 // Kept as a compatibility export for callers that used the former 30-day
@@ -281,6 +283,8 @@ async function normalizeDraftPayloadWithRepairs(
       compCardPreset,
       note,
       consent: source.consent === true,
+      accuracyConfirmed: source.accuracyConfirmed === true,
+      adultAuthorityConfirmed: source.adultAuthorityConfirmed === true,
     },
     repairWarnings: dedupeRepairWarnings(repairs),
   };

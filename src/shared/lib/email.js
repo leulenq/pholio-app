@@ -227,17 +227,23 @@ async function sendGuardianConsentEmail({
   talentName,
   talentPhotoUrl,
   talentCity,
+  agencyName,
   consentUrl,
   expiresDays = 7,
 }) {
-  const subject = talentName
-    ? `Consent requested for ${talentName} on Pholio`
-    : "Guardian consent requested on Pholio";
+  const subject = agencyName
+    ? talentName
+      ? `Consent requested for ${talentName} to submit to ${agencyName}`
+      : `Guardian authorization requested for a submission to ${agencyName}`
+    : talentName
+      ? `Consent requested for ${talentName} on Pholio`
+      : "Guardian consent requested on Pholio";
   const html = buildGuardianConsentEmailHtml({
     guardianName,
     talentName,
     talentPhotoUrl,
     talentCity,
+    agencyName,
     consentUrl,
     expiresDays,
   });

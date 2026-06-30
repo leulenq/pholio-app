@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import PholioButton from '../../../shared/components/ui/PholioButton';
@@ -100,8 +99,10 @@ export default function CompCardGate({
                   <ol className="cc-gate__list">
                     {group.items.map((task) => (
                       <li key={task.key || task.label}>
-                        <Link
+                        <PholioButton
                           to={task.href || '/dashboard/talent/profile?gate=true'}
+                          variant="tertiary"
+                          fullWidth
                           className="cc-gate__item"
                         >
                           <span className="cc-gate__item-copy">
@@ -111,7 +112,7 @@ export default function CompCardGate({
                             ) : null}
                           </span>
                           <ArrowUpRight size={15} className="cc-gate__item-icon" aria-hidden="true" />
-                        </Link>
+                        </PholioButton>
                       </li>
                     ))}
                   </ol>
@@ -124,16 +125,15 @@ export default function CompCardGate({
             {primary ? (
               <PholioButton
                 to={primary.href || '/dashboard/talent/profile?gate=true'}
-                variant="solid"
-                system="dashboard"
+                variant="primary"
                 fullWidth
               >
                 {primary.task || `Complete ${primary.label}`}
               </PholioButton>
             ) : null}
-            <Link to="/dashboard/talent/profile?gate=true" className="cc-gate__secondary">
+            <PholioButton to="/dashboard/talent/profile?gate=true" variant="tertiary" className="cc-gate__secondary">
               Open profile
-            </Link>
+            </PholioButton>
           </div>
         </aside>
       </div>

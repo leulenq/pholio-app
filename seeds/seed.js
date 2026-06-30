@@ -253,8 +253,8 @@ async function seedDemoData(knex, talentId, profileId) {
       type: "profile_updated",
       meta: () => ({
         fields: [
-          ["bio", "measurements", "instagram_handle", "city", "training"][
-            Math.floor(Math.random() * 5)
+          ["bio", "measurements", "city", "training"][
+            Math.floor(Math.random() * 4)
           ],
         ],
       }),
@@ -400,9 +400,6 @@ exports.seed = async function seed(knex) {
     experience_level: "Experienced",
     specialties: JSON.stringify(["Editorial", "Commercial", "Runway"]),
     languages: JSON.stringify(["English", "French"]),
-    instagram_handle: "miavoss",
-    portfolio_url: "https://miavoss.com",
-    twitter_handle: "miavoss",
     bio_raw:
       "LA-based editorial and commercial model with six years of campaign and runway experience.",
     bio_curated:
@@ -526,10 +523,6 @@ exports.seed = async function seed(knex) {
     availability_schedule: "Full-time",
     experience_level: "Experienced",
     training: "Formal training in editorial modeling and commercial acting.",
-    portfolio_url: "https://elarakeats.portfolio.com",
-    instagram_handle: "elarakeats",
-    twitter_handle: "elarakeats",
-    tiktok_handle: "elarakeats",
     reference_name: null,
     reference_email: null,
     reference_phone: null,

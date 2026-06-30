@@ -134,6 +134,13 @@ describe("submission program acknowledgment", () => {
       expect(res.body.data.currentVersion).toBe(CURRENT_SUBMISSION_PROGRAM_VERSION);
       expect(res.body.data.content.title).toMatch(/submission/i);
       expect(res.body.data.content.sections.length).toBeGreaterThan(0);
+      const noticeText = res.body.data.content.sections
+        .map((section) => `${section.heading} ${section.body}`)
+        .join(" ");
+      expect(noticeText).toContain("date of birth");
+      expect(noticeText).toContain("24 months");
+      expect(noticeText).toContain("cannot recall");
+      expect(noticeText).toContain("separate recipient");
     });
 
     it("POST records acknowledgment and GET then returns false", async () => {

@@ -310,8 +310,7 @@ export default function OverviewView() {
 
               <PholioButton
                 to="/dashboard/talent/profile"
-                system="dashboard"
-                variant="inverse-primary"
+                variant="primary" tone="dark"
                 fullWidth
                 style={{ marginTop: 20 }}
               >
@@ -360,14 +359,15 @@ export default function OverviewView() {
                 <div className="ov-error-inline" role="alert">
                   <AlertCircle size={14} aria-hidden />
                   <span>Couldn't load analytics.</span>
-                  <button
+                  <PholioButton
                     type="button"
+                    variant="secondary"
                     className="ov-retry-btn"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >
                     {isAnalyticsRefetching ? '…' : 'Retry'}
-                  </button>
+                  </PholioButton>
                 </div>
               ) : (
                 <div className="ov-stats-grid">
@@ -407,8 +407,10 @@ export default function OverviewView() {
             <div className="ov-artifacts">
 
               {/* Comp Card — light card */}
-              <button
+              <PholioButton
                 type="button"
+                variant="tertiary"
+                fullWidth
                 className="ov-artifact-card ov-artifact-card--light"
                 onClick={handleCompCard}
                 aria-label="Download comp card"
@@ -429,7 +431,7 @@ export default function OverviewView() {
                     <Download size={13} aria-hidden />
                   </div>
                 </div>
-              </button>
+              </PholioButton>
 
               {/* Intro Reel — dark card */}
               <Link

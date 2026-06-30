@@ -153,14 +153,17 @@ function emptyGatingResult() {
  * @param {object|null} profile
  * @param {Array} [images] — book images from auth; required for photo gates
  */
-export function checkGatingStatus(profile, images = []) {
+export function checkGatingStatus(profile, images = [], options = {}) {
   if (!profile) {
     return emptyGatingResult();
   }
 
   const imageList = Array.isArray(images) ? images : profile.images || [];
   const pkg = analyzePackageIntelligence({ images: imageList });
-  const sendReadiness = evaluateSendReadiness(profile, imageList);
+  const sendReadiness = evaluateSendReadiness(profile, imageList, {
+    ...options,
+    includeDistributionRights: false,
+  });
 
   const strength = calculateProfileStrength({
     ...profile,

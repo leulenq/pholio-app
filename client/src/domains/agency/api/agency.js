@@ -220,6 +220,13 @@ export async function requestMeetingApplication(applicationId) {
 }
 
 /**
+ * Offer a New Face development relationship before full representation.
+ */
+export async function offerDevelopmentApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'development' });
+}
+
+/**
  * Archive application
  */
 export async function archiveApplication(applicationId) {

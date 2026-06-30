@@ -3,6 +3,15 @@ const puppeteer = require("puppeteer");
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
 const { toFeetInches } = require("../talent/services/stats");
+const compCardDimensions = require("../../../shared/comp-card-dimensions.json");
+
+const {
+  trim: { widthInches: compCardWidthInches },
+  render: {
+    widthPixels: compCardWidthPixels,
+    heightPixels: compCardHeightPixels,
+  },
+} = compCardDimensions;
 
 // Import Chromium for serverless environments (Netlify Functions, AWS Lambda)
 let chromium = null;
@@ -242,8 +251,8 @@ async function renderCompCard(slug, theme = null, opts = null) {
 
       // Set viewport size to match PDF dimensions (important for proper rendering)
       await page.setViewport({
-        width: 528, // 5.5in at 96 DPI
-        height: 816, // 8.5in at 96 DPI
+        width: compCardWidthPixels,
+        height: compCardHeightPixels,
         deviceScaleFactor: 2, // Higher DPI for better quality
       });
 
@@ -462,8 +471,8 @@ async function renderCompCard(slug, theme = null, opts = null) {
       let buffer;
       try {
         buffer = await page.pdf({
-          width: "5.5in",
-          // No fixed height — let CSS @page { size: 5.5in 8.5in } and
+          width: `${compCardWidthInches}in`,
+          // No fixed height — let the CSS @page size and
           // break-after: page handle multi-page pagination naturally.
           margin: { top: "0", bottom: "0", left: "0", right: "0" },
           printBackground: true,

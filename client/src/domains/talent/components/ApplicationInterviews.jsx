@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Video, Phone, MapPin, Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import { talentApi } from '../api/talent';
 import './ApplicationInterviews.css';
 
@@ -106,8 +107,9 @@ export default function ApplicationInterviews({ applicationId }) {
 
             {canRespond && (
               <div className="app-iv__actions">
-                <button
+                <PholioButton
                   type="button"
+                  variant="primary"
                   className="app-iv__accept"
                   disabled={busy}
                   onClick={() => respond.mutate({ id: iv.id, action: 'accept' })}
@@ -118,9 +120,10 @@ export default function ApplicationInterviews({ applicationId }) {
                     <Check size={13} aria-hidden />
                   )}
                   Accept
-                </button>
-                <button
+                </PholioButton>
+                <PholioButton
                   type="button"
+                  variant="destructive"
                   className="app-iv__decline"
                   disabled={busy}
                   onClick={() => respond.mutate({ id: iv.id, action: 'decline' })}
@@ -131,7 +134,7 @@ export default function ApplicationInterviews({ applicationId }) {
                     <X size={13} aria-hidden />
                   )}
                   Decline
-                </button>
+                </PholioButton>
               </div>
             )}
           </div>

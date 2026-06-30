@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { talentApi } from '../api/talent';
 import CohortHeatmap from './CohortHeatmap';
 import SessionsBarChart from './SessionsBarChart';
-import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 
 const CHAPTER_MOTION = {
   initial: { opacity: 0, y: 24 },
@@ -105,10 +108,12 @@ function TimeRangeSelector({ value, onChange, isPro }) {
     { label: '90d', days: 90, proOnly: true  },
   ];
   return (
-    <div className="intel-time-range">
+    <PholioToggleGroup className="intel-time-range" role="group" aria-label="Analytics range">
       {ranges.map(r => (
-        <button
+        <PholioToggleButton
           key={r.days}
+          active={value === r.days}
+          aria-pressed={value === r.days}
           className={`intel-time-btn${value === r.days ? ' intel-time-btn--active' : ''}`}
           onClick={() => onChange(r.days)}
           disabled={r.proOnly && !isPro}
@@ -116,9 +121,9 @@ function TimeRangeSelector({ value, onChange, isPro }) {
         >
           {r.label}
           {r.proOnly && !isPro && <Lock size={9} className="intel-time-lock" aria-hidden />}
-        </button>
+        </PholioToggleButton>
       ))}
-    </div>
+    </PholioToggleGroup>
   );
 }
 
@@ -321,7 +326,13 @@ function SignalChapter({ analytics, sessions, detailedStats, isPro }) {
             <p className="signal-locked-copy">
               See which hours your profile gets the most attention — and plan your updates accordingly.
             </p>
-            <Link to="/dashboard/talent/settings/subscription" className="signal-locked-link">Upgrade to Studio+</Link>
+            <PholioButton
+              to="/dashboard/talent/settings/subscription"
+              variant="meta"
+              className="signal-locked-link"
+            >
+              Upgrade to Studio+
+            </PholioButton>
           </div>
         </div>
       )}
@@ -445,7 +456,13 @@ function PatternChapter({ cohorts, isPro }) {
             <p className="pattern-ghost-copy">
               See which weeks your viewers come back — and which cohorts lose interest.
             </p>
-            <Link to="/dashboard/talent/settings/subscription" className="pattern-ghost-link">Upgrade to Studio+</Link>
+            <PholioButton
+              to="/dashboard/talent/settings/subscription"
+              variant="meta"
+              className="pattern-ghost-link"
+            >
+              Upgrade to Studio+
+            </PholioButton>
           </div>
         </div>
       </motion.section>
@@ -514,7 +531,7 @@ export default function AnalyticsView() {
             Something went <em style={{ fontStyle: 'italic', color: '#C8A96E' }}>wrong.</em>
           </h1>
           <p style={{ fontFamily: 'Inter,sans-serif', fontSize: 15, fontWeight: 300, color: 'rgba(26,26,26,0.52)', marginBottom: 24 }}>We couldn't load your Analytics right now.</p>
-          <PholioButton variant="outline" system="dashboard" onClick={() => refetch()}>
+          <PholioButton variant="secondary" onClick={() => refetch()}>
             Try again
           </PholioButton>
         </div>

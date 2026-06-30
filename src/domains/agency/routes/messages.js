@@ -49,6 +49,7 @@ router.get(
           this.andOn("m.created_at", "=", "latest_msgs.max_created_at");
         })
         .where("a.agency_id", agencyId)
+        .whereNot("a.status", "withdrawn")
         .select([
           "a.id as id",
           knex.raw("p.first_name || ' ' || p.last_name as \"senderName\""),
@@ -63,6 +64,7 @@ router.get(
       const unreadCounts = await knex("messages")
         .join("applications", "messages.application_id", "applications.id")
         .where("applications.agency_id", agencyId)
+        .whereNot("applications.status", "withdrawn")
         .where("messages.is_read", false)
         .where("messages.sender_type", "TALENT")
         .groupBy("messages.application_id")
@@ -132,6 +134,12 @@ router.get(
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
       }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message: "This submission was withdrawn and its thread is closed.",
+        });
+      }
 
       // Get all messages for this application
       const messages = await knex("messages")
@@ -187,6 +195,12 @@ router.post(
 
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
+      }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message: "This submission was withdrawn and its thread is closed.",
+        });
       }
 
       const talentProfile = await knex("profiles")

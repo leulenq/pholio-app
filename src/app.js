@@ -13,6 +13,9 @@ const {
   initializeFirebaseAdmin,
 } = require("./domains/auth/services/firebase-admin");
 const { errorHandler } = require("./shared/middleware/error-handler");
+const {
+  createTalentAiWriterRateLimit,
+} = require("./shared/middleware/ai-writer-rate-limit");
 const cookieParser = require("cookie-parser");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
 const { requireActiveAccount } = require("./domains/auth/middleware/require-auth");
@@ -417,6 +420,7 @@ const rateLimitMax = {
   upload: config.isServerless ? 60 : 20,
   message: config.isServerless ? 30 : 15,
   report: config.isServerless ? 20 : 10,
+  aiWriter: config.isServerless ? 20 : 10,
 };
 
 const authLimiter = rateLimit({
@@ -455,9 +459,14 @@ const reportsLimiter = rateLimit({
   validate: { ip: false },
 });
 
+const talentAiWriterLimiter = createTalentAiWriterRateLimit({
+  max: rateLimitMax.aiWriter,
+});
+
 app.use(["/login", "/signup"], authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
+app.use(talentAiWriterLimiter);
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();
   const path = (req.originalUrl || req.path || "").split("?")[0];

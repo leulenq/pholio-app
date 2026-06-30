@@ -40,9 +40,14 @@ async function createMinimalSchema() {
       t.string("id", 36).primary();
       t.string("email").notNullable().unique();
       t.string("role").notNullable();
+      t.string("account_status").notNullable().defaultTo("ACTIVE");
       t.string("first_name", 100).nullable();
       t.string("last_name", 100).nullable();
       t.timestamp("created_at").defaultTo(knex.fn.now());
+    });
+  } else if (!(await knex.schema.hasColumn("users", "account_status"))) {
+    await knex.schema.alterTable("users", (t) => {
+      t.string("account_status").notNullable().defaultTo("ACTIVE");
     });
   }
 
@@ -144,6 +149,19 @@ async function createMinimalSchema() {
     });
   }
 
+  if (!(await knex.schema.hasTable("social_accounts"))) {
+    await knex.schema.createTable("social_accounts", (t) => {
+      t.string("id", 36).primary();
+      t.string("profile_id", 36).nullable();
+      t.string("agency_id", 36).nullable();
+      t.string("platform", 50).notNullable();
+      t.string("handle", 255).nullable();
+      t.string("url", 500).nullable();
+      t.unique(["profile_id", "platform"]);
+      t.unique(["agency_id", "platform"]);
+    });
+  }
+
   if (!(await knex.schema.hasTable("applications"))) {
     await knex.schema.createTable("applications", (t) => {
       t.string("id", 36).primary();
@@ -152,13 +170,21 @@ async function createMinimalSchema() {
       t.string("status").notNullable().defaultTo("submitted");
       t.float("match_score").nullable();
       t.timestamp("accepted_at").nullable();
+      t.timestamp("declined_at").nullable();
       t.timestamp("created_at").defaultTo(knex.fn.now());
       t.timestamp("updated_at").defaultTo(knex.fn.now());
     });
-  } else if (!(await knex.schema.hasColumn("applications", "match_score"))) {
-    await knex.schema.alterTable("applications", (t) => {
-      t.float("match_score").nullable();
-    });
+  } else {
+    if (!(await knex.schema.hasColumn("applications", "match_score"))) {
+      await knex.schema.alterTable("applications", (t) => {
+        t.float("match_score").nullable();
+      });
+    }
+    if (!(await knex.schema.hasColumn("applications", "declined_at"))) {
+      await knex.schema.alterTable("applications", (t) => {
+        t.timestamp("declined_at").nullable();
+      });
+    }
   }
 
   if (!(await knex.schema.hasTable("application_activities"))) {
@@ -501,6 +527,42 @@ describe("agency RBAC custom grants", () => {
     expect(activity).toBeDefined();
     expect(activity.user_id).toBe(SCOUT_USER_ID);
     expect(activity.user_id).not.toBe(AGENCY_ID);
+  });
+
+  test("OWNER can persist a development status without a signed timestamp", async () => {
+    await knex("applications")
+      .where({ id: APPLICATION_ID })
+      .update({
+        status: "accepted",
+        accepted_at: knex.fn.now(),
+        declined_at: knex.fn.now(),
+      });
+
+    const ownerCookie = await agentWithAgencySession({
+      memberUserId: OWNER_USER_ID,
+      membershipId: MEMBERSHIP.owner,
+      membershipRole: "OWNER",
+    });
+
+    const response = await ownerCookie(
+      request(app)
+        .patch(`/api/agency/applications/${APPLICATION_ID}/status`)
+        .send({ status: "development" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({
+      applicationId: APPLICATION_ID,
+      status: "development",
+      stage: "Offered",
+    });
+
+    const persisted = await knex("applications")
+      .where({ id: APPLICATION_ID })
+      .first();
+    expect(persisted.status).toBe("development");
+    expect(persisted.accepted_at).toBeNull();
+    expect(persisted.declined_at).toBeNull();
   });
 
   test("OWNER can add existing agency user to team", async () => {

@@ -16,6 +16,7 @@ const TONE = {
   submitted: 'gold',
   booked: 'positive',
   accepted: 'positive',
+  development: 'positive',
   declined: 'muted',
   note_added: 'muted',
 };

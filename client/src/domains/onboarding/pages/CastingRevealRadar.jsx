@@ -10,10 +10,14 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import { calculateFitScores, getCategoryInsights, getTopCategories, calculateOverallReadiness } from '../../../shared/utils/fitScoring';
 import { ArrowRight, ChevronDown } from 'lucide-react';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 
 // Fade-through-black transition variant
 // mode="wait" + black bg = natural fade-through-black
@@ -438,7 +442,10 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
               </>
             )}
 
-            <motion.button
+            <PholioButton
+              as={motion.button}
+              variant="primary"
+              tone="dark"
               onClick={onComplete}
               className="reveal-cta group"
               initial={{ opacity: 0 }}
@@ -447,7 +454,7 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
             >
               <span>Enter Your Dashboard</span>
               <ArrowRight className="reveal-cta-arrow" />
-            </motion.button>
+            </PholioButton>
           </motion.div>
         )}
 
@@ -455,15 +462,18 @@ function CastingRevealRadar({ profileData, onComplete, onScoresCalculated }) {
 
       {/* ── STEP DOTS ─────────────────────────────────────────────── */}
       {step > 0 && (
-        <div className="reveal-step-dots">
+        <PholioToggleGroup tone="dark" className="reveal-step-dots" aria-label="Reveal steps">
           {[1, 2, 3, 4, 5].map((s) => (
-            <button
+            <PholioToggleButton
               key={s}
+              tone="dark"
+              active={step === s}
               onClick={() => setStep(s)}
               className={`reveal-dot-btn ${step === s ? 'active' : ''}`}
+              aria-label={`Reveal step ${s}`}
             />
           ))}
-        </div>
+        </PholioToggleGroup>
       )}
     </div>
   );

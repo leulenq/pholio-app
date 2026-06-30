@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
-import PholioButton from './ui/PholioButton';
+import PholioButton, { PholioIconButton } from './ui/PholioButton';
 
 const REASONS = [
   { value: 'harassment', label: 'Harassment or abuse' },
@@ -49,7 +49,6 @@ export default function ReportDialog({
   targetType: targetTypeProp,
   targetId: targetIdProp,
   targetLabel,
-  buttonSystem = 'legacy',
 }) {
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
@@ -133,30 +132,17 @@ export default function ReportDialog({
         }}
       >
         {/* Close button */}
-        <button
-          type="button"
+        <PholioIconButton
+          label="Close report dialog"
           onClick={onClose}
-          aria-label="Close report dialog"
           style={{
             position: 'absolute',
             top: '16px',
             right: '16px',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--ag-text-2, #6b6560)',
-            padding: '4px',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'color 0.15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ag-text-0, #1a1815)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ag-text-2, #6b6560)')}
         >
           <X size={18} />
-        </button>
+        </PholioIconButton>
 
         <h2
           id="report-dialog-title"
@@ -382,67 +368,21 @@ export default function ReportDialog({
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            {buttonSystem === 'dashboard' ? (
-              <>
-                <PholioButton
-                  type="button"
-                  variant="secondary"
-                  system="dashboard"
-                  onClick={onClose}
-                  disabled={pending}
-                >
-                  Cancel
-                </PholioButton>
-                <PholioButton
-                  type="submit"
-                  variant="primary"
-                  system="dashboard"
-                  disabled={!reason || !targetType || !targetId.trim() || pending}
-                >
-                  {pending ? 'Submitting…' : 'Submit report'}
-                </PholioButton>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={pending}
-                  style={{
-                    padding: '9px 18px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--ag-border, rgba(26,24,21,0.12))',
-                    background: 'transparent',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    color: 'var(--ag-text-1, #2d2a26)',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--ag-surface-0, #faf8f5)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!reason || !targetType || !targetId.trim() || pending}
-                  style={{
-                    padding: '9px 18px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: (reason && targetType && targetId.trim() && !pending) ? 'var(--ag-gold, #c9a55a)' : 'var(--ag-border, rgba(26,24,21,0.12))',
-                    color: (reason && targetType && targetId.trim() && !pending) ? '#fff' : 'var(--ag-text-2, #6b6560)',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    cursor: (reason && targetType && targetId.trim() && !pending) ? 'pointer' : 'not-allowed',
-                    transition: 'background 0.15s ease, color 0.15s ease',
-                  }}
-                >
-                  {pending ? 'Submitting…' : 'Submit report'}
-                </button>
-              </>
-            )}
+            <PholioButton
+              type="button"
+              variant="tertiary"
+              onClick={onClose}
+              disabled={pending}
+            >
+              Cancel
+            </PholioButton>
+            <PholioButton
+              type="submit"
+              variant="primary"
+              disabled={!reason || !targetType || !targetId.trim() || pending}
+            >
+              {pending ? 'Submitting…' : 'Submit report'}
+            </PholioButton>
           </div>
         </form>
       </div>

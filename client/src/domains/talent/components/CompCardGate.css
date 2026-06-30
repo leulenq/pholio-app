@@ -304,13 +304,11 @@
   margin-top: 2px;
   color: var(--mw-text-faint);
   transition:
-    color 0.22s var(--mw-ease),
-    transform 0.22s var(--mw-ease);
+    color 0.22s var(--mw-ease);
 }
 
 .cc-gate__item:hover .cc-gate__item-icon {
   color: var(--mw-gold);
-  transform: translate(2px, -2px);
 }
 
 .cc-gate__actions {

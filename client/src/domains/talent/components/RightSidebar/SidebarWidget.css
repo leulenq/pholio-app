@@ -262,8 +262,6 @@
 
 .action-btn-sidebar:hover {
   border-color: #cbd5e1;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
 }
 
 .action-btn-sidebar.primary {

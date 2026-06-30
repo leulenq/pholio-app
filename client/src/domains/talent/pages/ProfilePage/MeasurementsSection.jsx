@@ -6,6 +6,10 @@ import PholioMeasuringTape from '../../../../shared/components/ui/forms/PholioMe
 import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCustomSelect';
 import { Section } from '../../components/profile-index';
 import { getShoeConversions } from '../../../../shared/utils/measurementConversions';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../../shared/components/ui/PholioButton';
 import styles from './ProfilePage.module.css';
 
 export function MeasurementsSection({
@@ -33,9 +37,9 @@ export function MeasurementsSection({
           <p className={styles.measurementsLockedCopy}>
             Measurements and weight stay locked until a parent or guardian consents in Personal Details.
           </p>
-          <a href="#identity" className={styles.measurementsLockedLink}>
+          <PholioButton as="a" href="#identity" variant="meta" className={styles.measurementsLockedLink}>
             Record guardian consent
-          </a>
+          </PholioButton>
         </div>
       </Section>
     );
@@ -49,22 +53,26 @@ export function MeasurementsSection({
       description="Vital statistics for casting searches."
       showDivider={false}
       headerAction={
-        <div className={styles.unitToggle}>
-          <button
+        <PholioToggleGroup className={styles.unitToggle} role="group" aria-label="Measurement units">
+          <PholioToggleButton
             type="button"
+            active={unitSystem === 'metric'}
+            aria-pressed={unitSystem === 'metric'}
             className={`${styles.toggleBtn} ${unitSystem === 'metric' ? styles.toggleBtnActive : ''}`}
             onClick={() => setUnitSystem('metric')}
           >
             Metric
-          </button>
-          <button
+          </PholioToggleButton>
+          <PholioToggleButton
             type="button"
+            active={unitSystem === 'imperial'}
+            aria-pressed={unitSystem === 'imperial'}
             className={`${styles.toggleBtn} ${unitSystem === 'imperial' ? styles.toggleBtnActive : ''}`}
             onClick={() => setUnitSystem('imperial')}
           >
             Imperial
-          </button>
-        </div>
+          </PholioToggleButton>
+        </PholioToggleGroup>
       }
     >
       <div className={`${styles.measurementRow} ${styles.formRow}`} style={{ marginBottom: '32px' }}>
@@ -123,18 +131,20 @@ export function MeasurementsSection({
           <div className={styles.shoeContainer}>
             <div className={styles.shoeHeader}>
               <label className={styles.measurementLabel}>Shoe Size</label>
-              <div className={styles.shoeRegionToggle}>
+              <PholioToggleGroup className={styles.shoeRegionToggle} role="group" aria-label="Shoe size region">
                 {['US', 'UK', 'EU'].map((reg) => (
-                  <button
+                  <PholioToggleButton
                     key={reg}
                     type="button"
+                    active={shoeRegion === reg}
+                    aria-pressed={shoeRegion === reg}
                     className={`${styles.regionBtn} ${shoeRegion === reg ? styles.regionBtnActive : ''}`}
                     onClick={() => setShoeRegion(reg)}
                   >
                     {reg}
-                  </button>
+                  </PholioToggleButton>
                 ))}
-              </div>
+              </PholioToggleGroup>
             </div>
 
             <div className={styles.shoeSelector}>

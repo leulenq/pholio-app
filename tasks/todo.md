@@ -1,3 +1,319 @@
+# Talent Button Exception Pass — 2026-06-30
+
+## Scope
+
+- [x] Restore the original Settings index panel and Profile tab index.
+- [x] Restore the complete Booking Lanes selector treatment.
+- [x] Restore the shell notification icon and account-menu Sign Out action.
+- [x] Restore the submission-history agency rows and “Which board fits?” fields.
+- [x] Restore the Profile city-field clear control.
+- [x] Move Socials & Media actions to the approved inline/meta button role.
+- [x] Verify the exception controls do not inherit `.pholio-btn` treatment while
+  the rest of the generalized system remains unchanged.
+- [x] Run focused lint, production build, static exception checks, and diff QA.
+
+## Review
+
+- Restored nine native-control call sites covering the eight requested exception
+  surfaces. Each is explicitly annotated with a stable
+  `data-button-exception` value so future design-system audits preserve it.
+- Reinstated the pre-migration CSS for the Settings and Profile indexes, Booking
+  Lanes cards/chips, board-fit cards, shell notification trigger, Sign Out row,
+  submission-history agency rows, and city-field clear control.
+- Social connect/verify, remove, disconnect, and test-link actions now all use
+  `PholioButton variant="meta"` (the inline treatment).
+- Focused ESLint passes for the exception implementation files. The two known
+  pre-existing failures remain when including Settings (`set-state-in-effect`)
+  and `SocialInput` (`only-export-components`).
+- `npm run client:build` passes (3,624 modules) with the existing large-chunk
+  warning. Static exception checks and `git diff --check` pass.
+
+# Talent Button Taxonomy Rebuild — 2026-06-30
+
+## Superseding decision
+
+- [x] Retire the previous `legacy/dashboard` split and its
+  `solid/outline/ghost/inverse` vocabulary.
+- [x] Use Claude's `button-audit.html` Direction A — Editorial Ledger as the
+  sole visual and role taxonomy.
+- [x] Include every `/dashboard/talent/*` page, every settings/profile/media
+  tab or selector, the full-screen application studio, shared talent overlays,
+  and the talent reveal route.
+- [x] Baseline the reachable surface: 206 button-like controls across 113
+  imported files (115 `PholioButton`, 79 raw buttons, and 12 button-like links).
+
+## Canonical component system
+
+- [x] Rebuild `PholioButton` around the seven approved roles: primary,
+  secondary, tertiary, meta, icon, destructive, and toggle.
+- [x] Add reusable `PholioIconButton`, `PholioToggleGroup`, and
+  `PholioToggleButton` primitives with light/dark tone adaptation.
+- [x] Match the reference exactly: 3px corners, warm ink primary, sentence case,
+  mono reserved for meta/toggles/destructive, and D2 edge-sweep primary hover.
+- [x] Cover focus-visible, active, disabled, loading, coarse-pointer touch
+  targets, reduced motion, link semantics, and `aria-disabled`.
+
+## Migration
+
+- [x] Migrate Overview, Profile, Media, Analytics, Applications, Settings,
+  Reveal, and the talent shell/shared overlays.
+- [x] Migrate the full `/dashboard/talent/applications/apply` studio, including
+  its navigation, phase tabs, media actions, writing assists, review controls,
+  submit action, success action, and legal/meta links.
+- [x] Convert every tab/filter/segmented choice to the reusable toggle
+  primitives with correct `tablist`, radio-group, or pressed-state semantics.
+- [x] Convert icon-only actions to `PholioIconButton`; convert text/meta links
+  to the meta role; assign destructive actions only to the destructive role.
+- [x] Remove obsolete local button appearance rules and all hover lift, scale,
+  shadow-growth, pill, gold-fill, and underline-bar motion outside the approved
+  system. Retain local CSS only for placement and specialized surface geometry.
+
+## Verification
+
+- [x] Prove no reachable talent route renders legacy `system=` props or retired
+  variants; the later exception pass above documents the intentional raw
+  controls outside the primitives.
+- [x] Audit role hierarchy so each view has one primary commit and alternatives
+  use secondary/tertiary/meta appropriately.
+- [x] Run focused ESLint, production build, relevant tests,
+  `git diff --check`, static taxonomy checks, and final diff review.
+- [x] Run rendered desktop/mobile keyboard and interaction QA if the browser
+  runtime is available.
+- [x] Record final counts, exceptions, and verification results below.
+
+## Review
+
+- Replaced the split button vocabulary with seven canonical roles and hard CSS
+  boundaries that prevent route styles from changing role appearance or
+  reintroducing hover lift, scale, or shadow growth.
+- The initial rollout migrated 242 primitive call sites in the audited
+  talent/shared surface. The later exception pass above deliberately restores
+  nine annotated native-control call sites while retaining the generalized
+  system everywhere else.
+- Static checks find no retired `system=` / `buttonSystem=` props or retired
+  `solid`, `outline`, `ghost`, or `inverse` variants in the talent surface.
+- Focused ESLint passes for the rebuilt primitives, application studio, talent
+  shell, primary dashboard views, and the additional migrated controls.
+- `npm run client:build` passes (3,624 modules). The existing large-chunk
+  warning remains. `git diff --check` passes for the audited files.
+- Full-repository ESLint remains red on unrelated pre-existing rules in agency,
+  onboarding, settings-effect, validation, and utility files. The button-focused
+  lint sets are green.
+- Rendered browser QA was attempted, but the in-app browser runtime exposed no
+  browser instance; verification used the production build and static audits.
+
+# Complete `/apply` Audit Remediation — 2026-06-29
+
+## Reconciliation
+
+- [x] Reconcile all Functional findings F1–F13 against current code.
+- [x] Reconcile all Industry findings I1.1–I6.0 against current code.
+- [x] Reconcile all Legal findings L-P0-1 through L-P2-3 against current code.
+- [x] Reconcile all Security findings S-M1 through S-L2 against current code.
+- [x] Record counsel-dependent policy assumptions explicitly.
+
+## P0 / Critical sequence
+
+- [x] C1: enforce minor consent and per-agency guardian authorization.
+- [x] C2: make agency reviewers consume the submitted package.
+- [x] Verify all C1/C2 migrations, backfills, UI paths, and regressions together.
+
+## P1 / High sequence
+
+- [x] F4: mirror image-rights readiness and field guidance in the client.
+- [x] F5–F6: handle draft lifecycle conflicts and submit error contracts.
+- [x] C3/F7/I5: remove the random agency match score.
+- [x] F8/L-P1-6/S-M2–M3: retire `redirect-apply` with an authenticated
+  `410 Gone` contract directing clients to canonical `/apply`; verified the
+  retired path contains no application write.
+- [x] I1.1–I1.2: expose submitted contact and correct division semantics.
+- [x] I2.1/I3.1–I3.3: correct terminology and representation states.
+- [x] L-P1-1–L-P1-2: durable, package-bound disclosure consent.
+- [x] L-P1-3: submission-time privacy/data-disclosure notice.
+- [x] L-P1-4: enforce meaningful image-rights/model-release bases.
+- [x] L-P1-5: define retention and withdrawal recall/redaction.
+- [x] S-M1: rate-limit all talent AI writing endpoints.
+
+## P2 / Medium / Low sequence
+
+- [x] F9–F13: eliminate hardcodes/dead payload/schema/quota drift.
+- [x] I1.3–I1.4/I2.2–I2.3/I3.4/I6: complete package and terminology polish.
+- [x] L-P2-1–L-P2-3: separate attestations and minor data minimization.
+- [x] S-L1: bound stored display fields.
+- [x] S-L2: neutralize AI prompt delimiter breakout.
+
+## Audit remediation review log
+
+- P1-5: submitted packages now receive a 24-month retention deadline. Withdrawal
+  revokes agency access, redacts the stored package, deletes platform messages,
+  and discloses that downloaded or separately recorded copies cannot be
+  recalled. The full application-drafts integration suite passes (10 tests).
+- P1-3/P2-3: the threshold and review step now enumerate disclosed categories,
+  identify the named agency as a separate recipient, explain retention and
+  withdrawal limits, and link to the live Terms and Privacy pages. Removed the
+  literal “never shared elsewhere” claim and version-bumped the program notice.
+  Focused disclosure/program tests pass (16 tests), with focused client lint.
+- P2-1/P2-2: adults now make separately enforced accuracy, age/authority, and
+  disclosure-consent attestations; retouched digitals fail readiness. Minor
+  packages omit direct contact, social/portfolio links, optional notes, and raw
+  DOB, and agency application DTOs are whitelisted immutable snapshots.
+- F9/F11–F13: comp-card dimensions use one shared spec; submit schema version is
+  mandatory; monthly quota counts immutable completed submission requests and
+  exposes the same authoritative UTC-month result to the client. Reapplication
+  consumes quota while an idempotent replay does not.
+- S-M1/S-L1/S-L2: all talent writer endpoints have a dedicated user/session
+  limiter; stored package display values are server-derived or bounded; and all
+  writer prompt data is JSON-encoded rather than delimiter-fenced.
+- I1/I2/I3/I6: review and agency snapshots include home market, nationality,
+  languages, accurate division semantics, and industry terminology.
+  `development` is a database-valid advancing/New Face state, distinct from
+  signed talent. Structured representation records now support one mother
+  agency plus multiple market/placement relationships with history.
+
+## Final verification
+
+- [x] Apply and verify every forward migration with no pending files.
+- [x] Run focused tests after each finding and the full Jest suite at the end.
+- [x] Run focused frontend lint, production builds, and diff checks.
+- [x] Run rendered `/apply` and agency-review QA where browser access permits.
+- [x] Add a final audit matrix and review notes.
+
+## Final audit matrix
+
+| Area | Result | Verification |
+|---|---|---|
+| Functional F1–F13 | Remediated | Draft/package/quota/schema integration coverage |
+| Industry I1–I6 | Remediated | Development-state, package identity, representation API/migration coverage |
+| Legal L-P0–L-P2 | Remediated in code | Guardian, disclosure, retention, attestation, minimization coverage |
+| Security S-M1–S-L2 | Remediated | Limiter, payload normalization, adversarial prompt tests |
+
+## Final review
+
+- `knex migrate:latest` reports already up to date; migration status reports no
+  pending files.
+- Audit-focused verification passes: 18 Jest suites, 108 tests. The standalone
+  structured-representation migration and API suites also pass.
+- Focused client ESLint has zero errors; the Vite production build passes. The
+  build retains the existing large-chunk warning.
+- The full repository suite was run: 74 suites / 775 tests pass; 12 suites /
+  87 tests fail in known out-of-scope legacy areas (PDF guardrail expectation
+  drift, dashboard completeness/profile-division assertions, stale seed schema,
+  SQLite date fixtures, and agency overview/activity fixtures). Audit-focused
+  suites remain green when run together.
+- Rendered QA could not start because the in-app browser runtime reported no
+  available browser. No alternate browser automation was substituted.
+- Policy assumptions requiring counsel remain explicit: 24-month platform
+  retention, separate-recipient wording, jurisdiction-specific minor rules,
+  and the fact that withdrawal cannot recall recipient-downloaded copies.
+
+# Agency-Readable Submission Packages — 2026-06-28
+
+- [x] Link each submitted package directly to its application.
+- [x] Snapshot the exact media, selected comp-card preset, boards, and contact
+  disclosed at submission time.
+- [x] Persist selected agency boards relationally for the application.
+- [x] Make agency application lists and detail views read the submitted media
+  package instead of the talent's live profile images.
+- [x] Show package boards, selected comp card, and submitted contact in agency
+  quick-view and full review.
+- [x] Add focused submission and agency-read regressions.
+- [x] Run migration, focused tests, lint/build, and final diff review.
+
+## Planned design
+
+- Treat `talent_submission_packages` as immutable application evidence, with a
+  new indexed `application_id` for an explicit relationship.
+- Snapshot safe image presentation fields and contact values alongside the
+  existing selected IDs so later profile edits cannot change what was sent.
+- Resolve selected board labels against active boards owned by the target
+  agency, materialize a missing relational board for any validated public
+  open-board label, and insert the corresponding `board_applications` rows in
+  the same transaction as the application and package.
+- For legacy applications without a package, retain the existing live-profile
+  image fallback. Once a package exists, never merge held-back live images into
+  the application view.
+
+## Review
+
+- Added indexed `talent_submission_packages.application_id` and backfilled
+  existing package rows in the active database.
+- Added `application_submission_boards` for the apply flow's agency division
+  labels, while `board_applications` now powers the agency pipeline and board
+  counts. Existing boards are matched case-insensitively and a missing
+  validated open-board record is materialized. Forward migrations backfill the
+  latest saved labels and operational board assignments for existing
+  applications.
+- New submissions snapshot canonical image presentation fields, the chosen
+  media-set name, full comp-card direction, and email/phone contact. Package
+  rows remain immutable across later profile edits and reapplications keep
+  their earlier package history.
+- The agency applications list, drawer, and full review now use only submitted
+  images when a package exists. The selected digital-slot frames are ordered
+  first; held-back live images are not merged back in.
+- Agency review now shows selected divisions, media set, frame count, the exact
+  comp-card preset URL/preview, and submitted email/phone. Applications created
+  before package snapshots retain the old live-profile fallback.
+- Focused integration coverage proves that a third live image is withheld from
+  both agency list and detail responses while two selected frames, the
+  canonical media set, full preset parameters, relational board, and submitted
+  contact survive end to end.
+- Verification passed: migration applied with no pending files; 20 focused Jest
+  tests; backend syntax checks; focused frontend ESLint; `git diff --check`;
+  and the Vite production build. Rendered browser QA could not start because
+  the in-app browser connection failed before opening a tab.
+
+# Enforced Minor Agency Consent — 2026-06-28
+
+- [x] Add an immutable forward migration for agency-scoped guardian consent.
+- [x] Extend guardian verification requests with an optional named-agency scope.
+- [x] Expose authenticated per-agency consent status/request APIs for `/apply`.
+- [x] Make server and client send-readiness fail closed for minors without consent for the selected agency.
+- [x] Re-check agency consent inside the final submission transaction.
+- [x] Withhold a minor's body digitals and comp card until the named agency is authorized.
+- [x] Replace the minor's self-attested review checkbox with guardian-controlled status and request actions.
+- [x] Add focused service, route, and submission regressions.
+- [x] Run migration, tests, lint, build, and final diff review.
+- [x] Render and test the named agency in the active guardian-consent email.
+
+## Planned design
+
+- Keep `profiles.guardian_consent_at` as account-level authorization for
+  collecting and managing sensitive minor profile data.
+- Add `minor_agency_consents` as the disclosure authorization source of truth,
+  unique by `(profile_id, agency_id)`, and tie each authorization to the
+  guardian verification request that created it.
+- Add nullable `agency_id` to new guardian requests. Existing unscoped requests
+  retain their account-level meaning; agency-scoped verification authorizes
+  only the named agency and does not silently authorize every agency.
+- Treat the review checkbox as an adult package confirmation only. A minor's
+  send control is enabled exclusively by verified agency-scoped consent.
+
+## Review
+
+- Added `minor_agency_consents`, unique by profile and agency, through a new
+  forward migration. Existing account-level consent remains separate.
+- Guardian requests can now target one active agency; verification records only
+  that agency authorization and the email/page copy names the authorized house.
+- Both readiness evaluators and both package-validation passes reject a minor
+  without selected-agency consent. The final application transaction queries
+  the consent table again before inserting or reviving an application.
+- `/apply` polls the selected agency's guardian status. Before verification,
+  body digitals, measurements, book frames, and the comp card are withheld from
+  review; the minor cannot replace guardian authorization with a checkbox.
+- Focused Jest suites pass: 34 tests across readiness, package validation,
+  guardian consent, and direct application submission.
+- Migration/schema verification, focused ESLint, `git diff --check`, and the
+  Vite production build pass.
+- Rendered local QA confirmed three body slots withheld, zero body images in
+  those slots, no minor consent checkbox, disabled submit, withheld measurements
+  and comp card, and no horizontal overflow. Demo data was restored afterward,
+  and no guardian request was sent.
+- Follow-up: corrected the active `pholio-email` template path so the email
+  subject, preview text, heading, disclosure summary, authorization scope, CTA,
+  and expiry note name the selected agency before the guardian decides. Added
+  direct live-sender and HTML regressions; the unscoped account-consent email
+  remains unchanged.
+
 # Talent Dashboard Button System Audit — 2026-06-27
 
 - [x] Inventory button usage on Overview, Profile, Media, Analytics, Settings,
@@ -206,6 +522,21 @@
 - Verification passed: backend syntax checks, focused frontend ESLint, `git diff --check`, client Vite production build, and three focused Supertest regressions covering the website contract, owner exclusion, and event whitelist.
 - The full pre-existing `overview-backend.test.js` suite still has three seed-state failures unrelated to this work (`is_pro` SQLite integer vs strict boolean, and absent seeded analytics). The three new focused tests pass.
 - Browser visual QA could not run because the in-app browser connector failed before opening a tab; this remains the only unchecked item.
+
+# Profile Tab Comprehensive Audit — 2026-06-28
+
+- [x] Map the `/profile` tab end to end across frontend, backend, visibility, and downstream consumers.
+- [x] Run independent functional/data, industry, legal, and security audits with specialist subagents.
+- [x] Reconcile the specialist findings with local code and live behavior.
+- [x] Write the consolidated audit report and task-log review.
+
+## Review
+
+- The profile tab is not production-clean. The strongest functional issue is that the social section exposes OAuth-branded controls that are explicitly non-functional, while measurement flows and shoe sizing remain brittle and inconsistent across display, storage, and conversion.
+- The industry gap is material but narrower than the legal/security risk. The editor captures many useful talent fields, but several reviewer surfaces are still under-modeled for real agency use, especially role-specific stats, structured representation, and creator/actor-specific review data.
+- The legal risk is high. Public and agency-facing flows still expose too much profile data, minor and guardian handling is not aligned with the current code claims, and the consent flow uses a GET that mutates verification state.
+- The security risk is severe. Agency discovery and profile detail paths return a very broad profile payload, including internal and sensitive fields that are not needed for reviewer workflows, and blocked-agency logic only constrains invite actions.
+- See [tasks/profile-tab-audit-2026-06-28.md](tasks/profile-tab-audit-2026-06-28.md) for the full consolidated report.
 
 # Apply Workspace Editorial Frame — 2026-06-26
 
@@ -1666,18 +1997,28 @@ all front/back combos valid (Backstage, Sedcard24, models.com show packages).
 
 ## Plan
 
-- [ ] Map `/dashboard/talent/profile` from route and UI controls through hooks,
+- [x] Map `/dashboard/talent/profile` from route and UI controls through hooks,
       API clients, Express middleware/routes, database schema, public profile
       exposure, agency consumers, submissions, exports, and deletion.
-- [ ] Complete independent functional/data, modeling-industry, legal, and
+- [x] Complete independent functional/data, modeling-industry, legal, and
       security audits using specialist subagents and current authoritative
       sources where external standards or law are involved.
-- [ ] Reproduce or verify high-risk findings with focused static checks, tests,
+- [x] Reproduce or verify high-risk findings with focused static checks, tests,
       API/runtime probes, and SQLite/PostgreSQL compatibility review.
-- [ ] Reconcile duplicate/conflicting findings into one prioritized report with
+- [x] Reconcile duplicate/conflicting findings into one prioritized report with
       exact code evidence, impact, remediation, verified safeguards, and
       acknowledged coverage limits.
 
 ## Review
 
-- Pending.
+- Completed a full read-only audit and wrote the consolidated report to
+  `tasks/profile-tab-audit-2026-06-28.md`.
+- The highest-risk issues are audience overexposure in agency/public readers,
+  inconsistent minor/public/discovery handling, and guardian consent recorded
+  via GET.
+- Functional and industry findings also surfaced several data-model mismatches:
+  shoe-size region persistence, age/DOB drift, dead-end social connect controls,
+  and public portfolio measurement gaps.
+- Verification included live profile/API checks, focused static inspection, and
+  targeted test runs; the codebase still needs browser-level end-to-end coverage
+  for save/reload and downstream exposure paths.

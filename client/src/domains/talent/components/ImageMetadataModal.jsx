@@ -9,7 +9,11 @@ import {
   stylePickerOptions,
   COMP_CARD_SLOT_LABELS,
 } from '../../../shared/constants/frameTaxonomy';
-import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import './ImageMetadataModal.css';
 
 const COMP_CARD_ROLES = [
@@ -167,9 +171,9 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
       <section className="imd-shell" aria-label="Edit image details" onClick={e => e.stopPropagation()}>
         <aside className="imd-preview" aria-label="Selected image preview">
           <div className="imd-preview__bar">
-            <button type="button" onClick={onClose} className="imd-icon-btn" aria-label="Close details">
+            <PholioIconButton type="button" tone="dark" onClick={onClose} className="imd-icon-btn" aria-label="Close details">
               <X size={18} />
-            </button>
+            </PholioIconButton>
           </div>
           <div className="imd-image-stage">
             <img src={previewUrl} alt={formData.metadata.caption || 'Selected portfolio frame'} className="imd-preview-image" />
@@ -178,7 +182,7 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
               {selectedRole && <span className="imd-pill imd-pill--gold">{selectedRole.label}</span>}
             </div>
           </div>
-          <PholioButton type="button" variant="inverse" system="dashboard" fullWidth onClick={() => onOpenEditor(image)}>
+          <PholioButton type="button" variant="secondary" tone="dark" fullWidth onClick={() => onOpenEditor(image)}>
             <Crop size={15} />
             Crop & rotate
           </PholioButton>
@@ -200,22 +204,24 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
               </div>
               <div className="imd-control-row">
                 <span className="imd-control-label">Visibility</span>
-                <div className="imd-segment" role="group" aria-label="Visibility">
-                  <button
+                <PholioToggleGroup className="imd-segment" role="group" aria-label="Visibility">
+                  <PholioToggleButton
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'public' } }))}
+                    active={formData.metadata.visibility === 'public'}
                     className={formData.metadata.visibility === 'public' ? 'is-active' : ''}
                   >
                     Public
-                  </button>
-                  <button
+                  </PholioToggleButton>
+                  <PholioToggleButton
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'private' } }))}
+                    active={formData.metadata.visibility === 'private'}
                     className={formData.metadata.visibility === 'private' ? 'is-active is-private' : ''}
                   >
                     Private
-                  </button>
-                </div>
+                  </PholioToggleButton>
+                </PholioToggleGroup>
               </div>
               <div className="imd-switch-list">
                 <label className="imd-switch">
@@ -302,21 +308,22 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                 <Camera size={15} />
                 <h3>Comp card role</h3>
               </div>
-              <div className="imd-chip-grid">
+              <PholioToggleGroup className="imd-chip-grid">
                 {COMP_CARD_ROLES.map((role) => {
                   const isActive = formData.metadata.role === role.id;
                   return (
-                    <button
+                    <PholioToggleButton
                       key={role.id}
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, role: isActive ? null : role.id } }))}
+                      active={isActive}
                       className={`imd-role-chip ${isActive ? 'is-active' : ''}`}
                     >
                       {role.label}
-                    </button>
+                    </PholioToggleButton>
                   );
                 })}
-              </div>
+              </PholioToggleGroup>
             </section>
 
             <section className="imd-section">
@@ -324,13 +331,13 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                 <Tags size={15} />
                 <h3>Categories</h3>
               </div>
-              <div className="imd-tags">
+              <PholioToggleGroup className="imd-tags">
                 {availableTags.map(tag => (
-                  <button key={tag} type="button" onClick={() => toggleTag(tag)} className={formData.metadata.tags.includes(tag) ? 'is-selected' : ''}>
+                  <PholioToggleButton key={tag} type="button" onClick={() => toggleTag(tag)} active={formData.metadata.tags.includes(tag)} className={formData.metadata.tags.includes(tag) ? 'is-selected' : ''}>
                     {tag}
-                  </button>
+                  </PholioToggleButton>
                 ))}
-              </div>
+              </PholioToggleGroup>
             </section>
 
             <section className="imd-section">
@@ -396,8 +403,8 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
           </div>
 
           <footer className="imd-footer">
-            <PholioButton type="button" variant="secondary" system="dashboard" onClick={onClose}>Cancel</PholioButton>
-            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleSave} disabled={loading}>
+            <PholioButton type="button" variant="secondary" onClick={onClose}>Cancel</PholioButton>
+            <PholioButton type="button" variant="primary" onClick={handleSave} disabled={loading}>
               {loading ? 'Saving...' : <><Save size={15} />Save changes</>}
             </PholioButton>
           </footer>

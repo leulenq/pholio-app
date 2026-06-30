@@ -6,6 +6,7 @@
  * guardian is never logged in):
  *
  *  - POST /api/talent/guardian-consent/request  (requireRole TALENT, minors only)
+ *  - GET  /api/talent/guardian-consent/agency/:agencyId
  *  - GET  /api/talent/guardian-consent/verify    (public — JSON for the SPA)
  *  - GET  /guardian-consent                       (public — EJS success/failure page)
  */
@@ -23,6 +24,7 @@ const {
   persistProfileDateOfBirthIfNeeded,
   loadProfilePrimaryPhotoUrl,
   GuardianConsentEmailError,
+  getAgencyConsentStatus,
 } = require("../services/guardian-consent");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -76,7 +78,9 @@ router.post(
       );
     }
 
-    const guardianEmail = String(req.body?.guardian_email || "").trim();
+    const guardianEmail = String(
+      req.body?.guardian_email || profile.guardian_email || "",
+    ).trim();
     if (!EMAIL_RE.test(guardianEmail)) {
       return apiResponse.error(res, "A valid guardian email is required.", 400, {
         code: "INVALID_GUARDIAN_EMAIL",
@@ -90,6 +94,26 @@ router.post(
       [profile.first_name, profile.last_name].filter(Boolean).join(" ") || null;
     const talentPhotoUrl = await loadProfilePrimaryPhotoUrl(knex, profile.id);
     const talentCity = profile.city ? String(profile.city).trim() : null;
+    const agencyId = req.body?.agency_id
+      ? String(req.body.agency_id).trim()
+      : null;
+    let agency = null;
+    if (agencyId) {
+      if (!profile.guardian_consent_at) {
+        return apiResponse.error(
+          res,
+          "Account-level guardian consent is required before requesting permission for an agency submission.",
+          409,
+          { code: "ACCOUNT_GUARDIAN_CONSENT_REQUIRED" },
+        );
+      }
+      agency = await knex("agencies")
+        .where({ id: agencyId, status: "ACTIVE" })
+        .first("id", "name");
+      if (!agency) {
+        return apiResponse.notFound(res, "Agency not found");
+      }
+    }
 
     try {
       const result = await createConsentRequest(knex, profile.id, {
@@ -98,6 +122,8 @@ router.post(
         talentName,
         talentPhotoUrl,
         talentCity,
+        agencyId: agency?.id || null,
+        agencyName: agency?.name || null,
       });
 
       return apiResponse.success(res, {
@@ -105,6 +131,7 @@ router.post(
         email_sent: true,
         guardian_email: maskEmail(guardianEmail),
         expires_at: result.expiresAt,
+        agency_id: agency?.id || null,
       });
     } catch (err) {
       if (err instanceof GuardianConsentEmailError) {
@@ -117,6 +144,45 @@ router.post(
       }
       throw err;
     }
+  }),
+);
+
+router.get(
+  "/api/talent/guardian-consent/agency/:agencyId",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await knex("profiles")
+      .where({ user_id: req.session.userId })
+      .first();
+    if (!profile) return apiResponse.notFound(res, "Profile not found");
+
+    const agency = await knex("agencies")
+      .where({ id: req.params.agencyId })
+      .first("id", "name");
+    if (!agency) return apiResponse.notFound(res, "Agency not found");
+
+    if (!isMinorProfile(profile)) {
+      return apiResponse.success(res, {
+        required: false,
+        status: "not_required",
+        agency_id: agency.id,
+        agency_name: agency.name,
+      });
+    }
+
+    const status = await getAgencyConsentStatus(knex, profile, agency.id);
+    return apiResponse.success(res, {
+      required: true,
+      status: status.status,
+      guardian_email: status.guardianEmail
+        ? maskEmail(status.guardianEmail)
+        : null,
+      expires_at: status.expiresAt,
+      verified_at: status.verifiedAt || null,
+      account_consent_verified: Boolean(profile.guardian_consent_at),
+      agency_id: agency.id,
+      agency_name: agency.name,
+    });
   }),
 );
 
@@ -135,9 +201,13 @@ router.get(
         code: result.reason || "invalid",
       });
     }
+    const agency = result.agencyId
+      ? await knex("agencies").where({ id: result.agencyId }).first("name")
+      : null;
     return apiResponse.success(res, {
       status: "verified",
       already_verified: result.reason === "already_verified",
+      agency_name: agency?.name || null,
     });
   }),
 );
@@ -152,11 +222,15 @@ router.get(
   asyncHandler(async (req, res) => {
     const token = String(req.query?.token || "").trim();
     const result = await verifyConsentToken(knex, token);
+    const agency = result.agencyId
+      ? await knex("agencies").where({ id: result.agencyId }).first("name")
+      : null;
     return res.status(result.ok ? 200 : 400).render("guardian-consent", {
       title: "Guardian Consent · Pholio",
       layout: false,
       ok: result.ok,
       reason: result.reason || null,
+      agencyName: agency?.name || null,
     });
   }),
 );

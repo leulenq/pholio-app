@@ -245,19 +245,7 @@
   gap: 9px;
   min-height: 56px;
   padding: 10px;
-  border: 1px solid var(--pem-hair);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.34);
-  color: var(--pem-text);
-  cursor: pointer;
   text-align: left;
-  transition: border-color 0.2s var(--pem-ease), background 0.2s var(--pem-ease), color 0.2s var(--pem-ease);
-}
-
-.pem-aspect-grid button:hover,
-.pem-aspect-grid button.is-active {
-  border-color: rgba(201, 165, 90, 0.62);
-  background: rgba(201, 165, 90, 0.12);
 }
 
 .pem-aspect-grid button span:not(.pem-aspect-icon) {
@@ -346,16 +334,6 @@
   white-space: nowrap;
   cursor: pointer;
   transition: background 0.2s var(--pem-ease), border-color 0.2s var(--pem-ease), color 0.2s var(--pem-ease), opacity 0.2s var(--pem-ease);
-}
-
-.pem-nudge-row button {
-  border: 1px solid var(--pem-hair-strong);
-  background: transparent;
-  color: var(--pem-text);
-}
-
-.pem-nudge-row button:hover {
-  border-color: rgba(26, 26, 26, 0.32);
 }
 
 .pem-footer {

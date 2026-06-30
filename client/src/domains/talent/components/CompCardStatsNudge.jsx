@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { PholioIconButton } from '../../../shared/components/ui/PholioButton';
 
 const APPEARANCE_URL = '/dashboard/talent/profile?tab=appearance';
 
@@ -64,14 +65,13 @@ export default function CompCardStatsNudge({ profile }) {
           Add to profile
         </Link>
       </p>
-      <button
-        type="button"
+      <PholioIconButton
+        label="Dismiss stats reminder"
         className="cc-stats-nudge__dismiss"
         onClick={() => setDismissed(true)}
-        aria-label="Dismiss stats reminder"
       >
-        Dismiss
-      </button>
+        ×
+      </PholioIconButton>
     </div>
   );
 }

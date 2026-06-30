@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useId, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { ArrowUp, ArrowDown, ExternalLink, Search, Globe, Share2, AlertCircle } from 'lucide-react';
 import { useAnalytics } from '../hooks/useAnalytics';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './PerformanceOverview.css';
 
 function iconForSourceLabel(label) {
@@ -108,8 +109,9 @@ export const PerformanceOverview = () => {
           <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.875rem' }}>
             Couldn't load trend chart data right now.
           </p>
-          <button
+          <PholioButton
             type="button"
+            variant="secondary"
             className="step-action"
             style={{ marginTop: '0.75rem' }}
             onClick={() => refetch()}
@@ -117,7 +119,7 @@ export const PerformanceOverview = () => {
             aria-busy={isAnalyticsRefetching}
           >
             {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
-          </button>
+          </PholioButton>
         </div>
       </div>
     );

@@ -1029,12 +1029,14 @@ function buildGuardianConsentEmailHtml({
   talentName,
   talentPhotoUrl,
   talentCity,
+  agencyName,
   consentUrl,
   expiresDays = 7,
 }) {
   const marketing = getMarketingSiteUrl();
   const safeTalent = escapeHtml(talentName || "this talent");
   const greetingName = guardianName ? escapeHtml(guardianName) : null;
+  const safeAgency = agencyName ? escapeHtml(agencyName) : null;
   const heroHtml = buildGuardianConsentHero({
     talentName,
     talentPhotoUrl,
@@ -1046,14 +1048,20 @@ function buildGuardianConsentEmailHtml({
       ${greetingName ? `Hi ${greetingName},` : "Hello,"}
     </p>
     ${buildLeadParagraph(
-      `<strong style="color:${BRAND.text};font-weight:600;">${safeTalent}</strong> listed you as their parent or legal guardian on Pholio and needs your verified consent to continue building their portfolio.`,
+      safeAgency
+        ? `<strong style="color:${BRAND.text};font-weight:600;">${safeTalent}</strong> listed you as their parent or legal guardian and needs your permission to send their profile, measurements, and images to <strong style="color:${BRAND.text};font-weight:600;">${safeAgency}</strong> for representation review.`
+        : `<strong style="color:${BRAND.text};font-weight:600;">${safeTalent}</strong> listed you as their parent or legal guardian on Pholio and needs your verified consent to continue building their portfolio.`,
     )}
     ${buildInfoPanel({
       title: "What you are confirming",
       items: [
         "You are the parent or legal guardian of this talent.",
-        "Pholio may collect measurements, full-length photos, and profile details for agency submissions.",
-        "Agencies may review this portfolio only after your consent is recorded.",
+        safeAgency
+          ? `Pholio may disclose this talent's measurements, full-length photos, and profile details to ${safeAgency}.`
+          : "Pholio may collect measurements, full-length photos, and profile details for agency submissions.",
+        safeAgency
+          ? `This permission applies only to ${safeAgency}; another agency requires a separate request.`
+          : "Agencies may review this portfolio only after your consent is recorded.",
       ],
     })}
     ${buildSectionLabel("What happens next")}
@@ -1066,12 +1074,16 @@ function buildGuardianConsentEmailHtml({
       {
         title: "Confirm on Pholio",
         description:
-          "One click records verified guardian consent on this talent's profile.",
+          safeAgency
+            ? `One click authorizes this submission to ${safeAgency}.`
+            : "One click records verified guardian consent on this talent's profile.",
       },
       {
         title: "They can finish their book",
         description:
-          "After confirmation, they can complete measurements, upload imagery, and apply to agencies.",
+          safeAgency
+            ? `After confirmation, they can submit this package to ${safeAgency}.`
+            : "After confirmation, they can complete measurements, upload imagery, and apply to agencies.",
       },
     ])}
     ${buildCtaButton({ href: consentUrl, label: "Review & confirm consent" })}

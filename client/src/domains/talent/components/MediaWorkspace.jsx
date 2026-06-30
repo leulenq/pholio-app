@@ -22,7 +22,9 @@ import { talentApi } from '../api/talent';
 import FrameEditor from './FrameEditor';
 import DigitalsBookPanel from './DigitalsBookPanel';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
-import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioIconButton,
+} from '../../../shared/components/ui/PholioButton';
 import { checkGatingStatus } from '../../../shared/utils/profileGating';
 import CompCard from './CompCard';
 import CompCardGate from './CompCardGate';
@@ -164,8 +166,10 @@ function MediaFrame({
     <article ref={setNodeRef} style={style} className={cls} aria-label={`Frame ${index + 1}`}>
       <div className="mw-frame__stage" {...attributes} {...listeners}>
         {isVideo ? (
-          <button
+          <PholioButton
             type="button"
+            variant="tertiary"
+            tone="dark"
             className="mw-frame__motion"
             onClick={(e) => { e.stopPropagation(); onEdit(image); }}
             aria-label={image.label || 'Motion asset'}
@@ -173,7 +177,7 @@ function MediaFrame({
             <Film size={26} aria-hidden="true" />
             <span className="mw-frame__motion-label">{image.label || 'Motion asset'}</span>
             {duration ? <span className="mw-frame__motion-meta">{duration}</span> : null}
-          </button>
+          </PholioButton>
         ) : (
           <img
             src={getImageUrl(image.public_url || image.path)}
@@ -197,24 +201,62 @@ function MediaFrame({
 
         <div className="mw-frame__actions" aria-label="Frame actions">
           {allowCover && !isCover && !isVideo && (
-            <button type="button" className="mw-frame__action" title="Make cover" aria-label="Make cover"
-              disabled={coverBusy} onClick={(e) => { e.stopPropagation(); onSetCover(image.id); }}>
+            <PholioIconButton
+              label="Make cover"
+              tone="dark"
+              className="mw-frame__action"
+              title="Make cover"
+              disabled={coverBusy}
+              onClick={(e) => { e.stopPropagation(); onSetCover(image.id); }}
+            >
               {settingCoverId === image.id ? <Loader2 size={14} className="mw-spin" aria-hidden="true" /> : <Star size={14} aria-hidden="true" />}
-            </button>
+            </PholioIconButton>
           )}
           {isVideo && image.video_url ? (
-            <a className="mw-frame__action" title="Open motion asset" aria-label="Open motion asset"
-              href={image.video_url} target="_blank" rel="noreferrer noopener"
-              onClick={(e) => e.stopPropagation()}><ExternalLink size={14} aria-hidden="true" /></a>
+            <PholioIconButton
+              as="a"
+              label="Open motion asset"
+              tone="dark"
+              className="mw-frame__action"
+              title="Open motion asset"
+              href={image.video_url}
+              target="_blank"
+              rel="noreferrer noopener"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={14} aria-hidden="true" />
+            </PholioIconButton>
           ) : null}
-          <button type="button" className="mw-frame__action" title="Edit details" aria-label="Edit details"
-            onClick={(e) => { e.stopPropagation(); onEdit(image); }}><Edit2 size={14} aria-hidden="true" /></button>
+          <PholioIconButton
+            label="Edit details"
+            tone="dark"
+            className="mw-frame__action"
+            title="Edit details"
+            onClick={(e) => { e.stopPropagation(); onEdit(image); }}
+          >
+            <Edit2 size={14} aria-hidden="true" />
+          </PholioIconButton>
           {!isVideo && (
-            <button type="button" className="mw-frame__action" title="Crop" aria-label="Crop"
-              onClick={(e) => { e.stopPropagation(); onCrop(image); }}><Crop size={14} aria-hidden="true" /></button>
+            <PholioIconButton
+              label="Crop"
+              tone="dark"
+              className="mw-frame__action"
+              title="Crop"
+              onClick={(e) => { e.stopPropagation(); onCrop(image); }}
+            >
+              <Crop size={14} aria-hidden="true" />
+            </PholioIconButton>
           )}
-          <button type="button" className="mw-frame__action mw-frame__action--danger" title="Remove" aria-label="Remove"
-            onClick={(e) => { e.stopPropagation(); onDelete(image.id); }}><Trash2 size={14} aria-hidden="true" /></button>
+          <PholioIconButton
+            label="Remove"
+            danger
+            tone="dark"
+            className="mw-frame__action mw-frame__action--danger"
+            title="Remove"
+            onClick={(e) => { e.stopPropagation(); onDelete(image.id); }}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+          </PholioIconButton>
         </div>
       </div>
       <div className="mw-frame__foot">
@@ -295,15 +337,13 @@ function DigitalsSetControl({ pkg, sets, onSelectSet, onCreateSet, busy, slug, h
             </select>
           </label>
         ) : null}
-        <PholioButton type="button" variant="secondary" size="sm" system="dashboard" disabled={busy} onClick={onCreateSet}>
+        <PholioButton type="button" variant="secondary" disabled={busy} onClick={onCreateSet}>
           <Plus size={14} aria-hidden="true" /> Start new dated set
         </PholioButton>
         {hasDigitals && slug ? (
           <PholioButton
             type="button"
-            variant="outline"
-            size="sm"
-            system="dashboard"
+            variant="secondary"
             disabled={downloading}
             onClick={handleDownloadDigitals}
             title="Download your digitals as a dated PDF sheet"
@@ -329,9 +369,13 @@ function UploadDatePrompt({ count, onConfirm, onSkip, onCancel }) {
       <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Shoot date" onClick={(e) => e.stopPropagation()}>
         <header className="mw-modal__head">
           <h3 className="mw-modal__title">When were these shot?</h3>
-          <button type="button" className="mw-modal__close" onClick={onCancel} aria-label="Cancel">
+          <PholioIconButton
+            label="Cancel"
+            className="mw-modal__close"
+            onClick={onCancel}
+          >
             <X size={16} aria-hidden="true" />
-          </button>
+          </PholioIconButton>
         </header>
         <p className="mw-modal__body">
           A real shoot date keeps your recency honest — agencies read digitals by when they were taken,
@@ -342,8 +386,8 @@ function UploadDatePrompt({ count, onConfirm, onSkip, onCancel }) {
           <input type="date" max={today} value={value} onChange={(e) => setValue(e.target.value)} className="mw-modal__input" />
         </label>
         <div className="mw-modal__actions">
-          <PholioButton type="button" variant="secondary" system="dashboard" onClick={onSkip}>I&rsquo;m not sure — skip</PholioButton>
-          <PholioButton variant="solid" system="dashboard" disabled={!value} onClick={() => onConfirm(dateInputToIso(value))}>
+          <PholioButton type="button" variant="secondary" onClick={onSkip}>I&rsquo;m not sure — skip</PholioButton>
+          <PholioButton variant="primary" disabled={!value} onClick={() => onConfirm(dateInputToIso(value))}>
             Add with date
           </PholioButton>
         </div>
@@ -373,9 +417,13 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
       <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Add motion" onClick={(e) => e.stopPropagation()}>
         <header className="mw-modal__head">
           <h3 className="mw-modal__title">Add a motion asset</h3>
-          <button type="button" className="mw-modal__close" onClick={onCancel} aria-label="Cancel">
+          <PholioIconButton
+            label="Cancel"
+            className="mw-modal__close"
+            onClick={onCancel}
+          >
             <X size={16} aria-hidden="true" />
-          </button>
+          </PholioIconButton>
         </header>
         <p className="mw-modal__body">Link a showreel or clip by URL — your stills pipeline is untouched.</p>
         <label className="mw-modal__field">
@@ -397,8 +445,8 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
           </label>
         </div>
         <div className="mw-modal__actions">
-          <PholioButton type="button" variant="secondary" system="dashboard" onClick={onCancel}>Cancel</PholioButton>
-          <PholioButton variant="solid" system="dashboard" disabled={busy || !url.trim()} onClick={submit}>
+          <PholioButton type="button" variant="secondary" onClick={onCancel}>Cancel</PholioButton>
+          <PholioButton variant="primary" disabled={busy || !url.trim()} onClick={submit}>
             {busy ? 'Adding…' : 'Add motion'}
           </PholioButton>
         </div>
@@ -706,15 +754,15 @@ export default function MediaWorkspace() {
               ))}
             </SortableContext>
             {key === 'motion' ? (
-              <button type="button" className="mw-add-tile" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo}>
+              <PholioButton type="button" variant="secondary" className="mw-add-tile" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo}>
                 <Film size={20} aria-hidden="true" />
                 <span>{isAddingVideo ? 'Adding…' : 'Add motion'}</span>
-              </button>
+              </PholioButton>
             ) : (
-              <button type="button" className="mw-add-tile" onClick={openFilePicker} disabled={isUploading}>
+              <PholioButton type="button" variant="secondary" className="mw-add-tile" onClick={openFilePicker} disabled={isUploading}>
                 <Plus size={20} aria-hidden="true" />
                 <span>{isUploading ? 'Adding…' : 'Add images'}</span>
-              </button>
+              </PholioButton>
             )}
           </div>
         </DndContext>
@@ -755,8 +803,7 @@ export default function MediaWorkspace() {
           message="This frame will be removed from your portfolio and from active representation materials."
           confirmLabel="Remove frame"
           cancelLabel="Cancel"
-          variant="danger"
-          buttonSystem="dashboard"
+          danger
           onConfirm={confirmDelete}
           onCancel={() => setDeleteId(null)}
         />
@@ -780,10 +827,10 @@ export default function MediaWorkspace() {
             </span>
           </div>
           <div className="mw-masthead__actions">
-            <PholioButton variant="outline" system="dashboard" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo}>
+            <PholioButton variant="secondary" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo}>
               <Film size={15} aria-hidden="true" /> Add motion
             </PholioButton>
-            <PholioButton variant="solid" system="dashboard" onClick={openFilePicker} disabled={isUploading}>
+            <PholioButton variant="primary" onClick={openFilePicker} disabled={isUploading}>
               <Plus size={15} aria-hidden="true" /> {isUploading ? 'Adding…' : 'Add images'}
             </PholioButton>
           </div>
@@ -819,7 +866,7 @@ export default function MediaWorkspace() {
           ) : (
             <div className="mw-empty">
               <span className="mw-empty__title">No frames yet.</span>
-              <PholioButton variant="solid" system="dashboard" onClick={openFilePicker} disabled={isUploading}>
+              <PholioButton variant="primary" onClick={openFilePicker} disabled={isUploading}>
                 <Upload size={14} aria-hidden /> Upload Media
               </PholioButton>
               <p className="mw-helper">JPEG · PNG · WEBP — up to 5MB, 12 at a time</p>

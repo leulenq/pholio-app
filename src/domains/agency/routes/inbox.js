@@ -17,6 +17,7 @@ const {
   getSessionActorUserId,
   getSessionAgencyId,
 } = require("../services/context");
+const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
 const { searchDiscoverableTalent } = require("../services/discover-search");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const { recalculateBoardScores } = require("./recalculate-board-scores");
@@ -35,6 +36,12 @@ const {
 const { recordAuditEvent } = require("../services/audit");
 const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
 const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
+const {
+  loadApplicationSubmissionPackages,
+} = require("../services/application-submission-package");
+const {
+  buildSubmissionProfileSnapshot,
+} = require("../../../shared/lib/submission-profile");
 
 const addTeamMemberSchema = z.object({
   email: z
@@ -692,7 +699,12 @@ router.get(
               knex.raw("?", [req.session.userId]),
             );
         })
-        .whereNotNull("profiles.bio_curated");
+        .whereNotNull("profiles.bio_curated")
+        .where((builder) => {
+          builder
+            .whereNull("applications.id")
+            .orWhereNot("applications.status", "withdrawn");
+        });
 
       // Apply filters (same logic as main route)
       if (city) {
@@ -777,8 +789,26 @@ router.get(
 
       const profiles = await query;
 
-      // Fetch images
-      const profileIds = profiles.map((p) => p.id);
+      const submissionPackages = await loadApplicationSubmissionPackages(
+        knex,
+        profiles
+          .filter((profile) => profile.application_id)
+          .map((profile) => ({
+            id: profile.application_id,
+            profile_id: profile.id,
+            slug: profile.slug,
+          })),
+      );
+
+      // Legacy applications without a package retain the live-profile fallback.
+      // Once a package exists, only its submitted image selection is exposed.
+      const profileIds = profiles
+        .filter(
+          (profile) =>
+            !profile.application_id ||
+            !submissionPackages.has(profile.application_id),
+        )
+        .map((profile) => profile.id);
       const allImages =
         profileIds.length > 0
           ? await knex("images")
@@ -813,12 +843,30 @@ router.get(
         tagsByApplication[tag.application_id].push(tag);
       });
 
-      profiles.forEach((profile) => {
-        profile.images = imagesByProfile[profile.id] || [];
-        profile.tags = tagsByApplication[profile.application_id] || [];
+      const safeProfiles = profiles.map((profile) => {
+        const submissionPackage = submissionPackages.get(
+          profile.application_id,
+        );
+        const submittedProfile =
+          submissionPackage?.profile ||
+          buildSubmissionProfileSnapshot(profile);
+        return {
+          ...submittedProfile,
+          owner_email: submittedProfile.is_minor
+            ? null
+            : profile.owner_email || null,
+          application_status: profile.application_status,
+          application_id: profile.application_id,
+          match_score: profile.match_score,
+          application_created_at: profile.application_created_at,
+          images:
+            submissionPackage?.images || imagesByProfile[profile.id] || [],
+          submission_package: submissionPackage || null,
+          tags: tagsByApplication[profile.application_id] || [],
+        };
       });
 
-      return res.json({ profiles, count: profiles.length });
+      return res.json({ profiles: safeProfiles, count: safeProfiles.length });
     } catch (error) {
       console.error("[API/Agency/Applications] Error:", error);
       return next(error);
@@ -842,6 +890,9 @@ router.get(
           (a) => !a.status || a.status === "pending",
         ).length,
         accepted: allApplications.filter((a) => a.status === "accepted").length,
+        development: allApplications.filter(
+          (a) => a.status === "development",
+        ).length,
         declined: allApplications.filter((a) => a.status === "declined").length,
         archived: allApplications.filter((a) => a.status === "archived").length,
         newToday: allApplications.filter((a) => {
@@ -976,6 +1027,7 @@ router.patch(
         "shortlisted",
         "requested_more",
         "meeting_requested",
+        "development",
         "accepted",
         "booked",
         "passed",
@@ -1005,7 +1057,13 @@ router.patch(
           accepted_at:
             requestedStatus === "accepted"
               ? knex.fn.now()
-              : application.accepted_at,
+              : requestedStatus === "booked"
+                ? application.accepted_at || knex.fn.now()
+                : null,
+          declined_at:
+            requestedStatus === "declined" || requestedStatus === "passed"
+              ? knex.fn.now()
+              : null,
           updated_at: knex.fn.now(),
         });
 
@@ -1296,6 +1354,7 @@ router.patch(
         "shortlisted",
         "requested_more",
         "meeting_requested",
+        "development",
         "accepted",
         "booked",
         "passed",
@@ -1322,7 +1381,16 @@ router.patch(
         .whereIn("id", applicationIds)
         .update({
           status: requestedStatus,
-          accepted_at: requestedStatus === "accepted" ? knex.fn.now() : null,
+          accepted_at:
+            requestedStatus === "accepted"
+              ? knex.fn.now()
+              : requestedStatus === "booked"
+                ? knex.raw("COALESCE(accepted_at, CURRENT_TIMESTAMP)")
+                : null,
+          declined_at:
+            requestedStatus === "declined" || requestedStatus === "passed"
+              ? knex.fn.now()
+              : null,
           updated_at: knex.fn.now(),
         });
 
@@ -1493,7 +1561,10 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
     const actorUserId = getSessionActorUserId(req);
     const agencyId = getSessionAgencyId(req);
     const user = await knex("users").where({ id: actorUserId }).first();
-    const agency = await knex("agencies").where({ id: agencyId }).first();
+    let agency = await knex("agencies").where({ id: agencyId }).first();
+    if (agency) {
+      agency = await injectAgencySocialFields(agency);
+    }
 
     if (!user || !agency) {
       return res.status(404).json({ error: "Agency account not found" });
@@ -1534,6 +1605,20 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
   }
 });
 
+const agencyProfileUpdateSchema = z.object({
+  first_name: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  last_name: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_name: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_location: z.string().trim().max(255).optional().or(z.literal("")).or(z.null()),
+  agency_website: z.string().trim().url("Enter a valid URL").max(255).optional().or(z.literal("")).or(z.null()),
+  agency_description: z.string().trim().max(1000).optional().or(z.literal("")).or(z.null()),
+  agency_instagram_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_tiktok_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_twitter_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_youtube_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_video_reel_url: z.string().trim().url("Enter a valid URL").max(500).optional().or(z.literal("")).or(z.null()),
+});
+
 // PUT /api/agency/profile - Update agency profile
 router.put(
   "/api/agency/profile",
@@ -1543,6 +1628,16 @@ router.put(
     try {
       const actorUserId = getSessionActorUserId(req);
       const agencyId = getSessionAgencyId(req);
+
+      const parsed = agencyProfileUpdateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: parsed.error.flatten().fieldErrors,
+        });
+      }
+
       const {
         first_name,
         last_name,
@@ -1555,7 +1650,7 @@ router.put(
         agency_twitter_handle,
         agency_youtube_handle,
         agency_video_reel_url,
-      } = req.body;
+      } = parsed.data;
 
       const updateData = {};
       if (first_name !== undefined) updateData.first_name = first_name || null;
@@ -1573,21 +1668,20 @@ router.put(
         agencyUpdateData.website = agency_website || null;
       if (agency_description !== undefined)
         agencyUpdateData.description = agency_description || null;
-      if (agency_instagram_handle !== undefined)
-        agencyUpdateData.instagram_handle = agency_instagram_handle || null;
-      if (agency_tiktok_handle !== undefined)
-        agencyUpdateData.tiktok_handle = agency_tiktok_handle || null;
-      if (agency_twitter_handle !== undefined)
-        agencyUpdateData.twitter_handle = agency_twitter_handle || null;
-      if (agency_youtube_handle !== undefined)
-        agencyUpdateData.youtube_handle = agency_youtube_handle || null;
-      if (agency_video_reel_url !== undefined)
-        agencyUpdateData.video_reel_url = agency_video_reel_url || null;
 
       if (Object.keys(agencyUpdateData).length > 0) {
         agencyUpdateData.updated_at = knex.fn.now();
         await knex("agencies").where({ id: agencyId }).update(agencyUpdateData);
       }
+
+      const socialData = {};
+      if (agency_instagram_handle !== undefined) socialData.instagram_handle = agency_instagram_handle;
+      if (agency_tiktok_handle !== undefined) socialData.tiktok_handle = agency_tiktok_handle;
+      if (agency_twitter_handle !== undefined) socialData.twitter_handle = agency_twitter_handle;
+      if (agency_youtube_handle !== undefined) socialData.youtube_handle = agency_youtube_handle;
+      if (agency_video_reel_url !== undefined) socialData.video_reel_url = agency_video_reel_url;
+
+      await saveAgencySocialFields(agencyId, socialData);
 
       return res.json({
         success: true,
@@ -2097,7 +2191,8 @@ router.get(
             .on("applications.profile_id", "=", "profiles.id")
             .andOn("applications.agency_id", "=", knex.raw("?", [agencyId]));
         })
-        .whereNotNull("profiles.bio_curated");
+        .whereNotNull("profiles.bio_curated")
+        .whereNot("applications.status", "withdrawn");
 
       // Apply filters
       if (status && status !== "all") {
@@ -2298,6 +2393,13 @@ router.get(
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
       }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message:
+            "The talent withdrew this submission and Pholio revoked access to its disclosure package.",
+        });
+      }
 
       const notes = await knex("application_notes")
         .where({ application_id: applicationId })
@@ -2488,6 +2590,13 @@ router.get(
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
       }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message:
+            "The talent withdrew this submission and Pholio revoked access to its disclosure package.",
+        });
+      }
 
       // Get full profile with all details
       const profile = await knex("profiles")
@@ -2498,13 +2607,35 @@ router.get(
         return res.status(404).json({ error: "Profile not found" });
       }
 
-      // Get all images
-      const images = await knex("images")
-        .where({ profile_id: profile.id })
-        .orderBy(["sort", "created_at"]);
-
       // Get user info
       const user = await knex("users").where({ id: profile.user_id }).first();
+      const submissionPackages = await loadApplicationSubmissionPackages(knex, [
+        {
+          id: application.id,
+          profile_id: application.profile_id,
+          slug: profile.slug,
+        },
+      ]);
+      const submittedPackage = submissionPackages.get(application.id) || null;
+      const submittedProfile =
+        submittedPackage?.profile ||
+        buildSubmissionProfileSnapshot(profile);
+      const images = submittedPackage
+        ? submittedPackage.images
+        : await knex("images")
+            .where({ profile_id: profile.id })
+            .orderBy(["sort", "created_at"]);
+      const submissionPackage = submittedPackage
+        ? {
+            ...submittedPackage,
+            contact: submittedProfile.is_minor
+              ? null
+              : submittedPackage.contact || {
+                  email: user?.email || profile.email || null,
+                  phone: profile.phone || null,
+                },
+          }
+        : null;
 
       // Get notes
       const notes = await knex("application_notes")
@@ -2533,10 +2664,11 @@ router.get(
           invited_by_agency_id: application.invited_by_agency_id,
         },
         profile: {
-          ...profile,
+          ...submittedProfile,
           images,
-          user_email: user?.email || null,
+          user_email: submittedProfile.is_minor ? null : user?.email || null,
         },
+        submissionPackage,
         notes,
         tags,
       });
@@ -2630,11 +2762,10 @@ router.get(
     try {
       const agencyId = getSessionAgencyId(req.session);
 
-      // Fetch all accepted applications for this agency
-      const applications = await knex("applications").where({
-        agency_id: agencyId,
-        status: "accepted",
-      });
+      // Development is an advancing New Face state, not signed representation.
+      const applications = await knex("applications")
+        .where({ agency_id: agencyId })
+        .whereIn("status", ["accepted", "booked"]);
 
       if (!applications.length) {
         return res.json([]);
@@ -2755,8 +2886,8 @@ router.get(
         .where({
           profile_id: profileId,
           agency_id: agencyId,
-          status: "accepted",
         })
+        .whereIn("status", ["accepted", "booked"])
         .first();
 
       if (!application) {
@@ -3081,9 +3212,10 @@ router.get(
     try {
       const agencyId = req.session.userId;
 
-      // Calculate total talent pool (accepted applications + all public talent)
+      // Calculate total talent pool (signed applications + public talent).
       const acceptedCount = await knex("applications")
-        .where({ agency_id: agencyId, status: "accepted" })
+        .where({ agency_id: agencyId })
+        .whereIn("status", ["accepted", "booked"])
         .count("id as count")
         .first();
 

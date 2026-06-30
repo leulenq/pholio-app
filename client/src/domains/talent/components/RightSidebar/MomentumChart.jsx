@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../../shared/components/ui/PholioButton';
 import './SidebarWidget.css';
 
 const DAY_LETTERS = ['S', 'M', 'Tu', 'W', 'Th', 'F', 'S'];
@@ -100,8 +104,9 @@ export const MomentumChart = () => {
         <p className="percentile-text" style={{ marginTop: '1rem' }}>
           Couldn't load momentum data.
         </p>
-        <button
+        <PholioButton
           type="button"
+          variant="secondary"
           className="step-action"
           style={{ marginTop: '0.75rem' }}
           onClick={() => refetch()}
@@ -109,7 +114,7 @@ export const MomentumChart = () => {
           aria-busy={isAnalyticsRefetching}
         >
           {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
-        </button>
+        </PholioButton>
       </div>
     );
   }
@@ -130,24 +135,26 @@ export const MomentumChart = () => {
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
-        <div className="periodToggle" role="group" aria-label="Chart period">
-          <button 
+        <PholioToggleGroup className="periodToggle" role="group" aria-label="Chart period">
+          <PholioToggleButton
             type="button"
+            active={period === '7d'}
             className={period === '7d' ? 'active' : ''} 
             onClick={() => setPeriod('7d')}
             aria-pressed={period === '7d'}
           >
             7D
-          </button>
-          <button 
+          </PholioToggleButton>
+          <PholioToggleButton
             type="button"
+            active={period === '30d'}
             className={period === '30d' ? 'active' : ''} 
             onClick={() => setPeriod('30d')}
             aria-pressed={period === '30d'}
           >
             30D
-          </button>
-        </div>
+          </PholioToggleButton>
+        </PholioToggleGroup>
       </div>
 
       {/* Task 1: Vertical Bar Chart */}

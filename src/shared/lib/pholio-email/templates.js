@@ -256,32 +256,61 @@ function buildGuardianConsentEmailHtml({
   talentName,
   talentPhotoUrl,
   talentCity,
+  agencyName,
   consentUrl,
   expiresDays = 7,
 } = {}) {
   const talent = talentName || "a minor in your care";
+  const agency = agencyName || null;
+  const safeAgency = agency ? esc(agency) : null;
   return renderEmail({
-    subject: talentName
-      ? `Consent requested for ${talentName} on Pholio`
-      : "Guardian consent requested on Pholio",
-    previewText: `Your consent is requested for ${talent} on Pholio.`,
+    subject: agency
+      ? `Consent requested for ${talent} to submit to ${agency}`
+      : talentName
+        ? `Consent requested for ${talentName} on Pholio`
+        : "Guardian consent requested on Pholio",
+    previewText: agency
+      ? `Your authorization is requested for ${talent} to submit to ${agency}.`
+      : `Your consent is requested for ${talent} on Pholio.`,
     blocks: [
-      heading("A consent request for your review."),
+      heading(
+        agency
+          ? `Authorization to submit to ${agency}.`
+          : "A consent request for your review.",
+      ),
       goldRule(),
       paragraph(
-        `${greet(guardianName)} <strong style="color:#1A1815;font-weight:600;">${esc(talent)}</strong> would like to use Pholio to build a modeling portfolio. Because they're under 18, Pholio requires a parent or guardian's consent before any measurements, full-length photos, or public sharing can be enabled.`,
+        agency
+          ? `${greet(guardianName)} <strong style="color:#1A1815;font-weight:600;">${esc(talent)}</strong> would like to send a representation submission to <strong style="color:#1A1815;font-weight:600;">${safeAgency}</strong>. Because they're under 18, Pholio requires your authorization before any profile details, measurements, or images can be disclosed to this agency.`
+          : `${greet(guardianName)} <strong style="color:#1A1815;font-weight:600;">${esc(talent)}</strong> would like to use Pholio to build a modeling portfolio. Because they're under 18, Pholio requires a parent or guardian's consent before any measurements, full-length photos, or public sharing can be enabled.`,
       ),
       personCard({
         name: talentName || "Pending talent",
         meta: talentCity || undefined,
         photoUrl: talentPhotoUrl || undefined,
       }),
+      ...(agency
+        ? [
+            detailList([
+              { label: "Agency", value: agency },
+              {
+                label: "Shared",
+                value:
+                  "Profile and contact details, measurements, digitals, selected portfolio images, comp card, and optional note or social links",
+              },
+            ]),
+          ]
+        : []),
       paragraph(
-        "Review the request and decide what you're comfortable with. Nothing sensitive is shared or made public until you say so.",
+        agency
+          ? `This authorization applies only to ${safeAgency}. A submission to another agency requires a separate guardian authorization. Nothing from this submission is sent to this agency until you confirm.`
+          : "Review the request and decide what you're comfortable with. Nothing sensitive is shared or made public until you say so.",
       ),
-      button("Review & respond", consentUrl),
+      button(agency ? "Review & authorize" : "Review & respond", consentUrl),
       note(
-        `This request expires in ${expiresDays} day${Number(expiresDays) === 1 ? "" : "s"}. If you weren't expecting it, you can safely ignore this email and no profile will be activated.`,
+        agency
+          ? `This request expires in ${expiresDays} day${Number(expiresDays) === 1 ? "" : "s"}. If you weren't expecting it or do not authorize disclosure to ${safeAgency}, ignore this email and the submission will remain locked.`
+          : `This request expires in ${expiresDays} day${Number(expiresDays) === 1 ? "" : "s"}. If you weren't expecting it, you can safely ignore this email and no profile will be activated.`,
       ),
       signoff(),
     ],

@@ -22,8 +22,14 @@
       <div class="icon" aria-hidden="true">&#10003;</div>
       <h1>Consent confirmed</h1>
       <p>
-        Thank you. Your consent has been recorded. The talent can now share their
-        measurements, full-length photos, and portfolio with agencies on Pholio.
+        <% if (agencyName) { %>
+          Thank you. You authorized this talent to share their submission package
+          with <strong><%= agencyName %></strong>. This permission does not apply
+          to another agency.
+        <% } else { %>
+          Thank you. Your account-level consent has been recorded. The talent can
+          now manage measurements, full-length photos, and portfolio details on Pholio.
+        <% } %>
       </p>
       <p>You can safely close this window.</p>
     <% } else { %>

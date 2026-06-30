@@ -131,56 +131,16 @@
 }
 
 .fe-tab {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  padding: 6px 14px;
   height: 100%;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: rgba(245, 240, 232, 0.32);
-  transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
 }
 
-.fe-tab svg { opacity: 0.6; transition: opacity 0.25s; }
-
-.fe-tab:hover {
-  color: rgba(245, 240, 232, 0.55);
-}
-
-.fe-tab:hover svg { opacity: 0.9; }
-
-.fe-tab.is-active {
-  color: var(--fe-gold);
-}
-
-.fe-tab.is-active svg { opacity: 1; color: var(--fe-gold); }
+.fe-tab svg { opacity: 0.75; }
 
 /* ── Icon button ── */
 .fe-icon-btn {
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--fe-cream-faint);
-  border-radius: 6px;
-  transition: color 0.2s var(--fe-ease), background 0.2s var(--fe-ease);
-}
-
-.fe-icon-btn:hover {
-  color: var(--fe-cream);
-  background: rgba(255, 255, 255, 0.06);
+  min-width: 34px;
+  padding: 0;
 }
 
 /* ── Body ── */
@@ -457,35 +417,10 @@ select.fe-input {
 
 .fe-segment {
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--fe-input-bd);
-  border-radius: 999px;
-  background: var(--fe-input-bg);
 }
 
 .fe-segment button {
-  padding: 4px 14px;
-  border: none;
-  background: transparent;
-  border-radius: 999px;
-  cursor: pointer;
-  font-family: var(--fe-mono);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--fe-cream-soft);
-  transition: all 0.2s var(--fe-ease);
-}
-
-.fe-segment button.is-active {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--fe-cream);
-}
-
-.fe-segment button.is-private.is-active {
-  background: rgba(176, 72, 72, 0.35);
-  color: #f87171;
+  flex: 0 0 auto;
 }
 
 .fe-switch-list {
@@ -530,19 +465,6 @@ select.fe-input {
   align-items: center;
   gap: 6px;
   padding: 12px 8px;
-  border: 1px solid var(--fe-input-bd);
-  border-radius: 4px;
-  background: var(--fe-input-bg);
-  cursor: pointer;
-  transition: all 0.2s var(--fe-ease);
-}
-
-.fe-aspect-btn:hover { border-color: var(--fe-border-gold); }
-
-.fe-aspect-btn.is-active {
-  border-color: var(--fe-gold);
-  background: rgba(201, 165, 90, 0.08);
-  box-shadow: 0 0 0 1px var(--fe-gold);
 }
 
 .fe-aspect-icon {
@@ -608,27 +530,8 @@ select.fe-input {
   margin-top: 8px;
 }
 
-.fe-nudge-row button {
+.fe-nudge-row .pholio-btn {
   flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px;
-  border: 1px solid var(--fe-input-bd);
-  border-radius: 4px;
-  background: var(--fe-input-bg);
-  cursor: pointer;
-  font-family: var(--fe-sans);
-  font-size: 11.5px;
-  font-weight: 300;
-  color: var(--fe-cream-soft);
-  transition: all 0.2s var(--fe-ease);
-}
-
-.fe-nudge-row button:hover {
-  border-color: var(--fe-border-gold);
-  color: var(--fe-gold);
 }
 
 .fe-reset-btn {

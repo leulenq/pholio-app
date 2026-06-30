@@ -117,42 +117,5 @@
 
 .app-iv__accept,
 .app-iv__decline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.app-iv__accept {
-  background: var(--app-gold);
-  border: 1px solid var(--app-gold);
-  color: var(--app-ink);
-}
-
-.app-iv__accept:hover:not(:disabled) {
-  background: var(--app-gold-light);
-  border-color: var(--app-gold-light);
-}
-
-.app-iv__decline {
-  background: transparent;
-  border: 1px solid var(--app-hair-strong);
-  color: var(--app-text-soft);
-}
-
-.app-iv__decline:hover:not(:disabled) {
-  border-color: var(--app-text-soft);
-  color: var(--app-text);
-}
-
-.app-iv__accept:disabled,
-.app-iv__decline:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+  flex: 1;
 }

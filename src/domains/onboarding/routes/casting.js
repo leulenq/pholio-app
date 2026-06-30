@@ -18,6 +18,7 @@ const router = express.Router();
 
 // Dependencies
 const knex = require("../../../shared/db/knex");
+const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   requireAuth,
   requireRole,
@@ -185,7 +186,6 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           height_cm: 0,
           bio_raw: "",
           bio_curated: "",
-          instagram_handle: providerUser.instagram_handle || null,
           ...initial,
           visibility_mode: "private_intake",
           services_locked: true,
@@ -194,6 +194,12 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           created_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
+
+        if (providerUser.instagram_handle) {
+          await saveProfileSocialFields(profileId, {
+            instagram_handle: providerUser.instagram_handle
+          });
+        }
 
         // Add Google photo to images table as primary
         if (providerUser.picture) {

@@ -445,7 +445,7 @@ export default function OverviewPage() {
                 </p>
               )}
 
-              <PholioButton to={auditCtaTo} variant="outline" system="dashboard">
+              <PholioButton to={auditCtaTo} variant="primary" tone="dark">
                 {auditCtaLabel}
               </PholioButton>
             </div>
@@ -485,8 +485,8 @@ export default function OverviewPage() {
                   <AlertCircle size={14} aria-hidden />
                   <span>Analytics unavailable.</span>
                   <PholioButton
-                    variant="ghost"
-                    system="dashboard"
+                    variant="tertiary"
+                    tone="dark"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >
@@ -505,13 +505,18 @@ export default function OverviewPage() {
                   </div>
 
                   {interviewsNeedingResponse > 0 && (
-                    <Link to="/dashboard/talent/applications" className="ov-standing-action">
+                    <PholioButton
+                      to="/dashboard/talent/applications"
+                      variant="meta"
+                      tone="dark"
+                      className="ov-standing-action"
+                    >
                       <span>
                         {interviewsNeedingResponse}{' '}
                         {interviewsNeedingResponse === 1 ? 'interview needs' : 'interviews need'} your response
                       </span>
                       <ArrowUpRight size={13} aria-hidden />
-                    </Link>
+                    </PholioButton>
                   )}
 
                 </>
@@ -533,7 +538,7 @@ export default function OverviewPage() {
                     <p className="ov-artifact-desc">
                       Comp-card export unlocks after guardian consent is recorded on your profile.
                     </p>
-                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary" system="dashboard">
+                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
                       Record guardian consent
                     </PholioButton>
                   </div>
@@ -548,7 +553,7 @@ export default function OverviewPage() {
                     <p className="ov-artifact-desc">
                       Complete your required profile fields to unlock comp card export.
                     </p>
-                    <PholioButton to="/dashboard/talent/profile" variant="secondary" system="dashboard">
+                    <PholioButton to="/dashboard/talent/profile" variant="secondary">
                       Complete your card
                     </PholioButton>
                   </div>
@@ -571,10 +576,14 @@ export default function OverviewPage() {
                       </p>
                     </Link>
                     <div className="ov-artifact-footer">
-                      <Link to="/dashboard/talent/media" className="ov-artifact-action">
+                      <PholioButton
+                        to="/dashboard/talent/media"
+                        variant="meta"
+                        className="ov-artifact-action"
+                      >
                         <span>Export</span>
                         <Download size={13} aria-hidden />
-                      </Link>
+                      </PholioButton>
                     </div>
                   </>
                 )}
@@ -626,8 +635,8 @@ export default function OverviewPage() {
                   <AlertCircle size={14} aria-hidden />
                   <span>Website analytics unavailable.</span>
                   <PholioButton
-                    variant="ghost"
-                    system="dashboard"
+                    variant="tertiary"
+                    tone="dark"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >

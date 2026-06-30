@@ -7,6 +7,14 @@ const RIGHTS_CLEARED_STATUSES = new Set([
   "approved",
 ]);
 
+const RIGHTS_LICENSE_BASES = new Set([
+  "owned",
+  "licensed",
+  "model_release",
+  "agency_permission",
+  "editorial_release",
+]);
+
 const RIGHTS_DENIED_STATUSES = new Set([
   "denied",
   "blocked",
@@ -77,10 +85,51 @@ async function loadImageRightsMap(knex, imageIds) {
     if (!row?.image_id) continue;
     map.set(String(row.image_id), row);
   }
+
+  const hasReleasesTable = await knex.schema
+    .hasTable("image_model_releases")
+    .catch(() => false);
+  if (hasReleasesTable) {
+    const releaseRows = await knex("image_model_releases")
+      .whereIn("image_id", ids)
+      .select(
+        "image_id",
+        "release_ref",
+        "release_url",
+        "signer_name",
+        "signer_role",
+        "signed_at",
+      );
+    for (const release of releaseRows) {
+      if (!release?.image_id) continue;
+      const imageId = String(release.image_id);
+      map.set(imageId, {
+        ...(map.get(imageId) || { image_id: imageId }),
+        release_ref: release.release_ref,
+        release_url: release.release_url,
+        release_signer_name: release.signer_name,
+        release_signer_role: release.signer_role,
+        release_signed_at: release.signed_at,
+      });
+    }
+  }
   return map;
 }
 
-function imageHasDistributionRights(imageRow, rightsRow) {
+function hasCompleteModelRelease(rightsRow) {
+  const artifact = firstNonEmpty(
+    rightsRow?.release_ref,
+    rightsRow?.release_url,
+    rightsRow?.model_release_ref,
+  );
+  return Boolean(
+    artifact &&
+      firstNonEmpty(rightsRow?.release_signer_name) &&
+      firstNonEmpty(rightsRow?.release_signed_at),
+  );
+}
+
+function imageHasDistributionRights(imageRow, rightsRow, options = {}) {
   const metadata = parseMetadata(imageRow?.metadata);
   const status = normalizeToken(
     firstNonEmpty(
@@ -93,18 +142,47 @@ function imageHasDistributionRights(imageRow, rightsRow) {
       metadata.license_status,
     ),
   );
-  const licenseType = firstNonEmpty(
-    rightsRow?.license_type,
-    imageRow?.license_type,
-    metadata.license_type,
+  const licenseType = normalizeToken(
+    firstNonEmpty(
+      rightsRow?.license_type,
+      imageRow?.license_type,
+      metadata.license_type,
+    ),
   );
+  const copyrightOwner = firstNonEmpty(
+    rightsRow?.copyright_owner,
+    imageRow?.copyright_owner,
+    metadata.copyright_owner,
+  );
+  const photographerName = firstNonEmpty(
+    rightsRow?.photographer_name,
+    imageRow?.photographer_name,
+    metadata.photographer_name,
+  );
+  const startAt = rightsRow?.start_at || imageRow?.start_at || metadata.start_at;
+  const expiresAt =
+    rightsRow?.expires_at || imageRow?.expires_at || metadata.expires_at;
+  const now = options.now instanceof Date ? options.now : new Date();
 
-  if (RIGHTS_CLEARED_STATUSES.has(status)) return true;
-  if (licenseType && !RIGHTS_DENIED_STATUSES.has(status)) return true;
-  return false;
+  if (!RIGHTS_CLEARED_STATUSES.has(status)) return false;
+  if (!RIGHTS_LICENSE_BASES.has(licenseType)) return false;
+  if (!copyrightOwner && !photographerName) return false;
+  if (startAt && new Date(startAt).getTime() > now.getTime()) return false;
+  if (expiresAt && new Date(expiresAt).getTime() < now.getTime()) return false;
+
+  const effectiveRights = { ...(imageRow || {}), ...(rightsRow || {}) };
+  const releaseComplete = hasCompleteModelRelease(effectiveRights);
+  if (licenseType === "model_release" && !releaseComplete) return false;
+  if (options.requireGuardianRelease === true) {
+    return (
+      releaseComplete &&
+      normalizeToken(effectiveRights.release_signer_role) === "guardian"
+    );
+  }
+  return true;
 }
 
-function validateImagesForDistribution(images, rightsMap) {
+function validateImagesForDistribution(images, rightsMap, options = {}) {
   const list = Array.isArray(images) ? images : [];
   const byId = rightsMap instanceof Map ? rightsMap : new Map();
   const errors = [];
@@ -112,13 +190,15 @@ function validateImagesForDistribution(images, rightsMap) {
   list.forEach((image, index) => {
     const imageId = image?.id ? String(image.id) : null;
     const rightsRow = imageId ? byId.get(imageId) : null;
-    if (!imageHasDistributionRights(image, rightsRow)) {
+    if (!imageHasDistributionRights(image, rightsRow, options)) {
       errors.push({
         imageId,
         index,
         code: "distribution_rights_missing",
         message:
-          "Image is missing distribution rights. Add a license type and rights status before distribution.",
+          options.requireGuardianRelease === true
+            ? "Image requires a complete model release signed by the minor's guardian."
+            : "Image requires a valid rights basis, cleared status, ownership credit, and active license dates.",
       });
     }
   });
@@ -132,7 +212,9 @@ function validateImagesForDistribution(images, rightsMap) {
 module.exports = {
   RIGHTS_CLEARED_STATUSES,
   RIGHTS_DENIED_STATUSES,
+  RIGHTS_LICENSE_BASES,
   loadImageRightsMap,
+  hasCompleteModelRelease,
   imageHasDistributionRights,
   validateImagesForDistribution,
 };

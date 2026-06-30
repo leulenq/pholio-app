@@ -178,6 +178,7 @@ const CityAutocompleteField = forwardRef(function CityAutocompleteField(
         {!!value && !disabled && (
           <button
             type="button"
+            data-button-exception="city-clear"
             className="pholio-autocomplete-clear"
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleClear}

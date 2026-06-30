@@ -25,6 +25,9 @@ const {
   captureSubmissionReadiness,
   notifyIfSubmissionReadinessLost,
 } = require("../../../shared/services/notify-profile-readiness");
+const { loadImageRightsMap } = require("../../../shared/lib/image-rights");
+const { imageRightsRowToApi } = require("../../../shared/lib/validation");
+const { injectSocialFields, saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   upsertTextEmbedding,
   buildProfileText,
@@ -60,6 +63,10 @@ const {
   hasRecordedDateOfBirth,
 } = require("../../../shared/lib/talent-age");
 const { getConsentStatus } = require("../services/guardian-consent");
+const {
+  listRepresentations,
+  syncStructuredRepresentationFromLegacy,
+} = require("../services/representations");
 
 /**
  * Allowlisted profile columns for GET/PUT JSON (excludes raw vectors / embeddings).
@@ -122,6 +129,9 @@ const TALENT_PROFILE_API_KEYS = [
   "measurements_updated_at",
   "instagram_handle",
   "instagram_url",
+  "instagram_verified",
+  "instagram_followers",
+  "instagram_engagement",
   "is_discoverable",
   "is_pro",
   "is_unicorn",
@@ -165,10 +175,16 @@ const TALENT_PROFILE_API_KEYS = [
   "tattoos",
   "tiktok_handle",
   "tiktok_url",
+  "tiktok_verified",
+  "tiktok_followers",
+  "tiktok_engagement",
   "timezone",
   "training",
   "twitter_handle",
   "twitter_url",
+  "twitter_verified",
+  "twitter_followers",
+  "twitter_engagement",
   "union_membership",
   "updated_at",
   "user_id",
@@ -185,6 +201,9 @@ const TALENT_PROFILE_API_KEYS = [
   "work_status",
   "youtube_handle",
   "youtube_url",
+  "youtube_verified",
+  "youtube_followers",
+  "youtube_engagement",
 ];
 
 function pickTalentProfileForApi(row) {
@@ -404,7 +423,10 @@ router.get(
     const userId = req.session.userId;
 
     // Fetch profile
-    const profile = await knex("profiles").where({ user_id: userId }).first();
+    let profile = await knex("profiles").where({ user_id: userId }).first();
+    if (profile) {
+      profile = await injectSocialFields(profile);
+    }
     const user = await knex("users").where({ id: userId }).first(); // Need email/role
 
     if (!user) {
@@ -477,7 +499,17 @@ router.get(
         "video_duration_seconds",
       );
 
-    response.images = mapProfileImagesForApi(images);
+    const rightsMap = await loadImageRightsMap(
+      knex,
+      images.map((img) => img.id),
+    );
+    response.images = mapProfileImagesForApi(images).map((img) => {
+      const rightsRow = rightsMap.get(String(img.id));
+      return {
+        ...img,
+        rights: imageRightsRowToApi(rightsRow),
+      };
+    });
 
     // Subquery/Find primary image for hero_image_path mapping
     const primaryImage = images.find((img) => img.is_primary) || images[0];
@@ -493,9 +525,16 @@ router.get(
       profile.modeling_categories,
     );
     const consentStatus = await getConsentStatus(knex, profile);
+    const representations = await listRepresentations(knex, profile.id);
     response.profile = {
       ...publicProfile,
       ...bookingLanePayload,
+      representations: representations.filter(
+        (representation) => representation.status === "active",
+      ),
+      representation_history: representations.filter(
+        (representation) => representation.status === "ended",
+      ),
       email: user.email,
       hero_image_path: derivedHeroPath,
       photo_url_primary: derivedPublicUrl,
@@ -586,6 +625,9 @@ router.put(
         .json({ success: false, message: "User not found" });
     }
     let profile = await knex("profiles").where({ user_id: userId }).first();
+    if (profile) {
+      profile = await injectSocialFields(profile);
+    }
 
     if (!profile) {
       return res
@@ -865,24 +907,19 @@ router.put(
 
     // Social Handle Parsing & URLs
     const isPro = profile.is_pro || false;
-
-    const handleSocial = (network, handle) => {
-      if (handle !== undefined) {
-        const cleanHandle = handle ? parseSocialMediaHandle(handle) : null;
-        updateData[`${network}_handle`] = cleanHandle;
-        if (isPro && cleanHandle) {
-          updateData[`${network}_url`] = generateSocialMediaUrl(
-            network,
-            cleanHandle,
-          );
-        }
-      }
-    };
-
-    handleSocial("instagram", data.instagram_handle);
-    handleSocial("twitter", data.twitter_handle);
-    handleSocial("tiktok", data.tiktok_handle);
-    handleSocial("youtube", data.youtube_handle);
+    await saveProfileSocialFields(profile.id, data, isPro);
+    
+    // Remove social fields from updateData since they no longer exist on profiles table
+    delete updateData.instagram_handle;
+    delete updateData.instagram_url;
+    delete updateData.tiktok_handle;
+    delete updateData.tiktok_url;
+    delete updateData.twitter_handle;
+    delete updateData.twitter_url;
+    delete updateData.youtube_handle;
+    delete updateData.youtube_url;
+    delete updateData.onlyfans_url;
+    delete updateData.portfolio_url;
 
     // Validate requested primary photo now, but apply after profile update succeeds.
     const requestedPrimaryPhotoId = data.primary_photo_id || null;
@@ -948,6 +985,16 @@ router.put(
     if (hasProfileFieldChanges) {
       await knex("profiles").where({ id: profile.id }).update(updateData);
 
+      if (Object.hasOwn(data, "current_agency")) {
+        await knex.transaction((trx) =>
+          syncStructuredRepresentationFromLegacy(
+            trx,
+            profile.id,
+            data.current_agency,
+          ),
+        );
+      }
+
       // Log activity
       await logActivity(userId, "profile_updated", {
         profileId: profile.id,
@@ -998,9 +1045,12 @@ router.put(
     }
 
     // Return updated profile
-    const updatedProfile = await knex("profiles")
+    let updatedProfile = await knex("profiles")
       .where({ id: profile.id })
       .first();
+    if (updatedProfile) {
+      updatedProfile = await injectSocialFields(updatedProfile);
+    }
 
     // Update full-profile + discover_index embeddings (best-effort, Postgres-only)
     try {
@@ -1078,6 +1128,10 @@ router.put(
       updatedProfile.id,
       updatedProfile.modeling_categories,
     );
+    const responseRepresentations = await listRepresentations(
+      knex,
+      updatedProfile.id,
+    );
 
     const primaryImage = images.find((img) => img.is_primary) || images[0];
     const derivedHeroPath = primaryImage ? primaryImage.path : null;
@@ -1089,6 +1143,12 @@ router.put(
       profile: {
         ...responseProfile,
         ...responseBookingLanePayload,
+        representations: responseRepresentations.filter(
+          (representation) => representation.status === "active",
+        ),
+        representation_history: responseRepresentations.filter(
+          (representation) => representation.status === "ended",
+        ),
         email: user.email,
         hero_image_path: derivedHeroPath,
         photo_url_primary: derivedPublicUrl,

@@ -8,6 +8,8 @@ const {
 } = require("../shared/lib/content-moderation");
 const { v4: uuidv4 } = require("uuid");
 
+const { injectSocialFields } = require("../shared/lib/social-helpers");
+
 const router = express.Router();
 const TRACKED_PORTFOLIO_EVENTS = new Set([
   "bio_read",
@@ -305,6 +307,7 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       try {
         profile = await knex("profiles").where({ slug: slug }).first();
         if (profile) {
+          profile = await injectSocialFields(profile);
           // Warm the moderation-column cache once so applyViewerVisibilityFilter
           // is a safe no-op if the column doesn't exist yet (deploy-before-migrate).
           await ensureModerationColumnChecked(knex);
@@ -461,8 +464,9 @@ router.post("/portfolio/:slug/event", async (req, res) => {
   const { eventType, metadata } = req.body || {};
 
   try {
-    const profile = await knex("profiles").where({ slug: slug }).first();
+    let profile = await knex("profiles").where({ slug: slug }).first();
     if (profile) {
+      profile = await injectSocialFields(profile);
       if (!TRACKED_PORTFOLIO_EVENTS.has(eventType)) {
         return res.status(400).json({ error: "Unsupported analytics event" });
       }

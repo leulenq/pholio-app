@@ -20,6 +20,14 @@ const {
   validateSubmissionPackage,
 } = require("../services/validate-submission-package");
 const { loadImageRightsMap } = require("../../../shared/lib/image-rights");
+const { isMinorProfile, hasGuardianConsent } = require("../../../shared/lib/talent-age");
+const {
+  buildSubmissionProfileSnapshot,
+} = require("../../../shared/lib/submission-profile");
+const {
+  getAgencyConsentGrant,
+  hasAgencyConsent,
+} = require("../services/guardian-consent");
 const logActivity = require("../../agency/routes/agency-log-activity");
 const { v4: uuidv4 } = require("uuid");
 const {
@@ -46,6 +54,21 @@ const {
   recoveryTimestamp,
   scrubUnrecoverableDrafts,
 } = require("../services/application-drafts");
+const { toPresetPayload } = require("../../pdf/presets");
+const {
+  buildSubmissionDisclosureSnapshot,
+  buildSubmissionPackageFingerprint,
+  normalizeSubmissionNote,
+  recordSubmissionDisclosureConsent,
+  requestClientMeta,
+} = require("../services/submission-disclosure-consent");
+const {
+  redactSubmissionPackages,
+  submissionRetentionExpiry,
+} = require("../../../shared/lib/submission-retention");
+const {
+  loadApplicationQuota,
+} = require("../services/application-quota");
 
 // Statuses a talent may withdraw from (still in process). Terminal states stay put.
 const WITHDRAWABLE_STATUSES = new Set([
@@ -53,6 +76,11 @@ const WITHDRAWABLE_STATUSES = new Set([
   "submitted",
   "reviewing",
   "shortlisted",
+  "requested_more",
+  "meeting_requested",
+  "kept_on_file",
+  "development",
+  "accepted",
 ]);
 
 async function getProfileBySessionUserId(userId) {
@@ -82,60 +110,84 @@ function parseNonNegativeInteger(value) {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
-/**
- * Verify an agency-invitation token for the /redirect-apply flow.
- *
- * Fail-closed HMAC verification. The invite link that lands a talent on a
- * portfolio (`?ref=agency&agencyId=<id>&token=<token>`) MUST carry a token
- * minted by the agency-invite issuance side using the SAME secret/scheme:
- *
- *   token = HMAC_SHA256(process.env.AGENCY_INVITE_SECRET, `${agencyId}`)
- *           encoded as lowercase hex
- *
- * Optionally the token may be bound to a specific profile by signing
- * `${agencyId}:${profileId}` instead; we accept either binding so issuance can
- * choose. There is currently NO issuance code in the repo that mints this
- * token — until that is built, this endpoint correctly rejects every request.
- *
- * Security notes:
- * - If AGENCY_INVITE_SECRET is unset, we reject (never accept arbitrary tokens).
- * - Comparison uses crypto.timingSafeEqual to avoid timing oracles.
- *
- * @param {string} token - hex-encoded HMAC from the invite link
- * @param {string} agencyId - agency the invite is for
- * @param {string} profileId - the authenticated talent's profile id
- * @returns {boolean} true only if the token is a valid signature
- */
-function verifyAgencyInviteToken(token, agencyId, profileId) {
-  const secret = process.env.AGENCY_INVITE_SECRET;
-  if (!secret || typeof token !== "string" || !agencyId) {
+function fingerprintsMatch(left, right) {
+  if (
+    typeof left !== "string" ||
+    typeof right !== "string" ||
+    !/^[a-f0-9]{64}$/i.test(left) ||
+    !/^[a-f0-9]{64}$/i.test(right)
+  ) {
     return false;
   }
+  return crypto.timingSafeEqual(
+    Buffer.from(left.toLowerCase(), "hex"),
+    Buffer.from(right.toLowerCase(), "hex"),
+  );
+}
 
-  // Token must be lowercase hex of the right length for an SHA-256 HMAC (64 chars).
-  if (!/^[0-9a-f]{64}$/i.test(token)) {
-    return false;
-  }
+function snapshotSubmissionImage(image) {
+  return {
+    id: image.id,
+    path: image.path || null,
+    public_url: image.public_url || null,
+    alt: image.alt || image.alt_text || null,
+    image_type: image.image_type || null,
+    shot_type: image.shot_type || null,
+    sort: image.sort ?? null,
+    is_primary: Boolean(image.is_primary),
+  };
+}
 
-  const providedBuf = Buffer.from(token, "hex");
+function boardNameKey(value) {
+  return String(value || "").trim().toLocaleLowerCase("en-US");
+}
 
-  // Accept either an agency-only binding or an agency+profile binding so the
-  // issuance side can pick the stricter form without breaking verification.
-  const payloads = [`${agencyId}`, `${agencyId}:${profileId}`];
-  for (const payload of payloads) {
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(payload)
-      .digest();
-    if (
-      providedBuf.length === expected.length &&
-      crypto.timingSafeEqual(providedBuf, expected)
-    ) {
-      return true;
+async function resolveRelationalSubmissionBoards(
+  trx,
+  agencyId,
+  selectedBoardNames,
+) {
+  if (!selectedBoardNames.length) return [];
+
+  const existingBoards = await trx("boards")
+    .where({ agency_id: agencyId, is_active: true })
+    .select("id", "name")
+    .orderBy("created_at", "asc")
+    .orderBy("id", "asc");
+  const boardsByName = new Map();
+  for (const board of existingBoards) {
+    const key = boardNameKey(board.name);
+    if (key && !boardsByName.has(key)) {
+      boardsByName.set(key, board);
     }
   }
 
-  return false;
+  const resolvedBoards = [];
+  const resolvedKeys = new Set();
+  for (const boardName of selectedBoardNames) {
+    const key = boardNameKey(boardName);
+    if (!key || resolvedKeys.has(key)) continue;
+
+    let board = boardsByName.get(key);
+    if (!board) {
+      board = { id: uuidv4(), name: boardName.trim() };
+      await trx("boards").insert({
+        id: board.id,
+        agency_id: agencyId,
+        name: board.name,
+        is_active: true,
+        sort_order: 0,
+        created_at: trx.fn.now(),
+        updated_at: trx.fn.now(),
+      });
+      boardsByName.set(key, board);
+    }
+
+    resolvedKeys.add(key);
+    resolvedBoards.push(board);
+  }
+
+  return resolvedBoards;
 }
 
 /**
@@ -244,6 +296,24 @@ router.get(
   }),
 );
 
+router.get(
+  "/quota",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+      });
+    }
+    return res.json({
+      success: true,
+      data: await loadApplicationQuota(knex, profile),
+    });
+  }),
+);
+
 /**
  * GET /api/talent/applications/prompt-context
  * Determine if talent should see a targeted agency apply prompt
@@ -261,8 +331,8 @@ router.get(
       });
     }
 
-    // Redirect/invite source-of-truth: latest app rows with invited_by_agency_id.
-    // redirect-apply writes invited_by_agency_id below, so both flows are normalized.
+    // Legacy invite source-of-truth: latest rows written before redirect-apply
+    // was retired. Keep these records readable without accepting new writes.
     const latestRedirectSignal = await knex("applications as a")
       .leftJoin("agencies as ag", "ag.id", "a.invited_by_agency_id")
       .where("a.profile_id", profile.id)
@@ -330,7 +400,6 @@ router.post(
         message: "Agency ID required",
       });
     }
-
     const profile = await getProfileBySessionUserId(req.session.userId);
     if (!profile) {
       return res.status(404).json({
@@ -347,6 +416,21 @@ router.post(
       ...profile,
       email: profile.email || user?.email || null,
     };
+    const minorSubmission = isMinorProfile(submissionProfile);
+    if (
+      minorSubmission &&
+      !hasGuardianConsent(submissionProfile)
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "minor_guardian_consent_required",
+        message:
+          "A parent or guardian must verify consent before a minor can submit to an agency.",
+      });
+    }
+    const agencyConsentGranted =
+      !minorSubmission ||
+      (await hasAgencyConsent(knex, profile.id, agencyId));
     if (
       !requireSubmissionProgramAcknowledgment(user, { throwOnMissing: false })
     ) {
@@ -355,6 +439,27 @@ router.post(
         error: "SUBMISSION_PROGRAM_ACKNOWLEDGMENT_REQUIRED",
         message:
           "Please acknowledge how agency submissions work on Pholio before submitting.",
+      });
+    }
+    const submittedSchemaVersion = submissionPackage?.schemaVersion;
+    if (
+      !Number.isInteger(submittedSchemaVersion) ||
+      submittedSchemaVersion <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "invalid_draft_schema",
+        message:
+          "submissionPackage.schemaVersion must be a positive integer.",
+        supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
+      });
+    }
+    if (submittedSchemaVersion > DRAFT_SCHEMA_VERSION) {
+      return res.status(422).json({
+        success: false,
+        error: "unsupported_draft_schema",
+        message: "This draft was created by a newer version of Pholio.",
+        supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
       });
     }
 
@@ -411,6 +516,28 @@ router.post(
         message: "Confirm the application package before submitting.",
       });
     }
+    if (
+      !minorSubmission &&
+      submissionPackage?.accuracyConfirmed !== true
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_accuracy_attestation_required",
+        message:
+          "Confirm that your statistics are current and your agency digitals are unretouched.",
+      });
+    }
+    if (
+      !minorSubmission &&
+      submissionPackage?.adultAuthorityConfirmed !== true
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_adult_authority_required",
+        message:
+          "Confirm that you are 18 or older and authorised to submit your own work.",
+      });
+    }
 
     await expireInactiveDrafts(knex);
     await scrubUnrecoverableDrafts(knex);
@@ -452,6 +579,7 @@ router.post(
     );
     const packageValidation = validateSubmissionPackage(submissionProfile, packageImages, {
       rightsMap,
+      agencyConsentGranted,
     });
     if (!packageValidation.ok) {
       return res.status(400).json({
@@ -464,25 +592,17 @@ router.post(
       });
     }
 
-    // 2. Check limits for Free Tier
+    // Fast preflight for UX. The authoritative quota check is repeated while
+    // holding the profile lock inside the final submission transaction.
     if (!profile.is_pro) {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const count = await knex("applications")
-        .where({ profile_id: profile.id })
-        .where("created_at", ">=", startOfMonth)
-        .count("id as c")
-        .first();
-
-      if (Number(count.c) >= 5) {
+      const quota = await loadApplicationQuota(knex, profile);
+      if (quota.remaining === 0) {
         return res.status(403).json({
           success: false,
           error: "Monthly application limit reached",
           message: "Monthly application limit reached",
-          limit: 5,
-          current: Number(count.c),
+          limit: quota.limit,
+          current: quota.used,
           upgradeRequired: true,
         });
       }
@@ -517,6 +637,7 @@ router.post(
           mediaSetId: submissionPackage?.mediaSetId,
           digitalSlotPicks: submissionPackage?.digitalSlotPicks,
           compCardPresetId: submissionPackage?.compCardPresetId,
+          note,
         },
       });
     } catch (error) {
@@ -562,7 +683,10 @@ router.post(
     const canonicalPackageValidation = validateSubmissionPackage(
       submissionProfile,
       packageImages,
-      { rightsMap: canonicalRightsMap },
+      {
+        rightsMap: canonicalRightsMap,
+        agencyConsentGranted,
+      },
     );
     if (!canonicalPackageValidation.ok) {
       return res.status(400).json({
@@ -578,12 +702,79 @@ router.post(
     // 3. Create (or revive a withdrawn) application, snapshot the exact
     // submission, write its first message, and retire the draft atomically.
     let applicationId;
-    const applicationNote = typeof note === "string" ? note.trim() : "";
+    const applicationNote = minorSubmission
+      ? ""
+      : normalizeSubmissionNote(normalizedSubmissionReferences.note);
+    const packageFingerprint = buildSubmissionPackageFingerprint({
+      agencyId,
+      boards: normalizedSubmissionReferences.boards,
+      mediaSetId: normalizedSubmissionReferences.mediaSetId,
+      digitalSlotPicks: normalizedSubmissionReferences.digitalSlotPicks,
+      compCardPresetId:
+        normalizedSubmissionReferences.compCardPreset?.id ||
+        submissionPackage?.compCardPresetId ||
+        null,
+      imageIds: packageImages.map((image) => image.id),
+      note: applicationNote,
+    });
+    if (
+      !minorSubmission &&
+      !fingerprintsMatch(
+        submissionPackage?.consentPackageFingerprint,
+        packageFingerprint,
+      )
+    ) {
+      return res.status(409).json({
+        success: false,
+        error: "consent_package_changed",
+        message:
+          "Your submission package changed after you confirmed it. Review the current package and consent again.",
+        errors: [
+          {
+            code: "consent_package_changed",
+            key: "submission_consent",
+            message:
+              "Review the current package and confirm consent again before submitting.",
+          },
+        ],
+      });
+    }
+    const disclosureSnapshot = buildSubmissionDisclosureSnapshot({
+      agencyName: agency.name,
+      isMinor: minorSubmission,
+      minorAgencyAuthorized: agencyConsentGranted,
+      accountGuardianConsent: hasGuardianConsent(submissionProfile),
+      accuracyConfirmed:
+        minorSubmission || submissionPackage?.accuracyConfirmed === true,
+      adultAuthorityConfirmed:
+        !minorSubmission &&
+        submissionPackage?.adultAuthorityConfirmed === true,
+    });
+    const clientMeta = requestClientMeta(req);
     const hasSubmissionPackagesTable = await knex.schema.hasTable(
       "talent_submission_packages",
     );
     try {
       await knex.transaction(async (trx) => {
+        let quotaProfileQuery = trx("profiles")
+          .where({ id: profile.id })
+          .select("id", "is_pro");
+        if (trx.client.config.client === "pg") {
+          quotaProfileQuery = quotaProfileQuery.forUpdate();
+        }
+        const quotaProfile = await quotaProfileQuery.first();
+        const quota = await loadApplicationQuota(
+          trx,
+          quotaProfile || profile,
+        );
+        if (!quota.unlimited && quota.remaining === 0) {
+          const error = new Error("Monthly application limit reached");
+          error.code = "MONTHLY_APPLICATION_LIMIT";
+          error.quota = quota;
+          throw error;
+        }
+
+        let guardianConsentRequestId = null;
         let agencyGuardQuery = trx("agencies")
           .where({ id: agencyId })
           .select("id", "status");
@@ -598,6 +789,19 @@ router.post(
           const error = new Error("Agency unavailable");
           error.code = "AGENCY_UNAVAILABLE";
           throw error;
+        }
+        if (minorSubmission) {
+          const guardianGrant = await getAgencyConsentGrant(
+            trx,
+            profile.id,
+            agencyId,
+          );
+          if (!guardianGrant) {
+            const error = new Error("Guardian agency consent required");
+            error.code = "GUARDIAN_AGENCY_CONSENT_REQUIRED";
+            throw error;
+          }
+          guardianConsentRequestId = guardianGrant.consent_request_id;
         }
 
         const draft = await trx("application_drafts")
@@ -626,6 +830,17 @@ router.post(
           const error = new Error("Draft consent required");
           error.code = "DRAFT_CONSENT_REQUIRED";
           throw error;
+        }
+        if (draft && !minorSubmission) {
+          const draftPayload = parseDraftPayload(draft.payload);
+          if (
+            draftPayload.accuracyConfirmed !== true ||
+            draftPayload.adultAuthorityConfirmed !== true
+          ) {
+            const error = new Error("Draft attestations required");
+            error.code = "DRAFT_CONSENT_REQUIRED";
+            throw error;
+          }
         }
 
         await trx("application_submission_requests").insert({
@@ -667,45 +882,145 @@ router.post(
           });
         }
 
+        await recordSubmissionDisclosureConsent(trx, {
+          applicationId,
+          userId: req.session.userId,
+          profileId: profile.id,
+          agencyId,
+          packageFingerprint,
+          disclosureSnapshot,
+          guardianConsentRequestId,
+          ipAddress: clientMeta.ipAddress,
+          userAgent: clientMeta.userAgent,
+        });
+
+        await trx("application_submission_boards")
+          .where({ application_id: applicationId })
+          .delete();
+        if (normalizedSubmissionReferences.boards.length > 0) {
+          await trx("application_submission_boards").insert(
+            normalizedSubmissionReferences.boards.map((boardName) => ({
+              id: uuidv4(),
+              application_id: applicationId,
+              agency_id: agencyId,
+              board_name: boardName,
+              created_at: trx.fn.now(),
+            })),
+          );
+        }
+
+        const relationalBoards = await resolveRelationalSubmissionBoards(
+          trx,
+          agencyId,
+          normalizedSubmissionReferences.boards,
+        );
+        await trx("board_applications")
+          .where({ application_id: applicationId })
+          .delete();
+        if (relationalBoards.length > 0) {
+          await trx("board_applications").insert(
+            relationalBoards.map((board) => ({
+              id: uuidv4(),
+              board_id: board.id,
+              application_id: applicationId,
+              match_score: null,
+              match_details: null,
+              created_at: trx.fn.now(),
+              updated_at: trx.fn.now(),
+            })),
+          );
+        }
+
         if (
           hasSubmissionPackagesTable &&
           submissionPackage &&
           typeof submissionPackage === "object"
         ) {
+          const selectedPresetId =
+            normalizedSubmissionReferences.compCardPreset?.id || null;
+          const selectedPreset = selectedPresetId
+            ? await trx("comp_card_presets")
+                .where({
+                  id: selectedPresetId,
+                  profile_id: profile.id,
+                })
+                .first()
+            : null;
+          const selectedMediaSet =
+            normalizedSubmissionReferences.mediaSetId !== "current"
+              ? await trx("image_sets")
+                  .where({
+                    id: normalizedSubmissionReferences.mediaSetId,
+                    profile_id: profile.id,
+                  })
+                  .first("id", "name")
+              : null;
+          const compCard = selectedPreset
+            ? {
+                id: selectedPreset.id,
+                ...toPresetPayload(selectedPreset),
+              }
+            : {
+                id: null,
+                name: "Comp card",
+                seed: `profile:${submissionProfile.slug}`,
+                layoutFamily: null,
+                styleVariant: null,
+                lockHeroId: null,
+                lockGridIds: [],
+                board: null,
+                market: null,
+              };
           await trx("talent_submission_packages").insert({
             id: uuidv4(),
+            application_id: applicationId,
             user_id: req.session.userId,
             profile_id: profile.id,
             label: `Application to ${agencyId}`,
+            created_at: new Date(),
+            retention_expires_at: submissionRetentionExpiry().toISOString(),
             payload: {
+              packageSchemaVersion: 2,
               applicationId,
               agencyId,
               agencyName: agency.name || null,
               boards: normalizedSubmissionReferences.boards,
               boardLabels: normalizedSubmissionReferences.boards,
               mediaSetId: normalizedSubmissionReferences.mediaSetId,
-              mediaSetName: submissionPackage.mediaSetName || null,
-              compCardId: submissionPackage.compCardId || null,
-              compCardName:
-                normalizedSubmissionReferences.compCardPreset?.name ||
-                submissionPackage.compCardName ||
-                null,
+              mediaSetName:
+                selectedMediaSet?.name ||
+                (normalizedSubmissionReferences.mediaSetId === "current"
+                  ? "Current book"
+                  : null),
+              compCardId: selectedPresetId,
+              compCardName: compCard.name,
               compCardPresetId:
                 normalizedSubmissionReferences.compCardPreset?.id || null,
               compCardPresetName:
                 normalizedSubmissionReferences.compCardPreset?.name || null,
-              compCardSeed:
-                normalizedSubmissionReferences.compCardPreset?.seed || null,
+              compCardSeed: compCard.seed,
+              compCard,
               digitalSlotPicks:
                 normalizedSubmissionReferences.digitalSlotPicks,
               imageIds: packageImages.map((image) => image.id),
-              readiness: submissionPackage.readiness || null,
-              digitalsGaps: Array.isArray(submissionPackage.digitalsGaps)
-                ? submissionPackage.digitalsGaps
-                : [],
-              untypedImageCount:
-                Number(submissionPackage.untypedImageCount) || 0,
+              images: packageImages.map(snapshotSubmissionImage),
+              profile: buildSubmissionProfileSnapshot(submissionProfile, {
+                minor: minorSubmission,
+              }),
+              contact: minorSubmission
+                ? null
+                : {
+                    email: submissionProfile.email || null,
+                    phone: submissionProfile.phone || null,
+                  },
+              minorDataMinimized: minorSubmission,
               consentConfirmed: !!submissionPackage.consentConfirmed,
+              accuracyConfirmed:
+                minorSubmission ||
+                submissionPackage.accuracyConfirmed === true,
+              adultAuthorityConfirmed:
+                !minorSubmission &&
+                submissionPackage.adultAuthorityConfirmed === true,
               submittedAt: new Date().toISOString(),
             },
           });
@@ -776,6 +1091,24 @@ router.post(
           success: false,
           error: "agency_unavailable",
           message: "This agency is not currently accepting applications.",
+        });
+      }
+      if (error.code === "GUARDIAN_AGENCY_CONSENT_REQUIRED") {
+        return res.status(403).json({
+          success: false,
+          error: "guardian_agency_consent_required",
+          message:
+            "A parent or guardian must authorize this submission to the selected agency.",
+        });
+      }
+      if (error.code === "MONTHLY_APPLICATION_LIMIT") {
+        return res.status(403).json({
+          success: false,
+          error: "Monthly application limit reached",
+          message: "Monthly application limit reached",
+          limit: error.quota?.limit || 5,
+          current: error.quota?.used || 5,
+          upgradeRequired: true,
         });
       }
       if (error.code === "APPLICATION_ALREADY_SUBMITTED") {
@@ -1586,9 +1919,19 @@ router.post(
 
     const previousStatus = application.status;
 
-    await knex("applications")
-      .where({ id, profile_id: profile.id })
-      .update({ status: "withdrawn", updated_at: knex.fn.now() });
+    const withdrawnAt = new Date();
+    await knex.transaction(async (trx) => {
+      await trx("applications")
+        .where({ id, profile_id: profile.id })
+        .update({ status: "withdrawn", updated_at: withdrawnAt });
+      await redactSubmissionPackages(trx, {
+        applicationId: id,
+        reason: "talent_withdrawal",
+        at: withdrawnAt,
+        revoke: true,
+      });
+      await trx("messages").where({ application_id: id }).delete();
+    });
 
     // Preserve the journey: record the withdrawal in application history.
     await logActivity(
@@ -1616,7 +1959,16 @@ router.post(
       console.error("[Applications] Withdrawal notification failed:", notifyErr);
     }
 
-    res.json({ success: true });
+    res.json({
+      success: true,
+      disclosure: {
+        agencyAccessRevokedAt: withdrawnAt.toISOString(),
+        packageRedacted: true,
+        platformMessagesDeleted: true,
+        limitation:
+          "Pholio cannot delete copies the agency downloaded before withdrawal.",
+      },
+    });
   }),
 );
 
@@ -1801,101 +2153,19 @@ router.post(
 
 /**
  * POST /api/talent/redirect-apply
- * Handle agency-initiated application via redirect (bypasses limits)
+ * Retired agency-invite write path. Canonical submissions go through /apply.
  */
 router.post(
   "/redirect-apply",
   requireRole("TALENT"),
-  asyncHandler(async (req, res) => {
-    const { agencyId, token } = req.body;
-    if (!agencyId || !token) {
-      return res.status(400).json({
-        success: false,
-        error: "Agency ID and token required",
-        message: "Agency ID and token required",
-      });
-    }
-
-    const profile = await getProfileBySessionUserId(req.session.userId);
-    if (!profile) {
-      return res.status(404).json({
-        success: false,
-        error: "Profile not found",
-        message: "Profile not found",
-      });
-    }
-
-    if (await isAgencyBlockedForTalent(knex, req.session.userId, agencyId)) {
-      return res.status(403).json({
-        success: false,
-        error: "Agency blocked",
-        message: "You have blocked this agency.",
-      });
-    }
-
-    // Verify the agency-invite token before bypassing the application limit.
-    // Fail-closed: forged/missing tokens (and an unset secret) are rejected.
-    // See verifyAgencyInviteToken() for the expected token format that the
-    // invite-issuance side must produce.
-    if (!verifyAgencyInviteToken(token, agencyId, profile.id)) {
-      return res.status(403).json({
-        success: false,
-        error: "Invalid invitation token",
-        message: "Invalid invitation token",
-      });
-    }
-
-    // Check if already applied
-    const existingparams = { profile_id: profile.id, agency_id: agencyId };
-    const existing = await knex("applications").where(existingparams).first();
-
-    if (existing) {
-      return res
-        .status(200)
-        .json({ success: true, message: "Already applied" });
-    }
-
-    // Create Application (No limit check)
-    const [appId] = await knex("applications")
-      .insert({
-        id: knex.raw("gen_random_uuid()"),
-        profile_id: profile.id,
-        agency_id: agencyId,
-        invited_by_agency_id: agencyId,
-        status: "pending", // or 'reviewing' immediately since they asked for it?
-        // Let's set to 'pending'
-      })
-      .returning("id");
-
-    const applicationId = typeof appId === "object" ? appId.id : appId;
-
-    const agency = await knex("agencies")
-      .where({ id: agencyId })
-      .select("name")
-      .first();
-    const talentName = [profile.first_name, profile.last_name]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-
-    try {
-      await notifyTalentApplicationSubmitted({
-        userId: req.session.userId,
-        applicationId,
-        agencyId,
-        agencyName: agency?.name,
-      });
-      await notifyAgencyNewApplication({
-        agencyId,
-        applicationId,
-        talentName: talentName || "A talent",
-      });
-    } catch (notifyErr) {
-      console.error("[Redirect Apply] Notification failed:", notifyErr);
-    }
-
-    res.json({ success: true, id: applicationId });
-  }),
+  (_req, res) =>
+    res.status(410).json({
+      success: false,
+      error: "redirect_apply_retired",
+      message:
+        "Agency invite submissions must be reviewed and sent through the standard submission flow.",
+      redirectTo: "/apply",
+    }),
 );
 
 module.exports = router;

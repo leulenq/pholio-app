@@ -27,8 +27,15 @@ async function ensureAgencyIdentityColumns() {
       t.string("role").notNullable();
       t.string("first_name", 100).nullable();
       t.string("last_name", 100).nullable();
+      t.string("account_status", 50).notNullable().defaultTo("active");
       t.timestamp("created_at").defaultTo(knex.fn.now());
     });
+  } else {
+    if (!(await knex.schema.hasColumn("users", "account_status"))) {
+      await knex.schema.alterTable("users", (t) => {
+        t.string("account_status", 50).notNullable().defaultTo("active");
+      });
+    }
   }
 
   if (!(await knex.schema.hasTable("sessions"))) {
@@ -86,10 +93,28 @@ async function ensureAgencyIdentityColumns() {
       t.timestamp("updated_at").defaultTo(knex.fn.now());
     });
   }
+
+  if (!(await knex.schema.hasTable("social_accounts"))) {
+    await knex.schema.createTable("social_accounts", (t) => {
+      t.uuid("id").primary();
+      t.uuid("profile_id").nullable();
+      t.uuid("agency_id").nullable();
+      t.string("platform", 50).notNullable();
+      t.string("handle", 255).nullable();
+      t.string("url", 500).nullable();
+      t.integer("follower_count").nullable();
+      t.decimal("engagement_rate", 5, 2).nullable();
+      t.boolean("is_oauth_connected").defaultTo(false);
+      t.text("oauth_token_encrypted").nullable();
+      t.jsonb("metrics_data").nullable();
+      t.timestamp("metrics_updated_at").nullable();
+      t.timestamps(true, true);
+    });
+  }
 }
 
 async function seedFixture() {
-  for (const table of ["agency_memberships", "sessions", "agencies", "users"]) {
+  for (const table of ["agency_memberships", "sessions", "agencies", "users", "social_accounts"]) {
     if (await knex.schema.hasTable(table)) await knex(table).del();
   }
 
@@ -181,10 +206,14 @@ describe("agency identity profile persistence", () => {
     expect(agency.name).toBe("Sterling Model Management");
     expect(agency.location).toBe("New York, NY");
     expect(agency.description).toBe("Editorial and commercial representation.");
-    expect(agency.instagram_handle).toBe("https://instagram.com/sterlingmgmt");
-    expect(agency.tiktok_handle).toBe("https://tiktok.com/@sterlingmgmt");
-    expect(agency.twitter_handle).toBe("https://x.com/sterlingmgmt");
-    expect(agency.youtube_handle).toBe("https://youtube.com/c/sterlingmgmt");
+
+    const socials = await knex("social_accounts").where({ agency_id: AGENCY_ID });
+    const getSocial = (platform) => socials.find(s => s.platform === platform);
+
+    expect(getSocial("instagram").url).toBe("https://instagram.com/sterlingmgmt");
+    expect(getSocial("tiktok").url).toBe("https://tiktok.com/@sterlingmgmt");
+    expect(getSocial("twitter").url).toBe("https://x.com/sterlingmgmt");
+    expect(getSocial("youtube").url).toBe("https://youtube.com/c/sterlingmgmt");
   });
 
   test("GET /api/agency/me returns saved identity fields to the frontend", async () => {
@@ -224,9 +253,11 @@ describe("agency identity profile persistence", () => {
 
     expect(clearRes.status).toBe(200);
 
-    const agency = await knex("agencies").where({ id: AGENCY_ID }).first();
-    expect(agency.instagram_handle).toBeNull();
-    expect(agency.tiktok_handle).toBeNull();
-    expect(agency.twitter_handle).toBe("https://x.com/sterlingmgmt");
+    const socials = await knex("social_accounts").where({ agency_id: AGENCY_ID });
+    const getSocial = (platform) => socials.find(s => s.platform === platform);
+
+    expect(getSocial("instagram")).toBeUndefined();
+    expect(getSocial("tiktok")).toBeUndefined();
+    expect(getSocial("twitter").url).toBe("https://x.com/sterlingmgmt");
   });
 });

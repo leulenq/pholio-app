@@ -49,6 +49,7 @@ const ProfileNav = ({ onNavClick, activeSection }) => {
             <li key={id} className={styles.navListItem}>
               <button
                 type="button"
+                data-button-exception="profile-index"
                 onClick={() => handleNavClick(id)}
                 className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
                 aria-current={isActive ? 'true' : undefined}

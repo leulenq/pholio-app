@@ -12,24 +12,32 @@ import {
   Globe,
   Instagram,
   Lock,
+  Mail,
   MapPin,
   Music2,
+  Phone,
   PenLine,
   Plus,
   RotateCw,
   Send,
-  Twitter,
   X,
-  Youtube,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../../shared/components/NotificationCenter/NotificationCenter';
 import { useAuth } from '../../../auth/hooks/useAuth';
-import PholioButton from '../../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../../shared/components/ui/PholioButton';
 import ProfileGateBanner from '../../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../../shared/utils/profileGating';
 import { sendBlockerLabel } from '../../../../shared/utils/sendReadiness';
+import {
+  buildImageRightsMapFromImages,
+  validateImagesForDistribution,
+} from '../../../../shared/utils/imageRights';
 import {
   analyzeDigitalsReadiness,
   isHeadshotImage,
@@ -42,16 +50,43 @@ import {
   getImageAgeDays,
 } from '../../../../shared/utils/packageIntelligence';
 import FrameReadCaption from '../../../../shared/components/frame/FrameReadCaption';
-import { isMinorProfile, hasGuardianConsent } from '../../../../shared/utils/talentAge';
+import { hasGuardianConsent, isMinorProfile } from '../../../../shared/utils/talentAge';
 import { resolveTalentDivision, PROFILE_DIVISIONS } from '../../../../shared/constants/profileDivision';
 import { DIGITALS_ADVISORY_ITEMS, normalizeShotSlug, labelForStyle } from '../../../../shared/constants/frameTaxonomy';
 import { BOOK_MIN_FRAME_COUNT } from '../../../../shared/constants/packageIntelligence';
 import { cmToFeetInches, cmToInches } from '../../../../shared/utils/measurementConversions';
 import { talentApi } from '../../api/talent';
+import { MARKETING_SITE_URL } from '../../../../shared/lib/logout';
 import '../../components/ApplicationsView.css';
 import './ApplyExperience.css';
 import SubmissionThreshold from './SubmissionThreshold';
 import { draftFingerprint, getDraftClientId } from './applicationDraftStorage';
+
+const XIcon = ({ size = 24, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+const TiktokIcon = ({ size = 24, className }) => (
+  <svg width={size} height={size} viewBox="-48 -48 544 608" fill="currentColor" stroke="none" className={className}>
+    <path d="M448 209.91a210.06 210.06 0 0 1-122.77-39.25V349.38A162.55 162.55 0 1 1 185 188.31V278.2a74.62 74.62 0 1 0 52.23 71.18V0l88 0a121.18 121.18 0 0 0 1.86 22.17h0A122.18 122.18 0 0 0 381 102.39a121.43 121.43 0 0 0 67 20.14Z" />
+  </svg>
+);
+
+const YoutubeIcon = ({ size = 24, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}>
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+  </svg>
+);
+
+import {
+  buildSubmissionConsentFingerprint,
+  consentBindingMatches,
+  submissionConsentPackageKey,
+} from './submissionConsentBinding';
+import compCardDimensions from '../../../../../../shared/comp-card-dimensions.json';
+import applicationDraftSchema from '../../../../../../shared/application-draft-schema.json';
 
 /* The submission is one composed dossier, addressed to the house in the left
    rail and turned page by page. Same ledger language as the /applications
@@ -102,6 +137,63 @@ const pageMarker = (index) =>
   `${String(index + 1).padStart(2, '0')} / ${String(PAGES.length).padStart(2, '0')}`;
 
 const AUTOSAVE_DELAY_MS = 1500;
+const DRAFT_LIFECYCLE_ERROR_CODES = new Set([
+  'draft_conflict',
+  'draft_expired',
+  'draft_deleted',
+  'draft_precondition_required',
+  'unsupported_draft_schema',
+]);
+
+function draftIssueFromError(error, localDocument, source) {
+  const code = error?.data?.error;
+  const latest = error?.data?.latest || null;
+  const latestLifecycle = latest?.lifecycleState;
+  const effectiveCode =
+    code === 'draft_conflict' && ['expired', 'deleted'].includes(latestLifecycle)
+      ? `draft_${latestLifecycle}`
+      : code;
+
+  return {
+    code: effectiveCode,
+    source,
+    message: error?.data?.message || error?.message || 'The saved draft changed.',
+    latest,
+    localDocument,
+    repairWarnings: Array.isArray(error?.data?.repairWarnings)
+      ? error.data.repairWarnings
+      : [],
+  };
+}
+
+function repairStepIndex(warnings = []) {
+  const fields = new Set(warnings.map((warning) => warning?.field).filter(Boolean));
+  if (fields.has('boards')) return PAGES.findIndex((page) => page.id === 'board');
+  if (fields.has('digitalSlotPicks')) {
+    return PAGES.findIndex((page) => page.id === 'digitals');
+  }
+  if (fields.has('mediaSetId') || fields.has('excludedImageIds')) {
+    return PAGES.findIndex((page) => page.id === 'book');
+  }
+  if (fields.has('compCardPreset')) {
+    return PAGES.findIndex((page) => page.id === 'compcard');
+  }
+  if (fields.has('note')) return PAGES.findIndex((page) => page.id === 'message');
+  return PAGES.findIndex((page) => page.id === 'review');
+}
+
+function clientDraftDocument(serverDraft, { restoreConsent = false } = {}) {
+  if (!serverDraft?.payload) return null;
+  return {
+    currentStepId: serverDraft.currentStepId,
+    payload: {
+      ...serverDraft.payload,
+      consent: restoreConsent && serverDraft.payload.consent === true,
+      accuracyConfirmed: false,
+      adultAuthorityConfirmed: false,
+    },
+  };
+}
 
 function formatSavedAt(value) {
   if (!value) return null;
@@ -142,6 +234,26 @@ function boardPageCopy(agency, openBoards) {
 // /media) — not a library of variants. The submission sends that card; its
 // design is changed in /media, not invented here.
 const COMP_CARD_NAME = 'Your comp card';
+const {
+  trim: {
+    widthInches: COMP_CARD_WIDTH_INCHES,
+    heightInches: COMP_CARD_HEIGHT_INCHES,
+  },
+  render: {
+    widthPixels: COMP_CARD_WIDTH_PIXELS,
+    heightPixels: COMP_CARD_HEIGHT_PIXELS,
+  },
+  sides: COMP_CARD_SIDES,
+} = compCardDimensions;
+const COMP_CARD_FORMAT = `${COMP_CARD_WIDTH_INCHES} × ${COMP_CARD_HEIGHT_INCHES}`;
+const COMP_CARD_CSS_VARS = {
+  '--comp-card-width': COMP_CARD_WIDTH_INCHES,
+  '--comp-card-height': COMP_CARD_HEIGHT_INCHES,
+  '--comp-card-page-width': COMP_CARD_WIDTH_PIXELS,
+  '--comp-card-page-height': COMP_CARD_HEIGHT_PIXELS,
+  '--comp-card-document-height': COMP_CARD_HEIGHT_PIXELS * COMP_CARD_SIDES,
+  '--comp-card-page-scale': COMP_CARD_HEIGHT_PIXELS / COMP_CARD_WIDTH_PIXELS,
+};
 
 /* The five-frame digitals set agencies expect, in reading order. A slot is
    filled ONLY by a true digital (image_type:'digital') — a styled book frame
@@ -153,6 +265,24 @@ const DIGITAL_SLOTS = [
   { key: 'profile', label: 'Profile / side', hint: 'Side view', match: ['profile', 'profile_left', 'profile_right'] },
   { key: 'back', label: 'Back', hint: 'From behind', match: ['back'] },
 ];
+const MINOR_BODY_DIGITAL_SLOTS = new Set([
+  'three_quarter',
+  'full_length',
+  'profile',
+  'back',
+]);
+
+function mapMinorDigitalsSlots(slots, { accountGuardianConsent, guardianConsent }) {
+  return slots.map((slot) => {
+    if (!accountGuardianConsent) {
+      return { ...slot, image: null, candidates: [], withheld: true, withheldKind: 'account' };
+    }
+    if (!guardianConsent && MINOR_BODY_DIGITAL_SLOTS.has(slot.key)) {
+      return { ...slot, image: null, candidates: [], withheld: true, withheldKind: 'agency' };
+    }
+    return slot;
+  });
+}
 
 const DIGITALS_ADVISORY = DIGITALS_ADVISORY_ITEMS;
 
@@ -226,6 +356,21 @@ function asArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   return [];
+}
+
+function asStringList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+  } catch {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
 }
 
 function asMediaSets(payload) {
@@ -404,7 +549,6 @@ export default function ApplyExperience() {
   const queryClient = useQueryClient();
   const {
     profile,
-    subscription,
     images: authImages = [],
     isLoading: authLoading,
   } = useAuth();
@@ -428,6 +572,10 @@ export default function ApplyExperience() {
   const [excludedImageIds, setExcludedImageIds] = useState(() => new Set());
   const [note, setNote] = useState('');
   const [consent, setConsent] = useState(false);
+  const [accuracyConfirmed, setAccuracyConfirmed] = useState(false);
+  const [adultAuthorityConfirmed, setAdultAuthorityConfirmed] = useState(false);
+  const [consentBinding, setConsentBinding] = useState(null);
+  const [consentBindingPending, setConsentBindingPending] = useState(false);
   // Cleared the moment the one-time submission-program threshold is acknowledged.
   const [programDismissed, setProgramDismissed] = useState(false);
   const [submitted, setSubmitted] = useState(null);
@@ -436,6 +584,8 @@ export default function ApplyExperience() {
   const [draftStatus, setDraftStatus] = useState('loading');
   const [draftUpdatedAt, setDraftUpdatedAt] = useState(null);
   const [draftHydrated, setDraftHydrated] = useState(false);
+  const [draftIssue, setDraftIssue] = useState(null);
+  const [draftIssueBusy, setDraftIssueBusy] = useState(false);
   // "Compose" arrives with ?agency= and locks to that house; "Apply New" opens the chooser.
   const deepLinked = !!agencyFromUrl && !startNew;
   const draftVersionRef = useRef(0);
@@ -451,6 +601,12 @@ export default function ApplyExperience() {
     staleTime: 1000 * 60,
     retry: 1,
   });
+  const applicationQuotaQuery = useQuery({
+    queryKey: ['application-quota'],
+    queryFn: talentApi.getApplicationQuota,
+    staleTime: 1000 * 30,
+    retry: 1,
+  });
   const agenciesQuery = useQuery({
     queryKey: ['talent-agencies', 'apply-content-v2'],
     queryFn: talentApi.getAgencies,
@@ -462,6 +618,37 @@ export default function ApplyExperience() {
     queryFn: talentApi.getMediaSets,
     staleTime: 1000 * 60 * 3,
     retry: 1,
+  });
+  const minor = isMinorProfile(profile);
+  const agencyConsentQuery = useQuery({
+    queryKey: ['guardian-agency-consent', selectedAgencyId],
+    queryFn: () => talentApi.getAgencyGuardianConsent(selectedAgencyId),
+    enabled: minor && !!selectedAgencyId,
+    staleTime: 10_000,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'pending' ? 10_000 : false,
+    retry: 1,
+  });
+  const agencyConsentGranted =
+    !minor || agencyConsentQuery.data?.status === 'verified';
+
+  const requestAgencyConsentMutation = useMutation({
+    mutationFn: () =>
+      talentApi.requestAgencyGuardianConsent(
+        selectedAgencyId,
+        profile?.guardian_email,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['guardian-agency-consent', selectedAgencyId],
+      });
+      toast.success('Guardian authorization request sent.');
+    },
+    onError: (err) => {
+      toast.error(
+        err?.message || 'Could not send the guardian authorization request.',
+      );
+    },
   });
   // Resume an in-progress dossier for the chosen house, if one was saved.
   const draftQuery = useQuery({
@@ -506,6 +693,7 @@ export default function ApplyExperience() {
         frameCount: variables?.submissionPackage?.imageIds?.length || 0,
       });
       queryClient.invalidateQueries({ queryKey: ['applications'] });
+      queryClient.invalidateQueries({ queryKey: ['application-quota'] });
       queryClient.invalidateQueries({ queryKey: ['talent-agencies'] });
       queryClient.invalidateQueries({ queryKey: ['application-draft', selectedAgencyId] });
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
@@ -513,6 +701,61 @@ export default function ApplyExperience() {
     onError: (err) => {
       if (err?.data?.upgradeRequired) {
         toast.error('Monthly application limit reached.');
+        return;
+      }
+      const code = err?.data?.error;
+      if (code === 'submission_references_changed') {
+        setConsent(false);
+        setConsentBinding(null);
+        const issue = draftIssueFromError(
+          err,
+          currentDraftRef.current,
+          'submit',
+        );
+        setDraftIssue(issue);
+        setDraftStatus('unsaved');
+        setPageIndex(repairStepIndex(issue.repairWarnings));
+        return;
+      }
+      if (code === 'draft_consent_required') {
+        setConsent(false);
+        setConsentBinding(null);
+        setDraftIssue(
+          draftIssueFromError(err, currentDraftRef.current, 'submit'),
+        );
+        setDraftStatus('unsaved');
+        setPageIndex(PAGES.findIndex((page) => page.id === 'review'));
+        return;
+      }
+      if (code === 'consent_package_changed') {
+        setConsent(false);
+        setConsentBinding(null);
+        setPageIndex(PAGES.findIndex((page) => page.id === 'review'));
+        toast.error(
+          err?.data?.message ||
+            'Your package changed after consent. Review it and confirm again.',
+        );
+        return;
+      }
+      if (DRAFT_LIFECYCLE_ERROR_CODES.has(code)) {
+        const issue = draftIssueFromError(
+          err,
+          currentDraftRef.current,
+          'submit',
+        );
+        setDraftIssue(issue);
+        setDraftStatus(
+          issue.code === 'draft_expired'
+            ? 'expired'
+            : issue.code === 'draft_deleted'
+              ? 'deleted'
+              : 'conflict',
+        );
+        return;
+      }
+      const structured = Array.isArray(err?.data?.errors) ? err.data.errors : [];
+      if (structured.length > 0) {
+        toast.error(structured.map((item) => item.message).filter(Boolean).join(' '));
         return;
       }
       toast.error(err?.message || 'Failed to submit application');
@@ -528,7 +771,13 @@ export default function ApplyExperience() {
   );
   const agencies = useMemo(() => asArray(agenciesQuery.data), [agenciesQuery.data]);
   const mediaSets = useMemo(() => asMediaSets(mediaSetsQuery.data), [mediaSetsQuery.data]);
-  const gating = useMemo(() => checkGatingStatus(profile, authImages), [profile, authImages]);
+  const gating = useMemo(
+    () =>
+      checkGatingStatus(profile, authImages, {
+        agencyConsentGranted,
+      }),
+    [profile, authImages, agencyConsentGranted],
+  );
   const applicationGate = getProfileGateFeature('/dashboard/talent/applications');
 
   const appliedAgencyIds = useMemo(
@@ -552,7 +801,7 @@ export default function ApplyExperience() {
   const draftDocument = useMemo(() => ({
     currentStepId: PAGES[pageIndex]?.id || PAGES[0].id,
     payload: {
-      schemaVersion: 1,
+      schemaVersion: applicationDraftSchema.currentVersion,
       boards: selectedBoards,
       mediaSetId: selectedMediaSetId,
       excludedImageIds: [...excludedImageIds],
@@ -565,9 +814,14 @@ export default function ApplyExperience() {
           }
         : null,
       note,
-      consent,
+      consent: minor ? agencyConsentGranted : consent,
+      accuracyConfirmed: minor ? true : accuracyConfirmed,
+      adultAuthorityConfirmed: minor ? true : adultAuthorityConfirmed,
     },
   }), [
+    agencyConsentGranted,
+    accuracyConfirmed,
+    adultAuthorityConfirmed,
     consent,
     digitalSlotPicks,
     excludedImageIds,
@@ -576,12 +830,13 @@ export default function ApplyExperience() {
     selectedBoards,
     selectedCompCardPreset,
     selectedMediaSetId,
+    minor,
   ]);
 
   // Restore the form from a saved draft, dropping any reference (board, media
   // set, image) that is no longer available. Consent is never auto-restored —
   // the talent re-confirms sharing on the review step.
-  const applyDraftDocument = useCallback((document, { restoreConsent = false } = {}) => {
+  const applyDraftDocument = useCallback((document) => {
     const payload = document?.payload && typeof document.payload === 'object'
       ? document.payload
       : {};
@@ -616,8 +871,29 @@ export default function ApplyExperience() {
     setDigitalSlotPicks(validDigitalPicks);
     setSelectedCompCardPreset(payload.compCardPreset || null);
     setNote(typeof payload.note === 'string' ? payload.note.slice(0, 1200) : '');
-    setConsent(restoreConsent && payload.consent === true);
+    setConsent(false);
+    setAccuracyConfirmed(false);
+    setAdultAuthorityConfirmed(false);
+    setConsentBinding(null);
   }, [authImages, mediaSets, selectedAgency]);
+
+  const adoptServerDraft = useCallback((server, options = {}) => {
+    const serverDocument = clientDraftDocument(server, options);
+    if (!serverDocument) return false;
+    applyDraftDocument(serverDocument, options);
+    draftVersionRef.current = Number(server.version) || 0;
+    draftGenerationRef.current = Number(server.generation) || 0;
+    currentDraftRef.current = serverDocument;
+    lastSavedFingerprintRef.current = draftFingerprint(serverDocument);
+    setDraftUpdatedAt(server.updatedAt || null);
+    setDraftStatus('saved');
+    setDraftIssue(null);
+    queryClient.setQueryData(
+      ['application-draft', selectedAgencyId],
+      server,
+    );
+    return true;
+  }, [applyDraftDocument, queryClient, selectedAgencyId]);
 
   // Hydrate the dossier from the saved draft once the agency's draft has loaded.
   // A draft is a convenience — any error simply means "no resume" and never
@@ -630,15 +906,48 @@ export default function ApplyExperience() {
 
     const server = draftQuery.data || null;
     if (server && server.payload) {
-      const serverDocument = { currentStepId: server.currentStepId, payload: server.payload };
+      const serverDocument = clientDraftDocument(server);
       applyDraftDocument(serverDocument);
       draftVersionRef.current = Number(server.version) || 0;
       draftGenerationRef.current = Number(server.generation) || 0;
       currentDraftRef.current = serverDocument;
       lastSavedFingerprintRef.current = draftFingerprint(serverDocument);
       setDraftUpdatedAt(server.updatedAt || null);
-      setDraftStatus('saved');
+      const unsupportedSchema = server.repairWarnings?.some(
+        (warning) => warning.code === 'unsupported_schema',
+      );
+      if (
+        ['expired', 'deleted'].includes(server.lifecycleState) ||
+        unsupportedSchema
+      ) {
+        const code = unsupportedSchema
+          ? 'unsupported_draft_schema'
+          : `draft_${server.lifecycleState}`;
+        setDraftIssue({
+          code,
+          source: 'hydrate',
+          message: unsupportedSchema
+            ? 'This draft was created by a newer version of Pholio.'
+            : server.lifecycleState === 'expired'
+              ? 'This draft expired. Recover it before making changes.'
+              : 'This draft was deleted. Recover it before making changes.',
+          latest: server,
+          localDocument: serverDocument,
+          repairWarnings: server.repairWarnings || [],
+        });
+        setDraftStatus(
+          server.lifecycleState === 'expired'
+            ? 'expired'
+            : server.lifecycleState === 'deleted'
+              ? 'deleted'
+              : 'conflict',
+        );
+      } else {
+        setDraftIssue(null);
+        setDraftStatus('saved');
+      }
     } else {
+      setDraftIssue(null);
       setDraftStatus('idle');
     }
     setDraftHydrated(true);
@@ -679,17 +988,21 @@ export default function ApplyExperience() {
       setDraftStatus('saved');
       return true;
     } catch (err) {
-      // Re-sync the version on a conflict so the next save succeeds; don't block.
-      if (err?.status === 409) {
-        try {
-          const fresh = await talentApi.getDraft(selectedAgencyId);
-          const data = fresh?.data || fresh;
-          if (data) {
-            draftVersionRef.current = Number(data.version) || draftVersionRef.current;
-            draftGenerationRef.current = Number(data.generation) || draftGenerationRef.current;
-          }
-        } catch { /* ignore */ }
-        setDraftStatus('saved');
+      const code = err?.data?.error;
+      if (
+        err?.status === 409 ||
+        code === 'unsupported_draft_schema' ||
+        code === 'draft_precondition_required'
+      ) {
+        const issue = draftIssueFromError(err, document, 'autosave');
+        setDraftIssue(issue);
+        setDraftStatus(
+          issue.code === 'draft_expired'
+            ? 'expired'
+            : issue.code === 'draft_deleted'
+              ? 'deleted'
+              : 'conflict',
+        );
         return false;
       }
       setDraftStatus('error');
@@ -702,7 +1015,7 @@ export default function ApplyExperience() {
   // The server write follows after a short idle window.
   useEffect(() => {
     currentDraftRef.current = draftDocument;
-    if (!selectedAgencyId || !draftHydrated) return undefined;
+    if (!selectedAgencyId || !draftHydrated || draftIssue) return undefined;
     if (draftFingerprint(draftDocument) === lastSavedFingerprintRef.current) return undefined;
     setDraftStatus((current) => (current === 'saving' ? current : 'unsaved'));
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
@@ -712,7 +1025,128 @@ export default function ApplyExperience() {
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
-  }, [draftDocument, draftHydrated, persistDraftDocument, selectedAgencyId]);
+  }, [
+    draftDocument,
+    draftHydrated,
+    draftIssue,
+    persistDraftDocument,
+    selectedAgencyId,
+  ]);
+
+  const handleUseLatestDraft = useCallback(() => {
+    const latest = draftIssue?.latest;
+    if (!latest) return;
+    if (['expired', 'deleted'].includes(latest.lifecycleState)) {
+      setDraftIssue((current) => ({
+        ...current,
+        code: `draft_${latest.lifecycleState}`,
+      }));
+      setDraftStatus(latest.lifecycleState);
+      return;
+    }
+    adoptServerDraft(latest);
+  }, [adoptServerDraft, draftIssue]);
+
+  const handleKeepLocalDraft = useCallback(() => {
+    const latest = draftIssue?.latest;
+    const localDocument = draftIssue?.localDocument || currentDraftRef.current;
+    if (!latest || latest.lifecycleState !== 'active' || !localDocument) return;
+    draftVersionRef.current = Number(latest.version) || 0;
+    draftGenerationRef.current = Number(latest.generation) || 0;
+    currentDraftRef.current = localDocument;
+    lastSavedFingerprintRef.current = '';
+    setDraftUpdatedAt(latest.updatedAt || null);
+    setDraftIssue(null);
+    setDraftStatus('unsaved');
+  }, [draftIssue]);
+
+  const handleReloadLatestDraft = useCallback(async () => {
+    if (!selectedAgencyId) return;
+    setDraftIssueBusy(true);
+    try {
+      const fresh = await talentApi.getDraft(selectedAgencyId);
+      if (!fresh) {
+        draftVersionRef.current = 0;
+        draftGenerationRef.current = 0;
+        lastSavedFingerprintRef.current = '';
+        setDraftUpdatedAt(null);
+        setDraftIssue(null);
+        setDraftStatus('unsaved');
+        return;
+      }
+      if (['expired', 'deleted'].includes(fresh.lifecycleState)) {
+        setDraftIssue((current) => ({
+          ...current,
+          code: `draft_${fresh.lifecycleState}`,
+          latest: fresh,
+          message:
+            fresh.lifecycleState === 'expired'
+              ? 'This draft expired. Recover it before making changes.'
+              : 'This draft was deleted. Recover it before making changes.',
+        }));
+        setDraftStatus(fresh.lifecycleState);
+        return;
+      }
+      adoptServerDraft(fresh);
+    } catch (err) {
+      toast.error(err?.message || 'Could not reload the latest draft.');
+    } finally {
+      setDraftIssueBusy(false);
+    }
+  }, [adoptServerDraft, selectedAgencyId]);
+
+  const handleRecoverDraft = useCallback(async () => {
+    const latest = draftIssue?.latest;
+    if (!selectedAgencyId || !latest?.isRecoverable) return;
+    setDraftIssueBusy(true);
+    try {
+      const recovered = await talentApi.recoverDraft(selectedAgencyId, {
+        expectedGeneration: latest.generation,
+      });
+      adoptServerDraft(recovered);
+      queryClient.invalidateQueries({
+        queryKey: ['application-draft', selectedAgencyId],
+      });
+      toast.success('Draft recovered.');
+    } catch (err) {
+      const nextIssue = draftIssueFromError(
+        err,
+        draftIssue?.localDocument,
+        'recover',
+      );
+      setDraftIssue(nextIssue);
+      setDraftStatus(
+        nextIssue.code === 'draft_expired'
+          ? 'expired'
+          : nextIssue.code === 'draft_deleted'
+            ? 'deleted'
+            : 'conflict',
+      );
+    } finally {
+      setDraftIssueBusy(false);
+    }
+  }, [
+    adoptServerDraft,
+    draftIssue,
+    queryClient,
+    selectedAgencyId,
+  ]);
+
+  const handleRepairDraftIssue = useCallback(() => {
+    if (draftIssue?.code === 'submission_references_changed') {
+      applyDraftDocument(
+        draftIssue.localDocument || currentDraftRef.current,
+      );
+    }
+    if (draftIssue?.code === 'draft_consent_required') {
+      setConsent(false);
+      setConsentBinding(null);
+      setPageIndex(PAGES.findIndex((page) => page.id === 'review'));
+    }
+    lastSavedFingerprintRef.current = '';
+    setDraftIssue(null);
+    setDraftStatus('unsaved');
+  }, [applyDraftDocument, draftIssue]);
 
   const selectMediaSet = (id) => {
     setSelectedMediaSetId(id);
@@ -726,15 +1160,12 @@ export default function ApplyExperience() {
 
   /* ── derived submission state ── */
 
-  const monthCount = applications.filter((app) => {
-    if (!app.created_at) return false;
-    const created = new Date(app.created_at);
-    const now = new Date();
-    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-  }).length;
-  const monthlyLimitLabel = subscription?.isPro
+  const applicationQuota = applicationQuotaQuery.data || null;
+  const monthlyLimitLabel = applicationQuota?.unlimited
     ? 'Unlimited submissions this month'
-    : `${monthCount}/5 submissions this month`;
+    : applicationQuota
+      ? `${applicationQuota.used}/${applicationQuota.limit} submissions this month`
+      : 'Submission limit unavailable';
 
   const visibleImages = useMemo(
     () => authImages.filter((image) => !image.exclude_from_agency && imageUrl(image)),
@@ -814,6 +1245,11 @@ export default function ApplyExperience() {
       !!measurementValue(profile, ['waist', 'waist_cm']) &&
       !!measurementValue(profile, ['hips', 'hips_cm']);
     const hasContact = !!profile?.email && !!profile?.phone;
+    const rightsValidation = validateImagesForDistribution(
+      packageImages,
+      buildImageRightsMapFromImages(packageImages),
+    );
+    const rightsGapCount = rightsValidation.errors.length;
     return [
       {
         key: 'photo_headshot',
@@ -844,6 +1280,17 @@ export default function ApplyExperience() {
         label: 'Contact',
         complete: hasContact,
         note: 'Add email and phone in settings',
+      },
+      {
+        key: 'distribution_rights',
+        label: 'Distribution rights',
+        complete: rightsValidation.ok,
+        note: rightsGapCount === 1
+          ? 'One package image is missing distribution rights — open it in your book and add license details'
+          : rightsGapCount > 1
+            ? `${rightsGapCount} package images are missing distribution rights — open them in your book and add license details`
+            : 'Add license type and rights status on each package image before applying',
+        rightsErrors: rightsValidation.errors,
       },
     ];
   }, [packageImages, profile, packageAudit]);
@@ -903,18 +1350,107 @@ export default function ApplyExperience() {
     [selectedAgency],
   );
   const boardLabels = selectedBoards.filter((b) => agencyOpenBoards.includes(b));
+  const consentPackageInput = useMemo(
+    () => ({
+      agencyId: selectedAgency?.id || null,
+      boards: boardLabels,
+      mediaSetId: selectedMediaSetId,
+      digitalSlotPicks,
+      compCardPresetId: selectedCompCardPreset?.id || null,
+      imageIds: packageImages.map((image) => image.id),
+      note,
+    }),
+    [
+      boardLabels,
+      digitalSlotPicks,
+      note,
+      packageImages,
+      selectedAgency?.id,
+      selectedCompCardPreset?.id,
+      selectedMediaSetId,
+    ],
+  );
+  const consentPackageKey = useMemo(
+    () => submissionConsentPackageKey(consentPackageInput),
+    [consentPackageInput],
+  );
+  const attestationPackageKeyRef = useRef(null);
+  useEffect(() => {
+    if (
+      attestationPackageKeyRef.current &&
+      attestationPackageKeyRef.current !== consentPackageKey
+    ) {
+      setAccuracyConfirmed(false);
+      setAdultAuthorityConfirmed(false);
+    }
+    attestationPackageKeyRef.current = consentPackageKey;
+  }, [consentPackageKey]);
+  const adultConsentCurrent =
+    !minor &&
+    consent &&
+    consentBindingMatches(consentBinding, consentPackageKey);
+
+  useEffect(() => {
+    if (!minor && consent && !adultConsentCurrent) {
+      setConsent(false);
+      setConsentBinding(null);
+    }
+  }, [adultConsentCurrent, consent, minor]);
+
+  const handleAdultConsentChange = useCallback(
+    async (checked) => {
+      if (!checked) {
+        setConsent(false);
+        setConsentBinding(null);
+        return;
+      }
+      setConsentBindingPending(true);
+      try {
+        const fingerprint =
+          await buildSubmissionConsentFingerprint(consentPackageInput);
+        setConsentBinding({
+          packageKey: consentPackageKey,
+          fingerprint,
+        });
+        setConsent(true);
+      } catch (error) {
+        setConsent(false);
+        setConsentBinding(null);
+        toast.error(
+          error?.message ||
+            'Could not securely bind consent to this package.',
+        );
+      } finally {
+        setConsentBindingPending(false);
+      }
+    },
+    [consentPackageInput, consentPackageKey],
+  );
   const statsInfo = useMemo(() => buildStats(profile), [profile]);
   const statsDate = statsInfo.measuredAt ? monthYearLabel(statsInfo.measuredAt) : null;
+  const adultAttestationsConfirmed =
+    adultConsentCurrent && accuracyConfirmed && adultAuthorityConfirmed;
+  const submissionConfirmed = minor
+    ? agencyConsentGranted
+    : adultAttestationsConfirmed;
 
   const canSubmit =
     !!selectedAgency &&
     isSendReady &&
-    consent &&
+    submissionConfirmed &&
+    !consentBindingPending &&
     draftHydrated &&
+    !draftIssue &&
     !applyMutation.isPending;
 
   // The reason the submit is held, surfaced on the button when it can't fire yet.
-  const submitGateLabel = !gating.isCoreReady
+  const submitGateLabel = minor && !profile?.guardian_consent_at
+    ? 'Guardian account consent required'
+    : minor && !agencyConsentGranted
+      ? agencyConsentQuery.data?.status === 'pending'
+        ? 'Awaiting guardian authorization'
+        : 'Guardian authorization required'
+      : !gating.isCoreReady
     ? 'Profile incomplete'
     : !isSendReady
       ? 'Complete requirements'
@@ -927,13 +1463,13 @@ export default function ApplyExperience() {
     const document = { ...draftDocument, currentStepId: PAGES[bounded].id };
     currentDraftRef.current = document;
     setPageIndex(bounded);
-    persistDraftDocument(document);
+    if (!draftIssue) persistDraftDocument(document);
   };
   const exitToMarket = () => navigate('/dashboard/talent/applications');
   const handleBack = async () => {
     if (pageIndex > 0) return goTo(pageIndex - 1);
     if (!deepLinked) {
-      await persistDraftDocument();
+      if (!draftIssue) await persistDraftDocument();
       // Return to the house chooser.
       setSelectedAgencyId(null);
       hydratedFor.current = null;
@@ -941,13 +1477,13 @@ export default function ApplyExperience() {
       setDraftStatus('idle');
       return;
     }
-    await persistDraftDocument();
+    if (!draftIssue) await persistDraftDocument();
     exitToMarket();
   };
   const handleContinue = () => goTo(pageIndex + 1);
 
   const navigateFromDraft = async (path) => {
-    const saved = await persistDraftDocument();
+    const saved = draftIssue ? false : await persistDraftDocument();
     if (saved) navigate(path);
   };
 
@@ -969,7 +1505,9 @@ export default function ApplyExperience() {
     });
 
   const handleSaveAndExit = async () => {
-    if (selectedAgencyId) await persistDraftDocument(draftDocument);
+    if (selectedAgencyId && !draftIssue) {
+      await persistDraftDocument(draftDocument);
+    }
     exitToMarket();
   };
 
@@ -982,8 +1520,9 @@ export default function ApplyExperience() {
       toast.info('Complete send requirements before submitting — contact, digitals, and your package.');
       return;
     }
-    if (!selectedAgency?.id || !canSubmit || consent !== true) return;
-    await persistDraftDocument(draftDocument);
+    if (!selectedAgency?.id || !canSubmit || submissionConfirmed !== true) return;
+    const saved = await persistDraftDocument(draftDocument);
+    if (!saved) return;
     applyMutation.mutate({
       agencyId: selectedAgency.id,
       idempotencyKey: crypto.randomUUID(),
@@ -992,6 +1531,7 @@ export default function ApplyExperience() {
       consentConfirmed: true,
       note: note.trim() || undefined,
       submissionPackage: {
+        schemaVersion: applicationDraftSchema.currentVersion,
         agencyName: selectedAgency?.name || null,
         agencyLocation: selectedAgency?.agency_location || null,
         boards: selectedBoards,
@@ -1010,6 +1550,11 @@ export default function ApplyExperience() {
         digitalsGaps: digitalsGaps.map((g) => g.label),
         untypedImageCount: untypedPackageCount,
         consentConfirmed: true,
+        accuracyConfirmed: minor ? true : accuracyConfirmed,
+        adultAuthorityConfirmed: minor ? null : adultAuthorityConfirmed,
+        consentPackageFingerprint: minor
+          ? null
+          : consentBinding?.fingerprint || null,
       },
     });
   };
@@ -1043,6 +1588,9 @@ export default function ApplyExperience() {
         agencyName={submitted.agency?.name || 'the agency'}
         submittedAt={submitted.submittedAt}
         market={submitted.market}
+        mediaSetName={submitted.mediaSetName}
+        compCardName={submitted.compCardName}
+        frameCount={submitted.frameCount}
         onExit={exitToMarket}
       />
     );
@@ -1063,7 +1611,7 @@ export default function ApplyExperience() {
         />
         <div className="apply-draft-loading" role="status">
           <Loader2 size={17} className="app-spin" aria-hidden />
-          Opening application workspace…
+          Opening submission workspace…
         </div>
       </div>
     );
@@ -1120,9 +1668,11 @@ export default function ApplyExperience() {
             setExcludedImageIds(new Set());
             setNote('');
             setConsent(false);
+            setConsentBinding(null);
             setDraftUpdatedAt(null);
             setDraftStatus('loading');
             setDraftHydrated(false);
+            setDraftIssue(null);
             draftVersionRef.current = 0;
             draftGenerationRef.current = 0;
             lastSavedFingerprintRef.current = '';
@@ -1150,6 +1700,36 @@ export default function ApplyExperience() {
           <Loader2 size={17} className="app-spin" aria-hidden />
           Checking for your latest draft…
         </div>
+      </div>
+    );
+  }
+
+  const inlineDraftIssue = [
+    'submission_references_changed',
+    'draft_consent_required',
+  ].includes(draftIssue?.code);
+
+  if (draftIssue && !inlineDraftIssue) {
+    return (
+      <div className="applications-view-container apply-experience apply-experience--dossier">
+        <ApplyHeader
+          selectedAgency={selectedAgency}
+          onExit={exitToMarket}
+          onSaveAndExit={exitToMarket}
+          draftStatus={draftStatus}
+          draftUpdatedAt={draftUpdatedAt}
+          actionLabel="Exit"
+        />
+        <DraftResolutionGate
+          issue={draftIssue}
+          busy={draftIssueBusy}
+          onUseLatest={handleUseLatestDraft}
+          onKeepLocal={handleKeepLocalDraft}
+          onReloadLatest={handleReloadLatestDraft}
+          onRecover={handleRecoverDraft}
+          onReloadApplication={() => window.location.reload()}
+          onExit={exitToMarket}
+        />
       </div>
     );
   }
@@ -1202,7 +1782,7 @@ export default function ApplyExperience() {
               Back
             </PholioButton>
             <PholioButton
-              variant="solid"
+              variant="primary"
               onClick={handleBeginSubmission}
               disabled={acknowledgeProgramMutation.isPending}
             >
@@ -1233,7 +1813,10 @@ export default function ApplyExperience() {
       : { title: page.title, standfirst: page.standfirst };
 
   return (
-    <div className="applications-view-container apply-experience apply-experience--dossier">
+    <div
+      className="applications-view-container apply-experience apply-experience--dossier"
+      style={COMP_CARD_CSS_VARS}
+    >
       <ApplyHeader
         selectedAgency={selectedAgency}
         onExit={handleSaveAndExit}
@@ -1241,6 +1824,13 @@ export default function ApplyExperience() {
         draftStatus={draftStatus}
         draftUpdatedAt={draftUpdatedAt}
       />
+
+      {inlineDraftIssue && (
+        <DraftRepairNotice
+          issue={draftIssue}
+          onResolve={handleRepairDraftIssue}
+        />
+      )}
 
       {!gating.isCoreReady && (
         <ProfileGateBanner
@@ -1276,10 +1866,13 @@ export default function ApplyExperience() {
             {page.id === 'digitals' && (
               <DigitalsPage
                 slots={digitalSet}
-                filled={filledSlots}
                 intel={digitalsIntel}
-                isMinor={isMinorProfile(profile)}
-                guardianConsent={hasGuardianConsent(profile)}
+                isMinor={minor}
+                guardianConsent={agencyConsentGranted}
+                accountGuardianConsent={Boolean(profile?.guardian_consent_at)}
+                guardianConsentPending={agencyConsentQuery.data?.status === 'pending'}
+                requestingGuardianConsent={requestAgencyConsentMutation.isPending}
+                onRequestGuardianConsent={() => requestAgencyConsentMutation.mutate()}
                 onSwap={swapSlot}
                 onOpenMedia={() => navigateFromDraft('/dashboard/talent/media')}
                 onOpenIdentity={() => navigateFromDraft('/dashboard/talent/profile?tab=identity')}
@@ -1310,8 +1903,8 @@ export default function ApplyExperience() {
                 profile={profile}
                 agencyName={selectedAgency?.name}
                 targetBoards={boardLabels.length ? boardLabels : agencyOpenBoards}
-                isMinor={isMinorProfile(profile)}
-                guardianConsent={hasGuardianConsent(profile)}
+                isMinor={minor}
+                guardianConsent={agencyConsentGranted}
                 selectedPresetId={selectedCompCardPreset?.id || null}
                 onSelectPreset={setSelectedCompCardPreset}
                 onOpenMedia={() => navigateFromDraft('/dashboard/talent/media')}
@@ -1323,6 +1916,7 @@ export default function ApplyExperience() {
                 agency={selectedAgency}
                 note={note}
                 onNoteChange={(v) => setNote(v.slice(0, 1200))}
+                minor={minor}
                 boardLabels={boardLabels}
                 digitalsCount={filledSlots}
                 compCardName={selectedCompCardName}
@@ -1346,8 +1940,17 @@ export default function ApplyExperience() {
                 compCardPreset={selectedCompCardPreset}
                 checks={checks}
                 packageAudit={packageAudit}
-                consent={consent}
-                onConsentChange={setConsent}
+                consent={minor ? agencyConsentGranted : adultConsentCurrent}
+                accuracyConfirmed={accuracyConfirmed}
+                onAccuracyChange={setAccuracyConfirmed}
+                adultAuthorityConfirmed={adultAuthorityConfirmed}
+                onAdultAuthorityChange={setAdultAuthorityConfirmed}
+                consentBindingPending={consentBindingPending}
+                onConsentChange={handleAdultConsentChange}
+                guardianAgencyConsent={agencyConsentQuery.data}
+                requestingGuardianConsent={requestAgencyConsentMutation.isPending}
+                onRequestGuardianConsent={() => requestAgencyConsentMutation.mutate()}
+                onOpenIdentity={() => navigateFromDraft('/dashboard/talent/profile?tab=identity')}
                 onModify={(id) => goTo(PAGES.findIndex((p) => p.id === id))}
                 onSubmit={handleSubmit}
                 canSubmit={canSubmit}
@@ -1374,11 +1977,11 @@ export default function ApplyExperience() {
           >
             Back
           </PholioButton>
-          {/* On the review step the primary action lives below the Secure Submission
+          {/* On the review step the primary action lives below the submission terms
               rail; the footer keeps only Back. */}
           {!isLastPage && (
             <PholioButton
-              variant="solid"
+              variant="primary"
               className="apply-nav-button apply-nav-button--next"
               onClick={handleContinue}
             >
@@ -1394,6 +1997,185 @@ export default function ApplyExperience() {
 /* ════════════════════════════════════════════════════════════
    Workspace chrome
    ════════════════════════════════════════════════════════════ */
+
+function draftDocumentSummary(document) {
+  if (!document) return 'No unsaved local changes were found.';
+  const page = PAGES.find((candidate) => candidate.id === document.currentStepId);
+  const note = String(document.payload?.note || '').trim();
+  const boards = Array.isArray(document.payload?.boards)
+    ? document.payload.boards.length
+    : 0;
+  return [
+    page ? `Last open at ${page.title}` : null,
+    boards ? `${boards} board ${boards === 1 ? 'selection' : 'selections'}` : null,
+    note ? 'note included' : null,
+  ].filter(Boolean).join(' · ') || 'Draft selections on this device.';
+}
+
+function DraftResolutionGate({
+  issue,
+  busy,
+  onUseLatest,
+  onKeepLocal,
+  onReloadLatest,
+  onRecover,
+  onReloadApplication,
+  onExit,
+}) {
+  const latest = issue?.latest;
+  const lifecycle = latest?.lifecycleState;
+  const isRecoverableLifecycle = ['draft_expired', 'draft_deleted'].includes(
+    issue?.code,
+  );
+  const isUnsupported = issue?.code === 'unsupported_draft_schema';
+  const isConflict = ['draft_conflict', 'draft_precondition_required'].includes(
+    issue?.code,
+  );
+  const title = isUnsupported
+    ? 'This draft needs a newer Pholio.'
+    : issue?.code === 'draft_expired'
+      ? 'This draft expired.'
+      : issue?.code === 'draft_deleted'
+        ? 'This draft was deleted.'
+        : isConflict
+          ? 'Choose which draft to continue.'
+          : 'This draft cannot be saved right now.';
+  const latestSavedAt = formatSavedAt(latest?.updatedAt);
+  const latestDocument = clientDraftDocument(latest);
+
+  return (
+    <main
+      className={isConflict ? 'apply-draft-conflict' : 'apply-draft-terminal'}
+      role="alert"
+      aria-live="assertive"
+    >
+      <h1 tabIndex={-1}>{title}</h1>
+      <p>{issue?.message}</p>
+
+      {isConflict && latest?.lifecycleState === 'active' ? (
+        <div className="apply-draft-conflict__versions">
+          <article>
+            <h2>Latest saved draft</h2>
+            <p>
+              Version {latest.version}
+              {latestSavedAt ? ` · saved ${latestSavedAt}` : ''}
+              <br />
+              {draftDocumentSummary(latestDocument)}
+            </p>
+            <PholioButton
+              variant="primary"
+              onClick={onUseLatest}
+              disabled={busy}
+            >
+              Reload latest draft
+            </PholioButton>
+          </article>
+          <article>
+            <h2>This device</h2>
+            <p>
+              Not saved
+              <br />
+              {draftDocumentSummary(issue.localDocument)}
+            </p>
+            <PholioButton
+              variant="secondary"
+              onClick={onKeepLocal}
+              disabled={busy}
+            >
+              Save this device’s version
+            </PholioButton>
+          </article>
+        </div>
+      ) : isRecoverableLifecycle ? (
+        <>
+          <ul className="apply-draft-conflict__summary">
+            <li>
+              Saved version {latest?.version || 'unknown'}
+              {latestSavedAt ? ` · last updated ${latestSavedAt}` : ''}
+            </li>
+            <li>
+              {latest?.isRecoverable
+                ? 'Recovery restores the last saved server version as a new draft generation.'
+                : 'The recovery window has ended; this saved draft can no longer be restored.'}
+            </li>
+          </ul>
+          <div className="apply-draft-terminal__actions">
+            {latest?.isRecoverable && (
+              <PholioButton
+                variant="primary"
+                onClick={onRecover}
+                disabled={busy}
+              >
+                {busy ? 'Recovering…' : 'Recover saved draft'}
+              </PholioButton>
+            )}
+            <PholioButton variant="secondary" onClick={onExit} disabled={busy}>
+              Back to submissions
+            </PholioButton>
+          </div>
+        </>
+      ) : isUnsupported ? (
+        <div className="apply-draft-terminal__actions">
+          <PholioButton
+            variant="primary"
+            onClick={onReloadApplication}
+            disabled={busy}
+          >
+            Reload Pholio
+          </PholioButton>
+          <PholioButton variant="secondary" onClick={onExit} disabled={busy}>
+            Back to submissions
+          </PholioButton>
+        </div>
+      ) : (
+        <div className="apply-draft-terminal__actions">
+          <PholioButton variant="primary" onClick={onReloadLatest} disabled={busy}>
+            {busy ? 'Reloading…' : 'Reload latest draft'}
+          </PholioButton>
+          <PholioButton variant="secondary" onClick={onExit} disabled={busy}>
+            Back to submissions
+          </PholioButton>
+        </div>
+      )}
+
+      {lifecycle && !isRecoverableLifecycle && !isConflict && (
+        <p className="apply-draft-terminal__meta">Draft state: {lifecycle}</p>
+      )}
+    </main>
+  );
+}
+
+function DraftRepairNotice({ issue, onResolve }) {
+  const referencesChanged = issue?.code === 'submission_references_changed';
+  const warnings = referencesChanged ? issue.repairWarnings : [];
+  return (
+    <section className="apply-draft-repairs" role="alert">
+      <div>
+        <h2>
+          {referencesChanged
+            ? 'Review selections that changed'
+            : 'Confirm this saved draft again'}
+        </h2>
+        {warnings.length > 0 ? (
+          <ul>
+            {warnings.map((warning, index) => (
+              <li key={`${warning.code || warning.field || 'repair'}-${index}`}>
+                {warning.message || 'A saved selection is no longer available.'}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>
+            Reconfirm the package on this page before sending it to the agency.
+          </p>
+        )}
+      </div>
+      <PholioButton variant="secondary" onClick={onResolve}>
+        {referencesChanged ? 'Review repaired draft' : 'Reconfirm'}
+      </PholioButton>
+    </section>
+  );
+}
 
 function ApplyHeader({
   selectedAgency,
@@ -1430,10 +2212,10 @@ function ApplyHeader({
   const disabled = isSaving || actionDisabled;
 
   return (
-    <header className="apply-workspace-top" aria-label="Application workspace">
-      <button type="button" className="apply-workspace-logo" onClick={onExit} aria-label="Back to applications">
+    <header className="apply-workspace-top" aria-label="Submission workspace">
+      <PholioButton type="button" variant="meta" tone="dark" className="apply-workspace-logo" onClick={onExit} aria-label="Back to applications">
         <span>PHOLIO</span>
-      </button>
+      </PholioButton>
       <div
         className="apply-workspace-status"
         aria-label={selectedAgency?.name ? `Submitting to ${selectedAgency.name}` : 'Submitting to'}
@@ -1448,15 +2230,17 @@ function ApplyHeader({
             <strong>{statusText}</strong>
           </p>
         )}
-        <button
+        <PholioButton
           type="button"
+          variant="tertiary"
+          tone="dark"
           className="apply-workspace-exit"
           onClick={onSaveAndExit}
           disabled={disabled}
           aria-label={buttonLabel}
         >
           {buttonLabel}
-        </button>
+        </PholioButton>
       </div>
     </header>
   );
@@ -1485,7 +2269,7 @@ function AgencyChooser({ agencies, isLoading, onSelect }) {
       <div className="apply-address">
         <div className="apply-houses-col">
           <span className="apply-houses__label">Open agencies</span>
-          <div className="apply-houses" role="listbox" aria-label="Agencies">
+          <PholioToggleGroup className="apply-houses" role="listbox" aria-label="Agencies">
             {isLoading
               ? [1, 2, 3].map((i) => (
                   <div key={i} className="apply-house apply-house--skeleton" aria-hidden />
@@ -1493,11 +2277,12 @@ function AgencyChooser({ agencies, isLoading, onSelect }) {
               : agencies.map((agency, index) => {
                   const selected = previewId === agency.id;
                   return (
-                    <button
+                    <PholioToggleButton
                       key={agency.id}
                       type="button"
                       role="option"
                       aria-selected={selected}
+                      active={selected}
                       className={`apply-house ${selected ? 'apply-house--on' : ''}`}
                       onClick={() => setPreviewId(agency.id)}
                       onDoubleClick={() => onSelect(agency.id)}
@@ -1510,16 +2295,16 @@ function AgencyChooser({ agencies, isLoading, onSelect }) {
                           {agency.agency_location || 'Global'}
                         </span>
                       </span>
-                    </button>
+                    </PholioToggleButton>
                   );
                 })}
-          </div>
+          </PholioToggleGroup>
         </div>
 
         {preview && (
           <div className="apply-chooser-preview">
             <AgencyDossier agency={preview} site={site} />
-            <PholioButton variant="solid" onClick={() => onSelect(preview.id)}>
+            <PholioButton variant="primary" onClick={() => onSelect(preview.id)}>
               Compose submission <ArrowUpRight size={14} aria-hidden />
             </PholioButton>
           </div>
@@ -1584,18 +2369,6 @@ function AgencyEditorialRail({ agency, site }) {
   );
 }
 
-/* Match score as an editorial signal — presence through typographic scale. */
-function MatchMark({ score }) {
-  const tier = score >= 85 ? 'Strong affinity' : score >= 70 ? 'Close affinity' : 'Worth a look';
-  return (
-    <div className="apply-match" role="img" aria-label={`Match score ${score} out of 100`}>
-      <span className="apply-match__label">Match</span>
-      <span className="apply-match__num">{score}</span>
-      <span className="apply-match__tier">{tier}</span>
-    </div>
-  );
-}
-
 /* The house being applied to — used in the chooser preview. */
 function AgencyDossier({ agency, site }) {
   const openBoards = Array.isArray(agency.open_boards) ? agency.open_boards.filter(Boolean) : [];
@@ -1628,7 +2401,6 @@ function AgencyDossier({ agency, site }) {
             </p>
           </div>
         </div>
-        {agency.matchScore ? <MatchMark score={agency.matchScore} /> : null}
       </header>
 
       <div className="apply-dossier__info">
@@ -1685,6 +2457,7 @@ function BoardPage({ agencyName, openBoards, selected, onToggle }) {
             <button
               key={board}
               type="button"
+              data-button-exception="board-fit"
               className={`apply-board__opt ${on ? 'is-on' : ''}`}
               aria-pressed={on}
               onClick={() => onToggle(board)}
@@ -1725,16 +2498,23 @@ function ageLabel(image) {
 
 function DigitalsPage({
   slots,
-  filled,
   intel,
   isMinor = false,
   guardianConsent = false,
+  accountGuardianConsent = false,
+  guardianConsentPending = false,
+  requestingGuardianConsent = false,
+  onRequestGuardianConsent,
   onSwap,
   onOpenMedia,
   onOpenIdentity,
 }) {
-  const total = slots.length;
-  const open = total - filled;
+  const presentedSlots = isMinor
+    ? mapMinorDigitalsSlots(slots, { accountGuardianConsent, guardianConsent })
+    : slots;
+  const presentedFilled = presentedSlots.filter((slot) => slot.image).length;
+  const total = presentedSlots.length;
+  const open = total - presentedFilled;
   const ready = intel.isSubmissionReady && open === 0;
 
   const verdict = (() => {
@@ -1763,25 +2543,44 @@ function DigitalsPage({
           body images. */}
       {isMinor && (
         <div
-          className={`apply-digitals__minor${guardianConsent ? ' is-cleared' : ''}`}
+          className={`apply-digitals__minor${guardianConsent && accountGuardianConsent ? ' is-cleared' : ''}`}
           role="note"
         >
           <p>
-            {guardianConsent
-              ? 'Under-18 account — guardian consent on file. Your digitals are shared only with the agency you submit to, never published.'
-              : 'You’re under 18. A parent or guardian must record consent before your set can be sent. Your full-length frames go only to the agency you submit to, never public.'}
+            {!accountGuardianConsent
+              ? 'You’re under 18. Guardian consent must be recorded before any digitals can be shown or sent.'
+              : guardianConsent
+                ? 'Under-18 account — your guardian authorized these digitals for this named agency.'
+                : 'You’re under 18. Body digitals are withheld until your guardian authorizes this named agency.'}
           </p>
-          {!guardianConsent && onOpenIdentity && (
-            <button type="button" className="apply-digitals__minor-cta" onClick={onOpenIdentity}>
+          {!accountGuardianConsent && onOpenIdentity ? (
+            <PholioButton type="button" variant="meta" className="apply-digitals__minor-cta" onClick={onOpenIdentity}>
               Record guardian consent <ArrowUpRight size={13} aria-hidden />
-            </button>
-          )}
+            </PholioButton>
+          ) : !guardianConsent && accountGuardianConsent && onRequestGuardianConsent ? (
+            <PholioButton
+              type="button"
+              variant="meta"
+              className="apply-digitals__minor-cta"
+              onClick={onRequestGuardianConsent}
+              disabled={guardianConsentPending || requestingGuardianConsent}
+            >
+              {requestingGuardianConsent
+                ? 'Sending…'
+                : guardianConsentPending
+                  ? 'Awaiting guardian authorization'
+                  : 'Request agency authorization'}{' '}
+              {!guardianConsentPending && !requestingGuardianConsent && (
+                <ArrowUpRight size={13} aria-hidden />
+              )}
+            </PholioButton>
+          ) : null}
         </div>
       )}
 
       <div className="apply-digitals__band" role="status">
         <span className="apply-digitals__coverage" aria-hidden>
-          {slots.map((slot) => (
+          {presentedSlots.map((slot) => (
             <span
               key={slot.key}
               className={`apply-digitals__seg${slot.image ? ' is-on' : ''}`}
@@ -1789,24 +2588,29 @@ function DigitalsPage({
           ))}
         </span>
         <span className="apply-digitals__verdict">
-          <strong>{ready ? 'Submission-ready' : `${filled} of ${total} slots`}</strong>
+          <strong>{ready ? 'Submission-ready' : `${presentedFilled} of ${total} slots`}</strong>
           {verdict}
         </span>
       </div>
 
       <div className="apply-digitals__set">
-        {slots.map((slot) => {
+        {presentedSlots.map((slot) => {
           const stale =
             slot.image && intel.recency?.staleImageIds?.includes(slot.image.id);
           const age = slot.image ? ageLabel(slot.image) : null;
           return (
             <div
               key={slot.key}
-              className={`apply-dslot ${slot.image ? 'is-filled' : 'is-empty'}`}
+              className={`apply-dslot ${slot.image ? 'is-filled' : 'is-empty'}${slot.withheld ? ' is-withheld' : ''}`}
             >
               <div className="apply-dslot__frame">
                 {slot.image ? (
                   <img src={imageUrl(slot.image)} alt={slot.label} loading="lazy" />
+                ) : slot.withheld ? (
+                  <span className="apply-dslot__withheld">
+                    <Lock size={20} strokeWidth={1.5} aria-hidden />
+                    <span className="apply-dslot__withheld-label">Withheld</span>
+                  </span>
                 ) : (
                   <span className="apply-dslot__add" aria-hidden>
                     <Plus size={18} />
@@ -1821,6 +2625,12 @@ function DigitalsPage({
                 <span className="apply-dslot__label">{slot.label}</span>
                 {slot.image ? (
                   <FrameReadCaption image={slot.image} surface="mw-frame" />
+                ) : slot.withheld ? (
+                  <span className="apply-dslot__reason">
+                    {slot.withheldKind === 'account'
+                      ? 'Guardian consent required before this digital can be shown.'
+                      : 'Withheld until your guardian authorizes this agency.'}
+                  </span>
                 ) : (
                   <span className="apply-dslot__reason">
                     {slot.bookFallback
@@ -1831,17 +2641,18 @@ function DigitalsPage({
               </div>
 
               {slot.image && slot.candidates.length > 1 ? (
-                <button
+                <PholioButton
                   type="button"
+                  variant="meta"
                   className="apply-dslot__swap"
                   onClick={() => onSwap(slot.key)}
                 >
                   Swap · {slot.candidates.length}
-                </button>
-              ) : !slot.image ? (
-                <button type="button" className="apply-dslot__swap" onClick={onOpenMedia}>
+                </PholioButton>
+              ) : !slot.image && !slot.withheld ? (
+                <PholioButton type="button" variant="meta" className="apply-dslot__swap" onClick={onOpenMedia}>
                   Add in media
-                </button>
+                </PholioButton>
               ) : null}
             </div>
           );
@@ -1858,9 +2669,9 @@ function DigitalsPage({
         ) : (
           <p className="apply-digitals__clear">{verdict}</p>
         )}
-        <button type="button" className="apply-digitals__media" onClick={onOpenMedia}>
+        <PholioButton type="button" variant="meta" className="apply-digitals__media" onClick={onOpenMedia}>
           Refine in media <ArrowUpRight size={13} aria-hidden />
-        </button>
+        </PholioButton>
       </div>
     </div>
   );
@@ -1879,9 +2690,9 @@ function StatsPage({ stats, isMinor = false, onOpenProfile }) {
         <CircleDashed size={20} aria-hidden />
         <p>No measurements on file yet. Add your stats in your profile so agencies can cast you.</p>
         {onOpenProfile && (
-          <button type="button" className="apply-stats__edit" onClick={onOpenProfile}>
+          <PholioButton type="button" variant="meta" className="apply-stats__edit" onClick={onOpenProfile}>
             Add stats in profile <ArrowUpRight size={13} aria-hidden />
-          </button>
+          </PholioButton>
         )}
       </div>
     );
@@ -1950,7 +2761,7 @@ function StatsPage({ stats, isMinor = false, onOpenProfile }) {
       <div className="apply-stats__foot">
         {isMinor && (
           <p className="apply-stats__minor" role="note">
-            Under-18 — your measurements are shared only with the agency you submit to, never published.
+            Under-18 — your measurements are disclosed only within this guardian-authorized submission.
           </p>
         )}
         <p className="apply-stats__note">
@@ -1958,9 +2769,9 @@ function StatsPage({ stats, isMinor = false, onOpenProfile }) {
             ? 'For this board, casting leads on your headshots and reel — measurements are supporting detail.'
             : 'Your stats travel with your digitals — agencies expect both current and accurate.'}
           {onOpenProfile && (
-            <button type="button" className="apply-stats__edit" onClick={onOpenProfile}>
+            <PholioButton type="button" variant="meta" className="apply-stats__edit" onClick={onOpenProfile}>
               Update in profile <ArrowUpRight size={13} aria-hidden />
-            </button>
+            </PholioButton>
           )}
         </p>
       </div>
@@ -2029,19 +2840,20 @@ function BookPage({
       {/* Set selector — a quiet, secondary utility, only when there's a real
           choice among book sets. */}
       {setOptions.length > 1 && (
-        <div className="apply-book__sets" role="group" aria-label="Book set">
+        <PholioToggleGroup className="apply-book__sets" role="group" aria-label="Book set">
           {setOptions.map((set) => (
-            <button
+            <PholioToggleButton
               key={set.id}
               type="button"
+              active={selectedMediaSetId === set.id}
               className={`apply-book__settab ${selectedMediaSetId === set.id ? 'is-on' : ''}`}
               onClick={() => onSelectSet(set.id)}
             >
               {set.name}
               <span>{set.count}</span>
-            </button>
+            </PholioToggleButton>
           ))}
-        </div>
+        </PholioToggleGroup>
       )}
 
       {isEmpty ? (
@@ -2051,9 +2863,9 @@ function BookPage({
             No book frames {setOptions.length > 1 ? 'in this set' : 'yet'}. Your book is your
             styled, published, and test work — separate from your raw digitals.
           </p>
-          <button type="button" className="apply-book__media" onClick={onOpenMedia}>
+          <PholioButton type="button" variant="meta" className="apply-book__media" onClick={onOpenMedia}>
             Build your book in media <ArrowUpRight size={13} aria-hidden />
-          </button>
+          </PholioButton>
         </div>
       ) : (
         <>
@@ -2068,8 +2880,9 @@ function BookPage({
                   key={image.id}
                   className={`apply-bookframe${included ? '' : ' is-out'}${isOpening ? ' is-opening' : ''}`}
                 >
-                  <button
+                  <PholioToggleButton
                     type="button"
+                    active={included}
                     className="apply-bookframe__btn"
                     aria-pressed={included}
                     aria-label={included ? 'Hold this frame back' : 'Add this frame'}
@@ -2081,7 +2894,7 @@ function BookPage({
                       {included ? <X size={13} /> : <Plus size={13} />}
                     </span>
                     {!included && <span className="apply-bookframe__held">Held back</span>}
-                  </button>
+                  </PholioToggleButton>
                   <span className="apply-bookframe__meta">
                     {isOpening && <span className="apply-bookframe__open">Opening</span>}
                     {register && <span className="apply-bookframe__register">{register}</span>}
@@ -2103,9 +2916,9 @@ function BookPage({
                 A clean, varied book. Your opening frame sets the read — make sure it’s your strongest.
               </p>
             )}
-            <button type="button" className="apply-book__media" onClick={onOpenMedia}>
+            <PholioButton type="button" variant="meta" className="apply-book__media" onClick={onOpenMedia}>
               Reorder &amp; edit in media <ArrowUpRight size={13} aria-hidden />
-            </button>
+            </PholioButton>
           </div>
         </>
       )}
@@ -2215,9 +3028,9 @@ function CompCardPage({
           sent. Your card carries your stats and images, shared only with the agency you submit to.
         </p>
         {onOpenIdentity && (
-          <button type="button" className="apply-compcard__media" onClick={onOpenIdentity}>
+          <PholioButton type="button" variant="meta" className="apply-compcard__media" onClick={onOpenIdentity}>
             Record guardian consent <ArrowUpRight size={13} aria-hidden />
-          </button>
+          </PholioButton>
         )}
       </div>
     );
@@ -2232,8 +3045,9 @@ function CompCardPage({
       <div className={`apply-compcard__stage${hasPicker ? ' apply-compcard__stage--picker' : ''}`}>
         {/* The card itself flips on click — front to back — like /media. */}
         <div className="apply-ccflip-wrap">
-          <button
+          <PholioButton
             type="button"
+            variant="tertiary"
             className="apply-ccflip"
             data-flipped={flipped ? 'true' : 'false'}
             onClick={() => setFlipped((f) => !f)}
@@ -2247,7 +3061,7 @@ function CompCardPage({
                 <CompCardFace slug={slug} side="back" preset={previewPreset} />
               </span>
             </span>
-          </button>
+          </PholioButton>
           <span className="apply-ccflip__hint" aria-hidden>
             <RotateCw size={12} /> {flipped ? 'Show front' : 'Show back'}
           </span>
@@ -2255,18 +3069,19 @@ function CompCardPage({
 
         <div className="apply-compcard__caption">
           {hasPicker && (
-            <div className="apply-ccpicker" role="radiogroup" aria-label="Choose the card to send">
+            <PholioToggleGroup className="apply-ccpicker" role="radiogroup" aria-label="Choose the card to send">
               {presets.map((preset) => {
                 const active = preset.id === previewPreset?.id;
                 const tag = [preset.board, preset.market].filter(Boolean).join(' · ');
                 const fitsBoard = preset.id === boardMatch?.id;
                 const isDefault = preset.id === defaultPreset?.id;
                 return (
-                  <button
+                  <PholioToggleButton
                     key={preset.id}
                     type="button"
                     role="radio"
                     aria-checked={active}
+                    active={active}
                     className={`apply-ccpicker__opt ${active ? 'is-active' : ''}`}
                     onClick={() => onSelectPreset?.(preset)}
                   >
@@ -2286,17 +3101,17 @@ function CompCardPage({
                     <span className="apply-ccpicker__check" aria-hidden>
                       {active && <Check size={15} />}
                     </span>
-                  </button>
+                  </PholioToggleButton>
                 );
               })}
-            </div>
+            </PholioToggleGroup>
           )}
 
           <dl className="apply-compcard__facts">
             <div>
               <dt>Format</dt>
               <dd>
-                <span className="apply-compcard__spec">5.5 × 8.5</span>
+                <span className="apply-compcard__spec">{COMP_CARD_FORMAT}</span>
                 <span className="apply-compcard__spec-tag">Two-sided</span>
               </dd>
             </div>
@@ -2313,9 +3128,9 @@ function CompCardPage({
                 : `This is the comp card ${name} receives — change its design in media.`}
             </p>
             {onOpenMedia && (
-              <button type="button" className="apply-compcard__media" onClick={onOpenMedia}>
+              <PholioButton type="button" variant="meta" className="apply-compcard__media" onClick={onOpenMedia}>
                 Open in media <ArrowUpRight size={13} aria-hidden />
-              </button>
+              </PholioButton>
             )}
           </div>
         </div>
@@ -2325,9 +3140,8 @@ function CompCardPage({
 }
 
 /* A controls-free preview of one side of the live comp card. The /pdf/view doc
-   is 528×1632 — front (top 816) stacked over back (bottom 816); we scale to the
-   frame width and shift to the requested side. A `preset` renders that saved
-   variant's exact take; otherwise the default composed card. */
+   stacks the front and back pages; CSS scales it from the shared card spec. A
+   `preset` renders that saved variant's exact take; otherwise the default card. */
 function CompCardFace({ slug, side, preset = null }) {
   if (!slug) {
     return (
@@ -2359,7 +3173,15 @@ function CompCardFace({ slug, side, preset = null }) {
 
 // Words, roughly. The research sweet spot is ~40–80 words; we cue brevity past 90
 // rather than hard-capping — a maximum is fine, a minimum would be wrong.
-function MessagePage({ agency, note, onNoteChange, boardLabels = [], digitalsCount = 0, compCardName }) {
+function MessagePage({
+  agency,
+  note,
+  onNoteChange,
+  minor = false,
+  boardLabels = [],
+  digitalsCount = 0,
+  compCardName,
+}) {
   const name = agency?.name || 'this agency';
 
   const [assistBusy, setAssistBusy] = useState(false);
@@ -2443,6 +3265,25 @@ function MessagePage({ agency, note, onNoteChange, boardLabels = [], digitalsCou
     .filter(Boolean)
     .join('  ·  ');
 
+  if (minor) {
+    return (
+      <div className="apply-compose">
+        <div className="apply-compose__letterhead">
+          <span className="apply-compose__to">
+            To <em>{name}</em>
+          </span>
+          {manifest && <span className="apply-compose__manifest">{manifest}</span>}
+        </div>
+        <div className="apply-compose__sheet">
+          <p className="apply-package__empty">
+            Direct notes and contact details are omitted from minor submissions. The agency can
+            contact you through Pholio after guardian-authorized review.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="apply-compose">
       {/* Letterhead — a calm "to / what's attached" line so the note can stay
@@ -2471,45 +3312,49 @@ function MessagePage({ agency, note, onNoteChange, boardLabels = [], digitalsCou
         <div className="apply-compose__assist">
           <PenLine className="apply-compose__assist-icon" size={13} aria-hidden />
           {isEmpty ? (
-            <button
+            <PholioButton
               type="button"
+              variant="secondary"
               className="apply-compose__assist-act"
               onClick={() => runAssist('draft')}
               disabled={assistBusy}
             >
               {assistBusy ? busyLabel : 'Draft a first note'}
-            </button>
+            </PholioButton>
           ) : (
             <>
-              <button
+              <PholioButton
                 type="button"
+                variant="secondary"
                 className="apply-compose__assist-act"
                 onClick={() => runAssist('sharpen')}
                 disabled={assistBusy}
               >
                 {assistBusy && assistMode === 'sharpen' ? busyLabel : 'Sharpen'}
-              </button>
+              </PholioButton>
               {noteLen >= 50 && (
-                <button
+                <PholioButton
                   type="button"
+                  variant="secondary"
                   className="apply-compose__assist-act"
                   onClick={() => runAssist('shorten')}
                   disabled={assistBusy}
                 >
                   {assistBusy && assistMode === 'shorten' ? busyLabel : 'Shorten'}
-                </button>
+                </PholioButton>
               )}
             </>
           )}
           {previousNote !== null && (
-            <button
+            <PholioButton
               type="button"
+              variant="tertiary"
               className="apply-compose__assist-revert"
               onClick={handleUndoAssist}
               disabled={assistBusy}
             >
               Revert
-            </button>
+            </PholioButton>
           )}
         </div>
         <span className="apply-compose__count" data-long={wordCount > 90 ? 'true' : undefined}>
@@ -2526,7 +3371,7 @@ function MessagePage({ agency, note, onNoteChange, boardLabels = [], digitalsCou
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
-const SECURE_FLOW_NAME = 'Secure Submission';
+const SUBMISSION_TERMS_LABEL = 'Submission Terms';
 
 // Linked social accounts from the talent's Pholio profile (icons, not a typed string).
 function profileSocials(profile) {
@@ -2535,17 +3380,17 @@ function profileSocials(profile) {
   if (profile?.instagram_handle)
     out.push({ id: 'instagram', label: 'Instagram', Icon: Instagram, url: `https://instagram.com/${clean(profile.instagram_handle)}` });
   if (profile?.twitter_handle)
-    out.push({ id: 'twitter', label: 'X', Icon: Twitter, url: `https://x.com/${clean(profile.twitter_handle)}` });
+    out.push({ id: 'x', label: 'X', Icon: XIcon, url: `https://x.com/${clean(profile.twitter_handle)}` });
   if (profile?.tiktok_handle)
-    out.push({ id: 'tiktok', label: 'TikTok', Icon: Music2, url: `https://tiktok.com/@${clean(profile.tiktok_handle)}` });
+    out.push({ id: 'tiktok', label: 'TikTok', Icon: TiktokIcon, url: `https://tiktok.com/@${clean(profile.tiktok_handle)}` });
   if (profile?.youtube_handle)
-    out.push({ id: 'youtube', label: 'YouTube', Icon: Youtube, url: `https://youtube.com/@${clean(profile.youtube_handle)}` });
+    out.push({ id: 'youtube', label: 'YouTube', Icon: YoutubeIcon, url: `https://youtube.com/@${clean(profile.youtube_handle)}` });
   return out;
 }
 
 // Page 07 — the submission review document: the full package exactly as the agency
-// receives it, each section openable back to its step; a Secure Submission rail
-// carries the acknowledgements. Dispatch is the footer.
+// receives it, each section openable back to its step; a terms rail carries the
+// acknowledgements. Dispatch is the footer.
 function ReviewSendPage({
   agency,
   profile,
@@ -2560,7 +3405,16 @@ function ReviewSendPage({
   checks,
   packageAudit,
   consent,
+  accuracyConfirmed,
+  onAccuracyChange,
+  adultAuthorityConfirmed,
+  onAdultAuthorityChange,
+  consentBindingPending,
   onConsentChange,
+  guardianAgencyConsent,
+  requestingGuardianConsent,
+  onRequestGuardianConsent,
+  onOpenIdentity,
   onModify,
   onSubmit,
   canSubmit,
@@ -2571,24 +3425,39 @@ function ReviewSendPage({
   const talentName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Your name';
   const location = agency?.agency_location || 'Global';
+  const talentCity = (profile?.city || '').trim() || null;
   const boardLine = boardLabels?.length ? boardLabels.join(' · ') : null;
-  const gender = profile?.gender ? String(profile.gender) : null;
-  const division = gender
-    ? gender.charAt(0).toUpperCase() + gender.slice(1)
-    : boardLabels?.[0] || null;
+  const genderRaw = profile?.gender ? String(profile.gender) : null;
+  const genderLabel = genderRaw
+    ? genderRaw.charAt(0).toUpperCase() + genderRaw.slice(1)
+    : null;
   const secondary = stats?.secondary || [];
   const eyes = secondary.find((s) => s.label === 'Eyes')?.value;
   const hair = secondary.find((s) => s.label === 'Hair')?.value;
   const shoe = secondary.find((s) => s.label === 'Shoe')?.value;
-  const socials = profileSocials(profile);
-  const portfolio = websiteUrl(profile?.portfolio_url);
-  const portfolioLabel = agencyDomain(portfolio);
   const minor = isMinorProfile(profile);
-  const hasContact = socials.length > 0 || !!portfolio;
+  const socials = minor ? [] : profileSocials(profile);
+  const email = minor ? '' : String(profile?.email || '').trim();
+  const phone = minor ? '' : String(profile?.phone || '').trim();
+  const portfolio = minor ? null : websiteUrl(profile?.portfolio_url);
+  const portfolioLabel = agencyDomain(portfolio);
+  const nationality = String(profile?.nationality || '').trim();
+  const languages = asStringList(profile?.languages);
+  const accountGuardianConsent = hasGuardianConsent(profile);
+  const minorAgencyAuthorized =
+    !minor || guardianAgencyConsent?.status === 'verified';
+  const hasContact =
+    !!email || !!phone || socials.length > 0 || !!portfolio;
 
-  const filledDigitals = (digitalSet || []).filter((slot) => slot.image);
-  const bookFrames = (packageImages || []).filter(isBookFrame);
-  const noteText = (note || '').trim();
+  const filledDigitals = (digitalSet || []).filter(
+    (slot) =>
+      slot.image &&
+      (minorAgencyAuthorized || !MINOR_BODY_DIGITAL_SLOTS.has(slot.key)),
+  );
+  const bookFrames = minorAgencyAuthorized
+    ? (packageImages || []).filter(isBookFrame)
+    : [];
+  const noteText = minor ? '' : (note || '').trim();
 
   const sections = [
     {
@@ -2612,8 +3481,12 @@ function ReviewSendPage({
     },
     {
       step: 'stats',
-      title: 'Statistics',
-      body: stats?.hasAny ? (
+      title: 'Stats',
+      body: !minorAgencyAuthorized ? (
+        <p className="apply-package__empty">
+          Measurements are withheld until guardian authorization is verified for {name}.
+        </p>
+      ) : stats?.hasAny ? (
         <>
           <dl className="apply-package__stats">
             {stats.height && (
@@ -2629,12 +3502,30 @@ function ReviewSendPage({
               </div>
             ))}
           </dl>
-          {(division || shoe || eyes || hair) && (
+          {(boardLine || genderLabel || nationality || languages.length > 0 || shoe || eyes || hair) && (
             <dl className="apply-package__traits">
-              {division && (
+              {boardLine && (
                 <div>
                   <dt>Division</dt>
-                  <dd>{division}</dd>
+                  <dd>{boardLine}</dd>
+                </div>
+              )}
+              {genderLabel && (
+                <div>
+                  <dt>Gender</dt>
+                  <dd>{genderLabel}</dd>
+                </div>
+              )}
+              {nationality && (
+                <div>
+                  <dt>Nationality</dt>
+                  <dd>{nationality}</dd>
+                </div>
+              )}
+              {languages.length > 0 && (
+                <div>
+                  <dt>Languages</dt>
+                  <dd>{languages.join(' · ')}</dd>
                 </div>
               )}
               {shoe && (
@@ -2683,14 +3574,18 @@ function ReviewSendPage({
     {
       step: 'compcard',
       title: 'Comp card',
-      body: (
+      body: !minorAgencyAuthorized ? (
+        <p className="apply-package__empty">
+          The comp card is withheld until guardian authorization is verified for {name}.
+        </p>
+      ) : (
         <div className="apply-package__cc">
           <div className="apply-package__cc-card">
             <CompCardFace slug={compCardSlug} side="front" preset={compCardPreset} />
           </div>
           <div className="apply-package__cc-meta">
             <span className="apply-package__cc-name">{compCardName}</span>
-            <span className="apply-package__cc-spec">5.5 × 8.5 in · two-sided</span>
+            <span className="apply-package__cc-spec">{COMP_CARD_FORMAT} in · two-sided</span>
             <span className="apply-package__cc-from">Composed live from your book</span>
           </div>
         </div>
@@ -2701,7 +3596,11 @@ function ReviewSendPage({
       title: 'Note',
       body: (
         <>
-          {noteText ? (
+          {minor ? (
+            <p className="apply-package__empty">
+              Direct notes and contact details are omitted. The agency can reply through Pholio.
+            </p>
+          ) : noteText ? (
             <blockquote className="apply-package__voice">“{noteText}”</blockquote>
           ) : (
             <p className="apply-package__empty">No note added — your package stands on its own.</p>
@@ -2709,33 +3608,51 @@ function ReviewSendPage({
           {hasContact && (
             <div className="apply-package__contact">
               <span className="apply-package__contact-label">Contact</span>
-              {socials.length > 0 && (
-                <div className="apply-package__socials">
-                  {socials.map((s) => (
+              <div className="apply-package__contact-primary">
+                {email && (
+                  <a className="apply-package__contact-link" href={`mailto:${email}`}>
+                    <Mail size={13} aria-hidden />
+                    {email}
+                  </a>
+                )}
+                {phone && (
+                  <a className="apply-package__contact-link" href={`tel:${phone}`}>
+                    <Phone size={13} aria-hidden />
+                    {phone}
+                  </a>
+                )}
+              </div>
+              {(socials.length > 0 || portfolio) && (
+                <div className="apply-package__contact-aside">
+                  {socials.length > 0 && (
+                    <div className="apply-package__socials">
+                      {socials.map((s) => (
+                        <a
+                          key={s.id}
+                          className="apply-package__social"
+                          href={s.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={s.label}
+                          title={s.label}
+                        >
+                          <s.Icon size={17} aria-hidden />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {portfolio && (
                     <a
-                      key={s.id}
-                      className="apply-package__social"
-                      href={s.url}
+                      className="apply-package__portfolio"
+                      href={portfolio}
                       target="_blank"
                       rel="noreferrer"
-                      aria-label={s.label}
-                      title={s.label}
                     >
-                      <s.Icon size={17} aria-hidden />
+                      <Globe size={13} aria-hidden />
+                      {portfolioLabel || 'Portfolio'}
                     </a>
-                  ))}
+                  )}
                 </div>
-              )}
-              {portfolio && (
-                <a
-                  className="apply-package__portfolio"
-                  href={portfolio}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Globe size={13} aria-hidden />
-                  {portfolioLabel || 'Portfolio'}
-                </a>
               )}
             </div>
           )}
@@ -2755,6 +3672,9 @@ function ReviewSendPage({
           </div>
           <p className="apply-package__kicker">Representation submission</p>
           <h1 className="apply-package__name">{talentName}</h1>
+          {talentCity && (
+            <p className="apply-package__based">Based in {talentCity}</p>
+          )}
           <span className="apply-package__rule" aria-hidden />
           <p className="apply-package__dest">
             {location}
@@ -2769,13 +3689,14 @@ function ReviewSendPage({
                 {ROMAN[index]} · {section.title}
               </span>
               {onModify && (
-                <button
+                <PholioButton
                   type="button"
+                  variant="meta"
                   className="apply-package__modify"
                   onClick={() => onModify(section.step)}
                 >
                   <PenLine size={12} aria-hidden /> Modify
-                </button>
+                </PholioButton>
               )}
             </div>
             {section.body}
@@ -2784,20 +3705,59 @@ function ReviewSendPage({
       </article>
 
       <div className="apply-review__rail">
-        <aside className="apply-seal" aria-label="Secure Submission">
-        <span className="apply-seal__flow">{SECURE_FLOW_NAME}</span>
+        <aside className="apply-seal" aria-label="Submission terms">
+        <span className="apply-seal__flow">{SUBMISSION_TERMS_LABEL}</span>
         <p className="apply-seal__handling">
-          Your package is delivered directly to <strong>{name}</strong> for representation review —
-          never published, never shared elsewhere.
+          Your package is delivered to <strong>{name}</strong> as a separate recipient for
+          representation review.
+        </p>
+        <p className="apply-seal__handling">
+          {minor
+            ? 'Shared data includes your name, under-18 age band, city, nationality, languages, guardian-authorized measurements, selected images and book, and comp card. Direct contact, social links, portfolio URL, optional note, and raw date of birth are omitted; the agency can communicate through Pholio.'
+            : 'Shared data includes your name, age, city, contact details, measurements, selected images and book, comp card, note, and linked social profiles included in the package.'}
+        </p>
+        <p className="apply-seal__handling">
+          Pholio retains the package for up to 24 months. Withdrawal revokes access in Pholio,
+          redacts the platform snapshot, and deletes the platform message thread, but cannot recall
+          copies already downloaded or recorded by the agency. Read the{' '}
+          <a href={`${MARKETING_SITE_URL}/terms`} target="_blank" rel="noopener noreferrer">
+            Terms
+          </a>{' '}
+          and{' '}
+          <a href={`${MARKETING_SITE_URL}/privacy`} target="_blank" rel="noopener noreferrer">
+            Privacy Notice
+          </a>
+          .
         </p>
 
-        <ul className="apply-seal__acks" aria-label="Acknowledgements">
-          <li>Your statistics and digitals are accurate, current, and unretouched.</li>
-          <li>
-            {minor
-              ? 'A parent or guardian has consented to this submission.'
-              : 'You are 18 or older and authorised to submit your own work.'}
-          </li>
+        <ul className="apply-seal__acks" aria-label="Submission facts">
+          {minor && (
+            <li>Digitals marked as retouched are blocked from submission.</li>
+          )}
+          {minor && (
+            <li>
+              {
+              !accountGuardianConsent ? (
+                <>
+                  Guardian consent not yet recorded —{' '}
+                  <PholioButton
+                    type="button"
+                    variant="meta"
+                    className="apply-seal__acks-link"
+                    onClick={onOpenIdentity}
+                  >
+                    Record it here
+                  </PholioButton>{' '}
+                  before submitting.
+                </>
+              ) : minorAgencyAuthorized ? (
+                `A parent or guardian authorized this submission to ${name}.`
+              ) : (
+                `Guardian authorization for ${name} has not been verified.`
+              )
+              }
+            </li>
+          )}
           <li>A submission is a request for review and does not guarantee representation.</li>
         </ul>
 
@@ -2818,16 +3778,76 @@ function ReviewSendPage({
           </ul>
         )}
 
-        <label className="apply-seal__consent">
-          <input type="checkbox" checked={consent} onChange={(e) => onConsentChange(e.target.checked)} />
-          <span>
-            I have reviewed this package and consent to submitting it to {name} through Pholio.
-          </span>
-        </label>
+        {minor ? (
+          <div className="apply-seal__guardian" role="status">
+            {minorAgencyAuthorized ? (
+              <p>Guardian authorization verified specifically for {name}.</p>
+            ) : guardianAgencyConsent?.status === 'pending' ? (
+              <p>
+                Authorization sent to {guardianAgencyConsent.guardian_email || 'your guardian'}.
+                Submission stays locked until they confirm.
+              </p>
+            ) : guardianAgencyConsent?.account_consent_verified === false ? (
+              <>
+                <p>Complete account-level guardian consent before requesting agency authorization.</p>
+                <PholioButton type="button" variant="meta" onClick={onOpenIdentity}>
+                  Open identity settings <ArrowUpRight size={13} aria-hidden />
+                </PholioButton>
+              </>
+            ) : (
+              <>
+                <p>Your guardian must authorize disclosure to {name}. This permission will not apply to another agency.</p>
+                <PholioButton
+                  type="button"
+                  variant="meta"
+                  onClick={onRequestGuardianConsent}
+                  disabled={requestingGuardianConsent}
+                >
+                  {requestingGuardianConsent ? 'Sending…' : 'Request guardian authorization'}
+                  {!requestingGuardianConsent && <ArrowUpRight size={13} aria-hidden />}
+                </PholioButton>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="apply-seal__attestations" aria-label="Required attestations">
+            <label className="apply-seal__consent">
+              <input
+                type="checkbox"
+                checked={accuracyConfirmed}
+                onChange={(event) => onAccuracyChange(event.target.checked)}
+              />
+              <span>
+                I confirm my statistics are accurate and current, and my agency digitals are
+                unretouched.
+              </span>
+            </label>
+            <label className="apply-seal__consent">
+              <input
+                type="checkbox"
+                checked={adultAuthorityConfirmed}
+                onChange={(event) => onAdultAuthorityChange(event.target.checked)}
+              />
+              <span>I confirm I am 18 or older and authorised to submit my own work.</span>
+            </label>
+            <label className="apply-seal__consent">
+              <input
+                type="checkbox"
+                checked={consent}
+                disabled={consentBindingPending}
+                onChange={(event) => onConsentChange(event.target.checked)}
+              />
+              <span>
+                I have reviewed this package and consent to submitting it to {name} through Pholio.
+              </span>
+            </label>
+          </div>
+        )}
         </aside>
 
-        <button
+        <PholioButton
           type="button"
+          variant="primary"
           className="apply-submit"
           onClick={onSubmit}
           disabled={!canSubmit}
@@ -2846,7 +3866,7 @@ function ReviewSendPage({
               Submit to {name} <Send size={15} aria-hidden />
             </>
           )}
-        </button>
+        </PholioButton>
       </div>
     </div>
   );
@@ -2856,7 +3876,7 @@ function ReviewSendPage({
    Submission success — a full-screen, motion-led confirmation
    ════════════════════════════════════════════════════════════ */
 
-function ApplySuccess({ firstName, agencyName, submittedAt, market, onExit }) {
+function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName, compCardName, frameCount, onExit }) {
   const reduce = useReducedMotion();
 
   useEffect(() => {
@@ -2918,6 +3938,11 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, onExit }) {
         <motion.p className="apply-success__receipt" variants={item}>
           {dateLabel(submittedAt)} · Under review
         </motion.p>
+        {(frameCount > 0 || mediaSetName || compCardName) && (
+          <motion.p className="apply-success__receipt apply-success__receipt--package" variants={item}>
+            {[frameCount > 0 && `${frameCount} frames`, mediaSetName, compCardName && `${compCardName} comp card`].filter(Boolean).join(' · ')}
+          </motion.p>
+        )}
 
         <motion.div className="apply-success__guidance" variants={item}>
           <span className="apply-success__guidance-label">What happens next</span>
@@ -2925,9 +3950,9 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, onExit }) {
         </motion.div>
 
         <motion.div className="apply-success__actions" variants={item}>
-          <button type="button" className="apply-success__action" onClick={onExit}>
+          <PholioButton type="button" variant="primary" tone="dark" className="apply-success__action" onClick={onExit}>
             Track this submission <ArrowUpRight size={15} aria-hidden />
-          </button>
+          </PholioButton>
         </motion.div>
       </motion.div>
     </div>,

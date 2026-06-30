@@ -27,8 +27,7 @@ export default function PremiumAnalyticsUnlock() {
             </ul>
             <PholioButton
               href="/dashboard/talent/settings/subscription"
-              system="dashboard"
-              variant="inverse-primary"
+              variant="primary" tone="dark"
               style={{ marginTop: 32 }}
             >
               <span>Unlock Studio+</span>

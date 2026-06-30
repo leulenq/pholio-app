@@ -1,4 +1,4 @@
-const CURRENT_SUBMISSION_PROGRAM_VERSION = "2026-06-26";
+const CURRENT_SUBMISSION_PROGRAM_VERSION = "2026-06-29";
 
 async function recordSubmissionProgramAcknowledgment(knex, userId) {
   if (!knex) {

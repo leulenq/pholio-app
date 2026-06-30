@@ -5,6 +5,7 @@ const { auditSubmissionPackage } = require("./package-intelligence");
 const {
   validateImagesForDistribution,
 } = require("../../../shared/lib/image-rights");
+const { isMinorProfile, hasGuardianConsent } = require("../../../shared/lib/talent-age");
 
 function isPresent(value) {
   if (value === null || value === undefined || value === "") return false;
@@ -47,13 +48,35 @@ function hasRequiredContact(profile) {
   return Boolean(email && phone);
 }
 
-function evaluateSendReadiness(profile, images = [], rightsMap = new Map()) {
+function evaluateSendReadiness(
+  profile,
+  images = [],
+  rightsMap = new Map(),
+  options = {},
+) {
   const list = Array.isArray(images) ? images : [];
   const strength = calculateProfileStrength({ ...(profile || {}), images: list });
   const audit = auditSubmissionPackage({ images: list });
   const sendBlockers = [];
-  const rightsValidation = validateImagesForDistribution(list, rightsMap);
+  const rightsValidation = validateImagesForDistribution(list, rightsMap, {
+    requireGuardianRelease: isMinorProfile(profile),
+  });
 
+  if (isMinorProfile(profile) && !hasGuardianConsent(profile)) {
+    sendBlockers.push({
+      code: "minor_guardian_consent_required",
+      key: "guardian_consent",
+      message:
+        "A parent or guardian must verify consent before a minor can submit to an agency.",
+    });
+  } else if (isMinorProfile(profile) && options.agencyConsentGranted !== true) {
+    sendBlockers.push({
+      code: "guardian_agency_consent_required",
+      key: "guardian_agency_consent",
+      message:
+        "A parent or guardian must authorize this submission to the selected agency.",
+    });
+  }
   if (!strength.isCoreReady) {
     sendBlockers.push({
       code: "profile_incomplete",
@@ -80,6 +103,20 @@ function evaluateSendReadiness(profile, images = [], rightsMap = new Map()) {
       code: "stale_digitals",
       key: "digitals_recency",
       message: "Refresh your digitals - your set is out of date for agency review.",
+    });
+  }
+  const retouchedDigitals = list.filter(
+    (image) =>
+      String(image?.image_type || "").toLowerCase() === "digital" &&
+      Boolean(image?.retouched_at),
+  );
+  if (retouchedDigitals.length > 0) {
+    sendBlockers.push({
+      code: "retouched_digital_not_allowed",
+      key: "digitals_retouching",
+      message:
+        "Agency digitals must be unretouched. Replace any digital marked as retouched.",
+      imageIds: retouchedDigitals.map((image) => image.id).filter(Boolean),
     });
   }
   if (!hasRequiredMeasurements(profile)) {

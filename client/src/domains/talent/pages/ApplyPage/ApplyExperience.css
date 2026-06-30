@@ -245,6 +245,20 @@
   line-height: 1.65;
 }
 
+.apply-draft-terminal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.apply-draft-terminal .apply-draft-terminal__meta {
+  margin-top: 24px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .apply-draft-repairs {
   display: flex;
   align-items: flex-start;
@@ -274,6 +288,13 @@
   line-height: 1.55;
 }
 
+.apply-draft-repairs p {
+  margin: 8px 0 0;
+  color: var(--app-text-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
 .apply-draft-repairs button {
   display: inline-flex;
   flex: none;
@@ -286,6 +307,14 @@
   background: transparent;
   color: var(--app-text-soft);
   cursor: pointer;
+}
+
+.apply-draft-repairs .pholio-btn {
+  width: auto;
+  height: auto;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--app-hair-strong);
 }
 
 .apply-draft-conflict {
@@ -994,52 +1023,6 @@
   transform: translate(1px, -1px);
 }
 
-/* match — an editorial signal with real presence (scale, not chrome) */
-.apply-match {
-  flex: none;
-  display: grid;
-  justify-items: end;
-  text-align: right;
-}
-
-.apply-match__label {
-  color: var(--app-text-faint);
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-
-.apply-match__num {
-  margin: 4px 0 2px;
-  color: var(--app-gold);
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-weight: 300;
-  font-size: clamp(2.4rem, 4vw, 3.6rem);
-  line-height: 0.9;
-  font-variant-numeric: lining-nums;
-}
-
-.apply-dossier--focused .apply-match__num {
-  color: var(--app-gold);
-  font-size: clamp(3.6rem, 6.2vw, 6.4rem);
-}
-
-.apply-dossier--focused .apply-match__label {
-  color: rgba(245, 240, 232, 0.34);
-}
-
-.apply-dossier--focused .apply-match__tier {
-  color: rgba(245, 240, 232, 0.58);
-}
-
-.apply-match__tier {
-  color: var(--app-text-soft);
-  font-size: 12px;
-  font-weight: 300;
-}
-
 /* info row beneath the hero — the house's voice + the boards it's scouting */
 .apply-dossier__info {
   min-width: 0;
@@ -1346,24 +1329,6 @@
   line-height: 1.62;
 }
 
-.apply-dossier--focused .apply-match {
-  padding-left: clamp(20px, 3vw, 34px);
-  border-left: 1px solid var(--app-hair);
-}
-
-.apply-dossier--focused .apply-match__label {
-  color: var(--app-text-faint);
-}
-
-.apply-dossier--focused .apply-match__num {
-  color: var(--app-gold);
-  font-size: clamp(3.2rem, 5.2vw, 5.4rem);
-}
-
-.apply-dossier--focused .apply-match__tier {
-  color: var(--app-text-soft);
-}
-
 .apply-dossier--focused .apply-dossier__info {
   display: block;
   margin-top: 0;
@@ -1462,89 +1427,13 @@
   }
 }
 
-/* PholioButton's secondary/ghost are tuned for dark shells; this surface is
-   cream, so re-tone them dark-on-light to read premium here. */
-.apply-experience .pholio-btn--secondary {
-  color: var(--app-text);
-  border-color: var(--app-hair-strong);
-}
-
-.apply-experience .pholio-btn--secondary:hover:not(:disabled) {
-  border-color: var(--app-hair-gold);
-  color: var(--app-gold);
-  background: transparent;
-}
-
-/* Only Back / Next use the dossier's editorial action treatment. Other apply
-   controls intentionally retain their established styling. */
+/* Layout only; visual treatment comes from the shared button taxonomy. */
 .apply-experience .apply-nav-button {
-  min-height: 42px;
-  padding: 0 18px;
-  border-radius: 2px;
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  box-shadow: none;
-  transition:
-    color 0.2s var(--app-ease),
-    border-color 0.2s var(--app-ease),
-    background 0.2s var(--app-ease),
-    box-shadow 0.2s var(--app-ease),
-    transform 0.2s var(--app-ease);
+  flex: 0 0 auto;
 }
 
 .apply-experience .apply-nav-button svg {
   flex: none;
-  color: var(--app-gold);
-  transition: transform 0.2s var(--app-ease);
-}
-
-.apply-experience .apply-nav-button--next {
-  border: 1px solid rgba(184, 149, 106, 0.52);
-  background: color-mix(in srgb, var(--app-cream-warm) 54%, #fff);
-  color: var(--app-text);
-  box-shadow:
-    inset 0 -2px 0 rgba(184, 149, 106, 0.1),
-    0 4px 12px rgba(26, 24, 21, 0.035);
-}
-
-.apply-experience .apply-nav-button--next:hover:not(:disabled) {
-  border-color: rgba(184, 149, 106, 0.82);
-  background: color-mix(in srgb, var(--app-gold) 4%, #fff);
-  color: var(--app-text);
-  box-shadow:
-    inset 0 -2px 0 rgba(184, 149, 106, 0.18),
-    0 7px 18px rgba(26, 24, 21, 0.06);
-  transform: translateY(-1px);
-}
-
-.apply-experience .apply-nav-button--next:hover:not(:disabled) svg {
-  transform: translate(1px, -1px);
-}
-
-.apply-experience .apply-nav-button--back {
-  border: 1px solid var(--app-hair-strong);
-  background: transparent;
-  color: var(--app-text-soft);
-}
-
-.apply-experience .apply-nav-button--back:hover:not(:disabled) {
-  border-color: rgba(184, 149, 106, 0.46);
-  color: var(--app-text);
-  background: rgba(255, 255, 255, 0.26);
-  box-shadow: 0 5px 14px rgba(26, 24, 21, 0.035);
-  transform: translateY(-1px);
-}
-
-.apply-experience .apply-nav-button:active:not(:disabled) {
-  box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.08);
-  transform: translateY(0);
-}
-
-.apply-experience .apply-nav-button:focus-visible {
-  outline: 1px solid var(--app-gold);
-  outline-offset: 3px;
 }
 
 /* ── scene transition wrapper ───────────────────────────── */
@@ -1925,15 +1814,14 @@
   --thumb-w: 292;
 }
 
-/* Mirrors the proven /media CompCard clip+frame: the /pdf/view doc is
-   528×1632 (front 816 stacked over back 816). We clip to the front page
-   (aspect 5.5/8.5) and scale the full-height iframe to the thumb width. */
+/* Mirrors the proven /media CompCard clip+frame. We clip to the front page
+   and scale the stacked iframe using the shared comp-card dimensions. */
 .apply-cardthumb {
   --thumb-w: 232; /* unitless: feeds both the px width and the scale factor */
   position: relative;
   width: calc(var(--thumb-w) * 1px);
   max-width: 100%;
-  aspect-ratio: 5.5 / 8.5;
+  aspect-ratio: var(--comp-card-width) / var(--comp-card-height);
   overflow: hidden;
   border: 1px solid var(--app-hair);
   border-radius: var(--app-radius);
@@ -1945,11 +1833,11 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 528px;
-  height: 1632px;
+  width: calc(var(--comp-card-page-width) * 1px);
+  height: calc(var(--comp-card-document-height) * 1px);
   border: 0;
   transform-origin: top left;
-  transform: scale(calc(var(--thumb-w) / 528));
+  transform: scale(calc(var(--thumb-w) / var(--comp-card-page-width)));
   pointer-events: none;
 }
 
@@ -2015,16 +1903,6 @@
 
   .apply-dossier__brief {
     grid-template-columns: 1fr;
-  }
-
-  .apply-dossier--focused .apply-match {
-    justify-items: start;
-    text-align: left;
-    margin-top: 0;
-    padding-left: 0;
-    padding-top: clamp(18px, 4vw, 28px);
-    border-left: 0;
-    border-top: 1px solid var(--app-hair);
   }
 
   /* info row + requirements collapse to a single column */
@@ -2139,12 +2017,6 @@
     font-size: clamp(2.35rem, 13vw, 4rem);
   }
 
-  .apply-dossier--focused .apply-match {
-    grid-column: 1 / -1;
-    justify-items: start;
-    text-align: left;
-    margin-top: 6px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2283,11 +2155,17 @@
   line-height: 1.62;
 }
 
+.apply-threshold__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: clamp(22px, 3vw, 30px);
+}
+
 .apply-threshold__link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: clamp(22px, 3vw, 30px);
   color: var(--app-text-faint);
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 10px;
@@ -2935,7 +2813,6 @@
 
 .apply-bookframe__btn:hover {
   border-color: var(--app-hair-gold);
-  transform: translateY(-3px);
 }
 
 .apply-bookframe.is-opening .apply-bookframe__btn {
@@ -3174,7 +3051,7 @@
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 5.5 / 8.5;
+  aspect-ratio: var(--comp-card-width) / var(--comp-card-height);
   transform-style: preserve-3d;
   transition: transform 0.72s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -3217,8 +3094,7 @@
   color: var(--app-gold);
 }
 
-/* one side of the live /pdf/view doc, filling the flip face (front top 816,
-   back bottom 816 — scaled to the face width, shifted for the back) */
+/* One side of the live /pdf/view document, scaled to the face width. */
 .apply-ccface {
   position: absolute;
   inset: 0;
@@ -3229,17 +3105,17 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 528px;
-  height: 1632px;
+  width: calc(var(--comp-card-page-width) * 1px);
+  height: calc(var(--comp-card-document-height) * 1px);
   border: 0;
   transform-origin: top left;
-  transform: scale(calc(var(--w) / 528));
+  transform: scale(calc(var(--w) / var(--comp-card-page-width)));
   pointer-events: none;
 }
 
-/* shift up one page (816 × scale) to reveal the back */
+/* Shift up one scaled page to reveal the back. */
 .apply-ccface--back iframe {
-  top: calc(var(--w) * -1.5454545px);
+  top: calc(var(--w) * var(--comp-card-page-scale) * -1px);
 }
 
 /* the caption sits centred beneath the card — quiet supporting detail */
@@ -3280,7 +3156,6 @@
 
 .apply-ccpicker__opt:hover {
   border-color: var(--app-hair-gold);
-  transform: translateY(-2px);
 }
 
 .apply-ccpicker__opt.is-active {
@@ -3749,6 +3624,14 @@
   text-wrap: balance;
 }
 
+.apply-package__based {
+  margin: 6px 0 0;
+  color: var(--app-text-soft);
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
 .apply-package__rule {
   width: min(280px, 62%);
   height: 1px;
@@ -3969,7 +3852,7 @@
   position: relative;
   flex: 0 0 auto;
   width: 164px;
-  aspect-ratio: 528 / 816;
+  aspect-ratio: var(--comp-card-width) / var(--comp-card-height);
   overflow: hidden;
   border: 1px solid var(--app-hair-strong);
   border-radius: 4px;
@@ -4032,11 +3915,28 @@
 .apply-package__contact {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px clamp(18px, 2.4vw, 28px);
   margin-top: clamp(18px, 2.2vw, 26px);
   padding-top: clamp(16px, 2vw, 22px);
   border-top: 1px solid var(--app-hair);
+}
+
+.apply-package__contact-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px clamp(18px, 2.4vw, 28px);
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.apply-package__contact-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .apply-package__contact-label {
@@ -4070,6 +3970,22 @@
 
 .apply-package__social:hover {
   border-color: var(--app-gold);
+  color: var(--app-gold);
+}
+
+.apply-package__contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--app-text-soft);
+  font-size: 12px;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-package__contact-link:hover {
   color: var(--app-gold);
 }
 
@@ -4109,7 +4025,7 @@
 }
 
 /* Seal — handling language + readiness + consent. Dispatch lives in the foot. */
-/* The right column: the Secure Submission rail + the final submit, sticky as one. */
+/* The right column: the submission terms rail + the final submit, sticky as one. */
 .apply-review__rail {
   min-width: 0;
   position: sticky;
@@ -4119,7 +4035,7 @@
   gap: clamp(14px, 1.6vw, 20px);
 }
 
-/* Secure Submission rail — the named flow + handling + acknowledgements + consent. */
+/* Submission terms rail — handling copy, acknowledgements, and consent. */
 .apply-seal {
   min-width: 0;
   display: grid;
@@ -4185,9 +4101,36 @@
   background: var(--app-gold);
 }
 
+.apply-seal__acks-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--app-hair-gold);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-gold);
+  font: inherit;
+  font-weight: 400;
+  line-height: inherit;
+  cursor: pointer;
+  transition: color 0.2s var(--app-ease), border-color 0.2s var(--app-ease);
+}
+
+.apply-seal__acks-link:hover {
+  color: var(--app-gold-light);
+  border-color: var(--app-gold-light);
+}
+
 .apply-seal__handling strong {
   color: var(--app-text);
   font-weight: 400;
+}
+
+.apply-seal__handling a {
+  color: var(--app-gold);
+  text-decoration: underline;
+  text-decoration-color: var(--app-hair-gold);
+  text-underline-offset: 2px;
 }
 
 /* Consent — a calm sentence, explicitly sentence-case (the shared apply-experience
@@ -4207,11 +4150,55 @@
   cursor: pointer;
 }
 
+.apply-seal__attestations {
+  display: grid;
+  gap: 14px;
+}
+
 .apply-seal__consent input {
   width: 16px;
   height: 16px;
   margin: 3px 0 0;
   accent-color: var(--app-gold);
+}
+
+.apply-seal__guardian {
+  display: grid;
+  gap: 12px;
+  padding-top: 2px;
+  color: var(--app-text-soft);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.apply-seal__guardian p {
+  margin: 0;
+}
+
+.apply-seal__guardian button {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 4px;
+  border: 0;
+  border-bottom: 1px solid var(--app-hair-gold);
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.apply-seal__guardian button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .apply-foot__actions {
@@ -4378,6 +4365,12 @@
   border-color: var(--app-hair-strong);
 }
 
+.apply-dslot.is-withheld .apply-dslot__frame {
+  border-style: solid;
+  border-color: var(--app-hair);
+  background: var(--app-cream-deep);
+}
+
 .apply-dslot__frame img {
   width: 100%;
   height: 100%;
@@ -4392,6 +4385,27 @@
   align-items: center;
   justify-content: center;
   color: var(--app-text-faint);
+}
+
+.apply-dslot__withheld {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  color: var(--app-text-faint);
+}
+
+.apply-dslot__withheld-label {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .apply-dslot__age {
@@ -4596,55 +4610,14 @@
   color: var(--app-gold-warm, var(--app-text));
 }
 
-/* ── 07 · The final submit — primary action below the Secure Submission rail ── */
+.apply-digitals__minor-cta:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+/* ── 07 · The final submit — primary action below the submission terms rail ── */
 .apply-submit {
   width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 54px;
-  padding: 0 24px;
-  border: 1px solid var(--app-ink);
-  border-radius: var(--app-radius);
-  background: var(--app-ink);
-  color: var(--app-cream);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition:
-    background 0.25s var(--app-ease),
-    border-color 0.25s var(--app-ease),
-    color 0.25s var(--app-ease),
-    transform 0.25s var(--app-ease),
-    box-shadow 0.25s var(--app-ease);
-}
-
-.apply-submit svg {
-  color: var(--app-gold-light);
-}
-
-.apply-submit[data-state='ready']:hover {
-  background: #000;
-  transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.2);
-}
-
-.apply-submit[data-state='sending'] {
-  cursor: default;
-}
-
-.apply-submit[data-state='locked'] {
-  background: transparent;
-  border-color: var(--app-hair-strong);
-  color: var(--app-text-faint);
-  cursor: not-allowed;
-}
-
-.apply-submit[data-state='locked'] svg {
-  color: var(--app-text-faint);
 }
 
 /* ── 07 · Submission success — full-screen, motion-led confirmation ──────────── */
@@ -4772,6 +4745,11 @@
   text-transform: uppercase;
 }
 
+.apply-success__receipt--package {
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
 .apply-success__guidance {
   display: grid;
   gap: 10px;
@@ -4806,32 +4784,5 @@
 }
 
 .apply-success__action {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 48px;
-  padding: 0 26px;
-  border: 1px solid var(--app-ink);
-  border-radius: var(--app-radius);
-  background: var(--app-ink);
-  color: var(--app-cream);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition:
-    background 0.25s var(--app-ease),
-    transform 0.25s var(--app-ease),
-    box-shadow 0.25s var(--app-ease);
-}
-
-.apply-success__action:hover {
-  background: #000;
-  transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.2);
-}
-
-.apply-success__action svg {
-  color: var(--app-gold-light);
+  min-width: min(100%, 240px);
 }

@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import Cropper from 'react-easy-crop';
 import {
   Calendar, Camera, Crop, EyeOff, Image as ImageIcon,
@@ -15,7 +16,11 @@ import {
   expressionPickerOptions,
 } from '../../../shared/constants/frameTaxonomy';
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
-import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import './FrameEditor.css';
 
 const ASPECTS = [
@@ -51,6 +56,13 @@ const LICENSE_TYPE_OPTIONS = [
   { value: 'model_release', label: 'Model release on file' },
   { value: 'agency_permission', label: 'Agency permission' },
   { value: 'editorial_release', label: 'Editorial release' },
+];
+
+const RELEASE_SIGNER_ROLE_OPTIONS = [
+  { value: '', label: 'Select signer role' },
+  { value: 'self', label: 'Talent (self)' },
+  { value: 'guardian', label: 'Parent or legal guardian' },
+  { value: 'authorized_representative', label: 'Authorized representative' },
 ];
 
 function isoToDateInput(iso) {
@@ -95,6 +107,7 @@ function toText(value) {
 }
 
 export default function FrameEditor({ image, initialMode = 'details', mediaSets = [], onClose, onUpdate, onReplace, onRestore }) {
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState(initialMode);
 
   // Crop state
@@ -127,6 +140,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
   const [release, setRelease] = useState({
     release_url: '',
     signer_name: '',
+    signer_role: '',
     signed_at: '',
   });
   const [releaseLoaded, setReleaseLoaded] = useState(false);
@@ -201,6 +215,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         setRelease({
           release_url: toText(row.release_url || row.release_ref),
           signer_name: toText(row.signer_name),
+          signer_role: toText(row.signer_role),
           signed_at: isoToDateInput(row.signed_at),
         });
         if (row.on_file) setReleaseOnFile(true);
@@ -258,6 +273,19 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         );
         return;
       }
+      const releaseStarted = Boolean(
+        release.release_url || release.signer_name || release.signer_role || release.signed_at,
+      );
+      if (
+        (rights.license_type === 'model_release' || releaseStarted)
+        && (!release.release_url
+          || !release.signer_name
+          || !release.signer_role
+          || !release.signed_at)
+      ) {
+        toast.error('Complete the release reference, signer, signer role, and signed date.');
+        return;
+      }
 
       const isDigitalUse = String(form.image_type || '').toLowerCase() === 'digital';
       const payload = {
@@ -306,11 +334,13 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
             expires_at: dateInputToPayload(rights.expires_at),
             exclusive: !!rights.exclusive,
           });
+          await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
         }
         if (releaseLoaded && releaseDirty) {
           const releaseRes = await talentApi.updateModelRelease(image.id, {
             release_url: release.release_url || null,
             signer_name: release.signer_name || null,
+            signer_role: release.signer_role || null,
             signed_at: dateInputToPayload(release.signed_at),
           });
           if (releaseRes?.release?.on_file != null) setReleaseOnFile(!!releaseRes.release.on_file);
@@ -357,32 +387,41 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         {/* ── Head ── */}
         <header className="fe-head">
           <div className="fe-head__left">
-            <nav className="fe-tabs" role="tablist">
-              <button
+            <PholioToggleGroup className="fe-tabs" tone="dark" role="tablist">
+              <PholioToggleButton
                 type="button" role="tab"
+                tone="dark"
+                active={mode === 'crop'}
                 className={`fe-tab ${mode === 'crop' ? 'is-active' : ''}`}
                 aria-selected={mode === 'crop'}
                 onClick={() => setMode('crop')}
               >
                 <Crop size={13} aria-hidden="true" />
                 Crop & adjust
-              </button>
-              <button
+              </PholioToggleButton>
+              <PholioToggleButton
                 type="button" role="tab"
+                tone="dark"
+                active={mode === 'details'}
                 className={`fe-tab ${mode === 'details' ? 'is-active' : ''}`}
                 aria-selected={mode === 'details'}
                 onClick={() => setMode('details')}
               >
                 <Tags size={13} aria-hidden="true" />
                 Details
-              </button>
-            </nav>
+              </PholioToggleButton>
+            </PholioToggleGroup>
           </div>
           <div className="fe-head__right">
             <span className="fe-head__id">{frameLabel}</span>
-            <button type="button" className="fe-icon-btn" onClick={onClose} aria-label="Close editor">
+            <PholioIconButton
+              label="Close editor"
+              tone="dark"
+              className="fe-icon-btn"
+              onClick={onClose}
+            >
               <X size={18} aria-hidden="true" />
-            </button>
+            </PholioIconButton>
           </div>
         </header>
 
@@ -439,19 +478,28 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       <Crop size={14} aria-hidden="true" />
                       <h3>Aspect ratio</h3>
                     </div>
-                    <div className="fe-aspect-grid">
+                    <PholioToggleGroup
+                      className="fe-aspect-grid"
+                      tone="dark"
+                      role="radiogroup"
+                      aria-label="Aspect ratio"
+                    >
                       {ASPECTS.map((opt) => (
-                        <button
+                        <PholioToggleButton
                           key={opt.label} type="button"
+                          tone="dark"
+                          active={Math.abs(aspect - opt.val) < 0.01}
+                          role="radio"
+                          aria-checked={Math.abs(aspect - opt.val) < 0.01}
                           className={`fe-aspect-btn ${Math.abs(aspect - opt.val) < 0.01 ? 'is-active' : ''}`}
                           onClick={() => setAspect(opt.val)}
                         >
                           <span className="fe-aspect-icon" style={{ aspectRatio: String(opt.val) }} aria-hidden="true" />
                           <span className="fe-aspect-label">{opt.label}</span>
                           <span className="fe-aspect-meta">{opt.meta}</span>
-                        </button>
+                        </PholioToggleButton>
                       ))}
-                    </div>
+                    </PholioToggleGroup>
                   </div>
 
                   {/* Zoom */}
@@ -489,16 +537,24 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       className="fe-range"
                     />
                     <div className="fe-nudge-row">
-                      <button type="button" onClick={() => rotateBy(-90)}>
+                      <PholioButton
+                        type="button"
+                        variant="tertiary" tone="dark"
+                        onClick={() => rotateBy(-90)}
+                      >
                         <RotateCcw size={13} aria-hidden="true" /><span>−90°</span>
-                      </button>
-                      <button type="button" onClick={() => rotateBy(90)}>
+                      </PholioButton>
+                      <PholioButton
+                        type="button"
+                        variant="tertiary" tone="dark"
+                        onClick={() => rotateBy(90)}
+                      >
                         <RotateCw size={13} aria-hidden="true" /><span>+90°</span>
-                      </button>
+                      </PholioButton>
                     </div>
                   </div>
 
-                  <PholioButton type="button" variant="inverse" size="sm" system="dashboard" className="fe-reset-btn" onClick={resetCrop}>
+                  <PholioButton type="button" variant="secondary" tone="dark" className="fe-reset-btn" onClick={resetCrop}>
                     <ScanLine size={14} aria-hidden="true" />
                     Reset composition
                   </PholioButton>
@@ -511,18 +567,24 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       <Shield size={14} aria-hidden="true" />
                       <h3>Publishing</h3>
                     </div>
-                    <div className="fe-segment" role="group" aria-label="Visibility">
-                      <button
+                    <PholioToggleGroup className="fe-segment" tone="dark" role="group" aria-label="Visibility">
+                      <PholioToggleButton
                         type="button"
+                        tone="dark"
+                        active={form.metadata.visibility === 'public'}
+                        aria-pressed={form.metadata.visibility === 'public'}
                         className={form.metadata.visibility === 'public' ? 'is-active' : ''}
                         onClick={() => setMeta({ visibility: 'public' })}
-                      >Public</button>
-                      <button
+                      >Public</PholioToggleButton>
+                      <PholioToggleButton
                         type="button"
+                        tone="dark"
+                        active={form.metadata.visibility === 'private'}
+                        aria-pressed={form.metadata.visibility === 'private'}
                         className={form.metadata.visibility === 'private' ? 'is-active is-private' : ''}
                         onClick={() => setMeta({ visibility: 'private' })}
-                      >Private</button>
-                    </div>
+                      >Private</PholioToggleButton>
+                    </PholioToggleGroup>
                     <div className="fe-switch-list">
                       <label className="fe-switch">
                         <input type="checkbox" checked={form.exclude_from_public}
@@ -698,6 +760,21 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                             disabled={rightsLoading}
                             onChange={(e) => setReleaseField('signer_name', e.target.value)}
                           />
+                        </label>
+                        <label>
+                          <span className="fe-label">Signer role</span>
+                          <select
+                            className="fe-input"
+                            value={release.signer_role}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('signer_role', e.target.value)}
+                          >
+                            {RELEASE_SIGNER_ROLE_OPTIONS.map((option) => (
+                              <option key={`release-role-${option.value || 'empty'}`} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                         <label>
                           <span className="fe-label"><Calendar size={12} aria-hidden="true" />Signed</span>
@@ -888,10 +965,10 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
 
         {/* ── Footer ── */}
         <footer className="fe-foot">
-          <PholioButton type="button" variant="inverse" system="dashboard" onClick={onClose}>Cancel</PholioButton>
+          <PholioButton type="button" variant="tertiary" tone="dark" onClick={onClose}>Cancel</PholioButton>
           {image.has_original && onRestore && (
             <PholioButton
-              type="button" variant="inverse-ghost" size="sm" system="dashboard" className="fe-restore"
+              type="button" variant="tertiary" tone="dark" className="fe-restore"
               onClick={handleRestore}
               disabled={isRestoring || isProcessing || saving}
               title="Remove all edits and restore the original uploaded file"
@@ -902,13 +979,13 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
             </PholioButton>
           )}
           {mode === 'crop' ? (
-            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleApplyCrop} disabled={isProcessing || isRestoring}>
+            <PholioButton type="button" variant="primary" onClick={handleApplyCrop} disabled={isProcessing || isRestoring}>
               {isProcessing
                 ? <><span className="fe-spin" aria-hidden="true" />Processing…</>
                 : <><Crop size={15} aria-hidden="true" />Apply crop</>}
             </PholioButton>
           ) : (
-            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleSave} disabled={saving || isRestoring}>
+            <PholioButton type="button" variant="primary" onClick={handleSave} disabled={saving || isRestoring}>
               {saving
                 ? <><span className="fe-spin" aria-hidden="true" />Saving…</>
                 : <><Save size={15} aria-hidden="true" />Save frame</>}

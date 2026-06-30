@@ -18,6 +18,8 @@ const {
   createConsentRequest,
   verifyConsentToken,
   getConsentStatus,
+  getAgencyConsentStatus,
+  hasAgencyConsent,
   persistProfileDateOfBirthIfNeeded,
   GuardianConsentEmailError,
 } = require("../../src/domains/talent/services/guardian-consent");
@@ -74,6 +76,7 @@ async function makeProfile({ dob = MINOR_DOB } = {}) {
 }
 
 async function cleanupProfile({ userId, profileId }) {
+  await knex("minor_agency_consents").where({ profile_id: profileId }).del();
   await knex("guardian_consent_requests").where({ profile_id: profileId }).del();
   await knex("profiles").where({ id: profileId }).del();
   await knex("users").where({ id: userId }).del();
@@ -169,6 +172,106 @@ describe("guardian consent service", () => {
       expect(second.reason).toBe("already_verified");
     } finally {
       await cleanupProfile(fixture);
+    }
+  });
+
+  test("agency verification authorizes only the named agency", async () => {
+    const fixture = await makeProfile();
+    const firstAgencyId = uuidv4();
+    const secondAgencyId = uuidv4();
+    await knex("agencies").insert([
+      {
+        id: firstAgencyId,
+        name: "Scoped Consent House",
+        slug: `scoped-consent-${firstAgencyId}`,
+        status: "ACTIVE",
+      },
+      {
+        id: secondAgencyId,
+        name: "Other Consent House",
+        slug: `other-consent-${secondAgencyId}`,
+        status: "ACTIVE",
+      },
+    ]);
+
+    try {
+      const { rawToken } = await createConsentRequest(
+        knex,
+        fixture.profileId,
+        {
+          guardianEmail: GUARDIAN_EMAIL,
+          agencyId: firstAgencyId,
+          agencyName: "Scoped Consent House",
+        },
+      );
+
+      expect(emailModule.sendGuardianConsentEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agencyName: "Scoped Consent House",
+        }),
+      );
+      expect((await verifyConsentToken(knex, rawToken)).agencyId).toBe(
+        firstAgencyId,
+      );
+      expect(
+        await hasAgencyConsent(knex, fixture.profileId, firstAgencyId),
+      ).toBe(true);
+      expect(
+        await hasAgencyConsent(knex, fixture.profileId, secondAgencyId),
+      ).toBe(false);
+
+      const profile = await knex("profiles")
+        .where({ id: fixture.profileId })
+        .first();
+      expect(profile.guardian_consent_at).toBeFalsy();
+      expect(
+        (await getAgencyConsentStatus(knex, profile, firstAgencyId)).status,
+      ).toBe("verified");
+      expect(
+        (await getAgencyConsentStatus(knex, profile, secondAgencyId)).status,
+      ).toBe("none");
+    } finally {
+      await cleanupProfile(fixture);
+      await knex("agencies")
+        .whereIn("id", [firstAgencyId, secondAgencyId])
+        .del();
+    }
+  });
+
+  test("pending account and agency requests remain independent", async () => {
+    const fixture = await makeProfile();
+    const agencyId = uuidv4();
+    await knex("agencies").insert({
+      id: agencyId,
+      name: "Independent Consent House",
+      slug: `independent-consent-${agencyId}`,
+      status: "ACTIVE",
+    });
+
+    try {
+      const accountRequest = await createConsentRequest(
+        knex,
+        fixture.profileId,
+        { guardianEmail: GUARDIAN_EMAIL },
+      );
+      const agencyRequest = await createConsentRequest(
+        knex,
+        fixture.profileId,
+        {
+          guardianEmail: GUARDIAN_EMAIL,
+          agencyId,
+          agencyName: "Independent Consent House",
+        },
+      );
+
+      const rows = await knex("guardian_consent_requests")
+        .whereIn("id", [accountRequest.id, agencyRequest.id])
+        .orderBy("agency_id", "asc");
+      expect(rows).toHaveLength(2);
+      expect(rows.every((row) => row.status === "pending")).toBe(true);
+    } finally {
+      await cleanupProfile(fixture);
+      await knex("agencies").where({ id: agencyId }).del();
     }
   });
 

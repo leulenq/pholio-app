@@ -44,18 +44,4 @@
 .legal-gate-submit {
   margin-top: 20px;
   width: 100%;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 999px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  background: var(--ag-gold, #b8956a);
-  color: #1a1815;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-
-.legal-gate-submit:disabled {
-  opacity: 0.45;
-  cursor: default;
 }

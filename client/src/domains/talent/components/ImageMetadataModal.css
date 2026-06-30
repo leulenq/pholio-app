@@ -271,38 +271,16 @@
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
   min-width: 190px;
-  padding: 3px;
-  border: 1px solid var(--imd-hair);
-  background: rgba(245, 240, 232, 0.62);
 }
 
 .imd-segment button,
 .imd-tags button,
 .imd-role-chip {
-  border: 0;
-  background: transparent;
-  color: var(--imd-text-soft);
-  cursor: pointer;
-  font-family: var(--imd-sans);
-  transition: background 0.2s var(--imd-ease), color 0.2s var(--imd-ease), border-color 0.2s var(--imd-ease);
+  flex: 0 0 auto;
 }
 
 .imd-segment button {
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 1px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.imd-segment button.is-active {
-  background: var(--imd-gold);
-  color: var(--imd-ink);
-}
-
-.imd-segment button.is-private {
-  background: var(--imd-ink);
-  color: #fff;
+  min-width: 72px;
 }
 
 .imd-switch-list {
@@ -425,29 +403,11 @@
 .imd-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
 }
 
 .imd-role-chip,
 .imd-tags button {
-  min-height: 30px;
-  padding: 0 12px;
-  border: 1px solid var(--imd-hair);
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.imd-role-chip.is-active {
-  border-color: var(--role-color);
-  background: var(--role-color);
-  color: #fff;
-}
-
-.imd-tags button.is-selected {
-  border-color: rgba(201, 165, 90, 0.58);
-  background: rgba(201, 165, 90, 0.12);
-  color: #8b6f32;
+  flex: 0 0 auto;
 }
 
 .imd-footer {

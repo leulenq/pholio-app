@@ -13,6 +13,9 @@ const {
   sharpenNote,
   shortenNote,
 } = require("../services/submission-note-writer/note-writer");
+const {
+  validateSubmissionNoteInput,
+} = require("../services/submission-note-writer/input-validator");
 
 async function resolveAgency({ agencyId, agencyName }) {
   if (agencyId) {
@@ -70,9 +73,12 @@ router.post(
     if (!profile) return;
 
     const { agencyId, agencyName, targetBoards, note } = req.body || {};
+    const noteInput = validateSubmissionNoteInput(note);
+    if (!noteInput.valid) {
+      return apiResponse.error(res, noteInput.error, 400);
+    }
+    const trimmedNote = noteInput.note;
     const agency = await resolveAgency({ agencyId, agencyName });
-    const trimmedNote =
-      note && typeof note === "string" ? note.trim() : "";
 
     const context = buildSubmissionContext(profile, {
       agency,
@@ -99,15 +105,15 @@ router.post(
     if (!profile) return;
 
     const { agencyId, agencyName, targetBoards, note } = req.body || {};
-    if (!note || typeof note !== "string" || note.trim().length < 10) {
-      return apiResponse.error(
-        res,
-        "Note must be at least 10 characters to sharpen",
-        400,
-      );
+    const noteInput = validateSubmissionNoteInput(note, {
+      minLength: 10,
+      minLengthMessage: "Note must be at least 10 characters to sharpen",
+    });
+    if (!noteInput.valid) {
+      return apiResponse.error(res, noteInput.error, 400);
     }
 
-    const trimmedNote = note.trim();
+    const trimmedNote = noteInput.note;
     const agency = await resolveAgency({ agencyId, agencyName });
     const context = buildSubmissionContext(profile, {
       agency,
@@ -134,15 +140,15 @@ router.post(
     if (!profile) return;
 
     const { note } = req.body || {};
-    if (!note || typeof note !== "string" || note.trim().length < 50) {
-      return apiResponse.error(
-        res,
-        "Note must be at least 50 characters to shorten",
-        400,
-      );
+    const noteInput = validateSubmissionNoteInput(note, {
+      minLength: 50,
+      minLengthMessage: "Note must be at least 50 characters to shorten",
+    });
+    if (!noteInput.valid) {
+      return apiResponse.error(res, noteInput.error, 400);
     }
 
-    const trimmedNote = note.trim();
+    const trimmedNote = noteInput.note;
     const context = buildSubmissionContext(profile, { note: trimmedNote });
 
     let result;

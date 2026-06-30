@@ -1,5 +1,78 @@
 # Lessons Learned
 
+## 2026-06-30 — Inventory intentional exceptions before enforcing a component boundary
+
+- A design-system rollout should not assume every native button is a command
+  button. Navigation indexes, dense selection fields, embedded input controls,
+  and editorial list rows may have established interaction treatments that
+  should remain surface-specific.
+- Before adding hard global role enforcement, classify existing controls into
+  generalized commands versus intentional exceptions and record those
+  exceptions explicitly. Preserve the shared system for real command buttons
+  without flattening specialized navigation and selection affordances.
+
+## 2026-06-30 — Locate and read the approved design artifact before migration
+
+- When the user says the designs already exist, do not infer the system from
+  current production CSS. Locate the referenced preview—even in Claude's
+  scratchpad—and treat its role taxonomy, tokens, and interaction states as the
+  contract before changing call sites.
+- A partial command-button migration is not a design-system remediation.
+  Inventory standalone flows, tabs, selectors, icon actions, button-like links,
+  shared overlays, and local hover rules before defining scope.
+
+## 2026-06-30 — Claude-generated previews may live outside the repo tree
+
+- Before concluding that a generated preview does not exist, search ignored
+  directories, `.superpowers`, Claude file-history/session references, and the
+  matching `/private/tmp/claude-*` scratchpad.
+- Distinguish persistent repository files from temporary Claude artifacts when
+  returning the path.
+
+## 2026-06-29 — Disclosure copy must match the whole data lifecycle
+
+- Do not use absolute claims such as “never published” or “never shared
+  elsewhere” when media URLs, exports, downloads, or recipient-controlled copies
+  exist. State the actual workflow, recipient, retention period, withdrawal
+  effect, and limits on recalling external copies.
+- A retention timestamp and lazy read-time redaction do not establish a real
+  retention policy. Wire expiry into the production scheduled cleanup path and
+  test that expired payloads are stripped even when no reviewer opens them.
+- For minors, minimize the package at the server snapshot boundary and again at
+  the agency DTO boundary. Hiding fields in the review UI is not enough when a
+  route still spreads the full live profile.
+
+## 2026-06-28 — A submission snapshot is only real when every reviewer reads it
+
+- Trace curated submission data through both sides of the workflow: talent
+  write, application relationship, agency list preview, quick-view, and full
+  review. Persisting a payload is not a feature if reviewer queries still load
+  the live profile.
+- Once an application-scoped package exists, never merge live profile media
+  into it. A live-data fallback is acceptable only for legacy applications
+  that predate package snapshots; otherwise held-back frames can reappear.
+- Snapshot canonical server values for disclosed contact, media metadata, and
+  comp-card direction. Do not preserve client-supplied labels when the server
+  can resolve the owned record.
+- Agency "open boards" in `/apply` are division labels, while the agency
+  `boards` table also carries casting briefs. Preserve the submitted label in a
+  dedicated relation, then explicitly resolve it into `board_applications`
+  when pipeline placement is required. Reuse a case-insensitive agency board
+  match before creating a corresponding active board.
+
+## 2026-06-28 — Trace the live email-template export before editing
+
+- `src/shared/lib/email.js` imports email builders from `./pholio-email`, whose
+  active guardian template is `src/shared/lib/pholio-email/templates.js`.
+  `src/shared/lib/email-templates.js` is not the live path for that email.
+- When changing email content or adding template parameters, trace the import
+  from sender to barrel export to concrete builder, then test the final rendered
+  HTML. Verifying that the service passes a value is insufficient if the active
+  template does not destructure and render it.
+- For consent, recipient specificity must appear before the guardian decides;
+  naming the agency only on the post-verification page does not make the consent
+  request informed.
+
 ## 2026-06-28 — Shipping strong talent /apply + /applications UI (long redesign thread)
 
 ### Match the existing design language — never invent one

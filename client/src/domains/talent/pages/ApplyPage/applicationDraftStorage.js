@@ -1,3 +1,5 @@
+import applicationDraftSchema from '../../../../../../shared/application-draft-schema.json';
+
 const STORAGE_PREFIX = 'pholio:apply-draft:v2';
 const LEGACY_STORAGE_PREFIX = 'pholio:apply-draft:v1';
 const CLIENT_ID_KEY = 'pholio:apply-draft:client-id';
@@ -292,7 +294,7 @@ export function draftFingerprint(document) {
   return JSON.stringify({
     currentStepId: document.currentStepId || 'board',
     payload: {
-      schemaVersion: payload.schemaVersion || 1,
+      schemaVersion: payload.schemaVersion || applicationDraftSchema.currentVersion,
       boards: Array.isArray(payload.boards) ? [...payload.boards].sort() : [],
       mediaSetId: payload.mediaSetId || 'current',
       excludedImageIds: Array.isArray(payload.excludedImageIds)

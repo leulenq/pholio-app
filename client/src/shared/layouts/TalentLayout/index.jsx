@@ -9,6 +9,9 @@ import { postLogoutAndRedirectToMarketing } from '../../lib/logout';
 import NotificationCenter, {
   useNotificationUnreadCount,
 } from '../../components/NotificationCenter/NotificationCenter';
+import PholioButton, {
+  PholioIconButton,
+} from '../../components/ui/PholioButton';
 import '../../components/NotificationCenter/NotificationCenter.css';
 import './TalentLayout.css';
 
@@ -125,12 +128,14 @@ export default function TalentLayout({ outletContext = {}, children }) {
         <div className="tl-header-actions">
           {!isStudioPlus && (
             <>
-              <Link
+              <PholioButton
                 to="/dashboard/talent/settings/subscription"
+                variant="primary"
+                tone={headerTone === 'light' ? 'light' : 'dark'}
                 className="tl-btn-upgrade"
               >
                 Upgrade
-              </Link>
+              </PholioButton>
               <span className="tl-header-actions-divider" aria-hidden="true" />
             </>
           )}
@@ -141,12 +146,13 @@ export default function TalentLayout({ outletContext = {}, children }) {
             <button
               ref={notificationsButtonRef}
               type="button"
-              className={`tl-action-icon${isNotificationsOpen ? ' is-open' : ''}${unreadCount > 0 ? ' has-unread' : ''}`}
+              data-button-exception="shell-notifications"
               aria-label={
                 unreadCount > 0
                   ? `Notifications, ${unreadCount} unread`
                   : 'Notifications'
               }
+              className={`tl-action-icon${isNotificationsOpen ? ' is-open' : ''}${unreadCount > 0 ? ' has-unread' : ''}`}
               aria-haspopup="true"
               aria-expanded={isNotificationsOpen}
               aria-controls="tl-notifications-panel"
@@ -177,9 +183,11 @@ export default function TalentLayout({ outletContext = {}, children }) {
             className={`tl-account${isAccountOpen ? ' is-open' : ''}`}
           >
             <div className="tl-account-suite">
-              <button
+              <PholioButton
                 ref={accountButtonRef}
                 type="button"
+                variant="tertiary"
+                tone={headerTone === 'light' ? 'light' : 'dark'}
                 className={`tl-account-trigger${isAccountOpen ? ' is-open' : ''}`}
                 aria-label={`Account menu for ${fullName}`}
                 aria-haspopup="true"
@@ -201,7 +209,7 @@ export default function TalentLayout({ outletContext = {}, children }) {
                   className={`tl-account-chevron${isAccountOpen ? ' is-open' : ''}`}
                   aria-hidden="true"
                 />
-            </button>
+            </PholioButton>
 
             {isAccountOpen && (
               <>
@@ -242,6 +250,7 @@ export default function TalentLayout({ outletContext = {}, children }) {
                 <div className="tl-account-panel-section tl-account-panel-section--footer">
                   <button
                     type="button"
+                    data-button-exception="shell-signout"
                     className="tl-account-panel-link tl-account-panel-link--signout"
                     onClick={handleLogout}
                   >
@@ -260,9 +269,14 @@ export default function TalentLayout({ outletContext = {}, children }) {
         {message && (
           <div className={`tl-flash tl-flash--${message.type}`}>
             <span>{message.text}</span>
-            <button type="button" onClick={clearFlash} className="tl-flash-close">
+            <PholioIconButton
+              label="Dismiss message"
+              tone={headerTone === 'light' ? 'light' : 'dark'}
+              onClick={clearFlash}
+              className="tl-flash-close"
+            >
               &times;
-            </button>
+            </PholioIconButton>
           </div>
         )}
         {children || <Outlet context={outletContext} />}

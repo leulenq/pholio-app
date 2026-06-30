@@ -42,42 +42,12 @@
 
 .intel-time-range {
   display: flex;
-  gap: 4px;
   align-items: center;
-  background: rgba(26,26,26,0.04);
-  border: 1px solid rgba(26,26,26,0.08);
-  border-radius: 8px;
-  padding: 3px;
   flex-shrink: 0;
 }
 
 .intel-time-btn {
-  display: inline-flex;
-  align-items: center;
   gap: 5px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: rgba(26,26,26,0.38);
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.intel-time-btn:hover:not(:disabled) { color: rgba(26,26,26,0.8); }
-
-.intel-time-btn--active {
-  background: rgba(201,165,90,0.12);
-  color: #C9A55A;
-}
-
-.intel-time-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 .intel-time-lock { opacity: 0.5; }

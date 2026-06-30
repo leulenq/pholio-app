@@ -82,15 +82,10 @@
 @keyframes cc-ring { to { transform: rotate(360deg); } }
 
 .cc-showcase__foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 420px; margin: 0 auto; width: 100%; }
-.cc-sideswitch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--mw-hair); border-radius: 999px; background: #fff; }
+.cc-sideswitch { display: inline-flex; }
 .cc-sideswitch__btn {
-  border: none; background: transparent; cursor: pointer;
-  font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--mw-text-soft); padding: 6px 16px; border-radius: 999px;
-  transition: background 0.25s var(--mw-ease), color 0.25s var(--mw-ease);
+  flex: 0 0 auto;
 }
-.cc-sideswitch__btn:hover { color: var(--mw-text); }
-.cc-sideswitch__btn.is-active { background: var(--mw-ink); color: #fff; }
 .cc-showcase__meta { font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mw-text-faint); }
 
 /* ── Atelier panel ── */
@@ -186,18 +181,6 @@
 .cc-stats-nudge__dismiss {
   flex-shrink: 0;
   margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-family: var(--mw-sans);
-  font-size: 11px;
-  color: var(--ag-text-2, var(--mw-text-faint));
-  transition: color 0.2s var(--mw-ease);
-}
-
-.cc-stats-nudge__dismiss:hover {
-  color: var(--mw-text-soft);
 }
 
 /* ── Saved cards library ── */
@@ -270,12 +253,9 @@
 
 .cc-lib__actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 12px; }
 .cc-lib__del {
-  display: inline-flex; align-items: center; justify-content: center;
-  background: none; border: none; padding: 4px; cursor: pointer;
-  color: var(--mw-text-faint); transition: color 0.2s var(--mw-ease);
+  min-width: 34px;
+  padding: 0;
 }
-.cc-lib__del:hover { color: #b04848; }
-.cc-lib__del:disabled { opacity: 0.4; cursor: not-allowed; }
 .cc-lib__confirm { display: inline-flex; align-items: center; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
   .cc-card__flip { transition: none; }

@@ -3,6 +3,7 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../../../config");
 const knex = require("../../../shared/db/knex");
+const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   loginSchema,
   agencySignupSchema,
@@ -475,8 +476,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             } = require("../../onboarding/services/state-machine");
             const startState = initialState("entry", trx);
 
+            const newProfileId = uuidv4();
             await trx("profiles").insert({
-              id: uuidv4(),
+              id: newProfileId,
               user_id: userId,
               slug,
               first_name: safeFirstName,
@@ -487,7 +489,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               phone: null,
               height_cm: 0,
               is_pro: false,
-              instagram_handle: instagramHandle,
               // Setup correct state machine baseline
               ...startState,
               // Mark onboarding done so the gate lets them into the dashboard.
@@ -496,6 +497,12 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               created_at: knex.fn.now(),
               updated_at: knex.fn.now(),
             });
+
+            if (instagramHandle) {
+              await saveProfileSocialFields(newProfileId, {
+                instagram_handle: instagramHandle
+              });
+            }
           }
 
           user = await trx("users").where({ id: userId }).first();

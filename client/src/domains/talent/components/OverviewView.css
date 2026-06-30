@@ -348,7 +348,7 @@
   background: var(--ov-ink-panel);
   aspect-ratio: 1/1;
   cursor: pointer;
-  transition: transform 0.3s var(--ov-ease);
+  transition: color 0.2s var(--ov-ease);
   display: block;
   text-decoration: none;
 }
@@ -760,8 +760,6 @@
   text-align: left;
   width: 100%;
 }
-
-.ov-artifact-card:hover { transform: translateY(-3px); }
 
 .ov-artifact-card--light {
   background: #fff;

@@ -524,11 +524,13 @@ async function imageReleaseOnFile(imageId) {
   }
   return Boolean(
     (releaseRow &&
-      (releaseRow.release_ref ||
-        releaseRow.release_url ||
-        releaseRow.signer_name ||
-        releaseRow.signed_at)) ||
-      (rightsRow && rightsRow.model_release_ref),
+      (releaseRow.release_ref || releaseRow.release_url) &&
+      releaseRow.signer_name &&
+      releaseRow.signed_at) ||
+      (rightsRow &&
+        rightsRow.model_release_ref &&
+        releaseRow?.signer_name &&
+        releaseRow?.signed_at),
   );
 }
 
@@ -1472,6 +1474,7 @@ router.put(
           release_ref: null,
           release_url: null,
           signer_name: null,
+          signer_role: null,
           signed_at: null,
           parties: null,
           notes: null,

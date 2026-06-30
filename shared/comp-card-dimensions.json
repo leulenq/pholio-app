@@ -1,0 +1,12 @@
+{
+  "trim": {
+    "widthInches": 5.5,
+    "heightInches": 8.5
+  },
+  "render": {
+    "cssDpi": 96,
+    "widthPixels": 528,
+    "heightPixels": 816
+  },
+  "sides": 2
+}

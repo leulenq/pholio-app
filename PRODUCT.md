@@ -11,7 +11,7 @@ Two distinct authenticated audiences, each in their own task and their own visua
 - **Talent** — models, actors, and creatives building a professional presence. They are in a *creation and pride* mindset: uploading images, curating a portfolio, generating comp-card PDFs, tracking profile strength, and applying to agencies. The interface should make them feel their work is being staged, not stored.
 - **Agencies** — bookers, scouts, and agency owners managing a roster. They are in an *operations and judgement* mindset: reviewing applications, triaging an inbox, running casting boards (Kanban), tracking commissions and interviews. They need density, scan-ability, and authority — many talent, many signals, fast decisions.
 
-Both surfaces are used at a desk, in good light, often for extended working sessions. The platform also has a separate Next.js marketing site (`landing/`) which is the brand gold-standard but is out of scope for these app design systems.
+Both surfaces are used at a desk, in good light, often for extended working sessions. The platform also has a separate Next.js marketing site (`pholio-landing` repo) which is the brand gold-standard but is out of scope for these app design systems.
 
 ## Product Purpose
 

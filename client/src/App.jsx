@@ -42,6 +42,7 @@ import ReplyPage from './domains/messaging/pages/ReplyPage';
 import AuthEntrySplashPreview from './domains/auth/pages/AuthEntrySplashPreview';
 import ModerationQueuePage from './domains/moderation/pages/ModerationQueuePage';
 import CookieConsentBanner from './shared/components/CookieConsentBanner';
+import MockConsentPage from './domains/talent/pages/ProfilePage/MockConsentPage';
 
 function App() {
   return (
@@ -68,6 +69,7 @@ function App() {
           <Route path="/dev/preview/auth-entry" element={<AuthEntrySplashPreview />} />
         ) : null}
         <Route path="/auth/instagram/callback" element={<InstagramCallbackPage />} />
+        <Route path="/socials/oauth/mock/:platform" element={<MockConsentPage />} />
 
         {/* Magic-link message reply (standalone, no login wall) */}
         <Route path="/reply/:token" element={<ReplyPage />} />

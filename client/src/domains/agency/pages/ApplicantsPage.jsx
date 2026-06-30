@@ -28,6 +28,7 @@ const TABS = [
   { key: 'all', label: 'All', match: () => true },
   { key: 'submitted', label: 'New', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
+  { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
   { key: 'booked', label: 'Booked', match: (s) => s === 'booked' },
   { key: 'accepted', label: 'Signed', match: (s) => s === 'accepted' },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
@@ -289,6 +290,7 @@ function ApplicationsPage() {
   const ledger = [
     { label: 'New', value: newCount, tone: newCount ? 'gold' : 'mute' },
     { label: 'Shortlisted', value: counts.shortlisted || 0, tone: 'ink' },
+    { label: 'New Faces', value: counts.development || 0, tone: 'ink' },
     { label: 'Signed', value: counts.accepted || 0, tone: 'ink' },
     { label: 'Pass Rate', value: passRate == null ? '—' : passRate, suffix: passRate == null ? '' : '%', tone: 'mute' },
   ];

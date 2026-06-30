@@ -14,7 +14,6 @@ import styles from './WritingAssistToolbar.module.css';
  *   showUndo?: boolean,
  *   className?: string,
  *   variant?: 'filter' | 'architectural',
- *   buttonSystem?: 'native' | 'dashboard',
  * }} props
  */
 export default function WritingAssistToolbar({
@@ -26,7 +25,6 @@ export default function WritingAssistToolbar({
   showUndo = false,
   className = '',
   variant = 'filter',
-  buttonSystem = 'native',
 }) {
   if (!actions.length && !showUndo) return null;
 
@@ -52,46 +50,25 @@ export default function WritingAssistToolbar({
             </>
           );
 
-          return buttonSystem === 'dashboard' ? (
+          return (
             <PholioButton
               key={action.id}
               type="button"
               variant={action.emphasis === 'primary' ? 'primary' : 'secondary'}
-              system="dashboard"
+              className={isBusyAction ? styles.actionBtnBusy : ''}
               onClick={action.onClick}
               disabled={busy || action.disabled}
               aria-busy={isBusyAction || undefined}
             >
               {content}
             </PholioButton>
-          ) : (
-            <button
-              key={action.id}
-              type="button"
-              className={[
-                styles.actionBtn,
-                action.emphasis === 'primary' ? styles.actionBtnPrimary : '',
-                isBusyAction ? styles.actionBtnBusy : '',
-              ].filter(Boolean).join(' ')}
-              onClick={action.onClick}
-              disabled={busy || action.disabled}
-              aria-busy={isBusyAction || undefined}
-            >
-              {content}
-            </button>
           );
         })}
       </div>
       {showUndo && onUndo ? (
-        buttonSystem === 'dashboard' ? (
-          <PholioButton type="button" variant="ghost" size="sm" system="dashboard" onClick={onUndo}>
-            Revert to original
-          </PholioButton>
-        ) : (
-          <button type="button" className={styles.undoBtn} onClick={onUndo}>
-            Revert to original
-          </button>
-        )
+        <PholioButton type="button" variant="tertiary" onClick={onUndo}>
+          Revert to original
+        </PholioButton>
       ) : null}
     </div>
   );

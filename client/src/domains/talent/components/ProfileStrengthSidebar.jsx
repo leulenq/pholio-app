@@ -49,9 +49,10 @@ function ReadinessGap({
 
   return (
     <>
-      <button
+      <PholioButton
         ref={btnRef}
         type="button"
+        variant="tertiary"
         className={`${styles.gapItem}${inAuditList ? ` ${styles.gapItemAudit}` : ''}`}
         onClick={() => targetSection && onItemClick?.(targetSection)}
         disabled={!targetSection}
@@ -72,7 +73,7 @@ function ReadinessGap({
             {item.why}
           </span>
         ) : null}
-      </button>
+      </PholioButton>
       {inAuditList && fixedTip
         ? createPortal(
             <div
@@ -114,7 +115,12 @@ export default function ProfileStrengthSidebar({
     profile,
     images,
   );
-  const totalGaps = missingRequired.length + missingImprove.length;
+
+  const topGapsKeys = new Set(topGaps.map((item) => item.key));
+  const hiddenRequired = missingRequired.filter((item) => !topGapsKeys.has(item.key));
+  const hiddenImprove = missingImprove.filter((item) => !topGapsKeys.has(item.key));
+  const hiddenGapsCount = hiddenRequired.length + hiddenImprove.length;
+
   const isComplete = isRequiredComplete && missingImprove.length === 0;
   const reduceMotion = useReducedMotion();
 
@@ -234,20 +240,21 @@ export default function ProfileStrengthSidebar({
           </div>
         ) : null}
 
-        {totalGaps > 0 ? (
-          <button
+        {hiddenGapsCount > 0 ? (
+          <PholioButton
             type="button"
+            variant="meta"
             className={`${styles.auditToggle} ${auditOpen ? styles.auditToggleActive : ''}`}
             onClick={onToggleAudit}
             aria-expanded={auditOpen}
           >
             <ClipboardList size={15} aria-hidden="true" />
-            {auditOpen ? 'Hide full checklist' : `View full checklist (${totalGaps})`}
-          </button>
+            {auditOpen ? 'Hide full checklist' : `View full checklist (${hiddenGapsCount})`}
+          </PholioButton>
         ) : null}
 
         <AnimatePresence initial={false}>
-          {auditOpen && totalGaps > 0 ? (
+          {auditOpen && hiddenGapsCount > 0 ? (
             <motion.div
               key="audit-panel"
               className={styles.auditPanelMotion}
@@ -281,10 +288,10 @@ export default function ProfileStrengthSidebar({
             >
               <div className={styles.auditPanel}>
                 <div className={styles.auditPanelScroll}>
-                  {missingRequired.length > 0 ? (
+                  {hiddenRequired.length > 0 ? (
                     <div className={styles.auditSection}>
                       <p className={styles.auditSectionLabel}>Core</p>
-                      {missingRequired.map((item) => (
+                      {hiddenRequired.map((item) => (
                         <ReadinessGap
                           key={item.key}
                           item={item}
@@ -297,10 +304,10 @@ export default function ProfileStrengthSidebar({
                       ))}
                     </div>
                   ) : null}
-                  {missingImprove.length > 0 ? (
+                  {hiddenImprove.length > 0 ? (
                     <div className={styles.auditSection}>
                       <p className={styles.auditSectionLabel}>Strengthen</p>
-                      {missingImprove.map((item) => (
+                      {hiddenImprove.map((item) => (
                         <ReadinessGap
                           key={item.key}
                           item={item}
@@ -321,8 +328,7 @@ export default function ProfileStrengthSidebar({
         <div className={styles.saveContainer}>
           <PholioButton
             as={motion.button}
-            variant={!hasChanges && !isSaving ? 'secondary' : 'solid'}
-            system="dashboard"
+            variant={!hasChanges && !isSaving ? 'secondary' : 'primary'}
             className={styles.saveButton}
             fullWidth
             onClick={onSaveClick}

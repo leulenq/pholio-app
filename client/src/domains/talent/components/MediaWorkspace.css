@@ -266,21 +266,10 @@
 .mw-frame:hover .mw-frame__actions,
 .mw-frame:focus-within .mw-frame__actions { opacity: 1; }
 .mw-frame__action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 2px;
-  background: rgba(250, 247, 242, 0.92);
-  color: var(--mw-text);
-  cursor: pointer;
-  transition: background 0.2s var(--mw-ease), color 0.2s var(--mw-ease);
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
 }
-.mw-frame__action:hover { background: #fff; color: var(--mw-gold); }
-.mw-frame__action--danger:hover { color: #b04848; }
-.mw-frame__action:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Add tile */
 .mw-add-tile {
@@ -428,11 +417,9 @@
 .mw-modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .mw-modal__title { font-family: var(--mw-serif); font-weight: 400; font-size: 24px; color: var(--mw-text); margin: 0; }
 .mw-modal__close {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border: none; border-radius: 2px;
-  background: transparent; color: var(--mw-text-soft); cursor: pointer;
+  min-width: 34px;
+  padding: 0;
 }
-.mw-modal__close:hover { color: var(--mw-text); }
 .mw-modal__body {
   font-family: var(--mw-sans); font-weight: 300; font-size: 14px;
   line-height: 1.6; color: var(--mw-text-soft); margin: 12px 0 18px;

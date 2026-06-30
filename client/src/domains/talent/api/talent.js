@@ -7,11 +7,29 @@ export const talentApi = {
   // Profile
   getProfile: (options) => apiClient.get('/profile', options),
   updateProfile: (data) => apiClient.put('/profile', data),
+  getRepresentations: () => apiClient.get('/profile/representations'),
+  replaceRepresentations: (representations) =>
+    apiClient.put('/profile/representations', { representations }),
+  createRepresentation: (data) =>
+    apiClient.post('/profile/representations', data),
+  updateRepresentation: (id, data) =>
+    apiClient.patch(`/profile/representations/${encodeURIComponent(id)}`, data),
+  endRepresentation: (id, endedOn) =>
+    apiClient.delete(`/profile/representations/${encodeURIComponent(id)}`, {
+      body: JSON.stringify(endedOn ? { ended_on: endedOn } : {}),
+    }),
   saveFitScores: (data) => apiClient.post('/profile/fit-scores', data),
   requestGuardianConsent: (guardianEmail, { dateOfBirth } = {}) =>
     apiClient.post('/guardian-consent/request', {
       guardian_email: guardianEmail,
       ...(dateOfBirth ? { date_of_birth: dateOfBirth } : {}),
+    }),
+  getAgencyGuardianConsent: (agencyId, options) =>
+    apiClient.get(`/guardian-consent/agency/${encodeURIComponent(agencyId)}`, options),
+  requestAgencyGuardianConsent: (agencyId, guardianEmail) =>
+    apiClient.post('/guardian-consent/request', {
+      agency_id: agencyId,
+      ...(guardianEmail ? { guardian_email: guardianEmail } : {}),
     }),
   refineBio: (body) => apiClient.post('/bio/refine', body),
   generateBio: (body = {}) => apiClient.post('/bio/generate', body),
@@ -66,6 +84,7 @@ export const talentApi = {
 
   // Applications
   getApplications: () => apiClient.get('/applications'),
+  getApplicationQuota: () => apiClient.get('/applications/quota'),
   getApplicationActivity: (id) => apiClient.get(`/applications/${id}/activity`),
   getApplicationPromptContext: () => apiClient.get('/applications/prompt-context'),
   getAgencies: () => apiClient.get('/agencies'),

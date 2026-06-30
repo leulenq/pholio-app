@@ -20,11 +20,15 @@ const submissionNoteRouter = require("./submission-note"); // Submission cover-n
 const trainingSummaryRouter = require("./training-summary");
 const notificationsRouter = require("./notifications");
 const messagePolishRouter = require("./message-polish");
+const socialOauthRouter = require("./social-oauth");
+const phylloRouter = require("./phyllo-routes");
+const representationsRouter = require("./representations");
 
 router.use(requireTalentLegalAcceptance());
 
 // Mount API routes
 router.use("/api/talent/media", mediaRouter);
+router.use("/api/talent", representationsRouter);
 router.use("/api/talent", profileRouter);
 router.use("/api/talent", analyticsRouter);
 router.use("/api/talent/applications", applicationsRouter);
@@ -38,6 +42,8 @@ router.use("/api/talent/submission-note", submissionNoteRouter);
 router.use("/api/talent/training-summary", trainingSummaryRouter);
 router.use("/api/talent", notificationsRouter);
 router.use("/api/talent/message-polish", messagePolishRouter);
+router.use("/api/talent/socials/oauth", socialOauthRouter);
+router.use("/api/talent/socials/phyllo", phylloRouter);
 
 // SPA catch-all — serves React app for all /dashboard/talent* routes
 router.get("/dashboard/talent{/*path}", requireRole("TALENT"), (req, res) => {

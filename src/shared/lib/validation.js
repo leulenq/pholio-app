@@ -1440,7 +1440,17 @@ const imageRightsPutSchema = z
       .union([z.string().trim().max(200), z.literal(""), z.null()])
       .optional(),
     license_type: z
-      .union([z.string().trim().max(80), z.literal(""), z.null()])
+      .union([
+        z.enum([
+          "owned",
+          "licensed",
+          "model_release",
+          "agency_permission",
+          "editorial_release",
+        ]),
+        z.literal(""),
+        z.null(),
+      ])
       .optional(),
     usage_scope: z
       .union([z.string().trim().max(80), z.literal(""), z.null()])
@@ -1457,7 +1467,20 @@ const imageRightsPutSchema = z
       .union([z.string().trim().max(255), z.literal(""), z.null()])
       .optional(),
     rights_status: z
-      .union([z.string().trim().max(80), z.literal(""), z.null()])
+      .union([
+        z.enum([
+          "pending",
+          "cleared",
+          "licensed",
+          "owned",
+          "approved",
+          "restricted",
+          "blocked",
+          "denied",
+        ]),
+        z.literal(""),
+        z.null(),
+      ])
       .optional(),
     notes: z.union([z.string().max(5000), z.literal(""), z.null()]).optional(),
   })
@@ -1563,6 +1586,11 @@ function defaultImageRightsApiShape() {
     model_release_ref: null,
     rights_status: null,
     notes: null,
+    release_ref: null,
+    release_url: null,
+    release_signer_name: null,
+    release_signer_role: null,
+    release_signed_at: null,
   };
 }
 
@@ -1587,6 +1615,11 @@ function imageRightsRowToApi(row) {
     model_release_ref: row.model_release_ref ?? null,
     rights_status: row.rights_status ?? null,
     notes: row.notes ?? null,
+    release_ref: row.release_ref ?? null,
+    release_url: row.release_url ?? null,
+    release_signer_name: row.release_signer_name ?? null,
+    release_signer_role: row.release_signer_role ?? null,
+    release_signed_at: iso(row.release_signed_at),
   };
 }
 
@@ -1604,6 +1637,13 @@ const imageModelReleasePutSchema = z
       .optional(),
     signer_name: z
       .union([z.string().trim().max(200), z.literal(""), z.null()])
+      .optional(),
+    signer_role: z
+      .union([
+        z.enum(["self", "guardian", "authorized_representative"]),
+        z.literal(""),
+        z.null(),
+      ])
       .optional(),
     signed_at: z.union([z.string(), z.null()]).optional(),
     // parties: free text or an array of names/{name, role}; stored as text/JSON.
@@ -1658,6 +1698,7 @@ function parseImageModelReleasePatchFromBody(body) {
     patch.release_url = url;
   }
   if (Object.hasOwn(d, "signer_name")) patch.signer_name = trimOrNull(d.signer_name);
+  if (Object.hasOwn(d, "signer_role")) patch.signer_role = trimOrNull(d.signer_role);
   if (Object.hasOwn(d, "signed_at")) {
     if (d.signed_at === null || d.signed_at === "") patch.signed_at = null;
     else {
@@ -1680,6 +1721,7 @@ function defaultImageModelReleaseApiShape() {
     release_ref: null,
     release_url: null,
     signer_name: null,
+    signer_role: null,
     signed_at: null,
     parties: null,
     notes: null,
@@ -1705,12 +1747,16 @@ function imageModelReleaseRowToApi(row) {
     }
   }
   const onFile = Boolean(
-    row.release_ref || row.release_url || row.signer_name || row.signed_at,
+    (row.release_ref || row.release_url) &&
+      row.signer_name &&
+      row.signer_role &&
+      row.signed_at,
   );
   return {
     release_ref: row.release_ref ?? null,
     release_url: row.release_url ?? null,
     signer_name: row.signer_name ?? null,
+    signer_role: row.signer_role ?? null,
     signed_at: iso(row.signed_at),
     parties,
     notes: row.notes ?? null,

@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import CastingRevealRadar from '../../../onboarding/pages/CastingRevealRadar';
 import { useCastingRevealComplete } from '../../../onboarding/hooks/useCasting';
 import { talentApi } from '../../api/talent';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
 import '../../../onboarding/styles/CastingCinematic.css';
 
 // Mock Profile for "Perfect" Reveal (Runway Standard)
@@ -129,12 +130,13 @@ function RevealPage() {
         <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4 text-center">
           <h2 className="text-white text-3xl font-serif">Unable to Load Profile</h2>
           <p className="text-white/50 max-w-md">{error?.message || 'Please check your connection and try again.'}</p>
-          <button
+          <PholioButton
             onClick={() => navigate('/dashboard/talent')}
-            className="cinematic-button"
+            variant="primary"
+            tone="dark"
           >
             Return to Dashboard
-          </button>
+          </PholioButton>
         </div>
       </div>
     );
@@ -158,18 +160,20 @@ function RevealPage() {
           </p>
           
           <div className="flex flex-col gap-4 w-full max-w-xs">
-            <button
+            <PholioButton
                onClick={() => navigate('/dashboard/talent/settings/measurements')}
-               className="cinematic-button"
+               variant="primary"
+               tone="dark"
             >
               Update Measurements
-            </button>
-            <button
+            </PholioButton>
+            <PholioButton
                onClick={() => navigate('/dashboard/talent')}
-               className="text-white/40 text-sm uppercase tracking-widest hover:text-white transition-colors py-2"
+               variant="tertiary"
+               tone="dark"
             >
               Skip for Now
-            </button>
+            </PholioButton>
           </div>
         </div>
       </div>

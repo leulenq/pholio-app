@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { Bookmark, Check, Download, Plus, RefreshCw, RotateCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TransferFailureNotice } from '../../../shared/components/states';
-import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import { talentApi } from '../api/talent';
 import {
   isMinorProfile,
@@ -277,7 +281,7 @@ export default function CompCard({ images = [], profile }) {
           <p className="cc-gate__copy">
             Guardian consent is required before your comp card can be previewed or exported.
           </p>
-          <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary" system="dashboard">
+          <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
             Record guardian consent
           </PholioButton>
         </div>
@@ -332,12 +336,26 @@ export default function CompCard({ images = [], profile }) {
           </div>
 
           <div className="cc-showcase__foot">
-            <div className="cc-sideswitch" role="group" aria-label="Show card side">
-              <button type="button" className={`cc-sideswitch__btn ${!flipped ? 'is-active' : ''}`}
-                aria-pressed={!flipped} onClick={() => setSide('front')}>Front</button>
-              <button type="button" className={`cc-sideswitch__btn ${flipped ? 'is-active' : ''}`}
-                aria-pressed={flipped} onClick={() => setSide('back')}>Back</button>
-            </div>
+            <PholioToggleGroup className="cc-sideswitch" role="group" aria-label="Show card side">
+              <PholioToggleButton
+                type="button"
+                active={!flipped}
+                className={`cc-sideswitch__btn ${!flipped ? 'is-active' : ''}`}
+                aria-pressed={!flipped}
+                onClick={() => setSide('front')}
+              >
+                Front
+              </PholioToggleButton>
+              <PholioToggleButton
+                type="button"
+                active={flipped}
+                className={`cc-sideswitch__btn ${flipped ? 'is-active' : ''}`}
+                aria-pressed={flipped}
+                onClick={() => setSide('back')}
+              >
+                Back
+              </PholioToggleButton>
+            </PholioToggleGroup>
             <span className="cc-showcase__meta">5.5 × 8.5 · Two-sided PDF</span>
           </div>
         </div>
@@ -347,7 +365,7 @@ export default function CompCard({ images = [], profile }) {
           <section className="cc-stage-block">
             <header className="cc-stage-head">
               <h3 className="cc-stage-title">This design</h3>
-              <PholioButton type="button" variant="secondary" size="sm" system="dashboard"
+              <PholioButton type="button" variant="secondary"
                 onClick={() => { setSeed(nextSeed()); setActivePresetId(null); }}
                 disabled={!previewUrl} title="Compose another take of your card">
                 <RefreshCw size={13} aria-hidden="true" /> New direction
@@ -393,8 +411,6 @@ export default function CompCard({ images = [], profile }) {
                 <PholioButton
                   type="button"
                   variant="primary"
-                  size="sm"
-                  system="dashboard"
                   onClick={handleSaveTake}
                   disabled={blocked || saving || !saveName.trim()}
                   title={blocked ? 'Add photos to save a card' : 'Save this take to your library'}
@@ -438,8 +454,10 @@ export default function CompCard({ images = [], profile }) {
                     const thumbUrl = presetPreviewUrl(slug, preset);
                     return (
                       <li key={preset.id} className={`cc-lib__item ${isActive ? 'is-active' : ''}`}>
-                        <button
+                        <PholioToggleButton
                           type="button"
+                          active={isActive}
+                          aria-pressed={isActive}
                           className="cc-lib__thumb"
                           onClick={() => handleSelectPreset(preset)}
                           disabled={busy}
@@ -453,7 +471,7 @@ export default function CompCard({ images = [], profile }) {
                           {isActive && (
                             <span className="cc-lib__thumbmark" aria-hidden="true"><Check size={12} /></span>
                           )}
-                        </button>
+                        </PholioToggleButton>
                         <div className="cc-lib__body">
                           <span className="cc-lib__itemname">{preset.name}</span>
                           {presetTag(preset) && (
@@ -463,19 +481,25 @@ export default function CompCard({ images = [], profile }) {
                         </div>
                         <div className="cc-lib__actions">
                           {!isActive && (
-                            <PholioButton type="button" variant="ghost" size="sm" system="dashboard" onClick={() => handleSelectPreset(preset)} disabled={busy}>
+                            <PholioButton type="button" variant="tertiary" onClick={() => handleSelectPreset(preset)} disabled={busy}>
                               <Bookmark size={12} aria-hidden="true" /> Use
                             </PholioButton>
                           )}
                           {confirmDeleteId === preset.id ? (
                             <span className="cc-lib__confirm">
-                              <PholioButton type="button" variant="danger-ghost" size="sm" system="dashboard" onClick={() => handleDeletePreset(preset)} disabled={busy}>Remove</PholioButton>
-                              <PholioButton type="button" variant="ghost" size="sm" system="dashboard" onClick={() => setConfirmDeleteId(null)} disabled={busy}>Keep</PholioButton>
+                              <PholioButton type="button" variant="destructive" onClick={() => handleDeletePreset(preset)} disabled={busy}>Remove</PholioButton>
+                              <PholioButton type="button" variant="tertiary" onClick={() => setConfirmDeleteId(null)} disabled={busy}>Keep</PholioButton>
                             </span>
                           ) : (
-                            <button type="button" className="cc-lib__del" onClick={() => setConfirmDeleteId(preset.id)} disabled={busy} aria-label={`Remove ${preset.name}`}>
+                            <PholioIconButton
+                              label={`Remove ${preset.name}`}
+                              danger
+                              className="cc-lib__del"
+                              onClick={() => setConfirmDeleteId(preset.id)}
+                              disabled={busy}
+                            >
                               <Trash2 size={13} aria-hidden="true" />
-                            </button>
+                            </PholioIconButton>
                           )}
                         </div>
                       </li>
@@ -498,7 +522,7 @@ export default function CompCard({ images = [], profile }) {
           )}
 
           <div className="cc-download-row">
-            <PholioButton variant="solid" system="dashboard" onClick={handleDownload}
+            <PholioButton variant="primary" onClick={handleDownload}
               disabled={downloading || blocked}
               title={blocked ? 'Add photos to generate your card' : 'Download PDF comp card'}
               className="cc-download">
@@ -512,7 +536,7 @@ export default function CompCard({ images = [], profile }) {
                 {minorGated ? 'Record guardian consent to unlock' : 'Complete your profile to unlock'}
               </Link>
             ) : (
-              <PholioButton type="button" variant="ghost" size="sm" system="dashboard" className="cc-flip-hint" onClick={previewUrl ? flip : undefined} disabled={!previewUrl}>
+              <PholioButton type="button" variant="tertiary" className="cc-flip-hint" onClick={previewUrl ? flip : undefined} disabled={!previewUrl}>
                 <RotateCw size={13} aria-hidden="true" /> Flip card
               </PholioButton>
             )}

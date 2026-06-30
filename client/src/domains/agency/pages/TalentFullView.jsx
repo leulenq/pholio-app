@@ -7,6 +7,7 @@ import { getApplicationDetails } from '../api/agency';
 import { TalentActionBar } from '../components/talent/TalentActionBar';
 import { TalentThread } from '../components/talent/TalentThread';
 import { PortfolioGrid } from '../components/zones/PortfolioGrid';
+import { SubmissionPackageDetails } from '../components/zones/SubmissionPackageDetails';
 import '../components/zones/zones.css';
 import './TalentFullView.css';
 
@@ -37,7 +38,7 @@ export default function TalentFullView() {
     );
   }
 
-  const { application, profile } = appQuery.data || {};
+  const { application, profile, submissionPackage } = appQuery.data || {};
   const images = profile?.images || [];
   const hero = images[0]?.path || null;
   const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Talent';
@@ -96,7 +97,10 @@ export default function TalentFullView() {
       <div className="tfv-grid">
         <div className="tfv-main">
           <section className="tfv-section">
-            <h2 className="tfv-section-title">Portfolio{images.length ? <span className="tfv-section-count">{images.length}</span> : null}</h2>
+            <h2 className="tfv-section-title">
+              {submissionPackage ? 'Submitted package' : 'Portfolio'}
+              {images.length ? <span className="tfv-section-count">{images.length}</span> : null}
+            </h2>
             <PortfolioGrid images={images} />
           </section>
           {bio && (
@@ -108,6 +112,12 @@ export default function TalentFullView() {
         </div>
 
         <aside className="tfv-aside">
+          {submissionPackage && (
+            <section className="tfv-section">
+              <h2 className="tfv-section-title">Submission details</h2>
+              <SubmissionPackageDetails submissionPackage={submissionPackage} />
+            </section>
+          )}
           <section className="tfv-section">
             <h2 className="tfv-section-title">Measurements</h2>
             <div className="measure-strip">

@@ -1,17 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MARKETING_SITE_URL } from '../lib/logout';
 import { getConsent, setConsent } from '../lib/cookie-consent';
+import PholioButton from './ui/PholioButton';
 import './CookieConsentBanner.css';
 
 export default function CookieConsentBanner() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!getConsent()) {
-      setVisible(true);
-    }
-  }, []);
+  const [visible, setVisible] = useState(() => !getConsent());
 
   const dismiss = (analytics) => {
     setConsent({ necessary: true, analytics });
@@ -44,15 +39,15 @@ export default function CookieConsentBanner() {
               .
             </p>
             <div className="app-cookie-actions">
-              <button type="button" className="app-cookie-btn app-cookie-btn-primary" onClick={() => dismiss(true)}>
+              <PholioButton type="button" variant="primary" className="app-cookie-btn app-cookie-btn-primary" onClick={() => dismiss(true)}>
                 Accept all
-              </button>
-              <button type="button" className="app-cookie-btn" onClick={() => dismiss(false)}>
+              </PholioButton>
+              <PholioButton type="button" variant="secondary" className="app-cookie-btn" onClick={() => dismiss(false)}>
                 Necessary only
-              </button>
-              <a className="app-cookie-link" href={`${MARKETING_SITE_URL}/cookies`} target="_blank" rel="noopener noreferrer">
+              </PholioButton>
+              <PholioButton as="a" variant="meta" className="app-cookie-link" href={`${MARKETING_SITE_URL}/cookies`} target="_blank" rel="noopener noreferrer">
                 Manage
-              </a>
+              </PholioButton>
             </div>
           </div>
         </motion.aside>

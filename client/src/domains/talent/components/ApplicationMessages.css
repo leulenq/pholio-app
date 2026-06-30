@@ -82,18 +82,7 @@
 }
 
 .app-msg__report {
-  border: none;
-  background: none;
-  padding: 0;
-  font-size: 11px;
-  color: var(--app-text-faint);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.app-msg__report:hover {
-  color: var(--app-text);
+  flex-shrink: 0;
 }
 
 .app-msg__compose {
@@ -142,23 +131,6 @@
   flex-shrink: 0;
   width: 42px;
   height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--app-gold);
-  border-radius: 10px;
-  background: var(--app-gold);
-  color: var(--app-ink);
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-}
-
-.app-msg__send:hover:not(:disabled) {
-  background: var(--app-gold-light);
-  border-color: var(--app-gold-light);
-}
-
-.app-msg__send:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  min-height: 42px;
+  padding: 0;
 }

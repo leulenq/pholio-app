@@ -1,4 +1,5 @@
 import React from 'react';
+import PholioButton from '../ui/PholioButton';
 
 export default function EmptyState({
   icon: Icon,
@@ -19,12 +20,12 @@ export default function EmptyState({
         <p className="text-gray-600 mb-6 max-w-md mx-auto">{description}</p>
       )}
       {action && actionLabel && (
-        <button
+        <PholioButton
+          variant="primary"
           onClick={action}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
         >
           {actionLabel}
-        </button>
+        </PholioButton>
       )}
     </div>
   );

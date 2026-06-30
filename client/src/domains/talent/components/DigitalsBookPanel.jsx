@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import { analyzePortfolio } from '../../../shared/utils/portfolioGapAnalysis';
 import { analyzePackageIntelligence } from '../../../shared/utils/packageIntelligence';
 import { imageNeedsReview } from '../../../shared/utils/imageClassification';
@@ -46,8 +47,10 @@ export default function DigitalsBookPanel({ images = [], profile = null, onConfi
 
   return (
     <div className={`phi${open ? ' phi--open' : ''}`}>
-      <button
+      <PholioButton
         type="button"
+        variant="tertiary"
+        fullWidth
         className="phi__bar"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -62,7 +65,7 @@ export default function DigitalsBookPanel({ images = [], profile = null, onConfi
           {countLabel(readCount, refinementCount)}
         </span>
         <ChevronDown size={14} className="phi__chevron" aria-hidden="true" />
-      </button>
+      </PholioButton>
 
       <AnimatePresence initial={false}>
         {open ? (

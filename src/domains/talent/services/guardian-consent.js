@@ -9,8 +9,8 @@
  *    guardian email link. Only its sha256 hash is persisted (`token_hash`), so a
  *    database leak cannot be replayed to forge consent.
  *  - Requests expire after CONSENT_TOKEN_TTL_MS and are single-use.
- *  - Creating a new request revokes any prior pending requests for the profile,
- *    so only the latest link is valid.
+ *  - Creating a new request revokes prior pending requests for the same scope.
+ *    Account consent and each named-agency authorization remain independent.
  */
 
 const crypto = require("crypto");
@@ -100,13 +100,21 @@ async function persistProfileDateOfBirthIfNeeded(knex, profile, dateOfBirth) {
  *
  * @param {import('knex')} knex
  * @param {string} profileId
- * @param {{ guardianEmail: string, guardianName?: string|null, talentName?: string|null, talentPhotoUrl?: string|null, talentCity?: string|null }} params
+ * @param {{ guardianEmail: string, guardianName?: string|null, talentName?: string|null, talentPhotoUrl?: string|null, talentCity?: string|null, agencyId?: string|null, agencyName?: string|null }} params
  * @returns {Promise<{ id: string, rawToken: string, expiresAt: string }>}
  */
 async function createConsentRequest(
   knex,
   profileId,
-  { guardianEmail, guardianName = null, talentName = null, talentPhotoUrl = null, talentCity = null } = {},
+  {
+    guardianEmail,
+    guardianName = null,
+    talentName = null,
+    talentPhotoUrl = null,
+    talentCity = null,
+    agencyId = null,
+    agencyName = null,
+  } = {},
 ) {
   const normalizedEmail = String(guardianEmail || "").trim().toLowerCase();
   if (!normalizedEmail) {
@@ -120,14 +128,19 @@ async function createConsentRequest(
   const id = uuidv4();
 
   await knex.transaction(async (trx) => {
-    // Invalidate any still-pending requests for this profile.
-    await trx("guardian_consent_requests")
-      .where({ profile_id: profileId, status: "pending" })
-      .update({ status: "revoked" });
+    // Invalidate only pending requests for this exact consent scope.
+    const pendingScope = trx("guardian_consent_requests").where({
+      profile_id: profileId,
+      status: "pending",
+    });
+    if (agencyId) pendingScope.where({ agency_id: agencyId });
+    else pendingScope.whereNull("agency_id");
+    await pendingScope.update({ status: "revoked" });
 
     await trx("guardian_consent_requests").insert({
       id,
       profile_id: profileId,
+      agency_id: agencyId || null,
       guardian_email: normalizedEmail,
       guardian_name: guardianName ? String(guardianName).trim() : null,
       token_hash: tokenHash,
@@ -149,6 +162,7 @@ async function createConsentRequest(
       talentName,
       talentPhotoUrl,
       talentCity,
+      agencyName,
       consentUrl,
       expiresDays: CONSENT_TOKEN_TTL_DAYS,
     });
@@ -168,7 +182,7 @@ async function createConsentRequest(
 
 /**
  * Verify a raw guardian consent token. On success, marks the request verified and
- * records `guardian_consent_at` on the profile (single source of truth for consent).
+ * records either account-level consent or authorization for one named agency.
  *
  * @param {import('knex')} knex
  * @param {string} rawToken
@@ -191,7 +205,12 @@ async function verifyConsentToken(knex, rawToken) {
 
   if (request.status === "verified") {
     // Idempotent: a guardian re-clicking their link still lands on success.
-    return { ok: true, reason: "already_verified", profileId: request.profile_id };
+    return {
+      ok: true,
+      reason: "already_verified",
+      profileId: request.profile_id,
+      agencyId: request.agency_id || null,
+    };
   }
 
   if (request.status !== "pending") {
@@ -212,12 +231,120 @@ async function verifyConsentToken(knex, rawToken) {
       .where({ id: request.id })
       .update({ status: "verified", verified_at: verifiedAt });
 
-    await trx("profiles")
-      .where({ id: request.profile_id })
-      .update({ guardian_consent_at: verifiedAt, updated_at: trx.fn.now() });
+    if (request.agency_id) {
+      const existing = await trx("minor_agency_consents")
+        .where({
+          profile_id: request.profile_id,
+          agency_id: request.agency_id,
+        })
+        .first("id");
+      if (existing) {
+        await trx("minor_agency_consents")
+          .where({ id: existing.id })
+          .update({
+            consent_request_id: request.id,
+            guardian_email: request.guardian_email,
+            verified_at: verifiedAt,
+            revoked_at: null,
+            updated_at: trx.fn.now(),
+          });
+      } else {
+        await trx("minor_agency_consents").insert({
+          id: uuidv4(),
+          profile_id: request.profile_id,
+          agency_id: request.agency_id,
+          consent_request_id: request.id,
+          guardian_email: request.guardian_email,
+          verified_at: verifiedAt,
+          created_at: verifiedAt,
+          updated_at: verifiedAt,
+        });
+      }
+    } else {
+      await trx("profiles")
+        .where({ id: request.profile_id })
+        .update({ guardian_consent_at: verifiedAt, updated_at: trx.fn.now() });
+    }
   });
 
-  return { ok: true, profileId: request.profile_id };
+  return {
+    ok: true,
+    profileId: request.profile_id,
+    agencyId: request.agency_id || null,
+  };
+}
+
+async function getAgencyConsentGrant(knex, profileId, agencyId) {
+  if (!profileId || !agencyId) return false;
+  return knex("minor_agency_consents as consent")
+    .innerJoin(
+      "guardian_consent_requests as request",
+      "request.id",
+      "consent.consent_request_id",
+    )
+    .where({
+      "consent.profile_id": profileId,
+      "consent.agency_id": agencyId,
+      "request.profile_id": profileId,
+      "request.agency_id": agencyId,
+      "request.status": "verified",
+    })
+    .whereNull("consent.revoked_at")
+    .first(
+      "consent.id",
+      "consent.consent_request_id",
+      "consent.guardian_email",
+      "consent.verified_at",
+    );
+}
+
+async function hasAgencyConsent(knex, profileId, agencyId) {
+  return Boolean(await getAgencyConsentGrant(knex, profileId, agencyId));
+}
+
+async function getAgencyConsentStatus(knex, profile, agencyId) {
+  if (!profile?.id || !agencyId) {
+    return {
+      status: "none",
+      guardianEmail: profile?.guardian_email || null,
+      expiresAt: null,
+    };
+  }
+
+  if (await hasAgencyConsent(knex, profile.id, agencyId)) {
+    const verified = await knex("minor_agency_consents")
+      .where({ profile_id: profile.id, agency_id: agencyId })
+      .whereNull("revoked_at")
+      .first("guardian_email", "verified_at");
+    return {
+      status: "verified",
+      guardianEmail: verified?.guardian_email || profile.guardian_email || null,
+      expiresAt: null,
+      verifiedAt: verified?.verified_at || null,
+    };
+  }
+
+  const pending = await knex("guardian_consent_requests")
+    .where({
+      profile_id: profile.id,
+      agency_id: agencyId,
+      status: "pending",
+    })
+    .orderBy("created_at", "desc")
+    .first();
+  if (pending && new Date(pending.expires_at).getTime() >= Date.now()) {
+    return {
+      status: "pending",
+      guardianEmail: pending.guardian_email || profile.guardian_email || null,
+      expiresAt: pending.expires_at,
+    };
+  }
+
+  return {
+    status: "none",
+    guardianEmail: profile.guardian_email || null,
+    expiresAt: null,
+  };
 }
 
 /**
@@ -273,4 +400,7 @@ module.exports = {
   persistProfileDateOfBirthIfNeeded,
   loadProfilePrimaryPhotoUrl,
   GuardianConsentEmailError,
+  getAgencyConsentGrant,
+  hasAgencyConsent,
+  getAgencyConsentStatus,
 };

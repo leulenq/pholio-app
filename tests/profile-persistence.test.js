@@ -24,6 +24,13 @@ jest.mock("../src/domains/auth/middleware/require-auth", () => {
     requireOnboarding: (req, res, next) => next(),
   };
 });
+jest.mock("../src/shared/middleware/onboarding-redirect", () => ({
+  requireOnboardingComplete: (req, res, next) => next(),
+}));
+jest.mock("../src/shared/middleware/require-legal-acceptance", () => ({
+  requireTalentLegalAcceptance: () => (req, res, next) => next(),
+  requireAgencyLegalAcceptance: () => (req, res, next) => next(),
+}));
 
 describe("Profile Persistence Test Suite", () => {
   let testUserId;
@@ -160,8 +167,8 @@ describe("Profile Persistence Test Suite", () => {
 
     await knex("sessions").insert({
       sid: sessionId,
-      sess: sessData,
-      expired: new Date(Date.now() + 86400000),
+      sess: knex.client.config.client === "sqlite3" ? JSON.stringify(sessData) : sessData,
+      expired: new Date(Date.now() + 86400000).toISOString(),
     });
 
     // Create a mock profile row to bypass 403 onboarding requirements
@@ -188,8 +195,7 @@ describe("Profile Persistence Test Suite", () => {
       "s:" +
       signature.sign(
         sessionId,
-        process.env.SESSION_SECRET ||
-          "fallback-secret-key-change-in-production",
+        process.env.SESSION_SECRET || "pholio-secret",
       );
 
     authCookie = [
@@ -205,9 +211,15 @@ describe("Profile Persistence Test Suite", () => {
       await knex("profiles").where({ id: testProfileId }).del();
     }
     if (testUserId) {
-      await knex("sessions")
-        .whereRaw(`sess::text LIKE '%${testUserId}%'`)
-        .del();
+      if (knex.client.config.client === "sqlite3") {
+        await knex("sessions")
+          .where("sess", "like", `%${testUserId}%`)
+          .del();
+      } else {
+        await knex("sessions")
+          .whereRaw(`sess::text LIKE '%${testUserId}%'`)
+          .del();
+      }
       await knex("users").where({ id: testUserId }).del();
     }
     await knex.destroy();
@@ -222,8 +234,12 @@ describe("Profile Persistence Test Suite", () => {
       const res = await request(app)
         .put("/api/talent/profile")
         .set("Cookie", authCookie)
-        .send(testProfileData)
-        .expect(200);
+        .send(testProfileData);
+      
+      if (res.status !== 200) {
+        console.log("DEBUG PERSISTENCE TEST FAIL:", res.status, res.body || res.text);
+      }
+      expect(res.status).toBe(200);
 
       expect(res.body.success).toBe(true);
       expect(res.body.data?.profile || res.body.profile).toBeDefined();

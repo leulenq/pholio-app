@@ -19,7 +19,10 @@ import ReportDialog from '../../../../shared/components/ReportDialog';
 import { SubscriptionCheckoutModal } from '../../../../shared/components/SubscriptionCheckoutDisclosure';
 import CheckoutHandoff from '../../../../shared/components/billing/CheckoutHandoff';
 import SubscriptionReturnBanner from '../../../../shared/components/billing/SubscriptionReturnBanner';
-import PholioButton from '../../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../../shared/components/ui/PholioButton';
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
 import { moderationApi } from '../../../../shared/lib/moderation-api';
 import './SettingsPage.css';
@@ -131,6 +134,7 @@ export default function SettingsPage() {
                 <button
                   key={s.id}
                   type="button"
+                  data-button-exception="settings-index"
                   className={`ts-nav-item${activeSection === s.id ? ' active' : ''}`}
                   onClick={() => { if (activeSection !== s.id) navigate(`/dashboard/talent/settings/${s.id}`); }}
                   aria-current={activeSection === s.id ? 'page' : undefined}
@@ -404,8 +408,7 @@ function AccountSection() {
         {isChanged && (
           <PholioButton
             type="button"
-            variant="secondary"
-            system="dashboard"
+            variant="tertiary"
             onClick={handleCancel}
             disabled={isUpdatingProfile}
           >
@@ -415,7 +418,6 @@ function AccountSection() {
         <PholioButton
           type="button"
           variant="primary"
-          system="dashboard"
           onClick={handleSave}
           disabled={!isChanged || isUpdatingProfile}
         >
@@ -499,19 +501,20 @@ function NotificationsSection() {
             <span className="ts-toggle-label">Email Frequency</span>
             <span className="ts-toggle-desc">Notification timing</span>
           </div>
-          <div className="ts-freq-options" role="group" aria-label="Email frequency">
+          <PholioToggleGroup className="ts-freq-options" role="group" aria-label="Email frequency">
             {FREQ_OPTIONS.map(opt => (
-              <button
+              <PholioToggleButton
                 key={opt.value}
                 type="button"
+                active={emailFrequency === opt.value}
                 className={`ts-freq-btn${emailFrequency === opt.value ? ' active' : ''}`}
                 onClick={() => handleFrequency(opt.value)}
                 aria-pressed={emailFrequency === opt.value}
               >
                 {opt.label}
-              </button>
+              </PholioToggleButton>
             ))}
-          </div>
+          </PholioToggleGroup>
         </div>
         <span className="ts-toggle-group-label">Email</span>
         {EMAIL_TOGGLES.map(renderRow)}
@@ -685,7 +688,6 @@ function PrivacySectionForm({ initialSettings }) {
           <PholioButton
             type="button"
             variant="primary"
-            system="dashboard"
             onClick={handleSave}
             disabled={!isChanged || mutation.isPending || Boolean(slugError)}
           >
@@ -705,8 +707,7 @@ function PrivacySectionForm({ initialSettings }) {
           </div>
           <PholioButton
             type="button"
-            variant="outline"
-            system="dashboard"
+            variant="secondary"
             style={{ flexShrink: 0 }}
             onClick={() => setReportOpen(true)}
           >
@@ -718,7 +719,6 @@ function PrivacySectionForm({ initialSettings }) {
       <ReportDialog
         open={reportOpen}
         onClose={() => setReportOpen(false)}
-        buttonSystem="dashboard"
       />
 
       {isModerator && (
@@ -728,7 +728,7 @@ function PrivacySectionForm({ initialSettings }) {
             <p className="ts-toggle-desc" style={{ margin: '4px 0 12px' }}>
               Review images flagged during upload.
             </p>
-            <PholioButton to="/dashboard/moderation" variant="outline" system="dashboard">
+            <PholioButton to="/dashboard/moderation" variant="secondary">
               Open queue
             </PholioButton>
           </div>
@@ -749,9 +749,7 @@ function PrivacySectionForm({ initialSettings }) {
                   <span className="ts-blocklist-name">{name}</span>
                   <PholioButton
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    system="dashboard"
+                    variant="tertiary"
                     onClick={() => removeBlockedAgency(name)}
                     disabled={mutation.isPending}
                   >
@@ -776,7 +774,6 @@ function PrivacySectionForm({ initialSettings }) {
             <PholioButton
               type="button"
               variant="secondary"
-              system="dashboard"
               onClick={addBlockedAgency}
               disabled={!blockInput.trim() || mutation.isPending}
             >
@@ -910,9 +907,7 @@ function SubscriptionSection() {
             )}
             <PholioButton
               type="button"
-              variant="outline"
-              size="sm"
-              system="dashboard"
+              variant="secondary"
               style={{ marginTop: '16px' }}
               onClick={openBilling}
               disabled={isOpeningBilling || handoffOpen}
@@ -940,9 +935,7 @@ function SubscriptionSection() {
             {subscription.stripeCustomerId && (
               <PholioButton
                 type="button"
-                variant="outline"
-                size="sm"
-                system="dashboard"
+                variant="secondary"
                 onClick={openBilling}
                 disabled={isOpeningBilling}
               >
@@ -970,9 +963,7 @@ function SubscriptionSection() {
             </span>
             <PholioButton
               type="button"
-              variant="ghost"
-              size="sm"
-              system="dashboard"
+              variant="tertiary"
               onClick={() => downloadJson(`pholio-invoice-${inv.id}.json`, inv)}
             >
               Download
@@ -987,7 +978,6 @@ function SubscriptionSection() {
         onConfirm={handleCheckoutConfirm}
         isLoading={isOpeningBilling}
         subscription={subscription}
-        buttonSystem="dashboard"
       />
     </div>
   );
@@ -1048,7 +1038,6 @@ function SecuritySection() {
             <PholioButton
               type="button"
               variant="secondary"
-              system="dashboard"
               onClick={handlePasswordReset}
               disabled={isSendingReset}
             >
@@ -1085,9 +1074,7 @@ function SecuritySection() {
             {!s.isCurrent && (
               <PholioButton
                 type="button"
-                variant="ghost"
-                size="sm"
-                system="dashboard"
+                variant="tertiary"
                 onClick={() => revokeMutation.mutate(s.id)}
                 disabled={revokeMutation.isPending}
               >
@@ -1150,20 +1137,21 @@ function DisplaySection() {
         <div className="ts-card-inner">
           <div className="ts-field">
             <div className="ts-label">Comp Card Layout</div>
-            <div className="ts-display-grid">
+            <PholioToggleGroup className="ts-display-grid" role="group" aria-label="Comp card layout">
               {LAYOUT_OPTIONS.map(opt => (
-                <button
+                <PholioToggleButton
                   key={opt.value}
                   type="button"
+                  active={prefs.cardLayout === opt.value}
                   className={`ts-display-option${prefs.cardLayout === opt.value ? ' active' : ''}`}
                   onClick={() => set('cardLayout', opt.value)}
                   aria-pressed={prefs.cardLayout === opt.value}
                 >
                   <span className="ts-display-option-label">{opt.label}</span>
                   <span className="ts-display-option-desc">{opt.desc}</span>
-                </button>
+                </PholioToggleButton>
               ))}
-            </div>
+            </PholioToggleGroup>
           </div>
         </div>
       </div>
@@ -1242,7 +1230,6 @@ function DataSection() {
             <PholioButton
               type="button"
               variant="secondary"
-              system="dashboard"
               onClick={handleExport}
               disabled={isExporting}
             >
@@ -1343,8 +1330,7 @@ function DangerZoneSection() {
         </div>
         <PholioButton
           type="button"
-          variant="danger-ghost"
-          system="dashboard"
+          variant="destructive"
           onClick={handleDeactivate}
           disabled={deactivateMutation.isPending || settings?.account?.isDeactivated}
         >
@@ -1361,8 +1347,7 @@ function DangerZoneSection() {
         </div>
         <PholioButton
           type="button"
-          variant="danger"
-          system="dashboard"
+          variant="destructive"
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
         >

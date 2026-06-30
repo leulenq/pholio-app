@@ -16,6 +16,7 @@ const STATUS = {
   shortlisted: { label: 'Shortlisted',  tone: 'ink' },
   booked:      { label: 'On Booking',   tone: 'green' },
   accepted:    { label: 'Signed',       tone: 'sage' },
+  development: { label: 'New Face',     tone: 'sage' },
   declined:    { label: 'Passed',       tone: 'muted' },
   inactive:    { label: 'Inactive',     tone: 'muted' },
 };

@@ -81,7 +81,7 @@ export const PortfolioSnapshot = () => {
                 <p className="empty-description">
                   Agencies prioritize visuals. Upload at least 5 high-quality photos to unlock your full potential and get discovered.
                 </p>
-                <PholioButton to="/dashboard/talent/media" system="dashboard" variant="primary">
+                <PholioButton to="/dashboard/talent/media" variant="primary">
                   Upload Photos <ArrowRight size={18} />
                 </PholioButton>
              </div>

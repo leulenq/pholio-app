@@ -4,6 +4,7 @@ import {
   LegalAcceptanceField,
   legalAcceptancePayload,
 } from './LegalAcceptanceField';
+import PholioButton from './ui/PholioButton';
 import { talentApi } from '../../domains/talent/api/talent';
 import './LegalAcceptanceGate.css';
 
@@ -79,14 +80,15 @@ export default function LegalAcceptanceGate({ children }) {
             onChange={setAccepted}
             className="legal-gate-check"
           />
-          <button
+          <PholioButton
             type="button"
+            variant="primary"
             className="legal-gate-submit"
             disabled={!accepted || submitting}
             onClick={handleSubmit}
           >
             {submitting ? 'Saving…' : 'Continue'}
-          </button>
+          </PholioButton>
         </div>
       </div>
     </>

@@ -113,6 +113,41 @@ export const profileSchema = z.object({
   representation_status: z.enum(['seeking', 'represented', 'not_seeking']).optional(),
   current_agency: z.string().nullable().optional(),
   previous_representations: z.any().optional(),
+  representations: z.array(z.object({
+    id: z.string().uuid().optional(),
+    agency_id: z.string().uuid().nullable().optional(),
+    agency_name: z.string().max(160).nullable().optional(),
+    external_agency_name: z.string().trim().min(1, 'Agency name is required').max(160).nullable().optional(),
+    relationship_type: z.enum(['mother', 'placement']),
+    market: z.string().trim().max(120).nullable().optional(),
+    territory: z.string().trim().max(120).nullable().optional(),
+    division: z.string().trim().max(100).nullable().optional(),
+    is_exclusive: coercedBoolean.optional(),
+    started_on: z.string().nullable().optional(),
+    status: z.enum(['active', 'ended']).optional(),
+  }).superRefine((representation, ctx) => {
+    if (!representation.agency_id && !representation.external_agency_name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['external_agency_name'],
+        message: 'Agency name is required',
+      });
+    }
+    if (representation.relationship_type === 'placement' && !representation.market) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['market'],
+        message: 'Market is required for a placement agency',
+      });
+    }
+  })).max(20).superRefine((representations, ctx) => {
+    if (representations.filter((item) => item.relationship_type === 'mother').length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Only one active mother agency is allowed',
+      });
+    }
+  }).optional(),
 
   // --- Skills & Languages (JSON Arrays) ---
   training_summary: z.string().nullable().optional(),
@@ -129,10 +164,10 @@ export const profileSchema = z.object({
   emergency_contact_relationship: z.string().nullable().optional(),
 
   // --- Socials ---
-  instagram_handle: z.string().nullable().optional().or(z.literal('')),
-  tiktok_handle: z.string().nullable().optional().or(z.literal('')),
-  twitter_handle: z.string().nullable().optional().or(z.literal('')),
-  youtube_handle: z.string().nullable().optional().or(z.literal('')),
+  instagram_handle: z.string().max(100, "Instagram handle must be 100 characters or less").nullable().optional().or(z.literal('')),
+  tiktok_handle: z.string().max(100, "TikTok handle must be 100 characters or less").nullable().optional().or(z.literal('')),
+  twitter_handle: z.string().max(100, "X handle must be 100 characters or less").nullable().optional().or(z.literal('')),
+  youtube_handle: z.string().max(100, "YouTube handle must be 100 characters or less").nullable().optional().or(z.literal('')),
   portfolio_url: z.union([
     z.string().url("Must be a valid URL"),
     z.literal(''),

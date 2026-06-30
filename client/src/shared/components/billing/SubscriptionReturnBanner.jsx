@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import PholioButton, { PholioIconButton } from '../ui/PholioButton';
 import './SubscriptionReturnBanner.css';
 
 const VARIANTS = {
@@ -50,9 +51,13 @@ export default function SubscriptionReturnBanner({ state, onDismiss }) {
         )}
       </div>
       {onDismiss && (
-        <button type="button" className="ph-billing-return__dismiss" onClick={onDismiss} aria-label="Dismiss">
+        <PholioIconButton
+          label="Dismiss"
+          className="ph-billing-return__dismiss"
+          onClick={onDismiss}
+        >
           ×
-        </button>
+        </PholioIconButton>
       )}
     </div>
   );

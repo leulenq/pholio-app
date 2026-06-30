@@ -27,6 +27,8 @@ function freshDigitals() {
       image_type: "digital",
       captured_at: daysAgo(10),
       rights_status: "cleared",
+      license_type: "owned",
+      copyright_owner: "Alex River",
     },
     {
       id: "full",
@@ -34,6 +36,8 @@ function freshDigitals() {
       image_type: "digital",
       captured_at: daysAgo(10),
       rights_status: "cleared",
+      license_type: "owned",
+      copyright_owner: "Alex River",
     },
   ];
 }
@@ -82,6 +86,94 @@ describe("evaluateSendReadiness", () => {
     expect(result.isCoreReady).toBe(true);
     expect(result.isSendReady).toBe(true);
     expect(result.sendBlockers).toHaveLength(0);
+  });
+
+  test("retouched digitals are blocked while retouched book frames remain allowed", () => {
+    const blocked = evaluateSendReadiness(BASE_PROFILE, [
+      ...freshDigitals().map((image, index) =>
+        index === 0
+          ? { ...image, retouched_at: "2026-06-01T00:00:00.000Z" }
+          : image,
+      ),
+      {
+        id: "book",
+        shot_type: "editorial",
+        image_type: "portfolio",
+        retouched_at: "2026-06-01T00:00:00.000Z",
+        ...freshDigitals()[0],
+        image_type: "portfolio",
+        shot_type: "editorial",
+      },
+    ]);
+    expect(
+      blocked.sendBlockers.some(
+        (item) => item.code === "retouched_digital_not_allowed",
+      ),
+    ).toBe(true);
+
+    const allowed = evaluateSendReadiness(BASE_PROFILE, [
+      ...freshDigitals(),
+      {
+        ...freshDigitals()[0],
+        id: "book",
+        image_type: "portfolio",
+        shot_type: "editorial",
+        retouched_at: "2026-06-01T00:00:00.000Z",
+      },
+    ]);
+    expect(
+      allowed.sendBlockers.some(
+        (item) => item.code === "retouched_digital_not_allowed",
+      ),
+    ).toBe(false);
+  });
+
+  test("minor without verified guardian consent is not send-ready", () => {
+    const minor = {
+      ...BASE_PROFILE,
+      date_of_birth: "2012-01-01",
+    };
+
+    const result = evaluateSendReadiness(minor, freshDigitals());
+    expect(result.isSendReady).toBe(false);
+    expect(
+      result.sendBlockers.some(
+        (blocker) => blocker.code === "minor_guardian_consent_required",
+      ),
+    ).toBe(true);
+    expect(
+      result.sendBlockers.some(
+        (blocker) => blocker.code === "guardian_agency_consent_required",
+      ),
+    ).toBe(false);
+  });
+
+  test("minor requires consent scoped to the selected agency", () => {
+    const minor = {
+      ...BASE_PROFILE,
+      date_of_birth: "2012-01-01",
+      guardian_consent_at: "2026-01-01T00:00:00.000Z",
+    };
+
+    const blocked = evaluateSendReadiness(minor, freshDigitals());
+    expect(blocked.isSendReady).toBe(false);
+    expect(
+      blocked.sendBlockers.some(
+        (blocker) => blocker.code === "guardian_agency_consent_required",
+      ),
+    ).toBe(true);
+
+    const authorized = evaluateSendReadiness(
+      minor,
+      freshDigitals(),
+      new Map(),
+      { agencyConsentGranted: true },
+    );
+    expect(
+      authorized.sendBlockers.some(
+        (blocker) => blocker.code === "guardian_agency_consent_required",
+      ),
+    ).toBe(false);
   });
 
   test("men can satisfy measurements via chest and must provide chest", () => {

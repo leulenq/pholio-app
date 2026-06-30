@@ -18,6 +18,7 @@ const {
   validateCustomization,
 } = require("../themes");
 const { selectCompCardImages } = require("../comp-card-selector");
+const { injectSocialFields } = require("../../../shared/lib/social-helpers");
 const { composeCompCard } = require("../composition");
 const { resolveCompCardArtDirection } = require("../style-engine");
 const { evaluateCompCardGuardrails } = require("../guardrails");
@@ -168,7 +169,10 @@ async function verifyProfileOwnership(req, profileSlug) {
     return { authorized: false, error: "Not authenticated" };
   }
 
-  const profile = await knex("profiles").where({ slug: profileSlug }).first();
+  let profile = await knex("profiles").where({ slug: profileSlug }).first();
+  if (profile) {
+    profile = await injectSocialFields(profile);
+  }
   if (!profile) {
     return { authorized: false, error: "Profile not found" };
   }

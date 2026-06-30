@@ -18,13 +18,17 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
-import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import ProfileGateBanner from '../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../shared/utils/profileGating';
 import { sendBlockerLabel } from '../../../shared/utils/sendReadiness';
 import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { talentApi } from '../api/talent';
-import { statusConfig } from '../utils/applicationStatus';
+import { canWithdrawApplication, statusConfig } from '../utils/applicationStatus';
 import ApplicationInterviews from './ApplicationInterviews';
 import ApplicationMessages from './ApplicationMessages';
 import './ApplicationsView.css';
@@ -298,7 +302,11 @@ export default function ApplicationsView() {
           </p>
           <div className="app-error-actions">
             {isProfileMissing && (
-              <PholioButton as="a" href="/dashboard/talent/profile" variant="solid">
+              <PholioButton
+                as="a"
+                href="/dashboard/talent/profile"
+                variant="primary"
+              >
                 Profile
                 <ArrowUpRight size={14} aria-hidden />
               </PholioButton>
@@ -408,8 +416,9 @@ export default function ApplicationsView() {
                       {agency.agency_description || 'Open to new talent submissions.'}
                     </p>
                   </div>
-                  <button
+                  <PholioButton
                     type="button"
+                    variant="meta"
                     className="app-agency-card__apply"
                     onClick={() => openApplyFlow(agency)}
                     disabled={!gating.isCoreReady || !draftCanResume}
@@ -440,7 +449,7 @@ export default function ApplicationsView() {
                         <ArrowUpRight size={14} aria-hidden />
                       </>
                     )}
-                  </button>
+                  </PholioButton>
                 </article>
               );
             })}
@@ -457,18 +466,25 @@ export default function ApplicationsView() {
         <section className="app-ledger" aria-labelledby="application-ledger-title">
           <div className="app-section-head" data-tour="app-ledger">
             <h2 id="application-ledger-title">Submission history</h2>
-            <div className="app-filter-row" aria-label="Filter applications">
+            <PholioToggleGroup
+              className="app-filter-row"
+              role="tablist"
+              aria-label="Filter applications"
+            >
               {FILTERS.map((filter) => (
-                <button
+                <PholioToggleButton
                   key={filter.id}
                   type="button"
+                  role="tab"
+                  active={activeFilter === filter.id}
+                  aria-selected={activeFilter === filter.id}
                   className={`app-filter ${activeFilter === filter.id ? 'app-filter--active' : ''}`}
                   onClick={() => setActiveFilter(filter.id)}
                 >
                   {filter.label}
-                </button>
+                </PholioToggleButton>
               ))}
-            </div>
+            </PholioToggleGroup>
           </div>
 
           {applicationsQuery.isLoading ? (
@@ -487,6 +503,8 @@ export default function ApplicationsView() {
                   <li key={app.id} className={`app-ledger-item app-ledger-item--${config.tone}`}>
                     <button
                       type="button"
+                      data-button-exception="submission-history-agency"
+                      aria-pressed={isSelected}
                       className={`app-ledger-card ${isSelected ? 'app-ledger-card--selected' : ''}`}
                       onClick={() => setSelectedId(app.id)}
                     >
@@ -540,7 +558,7 @@ export default function ApplicationsView() {
       <ConfirmationDialog
         isOpen={withdrawingApplication !== null}
         title="Withdraw submission?"
-        message={`Withdraw the submission to ${withdrawingApplication?.agency_name || 'this agency'}?`}
+        message={`Withdraw the submission to ${withdrawingApplication?.agency_name || 'this agency'}? Pholio will immediately revoke the agency's platform access, redact the submitted package, and delete its message thread. Copies already downloaded by the agency cannot be recalled.`}
         confirmLabel="Withdraw"
         cancelLabel="Keep"
         variant="warning"
@@ -557,7 +575,7 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
   const site = websiteUrl(app.agency_website);
   const domain = domainLabel(site);
   const board = firstBoard(app.agency_open_boards);
-  const canWithdraw = config.tone === 'pending';
+  const canWithdraw = canWithdrawApplication(app.status);
   const age = daysSince(app.created_at);
 
   // No scheduler exists to auto-expire stale applications, so surface a calm,
@@ -630,23 +648,25 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
       <ApplicationInterviews applicationId={app.id} />
 
       <div className="app-detail__actions">
-        <button
+        <PholioButton
           type="button"
+          variant="secondary"
           className="app-detail__act"
           onClick={() => setMessagesOpen(true)}
         >
           <MessageSquare size={14} aria-hidden />
           Message {agencyShort}
-        </button>
+        </PholioButton>
         {canWithdraw && (
-          <button
+          <PholioButton
             type="button"
+            variant="destructive"
             className="app-detail__withdraw"
             onClick={onWithdraw}
             disabled={isWithdrawing}
           >
             {isWithdrawing ? 'Withdrawing…' : 'Withdraw submission'}
-          </button>
+          </PholioButton>
         )}
       </div>
 
@@ -674,10 +694,9 @@ function MessageDock({ app, onClose }) {
 
   return (
     <>
-      <button
-        type="button"
+      <div
         className="app-msgdock__scrim"
-        aria-label="Close messages"
+        aria-hidden="true"
         onClick={onClose}
       />
       <aside
@@ -687,14 +706,13 @@ function MessageDock({ app, onClose }) {
       >
         <header className="app-msgdock__head">
           <span className="app-msgdock__title">{app.agency_name || 'Agency'}</span>
-          <button
-            type="button"
+          <PholioIconButton
+            label="Close messages"
             className="app-msgdock__close"
             onClick={onClose}
-            aria-label="Close messages"
           >
             <X size={15} aria-hidden />
-          </button>
+          </PholioIconButton>
         </header>
         <div className="app-msgdock__body">
           <ApplicationMessages applicationId={app.id} agencyName={app.agency_name} hideTitle />

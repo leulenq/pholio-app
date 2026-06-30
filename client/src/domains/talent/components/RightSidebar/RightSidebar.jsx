@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MomentumChart } from './MomentumChart';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
 import './RightSidebar.css';
 
 export const RightSidebar = ({ nextPriority }) => {
@@ -56,15 +57,16 @@ export const RightSidebar = ({ nextPriority }) => {
             </a>
           </li>
           <li>
-            <button
+            <PholioButton
+              variant="tertiary"
+              fullWidth
               onClick={() => {
                 toast.info('Comp card download is not available yet — we will add it in a future update.');
               }}
-              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors text-left group decoration-0 cursor-pointer border-0 bg-transparent"
             >
                <FileDown className="w-4 h-4 text-slate-400 group-hover:text-[#C9A55A] transition-colors" />
                <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">Download Comp Card</span>
-            </button>
+            </PholioButton>
           </li>
         </ul>
       </div>
@@ -110,13 +112,14 @@ export const RightSidebar = ({ nextPriority }) => {
               ))}
             </ul>
 
-            <Link
+            <PholioButton
               to="/dashboard/talent/settings/subscription"
-              className="w-full py-3.5 bg-[#C9A55A] hover:bg-[#b08d45] text-white text-xs font-bold rounded-lg transition-all shadow-button-hover flex items-center justify-center gap-2 decoration-0 tracking-widest uppercase"
+              variant="primary"
+              fullWidth
             >
               <span>Upgrade Now</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            </PholioButton>
           </div>
         </div>
       )}

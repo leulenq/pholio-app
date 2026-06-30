@@ -2,6 +2,10 @@ import React from 'react';
 import { Controller } from 'react-hook-form';
 import { Sparkles } from 'lucide-react';
 import { PholioInput, PholioTextarea, PholioToggle } from '../../../shared/components/ui/forms';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
@@ -171,8 +175,9 @@ export const IdentitySection = ({
                   error={errors.guardian_email}
                   {...register('guardian_email')}
                 />
-                <button
+                <PholioButton
                   type="button"
+                  variant="secondary"
                   className={styles.guardianConsentBtn}
                   onClick={() => {
                     if (typeof onSendGuardianLink !== 'function') return;
@@ -185,7 +190,7 @@ export const IdentitySection = ({
                     : guardianStatus === 'pending'
                       ? 'Resend verification link'
                       : 'Send verification link'}
-                </button>
+                </PholioButton>
               </div>
               {guardianLinkSent && (
                 <p className={styles.guardianConsentSent} role="status">
@@ -227,25 +232,27 @@ export const IdentitySection = ({
               About <em>you</em>
             </h3>
             {hasBio ? (
-              <button
+              <PholioButton
                 type="button"
+                variant="secondary"
                 onClick={onBioRefine}
                 disabled={isImproving}
                 className={styles.bioRefineBtn}
               >
                 <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
                 {isImproving && improveMode === 'refine' ? 'Refining…' : 'Refine'}
-              </button>
+              </PholioButton>
             ) : (
-              <button
+              <PholioButton
                 type="button"
+                variant="primary"
                 onClick={onBioGenerate}
                 disabled={isImproving}
                 className={styles.bioRefineBtn}
               >
                 <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
                 {isImproving && improveMode === 'generate' ? 'Generating…' : 'Generate'}
-              </button>
+              </PholioButton>
             )}
           </div>
           <p className={styles.bioLede}>
@@ -258,26 +265,28 @@ export const IdentitySection = ({
               aria-label="Bio length"
             >
               <span className={styles.bioModeLabel}>Length</span>
-              <div className={styles.bioModeOptions}>
-                <button
+              <PholioToggleGroup className={styles.bioModeOptions}>
+                <PholioToggleButton
                   type="button"
                   onClick={() => setBioOption({ length: 'tight' })}
                   disabled={isImproving}
                   aria-pressed={bioLength === 'tight'}
+                  active={bioLength === 'tight'}
                   className={`${styles.bioModeBtn} ${bioLength === 'tight' ? styles.bioModeBtnActive : ''}`}
                 >
                   Tight
-                </button>
-                <button
+                </PholioToggleButton>
+                <PholioToggleButton
                   type="button"
                   onClick={() => setBioOption({ length: 'standard' })}
                   disabled={isImproving}
                   aria-pressed={bioLength === 'standard'}
+                  active={bioLength === 'standard'}
                   className={`${styles.bioModeBtn} ${bioLength === 'standard' ? styles.bioModeBtnActive : ''}`}
                 >
                   Standard
-                </button>
-              </div>
+                </PholioToggleButton>
+              </PholioToggleGroup>
             </div>
             <div
               className={styles.bioModeGroup}
@@ -285,26 +294,28 @@ export const IdentitySection = ({
               aria-label="Bio voice"
             >
               <span className={styles.bioModeLabel}>Voice</span>
-              <div className={styles.bioModeOptions}>
-                <button
+              <PholioToggleGroup className={styles.bioModeOptions}>
+                <PholioToggleButton
                   type="button"
                   onClick={() => setBioOption({ person: 'third' })}
                   disabled={isImproving}
                   aria-pressed={bioPerson === 'third'}
+                  active={bioPerson === 'third'}
                   className={`${styles.bioModeBtn} ${bioPerson === 'third' ? styles.bioModeBtnActive : ''}`}
                 >
                   Agency
-                </button>
-                <button
+                </PholioToggleButton>
+                <PholioToggleButton
                   type="button"
                   onClick={() => setBioOption({ person: 'first' })}
                   disabled={isImproving}
                   aria-pressed={bioPerson === 'first'}
+                  active={bioPerson === 'first'}
                   className={`${styles.bioModeBtn} ${bioPerson === 'first' ? styles.bioModeBtnActive : ''}`}
                 >
                   Personal
-                </button>
-              </div>
+                </PholioToggleButton>
+              </PholioToggleGroup>
             </div>
           </div>
         </div>
@@ -317,13 +328,14 @@ export const IdentitySection = ({
         />
         {previousBio && (
           <div className={styles.bioActions}>
-            <button
+            <PholioButton
               type="button"
+              variant="tertiary"
               onClick={handleUndoAI}
               className={styles.bioUndoBtn}
             >
               Revert to original
-            </button>
+            </PholioButton>
           </div>
         )}
       </div>

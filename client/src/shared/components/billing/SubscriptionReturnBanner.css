@@ -71,18 +71,8 @@
 
 .ph-billing-return__dismiss {
   flex: none;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ts-text-faint, #9c958e);
+  min-width: 34px;
+  padding: 0;
   font-size: 1.25rem;
   line-height: 1;
-  cursor: pointer;
-  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.ph-billing-return__dismiss:hover {
-  color: var(--ts-text, #1a1815);
 }

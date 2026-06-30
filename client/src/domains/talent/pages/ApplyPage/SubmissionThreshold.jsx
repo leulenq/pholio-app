@@ -10,19 +10,20 @@ import { MARKETING_SITE_URL } from '../../../../shared/lib/logout';
 const FALLBACK_SECTIONS = [
   {
     heading: 'Your package goes to the agency',
-    body: 'When you submit, your digitals, stats, book, and comp card are shared with the agency you choose. They review your package and decide whether to represent you and where to place you.',
+    body: 'Adult packages include name, age, city, contact details, measurements, selected digitals and book, comp card, note, and linked social profiles. Minor packages omit direct contact, social links, portfolio URL, optional note, and raw date of birth; agencies communicate through Pholio.',
   },
   {
     heading: 'Pholio is not a talent agency',
     body: 'Pholio gives you the tools to present your work professionally. Submitting does not create representation, and we do not guarantee a reply, a meeting, signing, or income.',
   },
   {
-    heading: 'You stay in control',
-    body: 'You choose which agency receives your package, you can submit to more than one, and you can withdraw an active submission from your applications ledger at any time.',
+    heading: 'Retention and withdrawal',
+    body: 'Pholio retains the package for up to 24 months. Withdrawing revokes agency access in Pholio, redacts the platform snapshot, and deletes the platform message thread, but cannot recall copies already downloaded or recorded by the agency.',
   },
 ];
 
-const FULL_NOTICE_URL = `${MARKETING_SITE_URL}/legal/submission-program`;
+const TERMS_URL = `${MARKETING_SITE_URL}/terms`;
+const PRIVACY_URL = `${MARKETING_SITE_URL}/privacy`;
 
 export default function SubmissionThreshold({ content }) {
   const sections =
@@ -46,15 +47,26 @@ export default function SubmissionThreshold({ content }) {
         ))}
       </ol>
 
-      <a
-        href={FULL_NOTICE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="apply-threshold__link"
-      >
-        Read the full submission program notice
-        <ArrowUpRight size={13} aria-hidden />
-      </a>
+      <div className="apply-threshold__links" aria-label="Legal notices">
+        <a
+          href={TERMS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="apply-threshold__link"
+        >
+          Terms
+          <ArrowUpRight size={13} aria-hidden />
+        </a>
+        <a
+          href={PRIVACY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="apply-threshold__link"
+        >
+          Privacy notice
+          <ArrowUpRight size={13} aria-hidden />
+        </a>
+      </div>
     </div>
   );
 }

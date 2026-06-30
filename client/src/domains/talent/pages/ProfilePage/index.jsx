@@ -32,6 +32,9 @@ import { IdentitySection } from './IdentitySection';
 import { MeasurementsSection } from './MeasurementsSection';
 import { SocialSection } from './SocialSection';
 import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
+import PholioButton, {
+  PholioIconButton,
+} from '../../../../shared/components/ui/PholioButton';
 import { parseApiFailure } from '../../../../shared/lib/api-error-message';
 import { useReferenceLanguages } from '../../../../shared/hooks/useReferenceLanguages';
 import { flushProfileFormForSave } from './flushProfileFormForSave';
@@ -88,7 +91,9 @@ function normalizeEmergencyPhone(raw) {
 
 function deriveRepresentationStatus(profile) {
   const seeking = toFormBoolean(profile.seeking_representation, false);
-  const agency = profile.current_agency && String(profile.current_agency).trim();
+  const agency =
+    (Array.isArray(profile.representations) && profile.representations.length > 0) ||
+    (profile.current_agency && String(profile.current_agency).trim());
   if (seeking) return 'seeking';
   if (agency) return 'represented';
   return 'not_seeking';
@@ -183,6 +188,12 @@ function normalizeProfileForForm(profile = {}) {
     work_status: profile.work_status ? String(profile.work_status) : '',
     availability_schedule: profile.availability_schedule ? String(profile.availability_schedule) : '',
     current_agency: profile.current_agency ? String(profile.current_agency) : '',
+    representations: Array.isArray(profile.representations)
+      ? profile.representations.map((representation) => ({
+          ...representation,
+          started_on: toDateInputValue(representation.started_on) || '',
+        }))
+      : [],
     union_membership: toArrayField(profile.union_membership),
     comfort_levels: toArrayField(profile.comfort_levels),
     ...bookingLaneFields,
@@ -319,13 +330,18 @@ function BookingLanesControl({ primaryField, secondaryField, fitSignals = [] }) 
           <h4>Primary lane</h4>
           <span>Choose one</span>
         </div>
-        <div className={styles.bookingLaneGrid} role="radiogroup" aria-label="Primary booking lane">
+        <div
+          className={styles.bookingLaneGrid}
+          role="radiogroup"
+          aria-label="Primary booking lane"
+        >
           {BOOKING_LANES.map((lane) => {
             const isActive = primaryLane === lane.slug;
             return (
               <button
                 key={lane.slug}
                 type="button"
+                data-button-exception="booking-lanes"
                 role="radio"
                 aria-checked={isActive}
                 className={`${styles.bookingLaneOption} ${isActive ? styles.bookingLaneOptionActive : ''}`}
@@ -344,7 +360,11 @@ function BookingLanesControl({ primaryField, secondaryField, fitSignals = [] }) 
           <h4>Secondary lanes</h4>
           <span>{secondaryLanes.length}/3</span>
         </div>
-        <div className={styles.bookingLaneSecondaryGrid} role="group" aria-label="Secondary booking lanes">
+        <div
+          className={styles.bookingLaneSecondaryGrid}
+          role="group"
+          aria-label="Secondary booking lanes"
+        >
           {BOOKING_LANES.map((lane) => {
             const isPrimary = primaryLane === lane.slug;
             const isActive = secondaryLanes.includes(lane.slug);
@@ -352,6 +372,7 @@ function BookingLanesControl({ primaryField, secondaryField, fitSignals = [] }) 
               <button
                 key={lane.slug}
                 type="button"
+                data-button-exception="booking-lanes"
                 aria-pressed={isActive}
                 disabled={isPrimary}
                 className={`${styles.bookingLaneMini} ${isActive ? styles.bookingLaneMiniActive : ''}`}
@@ -482,6 +503,7 @@ export default function ProfilePage() {
     defaultValues: {
       seeking_representation: false,
       representation_status: 'not_seeking',
+      representations: [],
       tattoos: false,
       piercings: false,
       work_eligibility: null,
@@ -932,14 +954,30 @@ export default function ProfilePage() {
 
       const repStatus = payload.representation_status;
       delete payload.representation_status;
+      const representations = Array.isArray(payload.representations)
+        ? payload.representations.map((representation) => ({
+            id: representation.id || undefined,
+            agency_id: representation.agency_id || null,
+            external_agency_name: representation.agency_id
+              ? null
+              : representation.external_agency_name?.trim() || null,
+            relationship_type: representation.relationship_type,
+            market: representation.market?.trim() || null,
+            territory: representation.territory?.trim() || null,
+            division: representation.division?.trim() || null,
+            is_exclusive: Boolean(representation.is_exclusive),
+            started_on: representation.started_on || null,
+          }))
+        : [];
+      delete payload.representations;
+      delete payload.representation_history;
+      delete payload.current_agency;
       if (repStatus === 'seeking') {
         payload.seeking_representation = true;
-        payload.current_agency = null;
       } else if (repStatus === 'represented') {
         payload.seeking_representation = false;
       } else if (repStatus === 'not_seeking') {
         payload.seeking_representation = false;
-        payload.current_agency = null;
       }
       
       if (typeof payload.languages === 'string') {
@@ -1011,6 +1049,7 @@ export default function ProfilePage() {
         }
       }
 
+      await talentApi.replaceRepresentations(representations);
       const res = await talentApi.updateProfile(payload);
       if (saveRequestRef.current !== requestId) return;
 
@@ -1146,14 +1185,13 @@ export default function ProfilePage() {
   return (
     <div ref={pageRef} className={styles.pageContainer}>
       {/* Mobile Nav Toggle */}
-      <button 
+      <PholioIconButton
+        label="Toggle navigation"
         className={styles.navToggle} 
         onClick={() => setNavOpen(!navOpen)}
-        aria-label="Toggle navigation"
-        type="button"
       >
         {navOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      </PholioIconButton>
       
       {/* Mobile Nav Overlay */}
       <div 
@@ -1179,11 +1217,11 @@ export default function ProfilePage() {
           ) : (
             <>
               <div className={styles.heroNoPhotoBg} aria-hidden="true" />
-              <Link to={MEDIA_PATH} className={styles.addPhotoPrompt}>
+              <PholioButton to={MEDIA_PATH} variant="secondary" className={styles.addPhotoPrompt}>
                 <Camera size={20} strokeWidth={1.5} />
                 <span>Add primary photo</span>
                 <span className={styles.addPhotoHint}>Opens your book</span>
-              </Link>
+              </PholioButton>
             </>
           )}
         </div>
@@ -1230,8 +1268,8 @@ export default function ProfilePage() {
                   {missingCoreItems.length > 0 ? (
                     <>
                       {' '}
-                      <button
-                        type="button"
+                      <PholioButton
+                        variant="meta"
                         className={styles.heroReadinessToggle}
                         onClick={() => setGateItemsExpanded((open) => !open)}
                         aria-expanded={gateItemsExpanded}
@@ -1239,7 +1277,7 @@ export default function ProfilePage() {
                         {gateItemsExpanded
                           ? 'Hide items'
                           : `${missingCoreItems.length} item${missingCoreItems.length === 1 ? '' : 's'} remaining`}
-                      </button>
+                      </PholioButton>
                     </>
                   ) : null}
                 </p>
@@ -1396,7 +1434,6 @@ export default function ProfilePage() {
             <WritingAssistToolbar
               className={styles.trainingAssistToolbar}
               variant="architectural"
-              buttonSystem="dashboard"
               actions={[
                 {
                   id: 'format-training',
@@ -1717,6 +1754,8 @@ export default function ProfilePage() {
           setValue={setValue}
           errors={errors}
           dateOfBirth={watch('date_of_birth')}
+          watch={watch}
+          reloadProfile={reloadProfile}
         />
 
         <Section

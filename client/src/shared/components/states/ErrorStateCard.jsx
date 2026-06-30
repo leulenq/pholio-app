@@ -1,6 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import { AlertTriangle } from 'lucide-react';
+import PholioButton from '../ui/PholioButton';
 import './error-state-primitives.css';
 
 function ErrorStateAction({ action, tone = 'secondary' }) {
@@ -9,16 +10,13 @@ function ErrorStateAction({ action, tone = 'secondary' }) {
   }
 
   return (
-    <button
+    <PholioButton
       type="button"
-      className={clsx('ph-error-action', {
-        'ph-error-action--primary': tone === 'primary',
-        'ph-error-action--secondary': tone !== 'primary',
-      })}
+      variant={tone === 'primary' ? 'primary' : 'secondary'}
       onClick={action.onClick}
     >
       {action.label}
-    </button>
+    </PholioButton>
   );
 }
 
@@ -28,7 +26,6 @@ export default function ErrorStateCard({
   context = 'generic',
   title,
   body,
-  eyebrow,
   icon: Icon = AlertTriangle,
   retry,
   primaryAction,

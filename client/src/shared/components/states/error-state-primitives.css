@@ -114,7 +114,6 @@
 .ph-error-action--primary:hover {
   background: var(--ph-error-primary-bg-hover);
   border-color: var(--ph-error-primary-bg-hover);
-  transform: translateY(-1px);
 }
 
 .ph-error-action--secondary {

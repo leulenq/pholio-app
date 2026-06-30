@@ -141,37 +141,7 @@
 }
 
 .tl-btn-upgrade {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 8px 16px;
-  border-radius: 2px;
-  border: 1px solid var(--tl-gold);
-  background: var(--tl-gold);
-  color: var(--tl-ink);
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  text-decoration: none;
-  white-space: nowrap;
-  transition:
-    background 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.tl-btn-upgrade:hover {
-  background: #d4bc8a;
-  border-color: #d4bc8a;
-  color: var(--tl-ink);
-}
-
-.tl-btn-upgrade:focus-visible {
-  outline: 2px solid rgba(201, 165, 90, 0.55);
-  outline-offset: 2px;
+  flex-shrink: 0;
 }
 
 .tl-header-actions {
@@ -674,18 +644,6 @@
   color: rgba(26, 26, 26, 0.88);
 }
 
-.tl-root--tone-light .tl-btn-upgrade {
-  background: var(--tl-gold);
-  border-color: var(--tl-gold);
-  color: var(--tl-ink);
-}
-
-.tl-root--tone-light .tl-btn-upgrade:hover {
-  background: #d4bc8a;
-  border-color: #d4bc8a;
-  color: var(--tl-ink);
-}
-
 /* Flash messages */
 .tl-flash {
   display: flex;
@@ -718,15 +676,9 @@
 }
 
 .tl-flash-close {
-  background: none;
-  border: none;
-  color: inherit;
-  opacity: 0.45;
-  cursor: pointer;
-}
-
-.tl-flash-close:hover {
-  opacity: 1;
+  flex-shrink: 0;
+  min-width: 34px;
+  padding: 0;
 }
 
 /* Responsive */
@@ -848,4 +800,3 @@
     animation: none;
   }
 }
-

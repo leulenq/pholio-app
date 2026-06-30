@@ -6,6 +6,7 @@ import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/Notif
 import ReportDialog from '../../../shared/components/ReportDialog';
 import { talentApi } from '../api/talent';
 import WritingAssistToolbar from '../../../shared/components/writing/WritingAssistToolbar';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './ApplicationMessages.css';
 
 const POLISH_MIN_LENGTH = 10;
@@ -118,8 +119,9 @@ export default function ApplicationMessages({ applicationId, agencyName, hideTit
               <div className="app-msg__footer">
                 <span className="app-msg__time">{timeLabel(m.created_at)}</span>
                 {m.sender_type !== 'TALENT' && m.id && (
-                  <button
+                  <PholioButton
                     type="button"
+                    variant="meta"
                     className="app-msg__report"
                     onClick={() =>
                       setReportTarget({
@@ -130,7 +132,7 @@ export default function ApplicationMessages({ applicationId, agencyName, hideTit
                     }
                   >
                     Report
-                  </button>
+                  </PholioButton>
                 )}
               </div>
             </li>
@@ -163,8 +165,9 @@ export default function ApplicationMessages({ applicationId, agencyName, hideTit
               rows={2}
               maxLength={4000}
             />
-            <button
+            <PholioButton
               type="submit"
+              variant="primary"
               className="app-msg__send"
               disabled={!draft.trim() || send.isPending}
               aria-label="Send message"
@@ -174,7 +177,8 @@ export default function ApplicationMessages({ applicationId, agencyName, hideTit
               ) : (
                 <Send size={14} aria-hidden />
               )}
-            </button>
+              <span>Send</span>
+            </PholioButton>
           </div>
         </div>
       </form>

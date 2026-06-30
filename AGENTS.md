@@ -8,9 +8,18 @@ This Codex guide is based on `CLAUDE.md`. When `CLAUDE.md` changes, re-sync this
 
 Pholio is a full-stack talent portfolio and agency management platform. Talent users create portfolios with images, generate PDF comp cards, and apply to agencies. Agency users manage talent rosters, review applications, and track commissions.
 
+## 🚧 Repo Boundaries (CRITICAL)
+
+- **Marketing Site (`pholio-landing`):** `/Users/lenquanhone/Projects/pholio-landing`
+  - Handles all public-facing marketing pages.
+  - Handles all legal pages (Terms of Service, Privacy Policy, Submission Program Notice).
+  - Any marketing-site content must go here.
+- **Application Product (`pholio-app`):** `/Users/lenquanhone/Projects/pholio-app`
+  - This is the application product repo *only*. Do not put marketing or legal site pages here.
+
 ## Tech Stack
 
-- **Marketing Site:** Next.js 16 (TypeScript, Tailwind 4) in `landing/`
+- **Marketing Site:** Next.js 16 (TypeScript, Tailwind 4) in separate repo `pholio-landing`
 - **Backend:** Node.js 20, Express 5, CommonJS modules in `src/`
 - **Frontend:** React 19 SPA (Vite, ES modules) in `client/`
 - **Database:** SQLite3 (local dev) or PostgreSQL/Neon (production), via Knex.js
@@ -27,7 +36,7 @@ Pholio is a full-stack talent portfolio and agency management platform. Talent u
 
 ## 🚨 Visual Philosophy & Motion (CRITICAL)
 
-**The Landing Page is the Gold Standard.** The `landing/components/` Studio+ and Agency Perspective scene components define the aesthetic language for the entire Pholio app.
+**The Landing Page is the Gold Standard.** The Studio+ and Agency Perspective scene components in the marketing repo define the aesthetic language for the entire Pholio app.
 
 - **Motion:** Highly dynamic, spring-based Framer Motion physics (`stiffness: 55, damping: 16`). The app must feel alive, tactile, and responsive (hover scales, smooth entrances, scroll-tied animations). Do not build static, lifeless pages.
 - **Aesthetics:** High-polish tech/SaaS (glowing radial gradients, gamification, floating UI) blended with editorial serif typography.
@@ -54,8 +63,8 @@ Violating any of these rules requires explicit approval and a design discussion 
 ## Common Commands
 
 ```bash
-# Install all three sets of dependencies
-npm install && cd client && npm install && cd ../landing && npm install && cd ..
+# Install dependencies
+npm install && cd client && npm install && cd ..
 
 # Run everything at once (recommended)
 npm run dev:all          # Express :3000 + Vite :5173 concurrently
@@ -63,11 +72,9 @@ npm run dev:all          # Express :3000 + Vite :5173 concurrently
 # Or run individually:
 npm run dev              # Express backend on :3000
 npm run client:dev       # Vite React SPA on :5173 (proxies /api to :3000)
-cd landing && npm run dev  # Next.js marketing site on :3001
 
 # Build
 npm run client:build     # React SPA → public/dashboard-app/
-cd landing && npm run build
 
 # Database
 npm run migrate          # Apply pending migrations
@@ -83,7 +90,6 @@ npx jest path/to/test.js --testNamePattern "test name"
 
 # Lint
 cd client && npm run lint     # React SPA
-cd landing && npm run lint    # Next.js marketing site
 ```
 
 ## Architecture
@@ -92,7 +98,7 @@ cd landing && npm run lint    # Next.js marketing site
 
 | App | Tech | Location | Port | Domain |
 |-----|------|----------|------|--------|
-| Marketing | Next.js 16 SSG/SSR | `landing/` | 3001 | www.pholio.studio |
+| Marketing | Next.js 16 SSG/SSR | `pholio-landing` repo | 3001 | www.pholio.studio |
 | React SPA | Vite + React 19 | `client/` | 5173 | app.pholio.studio |
 | Express API | Node.js + Express 5 | `src/` | 3000 | app.pholio.studio |
 

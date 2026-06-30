@@ -132,8 +132,6 @@ export function ClassificationReviewRows({ images = [], onConfirm, onEdit }) {
                   <PholioButton
                     type="button"
                     variant="primary"
-                    size="sm"
-                    system="dashboard"
                     disabled={busyId === image.id}
                     onClick={() => acceptSuggestion(image)}
                   >
@@ -144,8 +142,6 @@ export function ClassificationReviewRows({ images = [], onConfirm, onEdit }) {
                 <PholioButton
                   type="button"
                   variant="secondary"
-                  size="sm"
-                  system="dashboard"
                   onClick={() => onEdit?.(image)}
                 >
                   <SlidersHorizontal size={13} aria-hidden="true" />
@@ -154,9 +150,7 @@ export function ClassificationReviewRows({ images = [], onConfirm, onEdit }) {
                 {state.status !== 'pending' ? (
                   <PholioButton
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    system="dashboard"
+                    variant="tertiary"
                     disabled={busyId === image.id}
                     onClick={() => holdReview(image)}
                   >

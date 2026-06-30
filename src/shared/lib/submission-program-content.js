@@ -19,7 +19,15 @@ const SUBMISSION_PROGRAM_CONTENT = {
     },
     {
       heading: "What Pholio delivers",
-      body: "When you submit, Pholio transmits your package to the named agency's inbox on the platform so their team can review it.",
+      body: "When an adult submits, Pholio sends the named agency their name, age derived from date of birth, city, email and phone, measurements, selected images and book, comp card, note, and linked social profiles included in the package. For minors, direct contact, social links, portfolio URL, optional note, and raw date of birth are omitted; the agency receives an age band and can communicate through Pholio.",
+    },
+    {
+      heading: "The agency is a separate recipient",
+      body: "The named agency receives your package for representation review and is responsible for its own access, use, retention, and any copies it makes outside Pholio.",
+    },
+    {
+      heading: "Retention and withdrawal",
+      body: "Pholio retains the submitted package for up to 24 months. Withdrawing revokes the agency's access in Pholio, redacts the platform snapshot, and deletes the platform message thread, but it cannot recall copies the agency already downloaded or recorded elsewhere.",
     },
     {
       heading: "You can withdraw a submission",

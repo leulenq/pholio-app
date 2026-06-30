@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Lock, ListChecks } from 'lucide-react';
 import BlockedStatePanel from '../states/BlockedStatePanel';
+import PholioButton from '../ui/PholioButton';
 import '../states/error-state-primitives.css';
 import './ProfileGateBanner.css';
 
@@ -122,28 +122,37 @@ export default function ProfileGateBanner({
                 <strong>{task.task || task.label}</strong>
                 <span>{task.group || 'Profile'}</span>
               </span>
-              <Link to={task.href || '/dashboard/talent/profile?gate=true'} className="profile-gate__task-action">
+              <PholioButton
+                to={task.href || '/dashboard/talent/profile?gate=true'}
+                variant="tertiary"
+                className="profile-gate__task-action"
+              >
                 {task.actionLabel || 'Open profile'}
                 <ArrowRight size={13} aria-hidden />
-              </Link>
+              </PholioButton>
             </li>
           ))}
         </ol>
       )}
 
       <div className="profile-gate__actions">
-        <Link
+        <PholioButton
           to={primaryTask?.href || '/dashboard/talent/profile?gate=true'}
+          variant="primary"
           className="profile-gate__primary"
         >
           <ListChecks size={14} aria-hidden />
           Start required tasks
           <ArrowRight size={14} aria-hidden />
-        </Link>
-        <Link to="/dashboard/talent/profile?gate=true" className="profile-gate__secondary">
+        </PholioButton>
+        <PholioButton
+          to="/dashboard/talent/profile?gate=true"
+          variant="secondary"
+          className="profile-gate__secondary"
+        >
           <Lock size={14} aria-hidden />
           Open profile
-        </Link>
+        </PholioButton>
       </div>
 
       {missingCount === 0 && (

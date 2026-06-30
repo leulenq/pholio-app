@@ -5,7 +5,11 @@ import { Crop, RotateCcw, RotateCw, Save, ScanLine, X, ZoomIn } from 'lucide-rea
 import { toast } from 'sonner';
 
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
-import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import './PhotoEditorModal.css';
 
 const ASPECTS = [
@@ -61,9 +65,9 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
             <div>
               <h2>Refine frame</h2>
             </div>
-            <button type="button" className="pem-icon-btn" onClick={onClose} aria-label="Close crop editor">
+            <PholioIconButton type="button" tone="dark" className="pem-icon-btn" onClick={onClose} aria-label="Close crop editor">
               <X size={18} />
-            </button>
+            </PholioIconButton>
           </header>
           <div className="pem-cropper-wrap">
           <Cropper
@@ -96,20 +100,21 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
                 <Crop size={14} />
                 <span>Frame</span>
               </div>
-              <div className="pem-aspect-grid">
+              <PholioToggleGroup className="pem-aspect-grid">
                 {ASPECTS.map((opt) => (
-                  <button
+                  <PholioToggleButton
                     key={opt.label}
                     type="button"
                     onClick={() => setAspect(opt.val)}
+                    active={Math.abs(aspect - opt.val) < 0.01}
                     className={Math.abs(aspect - opt.val) < 0.01 ? 'is-active' : ''}
                   >
                     <span className="pem-aspect-icon" style={{ aspectRatio: `${opt.val}` }} />
                     <span>{opt.label}</span>
                     <small>{opt.meta}</small>
-                  </button>
+                  </PholioToggleButton>
                 ))}
-              </div>
+              </PholioToggleGroup>
             </div>
 
             <div className="pem-tool-section">
@@ -147,22 +152,22 @@ export default function PhotoEditorModal({ imageSrc, onClose, onSave }) {
                 className="pem-range"
               />
               <div className="pem-nudge-row">
-                <button type="button" onClick={() => rotateBy(-90)}><RotateCcw size={14} />Left</button>
-                <button type="button" onClick={() => rotateBy(90)}><RotateCw size={14} />Right</button>
+                <PholioButton type="button" variant="tertiary" onClick={() => rotateBy(-90)}><RotateCcw size={14} />Left</PholioButton>
+                <PholioButton type="button" variant="tertiary" onClick={() => rotateBy(90)}><RotateCw size={14} />Right</PholioButton>
               </div>
             </div>
 
-            <PholioButton type="button" variant="secondary" system="dashboard" fullWidth onClick={resetCrop}>
+            <PholioButton type="button" variant="secondary" fullWidth onClick={resetCrop}>
               <ScanLine size={14} />
               Reset composition
             </PholioButton>
           </div>
 
           <footer className="pem-footer">
-            <PholioButton type="button" variant="secondary" system="dashboard" onClick={onClose}>
+            <PholioButton type="button" variant="secondary" onClick={onClose}>
               Cancel
             </PholioButton>
-            <PholioButton type="button" variant="primary" system="dashboard" onClick={handleSave} disabled={isProcessing}>
+            <PholioButton type="button" variant="primary" onClick={handleSave} disabled={isProcessing}>
               {isProcessing ? 'Processing...' : <><Save size={15} />Apply crop</>}
             </PholioButton>
           </footer>

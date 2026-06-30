@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Image as ImageIcon, ArrowRight, Eye, Edit, Camera, Sparkles, User, Upload } from 'lucide-react';
 import { useRecentPhotos } from '../../hooks/useRecentPhotos';
+import { PholioIconButton } from '../../../shared/components/ui/PholioButton';
 import './PhotoGallery.css';
 
 export const PhotoGallery = () => {
@@ -45,8 +46,8 @@ export const PhotoGallery = () => {
                />
                <div className="photo-overlay">
                   <div className="photo-actions">
-                     <button className="photo-action-btn" title="View"><Eye size={18} /></button>
-                     <button className="photo-action-btn" title="Edit"><Edit size={18} /></button>
+                     <PholioIconButton tone="dark" className="photo-action-btn" label="View photo"><Eye size={18} /></PholioIconButton>
+                     <PholioIconButton tone="dark" className="photo-action-btn" label="Edit photo"><Edit size={18} /></PholioIconButton>
                   </div>
                </div>
             </div>

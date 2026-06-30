@@ -323,11 +323,6 @@ async function seedAgencyDemo(knex) {
     logo_path: AGENCY_LOGO,
     brand_color: AGENCY_BRAND_COLOR,
     open_boards: JSON.stringify(AGENCY_OPEN_BOARDS),
-    instagram_handle: "lumenmodels",
-    tiktok_handle: "lumenmodels",
-    twitter_handle: "lumenmodels",
-    youtube_handle: "lumenmodelsnyc",
-    video_reel_url: "https://vimeo.com/lumenmodels/showreel",
     notify_new_applications: true,
     notify_status_changes: true,
     default_view: "overview",
@@ -493,7 +488,6 @@ async function seedAgencyDemo(knex) {
             shoe_size: `${ri(7, 10)} US`,
             hair_color: pick(["Brown", "Blonde", "Black", "Auburn"]),
             eye_color: pick(["Brown", "Blue", "Green", "Hazel"]),
-            instagram_handle: `${p.first.toLowerCase()}${p.last.toLowerCase().slice(0, 4)}`,
           }
         : {}),
     };

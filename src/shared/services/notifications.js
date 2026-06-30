@@ -228,6 +228,10 @@ function applicationStatusCopy(status, agencyName) {
       title: "Meeting requested",
       body: `${agency} wants to meet — check your submission for details.`,
     },
+    development: {
+      title: "Development offer",
+      body: `${agency} wants to develop you as a new face before full representation.`,
+    },
     accepted: {
       title: "Application accepted",
       body: `${agency} accepted your application.`,
@@ -267,6 +271,7 @@ const NOTIFY_STATUSES = new Set([
   "shortlisted",
   "requested_more",
   "meeting_requested",
+  "development",
   "accepted",
   "booked",
   "declined",
@@ -313,9 +318,13 @@ async function notifyTalentApplicationStatusChange({
     title: copy.title,
     body: copy.body,
     routeTarget: `/dashboard/talent/applications?application=${applicationId}`,
-    priority: ["accepted", "booked", "meeting_requested", "requested_more"].includes(
-      status,
-    )
+    priority: [
+      "development",
+      "accepted",
+      "booked",
+      "meeting_requested",
+      "requested_more",
+    ].includes(status)
       ? PRIORITIES.HIGH
       : PRIORITIES.NORMAL,
     groupKey: `application_status:${applicationId}:${status}`,

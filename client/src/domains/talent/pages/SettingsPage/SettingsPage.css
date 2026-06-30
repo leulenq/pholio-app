@@ -486,29 +486,10 @@
   gap: 20px;
 }
 
-.ts-freq-options { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ts-freq-options { display: flex; flex-wrap: wrap; justify-content: flex-end; }
 
 .ts-freq-btn {
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 500;
-  font-family: inherit;
-  background: var(--ts-surface);
-  border: 1px solid var(--ts-border-strong);
-  color: var(--ts-text-soft);
-  cursor: pointer;
-  transition: all 0.2s var(--ts-ease);
   white-space: nowrap;
-}
-.ts-freq-btn:hover {
-  background: var(--ts-cream-warm);
-  color: var(--ts-text);
-}
-.ts-freq-btn.active {
-  background: var(--ts-gold-muted);
-  border-color: rgba(201, 165, 90, 0.35);
-  color: #8a7040;
 }
 
 /* ─── Loading ─── */
@@ -742,25 +723,11 @@
 }
 
 .ts-display-option {
-  background: var(--ts-surface);
-  border: 1px solid var(--ts-border-strong);
-  border-radius: var(--ts-radius);
   padding: 14px 12px;
-  cursor: pointer;
   text-align: left;
-  transition: all 0.2s var(--ts-ease);
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-.ts-display-option:hover {
-  background: var(--ts-cream-warm);
-  border-color: rgba(26, 24, 21, 0.18);
-}
-.ts-display-option.active {
-  background: var(--ts-gold-ghost);
-  border-color: rgba(201, 165, 90, 0.4);
-  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
 }
 
 .ts-display-option-label {
@@ -769,8 +736,6 @@
   color: var(--ts-text-body);
   display: block;
 }
-.ts-display-option.active .ts-display-option-label { color: #8a7040; }
-
 .ts-display-option-desc {
   font-size: 10px;
   color: var(--ts-text-soft);
