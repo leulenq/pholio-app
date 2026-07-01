@@ -54,7 +54,9 @@ function parseChangePct(change) {
   return m ? asNum(m[0]) : 0;
 }
 
-const PUBLIC_PORTFOLIO_ORIGIN = 'https://pholio.studio';
+const PUBLIC_PORTFOLIO_ORIGIN = (
+  import.meta.env.VITE_PORTFOLIO_URL || 'https://pholio.studio'
+).replace(/\/$/, '');
 
 function portfolioShareUrl(slug) {
   if (!slug) return null;
@@ -461,10 +463,10 @@ export default function OverviewPage() {
                     Your <em>Reach.</em>
                   </h2>
                 </div>
-                {!analyticsLoading && !summaryError && viewsDelta > 0 && (
-                  <p className="ov-delta-note">
-                    <TrendingUp size={11} aria-hidden />
-                    <span>+{viewsDelta}% views</span>
+                {!analyticsLoading && !summaryError && viewsDelta !== 0 && (
+                  <p className={`ov-delta-note ${viewsDelta < 0 ? 'ov-delta-note--negative' : ''}`}>
+                    <TrendingUp size={11} aria-hidden style={{ transform: viewsDelta < 0 ? 'scaleY(-1)' : 'none' }} />
+                    <span>{viewsDelta > 0 ? '+' : ''}{viewsDelta}% views</span>
                   </p>
                 )}
               </div>
@@ -571,8 +573,7 @@ export default function OverviewPage() {
                         Digital <em>Comp Card</em>
                       </h3>
                       <p className="ov-artifact-desc">
-                        Your defining identity artifact — professional specs composed with your
-                        latest polaroids, export-ready for agency submission.
+                        Your defining identity artifact — professional specs composed from your book and current stats, export-ready for agency submission.
                       </p>
                     </Link>
                     <div className="ov-artifact-footer">

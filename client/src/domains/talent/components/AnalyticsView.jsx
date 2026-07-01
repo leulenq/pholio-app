@@ -507,8 +507,7 @@ function PatternChapter({ cohorts, isPro }) {
 
 export default function AnalyticsView() {
   const { subscription } = useAuth();
-  const isPro = !!(subscription?.isPro ||
-    new URLSearchParams(window.location.search).get('debug') === 'pro');
+  const isPro = !!subscription?.isPro;
   const [rangeOverride, setRangeOverride] = useState(null);
   const timeRange = rangeOverride ?? (isPro ? 30 : 7);
 

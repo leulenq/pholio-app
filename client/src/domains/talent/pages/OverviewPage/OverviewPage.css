@@ -669,6 +669,10 @@
   flex-shrink: 0;
 }
 
+.ov-delta-note--negative {
+  color: rgba(169, 97, 97, 0.65);
+}
+
 .ov-stat-value {
   font-family: 'Noto Serif Display', Georgia, serif;
   font-size: clamp(2rem, 3vw, 2.375rem);
