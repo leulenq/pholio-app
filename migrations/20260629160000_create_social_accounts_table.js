@@ -1,5 +1,22 @@
 const crypto = require("crypto");
 
+async function existingColumns(knex, tableName) {
+  const rows = await knex("information_schema.columns")
+    .where({ table_name: tableName, table_schema: "public" })
+    .select("column_name");
+  return new Set(rows.map((row) => row.column_name));
+}
+
+function pickExisting(source, columns) {
+  const picked = {};
+  for (const column of columns) {
+    if (source[column] !== undefined) {
+      picked[column] = source[column];
+    }
+  }
+  return picked;
+}
+
 /**
  * Migration: Move social media fields to a separate social_accounts table.
  *
@@ -41,8 +58,11 @@ exports.up = async function up(knex) {
     console.log("[Migration] Added profiles.social_reach column");
   }
 
-  // 3. Extract and backfill data
-  const profiles = await knex("profiles").select(
+  // 3. Extract and backfill data (only columns that still exist on this database)
+  const profileColumnSet = await existingColumns(knex, "profiles");
+  const agencyColumnSet = await existingColumns(knex, "agencies");
+
+  const profileColumns = [
     "id",
     "instagram_handle",
     "instagram_url",
@@ -53,83 +73,92 @@ exports.up = async function up(knex) {
     "youtube_handle",
     "youtube_url",
     "onlyfans_url",
-    "portfolio_url"
-  );
+    "portfolio_url",
+  ].filter((column) => profileColumnSet.has(column));
 
-  const agencies = await knex("agencies").select(
+  const agencyColumns = [
     "id",
     "instagram_handle",
     "tiktok_handle",
     "twitter_handle",
     "youtube_handle",
-    "video_reel_url"
-  );
+    "video_reel_url",
+  ].filter((column) => agencyColumnSet.has(column));
+
+  const profiles = profileColumns.length > 1
+    ? await knex("profiles").select(profileColumns)
+    : [];
+
+  const agencies = agencyColumns.length > 1
+    ? await knex("agencies").select(agencyColumns)
+    : [];
 
   const socialAccounts = [];
 
   for (const profile of profiles) {
-    if (profile.instagram_handle || profile.instagram_url) {
+    const profileData = pickExisting(profile, profileColumns);
+    if (profileData.instagram_handle || profileData.instagram_url) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         profile_id: profile.id,
         platform: "instagram",
-        handle: profile.instagram_handle || null,
-        url: profile.instagram_url || null,
+        handle: profileData.instagram_handle || null,
+        url: profileData.instagram_url || null,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (profile.tiktok_handle || profile.tiktok_url) {
+    if (profileData.tiktok_handle || profileData.tiktok_url) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         profile_id: profile.id,
         platform: "tiktok",
-        handle: profile.tiktok_handle || null,
-        url: profile.tiktok_url || null,
+        handle: profileData.tiktok_handle || null,
+        url: profileData.tiktok_url || null,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (profile.twitter_handle || profile.twitter_url) {
+    if (profileData.twitter_handle || profileData.twitter_url) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         profile_id: profile.id,
         platform: "twitter",
-        handle: profile.twitter_handle || null,
-        url: profile.twitter_url || null,
+        handle: profileData.twitter_handle || null,
+        url: profileData.twitter_url || null,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (profile.youtube_handle || profile.youtube_url) {
+    if (profileData.youtube_handle || profileData.youtube_url) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         profile_id: profile.id,
         platform: "youtube",
-        handle: profile.youtube_handle || null,
-        url: profile.youtube_url || null,
+        handle: profileData.youtube_handle || null,
+        url: profileData.youtube_url || null,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (profile.onlyfans_url) {
+    if (profileData.onlyfans_url) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         profile_id: profile.id,
         platform: "onlyfans",
         handle: null,
-        url: profile.onlyfans_url,
+        url: profileData.onlyfans_url,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (profile.portfolio_url) {
+    if (profileData.portfolio_url) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         profile_id: profile.id,
         platform: "portfolio",
         handle: null,
-        url: profile.portfolio_url,
+        url: profileData.portfolio_url,
         created_at: new Date(),
         updated_at: new Date()
       });
@@ -137,57 +166,58 @@ exports.up = async function up(knex) {
   }
 
   for (const agency of agencies) {
-    if (agency.instagram_handle) {
+    const agencyData = pickExisting(agency, agencyColumns);
+    if (agencyData.instagram_handle) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         agency_id: agency.id,
         platform: "instagram",
-        handle: agency.instagram_handle,
-        url: `https://instagram.com/${agency.instagram_handle}`,
+        handle: agencyData.instagram_handle,
+        url: `https://instagram.com/${agencyData.instagram_handle}`,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (agency.tiktok_handle) {
+    if (agencyData.tiktok_handle) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         agency_id: agency.id,
         platform: "tiktok",
-        handle: agency.tiktok_handle,
-        url: `https://tiktok.com/@${agency.tiktok_handle}`,
+        handle: agencyData.tiktok_handle,
+        url: `https://tiktok.com/@${agencyData.tiktok_handle}`,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (agency.twitter_handle) {
+    if (agencyData.twitter_handle) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         agency_id: agency.id,
         platform: "twitter",
-        handle: agency.twitter_handle,
-        url: `https://x.com/${agency.twitter_handle}`,
+        handle: agencyData.twitter_handle,
+        url: `https://x.com/${agencyData.twitter_handle}`,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (agency.youtube_handle) {
+    if (agencyData.youtube_handle) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         agency_id: agency.id,
         platform: "youtube",
-        handle: agency.youtube_handle,
-        url: `https://youtube.com/${agency.youtube_handle}`,
+        handle: agencyData.youtube_handle,
+        url: `https://youtube.com/${agencyData.youtube_handle}`,
         created_at: new Date(),
         updated_at: new Date()
       });
     }
-    if (agency.video_reel_url) {
+    if (agencyData.video_reel_url) {
       socialAccounts.push({
         id: crypto.randomUUID(),
         agency_id: agency.id,
         platform: "video_reel",
         handle: null,
-        url: agency.video_reel_url,
+        url: agencyData.video_reel_url,
         created_at: new Date(),
         updated_at: new Date()
       });
@@ -199,30 +229,46 @@ exports.up = async function up(knex) {
     console.log(`[Migration] Backfilled ${socialAccounts.length} social accounts`);
   }
 
-  // 4. Drop obsolete columns from profiles
-  await knex.schema.alterTable("profiles", (table) => {
-    table.dropColumn("instagram_handle");
-    table.dropColumn("instagram_url");
-    table.dropColumn("tiktok_handle");
-    table.dropColumn("tiktok_url");
-    table.dropColumn("twitter_handle");
-    table.dropColumn("twitter_url");
-    table.dropColumn("youtube_handle");
-    table.dropColumn("youtube_url");
-    table.dropColumn("onlyfans_url");
-    table.dropColumn("portfolio_url");
-  });
-  console.log("[Migration] Dropped old columns from profiles table");
+  // 4. Drop obsolete columns from profiles (only if they still exist)
+  const profileDropColumns = [
+    "instagram_handle",
+    "instagram_url",
+    "tiktok_handle",
+    "tiktok_url",
+    "twitter_handle",
+    "twitter_url",
+    "youtube_handle",
+    "youtube_url",
+    "onlyfans_url",
+    "portfolio_url",
+  ].filter((column) => profileColumnSet.has(column));
 
-  // 5. Drop obsolete columns from agencies
-  await knex.schema.alterTable("agencies", (table) => {
-    table.dropColumn("instagram_handle");
-    table.dropColumn("tiktok_handle");
-    table.dropColumn("twitter_handle");
-    table.dropColumn("youtube_handle");
-    table.dropColumn("video_reel_url");
-  });
-  console.log("[Migration] Dropped old columns from agencies table");
+  if (profileDropColumns.length > 0) {
+    await knex.schema.alterTable("profiles", (table) => {
+      for (const column of profileDropColumns) {
+        table.dropColumn(column);
+      }
+    });
+    console.log("[Migration] Dropped old columns from profiles table");
+  }
+
+  // 5. Drop obsolete columns from agencies (only if they still exist)
+  const agencyDropColumns = [
+    "instagram_handle",
+    "tiktok_handle",
+    "twitter_handle",
+    "youtube_handle",
+    "video_reel_url",
+  ].filter((column) => agencyColumnSet.has(column));
+
+  if (agencyDropColumns.length > 0) {
+    await knex.schema.alterTable("agencies", (table) => {
+      for (const column of agencyDropColumns) {
+        table.dropColumn(column);
+      }
+    });
+    console.log("[Migration] Dropped old columns from agencies table");
+  }
 
   console.log("[Migration] Social media columns refactored successfully!");
 };

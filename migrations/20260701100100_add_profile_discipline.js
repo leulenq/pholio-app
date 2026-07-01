@@ -86,13 +86,23 @@ exports.up = async function up(knex) {
       table.string("discipline", 20).notNullable().defaultTo("model");
     });
 
-    const rows = await knex("profiles").select(
+    const profileColumnSet = new Set(
+      await knex("information_schema.columns")
+        .where({ table_name: "profiles", table_schema: "public" })
+        .pluck("column_name"),
+    );
+
+    const selectColumns = [
       "id",
       "specialties",
       "specializations",
       "modeling_categories",
       "experience_level",
-    );
+    ].filter((column) => profileColumnSet.has(column));
+
+    const rows = selectColumns.length > 1
+      ? await knex("profiles").select(selectColumns)
+      : [];
     for (const row of rows) {
       const discipline = deriveDiscipline(row);
       if (discipline !== "model") {
