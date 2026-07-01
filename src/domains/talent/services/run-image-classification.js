@@ -81,6 +81,15 @@ async function runImageClassification(knex, imageId) {
     const imageRow = await knex("images").where({ id: imageId }).first();
     if (!imageRow) return;
 
+    // Age/consent authority for the minor-image safety lock (audit P0-8). The
+    // policy re-evaluates exclusion from this and forces it if needed.
+    const profile = imageRow.profile_id
+      ? await knex("profiles")
+          .where({ id: imageRow.profile_id })
+          .select("id", "date_of_birth", "guardian_consent_at")
+          .first()
+      : null;
+
     const metadata = parseMetadata(imageRow.metadata);
     const imageIntel = extractImageIntel(metadata);
     const buffer = await readImageBuffer(imageRow);
@@ -104,6 +113,7 @@ async function runImageClassification(knex, imageId) {
     const { band, columnUpdates, metadataPatch } = applyClassificationPolicy({
       imageRow,
       classification,
+      profile,
     });
 
     const mergedMetadata = {
@@ -124,7 +134,12 @@ async function runImageClassification(knex, imageId) {
       ...columnUpdates,
     };
 
-    await knex("images").where({ id: imageId }).update(updatePayload);
+    // Atomic write: the classification tags AND any forced minor/sensitive
+    // exclusion land in the SAME UPDATE, wrapped in a transaction, so there is
+    // never a window where the image is tagged sensitive yet still exposed.
+    await knex.transaction(async (trx) => {
+      await trx("images").where({ id: imageId }).update(updatePayload);
+    });
     scheduleDiscoverReindex(knex, imageRow.profile_id);
   } catch (err) {
     console.warn("[PITS] runImageClassification failed:", imageId, err.message);

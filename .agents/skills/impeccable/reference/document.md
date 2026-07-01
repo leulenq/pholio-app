@@ -1,6 +1,6 @@
 Generate a `DESIGN.md` file at the project root that captures the current visual design system, so AI agents generating new screens stay on-brand.
 
-DESIGN.md follows the [official Google Stitch DESIGN.md format](https://stitch.withgoogle.com/docs/design-md/format/): YAML frontmatter carrying machine-readable design tokens, followed by a markdown body with exactly six sections in a fixed order. **Tokens are normative; prose provides context for how to apply them.** Sections may be omitted when not relevant, but **do not reorder them and do not rename them**. Section headers must match the spec character-for-character so the file stays parseable by other DESIGN.md-aware tools (Stitch itself, awesome-design-md, skill-rest, etc.).
+DESIGN.md follows the [official DESIGN.md format spec](https://raw.githubusercontent.com/google-labs-code/design.md/main/docs/spec.md): YAML frontmatter carrying machine-readable design tokens, followed by a markdown body with exactly six sections in a fixed order. **Tokens are normative; prose provides context for how to apply them.** Sections may be omitted when not relevant, but **do not reorder them and do not rename them**. Section headers must match the spec character-for-character so the file stays parseable by other DESIGN.md-aware tools (Stitch itself, awesome-design-md, skill-rest, etc.).
 
 ## The frontmatter: token schema
 
@@ -61,19 +61,19 @@ Optional evocative subtitles are allowed in the form `## 2. Colors: The [Name] P
 
 ## When to run
 
-- The user just ran `/impeccable init` and needs the visual side documented.
+- The user just ran `$impeccable init` and needs the visual side documented.
 - The skill noticed no `DESIGN.md` exists and nudged the user to create one.
 - An existing `DESIGN.md` is stale (the design has drifted).
 - Before a large redesign, to capture the current state as a reference.
 
-If a `DESIGN.md` already exists, **do not silently overwrite it**. Show the user the existing file and STOP and call the AskUserQuestion tool to clarify. whether to refresh, overwrite, or merge.
+If a `DESIGN.md` already exists, **do not silently overwrite it**. Show the user the existing file and STOP and use Codex's structured user-input/question tool when available; if unavailable, ask directly in chat to clarify what you cannot infer. whether to refresh, overwrite, or merge.
 
 ## Two paths
 
 - **Scan mode** (default): the project has design tokens, components, or rendered output. Extract, then confirm descriptive language. Use when there's code to analyze.
 - **Seed mode**: the project is pre-implementation (fresh init, nothing built yet). Interview for five high-level answers, write a minimal DESIGN.md marked `<!-- SEED -->`. Re-run in scan mode once there's code.
 
-Decide by scanning first (Scan mode Step 1). If the scan finds no tokens, no component files, and no rendered site, offer seed mode; don't silently switch. `/impeccable document --seed` forces seed mode regardless of code presence.
+Decide by scanning first (Scan mode Step 1). If the scan finds no tokens, no component files, and no rendered site, offer seed mode; don't silently switch. `$impeccable document --seed` forces seed mode regardless of code presence.
 
 ## Scan mode (approach C: auto-extract, then confirm descriptive language)
 
@@ -342,7 +342,7 @@ For projects with no visual system to extract yet. Produces a minimal scaffold, 
 
 ### Step 1: Confirm seed mode
 
-Before interviewing: "There's no existing visual system to scan. I'll ask five quick questions to seed a starter DESIGN.md. You can re-run `/impeccable document` once there's code, to capture the real tokens and components. OK?"
+Before interviewing: "There's no existing visual system to scan. I'll ask five quick questions to seed a starter DESIGN.md. You can re-run `$impeccable document` once there's code, to capture the real tokens and components. OK?"
 
 If the user prefers to skip, stop. No file.
 
@@ -381,7 +381,7 @@ Use the six-section spec from Scan mode. Populate what the interview answers; le
 Lead the file with:
 
 ```markdown
-<!-- SEED: re-run /impeccable document once there's code to capture the actual tokens and components. -->
+<!-- SEED: re-run $impeccable document once there's code to capture the actual tokens and components. -->
 ```
 
 Per-section guidance in seed mode:
@@ -398,7 +398,7 @@ Seed mode writes a minimal frontmatter with `name` and `description` only; no co
 ### Step 4: Confirm
 
 1. Show the seed DESIGN.md. Call out that it is a seed (the marker is the literal commitment).
-2. Tell the user: "Re-run `/impeccable document` once you have some code. That pass will extract real tokens and generate the sidecar."
+2. Tell the user: "Re-run `$impeccable document` once you have some code. That pass will extract real tokens and generate the sidecar."
 
 Your own write is the freshest source; no reload needed.
 

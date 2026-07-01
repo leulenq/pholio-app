@@ -14,9 +14,23 @@ const { v4: uuidv4 } = require("uuid");
 
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
+const { FORBIDDEN_KEYS } = require("../contract/audience-dto.test");
 
 const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
 const TEST_DB_PATH = path.resolve(__dirname, "../../test-agency-rbac.sqlite3");
+
+// Recursively collect every object key that appears anywhere in a payload.
+function collectAllKeys(node, acc = new Set()) {
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectAllKeys(item, acc));
+  } else if (node && typeof node === "object") {
+    for (const [key, value] of Object.entries(node)) {
+      acc.add(key);
+      collectAllKeys(value, acc);
+    }
+  }
+  return acc;
+}
 
 const AGENCY_ID = uuidv4();
 const OWNER_USER_ID = uuidv4();
@@ -196,6 +210,34 @@ async function createMinimalSchema() {
       t.string("activity_type", 100).notNullable();
       t.text("description").nullable();
       t.text("metadata").nullable();
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+    });
+  }
+
+  if (!(await knex.schema.hasTable("images"))) {
+    await knex.schema.createTable("images", (t) => {
+      t.string("id", 36).primary();
+      t.string("profile_id", 36).nullable();
+      t.string("path").nullable();
+      t.string("public_url").nullable();
+      t.boolean("is_primary").defaultTo(false);
+      t.string("shot_type", 50).nullable();
+      t.string("image_type", 50).nullable();
+      t.integer("sort").defaultTo(0);
+      t.string("status", 20).nullable();
+      t.string("moderation_status", 20).nullable();
+      t.boolean("exclude_from_public").defaultTo(false);
+      t.boolean("exclude_from_agency").defaultTo(false);
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+    });
+  }
+
+  if (!(await knex.schema.hasTable("application_tags"))) {
+    await knex.schema.createTable("application_tags", (t) => {
+      t.string("id", 36).primary();
+      t.string("application_id", 36).notNullable();
+      t.string("agency_id", 36).notNullable();
+      t.string("tag", 100).notNullable();
       t.timestamp("created_at").defaultTo(knex.fn.now());
     });
   }
@@ -625,5 +667,316 @@ describe("agency RBAC custom grants", () => {
     await knex("agency_memberships")
       .where({ id: MEMBERSHIP.scout })
       .update({ membership_role: "SCOUT" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cross-agency isolation for GET /api/agency/applications (audit P0-3).
+// The endpoint must return ONLY real applicants to the SESSION agency — never a
+// profile that applied to a different agency, and never a non-applicant.
+// ---------------------------------------------------------------------------
+describe("agency applications cross-tenant isolation", () => {
+  const AGENCY_B_ID = uuidv4();
+  const P_APPLIED_A = uuidv4();
+  const P_APPLIED_B = uuidv4();
+  const P_NO_APP = uuidv4();
+  const APP_TO_A = uuidv4();
+  const APP_TO_B = uuidv4();
+
+  beforeAll(async () => {
+    await knex("profiles").insert([
+      {
+        id: P_APPLIED_A,
+        first_name: "Applied",
+        last_name: "ToA",
+        bio_curated: "Applicant to agency A",
+      },
+      {
+        id: P_APPLIED_B,
+        first_name: "Applied",
+        last_name: "ToB",
+        bio_curated: "Applicant to agency B only",
+      },
+      {
+        id: P_NO_APP,
+        first_name: "Never",
+        last_name: "Applied",
+        bio_curated: "Discoverable but never submitted to anyone",
+      },
+    ]);
+
+    await knex("applications").insert([
+      {
+        id: APP_TO_A,
+        profile_id: P_APPLIED_A,
+        agency_id: AGENCY_ID,
+        status: "submitted",
+      },
+      {
+        id: APP_TO_B,
+        profile_id: P_APPLIED_B,
+        agency_id: AGENCY_B_ID,
+        status: "submitted",
+      },
+    ]);
+  });
+
+  afterAll(async () => {
+    await knex("applications")
+      .whereIn("id", [APP_TO_A, APP_TO_B])
+      .del();
+    await knex("profiles")
+      .whereIn("id", [P_APPLIED_A, P_APPLIED_B, P_NO_APP])
+      .del();
+  });
+
+  test("agency A sees only its own applicant, not agency B's or non-applicants", async () => {
+    const withCookie = await agentWithAgencySession({
+      memberUserId: OWNER_USER_ID,
+      membershipId: MEMBERSHIP.owner,
+      membershipRole: "OWNER",
+    });
+
+    const res = await withCookie(
+      request(app).get("/api/agency/applications"),
+    );
+
+    expect(res.status).toBe(200);
+    const returnedIds = res.body.profiles.map((p) => p.id);
+    const returnedAppIds = res.body.profiles.map((p) => p.application_id);
+
+    // Only the profile that applied to agency A comes back.
+    expect(returnedAppIds).toContain(APP_TO_A);
+    expect(returnedIds).toContain(P_APPLIED_A);
+
+    // A profile that applied only to agency B is NOT visible to agency A.
+    expect(returnedAppIds).not.toContain(APP_TO_B);
+    expect(returnedIds).not.toContain(P_APPLIED_B);
+
+    // A profile with NO application is NOT visible (the old whereNull leak).
+    expect(returnedIds).not.toContain(P_NO_APP);
+  });
+
+  test("applications response leaks no forbidden key or owner email", async () => {
+    const withCookie = await agentWithAgencySession({
+      memberUserId: OWNER_USER_ID,
+      membershipId: MEMBERSHIP.owner,
+      membershipRole: "OWNER",
+    });
+
+    const res = await withCookie(
+      request(app).get("/api/agency/applications"),
+    );
+
+    expect(res.status).toBe(200);
+    const keys = collectAllKeys(res.body.profiles);
+
+    // /applications is the SUBMISSION audience: an actual application exists, so
+    // the minor-safe snapshot intentionally carries more than generic discovery
+    // (e.g. a derived `age`). We therefore assert the truly-never set — the same
+    // denial contract used by the submission DTO — anchored on the P0-3 leak.
+    const SUBMISSION_NEVER = [
+      "owner_email",
+      "user_email",
+      "email",
+      "phone",
+      "guardian_email",
+      "emergency_contact_phone",
+      "source_agency_id",
+      "partner_agency_id",
+      "photo_embedding",
+      "fit_score_overall",
+      "ip_address",
+      "predicted_bust",
+      "search_document",
+    ];
+    expect(SUBMISSION_NEVER.filter((k) => keys.has(k))).toEqual([]);
+    // Sanity: the discovery-only forbidden set still catches account identity.
+    expect(FORBIDDEN_KEYS.has("owner_email")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Roster-detail and discover-preview DTO isolation (audit P0-3 leak class).
+// Both previously spread a RAW profile row (+ owner email) to the agency.
+// ---------------------------------------------------------------------------
+describe("agency roster/preview DTO isolation", () => {
+  const ROSTER_PROFILE = uuidv4();
+  const ROSTER_APP = uuidv4();
+  const PREVIEW_ADULT = uuidv4();
+  const PREVIEW_MINOR = uuidv4();
+  const VISIBLE_IMG = uuidv4();
+  const HIDDEN_IMG = uuidv4();
+
+  const isoYearsAgo = (n) =>
+    new Date(Date.UTC(new Date().getUTCFullYear() - n, 0, 1))
+      .toISOString()
+      .slice(0, 10);
+
+  async function ensureColumn(table, col, add) {
+    if (!(await knex.schema.hasColumn(table, col))) {
+      await knex.schema.alterTable(table, add);
+    }
+  }
+
+  beforeAll(async () => {
+    await ensureColumn("profiles", "is_discoverable", (t) =>
+      t.boolean("is_discoverable").defaultTo(false),
+    );
+    await ensureColumn("profiles", "date_of_birth", (t) =>
+      t.string("date_of_birth", 40).nullable(),
+    );
+    await ensureColumn("profiles", "guardian_consent_at", (t) =>
+      t.timestamp("guardian_consent_at").nullable(),
+    );
+    await ensureColumn("profiles", "slug", (t) => t.string("slug", 200).nullable());
+    await ensureColumn("profiles", "city", (t) => t.string("city", 100).nullable());
+
+    if (!(await knex.schema.hasTable("commissions"))) {
+      await knex.schema.createTable("commissions", (t) => {
+        t.string("id", 36).primary();
+        t.string("profile_id", 36).nullable();
+        t.string("agency_id", 36).nullable();
+        t.integer("amount_cents").nullable();
+        t.timestamp("created_at").defaultTo(knex.fn.now());
+      });
+    }
+
+    // Adult roster talent (accepted application) + one visible + one hidden image.
+    await knex("profiles").insert([
+      {
+        id: ROSTER_PROFILE,
+        user_id: null,
+        first_name: "Rosa",
+        last_name: "Roster",
+        slug: "rosa-roster",
+        city: "Paris",
+        date_of_birth: isoYearsAgo(27),
+        bio_curated: "Signed roster talent",
+        is_discoverable: false,
+      },
+      {
+        id: PREVIEW_ADULT,
+        user_id: null,
+        first_name: "Adam",
+        last_name: "Adult",
+        slug: "adam-adult",
+        city: "Milan",
+        date_of_birth: isoYearsAgo(24),
+        bio_curated: "Discoverable adult",
+        is_discoverable: true,
+      },
+      {
+        id: PREVIEW_MINOR,
+        user_id: null,
+        first_name: "Minnie",
+        last_name: "Minor",
+        slug: "minnie-minor",
+        city: "Berlin",
+        date_of_birth: isoYearsAgo(15),
+        bio_curated: "Discoverable minor (no guardian consent)",
+        is_discoverable: true,
+      },
+    ]);
+
+    await knex("applications").insert({
+      id: ROSTER_APP,
+      profile_id: ROSTER_PROFILE,
+      agency_id: AGENCY_ID,
+      status: "accepted",
+    });
+
+    await knex("images").insert([
+      {
+        id: VISIBLE_IMG,
+        profile_id: ROSTER_PROFILE,
+        path: "/uploads/visible.webp",
+        public_url: "/uploads/visible.webp",
+        is_primary: true,
+        sort: 0,
+        status: "active",
+        moderation_status: "approved",
+        exclude_from_public: false,
+        exclude_from_agency: false,
+      },
+      {
+        id: HIDDEN_IMG,
+        profile_id: ROSTER_PROFILE,
+        path: "/uploads/hidden.webp",
+        public_url: "/uploads/hidden.webp",
+        is_primary: false,
+        sort: 1,
+        status: "active",
+        moderation_status: "approved",
+        exclude_from_public: false,
+        // Talent blocked this image from agencies — must be filtered out.
+        exclude_from_agency: true,
+      },
+    ]);
+  });
+
+  afterAll(async () => {
+    await knex("images").whereIn("id", [VISIBLE_IMG, HIDDEN_IMG]).del();
+    await knex("applications").where({ id: ROSTER_APP }).del();
+    await knex("profiles")
+      .whereIn("id", [ROSTER_PROFILE, PREVIEW_ADULT, PREVIEW_MINOR])
+      .del();
+  });
+
+  const ownerSession = () =>
+    agentWithAgencySession({
+      memberUserId: OWNER_USER_ID,
+      membershipId: MEMBERSHIP.owner,
+      membershipRole: "OWNER",
+    });
+
+  test("roster detail returns a shaped DTO, no owner email, agency-hidden image filtered", async () => {
+    const withCookie = await ownerSession();
+    const res = await withCookie(
+      request(app).get(`/api/agency/roster/${ROSTER_PROFILE}`),
+    );
+
+    expect(res.status).toBe(200);
+    const keys = collectAllKeys(res.body.profile);
+    // Submission audience: age/archetype allowed, but account identity never is.
+    const NEVER = [
+      "owner_email",
+      "user_email",
+      "email",
+      "phone",
+      "guardian_email",
+      "date_of_birth",
+      "ip_address",
+      "photo_embedding",
+      "source_agency_id",
+      "exclude_from_agency",
+      "moderation_status",
+    ];
+    expect(NEVER.filter((k) => keys.has(k))).toEqual([]);
+    // Only the visible image survives applyImageVisibility.
+    expect(res.body.profile.images).toHaveLength(1);
+    expect(res.body.profile.images[0].id).toBe(VISIBLE_IMG);
+  });
+
+  test("discover preview of an adult returns a discovery DTO with no forbidden keys", async () => {
+    const withCookie = await ownerSession();
+    const res = await withCookie(
+      request(app).get(`/api/agency/discover/${PREVIEW_ADULT}/preview`),
+    );
+
+    expect(res.status).toBe(200);
+    const keys = collectAllKeys(res.body.profile);
+    expect([...keys].filter((k) => FORBIDDEN_KEYS.has(k))).toEqual([]);
+    expect(res.body.profile.age).toBeUndefined();
+    expect("age_band" in res.body.profile).toBe(true);
+  });
+
+  test("discover preview of a minor is denied (fail closed)", async () => {
+    const withCookie = await ownerSession();
+    const res = await withCookie(
+      request(app).get(`/api/agency/discover/${PREVIEW_MINOR}/preview`),
+    );
+
+    expect(res.status).toBe(404);
   });
 });

@@ -14,9 +14,16 @@ const {
 } = require("../services/context");
 const { v4: uuidv4 } = require("uuid");
 const {
-  applyViewerVisibilityFilter,
   ensureModerationColumnChecked,
 } = require("../../../shared/lib/content-moderation");
+const {
+  AUDIENCE,
+  buildAgencyDiscoveryDTO,
+} = require("../../../shared/lib/audience-dto");
+const {
+  applyImageVisibility,
+  isAgencyDiscoverable,
+} = require("../../../shared/lib/profile-visibility");
 
 const router = express.Router();
 
@@ -221,37 +228,28 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Warm the moderation-column cache so applyViewerVisibilityFilter is
-      // a safe no-op when the column doesn't exist yet (deploy-before-migrate).
-      await ensureModerationColumnChecked(knex);
-      // Get images
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .where(function agencyShareableImages() {
-          this.whereNull("status").orWhere("status", "active");
-        })
-        .where(function notExcludedFromAgency() {
-          this.whereNull("exclude_from_agency").orWhere(
-            "exclude_from_agency",
-            false,
-          );
-        })
-        .modify((qb) => applyViewerVisibilityFilter(qb))
-        .orderBy(["sort", "created_at"])
-        .limit(5);
+      // Generic discovery preview — fail closed on minors (no named-agency
+      // guardian auth here) and agency-excluded profiles (audit P0-3).
+      const agencyId = getSessionAgencyId(req.session);
+      if (!isAgencyDiscoverable(profile, { agencyId })) {
+        return res
+          .status(404)
+          .json({ error: "Profile not found or not discoverable" });
+      }
 
+      // Warm the moderation-column cache so the visibility filter is a safe
+      // no-op when the column doesn't exist yet (deploy-before-migrate).
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]).limit(5);
+
+      // Static-allowlist DTO — never spread the raw discoverable profile row.
       return res.json({
         success: true,
-        profile: {
-          ...profile,
-          images: images.map((img) => ({
-            path:
-              typeof img.path === "string" && img.path.startsWith("http")
-                ? img.path
-                : `/${img.path || ""}`,
-            alt: img.alt || `${profile.first_name} ${profile.last_name}`,
-          })),
-        },
+        profile: buildAgencyDiscoveryDTO(profile, { images, social: null }),
       });
     } catch (error) {
       console.error("[Discover Preview] Error:", error);

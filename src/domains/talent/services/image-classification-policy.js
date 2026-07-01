@@ -1,5 +1,22 @@
 "use strict";
 
+const {
+  isMinorProfile,
+  hasGuardianConsent,
+  hasRecordedDateOfBirth,
+} = require("../../../shared/lib/talent-age");
+
+// Body-revealing framing / registers. Kept in sync with the SENSITIVE_* sets in
+// media.js. Used to decide whether a classification result is "sensitive".
+const SENSITIVE_SHOT_TYPES = new Set([
+  "full_length",
+  "full_body",
+  "three_quarter",
+  "half_body",
+]);
+const SENSITIVE_STYLE_TYPES = new Set(["swimwear", "fitness"]);
+const SENSITIVE_BODY_VISIBILITY = new Set(["three_quarter", "full_length"]);
+
 const THRESHOLDS = {
   shot_type: { auto: 0.88, suggest: 0.65 },
   style_type: { auto: 0.8, suggest: 0.55 },
@@ -73,13 +90,63 @@ function buildFieldProvenance(value, confidence) {
   };
 }
 
+function lc(value) {
+  return value ? String(value).toLowerCase() : "";
+}
+
+/**
+ * Is the resolved image (classification result + persisted columns) a sensitive
+ * body frame by any signal — framing tag, style register, or the PITS
+ * body_visibility signal? The AUTHORITATIVE read: classification wins over the
+ * client-declared columns, never the other way around.
+ */
+function isSensitiveClassification(classification, imageRow) {
+  const c = classification || {};
+  const row = imageRow || {};
+  const shot = lc(c.shot_type) || lc(row.shot_type);
+  if (shot && SENSITIVE_SHOT_TYPES.has(shot)) return true;
+  const style = lc(c.style_type) || lc(row.style_type);
+  if (style && SENSITIVE_STYLE_TYPES.has(style)) return true;
+  const bv = lc(c.signals && c.signals.body_visibility);
+  if (bv && SENSITIVE_BODY_VISIBILITY.has(bv)) return true;
+  return false;
+}
+
+/**
+ * Audit P0-8 — the async classification pass must RE-EVALUATE minor-image policy
+ * and force full exclusion, so a sensitive/minor image is never left exposed
+ * (before OR after classification). Authoritative over client metadata.
+ *
+ * Force fully private (exclude_from_public + exclude_from_agency) when:
+ *   - the profile is a minor WITHOUT guardian authorization (every image), or
+ *   - the age cannot be verified (no DOB on file) AND the classification
+ *     reveals a sensitive body frame (fail closed).
+ *
+ * Adults with a recorded DOB are never force-excluded here — they keep control
+ * of their own visibility (adult happy path preserved).
+ */
+function shouldForceExclusion({ profile, classification, imageRow }) {
+  if (isMinorProfile(profile) && !hasGuardianConsent(profile)) {
+    return { forced: true, reason: "minor_without_guardian_consent" };
+  }
+  if (
+    !hasRecordedDateOfBirth(profile) &&
+    isSensitiveClassification(classification, imageRow)
+  ) {
+    return { forced: true, reason: "unverified_age_sensitive_image" };
+  }
+  return { forced: false, reason: null };
+}
+
 /**
  * @param {object} input
  * @param {object} input.imageRow
  * @param {object} input.classification
+ * @param {object} [input.profile] - age/consent fields (date_of_birth,
+ *   guardian_consent_at) used to force exclusion for minors / unverified age.
  * @returns {{ band: string, columnUpdates: object, metadataPatch: object }}
  */
-function applyClassificationPolicy({ imageRow, classification }) {
+function applyClassificationPolicy({ imageRow, classification, profile = null }) {
   const metadata = parseMetadata(imageRow?.metadata);
   const existingAi = metadata.ai?.classification || {};
   const userLocked = existingAi.source === "user";
@@ -163,6 +230,22 @@ function applyClassificationPolicy({ imageRow, classification }) {
     provenance.source = "user";
   }
 
+  // Audit P0-8: minor-image safety lock. Re-evaluate policy and force full
+  // exclusion authoritatively — this is written in the SAME column update as
+  // the classification tags (see run-image-classification.js), so a
+  // sensitive/minor image is never left exposed between tag and exclusion.
+  // The safety lock overrides even a user-locked classification.
+  const exclusion = shouldForceExclusion({ profile, classification, imageRow });
+  if (exclusion.forced) {
+    columnUpdates.exclude_from_public = true;
+    columnUpdates.exclude_from_agency = true;
+    provenance.safety_lock = {
+      forced: true,
+      reason: exclusion.reason,
+      applied_at: new Date().toISOString(),
+    };
+  }
+
   return {
     band: auditSampled ? "suggest" : band,
     columnUpdates,
@@ -244,6 +327,8 @@ module.exports = {
   stableAuditSample,
   hasCloseShotAlternates,
   shouldDowngradeBand,
+  isSensitiveClassification,
+  shouldForceExclusion,
   THRESHOLDS,
   VISION_MODEL,
   AUDIT_SAMPLE_PERCENT,

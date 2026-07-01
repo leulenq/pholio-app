@@ -20,6 +20,54 @@ const { parseIntentToFilters } = require("../lib/intent-parser");
 const { understandQuery } = require("./query-understanding");
 const { retrieveAndFuse } = require("./discover-retrieval");
 const { rerankCandidates } = require("./discover-rerank");
+const {
+  AUDIENCE,
+  buildAgencyDiscoveryDTO,
+} = require("../../../shared/lib/audience-dto");
+const {
+  selectColumnsForAudience,
+  applyImageVisibility,
+  isAgencyDiscoverable,
+} = require("../../../shared/lib/profile-visibility");
+const {
+  ensureModerationColumnChecked,
+} = require("../../../shared/lib/content-moderation");
+
+/**
+ * Convert min/max age filters into UTC date-of-birth cutoff STRINGS (YYYY-MM-DD)
+ * derived from the reference date. Replaces any reliance on a stored
+ * `profiles.age` column (audit P0-7): age is always derived from DOB.
+ *
+ * Boundaries (today = referenceDate):
+ *   - age >= minAge  ⟺  DOB <  (today - minAge years) + 1 day   [strict <]
+ *   - age <= maxAge  ⟺  DOB >= (today - (maxAge+1) years) + 1 day
+ *
+ * The strict `<` upper bound (an exclusive next-day date string) makes the
+ * comparison correct for BOTH a date-only DOB ("1995-03-15") and a full ISO
+ * timestamp DOB ("1995-03-15T05:00:00.000Z") under plain string/date ordering,
+ * so it behaves identically on SQLite and Postgres without DB date math.
+ */
+function utcDateString(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function ageFilterDobCutoffs(minAge, maxAge, referenceDate = new Date()) {
+  const y = referenceDate.getUTCFullYear();
+  const m = referenceDate.getUTCMonth();
+  const d = referenceDate.getUTCDate();
+  const out = {};
+  if (minAge != null) {
+    const base = new Date(Date.UTC(y - minAge, m, d));
+    base.setUTCDate(base.getUTCDate() + 1);
+    out.maxDobExclusive = utcDateString(base);
+  }
+  if (maxAge != null) {
+    const base = new Date(Date.UTC(y - (maxAge + 1), m, d));
+    base.setUTCDate(base.getUTCDate() + 1);
+    out.minDobInclusive = utcDateString(base);
+  }
+  return out;
+}
 
 function isDiscoverHybridEnabled() {
   return (
@@ -109,11 +157,17 @@ function applyDiscoverFilters(query, filters, knex) {
     query.where("profiles.height_cm", "<=", filters.max_height);
   }
 
-  if (filters.min_age != null) {
-    query.where("profiles.age", ">=", filters.min_age);
-  }
-  if (filters.max_age != null) {
-    query.where("profiles.age", "<=", filters.max_age);
+  if (filters.min_age != null || filters.max_age != null) {
+    const { maxDobExclusive, minDobInclusive } = ageFilterDobCutoffs(
+      filters.min_age != null ? filters.min_age : null,
+      filters.max_age != null ? filters.max_age : null,
+    );
+    if (maxDobExclusive) {
+      query.where("profiles.date_of_birth", "<", maxDobExclusive);
+    }
+    if (minDobInclusive) {
+      query.where("profiles.date_of_birth", ">=", minDobInclusive);
+    }
   }
 
   if (filters.gender) {
@@ -171,8 +225,9 @@ function applyDiscoverFilters(query, filters, knex) {
 
 function baseDiscoverQuery(knex) {
   return knex("profiles")
-    .select("profiles.*", "users.email as owner_email")
-    .leftJoin("users", "profiles.user_id", "users.id")
+    .select(
+      selectColumnsForAudience(AUDIENCE.AGENCY_DISCOVERY, { table: "profiles" }),
+    )
     .where({
       "profiles.is_discoverable": true,
       "profiles.profile_status": "active",
@@ -192,14 +247,17 @@ async function fetchApplicationMap(knex, agencyId) {
   return applicationMap;
 }
 
-async function attachImagesAndInvites(knex, profiles, applicationMap) {
-  const profileIds = profiles.map((p) => p.id);
-  const allImages =
-    profileIds.length > 0
-      ? await knex("images")
-          .whereIn("profile_id", profileIds)
-          .orderBy(["profile_id", "sort", "created_at"])
-      : [];
+async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) {
+  const profileIds = profiles.map((p) => p.id).filter(Boolean);
+  let allImages = [];
+  if (profileIds.length > 0) {
+    await ensureModerationColumnChecked(knex);
+    const imageQuery = knex("images").whereIn("profile_id", profileIds);
+    applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+      table: "images",
+    });
+    allImages = await imageQuery.orderBy(["profile_id", "sort", "created_at"]);
+  }
 
   const imagesByProfile = {};
   allImages.forEach((img) => {
@@ -209,23 +267,39 @@ async function attachImagesAndInvites(knex, profiles, applicationMap) {
     imagesByProfile[img.profile_id].push(img);
   });
 
-  return profiles.map((profile) => {
-    const row = { ...profile };
-    row.images = imagesByProfile[profile.id] || [];
+  const shaped = [];
+  for (const profile of profiles) {
+    // Deny-by-default gate: minors (no named-agency guardian auth) and profiles
+    // that exclude this agency never reach the DTO layer.
+    if (!isAgencyDiscoverable(profile, { agencyId })) continue;
+
+    // Static-allowlist DTO — a raw row / owner email can never leak here.
+    // Social handles are restored from social_accounts in a later wave.
+    const dto = buildAgencyDiscoveryDTO(profile, {
+      images: imagesByProfile[profile.id] || [],
+      social: null,
+    });
+
     const app = applicationMap.get(profile.id);
-    row.is_invited = !!app;
-    if (row.match_breakdown && typeof row.match_breakdown === "object") {
-      // hybrid path already set breakdown
-    } else if (row.vibe_distance != null) {
-      row.match_breakdown = {
-        text: row.text_dist != null ? Number(row.text_dist) : null,
-        image: row.image_dist != null ? Number(row.image_dist) : null,
+    dto.is_invited = !!app;
+
+    // Re-attach the search/match metadata that lives OUTSIDE the profile
+    // allowlist (the DTO deliberately drops anything it doesn't recognize).
+    if (profile.match_breakdown && typeof profile.match_breakdown === "object") {
+      dto.match_score = profile.match_score ?? null;
+      dto.match_breakdown = profile.match_breakdown;
+      dto.match_rationale = profile.match_rationale ?? null;
+    } else if (profile.vibe_distance != null) {
+      dto.vibe_distance = profile.vibe_distance;
+      dto.match_breakdown = {
+        text: profile.text_dist != null ? Number(profile.text_dist) : null,
+        image: profile.image_dist != null ? Number(profile.image_dist) : null,
       };
-      delete row.text_dist;
-      delete row.image_dist;
     }
-    return row;
-  });
+
+    shaped.push(dto);
+  }
+  return shaped;
 }
 
 function canUseSemanticSearch(_knex, q) {
@@ -278,6 +352,7 @@ async function browseSearch(knex, ctx) {
     limitNum,
     offset,
     applicationMap,
+    agencyId,
     intent,
     q,
   } = ctx;
@@ -303,7 +378,12 @@ async function browseSearch(knex, ctx) {
   }
 
   const profiles = await query.limit(limitNum).offset(offset);
-  const enriched = await attachImagesAndInvites(knex, profiles, applicationMap);
+  const enriched = await attachImagesAndInvites(
+    knex,
+    profiles,
+    applicationMap,
+    agencyId,
+  );
 
   const unavailableReason = semanticUnavailableReason(knex, q);
 
@@ -358,13 +438,19 @@ function buildSemanticWhereClause(filters) {
     clauses.push("profiles.height_cm <= ?");
     bindings.push(filters.max_height);
   }
-  if (filters.min_age != null) {
-    clauses.push("profiles.age >= ?");
-    bindings.push(filters.min_age);
-  }
-  if (filters.max_age != null) {
-    clauses.push("profiles.age <= ?");
-    bindings.push(filters.max_age);
+  if (filters.min_age != null || filters.max_age != null) {
+    const { maxDobExclusive, minDobInclusive } = ageFilterDobCutoffs(
+      filters.min_age != null ? filters.min_age : null,
+      filters.max_age != null ? filters.max_age : null,
+    );
+    if (maxDobExclusive) {
+      clauses.push("profiles.date_of_birth < ?");
+      bindings.push(maxDobExclusive);
+    }
+    if (minDobInclusive) {
+      clauses.push("profiles.date_of_birth >= ?");
+      bindings.push(minDobInclusive);
+    }
   }
   if (filters.gender) {
     clauses.push("LOWER(profiles.gender) = ?");
@@ -411,7 +497,8 @@ function extractCount(result) {
 }
 
 async function semanticSearch(knex, ctx) {
-  const { q, intent, filters, pageNum, limitNum, offset, applicationMap } = ctx;
+  const { q, intent, filters, pageNum, limitNum, offset, applicationMap, agencyId } =
+    ctx;
   const maxDistance = effectiveMaxDistance(filters);
 
   const softQuery = intent.softQuery || q;
@@ -460,17 +547,19 @@ async function semanticSearch(knex, ctx) {
 
   const totalPages = Math.ceil(totalCount / limitNum) || 0;
 
+  const discoverCols = selectColumnsForAudience(AUDIENCE.AGENCY_DISCOVERY, {
+    table: "p",
+  }).join(", ");
+
   const dataResult = await knex.raw(
     `WITH candidates AS (${candidatesCte})
      SELECT
-       p.*,
-       u.email AS owner_email,
+       ${discoverCols},
        c.text_dist,
        c.image_dist,
        c.fused_distance AS vibe_distance
      FROM candidates c
      JOIN profiles p ON p.id = c.id
-     LEFT JOIN users u ON p.user_id = u.id
      WHERE c.fused_distance IS NOT NULL AND c.fused_distance <= ?
      ORDER BY c.fused_distance ASC
      LIMIT ?
@@ -479,7 +568,12 @@ async function semanticSearch(knex, ctx) {
   );
 
   const profiles = dataResult?.rows || [];
-  const enriched = await attachImagesAndInvites(knex, profiles, applicationMap);
+  const enriched = await attachImagesAndInvites(
+    knex,
+    profiles,
+    applicationMap,
+    agencyId,
+  );
 
   return {
     profiles: enriched,
@@ -512,6 +606,7 @@ async function hybridSearch(knex, ctx) {
     limitNum,
     offset,
     applicationMap,
+    agencyId,
   } = ctx;
 
   const understanding = await understandQuery(q);
@@ -531,8 +626,11 @@ async function hybridSearch(knex, ctx) {
   const profileRows =
     pageIds.length > 0
       ? await knex("profiles")
-          .select("profiles.*", "users.email as owner_email")
-          .leftJoin("users", "profiles.user_id", "users.id")
+          .select(
+            selectColumnsForAudience(AUDIENCE.AGENCY_DISCOVERY, {
+              table: "profiles",
+            }),
+          )
           .whereIn("profiles.id", pageIds)
       : [];
 
@@ -545,7 +643,12 @@ async function hybridSearch(knex, ctx) {
     match_rationale: item.match_rationale,
   }));
 
-  const enriched = await attachImagesAndInvites(knex, profiles, applicationMap);
+  const enriched = await attachImagesAndInvites(
+    knex,
+    profiles,
+    applicationMap,
+    agencyId,
+  );
 
   return {
     profiles: enriched,
@@ -581,7 +684,8 @@ async function hybridSearch(knex, ctx) {
 }
 
 async function semanticSearchSqlite(knex, ctx) {
-  const { q, intent, filters, pageNum, limitNum, offset, applicationMap } = ctx;
+  const { q, intent, filters, pageNum, limitNum, offset, applicationMap, agencyId } =
+    ctx;
   const maxDistance = effectiveMaxDistance(filters);
 
   const softQuery = intent.softQuery || q;
@@ -640,6 +744,7 @@ async function semanticSearchSqlite(knex, ctx) {
     knex,
     pageSlice,
     applicationMap,
+    agencyId,
   );
 
   return {
@@ -729,6 +834,7 @@ async function searchDiscoverableTalent(knex, options) {
     limitNum,
     offset,
     applicationMap,
+    agencyId,
   };
 
   if (canUseSemanticSearch(knex, q)) {

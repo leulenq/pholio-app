@@ -7,6 +7,7 @@
 - [x] Restore the shell notification icon and account-menu Sign Out action.
 - [x] Restore the submission-history agency rows and “Which board fits?” fields.
 - [x] Restore the Profile city-field clear control.
+- [x] Restore the Profile “View full checklist” disclosure control.
 - [x] Move Socials & Media actions to the approved inline/meta button role.
 - [x] Verify the exception controls do not inherit `.pholio-btn` treatment while
   the rest of the generalized system remains unchanged.
@@ -14,7 +15,7 @@
 
 ## Review
 
-- Restored nine native-control call sites covering the eight requested exception
+- Restored ten native-control call sites covering the nine requested exception
   surfaces. Each is explicitly annotated with a stable
   `data-button-exception` value so future design-system audits preserve it.
 - Reinstated the pre-migration CSS for the Settings and Profile indexes, Booking
@@ -2022,3 +2023,91 @@ all front/back combos valid (Backstage, Sedcard24, models.com show packages).
 - Verification included live profile/API checks, focused static inspection, and
   targeted test runs; the codebase still needs browser-level end-to-end coverage
   for save/reload and downstream exposure paths.
+
+---
+
+# Talent Profile Tab Multi-Discipline Re-Audit — 2026-06-30
+
+## Plan
+
+- [x] Re-map the current `/dashboard/talent/profile` UI, form schema, API,
+      persistence model, downstream readers, and live route; reconcile changes
+      since the 2026-06-28 audit.
+- [x] Run eight dedicated specialist lanes: industry standards, legal/privacy,
+      functionality/data integrity, security, field naming, field choice,
+      UX/UI, and production readiness.
+- [x] Use current web research for industry, legal/privacy, field naming,
+      field-choice validity, and production-readiness standards, preferring
+      primary and authoritative sources.
+- [x] Verify high-severity findings against source, tests, schema/migrations,
+      and the live interface at representative desktop and mobile sizes.
+- [x] Produce a deduplicated, prioritized report with code references, external
+      citations, verified strengths, release gates, and a remediation sequence.
+
+## Review
+
+- Completed eight specialist passes and wrote the consolidated report to
+  `tasks/profile-tab-multidiscipline-audit-2026-06-30.md`.
+- Release verdict is no-go. Primary blockers are tracked credentials, raw
+  public/agency profile-row exposure, guardian-consent GET semantics, notice/
+  AI behavior mismatch, destructive consent defaults, DOB/age policy drift,
+  minor-media enforcement, unsafe deployment/migration sequencing, and an EOL
+  Node runtime.
+- Verified improvements since the 2026-06-28 audit: structured multi-market
+  representation, dated measurement recency, better digitals/book separation,
+  minimized minor submission snapshots, retention cleanup, and image-rights/
+  moderation scaffolding.
+- Verification: client production build passed with a large-bundle warning;
+  targeted JSX lint passed; focused tests completed with 53 passed, 1 failed,
+  and 1 skipped. The failing profile-division expectation is a real contract
+  drift. Dependency advisory state remains unverified because the registry
+  audit could not obtain approved network access.
+- Live browser inspection was unavailable because the browser runtime exposed
+  no target. UI conclusions are source-verified; rendered responsive, focus,
+  screen-reader, and E2E save/reload behavior remain explicit release gates.
+
+# Audit Remediation — Implementation Progress (branch: profile-audit-remediation)
+
+Orchestrated via subagents with per-task model assignment (opus = hard
+authorization/consent/data reasoning; sonnet = bounded cross-file work; haiku =
+mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
+
+## Wave 0 — mechanical quick wins ✅ (verified)
+- [x] Fix `profile-division` test drift (division-emphasis filter) — haiku
+- [x] Code-split `App.jsx` (2.135 MB → 692 KB) + dev-gate mock OAuth/consent — sonnet
+- [x] Session-secret fail-closed, `/api/migrate` locked, `no-store`, baseline CSP
+      (report-only) — sonnet
+
+## Wave 1 — security / consent / audience-DTO foundation ✅ (verified)
+- [x] 1A KEYSTONE: `src/shared/lib/audience-dto.js` + `profile-visibility.js` +
+      `tests/contract/audience-dto.test.js` (static allowlists, derived age,
+      FORBIDDEN_KEYS) — opus
+- [x] 1B profile.js core: consent decoupled from save (P0-6), age derived from DOB
+      + DOB-change invalidation (P0-7), single transactional + 409-versioned save
+      via `updated_at` (P1-1), canonical weight/measurement recency (P1-2), legacy
+      image/AI trigger removed → media (avatar caller repointed) — opus
+- [x] 1C public reader: DTO + visibility, no raw rows (P0-2) — sonnet
+- [x] 1D agency readers: inner-join applications (P0-3), agency DTOs, DOB-range age
+      filter, minor-null email; also fixed SHADOWED live leak in `roster.js`
+      preview — opus
+- [x] 1E guardian consent: GET read-only / POST atomic pending→verified, race
+      closed, quota guard (P0-4) — opus
+- [x] 1F media: unconsented-minor uploads default-private, classification force-
+      excludes atomically, sensitive AI consent-gated (P0-8, P0-5 image half) — sonnet
+- Verification: full suite in-band 907 passed / 991 (+126 new tests); 11 failing
+  suites are a strict SUBSET of the pre-existing baseline (env FK-migration seed +
+  LEGAL_ACCEPTANCE_REQUIRED gate) — ZERO Wave-1 regressions.
+
+## Carried forward
+- Wave 2B schema: `is_public` default-false, `age_verified_at`, `excluded_agency_ids`,
+  scoped-consent version/evidence columns, confirmed-job safety context.
+- Wave 2D social: reader DTOs currently get `social=null` (handles moved to
+  `social_accounts`); wire the join; restore prod social connect (Phyllo) — mock
+  gated off in prod; submission-profile.js ADULT_LINK_FIELDS now read null.
+- Follow-ups: owner endpoint still serves `archetype`/`image_analysis`/`analysis_*`
+  (owner's own data — low-risk hardening); `/api/agency/export` uses Postgres-only
+  `string_agg` (cross-dialect); Jest parallel-worker SQLite contention → isolate
+  test DBs / force in-band (Wave 4); flip CSP report-only → enforced after review;
+  review whether submission snapshot should carry AI `archetype`.
+- Deferred per user: credential rotation/history-rewrite/secret-scan, Node-EOL
+  upgrade, CI quality gate.

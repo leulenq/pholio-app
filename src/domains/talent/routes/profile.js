@@ -33,7 +33,6 @@ const {
   buildProfileText,
   reindexDiscoverProfile,
 } = require("../../ai/embeddings");
-const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const {
   normalizeProfileLanguages,
 } = require("../../../shared/lib/language-reference");
@@ -41,8 +40,6 @@ const {
   normalizeBookingLaneList,
   normalizeBookingLaneSlug,
 } = require("../../../shared/constants/booking-lanes");
-const path = require("path");
-const config = require("../../../config");
 const { z } = require("zod");
 const {
   getAllThemes,
@@ -72,14 +69,30 @@ const {
  * Allowlisted profile columns for GET/PUT JSON (excludes raw vectors / embeddings).
  * Keep in sync when adding `profiles` columns intended for the talent app.
  */
+// Infra / AI / inference columns that must never reach the owner client, even if
+// one is (re)added to the allowlist below. Defense-in-depth over the allowlist.
+// (audit item 6 — conservative response hardening.) `fit_score_*` are intentionally
+// NOT blocked: the owner editor renders its own lane signal from them.
 const TALENT_PROFILE_API_BLOCKLIST = new Set([
   "vector_summary",
+  "vector_summary_text",
   "photo_embedding",
+  "search_document",
+  "visual_intel",
+  "librarian_synthesis",
+  "market_fit_rankings",
+  "onboarding_predictions",
+  // P0-7: stored age/age_range are no longer maintained; derive age from DOB.
+  "age",
+  "age_range",
 ]);
+
+// Any column whose name starts with one of these prefixes is stripped regardless
+// of the allowlist (predicted_*, ip_*, google_* inference/telemetry columns).
+const TALENT_PROFILE_API_BLOCKED_PREFIXES = ["predicted_", "ip_", "google_"];
 
 const TALENT_PROFILE_API_KEYS = [
   "achievements",
-  "age",
   "analysis_error",
   "analysis_status",
   "archetype",
@@ -211,11 +224,48 @@ function pickTalentProfileForApi(row) {
   const out = {};
   for (const key of TALENT_PROFILE_API_KEYS) {
     if (TALENT_PROFILE_API_BLOCKLIST.has(key)) continue;
+    if (TALENT_PROFILE_API_BLOCKED_PREFIXES.some((p) => key.startsWith(p))) {
+      continue;
+    }
     if (Object.prototype.hasOwnProperty.call(row, key)) {
       out[key] = row[key];
     }
   }
   return out;
+}
+
+/** Normalize a DOB to a bare YYYY-MM-DD string for change comparison. */
+function normalizeDobString(value) {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value).trim());
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+/**
+ * Optimistic-concurrency comparison for the P1-1 versioned save. The client passes
+ * its last-known `updated_at` (body `expected_updated_at` or an `If-Match` header).
+ * Returns true (proceed) when no token is supplied or either side is unparseable —
+ * a safe fallback until the client always sends the token.
+ */
+function profileVersionMatches(currentUpdatedAt, providedVersion) {
+  if (providedVersion == null || providedVersion === "") return true;
+  const current = new Date(currentUpdatedAt).getTime();
+  const provided = new Date(providedVersion).getTime();
+  if (Number.isNaN(current) || Number.isNaN(provided)) return true;
+  return current === provided;
+}
+
+/** Loosely compare an old vs new measurement value (numeric-aware). */
+function measurementValueChanged(oldValue, newValue) {
+  const isEmpty = (v) => v === null || v === undefined || v === "";
+  if (isEmpty(oldValue) && isEmpty(newValue)) return false;
+  if (isEmpty(oldValue) || isEmpty(newValue)) return true;
+  const oldNum = Number(oldValue);
+  const newNum = Number(newValue);
+  if (Number.isFinite(oldNum) && Number.isFinite(newNum)) {
+    return oldNum !== newNum;
+  }
+  return String(oldValue).trim() !== String(newValue).trim();
 }
 
 function parseJsonArray(value) {
@@ -282,29 +332,50 @@ async function loadProfileBookingLanePayload(profileId, legacyModelingCategories
   };
 }
 
-async function syncProfileBookingLanes(profileId, primaryLane, secondaryLanes) {
+/** Pure: normalize a desired (primary, secondary[]) selection into an ordered lane list. */
+function resolveDesiredBookingLanes(primaryLane, secondaryLanes) {
   const primary = normalizeBookingLaneSlug(primaryLane);
   const secondary = normalizeBookingLaneList(secondaryLanes).filter(
     (laneSlug) => laneSlug !== primary,
   );
-  const lanes = [primary, ...secondary].filter(Boolean).slice(0, 4);
-  const hasJoinTable = await knex.schema.hasTable("profile_booking_lanes");
+  return [primary, ...secondary].filter(Boolean).slice(0, 4);
+}
+
+/**
+ * Persist the profile's booking lanes. When a transaction `trx` is supplied the
+ * writes join the caller's transaction (P1-1 single atomic save); otherwise a
+ * dedicated transaction is opened.
+ */
+async function syncProfileBookingLanes(
+  profileId,
+  primaryLane,
+  secondaryLanes,
+  trx = null,
+) {
+  const lanes = resolveDesiredBookingLanes(primaryLane, secondaryLanes);
+  const db = trx || knex;
+  const hasJoinTable = await db.schema.hasTable("profile_booking_lanes");
   if (!hasJoinTable) return lanes;
 
-  await knex.transaction(async (trx) => {
-    await trx("profile_booking_lanes").where({ profile_id: profileId }).del();
+  const run = async (tx) => {
+    await tx("profile_booking_lanes").where({ profile_id: profileId }).del();
     if (!lanes.length) return;
-
-    await trx("profile_booking_lanes").insert(
+    await tx("profile_booking_lanes").insert(
       lanes.map((laneSlug, index) => ({
         profile_id: profileId,
         lane_slug: laneSlug,
         priority: index + 1,
         source: "talent_selected",
-        updated_at: trx.fn.now(),
+        updated_at: tx.fn.now(),
       })),
     );
-  });
+  };
+
+  if (trx) {
+    await run(trx);
+  } else {
+    await knex.transaction(run);
+  }
 
   return lanes;
 }
@@ -617,6 +688,10 @@ router.put(
     }
 
     const data = parsed.data;
+    // P1-1 optimistic concurrency token. Read from the RAW body/header because the
+    // zod schema strips unknown keys, so it never reaches `data` or the DB write.
+    const clientProfileVersion =
+      req.body?.expected_updated_at ?? req.get("If-Match") ?? null;
     const user = await knex("users").where({ id: userId }).first();
     if (!user) {
       if (req.session) req.session.destroy(() => {});
@@ -736,17 +811,25 @@ router.put(
     if (data.passport_ready !== undefined)
       updateData.passport_ready = data.passport_ready;
 
-    // Guardian consent is no longer self-attested. Verified consent can only be
-    // established via the token flow (see services/guardian-consent.js). Here we
-    // ONLY honor clearing consent; a truthy guardian_consent_recorded is ignored
-    // so a minor cannot unlock sensitive fields by toggling a switch.
-    if (data.guardian_consent_recorded === false) {
-      updateData.guardian_consent_at = null;
-      updateData.is_public = false;
-    }
+    // P0-6: The general profile update MUST NOT read or interpret guardian-consent
+    // state. Previously a falsy `guardian_consent_recorded` — which the client sends
+    // for ordinary adults with no guardian record — was treated as consent
+    // revocation and silently set is_public=false, unpublishing an adult portfolio.
+    // Consent (grant AND revocation) now lives only in the dedicated, scoped
+    // guardian-consent flow (services/guardian-consent.js). `guardian_consent_recorded`
+    // is intentionally ignored here and never touches is_public / guardian_consent_at.
     if (data.work_permit_on_file !== undefined) {
       updateData.work_permit_on_file = !!data.work_permit_on_file;
     }
+
+    // P0-7(a): Stored age is no longer a source of truth. Age is ALWAYS derived from
+    // date_of_birth (talent-age.js). Defensively guarantee neither age column is ever
+    // written from this path.
+    // TODO(schema-wave): add an `age_verified_at` column so a verified-age status is
+    // separate from the freely-editable DOB (changing DOB should not silently keep an
+    // old verification — see the DOB-change invalidation below).
+    delete updateData.age;
+    delete updateData.age_range;
 
     const mergedForPolicy = { ...profile, ...updateData };
     const sensitiveAttempted = listSensitiveProfileUpdateFields(data).filter(
@@ -789,9 +872,26 @@ router.put(
     }
 
     // Fail closed: force private whenever public exposure isn't cleared
-    // (no verifiable adult DOB on file, or an unconsented minor).
+    // (no verifiable adult DOB on file, or an unconsented minor). NOTE: for an
+    // ordinary adult with a valid DOB this is a no-op, so a routine bio-only save
+    // can never flip is_public (the P0-6 regression). Minor/adult status here is
+    // derived from DOB via minorPublicExposureAllowed — never a stored age column.
     if (!minorPublicExposureAllowed(mergedForPolicy)) {
       updateData.is_public = false;
+    }
+
+    // P0-7(c): A DOB change invalidates any prior public/discovery exposure until the
+    // new age is re-verified. Behavioral invalidation only (no new column): force the
+    // profile private and non-discoverable whenever the normalized DOB actually
+    // changes. Combined with the fail-closed gate above, self-editing DOB can never
+    // silently keep or unlock exposure.
+    if (Object.hasOwn(updateData, "date_of_birth")) {
+      const previousDob = normalizeDobString(profile.date_of_birth);
+      const nextDob = normalizeDobString(updateData.date_of_birth);
+      if (previousDob !== nextDob) {
+        updateData.is_public = false;
+        updateData.is_discoverable = false;
+      }
     }
 
     // JSON fields - Knex handles stringifying for most drivers, but Postgres prefers objects
@@ -833,32 +933,42 @@ router.put(
         : null;
     }
 
-    // Weight conversion
-    let finalWeightKg = data.weight_kg;
-    let finalWeightLbs = data.weight_lbs;
-
-    if (
-      finalWeightKg !== undefined &&
-      finalWeightKg !== null &&
-      finalWeightKg !== "" &&
-      (finalWeightLbs === undefined ||
-        finalWeightLbs === null ||
-        finalWeightLbs === "")
-    ) {
-      finalWeightLbs = convertKgToLbs(finalWeightKg);
-    } else if (
-      finalWeightLbs !== undefined &&
-      finalWeightLbs !== null &&
-      finalWeightLbs !== "" &&
-      (finalWeightKg === undefined ||
-        finalWeightKg === null ||
-        finalWeightKg === "")
-    ) {
-      finalWeightKg = convertLbsToKg(finalWeightLbs);
+    // P1-2: Canonical weight. Accept ONE source-of-truth unit and ALWAYS derive the
+    // other server-side, so a stale opposite-unit value in a full hydrated payload can
+    // never survive (e.g. "70 kg" beside a leftover "149.9 lb"). The canonical unit is
+    // `weight_unit` when provided; otherwise it is inferred from whichever value the
+    // client actually sent. Clearing the canonical value clears both units.
+    const isBlank = (v) => v === undefined || v === null || v === "";
+    const kgProvided = Object.hasOwn(data, "weight_kg");
+    const lbsProvided = Object.hasOwn(data, "weight_lbs");
+    let canonicalUnit = data.weight_unit || null;
+    if (!canonicalUnit) {
+      if (kgProvided && !isBlank(data.weight_kg)) canonicalUnit = "kg";
+      else if (lbsProvided && !isBlank(data.weight_lbs)) canonicalUnit = "lbs";
+      else if (kgProvided) canonicalUnit = "kg";
+      else if (lbsProvided) canonicalUnit = "lbs";
     }
 
-    if (finalWeightKg !== undefined) updateData.weight_kg = finalWeightKg;
-    if (finalWeightLbs !== undefined) updateData.weight_lbs = finalWeightLbs;
+    if (canonicalUnit === "kg" && kgProvided) {
+      if (isBlank(data.weight_kg)) {
+        updateData.weight_kg = null;
+        updateData.weight_lbs = null;
+      } else {
+        const kg = Number(data.weight_kg);
+        updateData.weight_kg = Number.isFinite(kg) ? kg : null;
+        updateData.weight_lbs = Number.isFinite(kg) ? convertKgToLbs(kg) : null;
+      }
+    } else if (canonicalUnit === "lbs" && lbsProvided) {
+      if (isBlank(data.weight_lbs)) {
+        updateData.weight_lbs = null;
+        updateData.weight_kg = null;
+      } else {
+        const lbs = Number(data.weight_lbs);
+        updateData.weight_lbs = Number.isFinite(lbs) ? lbs : null;
+        updateData.weight_kg = Number.isFinite(lbs) ? convertLbsToKg(lbs) : null;
+      }
+    }
+    if (data.weight_unit) updateData.weight_unit = data.weight_unit;
 
     // Bio curation
     if (data.bio !== undefined) {
@@ -905,10 +1015,12 @@ router.put(
       }
     }
 
-    // Social Handle Parsing & URLs
+    // Social Handle Parsing & URLs. Social accounts live in their own table and are
+    // written independently of the profile row (the client also mutates them via the
+    // OAuth endpoints), so this runs before the profile transaction.
     const isPro = profile.is_pro || false;
     await saveProfileSocialFields(profile.id, data, isPro);
-    
+
     // Remove social fields from updateData since they no longer exist on profiles table
     delete updateData.instagram_handle;
     delete updateData.instagram_url;
@@ -921,31 +1033,26 @@ router.put(
     delete updateData.onlyfans_url;
     delete updateData.portfolio_url;
 
-    // Validate requested primary photo now, but apply after profile update succeeds.
-    const requestedPrimaryPhotoId = data.primary_photo_id || null;
-    if (requestedPrimaryPhotoId) {
-      const selectedPrimaryPhoto = await knex("images")
-        .where({ id: requestedPrimaryPhotoId, profile_id: profile.id })
-        .first();
-      if (!selectedPrimaryPhoto) {
-        return res.status(400).json({
-          success: false,
-          message: "Primary photo not found for this profile",
-        });
-      }
-    }
+    // NOTE: legacy `primary_photo_id` handling was removed from this route. Setting a
+    // primary image is a /media concern (PUT /api/talent/media/:id/hero); the profile
+    // TAB does not send it, and the SettingsPage avatar upload now calls the media
+    // set-primary endpoint directly. Removing it also drops the automatic
+    // masterVisionAnalysis image inference that contradicted the accepted AI notices
+    // (audit P0-5). See report for the caller audit.
 
+    // Booking lanes (P1-1): resolve the desired lane set now so modeling_categories is
+    // written in the SAME atomic UPDATE; the join-table rows are persisted inside the
+    // transaction below.
     const shouldSyncBookingLanes =
       data.booking_primary_lane !== undefined ||
       data.booking_secondary_lanes !== undefined;
-    let syncedBookingLanes = null;
+    let desiredBookingLanes = null;
     if (shouldSyncBookingLanes) {
       const currentLanePayload = await loadProfileBookingLanePayload(
         profile.id,
         profile.modeling_categories,
       );
-      syncedBookingLanes = await syncProfileBookingLanes(
-        profile.id,
+      desiredBookingLanes = resolveDesiredBookingLanes(
         data.booking_primary_lane !== undefined
           ? data.booking_primary_lane
           : currentLanePayload.booking_primary_lane,
@@ -953,20 +1060,19 @@ router.put(
           ? data.booking_secondary_lanes
           : currentLanePayload.booking_secondary_lanes,
       );
-
       // Legacy compatibility until all consumers are moved off modeling_categories.
-      updateData.modeling_categories = syncedBookingLanes.length
-        ? formatJson(syncedBookingLanes)
+      updateData.modeling_categories = desiredBookingLanes.length
+        ? formatJson(desiredBookingLanes)
         : null;
     }
 
-    // Stamp the measurement-confirmation date whenever any measurement field
-    // changes, so the submission stats card can show a real "measured" date
-    // and flag a stale set (stats perish — agencies expect ≤3 months).
-    const MEASUREMENT_FIELDS = [
+    // P1-2: Stamp measurement recency ONLY when a CANONICAL measurement value truly
+    // changes (old vs new), not merely because a full hydrated payload echoes the
+    // measurement keys. weight_lbs is derived server-side, so it is excluded here to
+    // avoid rounding churn refreshing the "measured" date.
+    const CANONICAL_MEASUREMENT_FIELDS = [
       "height_cm",
       "weight_kg",
-      "weight_lbs",
       "bust_cm",
       "waist_cm",
       "hips_cm",
@@ -974,103 +1080,17 @@ router.put(
       "shoe_size",
       "dress_size",
     ];
-    if (MEASUREMENT_FIELDS.some((key) => key in updateData)) {
+    const measurementsChanged = CANONICAL_MEASUREMENT_FIELDS.some(
+      (key) =>
+        Object.hasOwn(updateData, key) &&
+        measurementValueChanged(profile[key], updateData[key]),
+    );
+    if (measurementsChanged) {
       updateData.measurements_updated_at = knex.fn.now();
     }
 
-    // Perform Update only when actual profile fields changed.
-    const hasProfileFieldChanges = Object.keys(updateData).some(
-      (key) => key !== "updated_at",
-    );
-    if (hasProfileFieldChanges) {
-      await knex("profiles").where({ id: profile.id }).update(updateData);
-
-      if (Object.hasOwn(data, "current_agency")) {
-        await knex.transaction((trx) =>
-          syncStructuredRepresentationFromLegacy(
-            trx,
-            profile.id,
-            data.current_agency,
-          ),
-        );
-      }
-
-      // Log activity
-      await logActivity(userId, "profile_updated", {
-        profileId: profile.id,
-        slug: updateData.slug || profile.slug,
-        nameChanged: needsSlugUpdate,
-      });
-    }
-
-    // Apply primary-image update only after profile save succeeds.
-    if (requestedPrimaryPhotoId) {
-      await knex.transaction(async (trx) => {
-        await trx("images")
-          .where({ profile_id: profile.id })
-          .update({ is_primary: false });
-        const updatedCount = await trx("images")
-          .where({ id: requestedPrimaryPhotoId, profile_id: profile.id })
-          .update({ is_primary: true });
-        if (updatedCount === 0) {
-          throw new Error("Failed to set primary image");
-        }
-      });
-
-      const photo = await knex("images")
-        .where({ id: requestedPrimaryPhotoId })
-        .first();
-      if (photo) {
-        const fs = require("fs");
-        const absolutePath =
-          photo.absolute_path ||
-          path.join(config.uploadsDir, path.basename(photo.path));
-
-        fs.promises
-          .readFile(absolutePath)
-          .then((imageBuffer) => {
-            masterVisionAnalysis(knex, imageBuffer, profile.id).catch((err) =>
-              console.error(
-                "[Profile API] Master image analysis failed silently:",
-                err,
-              ),
-            );
-          })
-          .catch(() =>
-            console.warn(
-              "[Profile API] Could not read primary image for analysis (remote storage or missing file)",
-            ),
-          );
-      }
-    }
-
-    // Return updated profile
-    let updatedProfile = await knex("profiles")
-      .where({ id: profile.id })
-      .first();
-    if (updatedProfile) {
-      updatedProfile = await injectSocialFields(updatedProfile);
-    }
-
-    // Update full-profile + discover_index embeddings (best-effort, Postgres-only)
-    try {
-      const profileText = buildProfileText(updatedProfile);
-      if (profileText) {
-        await upsertTextEmbedding(
-          knex,
-          profile.id,
-          "full_profile",
-          profileText,
-        );
-      }
-      await reindexDiscoverProfile(knex, profile.id);
-    } catch (embErr) {
-      console.warn(
-        "[Profile API] Text embedding failed (non-blocking):",
-        embErr.message,
-      );
-    }
-
+    // Images are not mutated by this route anymore; load once for status,
+    // completeness, and the response payload.
     const images = await knex("images")
       .where({ profile_id: profile.id })
       .orderBy("sort", "asc")
@@ -1099,6 +1119,119 @@ router.put(
         "video_duration_seconds",
       );
 
+    // Precompute profile_status so it is written in the SAME atomic UPDATE instead of
+    // a second post-hoc write.
+    const mergedForStatus = {
+      ...profile,
+      ...updateData,
+      email: profile.email || user.email || null,
+    };
+    const nextStatus = computeProfileStatus(mergedForStatus, images);
+    if (nextStatus !== profile.profile_status) {
+      updateData.profile_status = nextStatus;
+    }
+
+    // Perform Update only when actual profile fields changed.
+    const hasProfileFieldChanges = Object.keys(updateData).some(
+      (key) => key !== "updated_at",
+    );
+
+    // P1-1: ONE transaction covering the canonical profile mutation set (profile row,
+    // booking-lane join rows, and structured representation), guarded by optimistic
+    // concurrency on the existing `updated_at` version token. A mid-failure now rolls
+    // the whole set back instead of leaving a partial save, and a stale writer (two
+    // open tabs each submitting a full hydrated record) is rejected with 409 rather
+    // than clobbering newer data.
+    try {
+      await knex.transaction(async (trx) => {
+        const currentRow = await trx("profiles")
+          .where({ id: profile.id })
+          .first("updated_at");
+        if (
+          !profileVersionMatches(currentRow?.updated_at, clientProfileVersion)
+        ) {
+          const staleError = new Error("Profile modified concurrently");
+          staleError.code = "STALE_PROFILE_VERSION";
+          throw staleError;
+        }
+
+        if (shouldSyncBookingLanes) {
+          await syncProfileBookingLanes(
+            profile.id,
+            desiredBookingLanes[0] || null,
+            desiredBookingLanes.slice(1),
+            trx,
+          );
+        }
+
+        if (hasProfileFieldChanges) {
+          await trx("profiles").where({ id: profile.id }).update(updateData);
+
+          if (Object.hasOwn(data, "current_agency")) {
+            await syncStructuredRepresentationFromLegacy(
+              trx,
+              profile.id,
+              data.current_agency,
+            );
+          }
+        }
+      });
+    } catch (txError) {
+      if (txError && txError.code === "STALE_PROFILE_VERSION") {
+        return res.status(409).json({
+          success: false,
+          code: "STALE_PROFILE_VERSION",
+          message:
+            "This profile was changed in another tab or on another device. Reload to get the latest version, then save again.",
+        });
+      }
+      throw txError;
+    }
+
+    // Activity logging is non-critical — run it after commit and never block the
+    // response (also keeps it out of the write transaction).
+    if (hasProfileFieldChanges) {
+      logActivity(userId, "profile_updated", {
+        profileId: profile.id,
+        slug: updateData.slug || profile.slug,
+        nameChanged: needsSlugUpdate,
+      }).catch(() => {});
+    }
+
+    // Return updated profile
+    let updatedProfile = await knex("profiles")
+      .where({ id: profile.id })
+      .first();
+    if (updatedProfile) {
+      updatedProfile = await injectSocialFields(updatedProfile);
+    }
+
+    // P1 (26s-timeout risk): embedding + Discover reindex is derived, external, and
+    // best-effort. Move it OFF the request path (fire-and-forget after commit) so a
+    // slow index can never time out the function AFTER the DB already committed and
+    // make the client believe a persisted save failed.
+    setImmediate(() => {
+      (async () => {
+        try {
+          const profileText = buildProfileText(updatedProfile);
+          if (profileText) {
+            await upsertTextEmbedding(
+              knex,
+              profile.id,
+              "full_profile",
+              profileText,
+            );
+          }
+          await reindexDiscoverProfile(knex, profile.id);
+        } catch (embErr) {
+          console.warn(
+            "[Profile API] Text embedding failed (non-blocking):",
+            embErr.message,
+          );
+        }
+      })();
+    });
+
     const profileForCompleteness = {
       ...updatedProfile,
       email: updatedProfile.email || user.email || null,
@@ -1107,14 +1240,6 @@ router.put(
       profileForCompleteness,
       images,
     );
-
-    const newStatus = computeProfileStatus(profileForCompleteness, images);
-    if (newStatus !== updatedProfile.profile_status) {
-      await knex("profiles")
-        .where({ id: profile.id })
-        .update({ profile_status: newStatus });
-      updatedProfile.profile_status = newStatus;
-    }
 
     await notifyIfSubmissionReadinessLost(profile.id, wasSubmissionReady);
 

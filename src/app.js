@@ -262,9 +262,46 @@ app.use((req, res, next) => {
 */
 // --- END OF COMMENTED-OUT BLOCK ---
 
+// Baseline CSP, built on helmet's defaults (object-src 'none', base-uri 'self',
+// font-src/style-src already allow https:/'unsafe-inline', which covers Google
+// Fonts and the app's existing inline <style>/style= usage).
+// Shipped in REPORT-ONLY mode: this app mixes an EJS-rendered shell (inline
+// Firebase init <script>) with a React SPA, and there is no nonce/hash
+// infrastructure today, so we can't safely verify a fully-enforced policy
+// without a browser pass. Report-Only makes the policy active/observable via
+// the Content-Security-Policy-Report-Only header with zero risk of breaking
+// auth, uploads, or PDF rendering; flip `reportOnly` to false once violation
+// reports come back clean.
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      useDefaults: true,
+      reportOnly: true,
+      directives: {
+        // Inline <script type="module"> Firebase bootstrap in views/layout.ejs
+        // has no nonce yet, so 'unsafe-inline' is required for now.
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.gstatic.com"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://*.googleusercontent.com", // Google/Firebase auth avatars
+          "https://*.firebasestorage.app",
+          "https://*.appspot.com",
+          "https://*.r2.dev", // Cloudflare R2 public uploads bucket
+          "https://*.r2.cloudflarestorage.com",
+        ],
+        connectSrc: [
+          "'self'",
+          "https://*.googleapis.com", // Firebase Auth/Firestore REST + Google Fonts CSS
+          "https://*.firebaseio.com",
+          "https://www.gstatic.com",
+          "https://*.r2.dev",
+          "https://*.r2.cloudflarestorage.com",
+        ],
+        frameSrc: ["'self'", "https://*.firebaseapp.com"],
+      },
+    },
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   }),
 );
@@ -490,28 +527,36 @@ app.use((req, res, next) => {
   return next();
 });
 
+// Authenticated dashboard APIs return account-scoped data and must never be
+// stored by browser/shared caches. Scoped to the authenticated API mounts
+// only — public/static asset routes are untouched.
+app.use(["/api/talent", "/api/agency"], (req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  next();
+});
+
 // Migration endpoint (protected by secret token)
 // Call this once after deployment to set up database tables
 app.post("/api/migrate", async (req, res) => {
   try {
     // Check for migration secret (required for security)
     const migrationSecret = process.env.MIGRATION_SECRET;
+
+    // Fail closed: an unset/empty MIGRATION_SECRET must refuse the request,
+    // never run migrations over an unauthenticated HTTP endpoint.
+    if (!migrationSecret) {
+      return res.status(404).end();
+    }
+
     const providedSecret =
       req.query.secret || req.headers["x-migration-secret"];
 
-    if (migrationSecret && providedSecret !== migrationSecret) {
+    if (providedSecret !== migrationSecret) {
       return res.status(401).json({
         error: "Unauthorized",
         message:
           "Invalid migration secret. Set MIGRATION_SECRET in environment variables and provide it as ?secret=... or X-Migration-Secret header.",
       });
-    }
-
-    // If no secret is set, warn but allow (for initial setup)
-    if (!migrationSecret) {
-      console.warn(
-        "[Migration] WARNING: MIGRATION_SECRET not set. Migration endpoint is unprotected!",
-      );
     }
 
     console.log("[Migration] Starting database migrations...");
@@ -556,9 +601,27 @@ app.post("/api/migrate", async (req, res) => {
   }
 });
 
-// Migration status endpoint (read-only, no secret required)
+// Migration status endpoint (same fail-closed secret gate as POST /api/migrate
+// — this exposes migration/schema internals and must not be public).
 app.get("/api/migrate/status", async (req, res) => {
   try {
+    const migrationSecret = process.env.MIGRATION_SECRET;
+
+    if (!migrationSecret) {
+      return res.status(404).end();
+    }
+
+    const providedSecret =
+      req.query.secret || req.headers["x-migration-secret"];
+
+    if (providedSecret !== migrationSecret) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message:
+          "Invalid migration secret. Set MIGRATION_SECRET in environment variables and provide it as ?secret=... or X-Migration-Secret header.",
+      });
+    }
+
     const currentVersion = await knex.migrate.currentVersion();
     const status = await knex.migrate.status();
     const list = await knex.migrate.list();

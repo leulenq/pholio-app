@@ -241,16 +241,16 @@ export default function ProfileStrengthSidebar({
         ) : null}
 
         {hiddenGapsCount > 0 ? (
-          <PholioButton
+          <button
             type="button"
-            variant="meta"
+            data-button-exception="profile-checklist"
             className={`${styles.auditToggle} ${auditOpen ? styles.auditToggleActive : ''}`}
             onClick={onToggleAudit}
             aria-expanded={auditOpen}
           >
             <ClipboardList size={15} aria-hidden="true" />
             {auditOpen ? 'Hide full checklist' : `View full checklist (${hiddenGapsCount})`}
-          </PholioButton>
+          </button>
         ) : null}
 
         <AnimatePresence initial={false}>

@@ -31,7 +31,10 @@ const {
 const {
   isMinorProfile,
   minorSensitiveFieldsUnlocked,
+  canCollectSensitiveProfileFields,
 } = require("../../../shared/lib/talent-age");
+const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
+const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const {
   MODERATION_STATUS,
   MODERATION_QUEUE_STATUS,
@@ -155,6 +158,78 @@ function respondMinorImageBlock(res, message) {
     message,
     code: "MINOR_CONSENT_REQUIRED",
   });
+}
+
+/**
+ * Audit P0-8 — default-private for unconsented minors.
+ *
+ * An unconsented minor's newly written image must NEVER be publicly or
+ * agency-visible, regardless of the client-declared shot_type/style_type
+ * metadata (which cannot be trusted for the safety decision). Returns true when
+ * the profile is a minor WITHOUT valid guardian authorization on file — in that
+ * case the caller forces exclude_from_public = exclude_from_agency = true.
+ */
+function minorForcesPrivate(profile) {
+  return (
+    !!profile &&
+    isMinorProfile(profile) &&
+    !minorSensitiveFieldsUnlocked(profile)
+  );
+}
+
+/** Column overrides that pin an image fully private (public + agency). */
+function forcedPrivateColumns(profile) {
+  return minorForcesPrivate(profile)
+    ? { exclude_from_public: true, exclude_from_agency: true }
+    : {};
+}
+
+/**
+ * Audit P0-5 (image-AI half) — consent gate for SENSITIVE image inference.
+ *
+ * masterVisionAnalysis infers measurements, weight, build, skin tone, facial
+ * structure and market suitability from a photo. This is sensitive processing
+ * and must be gated:
+ *   - Minors: NEVER without valid guardian authorization (fail CLOSED).
+ *   - Age unverifiable (no recorded DOB): fail CLOSED — we cannot prove adult.
+ *   - Adults with a recorded DOB: allowed.
+ *
+ * Reuses the canonical policy in talent-age.js (canCollectSensitiveProfileFields
+ * already encodes "DOB on file AND (adult OR minor-with-consent)").
+ *
+ * TODO(schema-wave): add an explicit per-user `ai_processing_consent` flag so
+ * adults can opt OUT of sensitive image AI. Until that column exists, adults
+ * with a recorded DOB are treated as having implied consent via account +
+ * ToS acceptance; minors always require guardian authorization.
+ */
+function sensitiveImageAiAllowed(profile) {
+  return canCollectSensitiveProfileFields(profile);
+}
+
+/**
+ * Fire-and-forget sensitive image AI for a profile's primary photo, gated on
+ * consent + minor status. This is where image AI now lives after the legacy
+ * masterVisionAnalysis trigger was removed from profile.js — analysis runs in
+ * the MEDIA domain wherever an image is uploaded or becomes primary.
+ */
+function runSensitiveImageAnalysisIfAllowed(profile, imageRow) {
+  if (!profile || !imageRow) return;
+  if (!sensitiveImageAiAllowed(profile)) {
+    // Denied: unconsented minor or unverifiable age. Do not run sensitive AI.
+    return;
+  }
+  fetchImageBuffer(imageRow)
+    .then((buffer) => {
+      if (!buffer || !buffer.length) return;
+      return masterVisionAnalysis(knex, buffer, profile.id);
+    })
+    .catch((err) =>
+      console.warn(
+        "[Media] Sensitive image analysis failed:",
+        imageRow.id,
+        err?.message || String(err),
+      ),
+    );
 }
 
 /** Normalize processImage() return (camelCase) for DB columns (snake_case). */
@@ -861,6 +936,9 @@ router.post(
     if (uploadBlock) {
       return respondMinorImageBlock(res, uploadBlock);
     }
+    // Audit P0-8: an unconsented minor's uploads default fully private and the
+    // client-declared shot/style metadata is NOT trusted to relax this.
+    const forcedPrivate = forcedPrivateColumns(profile);
     const hasCapturedAtColumn = await knex.schema.hasColumn(
       "images",
       "captured_at",
@@ -976,6 +1054,8 @@ router.post(
                   }
                 : {}),
               ...structuredInsert,
+              // Safety override: wins over any client-declared exclude_* flags.
+              ...forcedPrivate,
             });
 
             if (hasImageRightsTable) {
@@ -1060,6 +1140,7 @@ router.post(
               moderation_status: hasModerationColumns ? effectiveModStatus : undefined,
               ...structuredFieldsFromImageRow({
                 ...structuredInsert,
+                ...forcedPrivate,
               }),
             });
             uploadedImageIds.push(imageId);
@@ -1157,6 +1238,13 @@ router.post(
           .catch((err) =>
             console.warn("[PITS] classification failed:", imageId, err.message),
           );
+      }
+
+      // Sensitive image AI (measurements / casting analysis) now lives here in
+      // the media domain after profile.js's masterVisionAnalysis trigger was
+      // removed. Runs on the primary image only, and only when consent allows.
+      if (primary && primary.is_primary) {
+        runSensitiveImageAnalysisIfAllowed(profile, primary);
       }
 
       return res.json({
@@ -1770,7 +1858,13 @@ router.put(
     const userId = req.session.userId;
 
     const image = await knex("images")
-      .select("images.*", "profiles.id as profile_id")
+      .select(
+        "images.*",
+        "profiles.id as profile_id",
+        "profiles.date_of_birth",
+        "profiles.guardian_consent_at",
+        "profiles.work_permit_on_file",
+      )
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
       .where("profiles.user_id", userId)
@@ -1791,6 +1885,17 @@ router.put(
       // 2. Set the selected image as primary
       await trx("images").where({ id: imageId }).update({ is_primary: true });
     });
+
+    // Sensitive image AI re-runs when the hero changes (relocated from
+    // profile.js), consent-gated for minors / unverifiable age.
+    runSensitiveImageAnalysisIfAllowed(
+      {
+        id: image.profile_id,
+        date_of_birth: image.date_of_birth,
+        guardian_consent_at: image.guardian_consent_at,
+      },
+      image,
+    );
 
     return res.json({
       success: true,
@@ -2036,7 +2141,12 @@ router.post(
     const userId = req.session.userId;
 
     const image = await knex("images")
-      .select("images.*", "profiles.id as _profile_id")
+      .select(
+        "images.*",
+        "profiles.id as _profile_id",
+        "profiles.date_of_birth",
+        "profiles.guardian_consent_at",
+      )
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
       .where("profiles.user_id", userId)
@@ -2134,6 +2244,19 @@ router.post(
           err.message,
         ),
       );
+
+    // Replacing the pixels of the current primary is a "primary changed" moment:
+    // re-run sensitive image AI (consent-gated) on the fresh bytes.
+    if (fresh && fresh.is_primary) {
+      runSensitiveImageAnalysisIfAllowed(
+        {
+          id: image.profile_id,
+          date_of_birth: image.date_of_birth,
+          guardian_consent_at: image.guardian_consent_at,
+        },
+        fresh,
+      );
+    }
 
     const releaseOnFile = await imageReleaseOnFile(imageId);
 
@@ -2500,3 +2623,9 @@ router.get(
 );
 
 module.exports = router;
+// Exposed for unit tests (minor-image protection, audit P0-8 / P0-5).
+module.exports.__testables = {
+  minorForcesPrivate,
+  forcedPrivateColumns,
+  sensitiveImageAiAllowed,
+};

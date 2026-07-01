@@ -16,12 +16,15 @@ const emailModule = require("../../src/shared/lib/email");
 const {
   hashToken,
   createConsentRequest,
+  inspectConsentToken,
+  confirmConsentToken,
   verifyConsentToken,
   getConsentStatus,
   getAgencyConsentStatus,
   hasAgencyConsent,
   persistProfileDateOfBirthIfNeeded,
   GuardianConsentEmailError,
+  GuardianConsentRateLimitError,
 } = require("../../src/domains/talent/services/guardian-consent");
 
 const MINOR_DOB = "2012-03-15"; // clearly under 18
@@ -170,6 +173,161 @@ describe("guardian consent service", () => {
       const second = await verifyConsentToken(knex, rawToken);
       expect(second.ok).toBe(true);
       expect(second.reason).toBe("already_verified");
+    } finally {
+      await cleanupProfile(fixture);
+    }
+  });
+
+  test("inspectConsentToken is read-only and does not mutate consent", async () => {
+    const fixture = await makeProfile();
+    try {
+      const { rawToken } = await createConsentRequest(knex, fixture.profileId, {
+        guardianEmail: GUARDIAN_EMAIL,
+      });
+
+      const before = await knex("guardian_consent_requests")
+        .where({ profile_id: fixture.profileId })
+        .first();
+      expect(before.status).toBe("pending");
+
+      // Inspect twice — simulating link-preview bots / prefetch hitting the GET.
+      const first = await inspectConsentToken(knex, rawToken);
+      const second = await inspectConsentToken(knex, rawToken);
+      expect(first.ok).toBe(true);
+      expect(first.reason).toBe("pending");
+      expect(second.reason).toBe("pending");
+
+      // Nothing changed: request still pending, no account-level consent set.
+      const after = await knex("guardian_consent_requests")
+        .where({ profile_id: fixture.profileId })
+        .first();
+      expect(after.status).toBe("pending");
+      expect(after.verified_at).toBeFalsy();
+
+      const profile = await knex("profiles")
+        .where({ id: fixture.profileId })
+        .first();
+      expect(profile.guardian_consent_at).toBeFalsy();
+    } finally {
+      await cleanupProfile(fixture);
+    }
+  });
+
+  test("inspectConsentToken reports expired without marking the row expired", async () => {
+    const fixture = await makeProfile();
+    try {
+      const rawToken = "inspect-expired-" + uuidv4();
+      const id = uuidv4();
+      await knex("guardian_consent_requests").insert({
+        id,
+        profile_id: fixture.profileId,
+        guardian_email: GUARDIAN_EMAIL,
+        token_hash: hashToken(rawToken),
+        status: "pending",
+        expires_at: new Date(Date.now() - 1000).toISOString(),
+        created_at: new Date(Date.now() - 10000).toISOString(),
+      });
+
+      const result = await inspectConsentToken(knex, rawToken);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("expired");
+
+      // Read-only: the row is untouched (status stays pending until a POST).
+      const row = await knex("guardian_consent_requests").where({ id }).first();
+      expect(row.status).toBe("pending");
+    } finally {
+      await cleanupProfile(fixture);
+    }
+  });
+
+  test("confirmConsentToken transitions pending → verified atomically", async () => {
+    const fixture = await makeProfile();
+    try {
+      const { rawToken } = await createConsentRequest(knex, fixture.profileId, {
+        guardianEmail: GUARDIAN_EMAIL,
+      });
+
+      const result = await confirmConsentToken(knex, rawToken);
+      expect(result.ok).toBe(true);
+      expect(result.reason).toBeUndefined();
+
+      const request = await knex("guardian_consent_requests")
+        .where({ profile_id: fixture.profileId })
+        .first();
+      expect(request.status).toBe("verified");
+      expect(request.verified_at).toBeTruthy();
+
+      const profile = await knex("profiles")
+        .where({ id: fixture.profileId })
+        .first();
+      expect(profile.guardian_consent_at).toBeTruthy();
+    } finally {
+      await cleanupProfile(fixture);
+    }
+  });
+
+  test("a duplicate/concurrent confirm does not double-grant", async () => {
+    const fixture = await makeProfile();
+    const agencyId = uuidv4();
+    await knex("agencies").insert({
+      id: agencyId,
+      name: "Double Grant House",
+      slug: `double-grant-${agencyId}`,
+      status: "ACTIVE",
+    });
+
+    try {
+      const { rawToken } = await createConsentRequest(knex, fixture.profileId, {
+        guardianEmail: GUARDIAN_EMAIL,
+        agencyId,
+        agencyName: "Double Grant House",
+      });
+
+      // Fire two confirms concurrently against the same token.
+      const [a, b] = await Promise.all([
+        confirmConsentToken(knex, rawToken),
+        confirmConsentToken(knex, rawToken),
+      ]);
+
+      expect(a.ok).toBe(true);
+      expect(b.ok).toBe(true);
+      // Exactly one performs the grant; the other resolves to already_verified.
+      const reasons = [a.reason, b.reason].filter(Boolean);
+      expect(reasons).toContain("already_verified");
+
+      // The request is verified exactly once.
+      const requests = await knex("guardian_consent_requests")
+        .where({ profile_id: fixture.profileId, status: "verified" })
+        .count({ c: "*" })
+        .first();
+      expect(Number(requests.c)).toBe(1);
+
+      // And the agency consent grant exists exactly once (no double insert).
+      const grants = await knex("minor_agency_consents")
+        .where({ profile_id: fixture.profileId, agency_id: agencyId })
+        .count({ c: "*" })
+        .first();
+      expect(Number(grants.c)).toBe(1);
+    } finally {
+      await cleanupProfile(fixture);
+      await knex("agencies").where({ id: agencyId }).del();
+    }
+  });
+
+  test("createConsentRequest enforces a per-profile quota", async () => {
+    const fixture = await makeProfile();
+    try {
+      // The quota is 5 per rolling hour; the 6th must be rejected.
+      for (let i = 0; i < 5; i += 1) {
+        await createConsentRequest(knex, fixture.profileId, {
+          guardianEmail: GUARDIAN_EMAIL,
+        });
+      }
+      await expect(
+        createConsentRequest(knex, fixture.profileId, {
+          guardianEmail: GUARDIAN_EMAIL,
+        }),
+      ).rejects.toBeInstanceOf(GuardianConsentRateLimitError);
     } finally {
       await cleanupProfile(fixture);
     }
@@ -427,5 +585,72 @@ describe("guardian consent routes", () => {
 
     expect(res.status).toBe(400);
     expect(res.text).toContain("no longer valid");
+  });
+
+  test("GET /guardian-consent renders the disclosure form WITHOUT mutating consent", async () => {
+    const request = require("supertest");
+    const fixture = await makeProfile();
+    try {
+      const { rawToken } = await createConsentRequest(knex, fixture.profileId, {
+        guardianEmail: GUARDIAN_EMAIL,
+      });
+
+      const res = await request(app).get(
+        `/guardian-consent?token=${encodeURIComponent(rawToken)}`,
+      );
+
+      expect(res.status).toBe(200);
+      // The GET must render a disclosure page with a confirmation form.
+      expect(res.text).toContain("Guardian consent");
+      expect(res.text).toContain('method="POST"');
+      expect(res.text).toContain('action="/guardian-consent"');
+      // It must NOT declare consent confirmed.
+      expect(res.text).not.toContain("Consent confirmed");
+
+      // Critically: no side effects. Status is still pending, no consent set.
+      const row = await knex("guardian_consent_requests")
+        .where({ profile_id: fixture.profileId })
+        .first();
+      expect(row.status).toBe("pending");
+      expect(row.verified_at).toBeFalsy();
+
+      const profile = await knex("profiles")
+        .where({ id: fixture.profileId })
+        .first();
+      expect(profile.guardian_consent_at).toBeFalsy();
+    } finally {
+      await cleanupProfile(fixture);
+    }
+  });
+
+  test("POST /guardian-consent confirms consent and transitions pending → verified", async () => {
+    const request = require("supertest");
+    const fixture = await makeProfile();
+    try {
+      const { rawToken } = await createConsentRequest(knex, fixture.profileId, {
+        guardianEmail: GUARDIAN_EMAIL,
+      });
+
+      const res = await request(app)
+        .post("/guardian-consent")
+        .type("form")
+        .send({ token: rawToken });
+
+      expect(res.status).toBe(200);
+      expect(res.text).toContain("Consent confirmed");
+
+      const row = await knex("guardian_consent_requests")
+        .where({ profile_id: fixture.profileId })
+        .first();
+      expect(row.status).toBe("verified");
+      expect(row.verified_at).toBeTruthy();
+
+      const profile = await knex("profiles")
+        .where({ id: fixture.profileId })
+        .first();
+      expect(profile.guardian_consent_at).toBeTruthy();
+    } finally {
+      await cleanupProfile(fixture);
+    }
   });
 });

@@ -10,6 +10,10 @@
   generalized commands versus intentional exceptions and record those
   exceptions explicitly. Preserve the shared system for real command buttons
   without flattening specialized navigation and selection affordances.
+- Do not classify exceptions from JSX tag names alone. Existing
+  `PholioButton` usages can still be intentionally surface-specific when a
+  local class owns their treatment; hard `!important` role rules will silently
+  redesign them unless they are converted to an explicit native exception.
 
 ## 2026-06-30 — Locate and read the approved design artifact before migration
 

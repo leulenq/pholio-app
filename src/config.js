@@ -41,10 +41,28 @@ const rootUploads = process.env.UPLOAD_DIR
     ? path.join(os.tmpdir(), "pholio-uploads")
     : path.join(__dirname, "..", "..", "uploads");
 
+const nodeEnv = process.env.NODE_ENV || "development";
+
+// Fail closed in production: a missing SESSION_SECRET must crash startup
+// rather than silently signing sessions with a hardcoded, publicly-known
+// fallback. In dev/test, fall back to a clearly-labeled dev-only secret.
+function resolveSessionSecret() {
+  const secret = process.env.SESSION_SECRET;
+  if (secret && secret.trim()) return secret;
+
+  if (nodeEnv === "production") {
+    throw new Error(
+      "SESSION_SECRET is required when NODE_ENV=production. Set it in the environment before starting the server.",
+    );
+  }
+
+  return "pholio-dev-secret-do-not-use-in-production";
+}
+
 module.exports = {
   port: Number(process.env.PORT || 3000),
-  nodeEnv: process.env.NODE_ENV || "development",
-  sessionSecret: process.env.SESSION_SECRET || "pholio-secret",
+  nodeEnv,
+  sessionSecret: resolveSessionSecret(),
   dbClient: (process.env.DB_CLIENT || "sqlite3").toLowerCase(),
   databaseUrl: process.env.DATABASE_URL || "sqlite://./dev.sqlite3",
   commissionRate: Number.isFinite(COMMISSION_RATE) ? COMMISSION_RATE : 0.25,

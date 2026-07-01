@@ -42,6 +42,22 @@ const {
 const {
   buildSubmissionProfileSnapshot,
 } = require("../../../shared/lib/submission-profile");
+const {
+  AUDIENCE,
+  buildAgencyDiscoveryDTO,
+  buildAgencySubmissionDTO,
+} = require("../../../shared/lib/audience-dto");
+const {
+  applyImageVisibility,
+  isAgencyDiscoverable,
+} = require("../../../shared/lib/profile-visibility");
+const {
+  ensureModerationColumnChecked,
+} = require("../../../shared/lib/content-moderation");
+const {
+  computeAge,
+  isMinorProfile,
+} = require("../../../shared/lib/talent-age");
 
 const addTeamMemberSchema = z.object({
   email: z
@@ -680,17 +696,20 @@ router.get(
         date_to = "",
       } = req.query;
 
+      // SECURITY (audit P0-3): this endpoint returns ONLY real applicants to the
+      // session agency. An INNER JOIN scoped to `applications.agency_id = <session
+      // agency>` replaces the previous LEFT JOIN + `whereNull("applications.id")`
+      // path, which leaked every discoverable profile (non-applicants included) to
+      // any agency. Withdrawn submissions are excluded.
       let query = knex("profiles")
         .select(
           "profiles.*",
-          "users.email as owner_email",
           "applications.status as application_status",
           "applications.id as application_id",
           "applications.match_score as match_score",
           "applications.created_at as application_created_at",
         )
-        .leftJoin("users", "profiles.user_id", "users.id")
-        .leftJoin("applications", (join) => {
+        .innerJoin("applications", (join) => {
           join
             .on("applications.profile_id", "=", "profiles.id")
             .andOn(
@@ -700,11 +719,7 @@ router.get(
             );
         })
         .whereNotNull("profiles.bio_curated")
-        .where((builder) => {
-          builder
-            .whereNull("applications.id")
-            .orWhereNot("applications.status", "withdrawn");
-        });
+        .whereNot("applications.status", "withdrawn");
 
       // Apply filters (same logic as main route)
       if (city) {
@@ -809,12 +824,19 @@ router.get(
             !submissionPackages.has(profile.application_id),
         )
         .map((profile) => profile.id);
-      const allImages =
-        profileIds.length > 0
-          ? await knex("images")
-              .whereIn("profile_id", profileIds)
-              .orderBy(["profile_id", "sort", "created_at"])
-          : [];
+      let allImages = [];
+      if (profileIds.length > 0) {
+        await ensureModerationColumnChecked(knex);
+        const imageQuery = knex("images").whereIn("profile_id", profileIds);
+        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        allImages = await imageQuery.orderBy([
+          "profile_id",
+          "sort",
+          "created_at",
+        ]);
+      }
 
       const imagesByProfile = {};
       allImages.forEach((img) => {
@@ -847,20 +869,23 @@ router.get(
         const submissionPackage = submissionPackages.get(
           profile.application_id,
         );
-        const submittedProfile =
-          submissionPackage?.profile ||
-          buildSubmissionProfileSnapshot(profile);
+        // A frozen submission snapshot (already minor-safe) wins; otherwise shape
+        // the live row through the agency-submission DTO. Never spread the raw
+        // profile row and never surface the owner's account email (audit P0-3).
+        const submitted = submissionPackage?.profile
+          ? {
+              ...submissionPackage.profile,
+              images: submissionPackage.images || [],
+            }
+          : buildAgencySubmissionDTO(profile, {
+              images: imagesByProfile[profile.id] || [],
+            });
         return {
-          ...submittedProfile,
-          owner_email: submittedProfile.is_minor
-            ? null
-            : profile.owner_email || null,
+          ...submitted,
           application_status: profile.application_status,
           application_id: profile.application_id,
           match_score: profile.match_score,
           application_created_at: profile.application_created_at,
-          images:
-            submissionPackage?.images || imagesByProfile[profile.id] || [],
           submission_package: submissionPackage || null,
           tags: tagsByApplication[profile.application_id] || [],
         };
@@ -2176,7 +2201,8 @@ router.get(
           "profiles.bust_cm as bust",
           "profiles.waist_cm as waist",
           "profiles.hips_cm as hips",
-          "profiles.age",
+          // Age is DERIVED from DOB (audit P0-7) — never the stored column.
+          "profiles.date_of_birth",
           "profiles.bio_curated",
           "applications.id as application_id",
           "applications.status as application_status",
@@ -2269,13 +2295,18 @@ router.get(
         const measurementsStr =
           measurements.length > 0 ? measurements.join(", ") : "";
 
+        // Applicant email to the agency they applied to is legitimate — but a
+        // minor's contact is nulled (guardian-mediated), matching the DTO layer.
+        const minor = isMinorProfile(app);
+        const derivedAge = computeAge(app.date_of_birth);
+
         return {
           name: `${app.first_name} ${app.last_name}`,
-          email: app.owner_email || "",
+          email: minor ? "" : app.owner_email || "",
           city: app.city || "",
           height_cm: app.height_cm || "",
           measurements: measurementsStr,
-          age: app.age || "",
+          age: derivedAge != null ? derivedAge : "",
           bio: app.bio_curated || "",
           notes: notesMap[app.application_id] || "",
           tags: tagsMap[app.application_id] || "",
@@ -2620,11 +2651,17 @@ router.get(
       const submittedProfile =
         submittedPackage?.profile ||
         buildSubmissionProfileSnapshot(profile);
-      const images = submittedPackage
-        ? submittedPackage.images
-        : await knex("images")
-            .where({ profile_id: profile.id })
-            .orderBy(["sort", "created_at"]);
+      let images;
+      if (submittedPackage) {
+        images = submittedPackage.images;
+      } else {
+        await ensureModerationColumnChecked(knex);
+        const imageQuery = knex("images").where({ profile_id: profile.id });
+        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        images = await imageQuery.orderBy(["sort", "created_at"]);
+      }
       const submissionPackage = submittedPackage
         ? {
             ...submittedPackage,
@@ -2701,18 +2738,27 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Get all images
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .orderBy(["sort", "created_at"]);
-
-      // Get user info
-      const user = await knex("users").where({ id: profile.user_id }).first();
-
       // Check if there's an existing application for this profile
       const application = await knex("applications")
         .where({ profile_id: profileId, agency_id: agencyId })
         .first();
+
+      // Without an application this is GENERIC discovery — a minor (no named-
+      // agency guardian auth) or a profile excluding this agency must not be
+      // exposed here (audit P0-3, fail closed).
+      if (!application && !isAgencyDiscoverable(profile, { agencyId })) {
+        return res
+          .status(404)
+          .json({ error: "Profile not found or not discoverable" });
+      }
+
+      // Get visible images only (moderation + agency-exclusion filtered).
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]);
 
       // If application exists, get notes and tags
       let notes = [];
@@ -2727,6 +2773,13 @@ router.get(
           .orderBy("created_at", "desc");
       }
 
+      // Static-allowlist DTO — never spread the raw profile row and never leak
+      // the owner's account email. An actual submission gets the richer (still
+      // minor-safe) submission snapshot; generic discovery gets the tighter card.
+      const profileDto = application
+        ? buildAgencySubmissionDTO(profile, { images })
+        : buildAgencyDiscoveryDTO(profile, { images, social: null });
+
       return res.json({
         application: application
           ? {
@@ -2739,11 +2792,7 @@ router.get(
               invited_by_agency_id: application.invited_by_agency_id,
             }
           : null,
-        profile: {
-          ...profile,
-          images,
-          user_email: user?.email || null,
-        },
+        profile: profileDto,
         notes,
         tags,
       });
@@ -2818,6 +2867,9 @@ router.get(
         const profileImages = images.filter((i) => i.profile_id === p.id);
         const coverImage =
           profileImages.find((i) => i.is_cover) || profileImages[0];
+        // Signed roster talent contact is legitimate to the representing agency,
+        // but a minor's email/phone is guardian-mediated → nulled here.
+        const minor = isMinorProfile(p);
 
         let archetype = p.archetype ? p.archetype.toLowerCase() : "editorial";
         if (
@@ -2842,7 +2894,8 @@ router.get(
           id: p.id,
           applicationId: app.id,
           name:
-            [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
+            [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+            "Roster talent",
           gender: p.gender || "female",
           type: archetype,
           status: status,
@@ -2855,8 +2908,8 @@ router.get(
           dateAdded: app.accepted_at || app.updated_at,
           tags: tagsByApp[app.id] || [],
           img: coverImage ? coverImage.url : null,
-          email: p.email,
-          phone: p.phone,
+          email: minor ? null : p.email,
+          phone: minor ? null : p.phone,
           notes: p.bio,
         };
       });
@@ -2900,9 +2953,12 @@ router.get(
         return res.status(404).json({ error: "Profile not found" });
       }
 
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .orderBy(["sort", "created_at"]);
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]);
 
       // Booking stats from commissions table
       const commissionStats = await knex("commissions")
@@ -2914,11 +2970,10 @@ router.get(
         )
         .first();
 
+      // Roster = represented talent, so the richer (minor-safe) submission
+      // snapshot is warranted — but NEVER a raw row spread (audit P0-3).
       return res.json({
-        profile: {
-          ...profile,
-          images,
-        },
+        profile: buildAgencySubmissionDTO(profile, { images }),
         bookings: {
           total_bookings: commissionStats?.total_bookings
             ? Number(commissionStats.total_bookings)
@@ -3120,10 +3175,11 @@ router.get(
       const limit = parseInt(req.query.limit) || 5;
 
       // Get recent applications with profile data
+      // Explicit allowlist select (no users join / owner email needed — the
+      // response below is a hand-built shape, not a raw row).
       const recentApplications = await knex("applications")
         .where({ "applications.agency_id": agencyId })
         .join("profiles", "applications.profile_id", "profiles.id")
-        .join("users", "profiles.user_id", "users.id")
         .select(
           "applications.id as application_id",
           "applications.status as application_status",
@@ -3137,7 +3193,6 @@ router.get(
           "profiles.height_cm",
           "profiles.date_of_birth",
           "profiles.slug",
-          "users.email as user_email",
         )
         .orderBy("applications.created_at", "desc")
         .limit(limit);
@@ -3320,12 +3375,23 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Get images
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .orderBy(["sort", "created_at"]);
-
+      // Generic discovery preview — fail closed on minors (no named-agency
+      // guardian auth here) and agency-excluded profiles (audit P0-3).
       const agencyId = getSessionAgencyId(req);
+      if (!isAgencyDiscoverable(profile, { agencyId })) {
+        return res
+          .status(404)
+          .json({ error: "Profile not found or not discoverable" });
+      }
+
+      // Get visible images only (moderation + agency-exclusion filtered).
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]);
+
       if (agencyId && profile.user_id) {
         const agency = await knex("agencies")
           .where({ id: agencyId })
@@ -3340,15 +3406,10 @@ router.get(
         );
       }
 
+      // Static-allowlist DTO — never spread the raw discoverable profile row.
       return res.json({
         success: true,
-        profile: {
-          ...profile,
-          images: images.map((img) => ({
-            path: img.path,
-            alt: img.alt || `${profile.first_name} ${profile.last_name}`,
-          })),
-        },
+        profile: buildAgencyDiscoveryDTO(profile, { images, social: null }),
       });
     } catch (error) {
       console.error("[API/Agency/Discover Preview] Error:", error);

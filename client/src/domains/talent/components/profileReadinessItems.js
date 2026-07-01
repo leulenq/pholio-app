@@ -317,9 +317,12 @@ export function buildReadinessLists(fieldCompletion = {}, profile = null, images
     divisionConfig,
   );
 
+  const emphasizedImproveKeys = divisionConfig?.emphasizeImproveKeys || [];
   const topGaps = [
     ...missingRequired.map((i) => ({ ...i, tier: 'required' })),
-    ...missingImprove.map((i) => ({ ...i, tier: 'improve' })),
+    ...missingImprove
+      .filter(item => emphasizedImproveKeys.includes(item.key))
+      .map((i) => ({ ...i, tier: 'improve' })),
   ].slice(0, 5);
 
   return {

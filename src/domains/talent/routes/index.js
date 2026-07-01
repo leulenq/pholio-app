@@ -42,7 +42,12 @@ router.use("/api/talent/submission-note", submissionNoteRouter);
 router.use("/api/talent/training-summary", trainingSummaryRouter);
 router.use("/api/talent", notificationsRouter);
 router.use("/api/talent/message-polish", messagePolishRouter);
-router.use("/api/talent/socials/oauth", socialOauthRouter);
+// Mock/simulated OAuth verification (fabricates handles + follower/engagement metrics).
+// Dev/staging only — never mount in production. Real verification goes through the
+// Phyllo-backed router below.
+if (process.env.NODE_ENV !== "production") {
+  router.use("/api/talent/socials/oauth", socialOauthRouter);
+}
 router.use("/api/talent/socials/phyllo", phylloRouter);
 
 // SPA catch-all — serves React app for all /dashboard/talent* routes

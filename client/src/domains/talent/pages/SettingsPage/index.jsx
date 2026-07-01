@@ -248,7 +248,9 @@ function AccountSection() {
       const result = await talentApi.uploadMedia(formData);
       const uploaded = result?.images?.[0];
       if (uploaded?.id) {
-        await updateProfile({ primary_photo_id: uploaded.id });
+        // Setting the primary image is a /media concern (PUT /media/:id/hero); the
+        // profile endpoint no longer accepts primary_photo_id.
+        await talentApi.setHeroImage(uploaded.id);
       }
       await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       toast.success('Profile photo updated');
