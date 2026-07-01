@@ -92,6 +92,7 @@ async function createMinimalSchema() {
     t.string("first_name", 191).nullable();
     t.string("last_name", 191).nullable();
     t.string("city", 191).nullable();
+    t.string("discipline", 20).nullable();
     // Age gating.
     t.string("date_of_birth", 64).nullable();
     t.timestamp("guardian_consent_at").nullable();

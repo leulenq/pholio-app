@@ -75,7 +75,7 @@ export const IdentitySection = ({
           control={control}
           render={({ field }) => (
             <CityAutocompleteField
-              label="City"
+              label="Primary Base"
               placeholder="Start typing — e.g. New York, USA"
               value={field.value}
               onChange={field.onChange}
@@ -84,6 +84,23 @@ export const IdentitySection = ({
             />
           )}
         />
+        <Controller
+          name="city_secondary"
+          control={control}
+          render={({ field }) => (
+            <CityAutocompleteField
+              label="Secondary Base"
+              placeholder="Also based in…"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.city_secondary}
+            />
+          )}
+        />
+      </div>
+
+      <div className={`${styles.formGrid2} ${styles.formRow}`}>
         <Controller
           name="gender"
           control={control}

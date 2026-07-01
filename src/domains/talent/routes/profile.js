@@ -60,6 +60,7 @@ const {
   hasRecordedDateOfBirth,
 } = require("../../../shared/lib/talent-age");
 const { getConsentStatus } = require("../services/guardian-consent");
+const { loadFieldVisibility } = require("../../../shared/lib/field-visibility");
 const {
   listRepresentations,
   syncStructuredRepresentationFromLegacy,
@@ -654,6 +655,11 @@ router.get(
       canApplyToAgencies: isOnboardingComplete && essentialsCheck.ok,
       canPublishPortfolio: isOnboardingComplete && essentialsCheck.ok,
     };
+
+    // Per-field audience visibility (Wave 2B/2C "public stats opt-in"),
+    // merged over the seeded defaults. Additive-only field so a future toggle
+    // UI has something to render; does not change any existing response shape.
+    response.fieldVisibility = await loadFieldVisibility(profile.id);
 
     return apiResponse.success(res, response);
   }),

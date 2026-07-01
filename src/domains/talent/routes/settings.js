@@ -601,15 +601,27 @@ router.delete(
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    await deleteUserAccount(knex, userId);
+    const result = await deleteUserAccount(knex, userId);
+
+    // The account row (and everything cascaded from it) is gone from
+    // Pholio's own systems either way, so we always sign the caller out and
+    // redirect. What must stay truthful is whether erasure is actually
+    // COMPLETE: if an R2/Firebase provider purge failed, `fullyErased` is
+    // false and the failure was durably recorded for retry — the response
+    // must not claim full erasure it hasn't verified.
+    const payload = {
+      deleted: !!result.deleted,
+      fullyErased: !!result.fullyErased,
+      erasureStatus: result.fullyErased ? "complete" : "pending_provider_purge",
+    };
 
     if (!req.session) {
-      return apiResponse.success(res, { deleted: true });
+      return apiResponse.success(res, payload);
     }
 
     req.session.destroy(() => {
       res.clearCookie("connect.sid");
-      return apiResponse.success(res, { deleted: true, redirect: "/login" });
+      return apiResponse.success(res, { ...payload, redirect: "/login" });
     });
   }),
 );

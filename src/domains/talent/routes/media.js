@@ -44,6 +44,9 @@ const {
   screenImageForCsam,
   recordCsamEscalation,
 } = require("../../../shared/lib/csam-moderation");
+const {
+  submissionRetentionExpiry,
+} = require("../../../shared/lib/submission-retention");
 
 // Body-revealing framing. An unconsented minor may not upload or make
 // agency/public-visible any of these. Extended beyond full-length framing
@@ -2517,6 +2520,7 @@ router.post(
       label,
       payload,
       created_at: knex.fn.now(),
+      retention_expires_at: submissionRetentionExpiry().toISOString(),
     });
 
     await logActivity(userId, "submission_package_created", {

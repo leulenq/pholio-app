@@ -4,7 +4,7 @@
   --pholio-gold: #C9A55A;
   --pholio-gold-hover: #b08d45;
   --pholio-text-dark: #0f172a;
-  --pholio-text-muted: #64748b;
+  --pholio-text-muted: #607084;
   --pholio-text-light: #94a3b8;
   --pholio-placeholder: #cbd5e1;
   --pholio-input-bg: #FFFFFF;
@@ -391,6 +391,11 @@
   transform: translateY(-1.5px);
 }
 
+.pholio-custom-select-trigger:focus-visible {
+  outline: 2px solid var(--pholio-gold);
+  outline-offset: 2px;
+}
+
 /* Selected Value Text */
 .selected-value {
   color: var(--pholio-text-dark);
@@ -475,6 +480,7 @@
 }
 
 .pholio-select-option:hover,
+.pholio-select-option.active,
 .pholio-autocomplete-option-active {
   background: rgba(201, 165, 90, 0.05) !important;
   color: var(--pholio-gold, #C9A55A) !important;
@@ -685,4 +691,14 @@
 
 .pholio-autocomplete-option-active {
   background: #f5f5f7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pholio-custom-select-trigger,
+  .pholio-custom-select-dropdown,
+  .pholio-select-option,
+  .chevron-icon {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

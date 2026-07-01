@@ -19,6 +19,10 @@ export const talentApi = {
       body: JSON.stringify(endedOn ? { ended_on: endedOn } : {}),
     }),
   saveFitScores: (data) => apiClient.post('/profile/fit-scores', data),
+  // Dev/staging-only mock OAuth disconnect (mirrors the "Connect & Verify"
+  // popup flow — /socials/oauth/mock/:platform — which is also dev-gated).
+  disconnectSocialOauth: (platform) =>
+    apiClient.post(`/socials/oauth/disconnect/${encodeURIComponent(platform)}`),
   requestGuardianConsent: (guardianEmail, { dateOfBirth } = {}) =>
     apiClient.post('/guardian-consent/request', {
       guardian_email: guardianEmail,

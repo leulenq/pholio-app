@@ -1,11 +1,15 @@
 import { z } from 'zod';
 
 // Helper for optional number
-const optionalNumber = z.union([
-  z.number(), 
-  z.string().transform((val) => (val === '' ? undefined : Number(val))), 
-  z.null()
-]).optional();
+const optionalNumber = z.preprocess(
+  (val) => {
+    if (val === '' || val === undefined) return undefined;
+    if (val === null) return null;
+    const num = Number(val);
+    return Number.isNaN(num) ? undefined : num;
+  },
+  z.union([z.number(), z.null()]).optional()
+);
 
 /** SQLite / API may send booleans as 0/1 — normalize before Zod validation. */
 function toDbBoolean(val: unknown, defaultValue = false): boolean {
@@ -72,12 +76,15 @@ export const profileSchema = z.object({
   
   // Measurements (Decimals supported)
   bust: optionalNumber,
+  bust_cm: optionalNumber,
+  chest_cm: optionalNumber,
   waist: optionalNumber,
   hips: optionalNumber,
   
   // Details
   shoe_size: optionalNumber,
   dress_size: z.string().nullable().optional(),
+  suit_size: z.string().nullable().optional(),
   inseam_cm: optionalNumber,
   hair_length: z.string().nullable().optional(),
   hair_color: z.string().nullable().optional(),
@@ -90,6 +97,10 @@ export const profileSchema = z.object({
   tattoos: coercedBoolean,
   piercings: coercedBoolean,
 
+  // --- Discipline & Stats Track (NEW) ---
+  discipline: z.string().nullable().optional(),
+  stats_track: z.string().nullable().optional(),
+  
   // --- Professional & Availability ---
   work_status: z.string().nullable().optional(),
   /** true = authorized, false = not authorized, null = not specified (backend accepts boolean or null). */

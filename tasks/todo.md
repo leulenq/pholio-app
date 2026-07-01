@@ -2111,3 +2111,90 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
   review whether submission snapshot should carry AI `archetype`.
 - Deferred per user: credential rotation/history-rewrite/secret-scan, Node-EOL
   upgrade, CI quality gate.
+
+## Post-milestone note
+- Waves 0+1 committed as `fe14f7d` on main. A separate in-progress location-
+  autocomplete feature was found uncommitted on main and REMOVED per user
+  (migration rolled back from dev DB, files deleted, tree restored to HEAD).
+- Wave 2 work is on branch `wave2-field-split`. Design: `tasks/field-split-design-2026-07-01.md`.
+
+## Wave 2A — design ✅
+- [x] Discipline-aware field-split blueprint written; 4 product decisions locked
+      (strong per-discipline, private verified-adult context, stats agency-default,
+      structured minor-permit model).
+
+## Wave 2B — schema expand+backfill ✅ (verified, uncommitted on wave2-field-split)
+- [x] 6 additive/reversible migrations: `chest_cm`+`suit_size`+`stats_track`,
+      `discipline`(model/performer/creator), `profile_field_visibility` (normalized,
+      section-C defaults), `minor_permits`, `confirmed_job_safety`, `adult_context`.
+      Up→down→up clean, idempotent backfills.
+- [x] DTO/visibility wired for new stable columns (chest_cm/suit_size/stats_track→
+      owner+agency stats; discipline→owner+agency+public identity); SELECT lists
+      auto-derive; contract 21/21.
+- Note: `stats_track` seeded once from `gender` as a migration default (independently
+  editable after) — flip to NULL if undesired. `suit_size` unbackfilled (no source).
+  `adult_context` intentionally NOT in any DTO (gated; per-brief consent = later).
+
+## Wave 2C — stats unification ✅ (verified)
+- [x] Canonical `src/shared/lib/stats-formatter.js`; routed send-readiness, submission,
+      public portfolio EJS (stats gated on public opt-in via `profile_field_visibility`,
+      fail-closed; exact age→band), classic + composed PDF. chest_cm fixes male-chest
+      readiness (P1-3); dropped/legacy column reads fixed (P1-6). Zero regressions.
+
+## Wave 2D — social_accounts join ✅ (verified)
+- [x] Canonical `src/shared/lib/social-accounts.js` (batch, no N+1); wired agency
+      discovery/inbox(6)/submission/owner DTOs; `verified` only from real provider.
+      Fixed client disconnect double-path + OAuth form-reset; fixed dropped
+      `portfolio_url` read in agency hydration. Full Phyllo prod-connect UI deferred.
+- Fixed my Wave-2B fixture regression: added stats_track/discipline/chest_cm/suit_size
+  to hand-rolled `profiles` fixtures in public-home + agency-discover-search tests.
+- Full in-band suite after 2B+2C+2D: 932 passed (+25), same 11 baseline-env failing suites, ZERO new regressions.
+
+## Wave 2E — export/deletion/retention ✅ (verified)
+- [x] Canonical `src/shared/lib/talent-data-inventory.js`; full-lifecycle export;
+      durable deletion (new `account_deletion_failures` table + migration) — no false
+      "erased" on provider-purge failure. Tests 13/13.
+
+## Wave 3 (other agent) — VERIFIED
+- [x] a11y control rewrites (PholioCustomSelect/MultiSelect/MeasuringTape), ProfilePage
+      refactor (−295), client Vitest harness (setupTests + formNormalization + tests,
+      10/10), Wave-4 `dto-security.test.js`. Client build passes; no new server regressions.
+- Fixed: new `jest.config.js` had orphaned 24 `src/**/__tests__` PDF suites — broadened
+  testMatch to include `__tests__` (client ignored → Vitest). Restored honest coverage.
+- Bug found + being fixed: rewritten `completeness.js` scored empty profile 12%
+  (hardcoded skillsLifestyle) AND gated on moved-out fields (comfort_levels, emergency) —
+  rebuilding to field-split-aligned sections + honest test.
+
+## Honest test suite ✅ (verified)
+- [x] Rebuilt `completeness.js` to 6 field-split-aligned sections (empty→0%, delegates to
+      `hasCoreMeasurements`, dropped moved-out comfort/emergency sections; no client consumers
+      of dropped keys). date-debug fixed (Jest vm/native-addon artifact, test-side).
+      Composition guardrail REAL bug fixed (`guardrails.js` reused strict send-readiness cert
+      check as a composition blocker, masking warn states) — send gate untouched.
+- Full in-band suite: 10→6 failing suites, all remaining are environmental (FK-seed /
+  LEGAL_ACCEPTANCE_REQUIRED); 1008 passing.
+
+## Profile-tab IA (Wave 3 structure) — spec approved, USER implementing
+- Spec: `tasks/profile-tab-ia-2026-07-01.md`. 10-section reorg approved. Key finding:
+  front/back divergence — data layer reads chest_cm/suit_size/stats_track/discipline but the
+  FORM never collects them (dress/suit not split in UI, chest/bust gender-relabel not track-driven).
+- USER is implementing the reorg; I stand ready to VERIFY when they return. NOT touching the
+  profile tab to avoid collision.
+
+## Per-field visibility opt-in ✅ (verified)
+- [x] `src/shared/lib/field-visibility.js` (canonical taxonomy + fail-closed loader),
+      `/api/talent/field-visibility` GET+PATCH with invariants (sensitive/compliance/adult
+      never public; minor needs guardian consent to widen; unknown→400), portfolio.js
+      delegates to helper, owner payload exposes `fieldVisibility`. 74 tests green (incl.
+      contract/dto-security). UI toggles deferred to paused IA.
+
+## Remaining — need direction / larger investment
+- [ ] TEST-HARNESS FIX (unlocks green suite + browser E2E): the 6 "environmental" failing
+      suites all trace to a PRE-EXISTING bug in `migrations/20250106000000_update_profile_fields.js`
+      — its SQLite alterTable rebuild of `profiles` trips the `agencies` FK during the temp-table
+      copy. SQLite-test-only; production (Postgres) unaffected. Root cause localized.
+- [ ] Wave 4 browser E2E: headless Chromium WORKS via puppeteer, but login→profile is gated by
+      Firebase auth + the above seed bug. Needs both resolved first.
+- [ ] Terminology renames (bundled into the paused IA reorg)
+- [ ] Full Phyllo prod-connect UI (large deferred feature)
+- [ ] Profile-tab IA reorg — PAUSED (user-owned); verify on resume.

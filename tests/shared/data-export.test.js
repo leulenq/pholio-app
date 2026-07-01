@@ -19,6 +19,10 @@ function createKnexMock(seed = {}, schema = {}) {
     application_submission_requests: [
       ...(seed.application_submission_requests || []),
     ],
+    comp_card_presets: [...(seed.comp_card_presets || [])],
+    notifications: [...(seed.notifications || [])],
+    onboarding_analytics: [...(seed.onboarding_analytics || [])],
+    commissions: [...(seed.commissions || [])],
   };
 
   const tables = new Set([
@@ -31,6 +35,10 @@ function createKnexMock(seed = {}, schema = {}) {
     "ai_profile_analysis",
     "talent_user_settings",
     "image_rights",
+    "comp_card_presets",
+    "notifications",
+    "onboarding_analytics",
+    "commissions",
     ...(schema.tables || []),
   ]);
 
@@ -234,6 +242,35 @@ describe("buildTalentDataExport", () => {
             created_at: "2026-06-27T00:00:00.000Z",
           },
         ],
+        comp_card_presets: [
+          {
+            id: "preset-1",
+            profile_id: "profile-1",
+            name: "Default Preset",
+          },
+        ],
+        notifications: [
+          {
+            id: "notification-1",
+            user_id: "user-1",
+            title: "Welcome to Pholio",
+          },
+        ],
+        onboarding_analytics: [
+          {
+            id: "analytics-1",
+            profile_id: "profile-1",
+            step: "reveal",
+            event_type: "completed",
+          },
+        ],
+        commissions: [
+          {
+            id: "commission-1",
+            profile_id: "profile-1",
+            percent: 20.0,
+          },
+        ],
       },
       {
         tables: [
@@ -301,6 +338,18 @@ describe("buildTalentDataExport", () => {
         id: "submission-request-1",
         status: "completed",
       }),
+    ]);
+    expect(result.comp_card_presets).toEqual([
+      expect.objectContaining({ id: "preset-1", name: "Default Preset" }),
+    ]);
+    expect(result.notifications).toEqual([
+      expect.objectContaining({ id: "notification-1", title: "Welcome to Pholio" }),
+    ]);
+    expect(result.onboarding_analytics).toEqual([
+      expect.objectContaining({ id: "analytics-1", step: "reveal" }),
+    ]);
+    expect(result.commissions).toEqual([
+      expect.objectContaining({ id: "commission-1", percent: 20.0 }),
     ]);
   });
 

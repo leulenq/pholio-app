@@ -25,6 +25,9 @@ const {
   buildSubmissionProfileSnapshot,
 } = require("../../../shared/lib/submission-profile");
 const {
+  loadSocialAccountsForProfile,
+} = require("../../../shared/lib/social-accounts");
+const {
   getAgencyConsentGrant,
   hasAgencyConsent,
 } = require("../services/guardian-consent");
@@ -417,6 +420,11 @@ router.post(
       email: profile.email || user?.email || null,
     };
     const minorSubmission = isMinorProfile(submissionProfile);
+    // Minors never get social links in a submission snapshot (data
+    // minimization) — skip the query entirely rather than load-then-discard.
+    const submissionSocial = minorSubmission
+      ? []
+      : await loadSocialAccountsForProfile(profile.id);
     if (
       minorSubmission &&
       !hasGuardianConsent(submissionProfile)
@@ -1006,6 +1014,7 @@ router.post(
               images: packageImages.map(snapshotSubmissionImage),
               profile: buildSubmissionProfileSnapshot(submissionProfile, {
                 minor: minorSubmission,
+                social: submissionSocial,
               }),
               contact: minorSubmission
                 ? null

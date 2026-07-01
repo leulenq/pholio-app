@@ -6,40 +6,14 @@ const {
   validateImagesForDistribution,
 } = require("../../../shared/lib/image-rights");
 const { isMinorProfile, hasGuardianConsent } = require("../../../shared/lib/talent-age");
+const { hasCoreMeasurements } = require("../../../shared/lib/stats-formatter");
 
-function isPresent(value) {
-  if (value === null || value === undefined || value === "") return false;
-  if (typeof value === "string") return value.trim() !== "";
-  return true;
-}
-
-function measurementValue(profile, keys) {
-  for (const key of keys) {
-    const value = profile?.[key];
-    if (isPresent(value)) return value;
-  }
-  return null;
-}
-
-function isMensProfile(profile) {
-  const normalizedGender = String(profile?.gender || "").trim().toLowerCase();
-  return ["male", "man", "men", "masculine", "boy"].includes(normalizedGender);
-}
-
+// Canonical presence check (audit P1-3): the shared formatter decides the core
+// circumference per stats_track — chest_cm satisfies menswear/ungendered so a
+// male "Chest" no longer fails readiness; bust_cm satisfies womenswear (with a
+// legacy cross-fallback). Height + core + waist + hips are all required.
 function hasRequiredMeasurements(profile) {
-  const hasHeight = !!measurementValue(profile, ["height_cm"]);
-  const hasWaist = !!measurementValue(profile, ["waist", "waist_cm"]);
-  const hasHips = !!measurementValue(profile, ["hips", "hips_cm"]);
-  const hasBustOrChest = !!measurementValue(profile, [
-    "bust",
-    "bust_cm",
-    "chest",
-    "chest_cm",
-  ]);
-  const hasChest = !!measurementValue(profile, ["chest", "chest_cm"]);
-  const hasCoreMeasurement = isMensProfile(profile) ? hasChest : hasBustOrChest;
-
-  return hasHeight && hasCoreMeasurement && hasWaist && hasHips;
+  return hasCoreMeasurements(profile);
 }
 
 function hasRequiredContact(profile) {

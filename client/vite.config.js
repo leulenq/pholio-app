@@ -1,9 +1,15 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   root: '.',
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+  },
   envPrefix: ['VITE_', 'FIREBASE_'],
   // Use '/' in dev mode (serve), '/dashboard-app/' in build mode
   base: command === 'serve' ? '/' : '/dashboard-app/',

@@ -23,6 +23,7 @@ const messagePolishRouter = require("./message-polish");
 const socialOauthRouter = require("./social-oauth");
 const phylloRouter = require("./phyllo-routes");
 const representationsRouter = require("./representations");
+const fieldVisibilityRouter = require("./field-visibility");
 
 router.use(requireTalentLegalAcceptance());
 
@@ -35,6 +36,7 @@ router.use("/api/talent/applications", applicationsRouter);
 router.use("/api/talent/interviews", interviewsRouter);
 router.use("/api/talent/agencies", agenciesRouter);
 router.use("/api/talent", settingsRouter);
+router.use("/api/talent", fieldVisibilityRouter);
 router.use("/api/talent", pdfRouter);
 router.use("/api/talent", dashboardRouter);
 router.use("/api/talent/bio", bioRouter); // Bio refinement routes

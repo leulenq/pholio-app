@@ -3,7 +3,6 @@ import { Controller } from 'react-hook-form';
 import { Instagram, PlaySquare, Trash2, Globe, Check, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Section, SocialInput } from '../../components/profile-index';
-import { isMinorProfile } from '../../../../shared/utils/talentAge';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import { apiClient } from '../../../../shared/lib/api-client';
 import styles from './ProfilePage.module.css';
@@ -23,12 +22,6 @@ const YoutubeIcon = ({ size = 24, className }) => (
 const XIcon = ({ size = 24, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
-
-const OnlyFansIcon = ({ size = 24, className }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
-    <path d="M24 4.003h-4.015c-3.45 0-5.3.197-6.748 1.957a7.996 7.996 0 1 0 2.103 9.211c3.182-.231 5.39-2.134 6.085-5.173 0 0-2.399.585-4.43 0 4.018-.777 6.333-3.037 7.005-5.995zM5.61 11.999A2.391 2.391 0 0 1 9.28 9.97a2.966 2.966 0 0 1 2.998-2.528h.008c-.92 1.778-1.407 3.352-1.998 5.263A2.392 2.392 0 0 1 5.61 12Zm2.386-7.996a7.996 7.996 0 1 0 7.996 7.996 7.996 7.996 0 0 0-7.996-7.996Zm0 10.394A2.399 2.399 0 1 1 10.395 12a2.396 2.396 0 0 1-2.399 2.398Z" />
   </svg>
 );
 
@@ -86,17 +79,6 @@ const PLATFORMS = {
     base: '',
     prefix: '',
     actionText: 'Add Website',
-    isOAuth: false
-  },
-  onlyfans: {
-    id: 'onlyfans_url',
-    name: 'OnlyFans',
-    icon: OnlyFansIcon,
-    brandClass: styles.platformOnlyfans,
-    placeholder: 'onlyfans.com/username',
-    base: 'https://onlyfans.com/',
-    prefix: '',
-    actionText: 'Add OnlyFans',
     isOAuth: false
   },
   reel: {
@@ -283,7 +265,6 @@ const PlatformCard = ({ platformKey, control, setValue, errors, watch, reloadPro
 };
 
 export function SocialSection({ control, setValue, errors, dateOfBirth, watch, reloadProfile }) {
-  const hideOnlyFans = isMinorProfile({ date_of_birth: dateOfBirth });
   return (
     <Section
       id="socials"
@@ -297,9 +278,6 @@ export function SocialSection({ control, setValue, errors, dateOfBirth, watch, r
         <PlatformCard platformKey="twitter" control={control} setValue={setValue} errors={errors} watch={watch} reloadProfile={reloadProfile} />
         <PlatformCard platformKey="youtube" control={control} setValue={setValue} errors={errors} watch={watch} reloadProfile={reloadProfile} />
         <PlatformCard platformKey="portfolio" control={control} setValue={setValue} errors={errors} watch={watch} reloadProfile={reloadProfile} />
-        {!hideOnlyFans && (
-          <PlatformCard platformKey="onlyfans" control={control} setValue={setValue} errors={errors} watch={watch} reloadProfile={reloadProfile} />
-        )}
         <PlatformCard platformKey="reel" control={control} setValue={setValue} errors={errors} watch={watch} reloadProfile={reloadProfile} />
       </div>
     </Section>

@@ -31,6 +31,11 @@
  *     imperial-native convention with no metric form).
  */
 
+const {
+  resolveStatsTrack,
+  resolveCoreCircumference,
+} = require("../../../shared/lib/stats-formatter");
+
 const CM_PER_INCH = 2.54;
 const LBS_PER_KG = 2.20462;
 
@@ -325,6 +330,13 @@ function resolveStatsCategory(profile, referenceDate) {
   const age = resolveAge(profile || {}, ref);
   if (age != null && age < KIDS_AGE_MAX) return "kids";
 
+  // Prefer the canonical stats_track (Wave 2C) — measurement set is decoupled
+  // from gender. womenswear → women, menswear → men. `ungendered` (or absent)
+  // falls through to the gender/measurement heuristic below.
+  const rawTrack = String(profile?.stats_track ?? "").trim().toLowerCase();
+  if (rawTrack === "womenswear") return "women";
+  if (rawTrack === "menswear") return "men";
+
   const gender = String(profile?.gender ?? "")
     .trim()
     .toLowerCase();
@@ -332,8 +344,13 @@ function resolveStatsCategory(profile, referenceDate) {
   if (gender === "female") return "women";
 
   const legacy = parseMeasurements(profile?.measurements);
-  const bust = toPositiveNumber(profile?.bust_cm) ?? legacy.bust;
-  return bust != null ? "women" : "men";
+  const chest =
+    toPositiveNumber(profile?.chest_cm) ??
+    toPositiveNumber(profile?.bust_cm) ??
+    legacy.bust;
+  // Non-binary / unknown with a torso circumference defaults to the women set
+  // (bust/waist/hips) — matches historic behavior for ungendered profiles.
+  return chest != null ? "women" : "men";
 }
 
 /**
@@ -485,7 +502,12 @@ function buildStatsBlock(profile, options) {
   // --- Field sourcing (prefer *_cm columns, fall back to legacy string) ----
   const legacy = parseMeasurements(p.measurements);
   const heightCm = toPositiveNumber(p.height_cm);
-  const bustCm = toPositiveNumber(p.bust_cm) ?? legacy.bust;
+  // Canonical core circumference (chest/bust per track, Wave 2C). menswear reads
+  // chest_cm (legacy fallback bust_cm); womenswear reads bust_cm (fallback
+  // chest_cm). Legacy `measurements` string is the final fallback.
+  const core = resolveCoreCircumference(p, resolveStatsTrack(p));
+  const bustCm = core.cm ?? legacy.bust;
+  const chestCm = core.cm ?? legacy.bust;
   const waistCm = toPositiveNumber(p.waist_cm) ?? legacy.waist;
   const hipsCm = toPositiveNumber(p.hips_cm) ?? legacy.hips;
   const inseamCm = toPositiveNumber(p.inseam_cm);
@@ -563,7 +585,7 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "chest",
       "CHEST",
-      bustCm != null ? renderGirth(bustCm, units) : null,
+      chestCm != null ? renderGirth(chestCm, units) : null,
       "Chest missing — line skipped.",
     );
     pushLine(
@@ -581,7 +603,11 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "suit",
       "SUIT",
-      deriveSuitSize(bustCm, heightCm),
+      // Prefer the real `suit_size` column (Wave 2B); else derive `40R` from
+      // chest + height so classic cards still show a suit line.
+      (p.suit_size != null && String(p.suit_size).trim() !== ""
+        ? String(p.suit_size).trim()
+        : deriveSuitSize(chestCm, heightCm)),
       "Suit size unavailable (needs both chest and height) — line skipped.",
     );
     pushLine(

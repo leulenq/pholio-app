@@ -1,7 +1,12 @@
 const express = require("express");
 const knex = require("../shared/db/knex");
 const { toFeetInches } = require("../domains/talent/services/stats");
-const { minorPublicExposureAllowed } = require("../shared/lib/talent-age");
+const {
+  minorPublicExposureAllowed,
+  computeAge,
+  isMinorProfile,
+} = require("../shared/lib/talent-age");
+const { buildCanonicalStats } = require("../shared/lib/stats-formatter");
 const {
   applyViewerVisibilityFilter,
   ensureModerationColumnChecked,
@@ -9,6 +14,10 @@ const {
 const { v4: uuidv4 } = require("uuid");
 
 const { injectSocialFields } = require("../shared/lib/social-helpers");
+const {
+  loadFieldVisibility,
+  isFieldGroupVisible,
+} = require("../shared/lib/field-visibility");
 
 const router = express.Router();
 const TRACKED_PORTFOLIO_EVENTS = new Set([
@@ -239,6 +248,37 @@ function getDemoProfile(slug) {
 }
 
 // Helper function to detect database connection errors
+/**
+ * Public portfolio stats visibility (Wave 2C + Wave 2B).
+ *
+ * Stats/measurements default to AGENCY-visible, NOT public (design decision 3;
+ * `profile_field_visibility` seeds field_key='stats', audience='public',
+ * visible=false). The public portfolio therefore renders measurements ONLY when
+ * the profile has explicitly opted stats into the public audience.
+ *
+ * Delegates to the canonical `field-visibility` helper (single source of truth
+ * shared with the read/write API), which is itself fail-closed on any DB error
+ * (e.g. a deploy-before-migrate with no table yet) — "not public" is the safe
+ * default. The synthetic demo profile is a marketing showcase, so it keeps its
+ * full stat block.
+ */
+async function isStatsPublic(profileId, { isDemo } = {}) {
+  if (isDemo) return true;
+  if (!profileId) return false;
+  const visibility = await loadFieldVisibility(profileId);
+  return isFieldGroupVisible(visibility, "stats", "public");
+}
+
+/**
+ * Public age exposure: an audience-safe band, never the exact age
+ * (audit "Public controls are not field-granular"). "18+" / "Under 18" / null.
+ */
+function publicAgeBand(profile) {
+  const age = computeAge(profile?.date_of_birth ?? profile?.dob);
+  if (age == null) return null;
+  return isMinorProfile(profile) ? "Under 18" : "18+";
+}
+
 function isDatabaseError(error) {
   if (!error) return false;
 
@@ -418,11 +458,16 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       ]);
     }
 
+    const statsPublic = await isStatsPublic(profile.id, { isDemo });
     return res.render("portfolio/show", {
       title: `${profile.first_name} ${profile.last_name}`,
       profile,
       images,
       heightFeet: toFeetInches(profile.height_cm),
+      // Stats render only when explicitly opted public (default: agency-only).
+      stats: statsPublic ? buildCanonicalStats(profile) : null,
+      // Public sees an age BAND, never the exact age.
+      ageBand: publicAgeBand(profile),
       layout: layoutType,
       currentPage: "portfolio",
     });
@@ -449,6 +494,9 @@ router.get("/portfolio/:slug", async (req, res, next) => {
           profile: demoData.profile,
           images: demoData.images,
           heightFeet: toFeetInches(demoData.profile.height_cm),
+          // Demo is a marketing showcase — keep the full stat block.
+          stats: buildCanonicalStats(demoData.profile),
+          ageBand: publicAgeBand(demoData.profile),
           layout: demoLayoutType,
           currentPage: "portfolio",
         });

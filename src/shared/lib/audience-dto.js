@@ -67,6 +67,8 @@ const PUBLIC_CARD_FIELDS = Object.freeze([
   "last_name",
   // Broad base only — city/region/country, NEVER an exact address.
   "city",
+  // Discipline (model/performer/creator) is identity-level, non-sensitive.
+  "discipline",
 ]);
 
 /**
@@ -109,19 +111,23 @@ const AGENCY_DISCOVERY_FIELDS = Object.freeze([
   "gender",
   "bio_curated",
   // Stats / measurements — agencies are the casting audience for these.
+  "stats_track",
   "height_cm",
   "bust_cm",
+  "chest_cm",
   "waist_cm",
   "hips_cm",
   "inseam_cm",
   "shoe_size",
   "dress_size",
+  "suit_size",
   "measurements_updated_at",
   "hair_color",
   "hair_length",
   "hair_type",
   "eye_color",
   // Professional metadata.
+  "discipline",
   "experience_level",
   "specialties",
   "specializations",
@@ -139,9 +145,12 @@ const AGENCY_DISCOVERY_FIELDS = Object.freeze([
  * agency/public-safe presentation fields — never raw OAuth tokens, encrypted
  * secrets, follower-count metrics, or provider account ids.
  *
- * TODO(social-wave / 2D): wire the actual `social_accounts` join in the reader
- * routes and pass the rows as `opts.social`. This DTO only safely shapes
- * whatever it is handed today.
+ * Readers load rows via `shared/lib/social-accounts.js`
+ * (`loadSocialAccountsForProfile[s]`) and pass them as `opts.social`; this
+ * function only shapes what it is handed. `verified` is sourced from
+ * `social_accounts.is_oauth_connected`, which production only ever sets true
+ * via the Phyllo-backed callback — the mock OAuth route that fabricates it is
+ * dev/staging-gated (never mounted when NODE_ENV === "production").
  */
 const SOCIAL_ACCOUNT_FIELDS = Object.freeze([
   "platform",
@@ -191,13 +200,16 @@ const OWNER_FIELDS = Object.freeze([
   "bio_curated",
   "bio_raw",
   // Stats / measurements.
+  "stats_track",
   "height_cm",
   "bust_cm",
+  "chest_cm",
   "waist_cm",
   "hips_cm",
   "inseam_cm",
   "shoe_size",
   "dress_size",
+  "suit_size",
   "weight_kg",
   "weight_lbs",
   "weight_unit",
@@ -212,6 +224,7 @@ const OWNER_FIELDS = Object.freeze([
   "piercings",
   "body_type",
   // Professional.
+  "discipline",
   "experience_level",
   "experience_details",
   "specialties",

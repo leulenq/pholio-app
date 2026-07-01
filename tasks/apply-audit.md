@@ -47,7 +47,7 @@ The agency inbox loads *all* live profile images (`src/domains/agency/routes/inb
 **2. Board selection is never persisted relationally — it cannot place the talent on a board.**
 `selectedBoards` is sent as `boards`/`boardLabels` (`ApplyExperience.jsx:997-998`), validated server-side, then stored *only* in the snapshot payload (`applications.js:684-685`). There is no insert into `board_applications` (the table the agency boards UI counts from, `inbox.js:95`). The talent's board indication is dropped on the floor. Fix: write a `board_applications` row (or equivalent) on submit, or stop presenting board selection as functional.
 
-**3. The chosen comp-card preset is lost — the agency renders a different card than the talent reviewed/approved.**
+NOT DONE **3. The chosen comp-card preset is lost — the agency renders a different card than the talent reviewed/approved.**
 Page 05 lets the talent pick a saved variant and previews it via `presetViewUrl` (`ApplyExperience.jsx:2139-2152`, `2346`). On submit the preset id is validated and snapshotted, but submitting does **not** bump `last_used_at`, and the agency's live `/pdf/view/:slug` renders the default (most-recently-used) preset. Since `setDefaultCompCardPreset`/`apply` is the only thing that bumps `last_used_at` (per the comment at `talent.js:140-141`) and it is not called on submit, the agency sees the default card, not the selected one. Fix: call the preset "apply"/default bump inside the submit transaction, or have the agency render from the snapshotted `compCardSeed`/preset id.
 
 ## P1 — Fragile / real inconsistency

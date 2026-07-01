@@ -55,6 +55,10 @@ const {
   ensureModerationColumnChecked,
 } = require("../../../shared/lib/content-moderation");
 const {
+  loadSocialAccountsForProfile,
+  loadSocialAccountsForProfiles,
+} = require("../../../shared/lib/social-accounts");
+const {
   computeAge,
   isMinorProfile,
 } = require("../../../shared/lib/talent-age");
@@ -846,6 +850,10 @@ router.get(
         imagesByProfile[img.profile_id].push(img);
       });
 
+      // Batched with the image query above — same live-fallback profileIds,
+      // one query for the whole page (audit P1-4, avoids N+1).
+      const socialByProfile = await loadSocialAccountsForProfiles(profileIds);
+
       // Fetch tags for each application
       const applicationIds = profiles
         .map((p) => p.application_id)
@@ -879,6 +887,7 @@ router.get(
             }
           : buildAgencySubmissionDTO(profile, {
               images: imagesByProfile[profile.id] || [],
+              social: socialByProfile.get(profile.id) || [],
             });
         return {
           ...submitted,
@@ -2648,9 +2657,14 @@ router.get(
         },
       ]);
       const submittedPackage = submissionPackages.get(application.id) || null;
+      // Only needed for the live-profile fallback below — a frozen package
+      // snapshot already has its social links baked in.
+      const social = submittedPackage?.profile
+        ? []
+        : await loadSocialAccountsForProfile(profile.id);
       const submittedProfile =
         submittedPackage?.profile ||
-        buildSubmissionProfileSnapshot(profile);
+        buildSubmissionProfileSnapshot(profile, { social });
       let images;
       if (submittedPackage) {
         images = submittedPackage.images;
@@ -2776,9 +2790,10 @@ router.get(
       // Static-allowlist DTO — never spread the raw profile row and never leak
       // the owner's account email. An actual submission gets the richer (still
       // minor-safe) submission snapshot; generic discovery gets the tighter card.
+      const social = await loadSocialAccountsForProfile(profileId);
       const profileDto = application
-        ? buildAgencySubmissionDTO(profile, { images })
-        : buildAgencyDiscoveryDTO(profile, { images, social: null });
+        ? buildAgencySubmissionDTO(profile, { images, social })
+        : buildAgencyDiscoveryDTO(profile, { images, social });
 
       return res.json({
         application: application
@@ -2972,8 +2987,9 @@ router.get(
 
       // Roster = represented talent, so the richer (minor-safe) submission
       // snapshot is warranted — but NEVER a raw row spread (audit P0-3).
+      const social = await loadSocialAccountsForProfile(profileId);
       return res.json({
-        profile: buildAgencySubmissionDTO(profile, { images }),
+        profile: buildAgencySubmissionDTO(profile, { images, social }),
         bookings: {
           total_bookings: commissionStats?.total_bookings
             ? Number(commissionStats.total_bookings)
@@ -3407,9 +3423,10 @@ router.get(
       }
 
       // Static-allowlist DTO — never spread the raw discoverable profile row.
+      const social = await loadSocialAccountsForProfile(profileId);
       return res.json({
         success: true,
-        profile: buildAgencyDiscoveryDTO(profile, { images, social: null }),
+        profile: buildAgencyDiscoveryDTO(profile, { images, social }),
       });
     } catch (error) {
       console.error("[API/Agency/Discover Preview] Error:", error);

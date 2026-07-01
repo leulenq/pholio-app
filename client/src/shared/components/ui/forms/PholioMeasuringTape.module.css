@@ -226,3 +226,20 @@
 .tapeUnset .indicator {
   background: #cbd5e1;
 }
+
+.tapeWrapper {
+  outline: none;
+}
+
+.tapeWrapper:focus-visible .tapeContainerOuter {
+  outline: 2px solid #C9A55A;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tapeContainerUnset,
+  .manualHint {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -25,7 +25,7 @@
   --ag-text-0: #1A1815;              /* headlines */
   --ag-text-1: #2D2A26;              /* body */
   --ag-text-2: #6B6560;              /* secondary */
-  --ag-text-3: #9C958E;              /* tertiary/muted */
+  --ag-text-3: #756E68;              /* tertiary/muted */
   --ag-text-4: #C8C2BA;              /* ghost/disabled */
 
   /* ---- Borders ---- */
@@ -42,7 +42,7 @@
   --ag-success-dim: rgba(45,138,86,0.1);
   --ag-danger: #C0392B;
   --ag-danger-dim: rgba(192,57,43,0.08);
-  --ag-warning: #C2850E;
+  --ag-warning: #9E6700;
   --ag-warning-dim: rgba(194,133,14,0.1);
   --ag-info: #3B7DD8;
   --ag-info-dim: rgba(59,125,216,0.08);
@@ -132,8 +132,8 @@
   /* ── Semantic status colors ── */
   --ag-status-available: #2D8A56;
   --ag-status-on-booking: #3B7DD8;
-  --ag-status-on-hold: #C2850E;
-  --ag-status-inactive: #9C958E;
+  --ag-status-on-hold: #9E6700;
+  --ag-status-inactive: #756E68;
 
   /* ── Score thresholds ── */
   --ag-score-high: var(--ag-gold);

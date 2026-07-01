@@ -20,7 +20,7 @@
     "backfill:discover": "node scripts/backfill-discover-embeddings.js",
     "backfill:classification": "node scripts/backfill-image-classification.js",
     "analyze:classification-feedback": "node scripts/analyze-classification-feedback.js",
-    "test": "jest",
+    "test": "jest --runInBand --forceExit",
     "test:db": "node scripts/test-neon-connection.js",
     "setup:hooks": "sh scripts/setup-git-hooks.sh",
     "postinstall": "node scripts/patch-express.js && npm run setup:hooks",

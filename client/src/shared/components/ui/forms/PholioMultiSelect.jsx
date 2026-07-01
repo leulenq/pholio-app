@@ -17,9 +17,12 @@ const PholioMultiSelect = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef(null);
+  const listboxRef = useRef(null);
   const blurTimeoutRef = useRef(null);
   const searchInputRef = useRef(null);
+  const selectId = id || 'pholio-multiselect';
 
   // Close on click outside
   useEffect(() => {
@@ -69,6 +72,26 @@ const PholioMultiSelect = ({
     );
   }, [options, searchable, searchQuery]);
 
+  // Sync activeIndex when opening or when filtered options list changes
+  useEffect(() => {
+    if (isOpen && filteredOptions.length > 0) {
+      setActiveIndex(0);
+    } else {
+      setActiveIndex(-1);
+    }
+  }, [isOpen, filteredOptions]);
+
+  // Scroll active keyboard highlighted option into view
+  useEffect(() => {
+    if (isOpen && activeIndex >= 0 && listboxRef.current) {
+      const offset = searchable ? 1 : 0;
+      const activeOption = listboxRef.current.children[activeIndex + offset];
+      if (activeOption) {
+        activeOption.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [activeIndex, isOpen, searchable]);
+
   useEffect(() => {
     if (!isOpen) setSearchQuery('');
   }, [isOpen]);
@@ -80,9 +103,104 @@ const PholioMultiSelect = ({
     }
   }, [isOpen, searchable]);
 
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (isOpen) {
+        if (!searchable && activeIndex >= 0 && activeIndex < filteredOptions.length) {
+          handleSelect(filteredOptions[activeIndex].value);
+        }
+      } else {
+        setIsOpen(true);
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else if (filteredOptions.length > 0) {
+        setActiveIndex((prev) => (prev + 1) % filteredOptions.length);
+      }
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else if (filteredOptions.length > 0) {
+        setActiveIndex((prev) => (prev - 1 + filteredOptions.length) % filteredOptions.length);
+      }
+      return;
+    }
+    if (e.key === 'Home') {
+      if (isOpen && filteredOptions.length > 0) {
+        e.preventDefault();
+        setActiveIndex(0);
+      }
+      return;
+    }
+    if (e.key === 'End') {
+      if (isOpen && filteredOptions.length > 0) {
+        e.preventDefault();
+        setActiveIndex(filteredOptions.length - 1);
+      }
+      return;
+    }
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      setIsOpen(false);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (filteredOptions.length > 0) {
+        setActiveIndex((prev) => (prev + 1) % filteredOptions.length);
+      }
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (filteredOptions.length > 0) {
+        setActiveIndex((prev) => (prev - 1 + filteredOptions.length) % filteredOptions.length);
+      }
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
+        handleSelect(filteredOptions[activeIndex].value);
+      }
+      return;
+    }
+    if (e.key === 'Home') {
+      if (filteredOptions.length > 0) {
+        e.preventDefault();
+        setActiveIndex(0);
+      }
+      return;
+    }
+    if (e.key === 'End') {
+      if (filteredOptions.length > 0) {
+        e.preventDefault();
+        setActiveIndex(filteredOptions.length - 1);
+      }
+      return;
+    }
+  };
+
   return (
     <div className={`pholio-form-group ${disabled ? 'disabled' : ''}`} ref={containerRef}>
-      {label && <label htmlFor={id} className="pholio-label">{label}</label>}
+      {label && <label htmlFor={selectId} className="pholio-label">{label}</label>}
       
       <div className="pholio-select-control-wrapper">
         <div 
@@ -98,23 +216,10 @@ const PholioMultiSelect = ({
           role="combobox"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
-          id={id}
-          onKeyDown={(e) => {
-            if (disabled) return;
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              setIsOpen(false);
-              return;
-            }
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setIsOpen((prev) => !prev);
-            }
-            if (e.key === 'ArrowDown' && !isOpen) {
-              e.preventDefault();
-              setIsOpen(true);
-            }
-          }}
+          aria-controls={`${selectId}-listbox`}
+          aria-activedescendant={isOpen && activeIndex >= 0 ? `${selectId}-opt-${activeIndex}` : undefined}
+          id={selectId}
+          onKeyDown={handleKeyDown}
           onBlur={(e) => {
             if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
             const nextFocus = e.relatedTarget;
@@ -154,7 +259,7 @@ const PholioMultiSelect = ({
         </div>
 
         {isOpen && (
-          <div className="pholio-custom-select-dropdown" role="listbox">
+          <div ref={listboxRef} id={`${selectId}-listbox`} className="pholio-custom-select-dropdown" role="listbox" aria-multiselectable="true" aria-label={label || placeholder}>
             {searchable && (
               <div
                 className="pholio-multiselect-search"
@@ -169,12 +274,9 @@ const PholioMultiSelect = ({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={searchPlaceholder}
                   aria-label={searchPlaceholder}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.stopPropagation();
-                      setIsOpen(false);
-                    }
-                  }}
+                  aria-controls={`${selectId}-listbox`}
+                  aria-activedescendant={isOpen && activeIndex >= 0 ? `${selectId}-opt-${activeIndex}` : undefined}
+                  onKeyDown={handleSearchKeyDown}
                 />
               </div>
             )}
@@ -183,12 +285,13 @@ const PholioMultiSelect = ({
                 {emptyMessage}
               </div>
             ) : (
-              filteredOptions.map((option) => {
+              filteredOptions.map((option, index) => {
                 const isSelected = safeValue.includes(option.value);
                 return (
                   <div
                     key={option.value}
-                    className={`pholio-select-option ${isSelected ? 'selected' : ''}`}
+                    id={`${selectId}-opt-${index}`}
+                    className={`pholio-select-option ${isSelected ? 'selected' : ''} ${index === activeIndex ? 'active' : ''}`}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSelect(option.value)}
                     role="option"

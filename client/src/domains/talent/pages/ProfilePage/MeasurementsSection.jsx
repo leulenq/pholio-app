@@ -28,8 +28,8 @@ export function MeasurementsSection({
     return (
       <Section
         id="appearance"
-        title="Physical Attributes"
-        titleEmphasis="Attributes"
+        title="Stats & Measurements"
+        titleEmphasis="Measurements"
         description="Vital statistics for casting searches."
         showDivider={false}
       >
@@ -180,14 +180,20 @@ export function MeasurementsSection({
 
       <div className={`${styles.measurementRow} ${styles.formRow}`} style={{ gap: '16px' }}>
         <div className={styles.measurementField}>
-          <label className={styles.measurementLabel}>{watch('gender') === 'Female' ? 'Bust' : 'Chest'}</label>
+          <label className={styles.measurementLabel}>{watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered' ? 'Chest' : 'Bust'}</label>
           <PholioMeasuringTape
             value={
-              unitSystem === 'metric'
-                ? watch('bust')
-                : watch('bust')
-                  ? Math.round(watch('bust') / 2.54)
-                  : null
+              watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered'
+                ? (unitSystem === 'metric'
+                    ? watch('chest_cm')
+                    : watch('chest_cm')
+                      ? Math.round(watch('chest_cm') / 2.54)
+                      : null)
+                : (unitSystem === 'metric'
+                    ? watch('bust')
+                    : watch('bust')
+                      ? Math.round(watch('bust') / 2.54)
+                      : null)
             }
             unit={unitSystem === 'metric' ? 'cm' : 'in'}
             min={unitSystem === 'metric' ? 70 : 28}
@@ -195,7 +201,11 @@ export function MeasurementsSection({
             size="small"
             onChange={(val) => {
               const metricVal = unitSystem === 'metric' ? val : Math.round(val * 2.54);
-              setValue('bust', metricVal, { shouldDirty: true });
+              if (watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered') {
+                setValue('chest_cm', metricVal, { shouldDirty: true });
+              } else {
+                setValue('bust', metricVal, { shouldDirty: true });
+              }
             }}
           />
         </div>
@@ -244,12 +254,21 @@ export function MeasurementsSection({
       </div>
 
       <div className={`${styles.formGrid2} ${styles.formRow}`}>
-        <PholioInput
-          label="Dress / Suit Size"
-          placeholder="e.g. 6, M, 38"
-          error={errors.dress_size}
-          {...register('dress_size')}
-        />
+        {watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered' ? (
+          <PholioInput
+            label="Suit Size"
+            placeholder="e.g. 40, M, 50"
+            error={errors.suit_size}
+            {...register('suit_size')}
+          />
+        ) : (
+          <PholioInput
+            label="Dress Size"
+            placeholder="e.g. 6, S, 38"
+            error={errors.dress_size}
+            {...register('dress_size')}
+          />
+        )}
         <div className={styles.measurementField}>
           <label className={styles.measurementLabel}>Inseam</label>
           <PholioMeasuringTape
@@ -332,7 +351,24 @@ export function MeasurementsSection({
             />
           )}
         />
-        <PholioInput label="Skin Tone" placeholder="e.g. Fair, Olive, Dark" error={errors.skin_tone} {...register('skin_tone')} />
+        <Controller
+          name="hair_color"
+          control={control}
+          render={({ field }) => (
+            <PholioCustomSelect
+              label="Hair Color"
+              id="hair_color"
+              options={['Black', 'Brown', 'Blonde', 'Red', 'Gray', 'White', 'Other'].map((c) => ({
+                value: c,
+                label: c
+              }))}
+              value={field.value}
+              onChange={field.onChange}
+              error={errors.hair_color}
+              placeholder="Select color"
+            />
+          )}
+        />
       </div>
 
       <div className={`${styles.formGrid2} ${styles.formRow}`}>

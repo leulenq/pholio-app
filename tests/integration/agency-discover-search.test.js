@@ -226,11 +226,14 @@ async function createSchema() {
       t.string("nationality", 100).nullable();
       t.integer("height_cm").nullable();
       t.integer("bust_cm").nullable();
+      t.integer("chest_cm").nullable();
       t.integer("waist_cm").nullable();
       t.integer("hips_cm").nullable();
       t.integer("inseam_cm").nullable();
       t.string("shoe_size", 20).nullable();
       t.string("dress_size", 20).nullable();
+      t.string("suit_size", 20).nullable();
+      t.string("stats_track", 20).nullable();
       t.timestamp("measurements_updated_at").nullable();
       t.integer("age").nullable();
       // Age is DERIVED from DOB (audit P0-7) — the stored `age` column above is
@@ -240,6 +243,7 @@ async function createSchema() {
       t.string("gender", 50).nullable();
       t.string("archetype", 50).nullable();
       t.string("experience_level", 50).nullable();
+      t.string("discipline", 20).nullable();
       t.text("bio_curated").nullable();
       t.text("bio_raw").nullable();
       t.text("look_descriptor").nullable();
@@ -312,6 +316,27 @@ async function createSchema() {
       t.boolean("exclude_from_public").defaultTo(false);
       t.boolean("exclude_from_agency").defaultTo(false);
       t.timestamp("created_at").defaultTo(knex.fn.now());
+    });
+  }
+
+  if (!(await knex.schema.hasTable("social_accounts"))) {
+    // Mirrors migrations/20260629160000_create_social_accounts_table.js —
+    // shared/lib/social-accounts.js (Wave 2D canonical loader) batch-loads
+    // this table for every Discover result page.
+    await knex.schema.createTable("social_accounts", (t) => {
+      t.string("id", 36).primary();
+      t.string("profile_id", 36).nullable();
+      t.string("agency_id", 36).nullable();
+      t.string("platform", 50).notNullable();
+      t.string("handle", 255).nullable();
+      t.string("url", 500).nullable();
+      t.integer("follower_count").nullable();
+      t.decimal("engagement_rate", 5, 2).nullable();
+      t.boolean("is_oauth_connected").defaultTo(false);
+      t.timestamp("metrics_updated_at").nullable();
+      t.timestamps(true, true);
+      t.unique(["profile_id", "platform"]);
+      t.unique(["agency_id", "platform"]);
     });
   }
 

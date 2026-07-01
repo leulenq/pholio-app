@@ -40,6 +40,7 @@ const {
 const { requireRole } = require("../../auth/middleware/require-auth");
 const knex = require("../../../shared/db/knex");
 const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
+const { buildCanonicalStats } = require("../../../shared/lib/stats-formatter");
 const QRCode = require("qrcode");
 const config = require("../../../config");
 const { v4: uuidv4 } = require("uuid");
@@ -1047,6 +1048,10 @@ async function renderStandardView(req, res, data, isDemo) {
       isPro: profile.is_pro,
       qrCode,
       heightFeet: toFeetInches(profile.height_cm),
+      // Canonical, track-driven stats (Wave 2C). Classic is the composed
+      // engine's fallback, so it must not render blanks from dropped
+      // profile.bust/waist/hips columns (audit P1-6).
+      stats: buildCanonicalStats(profile),
       baseUrl,
       watermark: !profile.is_pro,
     });

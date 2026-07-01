@@ -1,15 +1,18 @@
 const knex = require("../db/knex");
 const crypto = require("crypto");
 const { parseSocialMediaHandle, generateSocialMediaUrl } = require("../../domains/talent/services/profile-helpers");
+const { loadSocialAccountsForProfile } = require("./social-accounts");
 
 /**
- * Fetch and attach social fields to a profile object (compatibility layer)
+ * Fetch and attach social fields to a profile object (compatibility layer).
+ * Reuses the canonical `social_accounts` loader (social-accounts.js) so the
+ * owner editor and every other reader agree on what "verified" means.
  */
 async function injectSocialFields(profile) {
   if (!profile) return profile;
-  
-  const accounts = await knex("social_accounts").where({ profile_id: profile.id });
-  
+
+  const accounts = await loadSocialAccountsForProfile(profile.id);
+
   // Initialize with null/false to match old flat columns
   profile.instagram_handle = null;
   profile.instagram_url = null;
@@ -42,25 +45,25 @@ async function injectSocialFields(profile) {
     if (acct.platform === "instagram") {
       profile.instagram_handle = acct.handle;
       profile.instagram_url = acct.url;
-      profile.instagram_verified = Boolean(acct.is_oauth_connected);
+      profile.instagram_verified = acct.verified;
       profile.instagram_followers = acct.follower_count;
       profile.instagram_engagement = acct.engagement_rate;
     } else if (acct.platform === "tiktok") {
       profile.tiktok_handle = acct.handle;
       profile.tiktok_url = acct.url;
-      profile.tiktok_verified = Boolean(acct.is_oauth_connected);
+      profile.tiktok_verified = acct.verified;
       profile.tiktok_followers = acct.follower_count;
       profile.tiktok_engagement = acct.engagement_rate;
     } else if (acct.platform === "twitter") {
       profile.twitter_handle = acct.handle;
       profile.twitter_url = acct.url;
-      profile.twitter_verified = Boolean(acct.is_oauth_connected);
+      profile.twitter_verified = acct.verified;
       profile.twitter_followers = acct.follower_count;
       profile.twitter_engagement = acct.engagement_rate;
     } else if (acct.platform === "youtube") {
       profile.youtube_handle = acct.handle;
       profile.youtube_url = acct.url;
-      profile.youtube_verified = Boolean(acct.is_oauth_connected);
+      profile.youtube_verified = acct.verified;
       profile.youtube_followers = acct.follower_count;
       profile.youtube_engagement = acct.engagement_rate;
     } else if (acct.platform === "onlyfans") {

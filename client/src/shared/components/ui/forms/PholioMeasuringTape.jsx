@@ -49,7 +49,10 @@ const PholioMeasuringTape = ({
   unit = 'cm',
   size = 'medium',
   formatter, // Function to format the display value (e.g. val => val + "'")
-  className = ''
+  className = '',
+  label,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy
 }) => {
   const containerRef = useRef(null);
   const scaleRef = useRef(null);
@@ -184,8 +187,68 @@ const PholioMeasuringTape = ({
     }
   };
 
+  const handleTapeKeyDown = (e) => {
+    if (isEditing) return;
+
+    const stepSize = step;
+    const pageStepSize = unit === 'cm' ? 5 : (unit === 'in' ? 12 : 5);
+    
+    let newValue = hasValue ? value : Math.round((min + max) / 2);
+
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowUp':
+        e.preventDefault();
+        newValue = Math.min(max, newValue + stepSize);
+        onChange(newValue);
+        break;
+      case 'ArrowLeft':
+      case 'ArrowDown':
+        e.preventDefault();
+        newValue = Math.max(min, newValue - stepSize);
+        onChange(newValue);
+        break;
+      case 'PageUp':
+        e.preventDefault();
+        newValue = Math.min(max, newValue + pageStepSize);
+        onChange(newValue);
+        break;
+      case 'PageDown':
+        e.preventDefault();
+        newValue = Math.max(min, newValue - pageStepSize);
+        onChange(newValue);
+        break;
+      case 'Home':
+        e.preventDefault();
+        onChange(min);
+        break;
+      case 'End':
+        e.preventDefault();
+        onChange(max);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        handleDoubleClick();
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
-    <div className={`${styles.tapeWrapper} ${styles[size]} ${className} ${!hasValue ? styles.tapeUnset : ''}`}>
+    <div 
+      className={`${styles.tapeWrapper} ${styles[size]} ${className} ${!hasValue ? styles.tapeUnset : ''}`}
+      tabIndex={isEditing ? -1 : 0}
+      role="slider"
+      aria-valuenow={hasValue ? value : ''}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuetext={displayVal}
+      aria-label={ariaLabel || label || `Measurement in ${unit}`}
+      aria-labelledby={ariaLabelledBy || undefined}
+      onKeyDown={handleTapeKeyDown}
+    >
       {/* Current Value Display */}
       <div className={`${styles.valueDisplay} ${!hasValue ? styles.valueDisplayUnset : ''}`}>
         {isEditing ? (

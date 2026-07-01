@@ -16,6 +16,8 @@ const {
   PUBLIC_CARD_FIELDS,
   PUBLIC_IMAGE_FIELDS,
   AGENCY_DISCOVERY_FIELDS,
+  CONFIRMED_JOB_FIELDS,
+  OWNER_FIELDS,
   PROFILE_AI_COLUMNS,
   buildPublicCardDTO,
   buildAgencyDiscoveryDTO,
@@ -337,6 +339,14 @@ const DISCOVERY_ALLOWED = new Set([
   "images",
 ]);
 const IMAGE_ALLOWED = new Set([...PUBLIC_IMAGE_FIELDS, "url"]);
+const CONFIRMED_JOB_ALLOWED = new Set([...CONFIRMED_JOB_FIELDS, "display_name"]);
+const OWNER_ALLOWED = new Set([...OWNER_FIELDS, "display_name", "age", "age_band", "is_minor", "social", "images"]);
+const SUBMISSION_ALLOWED = new Set([
+  "id", "slug", "first_name", "last_name", "city", "gender", "archetype", "stats_track",
+  "height_cm", "bust_cm", "chest_cm", "waist_cm", "hips_cm", "inseam_cm", "shoe_size",
+  "dress_size", "suit_size", "hair_color", "eye_color", "measurements_updated_at", "nationality",
+  "age", "age_band", "languages", "bio_curated", "bio_raw", "is_minor", "stats", "social", "images"
+]);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -470,6 +480,11 @@ describe("audience-dto forbidden-key contract", () => {
       "owner_email",
     ];
 
+    test("top-level keys are a subset of the allowlist + derived-safe keys", () => {
+      const extra = Object.keys(dto).filter((k) => !SUBMISSION_ALLOWED.has(k));
+      expect(extra).toEqual([]);
+    });
+
     test("omits the truly-never-shared columns", () => {
       const keys = collectKeys(dto);
       const leaked = NEVER.filter((k) => keys.has(k));
@@ -482,10 +497,60 @@ describe("audience-dto forbidden-key contract", () => {
       expect(values).not.toContain("SENTINEL_guardian@example.com");
       expect(values).not.toContain("agency-source-1");
     });
+
+    // Wave 2D (audit P1-4 / P1-5): social_accounts is a real join now, not a
+    // dead profile column. The submission snapshot must carry adult social
+    // links through — but only the shaped subset, never raw OAuth tokens,
+    // follower/engagement metrics, or a fabricated `verified`.
+    test("carries adult social links from social_accounts, allowlisted only", () => {
+      const withSocial = buildAgencySubmissionDTO(profile, {
+        images,
+        social: [
+          {
+            platform: "instagram",
+            handle: "jane",
+            url: "https://instagram.com/jane",
+            verified: true,
+            oauth_token_encrypted: "SENTINEL_token",
+            follower_count: 123456,
+            engagement_rate: 9.9,
+          },
+        ],
+      });
+      expect(withSocial.social).toEqual([
+        {
+          platform: "instagram",
+          handle: "jane",
+          url: "https://instagram.com/jane",
+          verified: true,
+        },
+      ]);
+      const values = collectStringValues(withSocial);
+      expect(values).not.toContain("SENTINEL_token");
+    });
+
+    test("never surfaces social for a minor, even if social rows are passed", () => {
+      const minorProfile = makeFullProfile({
+        date_of_birth: "2012-05-15",
+        age: 14,
+      });
+      const withSocial = buildAgencySubmissionDTO(minorProfile, {
+        images,
+        social: [
+          { platform: "instagram", handle: "kid", url: "x", verified: true },
+        ],
+      });
+      expect(withSocial.social).toEqual([]);
+    });
   });
 
   describe("buildConfirmedJobDTO (purpose-limited safety context)", () => {
     const dto = buildConfirmedJobDTO(profile);
+
+    test("top-level keys are a subset of the allowlist + derived-safe keys", () => {
+      const extra = Object.keys(dto).filter((k) => !CONFIRMED_JOB_ALLOWED.has(k));
+      expect(extra).toEqual([]);
+    });
 
     test("includes the emergency contact (its whole purpose)", () => {
       expect(dto.emergency_contact_phone).toBe("SENTINEL_ec_phone");
@@ -512,6 +577,11 @@ describe("audience-dto forbidden-key contract", () => {
 
   describe("buildOwnerDTO (broadest, still allowlisted)", () => {
     const dto = buildOwnerDTO(profile, { images });
+
+    test("top-level keys are a subset of the allowlist + derived-safe keys", () => {
+      const extra = Object.keys(dto).filter((k) => !OWNER_ALLOWED.has(k));
+      expect(extra).toEqual([]);
+    });
 
     test("includes owner-only identity fields", () => {
       expect(dto.date_of_birth).toBe("1998-05-15");

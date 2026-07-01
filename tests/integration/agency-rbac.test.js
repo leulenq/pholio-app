@@ -164,6 +164,9 @@ async function createMinimalSchema() {
   }
 
   if (!(await knex.schema.hasTable("social_accounts"))) {
+    // Mirrors migrations/20260629160000_create_social_accounts_table.js —
+    // shared/lib/social-accounts.js (Wave 2D canonical loader) selects the
+    // metrics/verification columns too, not just platform/handle/url.
     await knex.schema.createTable("social_accounts", (t) => {
       t.string("id", 36).primary();
       t.string("profile_id", 36).nullable();
@@ -171,6 +174,11 @@ async function createMinimalSchema() {
       t.string("platform", 50).notNullable();
       t.string("handle", 255).nullable();
       t.string("url", 500).nullable();
+      t.integer("follower_count").nullable();
+      t.decimal("engagement_rate", 5, 2).nullable();
+      t.boolean("is_oauth_connected").defaultTo(false);
+      t.timestamp("metrics_updated_at").nullable();
+      t.timestamps(true, true);
       t.unique(["profile_id", "platform"]);
       t.unique(["agency_id", "platform"]);
     });

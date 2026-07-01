@@ -37,58 +37,40 @@ describe("Dashboard Field Architecture Regression Tests", () => {
     });
   });
 
-  describe("Completeness: work_eligibility Logic", () => {
-    test("work_eligibility=false is accepted as complete answer", () => {
+  describe("Completeness: emergency/reference fields are out of global scope (Wave 2B field split)", () => {
+    // emergency_contact_*, reference_*, and work_eligibility moved to the
+    // private `confirmed_job_safety` context (tasks/field-split-design-2026-07-01.md).
+    // They are collected once a job is confirmed, not as a generic profile
+    // completeness gate, so calculateProfileCompleteness must not expose a
+    // "referencesEmergency" section or let these fields drive its score.
+    test("emergency/reference/work_eligibility fields do not appear as a completeness section", () => {
       const profile = {
         reference_name: "John Doe",
         reference_email: "john@example.com",
         reference_phone: "+1234567890",
         emergency_contact_name: "Jane Doe",
         emergency_contact_phone: "+1234567891",
-        work_eligibility: false, // Answer is "No"
+        work_eligibility: true,
       };
 
       const completeness = calculateProfileCompleteness(profile, []);
-      const section8 = completeness.sections.referencesEmergency;
 
-      // Section 8 should be complete because work_eligibility has been answered (false)
-      expect(section8.complete).toBe(true);
-      expect(section8.status).toBe("complete");
+      expect(completeness.sections.referencesEmergency).toBeUndefined();
     });
 
-    test("work_eligibility=null is incomplete", () => {
+    test("an otherwise-empty profile scores 0% even with emergency/reference fields filled in", () => {
       const profile = {
         reference_name: "John Doe",
         reference_email: "john@example.com",
         reference_phone: "+1234567890",
         emergency_contact_name: "Jane Doe",
         emergency_contact_phone: "+1234567891",
-        work_eligibility: null, // Not answered
+        work_eligibility: true,
       };
 
       const completeness = calculateProfileCompleteness(profile, []);
-      const section8 = completeness.sections.referencesEmergency;
 
-      // Section 8 should be incomplete because work_eligibility is null
-      expect(section8.complete).toBe(false);
-      expect(section8.status).toBe("incomplete");
-    });
-
-    test("work_eligibility=true is complete", () => {
-      const profile = {
-        reference_name: "John Doe",
-        reference_email: "john@example.com",
-        reference_phone: "+1234567890",
-        emergency_contact_name: "Jane Doe",
-        emergency_contact_phone: "+1234567891",
-        work_eligibility: true, // Answer is "Yes"
-      };
-
-      const completeness = calculateProfileCompleteness(profile, []);
-      const section8 = completeness.sections.referencesEmergency;
-
-      expect(section8.complete).toBe(true);
-      expect(section8.status).toBe("complete");
+      expect(completeness.percentage).toBe(0);
     });
   });
 

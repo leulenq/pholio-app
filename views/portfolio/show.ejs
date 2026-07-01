@@ -28,18 +28,31 @@
             <p class="portfolio-pro-location"><%= profile.city %></p>
             
             <!-- Stats Grid - Editorial Style -->
+            <%
+              // Wave 2C: stats (canonical, track-driven) render ONLY when the
+              // profile opted measurements into the PUBLIC audience. `stats` is
+              // null by default (agency-visible only, per profile_field_visibility).
+              // Age is shown as an audience-safe BAND, never the exact age.
+              // TODO(public-portfolio-DTO): gender, city, and social handles are
+              // still rendered raw here — route this whole template through a
+              // public-card DTO + per-field visibility in the follow-up pass.
+              const publicStats = (typeof stats !== 'undefined' && stats) ? stats : null;
+              const publicAgeBand = (typeof ageBand !== 'undefined') ? ageBand : null;
+            %>
             <div class="portfolio-pro-stats">
-            <% if (profile.height_cm) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Height</span>
-                <span class="portfolio-pro-stat__value"><%= profile.height_cm %> cm</span>
-              </div>
-            <% } %>
-            <% if (profile.measurements) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Measurements</span>
-                <span class="portfolio-pro-stat__value"><%= profile.measurements %></span>
-              </div>
+            <% if (publicStats) { %>
+              <% publicStats.fields.forEach((line) => { %>
+                <div class="portfolio-pro-stat">
+                  <span class="portfolio-pro-stat__label"><%= line.label %></span>
+                  <span class="portfolio-pro-stat__value"><%= line.value %></span>
+                </div>
+              <% }) %>
+              <% if (publicStats.weight) { %>
+                <div class="portfolio-pro-stat">
+                  <span class="portfolio-pro-stat__label">Weight</span>
+                  <span class="portfolio-pro-stat__value"><%= publicStats.weight.dual %></span>
+                </div>
+              <% } %>
             <% } %>
             <% if (profile.gender) { %>
               <div class="portfolio-pro-stat">
@@ -47,24 +60,10 @@
                 <span class="portfolio-pro-stat__value"><%= profile.gender %></span>
               </div>
             <% } %>
-            <% if (profile.age) { %>
+            <% if (publicAgeBand) { %>
               <div class="portfolio-pro-stat">
                 <span class="portfolio-pro-stat__label">Age</span>
-                <span class="portfolio-pro-stat__value"><%= profile.age %></span>
-              </div>
-            <% } %>
-            <% if (profile.weight_kg || profile.weight_lbs) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Weight</span>
-                <span class="portfolio-pro-stat__value">
-                  <% if (profile.weight_kg && profile.weight_lbs) { %>
-                    <%= profile.weight_kg %> kg / <%= profile.weight_lbs %> lbs
-                  <% } else if (profile.weight_kg) { %>
-                    <%= profile.weight_kg %> kg
-                  <% } else if (profile.weight_lbs) { %>
-                    <%= profile.weight_lbs %> lbs
-                  <% } %>
-                </span>
+                <span class="portfolio-pro-stat__value"><%= publicAgeBand %></span>
               </div>
             <% } %>
             <% if (profile.is_pro && profile.languages) { %>
@@ -227,34 +226,27 @@
       <span class="eyebrow">Pholio portfolio</span>
       <h1 class="display"><%= profile.first_name %> <%= profile.last_name %></h1>
       <p class="portfolio-location"><%= profile.city %></p>
+      <%
+        // Wave 2C: measurements render only when opted public (default: agency-
+        // only). Age shown as a band, never exact. See TODO in the pro block for
+        // the remaining public-DTO follow-up (gender/city/handles).
+        const publicStatsFree = (typeof stats !== 'undefined' && stats) ? stats : null;
+        const publicAgeBandFree = (typeof ageBand !== 'undefined') ? ageBand : null;
+      %>
       <ul class="portfolio-stats">
-        <li><span>Height</span> <%= profile.height_cm %> cm (<%= heightFeet %>)</li>
-        <li><span>Measurements</span> <%= profile.measurements %></li>
+        <% if (publicStatsFree) { %>
+          <% publicStatsFree.fields.forEach((line) => { %>
+            <li><span><%= line.label %></span> <%= line.value %></li>
+          <% }) %>
+          <% if (publicStatsFree.weight) { %>
+            <li><span>Weight</span> <%= publicStatsFree.weight.dual %></li>
+          <% } %>
+        <% } %>
         <% if (profile.gender) { %>
           <li><span>Gender</span> <%= profile.gender %></li>
         <% } %>
-        <% if (profile.age) { %>
-          <li><span>Age</span> <%= profile.age %></li>
-        <% } %>
-        <% if (profile.weight_kg || profile.weight_lbs) { %>
-          <li><span>Weight</span>
-            <% if (profile.weight_kg && profile.weight_lbs) { %>
-              <%= profile.weight_kg %> kg (<%= profile.weight_lbs %> lbs)
-            <% } else if (profile.weight_kg) { %>
-              <%= profile.weight_kg %> kg
-            <% } else if (profile.weight_lbs) { %>
-              <%= profile.weight_lbs %> lbs
-            <% } %>
-          </li>
-        <% } %>
-        <% if (profile.dress_size) { %>
-          <li><span>Dress Size</span> <%= profile.dress_size %></li>
-        <% } %>
-        <% if (profile.hair_length) { %>
-          <li><span>Hair Length</span> <%= profile.hair_length %></li>
-        <% } %>
-        <% if (profile.skin_tone) { %>
-          <li><span>Skin Tone</span> <%= profile.skin_tone %></li>
+        <% if (publicAgeBandFree) { %>
+          <li><span>Age</span> <%= publicAgeBandFree %></li>
         <% } %>
       </ul>
     </div>

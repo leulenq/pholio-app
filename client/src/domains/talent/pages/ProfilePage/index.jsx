@@ -29,6 +29,7 @@ import {
 import { cmToFeetInches } from '../../../../shared/utils/measurementConversions';
 import { normalizePhoneInput } from '../../../../shared/lib/phone-format';
 import { IdentitySection } from './IdentitySection';
+import { DisciplineSection } from './DisciplineSection';
 import { MeasurementsSection } from './MeasurementsSection';
 import { SocialSection } from './SocialSection';
 import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
@@ -52,201 +53,18 @@ import {
 
 import styles from './ProfilePage.module.css';
 
-function parseJsonMaybeArray(value) {
-  if (!value || typeof value !== 'string') return value;
-  const trimmed = value.trim();
-  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return value;
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return value;
-  }
-}
-
-function toArrayField(value) {
-  const parsedValue = parseJsonMaybeArray(value);
-  if (Array.isArray(parsedValue)) return parsedValue;
-  if (typeof parsedValue === 'string') {
-    const trimmed = parsedValue.trim();
-    if (!trimmed) return [];
-    return trimmed
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
-
-function toDateInputValue(value) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().split('T')[0];
-}
-
-function normalizeEmergencyPhone(raw) {
-  if (raw == null || typeof raw !== 'string') return raw;
-  const normalized = normalizePhoneInput(raw);
-  return normalized === '' ? null : normalized;
-}
-
-function deriveRepresentationStatus(profile) {
-  const seeking = toFormBoolean(profile.seeking_representation, false);
-  const agency =
-    (Array.isArray(profile.representations) && profile.representations.length > 0) ||
-    (profile.current_agency && String(profile.current_agency).trim());
-  if (seeking) return 'seeking';
-  if (agency) return 'represented';
-  return 'not_seeking';
-}
-
-function toPreviousRepresentationsText(value) {
-  const parsedValue = parseJsonMaybeArray(value);
-  if (Array.isArray(parsedValue)) {
-    return parsedValue
-      .map((entry) => (typeof entry === 'string' ? entry : JSON.stringify(entry)))
-      .filter(Boolean)
-      .join('\n');
-  }
-  if (parsedValue && typeof parsedValue === 'object') {
-    return JSON.stringify(parsedValue);
-  }
-  return typeof parsedValue === 'string' ? parsedValue : '';
-}
-
-function resolveBookingLaneFields(profile = {}) {
-  const legacyLanes = normalizeBookingLaneList(profile.modeling_categories);
-  const primary =
-    normalizeBookingLaneSlug(profile.booking_primary_lane) ||
-    legacyLanes[0] ||
-    null;
-  const secondary = normalizeBookingLaneList(
-    profile.booking_secondary_lanes || legacyLanes.slice(1),
-  ).filter((laneSlug) => laneSlug !== primary);
-
-  return {
-    booking_primary_lane: primary,
-    booking_secondary_lanes: secondary.slice(0, 3),
-    modeling_categories: legacyLanes,
-  };
-}
-
-function toFormBoolean(value, defaultValue = false) {
-  if (value === null || value === undefined) return defaultValue;
-  if (value === true || value === 1) return true;
-  if (value === false || value === 0) return false;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
-    if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
-  }
-  return defaultValue;
-}
-
-function toFormTriStateBoolean(value) {
-  if (value === null || value === undefined || value === '') return null;
-  if (value === true || value === 1 || value === 'Yes' || value === 'yes') return true;
-  if (value === false || value === 0 || value === 'No' || value === 'no') return false;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === 'true' || normalized === '1') return true;
-    if (normalized === 'false' || normalized === '0') return false;
-  }
-  return null;
-}
-
-function normalizeProfileForForm(profile = {}) {
-  const bookingLaneFields = resolveBookingLaneFields(profile);
-  return {
-    ...profile,
-    // Map backend fields to frontend Zod schema
-    // Explicitly clean nullable text fields to avoid validation errors
-    bio: profile.bio_raw || profile.bio || '',
-    first_name: profile.first_name || '',
-    last_name: profile.last_name || '',
-    email: profile.email || '',
-
-    city: profile.city ? String(profile.city) : '',
-    city_secondary: profile.city_secondary ? String(profile.city_secondary) : '',
-    gender: profile.gender ? String(profile.gender) : '',
-    pronouns: profile.pronouns ? String(profile.pronouns) : '',
-    date_of_birth: toDateInputValue(profile.date_of_birth) || '',
-    ethnicity: toArrayField(profile.ethnicity),
-    nationality: profile.nationality ? String(profile.nationality) : '',
-    place_of_birth: profile.place_of_birth ? String(profile.place_of_birth) : '',
-    timezone: profile.timezone ? String(profile.timezone) : '',
-
-    // Details
-    dress_size: profile.dress_size ? String(profile.dress_size) : '',
-    hair_length: profile.hair_length ? String(profile.hair_length) : '',
-    hair_color: profile.hair_color ? String(profile.hair_color) : '',
-    hair_type: profile.hair_type ? String(profile.hair_type) : '',
-    eye_color: profile.eye_color ? String(profile.eye_color) : '',
-    skin_tone: profile.skin_tone ? String(profile.skin_tone) : '',
-    body_type: profile.body_type ? String(profile.body_type) : '',
-
-    // Professional
-    work_status: profile.work_status ? String(profile.work_status) : '',
-    availability_schedule: profile.availability_schedule ? String(profile.availability_schedule) : '',
-    current_agency: profile.current_agency ? String(profile.current_agency) : '',
-    representations: Array.isArray(profile.representations)
-      ? profile.representations.map((representation) => ({
-          ...representation,
-          started_on: toDateInputValue(representation.started_on) || '',
-        }))
-      : [],
-    union_membership: toArrayField(profile.union_membership),
-    comfort_levels: toArrayField(profile.comfort_levels),
-    ...bookingLaneFields,
-    // Maintain JSON array or string structure for CreditsEditor
-    experience_details: profile.experience_details
-      ? (typeof profile.experience_details === 'string'
-          ? parseJsonMaybeArray(profile.experience_details)
-          : profile.experience_details)
-      : '',
-    previous_representations: toPreviousRepresentationsText(profile.previous_representations) || '',
-    emergency_contact_name: profile.emergency_contact_name ? String(profile.emergency_contact_name) : '',
-    emergency_contact_phone: profile.emergency_contact_phone ? String(profile.emergency_contact_phone) : '',
-    emergency_contact_relationship: profile.emergency_contact_relationship ? String(profile.emergency_contact_relationship) : '',
-
-    representation_status: deriveRepresentationStatus(profile),
-
-    // Preserve nulls for completeness checks
-    seeking_representation: toFormBoolean(profile.seeking_representation, false),
-    tattoos: toFormBoolean(profile.tattoos, false),
-    piercings: toFormBoolean(profile.piercings, false),
-    work_eligibility: toFormTriStateBoolean(profile.work_eligibility),
-    passport_ready: toFormBoolean(profile.passport_ready, false),
-    availability_travel: toFormBoolean(profile.availability_travel, false),
-    drivers_license: toFormBoolean(profile.drivers_license, false),
-    // Ensure measurements are numbers for the inputs (backend sends numbers now)
-    bust: profile.bust_cm ? Number(profile.bust_cm) : '',
-    waist: profile.waist_cm ? Number(profile.waist_cm) : '',
-    hips: profile.hips_cm ? Number(profile.hips_cm) : '',
-
-    // Map backend fields to frontend names
-    training_summary: profile.training || '', // Map 'training' col to 'training_summary'
-    experience_level: profile.experience_level ? String(profile.experience_level) : '',
-
-    // Keep tag/array fields for multi-select rendering
-    languages: toArrayField(profile.languages),
-    specialties: toArrayField(profile.specialties),
-
-    guardian_consent_recorded: Boolean(profile.guardian_consent_at),
-    guardian_email: profile.guardian_email ? String(profile.guardian_email) : '',
-    guardian_consent_status:
-      profile.guardian_consent_status ||
-      (profile.guardian_consent_at ? 'verified' : 'none'),
-    work_permit_on_file: toFormBoolean(profile.work_permit_on_file, false),
-  };
-}
+import {
+  normalizeProfileForForm,
+  normalizeProfileForSave
+} from '../../../../shared/utils/formNormalization';
 
 const UNION_OPTIONS = [
   { value: 'Non-Union', label: 'Non-Union' },
   { value: 'SAG-AFTRA', label: 'SAG-AFTRA' },
-  { value: 'Equity (US)', label: 'Equity (US)' },
+  { value: 'Equity (US)', label: 'Actors\' Equity Association (AEA)' },
   { value: 'Equity (UK)', label: 'Equity (UK)' },
   { value: 'ACTRA', label: 'ACTRA' },
-  { value: 'UAD', label: 'UAD' }
+  { value: 'UAD', label: 'Union des artistes (UDA)' }
 ];
 
 const COMFORT_LEVEL_OPTIONS = [
@@ -269,13 +87,13 @@ const AVAILABILITY_OPTIONS = [
 const MEDIA_PATH = '/dashboard/talent/media';
 const PROFILE_NAV_SECTION_IDS = [
   'identity',
-  'heritage',
+  'discipline',
   'appearance',
   'credits',
   'training',
-  'roles',
   'representation',
   'socials',
+  'private',
   'contact',
 ];
 
@@ -877,14 +695,16 @@ export default function ProfilePage() {
 
   const values = watch();
   const trainingSummaryValue = values.training_summary || '';
-  const measurementsLocked =
-    isMinorProfile({ date_of_birth: values.date_of_birth }) &&
+  const isMinor = isMinorProfile({ date_of_birth: values.date_of_birth });
+  const minorLocked =
+    isMinor &&
     !minorSensitiveFieldsUnlocked({
       date_of_birth: values.date_of_birth,
       guardian_consent_at: values.guardian_consent_recorded
         ? profile?.guardian_consent_at || 'draft'
         : null,
     });
+  const measurementsLocked = minorLocked;
   const readinessProfile = useMemo(
     () => ({
       date_of_birth: values.date_of_birth,
@@ -948,109 +768,10 @@ export default function ProfilePage() {
     saveRequestRef.current = requestId;
 
     try {
-      // 1. Transform Frontend Strings -> Backend Arrays/JSON
-      const payload = { ...data };
-      delete payload.hero_image_path;
-
-      const repStatus = payload.representation_status;
-      delete payload.representation_status;
-      const representations = Array.isArray(payload.representations)
-        ? payload.representations.map((representation) => ({
-            id: representation.id || undefined,
-            agency_id: representation.agency_id || null,
-            external_agency_name: representation.agency_id
-              ? null
-              : representation.external_agency_name?.trim() || null,
-            relationship_type: representation.relationship_type,
-            market: representation.market?.trim() || null,
-            territory: representation.territory?.trim() || null,
-            division: representation.division?.trim() || null,
-            is_exclusive: Boolean(representation.is_exclusive),
-            started_on: representation.started_on || null,
-          }))
-        : [];
-      delete payload.representations;
-      delete payload.representation_history;
-      delete payload.current_agency;
-      if (repStatus === 'seeking') {
-        payload.seeking_representation = true;
-      } else if (repStatus === 'represented') {
-        payload.seeking_representation = false;
-      } else if (repStatus === 'not_seeking') {
-        payload.seeking_representation = false;
-      }
-      
-      if (typeof payload.languages === 'string') {
-        payload.languages = payload.languages.split(',').map(s => s.trim()).filter(Boolean);
-      }
-      if (typeof payload.specialties === 'string') {
-        payload.specialties = payload.specialties.split(',').map(s => s.trim()).filter(Boolean);
-      }
-      if (typeof payload.training_summary === 'string') {
-         payload.training = payload.training_summary; // Map back to DB column
-      }
-      // Ensure specific JSON fields are arrays if they are strings (e.g. from backend raw or manual input)
-      ['ethnicity', 'comfort_levels', 'modeling_categories', 'booking_secondary_lanes', 'union_membership'].forEach(field => {
-        if (typeof payload[field] === 'string') {
-          try {
-             payload[field] = JSON.parse(payload[field]);
-          } catch {
-             payload[field] = payload[field]
-               .split(',')
-               .map(s => s.trim())
-               .filter(Boolean);
-          }
-        }
-      });
-      payload.booking_primary_lane = normalizeBookingLaneSlug(payload.booking_primary_lane);
-      payload.booking_secondary_lanes = normalizeBookingLaneList(payload.booking_secondary_lanes)
-        .filter((laneSlug) => laneSlug !== payload.booking_primary_lane)
-        .slice(0, 3);
-      payload.modeling_categories = [
-        payload.booking_primary_lane,
-        ...payload.booking_secondary_lanes,
-      ].filter(Boolean);
-      // Previous representation is edited as plaintext in textarea; normalize to string list for backend JSON column.
-      if (typeof payload.previous_representations === 'string') {
-        const trimmedRepresentations = payload.previous_representations.trim();
-        if (!trimmedRepresentations) {
-          payload.previous_representations = [];
-        } else {
-          try {
-            payload.previous_representations = JSON.parse(trimmedRepresentations);
-          } catch {
-            payload.previous_representations = trimmedRepresentations
-              .split('\n')
-              .map((entry) => entry.trim())
-              .filter(Boolean);
-          }
-        }
-      }
-      // Handle experience_details (Key Credits) - split by newlines for JSON array
-      if (typeof payload.experience_details === 'string') {
-        const trimmedExperience = payload.experience_details.trim();
-        if (!trimmedExperience) {
-          payload.experience_details = [];
-        } else {
-          try {
-            payload.experience_details = JSON.parse(trimmedExperience);
-          } catch {
-            payload.experience_details = trimmedExperience
-              .split('\n')
-              .map((entry) => entry.trim())
-              .filter(Boolean);
-          }
-        }
-      }
-
-      if (measurementsLocked) {
-        for (const field of SENSITIVE_MEASUREMENT_FIELDS) {
-          delete payload[field];
-        }
-      }
+      const { representations, finalPayload } = normalizeProfileForSave(data, measurementsLocked);
 
       await talentApi.replaceRepresentations(representations);
-      const res = await talentApi.updateProfile(payload);
+      const res = await talentApi.updateProfile(finalPayload);
       if (saveRequestRef.current !== requestId) return;
 
       if (!res?.profile) {
@@ -1350,7 +1071,27 @@ export default function ProfilePage() {
 
             <article className={styles.movement}>
               <header className={styles.movementHead}>
-                <p className={styles.movementKicker}>II — Measurements</p>
+                <p className={styles.movementKicker}>II — Discipline</p>
+                <h2 className={styles.movementTitle}>
+                  Focus & <em>interests</em>
+                </h2>
+                <p className={styles.movementLede}>
+                  Your primary discipline and work interests.
+                </p>
+              </header>
+              <div className={styles.movementCard}>
+            <DisciplineSection
+              control={control}
+              errors={errors}
+              watch={watch}
+              setValue={setValue}
+            />
+              </div>
+            </article>
+
+            <article className={styles.movement}>
+              <header className={styles.movementHead}>
+                <p className={styles.movementKicker}>III — Measurements</p>
                 <h2 className={styles.movementTitle}>
                   Physical <em>proof</em>
                 </h2>
@@ -1376,7 +1117,7 @@ export default function ProfilePage() {
 
             <article className={styles.movement}>
               <header className={styles.movementHead}>
-                <p className={styles.movementKicker}>III — Proof</p>
+                <p className={styles.movementKicker}>IV — Proof</p>
                 <h2 className={styles.movementTitle}>
                   Credits & <em>craft</em>
                 </h2>
@@ -1732,7 +1473,7 @@ export default function ProfilePage() {
 
             <article className={styles.movement}>
               <header className={styles.movementHead}>
-                <p className={styles.movementKicker}>IV — Reach</p>
+                <p className={styles.movementKicker}>V — Reach</p>
                 <h2 className={styles.movementTitle}>
                   Representation & <em>contact</em>
                 </h2>
@@ -1755,15 +1496,218 @@ export default function ProfilePage() {
           errors={errors}
           dateOfBirth={watch('date_of_birth')}
           watch={watch}
-          reloadProfile={reloadProfile}
         />
+
+        {/* Private & Compliance — always present, conditional blocks for minors */}
+        <Section
+          id="private"
+          title="Private & Compliance"
+          titleEmphasis="Private"
+          description="Private and legal information shared only with agencies."
+        >
+          <div className={styles.formGrid2}>
+            <Controller
+              name="nationality"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Nationality"
+                  id="nationality"
+                  options={[
+                    { value: 'United States', label: 'United States' },
+                    { value: 'Canada', label: 'Canada' },
+                    { value: 'United Kingdom', label: 'United Kingdom' },
+                    { value: 'Other', label: 'Other' }
+                  ]}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.nationality}
+                  placeholder="Select nationality"
+                />
+              )}
+            />
+            <PholioInput
+              label="Place of Birth"
+              placeholder="City, Country"
+              error={errors.place_of_birth}
+              {...register('place_of_birth')}
+            />
+          </div>
+
+          <div className={`${styles.formGrid3} ${styles.formRow}`} style={{ marginTop: '24px' }}>
+            <Controller
+              name="work_eligibility"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Territory Work Authorization"
+                  id="work_eligibility"
+                  options={[
+                    { value: 'yes', label: 'Authorized' },
+                    { value: 'no', label: 'Requires Sponsorship' },
+                    { value: 'unset', label: 'Prefer not to say' }
+                  ]}
+                  value={field.value === true ? 'yes' : field.value === false ? 'no' : 'unset'}
+                  onChange={(val) => {
+                    const next = val === 'yes' ? true : val === 'no' ? false : null;
+                    field.onChange(next);
+                  }}
+                  error={errors.work_eligibility}
+                  placeholder="Select status"
+                />
+              )}
+            />
+            <Controller
+              name="passport_ready"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Passport Ready"
+                  id="passport_ready"
+                  options={[
+                    { value: 'true', label: 'Yes' },
+                    { value: 'false', label: 'No' }
+                  ]}
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
+                  error={errors.passport_ready}
+                  placeholder="Select"
+                />
+              )}
+            />
+            <Controller
+              name="drivers_license"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Driver's License"
+                  id="drivers_license"
+                  options={[
+                    { value: 'true', label: 'Yes' },
+                    { value: 'false', label: 'No' }
+                  ]}
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
+                  error={errors.drivers_license}
+                  placeholder="Select"
+                />
+              )}
+            />
+          </div>
+
+          <div className={`${styles.formGrid2} ${styles.formRow}`} style={{ marginTop: '24px' }}>
+            <Controller
+              name="availability_schedule"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Availability"
+                  id="availability_schedule"
+                  options={AVAILABILITY_OPTIONS}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.availability_schedule}
+                  placeholder="Select schedule"
+                />
+              )}
+            />
+            <Controller
+              name="availability_travel"
+              control={control}
+              render={({ field }) => (
+                <PholioCustomSelect
+                  label="Open to Travel"
+                  id="availability_travel"
+                  options={[
+                    { value: 'true', label: 'Yes' },
+                    { value: 'false', label: 'No' }
+                  ]}
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
+                  error={errors.availability_travel}
+                  placeholder="Select"
+                />
+              )}
+            />
+          </div>
+
+          {/* Minor guardian/permit block — shown only if minor without consent */}
+          {isMinor && !minorLocked && (
+            <div className={styles.formRow} style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--ag-text-2, #ddd)' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                  Work Permit on File
+                </label>
+                <Controller
+                  name="work_permit_on_file"
+                  control={control}
+                  render={({ field }) => (
+                    <PholioToggle
+                      id="work_permit_on_file"
+                      checked={field.value}
+                      onChange={field.onChange}
+                      label="Minor work permit / employment certificate on file"
+                    />
+                  )}
+                />
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* Verified-Adult Creator Context — conditional on 18+ and verified */}
+        {!isMinor && (
+          <Section
+            id="verified-adult"
+            title="Verified-Adult Creator Context"
+            titleEmphasis="Creator"
+            description="Content boundaries and creator links (verified adults only)."
+          >
+            <div className={styles.formRow}>
+              <Controller
+                name="comfort_levels"
+                control={control}
+                render={({ field }) => (
+                  <PholioMultiSelect
+                    label="Content Boundaries"
+                    id="comfort_levels"
+                    options={COMFORT_LEVEL_OPTIONS}
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.comfort_levels}
+                    placeholder="Select content you're comfortable with"
+                  />
+                )}
+              />
+            </div>
+            <div className={styles.formRow}>
+              <Controller
+                name="onlyfans_url"
+                control={control}
+                render={({ field }) => (
+                  <PholioInput
+                    label="OnlyFans"
+                    id="onlyfans_url"
+                    type="text"
+                    placeholder="onlyfans.com/username"
+                    {...field}
+                    error={errors.onlyfans_url}
+                  />
+                )}
+              />
+            </div>
+          </Section>
+        )}
 
         <Section
           id="contact"
-          title="Contact & Emergency"
-          titleEmphasis="Emergency"
-          description="Emergency contact information."
+          title="On-set Safety"
+          titleEmphasis="Safety"
+          description="Released only when you're booked on a job."
         >
+          <p style={{ marginBottom: '24px', color: 'var(--ag-text-2)', fontSize: '0.875rem' }}>
+            This information is kept private and shared only with casting directors when a booking is confirmed.
+          </p>
           <div className={`${styles.formGrid3} ${styles.formRow}`}>
             <PholioInput label="Emergency Contact" placeholder="Name" error={errors.emergency_contact_name} {...register('emergency_contact_name')} />
             <Controller

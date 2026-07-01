@@ -32,6 +32,9 @@ const {
 const {
   ensureModerationColumnChecked,
 } = require("../../../shared/lib/content-moderation");
+const {
+  loadSocialAccountsForProfiles,
+} = require("../../../shared/lib/social-accounts");
 
 /**
  * Convert min/max age filters into UTC date-of-birth cutoff STRINGS (YYYY-MM-DD)
@@ -267,6 +270,11 @@ async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) 
     imagesByProfile[img.profile_id].push(img);
   });
 
+  // Single batched query for the whole result page — avoids N+1
+  // (audit P1-4: Discover readers must join social_accounts, not read dead
+  // profile columns). The DTO itself still gates adults-only / minor.
+  const socialByProfile = await loadSocialAccountsForProfiles(profileIds);
+
   const shaped = [];
   for (const profile of profiles) {
     // Deny-by-default gate: minors (no named-agency guardian auth) and profiles
@@ -274,10 +282,11 @@ async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) 
     if (!isAgencyDiscoverable(profile, { agencyId })) continue;
 
     // Static-allowlist DTO — a raw row / owner email can never leak here.
-    // Social handles are restored from social_accounts in a later wave.
+    // Social accounts are joined above and merged per-profile; the DTO itself
+    // suppresses them for minors regardless of what is passed in.
     const dto = buildAgencyDiscoveryDTO(profile, {
       images: imagesByProfile[profile.id] || [],
-      social: null,
+      social: socialByProfile.get(profile.id) || [],
     });
 
     const app = applicationMap.get(profile.id);

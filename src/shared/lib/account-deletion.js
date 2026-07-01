@@ -1,8 +1,12 @@
 const path = require("path");
+const crypto = require("crypto");
 const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const config = require("../../config");
 const { s3 } = require("./uploader");
 const { deleteUser } = require("../../domains/auth/services/firebase-admin");
+const {
+  TABLES_REQUIRING_EXPLICIT_CLEANUP,
+} = require("./talent-data-inventory");
 
 const ORIGINAL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 
@@ -90,12 +94,18 @@ function collectImageKeys(imageRow) {
   return keys;
 }
 
+/**
+ * Deletes every key from R2 and reports exactly which ones failed, so a
+ * caller can durably record them for retry rather than silently losing
+ * track of what still needs to be purged.
+ */
 async function deleteR2Objects(keys) {
   if (!config.r2.bucket || !s3 || keys.size === 0) {
-    return { attempted: 0, deleted: 0, failed: 0 };
+    return { attempted: 0, deleted: 0, failed: 0, failedKeys: [] };
   }
 
-  const operations = [...keys].map((key) =>
+  const keyList = [...keys];
+  const operations = keyList.map((key) =>
     s3.send(
       new DeleteObjectCommand({
         Bucket: config.r2.bucket,
@@ -105,12 +115,96 @@ async function deleteR2Objects(keys) {
   );
   const settled = await Promise.allSettled(operations);
 
-  const failed = settled.filter((result) => result.status === "rejected").length;
+  const failedKeys = [];
+  settled.forEach((result, index) => {
+    if (result.status === "rejected") failedKeys.push(keyList[index]);
+  });
+
   return {
     attempted: settled.length,
-    deleted: settled.length - failed,
-    failed,
+    deleted: settled.length - failedKeys.length,
+    failed: failedKeys.length,
+    failedKeys,
   };
+}
+
+function parseSessJson(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "object") return raw;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every FK-cascaded table in TALENT_DATA_INVENTORY is already cleaned up by
+ * `ON DELETE CASCADE` from `users`/`profiles` when the `users` row is
+ * deleted below. `TABLES_REQUIRING_EXPLICIT_CLEANUP` is the (small) set of
+ * tables that have no such cascade and would otherwise be orphaned —
+ * currently `sessions` (opaque `sess` JSON blob, no FK) and
+ * `moderation_queue` (profile-level rows with no `profile_id` FK).
+ */
+async function cleanupTablesWithoutCascade(knex, { userId, profileId }) {
+  for (const entry of TABLES_REQUIRING_EXPLICIT_CLEANUP) {
+    if (!(await knex.schema.hasTable(entry.table))) continue;
+
+    if (entry.scope === "session-json") {
+      if (!userId) continue;
+      const rows = await knex(entry.table).select("sid", "sess");
+      for (const row of rows) {
+        const sess = parseSessJson(row.sess);
+        if (sess && sess.userId === userId) {
+          await knex(entry.table).where({ sid: row.sid }).del();
+        }
+      }
+      continue;
+    }
+
+    const id = entry.scope === "profile" ? profileId : userId;
+    if (!id || !entry.column) continue;
+    await knex(entry.table).where({ [entry.column]: id }).del();
+  }
+}
+
+/**
+ * Durably records a provider-purge failure so it can be retried later, even
+ * though the `users` row that caused it is about to be deleted.
+ *
+ * TODO(outbox): this is the minimal honest fix — a flat retry table with no
+ * worker/lease/backoff. If provider-purge failure volume warrants it, a
+ * later wave should promote this into a real job-runner outbox.
+ */
+async function recordDeletionFailure(
+  knex,
+  { userId, firebaseUid, provider, payload, error },
+) {
+  if (!(await knex.schema.hasTable("account_deletion_failures"))) {
+    // Table not migrated yet (e.g. an older schema). Do not silently
+    // pretend this is fine — surface loudly so it gets fixed, but do not
+    // block deletion on it.
+    console.error(
+      `[AccountDeletion] account_deletion_failures table missing; ${provider} purge failure for user ${userId} was NOT durably recorded`,
+    );
+    return null;
+  }
+
+  const id = crypto.randomUUID();
+  await knex("account_deletion_failures").insert({
+    id,
+    user_id: userId,
+    firebase_uid: firebaseUid || null,
+    provider,
+    status: "pending",
+    payload: JSON.stringify(payload ?? null),
+    last_error: error ? String(error).slice(0, 2000) : null,
+    attempts: 1,
+    created_at: knex.fn.now(),
+    updated_at: knex.fn.now(),
+  });
+  return id;
 }
 
 async function deleteUserAccount(knex, userId) {
@@ -129,6 +223,8 @@ async function deleteUserAccount(knex, userId) {
       failedR2Objects: 0,
       firebaseAttempted: false,
       firebaseDeleted: false,
+      fullyErased: false,
+      pendingFailureIds: [],
     };
   }
 
@@ -158,17 +254,55 @@ async function deleteUserAccount(knex, userId) {
   const r2Result = await deleteR2Objects(allKeys);
 
   let firebaseDeleted = false;
+  let firebaseError = null;
   if (user.firebase_uid) {
     try {
       await deleteUser(user.firebase_uid);
       firebaseDeleted = true;
     } catch (error) {
+      firebaseError = error?.message || String(error);
       console.warn(
-        `[AccountDeletion] Firebase delete failed for ${userId}: ${error.message}`,
+        `[AccountDeletion] Firebase delete failed for ${userId}: ${firebaseError}`,
       );
     }
   }
 
+  // Verify completion before declaring success: a provider purge that threw
+  // or left objects undeleted means erasure is NOT complete, no matter what
+  // happens to the DB row below.
+  const r2Failed = r2Result.failed > 0;
+  const firebaseFailed = !!user.firebase_uid && !firebaseDeleted;
+  const fullyErased = !r2Failed && !firebaseFailed;
+
+  const pendingFailureIds = [];
+  if (r2Failed) {
+    const id = await recordDeletionFailure(knex, {
+      userId,
+      firebaseUid: user.firebase_uid || null,
+      provider: "r2",
+      payload: { failedKeys: r2Result.failedKeys },
+      error: `${r2Result.failed}/${r2Result.attempted} object deletes failed`,
+    });
+    if (id) pendingFailureIds.push(id);
+  }
+  if (firebaseFailed) {
+    const id = await recordDeletionFailure(knex, {
+      userId,
+      firebaseUid: user.firebase_uid,
+      provider: "firebase",
+      payload: null,
+      error: firebaseError,
+    });
+    if (id) pendingFailureIds.push(id);
+  }
+
+  // DB deletion still proceeds: removing the account from Pholio's own
+  // systems is the app's own obligation and should not be held hostage by a
+  // downstream provider outage. What changes is that we no longer claim the
+  // erasure was complete when a provider purge failed — the caller is
+  // expected to surface `fullyErased`/`pendingFailureIds` truthfully rather
+  // than a bare "deleted".
+  await cleanupTablesWithoutCascade(knex, { userId, profileId: profile?.id || null });
   const deletedRows = await knex("users").where({ id: userId }).del();
 
   return {
@@ -180,9 +314,119 @@ async function deleteUserAccount(knex, userId) {
     failedR2Objects: r2Result.failed,
     firebaseAttempted: !!user.firebase_uid,
     firebaseDeleted,
+    fullyErased,
+    pendingFailureIds,
   };
+}
+
+function parsePayload(value) {
+  if (value == null) return null;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Processes and retries pending failures in the `account_deletion_failures` table.
+ *
+ * @param {import('knex').Knex} knex
+ * @returns {Promise<{ processed: number, resolved: number, failed: number }>}
+ */
+async function processPendingDeletions(knex) {
+  if (!(await knex.schema.hasTable("account_deletion_failures"))) {
+    return { processed: 0, resolved: 0, failed: 0 };
+  }
+
+  const pending = await knex("account_deletion_failures")
+    .where({ status: "pending" })
+    .select();
+
+  let processed = 0;
+  let resolved = 0;
+  let failed = 0;
+
+  for (const failure of pending) {
+    processed++;
+    let wasResolved = false;
+    let newPayload = failure.payload;
+    let lastError = null;
+
+    if (failure.provider === "r2") {
+      const payload = parsePayload(failure.payload);
+      const failedKeys = payload?.failedKeys || [];
+      if (failedKeys.length > 0) {
+        try {
+          const r2Result = await deleteR2Objects(new Set(failedKeys));
+          if (r2Result.failed === 0) {
+            wasResolved = true;
+            newPayload = null;
+          } else {
+            newPayload = JSON.stringify({ failedKeys: r2Result.failedKeys });
+            lastError = `${r2Result.failed}/${r2Result.attempted} object deletes failed`;
+          }
+        } catch (err) {
+          lastError = err?.message || String(err);
+        }
+      } else {
+        wasResolved = true;
+        newPayload = null;
+      }
+    } else if (failure.provider === "firebase") {
+      if (failure.firebase_uid) {
+        try {
+          await deleteUser(failure.firebase_uid);
+          wasResolved = true;
+        } catch (err) {
+          const errMsg = err?.message || String(err);
+          // If the user doesn't exist anymore, treat as resolved (verified completion)
+          if (
+            errMsg.includes("user-not-found") ||
+            errMsg.includes("auth/user-not-found") ||
+            err?.code === "auth/user-not-found"
+          ) {
+            wasResolved = true;
+          } else {
+            lastError = errMsg;
+          }
+        }
+      } else {
+        wasResolved = true;
+      }
+    }
+
+    if (wasResolved) {
+      resolved++;
+      await knex("account_deletion_failures")
+        .where({ id: failure.id })
+        .update({
+          status: "resolved",
+          attempts: failure.attempts + 1,
+          payload: null,
+          last_error: null,
+          resolved_at: knex.fn.now(),
+          updated_at: knex.fn.now(),
+        });
+    } else {
+      failed++;
+      await knex("account_deletion_failures")
+        .where({ id: failure.id })
+        .update({
+          attempts: failure.attempts + 1,
+          payload: newPayload,
+          last_error: lastError ? lastError.slice(0, 2000) : null,
+          updated_at: knex.fn.now(),
+        });
+    }
+  }
+
+  return { processed, resolved, failed };
 }
 
 module.exports = {
   deleteUserAccount,
+  processPendingDeletions,
 };
