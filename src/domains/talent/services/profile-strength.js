@@ -364,13 +364,13 @@ const calculateProfileStrength = (data) => {
       tier: "Improve",
     });
 
-  const hasStatus = isPresent(data.work_status);
+  const hasStatus = isPresent(data.availability_schedule) || isPresent(data.work_status);
   if (hasStatus) improveScore += IMPROVE_FIELD_POINTS.status;
   else
     pushMissing({
       key: "status",
-      label: "Work Status",
-      why: "Availability signals whether you can take bookings now.",
+      label: "Availability",
+      why: "Your schedule helps bookers understand when you can take work.",
       impact: "Medium",
       link: "/dashboard/talent/profile?tab=roles",
       points: IMPROVE_FIELD_POINTS.status,

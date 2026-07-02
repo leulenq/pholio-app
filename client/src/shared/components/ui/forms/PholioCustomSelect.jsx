@@ -46,16 +46,6 @@ const PholioCustomSelect = ({
     };
   }, []);
 
-  // Scroll highlighted option into view
-  useEffect(() => {
-    if (isOpen && activeIndex >= 0 && listboxRef.current) {
-      const activeOption = listboxRef.current.children[activeIndex];
-      if (activeOption) {
-        activeOption.scrollIntoView({ block: 'nearest' });
-      }
-    }
-  }, [activeIndex, isOpen]);
-
   const handleSelect = (optionValue) => {
     onChange?.(optionValue);
     setIsOpen(false);

@@ -2626,6 +2626,271 @@ router.get(
   }),
 );
 
+/**
+ * GET /api/talent/media/classification-status
+ * Lightweight endpoint to poll classification status of all images
+ */
+router.get(
+  "/classification-status",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    const profile = await knex("profiles").where({ user_id: userId }).first();
+    if (!profile) {
+      return res.json({ success: true, images: [] });
+    }
+
+    const images = await knex("images")
+      .where({ profile_id: profile.id })
+      .select("id", "metadata", "shot_type", "image_type", "style_type");
+
+    return res.json({
+      success: true,
+      images: images.map((img) => {
+        const metadata = parseImageMetadataFromDb(img.metadata);
+        return {
+          id: img.id,
+          classification_status: classificationStatusFromMetadata(metadata),
+          shot_type: img.shot_type,
+          image_type: img.image_type,
+          style_type: img.style_type,
+          metadata: {
+            ai: metadata.ai || null,
+          },
+        };
+      }),
+    });
+  }),
+);
+
+/**
+ * POST /api/talent/media/bulk-delete
+ * Delete multiple images (local and R2)
+ */
+router.post(
+  "/bulk-delete",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { imageIds } = req.body;
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "imageIds must be a non-empty array",
+      });
+    }
+    if (!imageIds.every((id) => isUuid(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "imageIds must contain valid UUIDs",
+      });
+    }
+
+    const userId = req.session.userId;
+    const profile = await knex("profiles").where({ user_id: userId }).first();
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found",
+      });
+    }
+
+    const images = await knex("images")
+      .where({ profile_id: profile.id })
+      .whereIn("id", imageIds);
+
+    if (images.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No matching images found",
+      });
+    }
+
+    const wasSubmissionReady = await captureSubmissionReadiness(profile.id);
+
+    // 1. Delete from R2 & local storage
+    for (const media of images) {
+      if (media.storage_key) {
+        try {
+          const uuid = path.basename(media.storage_key, path.extname(media.storage_key));
+          const prefix =
+            media.storage_key.split("/processed/")[0] ||
+            media.storage_key.split("/originals/")[0] ||
+            media.storage_key.split("/thumbnails/")[0];
+
+          const deletions = [
+            s3.send(new DeleteObjectCommand({ Bucket: config.r2.bucket, Key: media.storage_key })),
+            s3.send(new DeleteObjectCommand({ Bucket: config.r2.bucket, Key: `${prefix}/originals/${uuid}.jpg` })),
+            s3.send(new DeleteObjectCommand({ Bucket: config.r2.bucket, Key: `${prefix}/originals/${uuid}.png` })),
+            s3.send(new DeleteObjectCommand({ Bucket: config.r2.bucket, Key: `${prefix}/originals/${uuid}.jpeg` })),
+            s3.send(new DeleteObjectCommand({ Bucket: config.r2.bucket, Key: `${prefix}/thumbnails/${uuid}_400w.webp` })),
+          ];
+          await Promise.allSettled(deletions);
+        } catch (s3Err) {
+          console.warn("[Media Bulk Delete] R2 deletion warning:", s3Err.message);
+        }
+      }
+
+      if (media.absolute_path) {
+        try {
+          await fs.unlink(media.absolute_path).catch(() => {});
+          const base = media.absolute_path.replace(".webp", "");
+          await fs.unlink(`${base}_400w.webp`).catch(() => {});
+        } catch (e) {
+          console.warn(`[Media Bulk Delete] File unlink warning: ${e.message}`);
+        }
+      }
+    }
+
+    // Check if primary image is among deleted ones
+    const deletedPrimary = images.find((img) => img.is_primary);
+    let newHeroImagePath = null;
+
+    await knex.transaction(async (trx) => {
+      // Delete images from DB
+      await trx("images")
+        .where({ profile_id: profile.id })
+        .whereIn("id", imageIds)
+        .delete();
+
+      if (deletedPrimary) {
+        const nextImage = await trx("images")
+          .where({ profile_id: profile.id })
+          .orderBy("sort", "asc")
+          .first();
+
+        if (nextImage) {
+          await trx("images")
+            .where({ id: nextImage.id })
+            .update({ is_primary: true });
+          newHeroImagePath = nextImage.path;
+        }
+      } else {
+        const currentPrimary = await trx("images")
+          .where({ profile_id: profile.id, is_primary: true })
+          .first();
+        newHeroImagePath = currentPrimary ? currentPrimary.path : null;
+      }
+
+      await normalizeProfileImageSort(trx, profile.id);
+    });
+
+    await notifyIfSubmissionReadinessLost(profile.id, wasSubmissionReady);
+
+    await logActivity(userId, "images_bulk_deleted", {
+      profileId: profile.id,
+      deletedCount: images.length,
+    }).catch(() => {});
+
+    return res.json({
+      success: true,
+      message: `${images.length} images deleted`,
+      heroImagePath: newHeroImagePath,
+    });
+  }),
+);
+
+/**
+ * POST /api/talent/media/bulk-update
+ * Bulk update metadata / categories for multiple images at once
+ */
+router.post(
+  "/bulk-update",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { imageIds, patch } = req.body;
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "imageIds must be a non-empty array",
+      });
+    }
+    if (!imageIds.every((id) => isUuid(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "imageIds must contain valid UUIDs",
+      });
+    }
+
+    const userId = req.session.userId;
+    const profile = await knex("profiles").where({ user_id: userId }).first();
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found",
+      });
+    }
+
+    // Fetch images owned by profile
+    const images = await knex("images")
+      .where({ profile_id: profile.id })
+      .whereIn("id", imageIds);
+
+    if (images.length !== imageIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Some images were not found or do not belong to your profile",
+      });
+    }
+
+    // Parse patch structured fields
+    const structuredParsed = parseImageStructuredFieldsFromBody(patch);
+    if (!structuredParsed.ok) {
+      return res.status(400).json({
+        success: false,
+        message: structuredParsed.error,
+      });
+    }
+    const updateValues = { ...structuredParsed.values };
+
+    if (updateValues.set_id) {
+      const setRow = await knex("image_sets")
+        .where({ id: updateValues.set_id, profile_id: profile.id })
+        .first();
+      if (!setRow) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid set_id for this profile",
+        });
+      }
+    }
+
+    // Check minor safety block for each image to prevent unauthorized body imagery exposure
+    for (const image of images) {
+      const currentMetadata = parseImageMetadataFromDb(image.metadata);
+      const resolvedShot = Object.hasOwn(updateValues, "shot_type") ? updateValues.shot_type : image.shot_type;
+      const resolvedStyle = Object.hasOwn(updateValues, "style_type") ? updateValues.style_type : image.style_type;
+      const resolvedExcludeAgency = Object.hasOwn(updateValues, "exclude_from_agency") ? updateValues.exclude_from_agency : !!image.exclude_from_agency;
+      const resolvedExcludePublic = Object.hasOwn(updateValues, "exclude_from_public") ? updateValues.exclude_from_public : !!image.exclude_from_public;
+      const resolvedAgencyVisible = !resolvedExcludeAgency || !resolvedExcludePublic;
+
+      const patchBlock = minorBlocksSensitiveImage(profile, {
+        shot_type: resolvedShot,
+        style_type: resolvedStyle,
+        role: currentMetadata?.role,
+        body_visibility: bodyVisibilitySignalFromMetadata(currentMetadata),
+        agencyVisible: resolvedAgencyVisible,
+      });
+
+      if (patchBlock) {
+        return respondMinorImageBlock(res, patchBlock);
+      }
+    }
+
+    // Update DB
+    await knex.transaction(async (trx) => {
+      await trx("images")
+        .where({ profile_id: profile.id })
+        .whereIn("id", imageIds)
+        .update(updateValues);
+    });
+
+    return res.json({
+      success: true,
+      message: `${imageIds.length} images updated successfully`,
+    });
+  }),
+);
+
 module.exports = router;
 // Exposed for unit tests (minor-image protection, audit P0-8 / P0-5).
 module.exports.__testables = {

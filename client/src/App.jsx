@@ -21,7 +21,6 @@ const RevealPage = lazy(() => import('./domains/talent/pages/RevealPage'));
 
 const SettingsPage = lazy(() => import('./domains/talent/pages/SettingsPage'));
 const CastingCallPage = lazy(() => import('./domains/onboarding/pages/CastingCallPage'));
-const CastingRevealPreview = lazy(() => import('./domains/onboarding/pages/CastingRevealPreview'));
 const TestPreview = lazy(() => import('./domains/onboarding/pages/TestPreview'));
 
 // Agency pages
@@ -70,7 +69,6 @@ function App() {
           <Route path="/onboarding" element={<CastingCallPage />} />
           <Route path="/apply" element={<Navigate to="/onboarding" replace />} />
           <Route path="/onboarding/test" element={<TestPreview />} />
-          <Route path="/onboarding/preview-reveal" element={<CastingRevealPreview />} />
 
           {/* Auth Routes */}
           <Route element={<AuthLayout />}>

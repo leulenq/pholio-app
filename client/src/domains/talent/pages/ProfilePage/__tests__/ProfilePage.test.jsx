@@ -35,6 +35,7 @@ vi.mock('lucide-react', () => {
     AlertCircle: makeIconMock('AlertCircle'),
     CheckCircle2: makeIconMock('CheckCircle2'),
     Sparkle: makeIconMock('Sparkle'),
+    Building2: makeIconMock('Building2'),
   };
 });
 
@@ -59,6 +60,8 @@ vi.mock('../../../api/talent', () => ({
     getProfile: vi.fn(),
     updateProfile: vi.fn(),
     replaceRepresentations: vi.fn(),
+    generateBio: vi.fn(),
+    refineBio: vi.fn(),
     listCompCardPresets: vi.fn().mockResolvedValue({ presets: [] }),
   },
 }));
@@ -111,7 +114,8 @@ describe('ProfilePage Component', () => {
         },
       },
     });
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    talentApi.listCompCardPresets.mockResolvedValue({ presets: [] });
   });
 
   test('renders loading skeleton initially', () => {
@@ -148,6 +152,8 @@ describe('ProfilePage Component', () => {
     expect(screen.getByRole('textbox', { name: /first name/i })).toHaveValue('Nova');
     expect(screen.getByRole('textbox', { name: /last name/i })).toHaveValue('Lane');
     expect(screen.getByPlaceholderText(/tell us about yourself/i)).toHaveValue('Professional model.');
+    expect(screen.getByRole('button', { name: /save profile/i })).toBeDisabled();
+    expect(screen.queryByText(/unsaved changes/i)).not.toBeInTheDocument();
   });
 
   test('shows validation errors for invalid input and blocks saving', async () => {
@@ -181,9 +187,19 @@ describe('ProfilePage Component', () => {
     });
   });
 
-  test('submits successfully and calls API with normalized data on save', async () => {
-    talentApi.getProfile.mockResolvedValue({ profile: mockProfile });
-    talentApi.updateProfile.mockResolvedValue({ success: true, profile: { ...mockProfile, bio: 'Updated bio.' } });
+  test('saves a manual bio with a minimal payload and verifies it after reload', async () => {
+    let persistedProfile = { ...mockProfile };
+    talentApi.getProfile.mockImplementation(async () => ({
+      profile: persistedProfile,
+    }));
+    talentApi.updateProfile.mockImplementation(async ({ bio }) => {
+      persistedProfile = {
+        ...persistedProfile,
+        bio: undefined,
+        bio_raw: bio,
+      };
+      return { profile: persistedProfile };
+    });
     talentApi.replaceRepresentations.mockResolvedValue({ success: true });
 
     render(
@@ -213,8 +229,117 @@ describe('ProfilePage Component', () => {
     });
 
     const lastCallArg = talentApi.updateProfile.mock.calls[0][0];
-    expect(lastCallArg.bio).toBe('Updated bio.');
-    expect(lastCallArg.city).toBe('New York');
-    expect(lastCallArg.gender).toBeNull(); // Empty string converted to null
+    expect(lastCallArg).toEqual({ bio: 'Updated bio.' });
+    expect(talentApi.replaceRepresentations).not.toHaveBeenCalled();
+    expect(talentApi.getProfile.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    await waitFor(() => {
+      expect(pholioToast.success).toHaveBeenCalledWith('Profile saved successfully');
+      expect(saveButton).toBeDisabled();
+      expect(screen.queryByText(/unsaved changes/i)).not.toBeInTheDocument();
+    });
+  });
+
+  test('saves a generated bio and returns the profile to a clean state', async () => {
+    const profileWithoutBio = {
+      ...mockProfile,
+      bio: null,
+      bio_raw: null,
+      weight_kg: '58.00',
+    };
+    const generatedBio =
+      'LA-based editorial and commercial model with six years of campaign and runway experience.';
+
+    let persistedProfile = { ...profileWithoutBio };
+    talentApi.getProfile.mockImplementation(async () => ({
+      profile: persistedProfile,
+    }));
+    talentApi.generateBio.mockResolvedValue({
+      bio: generatedBio,
+      wordCount: 14,
+    });
+    talentApi.updateProfile.mockImplementation(async ({ bio }) => {
+      persistedProfile = {
+        ...persistedProfile,
+        bio_raw: bio,
+      };
+      return { profile: persistedProfile };
+    });
+    talentApi.replaceRepresentations.mockResolvedValue({ success: true });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProfilePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Loading profile...')).not.toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    const saveButton = screen.getByRole('button', { name: /save profile/i });
+    expect(saveButton).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: /generate/i }));
+
+    const bioInput = screen.getByPlaceholderText(/tell us about yourself/i);
+    await waitFor(() => expect(bioInput).toHaveValue(generatedBio));
+    expect(saveButton).toBeEnabled();
+    expect(screen.getByText(/unsaved changes/i)).toBeInTheDocument();
+
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(talentApi.updateProfile).toHaveBeenCalledWith(
+        { bio: generatedBio },
+      );
+      expect(talentApi.replaceRepresentations).not.toHaveBeenCalled();
+      expect(talentApi.getProfile.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(pholioToast.success).toHaveBeenCalledWith('Profile saved successfully');
+    });
+    expect(saveButton).toHaveTextContent('Save profile');
+    expect(saveButton).toBeDisabled();
+    expect(screen.queryByText(/unsaved changes/i)).not.toBeInTheDocument();
+  });
+
+  test('keeps the form dirty and reports an error when the saved bio does not survive reload', async () => {
+    const submittedBio = 'A revised bio that should be verified after saving.';
+    talentApi.getProfile.mockResolvedValue({ profile: mockProfile });
+    talentApi.updateProfile.mockResolvedValue({
+      profile: {
+        ...mockProfile,
+        bio_raw: submittedBio,
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProfilePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Loading profile...')).not.toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    const bioInput = screen.getByPlaceholderText(/tell us about yourself/i);
+    await user.clear(bioInput);
+    await user.type(bioInput, submittedBio);
+
+    const saveButton = screen.getByRole('button', { name: /save profile/i });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(pholioToast.fromFailure).toHaveBeenCalled();
+    });
+    expect(pholioToast.success).not.toHaveBeenCalledWith('Profile saved successfully');
+    expect(saveButton).toBeEnabled();
+    expect(screen.getByText(/unsaved changes/i)).toBeInTheDocument();
   });
 });

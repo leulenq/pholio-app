@@ -8,7 +8,7 @@ import {
   arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
-  Plus, Star, Edit2, Crop, Trash2, EyeOff, Loader2, Upload, Film, ExternalLink, X, Download,
+  Plus, Star, Edit2, Crop, Trash2, EyeOff, Loader2, Upload, Film, ExternalLink, X, Download, Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMedia } from '../hooks/useMedia';
@@ -38,7 +38,7 @@ const ARRIVE = {
   transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
 };
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 12;
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 
@@ -125,7 +125,7 @@ function partitionFiles(files) {
   files.forEach((file, index) => {
     if (index >= MAX_UPLOAD_FILES) invalid.push({ name: file.name || 'Unknown', reason: `Max ${MAX_UPLOAD_FILES} files at once` });
     else if (!isAllowedFile(file)) invalid.push({ name: file.name || 'Unknown', reason: 'Only JPEG, PNG, WebP' });
-    else if (file.size > MAX_FILE_BYTES) invalid.push({ name: file.name || 'Unknown', reason: 'Max 5MB each' });
+    else if (file.size > MAX_FILE_BYTES) invalid.push({ name: file.name || 'Unknown', reason: 'Max 25MB each' });
     else valid.push(file);
   });
   return { valid, invalid };
@@ -149,6 +149,7 @@ function markBroken(e) { e.currentTarget.classList.add('mw-frame__img--failed');
 
 function MediaFrame({
   image, index, allowCover, onSetCover, onEdit, onCrop, onDelete, settingCoverId, classificationTimedOut,
+  bulkMode, isSelected, onToggleSelect,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: image.id });
   const style = {
@@ -160,18 +161,43 @@ function MediaFrame({
   const isVideo = isVideoAsset(image);
   const coverBusy = !!settingCoverId;
   const duration = isVideo ? formatDuration(image.video_duration_seconds) : null;
-  const cls = ['mw-frame', isCover ? 'mw-frame--cover' : '', isDragging ? 'mw-frame--dragging' : ''].filter(Boolean).join(' ');
+  const cls = [
+    'mw-frame',
+    isCover ? 'mw-frame--cover' : '',
+    isDragging ? 'mw-frame--dragging' : '',
+    isSelected ? 'mw-frame--selected' : '',
+  ].filter(Boolean).join(' ');
+
+  const dragProps = bulkMode ? {} : { ...attributes, ...listeners };
 
   return (
-    <article ref={setNodeRef} style={style} className={cls} aria-label={`Frame ${index + 1}`}>
-      <div className="mw-frame__stage" {...attributes} {...listeners}>
+    <article
+      ref={setNodeRef}
+      style={style}
+      className={cls}
+      aria-label={`Frame ${index + 1}`}
+      onClick={(e) => {
+        if (bulkMode) {
+          e.stopPropagation();
+          onToggleSelect(image.id);
+        }
+      }}
+    >
+      <div className="mw-frame__stage" {...dragProps}>
         {isVideo ? (
           <PholioButton
             type="button"
             variant="tertiary"
             tone="dark"
             className="mw-frame__motion"
-            onClick={(e) => { e.stopPropagation(); onEdit(image); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (bulkMode) {
+                onToggleSelect(image.id);
+              } else {
+                onEdit(image);
+              }
+            }}
             aria-label={image.label || 'Motion asset'}
           >
             <Film size={26} aria-hidden="true" />
@@ -184,7 +210,14 @@ function MediaFrame({
             alt={metadataFor(image).caption || `Portfolio frame ${index + 1}`}
             className={`mw-frame__img ${isPrivate ? 'mw-frame__img--private' : ''}`}
             loading="lazy" decoding="async" draggable={false} onError={markBroken}
-            onClick={(e) => { e.stopPropagation(); onEdit(image); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (bulkMode) {
+                onToggleSelect(image.id);
+              } else {
+                onEdit(image);
+              }
+            }}
           />
         )}
         <span className="mw-frame__index">{String(index + 1).padStart(2, '0')}</span>
@@ -193,71 +226,79 @@ function MediaFrame({
             <Star size={14} fill="currentColor" aria-hidden="true" />
           </span>
         ) : null}
-        {isPrivate ? (
+        {isPrivate && !bulkMode ? (
           <span className="mw-frame__privacy-mark" aria-label="Private frame" title="Private frame">
             <EyeOff size={13} aria-hidden="true" />
           </span>
         ) : null}
 
-        <div className="mw-frame__actions" aria-label="Frame actions">
-          {allowCover && !isCover && !isVideo && (
+        {bulkMode && (
+          <span className="mw-frame__select-indicator" aria-label={isSelected ? 'Selected' : 'Unselected'}>
+            {isSelected && <Check size={12} strokeWidth={3} aria-hidden="true" />}
+          </span>
+        )}
+
+        {!bulkMode && (
+          <div className="mw-frame__actions" aria-label="Frame actions">
+            {allowCover && !isCover && !isVideo && (
+              <PholioIconButton
+                label="Make cover"
+                tone="dark"
+                className="mw-frame__action"
+                title="Make cover"
+                disabled={coverBusy}
+                onClick={(e) => { e.stopPropagation(); onSetCover(image.id); }}
+              >
+                {settingCoverId === image.id ? <Loader2 size={14} className="mw-spin" aria-hidden="true" /> : <Star size={14} aria-hidden="true" />}
+              </PholioIconButton>
+            )}
+            {isVideo && image.video_url ? (
+              <PholioIconButton
+                as="a"
+                label="Open motion asset"
+                tone="dark"
+                className="mw-frame__action"
+                title="Open motion asset"
+                href={image.video_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink size={14} aria-hidden="true" />
+              </PholioIconButton>
+            ) : null}
             <PholioIconButton
-              label="Make cover"
+              label="Edit details"
               tone="dark"
               className="mw-frame__action"
-              title="Make cover"
-              disabled={coverBusy}
-              onClick={(e) => { e.stopPropagation(); onSetCover(image.id); }}
+              title="Edit details"
+              onClick={(e) => { e.stopPropagation(); onEdit(image); }}
             >
-              {settingCoverId === image.id ? <Loader2 size={14} className="mw-spin" aria-hidden="true" /> : <Star size={14} aria-hidden="true" />}
+              <Edit2 size={14} aria-hidden="true" />
             </PholioIconButton>
-          )}
-          {isVideo && image.video_url ? (
+            {!isVideo && (
+              <PholioIconButton
+                label="Crop"
+                tone="dark"
+                className="mw-frame__action"
+                title="Crop"
+                onClick={(e) => { e.stopPropagation(); onCrop(image); }}
+              >
+                <Crop size={14} aria-hidden="true" />
+              </PholioIconButton>
+            )}
             <PholioIconButton
-              as="a"
-              label="Open motion asset"
+              label="Remove"
+              danger
               tone="dark"
-              className="mw-frame__action"
-              title="Open motion asset"
-              href={image.video_url}
-              target="_blank"
-              rel="noreferrer noopener"
-              onClick={(e) => e.stopPropagation()}
+              className="mw-frame__action mw-frame__action--danger"
+              title="Remove"
+              onClick={(e) => { e.stopPropagation(); onDelete(image.id); }}
             >
-              <ExternalLink size={14} aria-hidden="true" />
+              <Trash2 size={14} aria-hidden="true" />
             </PholioIconButton>
-          ) : null}
-          <PholioIconButton
-            label="Edit details"
-            tone="dark"
-            className="mw-frame__action"
-            title="Edit details"
-            onClick={(e) => { e.stopPropagation(); onEdit(image); }}
-          >
-            <Edit2 size={14} aria-hidden="true" />
-          </PholioIconButton>
-          {!isVideo && (
-            <PholioIconButton
-              label="Crop"
-              tone="dark"
-              className="mw-frame__action"
-              title="Crop"
-              onClick={(e) => { e.stopPropagation(); onCrop(image); }}
-            >
-              <Crop size={14} aria-hidden="true" />
-            </PholioIconButton>
-          )}
-          <PholioIconButton
-            label="Remove"
-            danger
-            tone="dark"
-            className="mw-frame__action mw-frame__action--danger"
-            title="Remove"
-            onClick={(e) => { e.stopPropagation(); onDelete(image.id); }}
-          >
-            <Trash2 size={14} aria-hidden="true" />
-          </PholioIconButton>
-        </div>
+          </div>
+        )}
       </div>
       <div className="mw-frame__foot">
         <FrameReadCaption image={image} classificationTimedOut={classificationTimedOut} />
@@ -455,11 +496,87 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
   );
 }
 
+const CATEGORY_OPTIONS = [
+  { value: 'portfolio', label: 'The Book' },
+  { value: 'digital', label: 'Digitals' },
+  { value: 'test', label: 'Tests' },
+  { value: 'campaign', label: 'Campaigns' },
+  { value: 'tearsheet', label: 'Tearsheets' },
+];
+
+function BulkReclassifyModal({ sets, onConfirm, onCancel, busy }) {
+  const [category, setCategory] = React.useState('portfolio');
+  const [setId, setSetId] = React.useState('');
+
+  const submit = () => {
+    onConfirm({
+      image_type: category,
+      set_id: category === 'digital' ? (setId || null) : null,
+    });
+  };
+
+  return (
+    <div className="mw-modal-overlay" onClick={onCancel}>
+      <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Bulk reclassify" onClick={(e) => e.stopPropagation()}>
+        <header className="mw-modal__head">
+          <h3 className="mw-modal__title">Bulk reclassify frames</h3>
+          <PholioIconButton
+            label="Cancel"
+            className="mw-modal__close"
+            onClick={onCancel}
+          >
+            <X size={16} aria-hidden="true" />
+          </PholioIconButton>
+        </header>
+        <p className="mw-modal__body">
+          Move the selected frames to a different portfolio section or dated set.
+        </p>
+        <label className="mw-modal__field">
+          <span className="mw-meta">Target section</span>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="mw-modal__input"
+          >
+            {CATEGORY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </label>
+        {category === 'digital' && sets.length > 0 && (
+          <label className="mw-modal__field">
+            <span className="mw-meta">Add to dated set</span>
+            <select
+              value={setId}
+              onChange={(e) => setSetId(e.target.value)}
+              className="mw-modal__input"
+            >
+              <option value="">No set (current)</option>
+              {sets.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name || s.kind}{s.is_current ? ' — current' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <div className="mw-modal__actions">
+          <PholioButton type="button" variant="secondary" onClick={onCancel}>Cancel</PholioButton>
+          <PholioButton variant="primary" disabled={busy} onClick={submit}>
+            {busy ? 'Updating…' : 'Move frames'}
+          </PholioButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MediaWorkspace() {
   const shouldReduce = useReducedMotion();
   const {
     images, upload, deleteImage, reorder, setHero, replaceImage, restoreImage,
     isUploading, isLoading, sets, createSet, setCurrentSet, addVideo, isAddingVideo,
+    bulkDeleteMedia, bulkUpdateMedia,
   } = useMedia();
   const { profile, refetch: refetchAuth } = useAuth();
   const queryClient = useQueryClient();
@@ -472,6 +589,15 @@ export default function MediaWorkspace() {
   const [pendingFiles, setPendingFiles] = React.useState(null);
   const [showMotionPrompt, setShowMotionPrompt] = React.useState(false);
   const [setBusy, setSetBusy] = React.useState(false);
+  
+  // Bulk operation states
+  const [bulkMode, setBulkMode] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState(new Set());
+  const [showBulkReclassifyModal, setShowBulkReclassifyModal] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = React.useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false);
+
   const fileInputRef = React.useRef(null);
   const pollStartedRef = React.useRef(null);
   const prevClassRef = React.useRef(new Map());
@@ -539,7 +665,7 @@ export default function MediaWorkspace() {
       return undefined;
     }
     if (!pollStartedRef.current) pollStartedRef.current = Date.now();
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       if (Date.now() - pollStartedRef.current > 30000) {
         clearInterval(interval);
         const stillPending = localImages
@@ -554,8 +680,25 @@ export default function MediaWorkspace() {
         }
         return;
       }
-      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-      refetchAuth?.();
+      try {
+        const res = await talentApi.getMediaClassificationStatus();
+        const imagesStatus = res?.images || [];
+        let anyReady = false;
+        for (const img of localImages) {
+          if (getClassificationState(img).status === 'pending') {
+            const match = imagesStatus.find((si) => si.id === img.id);
+            if (match && match.classification_status === 'ready') {
+              anyReady = true;
+            }
+          }
+        }
+        if (anyReady) {
+          queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+          refetchAuth?.();
+        }
+      } catch (err) {
+        console.warn('[Classification poll] error:', err.message);
+      }
     }, 2000);
     return () => clearInterval(interval);
   }, [hasPendingClassification, queryClient, refetchAuth, localImages]);
@@ -709,6 +852,47 @@ export default function MediaWorkspace() {
     catch (err) { toast.error(err?.message || 'Failed to delete image'); }
   };
 
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      await bulkDeleteMedia(ids);
+      setSelectedIds(new Set());
+      setBulkMode(false);
+      setShowBulkDeleteConfirm(false);
+    } catch (err) {
+      toast.error(err?.message || 'Bulk delete failed');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleBulkUpdate = async (patch) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      await bulkUpdateMedia({ imageIds: ids, patch });
+      setSelectedIds(new Set());
+      setBulkMode(false);
+      setShowBulkReclassifyModal(false);
+    } catch (err) {
+      toast.error(err?.message || 'Bulk update failed');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const renderSection = (key) => {
     const items = grouped[key];
     if (items.length === 0) return null;
@@ -749,6 +933,9 @@ export default function MediaWorkspace() {
                     onDelete={setDeleteId}
                     settingCoverId={settingCoverId}
                     classificationTimedOut={classificationTimedOutIds.has(image.id)}
+                    bulkMode={bulkMode}
+                    isSelected={selectedIds.has(image.id)}
+                    onToggleSelect={handleToggleSelect}
                   />
                 </motion.div>
               ))}
@@ -797,6 +984,14 @@ export default function MediaWorkspace() {
         {showMotionPrompt && (
           <MotionAddPrompt onSubmit={handleAddVideo} onCancel={() => setShowMotionPrompt(false)} busy={isAddingVideo} />
         )}
+        {showBulkReclassifyModal && (
+          <BulkReclassifyModal
+            sets={sets}
+            onConfirm={handleBulkUpdate}
+            onCancel={() => setShowBulkReclassifyModal(false)}
+            busy={isBulkUpdating}
+          />
+        )}
         <ConfirmationDialog
           isOpen={deleteId !== null}
           title="Remove frame?"
@@ -807,6 +1002,49 @@ export default function MediaWorkspace() {
           onConfirm={confirmDelete}
           onCancel={() => setDeleteId(null)}
         />
+        <ConfirmationDialog
+          isOpen={showBulkDeleteConfirm}
+          title="Remove selected frames?"
+          message={`These ${selectedIds.size} selected frames will be permanently removed from your portfolio and active representation materials.`}
+          confirmLabel="Remove frames"
+          cancelLabel="Cancel"
+          danger
+          onConfirm={handleBulkDeleteConfirm}
+          onCancel={() => setShowBulkDeleteConfirm(false)}
+        />
+        {bulkMode && (
+          <div className="mw-bulk-bar">
+            <span className="mw-bulk-bar__count">
+              {selectedIds.size} {selectedIds.size === 1 ? 'item' : 'items'} selected
+            </span>
+            <div className="mw-bulk-bar__actions">
+              <PholioButton
+                variant="secondary"
+                disabled={selectedIds.size === 0 || isBulkUpdating}
+                onClick={() => setShowBulkReclassifyModal(true)}
+              >
+                Move / Reclassify
+              </PholioButton>
+              <PholioButton
+                variant="primary"
+                danger
+                disabled={selectedIds.size === 0 || isBulkDeleting}
+                onClick={() => setShowBulkDeleteConfirm(true)}
+              >
+                Delete Selected
+              </PholioButton>
+              <PholioButton
+                variant="tertiary"
+                onClick={() => {
+                  setBulkMode(false);
+                  setSelectedIds(new Set());
+                }}
+              >
+                Cancel
+              </PholioButton>
+            </div>
+          </div>
+        )}
         <input
           ref={fileInputRef}
           type="file" multiple
@@ -827,10 +1065,21 @@ export default function MediaWorkspace() {
             </span>
           </div>
           <div className="mw-masthead__actions">
-            <PholioButton variant="secondary" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo}>
+            {hasAnyFrame && (
+              <PholioButton
+                variant={bulkMode ? 'secondary' : 'secondary'}
+                onClick={() => {
+                  setBulkMode(!bulkMode);
+                  setSelectedIds(new Set());
+                }}
+              >
+                {bulkMode ? 'Cancel Selection' : 'Select Multiple'}
+              </PholioButton>
+            )}
+            <PholioButton variant="secondary" onClick={() => setShowMotionPrompt(true)} disabled={isAddingVideo || bulkMode}>
               <Film size={15} aria-hidden="true" /> Add motion
             </PholioButton>
-            <PholioButton variant="primary" onClick={openFilePicker} disabled={isUploading}>
+            <PholioButton variant="primary" onClick={openFilePicker} disabled={isUploading || bulkMode}>
               <Plus size={15} aria-hidden="true" /> {isUploading ? 'Adding…' : 'Add images'}
             </PholioButton>
           </div>
@@ -861,7 +1110,7 @@ export default function MediaWorkspace() {
           ) : hasAnyFrame ? (
             <>
               {SECTION_ORDER.map((key) => renderSection(key))}
-              <p className="mw-helper">JPEG · PNG · WEBP — up to 5MB, 12 at a time</p>
+              <p className="mw-helper">JPEG · PNG · WEBP — up to 25MB, 12 at a time</p>
             </>
           ) : (
             <div className="mw-empty">
@@ -869,7 +1118,7 @@ export default function MediaWorkspace() {
               <PholioButton variant="primary" onClick={openFilePicker} disabled={isUploading}>
                 <Upload size={14} aria-hidden /> Upload Media
               </PholioButton>
-              <p className="mw-helper">JPEG · PNG · WEBP — up to 5MB, 12 at a time</p>
+              <p className="mw-helper">JPEG · PNG · WEBP — up to 25MB, 12 at a time</p>
             </div>
           )}
         </section>

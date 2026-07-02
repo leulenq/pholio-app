@@ -7,6 +7,44 @@ import { buildReadinessLists } from './profileReadinessItems';
 import PholioButton from '../../../shared/components/ui/PholioButton';
 import styles from './ProfileStrengthSidebar.module.css';
 
+const TOOLTIP_PAD = 8;
+const TOOLTIP_MIN_WIDTH = 120;
+const TOOLTIP_ESTIMATED_HEIGHT = 56;
+
+function computeTooltipPosition(btnEl, containerEl) {
+  const rect = btnEl.getBoundingClientRect();
+  const containerRect = containerEl?.getBoundingClientRect();
+  const maxWidth = containerRect
+    ? containerRect.width - TOOLTIP_PAD * 2
+    : Math.max(window.innerWidth - TOOLTIP_PAD * 2, TOOLTIP_MIN_WIDTH);
+  const width = Math.min(Math.max(rect.width - TOOLTIP_PAD * 2, TOOLTIP_MIN_WIDTH), maxWidth);
+
+  let left;
+  if (containerRect) {
+    const idealLeft = rect.left + TOOLTIP_PAD;
+    left = Math.max(
+      containerRect.left + TOOLTIP_PAD,
+      Math.min(idealLeft, containerRect.right - width - TOOLTIP_PAD),
+    );
+  } else {
+    left = rect.left + TOOLTIP_PAD;
+  }
+
+  const containerTop = containerRect?.top ?? 0;
+  const containerBottom = containerRect?.bottom ?? window.innerHeight;
+  const spaceAbove = rect.top - containerTop;
+  const spaceBelow = containerBottom - rect.bottom;
+  const placeAbove =
+    spaceAbove >= TOOLTIP_ESTIMATED_HEIGHT + TOOLTIP_PAD || spaceAbove >= spaceBelow;
+
+  return {
+    left,
+    width,
+    top: placeAbove ? rect.top - TOOLTIP_PAD : rect.bottom + TOOLTIP_PAD,
+    placement: placeAbove ? 'above' : 'below',
+  };
+}
+
 function ReadinessGap({
   item,
   tier,
@@ -14,6 +52,7 @@ function ReadinessGap({
   onItemClick,
   showTier = false,
   inAuditList = false,
+  containerRef,
 }) {
   const targetSection = scrollTargetByKey[item.key];
   const btnRef = useRef(null);
@@ -23,12 +62,10 @@ function ReadinessGap({
     : undefined;
 
   const placeFixedTip = () => {
-    if (!inAuditList || !item.why || !btnRef.current) return;
-    const rect = btnRef.current.getBoundingClientRect();
+    if (!item.why || !btnRef.current) return;
+    const position = computeTooltipPosition(btnRef.current, containerRef?.current);
     setFixedTip({
-      left: rect.left + 8,
-      width: Math.max(rect.width - 16, 120),
-      top: rect.top - 8,
+      ...position,
       text: item.why,
     });
   };
@@ -57,10 +94,10 @@ function ReadinessGap({
         onClick={() => targetSection && onItemClick?.(targetSection)}
         disabled={!targetSection}
         aria-describedby={tipId}
-        onMouseEnter={inAuditList ? placeFixedTip : undefined}
-        onMouseLeave={inAuditList ? clearFixedTip : undefined}
-        onFocus={inAuditList ? placeFixedTip : undefined}
-        onBlur={inAuditList ? clearFixedTip : undefined}
+        onMouseEnter={item.why ? placeFixedTip : undefined}
+        onMouseLeave={item.why ? clearFixedTip : undefined}
+        onFocus={item.why ? placeFixedTip : undefined}
+        onBlur={item.why ? clearFixedTip : undefined}
       >
         <span className={styles.gapRow}>
           <span className={styles.gapLabel}>{item.label}</span>
@@ -68,18 +105,14 @@ function ReadinessGap({
             <span className={styles.gapTier}>Core</span>
           ) : null}
         </span>
-        {!inAuditList && item.why ? (
-          <span id={tipId} className={styles.gapTooltip} role="tooltip">
-            {item.why}
-          </span>
-        ) : null}
       </PholioButton>
-      {inAuditList && fixedTip
+      {fixedTip
         ? createPortal(
             <div
               id={tipId}
               className={styles.gapTooltipFixed}
               role="tooltip"
+              data-placement={fixedTip.placement}
               style={{
                 left: fixedTip.left,
                 width: fixedTip.width,
@@ -123,6 +156,7 @@ export default function ProfileStrengthSidebar({
 
   const isComplete = isRequiredComplete && missingImprove.length === 0;
   const reduceMotion = useReducedMotion();
+  const cardRef = useRef(null);
 
   const progressColor = isRequiredComplete
     ? (score === 100 ? 'statusGold' : 'progressGreen')
@@ -162,7 +196,7 @@ export default function ProfileStrengthSidebar({
 
   return (
     <aside className={styles.sidebar} aria-label="Profile completeness">
-      <div className={styles.card}>
+      <div className={styles.card} ref={cardRef}>
         <div className={styles.header}>
           <span className={styles.smallTitle}>Profile readiness</span>
           <div className={styles.scoreBlock}>
@@ -234,6 +268,7 @@ export default function ProfileStrengthSidebar({
                   tier={item.tier}
                   scrollTargetByKey={scrollTargetByKey}
                   onItemClick={onItemClick}
+                  containerRef={cardRef}
                 />
               ))}
             </div>
@@ -249,7 +284,7 @@ export default function ProfileStrengthSidebar({
             aria-expanded={auditOpen}
           >
             <ClipboardList size={15} aria-hidden="true" />
-            {auditOpen ? 'Hide full checklist' : `View full checklist (${hiddenGapsCount})`}
+            {auditOpen ? 'Hide full checklist' : 'View full checklist'}
           </button>
         ) : null}
 
@@ -300,6 +335,7 @@ export default function ProfileStrengthSidebar({
                           onItemClick={onItemClick}
                           showTier
                           inAuditList
+                          containerRef={cardRef}
                         />
                       ))}
                     </div>
@@ -315,6 +351,7 @@ export default function ProfileStrengthSidebar({
                           scrollTargetByKey={scrollTargetByKey}
                           onItemClick={onItemClick}
                           inAuditList
+                          containerRef={cardRef}
                         />
                       ))}
                     </div>
@@ -332,10 +369,9 @@ export default function ProfileStrengthSidebar({
             className={styles.saveButton}
             fullWidth
             onClick={onSaveClick}
-            disabled={isSaving}
-            aria-disabled={!hasChanges && !isSaving}
-            whileHover={!isSaving ? { scale: 1.015 } : {}}
-            whileTap={!isSaving ? { scale: 0.985 } : {}}
+            disabled={isSaving || !hasChanges}
+            whileHover={hasChanges && !isSaving ? { scale: 1.015 } : {}}
+            whileTap={hasChanges && !isSaving ? { scale: 0.985 } : {}}
           >
             {isSaving ? (
               <>

@@ -77,24 +77,32 @@ exports.up = async function up(knex) {
   }
 
   const profiles = await knex("profiles").select("id");
-  const rows = [];
   for (const profile of profiles) {
+    const existing = await knex("profile_field_visibility")
+      .where({ profile_id: profile.id })
+      .select("field_key", "audience");
+    const existingSet = new Set(existing.map(r => `${r.field_key}:${r.audience}`));
+
+    const rowsToInsert = [];
     for (const [fieldKey, flags] of Object.entries(DEFAULT_MATRIX)) {
       AUDIENCES.forEach((audience, i) => {
-        rows.push({
-          id: crypto.randomUUID(),
-          profile_id: profile.id,
-          field_key: fieldKey,
-          audience,
-          visible: flags[i],
-          created_at: new Date(),
-          updated_at: new Date(),
-        });
+        if (!existingSet.has(`${fieldKey}:${audience}`)) {
+          rowsToInsert.push({
+            id: crypto.randomUUID(),
+            profile_id: profile.id,
+            field_key: fieldKey,
+            audience,
+            visible: flags[i],
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        }
       });
     }
-  }
-  if (rows.length > 0) {
-    await knex.batchInsert("profile_field_visibility", rows, 200);
+
+    if (rowsToInsert.length > 0) {
+      await knex("profile_field_visibility").insert(rowsToInsert);
+    }
   }
 };
 

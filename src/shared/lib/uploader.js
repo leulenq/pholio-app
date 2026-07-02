@@ -7,7 +7,7 @@ const {
   PutObjectCommand,
   GetObjectCommand,
 } = require("@aws-sdk/client-s3");
-const sharp = require("sharp");
+const { requireSharp } = require("./lazy-sharp");
 const config = require("../../config");
 const { v4: uuidv4 } = require("uuid");
 
@@ -204,6 +204,7 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
   }
 
   try {
+    const sharp = requireSharp();
     const imageBuffer = await resolveImageBuffer(file, isR2Key);
     if (!imageBuffer?.length) {
       throw new Error("Empty image buffer");
@@ -364,6 +365,7 @@ async function processAgencyLogo(
     throw new Error("Empty image buffer");
   }
 
+  const sharp = isSvg ? null : requireSharp();
   const processedBuffer = isSvg
     ? imageBuffer
     : await sharp(imageBuffer)

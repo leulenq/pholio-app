@@ -1,4 +1,4 @@
-const sharp = require('sharp');
+const { requireSharp } = require('./lazy-sharp');
 const fs = require('fs');
 
 /**
@@ -31,7 +31,7 @@ class ImageValidator {
 
     // 2. Metadata Check (Dimensions)
     try {
-      const metadata = await sharp(filePath).metadata();
+      const metadata = await requireSharp()(filePath).metadata();
       
       const width = metadata.width || 0;
       const height = metadata.height || 0;

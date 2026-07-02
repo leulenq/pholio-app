@@ -5,7 +5,7 @@ const ROOT_DIR = path.join(__dirname, "..");
 require("dotenv").config({ path: path.join(ROOT_DIR, ".env") });
 
 const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || "0.25");
-const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || "8");
+const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || "25");
 
 function readEnv(...keys) {
   for (const key of keys) {

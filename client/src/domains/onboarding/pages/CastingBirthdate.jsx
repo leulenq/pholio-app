@@ -1,16 +1,19 @@
 /**
  * Casting Birthdate - Onboarding step for date of birth collection
- * Cinematic style matching CastingGender.jsx
- * Legal Phase 0: COPPA floor (age ≥ 13), minor notice for age < 18
+ * Native calendar picker styled to the flow's underline input system
+ * (owner call 2026-07-02: calendar picker, not segmented fields).
+ * Legal Phase 0: COPPA floor (age ≥ 13), minor notice for age < 18.
  */
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
-import { fadeVariants, childVariants } from './animations';
+import { fadeVariants } from './animations';
 import { useCastingBirthdate } from '../hooks/useCasting';
-import { ThinkingText } from './ThinkingText';
-import { CinematicDivider } from './CinematicDivider';
+import StepBeat from '../components/StepBeat';
+import { InlineErrorText } from '../../../shared/components/states';
+import { useActionDock } from '../components/ActionDockContext';
+import SpotlightField from '../components/SpotlightField';
+import '../styles/CastingSteps.css';
 
 const TODAY = new Date();
 const TODAY_STR = TODAY.toISOString().slice(0, 10);
@@ -28,7 +31,7 @@ function computeAgeFromStr(dateStr) {
   return age >= 0 ? age : null;
 }
 
-export function CastingBirthdate({ onComplete }) {
+export function CastingBirthdate({ onComplete, firstName }) {
   const [dob, setDob] = useState('');
   const [error, setError] = useState('');
   const birthdateMutation = useCastingBirthdate();
@@ -39,18 +42,17 @@ export function CastingBirthdate({ onComplete }) {
   const isValid = dob && age !== null && age >= 13;
 
   const handleChange = (e) => {
-    const val = e.target.value;
-    setDob(val);
+    setDob(e.target.value);
     setError('');
   };
 
   const handleContinue = async () => {
     if (!dob) {
-      setError('Please enter your date of birth.');
+      setError('Enter your date of birth.');
       return;
     }
     if (age === null) {
-      setError('Please enter a valid date.');
+      setError('Enter a valid date.');
       return;
     }
     if (isTooYoung) {
@@ -63,13 +65,17 @@ export function CastingBirthdate({ onComplete }) {
       await birthdateMutation.mutateAsync({ date_of_birth: dob });
       onComplete({ date_of_birth: dob, age });
     } catch (err) {
-      toast.error(err?.message || 'Could not save. Please try again.');
+      setError(err?.message || 'Could not save. Try again.');
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && isValid) handleContinue();
-  };
+  useActionDock({
+    label: 'Continue',
+    enabled: isValid && !birthdateMutation.isPending,
+    onAdvance: handleContinue,
+  });
+
+  const headline = firstName ? `${firstName}, when were you *born*?` : 'When were you *born*?';
 
   return (
     <motion.div
@@ -77,84 +83,57 @@ export function CastingBirthdate({ onComplete }) {
       initial="initial"
       animate="animate"
       exit="exit"
-      className="text-center"
+      className="cs-step-stage"
     >
-      <ThinkingText
-        text="When were you *born*?"
-        className="cinematic-question"
-        style={{ marginBottom: '2rem' }}
-        delay={0.3}
+      <StepBeat text={headline} />
+
+      <SpotlightField
+        type="date"
+        value={dob}
+        onChange={handleChange}
+        onEnter={handleContinue}
+        min={MIN_DATE_STR}
+        max={TODAY_STR}
+        style={{ cursor: 'pointer' }}
+        aria-label="Date of birth"
+        aria-invalid={!!error}
       />
 
-      <CinematicDivider delay={0.4} style={{ marginBottom: '3rem' }} />
+      <p className="cs-hint">Type MM / DD / YYYY — or tap the calendar</p>
 
-      <motion.div
-        className="cinematic-ghost"
-        layoutId="cinematic-card"
-        variants={childVariants}
-        style={{ maxWidth: '600px', margin: '0 auto' }}
-      >
-        <input
-          type="date"
-          className="cinematic-input"
-          style={{ colorScheme: 'dark', cursor: 'pointer' }}
-          value={dob}
-          min={MIN_DATE_STR}
-          max={TODAY_STR}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          aria-label="Date of birth"
-          aria-invalid={!!error}
-        />
+      <AnimatePresence mode="wait">
+        {error && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25 }}
+            style={{ marginTop: '0.5rem' }}
+          >
+            <InlineErrorText message={error} className="cinematic-field-error" />
+          </motion.div>
+        )}
 
-        <AnimatePresence mode="wait">
-          {error && (
-            <motion.p
-              key="error"
-              className="cinematic-field-error"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25 }}
-            >
-              {error}
-            </motion.p>
-          )}
-
-          {isMinor && !error && (
-            <motion.p
-              key="minor-notice"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-              style={{
-                marginTop: '1rem',
-                fontSize: '0.8rem',
-                color: 'rgba(255,255,255,0.45)',
-                lineHeight: 1.5,
-                fontFamily: "var(--cinematic-font-sans, 'Inter', sans-serif)",
-              }}
-            >
-              A parent or guardian will need to verify your account before you can apply to agencies.
-            </motion.p>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {isValid && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="cinematic-hint"
-              onClick={handleContinue}
-            >
-              {birthdateMutation.isPending ? 'Saving…' : 'Press Enter ↵'}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+        {isMinor && !error && (
+          <motion.p
+            key="minor-notice"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            style={{
+              marginTop: '1rem',
+              fontSize: '0.8rem',
+              color: 'rgba(255,255,255,0.45)',
+              lineHeight: 1.5,
+              fontFamily: "var(--cinematic-font-sans, 'Inter', sans-serif)",
+            }}
+          >
+            We&apos;ll bring your parent or guardian in before anything personal.
+          </motion.p>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

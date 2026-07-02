@@ -69,7 +69,8 @@
   color: #b4a798;
   opacity: 0.2;
   line-height: 1;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   transform: translateY(0.5px);
   transition:
     opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),

@@ -6,42 +6,115 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(26, 24, 21, 0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(16, 15, 14, 0.62);
+  /* The one legitimate backdrop-filter use: a full-screen dimmer, not decoration. */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .legal-gate-panel {
-  width: min(100%, 440px);
-  padding: 28px;
+  width: min(100%, 460px);
+  padding: 34px 32px;
   border-radius: 16px;
   background: var(--ag-surface-1, #fff);
-  box-shadow: 0 24px 48px rgba(26, 24, 21, 0.15);
+  box-shadow: 0 28px 60px rgba(26, 24, 21, 0.28);
+  text-align: left;
 }
 
 .legal-gate-title {
   margin: 0 0 12px;
   font-family: var(--font-display, 'Playfair Display', serif);
-  font-size: 1.35rem;
+  font-size: 1.6rem;
   font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--ag-text-0, #1a1815);
 }
 
 .legal-gate-lead {
-  margin: 0 0 20px;
+  margin: 0 0 18px;
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--ag-text-2, #6b6560);
 }
 
-.legal-gate-check span {
-  color: var(--ag-text-0, #1a1815) !important;
+.legal-gate-changes {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.legal-gate-check a {
-  color: var(--ag-gold, #b8956a) !important;
+.legal-gate-changes li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--ag-text-0, #1a1815);
+}
+
+.legal-gate-changes li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ag-gold, #b8956a);
+}
+
+.legal-gate-links {
+  margin: 0 0 22px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.legal-gate-links a {
+  color: var(--ag-gold, #b8956a);
+  text-decoration: none;
+  text-underline-offset: 2px;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.legal-gate-links a:hover {
+  color: var(--ag-gold-hover, #a6845c);
+  text-decoration: underline;
+}
+
+.legal-gate-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.legal-gate-check input[type='checkbox'] {
+  margin-top: 2px;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  accent-color: var(--ag-gold, #b8956a);
+  cursor: pointer;
+}
+
+.legal-gate-check span {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ag-text-0, #1a1815);
+}
+
+.legal-gate-error {
+  margin: 12px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #c0392b;
 }
 
 .legal-gate-submit {
-  margin-top: 20px;
+  margin-top: 22px;
   width: 100%;
 }

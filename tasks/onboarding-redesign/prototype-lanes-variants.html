@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lanes Step — Work-Type Field Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..600;1,400..600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#000;--gold:#C9A55A;--gold-deep:#B8956A;--text:#F5F1EA;--text-2:rgba(245,241,234,.55);--text-3:rgba(245,241,234,.3);--ghost:rgba(245,241,234,.15);
+    --serif:"Playfair Display",Georgia,serif;--sans:"Inter",sans-serif;--ease:cubic-bezier(0.16,1,0.3,1)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;padding-bottom:6rem}
+  .orb{position:fixed;border-radius:50%;filter:blur(80px);z-index:0;opacity:.35;pointer-events:none}
+  .orb-1{top:-14%;left:-8%;width:44vw;height:44vw;background:radial-gradient(circle,rgba(201,165,90,.28),transparent 70%)}
+  .orb-2{bottom:-14%;right:-8%;width:52vw;height:52vw;background:radial-gradient(circle,rgba(120,120,128,.16),transparent 70%)}
+
+  .head{position:relative;z-index:2;text-align:center;padding:4rem 1.5rem 1rem}
+  .head h1{font-family:var(--serif);font-weight:400;font-size:2rem;letter-spacing:-.02em}
+  .head p{color:var(--text-3);font-size:.8rem;margin-top:.6rem}
+
+  .variant{position:relative;z-index:2;max-width:840px;margin:0 auto;padding:3.2rem 1.5rem;border-top:1px solid rgba(245,241,234,.07)}
+  .variant:first-of-type{border-top:none}
+  .vtag{display:flex;align-items:center;gap:.7rem;justify-content:center;margin-bottom:.4rem}
+  .vtag .letter{font-family:var(--serif);font-style:italic;color:var(--gold);font-size:1.2rem}
+  .vtag .name{font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--text-2)}
+  .vdesc{text-align:center;color:var(--text-3);font-size:.75rem;line-height:1.55;max-width:40rem;margin:0 auto 2.6rem}
+  .q{font-family:var(--serif);font-weight:400;font-size:clamp(1.5rem,3.2vw,2.3rem);letter-spacing:-.02em;text-align:center;margin-bottom:2rem;white-space:nowrap}
+  .q em{font-style:italic;color:var(--gold)}
+  .stage{display:flex;justify-content:center;align-items:center}
+
+  /* ── A · Editorial image plates ── */
+  .plates{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;max-width:780px;margin:0 auto}
+  .plate{position:relative;width:168px;height:232px;border:1px solid rgba(245,241,234,.14);border-radius:4px;overflow:hidden;cursor:pointer;transition:all .3s var(--ease)}
+  .plate img{width:100%;height:100%;object-fit:cover;filter:grayscale(.35) brightness(.6);transition:filter .4s}
+  .plate .pl-label{position:absolute;left:0;right:0;bottom:0;padding:.9rem;font-family:var(--serif);font-size:1.25rem;color:#fff;
+    background:linear-gradient(to top,rgba(0,0,0,.8),transparent);text-align:left}
+  .plate .pl-check{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.55);opacity:0;transition:all .3s}
+  .plate:hover{border-color:rgba(201,165,90,.4)} .plate:hover img{filter:grayscale(.1) brightness(.72)}
+  .plate.sel{border-color:var(--gold);box-shadow:0 0 30px rgba(201,165,90,.2)}
+  .plate.sel img{filter:grayscale(0) brightness(.82)}
+  .plate.sel .pl-label{color:var(--gold)}
+  .plate.sel .pl-check{opacity:1;background:var(--gold);border-color:var(--gold)}
+  .plate.sel .pl-check::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #0a0806;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .plate-text{width:168px;height:232px;border:1px dashed rgba(245,241,234,.22);border-radius:4px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-size:1.2rem;color:var(--text-3);cursor:pointer;transition:all .3s;text-align:center;padding:1rem}
+  .plate-text:hover{border-color:rgba(201,165,90,.4);color:var(--text-2)}
+  .plate-text.sel{border-color:var(--gold);border-style:solid;color:var(--gold);background:rgba(201,165,90,.05)}
+
+  /* ── B · Gold-fill pills ── */
+  .lpills{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;max-width:600px;margin:0 auto}
+  .lpill{padding:.8rem 1.7rem;border-radius:100px;border:1px solid rgba(245,241,234,.2);background:none;color:var(--text-2);
+    font-family:var(--serif);font-size:1.15rem;cursor:pointer;transition:all .25s var(--ease)}
+  .lpill:hover{border-color:rgba(201,165,90,.5);color:var(--text)}
+  .lpill.sel{background:var(--gold);color:#0a0806;border-color:var(--gold);box-shadow:0 0 22px rgba(201,165,90,.3)}
+
+  /* ── C · Check grid (2×2) ── */
+  .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;max-width:540px;margin:0 auto}
+  .gcell{position:relative;text-align:left;border:1px solid rgba(245,241,234,.14);border-radius:6px;padding:1.25rem 1.35rem;cursor:pointer;background:rgba(245,241,234,.012);transition:all .3s var(--ease)}
+  .gcell .gname{font-family:var(--serif);font-size:1.4rem;color:var(--text);margin-bottom:.3rem}
+  .gcell .gnote{font-size:.66rem;letter-spacing:.03em;color:var(--text-3)}
+  .gcell .gcheck{position:absolute;top:1rem;right:1rem;width:18px;height:18px;border-radius:50%;border:1px solid rgba(245,241,234,.25);opacity:.55;transition:all .3s}
+  .gcell:hover{border-color:rgba(201,165,90,.4)}
+  .gcell.sel{border-color:var(--gold);background:rgba(201,165,90,.05)}
+  .gcell.sel .gname{color:var(--gold)}
+  .gcell.sel .gcheck{opacity:1;background:var(--gold);border-color:var(--gold)}
+  .gcell.sel .gcheck::after{content:"";position:absolute;left:6px;top:2.5px;width:4px;height:8px;border:solid #0a0806;border-width:0 2px 2px 0;transform:rotate(45deg)}
+
+  /* ── D · Toggle list ── */
+  .tlist{max-width:470px;margin:0 auto;text-align:left}
+  .trow{display:flex;align-items:center;justify-content:space-between;gap:1rem;width:100%;background:none;border:none;cursor:pointer;
+    padding:1.15rem .3rem;border-bottom:1px solid rgba(245,241,234,.08);transition:background .2s}
+  .trow:first-child{border-top:1px solid rgba(245,241,234,.08)}
+  .trow:hover{background:rgba(255,255,255,.02)}
+  .tleft{display:flex;flex-direction:column;gap:.15rem}
+  .tname{font-family:var(--serif);font-size:1.45rem;color:var(--text-2);transition:color .3s}
+  .tnote{font-size:.64rem;letter-spacing:.03em;color:var(--text-3)}
+  .tsw{position:relative;width:42px;height:22px;border-radius:100px;border:1px solid rgba(245,241,234,.25);flex-shrink:0;transition:all .3s var(--ease)}
+  .tsw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text-3);transition:all .3s var(--ease)}
+  .trow.sel .tname{color:var(--gold)}
+  .trow.sel .tsw{background:rgba(201,165,90,.25);border-color:var(--gold)}
+  .trow.sel .tsw::after{left:22px;background:var(--gold);box-shadow:0 0 10px rgba(201,165,90,.6)}
+
+  @media (max-width:520px){.q{white-space:normal}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="orb orb-1"></div><div class="orb orb-2"></div>
+
+  <div class="head">
+    <h1>Lanes step — pick a direction</h1>
+    <p>Four premium takes on the work-type field. Multi-select ("Not sure yet" is exclusive). Each is live — click to try it.</p>
+  </div>
+
+  <!-- A -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">A</span><span class="name">Editorial image plates</span></div>
+    <p class="vdesc">Choose your lane by its visual world. Cinematic photo plates that saturate + frame in gold when selected — echoes the digitals frames and feels unmistakably like a fashion casting.</p>
+    <h1 class="q">What work calls to <em>you</em>?</h1>
+    <div class="stage"><div class="plates" data-multi>
+      <div class="plate"><img src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=380&q=70" alt="editorial"><span class="pl-check"></span><span class="pl-label">Editorial</span></div>
+      <div class="plate"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=380&q=70" alt="commercial"><span class="pl-check"></span><span class="pl-label">Commercial</span></div>
+      <div class="plate"><img src="https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=380&q=70" alt="runway"><span class="pl-check"></span><span class="pl-label">Runway</span></div>
+      <div class="plate-text" data-excl>Not sure yet</div>
+    </div></div>
+  </section>
+
+  <!-- B -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">B</span><span class="name">Gold-fill pills</span></div>
+    <p class="vdesc">Four refined outline pills; each fills solid gold as you pick it. The simplest, most modern, and best on mobile — reads instantly.</p>
+    <h1 class="q">What work calls to <em>you</em>?</h1>
+    <div class="stage"><div class="lpills" data-multi>
+      <button class="lpill">Editorial</button><button class="lpill">Commercial</button>
+      <button class="lpill">Runway</button><button class="lpill" data-excl>Not sure yet</button>
+    </div></div>
+  </section>
+
+  <!-- C -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">C</span><span class="name">Check grid</span></div>
+    <p class="vdesc">A 2×2 of bordered cells — lane name, a quiet note of what it means, and a gold check in the corner when chosen. Structured and informative without imagery.</p>
+    <h1 class="q">What work calls to <em>you</em>?</h1>
+    <div class="stage"><div class="grid2" data-multi>
+      <div class="gcell"><div class="gname">Editorial</div><div class="gnote">Magazines · campaigns · story</div><span class="gcheck"></span></div>
+      <div class="gcell"><div class="gname">Commercial</div><div class="gnote">Brands · catalog · lifestyle</div><span class="gcheck"></span></div>
+      <div class="gcell"><div class="gname">Runway</div><div class="gnote">Shows · fittings · presentations</div><span class="gcheck"></span></div>
+      <div class="gcell" data-excl><div class="gname">Not sure yet</div><div class="gnote">Help me find my lane</div><span class="gcheck"></span></div>
+    </div></div>
+  </section>
+
+  <!-- D -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">D</span><span class="name">Toggle list</span></div>
+    <p class="vdesc">A calm vertical list with a gold toggle that flips on for each lane. Feels like setting preferences — quiet, tactile, unmistakably multi-select.</p>
+    <h1 class="q">What work calls to <em>you</em>?</h1>
+    <div class="stage"><div class="tlist" data-multi>
+      <button class="trow"><span class="tleft"><span class="tname">Editorial</span><span class="tnote">Magazines · campaigns · story</span></span><span class="tsw"></span></button>
+      <button class="trow"><span class="tleft"><span class="tname">Commercial</span><span class="tnote">Brands · catalog · lifestyle</span></span><span class="tsw"></span></button>
+      <button class="trow"><span class="tleft"><span class="tname">Runway</span><span class="tnote">Shows · fittings · presentations</span></span><span class="tsw"></span></button>
+      <button class="trow" data-excl><span class="tleft"><span class="tname">Not sure yet</span><span class="tnote">Help me find my lane</span></span><span class="tsw"></span></button>
+    </div></div>
+  </section>
+
+<script>
+  // multi-select with an exclusive "Not sure yet" ([data-excl]) per group
+  document.querySelectorAll('[data-multi]').forEach(group=>{
+    const opts=[...group.children];
+    opts.forEach(o=>o.onclick=()=>{
+      if(o.hasAttribute('data-excl')){opts.forEach(x=>x.classList.remove('sel'));o.classList.add('sel');return;}
+      opts.forEach(x=>{if(x.hasAttribute('data-excl'))x.classList.remove('sel');});
+      o.classList.toggle('sel');
+    });
+  });
+</script>
+</body>
+</html>

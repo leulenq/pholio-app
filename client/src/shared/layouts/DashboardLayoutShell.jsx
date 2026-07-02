@@ -23,11 +23,13 @@ export default function DashboardLayoutShell() {
     useAuthEntryTransition(authBootstrapReady);
   const [promptContext, setPromptContext] = useState(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
+  // Local one-shot guard so the experience can't re-open mid-session between
+  // dismissal and the profile query picking up the freshly-set server flag.
+  const [hasCelebratedThisSession, setHasCelebratedThisSession] = useState(false);
   const gating = useMemo(() => checkGatingStatus(profile, images), [profile, images]);
   const { isBlocked } = gating;
   const isRouteGated = isBlocked && isRestrictedTalentRoute(location.pathname);
   const gateFeature = getProfileGateFeature(location.pathname);
-  const celebrationKey = useMemo(() => `talent-gate-celebrated:${profile?.id || 'unknown'}`, [profile?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,9 +37,7 @@ export default function DashboardLayoutShell() {
     async function maybeOpenPrompt() {
       if (isLoading || !profile?.id || isBlocked) return;
       if (!location.pathname.startsWith('/dashboard/talent')) return;
-
-      const celebrated = window.localStorage.getItem(celebrationKey);
-      if (celebrated === '1') return;
+      if (hasCelebratedThisSession || profile.unlock_celebrated_at) return;
 
       try {
         const context = await talentApi.getApplicationPromptContext();
@@ -52,13 +52,19 @@ export default function DashboardLayoutShell() {
 
     maybeOpenPrompt();
     return () => { cancelled = true; };
-  }, [isLoading, profile?.id, isBlocked, location.pathname, celebrationKey]);
+  }, [
+    isLoading,
+    profile?.id,
+    profile?.unlock_celebrated_at,
+    isBlocked,
+    location.pathname,
+    hasCelebratedThisSession,
+  ]);
 
   const dismissPrompt = () => {
     setIsPromptOpen(false);
-    if (profile?.id) {
-      window.localStorage.setItem(celebrationKey, '1');
-    }
+    setHasCelebratedThisSession(true);
+    talentApi.markUnlockCelebrated().catch(() => {});
   };
 
   // If API says onboarding is required, redirect to casting flow

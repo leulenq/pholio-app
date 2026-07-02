@@ -1,4 +1,5 @@
 const ENTRY_KEY = 'pholio:auth-entry';
+const REVEAL_ARRIVAL_KEY = 'pholio:arrived-from-reveal';
 const MIN_DISPLAY_MS = 1800;
 const EXIT_MS = 850;
 
@@ -31,6 +32,21 @@ export function clearAuthEntryTransition() {
 
 export function shouldShowAuthEntrySplash() {
   return getAuthEntryStartedAt() !== null;
+}
+
+/**
+ * One-shot check for the RevealPage → dashboard handoff. The reveal flow
+ * already closes with its own welcome letter, so the entry splash must not
+ * play a second time. Reading this also consumes (removes) the flag.
+ */
+export function consumeArrivedFromReveal() {
+  try {
+    const flagged = sessionStorage.getItem(REVEAL_ARRIVAL_KEY) === '1';
+    if (flagged) sessionStorage.removeItem(REVEAL_ARRIVAL_KEY);
+    return flagged;
+  } catch {
+    return false;
+  }
 }
 
 export function getAuthEntryRemainingMs(startedAt = getAuthEntryStartedAt()) {

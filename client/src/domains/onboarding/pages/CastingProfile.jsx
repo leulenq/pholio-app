@@ -1,69 +1,98 @@
 /**
- * Casting Profile - Step 4: Location & Experience
- * Brand-compliant profile completion
+ * Casting Profile - Step 4: Lanes & Market
+ * Two sub-steps: which lanes of work call to the talent (multi-select,
+ * "Not sure yet" as a first-class exclusive answer), then their market —
+ * a skippable city autocomplete. No gender, no experience level: this
+ * step only ever sends { city, modeling_categories }.
  */
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fadeVariants, childVariants } from './animations';
+import { fadeVariants } from './animations';
 import { useCastingProfile } from '../hooks/useCasting';
-import { useTypeToFocus } from '../../../shared/hooks/useTypeToFocus';
-import { toast } from 'sonner';
 import { CITIES } from '../../../data/cities';
-import { Check } from 'lucide-react';
-import { CinematicNextButton, CinematicBackButton } from './CinematicNextButton';
+import { useActionDock } from '../components/ActionDockContext';
+import LanePlates from '../components/LanePlates';
+import SpotlightField from '../components/SpotlightField';
 
-import { ThinkingText } from './ThinkingText';
-import { CinematicDivider } from './CinematicDivider';
+import StepBeat from '../components/StepBeat';
+import { InlineErrorText } from '../../../shared/components/states';
+import '../styles/CastingSteps.css';
+import './CastingProfile.screen.css';
 
-function CastingProfile({ onComplete, gender, initialProfileStep }) {
-  const [profileStep, setProfileStep] = useState(initialProfileStep || 1); // 1: location, 2: experience
-  const [location, setLocation] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState('beginner');
+// Canonical onboarding lane labels — order here is the order sent to the server.
+const LANES = ['Editorial', 'Commercial', 'Runway'];
+
+function CastingProfile({ onComplete, initialProfileStep, registerBack, firstName }) {
+  const [profileStep, setProfileStep] = useState(initialProfileStep || 1); // 1: lanes, 2: city
+
+  // The shell's single back control owns "back": on the city sub-step it
+  // returns to lanes; on lanes it falls through to the previous flow step.
+  React.useEffect(() => {
+    if (!registerBack) return undefined;
+    registerBack(() => {
+      if (profileStep === 2) {
+        setProfileStep(1);
+        return true;
+      }
+      return false;
+    });
+    return () => registerBack(null);
+  }, [registerBack, profileStep]);
+  const [laneSet, setLaneSet] = useState(() => new Set());
+  const [notSure, setNotSure] = useState(false);
+  const [city, setCity] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const profileMutation = useCastingProfile();
-  
-  const inputRef = React.useRef(null);
-  useTypeToFocus(inputRef);
 
-  const handleNext = () => {
-    if (profileStep === 1 && !location.trim()) {
-      return toast.error("Please enter your location");
-    }
-    
-    if (profileStep === 1) {
-      setProfileStep(2);
-    } else {
-      handleSubmit();
+  const inputRef = React.useRef(null);
+
+  const selectedLanes = LANES.filter((lane) => laneSet.has(lane));
+  const lanesValid = notSure || laneSet.size > 0;
+
+  const handleLaneChange = (next) => {
+    setLaneSet(new Set(next.lanes));
+    setNotSure(next.notSure);
+  };
+
+  const handleLanesNext = () => {
+    if (!lanesValid) return;
+    setProfileStep(2);
+  };
+
+  const handleSubmit = async (cityOverride) => {
+    if (profileMutation.isPending) return;
+    setSubmitError('');
+    const trimmedCity = cityOverride !== undefined ? cityOverride : city.trim() || null;
+    const profileData = {
+      city: trimmedCity,
+      modeling_categories: selectedLanes,
+    };
+    try {
+      await profileMutation.mutateAsync(profileData);
+      onComplete(profileData);
+    } catch (error) {
+      setSubmitError(error.message || 'That did not save. Try once more.');
     }
   };
 
-  const handleSubmit = async () => {
-    try {
-      const profileData = {
-        city: location.trim(),
-        experience_level: experienceLevel,
-        gender
-      };
-      await profileMutation.mutateAsync(profileData);
-      toast.success('Your profile is ready!');
-      onComplete(profileData); // Pass profile data back
-    } catch (error) {
-      toast.error(error.message || 'Failed to finish profile');
-    }
+  const handleSkipCity = () => {
+    if (profileMutation.isPending) return;
+    handleSubmit(null);
   };
 
   const [suggestions, setSuggestions] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const handleLocationChange = (e) => {
+  const handleCityChange = (e) => {
     const val = e.target.value;
-    setLocation(val);
+    setCity(val);
     setSelectedIndex(0); // Reset selection
-    
-    if (val.length > 1) {
-      const matches = CITIES.filter(c => 
+
+    if (val.length > 0) {
+      const matches = CITIES.filter((c) =>
         c.label.toLowerCase().includes(val.toLowerCase())
-      ).slice(0, 5); // Limit to 5
+      ).slice(0, 4);
       setSuggestions(matches);
     } else {
       setSuggestions([]);
@@ -71,203 +100,101 @@ function CastingProfile({ onComplete, gender, initialProfileStep }) {
   };
 
   const selectCity = (cityLabel) => {
-    setLocation(cityLabel);
+    setCity(cityLabel);
     setSuggestions([]);
     inputRef.current?.focus();
   };
 
-  const handleKeyDown = (e) => {
-    if (suggestions.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex(prev => (prev + 1) % suggestions.length);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        selectCity(suggestions[selectedIndex].label);
-      }
-    } else if (e.key === 'Enter') {
-       handleNext();
+  // Arrow-key navigation only — Enter is handled separately via SpotlightField's onEnter.
+  const handleCityKeyDown = (e) => {
+    if (suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
     }
   };
+
+  const handleCityEnter = () => {
+    if (suggestions.length > 0) {
+      selectCity(suggestions[selectedIndex].label);
+    } else if (city.trim().length > 0) {
+      handleSubmit();
+    }
+  };
+
+  useActionDock(
+    profileStep === 1
+      ? { label: 'Next', enabled: lanesValid, onAdvance: handleLanesNext }
+      : {
+          label: profileMutation.isPending ? 'Saving…' : 'Finish',
+          enabled: city.trim().length > 0,
+          onAdvance: () => handleSubmit(),
+          skip: { label: 'Skip for now', onClick: handleSkipCity },
+        }
+  );
+
+  const lanesHeadline = firstName
+    ? `${firstName}, what work calls to *you*?`
+    : 'What work calls to *you*?';
 
   return (
     <AnimatePresence mode="wait">
       {profileStep === 1 && (
-        <motion.div className="text-center" key="location" variants={fadeVariants} initial="initial" animate="animate" exit="exit">
-          <ThinkingText 
-            text="Where are you *based*?" 
-            className="cinematic-question" 
-            style={{ marginBottom: '2rem' }} 
+        <motion.div className="cs-step-stage" key="lanes" variants={fadeVariants} initial="initial" animate="animate" exit="exit">
+          <StepBeat text={lanesHeadline} />
+
+          <LanePlates
+            value={{ lanes: selectedLanes, notSure }}
+            onChange={handleLaneChange}
+            disabled={profileMutation.isPending}
           />
+        </motion.div>
+      )}
 
-          <CinematicDivider delay={0.4} style={{ marginBottom: '2.5rem' }} />
+      {profileStep === 2 && (
+        <motion.div className="cs-step-stage" key="city" variants={fadeVariants} initial="initial" animate="animate" exit="exit">
+          <StepBeat text="And your *market*?" />
 
-          <motion.div 
-            className="cinematic-ghost relative" 
-            layoutId="cinematic-card" 
-            variants={childVariants} 
-            style={{ maxWidth: '600px', margin: '0 auto' }}
-          >
-            <input
-              ref={inputRef}
+          <div className="casting-profile-market-stage">
+            <SpotlightField
+              type="text"
+              value={city}
+              onChange={handleCityChange}
+              onEnter={handleCityEnter}
+              onKeyDown={handleCityKeyDown}
+              placeholder="Type your city"
+              inputRef={inputRef}
               autoFocus
-              className="cinematic-input"
-              placeholder="City, Country"
-              value={location}
-              onChange={handleLocationChange}
-              onKeyDown={handleKeyDown}
             />
-            
-            {/* Suggestions Dropdown */}
+
             <AnimatePresence>
               {suggestions.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 right-0 mt-4 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl"
+                  className="market-suggest"
                 >
-                  {suggestions.map((city, index) => (
-                    <div 
-                      key={city.label}
-                      onClick={() => selectCity(city.label)}
-                      className={`
-                        px-6 py-4 text-left cursor-pointer transition-colors border-b border-white/5 last:border-0 group
-                        ${index === selectedIndex ? 'bg-white/10' : 'hover:bg-white/5'}
-                      `}
+                  {suggestions.map((c, index) => (
+                    <button
+                      type="button"
+                      key={c.label}
+                      onClick={() => selectCity(c.label)}
+                      className={`market-suggest-row${index === selectedIndex ? ' is-active' : ''}`}
                     >
-                      <span className={`text-xl font-serif transition-colors ${index === selectedIndex ? 'text-[#C9A55A]' : 'text-white/70 group-hover:text-[#C9A55A]'}`}>
-                        {city.name}
-                      </span>
-                      <span className="text-sm text-white/30 ml-2 group-hover:text-white/50">, {city.country}</span>
-                    </div>
+                      <span className="market-suggest-city">{c.name}</span>
+                      <span className="market-suggest-country">{c.country}</span>
+                    </button>
                   ))}
                 </motion.div>
               )}
             </AnimatePresence>
-            
-            <AnimatePresence>
-              {location.trim().length > 0 && suggestions.length === 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="cinematic-hint mt-8"
-                  onClick={handleNext}
-                >
-                  Press Enter ↵
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
 
-          <AnimatePresence>
-            {location.trim().length > 0 && suggestions.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 16 }}
-                className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto"
-              >
-                <CinematicNextButton onClick={handleNext}>NEXT</CinematicNextButton>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
-
-
-
-      {profileStep === 2 && (
-        <motion.div className="text-center" key="experience" variants={fadeVariants} initial="initial" animate="animate" exit="exit">
-          <ThinkingText
-            text="Your *experience* level?"
-            className="cinematic-question"
-            style={{ marginBottom: '2rem' }}
-          />
-
-          <CinematicDivider delay={0.3} style={{ marginBottom: '3rem' }} />
-
-          <motion.div
-            className="cinematic-ghost"
-            layoutId="cinematic-card"
-            variants={childVariants}
-            style={{ maxWidth: '600px', margin: '0 auto' }}
-          >
-            <div className="flex flex-col gap-3 max-w-md mx-auto">
-              {[
-                { id: 'beginner', label: 'New Face', sub: 'First shoots or early experience', icon: '◇' },
-                { id: 'intermediate', label: 'Developing', sub: 'Some work, building your portfolio', icon: '◈' },
-                { id: 'professional', label: 'Established', sub: 'Signed or working consistently', icon: '◆' }
-              ].map((option, i) => {
-                const isActive = experienceLevel === option.id;
-
-                return (
-                  <motion.button
-                    key={option.id}
-                    onClick={() => setExperienceLevel(option.id)}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + i * 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                    whileHover={{ scale: 1.015 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="relative flex items-center gap-5 py-5 px-6 rounded-2xl text-left transition-all duration-300 focus:outline-none"
-                    style={{
-                      background: isActive ? 'rgba(201, 165, 90, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                      border: `1px solid ${isActive ? 'rgba(201, 165, 90, 0.3)' : 'rgba(255, 255, 255, 0.06)'}`,
-                      boxShadow: isActive ? '0 0 30px rgba(201, 165, 90, 0.1)' : 'none',
-                    }}
-                  >
-                    <span
-                      className="text-lg flex-shrink-0 transition-all duration-300"
-                      style={{
-                        color: isActive ? '#C9A55A' : 'rgba(255, 255, 255, 0.2)',
-                        filter: isActive ? 'drop-shadow(0 0 8px rgba(201, 165, 90, 0.4))' : 'none',
-                      }}
-                    >
-                      {option.icon}
-                    </span>
-
-                    <div className="flex flex-col">
-                      <span
-                        className="text-sm font-sans uppercase tracking-[0.2em] transition-all duration-300 mb-1"
-                        style={{
-                          color: isActive ? '#C9A55A' : 'rgba(255, 255, 255, 0.6)',
-                          fontWeight: isActive ? 600 : 400,
-                        }}
-                      >
-                        {option.label}
-                      </span>
-                      <span
-                        className="text-xs font-sans transition-all duration-300"
-                        style={{ color: isActive ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.25)' }}
-                      >
-                        {option.sub}
-                      </span>
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            <AnimatePresence>
-              {experienceLevel && (
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 16 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto"
-                >
-                  <CinematicNextButton onClick={handleSubmit}>FINISH</CinematicNextButton>
-                  <CinematicBackButton onClick={() => setProfileStep(1)} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+            <InlineErrorText message={submitError} className="cinematic-field-error casting-profile-error" />
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

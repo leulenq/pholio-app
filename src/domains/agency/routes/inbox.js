@@ -139,7 +139,7 @@ router.get(
       // Get application counts for each board
       const boardsWithCounts = await Promise.all(
         boards.map(async (board) => {
-          const [count, submittedCount, bookedCount] = await Promise.all([
+          const [count, submittedCount, representedCount] = await Promise.all([
             knex("board_applications")
               .where({ board_id: board.id })
               .count("* as count")
@@ -152,7 +152,8 @@ router.get(
               .first(),
             knex("board_applications as ba")
               .join("applications as a", "a.id", "ba.application_id")
-              .where({ "ba.board_id": board.id, "a.status": "booked" })
+              .where({ "ba.board_id": board.id })
+              .whereIn("a.status", ["booked", "represented"])
               .count("* as count")
               .first(),
           ]);
@@ -160,7 +161,8 @@ router.get(
             ...board,
             application_count: parseInt(count?.count || 0),
             submitted_count: parseInt(submittedCount?.count || 0),
-            booked_count: parseInt(bookedCount?.count || 0),
+            represented_count: parseInt(representedCount?.count || 0),
+            booked_count: parseInt(representedCount?.count || 0),
             preview: previewByBoard[board.id] || [],
           };
         }),
@@ -1064,6 +1066,7 @@ router.patch(
         "development",
         "accepted",
         "booked",
+        "represented",
         "passed",
         "declined",
         "archived",
@@ -1091,7 +1094,7 @@ router.patch(
           accepted_at:
             requestedStatus === "accepted"
               ? knex.fn.now()
-              : requestedStatus === "booked"
+              : (requestedStatus === "booked" || requestedStatus === "represented")
                 ? application.accepted_at || knex.fn.now()
                 : null,
           declined_at:
@@ -1391,6 +1394,7 @@ router.patch(
         "development",
         "accepted",
         "booked",
+        "represented",
         "passed",
         "declined",
         "archived",
@@ -1418,7 +1422,7 @@ router.patch(
           accepted_at:
             requestedStatus === "accepted"
               ? knex.fn.now()
-              : requestedStatus === "booked"
+              : (requestedStatus === "booked" || requestedStatus === "represented")
                 ? knex.raw("COALESCE(accepted_at, CURRENT_TIMESTAMP)")
                 : null,
           declined_at:
@@ -2829,7 +2833,7 @@ router.get(
       // Development is an advancing New Face state, not signed representation.
       const applications = await knex("applications")
         .where({ agency_id: agencyId })
-        .whereIn("status", ["accepted", "booked"]);
+        .whereIn("status", ["accepted", "booked", "represented"]);
 
       if (!applications.length) {
         return res.json([]);
@@ -2955,7 +2959,7 @@ router.get(
           profile_id: profileId,
           agency_id: agencyId,
         })
-        .whereIn("status", ["accepted", "booked"])
+        .whereIn("status", ["accepted", "booked", "represented"])
         .first();
 
       if (!application) {
@@ -3286,7 +3290,7 @@ router.get(
       // Calculate total talent pool (signed applications + public talent).
       const acceptedCount = await knex("applications")
         .where({ agency_id: agencyId })
-        .whereIn("status", ["accepted", "booked"])
+        .whereIn("status", ["accepted", "booked", "represented"])
         .count("id as count")
         .first();
 

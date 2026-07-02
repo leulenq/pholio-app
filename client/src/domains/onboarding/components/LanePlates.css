@@ -1,0 +1,147 @@
+/* LanePlates — editorial image plates (ported from prototype .plates / .plate / .plate-text) */
+.lane-plates {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.lane-plate {
+  position: relative;
+  width: 168px;
+  height: 232px;
+  padding: 0;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+  transition: all 0.3s var(--ease);
+}
+
+.lane-plate img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: grayscale(0.35) brightness(0.6);
+  transition: filter 0.4s;
+}
+
+.lane-plate-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.9rem;
+  font-family: var(--cinematic-font-serif);
+  font-size: 1.25rem;
+  color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  text-align: left;
+}
+
+.lane-plate-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  transition: all 0.3s;
+}
+
+.lane-plate:hover {
+  border-color: rgba(201, 165, 90, 0.4);
+}
+
+.lane-plate:hover img {
+  filter: grayscale(0.1) brightness(0.72);
+}
+
+.lane-plate.is-selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 30px rgba(201, 165, 90, 0.2);
+}
+
+.lane-plate.is-selected img {
+  filter: grayscale(0) brightness(0.82);
+}
+
+.lane-plate.is-selected .lane-plate-label {
+  color: var(--gold);
+}
+
+.lane-plate.is-selected .lane-plate-check {
+  opacity: 1;
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.lane-plate.is-selected .lane-plate-check::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--gold-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.lane-plate-text {
+  width: 168px;
+  height: 232px;
+  border: 1px dashed rgba(245, 241, 234, 0.22);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--cinematic-font-serif);
+  font-size: 1.2rem;
+  color: var(--text-3);
+  cursor: pointer;
+  background: none;
+  transition: all 0.3s;
+  text-align: center;
+  padding: 1rem;
+}
+
+.lane-plate-text:hover {
+  border-color: rgba(201, 165, 90, 0.4);
+  color: var(--text-2);
+}
+
+.lane-plate-text.is-selected {
+  border-color: var(--gold);
+  border-style: solid;
+  color: var(--gold);
+  background: rgba(201, 165, 90, 0.05);
+}
+
+.lane-plate:focus-visible,
+.lane-plate-text:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.lane-plate:disabled,
+.lane-plate-text:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .lane-plate,
+  .lane-plate-text {
+    width: 44vw;
+    max-width: 180px;
+    height: 60vw;
+    max-height: 240px;
+  }
+}

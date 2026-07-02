@@ -102,15 +102,24 @@ describe("Profile save remediation contract", () => {
 
   const put = (body) =>
     request(app).put("/api/talent/profile").set("Cookie", authCookie).send(body);
+  const get = () =>
+    request(app).get("/api/talent/profile").set("Cookie", authCookie);
 
   test("(a) adult bio-only save preserves is_public", async () => {
     await knex("profiles").where({ id: profileId }).update({ is_public: true });
 
-    const res = await put({ bio: "A fresh professional bio for the ledger." });
+    const bio = "A fresh professional bio for the ledger.";
+    const res = await put({ bio });
     expect(res.status).toBe(200);
+    expect(res.body.data.profile.bio_raw).toBe(bio);
 
     const row = await knex("profiles").where({ id: profileId }).first();
     expect(!!row.is_public).toBe(true);
+    expect(row.bio_raw).toBe(bio);
+
+    const reloaded = await get();
+    expect(reloaded.status).toBe(200);
+    expect(reloaded.body.data.profile.bio_raw).toBe(bio);
   });
 
   test("(c) stored age is never written on save", async () => {

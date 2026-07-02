@@ -75,14 +75,14 @@ export const profileSchema = z.object({
   weight_kg: optionalNumber,
   
   // Measurements (Decimals supported)
-  bust: optionalNumber,
   bust_cm: optionalNumber,
   chest_cm: optionalNumber,
-  waist: optionalNumber,
-  hips: optionalNumber,
+  waist_cm: optionalNumber,
+  hips_cm: optionalNumber,
   
   // Details
   shoe_size: optionalNumber,
+  shoe_region: z.enum(['US', 'UK', 'EU']).nullable().optional(),
   dress_size: z.string().nullable().optional(),
   suit_size: z.string().nullable().optional(),
   inseam_cm: optionalNumber,

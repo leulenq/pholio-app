@@ -128,14 +128,12 @@ export default function TalentLayout({ outletContext = {}, children }) {
         <div className="tl-header-actions">
           {!isStudioPlus && (
             <>
-              <PholioButton
+              <Link
                 to="/dashboard/talent/settings/subscription"
-                variant="primary"
-                tone={headerTone === 'light' ? 'light' : 'dark'}
-                className="tl-btn-upgrade"
+                className="tl-tier-pill is-studio tl-btn-upgrade"
               >
                 Upgrade
-              </PholioButton>
+              </Link>
               <span className="tl-header-actions-divider" aria-hidden="true" />
             </>
           )}

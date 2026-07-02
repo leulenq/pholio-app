@@ -1,5 +1,37 @@
 # Lessons Learned
 
+## 2026-07-02 — Trace apparent field lines to section boundaries
+
+- A horizontal line near the bottom of a field may belong to the next section, not the field itself.
+  Trace the DOM order and shared section wrapper before changing input borders.
+- When several lines appear at equivalent subsection boundaries inside one movement card, disable the
+  shared `Section` divider at those call sites rather than adding CSS exceptions around individual fields.
+- Divider visibility and section rhythm are separate requirements. If a shared divider also provides
+  spacing, preserve an equivalent divider-free gap when hiding the rule.
+
+## 2026-07-01 — Improve selected surfaces without adding symbolic confirmation
+
+- When the user rejects one selected-state treatment, do not assume a checkmark is the desired
+  replacement. A stronger full border, tonal surface, and type weight can communicate selection
+  without adding another symbol.
+- Preserve explicitly approved structure. For a platform field that already lives in the correct
+  section, wire its native brand color into focus/click states instead of moving it into a different
+  card system.
+
+## 2026-07-01 — "From scratch" means design the ideal first, then derive the data plan
+
+- When the user says a surface is being rebuilt from scratch and the current
+  page is irrelevant, do not anchor the plan on the existing event stream,
+  tables, or endpoints. That quietly reintroduces the old product as a
+  constraint.
+- Correct order: (1) design the ideal product — the full signal model and the
+  premium visualizations it deserves; (2) derive the capture/infrastructure
+  roadmap that serves that design. "Phase 1 = what exists today" is a
+  sequencing detail at the end, never the frame of the spec.
+- "Premium data visualization" is a requirement, not decoration: propose named,
+  bespoke visual instruments (what is drawn, from what data, why it means
+  something), not generic chart types.
+
 ## 2026-06-30 — Inventory intentional exceptions before enforcing a component boundary
 
 - A design-system rollout should not assume every native button is a command
@@ -353,3 +385,12 @@
 - When redesigning Sonner toasts, verify rendered data attributes and class attachment in `client/node_modules/sonner/dist` before styling. Sonner uses `data-sonner-theme`, not `data-theme`.
 - For premium UI requests, prioritize high contrast and unmistakable brand posture first; subtle changes read as "no change" to users.
 - Scope toaster styles to a namespaced host class (for example `pholio-toaster`) so styling is predictable and non-leaky.
+## 2026-07-02 — Persistence claims require before/after evidence
+
+- Do not infer that a newly generated value persisted because the database contains a plausible
+  value or because `updated_at` advanced. Seed data or a prior save can produce both.
+- For save bugs, capture the exact pre-save value, the exact submitted payload, the update result,
+  and a fresh post-save read. A mocked client save/reset test proves UI state handling, not that the
+  live backend stored the submitted value.
+- If live browser verification is unavailable, do not describe persistence as verified. Build a
+  backend integration test against the real route/update mapping or report the remaining gap.

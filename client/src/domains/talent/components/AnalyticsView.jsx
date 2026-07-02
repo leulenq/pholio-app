@@ -11,6 +11,7 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { talentApi } from '../api/talent';
 import CohortHeatmap from './CohortHeatmap';
 import SessionsBarChart from './SessionsBarChart';
+import { statusConfig } from '../utils/applicationStatus';
 import PholioButton, {
   PholioToggleButton,
   PholioToggleGroup,
@@ -29,14 +30,13 @@ const GHOST_OPACITIES = [
   0.10, 0.52, 0.30, 0.48, 0.62, 0.20,
 ];
 
-const STATUS_LABELS = {
-  PENDING: 'Pending', REVIEWING: 'Reviewing',
-  ACCEPTED: 'Accepted', DECLINED: 'Declined',
-};
-
-const STATUS_CLASS = {
-  PENDING: 'market-status-pill--pending', REVIEWING: 'market-status-pill--reviewing',
-  ACCEPTED: 'market-status-pill--accepted', DECLINED: 'market-status-pill--declined',
+// Presentation comes from the canonical statusConfig; only the tone→CSS-class
+// mapping lives here (classes defined in AnalyticsPage.css).
+const TONE_CLASS = {
+  pending: 'market-status-pill--pending',
+  accepted: 'market-status-pill--accepted',
+  file: 'market-status-pill--reviewing',
+  closed: 'market-status-pill--declined',
 };
 
 
@@ -386,7 +386,7 @@ function MarketChapter({ applications, appsLoading, isPro }) {
         <>
           <div className="market-list" role="list">
             {apps.map(app => {
-              const status    = (app.status ?? 'PENDING').toUpperCase();
+              const config = statusConfig(app.status);
               const createdDate = new Date(app.created_at);
               const submitted = isNaN(createdDate)
                 ? '—' : createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -398,8 +398,8 @@ function MarketChapter({ applications, appsLoading, isPro }) {
                       <span className="market-agency-loc">{app.agency_location}</span>
                     )}
                   </div>
-                  <span className={`market-status-pill ${STATUS_CLASS[status] ?? 'market-status-pill--pending'}`}>
-                    {STATUS_LABELS[status] ?? status}
+                  <span className={`market-status-pill ${TONE_CLASS[config.tone] ?? 'market-status-pill--pending'}`}>
+                    {config.label}
                   </span>
                   <span className="market-date">{submitted}</span>
                 </div>
@@ -416,7 +416,6 @@ function MarketChapter({ applications, appsLoading, isPro }) {
           {isPro && (
             <div className="market-timeline" aria-label="Application momentum">
               {allApps.slice(0, 6).map(app => {
-                const status  = (app.status ?? 'PENDING').toUpperCase();
                 const changedDate = new Date(app.updated_at ?? app.created_at);
                 const changed = isNaN(changedDate)
                   ? '—' : changedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -424,7 +423,7 @@ function MarketChapter({ applications, appsLoading, isPro }) {
                   <div key={`tl-${app.id}`} className="market-timeline-item">
                     <span className="market-timeline-agency">{app.agency_name ?? 'Agency'}</span>
                     <span className="market-timeline-date">{changed}</span>
-                    {' — '}{STATUS_LABELS[status] ?? status}
+                    {' — '}{statusConfig(app.status).label}
                   </div>
                 );
               })}

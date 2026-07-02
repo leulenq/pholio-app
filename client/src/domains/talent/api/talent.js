@@ -18,7 +18,6 @@ export const talentApi = {
     apiClient.delete(`/profile/representations/${encodeURIComponent(id)}`, {
       body: JSON.stringify(endedOn ? { ended_on: endedOn } : {}),
     }),
-  saveFitScores: (data) => apiClient.post('/profile/fit-scores', data),
   // Dev/staging-only mock OAuth disconnect (mirrors the "Connect & Verify"
   // popup flow — /socials/oauth/mock/:platform — which is also dev-gated).
   disconnectSocialOauth: (platform) =>
@@ -63,6 +62,9 @@ export const talentApi = {
   deleteMedia: (id) => apiClient.delete(`/media/${id}`),
   replaceImageFile: (id, formData) => apiClient.post(`/media/${id}/replace`, formData),
   restoreImageOriginal: (id) => apiClient.post(`/media/${id}/restore`, {}),
+  getMediaClassificationStatus: () => apiClient.get('/media/classification-status'),
+  bulkDeleteMedia: (imageIds) => apiClient.post('/media/bulk-delete', { imageIds }),
+  bulkUpdateMedia: (imageIds, patch) => apiClient.post('/media/bulk-update', { imageIds, patch }),
 
   // Overview
   getOverview: () => apiClient.get('/overview'),
@@ -184,4 +186,7 @@ export const talentApi = {
       { interval: 'monthly', ...body },
       { baseURL: '/stripe' },
     ),
+
+  // One-shot marker for the post-unlock celebration (ProfileUnlockExperience)
+  markUnlockCelebrated: () => apiClient.post('/unlock-celebrated', {}),
 };

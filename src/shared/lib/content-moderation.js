@@ -13,7 +13,7 @@
  * real CSAM/NSFW vendor (e.g. Hive, AWS Rekognition, PhotoDNA) — it is the real
  * architecture those vendors will later plug into via getModerationProvider().
  */
-const sharp = require("sharp");
+const { getSharp } = require("./lazy-sharp");
 
 const MODERATION_STATUS = Object.freeze({
   PENDING: "pending",
@@ -107,6 +107,9 @@ function isSkinTonePixel(r, g, b) {
  * @returns {Promise<number>} ratio in [0, 1]
  */
 async function computeSkinToneRatio(buffer) {
+  const sharp = getSharp();
+  if (!sharp) return 0;
+
   const { data, info } = await sharp(buffer)
     .resize(SKIN_SAMPLE_SIZE, SKIN_SAMPLE_SIZE, {
       fit: "fill",
@@ -157,6 +160,15 @@ async function analyzeImageBuffer(buffer) {
 
   let meta;
   try {
+    const sharp = getSharp();
+    if (!sharp) {
+      return {
+        status: MODERATION_STATUS.REVIEW,
+        reason: "sharp_unavailable",
+        flags: { ...flags, sharpUnavailable: true },
+        provider,
+      };
+    }
     meta = await sharp(buffer).metadata();
   } catch (err) {
     // Undecodable / corrupt image is an obvious failure → reject.

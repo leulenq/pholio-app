@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Welcome · Pholio Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --surface-card: #141312;
+      --gold: #c9a55a;
+      --gold-hover: #b8954e;
+      --gold-glow: rgba(201, 165, 90, 0.12);
+      
+      --text-main: #f5f4f0;
+      --text-muted: #9e9b94;
+      --text-dim: #5c5954;
+      
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+      --font-display: 'Outfit', sans-serif;
+      
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Control Header ── */
+    .control-header {
+      background: #11100f;
+      border-bottom: 1px solid #1c1a19;
+      padding: 1.25rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .header-title h1 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .header-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .selector-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    .btn-tab {
+      background: #1a1817;
+      border: 1px solid #2d2927;
+      color: var(--text-muted);
+      padding: 0.5rem 1.2rem;
+      font-size: 0.8rem;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s var(--ease);
+    }
+
+    .btn-tab:hover {
+      border-color: var(--gold);
+      color: var(--text-main);
+    }
+
+    .btn-tab.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: #000;
+      font-weight: 600;
+    }
+
+    /* ── Cinematic Stage ── */
+    .viewport {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 2rem;
+      position: relative;
+    }
+
+    /* Cinematic background elements mimicking Pholio App */
+    .shimmer {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, rgba(20, 19, 18, 0.4) 0%, rgba(11, 10, 9, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .cinematic-orb {
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(201, 165, 90, 0.03) 0%, rgba(0,0,0,0) 70%);
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .orb-1 { top: 15%; left: 20%; }
+    .orb-2 { bottom: 10%; right: 15%; }
+
+    /* Centered Active Container */
+    .variant-container {
+      width: 100%;
+      max-width: 1200px;
+      position: relative;
+      z-index: 10;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      min-height: 450px;
+    }
+
+    .variant-container.active {
+      display: flex;
+      animation: stage-entrance 0.8s var(--ease) forwards;
+    }
+
+    @keyframes stage-entrance {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Shared Typography ── */
+    .title-serif {
+      font-family: var(--font-serif);
+      font-size: clamp(2.8rem, 6vw, 4.5rem);
+      font-weight: 400;
+      line-height: 1.1;
+      text-align: center;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      text-shadow: 0 0 40px rgba(255, 255, 255, 0.12);
+      margin-bottom: 0.75rem;
+    }
+
+    .title-serif em {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--gold);
+    }
+
+    .label-sans {
+      font-family: var(--font-sans);
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT A: The Typographic Monolith
+       ═══════════════════════════════════════ */
+    .flow-monolith {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 750px;
+    }
+
+    .monolith-title {
+      opacity: 0;
+      transform: translateY(15px);
+      animation: fade-up 1.2s var(--ease) 0.1s forwards;
+    }
+
+    /* Linear divider drawing effect */
+    .monolith-divider {
+      width: 100px;
+      height: 1px;
+      background: var(--gold);
+      margin: 2.2rem auto;
+      transform: scaleX(0);
+      animation: draw-line 1.6s var(--ease) 0.5s forwards;
+    }
+
+    .monolith-desc {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fade-up 1.2s var(--ease) 0.8s forwards;
+    }
+
+    @keyframes draw-line {
+      to { transform: scaleX(1); }
+    }
+
+    @keyframes fade-up {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT B: The Golden Monogram Halo
+       ═══════════════════════════════════════ */
+    .flow-halo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 600px;
+    }
+
+    .monogram-orbit {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .monogram-circle {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1.5px solid transparent;
+      background: linear-gradient(#0b0a09, #0b0a09) content-box, 
+                  linear-gradient(45deg, rgba(201, 165, 90, 0.1) 0%, var(--gold) 50%, rgba(201, 165, 90, 0.1) 100%) border-box;
+      z-index: 1;
+      transform: scale(0.9) rotate(-120deg);
+      opacity: 0;
+      animation: orbit-entrance 1.6s var(--ease) 0.2s forwards, orbit-spin 25s linear infinite 1.8s;
+    }
+
+    .monogram-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #141312;
+      border: 1.5px solid rgba(245, 241, 234, 0.08);
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: scale(0.9);
+      animation: zoom-in 1.4s var(--ease) 0.1s forwards;
+    }
+
+    .monogram-letter {
+      font-family: var(--font-serif);
+      font-size: 3.2rem;
+      font-style: italic;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translateX(-0.06em);
+      color: var(--gold);
+      text-shadow: 0 0 20px rgba(201, 165, 90, 0.25);
+    }
+
+    .halo-title {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fade-up 1s var(--ease) 0.6s forwards;
+    }
+
+    .halo-desc {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fade-up 1s var(--ease) 0.9s forwards;
+      margin-top: 1rem;
+    }
+
+    @keyframes orbit-entrance {
+      to { opacity: 0.85; scale: 1; transform: rotate(0); }
+    }
+
+    @keyframes orbit-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes zoom-in {
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT C: The Roster Pass / Card
+       ═══════════════════════════════════════ */
+    .flow-pass {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+    }
+
+    .pass-title {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fade-up 1s var(--ease) 0.1s forwards;
+      margin-bottom: 2rem;
+    }
+
+    /* The floating keycard pass */
+    .roster-card {
+      width: 360px;
+      height: 220px;
+      background: linear-gradient(145deg, #161514 0%, #0e0d0c 100%);
+      border: 1px solid rgba(245, 241, 234, 0.08);
+      border-radius: 12px;
+      padding: 1.5rem 1.8rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6), 
+                  inset 0 1px 0 rgba(255,255,255,0.05);
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+      animation: card-entrance 1.4s var(--ease) 0.3s forwards;
+    }
+
+    /* Subtle geometric gold accent corner overlay */
+    .roster-card::after {
+      content: '';
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      width: 70px;
+      height: 70px;
+      background: radial-gradient(circle, var(--gold) 0%, transparent 70%);
+      opacity: 0.15;
+      pointer-events: none;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .card-brand {
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .card-role-dot {
+      font-size: 0.55rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      padding: 0.2rem 0.5rem;
+      background: rgba(201, 165, 90, 0.08);
+      border: 1px solid rgba(201, 165, 90, 0.2);
+      border-radius: 3px;
+    }
+
+    .card-middle {
+      margin: 1.5rem 0;
+    }
+
+    .card-name {
+      font-family: var(--font-serif);
+      font-size: 1.6rem;
+      font-style: italic;
+      color: var(--text-main);
+      text-align: left;
+    }
+
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      padding-top: 0.85rem;
+    }
+
+    .card-meta-item {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+    }
+
+    .card-meta-lbl {
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.15rem;
+    }
+
+    .card-meta-val {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .pass-desc {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fade-up 1s var(--ease) 0.9s forwards;
+      margin-top: 2rem;
+    }
+
+    @keyframes card-entrance {
+      to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.6), 
+                    inset 0 1px 0 rgba(255,255,255,0.05),
+                    0 0 40px rgba(201, 165, 90, 0.03);
+      }
+    }
+
+    /* ── Side panel specifications ── */
+    .spec-panel {
+      background: #11100f;
+      border-top: 1px solid #1c1a19;
+      padding: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .spec-card h3 {
+      font-family: var(--font-display);
+      color: var(--gold);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .spec-card ul {
+      list-style-type: none;
+    }
+
+    .spec-card li {
+      margin-bottom: 0.5rem;
+      position: relative;
+      padding-left: 1rem;
+    }
+
+    .spec-card li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: bold;
+    }
+
+    .action-replay {
+      background: transparent;
+      border: 1px solid #3d3835;
+      color: var(--text-muted);
+      padding: 0.35rem 0.8rem;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+      transition: all 0.2s var(--ease);
+    }
+
+    .action-replay:hover {
+      border-color: var(--gold);
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Reviewer Control Header -->
+  <header class="control-header">
+    <div class="header-title">
+      <h1>Email Welcome Beats</h1>
+      <p>Interactive design prototype variants for manual email sign-up landing steps</p>
+    </div>
+    
+    <div class="selector-group">
+      <span class="selector-label">Design Variant:</span>
+      <button class="btn-tab active" onclick="switchVariant('monolith')">Variant A: Monolith</button>
+      <button class="btn-tab" onclick="switchVariant('halo')">Variant B: Monogram Halo</button>
+      <button class="btn-tab" onclick="switchVariant('pass')">Variant C: Roster Pass</button>
+    </div>
+  </header>
+
+  <!-- Interactive Cinematic Stage -->
+  <main class="viewport">
+    <div class="shimmer" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-1" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-2" aria-hidden="true"></div>
+
+    <!-- Variant A: Monolith -->
+    <div class="variant-container active" id="view-monolith">
+      <div class="flow-monolith">
+        <h2 class="title-serif monolith-title">Welcome to the roster, <br><em>Ava</em></h2>
+        <div class="monolith-divider"></div>
+        <p class="label-sans monolith-desc">An invitation to build your digital composite card is now active.</p>
+        <div>
+          <button class="action-replay" onclick="replayAnimations('monolith')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+            Replay Entrance
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Variant B: Halo -->
+    <div class="variant-container" id="view-halo">
+      <div class="flow-halo">
+        <div class="monogram-orbit">
+          <div class="monogram-circle" id="halo-circle"></div>
+          <div class="monogram-inner" id="halo-inner">
+            <span class="monogram-letter">A</span>
+          </div>
+        </div>
+        <h2 class="title-serif halo-title" id="halo-txt">Good day, <em>Ava</em></h2>
+        <div>
+          <button class="action-replay" onclick="replayAnimations('halo')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+            Replay Entrance
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Variant C: Pass -->
+    <div class="variant-container" id="view-pass">
+      <div class="flow-pass">
+        <h2 class="title-serif pass-title" id="pass-txt">Roster account active</h2>
+        
+        <div class="roster-card" id="pass-card">
+          <div class="card-top">
+            <span class="card-brand">PHOLIO STUDIO</span>
+            <span class="card-role-dot">TALENT</span>
+          </div>
+          <div class="card-middle">
+            <h3 class="card-name">Ava Martinez</h3>
+          </div>
+          <div class="card-bottom">
+            <div class="card-meta-item">
+              <span class="card-meta-lbl">MEMBER ID</span>
+              <span class="card-meta-val">PH-2026-0702</span>
+            </div>
+            <div class="card-meta-item" style="text-align: right;">
+              <span class="card-meta-lbl">STATUS</span>
+              <span class="card-meta-val">ONBOARDING</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="label-sans pass-desc" id="pass-sub">Select next to initiate your measurements configuration.</p>
+        <div>
+          <button class="action-replay" onclick="replayAnimations('pass')">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+            Replay Entrance
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Technical specifications footer review -->
+  <footer class="spec-panel">
+    <div class="spec-grid">
+      <div class="spec-card">
+        <h3>Variant A: The Typographic Monolith</h3>
+        <ul>
+          <li><strong>Aesthetic:</strong> Strict editorial design centering completely on typography, ligatures, and negative space.</li>
+          <li><strong>Transitions:</strong> Clean linear scaling drawing line separator. Perfect for quick, high-end agency look.</li>
+          <li><strong>Banned Elements Check:</strong> Zero badge containers, status dots, or frosting filters are used.</li>
+        </ul>
+      </div>
+
+      <div class="spec-card">
+        <h3>Variant B: The Golden Monogram Halo</h3>
+        <ul>
+          <li><strong>Aesthetic:</strong> Introduces a glowing monogram ring containing the first letter of the user's name.</li>
+          <li><strong>Transitions:</strong> The gold halo fades in, scales, and rotates, settling into a slow, continuous drift spin.</li>
+          <li><strong>Banned Elements Check:</strong> Monogram is rendered in standard flat surface color inside the solid background card.</li>
+        </ul>
+      </div>
+
+      <div class="spec-card">
+        <h3>Variant C: The Roster Pass</h3>
+        <ul>
+          <li><strong>Aesthetic:</strong> Tactile member passport card displaying user metadata.</li>
+          <li><strong>Transitions:</strong> Tactile card entrance coordinate animation with soft spatial shadow glow.</li>
+          <li><strong>Banned Elements Check:</strong> Status is displayed in plain text within a desaturated micro-border card tag.</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function switchVariant(variant) {
+      // Toggle Tab Button Active Class
+      const tabs = document.querySelectorAll('.btn-tab');
+      tabs.forEach(tab => {
+        if (tab.getAttribute('onclick').includes(variant)) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Toggle Container Active Class
+      const containers = document.querySelectorAll('.variant-container');
+      containers.forEach(container => {
+        if (container.id === `view-${variant}`) {
+          container.classList.add('active');
+        } else {
+          container.classList.remove('active');
+        }
+      });
+
+      replayAnimations(variant);
+    }
+
+    function replayAnimations(variant) {
+      if (variant === 'monolith') {
+        const title = document.querySelector('.monolith-title');
+        const divider = document.querySelector('.monolith-divider');
+        const desc = document.querySelector('.monolith-desc');
+
+        title.style.animation = 'none';
+        divider.style.animation = 'none';
+        desc.style.animation = 'none';
+
+        // Trigger reflow
+        void title.offsetWidth;
+
+        title.style.animation = 'fade-up 1.2s var(--ease) 0.1s forwards';
+        divider.style.animation = 'draw-line 1.6s var(--ease) 0.5s forwards';
+        desc.style.animation = 'fade-up 1.2s var(--ease) 0.8s forwards';
+      }
+
+      if (variant === 'halo') {
+        const circle = document.getElementById('halo-circle');
+        const inner = document.getElementById('halo-inner');
+        const txt = document.getElementById('halo-txt');
+
+        circle.style.animation = 'none';
+        inner.style.animation = 'none';
+        txt.style.animation = 'none';
+
+        // Trigger reflow
+        void circle.offsetWidth;
+
+        circle.style.animation = 'orbit-entrance 1.6s var(--ease) 0.2s forwards, orbit-spin 25s linear infinite 1.8s';
+        inner.style.animation = 'zoom-in 1.4s var(--ease) 0.1s forwards';
+        txt.style.animation = 'fade-up 1s var(--ease) 0.6s forwards';
+      }
+
+      if (variant === 'pass') {
+        const txt = document.getElementById('pass-txt');
+        const card = document.getElementById('pass-card');
+        const sub = document.getElementById('pass-sub');
+
+        txt.style.animation = 'none';
+        card.style.animation = 'none';
+        sub.style.animation = 'none';
+
+        // Trigger reflow
+        void card.offsetWidth;
+
+        txt.style.animation = 'fade-up 1s var(--ease) 0.1s forwards';
+        card.style.animation = 'card-entrance 1.4s var(--ease) 0.3s forwards';
+        sub.style.animation = 'fade-up 1s var(--ease) 0.9s forwards';
+      }
+    }
+  </script>
+</body>
+</html>

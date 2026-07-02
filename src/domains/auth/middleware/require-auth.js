@@ -222,16 +222,12 @@ function requireActiveAccount() {
         .select("account_status")
         .first();
 
-      // Missing user row (e.g. account deleted while session persists) — deny.
+      // Missing user row (e.g. account deleted while session persists) — clear stale session.
       if (!user) {
-        if (isApiRequest(req)) {
-          return res.status(403).json({
-            error: "Account restricted",
-            message: "Account not found.",
-            accountStatus: "not_found",
-          });
-        }
-        return res.status(403).render("errors/403", { title: "Account restricted" });
+        return req.session.destroy((destroyErr) => {
+          if (destroyErr) return next(destroyErr);
+          return next();
+        });
       }
 
       const status = user.account_status || "active";

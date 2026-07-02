@@ -44,7 +44,8 @@ export default defineConfig(({ command }) => ({
         secure: false,
         // We match any /onboarding/ path EXCEPT the base /onboarding page
         bypass: (req) => {
-          if (req.url === '/onboarding' || req.url === '/onboarding/') {
+          const pathname = req.url?.split('?')[0];
+          if (pathname === '/onboarding' || pathname === '/onboarding/') {
             return '/index.html'; // Let Vite handle the SPA page route
           }
           // For all other /onboarding/... paths, return undefined to proxy to backend

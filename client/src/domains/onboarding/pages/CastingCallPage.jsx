@@ -1,14 +1,14 @@
 /**
  * Casting Call Page
- * Main controller for the refactored casting flow
- * 
- * Flow: Entry → Scout → Measurements → Profile → Complete
+ * Main controller for the talent onboarding flow.
+ *
+ * Flow: Entry → Birthdate → Gender → Scout → Measurements → Profile → Reveal
+ * (birthdate before gender: the age gate precedes further personal data)
  */
 
 import React, { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
 import { talentApi } from '../../talent/api/talent';
 import { useCastingComplete, useCastingStatus } from '../hooks/useCasting';
 import { SubscriptionCheckoutModal } from '../../../shared/components/SubscriptionCheckoutDisclosure';
@@ -22,9 +22,14 @@ import CastingMeasurements from './CastingMeasurements';
 import CastingGender from './CastingGender';
 import CastingBirthdate from './CastingBirthdate';
 import CastingProfile from './CastingProfile';
+import AcknowledgmentBeat from './AcknowledgmentBeat';
+import ActionDock from '../components/ActionDock';
+import { ActionDockProvider } from '../components/ActionDockContext';
 import OnboardingDevPanel from '../dev/OnboardingDevPanel';
 import { PREVIEW_SEED, PREVIEW_STEPS, parsePreviewParam } from '../dev/onboardingPreview';
+import { canCollectSensitiveProfileFields } from '../../../shared/utils/talentAge';
 import '../styles/CastingCinematic.css';
+import './CastingScout.screen.css';
 
 // Dev-only review harness toggle. Statically false in production builds, so the
 // preview state, seeding, and panel all dead-code-eliminate out.
@@ -33,12 +38,19 @@ const DEV_PREVIEW = import.meta.env.DEV;
 // User-facing guided steps shown in the rail (entry/auth precedes the rail,
 // the finishing preloader follows it).
 const RAIL_STEPS = [
-  { view: 'gender', label: 'Identity' },
   { view: 'birthdate', label: 'Birthdate' },
-  { view: 'scout', label: 'Portrait' },
-  { view: 'measurements', label: 'Measurements' },
+  { view: 'gender', label: 'Identity' },
+  { view: 'scout', label: 'Digitals' },
+  { view: 'measurements', label: 'Stats' },
   { view: 'profile', label: 'Details' },
 ];
+
+// Legacy step names that can still live in old rows' onboarding_state_json.
+// The server heals these too; this is belt-and-braces for stale /status data.
+const LEGACY_STEP_MAP = {
+  identity: 'birthdate',
+  verification_pending: 'birthdate',
+};
 
 function CastingCallPage() {
   const navigate = useNavigate();
@@ -51,6 +63,16 @@ function CastingCallPage() {
   const [photoData, setPhotoData] = useState(null);
   const [profileData, setProfileData] = useState({});
   const [currentEntryProgress, setCurrentEntryProgress] = useState(0);
+  const [signupMethod, setSignupMethod] = useState(null); // 'google' | 'instagram' | 'manual'
+  const [oauthUserData, setOauthUserData] = useState(null); // { name, email, picture }
+  const [isEntryAuthenticating, setIsEntryAuthenticating] = useState(false);
+
+  // Single back action: steps with internal sub-steps register a handler; when
+  // it returns true the sub-step consumed the back, otherwise we leave the step.
+  const backOverrideRef = React.useRef(null);
+  const registerBack = useCallback((fn) => {
+    backOverrideRef.current = fn;
+  }, []);
 
   // ── Dev-only review harness ──────────────────────────────────────────────
   // When active, jump to any step/sub-step with seeded state and bypass the
@@ -66,31 +88,97 @@ function CastingCallPage() {
     // Replace local state with realistic seed data, then jump to the step.
     setProfileData(PREVIEW_SEED.profileData);
     setPhotoData(PREVIEW_SEED.photoData);
+    if (preview.view === 'reveal') {
+      navigate('/reveal');
+      return;
+    }
+    if (preview.view === 'greet') {
+      const provider = preview.subStep || 'google';
+      setSignupMethod(provider);
+      setOauthUserData({
+        name: 'Ava Martinez',
+        email: 'ava.martinez@gmail.com',
+        picture: provider === 'google' 
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'
+          : 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
+      });
+      setGreetName('Ava');
+    }
     if (preview.view !== 'finishing') setCurrentView(preview.view);
-  }, [previewActive, preview]);
+  }, [previewActive, preview, navigate]);
+
+  // Custom Greet Beat auto-advance and click-to-skip handling for all signups
+  React.useEffect(() => {
+    if (currentView !== 'greet') return;
+    if (previewActive) return; // Do not auto-advance when previewing!
+
+    const timer = setTimeout(() => {
+      setCurrentView('birthdate');
+    }, 2800);
+
+    const skip = () => {
+      setCurrentView('birthdate');
+    };
+
+    window.addEventListener('keydown', skip);
+    window.addEventListener('pointerdown', skip);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', skip);
+      window.removeEventListener('pointerdown', skip);
+    };
+  }, [currentView, signupMethod]);
 
   const { data: status, isLoading, error } = useCastingStatus();
 
-  // Step 1: Entry Complete
-  const handleEntryComplete = ({ manualData }) => {
-    // If manual signup included data (previously included gender, now just name/email)
+  // Minors (and age-unknown profiles) never enter body measurements during
+  // onboarding — height only, unlocked later via guardian consent. Mirrors the
+  // server's fail-closed canCollectSensitiveProfileFields gate. The dev preview
+  // harness seeds an adult flow and bypasses the gate.
+  const heightOnlyMeasurements =
+    !previewActive &&
+    !canCollectSensitiveProfileFields({
+      date_of_birth: profileData.date_of_birth || status?.profile?.date_of_birth,
+      guardian_consent_at: status?.profile?.guardian_consent_at,
+    });
+
+  // Step 1: Entry Complete → greet beat (when we know a name) → birthdate.
+  // "Good to meet you, {name}." is one of the House's three name uses.
+  const [greetName, setGreetName] = useState(null);
+  const handleEntryComplete = ({ hasOAuthData, method, name, email, picture, manualData }) => {
+    if (method) {
+      setSignupMethod(method);
+      setOauthUserData({
+        name: name || manualData?.name || '',
+        email: email || manualData?.email || '',
+        picture: picture || manualData?.picture || '',
+      });
+    }
+
     if (manualData) {
       setProfileData(prev => ({ ...prev, ...manualData }));
     }
 
-    // Always go to Gender selection next (All users: Manual & Google)
-    setCurrentView('gender');
-  };
-
-  // Step 1.5: Gender Complete (gender already persisted by CastingGender)
-  const handleGenderComplete = (data) => {
-    setProfileData(prev => ({ ...prev, gender: data.gender }));
+    const rawName = name || manualData?.name || status?.profile?.first_name || '';
+    const firstName = rawName.trim().split(' ')[0];
+    if (firstName && firstName !== 'New' && firstName !== 'User') {
+      setGreetName(firstName);
+      setCurrentView('greet');
+      return;
+    }
     setCurrentView('birthdate');
   };
 
-  // Step 1.6: Birthdate Complete
+  // Step 1.5: Birthdate Complete (age gate before any further personal data)
   const handleBirthdateComplete = (data) => {
     setProfileData(prev => ({ ...prev, date_of_birth: data.date_of_birth, age: data.age }));
+    setCurrentView('gender');
+  };
+
+  // Step 1.6: Gender Complete (gender already persisted by CastingGender)
+  const handleGenderComplete = (data) => {
+    setProfileData(prev => ({ ...prev, gender: data.gender }));
     setCurrentView('scout');
   };
 
@@ -177,19 +265,19 @@ function CastingCallPage() {
     setProfileData((prev) => ({
       ...prev,
       ...(p.gender && { gender: p.gender }),
+      ...(p.date_of_birth && { date_of_birth: p.date_of_birth }),
       ...(p.city && { city: p.city }),
-      ...(p.experience_level && { experience_level: p.experience_level }),
       ...(p.height_cm && { height_cm: p.height_cm }),
-      ...(p.weight_kg && { weight_kg: p.weight_kg }),
       ...(p.bust_cm && { bust_cm: p.bust_cm }),
       ...(p.waist_cm && { waist_cm: p.waist_cm }),
       ...(p.hips_cm && { hips_cm: p.hips_cm }),
+      ...(p.chest_cm && { chest_cm: p.chest_cm }),
+      ...(p.inseam_cm && { inseam_cm: p.inseam_cm }),
     }));
 
-    const predictions = status.state.predictions || status.state.step_data?.scout?.predictions;
     const photoUrl = status.state.step_data?.scout?.photo_url;
-    if (predictions || photoUrl) {
-      setPhotoData((prev) => prev || { predictions, photo_url: photoUrl });
+    if (photoUrl) {
+      setPhotoData((prev) => prev || { photo_url: photoUrl });
     }
   }, [status, previewActive]);
 
@@ -202,12 +290,7 @@ function CastingCallPage() {
     if (!status?.state) return;
 
     let { current_step } = status.state;
-    // Map legacy states to the new flow's actual next step
-    if (current_step === 'identity') {
-      current_step = 'birthdate';
-    }
-    // Legacy gender→scout profiles that haven't submitted birthdate yet: redirect to birthdate
-    // (No mapping needed: they will land on 'gender' and the normal flow handles it)
+    current_step = LEGACY_STEP_MAP[current_step] || current_step;
 
     // Resume from where the user left off (skip 'done' — no auto-forward).
     if (currentView === 'entry' && current_step !== 'entry' && current_step !== 'done') {
@@ -272,25 +355,19 @@ function CastingCallPage() {
 
   // Cinematic preloader shown during the isFinishing → navigate('/reveal') transition
 
-  const steps = ['entry', 'gender', 'birthdate', 'scout', 'measurements', 'profile', 'complete'];
-  const currentStepIndex = steps.indexOf(currentView);
+  // The greet beat shares entry's progress slot — it isn't a step of its own.
+  const steps = ['entry', 'birthdate', 'gender', 'scout', 'measurements', 'profile', 'complete'];
+  const currentStepIndex = steps.indexOf(currentView === 'greet' ? 'entry' : currentView);
 
-  // Calculate Progress
+  // Progress: each of the 7 steps advances the hairline by an equal share;
+  // entry adds sub-step progress while the auth screens play out.
   let progressPercentage = 0;
   if (currentView === 'complete' || isFinishing) {
     progressPercentage = 100;
   } else if (currentStepIndex !== -1) {
-    // Progress calculation:
-    // - Entry (index 0): 0% → 16.67% (with sub-progress)
-    // - Scout (index 1): 16.67%
-    // - Measurements (index 2): 33.33%
-    // - Profile (index 3): 50%
-    // - Reveal (index 4): 66.67%
-    // - Complete (index 5): 100%
     const stepSize = 100 / steps.length;
     const baseProgress = currentStepIndex * stepSize;
 
-    // Add sub-step progress only for Entry phase
     if (currentView === 'entry') {
       progressPercentage = baseProgress + (currentEntryProgress * stepSize);
     } else {
@@ -301,32 +378,63 @@ function CastingCallPage() {
   // Guided shell: which labeled step is active (entry/auth and the finishing
   // preloader sit outside the rail).
   const railIndex = isFinishing ? -1 : RAIL_STEPS.findIndex((s) => s.view === currentView);
-  const railActive = railIndex !== -1;
+  const railActive = !isFinishing && !previewFinishing && currentView !== 'complete' && currentView !== 'greet' && currentView !== 'entry' && currentView !== 'finishing' && !isEntryAuthenticating;
 
   const handleStepBack = () => {
+    if (backOverrideRef.current?.()) return;
     if (railIndex > 0) setCurrentView(RAIL_STEPS[railIndex - 1].view);
   };
 
+  // Best-available first name, used to personalize step headlines. Steps don't
+  // all consume it yet (page rewrites will); it's threaded now so it's ready.
+  const firstName =
+    greetName ||
+    (profileData.name ? String(profileData.name).trim().split(' ')[0] : null) ||
+    status?.profile?.first_name ||
+    (previewActive ? PREVIEW_SEED.userName : null) ||
+    null;
+
+
+
   return (
-    <div className="cinematic-container">
-      {/* Ambient Orbs */}
-      <div className="cinematic-orb cinematic-orb-1" />
-      <div className="cinematic-orb cinematic-orb-2" />
+    <ActionDockProvider>
+    <div className={`cinematic-container${isFinishing ? ' is-finishing' : ''}`}>
+      <div className="shimmer" aria-hidden="true" />
+      <div className="cinematic-orb cinematic-orb-1" aria-hidden="true" />
+      <div className="cinematic-orb cinematic-orb-2" aria-hidden="true" />
+
+      {/* Progress Rail (guided flow steps) */}
+      {railActive && (
+        <div className="cine-rail" role="navigation" aria-label="Onboarding progress">
+          {RAIL_STEPS.map((step, i) => {
+            const isCurrent = i === railIndex;
+            const isDone = i < railIndex;
+            return (
+              <span
+                key={step.view}
+                className={`cine-rail-step${isCurrent ? ' is-current' : ''}${isDone ? ' is-done' : ''}`}
+                aria-current={isCurrent ? 'step' : undefined}
+              >
+                {step.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <AnimatePresence>
-        {railActive && railIndex > 0 && (
+        {((railActive && railIndex > 0) || (currentView === 'entry' && currentEntryProgress > 0 && !isEntryAuthenticating)) && (
           <motion.button
             key="cine-back"
             type="button"
             className="cine-back"
             onClick={handleStepBack}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <ArrowLeft size={13} strokeWidth={1.6} />
-            <span>Back</span>
+            ← Back
           </motion.button>
         )}
       </AnimatePresence>
@@ -340,63 +448,189 @@ function CastingCallPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.6 }}
-              className="flex flex-col items-center justify-center text-center gap-10"
+              className="flex flex-col items-center justify-center text-center"
             >
-              {/* Pulsing concentric rings */}
-              <div className="relative w-24 h-24">
-                <motion.div
-                  className="absolute inset-0 rounded-full border border-[#C9A55A]/20"
-                  animate={{ scale: [1, 1.8, 1.8], opacity: [0.4, 0, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-                />
-                <motion.div
-                  className="absolute inset-0 rounded-full border border-[#C9A55A]/15"
-                  animate={{ scale: [1, 2.2, 2.2], opacity: [0.3, 0, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.4 }}
-                />
-                <motion.div
-                  className="absolute inset-0 rounded-full border border-[#C9A55A]/10"
-                  animate={{ scale: [1, 2.6, 2.6], opacity: [0.2, 0, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.8 }}
-                />
-                {/* Center dot */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <motion.div
-                    className="w-3 h-3 rounded-full bg-[#C9A55A]"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ boxShadow: '0 0 20px rgba(201, 165, 90, 0.5)' }}
-                  />
-                </div>
-              </div>
-
-              {/* Text sequence */}
-              <div className="flex flex-col gap-3">
-                <motion.p
-                  className="font-serif text-2xl text-white/90 italic tracking-wide"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.6 }}
-                >
-                  Analyzing your profile
-                </motion.p>
-                <motion.p
-                  className="text-[10px] font-sans uppercase tracking-[0.3em] text-white/25"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.8, duration: 0.6 }}
-                >
-                  Calculating casting readiness
-                </motion.p>
+              <div className="cine-finishing-rings" aria-hidden="true">
+                <div className="cine-finishing-ring" />
+                <div className="cine-finishing-ring" />
+                <div className="cine-finishing-ring" />
+                <div className="cine-finishing-dot" />
               </div>
             </motion.div>
           ) : (
             <>
               {currentView === 'entry' && (
                 <CastingEntry
-                  key="entry"
+                  key={`entry-${previewActive ? preview.subStep ?? 'choice' : 'live'}`}
                   onComplete={handleEntryComplete}
                   onProgress={setCurrentEntryProgress}
+                  registerBack={registerBack}
+                  initialStep={previewActive ? preview.subStep : undefined}
+                  onAuthenticating={setIsEntryAuthenticating}
+                />
+              )}
+
+              {currentView === 'greet' && signupMethod === 'google' && (
+                <motion.div
+                  key="greet-google"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  className="cs-step-stage select-none"
+                >
+                  <div className="google-orbit-avatar">
+                    <motion.div 
+                      className="google-quadrant-ring"
+                      initial={{ opacity: 0, scale: 0.9, rotate: -120 }}
+                      animate={{ opacity: 0.85, scale: 1, rotate: 0 }}
+                      transition={{
+                        opacity: { duration: 1.2, delay: 0.3, ease: [0.22, 1, 0.36, 1] },
+                        scale: { duration: 1.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] },
+                        rotate: { duration: 1.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }
+                      }}
+                    />
+                    <motion.img 
+                      src={oauthUserData?.picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'} 
+                      alt="Google avatar" 
+                      initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px) grayscale(100%)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px) grayscale(0%)' }}
+                      transition={{
+                        opacity: { duration: 1.6, ease: [0.22, 1, 0.36, 1] },
+                        filter: { duration: 1.6, ease: [0.22, 1, 0.36, 1] },
+                        scale: { duration: 1.2, ease: [0.22, 1, 0.36, 1] }
+                      }}
+                    />
+                  </div>
+                  
+                  <motion.h2 
+                    className="title-serif"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    Good to meet you, <em>{greetName || 'Ava'}</em>
+                  </motion.h2>
+                  
+                  <motion.div 
+                    className="google-details"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <div className="google-detail-item">
+                      <span className="detail-label">Legal Name</span>
+                      <span className="detail-value">{oauthUserData?.name || 'Ava Martinez'}</span>
+                    </div>
+                    <div className="google-detail-item">
+                      <span className="detail-label">Verified Email</span>
+                      <span className="detail-value">{oauthUserData?.email || 'ava.martinez@gmail.com'}</span>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+
+              {currentView === 'greet' && signupMethod === 'instagram' && (
+                <motion.div
+                  key="greet-instagram"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  className="cs-step-stage select-none"
+                >
+                  <div className="instagram-orbit-avatar">
+                    <motion.div 
+                      className="instagram-quadrant-ring"
+                      initial={{ opacity: 0, scale: 0.9, rotate: -120 }}
+                      animate={{ opacity: 0.85, scale: 1, rotate: 0 }}
+                      transition={{
+                        opacity: { duration: 1.2, delay: 0.3, ease: [0.22, 1, 0.36, 1] },
+                        scale: { duration: 1.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] },
+                        rotate: { duration: 1.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }
+                      }}
+                    />
+                    <motion.img 
+                      src={oauthUserData?.picture || 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80'} 
+                      alt="Instagram avatar" 
+                      initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px) grayscale(100%)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px) grayscale(0%)' }}
+                      transition={{
+                        opacity: { duration: 1.6, ease: [0.22, 1, 0.36, 1] },
+                        filter: { duration: 1.6, ease: [0.22, 1, 0.36, 1] },
+                        scale: { duration: 1.2, ease: [0.22, 1, 0.36, 1] }
+                      }}
+                    />
+                  </div>
+                  
+                  <motion.h2 
+                    className="title-serif"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    Good to meet you, <em>@{greetName || 'ava'}</em>
+                  </motion.h2>
+                  
+                  <motion.p 
+                    className="label-sans"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    Instagram account linked
+                  </motion.p>
+                </motion.div>
+              )}
+
+              {currentView === 'greet' && signupMethod !== 'google' && signupMethod !== 'instagram' && (
+                <motion.div
+                  key="greet-email"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  className="cs-step-stage select-none"
+                >
+                  <div className="monogram-orbit">
+                    <motion.div 
+                      className="monogram-circle"
+                      initial={{ opacity: 0, scale: 0.9, rotate: -120 }}
+                      animate={{ opacity: 0.85, scale: 1, rotate: 0 }}
+                      transition={{
+                        opacity: { duration: 1.2, delay: 0.3, ease: [0.22, 1, 0.36, 1] },
+                        scale: { duration: 1.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] },
+                        rotate: { duration: 1.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }
+                      }}
+                    />
+                    <motion.div 
+                      className="monogram-inner"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      <span className="monogram-letter">
+                        {String(greetName || firstName || 'A')[0].toUpperCase()}
+                      </span>
+                    </motion.div>
+                  </div>
+                  
+                  <motion.h2 
+                    className="title-serif"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    Good day, <em>{greetName || firstName || 'Ava'}</em>
+                  </motion.h2>
+                </motion.div>
+              )}
+
+              {currentView === 'birthdate' && (
+                <CastingBirthdate
+                  key="birthdate"
+                  onComplete={handleBirthdateComplete}
+                  firstName={firstName}
                 />
               )}
 
@@ -404,13 +638,7 @@ function CastingCallPage() {
                 <CastingGender
                   key="gender"
                   onComplete={handleGenderComplete}
-                />
-              )}
-
-              {currentView === 'birthdate' && (
-                <CastingBirthdate
-                  key="birthdate"
-                  onComplete={handleBirthdateComplete}
+                  firstName={firstName}
                 />
               )}
 
@@ -419,6 +647,8 @@ function CastingCallPage() {
                   key="scout"
                   onComplete={handleScoutComplete}
                   userName={previewActive ? PREVIEW_SEED.userName : status?.profile?.first_name}
+                  firstName={firstName}
+                  fullLengthEnabled={!heightOnlyMeasurements}
                 />
               )}
 
@@ -426,9 +656,12 @@ function CastingCallPage() {
                 <CastingMeasurements
                   // Remount when the previewed sub-step changes so it re-enters there.
                   key={`measurements-${previewActive ? preview.subStep ?? 'start' : 'live'}`}
-                  photoData={photoData}
                   onComplete={handleMeasurementsComplete}
                   initialStep={previewActive ? preview.subStep : undefined}
+                  heightOnly={heightOnlyMeasurements}
+                  gender={profileData.gender}
+                  registerBack={registerBack}
+                  firstName={firstName}
                 />
               )}
 
@@ -436,8 +669,9 @@ function CastingCallPage() {
                 <CastingProfile
                   key={`profile-${previewActive ? preview.subStep ?? 'start' : 'live'}`}
                   onComplete={handleProfileComplete}
-                  gender={profileData.gender}
                   initialProfileStep={previewActive ? preview.subStep : undefined}
+                  registerBack={registerBack}
+                  firstName={firstName}
                 />
               )}
 
@@ -456,13 +690,19 @@ function CastingCallPage() {
         </AnimatePresence>
       </div>
 
+      {/* The single fixed action for the flow — always mounted (reserved height),
+          empty until a step publishes its config via useActionDock. */}
+      <ActionDock />
+
       {/* Progress: a single quiet hairline across the very top of the page. */}
-      <div className="cinematic-progress-container">
-        <div
-          className="cinematic-progress-bar"
-          style={{ width: `${progressPercentage}%` }}
-        />
-      </div>
+      {railActive && (
+        <div className="cinematic-progress-container">
+          <div
+            className="cinematic-progress-bar"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+      )}
 
       {/* Dev-only review harness — stripped from production builds */}
       {DEV_PREVIEW && (
@@ -485,6 +725,7 @@ function CastingCallPage() {
         isLoading={isOpeningCheckout}
       />
     </div>
+    </ActionDockProvider>
   );
 }
 

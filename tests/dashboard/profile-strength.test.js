@@ -145,7 +145,7 @@ describe("Agency readiness scoring", () => {
       shoe_size: "8",
       weight_kg: 58,
       skin_tone: "Medium",
-      work_status: "Available",
+      availability_schedule: "Full-Time",
       experience_level: "New Face",
       training: "Runway fundamentals and commercial acting workshops.",
       instagram_handle: "@alexriver",

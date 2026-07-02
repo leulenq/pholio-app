@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entry Choice Cards · Pholio Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --surface-card: #141312;
+      --gold: #c9a55a;
+      --gold-hover: #b8954e;
+      --gold-glow: rgba(201, 165, 90, 0.12);
+      
+      --text-main: #f5f4f0;
+      --text-muted: #9e9b94;
+      --text-dim: #5c5954;
+      
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+      --font-display: 'Outfit', sans-serif;
+      
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Control Header ── */
+    .control-header {
+      background: #11100f;
+      border-bottom: 1px solid #1c1a19;
+      padding: 1.25rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .header-title h1 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .header-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .selector-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    .btn-tab {
+      background: #1a1817;
+      border: 1px solid #2d2927;
+      color: var(--text-muted);
+      padding: 0.5rem 1.2rem;
+      font-size: 0.8rem;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s var(--ease);
+    }
+
+    .btn-tab:hover {
+      border-color: var(--gold);
+      color: var(--text-main);
+    }
+
+    .btn-tab.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: #000;
+      font-weight: 600;
+    }
+
+    /* ── Cinematic Stage ── */
+    .viewport {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 2rem;
+      position: relative;
+    }
+
+    .shimmer {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, rgba(20, 19, 18, 0.4) 0%, rgba(11, 10, 9, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .cinematic-orb {
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(201, 165, 90, 0.02) 0%, rgba(0,0,0,0) 70%);
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .orb-1 { top: 15%; left: 25%; }
+    .orb-2 { bottom: 10%; right: 25%; }
+
+    /* Central Wizard Card Shell */
+    .wizard-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--surface-card);
+      border: 1px solid rgba(245, 241, 234, 0.08);
+      border-radius: 16px;
+      padding: 3rem 2.5rem;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6), 
+                  inset 0 1px 0 rgba(255,255,255,0.05);
+      position: relative;
+      z-index: 10;
+      text-align: center;
+    }
+
+    .choice-header {
+      margin-bottom: 2.5rem;
+    }
+
+    .choice-title {
+      font-family: var(--font-serif);
+      font-size: 2.2rem;
+      font-weight: 400;
+      line-height: 1.2;
+      color: var(--text-main);
+    }
+
+    .choice-title em {
+      font-style: italic;
+      color: var(--gold);
+      font-weight: 400;
+    }
+
+    /* Stacked buttons container (layout keeps standard production structure) */
+    .buttons-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      width: 100%;
+    }
+
+    /* Base production-styled button structure */
+    .btn-choice {
+      width: 100%;
+      height: 52px;
+      background: transparent;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      position: relative;
+      overflow: hidden;
+      color: var(--text-main);
+      box-sizing: border-box;
+      transition: all 0.3s var(--ease);
+    }
+
+    .btn-icon {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    .btn-text {
+      z-index: 2;
+    }
+
+    .btn-choice-email {
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.01);
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .btn-choice-email:hover {
+      border-color: var(--gold);
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT A: Clean Outline & Brand Accent
+       ═══════════════════════════════════════ */
+    .stack-a .btn-choice-oauth {
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .stack-a .btn-choice-oauth:hover {
+      transform: scale(1.015);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Google clean outline color accent */
+    .stack-a .btn-choice-oauth.google:hover {
+      border: 1px solid rgba(77, 134, 227, 0.5);
+      box-shadow: 0 0 15px rgba(77, 134, 227, 0.08);
+    }
+
+    /* Instagram clean outline color accent */
+    .stack-a .btn-choice-oauth.instagram:hover {
+      border: 1px solid rgba(220, 39, 67, 0.5);
+      box-shadow: 0 0 15px rgba(220, 39, 67, 0.08);
+    }
+
+    .stack-a .logo-instagram {
+      stroke: var(--text-muted);
+      stroke-width: 1.8;
+      transition: stroke 0.3s var(--ease);
+    }
+    .stack-a .btn-choice-oauth.instagram:hover .logo-instagram {
+      stroke: var(--text-main);
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT B: Soft Radial Glow
+       ═══════════════════════════════════════ */
+    .stack-b .btn-choice-oauth {
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: #191817;
+    }
+
+    .stack-b .btn-glow {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.4s var(--ease);
+      z-index: 1;
+    }
+
+    .stack-b .btn-choice-oauth:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Google Glow */
+    .stack-b .google:hover {
+      border-color: rgba(77, 134, 227, 0.25);
+    }
+    .stack-b .google .btn-glow {
+      background: radial-gradient(circle at 12% 50%, rgba(77, 134, 227, 0.15) 0%, transparent 55%);
+      opacity: 1;
+    }
+
+    /* Instagram Glow */
+    .stack-b .instagram:hover {
+      border-color: rgba(220, 39, 67, 0.25);
+    }
+    .stack-b .instagram .btn-glow {
+      background: radial-gradient(circle at 12% 50%, rgba(220, 39, 67, 0.15) 0%, transparent 55%);
+      opacity: 1;
+    }
+
+    .stack-b .logo-instagram {
+      stroke: var(--text-muted);
+      stroke-width: 1.8;
+      transition: stroke 0.3s var(--ease);
+    }
+    .stack-b .instagram:hover .logo-instagram {
+      stroke: var(--text-main);
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT C: Sleek Split Border Accent
+       ═══════════════════════════════════════ */
+    .stack-c .btn-choice-oauth {
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    /* Vertical color accent stripes */
+    .stack-c .stripe-accent {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      transform: scaleY(0);
+      transition: transform 0.3s var(--ease);
+      z-index: 3;
+    }
+
+    .stack-c .google .stripe-accent {
+      background: #4d86e3;
+    }
+
+    .stack-c .instagram .stripe-accent {
+      background: #dc2743;
+    }
+
+    .stack-c .btn-choice-oauth:hover {
+      background: rgba(255, 255, 255, 0.02);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .stack-c .btn-choice-oauth:hover .stripe-accent {
+      transform: scaleY(1);
+    }
+
+    .stack-c .btn-text {
+      transition: transform 0.3s var(--ease);
+    }
+
+    .stack-c .btn-choice-oauth:hover .btn-text {
+      transform: translateX(4px);
+    }
+
+    .stack-c .logo-instagram {
+      stroke: var(--text-muted);
+      stroke-width: 1.8;
+    }
+
+    /* ── Specifications footer ── */
+    .spec-panel {
+      background: #11100f;
+      border-top: 1px solid #1c1a19;
+      padding: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .spec-card h3 {
+      font-family: var(--font-display);
+      color: var(--gold);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .spec-card ul {
+      list-style-type: none;
+    }
+
+    .spec-card li {
+      margin-bottom: 0.5rem;
+      position: relative;
+      padding-left: 1rem;
+    }
+
+    .spec-card li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Reviewer Control Header -->
+  <header class="control-header">
+    <div class="header-title">
+      <h1>Entry Choice Button Cards</h1>
+      <p>Interactive stacked button variants matching production structure and layout</p>
+    </div>
+    
+    <div class="selector-group">
+      <span class="selector-label">Button Style:</span>
+      <button class="btn-tab active" onclick="switchVariant('a')">Variant A: Outline Accent</button>
+      <button class="btn-tab" onclick="switchVariant('b')">Variant B: Radial Glow</button>
+      <button class="btn-tab" onclick="switchVariant('c')">Variant C: Left Stripe Accent</button>
+    </div>
+  </header>
+
+  <!-- Interactive Stage -->
+  <main class="viewport">
+    <div class="shimmer" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-1" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-2" aria-hidden="true"></div>
+
+    <div class="wizard-card">
+      <div class="choice-header">
+        <h2 class="choice-title">Let's get you <em>seen</em></h2>
+      </div>
+
+      <!-- Variant A: Outline Accent -->
+      <div class="buttons-stack stack-a active-stack" id="stack-a">
+        <button class="btn-choice btn-choice-oauth google">
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" width="100%" height="100%">
+              <path fill="#ea4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.579-7.859-7.989 0-4.41 3.53-7.989 7.859-7.989 2.46 0 4.105 1.025 5.047 1.926l3.27-3.144C18.32 1.923 15.53 1 12.24 1 5.92 1 12.215 5.92 12.215 12.215S5.92 23.43 12.24 23.43c6.6 0 11-4.637 11-11.215 0-.756-.08-1.332-.178-1.93H12.24z"/>
+            </svg>
+          </span>
+          <span class="btn-text">Continue with Google</span>
+        </button>
+
+        <button class="btn-choice btn-choice-oauth instagram">
+          <span class="btn-icon">
+            <svg class="logo-instagram" fill="none" viewBox="0 0 24 24" width="100%" height="100%">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+          </span>
+          <span class="btn-text">Continue with Instagram</span>
+        </button>
+
+        <button class="btn-choice btn-choice-email">
+          <span>Continue with email</span>
+        </button>
+      </div>
+
+      <!-- Variant B: Radial Glow -->
+      <div class="buttons-stack stack-b" id="stack-b" style="display: none;">
+        <button class="btn-choice btn-choice-oauth google">
+          <div class="btn-glow"></div>
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" width="100%" height="100%">
+              <path fill="#ea4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.579-7.859-7.989 0-4.41 3.53-7.989 7.859-7.989 2.46 0 4.105 1.025 5.047 1.926l3.27-3.144C18.32 1.923 15.53 1 12.24 1 5.92 1 12.215 5.92 12.215 12.215S5.92 23.43 12.24 23.43c6.6 0 11-4.637 11-11.215 0-.756-.08-1.332-.178-1.93H12.24z"/>
+            </svg>
+          </span>
+          <span class="btn-text">Continue with Google</span>
+        </button>
+
+        <button class="btn-choice btn-choice-oauth instagram">
+          <div class="btn-glow"></div>
+          <span class="btn-icon">
+            <svg class="logo-instagram" fill="none" viewBox="0 0 24 24" width="100%" height="100%">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+          </span>
+          <span class="btn-text">Continue with Instagram</span>
+        </button>
+
+        <button class="btn-choice btn-choice-email">
+          <span>Continue with email</span>
+        </button>
+      </div>
+
+      <!-- Variant C: Left Stripe Accent -->
+      <div class="buttons-stack stack-c" id="stack-c" style="display: none;">
+        <button class="btn-choice btn-choice-oauth google">
+          <div class="stripe-accent"></div>
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" width="100%" height="100%">
+              <path fill="#ea4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.579-7.859-7.989 0-4.41 3.53-7.989 7.859-7.989 2.46 0 4.105 1.025 5.047 1.926l3.27-3.144C18.32 1.923 15.53 1 12.24 1 5.92 1 12.215 5.92 12.215 12.215S5.92 23.43 12.24 23.43c6.6 0 11-4.637 11-11.215 0-.756-.08-1.332-.178-1.93H12.24z"/>
+            </svg>
+          </span>
+          <span class="btn-text">Continue with Google</span>
+        </button>
+
+        <button class="btn-choice btn-choice-oauth instagram">
+          <div class="stripe-accent"></div>
+          <span class="btn-icon">
+            <svg class="logo-instagram" fill="none" viewBox="0 0 24 24" width="100%" height="100%">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+          </span>
+          <span class="btn-text">Continue with Instagram</span>
+        </button>
+
+        <button class="btn-choice btn-choice-email">
+          <span>Continue with email</span>
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Technical specifications footer -->
+  <footer class="spec-panel">
+    <div class="spec-grid">
+      <div class="spec-card">
+        <h3>Variant A: Outline Accent</h3>
+        <ul>
+          <li><strong>Layout:</strong> Uses the exact vertical stack and padding dimensions as the live wizard.</li>
+          <li><strong>Hover motion:</strong> Scales the button outline smoothly (`scale(1.015)`) on hover.</li>
+          <li><strong>Brand accents:</strong> Border lines light up in brand-specific tones (Google blue, Instagram pink).</li>
+        </ul>
+      </div>
+
+      <div class="spec-card">
+        <h3>Variant B: Soft Radial Glow</h3>
+        <ul>
+          <li><strong>Layout:</strong> Solid dark filled buttons stacked vertically inside the wizard card context.</li>
+          <li><strong>Hover motion:</strong> Translates slightly upwards (`translateY(-2px)`) with a clean shadow increase.</li>
+          <li><strong>Brand accents:</strong> Fades in a soft radial brand glow (15% opacity) behind the left-aligned logo.</li>
+        </ul>
+      </div>
+
+      <div class="spec-card">
+        <h3>Variant C: Left Stripe Accent</h3>
+        <ul>
+          <li><strong>Layout:</strong> Standard flat border stacked buttons with hidden vertical border stripes.</li>
+          <li><strong>Hover motion:</strong> Text transitions slightly to the right (`translateX(4px)`) on mouseover.</li>
+          <li><strong>Brand accents:</strong> Active brand vertical stripe (3px width) slides in on the left side of the button boundary.</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function switchVariant(variant) {
+      // Toggle Tab Button Active Class
+      const tabs = document.querySelectorAll('.btn-tab');
+      tabs.forEach(tab => {
+        if (tab.getAttribute('onclick').includes(variant)) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Toggle Active Button Stack Visibility
+      const stacks = document.querySelectorAll('.buttons-stack');
+      stacks.forEach(stack => {
+        if (stack.id === `stack-${variant}`) {
+          stack.style.display = 'flex';
+        } else {
+          stack.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

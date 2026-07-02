@@ -181,6 +181,7 @@ const TALENT_PROFILE_API_KEYS = [
   "seeking_representation",
   "services_locked",
   "shoe_size",
+  "shoe_region",
   "skin_tone",
   "slug",
   "source_agency_id",
@@ -200,6 +201,7 @@ const TALENT_PROFILE_API_KEYS = [
   "twitter_followers",
   "twitter_engagement",
   "union_membership",
+  "unlock_celebrated_at",
   "updated_at",
   "user_id",
   "vibe_score",
@@ -762,6 +764,11 @@ router.put(
     if (!Object.hasOwn(data, "waist_cm")) mapNumberField("waist", "waist_cm");
     if (!Object.hasOwn(data, "hips_cm")) mapNumberField("hips", "hips_cm");
     mapNumberField("shoe_size");
+    mapField("shoe_region");
+    mapNumberField("chest_cm");
+    mapField("suit_size");
+    mapField("stats_track");
+    mapField("discipline");
     mapField("eye_color");
     mapField("hair_color");
     mapField("gender");
@@ -1080,11 +1087,13 @@ router.put(
       "height_cm",
       "weight_kg",
       "bust_cm",
+      "chest_cm",
       "waist_cm",
       "hips_cm",
       "inseam_cm",
       "shoe_size",
       "dress_size",
+      "suit_size",
     ];
     const measurementsChanged = CANONICAL_MEASUREMENT_FIELDS.some(
       (key) =>

@@ -1,0 +1,65 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   CastingScout — screen-specific styling (co-located, not shared).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Gold-pool background — the momentous stage for digitals. A soft, breathing
+   warm-gold radial pool behind the content (prototype `.shimmer`). Fixed +
+   full-bleed so it sits behind everything else on this step only. */
+.scout-shimmer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  animation: scout-shimmer-in 1.1s var(--ease) forwards;
+}
+
+@keyframes scout-shimmer-in {
+  to { opacity: 1; }
+}
+
+.scout-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(85% 64% at 50% 36%, rgba(201, 165, 90, 0.14), transparent 62%);
+  animation: scout-digi-pulse 11s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes scout-digi-pulse {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+
+/* Intake guidance — very subtle, well below the frames (prototype `.helper`). */
+.scout-helper {
+  margin-top: 2.6rem;
+  font-family: var(--cinematic-font-sans, 'Inter', sans-serif);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(245, 241, 234, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scout-shimmer {
+    animation: none;
+    opacity: 1;
+  }
+  .scout-shimmer::after {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .cs-frames {
+    gap: 1.2rem;
+  }
+  .cs-frame-slot,
+  .cs-frame-drop {
+    width: 150px;
+  }
+  .cs-frame-drop {
+    height: 200px;
+  }
+}

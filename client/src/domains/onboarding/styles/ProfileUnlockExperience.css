@@ -166,3 +166,43 @@
   color: var(--c-ink-soft);
   line-height: 1.5;
 }
+
+/* ───────── Quiet pacing actions ───────── */
+.reveal-coach-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 6px;
+  pointer-events: auto;
+}
+
+.reveal-coach-action {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal-coach-action--skip {
+  color: var(--c-ink-faint);
+}
+
+.reveal-coach-action--skip:hover,
+.reveal-coach-action--skip:focus-visible {
+  color: var(--c-ink-soft);
+}
+
+.reveal-coach-action--next {
+  color: var(--c-gold);
+}
+
+.reveal-coach-action--next:hover,
+.reveal-coach-action--next:focus-visible {
+  opacity: 0.75;
+}

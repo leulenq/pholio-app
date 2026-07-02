@@ -223,6 +223,7 @@
 .gapsBlock {
   margin-bottom: 18px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .gapsLabel {
@@ -243,6 +244,11 @@
   z-index: 2;
 }
 
+.gapItem:global(.pholio-btn) {
+  white-space: normal;
+  text-align: left;
+}
+
 .gapItem {
   position: relative;
   display: flex;
@@ -250,6 +256,8 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 10px 12px;
   border: none;
   border-radius: 8px;
@@ -287,6 +295,7 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  min-width: 0;
 }
 
 .gapItemAudit {
@@ -336,39 +345,9 @@
   color: #6B6560;
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   transition: color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.gapTooltip {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: calc(100% + 8px);
-  z-index: 4;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(26, 24, 21, 0.12);
-  background: #1A1815;
-  color: #FAF8F5;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.45;
-  box-shadow: 0 10px 28px rgba(26, 24, 21, 0.18);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(4px);
-  transition:
-    opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    visibility 0.18s;
-  pointer-events: none;
-}
-
-.gapItem:hover .gapTooltip,
-.gapItem:focus-visible .gapTooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
 }
 
 .gapTooltipFixed {
@@ -385,7 +364,15 @@
   line-height: 1.45;
   box-shadow: 0 10px 28px rgba(26, 24, 21, 0.18);
   pointer-events: none;
+  box-sizing: border-box;
+}
+
+.gapTooltipFixed[data-placement='above'] {
   transform: translateY(-100%);
+}
+
+.gapTooltipFixed[data-placement='below'] {
+  transform: translateY(0);
 }
 
 .completeBrief {
@@ -526,10 +513,6 @@
 
   .spinner {
     animation: none;
-  }
-
-  .gapTooltip {
-    transition: none;
   }
 
   .gapItem::before {

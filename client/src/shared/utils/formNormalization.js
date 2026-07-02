@@ -103,6 +103,12 @@ export function toFormTriStateBoolean(value) {
   return null;
 }
 
+export function toFormNumber(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : '';
+}
+
 export function deriveRepresentationStatus(profile) {
   const seeking = toFormBoolean(profile.seeking_representation, false);
   const agency =
@@ -162,6 +168,11 @@ export function normalizeProfileForForm(profile = {}) {
     gender: profile.gender ? String(profile.gender) : '',
     pronouns: profile.pronouns ? String(profile.pronouns) : '',
     date_of_birth: toDateInputValue(profile.date_of_birth) || '',
+    height_cm: toFormNumber(profile.height_cm),
+    weight_kg: toFormNumber(profile.weight_kg),
+    inseam_cm: toFormNumber(profile.inseam_cm),
+    playing_age_min: toFormNumber(profile.playing_age_min),
+    playing_age_max: toFormNumber(profile.playing_age_max),
     ethnicity: toArrayField(profile.ethnicity),
     nationality: profile.nationality ? String(profile.nationality) : '',
     place_of_birth: profile.place_of_birth ? String(profile.place_of_birth) : '',
@@ -209,10 +220,11 @@ export function normalizeProfileForForm(profile = {}) {
     passport_ready: toFormBoolean(profile.passport_ready, false),
     availability_travel: toFormBoolean(profile.availability_travel, false),
     drivers_license: toFormBoolean(profile.drivers_license, false),
-    bust: profile.bust_cm ? Number(profile.bust_cm) : '',
-    chest_cm: profile.chest_cm ? Number(profile.chest_cm) : '',
-    waist: profile.waist_cm ? Number(profile.waist_cm) : '',
-    hips: profile.hips_cm ? Number(profile.hips_cm) : '',
+    bust_cm: toFormNumber(profile.bust_cm),
+    chest_cm: toFormNumber(profile.chest_cm),
+    waist_cm: toFormNumber(profile.waist_cm),
+    hips_cm: toFormNumber(profile.hips_cm),
+    shoe_region: profile.shoe_region ? String(profile.shoe_region) : 'US',
 
     training_summary: profile.training || '',
     experience_level: profile.experience_level ? String(profile.experience_level) : '',
@@ -287,14 +299,20 @@ export function normalizeProfileForSave(formData, measurementsLocked = false) {
     if (payload.chest_cm) {
       payload.chest_cm = Number(payload.chest_cm);
     }
-    delete payload.bust; // Remove form-only field
+    delete payload.bust_cm; // Clear womenswear field
   } else {
     // For womenswear (default), bust_cm is primary
-    if (payload.bust) {
-      payload.bust_cm = Number(payload.bust);
+    if (payload.bust_cm) {
+      payload.bust_cm = Number(payload.bust_cm);
     }
-    delete payload.chest_cm; // Remove for non-menswear
-    delete payload.bust; // Remove form-only field
+    delete payload.chest_cm; // Clear menswear field
+  }
+
+  // Persist shoe region
+  if (payload.shoe_region) {
+    payload.shoe_region = String(payload.shoe_region);
+  } else {
+    payload.shoe_region = 'US';
   }
 
   ['ethnicity', 'comfort_levels', 'modeling_categories', 'booking_secondary_lanes', 'union_membership'].forEach(field => {

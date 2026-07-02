@@ -261,9 +261,9 @@ export const calculateProfileStrength = (data) => {
   if (hasPhysicalDetails) improveScore += IMPROVE_FIELD_POINTS.skin;
   else pushMissing({ key: 'skin', label: 'Skin Tone & Markings', why: 'Visible tattoos, piercings, and skin tone prevent set-day surprises.', impact: 'Medium', link: '/dashboard/talent/profile?tab=appearance', points: IMPROVE_FIELD_POINTS.skin, tier: 'Improve' });
 
-  const hasStatus = isPresent(data.work_status);
+  const hasStatus = isPresent(data.availability_schedule) || isPresent(data.work_status);
   if (hasStatus) improveScore += IMPROVE_FIELD_POINTS.status;
-  else pushMissing({ key: 'status', label: 'Work Status', why: 'Availability signals whether you can take bookings now.', impact: 'Medium', link: '/dashboard/talent/profile?tab=roles', points: IMPROVE_FIELD_POINTS.status, tier: 'Improve' });
+  else pushMissing({ key: 'status', label: 'Availability', why: 'Your schedule helps bookers understand when you can take work.', impact: 'Medium', link: '/dashboard/talent/profile?tab=roles', points: IMPROVE_FIELD_POINTS.status, tier: 'Improve' });
 
   const hasExpLevel = isPresent(data.experience_level);
   if (hasExpLevel) improveScore += IMPROVE_FIELD_POINTS.exp;

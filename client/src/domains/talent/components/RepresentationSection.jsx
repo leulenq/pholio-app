@@ -1,6 +1,6 @@
 import React from 'react';
 import { Controller, useFieldArray } from 'react-hook-form';
-import { Plus, Trash2 } from 'lucide-react';
+import { Building2, Plus, Trash2 } from 'lucide-react';
 import { PholioInput, PholioTextarea } from '../../../shared/components/ui/forms';
 import PholioButton, {
   PholioIconButton,
@@ -17,18 +17,18 @@ const STATUS = {
 const OPTIONS = [
   {
     value: STATUS.SEEKING,
-    label: 'Seeking representation',
-    hint: 'Your profile can be routed to agencies and development boards.',
+    label: 'Seeking Representation',
+    hint: 'Open to agency submissions and development conversations.',
   },
   {
     value: STATUS.REPRESENTED,
     label: 'Represented',
-    hint: 'Your current agency should be visible as the booking route.',
+    hint: 'Your agency is the contact route for bookings.',
   },
   {
     value: STATUS.NOT_SEEKING,
-    label: 'Direct bookings',
-    hint: 'Inquiries should route directly through your profile contact.',
+    label: 'Direct Bookings',
+    hint: 'Booking inquiries come directly to you.',
   }
 ];
 
@@ -75,9 +75,9 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
   return (
     <Section
       id="representation"
-      title="Agency representation"
+      title="Agency Representation"
       titleEmphasis="Agency"
-      description="Set the booking path agencies should understand before they shortlist you."
+      description="Set the contact route agencies and clients should use for representation and bookings."
       showDivider={false}
     >
       <div className={styles.repSurface}>
@@ -121,11 +121,14 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
           )}
         />
 
-        <div className={styles.repDetailGroup}>
+        <div className={`${styles.repDetailGroup} ${styles.repRelationshipsPanel}`}>
           <div className={styles.repRelationshipsHead}>
-            <div>
-              <h4>Active relationships</h4>
-              <p>Add one mother agency and each market or placement agency separately.</p>
+            <div className={styles.repRelationshipsTitle}>
+              <Building2 size={18} strokeWidth={1.6} aria-hidden="true" />
+              <div>
+                <h4>Active Relationships</h4>
+                <p>Record one mother agency, then add each market or placement agency.</p>
+              </div>
             </div>
             <PholioButton
               type="button"
@@ -139,9 +142,13 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
           </div>
 
           {fields.length === 0 ? (
-            <p className={styles.repEmpty}>
-              No active agency relationships. Add one if an agency currently represents you.
-            </p>
+            <div className={styles.repEmpty}>
+              <Building2 size={22} strokeWidth={1.4} aria-hidden="true" />
+              <div>
+                <strong>No agency relationships yet</strong>
+                <p>Add an agency only if it currently represents you.</p>
+              </div>
+            </div>
           ) : (
             <div className={styles.repRelationshipList}>
               {fields.map((field, index) => {

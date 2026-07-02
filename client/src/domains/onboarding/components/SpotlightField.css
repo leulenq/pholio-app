@@ -1,0 +1,120 @@
+/* SpotlightField — typed-onto-stage input (ported from prototype .type / .type input / .type-glow / .date-native)
+   Specificity is intentionally high so global.css canonical form inputs (white 44px boxes)
+   never leak onto the cinematic stage fields. */
+.spotlight {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 5.5rem;
+}
+
+.spotlight-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 220%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(201, 165, 90, 0.12), transparent 68%);
+  opacity: 0;
+  transition: opacity 0.7s var(--ease);
+}
+
+.spotlight .spotlight-input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  outline: none;
+  box-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: center;
+  font-family: var(--cinematic-font-serif);
+  font-weight: 400;
+  color: #fff;
+  caret-color: var(--gold);
+  letter-spacing: -0.02em;
+  font-size: clamp(1.9rem, 4.6vw, 3.5rem);
+  line-height: 1.15;
+  text-shadow: 0 0 34px rgba(201, 165, 90, 0.14);
+}
+
+.spotlight .spotlight-input:hover,
+.spotlight .spotlight-input:focus,
+.spotlight .spotlight-input:active {
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.spotlight .spotlight-input::placeholder {
+  color: var(--ghost);
+  font-style: italic;
+  font-weight: 400;
+  opacity: 1;
+}
+
+/* the gold pool ignites on focus (focus indicator for the boxless field) */
+.spotlight .spotlight-input:focus ~ .spotlight-glow {
+  opacity: 1;
+}
+
+/* the caret feels alive even before you type */
+.spotlight .spotlight-input:placeholder-shown {
+  caret-color: var(--gold);
+}
+
+/* ── Date variant — native MM / DD / YYYY segments, no box, gold picker button ── */
+.spotlight .spotlight-input--date {
+  width: auto;
+  color-scheme: dark;
+  font-size: clamp(1.9rem, 4.6vw, 3.4rem);
+  letter-spacing: -0.01em;
+}
+
+.spotlight .spotlight-input--date::-webkit-datetime-edit {
+  padding: 0;
+}
+
+.spotlight .spotlight-input--date::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+.spotlight .spotlight-input--date::-webkit-datetime-edit-text {
+  color: var(--text-3);
+  padding: 0 0.22em;
+}
+
+.spotlight .spotlight-input--date:required:invalid::-webkit-datetime-edit {
+  color: var(--ghost);
+  font-style: italic;
+}
+
+.spotlight .spotlight-input--date::-webkit-calendar-picker-indicator {
+  filter: invert(72%) sepia(30%) saturate(560%) hue-rotate(2deg);
+  cursor: pointer;
+  opacity: 0.85;
+  width: 0.86em;
+  height: 0.86em;
+  margin-left: 0.5em;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.spotlight .spotlight-input--date::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.08);
+}

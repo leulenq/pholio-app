@@ -3,39 +3,45 @@
  * Linear onboarding flow for the talent "Casting Call".
  *
  * Live flow:
- *   entry → gender → scout → measurements → profile → done
+ *   entry → birthdate → gender → scout → measurements → profile → done
  *
- * The server is the source of truth for which step the user is on. Each step
- * persists its data and transitions forward via transitionTo(); the client
- * reads current_step + step_data from /onboarding/status to resume on reload.
+ * Birthdate runs before gender (COPPA hygiene): the age screen must gate before
+ * any further personal data is collected. The server is the source of truth for
+ * which step the user is on. Each step persists its data and transitions forward
+ * via transitionTo(); the client reads current_step + step_data from
+ * /onboarding/status to resume on reload.
  *
- * Legacy states (identity, verification_pending) are retained only so older
- * in-flight profiles can still advance; they are not part of the live path.
+ * Tolerant edges: some `next` arrays carry an extra legacy target so profiles
+ * parked mid-flow under the OLD order (entry → gender → birthdate → scout) still
+ * advance without 403s after the reorder.
  */
+// Step names that may still be stored in old rows' onboarding_state_json /
+// onboarding_stage but no longer exist in the live machine. Healed on read so
+// legacy profiles resume cleanly instead of getting stuck on an unknown state
+// (canTransitionTo returns false for unknown steps).
+const LEGACY_STEP_MAP = {
+  identity: "birthdate",
+  verification_pending: "birthdate",
+};
+
+function healStep(step) {
+  return LEGACY_STEP_MAP[step] || step;
+}
+
 const TRANSITIONS_V2 = {
-  identity: {
-    next: ["verification_pending", "scout"],
-    prev: null,
-    parallel: [],
-  },
   entry: {
-    next: ["verification_pending", "gender", "scout"], // Can go to gender next
+    next: ["birthdate", "gender"], // birthdate is the new next; gender kept for legacy in-flight profiles
     prev: null,
-    parallel: [],
-  },
-  gender: {
-    next: ["birthdate", "scout"], // birthdate is the new required next; scout kept for legacy in-flight profiles
-    prev: "entry",
     parallel: [],
   },
   birthdate: {
-    next: ["scout"],
-    prev: "gender",
+    next: ["gender", "scout"], // gender is the new next; scout kept for legacy in-flight profiles
+    prev: "entry",
     parallel: [],
   },
-  verification_pending: {
-    next: ["scout"],
-    prev: "entry",
+  gender: {
+    next: ["scout", "birthdate"], // scout is the new next; birthdate kept for legacy in-flight profiles
+    prev: "birthdate",
     parallel: [],
   },
   scout: {
@@ -75,7 +81,7 @@ function getCurrentStep(profile) {
           ? JSON.parse(profile.onboarding_state_json)
           : profile.onboarding_state_json;
 
-      return state.current_step || "entry";
+      return healStep(state.current_step || "entry");
     } catch (e) {
       console.warn(
         "[CastingMachine] Failed to parse onboarding_state_json:",
@@ -85,7 +91,7 @@ function getCurrentStep(profile) {
   }
 
   // Fallback to legacy onboarding_stage
-  return profile.onboarding_stage || "entry";
+  return healStep(profile.onboarding_stage || "entry");
 }
 
 /**
@@ -103,17 +109,13 @@ function getState(profile) {
           ? JSON.parse(profile.onboarding_state_json)
           : profile.onboarding_state_json;
 
-      // Ensure required fields exist
+      // Ensure required fields exist (current_step healed from legacy names)
       return {
         version: state.version || "v2_casting_call",
-        current_step: state.current_step || "entry",
+        current_step: healStep(state.current_step || "entry"),
         completed_steps: state.completed_steps || [],
         step_data: state.step_data || {},
         started_at: state.started_at || new Date().toISOString(),
-        // Surface AI predictions written by scout/confirm so the client can
-        // pre-fill and resume the measurements step. Without this passthrough
-        // they stay buried in onboarding_state_json and never reach /status.
-        predictions: state.predictions || null,
       };
     } catch (e) {
       console.warn(
@@ -142,8 +144,18 @@ function getState(profile) {
  * @param {string[]} completedSteps - List of completed steps
  * @returns {boolean} True if transition is valid
  */
+const STEP_ORDER = ["entry", "birthdate", "gender", "scout", "measurements", "profile", "done"];
+
 function canTransitionTo(from, to, completedSteps = []) {
   if (from === to) return true; // Re-entry is always ok
+
+  const fromIdx = STEP_ORDER.indexOf(from);
+  const toIdx = STEP_ORDER.indexOf(to);
+
+  // If both steps are part of the linear flow, allow forward transitions
+  if (fromIdx !== -1 && toIdx !== -1) {
+    return fromIdx <= toIdx;
+  }
 
   const config = TRANSITIONS_V2[from];
   if (!config) {
@@ -205,18 +217,32 @@ function transitionTo(currentState, targetStep, stepData = {}, knex) {
     step_data: { ...(currentState.step_data || {}) },
   };
 
-  // Mark previous step as complete if moving forward
-  const config = TRANSITIONS_V2[currentState.current_step];
-  const isForward =
-    config &&
-    ((Array.isArray(config.next) && config.next.includes(targetStep)) ||
-      config.next === targetStep);
+  const fromIdx = STEP_ORDER.indexOf(currentState.current_step);
+  const toIdx = STEP_ORDER.indexOf(targetStep);
+  const isForward = fromIdx !== -1 && toIdx !== -1 && fromIdx < toIdx;
 
-  if (
-    isForward &&
-    !newState.completed_steps.includes(currentState.current_step)
-  ) {
-    newState.completed_steps.push(currentState.current_step);
+  if (isForward) {
+    // Auto-complete all intermediate steps we skipped or completed
+    for (let i = fromIdx; i < toIdx; i++) {
+      const stepName = STEP_ORDER[i];
+      if (!newState.completed_steps.includes(stepName)) {
+        newState.completed_steps.push(stepName);
+      }
+    }
+  } else {
+    // Fallback for non-ordered steps if any
+    const config = TRANSITIONS_V2[currentState.current_step];
+    const isForwardLegacy =
+      config &&
+      ((Array.isArray(config.next) && config.next.includes(targetStep)) ||
+        config.next === targetStep);
+
+    if (
+      isForwardLegacy &&
+      !newState.completed_steps.includes(currentState.current_step)
+    ) {
+      newState.completed_steps.push(currentState.current_step);
+    }
   }
 
   // Update current step

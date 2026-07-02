@@ -1,0 +1,73 @@
+/* CastingProfile — screen-local layout only. Shared tokens/typography live in
+   CastingCinematic.css; this file spaces the market suggestion rows
+   (ported from prototype .suggest / .suggest button / .s-city / .s-country). */
+
+.casting-profile-market-stage {
+  position: relative;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Market suggestions — ruled rows on the stage, no dropdown chrome.
+   City name far-left (serif), country far-right (muted italic). */
+.market-suggest {
+  margin: 1.9rem auto 0;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 2rem;
+  text-align: left;
+}
+
+.market-suggest-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0; /* override global pill button reset */
+  cursor: pointer;
+  font-family: var(--cinematic-font-serif);
+  padding: 0.8rem 0.3rem;
+  border-bottom: 1px solid rgba(245, 241, 234, 0.06);
+  transition: color 0.2s;
+  transform: none;
+  box-shadow: none;
+}
+
+.market-suggest-row:hover {
+  background: transparent;
+  transform: none;
+}
+
+.market-suggest-row:focus-visible {
+  outline: none;
+  background: transparent;
+}
+
+.market-suggest-city {
+  font-size: 1.95rem;
+  color: var(--text);
+  transition: color 0.25s;
+}
+
+.market-suggest-country {
+  font-size: 0.95rem;
+  color: var(--text-3);
+  font-style: italic;
+  white-space: nowrap;
+  transition: color 0.25s;
+}
+
+.market-suggest-row:hover .market-suggest-city,
+.market-suggest-row.is-active .market-suggest-city {
+  color: var(--gold);
+}
+
+.casting-profile-error {
+  margin-top: 1.5rem;
+}

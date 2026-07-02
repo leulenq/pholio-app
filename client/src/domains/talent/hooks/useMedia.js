@@ -32,6 +32,27 @@ export function useMedia() {
     onError: (err) => flash('error', err.message || 'Delete failed')
   });
 
+  // Bulk Delete
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (imageIds) => talentApi.bulkDeleteMedia(imageIds),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
+      flash('success', data?.message || 'Images deleted');
+    },
+    onError: (err) => flash('error', err.message || 'Delete failed')
+  });
+
+  // Bulk Update
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ imageIds, patch }) => talentApi.bulkUpdateMedia(imageIds, patch),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      flash('success', data?.message || 'Images updated');
+    },
+    onError: (err) => flash('error', err.message || 'Update failed')
+  });
+
   // Reorder
   const reorderMutation = useMutation({
     mutationFn: (imageIds) => talentApi.reorderMedia(imageIds),
@@ -139,5 +160,7 @@ export function useMedia() {
     isAddingVideo: addVideoMutation.isPending,
     replaceImage,
     restoreImage,
+    bulkDeleteMedia: bulkDeleteMutation.mutateAsync,
+    bulkUpdateMedia: bulkUpdateMutation.mutateAsync,
   };
 }

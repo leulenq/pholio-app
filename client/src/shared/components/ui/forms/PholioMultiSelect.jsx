@@ -81,17 +81,6 @@ const PholioMultiSelect = ({
     }
   }, [isOpen, filteredOptions]);
 
-  // Scroll active keyboard highlighted option into view
-  useEffect(() => {
-    if (isOpen && activeIndex >= 0 && listboxRef.current) {
-      const offset = searchable ? 1 : 0;
-      const activeOption = listboxRef.current.children[activeIndex + offset];
-      if (activeOption) {
-        activeOption.scrollIntoView({ block: 'nearest' });
-      }
-    }
-  }, [activeIndex, isOpen, searchable]);
-
   useEffect(() => {
     if (!isOpen) setSearchQuery('');
   }, [isOpen]);

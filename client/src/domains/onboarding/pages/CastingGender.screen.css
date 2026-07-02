@@ -1,0 +1,14 @@
+/* CastingGender — screen-local layout only. Shared tokens/typography live in
+   CastingCinematic.css; this file just spaces the tiles + inline error. */
+
+.casting-gender-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 2rem;
+}
+
+.casting-gender-error {
+  margin-top: 1.5rem;
+}

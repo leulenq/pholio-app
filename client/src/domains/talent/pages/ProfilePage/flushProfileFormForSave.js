@@ -31,7 +31,11 @@ export async function flushProfileFormForSave(setValue, getValues) {
 
   const phone = normalizePhoneInput(values.emergency_contact_phone);
   const normalizedPhone = phone === '' ? null : phone;
-  if (normalizedPhone !== values.emergency_contact_phone) {
+  const currentPhone = values.emergency_contact_phone;
+  const phoneChanged =
+    normalizedPhone !== currentPhone &&
+    !(normalizedPhone === null && (currentPhone === '' || currentPhone == null));
+  if (phoneChanged) {
     setValue('emergency_contact_phone', normalizedPhone, {
       shouldDirty: true,
       shouldValidate: true,

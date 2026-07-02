@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const sharp = require("sharp");
+const { getSharp } = require("../../../shared/lib/lazy-sharp");
 const {
   renderCompCard,
   renderDigitalsSheet,
@@ -2966,15 +2966,18 @@ router.post(
         } else {
           // For raster images, convert to WebP and optimize
           const optimizedPath = logoPath.replace(/\.[^.]+$/, ".webp");
-          await sharp(logoPath)
-            .resize({
-              width: 400,
-              height: 200,
-              fit: "inside",
-              withoutEnlargement: true,
-            })
-            .webp({ quality: 90 })
-            .toFile(optimizedPath);
+          const sharp = getSharp();
+          if (sharp) {
+            await sharp(logoPath)
+              .resize({
+                width: 400,
+                height: 200,
+                fit: "inside",
+                withoutEnlargement: true,
+              })
+              .webp({ quality: 90 })
+              .toFile(optimizedPath);
+          }
 
           // Delete original if it's not webp
           if (!logoPath.endsWith(".webp")) {

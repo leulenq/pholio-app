@@ -51,7 +51,7 @@ export const IdentitySection = ({
       id="identity"
       title="Personal Details"
       titleEmphasis="Details"
-      description="Your core information visible to agencies."
+      description="What agencies see first: name, bases, age, and your written bio. Keep this current — it influences search and how you’re introduced."
       showDivider={false}
     >
       <div className={styles.formGrid2}>

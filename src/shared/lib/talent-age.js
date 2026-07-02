@@ -10,6 +10,8 @@ const SENSITIVE_MEASUREMENT_FIELDS = new Set([
   "waist",
   "hips",
   "bust_cm",
+  "chest",
+  "chest_cm",
   "waist_cm",
   "hips_cm",
   "inseam_cm",
@@ -30,7 +32,8 @@ const SENSITIVE_IMAGE_SHOT_TYPES = new Set([
  */
 function parseDateOfBirthParts(dob) {
   if (dob == null || dob === "") return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob).trim());
+  const str = dob instanceof Date ? dob.toISOString() : String(dob);
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str.trim());
   if (!m) return null;
   const year = Number(m[1]);
   const month = Number(m[2]);

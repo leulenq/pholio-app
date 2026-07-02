@@ -12,6 +12,8 @@
  * @param {import("knex").Knex} knex
  */
 exports.up = async function up(knex) {
+  const isPg = knex.client.config.client === "pg";
+
   for (const tableName of [
     "application_drafts",
     "application_draft_events",
@@ -21,6 +23,16 @@ exports.up = async function up(knex) {
       (await knex.schema.hasTable(tableName)) &&
       (await knex.schema.hasColumn(tableName, "agency_id"))
     ) {
+      if (isPg) {
+        const constraintName = `${tableName}_agency_id_foreign`;
+        const exists = await knex.raw(
+          `SELECT 1 FROM pg_constraint WHERE conname = ?`,
+          [constraintName]
+        );
+        if (exists.rows.length === 0) {
+          continue; // Already dropped or doesn't exist
+        }
+      }
       await knex.schema.alterTable(tableName, (table) => {
         table.dropForeign("agency_id");
       });

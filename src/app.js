@@ -664,10 +664,12 @@ app.use("/api", moderationRoutes);
 // Guardian consent (token-verified). Mounted before onboarding-gated routes so the
 // public guardian-facing surfaces (page + verify) are reachable without a session.
 app.use("/", guardianConsentRoutes);
+// Casting onboarding API must run before requireActiveAccount so stale/deleted
+// sessions do not block new Google/email sign-up at POST /onboarding/entry.
+app.use("/", onboardingRoutes);
 app.use("/", requireActiveAccount(), agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
 
-// Application/onboarding routes (casting API; see TODO on onboardingRoutes require above)
-app.use("/", onboardingRoutes);
+// Application/onboarding routes mounted above (casting API)
 
 // Onboarding redirect middleware (applied to dashboard routes)
 const {

@@ -22,7 +22,7 @@ export const ThinkingText = ({ text, className, style, delay = 0 }) => {
   return (
     <motion.h1
       className={className}
-      style={{ paddingBottom: '0.2em', ...style }}
+      style={style}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ 

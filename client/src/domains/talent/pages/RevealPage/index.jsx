@@ -1,203 +1,165 @@
 /**
- * RevealPage - Standalone Reveal Experience
- * 
- * Decoupled from the casting onboarding flow.
- * Fetches the user's current profile data and renders
- * the CastingRevealRadar as a standalone dashboard feature.
+ * RevealPage — "The First Card".
+ *
+ * Fetches the user's real profile + images and renders FirstCard, which owns
+ * the cinematic sequence and the welcome letter. No scorecard, no radar, no
+ * fit-score persistence, no "Data Missing" dead-end — the card always renders
+ * with whatever the user has (name + headshot + height at minimum).
+ *
+ * Features a dev preview harness in development mode to review adult/minor states.
  */
 
-
-import React, { useMemo, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import CastingRevealRadar from '../../../onboarding/pages/CastingRevealRadar';
-import { useCastingRevealComplete } from '../../../onboarding/hooks/useCasting';
 import { talentApi } from '../../api/talent';
-import PholioButton from '../../../../shared/components/ui/PholioButton';
+import FirstCard from './FirstCard';
 import '../../../onboarding/styles/CastingCinematic.css';
+import './FirstCard.css';
 
-// Mock Profile for "Perfect" Reveal (Runway Standard)
-const MOCK_PROFILE = {
-  first_name: "Bella",
-  last_name: "Hadid",
-  height_cm: 179,
-  bust_cm: 86,
-  waist_cm: 61,
-  hips_cm: 89,
-  weight_kg: 55,
-  gender: 'female',
-  // Ensure enough data for a "perfect" score
-};
+const REVEAL_PREVIEWS = [
+  {
+    id: 'ava',
+    label: 'Ava (Adult, Full Specs)',
+    profile: {
+      first_name: 'Ava',
+      last_name: 'Martinez',
+      height_cm: 178,
+      gender: 'Female',
+      image_analysis: JSON.stringify({ marketSignals: ['High Fashion', 'Editorial'] }),
+    },
+    images: [
+      { is_primary: true, path: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80' },
+      { shot_type: 'full_body', path: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80' }
+    ]
+  },
+  {
+    id: 'leo',
+    label: 'Leo (Minor, Height Only)',
+    profile: {
+      first_name: 'Leo',
+      last_name: 'Chen',
+      height_cm: 185,
+      gender: 'Male',
+      date_of_birth: new Date(Date.now() - 14 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 years old
+      image_analysis: JSON.stringify({ marketSignals: ['Commercial', 'Athletic'] }),
+    },
+    images: [
+      { is_primary: true, path: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80' }
+    ]
+  },
+  {
+    id: 'empty',
+    label: 'Taylor (Minimal, No Headshot)',
+    profile: {
+      first_name: 'Taylor',
+      last_name: 'Smith',
+      height_cm: null,
+      gender: 'Non-binary',
+    },
+    images: []
+  }
+];
 
 function RevealPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isMock = searchParams.get('mock') === 'true';
-  const revealCompleteMutation = useCastingRevealComplete();
+  const searchParams = new URLSearchParams(window.location.search);
+  
+  const isDev = import.meta.env.DEV;
+  const forcePreview = isDev && (searchParams.get('preview') === 'reveal' || searchParams.get('preview') != null);
 
-  // Fetch profile data for the reveal calculation
-  const { data: profile, isLoading, error } = useQuery({
+  const [activePreviewId, setActivePreviewId] = useState('ava');
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const { data, isLoading, error } = useQuery({
     queryKey: ['talent', 'profile'],
-    queryFn: async () => {
-      // If mock mode, return mock data immediately
-      if (isMock) {
-        // Simulate network delay for realism
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return MOCK_PROFILE;
-      }
-
-      const data = await talentApi.getProfile();
-      return data?.profile || data;
-    },
-    // Don't refetch mock data
-    staleTime: isMock ? Infinity : 0
+    queryFn: () => talentApi.getProfile(),
+    enabled: !forcePreview, // skip query if forced preview
   });
 
-  const handleComplete = async () => {
-    if (!isMock) {
-      try {
-        await revealCompleteMutation.mutateAsync();
-      } catch (err) {
-        console.warn('[RevealPage] reveal-complete failed (non-blocking):', err);
-      }
-    }
-    navigate('/dashboard/talent');
-  };
+  const isActuallyLoading = isLoading || isLoadingPreview;
+  const isActuallyError = error && !forcePreview;
 
-  const handleScoresCalculated = useCallback(async (scores) => {
-    // Don't persist mock scores
-    if (isMock) {
-      console.log('[RevealPage] Mock scores calculated (not saved):', scores);
-      return;
-    }
+  // Render preview data if forced or if there is a query error/missing data in DEV mode
+  const usePreviewMode = forcePreview || (isDev && (error || !data));
+  const activePreview = REVEAL_PREVIEWS.find(p => p.id === activePreviewId) || REVEAL_PREVIEWS[0];
 
-    try {
-      await talentApi.saveFitScores(scores);
-      console.log('[RevealPage] Fit scores persisted:', scores);
-    } catch (err) {
-      console.warn('[RevealPage] Failed to persist fit scores:', err);
-      toast.error('Could not save reveal scores right now.');
-    }
-  }, [isMock]);
- 
-  // Map profile fields to the format expected by CastingRevealRadar
-  // This must be called before conditional returns to maintain hook order
-  const profileData = useMemo(() => {
-    if (!profile) return null;
-    return {
-      height_cm: profile.height_cm,
-      bust_cm: profile.bust_cm,
-      waist_cm: profile.waist_cm,
-      hips_cm: profile.hips_cm,
-      weight_kg: profile.weight_kg,
-      gender: profile.gender?.toLowerCase() || 'female',
-      look_descriptor: profile.look_descriptor,
-      image_analysis: profile.image_analysis,
-      // Derived fields from image_analysis for UI components
-      verdict: profile.image_analysis?.castingNotes || profile.image_analysis?.verdict || 'Ready for assessment',
-      signals: profile.image_analysis?.marketSignals || profile.image_analysis?.market_signals || [],
-      strengths: profile.image_analysis?.bookingStrengths || profile.image_analysis?.booking_strengths || [],
-      metrics: profile.image_analysis?.measurementEstimates || profile.image_analysis?.measurement_estimates || {}
-    };
-  }, [profile]);
+  const profile = usePreviewMode ? activePreview.profile : (data?.profile || data);
+  const images = usePreviewMode ? activePreview.images : (data?.images || []);
 
-  // Loading State
-  if (isLoading) {
+  // Loading — one quiet pulsing gold dot, no status text.
+  if (isActuallyLoading) {
     return (
       <div className="cinematic-container">
         <div className="cinematic-orb cinematic-orb-1" />
         <div className="cinematic-orb cinematic-orb-2" />
-        <div className="flex flex-col items-center justify-center gap-4">
-           {/* Pulsing Radar Loader */}
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 border-2 border-[#C9A55A] rounded-full opacity-20 animate-ping" />
-            <div className="absolute inset-0 border border-[#C9A55A] rounded-full opacity-40 animate-pulse" />
-            <div className="absolute inset-4 bg-[#C9A55A] rounded-full opacity-80 animate-bounce" />
-          </div>
-          <div className="text-white text-xl font-serif tracking-widest uppercase opacity-80">
-            {isMock ? 'Simulating Analysis...' : 'Analyzing Profile...'}
-          </div>
+        <div className="fc-loader">
+          <div className="fc-loader-dot" />
         </div>
       </div>
     );
   }
 
-  // Error State
-  if (error || !profile) {
+  // Error — House Voice: present tense, no exclamation.
+  if (isActuallyError && !usePreviewMode) {
     return (
       <div className="cinematic-container">
-        <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4 text-center">
-          <h2 className="text-white text-3xl font-serif">Unable to Load Profile</h2>
-          <p className="text-white/50 max-w-md">{error?.message || 'Please check your connection and try again.'}</p>
-          <PholioButton
-            onClick={() => navigate('/dashboard/talent')}
-            variant="primary"
-            tone="dark"
-          >
-            Return to Dashboard
-          </PholioButton>
+        <div className="cinematic-orb cinematic-orb-1" />
+        <div className="fc-stage">
+          <div className="fc-scene">
+            <h1 className="fc-letter-body">Your card isn&rsquo;t ready yet.</h1>
+            <button
+              type="button"
+              className="fc-cta"
+              onClick={() => navigate('/dashboard/talent')}
+            >
+              Go to your dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
   }
-
-  // Check for critical missing data (if not mocking)
-  // Need height + waist + hips + gender: hips unlocks 50% of Commercial score weight
-  const hasCriticalData = profile.height_cm && profile.waist_cm && profile.hips_cm && profile.gender;
-  
-  if (!isMock && !hasCriticalData) {
-     return (
-      <div className="cinematic-container">
-        <div className="cinematic-orb cinematic-orb-1" />
-        <div className="min-h-screen flex flex-col items-center justify-center gap-8 px-4 text-center max-w-2xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-serif text-white">
-            <span className="text-[#C9A55A]">Data Missing</span>
-          </h2>
-          <p className="text-white/70 text-lg leading-relaxed">
-            We cannot calculate your casting readiness without your key measurements. 
-            Please complete your profile to unlock your analysis.
-          </p>
-          
-          <div className="flex flex-col gap-4 w-full max-w-xs">
-            <PholioButton
-               onClick={() => navigate('/dashboard/talent/settings/measurements')}
-               variant="primary"
-               tone="dark"
-            >
-              Update Measurements
-            </PholioButton>
-            <PholioButton
-               onClick={() => navigate('/dashboard/talent')}
-               variant="tertiary"
-               tone="dark"
-            >
-              Skip for Now
-            </PholioButton>
-          </div>
-        </div>
-      </div>
-     );
-  }
-
 
   return (
     <div className="cinematic-container">
       <div className="cinematic-orb cinematic-orb-1" />
       <div className="cinematic-orb cinematic-orb-2" />
-      
-      {/* Mock Indicator */}
-      {isMock && (
-        <div className="absolute top-4 left-4 bg-red-500/20 border border-red-500/50 text-red-200 px-3 py-1 rounded text-xs font-mono uppercase tracking-wider z-50">
-          Mock Data Mode
+      <FirstCard profile={profile} images={images} />
+
+      {usePreviewMode && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-black/80 border border-white/10 backdrop-blur-md px-4 py-2.5 rounded-full flex items-center gap-3 text-xs shadow-2xl">
+          <span className="text-white/40 font-mono tracking-wider uppercase text-[10px]">Reveal Preview</span>
+          <div className="w-[1px] h-3 bg-white/10" />
+          {REVEAL_PREVIEWS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => {
+                setIsLoadingPreview(true);
+                setActivePreviewId(p.id);
+                setTimeout(() => setIsLoadingPreview(false), 850);
+              }}
+              className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
+                activePreviewId === p.id 
+                  ? 'bg-gold text-black font-semibold' 
+                  : 'text-white/60 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {p.label.split(' ')[0]}
+            </button>
+          ))}
+          <div className="w-[1px] h-3 bg-white/10" />
+          <button
+            onClick={() => {
+              setIsLoadingPreview(true);
+              setTimeout(() => setIsLoadingPreview(false), 1200);
+            }}
+            className="text-white/40 hover:text-white transition-colors cursor-pointer"
+          >
+            Reload
+          </button>
         </div>
       )}
-
-      <CastingRevealRadar
-        profileData={profileData}
-        onComplete={handleComplete}
-        onScoresCalculated={handleScoresCalculated}
-      />
     </div>
   );
 }

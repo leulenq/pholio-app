@@ -312,9 +312,6 @@ async function seedDemoData(knex, talentId, profileId) {
   return { agencyIds, now };
 }
 
-/**
- * @param {import('knex')} knex
- */
 exports.seed = async function seed(knex) {
   // Delete existing data (optional - comment out if you want to keep existing data)
   await knex("applications")
@@ -584,3 +581,5 @@ exports.seed = async function seed(knex) {
   await seedDemoData(knex, talentId, profileId);
   await seedAgencyDemo(knex);
 };
+
+exports.seedDemoData = seedDemoData;

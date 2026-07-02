@@ -1,3 +1,94 @@
+# Divider-Free Section Spacing — 2026-07-02
+
+- [x] Restore spacing between adjacent Reach sections without restoring divider lines.
+- [x] Run focused lint and production build verification.
+
+## Review
+
+- Shared divider-free sections now retain a 32px top gap when they follow another section.
+- The first divider-free section in each movement remains flush, so the change does not add
+  unwanted space at the top of cards.
+- Focused ESLint passes and `npm run client:build` passes (3,636 modules) with the existing
+  large-chunk warning.
+
+# Reach Section Divider Cleanup — 2026-07-02
+
+- [x] Remove the divider below Legacy Representation Notes.
+- [x] Remove the divider below Socials & Media.
+- [x] Remove the divider below Availability / Open to Travel.
+- [x] Remove the divider below the OnlyFans field.
+- [x] Run focused lint and production build verification.
+
+## Review
+
+- Disabled the four shared `Section` dividers at the named Reach subsection boundaries without
+  changing field borders, spacing, or content structure.
+- Removed the unused `dateOfBirth` prop from `SocialSection` surfaced by focused lint.
+- Focused ESLint passes and `npm run client:build` passes (3,636 modules) with the existing
+  large-chunk warning.
+
+# Profile Selection & OnlyFans Follow-up — 2026-07-01
+
+## Scope
+
+- [x] Remove checkmarks from Primary Lane and Agency Representation selected states.
+- [x] Preserve the OnlyFans field in Verified-Adult Creator Context.
+- [x] Apply native OnlyFans blue branding on input focus/click.
+- [x] Run focused lint and production build verification.
+
+## Review
+
+- Primary Lane and Agency Representation selected states retain their tonal surface, full border,
+  and stronger type without a checkmark.
+- OnlyFans remains in Verified-Adult Creator Context. Clicking/focusing its existing input now
+  applies OnlyFans blue to the border, focus halo, caret, and label.
+- Focused ESLint passes and `npm run client:build` passes (3,636 modules) with the existing
+  large-chunk warning.
+
+# Profile Tab Visual Completion — 2026-07-01
+
+## Scope
+
+- [x] Replace the italic Primary Lane selection treatment with a clear, polished selected state.
+- [x] Restore and integrate the booking-lane category descriptions.
+- [x] Give Shoe Size a purpose-built stats treatment instead of a generic field panel.
+- [x] Remove the duplicate Primary Role question and align readiness logic with the actual availability field.
+- [x] Tighten Agency Representation card copy, capitalization, and selected states.
+- [x] Redesign Active Relationships heading and empty state as a complete working block.
+- [x] Verify focused lint/tests, production build, diff integrity, and attempt rendered desktop/mobile behavior.
+
+## Decision
+
+- `discipline` remains the single top-level professional track (`Model`, `Performer`, or `Creator`).
+- The legacy `work_status` field is no longer collected as a duplicate role. Profile readiness uses
+  `availability_schedule`, with `work_status` retained only as a backward-compatible fallback for
+  existing records.
+- Representation copy distinguishes seeking an agency relationship, existing representation, and
+  direct booking inquiries without treating those paths as interchangeable.
+
+## Review
+
+- Primary and representation choice cards now use a warm selected surface, full gold border,
+  and stronger type without changing text to italic.
+- Booking-lane descriptions are restored inside every primary card and separated from the
+  category name with a quiet internal rule.
+- Shoe Size now uses an ink stats surface, large numeric entry, canonical dark-tone region
+  toggles, conversion copy, focus treatment, and a stacked mobile layout.
+- Removed the overlapping Primary Role control. Casting Preferences retains union, playing-age,
+  boundaries, and availability controls; client/server readiness now uses `availability_schedule`
+  and falls back to legacy `work_status` records.
+- Representation labels and descriptions are shorter and consistently capitalized. Active
+  Relationships is now a structured subsection with a clear empty state and action.
+- Focused ESLint passes. `tests/dashboard/profile-strength.test.js` passes (11 tests).
+  `npm run client:build` passes (3,636 modules) with the existing large-chunk warning.
+- The design detector reports existing Profile-system font/token drift because repository
+  `DESIGN.md` documents the separate agency system; the new selected surfaces use existing
+  Profile tokens rather than adding another color.
+- Rendered QA was attempted, but the browser runtime exposed no in-app or Chrome instance.
+  Static accessibility/state checks and the production build completed instead.
+- Repository-wide `git diff --check` remains blocked by pre-existing trailing whitespace in
+  `client/src/domains/talent/components/MediaWorkspace.jsx:592`, outside this scope.
+
 # Talent Button Exception Pass — 2026-06-30
 
 ## Scope
@@ -2198,3 +2289,86 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 - [ ] Terminology renames (bundled into the paused IA reorg)
 - [ ] Full Phyllo prod-connect UI (large deferred feature)
 - [ ] Profile-tab IA reorg — PAUSED (user-owned); verify on resume.
+
+## Onboarding MVP redesign — CODE COMPLETE 2026-07-02, verification open
+- Spec + full status: `tasks/onboarding-mvp-redesign-2026-07-01.md` (see its
+  "Implementation status" + "Owner design decisions" blocks).
+- [x] Phase 1 — MVP intake restructure: gender-aware stats (chest/inseam for men, no
+      weight, no AI body prefill), headshot + full-length labeled slots w/ real
+      `shot_type`, lanes question replaces experience, step rail, no toasts, dev
+      artifacts removed, gender null-wipe fixed. Flow reordered entry→birthdate→gender
+      (legacy-healing on server + client).
+- [x] Phase 2 — Terms: sign-in-wrap LegalNoticeLine at signup/login; gate restyled +
+      versioned. ⚠ TERMS_CHANGELOG bullets are "OWNER COPY REQUIRED" placeholders.
+- [x] Phase 3 — "First Card" reveal (FirstCard.jsx + welcome letter); scorecard/radar/
+      mock/dead-end retired and deleted; archetype fires at /measurements (not
+      reveal-complete — needs height).
+- [x] Phase 4 — Handoff + walkthrough: entry splash suppressed via
+      `pholio:arrived-from-reveal`, unlock celebration user-paced (Next/Skip/Esc),
+      persisted via `profiles.unlock_celebrated_at` (migration 20260702090000 — NOT YET
+      RUN) + POST /api/talent/unlock-celebrated.
+- [ ] Verification: browser runs (adult F/M, minor, resume, legacy in-flight), run the
+      migration, route tests (blocked on SQLite seed bug). e2e-casting test hits PROD
+      Neon — don't run casually.
+- Owner design decisions 2026-07-02 (recorded in spec): no subtitles, black + gold-
+  underline inputs, typographic gender/lanes pickers, calendar birthdate (not segmented),
+  ONE back action (shell top-left w/ sub-step override), branded auth buttons kept.
+- Boundary: do NOT touch ProfilePage/ form internals (user-owned IA reorg in flight).
+
+## Profile bio save / dirty-state bug — 2026-07-01
+
+- [x] Reproduce the generated-bio save path and verify whether Mia Voss's bio reached persistence.
+- [x] Trace the profile save response, form reset, and any post-save writers that can re-dirty the form.
+- [x] Fix the root cause while preserving current in-progress ProfilePage work.
+- [x] Make “Save profile” genuinely disabled when there is nothing to save.
+- [x] Add focused regression coverage for successful bio save and clean/dirty button states.
+- [x] Run targeted tests, lint/build checks, and browser verification where the local auth/runtime permits it.
+
+### Review
+
+- Persistence verified read-only against the configured production database: Mia Voss's generated
+  bio is present in `profiles.bio_raw`; the profile `updated_at` advanced with the save.
+- Root causes: PostgreSQL decimal strings could make the measuring-tape control emit a type-only
+  change during reset; blank playing-age fields were registered with `valueAsNumber` and became
+  `NaN`; and the UI relied on React Hook Form's form-wide `isDirty`, which can remain true after
+  `reset()` even with no dirty fields.
+- Fix: normalize form measurement numbers, suppress programmatic measuring-tape scroll writes,
+  keep blank playing-age inputs as blank strings for Zod preprocessing, drive save state from
+  actual `dirtyFields`, and natively disable the save button when clean.
+- Verification: 14 focused Vitest assertions passed across generated-bio save, manual bio save,
+  clean/dirty button behavior, measuring-tape synchronization, and normalization. Targeted ESLint
+  passed. Production client build passed (existing >500 kB chunk warning only).
+- Browser verification could not run because the in-app browser runtime exposed no available
+  browser target. The integration tests cover the complete generate → dirty → save → clean state
+  transition.
+
+## Profile bio persistence correction — 2026-07-02
+
+- [x] Capture Mia Voss's current stored bio and identify whether the latest generated/refined text
+      reaches the PUT profile request.
+- [x] Reproduce the backend bio update and reload behavior with exact before/after assertions.
+- [x] Fix the persistence boundary rather than only the client dirty-state presentation.
+- [x] Add regression coverage that fails if `bio_raw` does not change and survive a fresh GET.
+- [x] Re-run focused client/server tests, lint, build, and any available live verification.
+
+### Review
+
+- Corrected evidence: Mia's configured live row still held the original seeded `bio_raw`; the
+  previous `updated_at` evidence was invalid because replacing representations also updates the
+  profile timestamp before the profile PUT runs.
+- Root cause: every save flushed an empty emergency phone from `""` to `null`, adding a second
+  dirty field. A generated/refined bio therefore missed the intended bio-only path and was coupled
+  to full-profile normalization, relationship replacement, and all unrelated validation.
+- Fix: treat empty phone representations as equivalent, snapshot user-dirty fields before
+  pre-submit normalization, send only `{ bio }` for a bio-only change, then perform a fresh GET and
+  compare `profile.bio_raw` byte-for-byte before resetting the form or showing success.
+- Client verification: 15 focused Vitest assertions passed, including manual and generated bio
+  saves, minimal payload, no representation mutation, fresh-GET persistence, clean-state reset,
+  and explicit failure/dirty-state retention when reload returns the old bio. Targeted ESLint and
+  the production client build passed (existing >500 kB chunk warning only).
+- Server verification: the profile persistence contract now asserts the exact bio in the PUT
+  response, database row, and fresh GET; all 5 tests passed against an isolated `/tmp` SQLite copy.
+  The repository's checked-in SQLite fixture required its two known missing schema objects only in
+  that disposable copy.
+- Live browser automation remained unavailable, and no write was made to Mia's real profile during
+  verification. The user must retry Save once with the rebuilt client to replace the old stored bio.

@@ -1,0 +1,71 @@
+/* ActionDock — fixed bottom-center dock (ported from prototype .dock/.dock-inner/.cta) */
+.action-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 118px;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.action-dock-inner {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-dock-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--gold);
+  transition: color 0.3s, opacity 0.3s;
+}
+
+.action-dock-arw {
+  transition: transform 0.3s ease;
+}
+
+.action-dock-cta:hover .action-dock-arw {
+  transform: translateX(4px);
+}
+
+.action-dock-cta[disabled] {
+  color: var(--text-3);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.action-dock-cta[disabled] .action-dock-arw {
+  opacity: 0.4;
+}
+
+.action-dock-cta--text {
+  color: var(--text-3);
+  letter-spacing: 0.22em;
+  font-size: 0.6rem;
+}
+
+.action-dock-cta--text:hover {
+  color: var(--text-2);
+}
+
+.action-dock-cta:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+  border-radius: 2px;
+}

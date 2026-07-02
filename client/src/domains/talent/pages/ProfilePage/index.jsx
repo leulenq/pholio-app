@@ -44,13 +44,6 @@ import {
   minorSensitiveFieldsUnlocked,
   SENSITIVE_MEASUREMENT_FIELDS,
 } from '../../../../shared/utils/talentAge';
-import {
-  BOOKING_LANES,
-  BOOKING_LANE_BY_SLUG,
-  normalizeBookingLaneList,
-  normalizeBookingLaneSlug,
-} from '../../../../shared/constants/bookingLanes';
-
 import styles from './ProfilePage.module.css';
 
 import {
@@ -96,128 +89,6 @@ const PROFILE_NAV_SECTION_IDS = [
   'private',
   'contact',
 ];
-
-function getLaneFitSignals(profileValues = {}) {
-  const signals = [
-    { slug: 'runway', score: profileValues.fit_score_runway },
-    { slug: 'editorial', score: profileValues.fit_score_editorial },
-    { slug: 'commercial', score: profileValues.fit_score_commercial },
-    { slug: 'lifestyle', score: profileValues.fit_score_lifestyle },
-    { slug: 'fitness', score: profileValues.fit_score_swim_fitness },
-  ]
-    .map((item) => ({
-      ...item,
-      score: Number(item.score),
-      lane: BOOKING_LANE_BY_SLUG[item.slug],
-    }))
-    .filter((item) => item.lane && Number.isFinite(item.score) && item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
-
-  return signals;
-}
-
-function BookingLanesControl({ primaryField, secondaryField, fitSignals = [] }) {
-  const primaryLane = normalizeBookingLaneSlug(primaryField.value);
-  const secondaryLanes = normalizeBookingLaneList(secondaryField.value)
-    .filter((laneSlug) => laneSlug !== primaryLane)
-    .slice(0, 3);
-
-  const handlePrimaryChange = (laneSlug) => {
-    primaryField.onChange(laneSlug);
-    secondaryField.onChange(secondaryLanes.filter((current) => current !== laneSlug));
-  };
-
-  const handleSecondaryToggle = (laneSlug) => {
-    if (laneSlug === primaryLane) return;
-    if (secondaryLanes.includes(laneSlug)) {
-      secondaryField.onChange(secondaryLanes.filter((current) => current !== laneSlug));
-      return;
-    }
-    if (secondaryLanes.length >= 3) {
-      secondaryField.onChange([...secondaryLanes.slice(1), laneSlug]);
-      return;
-    }
-    secondaryField.onChange([...secondaryLanes, laneSlug]);
-  };
-
-  return (
-    <div className={styles.bookingLanes}>
-      <div className={styles.bookingLaneGroup}>
-        <div className={styles.bookingLaneHead}>
-          <h4>Primary lane</h4>
-          <span>Choose one</span>
-        </div>
-        <div
-          className={styles.bookingLaneGrid}
-          role="radiogroup"
-          aria-label="Primary booking lane"
-        >
-          {BOOKING_LANES.map((lane) => {
-            const isActive = primaryLane === lane.slug;
-            return (
-              <button
-                key={lane.slug}
-                type="button"
-                data-button-exception="booking-lanes"
-                role="radio"
-                aria-checked={isActive}
-                className={`${styles.bookingLaneOption} ${isActive ? styles.bookingLaneOptionActive : ''}`}
-                onClick={() => handlePrimaryChange(lane.slug)}
-              >
-                <span className={styles.bookingLaneLabel}>{lane.label}</span>
-                <span className={styles.bookingLaneDescription}>{lane.description}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className={styles.bookingLaneGroup}>
-        <div className={styles.bookingLaneHead}>
-          <h4>Secondary lanes</h4>
-          <span>{secondaryLanes.length}/3</span>
-        </div>
-        <div
-          className={styles.bookingLaneSecondaryGrid}
-          role="group"
-          aria-label="Secondary booking lanes"
-        >
-          {BOOKING_LANES.map((lane) => {
-            const isPrimary = primaryLane === lane.slug;
-            const isActive = secondaryLanes.includes(lane.slug);
-            return (
-              <button
-                key={lane.slug}
-                type="button"
-                data-button-exception="booking-lanes"
-                aria-pressed={isActive}
-                disabled={isPrimary}
-                className={`${styles.bookingLaneMini} ${isActive ? styles.bookingLaneMiniActive : ''}`}
-                onClick={() => handleSecondaryToggle(lane.slug)}
-              >
-                {lane.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className={styles.bookingLaneNote}>
-        <p>
-          Booking lanes are market routes. Special Skills remain separate: languages, movement,
-          sports, instruments, licenses, and other capabilities.
-        </p>
-        {fitSignals.length > 0 ? (
-          <div className={styles.bookingLaneSignal} aria-label="Pholio lane signal">
-            <span>Pholio signal</span>
-            <p>{fitSignals.map((item) => `${item.lane.label} ${item.score}`).join(' · ')}</p>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 function getScrollableAncestor(element) {
   let parent = element?.parentElement;
@@ -283,8 +154,8 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const pageRef = useRef(null);
   const saveRequestRef = useRef(0);
+  const saveDirtyFieldNamesRef = useRef([]);
   const [unitSystem, setUnitSystem] = useState('metric'); // 'metric' or 'imperial'
-  const [shoeRegion, setShoeRegion] = useState('US');
   const { data: referenceLanguages = [], isLoading: languagesLoading } = useReferenceLanguages();
 
   const languageOptions = useMemo(
@@ -314,7 +185,7 @@ export default function ProfilePage() {
     setError,
     control,
     getValues,
-    formState: { errors, isDirty, isSubmitting } 
+    formState: { errors, dirtyFields, isSubmitting }
   } = useForm({
     resolver: zodResolver(profileSchema),
     mode: 'onTouched',
@@ -330,12 +201,13 @@ export default function ProfilePage() {
       drivers_license: false,
     }
   });
+  const hasChanges = Object.keys(dirtyFields).length > 0;
 
   // Register setValue-only fields not wired through register() or Controller
   useEffect(() => {
     const customFields = [
-      'hero_image_path', 'height_cm', 'weight_kg', 'shoe_size',
-      'bust', 'waist', 'hips', 'inseam_cm',
+      'hero_image_path', 'height_cm', 'weight_kg', 'shoe_size', 'shoe_region',
+      'bust_cm', 'waist_cm', 'hips_cm', 'inseam_cm',
       'tattoos', 'piercings', 'availability_travel', 'drivers_license', 'passport_ready',
       'work_eligibility',
     ];
@@ -768,10 +640,35 @@ export default function ProfilePage() {
     saveRequestRef.current = requestId;
 
     try {
-      const { representations, finalPayload } = normalizeProfileForSave(data, measurementsLocked);
+      const isBioOnlySave =
+        saveDirtyFieldNamesRef.current.length === 1 &&
+        saveDirtyFieldNamesRef.current[0] === 'bio';
+      let res;
 
-      await talentApi.replaceRepresentations(representations);
-      const res = await talentApi.updateProfile(finalPayload);
+      if (isBioOnlySave) {
+        const submittedBio = String(getValues('bio') ?? data.bio ?? '').trim();
+        const saveResult = await talentApi.updateProfile({ bio: submittedBio });
+        if (!saveResult?.profile) {
+          res = saveResult;
+        } else {
+          const reloaded = await talentApi.getProfile();
+          const persistedBio = String(reloaded?.profile?.bio_raw ?? '');
+          if (persistedBio !== submittedBio) {
+            throw new Error(
+              'Your bio could not be verified after saving. Please try again.',
+            );
+          }
+          res = reloaded;
+        }
+      } else {
+        const { representations, finalPayload } = normalizeProfileForSave(
+          data,
+          measurementsLocked,
+        );
+        await talentApi.replaceRepresentations(representations);
+        res = await talentApi.updateProfile(finalPayload);
+      }
+
       if (saveRequestRef.current !== requestId) return;
 
       if (!res?.profile) {
@@ -845,7 +742,8 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     if (isSubmitting) return;
 
-    const wasDirty = isDirty;
+    const wasDirty = hasChanges;
+    saveDirtyFieldNamesRef.current = Object.keys(dirtyFields);
     const { normalized, pendingCommit } = await flushProfileFormForSave(setValue, getValues);
 
     if (!wasDirty && !normalized && !pendingCommit) {
@@ -898,7 +796,7 @@ export default function ProfilePage() {
   const bookingStatus = values.current_agency
     ? `Represented by ${values.current_agency}`
     : values.seeking_representation || values.representation_status === 'seeking'
-      ? 'Seeking representation'
+      ? 'Seeking Representation'
       : null;
 
   const showReadinessGate = isGateEntry && !isCoreReady;
@@ -1042,7 +940,7 @@ export default function ProfilePage() {
                   Who you <em>are</em>
                 </h2>
                 <p className={styles.movementLede}>
-                  Core information agencies review first — name, heritage, and how you describe your work.
+                  The basics agencies verify first — who you are, where you’re based, and the bio they’ll actually read.
                 </p>
               </header>
               <div className={styles.movementCard}>
@@ -1076,7 +974,7 @@ export default function ProfilePage() {
                   Focus & <em>interests</em>
                 </h2>
                 <p className={styles.movementLede}>
-                  Your primary discipline and work interests.
+                  Sets your primary lane and which track you’re evaluated in when agencies filter and shortlist.
                 </p>
               </header>
               <div className={styles.movementCard}>
@@ -1084,7 +982,6 @@ export default function ProfilePage() {
               control={control}
               errors={errors}
               watch={watch}
-              setValue={setValue}
             />
               </div>
             </article>
@@ -1096,7 +993,7 @@ export default function ProfilePage() {
                   Physical <em>proof</em>
                 </h2>
                 <p className={styles.movementLede}>
-                  Vital statistics casting teams filter on — precise, current, and honest.
+                  The numbers casting filters on — accurate, current stats save time and prevent mismatch on set.
                 </p>
               </header>
               <div className={styles.movementCard}>
@@ -1108,8 +1005,6 @@ export default function ProfilePage() {
               setValue={setValue}
               unitSystem={unitSystem}
               setUnitSystem={setUnitSystem}
-              shoeRegion={shoeRegion}
-              setShoeRegion={setShoeRegion}
               measurementsLocked={measurementsLocked}
             />
               </div>
@@ -1122,7 +1017,7 @@ export default function ProfilePage() {
                   Credits & <em>craft</em>
                 </h2>
                 <p className={styles.movementLede}>
-                  Experience, training, and the roles you are cast for.
+                  Your receipts — credits, training, and skills that communicate readiness at a glance.
                 </p>
               </header>
               <div className={styles.movementCard}>
@@ -1130,7 +1025,7 @@ export default function ProfilePage() {
           id="credits"
           title="Credits & Experience"
           titleEmphasis="Experience"
-          description="Your experience and past work."
+          description="Your experience level and key credits — the quickest way for agencies to gauge where you’re at professionally."
           showDivider={false}
         >
           <div className={styles.formStack}>
@@ -1169,7 +1064,7 @@ export default function ProfilePage() {
           id="training"
           title="Training & Skills"
           titleEmphasis="Skills"
-          description="Your professional background and skills."
+          description="Classes, coaches, workshops, and standout skills. Use tags for quick scanning and search-friendly phrasing."
         >
           <div className={styles.formStack}>
             <WritingAssistToolbar
@@ -1271,26 +1166,11 @@ export default function ProfilePage() {
 
         <Section
           id="roles"
-          title="Roles & Style"
-          titleEmphasis="Style"
-          description="What kind of work you specialize in."
+          title="Casting Preferences"
+          titleEmphasis="Preferences"
+          description="Add the union, playing-age, comfort, and availability details that shape which briefs fit."
         >
-          <div className={styles.formGrid2}>
-            <Controller
-              name="work_status"
-              control={control}
-              render={({ field }) => (
-                <PholioCustomSelect
-                  label="Primary Role"
-                  id="work_status"
-                  options={['Model', 'Actor', 'Dancer', 'Voiceover', 'Influencer'].map(c => ({value: c, label: c}))}
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.work_status}
-                  placeholder="Select role"
-                />
-              )}
-            />
+          <div className={styles.formRow}>
             <Controller
               name="union_membership"
               control={control}
@@ -1313,14 +1193,14 @@ export default function ProfilePage() {
                 label="Playing Age Min"
                 type="number"
                 placeholder="18"
-                {...register('playing_age_min', { valueAsNumber: true })}
+                {...register('playing_age_min')}
                 error={errors.playing_age_min}
              />
              <PholioInput
                 label="Playing Age Max"
                 type="number"
                 placeholder="25"
-                {...register('playing_age_max', { valueAsNumber: true })}
+                {...register('playing_age_max')}
                 error={errors.playing_age_max}
              />
           </div>
@@ -1441,33 +1321,6 @@ export default function ProfilePage() {
             />
           </div>
         </Section>
-
-        <Section
-          id="market"
-          title="Booking Lanes"
-          titleEmphasis="Lanes"
-          description="The briefs your profile should be routed toward."
-          showDivider={false}
-          className={styles.bookingLaneSection}
-        >
-          <Controller
-            name="booking_primary_lane"
-            control={control}
-            render={({ field: primaryField }) => (
-              <Controller
-                name="booking_secondary_lanes"
-                control={control}
-                render={({ field: secondaryField }) => (
-                  <BookingLanesControl
-                    primaryField={primaryField}
-                    secondaryField={secondaryField}
-                    fitSignals={getLaneFitSignals(values)}
-                  />
-                )}
-              />
-            )}
-          />
-        </Section>
               </div>
             </article>
 
@@ -1478,7 +1331,7 @@ export default function ProfilePage() {
                   Representation & <em>contact</em>
                 </h2>
                 <p className={styles.movementLede}>
-                  Agency status, social presence, and emergency details kept private until needed.
+                  Representation context, socials, and safety details — shared appropriately, only when it matters.
                 </p>
               </header>
               <div className={styles.movementCard}>
@@ -1494,7 +1347,6 @@ export default function ProfilePage() {
           control={control}
           setValue={setValue}
           errors={errors}
-          dateOfBirth={watch('date_of_birth')}
           watch={watch}
         />
 
@@ -1503,7 +1355,8 @@ export default function ProfilePage() {
           id="private"
           title="Private & Compliance"
           titleEmphasis="Private"
-          description="Private and legal information shared only with agencies."
+          description="Sensitive info agencies may require (eligibility, nationality, legal/compliance). This stays private and isn’t shown publicly."
+          showDivider={false}
         >
           <div className={styles.formGrid2}>
             <Controller
@@ -1540,7 +1393,7 @@ export default function ProfilePage() {
               control={control}
               render={({ field }) => (
                 <PholioCustomSelect
-                  label="Territory Work Authorization"
+                  label="Work Authorization"
                   id="work_eligibility"
                   options={[
                     { value: 'yes', label: 'Authorized' },
@@ -1661,7 +1514,8 @@ export default function ProfilePage() {
             id="verified-adult"
             title="Verified-Adult Creator Context"
             titleEmphasis="Creator"
-            description="Content boundaries and creator links (verified adults only)."
+            description="Verified adults only. Share boundaries and creator links so agencies don’t pitch mismatched work — and you stay in control."
+            showDivider={false}
           >
             <div className={styles.formRow}>
               <Controller
@@ -1680,7 +1534,7 @@ export default function ProfilePage() {
                 )}
               />
             </div>
-            <div className={styles.formRow}>
+            <div className={`${styles.formRow} ${styles.platformOnlyfans}`}>
               <Controller
                 name="onlyfans_url"
                 control={control}
@@ -1703,11 +1557,9 @@ export default function ProfilePage() {
           id="contact"
           title="On-set Safety"
           titleEmphasis="Safety"
-          description="Released only when you're booked on a job."
+          description="Emergency contact & on‑set safety details. Hidden until you’re booked, then shared only with the team coordinating the job."
+          showDivider={false}
         >
-          <p style={{ marginBottom: '24px', color: 'var(--ag-text-2)', fontSize: '0.875rem' }}>
-            This information is kept private and shared only with casting directors when a booking is confirmed.
-          </p>
           <div className={`${styles.formGrid3} ${styles.formRow}`}>
             <PholioInput label="Emergency Contact" placeholder="Name" error={errors.emergency_contact_name} {...register('emergency_contact_name')} />
             <Controller
@@ -1725,7 +1577,7 @@ export default function ProfilePage() {
                   onChange={(e) => field.onChange(e.target.value)}
                   onBlur={(e) => {
                     field.onBlur();
-                    const next = normalizeEmergencyPhone(e.target.value);
+                    const next = normalizePhoneInput(e.target.value);
                     if (next !== field.value) {
                       setValue('emergency_contact_phone', next, { shouldDirty: true, shouldValidate: true });
                     }
@@ -1749,7 +1601,7 @@ export default function ProfilePage() {
           profile={readinessProfile}
           images={Array.isArray(authImages) ? authImages : []}
           isSaving={isSubmitting}
-          hasChanges={isDirty}
+          hasChanges={hasChanges}
           auditOpen={readinessAuditOpen}
           onToggleAudit={() => setReadinessAuditOpen((open) => !open)}
           onSaveClick={() => {

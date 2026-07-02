@@ -7,7 +7,7 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { TransferFailureNotice } from '../../../shared/components/states';
 import PholioButton, { PholioIconButton } from '../../../shared/components/ui/PholioButton';
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 12;
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 
@@ -66,7 +66,7 @@ function partitionUploadFiles(files) {
       continue;
     }
     if (file.size > MAX_FILE_BYTES) {
-      invalid.push({ name: file.name || 'Unknown file', reason: 'Each file must be 5MB or smaller' });
+      invalid.push({ name: file.name || 'Unknown file', reason: 'Each file must be 25MB or smaller' });
       continue;
     }
     valid.push(file);
@@ -309,7 +309,7 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
         <p className="text-slate-600 font-medium mb-1">
           {isUploading ? 'Uploading...' : isDragOver ? 'Drop photos to upload' : 'Drag & drop photos here, or click to select files'}
         </p>
-        <p className="text-xs text-slate-400">Supports JPG, PNG, WebP up to 5MB</p>
+        <p className="text-xs text-slate-400">Supports JPG, PNG, WebP up to 25MB</p>
       </div>
 
       <div className="mt-8">

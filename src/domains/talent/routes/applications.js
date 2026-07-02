@@ -1114,7 +1114,7 @@ router.post(
         return res.status(403).json({
           success: false,
           error: "Monthly application limit reached",
-          message: "Monthly application limit reached",
+          message: "Monthly submission limit reached. Pholio maintains a monthly quota to ensure agency submission quality and prevent spam.",
           limit: error.quota?.limit || 5,
           current: error.quota?.used || 5,
           upgradeRequired: true,

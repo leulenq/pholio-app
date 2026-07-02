@@ -630,7 +630,11 @@ const applyProfileSchema = z
     bust: bustSchema,
     waist: waistSchema,
     hips: hipsSchema,
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     eye_color: z.string().trim().max(30).optional(),
     hair_color: z.string().trim().max(30).optional(),
     bio: bioSchema,
@@ -806,6 +810,9 @@ const talentProfileUpdateInnerSchema = z.object({
   bust: bustSchema.optional(),
   waist: waistSchema.optional(),
   hips: hipsSchema.optional(),
+  bust_cm: bustSchema.optional(),
+  waist_cm: waistSchema.optional(),
+  hips_cm: hipsSchema.optional(),
   shoe_size: z.preprocess(
     (v) => {
       if (v === "" || v === null || v === undefined) return v;
@@ -814,6 +821,7 @@ const talentProfileUpdateInnerSchema = z.object({
     },
     z.string().trim().max(20).optional().or(z.literal("")).or(z.null()),
   ),
+  shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
   eye_color: z
     .string()
     .trim()
@@ -956,6 +964,10 @@ const talentProfileUpdateInnerSchema = z.object({
     .or(z.null()),
   booking_primary_lane: bookingLaneSlugSchema.optional(),
   booking_secondary_lanes: bookingSecondaryLanesSchema.optional(),
+  stats_track: z.enum(["womenswear", "menswear", "ungendered"]).nullable().optional().or(z.literal("")),
+  discipline: z.enum(["model", "performer", "creator"]).nullable().optional().or(z.literal("")),
+  chest_cm: bustSchema.optional(),
+  suit_size: z.string().trim().max(20).optional().or(z.literal("")).or(z.null()),
 });
 
 const talentProfileUpdateSchema = z.preprocess(
@@ -987,7 +999,11 @@ const onboardingDraftSchema = z
     bust: bustSchema.optional(),
     waist: waistSchema.optional(),
     hips: hipsSchema.optional(),
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     eye_color: z.string().trim().max(30).optional(),
     hair_color: z.string().trim().max(30).optional(),
     bio: bioSchema.optional(),
@@ -1085,10 +1101,14 @@ const onboardingSubmitSchema = z
     bust: bustSchema, // Required for submission
     waist: waistSchema, // Required for submission
     hips: hipsSchema, // Required for submission
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     bio: bioSchema,
     // All other fields optional
     city_secondary: nameSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     eye_color: z.string().trim().max(30).optional(),
     hair_color: z.string().trim().max(30).optional(),
     specialties: z.array(z.string()).optional(),
@@ -1187,7 +1207,11 @@ const essentialsDraftSchema = z
     bust: bustSchema.optional(),
     waist: waistSchema.optional(),
     hips: hipsSchema.optional(),
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     date_of_birth: dateOfBirthSchema,
   })
   .passthrough(); // Allow extra fields for flexibility
@@ -1203,7 +1227,11 @@ const essentialsSubmitSchema = z
     bust: bustSchema, // Required for essentials
     waist: waistSchema, // Required for essentials
     hips: hipsSchema, // Required for essentials
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     date_of_birth: dateOfBirthSchema, // Optional for essentials
   })
   .strict();

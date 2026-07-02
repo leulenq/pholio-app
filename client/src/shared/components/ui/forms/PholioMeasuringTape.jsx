@@ -56,6 +56,7 @@ const PholioMeasuringTape = ({
 }) => {
   const containerRef = useRef(null);
   const scaleRef = useRef(null);
+  const syncedScrollTargetRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -84,6 +85,7 @@ const PholioMeasuringTape = ({
       // If there's no value, default the visual scroll position to the middle of the tape
       const numericValue = value !== null && value !== undefined && value !== '' ? value : Math.round((min + max) / 2);
       const targetScroll = (numericValue - min) * (tickWidth / step);
+      syncedScrollTargetRef.current = targetScroll;
       containerRef.current.scrollLeft = targetScroll;
     }
   }, [value, min, max, step, tickWidth, isDragging]);
@@ -92,13 +94,22 @@ const PholioMeasuringTape = ({
     if (!containerRef.current || isDragging) return;
     
     const scrollPos = containerRef.current.scrollLeft;
+    const syncedTarget = syncedScrollTargetRef.current;
+    if (syncedTarget !== null && Math.abs(scrollPos - syncedTarget) < 0.5) {
+      syncedScrollTargetRef.current = null;
+      return;
+    }
+    syncedScrollTargetRef.current = null;
+
     const newValue = min + (scrollPos / (tickWidth / step));
     const roundedValue = Math.round(newValue / step) * step;
     
     // Clamp within bounds
     const clampedValue = Math.max(min, Math.min(max, roundedValue));
-    
-    if (clampedValue !== value) {
+
+    const hasValue = value !== null && value !== undefined && value !== '';
+    const numericValue = hasValue ? Number(value) : null;
+    if (!Number.isFinite(numericValue) || clampedValue !== numericValue) {
       onChange(clampedValue);
     }
   }, [min, max, step, value, onChange, tickWidth, isDragging]);
@@ -264,9 +275,9 @@ const PholioMeasuringTape = ({
         ) : (
           <span 
             className={styles.value} 
-            onDoubleClick={handleDoubleClick}
+            onClick={handleDoubleClick}
             style={{ cursor: 'text' }}
-            title="Double-click to type"
+            title="Click to type"
           >
             {displayVal}
           </span>
@@ -276,7 +287,9 @@ const PholioMeasuringTape = ({
           <span
             className={styles.manualHint}
             aria-hidden="true"
-            title="Double-click to edit"
+            title="Click to edit"
+            onClick={handleDoubleClick}
+            style={{ cursor: 'pointer' }}
           >
             <PencilLine size={10} strokeWidth={1.8} />
           </span>

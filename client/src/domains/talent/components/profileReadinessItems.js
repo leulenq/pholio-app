@@ -97,8 +97,8 @@ export const IMPROVE_READINESS_ITEMS = [
   },
   {
     key: 'status',
-    label: 'Work Status',
-    why: 'Signals whether you can take bookings now.',
+    label: 'Availability',
+    why: 'Helps bookers understand when you can take work.',
   },
   {
     key: 'exp',

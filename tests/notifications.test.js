@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require("uuid");
 const knex = require("../src/shared/db/knex");
 const {
   upsertUserNotification,
@@ -98,7 +99,7 @@ describe("notifications service", () => {
   });
 
   it("notifies a development offer as a high-priority New Face outcome", async () => {
-    const applicationId = `development-${Date.now()}`;
+    const applicationId = uuidv4();
 
     await notifyTalentApplicationStatusChange({
       userId,

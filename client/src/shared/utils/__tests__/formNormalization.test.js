@@ -69,8 +69,8 @@ describe('Form Normalization Utilities', () => {
       expect(result.first_name).toBe('Jane');
       expect(result.last_name).toBe('');
       expect(result.city).toBe('');
-      expect(result.waist).toBe('');
-      expect(result.bust).toBe(85);
+      expect(result.waist_cm).toBe('');
+      expect(result.bust_cm).toBe(85);
       expect(result.languages).toEqual(['English', 'Spanish']);
       expect(result.experience_details).toEqual(['Credit 1', 'Credit 2']);
     });
@@ -89,6 +89,30 @@ describe('Form Normalization Utilities', () => {
       expect(result.tattoos).toBe(false);
       expect(result.work_eligibility).toBe(true);
       expect(result.passport_ready).toBe(false); // default form boolean is false
+    });
+
+    test('normalizes PostgreSQL decimal strings before hydrating measurement controls', () => {
+      const result = normalizeProfileForForm({
+        height_cm: '178',
+        weight_kg: '57.00',
+        bust_cm: '81.0',
+        chest_cm: null,
+        waist_cm: '61.0',
+        hips_cm: '88.0',
+        inseam_cm: null,
+        playing_age_min: null,
+        playing_age_max: '28',
+      });
+
+      expect(result.height_cm).toBe(178);
+      expect(result.weight_kg).toBe(57);
+      expect(result.bust_cm).toBe(81);
+      expect(result.chest_cm).toBe('');
+      expect(result.waist_cm).toBe(61);
+      expect(result.hips_cm).toBe(88);
+      expect(result.inseam_cm).toBe('');
+      expect(result.playing_age_min).toBe('');
+      expect(result.playing_age_max).toBe(28);
     });
   });
 
@@ -120,9 +144,9 @@ describe('Form Normalization Utilities', () => {
     test('should remove sensitive fields if measurements are locked', () => {
       const formData = {
         first_name: 'Min',
-        bust: 80,
-        waist: 60,
-        hips: 90,
+        bust_cm: 80,
+        waist_cm: 60,
+        hips_cm: 90,
         height_cm: 165,
         hair_color: 'black',
       };
@@ -130,9 +154,9 @@ describe('Form Normalization Utilities', () => {
       const { finalPayload } = normalizeProfileForSave(formData, true);
 
       expect(finalPayload.hair_color).toBe('black');
-      expect(finalPayload.bust).toBeUndefined();
-      expect(finalPayload.waist).toBeUndefined();
-      expect(finalPayload.hips).toBeUndefined();
+      expect(finalPayload.bust_cm).toBeUndefined();
+      expect(finalPayload.waist_cm).toBeUndefined();
+      expect(finalPayload.hips_cm).toBeUndefined();
       expect(finalPayload.height_cm).toBeUndefined();
     });
   });

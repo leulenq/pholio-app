@@ -1,0 +1,90 @@
+/* CastingEntry — Screen Test additions.
+   Auth doors + manual name/email/password sub-steps. */
+
+.entry-manual-below {
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 1rem;
+}
+
+/* Auth doors — override global pill button reset; tactile lift/press motion on hover/active */
+.entry-auth-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  font-family: var(--cinematic-font-sans, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  transform: none;
+}
+
+.entry-auth-btn:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+}
+
+.entry-auth-btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.entry-auth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.entry-auth-btn--google {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #1A1815;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.entry-auth-btn--google:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.entry-auth-btn--instagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  border: 1px solid transparent;
+  background-clip: padding-box; /* prevent background gradient bleed into transparent border */
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.entry-auth-btn--instagram:hover:not(:disabled) {
+  border-color: transparent;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.entry-auth-btn--email {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 0.75rem 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.entry-auth-btn--email:hover:not(:disabled) {
+  color: var(--gold);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-hint {
+    transition: none;
+  }
+}

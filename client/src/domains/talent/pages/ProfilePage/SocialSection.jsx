@@ -264,13 +264,14 @@ const PlatformCard = ({ platformKey, control, setValue, errors, watch, reloadPro
   );
 };
 
-export function SocialSection({ control, setValue, errors, dateOfBirth, watch, reloadProfile }) {
+export function SocialSection({ control, setValue, errors, watch, reloadProfile }) {
   return (
     <Section
       id="socials"
       title="Socials & Media"
       titleEmphasis="Media"
-      description="Link your profiles and portfolio."
+      description="Link the profiles you want agencies to check. Use your strongest, most current handles — this is often the first follow-up after viewing your book."
+      showDivider={false}
     >
       <div className={styles.socialGrid}>
         <PlatformCard platformKey="instagram" control={control} setValue={setValue} errors={errors} watch={watch} reloadProfile={reloadProfile} />

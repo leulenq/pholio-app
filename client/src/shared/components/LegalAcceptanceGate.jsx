@@ -1,21 +1,34 @@
 import React, { useState } from 'react';
-import { toast } from 'sonner';
-import {
-  LegalAcceptanceField,
-  legalAcceptancePayload,
-} from './LegalAcceptanceField';
 import PholioButton from './ui/PholioButton';
 import { talentApi } from '../../domains/talent/api/talent';
+import { MARKETING_SITE_URL } from '../lib/logout';
 import './LegalAcceptanceGate.css';
 
+// Keep in sync with the server: src/shared/lib/legal-acceptance.js CURRENT_TERMS_VERSION.
+// When that bumps, mirror it here AND add a matching TERMS_CHANGELOG entry below.
+const CURRENT_TERMS_VERSION = '2026-06-25';
+
+// Plain-language "what changed", keyed by the terms version string.
+const TERMS_CHANGELOG = {
+  // OWNER COPY REQUIRED — replace these placeholders with the real plain-language summary
+  // for the 2026-06-25 terms revision before this ships.
+  '2026-06-25': [
+    'OWNER COPY REQUIRED — describe the first change in one plain sentence.',
+    'OWNER COPY REQUIRED — describe the second change in one plain sentence.',
+  ],
+};
+
 /**
- * Blocks talent dashboard use until Terms + Privacy are accepted (legacy accounts).
+ * Blocks talent dashboard use until updated Terms + Privacy are accepted.
+ * Full-screen scrim (the one legitimate backdrop-filter use) — an explicit
+ * consent gate, so an affirmative tick is required here.
  */
 export default function LegalAcceptanceGate({ children }) {
   const [checking, setChecking] = useState(true);
   const [needsAcceptance, setNeedsAcceptance] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -39,12 +52,12 @@ export default function LegalAcceptanceGate({ children }) {
   const handleSubmit = async () => {
     if (!accepted) return;
     setSubmitting(true);
+    setError(null);
     try {
-      await talentApi.acceptLegalTerms(legalAcceptancePayload(true));
+      await talentApi.acceptLegalTerms({ terms_accepted: true, privacy_accepted: true });
       setNeedsAcceptance(false);
-      toast.success('Thanks — you can continue using Pholio.');
-    } catch (error) {
-      toast.error(error?.message || 'Could not save your acceptance');
+    } catch (err) {
+      setError(err?.message || 'Could not save your acceptance. Try again.');
     } finally {
       setSubmitting(false);
     }
@@ -58,6 +71,8 @@ export default function LegalAcceptanceGate({ children }) {
     return children;
   }
 
+  const changes = TERMS_CHANGELOG[CURRENT_TERMS_VERSION] || [];
+
   return (
     <>
       {children}
@@ -69,17 +84,52 @@ export default function LegalAcceptanceGate({ children }) {
           aria-modal="true"
         >
           <h2 id="legal-gate-title" className="legal-gate-title">
-            Updated terms
+            Our terms have changed
           </h2>
           <p className="legal-gate-lead">
-            Please review and accept the current Terms of Service and Privacy Policy
-            to continue using your account.
+            A short summary of what&rsquo;s new. Review the full documents any time.
           </p>
-          <LegalAcceptanceField
-            checked={accepted}
-            onChange={setAccepted}
-            className="legal-gate-check"
-          />
+
+          {changes.length > 0 && (
+            <ul className="legal-gate-changes">
+              {changes.map((change) => (
+                <li key={change}>{change}</li>
+              ))}
+            </ul>
+          )}
+
+          <p className="legal-gate-links">
+            Read the full{' '}
+            <a href={`${MARKETING_SITE_URL}/terms`} target="_blank" rel="noopener noreferrer">
+              Terms
+            </a>
+            ,{' '}
+            <a href={`${MARKETING_SITE_URL}/privacy`} target="_blank" rel="noopener noreferrer">
+              Privacy Policy
+            </a>
+            , and{' '}
+            <a href={`${MARKETING_SITE_URL}/ai-notice`} target="_blank" rel="noopener noreferrer">
+              AI Notice
+            </a>
+            .
+          </p>
+
+          <label className="legal-gate-check">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              aria-required="true"
+            />
+            <span>I agree to the updated Terms of Service and Privacy Policy.</span>
+          </label>
+
+          {error && (
+            <p className="legal-gate-error" role="alert">
+              {error}
+            </p>
+          )}
+
           <PholioButton
             type="button"
             variant="primary"
@@ -87,7 +137,7 @@ export default function LegalAcceptanceGate({ children }) {
             disabled={!accepted || submitting}
             onClick={handleSubmit}
           >
-            {submitting ? 'Saving…' : 'Continue'}
+            {submitting ? 'Saving…' : 'Agree & continue'}
           </PholioButton>
         </div>
       </div>

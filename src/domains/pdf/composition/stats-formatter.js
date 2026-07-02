@@ -132,16 +132,17 @@ function cmToInchesHalf(cm) {
  * Accepts: "9", "9.5", "9.5 US", "US 9.5", "40 EU", "EU 40".
  * Bare numerics ≥ EU_SHOE_ASSUME_THRESHOLD are assumed EU.
  * @param {*} raw
- * @returns {{ numeric: boolean, system?: 'us'|'eu', value?: number, raw: string }|null}
+ * @param {string} [shoeRegion]
+ * @returns {{ numeric: boolean, system?: 'us'|'eu'|'uk', value?: number, raw: string }|null}
  */
-function parseShoeSize(raw) {
+function parseShoeSize(raw, shoeRegion) {
   if (raw == null) return null;
   const s = String(raw).trim();
   if (!s) return null;
-  const m = s.match(/^(?:(us|eu)\s*)?(\d+(?:\.\d+)?)(?:\s*(us|eu))?$/i);
+  const m = s.match(/^(?:(us|eu|uk)\s*)?(\d+(?:\.\d+)?)(?:\s*(us|eu|uk))?$/i);
   if (!m) return { numeric: false, raw: s };
   const value = parseFloat(m[2]);
-  let system = (m[1] || m[3] || "").toLowerCase();
+  let system = (m[1] || m[3] || shoeRegion || "").toLowerCase();
   if (!system) {
     system = value >= EU_SHOE_ASSUME_THRESHOLD ? "eu" : "us";
   }
@@ -153,23 +154,33 @@ function parseShoeSize(raw) {
  * @param {*} raw — raw `shoe_size` value
  * @param {'women'|'men'|'kids'} category
  * @param {'dual'|'imperial'|'metric'} units
+ * @param {string} [shoeRegion]
  * @returns {string|null} e.g. `US 9 / EU 40`; raw string when non-numeric;
  *   null when missing.
  */
-function renderShoe(raw, category, units) {
-  const parsed = parseShoeSize(raw);
+function renderShoe(raw, category, units, shoeRegion) {
+  const parsed = parseShoeSize(raw, shoeRegion);
   if (!parsed) return null;
   if (!parsed.numeric) return parsed.raw;
 
   // Kids sizing has no reliable adult US↔EU offset: render natively.
   if (category === "kids") {
-    const prefix = parsed.system === "eu" ? "EU" : "US";
+    const prefix = parsed.system === "eu" ? "EU" : parsed.system === "uk" ? "UK" : "US";
     return `${prefix} ${fmtNum(parsed.value)}`;
   }
 
   const offset = SHOE_EU_OFFSET[category] ?? SHOE_EU_OFFSET.women;
-  const us = parsed.system === "eu" ? parsed.value - offset : parsed.value;
-  const eu = parsed.system === "eu" ? parsed.value : parsed.value + offset;
+  let us = parsed.value;
+  let eu = parsed.value;
+
+  if (parsed.system === "eu") {
+    us = parsed.value - offset;
+  } else if (parsed.system === "uk") {
+    us = parsed.value + 1; // standard offset UK to US
+    eu = us + offset;
+  } else { // us
+    eu = parsed.value + offset;
+  }
 
   if (units === "imperial") return `US ${fmtNum(us)}`;
   if (units === "metric") return `EU ${fmtNum(eu)}`;
@@ -181,10 +192,11 @@ function renderShoe(raw, category, units) {
  * Women EU ≈ US + 31; men EU ≈ US + 33. Non-numeric input renders as-is.
  * @param {*} raw — raw `shoe_size` value
  * @param {'women'|'men'|'kids'} [category='women']
+ * @param {string} [shoeRegion]
  * @returns {string|null}
  */
-function shoeDual(raw, category = "women") {
-  return renderShoe(raw, category, "dual");
+function shoeDual(raw, category = "women", shoeRegion) {
+  return renderShoe(raw, category, "dual", shoeRegion);
 }
 
 /**
@@ -571,7 +583,7 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "shoes",
       "SHOES",
-      renderShoe(p.shoe_size, category, units),
+      renderShoe(p.shoe_size, category, units, p.shoe_region),
       "Shoe size missing — line skipped.",
     );
   } else if (category === "men") {
@@ -613,7 +625,7 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "shoes",
       "SHOES",
-      renderShoe(p.shoe_size, category, units),
+      renderShoe(p.shoe_size, category, units, p.shoe_region),
       "Shoe size missing — line skipped.",
     );
   } else {
@@ -651,7 +663,7 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "shoes",
       "SHOES",
-      renderShoe(p.shoe_size, category, units),
+      renderShoe(p.shoe_size, category, units, p.shoe_region),
       "Shoe size missing — line skipped.",
     );
   }

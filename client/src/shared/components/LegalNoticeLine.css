@@ -1,0 +1,22 @@
+/* Quiet legal colophon for auth surfaces (dark shells). */
+.legal-notice-line {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.4);
+  /* Alignment inherits from the host surface (centered on signup, left on login). */
+}
+
+.legal-notice-line a {
+  color: #8a7040;
+  text-decoration: none;
+  text-underline-offset: 2px;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.legal-notice-line a:hover {
+  color: #c9a55a;
+  text-decoration: underline;
+}

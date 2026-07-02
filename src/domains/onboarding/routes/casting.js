@@ -1,15 +1,20 @@
 /**
- * Casting Call Routes (Phase 2: API Implementation)
- * Implements the "2-Minute Casting Call" onboarding flow
+ * Casting Call Routes — talent onboarding API
  *
- * Flow: Entry → Scout/Vibe (parallel) → Reveal → Done
+ * Flow: entry → birthdate → gender → scout → measurements → profile → done
+ * (birthdate before gender: COPPA age-gate precedes further personal data)
  *
  * Endpoints:
- * - POST /onboarding/entry - Smart Entry (OAuth authentication)
- * - POST /onboarding/scout - Visual Interview (photo upload + AI)
- * - POST /onboarding/vibe - Maverick Chat (3 psychographic questions)
- * - GET /onboarding/reveal - The Reveal (archetype calculation)
- * - GET /onboarding/status - Status polling (current state)
+ * - POST /onboarding/entry        - Auth (OAuth or manual) + profile bootstrap
+ * - POST /onboarding/birthdate    - DOB (13+ floor), advances to gender
+ * - POST /onboarding/gender       - Gender, advances to scout
+ * - POST /onboarding/scout        - Digitals upload (shot_type: headshot|full_body)
+ * - POST /onboarding/scout/confirm- Confirm primary, advances to measurements
+ * - POST /onboarding/measurements - Height (+ optional gender-branched stats);
+ *                                   fires the archetype pipeline fire-and-forget
+ * - POST /onboarding/profile      - Lanes + city (skippable), completes onboarding
+ * - POST /onboarding/reveal-complete / /onboarding/complete - finalization
+ * - GET  /onboarding/status       - State polling / resume
  */
 
 const express = require("express");
@@ -27,7 +32,6 @@ const { addMessage } = require("../../../shared/middleware/context");
 const { upload, processImage } = require("../../../shared/lib/uploader");
 // Deprecated: const { analyzePhoto } = require('../../ai/photo-analysis');
 const { generateArchetype } = require("../../ai/groq-casting");
-const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const SignalCollector = require("../services/signal-collector");
 const {
   getState,
@@ -39,6 +43,7 @@ const {
 const {
   parseDateOfBirthParts,
   computeAge,
+  canCollectSensitiveProfileFields,
 } = require("../../../shared/lib/talent-age");
 const { verifyGoogleToken } = require("../services/providers/google");
 const { normalizeOAuthUser } = require("../services/providers/oauth-user");
@@ -57,6 +62,130 @@ function invalidOnboardingSequence(res, state, message) {
     current_step: state.current_step,
     completed_steps: state.completed_steps || [],
   });
+}
+
+// Intake lane shortcut (canonical labels). The dashboard's full modeling
+// taxonomy remains the real home; these three are just the onboarding subset.
+const ONBOARDING_MODELING_CATEGORIES = ["Editorial", "Commercial", "Runway"];
+
+/**
+ * Normalize an incoming modeling_categories payload to the valid onboarding
+ * subset. Returns null when the value is not an array (caller leaves the column
+ * untouched); returns an ordered, de-duplicated array (possibly empty) otherwise.
+ */
+function normalizeOnboardingModelingCategories(raw) {
+  if (!Array.isArray(raw)) return null;
+  const canonicalByLower = new Map(
+    ONBOARDING_MODELING_CATEGORIES.map((label) => [label.toLowerCase(), label]),
+  );
+  const seen = new Set();
+  const out = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const canonical = canonicalByLower.get(item.trim().toLowerCase());
+    if (canonical && !seen.has(canonical)) {
+      seen.add(canonical);
+      out.push(canonical);
+    }
+  }
+  return out;
+}
+
+/**
+ * AI archetype pipeline (best-effort). Consumes {height_cm, gender, age}, which
+ * is why it runs at the measurements step where height first exists (moved from
+ * reveal-complete). Finds the profile's primary image, runs the Groq casting
+ * pipeline, and persists fit_score_* + onboarding_signals. No-op when there is no
+ * primary image. Callers invoke it fire-and-forget with a `.catch` for logging;
+ * it must never block the response path.
+ *
+ * @param {import("knex")} knex
+ * @param {Object} profile - Profile row (must carry id, height_cm, gender, date_of_birth)
+ */
+async function runArchetypePipeline(knex, profile) {
+  const primaryImage = await knex("images")
+    .where({ profile_id: profile.id, is_primary: true })
+    .first();
+  const primaryKey = primaryImage
+    ? primaryImage.storage_key ||
+      (primaryImage.path ? primaryImage.path.replace(/^\//, "") : null)
+    : null;
+
+  if (!primaryKey) {
+    console.warn(
+      "[Archetype Pipeline] No primary image — skipping:",
+      profile.id,
+    );
+    return null;
+  }
+
+  const age = profile.date_of_birth
+    ? Math.floor(
+        (Date.now() - new Date(profile.date_of_birth).getTime()) /
+          (365.25 * 24 * 60 * 60 * 1000),
+      )
+    : null;
+
+  const stats = {
+    height_cm: profile.height_cm || null,
+    gender: profile.gender || null,
+    age,
+  };
+
+  const archetypeResult = await generateArchetype(
+    knex,
+    profile.id,
+    primaryKey,
+    stats,
+  );
+
+  const clamp = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+
+  await knex("profiles")
+    .where({ id: profile.id })
+    .update({
+      fit_score_runway: clamp(archetypeResult.scores.runway),
+      fit_score_editorial: clamp(archetypeResult.scores.editorial),
+      fit_score_commercial: clamp(archetypeResult.scores.commercial),
+      fit_score_lifestyle: clamp(archetypeResult.scores.lifestyle),
+      fit_score_overall: clamp(
+        (archetypeResult.scores.runway +
+          archetypeResult.scores.editorial +
+          archetypeResult.scores.commercial +
+          archetypeResult.scores.lifestyle) /
+          4,
+      ),
+      fit_scores_calculated_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    });
+
+  const isPostgres =
+    knex.client.config.client === "pg" ||
+    knex.client.config.client === "postgresql";
+  const aiResultsValue = isPostgres
+    ? archetypeResult
+    : JSON.stringify(archetypeResult);
+
+  await knex("onboarding_signals")
+    .where({ profile_id: profile.id })
+    .update({
+      ai_results: aiResultsValue,
+      archetype_runway_pct: clamp(archetypeResult.scores.runway),
+      archetype_commercial_pct: clamp(archetypeResult.scores.commercial),
+      archetype_editorial_pct: clamp(archetypeResult.scores.editorial),
+      archetype_lifestyle_pct: clamp(archetypeResult.scores.lifestyle),
+      archetype_label: archetypeResult.primary_archetype,
+      casting_verdict: archetypeResult.verdict,
+      updated_at: knex.fn.now(),
+    });
+
+  console.log(
+    "[Archetype Pipeline] Persisted archetype:",
+    profile.id,
+    archetypeResult.primary_archetype,
+  );
+
+  return archetypeResult;
 }
 
 /**
@@ -182,7 +311,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           slug,
           first_name: derivedFirstName,
           last_name: derivedLastName,
-          city: null,
+          city: "Not specified", // NOT NULL column; sentinel filtered to null at the API edge
           height_cm: 0,
           bio_raw: "",
           bio_curated: "",
@@ -301,7 +430,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         slug,
         first_name: firstName,
         last_name: lastName,
-        city: null,
+        city: "Not specified", // NOT NULL column; sentinel filtered to null at the API edge
         height_cm: 0,
         bio_raw: "",
         bio_curated: "",
@@ -344,33 +473,14 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       });
     });
 
-    // Transition state to 'entry'
+    // Transition state to the first intake step. Birthdate runs before gender
+    // (COPPA hygiene) — the age screen gates before any further personal data.
     const state = getState(profile);
 
     if (state.current_step === "entry" || state.completed_steps.length === 0) {
-      let nextStep = "gender";
-
-      // If manual signup, skip verification (Temporary override)
-      if (manual_signup) {
-        nextStep = "gender"; // Was 'verification_pending'
-
-        // Still generate verification code (mock for now) so email flows still work if needed later
-
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-
-        await knex("users").where({ id: user.id }).update({
-          verification_code: code,
-          verification_code_expires_at: expiresAt,
-          email_verified: false,
-        });
-
-        console.log(`[Email Verification] Code for ${email}: ${code}`);
-      }
-
       const updatePayload = transitionTo(
         state,
-        nextStep,
+        "birthdate",
         {
           auth_method: manual_signup ? "manual" : "google",
           is_new_user: isNewUser,
@@ -405,9 +515,9 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       profile_id: profile.id,
       is_new_user: isNewUser,
       has_oauth_data: hasOAuthData,
-      next_step: "gender",
+      next_step: "birthdate",
       message: manual_signup
-        ? "Account created. Email verification skipped."
+        ? "Account created."
         : "Authentication successful. Ready to start casting call.",
     });
   } catch (error) {
@@ -442,16 +552,14 @@ router.post(
       if (user.email_verified) {
         return res.json({
           success: true,
-          next_step: "gender",
+          next_step: "birthdate",
           message: "Email already verified",
         });
       }
 
-      // specific debug bypass
       if (
-        code !== "000000" &&
-        (user.verification_code !== code ||
-          new Date() > new Date(user.verification_code_expires_at))
+        user.verification_code !== code ||
+        new Date() > new Date(user.verification_code_expires_at)
       ) {
         return res.status(400).json({
           error: "Invalid or expired code",
@@ -474,7 +582,7 @@ router.post(
       const state = getState(profile);
       const updatePayload = transitionTo(
         state,
-        "gender",
+        "birthdate",
         {
           email_verified_at: new Date().toISOString(),
         },
@@ -493,7 +601,7 @@ router.post(
 
       return res.json({
         success: true,
-        next_step: "gender",
+        next_step: "birthdate",
         message: "Email verified successfully",
       });
     } catch (error) {
@@ -507,6 +615,7 @@ router.post(
  * POST /onboarding/gender
  * Persist the talent's gender and advance the state machine to "scout".
  *
+ * New order runs birthdate before gender, so gender advances gender → scout.
  * This is the server counterpart to the client gender step. Without it the
  * server stays parked at "gender" while the client moves on, and the later
  * scout → measurements transition is rejected as out of sequence. Gender is
@@ -553,10 +662,16 @@ router.post(
         updated_at: knex.fn.now(),
       };
 
+      // New order is birthdate → gender → scout. A legacy in-flight profile
+      // parked at "gender" under the OLD order has no DOB yet — send it to
+      // birthdate instead of scout, or scout would 403 on DOB_REQUIRED with no
+      // way back.
+      const genderNextStep = profile.date_of_birth ? "scout" : "birthdate";
+
       if (state.current_step === "gender") {
         const transition = transitionTo(
           state,
-          "birthdate",
+          genderNextStep,
           { gender: normalizedGender },
           knex,
         );
@@ -576,7 +691,7 @@ router.post(
 
       return res.json({
         success: true,
-        next_step: "birthdate",
+        next_step: genderNextStep,
         message: "Gender saved",
       });
     } catch (error) {
@@ -588,11 +703,13 @@ router.post(
 
 /**
  * POST /onboarding/birthdate
- * Persist the talent's date of birth and advance the state machine to "scout".
+ * Persist the talent's date of birth and advance the state machine to "gender".
  *
- * Validates: YYYY-MM-DD format, not in the future, minimum age 13 (COPPA floor).
- * Idempotent: date_of_birth is always saved; the step only advances when the
- * profile is actually on the birthdate step, so re-submits stay safe.
+ * Birthdate now runs before gender (COPPA hygiene: age-gate before collecting
+ * more personal data). Validates: YYYY-MM-DD format, not in the future, minimum
+ * age 13 (COPPA floor). Idempotent: date_of_birth is always saved; the step only
+ * advances when the profile is actually on the birthdate step, so re-submits stay
+ * safe.
  */
 router.post(
   ["/onboarding/birthdate", "/casting/birthdate"],
@@ -656,10 +773,15 @@ router.post(
         updated_at: knex.fn.now(),
       };
 
+      // A legacy in-flight profile parked at "birthdate" under the OLD order
+      // (gender → birthdate) already answered gender — skip straight to scout
+      // so nothing is asked twice.
+      const birthdateNextStep = profile.gender ? "scout" : "gender";
+
       if (state.current_step === "birthdate") {
         const transition = transitionTo(
           state,
-          "scout",
+          birthdateNextStep,
           { date_of_birth: dobStr, age },
           knex,
         );
@@ -679,7 +801,7 @@ router.post(
 
       return res.json({
         success: true,
-        next_step: "scout",
+        next_step: birthdateNextStep,
         message: "Date of birth saved",
       });
     } catch (error) {
@@ -691,9 +813,11 @@ router.post(
 
 /**
  * POST /onboarding/scout
- * Visual Interview: Single photo upload with AI analysis
+ * Visual Interview: labeled photo upload (headshot / full_body).
  *
- * Processes "digi" (headshot), runs AI analysis, stores phenotype signals
+ * Multipart body: `digi` (file) + `shot_type` ('headshot' | 'full_body').
+ * The headshot is the casting photo and becomes/stays primary; a full-body
+ * upload is stored but never steals primary.
  */
 router.post(
   ["/onboarding/scout", "/casting/scout"],
@@ -727,6 +851,18 @@ router.post(
         });
       }
 
+      // shot_type is required and constrained to the two labeled slots.
+      const shotType =
+        typeof req.body?.shot_type === "string"
+          ? req.body.shot_type.trim().toLowerCase()
+          : "";
+      if (shotType !== "headshot" && shotType !== "full_body") {
+        return res.status(400).json({
+          error: "INVALID_SHOT_TYPE",
+          message: "shot_type must be 'headshot' or 'full_body'.",
+        });
+      }
+
       // Process image (converts to WebP, optimizes)
       const { storageKey, publicUrl, absolutePath } = await processImage(
         req.file,
@@ -735,16 +871,10 @@ router.post(
       const { v4: uuidv4 } = require("uuid");
       const imageId = uuidv4();
 
-      // Become primary if there's no existing *locally uploaded* photo yet.
-      // A seeded remote avatar (e.g. the Google profile picture inserted at
-      // entry — path is a URL, no absolute_path) must NOT count: it isn't on
-      // disk, so scout/confirm could never read it for analysis. The user's
-      // uploaded digi is the real casting photo and should be analyzed.
-      const existingLocalImage = await knex("images")
-        .where({ profile_id: profile.id })
-        .whereNotNull("absolute_path")
-        .first();
-      const isPrimary = !existingLocalImage;
+      // Headshots are the casting photo: they become/stay primary (demoting any
+      // seeded Google avatar). A full-body upload is stored but never steals
+      // primary.
+      const isPrimary = shotType === "headshot";
 
       // Demote any existing primary (e.g. the seeded Google avatar) BEFORE
       // inserting the new one. The `one_primary_per_profile` constraint forbids
@@ -764,7 +894,7 @@ router.post(
         is_primary: isPrimary,
         label: "Scout photo",
         image_type: "digital",
-        shot_type: "headshot",
+        shot_type: shotType,
         created_at: knex.fn.now(),
       });
 
@@ -837,8 +967,11 @@ router.patch(
 
 /**
  * POST /onboarding/scout/confirm
- * The user taps "Continue".
- * Runs master vision analysis on the single chosen primary image, returning completion.
+ * The user taps "Continue" — advances scout → measurements.
+ *
+ * AI body-stat estimation has been removed from intake; the archetype pipeline
+ * now runs at the measurements step (where height first exists). This route just
+ * confirms the chosen primary photo and stores its resume metadata.
  */
 router.post(
   ["/onboarding/scout/confirm", "/casting/scout/confirm"],
@@ -857,8 +990,8 @@ router.post(
         .first();
 
       // Defense-in-depth: if the primary is a remote seed with no file on disk
-      // (e.g. a Google avatar), fall back to the most recent local upload so we
-      // analyze a real, readable photo instead of failing.
+      // (e.g. a Google avatar), fall back to the most recent local upload so the
+      // resume photo_url points at the real casting photo.
       if (primaryImage && !primaryImage.absolute_path) {
         const localImage = await knex("images")
           .where({ profile_id: profile.id })
@@ -872,61 +1005,6 @@ router.post(
         return res.status(400).json({ error: "No primary image set" });
       }
 
-      const fs = require("fs");
-
-      let imageBuffer;
-      try {
-        // Use absolute_path if available (safest), else try back-filling path
-        const safePath =
-          primaryImage.absolute_path ||
-          require("path").join(
-            require("../../config").uploadsDir,
-            require("path").basename(primaryImage.path || ""),
-          );
-        imageBuffer = await fs.promises.readFile(safePath);
-      } catch (err) {
-        console.error("[Scout] Failed to read primary image from disk:", err);
-        return res.status(500).json({
-          error:
-            "Failed to access uploaded image. Please re-select your photo.",
-        });
-      }
-
-      // Call Master Vision (Do not await, fire and forget)
-      masterVisionAnalysis(knex, imageBuffer, profile.id)
-        .then((measurementEstimates) => {
-          if (
-            measurementEstimates &&
-            measurementEstimates.confidence !== "Low"
-          ) {
-            const isPg =
-              knex.client.config.client === "pg" ||
-              knex.client.config.client === "postgresql";
-            const rawUpdate = isPg
-              ? knex.raw(
-                  `jsonb_set(COALESCE(onboarding_state_json::jsonb, '{}'::jsonb), '{predictions}', ?::jsonb, true)`,
-                  [JSON.stringify(measurementEstimates)],
-                )
-              : knex.raw(
-                  `json_set(COALESCE(onboarding_state_json, '{}'), '$.predictions', json(?))`,
-                  [JSON.stringify(measurementEstimates)],
-                );
-
-            // Save predictions to profiles.onboarding_state_json for frontend polling
-            return knex("profiles").where({ id: profile.id }).update({
-              onboarding_state_json: rawUpdate,
-            });
-          }
-        })
-        .catch((err) =>
-          console.error("[Scout] Master vision analysis failed silently:", err),
-        );
-
-      console.log(
-        "[Onboarding] Master image analysis triggered on confirmed primary:",
-        profile.id,
-      );
-
       // Transition state
       const state = getState(profile);
       const derivedStorageKey = primaryImage.path
@@ -939,7 +1017,6 @@ router.post(
           photo_uploaded: true,
           storage_key: derivedStorageKey,
           photo_url: primaryImage.path,
-          predictions: null, // Predictions arrive async
         },
         knex,
       );
@@ -965,7 +1042,7 @@ router.post(
 
       // Track completion
       await OnboardingAnalytics.trackCompletion(profile.id, "scout", null, {
-        ai_success: true, // Background job dispatched
+        ai_success: true,
       });
 
       return res.json({
@@ -974,7 +1051,7 @@ router.post(
         photo_url: primaryImage.path,
         can_complete: canComplete(updatedState),
         next_steps: getNextSteps(updatedState),
-        message: "Scout confirmed and analysis triggered",
+        message: "Scout confirmed",
       });
     } catch (error) {
       console.error("[Casting Scout] Confirm Error:", error);
@@ -1014,16 +1091,21 @@ router.get(
         profile: {
           first_name: profile.first_name || null,
           gender: profile.gender || null,
+          // DOB + guardian consent drive the client's minor gate on resume —
+          // without them a mid-flow reload fails closed and shows adults the
+          // height-only path.
+          date_of_birth: profile.date_of_birth || null,
+          guardian_consent_at: profile.guardian_consent_at || null,
           city:
             profile.city && profile.city !== "Not specified"
               ? profile.city
               : null,
-          experience_level: profile.experience_level || null,
           height_cm: profile.height_cm || null,
-          weight_kg: profile.weight_kg || null,
           bust_cm: profile.bust_cm || null,
           waist_cm: profile.waist_cm || null,
           hips_cm: profile.hips_cm || null,
+          chest_cm: profile.chest_cm || null,
+          inseam_cm: profile.inseam_cm || null,
         },
         state: {
           current_step: state.current_step,
@@ -1032,7 +1114,6 @@ router.get(
           next_steps: getNextSteps(state),
           version: state.version || "v2_onboarding",
           started_at: state.started_at || null,
-          predictions: state.predictions || null,
           step_data: state.step_data || {},
         },
       });
@@ -1069,14 +1150,17 @@ router.post(
         });
       }
 
-      console.log("[Casting Measurements] Request Body:", req.body);
+      // Never log req.body here — it carries body measurements (sensitive data).
+      // weight_kg is intentionally NOT accepted: weight is not a standard
+      // submission stat and was removed from intake.
+      const { height_cm, bust_cm, waist_cm, hips_cm, chest_cm, inseam_cm } =
+        req.body;
 
-      const { height_cm, weight_kg, bust_cm, waist_cm, hips_cm } = req.body;
-
-      // REMOVED: Strict range validation logic to allow outlier inputs (e.g., child models)
-      // Frontend validation is sufficient for UX guidance. Backend should accept reasonable numbers.
-
-      console.log("[Casting Measurements] Updating profile measurements...");
+      // Body measurements (bust/chest/waist/hips/inseam) are sensitive fields:
+      // minors without recorded guardian consent — and profiles with no
+      // verifiable DOB — may only store height. Same fail-closed policy as the
+      // profile routes.
+      const allowSensitive = canCollectSensitiveProfileFields(profile);
 
       // Transition state
       const state = getState(profile);
@@ -1097,22 +1181,50 @@ router.post(
         );
       }
 
-      // Merge measurement values into the same update payload
-      // Ensure unexpected nulls/undefined doesn't override existing data with null unless intended
-      // But for this flow, user input is authoritative for the session.
+      // Only write fields the client actually sent — an absent field must never
+      // null out a previously saved value (stats are optional/skippable now, and
+      // the set differs by gender: bust/waist/hips vs chest/waist/inseam).
+      const asRoundedNumber = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+      };
+
       const finalUpdate = {
         ...updatePayload,
-        height_cm: height_cm ? Math.round(height_cm) : null,
-        weight_kg: weight_kg ? Math.round(weight_kg) : null,
-        bust_cm: bust_cm ? Math.round(bust_cm) : null,
-        waist_cm: waist_cm ? Math.round(waist_cm) : null,
-        hips_cm: hips_cm ? Math.round(hips_cm) : null,
         updated_at: knex.fn.now(),
       };
 
-      console.log("[Casting Measurements] Updating profile...", finalUpdate);
+      const height = asRoundedNumber(height_cm);
+      if (height !== null) finalUpdate.height_cm = height;
+
+      if (allowSensitive) {
+        const sensitiveFields = {
+          bust_cm,
+          waist_cm,
+          hips_cm,
+          chest_cm,
+          inseam_cm,
+        };
+        for (const [column, raw] of Object.entries(sensitiveFields)) {
+          const value = asRoundedNumber(raw);
+          if (value !== null) finalUpdate[column] = value;
+        }
+      }
 
       await knex("profiles").where({ id: profile.id }).update(finalUpdate);
+
+      // Archetype pipeline fires here (not reveal-complete): this is the first
+      // moment height + gender + DOB all exist, and it leads the reveal by the
+      // details screen plus the finishing beat. Fire-and-forget by design.
+      runArchetypePipeline(knex, {
+        ...profile,
+        height_cm: height !== null ? height : profile.height_cm,
+      }).catch((err) =>
+        console.warn(
+          "[Casting Measurements] Archetype pipeline failed (non-blocking):",
+          err.message,
+        ),
+      );
 
       return res.json({
         success: true,
@@ -1148,14 +1260,13 @@ router.post(
         });
       }
 
-      const { city, gender, experience_level } = req.body;
+      // gender and experience_level are intentionally NOT read here: gender is
+      // owned by /onboarding/gender (this route used to re-persist it with
+      // broken casing and null-wipe it when absent), and experience level was
+      // removed from intake (dashboard-owned, no default write).
+      const { city, modeling_categories } = req.body;
 
       console.log("[Casting Profile] User:", req.session.userId);
-      console.log("[Casting Profile] Request Body:", {
-        city,
-        gender,
-        experience_level,
-      });
       console.log("[Casting Profile] Profile ID:", profile.id);
 
       // Gate: DOB must be on file before we allow onboarding completion.
@@ -1185,17 +1296,27 @@ router.post(
         );
       }
 
-      const normalizedCity =
-        typeof city === "string" ? city.trim() : "";
-      updatePayload.city =
-        normalizedCity &&
-        normalizedCity.toLowerCase() !== "not specified"
-          ? normalizedCity
-          : null;
-      updatePayload.gender = gender
-        ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase()
-        : null;
-      updatePayload.experience_level = experience_level || "beginner";
+      // City is skippable — only write a real value; a skip/clear stores the
+      // "Not specified" sentinel (the column is NOT NULL; the API edge filters
+      // the sentinel back to null).
+      if (city !== undefined) {
+        const normalizedCity = typeof city === "string" ? city.trim() : "";
+        updatePayload.city =
+          normalizedCity && normalizedCity.toLowerCase() !== "not specified"
+            ? normalizedCity
+            : "Not specified";
+      }
+
+      // Intake lanes shortcut. null = field not sent (leave column untouched);
+      // [] = explicit "Not sure yet" (stored as an empty set — a first-class
+      // answer, not missing data). Stored JSON-stringified per profile-route
+      // convention.
+      const normalizedLanes =
+        normalizeOnboardingModelingCategories(modeling_categories);
+      if (normalizedLanes !== null) {
+        updatePayload.modeling_categories = JSON.stringify(normalizedLanes);
+      }
+
       updatePayload.onboarding_completed_at = knex.fn.now();
 
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
@@ -1218,11 +1339,11 @@ router.post(
 
 /**
  * POST /onboarding/reveal-complete
- * Mark reveal screen as viewed and generate AI archetype.
+ * Mark the reveal as viewed: state transition + timestamps only.
  *
- * Runs the 2-step Groq casting pipeline (Scout → Director) using the
- * profile's primary photo and confirmed stats, then persists scores.
- * The AI call is best-effort: completion succeeds even if AI fails.
+ * The AI archetype pipeline no longer runs here — it fires fire-and-forget at
+ * the measurements step (see runArchetypePipeline), the first moment height +
+ * gender + DOB all exist, so its result can be ready by reveal time.
  */
 router.post(
   "/onboarding/reveal-complete",
@@ -1280,115 +1401,12 @@ router.post(
 
       console.log("[Casting Reveal Complete] State → done");
 
-      // ── AI Archetype Pipeline (best-effort) ────────────────────────────────
-      let archetypeResult = null;
-
-      const primaryImage = await knex("images")
-        .where({ profile_id: profile.id, is_primary: true })
-        .first();
-      const primaryKey = primaryImage
-        ? primaryImage.storage_key ||
-          (primaryImage.path ? primaryImage.path.replace(/^\//, "") : null)
-        : null;
-
-      if (primaryKey) {
-        try {
-          // Calculate age from date_of_birth if available
-          const age = profile.date_of_birth
-            ? Math.floor(
-                (Date.now() - new Date(profile.date_of_birth).getTime()) /
-                  (365.25 * 24 * 60 * 60 * 1000),
-              )
-            : null;
-
-          const stats = {
-            height_cm: profile.height_cm || null,
-            gender: profile.gender || null,
-            age,
-          };
-
-          archetypeResult = await generateArchetype(
-            knex,
-            profile.id,
-            primaryKey,
-            stats,
-          );
-
-          console.log(
-            "[Casting Reveal Complete] AI archetype:",
-            archetypeResult.primary_archetype,
-            archetypeResult.scores,
-          );
-
-          // Persist scores to profile fit_score_* columns
-          const clamp = (v) =>
-            Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
-          await knex("profiles")
-            .where({ id: profile.id })
-            .update({
-              fit_score_runway: clamp(archetypeResult.scores.runway),
-              fit_score_editorial: clamp(archetypeResult.scores.editorial),
-              fit_score_commercial: clamp(archetypeResult.scores.commercial),
-              fit_score_lifestyle: clamp(archetypeResult.scores.lifestyle),
-              fit_score_overall: clamp(
-                (archetypeResult.scores.runway +
-                  archetypeResult.scores.editorial +
-                  archetypeResult.scores.commercial +
-                  archetypeResult.scores.lifestyle) /
-                  4,
-              ),
-              fit_scores_calculated_at: knex.fn.now(),
-              updated_at: knex.fn.now(),
-            });
-
-          // Persist raw AI output + new columns to onboarding_signals
-          const isPostgres =
-            knex.client.config.client === "pg" ||
-            knex.client.config.client === "postgresql";
-          const aiResultsValue = isPostgres
-            ? archetypeResult
-            : JSON.stringify(archetypeResult);
-
-          await knex("onboarding_signals")
-            .where({ profile_id: profile.id })
-            .update({
-              ai_results: aiResultsValue,
-              archetype_runway_pct: clamp(archetypeResult.scores.runway),
-              archetype_commercial_pct: clamp(
-                archetypeResult.scores.commercial,
-              ),
-              archetype_editorial_pct: clamp(archetypeResult.scores.editorial),
-              archetype_lifestyle_pct: clamp(archetypeResult.scores.lifestyle),
-              archetype_label: archetypeResult.primary_archetype,
-              casting_verdict: archetypeResult.verdict,
-              updated_at: knex.fn.now(),
-            });
-        } catch (aiErr) {
-          console.warn(
-            "[Casting Reveal Complete] AI pipeline failed (non-blocking):",
-            aiErr.message,
-          );
-        }
-      } else {
-        console.warn(
-          "[Casting Reveal Complete] No primary image found — skipping AI pipeline",
-        );
-      }
-      // ── End AI Pipeline ────────────────────────────────────────────────────
-
       await updateProfileCompleteness(profile.id);
 
       return res.json({
         success: true,
         next_step: "complete",
         message: "Reveal completed successfully",
-        ...(archetypeResult && {
-          archetype: {
-            primary: archetypeResult.primary_archetype,
-            verdict: archetypeResult.verdict,
-            scores: archetypeResult.scores,
-          },
-        }),
       });
     } catch (error) {
       console.error("[Casting Reveal Complete] Error:", error);

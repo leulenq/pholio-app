@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Entry Splash · Pholio Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --surface-card: #141312;
+      --gold: #c9a55a;
+      --gold-hover: #b8954e;
+      --gold-glow: rgba(201, 165, 90, 0.12);
+      
+      --text-main: #f5f4f0;
+      --text-muted: #9e9b94;
+      --text-dim: #5c5954;
+      
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+      --font-display: 'Outfit', sans-serif;
+      
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Control Header ── */
+    .control-header {
+      background: #11100f;
+      border-bottom: 1px solid #1c1a19;
+      padding: 1.25rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .header-title h1 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .header-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .selector-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    .btn-tab {
+      background: #1a1817;
+      border: 1px solid #2d2927;
+      color: var(--text-muted);
+      padding: 0.5rem 1.2rem;
+      font-size: 0.8rem;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s var(--ease);
+    }
+
+    .btn-tab:hover {
+      border-color: var(--gold);
+      color: var(--text-main);
+    }
+
+    .btn-tab.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: #000;
+      font-weight: 600;
+    }
+
+    /* ── Cinematic Stage ── */
+    .viewport {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 2rem;
+      position: relative;
+    }
+
+    .shimmer {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, rgba(20, 19, 18, 0.4) 0%, rgba(11, 10, 9, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .cinematic-orb {
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(201, 165, 90, 0.02) 0%, rgba(0,0,0,0) 70%);
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .orb-1 { top: 15%; left: 25%; }
+    .orb-2 { bottom: 10%; right: 25%; }
+
+    /* Central Container */
+    .variant-container {
+      width: 100%;
+      max-width: 600px;
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 420px;
+      text-align: center;
+    }
+
+    /* Headline text */
+    .splash-headline {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 6vw, 3.8rem);
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 2.5rem;
+      opacity: 0;
+      transform: translateY(12px);
+      animation: fade-up 1s var(--ease) 0.4s forwards;
+    }
+
+    .splash-headline em {
+      font-style: italic;
+      color: var(--gold);
+      font-weight: 400;
+    }
+
+    /* ═══════════════════════════════════════
+       TWEAKED VARIANT A: Connected Outline Loader (Thin luxury 2px weight)
+       ═══════════════════════════════════════ */
+    .avatar-wrapper {
+      position: relative;
+      width: 130px;
+      height: 130px;
+      margin-bottom: 2.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0.9);
+      animation: zoom-in 1.2s var(--ease) 0.1s forwards;
+    }
+
+    /* Expanded photo to touch bounds exactly */
+    .avatar-img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      z-index: 2;
+    }
+
+    /* SVG outline path sitting exactly on the photo border with no gap */
+    .avatar-outline-svg {
+      position: absolute;
+      width: 124px;
+      height: 124px;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .avatar-outline-bg {
+      fill: none;
+      stroke: rgba(245, 241, 234, 0.05);
+      stroke-width: 1.2;
+    }
+
+    .avatar-outline-active {
+      fill: none;
+      stroke-width: 1.6; /* Exact 2px hairline thickness matching the divider */
+      stroke-linecap: round;
+      transform-origin: 50px 50px;
+    }
+
+    /* ── Connected Motion 1: SVG Draw Sweep ── */
+    .motion-draw .avatar-outline-active {
+      stroke: var(--gold);
+      stroke-dasharray: 200;
+      stroke-dashoffset: 200;
+      animation: svg-draw-loop 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes svg-draw-loop {
+      0% { stroke-dashoffset: 200; }
+      50% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: -200; }
+    }
+
+    /* ── Connected Motion 2: Luxury Divider Breathing Halo ── */
+    .motion-breath .avatar-outline-active {
+      stroke: url(#goldDividerGrad);
+      stroke-dasharray: none;
+      stroke-dashoffset: 0;
+      filter: drop-shadow(0 0 10px rgba(201, 165, 90, 0.5));
+      animation: luxury-breathing-pulse 2.2s ease-in-out infinite;
+    }
+
+    @keyframes luxury-breathing-pulse {
+      0%, 100% {
+        opacity: 0.35;
+        filter: drop-shadow(0 0 3px rgba(201, 165, 90, 0.2));
+      }
+      50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 15px rgba(201, 165, 90, 0.5));
+      }
+    }
+
+    /* ── Connected Motion 3: Orbit Trace (Luxury Divider Harmony) ── */
+    .motion-orbit .avatar-outline-active {
+      stroke: url(#goldDividerGrad);
+      stroke-dasharray: none;
+      stroke-dashoffset: 0;
+      filter: drop-shadow(0 0 10px rgba(201, 165, 90, 0.5));
+      animation: luxury-orbit-spin 2.6s linear infinite;
+    }
+
+    @keyframes luxury-orbit-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Entrance animations */
+    @keyframes zoom-in {
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes fade-up {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Replay Button */
+    .action-replay {
+      background: transparent;
+      border: 1px solid #3d3835;
+      color: var(--text-muted);
+      padding: 0.35rem 0.8rem;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+      transition: all 0.2s var(--ease);
+    }
+
+    .action-replay:hover {
+      border-color: var(--gold);
+      color: var(--text-main);
+    }
+
+    /* ── Specifications footer ── */
+    .spec-panel {
+      background: #11100f;
+      border-top: 1px solid #1c1a19;
+      padding: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .spec-card h3 {
+      font-family: var(--font-display);
+      color: var(--gold);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .spec-card ul {
+      list-style-type: none;
+    }
+
+    .spec-card li {
+      margin-bottom: 0.5rem;
+      position: relative;
+      padding-left: 1rem;
+    }
+
+    .spec-card li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Reviewer Control Header -->
+  <header class="control-header">
+    <div class="header-title">
+      <h1>Connected Outline Loader</h1>
+      <p>Variants of the gold outline loader sitting directly on the profile photo</p>
+    </div>
+    
+    <div class="selector-group">
+      <span class="selector-label">Loader Motion:</span>
+      <button class="btn-tab" onclick="switchMotion('draw')">Motion 1: SVG Draw Sweep</button>
+      <button class="btn-tab" onclick="switchMotion('breath')">Motion 2: Breathing Halo</button>
+      <button class="btn-tab active" onclick="switchMotion('orbit')">Motion 3: Orbit Trace (Luxury Divider Harmony)</button>
+    </div>
+  </header>
+
+  <!-- Interactive Stage -->
+  <main class="viewport">
+    <div class="shimmer" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-1" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-2" aria-hidden="true"></div>
+
+    <div class="variant-container">
+      <div class="avatar-wrapper motion-orbit" id="avatar-container">
+        <!-- SVG drawing outline sits directly on the boundary of the image -->
+        <svg class="avatar-outline-svg" viewBox="0 0 100 100">
+          <defs>
+            <!-- Linear gradient matching the exact horizontal color stops of the luxury gold divider -->
+            <linearGradient id="goldDividerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="rgba(201, 165, 90, 0)" />
+              <stop offset="20%" stop-color="rgba(201, 165, 90, 0.4)" />
+              <stop offset="50%" stop-color="#C9A55A" />
+              <stop offset="80%" stop-color="rgba(201, 165, 90, 0.4)" />
+              <stop offset="100%" stop-color="rgba(201, 165, 90, 0)" />
+            </linearGradient>
+          </defs>
+          <circle class="avatar-outline-bg" cx="50" cy="50" r="48.8" />
+          <circle class="avatar-outline-active" cx="50" cy="50" r="48.8" />
+        </svg>
+        <img class="avatar-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80" alt="Avatar">
+      </div>
+      
+      <h2 class="splash-headline" id="splash-txt">Welcome back, <br><em>Ava Martinez.</em></h2>
+      
+      <div>
+        <button class="action-replay" onclick="replayTransition()">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+          Replay Transition
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Technical specifications footer -->
+  <footer class="spec-panel">
+    <div class="spec-grid">
+      <div class="spec-card">
+        <h3>Connected Outline</h3>
+        <ul>
+          <li><strong>Zero Gap:</strong> The loader ring wraps the profile photo rim directly, removing all gaps.</li>
+          <li><strong>Exact 2px Weight:</strong> Stroke thickness is configured to `1.6` (which renders as exactly `2px` on the viewport screen) to match page divider lines.</li>
+        </ul>
+      </div>
+
+      <div class="spec-card">
+        <h3>Motion 3: Orbit Trace (Luxury Divider Harmony)</h3>
+        <ul>
+          <li><strong>Aesthetic:</strong> Employs the exact linear gradient stops (`transparent 0% -> rgba(201, 165, 90, 0.4) 20% -> #C9A55A 50% -> rgba(201, 165, 90, 0.4) 80% -> transparent 100%`) as the brand underlines and dividers.</li>
+          <li><strong>Shadow:</strong> Includes the brand drop shadow (`drop-shadow(0 0 10px rgba(201, 165, 90, 0.5))`) that matches the `.cinematic-divider-glow` box-shadow.</li>
+          <li><strong>Transitions:</strong> Rotates the linear gradient stroke continuously at a smooth speed (`2.6s` cycle) to trace the profile rim with a soft, glowing, fading arc.</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function switchMotion(motionType) {
+      // Toggle Tab active state
+      const tabs = document.querySelectorAll('.btn-tab');
+      tabs.forEach(tab => {
+        if (tab.getAttribute('onclick').includes(motionType)) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Update class list of container
+      const container = document.getElementById('avatar-container');
+      container.className = 'avatar-wrapper'; // reset
+      
+      if (motionType === 'draw') {
+        container.classList.add('motion-draw');
+      } else if (motionType === 'breath') {
+        container.classList.add('motion-breath');
+      } else if (motionType === 'orbit') {
+        container.classList.add('motion-orbit');
+      }
+
+      replayTransition();
+    }
+
+    function replayTransition() {
+      const container = document.getElementById('avatar-container');
+      const txt = document.getElementById('splash-txt');
+
+      container.style.animation = 'none';
+      txt.style.animation = 'none';
+
+      // Trigger reflow
+      void container.offsetWidth;
+
+      container.style.animation = 'zoom-in 1.2s var(--ease) 0.1s forwards';
+      txt.style.animation = 'fade-up 1s var(--ease) 0.4s forwards';
+    }
+  </script>
+</body>
+</html>
