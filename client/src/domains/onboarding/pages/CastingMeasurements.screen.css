@@ -159,6 +159,34 @@
   background: rgba(201, 165, 90, 0.25);
 }
 
+/* Shoe step — same dial, no tape; three-way region toggle in the same
+   unit-toggle language (buttons instead of the two-way toggle's spans). */
+.csm-shoe-toggle {
+  cursor: default;
+}
+.csm-shoe-toggle button {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.58rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.4);
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+  padding: 0.25rem 0.1rem;
+  cursor: pointer;
+}
+.csm-shoe-toggle button.is-on {
+  color: var(--gold);
+}
+.csm-shoe-toggle button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.csm-dial-val--shoe {
+  cursor: default;
+}
+
 /* Stat steps (bust / waist / hips) — same instrument as height, slightly smaller */
 .csm-dial-wrap--stat .csm-dial-val {
   font-size: clamp(3.2rem, 9vw, 6rem);
@@ -238,6 +266,16 @@
 .csm-rev-measure-lbls i {
   opacity: 0.3;
   font-style: normal;
+}
+.csm-rev-look {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding-top: 0.4rem;
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-2);
 }
 .csm-rev-note {
   grid-column: 1 / -1;

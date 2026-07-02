@@ -501,8 +501,10 @@ const talentAiWriterLimiter = createTalentAiWriterRateLimit({
 });
 
 app.use(["/login", "/signup"], authLimiter);
+app.use(["/onboarding/entry", "/casting/entry"], authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
+app.use(["/onboarding/scout", "/casting/scout"], uploadLimiter);
 app.use(talentAiWriterLimiter);
 app.use((req, res, next) => {
   if (req.method !== "POST") return next();

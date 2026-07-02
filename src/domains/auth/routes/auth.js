@@ -648,6 +648,16 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       }
     }
 
+    // Keep users.email_verified in sync with Firebase's verified claim, so a
+    // user who clicks the verification link after abandoning onboarding is
+    // recorded as verified the next time they sign in.
+    if (decodedToken.email_verified === true && !user.email_verified) {
+      await knex("users")
+        .where({ id: user.id })
+        .update({ email_verified: true });
+      user.email_verified = true;
+    }
+
     console.log("[Login] Login successful for user:", {
       id: user.id,
       email: user.email,

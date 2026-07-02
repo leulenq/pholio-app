@@ -222,12 +222,16 @@ function transitionTo(currentState, targetStep, stepData = {}, knex) {
   const isForward = fromIdx !== -1 && toIdx !== -1 && fromIdx < toIdx;
 
   if (isForward) {
-    // Auto-complete all intermediate steps we skipped or completed
-    for (let i = fromIdx; i < toIdx; i++) {
-      const stepName = STEP_ORDER[i];
-      if (!newState.completed_steps.includes(stepName)) {
-        newState.completed_steps.push(stepName);
-      }
+    // Mark ONLY the step we are actually leaving as complete. Never fabricate
+    // completion of intermediate steps that were skipped over — completed_steps
+    // must reflect only steps the user genuinely passed through, so completion
+    // gates (scout + measurements) can trust it.
+    const currentStepName = STEP_ORDER[fromIdx];
+    if (
+      currentStepName &&
+      !newState.completed_steps.includes(currentStepName)
+    ) {
+      newState.completed_steps.push(currentStepName);
     }
   } else {
     // Fallback for non-ordered steps if any

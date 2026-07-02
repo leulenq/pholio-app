@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Onboarding · Mobile Preview</title>
+<style>
+  :root { --gold:#C9A55A; --hair:rgba(201,165,90,0.25); }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; background:#070707; color:#F5F1EA;
+    font-family:"SFMono-Regular",ui-monospace,Menlo,monospace; }
+  body { display:flex; flex-direction:column; }
+  header {
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    padding:12px 20px; background:rgba(10,9,8,0.96);
+    border-bottom:1px solid var(--hair);
+  }
+  h1 { font-size:12px; letter-spacing:0.22em; text-transform:uppercase; margin:0; color:var(--gold); }
+  select, button, .seg button {
+    font:inherit; font-size:11px; letter-spacing:0.05em; cursor:pointer;
+    background:transparent; color:rgba(255,255,255,0.72);
+    border:1px solid rgba(255,255,255,0.16); border-radius:6px; padding:6px 10px;
+  }
+  select { color:var(--gold); }
+  .seg { display:inline-flex; gap:2px; border:1px solid rgba(255,255,255,0.14); border-radius:6px; overflow:hidden; }
+  .seg button { border:none; border-radius:0; }
+  .seg button.on { background:rgba(201,165,90,0.18); color:var(--gold); }
+  .nav { display:inline-flex; gap:6px; }
+  .hint { font-size:11px; color:rgba(255,255,255,0.32); letter-spacing:0.04em; }
+  main { flex:1; display:flex; align-items:center; justify-content:center; padding:24px; overflow:auto; }
+  .phone {
+    position:relative; border:1px solid rgba(255,255,255,0.12); border-radius:26px; padding:8px;
+    background:#000; box-shadow:0 24px 60px rgba(0,0,0,0.6);
+  }
+  iframe { display:block; border:none; border-radius:18px; background:#000; }
+  .count { font-size:11px; color:rgba(255,255,255,0.4); min-width:44px; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Onboarding · Mobile</h1>
+  <div class="nav">
+    <button id="prev">‹ Prev</button>
+    <span class="count" id="count"></span>
+    <button id="next">Next ›</button>
+  </div>
+  <select id="step"></select>
+  <div class="seg" id="sizes"></div>
+  <button id="reload">Reload</button>
+  <span class="hint">One live frame · CSS edits hot-reload in place</span>
+</header>
+<main>
+  <div class="phone">
+    <iframe id="frame" title="onboarding step"></iframe>
+  </div>
+</main>
+
+<script>
+  // Same origin as the app → shared localStorage. Kill the cookie banner up front.
+  try {
+    localStorage.setItem('pholio_cookie_consent_v1',
+      JSON.stringify({ necessary:true, analytics:false, updatedAt:new Date().toISOString() }));
+  } catch(e){}
+
+  const STEPS = [
+    ['entry','Entry'], ['greet.google','Greet · Google'], ['birthdate','Birthdate'],
+    ['gender','Identity'], ['scout','Digitals'], ['measurements.height','Stats · Height'],
+    ['measurements.fitting','Stats · offer'], ['measurements.bust_cm','Stats · Bust'],
+    ['measurements.review','Stats · Review'], ['profile.1','Details · Lanes'],
+    ['profile.2','Details · Market'], ['finishing','Finishing'],
+  ];
+  const SIZES = [ ['iPhone',390,844], ['small',360,640], ['Pro Max',430,932] ];
+
+  let idx = 0, size = SIZES[0];
+  const frame = document.getElementById('frame');
+  const stepSel = document.getElementById('step');
+  const sizesEl = document.getElementById('sizes');
+  const countEl = document.getElementById('count');
+
+  function stripChrome() {
+    const run = () => {
+      try {
+        const d = frame.contentDocument; if (!d) return;
+        d.querySelectorAll('div').forEach(el => {
+          const s = el.getAttribute('style') || '';
+          if (s.includes('9999') && s.includes('position: fixed')) el.remove();
+        });
+        d.querySelectorAll('.app-cookie-banner').forEach(el => el.remove());
+      } catch(e){}
+    };
+    run(); setTimeout(run, 500); setTimeout(run, 1200);
+  }
+  frame.addEventListener('load', stripChrome);
+
+  function load() {
+    frame.width = size[1]; frame.height = size[2];
+    frame.src = '/onboarding?preview=' + STEPS[idx][0];
+    stepSel.value = String(idx);
+    countEl.textContent = (idx+1) + '/' + STEPS.length;
+  }
+
+  STEPS.forEach(([key,name],i) => {
+    const o = document.createElement('option'); o.value=i; o.textContent=name; stepSel.appendChild(o);
+  });
+  stepSel.onchange = () => { idx = +stepSel.value; load(); };
+  document.getElementById('prev').onclick = () => { idx = (idx-1+STEPS.length)%STEPS.length; load(); };
+  document.getElementById('next').onclick = () => { idx = (idx+1)%STEPS.length; load(); };
+  document.getElementById('reload').onclick = () => { frame.src = frame.src; };
+  SIZES.forEach((s,i) => {
+    const b = document.createElement('button'); b.textContent = s[0]+' · '+s[1];
+    if(i===0) b.className='on';
+    b.onclick = () => { size=s; [...sizesEl.children].forEach(c=>c.className=''); b.className='on'; load(); };
+    sizesEl.appendChild(b);
+  });
+  window.addEventListener('keydown', e => {
+    if (e.key==='ArrowLeft') document.getElementById('prev').click();
+    if (e.key==='ArrowRight') document.getElementById('next').click();
+  });
+  load();
+</script>
+</body>
+</html>

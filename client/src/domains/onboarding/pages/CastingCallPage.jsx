@@ -22,6 +22,7 @@ import CastingMeasurements from './CastingMeasurements';
 import CastingGender from './CastingGender';
 import CastingBirthdate from './CastingBirthdate';
 import CastingProfile from './CastingProfile';
+import CastingVerifyEmail from './CastingVerifyEmail';
 import AcknowledgmentBeat from './AcknowledgmentBeat';
 import ActionDock from '../components/ActionDock';
 import { ActionDockProvider } from '../components/ActionDockContext';
@@ -104,20 +105,28 @@ function CastingCallPage() {
       });
       setGreetName('Ava');
     }
+    if (preview.view === 'verify') {
+      setSignupMethod('manual');
+      setOauthUserData({ name: 'Ava Martinez', email: 'ava.martinez@gmail.com', picture: '' });
+      setGreetName('Ava');
+    }
     if (preview.view !== 'finishing') setCurrentView(preview.view);
   }, [previewActive, preview, navigate]);
 
-  // Custom Greet Beat auto-advance and click-to-skip handling for all signups
+  // Custom Greet Beat auto-advance and click-to-skip handling for all signups.
+  // Email/password signups pass through the inbox beat first — their address
+  // is unverified until the Firebase link is clicked. OAuth arrives verified.
+  const afterGreetView = 'birthdate';
   React.useEffect(() => {
     if (currentView !== 'greet') return;
     if (previewActive) return; // Do not auto-advance when previewing!
 
     const timer = setTimeout(() => {
-      setCurrentView('birthdate');
+      setCurrentView(afterGreetView);
     }, 2800);
 
     const skip = () => {
-      setCurrentView('birthdate');
+      setCurrentView(afterGreetView);
     };
 
     window.addEventListener('keydown', skip);
@@ -128,7 +137,7 @@ function CastingCallPage() {
       window.removeEventListener('keydown', skip);
       window.removeEventListener('pointerdown', skip);
     };
-  }, [currentView, signupMethod]);
+  }, [currentView, signupMethod, afterGreetView, previewActive]);
 
   const { data: status, isLoading, error } = useCastingStatus();
 
@@ -164,10 +173,11 @@ function CastingCallPage() {
     const firstName = rawName.trim().split(' ')[0];
     if (firstName && firstName !== 'New' && firstName !== 'User') {
       setGreetName(firstName);
-      setCurrentView('greet');
+      setCurrentView(method === 'manual' ? 'verify' : 'greet');
       return;
     }
-    setCurrentView('birthdate');
+    // No greet without a usable name; email signups still take the inbox beat.
+    setCurrentView(method === 'manual' ? 'verify' : 'birthdate');
   };
 
   // Step 1.5: Birthdate Complete (age gate before any further personal data)
@@ -294,7 +304,14 @@ function CastingCallPage() {
 
     // Resume from where the user left off (skip 'done' — no auto-forward).
     if (currentView === 'entry' && current_step !== 'entry' && current_step !== 'done') {
-      setCurrentView(current_step);
+      // An email/password signup that reloaded before verifying re-enters the
+      // inbox beat first. Only at birthdate (the step right after entry) — a
+      // user already deeper in the flow is never yanked back.
+      const needsVerifyBeat =
+        current_step === 'birthdate' &&
+        status.user?.auth_method === 'email' &&
+        !status.user?.email_verified;
+      setCurrentView(needsVerifyBeat ? 'verify' : current_step);
     }
   }, [status, navigate, currentView, previewActive]);
 
@@ -357,7 +374,9 @@ function CastingCallPage() {
 
   // The greet beat shares entry's progress slot — it isn't a step of its own.
   const steps = ['entry', 'birthdate', 'gender', 'scout', 'measurements', 'profile', 'complete'];
-  const currentStepIndex = steps.indexOf(currentView === 'greet' ? 'entry' : currentView);
+  const currentStepIndex = steps.indexOf(
+    currentView === 'greet' || currentView === 'verify' ? 'entry' : currentView,
+  );
 
   // Progress: each of the 7 steps advances the hairline by an equal share;
   // entry adds sub-step progress while the auth screens play out.
@@ -378,7 +397,7 @@ function CastingCallPage() {
   // Guided shell: which labeled step is active (entry/auth and the finishing
   // preloader sit outside the rail).
   const railIndex = isFinishing ? -1 : RAIL_STEPS.findIndex((s) => s.view === currentView);
-  const railActive = !isFinishing && !previewFinishing && currentView !== 'complete' && currentView !== 'greet' && currentView !== 'entry' && currentView !== 'finishing' && !isEntryAuthenticating;
+  const railActive = !isFinishing && !previewFinishing && currentView !== 'complete' && currentView !== 'greet' && currentView !== 'verify' && currentView !== 'entry' && currentView !== 'finishing' && !isEntryAuthenticating;
 
   const handleStepBack = () => {
     if (backOverrideRef.current?.()) return;
@@ -624,6 +643,21 @@ function CastingCallPage() {
                     Good day, <em>{greetName || firstName || 'Ava'}</em>
                   </motion.h2>
                 </motion.div>
+              )}
+
+              {currentView === 'verify' && (
+                <CastingVerifyEmail
+                  key="verify"
+                  email={oauthUserData?.email || status?.user?.email || null}
+                  previewActive={previewActive}
+                  onComplete={() => {
+                    if (greetName) {
+                      setCurrentView('greet');
+                    } else {
+                      setCurrentView('birthdate');
+                    }
+                  }}
+                />
               )}
 
               {currentView === 'birthdate' && (

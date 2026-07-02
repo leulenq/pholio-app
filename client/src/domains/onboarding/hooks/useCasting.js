@@ -79,6 +79,26 @@ export function useCastingEntry() {
 }
 
 /**
+ * Hook: Email-verified sync (the inbox beat). Posts a fresh Firebase ID token
+ * so the server can record the verified claim. No state transition involved.
+ */
+export function useCastingEmailVerified() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ firebase_token }) => {
+      return castingRequest('/email-verified', {
+        method: 'POST',
+        body: JSON.stringify({ firebase_token })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
+    }
+  });
+}
+
+/**
  * Hook: Gender step (persist gender, advance state → scout)
  */
 export function useCastingGender() {

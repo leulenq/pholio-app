@@ -52,14 +52,31 @@
 }
 
 @media (max-width: 640px) {
+  /* Keep the two digitals frames side by side (as on desktop) but make them
+     fluid so they fit the phone width instead of wrapping into a tall stack
+     that collides with the dock. Fixed 150px frames couldn't fit two-up. */
   .cs-frames {
-    gap: 1.2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+    width: 100%;
+    max-width: 380px;
+    margin: 0.5rem auto 0;
   }
-  .cs-frame-slot,
-  .cs-frame-drop {
-    width: 150px;
+  .cs-frames--single {
+    grid-template-columns: minmax(0, 210px);
+    justify-content: center;
+  }
+  .cs-frame-slot {
+    width: auto;
   }
   .cs-frame-drop {
-    height: 200px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 4;
+  }
+  /* Pull the intake guidance in so it clears the fixed Continue dock. */
+  .scout-helper {
+    margin-top: 1.6rem;
   }
 }

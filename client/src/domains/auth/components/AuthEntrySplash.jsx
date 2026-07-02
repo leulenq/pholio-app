@@ -50,7 +50,51 @@ function ProfileSpinner({ avatarUrl, initials, variant, reduceMotion, delay = 0 
             : { duration: 5.2, repeat: Infinity, ease: 'easeInOut', delay: delay + 0.8 }
         }
       >
-        <span className="auth-entry__icon-ring" aria-hidden="true" />
+        <svg
+          className="auth-entry__icon-svg"
+          viewBox="0 0 100 100"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 3,
+            pointerEvents: 'none',
+          }}
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="goldSplashDividerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="rgba(201, 165, 90, 0)" />
+              <stop offset="20%" stopColor="rgba(201, 165, 90, 0.4)" />
+              <stop offset="50%" stopColor="#C9A55A" />
+              <stop offset="80%" stopColor="rgba(201, 165, 90, 0.4)" />
+              <stop offset="100%" stopColor="rgba(201, 165, 90, 0)" />
+            </linearGradient>
+          </defs>
+          <circle
+            cx="50"
+            cy="50"
+            r="48.8"
+            fill="none"
+            stroke="rgba(245, 241, 234, 0.05)"
+            strokeWidth="1.2"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="48.8"
+            fill="none"
+            stroke="url(#goldSplashDividerGrad)"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            style={{
+              transformOrigin: '50px 50px',
+              animation: reduceMotion ? 'none' : 'auth-entry-orbit 2.6s linear infinite',
+              filter: 'drop-shadow(0 0 8px rgba(201, 165, 90, 0.5))',
+            }}
+          />
+        </svg>
         <span className="auth-entry__icon-avatar">
           {avatarUrl ? (
             <img src={avatarUrl} alt="" />

@@ -231,8 +231,12 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       const user = userCredential.user;
       await updateProfile(user, { displayName: formData.name });
 
-      // 2. Send verification (non-blocking — failure never gates entry).
-      sendEmailVerification(user).catch(() => {});
+      // 2. Send verification (non-blocking — failure never gates entry; the
+      // inbox beat after the greet offers a resend). The continue URL brings
+      // the user back to the flow after Firebase confirms the link.
+      sendEmailVerification(user, {
+        url: `${window.location.origin}/onboarding`,
+      }).catch(() => {});
 
       // 3. Complete entry immediately; verification lives in the inbox, not the flow.
       const token = await user.getIdToken();
@@ -316,7 +320,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
           initial="initial"
           animate="animate"
           exit="exit"
-          className="text-center"
+          className="text-center entry-choice"
         >
           {/* Main Text: Editorial Style */}
           <StepBeat text="Let's get you *seen*" dividerDelay={0.6} questionDelay={0.3} />

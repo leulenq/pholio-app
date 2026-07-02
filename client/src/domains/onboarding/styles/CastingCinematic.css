@@ -105,7 +105,7 @@
      personalized headline never wraps or overflows. */
   font-size: clamp(2.5rem, 5vw, 5rem);
   font-weight: 400; /* Lighter, more elegant */
-  line-height: 1.22;
+  line-height: 1.3;
   margin-bottom: 0;
   letter-spacing: -0.02em;
   text-align: center;
@@ -115,14 +115,33 @@
   max-width: 96vw;
   margin-left: auto;
   margin-right: auto;
-  padding-bottom: 0.28em; /* room for descenders (e.g. "identify") */
+  /* Italic Playfair descenders (the swash "f" / "y" in "identify") run deep —
+     give them real headroom so the tails are never clipped. */
+  padding-bottom: 0.5em;
   overflow: visible;
 }
 
 /* Phones: lower the clamp floor so long personalized headlines stay one line. */
 @media (max-width: 640px) {
   .cinematic-question {
-    font-size: clamp(1.7rem, 6.4vw, 2.6rem);
+    /* As large as will fit: let the headline wrap to a second line on phones
+       and scale up to fill the width, rather than shrinking a long personalized
+       headline down to a sliver to keep it on one line. */
+    font-size: clamp(2.5rem, 9.5vw, 3.4rem);
+    white-space: normal;
+    /* Descenders on the italic gold words (the "y" in identify, "g" in fitting)
+       need headroom — a tight line-height + small padding was clipping them. */
+    line-height: 1.2;
+    padding-bottom: 0.5em;
+    overflow: visible;
+    max-width: 100%;
+  }
+
+  /* Reclaim width: the focus panel is the outer gutter on mobile. The step
+     stages add their own padding, so keep this side gutter slim (otherwise the
+     doubled padding starves two-up option grids and forces one-per-row). */
+  .cinematic-focus-panel {
+    padding: 1.25rem 0.75rem;
   }
 }
 

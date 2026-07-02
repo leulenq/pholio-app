@@ -83,6 +83,33 @@
   box-shadow: none;
 }
 
+/* Auth button labels never wrap — "Sign up with Instagram" was breaking onto a
+   second line on narrow phones. Keep the icon + label on one line. */
+.entry-auth-btn span {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  /* The hero opener is a moment — the largest headline in the flow. */
+  .entry-choice .cinematic-question {
+    font-size: clamp(2.7rem, 10.5vw, 3.7rem);
+    white-space: normal;
+    line-height: 1.18;
+    padding-bottom: 0.42em;
+  }
+
+  /* Tighten the card so full-width buttons have room for their labels. Inline
+     padding on the element is overridden here for phones only. */
+  .entry-choice .cinematic-card {
+    padding: 2.25rem 1.1rem !important;
+    max-width: 100% !important;
+  }
+  .entry-auth-btn {
+    padding: 0.95rem 1rem;
+    gap: 0.6rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .entry-hint {
     transition: none;

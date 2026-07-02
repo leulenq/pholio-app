@@ -68,8 +68,26 @@
 }
 
 @media (max-width: 640px) {
+  /* Two per row, always — a fixed-width flex row can't fit two tiles once the
+     stage gutters are subtracted, so it collapsed to one-per-row. A 2-col grid
+     guarantees the 2×2 layout and shorter tiles keep it above the fold. */
+  .gender-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    max-width: 360px;
+    width: 100%;
+  }
   .gender-tile {
-    width: 132px;
-    height: 168px;
+    width: auto;
+    height: 128px;
+    gap: 0.85rem;
+  }
+  .gender-tile svg {
+    width: 26px;
+    height: 26px;
+  }
+  .gender-tile-label {
+    font-size: 0.62rem;
   }
 }

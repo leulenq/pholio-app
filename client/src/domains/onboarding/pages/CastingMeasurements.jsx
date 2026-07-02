@@ -11,6 +11,7 @@ import { fadeVariants } from './animations';
 import { useCastingMeasurements, useCastingStatus } from '../hooks/useCasting';
 
 import StepBeat from '../components/StepBeat';
+import ColorSelect from '../components/ColorSelect';
 import { AcknowledgmentBeat } from './AcknowledgmentBeat';
 import { InlineErrorText } from '../../../shared/components/states';
 import { useActionDock } from '../components/ActionDockContext';
@@ -53,6 +54,42 @@ function statFieldsFor(gender) {
 
 // heightOnly: minors (and age-unknown profiles) confirm height only during
 // onboarding — body measurements stay locked until guardian consent.
+
+// Optional NON-SENSITIVE appearance steps — offered to ALL talent (including
+// minors and non-binary/undisclosed), every one skippable. Values must match
+// the server enums in routes/casting.js exactly.
+const APPEARANCE_STEPS = ['hair', 'eyes', 'shoe'];
+
+const HAIR_OPTIONS = [
+  { value: 'Black', swatch: '#1A1512' },
+  { value: 'Brown', swatch: '#5A3A24' },
+  { value: 'Blonde', swatch: '#D8B27A' },
+  { value: 'Red', swatch: '#8E3B22' },
+  { value: 'Gray', swatch: '#9A948C' },
+  { value: 'White', swatch: '#EDE9E2' },
+  { value: 'Other', swatch: null },
+];
+
+const EYE_OPTIONS = [
+  { value: 'Brown', swatch: '#4E3520' },
+  { value: 'Blue', swatch: '#5E82A8' },
+  { value: 'Green', swatch: '#5F7A52' },
+  { value: 'Hazel', swatch: '#7A5C33' },
+  { value: 'Gray', swatch: '#8E969C' },
+  { value: 'Amber', swatch: '#B0762D' },
+  { value: 'Other', swatch: null },
+];
+
+// Per-region shoe scales. Switching region resets to that region's neutral
+// anchor (scales are not interconvertible without gender-specific tables).
+const SHOE_SCALES = {
+  US: { min: 3, max: 16, anchor: 8 },
+  EU: { min: 34, max: 50, anchor: 41 },
+  UK: { min: 2, max: 15, anchor: 7 },
+};
+const SHOE_REGIONS = ['US', 'EU', 'UK'];
+
+const formatShoe = (size) => (Number.isInteger(size) ? String(size) : size.toFixed(1));
 
 const tapeViewFor = (type, unitSystem) => {
   if (type === 'height') {
@@ -321,6 +358,54 @@ const PrecisionDeck = ({ value, onAdjust, onTouch, unitSystem, onToggleUnits, ty
   );
 };
 
+// Shoe size — same dial instrument as the stats, no tape (half-size steps),
+// with a three-way region toggle in the unit-toggle language.
+const ShoeDeck = ({ shoe, onAdjust, onRegion }) => {
+  const scale = SHOE_SCALES[shoe.region];
+  const noop = () => {};
+  return (
+    <div className="csm-dial-wrap csm-dial-wrap--stat">
+      <div className="csm-dial-row">
+        <DialArrow
+          direction={-1}
+          onPointerDown={(e) => { e.preventDefault(); onAdjust(-0.5); }}
+          onPointerUp={noop}
+          onPointerCancel={noop}
+        />
+        <div className="csm-dial-val csm-dial-val--shoe">
+          {formatShoe(shoe.size)}
+          <span className="csm-dial-u">{shoe.region}</span>
+        </div>
+        <DialArrow
+          direction={1}
+          onPointerDown={(e) => { e.preventDefault(); onAdjust(0.5); }}
+          onPointerUp={noop}
+          onPointerCancel={noop}
+        />
+      </div>
+      <div className="csm-dial-unit-label">
+        {scale.min}–{scale.max}
+      </div>
+      <div className="csm-unit-toggle csm-shoe-toggle" role="radiogroup" aria-label="Shoe size region">
+        {SHOE_REGIONS.map((region, i) => (
+          <React.Fragment key={region}>
+            {i > 0 && <span className="csm-unit-bar" aria-hidden="true" />}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={shoe.region === region}
+              className={shoe.region === region ? 'is-on' : ''}
+              onClick={() => onRegion(region)}
+            >
+              {region}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = false, initialStep, registerBack, firstName }) {
   const { data: status } = useCastingStatus();
   // Prefer the explicit prop; fall back to the persisted profile so the live
@@ -344,6 +429,12 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
   const [measurements, setMeasurements] = useState({ ...START });
   const [touched, setTouched] = useState({});
 
+  // Optional appearance answers — null / untouched means "not answered" and
+  // is simply left out of the payload (these steps can never block the flow).
+  const [hairColor, setHairColor] = useState(null);
+  const [eyeColor, setEyeColor] = useState(null);
+  const [shoe, setShoe] = useState({ region: 'US', size: SHOE_SCALES.US.anchor, touched: false });
+
   const [saveError, setSaveError] = useState('');
   const [showBeat, setShowBeat] = useState(false);
   const pendingPayload = React.useRef(null);
@@ -354,10 +445,12 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
     setTouched((t) => (t[field] ? t : { ...t, [field]: true }));
   };
 
-  // Ordered step list for the current path.
+  // Ordered step list for the current path. The appearance steps (hair / eyes
+  // / shoe) are non-sensitive, offered to everyone — minors included — and
+  // each one is skippable from the dock.
   const sequence = React.useMemo(() => {
-    if (heightOnly || !offersStats) return ['height', 'review'];
-    return ['height', 'fitting', ...statFields.map((f) => f.key), 'review'];
+    if (heightOnly || !offersStats) return ['height', ...APPEARANCE_STEPS, 'review'];
+    return ['height', 'fitting', ...statFields.map((f) => f.key), ...APPEARANCE_STEPS, 'review'];
   }, [heightOnly, offersStats, statFields]);
 
   // Payload is built the same as before — height always, touched stats only.
@@ -370,8 +463,15 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
         if (touched[f.key]) payload[f.key] = Math.round(measurements[f.key]);
       });
     }
+    // Appearance answers travel only when actually given.
+    if (hairColor) payload.hair_color = hairColor;
+    if (eyeColor) payload.eye_color = eyeColor;
+    if (shoe.touched) {
+      payload.shoe_size = shoe.size;
+      payload.shoe_region = shoe.region;
+    }
     return payload;
-  }, [measurements, heightOnly, statFields, touched]);
+  }, [measurements, heightOnly, statFields, touched, hairColor, eyeColor, shoe]);
 
   const handleConfirm = useCallback(async () => {
     if (measurementsMutation.isPending) return;
@@ -420,7 +520,33 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
     goNext();
   }, [touched.height_cm, goNext]);
 
-  const skipStats = useCallback(() => setStep('review'), []);
+  // "Later" on the fitting offer skips the body stats but still passes through
+  // the light appearance beats (all individually skippable too).
+  const skipStats = useCallback(() => setStep('hair'), []);
+
+  // Skipping an appearance step discards any picked value so "Skip" means skip.
+  const skipHair = useCallback(() => { setHairColor(null); goNext(); }, [goNext]);
+  const skipEyes = useCallback(() => { setEyeColor(null); goNext(); }, [goNext]);
+  const skipShoe = useCallback(() => {
+    setShoe((s) => ({ ...s, size: SHOE_SCALES[s.region].anchor, touched: false }));
+    goNext();
+  }, [goNext]);
+
+  const adjustShoe = useCallback((delta) => {
+    setShoe((s) => {
+      const scale = SHOE_SCALES[s.region];
+      const size = Math.max(scale.min, Math.min(scale.max, s.size + delta));
+      return { ...s, size, touched: true };
+    });
+  }, []);
+
+  // Scales are not interconvertible without gender tables — changing region
+  // resets to that region's neutral anchor, un-answered.
+  const setShoeRegion = useCallback((region) => {
+    setShoe((s) =>
+      s.region === region ? s : { region, size: SHOE_SCALES[region].anchor, touched: false },
+    );
+  }, []);
 
   // --- Display & Adjustment Helpers ---
 
@@ -457,7 +583,7 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
     if (showBeat) return { label: null };
     if (step === 'height') {
       return {
-        label: heightOnly || !offersStats ? 'Review' : 'Next',
+        label: 'Next',
         enabled: !!touched.height_cm,
         onAdvance: handleHeightNext,
       };
@@ -477,13 +603,34 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
         onAdvance: handleConfirm,
       };
     }
+    // Appearance beats — Next only once answered; Skip is always available and
+    // never blocks (the answer just stays unset).
+    if (step === 'hair') {
+      return {
+        label: 'Next', enabled: !!hairColor, onAdvance: goNext,
+        skip: { label: 'Skip', onClick: skipHair },
+      };
+    }
+    if (step === 'eyes') {
+      return {
+        label: 'Next', enabled: !!eyeColor, onAdvance: goNext,
+        skip: { label: 'Skip', onClick: skipEyes },
+      };
+    }
+    if (step === 'shoe') {
+      return {
+        label: 'Review', enabled: shoe.touched, onAdvance: goNext,
+        skip: { label: 'Skip', onClick: skipShoe },
+      };
+    }
     // A gender-aware stat step (bust / waist / hips / chest / inseam).
-    const isLastStat = step === sequence[sequence.length - 2];
-    return { label: isLastStat ? 'Review' : 'Next', enabled: true, onAdvance: goNext };
+    return { label: 'Next', enabled: true, onAdvance: goNext };
   }, [
-    showBeat, step, heightOnly, offersStats, touched.height_cm,
-    measurementsMutation.isPending, sequence,
+    showBeat, step, touched.height_cm,
+    measurementsMutation.isPending,
+    hairColor, eyeColor, shoe.touched,
     handleHeightNext, goNext, handleConfirm, skipStats,
+    skipHair, skipEyes, skipShoe,
   ]);
 
   useActionDock(dockConfig);
@@ -547,6 +694,38 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
         {/* Gender-aware stat steps */}
         {!showBeat && offersStats && statFields.map((f) => (step === f.key ? renderStatStep(f) : null))}
 
+        {/* Appearance beats — non-sensitive, offered to everyone, skippable */}
+        {!showBeat && step === 'hair' && (
+          <motion.div key="hair" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="Your *hair*?" dividerDelay={0.3} />
+            <ColorSelect
+              options={HAIR_OPTIONS}
+              value={hairColor}
+              onChange={setHairColor}
+              ariaLabel="Hair color"
+            />
+          </motion.div>
+        )}
+
+        {!showBeat && step === 'eyes' && (
+          <motion.div key="eyes" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="Your *eyes*?" dividerDelay={0.3} />
+            <ColorSelect
+              options={EYE_OPTIONS}
+              value={eyeColor}
+              onChange={setEyeColor}
+              ariaLabel="Eye color"
+            />
+          </motion.div>
+        )}
+
+        {!showBeat && step === 'shoe' && (
+          <motion.div key="shoe" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="*Shoe* size?" dividerDelay={0.3} />
+            <ShoeDeck shoe={shoe} onAdjust={adjustShoe} onRegion={setShoeRegion} />
+          </motion.div>
+        )}
+
         {/* Review */}
         {!showBeat && step === 'review' && (
           <motion.div key="review" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
@@ -580,6 +759,18 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
                       </React.Fragment>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {(hairColor || eyeColor || shoe.touched) && (
+                <div className="csm-rev-look">
+                  {[
+                    hairColor && `${hairColor} hair`,
+                    eyeColor && `${eyeColor} eyes`,
+                    shoe.touched && `${shoe.region} ${formatShoe(shoe.size)} shoe`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </div>
               )}
 
