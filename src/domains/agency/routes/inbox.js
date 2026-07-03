@@ -12,7 +12,10 @@ const {
   processAgencyLogo,
 } = require("../../../shared/lib/uploader");
 const { v4: uuidv4 } = require("uuid");
-const { sendApplicationStatusEmail } = require("../../../shared/lib/email");
+const {
+  sendApplicationStatusEmail,
+  sendAgencyInviteEmail,
+} = require("../../../shared/lib/email");
 const {
   getSessionActorUserId,
   getSessionAgencyId,
@@ -3491,7 +3494,6 @@ router.post(
 
       // Send invitation email (optional)
       try {
-        const { sendAgencyInviteEmail } = require("../../shared/lib/email");
         const talentUser = await knex("users")
           .where({ id: profile.user_id })
           .first();

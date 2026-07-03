@@ -204,7 +204,7 @@ export default function CastingScout({ onComplete, firstName, fullLengthEnabled 
       },
       onError: (err) => {
         setScanning(false);
-        setConfirmError(err?.message || 'Analysis failed. Try again.');
+        setConfirmError(err?.message || 'Could not save. Try again.');
       },
     });
   }, [canContinue, confirmMutation]);
@@ -260,9 +260,9 @@ export default function CastingScout({ onComplete, firstName, fullLengthEnabled 
                 <div className="scout-scan-status">
                   <div className="scout-scan-indicator">
                     <div className="scout-scan-dot" />
-                    <span className="scout-scan-label">Analyzing</span>
+                    <span className="scout-scan-label">Saving</span>
                   </div>
-                  <p className="scout-scan-sublabel">Reading light, structure &amp; composition</p>
+                  <p className="scout-scan-sublabel">Filing your digitals to your profile</p>
                   <div className="scout-progress-track">
                     <motion.div className="scout-progress-fill"
                       initial={{ width: '0%' }}
@@ -314,7 +314,7 @@ export default function CastingScout({ onComplete, firstName, fullLengthEnabled 
               {confirmError && (
                 <div style={{ marginTop: '1.75rem' }}>
                   <TransferFailureNotice
-                    title="Analysis failed"
+                    title="Save failed"
                     body={confirmError}
                     retry={{ label: 'Try again', onClick: handleContinue }}
                   />

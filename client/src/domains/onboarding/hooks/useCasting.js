@@ -52,8 +52,14 @@ export function useCastingStatus(enabled = true) {
     queryFn: () => castingRequest('/status'),
     enabled,
     retry: false,
-    // Stop polling once the status endpoint errors (e.g. no active session on entry).
-    refetchInterval: (query) => (query.state.error ? false : 5000),
+    // Stop polling once the status endpoint errors (e.g. no active session on
+    // entry) and once onboarding reaches its terminal state — there is nothing
+    // left to observe after `done`, so don't keep hitting the API every 5s.
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      if (query.state.data?.state?.current_step === 'done') return false;
+      return 5000;
+    },
     refetchIntervalInBackground: false,
   });
 }

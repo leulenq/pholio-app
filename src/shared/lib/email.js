@@ -19,9 +19,21 @@ const {
   buildGuardianConsentEmailHtml,
 } = require("./pholio-email");
 
+/**
+ * Extract just the domain of an address for logging. We never want to log a
+ * full recipient address (or message bodies / tokens / links — guardian
+ * consent links are secrets) so log output stays safe to paste into tickets.
+ */
+function emailDomain(address) {
+  const match = /@([^,>\s]+)/.exec(String(address || ""));
+  return match ? match[1] : "unknown";
+}
+
 // Create transporter: use SMTP if configured, otherwise fallback to development mock logger
 let transporter;
-if (config.smtp?.host) {
+const smtpConfigured = Boolean(config.smtp?.host);
+
+if (smtpConfigured) {
   transporter = nodemailer.createTransport({
     host: config.smtp.host,
     port: config.smtp.port,
@@ -32,18 +44,65 @@ if (config.smtp?.host) {
     },
   });
   console.log("[Email] Initialized REAL SMTP transporter with host:", config.smtp.host);
+
+  // Non-fatal connectivity/auth check. This never blocks startup, but a
+  // failure here means every real send below will also fail — surfacing it
+  // now (in boot logs) instead of only on first send makes misconfiguration
+  // visible immediately instead of silently. Guarded because test doubles
+  // for nodemailer (jest.mock) may not implement verify().
+  if (typeof transporter.verify === "function") {
+    Promise.resolve()
+      .then(() => transporter.verify())
+      .then(() => {
+        console.log(
+          "[Email] SMTP transporter verify() OK — host:",
+          config.smtp.host,
+        );
+      })
+      .catch((err) => {
+        console.error(
+          "[Email] SMTP transporter verify() FAILED — host:",
+          config.smtp.host,
+          "— emails will likely fail to send until this is fixed. Reason:",
+          err.message,
+        );
+      });
+  }
 } else {
   transporter = {
     sendMail: async (mailOptions) => {
-      console.log("[Email] Would send (SMTP not configured):", {
-        to: mailOptions.to,
+      console.log("[Email] MOCK — SMTP not configured, NOT sending a real email:", {
+        to: emailDomain(mailOptions.to),
         subject: mailOptions.subject,
-        text: mailOptions.text?.substring(0, 200) + "...",
       });
-      return { messageId: "dev-" + Date.now() };
+      return { messageId: "mock-" + Date.now() };
     },
   };
-  console.log("[Email] Initialized MOCK development transporter");
+
+  if (config.nodeEnv === "production") {
+    // Loud and unmistakable: in production with no SMTP configured, every
+    // outbound email (guardian consent, application status, agency invites,
+    // new-message notifications, etc.) is silently discarded by the mock
+    // transporter above. We do not crash the server for this — some deploys
+    // may intentionally run without email — but it must be impossible to
+    // miss in logs/alerting.
+    console.error(
+      "\n" +
+        "############################################################\n" +
+        "# [Email] PRODUCTION MISCONFIGURATION: SMTP_HOST is not set. #\n" +
+        "# ALL outbound email (guardian consent, application status,  #\n" +
+        "# agency invites, new-message notifications, etc.) is being  #\n" +
+        "# silently swallowed by the MOCK transporter.                #\n" +
+        "# Set SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS /         #\n" +
+        "# EMAIL_FROM in the production environment.                  #\n" +
+        "# See docs/email-setup.md.                                   #\n" +
+        "############################################################\n",
+    );
+  } else {
+    console.log(
+      "[Email] Initialized MOCK development transporter (SMTP not configured)",
+    );
+  }
 }
 
 /**
@@ -60,10 +119,19 @@ async function sendEmail({ to, subject, html, text }) {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("[Email] Sent:", info.messageId, "to", to);
+    console.log("[Email] Sent:", info.messageId, "to domain:", emailDomain(to));
     return info;
   } catch (error) {
-    console.error("[Email] Error sending email:", error);
+    // Recipient domain + subject only — never the full address, body, or any
+    // token/link embedded in the body (e.g. guardian consent links).
+    console.error(
+      "[Email] Failed to send — to domain:",
+      emailDomain(to),
+      "subject:",
+      subject,
+      "reason:",
+      error.message,
+    );
     throw error;
   }
 }

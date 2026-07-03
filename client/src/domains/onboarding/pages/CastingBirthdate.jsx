@@ -19,14 +19,17 @@ const TODAY = new Date();
 const TODAY_STR = TODAY.toISOString().slice(0, 10);
 const MIN_DATE_STR = `${TODAY.getFullYear() - 100}-01-01`;
 
+// UTC on purpose — mirrors the server's computeAge (src/shared/lib/talent-age.js)
+// so the 13/18 boundary lands on the same calendar day on both sides.
 function computeAgeFromStr(dateStr) {
   if (!dateStr) return null;
   const [year, month, day] = dateStr.split('-').map(Number);
   if (!year || !month || !day) return null;
-  let age = TODAY.getFullYear() - year;
+  const now = new Date();
+  let age = now.getUTCFullYear() - year;
   const beforeBirthday =
-    TODAY.getMonth() + 1 < month ||
-    (TODAY.getMonth() + 1 === month && TODAY.getDate() < day);
+    now.getUTCMonth() + 1 < month ||
+    (now.getUTCMonth() + 1 === month && now.getUTCDate() < day);
   if (beforeBirthday) age -= 1;
   return age >= 0 ? age : null;
 }
@@ -130,7 +133,8 @@ export function CastingBirthdate({ onComplete, firstName }) {
               fontFamily: "var(--cinematic-font-sans, 'Inter', sans-serif)",
             }}
           >
-            We&apos;ll bring your parent or guardian in before anything personal.
+            A parent or guardian will need to give consent before your profile
+            can be shared with agencies.
           </motion.p>
         )}
       </AnimatePresence>

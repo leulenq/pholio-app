@@ -8,6 +8,15 @@ jest.mock("nodemailer", () => ({
   })),
 }));
 
+// email.js picks the real (nodemailer) transporter vs. the dev mock at
+// require-time, based on config.smtp.host. Set fake SMTP env before
+// requiring it so this test exercises the real send path (through the
+// nodemailer mock above) instead of the console.log-only dev fallback.
+process.env.SMTP_HOST = "smtp.test.example.com";
+process.env.SMTP_PORT = "587";
+process.env.SMTP_USER = "test-user";
+process.env.SMTP_PASS = "test-pass";
+
 const {
   buildGuardianConsentEmailHtml,
 } = require("../../src/shared/lib/pholio-email");
