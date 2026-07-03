@@ -21,6 +21,15 @@
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Paint the document surface black while the casting flow is mounted. The app
+   body is a light warm neutral (#faf9f7); with viewport-fit=cover the top
+   safe-area / status-bar region adopts the body background and rendered as a
+   white bar above the dark stage. Toggled by CastingCallPage on mount/unmount
+   so the (light) dashboard theme is untouched. */
+body.casting-dark-body {
+  background: #000;
+}
+
 /* Background container with relative positioning for absolute children */
 .cinematic-container {
   background: var(--cinematic-bg);

@@ -68,6 +68,15 @@ function CastingCallPage() {
   const [oauthUserData, setOauthUserData] = useState(null); // { name, email, picture }
   const [isEntryAuthenticating, setIsEntryAuthenticating] = useState(false);
 
+  // Paint the document surface black for the duration of the casting flow so
+  // the top safe-area / status-bar region (which adopts the body background
+  // under viewport-fit=cover) is dark instead of the app's light neutral.
+  // Restored on unmount so the dashboard's light theme is untouched.
+  React.useEffect(() => {
+    document.body.classList.add('casting-dark-body');
+    return () => document.body.classList.remove('casting-dark-body');
+  }, []);
+
   // Single back action: steps with internal sub-steps register a handler; when
   // it returns true the sub-step consumed the back, otherwise we leave the step.
   const backOverrideRef = React.useRef(null);

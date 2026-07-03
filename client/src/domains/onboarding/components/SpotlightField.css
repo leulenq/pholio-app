@@ -120,3 +120,30 @@
   opacity: 1;
   transform: scale(1.08);
 }
+
+/* ── Mobile date field (audit fix: invisible on iOS) ────────────────────────
+   iOS Safari renders no calendar-picker indicator, and the empty date field's
+   ghosted MM/DD/YYYY placeholder (var(--ghost) = 0.15 alpha) is invisible on
+   black — the field read as an empty gap. On phones, give the date variant a
+   visible, obviously-tappable hairline chip and legible placeholder/value.
+   Desktop keeps the boxless spotlight field with its gold picker icon. */
+@media (max-width: 640px) {
+  .spotlight .spotlight-input--date {
+    width: min(80vw, 320px) !important;
+    padding: 0.7rem 1.1rem !important;
+    border: 1px solid rgba(201, 165, 90, 0.42) !important;
+    border-radius: 10px !important;
+    background: rgba(201, 165, 90, 0.05) !important;
+    font-size: clamp(1.6rem, 7vw, 2.2rem);
+  }
+
+  /* Legible typed value. */
+  .spotlight .spotlight-input--date::-webkit-datetime-edit {
+    color: rgba(245, 241, 234, 0.92);
+  }
+
+  /* Legible empty placeholder (was the near-invisible 0.15 ghost). */
+  .spotlight .spotlight-input--date:required:invalid::-webkit-datetime-edit {
+    color: rgba(245, 241, 234, 0.5);
+  }
+}

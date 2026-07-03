@@ -89,34 +89,57 @@
     gap: 0.6rem;
   }
 
+  /* Canonical talent primary button, dark-surface tone — mirrors
+     PholioButton's .pholio-btn--primary.pholio-btn--tone-dark: flat ivory
+     fill, ink text, 3px radius, NO shadow/lift, sentence case, with the quiet
+     gold underline accent. (The design system explicitly retires the
+     gradient/shadow/scale language, so the earlier gold-gradient chip was wrong.) */
   .action-dock-cta {
+    position: relative;
+    overflow: hidden;
     width: 100%;
     justify-content: center;
+    gap: 12px;
     min-height: 52px;
-    padding: 0.9rem 1.5rem;
-    background: linear-gradient(135deg, #C9A55A 0%, #a88641 100%);
-    color: #0a0a0a;
-    border-radius: 10px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    box-shadow: 0 8px 24px rgba(201, 165, 90, 0.28);
+    padding: 14px 22px;
+    border: 1px solid #faf7f2;
+    border-radius: 3px;
+    background: #faf7f2;
+    color: #1a1815;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
   }
 
-  .action-dock-cta:active {
-    transform: translateY(1px);
+  /* Gold underline accent (mirrors .pholio-btn--primary::after). */
+  .action-dock-cta::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 46px;
+    height: 1.5px;
+    border-radius: 999px;
+    background: linear-gradient(to right, transparent, #c9a55a, transparent);
+    opacity: 0.6;
+    transform: translateX(-50%);
+    pointer-events: none;
   }
 
-  /* Legible disabled state — not the near-invisible desktop faint. */
+  .action-dock-arw {
+    color: #9b742f; /* tone-dark primary accent (matches the button-system svg) */
+  }
+
+  /* System disabled = the same fill at 0.38 opacity, never a different chip. */
   .action-dock-cta[disabled] {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(245, 241, 234, 0.4);
-    box-shadow: none;
+    opacity: 0.38;
+    background: #faf7f2;
+    color: #1a1815;
   }
 
-  .action-dock-cta[disabled] .action-dock-arw {
-    opacity: 0.5;
+  .action-dock-cta[disabled]::after {
+    opacity: 0.3;
   }
 
   /* Secondary (skip / later) stays a quiet text link, but tappable. */
@@ -124,9 +147,15 @@
   .action-dock-cta--text:hover {
     width: 100%;
     min-height: 40px;
+    border: none;
     background: none;
     color: var(--text-2);
-    box-shadow: none;
     font-size: 0.62rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+
+  .action-dock-cta--text::after {
+    content: none;
   }
 }
