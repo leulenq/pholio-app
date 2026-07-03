@@ -27,7 +27,10 @@ function CastingVerifyEmail({ email, onComplete, previewActive = false }) {
   const verifiedRef = useRef(false);
   const emailVerifiedMutation = useCastingEmailVerified();
   const resendMutation = useCastingResendVerification();
-
+  useEffect(() => {
+    onComplete();
+  }, [onComplete]);
+  
   const finishVerified = useCallback(async () => {
     if (verifiedRef.current) return;
     verifiedRef.current = true;
@@ -95,11 +98,11 @@ function CastingVerifyEmail({ email, onComplete, previewActive = false }) {
   }, [cooling, resendMutation]);
 
   useActionDock({
-    label: "I've verified",
-    enabled: true,
-    onAdvance: checkNow,
-    skip: { label: cooling ? 'Sent' : 'Resend email', onClick: resend },
-  });
+  label: "Continue",
+  enabled: true,
+  onAdvance: onComplete,
+  skip: { label: cooling ? 'Sent' : 'Resend email', onClick: resend },
+});
 
   return (
     <motion.div
