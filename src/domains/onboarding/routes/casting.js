@@ -26,6 +26,7 @@ const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers"
 const {
   requireAuth,
   requireRole,
+  requireActiveAccount,
 } = require("../../auth/middleware/require-auth");
 const { addMessage } = require("../../../shared/middleware/context");
 const { upload, processImage } = require("../../../shared/lib/uploader");
@@ -43,6 +44,18 @@ const {
   computeAge,
   canCollectSensitiveProfileFields,
 } = require("../../../shared/lib/talent-age");
+const {
+  MODERATION_STATUS,
+  MODERATION_QUEUE_STATUS,
+  analyzeImageBuffer,
+} = require("../../../shared/lib/content-moderation");
+const {
+  screenImageForCsam,
+  recordCsamEscalation,
+} = require("../../../shared/lib/csam-moderation");
+const {
+  purgeStoredImageArtifacts,
+} = require("../../../shared/lib/purge-image-artifacts");
 const { verifyGoogleToken } = require("../services/providers/google");
 const { normalizeOAuthUser } = require("../services/providers/oauth-user");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
@@ -160,13 +173,35 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         ? providerUser.email.toLowerCase().trim()
         : `instagram_${providerUser.uid.replace(":", "_")}@pholio.me`;
 
+      // Match an existing account by email ONLY when Firebase asserts a
+      // verified email. Matching on an UNVERIFIED email claim is an
+      // account-takeover vector (audit finding H3): any DB user whose email is
+      // not registered in Firebase (seeds, imports, legacy rows, or
+      // Instagram-synthesized addresses) could otherwise be claimed by
+      // registering that email in Firebase and hitting entry with an unverified
+      // token. When the email is unverified we fall back to firebase_uid only,
+      // which for a genuinely new identity simply creates a fresh account.
+      const emailVerified = decodedToken.email_verified === true;
       let userQuery = knex("users").where({ firebase_uid: providerUser.uid });
-      if (providerUser.email) {
+      if (providerUser.email && emailVerified) {
         userQuery = userQuery.orWhere({
           email: providerUser.email.toLowerCase().trim(),
         });
       }
       user = await userQuery.first();
+
+      // Role guard (audit finding M2): talent onboarding must never run for an
+      // AGENCY account. Entry sets req.session.role = "TALENT" unconditionally
+      // and creates a talent profile row; if an existing AGENCY user signs in
+      // here (e.g. same Google identity), their session role would disagree with
+      // users.role and they'd get a stray talent profile. Reject instead.
+      if (user && user.role === "AGENCY") {
+        return res.status(409).json({
+          error: "AGENCY_ACCOUNT",
+          message:
+            "This account is registered as an agency. Sign in from the agency dashboard instead of talent onboarding.",
+        });
+      }
 
       // Use normalized Google/OAuth data (extracting given_name/family_name)
       // Fallback to explicit 'name' payload if token claims are missing (e.g. immediate manual signup delay)
@@ -186,24 +221,59 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         }
 
         const userId = uuidv4();
-        await knex.transaction(async (trx) => {
-          await trx("users").insert({
-            id: userId,
-            email: normalizedEmail,
-            firebase_uid: providerUser.uid,
-            role: "TALENT",
-            first_name: derivedFirstName,
-            last_name: derivedLastName,
-            created_at: knex.fn.now(),
+        try {
+          await knex.transaction(async (trx) => {
+            await trx("users").insert({
+              id: userId,
+              email: normalizedEmail,
+              firebase_uid: providerUser.uid,
+              role: "TALENT",
+              first_name: derivedFirstName,
+              last_name: derivedLastName,
+              created_at: knex.fn.now(),
+            });
+            await recordLegalAcceptance(trx, userId, {
+              terms: true,
+              privacy: privacyAccepted,
+            });
           });
-          await recordLegalAcceptance(trx, userId, {
-            terms: true,
-            privacy: privacyAccepted,
-          });
-        });
 
-        user = await knex("users").where({ id: userId }).first();
-        isNewUser = true;
+          user = await knex("users").where({ id: userId }).first();
+          isNewUser = true;
+        } catch (insertErr) {
+          // Duplicate-user race (audit finding L4): two concurrent first entries
+          // for the SAME identity race on the users unique constraints. Re-read
+          // the row the winning request created instead of surfacing an
+          // unhandled 500. We recover by firebase_uid — and by email ONLY when
+          // Firebase verified it. Recovering on an unverified email would
+          // reintroduce the H3 takeover through this error path: an insert that
+          // collides with a pre-existing row on an UNVERIFIED email claim must
+          // fail closed, not silently bind to that account.
+          let recoverQuery = knex("users").where({
+            firebase_uid: providerUser.uid,
+          });
+          if (providerUser.email && emailVerified) {
+            recoverQuery = recoverQuery.orWhere({ email: normalizedEmail });
+          }
+          user = await recoverQuery.first();
+          if (!user) {
+            // Not our own row from a race. If the collision was on an email
+            // owned by a DIFFERENT identity and this token's email is
+            // unverified, fail closed (H3) with a clean 409 rather than an
+            // unhandled 500 — never bind the caller to that account.
+            const emailOwner = providerUser.email
+              ? await knex("users").where({ email: normalizedEmail }).first()
+              : null;
+            if (emailOwner && !emailVerified) {
+              return res.status(409).json({
+                error: "EMAIL_IN_USE",
+                message:
+                  "An account already exists for this email. Please sign in with your original method.",
+              });
+            }
+            throw insertErr;
+          }
+        }
       } else {
         // Backfill name in users table if missing or default "User"
         if (!user.first_name || user.first_name === "User") {
@@ -403,6 +473,14 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
     return next(error);
   }
 });
+
+// Active-account gate for the rest of onboarding (audit finding M1). Entry above
+// is deliberately exempt so a stale/deleted-account session can still re-signup,
+// but every step AFTER entry must refuse suspended/banned accounts — otherwise a
+// banned TALENT could keep uploading photos and writing profile data through the
+// onboarding endpoints (which are mounted before the app-level requireActiveAccount
+// so new signups aren't blocked). Unauthenticated requests pass through untouched.
+router.use(requireActiveAccount());
 
 /**
  * POST /onboarding/email-verified
@@ -717,39 +795,135 @@ router.post(
         });
       }
 
-      // Process image (converts to WebP, optimizes)
-      const { storageKey, publicUrl, absolutePath } = await processImage(
-        req.file,
-        profile.id,
-      );
-      const { v4: uuidv4 } = require("uuid");
-      const imageId = uuidv4();
-
-      // Headshots are the casting photo: they become/stay primary (demoting any
-      // seeded Google avatar). A full-body upload is stored but never steals
-      // primary.
-      const isPrimary = shotType === "headshot";
-
-      // Demote any existing primary (e.g. the seeded Google avatar) BEFORE
-      // inserting the new one. The `one_primary_per_profile` constraint forbids
-      // two primaries existing simultaneously, so the order matters.
-      if (isPrimary) {
-        await knex("images")
-          .where({ profile_id: profile.id })
-          .update({ is_primary: false });
+      // Minor / no-consent gate at COLLECTION (audit finding M5): full_body is a
+      // sensitive shot type. A minor without recorded guardian consent — and any
+      // profile with no verifiable DOB — may not upload it. The client hides the
+      // slot, but the server must enforce the same policy at collection, not
+      // just gate exposure downstream.
+      if (shotType === "full_body" && !canCollectSensitiveProfileFields(profile)) {
+        return res.status(403).json({
+          error: "SENSITIVE_SHOT_BLOCKED",
+          message:
+            "A full-length photo can't be added yet — guardian consent is required first.",
+        });
       }
 
-      // Save image to the images table
-      await knex("images").insert({
-        id: imageId,
-        profile_id: profile.id,
-        path: publicUrl, // Save public URL to be consistent with Media API
-        absolute_path: absolutePath, // Reliable path to the optimized webp image
-        is_primary: isPrimary,
-        label: "Scout photo",
-        image_type: "digital",
-        shot_type: shotType,
-        created_at: knex.fn.now(),
+      // Process image (converts to WebP, optimizes). processedBuffer is the exact
+      // bytes we persist; it is what content moderation must inspect.
+      const { storageKey, publicUrl, absolutePath, processedBuffer } =
+        await processImage(req.file, profile.id);
+
+      // Content moderation + CSAM screening (audit finding H2). The onboarding
+      // scout path is where 13+ minors upload photos and previously ran NO
+      // screening — inconsistent with the dashboard media path and a safety /
+      // legal (CSAM reporting) gap. Fails toward review; never auto-approves
+      // uncertain content.
+      let moderation;
+      try {
+        moderation = await analyzeImageBuffer(processedBuffer);
+      } catch (modErr) {
+        moderation = {
+          status: MODERATION_STATUS.REVIEW,
+          reason: "moderation_error",
+          flags: { error: modErr.message },
+        };
+      }
+      let isRejected = moderation.status === MODERATION_STATUS.REJECTED;
+      let isReview = moderation.status === MODERATION_STATUS.REVIEW;
+
+      const csamScreen = await screenImageForCsam(processedBuffer, {
+        moderationFlags: moderation.flags,
+        moderationReason: moderation.reason,
+      });
+      if (csamScreen.shouldBlock) isRejected = true;
+      if (csamScreen.shouldEscalate) isReview = true;
+
+      if (isRejected) {
+        // Do not persist a rejected image — purge the bytes we already wrote to
+        // storage before returning.
+        await purgeStoredImageArtifacts({
+          storage_key: storageKey,
+          absolute_path: absolutePath,
+        });
+        return res.status(422).json({
+          error: "IMAGE_REJECTED",
+          message:
+            "This photo was blocked by automated content moderation and was not saved. Please upload a different photo.",
+        });
+      }
+
+      const imageId = uuidv4();
+      const hasModerationColumns = await knex.schema.hasColumn(
+        "images",
+        "moderation_status",
+      );
+      const hasModerationQueue = hasModerationColumns
+        ? await knex.schema.hasTable("moderation_queue")
+        : false;
+
+      // Headshots are the casting photo: they become/stay primary (demoting any
+      // seeded Google avatar). A full-body upload never steals primary, and a
+      // flagged (review) image must NEVER surface publicly or become the primary
+      // casting photo until a moderator approves it.
+      const isPrimary = shotType === "headshot" && !isReview;
+      const effectiveModStatus = isReview
+        ? MODERATION_STATUS.REVIEW
+        : MODERATION_STATUS.APPROVED;
+
+      // Demote-then-insert in one transaction. The one_primary_per_profile
+      // constraint forbids two simultaneous primaries, so two concurrent
+      // headshot uploads would otherwise race and 500 one of them (audit
+      // finding L3); the transaction serializes the swap.
+      await knex.transaction(async (trx) => {
+        if (isPrimary) {
+          await trx("images")
+            .where({ profile_id: profile.id })
+            .update({ is_primary: false });
+        }
+
+        await trx("images").insert({
+          id: imageId,
+          profile_id: profile.id,
+          path: publicUrl, // Save public URL to be consistent with Media API
+          absolute_path: absolutePath, // Reliable path to the optimized webp image
+          is_primary: isPrimary,
+          label: "Scout photo",
+          image_type: "digital",
+          shot_type: shotType,
+          ...(hasModerationColumns
+            ? {
+                moderation_status: effectiveModStatus,
+                moderation_reason: moderation.reason || null,
+                moderated_at: trx.fn.now(),
+              }
+            : {}),
+          created_at: knex.fn.now(),
+        });
+
+        if (isReview && hasModerationQueue) {
+          await trx("moderation_queue").insert({
+            id: uuidv4(),
+            image_id: imageId,
+            profile_id: profile.id,
+            status: MODERATION_QUEUE_STATUS.PENDING,
+            flags: JSON.stringify({
+              ...(moderation.flags || {}),
+              ...(csamScreen.flags || {}),
+              ...(csamScreen.shouldEscalate ? { csam_escalation: true } : {}),
+            }),
+            created_at: trx.fn.now(),
+          });
+        }
+
+        if (csamScreen.shouldEscalate) {
+          await recordCsamEscalation(trx, {
+            imageId,
+            profileId: profile.id,
+            provider: csamScreen.provider,
+            severity: csamScreen.severity,
+            flags: csamScreen.flags,
+          });
+        }
       });
 
       return res.json({
@@ -757,7 +931,10 @@ router.post(
         imageId,
         isPrimary,
         photo_url: publicUrl,
-        message: "Photo uploaded successfully",
+        ...(isReview ? { pending_review: true } : {}),
+        message: isReview
+          ? "Photo uploaded and is pending a quick review before it appears."
+          : "Photo uploaded successfully",
       });
     } catch (error) {
       console.error("[Casting Scout] Upload Error:", error);
@@ -799,10 +976,6 @@ router.patch(
 
       // Set new primary
       await knex("images").where({ id: imageId }).update({ is_primary: true });
-
-      const derivedStorageKey = targetImage.path
-        ? targetImage.path.replace(/^\//, "")
-        : null;
 
       // profiles table sync removed: hero_image_path is now a derived field
 
@@ -857,6 +1030,21 @@ router.post(
 
       if (!primaryImage) {
         return res.status(400).json({ error: "No primary image set" });
+      }
+
+      // Photo-gate truth (audit finding M4): the confirmed photo must be a REAL
+      // uploaded headshot, not the seeded Google avatar. Scout uploads are
+      // stored with image_type='digital'; the avatar row has neither an
+      // image_type nor a local file. Without this a Google user could pass the
+      // "photo" gate via direct API calls without ever uploading a headshot.
+      const realUpload = await knex("images")
+        .where({ profile_id: profile.id, image_type: "digital" })
+        .first();
+      if (!realUpload) {
+        return res.status(400).json({
+          error: "HEADSHOT_REQUIRED",
+          message: "Please upload a headshot photo before continuing.",
+        });
       }
 
       // Transition state
@@ -1042,6 +1230,26 @@ router.post(
       // profile routes.
       const allowSensitive = canCollectSensitiveProfileFields(profile);
 
+      const asRoundedNumber = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+      };
+
+      // Height is the one genuinely required measurement (audit finding M4).
+      // Accept it from this request or an already-saved positive value; without
+      // a usable height we must NOT advance measurements → profile. Otherwise a
+      // profile could complete onboarding with height_cm = 0 — the client-only
+      // "height required" rule was never enforced on the server.
+      const submittedHeight = asRoundedNumber(height_cm);
+      const existingHeight = asRoundedNumber(profile.height_cm);
+      const effectiveHeight = submittedHeight ?? existingHeight;
+      if (effectiveHeight === null) {
+        return res.status(400).json({
+          error: "HEIGHT_REQUIRED",
+          message: "Please enter your height before continuing.",
+        });
+      }
+
       // Transition state
       const state = getState(profile);
       const updatePayload = transitionTo(
@@ -1064,18 +1272,12 @@ router.post(
       // Only write fields the client actually sent — an absent field must never
       // null out a previously saved value (stats are optional/skippable now, and
       // the set differs by gender: bust/waist/hips vs chest/waist/inseam).
-      const asRoundedNumber = (v) => {
-        const n = Number(v);
-        return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
-      };
-
       const finalUpdate = {
         ...updatePayload,
         updated_at: knex.fn.now(),
       };
 
-      const height = asRoundedNumber(height_cm);
-      if (height !== null) finalUpdate.height_cm = height;
+      if (submittedHeight !== null) finalUpdate.height_cm = submittedHeight;
 
       if (allowSensitive) {
         const sensitiveFields = {

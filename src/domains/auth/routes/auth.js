@@ -201,6 +201,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     const providerUser = normalizeOAuthUser(decodedToken);
     const firebaseUid = providerUser.uid;
     const email = providerUser.email;
+    const emailVerified = decodedToken.email_verified === true;
     const displayName = providerUser.name || null;
     const photoURL = providerUser.picture || null;
     const instagramHandle = providerUser.instagram_handle || null;
@@ -247,8 +248,13 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // Look up user in database by Firebase UID
     let user = await knex("users").where({ firebase_uid: firebaseUid }).first();
 
-    // Fallback: Try to find user by email (for migration period)
-    if (!user && email) {
+    // Fallback: match an existing account by email ONLY when Firebase asserts a
+    // verified email. Matching (and binding firebase_uid to) a pre-existing row
+    // on an UNVERIFIED email claim is an account-takeover vector — a user whose
+    // email isn't registered in Firebase (seeds, imports, legacy/Instagram
+    // rows) could otherwise be claimed by registering that email and logging in
+    // with an unverified token (audit finding H3).
+    if (!user && email && emailVerified) {
       const normalizedEmail = email.toLowerCase().trim();
       user = await knex("users").where({ email: normalizedEmail }).first();
 

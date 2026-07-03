@@ -220,3 +220,61 @@ full CSRF/session-riding on the app. Documented residual risk; CSP is still repo
 3. M1 active-account check, M2 role guard, M5 full-body gate, M4 server-side height/photo truth
 4. M3 state-machine strictness or repair path (+ L2/L3 transactionality)
 5. M6/M7 with counsel; L1 copy fix
+
+---
+
+## Remediation — 2026-07-03
+
+Implemented on branch `claude/onboarding-e2e-audit-continue-rcr8ui`.
+
+### Fixed
+
+- **H1** `rateLimitKeyGenerator` (`src/app.js`) now keys on `user:<id>` when
+  authenticated and on IP (`ipKeyGenerator`) otherwise. It never keys on
+  `req.sessionID`, so cookieless scripted clients no longer get a fresh bucket
+  per request.
+- **H2** `POST /onboarding/scout` (`casting.js`) runs `analyzeImageBuffer` +
+  `screenImageForCsam` on the persisted `processedBuffer`. Rejected images are
+  purged and 422'd; review/escalated images are stored non-primary + hidden,
+  enqueued to `moderation_queue`, and recorded via `recordCsamEscalation`. The
+  shared cleanup was extracted to `shared/lib/purge-image-artifacts.js` (reused
+  by the media route).
+- **H3** Entry (`casting.js`) and `/login` (`auth.js`) only match an existing
+  user by email when `decodedToken.email_verified === true`. The L4 race-recovery
+  path also refuses to bind on an unverified email (fails closed with 409
+  `EMAIL_IN_USE`).
+- **M1** `router.use(requireActiveAccount())` applied inside the casting router
+  *after* entry — suspended/banned accounts can no longer drive post-entry steps.
+- **M2** Entry rejects `user.role === 'AGENCY'` with 409 `AGENCY_ACCOUNT`.
+- **M3** `canTransitionTo` (`state-machine.js`) restricted to the declared
+  adjacency map (incl. legacy edges); arbitrary multi-step forward jumps that
+  bricked completion are rejected.
+- **M4** Measurements requires a usable height (request or on-file) before
+  advancing (`HEIGHT_REQUIRED`); `scout/confirm` requires a real
+  `image_type='digital'` upload, not the seeded Google avatar (`HEADSHOT_REQUIRED`).
+- **M5** `POST /onboarding/scout` rejects `full_body` when
+  `!canCollectSensitiveProfileFields(profile)` (403 `SENSITIVE_SHOT_BLOCKED`).
+- **L3** Scout demote-then-insert wrapped in a transaction.
+- **L4** Duplicate-user race at entry caught and recovered (verified-email-safe).
+- **L8** Removed the dead `derivedStorageKey` in the primary-swap route.
+
+### Tests
+
+- `tests/onboarding/state-machine-transitions.test.js` — 7 unit assertions on M3.
+- `tests/onboarding/security-hardening.test.js` — 9 integration assertions
+  (M2, H3 verified/unverified, M4 height+photo, M5 minor full_body, H2
+  approve/reject).
+- `tests/e2e-casting-to-dashboard.test.js` — full flow still green (15/15).
+
+### Deferred (product / legal judgment — not implemented)
+
+- **M6** (server-derive consent from the act of entry; re-acceptance gate on
+  version bump) and **M7** (guardian involvement during minor intake) are marked
+  "legal call" in the audit and would change the consent model / gate existing
+  users — left for counsel.
+- **L1** (drop the "AI analysis" copy / `ai_success` beat) touches
+  `analysis_status` semantics consumed elsewhere; deferred to a focused follow-up.
+- **L2** (optimistic locking on state writes), **L6** (per-step analytics),
+  **L7** (pre-auth status polling), **L9** (CSP still report-only) — lower-risk
+  hardening, out of scope for this security pass. M3 already closes the
+  exploitable consequence of the L2 race.

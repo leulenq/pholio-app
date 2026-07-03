@@ -45,6 +45,9 @@ const {
   recordCsamEscalation,
 } = require("../../../shared/lib/csam-moderation");
 const {
+  purgeStoredImageArtifacts,
+} = require("../../../shared/lib/purge-image-artifacts");
+const {
   submissionRetentionExpiry,
 } = require("../../../shared/lib/submission-retention");
 
@@ -92,46 +95,6 @@ function isSensitiveBodyImage({ shot_type, style_type, role, body_visibility } =
   const bv = body_visibility ? String(body_visibility).toLowerCase() : "";
   if (bv && SENSITIVE_BODY_VISIBILITY.has(bv)) return true;
   return false;
-}
-
-/**
- * Best-effort removal of an image's stored artifacts (processed, thumbnail,
- * originals, and any local copy). Used when content moderation rejects an
- * upload — rejected bytes must not be retained.
- */
-async function purgeStoredImageArtifacts({ storage_key, absolute_path }) {
-  const ops = [];
-  if (storage_key) {
-    // Derive all related R2 keys using the same segment-marker logic as
-    // account-deletion.js:deriveRelatedKeys. The old `||` chain was buggy —
-    // split(...)[0] is always truthy, so keys without "/processed/" got the
-    // entire storage_key as the prefix (orphaning originals/thumbnails in R2).
-    const SEGMENTS = ["/processed/", "/originals/", "/thumbnails/"];
-    const marker = SEGMENTS.find((m) => storage_key.includes(m));
-    const ext = path.extname(storage_key);
-    const baseName = path.basename(storage_key, ext).replace(/_400w$/, "");
-    const keys = new Set([storage_key]);
-    if (marker && baseName) {
-      const prefix = storage_key.split(marker)[0];
-      keys.add(`${prefix}/processed/${baseName}.webp`);
-      keys.add(`${prefix}/thumbnails/${baseName}_400w.webp`);
-      for (const origExt of [".jpg", ".jpeg", ".png", ".webp"]) {
-        keys.add(`${prefix}/originals/${baseName}${origExt}`);
-      }
-    }
-    for (const Key of keys) {
-      ops.push(
-        s3.send(new DeleteObjectCommand({ Bucket: config.r2.bucket, Key })),
-      );
-    }
-  }
-  if (absolute_path) {
-    ops.push(fs.unlink(absolute_path).catch(() => {}));
-    ops.push(
-      fs.unlink(absolute_path.replace(".webp", "_400w.webp")).catch(() => {}),
-    );
-  }
-  await Promise.allSettled(ops);
 }
 
 router.use(requireActiveAccount());

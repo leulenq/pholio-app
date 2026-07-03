@@ -219,26 +219,23 @@ app.use((req, res, next) => {
 // Custom key generator for rate limiting that works in serverless environments
 // This ensures we always return a valid key for rate limiting
 function rateLimitKeyGenerator(req) {
-  // Fallback to session ID if available (more reliable in serverless)
-  if (req.session && req.sessionID) {
-    return `session:${req.sessionID}`;
-  }
-
-  // Fallback to user ID if authenticated
+  // Authenticated requests: key on the stable user identity so a signed-in
+  // user shares one bucket across requests.
   if (req.session && req.session.userId) {
     return `user:${req.session.userId}`;
   }
 
-  // Use express-rate-limit's IPv6-safe helper when falling back to IP keys.
+  // Unauthenticated requests: key on client IP. We deliberately do NOT key on
+  // req.sessionID here — with saveUninitialized:false, express-session mints a
+  // fresh sessionID for every cookieless request, so a scripted client that
+  // drops cookies would get a unique bucket per request and bypass the limiter
+  // entirely (audit finding H1). ipKeyGenerator is the IPv6-safe helper.
   const ip =
     req.ip ||
     req.connection?.remoteAddress ||
     req.socket?.remoteAddress ||
     "127.0.0.1";
   return ipKeyGenerator(ip);
-
-  // Final fallback: use a combination that's unique enough
-  // This should rarely be used since we ensure req.ip is set
 }
 
 // --- 3. COMMENT OUT YOUR OLD MIDDLEWARE ---

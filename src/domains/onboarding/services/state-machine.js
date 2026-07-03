@@ -149,26 +149,25 @@ const STEP_ORDER = ["entry", "birthdate", "gender", "scout", "measurements", "pr
 function canTransitionTo(from, to, completedSteps = []) {
   if (from === to) return true; // Re-entry is always ok
 
-  const fromIdx = STEP_ORDER.indexOf(from);
-  const toIdx = STEP_ORDER.indexOf(to);
-
-  // If both steps are part of the linear flow, allow forward transitions
-  if (fromIdx !== -1 && toIdx !== -1) {
-    return fromIdx <= toIdx;
-  }
-
   const config = TRANSITIONS_V2[from];
   if (!config) {
     console.warn(`[CastingMachine] Unknown step: ${from}`);
     return false;
   }
 
-  // Check if 'to' is in the valid next steps
+  // Strict adjacency only: a step may advance ONLY to one of its declared
+  // `next` targets (which already encode the tolerant legacy edges). We do NOT
+  // permit arbitrary multi-step forward jumps (audit finding M3): the old
+  // `fromIdx <= toIdx` rule let a client parked at an early step POST straight
+  // to a later mutating route — advancing current_step past scout/measurements
+  // without ever completing them. Because there is no backward transition, the
+  // completion gate would then 403 forever and the account could never finish
+  // onboarding. Restricting to the adjacency map closes that hole while keeping
+  // every legitimate edge (including legacy resume) intact.
   if (Array.isArray(config.next)) {
     return config.next.includes(to);
-  } else {
-    return config.next === to;
   }
+  return config.next === to;
 }
 
 /**
