@@ -57,6 +57,9 @@ const {
   purgeStoredImageArtifacts,
 } = require("../../../shared/lib/purge-image-artifacts");
 const { verifyGoogleToken } = require("../services/providers/google");
+const {
+  sendVerificationEmailViaSmtp,
+} = require("../../auth/services/email-verification");
 const { normalizeOAuthUser } = require("../services/providers/oauth-user");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const { recordLegalAcceptance } = require("../../../shared/lib/legal-acceptance");
@@ -458,6 +461,26 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       });
     }
 
+    // Email/password signups verify through OUR SMTP provider, not Firebase's
+    // built-in sender: generate the verification link with the Admin SDK and
+    // send the branded email ourselves. Best-effort — delivery must never block
+    // or fail entry — but log failures loudly (a broken SMTP or unauthorized
+    // continue-URL domain would otherwise be invisible). OAuth (Google) users
+    // arrive already verified and are skipped.
+    if (authMethod === "email" && !user.email_verified) {
+      try {
+        await sendVerificationEmailViaSmtp({
+          email: normalizedEmail,
+          firstName: derivedFirstName,
+        });
+      } catch (verifyErr) {
+        console.error(
+          "[Casting Entry] SMTP verification email failed to send:",
+          verifyErr.message,
+        );
+      }
+    }
+
     // Return success with next steps
     return res.json({
       success: true,
@@ -538,6 +561,49 @@ router.post(
       });
     } catch (error) {
       console.error("[Casting Email Verified] Error:", error);
+      return next(error);
+    }
+  },
+);
+
+/**
+ * POST /onboarding/resend-verification
+ * Re-send the email-verification link (the inbox beat's "Resend email" action)
+ * through our SMTP provider. Resolves the signed-in user's own address server
+ * side — the client never names the recipient — and no-ops cleanly if the
+ * account is already verified.
+ */
+router.post(
+  ["/onboarding/resend-verification", "/casting/resend-verification"],
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const user = await knex("users")
+        .where({ id: req.session.userId })
+        .first();
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (user.email_verified) {
+        return res.json({ success: true, already_verified: true });
+      }
+      if (!user.email) {
+        return res.status(400).json({
+          error: "NO_EMAIL",
+          message: "No email address on file to verify.",
+        });
+      }
+
+      await sendVerificationEmailViaSmtp({
+        email: user.email,
+        firstName: user.first_name,
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error(
+        "[Casting Resend Verification] Error:",
+        error.message,
+      );
       return next(error);
     }
   },

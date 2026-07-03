@@ -9,7 +9,6 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   updateProfile,
 } from 'firebase/auth';
 import { auth } from '../../../shared/lib/firebase';
@@ -232,14 +231,10 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       const user = userCredential.user;
       await updateProfile(user, { displayName: formData.name });
 
-      // 2. Send verification (non-blocking — failure never gates entry; the
-      // inbox beat after the greet offers a resend). The continue URL brings
-      // the user back to the flow after Firebase confirms the link.
-      sendEmailVerification(user, {
-        url: `${window.location.origin}/onboarding`,
-      }).catch(() => {});
-
-      // 3. Complete entry immediately; verification lives in the inbox, not the flow.
+      // 2. Complete entry immediately; verification lives in the inbox, not the
+      // flow. The entry endpoint sends the verification email through our own
+      // SMTP provider (it generates the Firebase link server-side) — we no
+      // longer use Firebase's built-in sender here.
       const token = await user.getIdToken();
       const response = await entryMutation.mutateAsync({
         firebase_token: token,

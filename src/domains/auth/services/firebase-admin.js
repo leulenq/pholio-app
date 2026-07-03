@@ -181,6 +181,33 @@ async function getUserByEmail(email) {
 }
 
 /**
+ * Generate a Firebase email-verification action link for an address.
+ *
+ * This is what lets us deliver verification through our OWN SMTP provider
+ * instead of Firebase's built-in sender: the returned link still points at
+ * Firebase's action handler (so Firebase remains the source of truth for the
+ * verified claim), but we email it ourselves via the branded Pholio template.
+ *
+ * @param {string} email
+ * @param {import('firebase-admin').auth.ActionCodeSettings} [actionCodeSettings]
+ * @returns {Promise<string>} The verification link URL.
+ */
+async function generateEmailVerificationLink(email, actionCodeSettings) {
+  const auth = getAuth();
+  if (!auth) {
+    throw new Error("Firebase Admin not initialized");
+  }
+
+  try {
+    return await auth.generateEmailVerificationLink(email, actionCodeSettings);
+  } catch (error) {
+    throw new Error(
+      `Email verification link generation failed: ${error.message}`,
+    );
+  }
+}
+
+/**
  * Mint a Firebase custom auth token (e.g. Instagram OAuth bridge).
  * @param {string} uid
  * @param {Object} [claims]
@@ -207,5 +234,6 @@ module.exports = {
   deleteUser,
   getUser,
   getUserByEmail,
+  generateEmailVerificationLink,
   createCustomToken,
 };

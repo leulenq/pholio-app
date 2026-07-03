@@ -81,12 +81,16 @@ function buildEmailVerificationHtml({
       heading("Confirm your email."),
       goldRule(),
       paragraph(
-        `${greet(firstName)} enter this code in Pholio to confirm your address${verifyUrl ? ", or use the button below" : ""}.`,
+        verificationCode
+          ? `${greet(firstName)} enter this code in Pholio to confirm your address${verifyUrl ? ", or use the button below" : ""}.`
+          : `${greet(firstName)} confirm your email address to finish setting up Pholio — just tap the button below.`,
       ),
       ...(verificationCode ? [codePanel(verificationCode, { caption: "Verification code" })] : []),
       ...(verifyUrl ? [button("Confirm email", verifyUrl)] : []),
       note(
-        `This ${verificationCode ? "code" : "link"} expires in ${expiresMinutes || 30} minutes. If you didn't create a Pholio account, you can ignore this email.`,
+        verificationCode
+          ? `This code expires in ${expiresMinutes || 30} minutes. If you didn't create a Pholio account, you can ignore this email.`
+          : `Confirming your email finishes setting up your account. If you didn't create a Pholio account, you can safely ignore this email.`,
       ),
       signoff(),
     ],

@@ -9,13 +9,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { sendEmailVerification } from 'firebase/auth';
 import { auth } from '../../../shared/lib/firebase';
 import { fadeVariants } from './animations';
 import StepBeat from '../components/StepBeat';
 import { InlineErrorText } from '../../../shared/components/states';
 import { useActionDock } from '../components/ActionDockContext';
-import { useCastingEmailVerified } from '../hooks/useCasting';
+import { useCastingEmailVerified, useCastingResendVerification } from '../hooks/useCasting';
 import '../styles/CastingSteps.css';
 
 const RESEND_COOLDOWN_MS = 45000;
@@ -27,6 +26,7 @@ function CastingVerifyEmail({ email, onComplete, previewActive = false }) {
   const [cooling, setCooling] = useState(false);
   const verifiedRef = useRef(false);
   const emailVerifiedMutation = useCastingEmailVerified();
+  const resendMutation = useCastingResendVerification();
 
   const finishVerified = useCallback(async () => {
     if (verifiedRef.current) return;
@@ -82,19 +82,17 @@ function CastingVerifyEmail({ email, onComplete, previewActive = false }) {
     if (cooling) return;
     setError('');
     setNote('');
-    const user = auth.currentUser;
-    if (!user) return;
     try {
-      await sendEmailVerification(user, {
-        url: `${window.location.origin}/onboarding`,
-      });
+      // Delivered by our SMTP provider server-side (POST /onboarding/
+      // resend-verification), which generates the Firebase link and emails it.
+      await resendMutation.mutateAsync();
       setNote('Sent again. Give it a minute.');
       setCooling(true);
       setTimeout(() => setCooling(false), RESEND_COOLDOWN_MS);
     } catch {
       setError('Could not resend just now. Try again shortly.');
     }
-  }, [cooling]);
+  }, [cooling, resendMutation]);
 
   useActionDock({
     label: "I've verified",

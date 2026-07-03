@@ -105,6 +105,19 @@ export function useCastingEmailVerified() {
 }
 
 /**
+ * Hook: Resend the email-verification link (the inbox beat's "Resend email").
+ * The server generates the Firebase link and delivers it via our SMTP provider,
+ * resolving the recipient from the session — the client names no address.
+ */
+export function useCastingResendVerification() {
+  return useMutation({
+    mutationFn: async () => {
+      return castingRequest('/resend-verification', { method: 'POST' });
+    },
+  });
+}
+
+/**
  * Hook: Gender step (persist gender, advance state → scout)
  */
 export function useCastingGender() {
