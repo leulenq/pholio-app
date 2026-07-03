@@ -4,14 +4,10 @@ const { requireRole } = require("../../auth/middleware/require-auth");
 const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
 const { addMessage } = require("../../../shared/middleware/context");
 const {
-  sendRejectedApplicantEmail,
-  sendApplicationStatusChangeEmail,
+  sendApplicationStatusEmail,
   sendAgencyInviteEmail,
 } = require("../../../shared/lib/email");
-const {
-  getSessionActorUserId,
-  getSessionAgencyId,
-} = require("../services/context");
+const { getSessionAgencyId } = require("../services/context");
 const { v4: uuidv4 } = require("uuid");
 const {
   ensureModerationColumnChecked,
@@ -112,7 +108,6 @@ router.post(
   async (req, res, next) => {
     try {
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
       const { applicationId, action } = req.params;
 
       if (!["accept", "archive", "decline"].includes(action)) {
@@ -170,27 +165,15 @@ router.post(
             .where({ id: profile.user_id })
             .first();
 
-          const [agency, actorUser] = await Promise.all([
-            knex("agencies").where({ id: agencyId }).first(),
-            knex("users").where({ id: actorUserId }).first(),
-          ]);
+          const agency = await knex("agencies").where({ id: agencyId }).first();
 
-          if (talentUser && agency) {
-            if (action === "decline") {
-              await sendRejectedApplicantEmail({
-                talentEmail: talentUser.email,
-                talentName: `${profile.first_name} ${profile.last_name}`,
-                agencyName: agency.name,
-                agencyEmail: actorUser?.email || null,
-              });
-            } else if (action === "accept") {
-              await sendApplicationStatusChangeEmail({
-                talentEmail: talentUser.email,
-                talentName: `${profile.first_name} ${profile.last_name}`,
-                agencyName: agency.name,
-                status: "accepted",
-              });
-            }
+          if (talentUser && talentUser.email && agency && (action === "accept" || action === "decline")) {
+            await sendApplicationStatusEmail({
+              to: talentUser.email,
+              talentName: `${profile.first_name} ${profile.last_name}`,
+              agencyName: agency.name,
+              status: action === "accept" ? "accepted" : "declined",
+            });
           }
         }
       } catch (emailError) {
