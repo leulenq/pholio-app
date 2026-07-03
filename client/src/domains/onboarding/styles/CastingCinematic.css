@@ -137,11 +137,40 @@
     max-width: 100%;
   }
 
-  /* Reclaim width: the focus panel is the outer gutter on mobile. The step
-     stages add their own padding, so keep this side gutter slim (otherwise the
-     doubled padding starves two-up option grids and forces one-per-row). */
+  /* ── Mobile stage model (audit: viewport / keyboard / safe-area) ──────────
+     Desktop keeps its fixed, overflow-hidden, perfectly-centered stage. On a
+     phone that model traps a focused input under the on-screen keyboard (the
+     container can never scroll) and letterboxes content into a floating "box".
+     Here the container becomes a real full-height SCROLL column so:
+       • a focused field can always be scrolled into view above the keyboard
+         (iOS/Android auto-scroll focus into a scrollable ancestor),
+       • tall steps are fully reachable instead of clipped,
+       • short steps still center via margin:auto (scroll-safe, unlike
+         justify-content:center which would clip the top when content overflows).
+     100svh (not vh/lvh) keeps the bottom action clear of the browser toolbar. */
+  .cinematic-container {
+    height: 100svh;
+    width: 100%;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reclaim width and reserve room for the fixed chrome + device safe areas
+     (notch / home indicator, now exposed by viewport-fit=cover): rail + back
+     at the top, the action dock at the bottom. margin:auto centers a short
+     step yet collapses to allow scrolling once a step is taller than the view. */
   .cinematic-focus-panel {
-    padding: 1.25rem 0.75rem;
+    margin: auto;
+    width: 100%;
+    padding:
+      calc(env(safe-area-inset-top) + 4.25rem)
+      max(0.75rem, env(safe-area-inset-left))
+      calc(env(safe-area-inset-bottom) + 8.5rem)
+      max(0.75rem, env(safe-area-inset-right));
   }
 }
 
@@ -550,6 +579,15 @@
   }
   .cine-stage-track {
     gap: 1.5rem;
+    row-gap: 0.4rem;
+  }
+  /* Give the small-caps option words a real ≥44px tap target on touch without
+     enlarging the type (audit: sub-spec touch targets). */
+  .cine-stage-option {
+    padding: 0.85rem 0.6rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 }
 
@@ -618,6 +656,9 @@
 @media (max-width: 640px) {
   .cine-choice {
     font-size: 1.7rem;
+    min-height: 44px;
+    padding-top: 0.4rem;
+    padding-bottom: 0.7rem;
   }
 }
 .cinematic-button-primary {
@@ -2139,7 +2180,9 @@
    Orientation without ceremony: no numbers, no chips, type only. */
 .cine-rail {
   position: fixed;
-  top: 2.3rem;
+  /* env() is 0 off notched devices, so desktop is unchanged; on a phone this
+     drops the rail below the status bar / notch (viewport-fit=cover). */
+  top: calc(env(safe-area-inset-top) + 2.3rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: 41;
@@ -2180,8 +2223,8 @@
 /* Shell-level back control — top-left, leaves the current step */
 .cine-back {
   position: fixed;
-  top: 2.1rem;
-  left: 2.2rem;
+  top: calc(env(safe-area-inset-top) + 2.1rem);
+  left: calc(env(safe-area-inset-left) + 2.2rem);
   z-index: 41;
   display: inline-flex;
   align-items: center;
@@ -2284,8 +2327,13 @@
     top: 1.7rem;
   }
   .cine-back {
-    top: 1.4rem;
-    left: 1.2rem;
+    /* Keep the notch offset (this rule would otherwise clobber the safe-area
+       top/left set above) and give the icon-only control a real 44px target. */
+    top: calc(env(safe-area-inset-top) + 1.4rem);
+    left: calc(env(safe-area-inset-left) + 0.6rem);
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
   }
   .cine-back span {
     display: none;

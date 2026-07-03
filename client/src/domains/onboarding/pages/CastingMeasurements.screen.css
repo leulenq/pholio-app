@@ -90,6 +90,28 @@
   justify-content: center;
 }
 
+/* Tap-to-type discoverability — hidden by default (desktop already reveals the
+   text-cursor affordance via .csm-dial-val's `cursor: text`); surfaced only on
+   coarse-pointer (touch) devices where the drag ruler alone is fiddly for
+   landing an exact number. */
+.csm-dial-tap-hint {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .csm-dial-tap-hint {
+    display: block;
+    font-family: var(--cinematic-font-sans);
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    opacity: 0.45;
+    text-align: center;
+    margin-top: 0.75rem;
+  }
+}
+
 /* ── Sliding tape — prototype .ruler / .ruler-track ── */
 .csm-ruler {
   position: relative;
@@ -209,6 +231,23 @@
   }
   .csm-dial-arrow {
     padding: 0.6rem;
+    /* .csm-dial-val carries a fixed min-width, so on narrow viewports flex-shrink
+       squeezes these buttons well under the 44px touch target minimum — pin a
+       floor and stop them shrinking at all. Glyph itself (32px svg) is untouched. */
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
+  }
+  /* .csm-unit-toggle is the actual tappable control (single button wrapping the
+     Imperial/Metric spans) — grow its hit area via padding, not the tiny label. */
+  .csm-unit-toggle {
+    min-height: 44px;
+    padding: 0.9rem 0;
+  }
+  /* Each shoe-region button (US / EU / UK) is independently tappable. */
+  .csm-shoe-toggle button {
+    min-height: 44px;
+    padding: 0.9rem 0.4rem;
   }
 }
 

@@ -677,6 +677,21 @@
   .cs-step-beat .cinematic-divider-container {
     margin: 1.6rem auto;
   }
+
+  /* Scout digitals: fixed 212px frames overflow small phones. Make them fluid
+     so a single frame is comfortably large and two sit side-by-side scaled to
+     fit. The step now scrolls, so vertical height is free. */
+  .cs-frame-slot {
+    width: min(44vw, 212px);
+  }
+  .cs-frames--single .cs-frame-slot {
+    width: min(74vw, 240px);
+  }
+  .cs-frame-drop {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 4;
+  }
 }
 
 @media (max-width: 480px) {

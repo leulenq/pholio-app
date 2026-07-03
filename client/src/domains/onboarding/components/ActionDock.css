@@ -69,3 +69,64 @@
   outline-offset: 4px;
   border-radius: 2px;
 }
+
+/* ── Mobile (audit: primary action too faint / too low / too small) ─────────
+   The desktop dock is a deliberately quiet, keyboard-first text link. On a
+   phone that reads as "no button", sits on the home-indicator strip, and is a
+   sub-44px target. Here the advance becomes a real filled, thumb-sized button
+   lifted clear of the safe area, with a scrim so scrolling content stays
+   legible behind it. Desktop is untouched. */
+@media (max-width: 640px) {
+  .action-dock {
+    height: auto;
+    align-items: stretch;
+    padding: 1.5rem 1rem calc(env(safe-area-inset-bottom) + 0.9rem);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.94) 45%, rgba(0, 0, 0, 0));
+  }
+
+  .action-dock-inner {
+    width: 100%;
+    gap: 0.6rem;
+  }
+
+  .action-dock-cta {
+    width: 100%;
+    justify-content: center;
+    min-height: 52px;
+    padding: 0.9rem 1.5rem;
+    background: linear-gradient(135deg, #C9A55A 0%, #a88641 100%);
+    color: #0a0a0a;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    box-shadow: 0 8px 24px rgba(201, 165, 90, 0.28);
+  }
+
+  .action-dock-cta:active {
+    transform: translateY(1px);
+  }
+
+  /* Legible disabled state — not the near-invisible desktop faint. */
+  .action-dock-cta[disabled] {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(245, 241, 234, 0.4);
+    box-shadow: none;
+  }
+
+  .action-dock-cta[disabled] .action-dock-arw {
+    opacity: 0.5;
+  }
+
+  /* Secondary (skip / later) stays a quiet text link, but tappable. */
+  .action-dock-cta--text,
+  .action-dock-cta--text:hover {
+    width: 100%;
+    min-height: 40px;
+    background: none;
+    color: var(--text-2);
+    box-shadow: none;
+    font-size: 0.62rem;
+  }
+}

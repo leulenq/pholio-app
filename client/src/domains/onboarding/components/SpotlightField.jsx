@@ -66,6 +66,7 @@ export default function SpotlightField({
         placeholder={isDate ? undefined : placeholder}
         autoFocus={autoFocus}
         autoComplete="off"
+        {...(!isDate && { enterKeyHint: 'next' })}
         {...dateProps}
         {...rest}
       />

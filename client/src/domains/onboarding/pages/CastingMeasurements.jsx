@@ -281,6 +281,7 @@ const PrecisionDeck = ({ value, onAdjust, onTouch, unitSystem, onToggleUnits, ty
               ref={inputRef}
               type="number"
               inputMode="numeric"
+              enterKeyHint="done"
               value={editVal}
               onChange={(e) => setEditVal(e.target.value)}
               onBlur={commitEdit}
@@ -319,6 +320,10 @@ const PrecisionDeck = ({ value, onAdjust, onTouch, unitSystem, onToggleUnits, ty
           onPointerCancel={stopAdjusting}
         />
       </div>
+
+      {!isEditing && (
+        <div className="csm-dial-tap-hint" aria-hidden="true">Tap to type</div>
+      )}
 
       <div className="csm-dial-unit-label">{displayUnit}</div>
 
