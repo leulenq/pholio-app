@@ -10,11 +10,10 @@ const CURRENT_TERMS_VERSION = '2026-06-25';
 
 // Plain-language "what changed", keyed by the terms version string.
 const TERMS_CHANGELOG = {
-  // OWNER COPY REQUIRED — replace these placeholders with the real plain-language summary
-  // for the 2026-06-25 terms revision before this ships.
+  // Plain-language summary for the 2026-06-25 terms and privacy policy updates.
   '2026-06-25': [
-    'OWNER COPY REQUIRED — describe the first change in one plain sentence.',
-    'OWNER COPY REQUIRED — describe the second change in one plain sentence.',
+    'Clarified our role as a software platform rather than a talent agency, and incorporated our Community Guidelines to prohibit scamming, fake scouting, and unauthorized data use.',
+    'Updated our Privacy Policy to detail how we process portfolio data, verify locations, host images on Cloudflare R2, and use AI features like photo analysis and match scoring.',
   ],
 };
 

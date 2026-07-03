@@ -41,9 +41,6 @@ router.get(
         "max_height_male",
         "min_age",
         "max_age",
-        "instagram_handle",
-        "tiktok_handle",
-        "youtube_handle",
       )
       // Match scoring is intentionally absent until it is backed by real
       // signals. A stable directory order is more useful than fabricated

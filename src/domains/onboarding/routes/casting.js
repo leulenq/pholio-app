@@ -168,6 +168,14 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       }
       user = await userQuery.first();
 
+      // Use normalized Google/OAuth data (extracting given_name/family_name)
+      // Fallback to explicit 'name' payload if token claims are missing (e.g. immediate manual signup delay)
+      const fallbackParts = name ? name.trim().split(/\s+/) : [];
+      const derivedFirstName =
+        providerUser.first_name || fallbackParts[0] || "User";
+      const derivedLastName =
+        providerUser.last_name || fallbackParts.slice(1).join(" ") || null;
+
       // Create user if doesn't exist
       if (!user) {
         if (!termsAccepted) {
@@ -184,6 +192,8 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
             email: normalizedEmail,
             firebase_uid: providerUser.uid,
             role: "TALENT",
+            first_name: derivedFirstName,
+            last_name: derivedLastName,
             created_at: knex.fn.now(),
           });
           await recordLegalAcceptance(trx, userId, {
@@ -194,6 +204,23 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
 
         user = await knex("users").where({ id: userId }).first();
         isNewUser = true;
+      } else {
+        // Backfill name in users table if missing or default "User"
+        if (!user.first_name || user.first_name === "User") {
+          const userUpdates = {};
+          if (derivedFirstName && derivedFirstName !== "User") {
+            userUpdates.first_name = derivedFirstName;
+          }
+          if (derivedLastName && !user.last_name) {
+            userUpdates.last_name = derivedLastName;
+          }
+          if (Object.keys(userUpdates).length > 0) {
+            await knex("users")
+              .where({ id: user.id })
+              .update(userUpdates);
+            user = { ...user, ...userUpdates };
+          }
+        }
       }
 
       // Keep users.email_verified in sync with Firebase's verified claim —
@@ -216,21 +243,13 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         const slug = await ensureUniqueSlug(
           knex,
           "profiles",
-          providerUser.first_name && providerUser.last_name
-            ? `${providerUser.first_name}-${providerUser.last_name}`
+          derivedFirstName && derivedLastName
+            ? `${derivedFirstName}-${derivedLastName}`
             : `user-${user.id.substring(0, 8)}`,
         );
 
         // Initialize with casting machine state
         const initial = initialState("entry", knex);
-
-        // Use normalized Google data (now robustly extracting given_name/family_name)
-        // Fallback to explicit 'name' payload if token claims are missing (e.g. immediate manual signup delay)
-        const fallbackParts = name ? name.trim().split(" ") : [];
-        const derivedFirstName =
-          providerUser.first_name || fallbackParts[0] || "User";
-        const derivedLastName =
-          providerUser.last_name || fallbackParts.slice(1).join(" ") || null;
 
         await knex("profiles").insert({
           id: profileId,
@@ -280,6 +299,23 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
 
         profile = await knex("profiles").where({ id: profileId }).first();
         isNewProfile = true;
+      } else {
+        // Backfill name in profiles table if missing or placeholder
+        if (!profile.first_name || profile.first_name === "User") {
+          const profileUpdates = {};
+          if (derivedFirstName && derivedFirstName !== "User") {
+            profileUpdates.first_name = derivedFirstName;
+          }
+          if (derivedLastName && !profile.last_name) {
+            profileUpdates.last_name = derivedLastName;
+          }
+          if (Object.keys(profileUpdates).length > 0) {
+            await knex("profiles")
+              .where({ id: profile.id })
+              .update(profileUpdates);
+            profile = { ...profile, ...profileUpdates };
+          }
+        }
       }
 
       hasOAuthData = true;

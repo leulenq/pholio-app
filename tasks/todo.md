@@ -2299,7 +2299,7 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
       artifacts removed, gender null-wipe fixed. Flow reordered entry→birthdate→gender
       (legacy-healing on server + client).
 - [x] Phase 2 — Terms: sign-in-wrap LegalNoticeLine at signup/login; gate restyled +
-      versioned. ⚠ TERMS_CHANGELOG bullets are "OWNER COPY REQUIRED" placeholders.
+      versioned. (TERMS_CHANGELOG bullets updated with real plain-language summary for 2026-06-25).
 - [x] Phase 3 — "First Card" reveal (FirstCard.jsx + welcome letter); scorecard/radar/
       mock/dead-end retired and deleted; archetype fires at /measurements (not
       reveal-complete — needs height).

@@ -84,6 +84,8 @@
   color-scheme: dark;
   font-size: clamp(1.9rem, 4.6vw, 3.4rem);
   letter-spacing: -0.01em;
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
 }
 
 .spotlight .spotlight-input--date::-webkit-datetime-edit {

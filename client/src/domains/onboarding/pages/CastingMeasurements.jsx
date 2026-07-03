@@ -487,10 +487,13 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
   }, [measurementsMutation, buildPayload]);
 
   const goNext = useCallback(() => {
+    if (statFields.some((f) => f.key === step)) {
+      setTouched((prev) => ({ ...prev, [step]: true }));
+    }
     const i = sequence.indexOf(step);
     if (i < sequence.length - 1) setStep(sequence[i + 1]);
     else handleConfirm();
-  }, [sequence, step, handleConfirm]);
+  }, [sequence, step, handleConfirm, statFields]);
 
   const goBack = () => {
     const i = sequence.indexOf(step);

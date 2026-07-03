@@ -154,6 +154,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       const token = await result.user.getIdToken();
       const response = await entryMutation.mutateAsync({
         firebase_token: token,
+        name: result.user.displayName,
         ...LEGAL_ACCEPTANCE,
       });
       onComplete({
