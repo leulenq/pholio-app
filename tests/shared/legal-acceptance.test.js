@@ -24,4 +24,18 @@ describe("legal-acceptance", () => {
       ),
     ).toBe(false);
   });
+
+  it("requireLegalAcceptance re-prompts when a stale version was accepted", () => {
+    expect(
+      requireLegalAcceptance(
+        {
+          terms_accepted_at: "2025-01-01T00:00:00.000Z",
+          terms_accepted_version: "2025-01-01",
+          privacy_accepted_at: "2025-01-01T00:00:00.000Z",
+          privacy_accepted_version: "2025-01-01",
+        },
+        { throwOnMissing: false },
+      ),
+    ).toBe(false);
+  });
 });
