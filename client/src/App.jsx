@@ -14,6 +14,7 @@ const InstagramCallbackPage = lazy(() => import('./domains/auth/pages/InstagramC
 const OverviewPage = lazy(() => import('./domains/talent/pages/OverviewPage'));
 const ProfilePage = lazy(() => import('./domains/talent/pages/ProfilePage'));
 const MediaPage = lazy(() => import('./domains/talent/pages/MediaPage'));
+const AnalyticsPage = lazy(() => import('./domains/talent/pages/AnalyticsPage'));
 const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const ApplicationsPage = lazy(() => import('./domains/talent/pages/ApplicationsPage'));
 const MessagesPage = lazy(() => import('./domains/talent/pages/MessagesPage'));
@@ -114,7 +115,8 @@ function App() {
             <Route path="/dashboard/talent" element={<OverviewPage />} />
             <Route path="/dashboard/talent/profile" element={<ProfilePage />} />
             <Route path="/dashboard/talent/media" element={<MediaPage />} />
-            <Route path="/dashboard/talent/analytics" element={<IntelPage />} />
+            <Route path="/dashboard/talent/analytics" element={<AnalyticsPage />} />
+            <Route path="/dashboard/talent/intel" element={<IntelPage />} />
             <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
             <Route path="/dashboard/talent/messages" element={<MessagesPage />} />
             <Route path="/dashboard/talent/settings" element={<SettingsPage />} />

@@ -1,177 +1,211 @@
 import React, { useState } from 'react';
-import { Lock } from 'lucide-react';
-import PholioButton, {
-  PholioToggleButton,
-  PholioToggleGroup,
-} from '../../../../shared/components/ui/PholioButton';
+import { motion } from 'framer-motion';
+import { AlertCircle, Lock } from 'lucide-react';
 import { useIntel } from '../../hooks/useIntel';
-import { ZoneSection, LockCard } from './IntelKit';
-import { isLocked } from './intelUtils';
-import PulseZone from './PulseZone';
-import Seismograph from './Seismograph';
-import RhythmField from './RhythmField';
-import MarketBoard from './MarketBoard';
-import PipelineFlow from './PipelineFlow';
-import BookRanked from './BookRanked';
-import AgencyLens from './AgencyLens';
-import SearchDemand from './SearchDemand';
-import Trajectory from './Trajectory';
+import { Zone, StudioLock, SPRING } from './instruments/parts';
+import Pulse from './instruments/Pulse';
+import Seismograph from './instruments/Seismograph';
+import RhythmField from './instruments/RhythmField';
+import MarketBoard from './instruments/MarketBoard';
+import Pipeline from './instruments/Pipeline';
+import BookRanked from './instruments/BookRanked';
+import AgencyLens from './instruments/AgencyLens';
+import Trajectory from './instruments/Trajectory';
 import './IntelPage.css';
 
-const RANGES = [
-  { days: 7, label: '7d', proOnly: false },
-  { days: 30, label: '30d', proOnly: true },
-  { days: 90, label: '90d', proOnly: true },
+const PERIODS = [
+  { days: 7, label: '7 days' },
+  { days: 30, label: '30 days' },
+  { days: 90, label: '90 days' },
 ];
 
-function PeriodControl({ days, onChange, tier }) {
-  const free = tier === 'free';
+function periodLabel(days) {
+  if (days <= 7) return 'this week';
+  if (days <= 31) return 'this month';
+  return 'this quarter';
+}
+
+function PeriodControl({ tier, activeDays, onSelect }) {
+  const isFree = tier === 'free';
   return (
-    <PholioToggleGroup role="group" aria-label="Reporting period">
-      {RANGES.map((r) => (
-        <PholioToggleButton
-          key={r.days}
-          active={days === r.days}
-          disabled={free && r.proOnly}
-          onClick={() => onChange(r.days)}
-        >
-          {r.label}
-          {free && r.proOnly ? <Lock size={9} className="intel2-range-lock" aria-hidden /> : null}
-        </PholioToggleButton>
+    <div className="intel-period" role="group" aria-label="Time period">
+      {PERIODS.map((p) => {
+        const locked = isFree && p.days > 7;
+        const active = p.days === activeDays;
+        return (
+          <button
+            key={p.days}
+            type="button"
+            className={`intel-period__opt${active ? ' is-active' : ''}${locked ? ' is-locked' : ''}`}
+            aria-pressed={active}
+            onClick={() => (locked ? onSelect('upgrade') : onSelect(p.days))}
+          >
+            {p.label}
+            {locked ? <Lock size={11} strokeWidth={2} aria-hidden /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="intel-skeleton" aria-hidden>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="intel-skeleton__block" style={{ animationDelay: `${i * 0.08}s` }} />
       ))}
-    </PholioToggleGroup>
-  );
-}
-
-function IntelLoading() {
-  return (
-    <div className="intel2-loading" role="status" aria-label="Loading intel">
-      <div className="intel2-loading-band" />
-      <p className="intel2-loading-copy">Reading the market…</p>
     </div>
   );
 }
 
-function IntelError({ onRetry }) {
-  return (
-    <div className="intel2-error">
-      <p className="intel2-error-copy">Intel couldn&rsquo;t load. The market is still there.</p>
-      <PholioButton variant="secondary" onClick={onRetry}>Try again</PholioButton>
-    </div>
-  );
-}
-
-/**
- * Intel — the talent-facing intelligence hub (tasks/intel-page-spec.md).
- * Zones flow top-down by signal value: agency reviews before raw reach.
- * Minors get materials readiness + submission states only.
- */
 export default function IntelPage() {
-  const [days, setDays] = useState(30);
-  const { data, isLoading, isError, refetch } = useIntel(days);
+  const [requestedDays, setRequestedDays] = useState(30);
+  const { intel, meta, isLoading, isError, refetch } = useIntel(requestedDays);
 
-  const meta = data?.meta;
-  // The server clamps free tier to 7 days; keep the toggle honest.
-  const effectiveDays = meta?.days ?? days;
-  const tier = meta?.tier ?? 'studio';
+  const tier = meta?.tier || 'free';
+  const activeDays = meta?.days || requestedDays;
   const minor = Boolean(meta?.minor);
+  const isFree = tier === 'free';
+
+  const handlePeriod = (value) => {
+    if (value === 'upgrade') {
+      window.location.href = '/dashboard/talent/settings/subscription';
+      return;
+    }
+    setRequestedDays(value);
+  };
 
   return (
-    <div className="intel2-page">
-      <header className="intel2-head">
-        <h1 className="intel2-title">Intel</h1>
-        {!minor && data && (
-          <PeriodControl days={effectiveDays} onChange={setDays} tier={tier} />
-        )}
-      </header>
-
-      {isLoading && <IntelLoading />}
-      {isError && <IntelError onRetry={refetch} />}
-
-      {data && minor && (
-        <>
-          <p className="intel2-minor-note">
-            Intel for under-18 profiles covers materials readiness and submission states —
-            audience detail stays off.
+    <div className="intel-page">
+      <motion.header
+        className="intel-masthead"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={SPRING}
+      >
+        <div className="intel-masthead__lede">
+          <h1 className="intel-masthead__title">Intel</h1>
+          <p className="intel-masthead__sub">
+            Your book, read the way a booker reads it — what's getting requested,
+            what's working, and the one thing to fix next.
           </p>
-          <ZoneSection id="intel2-pulse" title={null}>
-            <PulseZone pulse={data.pulse} />
-          </ZoneSection>
-          <ZoneSection id="intel2-pipeline" title="The Pipeline">
-            <PipelineFlow pipeline={data.pipeline} />
-          </ZoneSection>
-          <ZoneSection id="intel2-lens" title="The Agency Lens">
-            <AgencyLens lens={data.lens} />
-          </ZoneSection>
-        </>
-      )}
+        </div>
+        {!isLoading && !isError && !minor ? (
+          <PeriodControl tier={tier} activeDays={activeDays} onSelect={handlePeriod} />
+        ) : null}
+      </motion.header>
 
-      {data && !minor && (
-        <>
-          <ZoneSection id="intel2-pulse" title={null}>
-            <PulseZone pulse={data.pulse} />
-          </ZoneSection>
+      {isLoading ? <PageSkeleton /> : null}
 
-          <ZoneSection id="intel2-seismograph" title="The Seismograph">
-            <Seismograph seismograph={data.seismograph} canScrub={tier === 'studio'} />
-            {isLocked(data.rhythm, meta) ? (
-              <LockCard zone="The Rhythm Field">
-                When attention arrives — a day-by-hour field that tells you when to share,
-                post and follow up.
-              </LockCard>
-            ) : (
-              data.rhythm && <RhythmField rhythm={data.rhythm} />
-            )}
-          </ZoneSection>
+      {isError ? (
+        <div className="intel-error" role="alert">
+          <AlertCircle size={20} strokeWidth={1.8} aria-hidden />
+          <p>Intel couldn't load right now.</p>
+          <button type="button" onClick={() => refetch()} className="intel-error__retry">
+            Try again
+          </button>
+        </div>
+      ) : null}
 
-          <ZoneSection id="intel2-markets" title="The Market Board">
-            {isLocked(data.markets, meta) ? (
-              <LockCard zone="The Market Board">
-                Where your attention comes from, rendered the way the industry thinks —
-                markets, not countries. Sustained market attention is a placement signal.
-              </LockCard>
-            ) : (
-              <MarketBoard markets={data.markets} sources={data.sources} meta={meta} />
-            )}
-          </ZoneSection>
+      {!isLoading && !isError && intel ? (
+        <div className="intel-zones">
+          {minor ? (
+            <div className="intel-minor-note">
+              Attention and location detail is withheld on this profile. Intel
+              shows your materials readiness and submission states only.
+            </div>
+          ) : null}
 
-          <ZoneSection id="intel2-pipeline" title="The Pipeline">
-            <PipelineFlow pipeline={data.pipeline} />
-          </ZoneSection>
+          {/* Zone 1 — The Pulse */}
+          <Zone index={1} title="The Pulse">
+            <Pulse pulse={intel.pulse} periodLabel={periodLabel(activeDays)} minor={minor} />
+          </Zone>
 
-          <ZoneSection id="intel2-book" title="The Book, Ranked">
-            {isLocked(data.book, meta) ? (
-              <LockCard zone="The Book, Ranked">
-                Your actual book, ranked by the attention each frame earns — evidence for
-                choosing your card front and portfolio opener.
-              </LockCard>
-            ) : (
-              <BookRanked book={data.book} />
-            )}
-          </ZoneSection>
+          {/* Zone 2 — The Seismograph + Rhythm Field */}
+          {!minor ? (
+            <Zone
+              index={2}
+              title="The Seismograph"
+              lede="Attention over time — qualified visits as a field, card pulls as strikes, agency events above."
+            >
+              <Seismograph seismograph={intel.seismograph} />
+              <div className="intel-subhead">The Rhythm Field</div>
+              {intel.rhythm ? (
+                <RhythmField rhythm={intel.rhythm} />
+              ) : isFree ? (
+                <StudioLock
+                  title="When your audience shows up"
+                  blurb="The Rhythm Field maps the days and hours your attention arrives, so you know exactly when to share and follow up. Included with Studio+."
+                />
+              ) : null}
+            </Zone>
+          ) : null}
 
-          <ZoneSection id="intel2-lens" title="The Agency Lens">
-            <AgencyLens lens={data.lens} />
-          </ZoneSection>
+          {/* Zone 3 — The Market Board */}
+          {!minor ? (
+            <Zone index={3} title="The Market Board" lede="Where your attention comes from — read as markets, the way the industry thinks.">
+              {intel.markets ? (
+                <MarketBoard markets={intel.markets} sources={intel.sources} />
+              ) : (
+                <StudioLock
+                  title="The markets pulling your materials"
+                  blurb="See which markets — NYC, Paris, Milan, your home region — keep returning to your book, and what that says about where you could place. Included with Studio+."
+                />
+              )}
+            </Zone>
+          ) : null}
 
-          {Array.isArray(data.demand?.nudges) && data.demand.nudges.length > 0 && (
-            <ZoneSection id="intel2-demand" title="The Search Signal">
-              <SearchDemand demand={data.demand} />
-            </ZoneSection>
-          )}
+          {/* Zone 4 — The Pipeline */}
+          <Zone index={4} title="The Pipeline" lede="The submission funnel you actually live — and where it's being won or lost.">
+            <Pipeline pipeline={intel.pipeline} />
+          </Zone>
 
-          <ZoneSection id="intel2-trajectory" title="Trajectory">
-            {isLocked(data.trajectory, meta) ? (
-              <LockCard zone="Trajectory">
-                Your ninety-day momentum line, drawn from tier 1–4 signal with the
-                composition always inspectable.
-              </LockCard>
-            ) : (
-              <Trajectory trajectory={data.trajectory} />
-            )}
-          </ZoneSection>
-        </>
-      )}
+          {/* Zone 5 — The Book, Ranked */}
+          {!minor ? (
+            <Zone index={5} title="The Book, Ranked" lede="Your photography is the chart — the frames doing the work, ranked by the attention they hold.">
+              {intel.book ? (
+                <BookRanked book={intel.book} />
+              ) : (
+                <StudioLock
+                  title="Which frames carry your book"
+                  blurb="Rank your frames by the attention they hold, find the one that belongs on your card front, and see what's getting skipped. Included with Studio+."
+                />
+              )}
+            </Zone>
+          ) : null}
+
+          {/* Zone 6 — The Agency Lens */}
+          <Zone
+            id="intel-lens"
+            index={6}
+            title="The Agency Lens"
+            lede="Your profile read through a booker's eyes — and the ranked moves that lift your signal."
+          >
+            <AgencyLens lens={intel.lens} />
+          </Zone>
+
+          {/* Zone 7 — Trajectory */}
+          {!minor ? (
+            <Zone index={7} title="Trajectory" lede="Are you trending? Momentum over 90 days, drawn from your strongest signals.">
+              {intel.trajectory ? (
+                <Trajectory trajectory={intel.trajectory} />
+              ) : (
+                <StudioLock
+                  title="Your momentum over time"
+                  blurb="Track whether you're trending across 90 days, with the causes annotated — and a benchmark band as your market fills in. Included with Studio+."
+                />
+              )}
+            </Zone>
+          ) : null}
+
+          <p className="intel-foot">
+            Agency attention appears in aggregate only — Intel never shows you
+            which named house viewed you. Named agencies surface only when they
+            act: a review, a request, a message.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -31,7 +31,7 @@ export const TALENT_NAV_SECTIONS = [
       },
       {
         label: 'Intel',
-        to: '/dashboard/talent/analytics',
+        to: '/dashboard/talent/intel',
         pageKicker: 'Intel',
         requiresProfileGate: true,
       },

@@ -1,0 +1,68 @@
+.rhythm {
+  --rhythm-well: #f8f8f7;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rhythm-svg {
+  display: block;
+}
+
+.rhythm-cell {
+  stroke: #e2e8f0;
+  stroke-width: 0.75;
+  transition: filter 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rhythm-cell:hover {
+  filter: brightness(1.06);
+}
+
+.rhythm-cell--peak {
+  stroke: #c9a55a;
+  stroke-width: 1.75;
+  filter: drop-shadow(0 0 5px rgba(201, 165, 90, 0.45));
+}
+
+.rhythm-axis-label {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 8.5px;
+  font-weight: 500;
+  fill: #94a3b8;
+  letter-spacing: 0.02em;
+}
+
+.rhythm-axis-label--day {
+  font-size: 9px;
+  fill: #64748b;
+}
+
+.rhythm-note {
+  margin: 0;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.rhythm-callout {
+  margin: 0;
+  padding-top: 2px;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: #1a1815;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+}
+
+.rhythm-callout strong {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rhythm-cell {
+    transition: none;
+  }
+}
