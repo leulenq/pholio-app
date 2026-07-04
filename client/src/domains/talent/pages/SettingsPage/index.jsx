@@ -352,7 +352,6 @@ function SubmissionsSection() {
   const saveNotifications = (next) => mutation.mutate({ notifications: { ...notifications, ...next } });
   const saveDisplay = (next) => mutation.mutate({ display: { ...display, ...next } });
 
-  const saveNotifications = (next) => mutation.mutate({ notifications: { ...notifications, ...next } });
   return (
     <div className="talent-settings-stack">
       <SectionPanel title="Submission communication" intro="Keep the agency workflow visible without flooding your inbox.">
