@@ -1,7 +1,8 @@
 import React, { useMemo, useRef } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { Clock } from 'lucide-react';
-import { Calibrating, SPRING, nf } from './parts';
+import { Calibrating } from './parts';
+import { SPRING, nf } from './metrics';
 import './RhythmField.css';
 
 /**

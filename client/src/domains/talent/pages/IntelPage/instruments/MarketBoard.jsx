@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
-import { Delta, Calibrating, SPRING, TIER_RAMP, nf, pct } from './parts';
+import { Delta, Calibrating } from './parts';
+import { SPRING, TIER_RAMP, nf, pct } from './metrics';
 import './MarketBoard.css';
 
 /**

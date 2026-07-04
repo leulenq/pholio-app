@@ -48,7 +48,7 @@ export default function Trajectory({ trajectory }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
 
-  const weeks = trajectory?.weeks || [];
+  const weeks = useMemo(() => trajectory?.weeks || [], [trajectory]);
   const weights = trajectory?.weights || { t1: 8, t2: 5, t3: 3, t4: 1 };
   const bandCalibrating = (trajectory?.bandState || 'calibrating') === 'calibrating';
 

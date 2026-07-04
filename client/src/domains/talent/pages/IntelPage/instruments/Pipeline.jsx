@@ -2,7 +2,8 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
-import { Calibrating, SPRING, nf } from './parts';
+import { Calibrating } from './parts';
+import { SPRING, nf } from './metrics';
 import './Pipeline.css';
 
 /**

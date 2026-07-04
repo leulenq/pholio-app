@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { Check, Circle, ArrowRight } from 'lucide-react';
-import { SPRING } from './parts';
+import { SPRING } from './metrics';
 import './AgencyLens.css';
 
 /**

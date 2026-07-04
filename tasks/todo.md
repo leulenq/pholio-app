@@ -1,170 +1,3 @@
-# Talent production-readiness audit — 2026-07-12
-
-- [x] Map talent routes, pages, APIs, data models, and scoped design docs.
-- [x] Audit workflows across product, UX, industry realism, accessibility, mobile, auth, media, and edge states.
-- [x] Write a durable production-readiness audit report with evidence and prioritized findings.
-- [x] Run verification checks, commit the report, and create PR.
-
-## Review
-
-Drafted `docs/audits/talent-production-readiness-audit.md` with prioritized launch-readiness findings.
-
----
-
-# Production Consolidation — 2026-07-11
-
-## Scope
-
-- [x] Fetched/pruned GitHub refs and listed all 35 remote branches.
-- [x] Created isolated worktree:
-  `/private/tmp/pholio-prod-consolidation` on
-  `consolidation-2026-07-11`.
-- [x] Included current production candidates:
-  - `origin/claude/discover-talent-search-redesign-wbivg7`
-  - `origin/claude/pholio-comp-card-system-nofxfm`
-  - `origin/codex/redefine-agency-access-and-onboarding-flow`
-  - `origin/devin/1783740533-dev-seeded-agency-login`
-  - `origin/devin/1783451377-agency-onboarding-design`
-- [x] Preserved dirty artifacts in the original checkout:
-  `PERSISTENCE_REPORT.md`, `test.sqlite3`, and `scratch_test_db.js`.
-- [x] Run production readiness checks across merged domains.
-
-## Branch Decisions
-
-- Included Discover search because it is the newest active branch, merges
-  cleanly, removes sensitive vision-derived fields, and adds focused migration,
-  parsing, DTO, rate-limit, and search tests.
-- Included Comp Card Editions because it merges cleanly and adds renderer
-  parity, matte precompute, gallery gates, and PDF composition tests.
-- Included Agency Access because PR #30 is an open implementation branch and
-  the app-side setup gate is required before agency launch.
-- Included dev seeded login because PR #31 is explicitly disabled in production
-  (`NODE_ENV !== "production"` and `AUTH_PASSTHROUGH_ENABLED === "1"`) and it
-  preserves the new agency setup redirect for incomplete agency sessions.
-- Included the agency onboarding data-model design doc from PR #29 because it
-  is docs-only and aligns with the included agency access flow.
-- Held `origin/claude/logo-icon-12euah`: merge conflicts with current favicon
-  and apple-touch-icon deletions plus `PRODUCT.md`; needs intentional brand
-  asset reconciliation.
-- Held `origin/devin/1783329493-talent-settings-editorial-redesign`: PR #25 is
-  dirty against current `main` and overlaps the already refactored Settings
-  surface.
-- Held `origin/claude/intel-page-completion-p9c8mh`: branch contains stale
-  IntelPage structure under `instruments/` while current `main` already has the
-  merged Intel implementation.
-- Held open superseded settings PR branches (`#15`, `#16`, `#19`) and closed
-  stale settings branches because newer Settings/Intel work is already merged.
-- Held PR #22 (`status-document-for-codex`) because the richer report artifact
-  was already merged via PR #23.
-- Held draft PR #24 (`cursor/setup-dev-environment-001a`) because it is
-  cloud-agent setup documentation, not a production app change.
-- Held old/stale local and remote branches whose heads are already contained in
-  `main` or predate the current architecture.
-
-## Review
-
-- `npm install` and `npm install --prefix client --legacy-peer-deps` completed
-  in the isolated worktree. Root install required network access after the
-  sandbox blocked `registry.npmjs.org`.
-- Focused non-screenshot test matrix passed: 24 suites, 369 passing tests, 8
-  skipped tests. Covered agency setup gating, Discover contract/parsing,
-  representation disclosure, audience DTOs, Discover migrations/rate limits,
-  roster measured-in-person endpoints, comp-card editions, shaping parity, and
-  matte precompute.
-- `src/domains/pdf/__tests__/scrim-render.test.js` still times out in this Mac
-  runtime because Puppeteer screenshot capture hangs even in a minimal smoke
-  script. Static/template and non-screenshot PDF tests pass; rerun this raster
-  gate in CI or a browser-stable machine before final release approval.
-- `npm run migrate:status` reports 167 completed migrations and no pending
-  migration files in the local integration database.
-- `npm run client:build` passes. Vite reports the existing large-chunk warning.
-- Focused client ESLint passes on the merged app/setup/discover/login files;
-  ESLint reports the existing `.eslintignore` deprecation warning.
-- `npm run build:function` passes after externalizing `harfbuzzjs` in the
-  serverless bundle script.
-- Root `npm install` reports 49 audit findings (2 low, 20 moderate, 19 high, 8
-  critical). This appears to be existing dependency audit debt, but it should be
-  reviewed before a public production launch.
-
-# Current Task — Implement pholio-app agency access/setup
-
-- [x] Inspect current agency auth, provisioning, API guards, migrations, app routes, and agency UI components.
-- [x] Add app-side schema and API support for agency access requests, setup steps, and import-job intake.
-- [x] Enforce setup gating across login redirects, SPA routing, and agency API guards.
-- [x] Add `/dashboard/agency/setup` page using the agency command-center design language.
-- [x] Add a handoff note for the separate `pholio-landing` agent; do not implement landing pages here.
-- [x] Run focused backend/client verification, commit, and create PR metadata.
-
-## Review
-
-Implemented the `pholio-app` side only: public intake API for the landing form, setup persistence, setup gating, a lightweight agency setup page, setup API routes, provisioning status semantics, focused setup-gate tests, and a handoff note for a separate `pholio-landing` agent.
-
----
-
-# Current Task — Agency access system stress test
-
-- [x] Recreated `agency-access-flow-revisions` branch in the current Codex checkout.
-- [x] Ran a fresh subagent stress test against the agency access plan.
-- [x] Applied repo-boundary correction: request form belongs in `pholio-landing`; authenticated setup belongs in `pholio-app`.
-- [x] Removed generic platform-funnel language and added agency-dashboard design contracts.
-- [x] Added blocking setup-gate, internal authorization, agency status, minors, board-model, open-call, import, and copy acceptance criteria.
-- [x] Run verification checks, commit changes, and create PR metadata.
-
-## Review
-
-Stress-tested and hardened `tasks/agency-access-system.md` so implementation cannot proceed without addressing setup bypasses, Pholio-internal provisioning authorization, minor-data controls, app/landing repo ownership, and agency-dashboard design alignment.
-
----
-
-# Current Task — Agency access system research
-
-- [x] Inspect current agency/auth/onboarding routes and existing agency design context.
-- [x] Review industry skill references for agency credibility and terminology.
-- [x] Research external access-request, SaaS onboarding, model-agency software, and migration patterns.
-- [x] Write the Pholio agency access/request + post-login setup system specification.
-- [x] Run verification checks, commit changes, and create PR metadata.
-
-## Review
-
-Drafted `tasks/agency-access-system.md` with the recommended reviewed-access request system, internal review workflow, post-login agency setup sequence, and import/migration model.
-
----
-
-# Claude Configuration Audit & Build Plan — 2026-07-04
-
-## Audit findings
-
-- [x] Inventory current Claude-facing files: `CLAUDE.md`, mirrored `AGENTS.md`, root `DESIGN.md`, domain `DESIGN.md` files, `.claude/settings.json`, and project skills.
-- [x] Identify primary quality risk: `CLAUDE.md` / `AGENTS.md` are high-value but oversized and duplicate long architecture/design detail that should move into skills or linked docs.
-- [x] Identify current strength: Pholio already has strong design-system artifacts and domain skills (`impeccable`, `industry`) that can become the backbone of Claude's higher-quality UI and industry output.
-- [x] Identify current gap: `.claude/settings.json` only disables attribution; it does not yet encode safe command permissions, secret-deny rules, hooks, or project defaults.
-- [x] Identify current gap: root `DESIGN.md` is agency-specific, while talent and onboarding design systems live deeper in the tree; `CLAUDE.md` does not clearly tell Claude which design file applies to which surface.
-- [x] Identify current gap: workflow instructions tell agents to plan and verify, but the verification matrix is not yet explicit by change type.
-- [x] Identify current gap: lessons are valuable but very long; the top-level memory should summarize durable rules and point to `tasks/lessons.md` for deeper history rather than loading all lessons into primary context.
-
-## Proposed staged build
-
-- [~] Stage 1 — Added high-signal routing/model guidance to `CLAUDE.md`; full slimming remains a later pass.
-- [x] Stage 2 — Re-synced `AGENTS.md` with the new root guidance while keeping agent-specific opening wording.
-- [x] Stage 3 — Added design routing for root, talent, agency, and onboarding design files.
-- [ ] Stage 4 — Expand `.claude/settings.json` with conservative safe-command allow rules and secret/read deny rules.
-- [ ] Stage 5 — Add reusable project skills or agent prompts for code review, UI/design-system review, and verification if we agree they are worth carrying in-repo.
-- [ ] Stage 6 — Add a compact verification matrix by change type: backend, frontend, UI, migrations, auth/payments, and docs-only.
-- [ ] Stage 7 — Add a review section documenting before/after line counts, changed files, and validation.
-
-## Decisions needed before implementation
-
-- [ ] Confirm whether to optimize for Claude Code only, or keep `CLAUDE.md` and `AGENTS.md` tightly mirrored for both Claude and Codex.
-- [ ] Confirm whether team-shared `.claude/settings.json` should include command allowlists/denylists now, or stay attribution-only until tested in a Claude Code session.
-- [ ] Confirm whether design guidance should remain in Markdown files, become a `design-system` skill, or both.
-
-## Review
-
-- Added separate dashboard Claude guides for talent and agency.
-- Split agency dashboard design guidance into `client/src/domains/agency/DESIGN.md`.
-- Converted root `DESIGN.md` into a design-system router with global banned AI-generated UI patterns.
-- Added root model-routing instructions for Haiku, Sonnet, Opus, and Fable-class work.
-
 # Intel Page — Ground-Up Build — 2026-07-03
 
 Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.
@@ -202,41 +35,47 @@ Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.
 
 ## Review
 
-- **Capture v2 shipped**: `profile_events` records every attention event with a
-  resolved viewer class (agency/client/public; self never written) and a
-  market-only geo slug (raw IP/city never persisted). Per-recipient
-  `share_tokens` track opens and re-opens; the public portfolio now runs an
-  image beacon (impressions, opens, dwell via sendBeacon); comp-card pulls,
-  card short-link taps, and agency discovery impressions/opens all flow in.
-- **Intel backend shipped**: one composed `GET /api/talent/intel` (pulse,
-  spectrum, seismograph, rhythm, markets, sources, pipeline + stage clock,
-  book, lens, trajectory) + Studio+ scrub detail `GET /intel/day/:date` +
-  share-token CRUD. Free tier clamps to 7 days and omits Studio+ zones
-  (never blurred fakes). Minors receive materials + submission states only.
-  Legacy `/insights`, `/cohorts`, and `engagement.score` are gone.
-- **Frontend shipped**: `IntelPage` replaces `AnalyticsPage` at
-  `/dashboard/talent/analytics` (nav already read "Intel"). All seven zones
-  are bespoke hand-drawn SVG instruments with house spring physics, draw-on
-  entrances, count-up numerals, scrub micro-ledger, depleting Currency
-  Rings, and designed calibrating states. Old analytics page, CohortHeatmap,
-  SessionsBarChart deleted; `useAnalytics` trimmed of killed endpoints
-  (Overview consumers untouched).
-- **Deviation (documented)**: v1 aggregates at read time instead of a nightly
-  rollup job — per-profile volumes are small and there is no in-repo cron
-  infra; the payload shape lets a rollup slot in behind `services/intel/`
-  without touching the route. Benchmarks render as "calibrating" until a
-  population-gated cohort job exists (spec phase 4).
-- **Repairs made en route**: two pending migrations were PG-only
-  (`information_schema`) and blocked SQLite; seeds still wrote the renamed
-  `booked` status and never stamped legal acceptance; `views/portfolio-pro.ejs`
-  was missing entirely (every Studio+ public portfolio 500'd).
-- **Verification**: `tests/talent/intel.test.js` — 16/16 green (composed
-  payload, tier clamp, privacy micro-ledger, capture integrity incl.
-  self-exclusion and share-token client classification, legacy kills).
-  Focused ESLint clean; `npm run client:build` passes (existing large-chunk
-  warning). Rendered browser QA unavailable in this environment (Chromium
-  cannot reach the host loopback) — same limitation as prior sessions.
+Phase 3 shipped the full instrument panel. Each zone is a bespoke, hand-crafted
+SVG/DOM instrument in the talent studio's ink (warm paper, single gold accent,
+Noto Serif Display statements), not a chart-library drop-in, driven entirely by
+the composed `GET /api/talent/intel` payload built in Phase 2.
 
+- **Data plumbing:** `useIntel` / `useIntelDay` React Query hooks + `getIntel`,
+  `getIntelDay`, and share-token methods on `talentApi`. New route
+  `/dashboard/talent/intel` (lazy) under the dashboard shell; the existing
+  "Intel" nav item (top strip + mobile tab bar) now points at it.
+- **Zone 1 Pulse:** data-composed serif headline with count-up numerals; the
+  Signal Spectrum (the score-replacement) as a five-tier composition band on an
+  ordinal bronze→gold ramp; In Motion ticker; one-word materials verdict linking
+  to the Lens.
+- **Zone 2 Seismograph:** layered scrubbable time-field — qualified-visit area,
+  discrete pull/open strikes, review/advance glyphs, ghost prior line, self-event
+  annotations, and a hover micro-ledger. Rhythm Field is a 7×24 heat grid
+  re-binned into the viewer's local time with a peak callout.
+- **Zone 3 Market Board:** ranked market ledger (sparkline, share bar, delta,
+  viewer-class mix) + source narrative; arc map deferred per spec.
+- **Zone 4 Pipeline:** sankey-style flow (period/lifetime), automatic diagnosis
+  copy, Stage Clock (median review latency vs platform band), kept-on-file as a
+  soft yes.
+- **Zone 5 The Book, Ranked:** the photography is the chart — frames ranked with
+  a quiet dwell/flag data layer; calibrates on real image attention.
+- **Zone 6 Agency Lens:** depleting Currency Rings on real dated materials, range
+  read with industry reasons, and up to three ranked Next Moves.
+- **Zone 7 Trajectory:** 13-week momentum line with inspectable composition and a
+  designed "calibrating" benchmark band (never faked).
+- **Honesty & privacy carried through the UI:** tier gating renders Studio-only
+  instruments as designed upgrade locks (never blurred fake data); the minor
+  branch omits geo/viewer zones entirely; every instrument has a first-class
+  calibrating/low-data state; aggregate-only agency framing stated in the footer.
+
+Verification: `npm run build` passes (3,670 modules, only the pre-existing
+large-chunk warning); focused ESLint is clean across the IntelPage tree and the
+hook. Six of the eight instruments were drafted in parallel by scoped subagents
+against a shared design/data contract, then reviewed and integrated; the
+Seismograph, Pipeline, Trajectory, page shell, and shared CSS were authored
+directly. Rendered browser QA was not run (no in-app browser runtime in this
+session); the tier/minor/calibrating branches are exercised by the payload shape,
+not yet by live click-through.
 
 # Divider-Free Section Spacing — 2026-07-02
 
@@ -2612,223 +2451,3 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
   that disposable copy.
 - Live browser automation remained unavailable, and no write was made to Mia's real profile during
   verification. The user must retry Save once with the rebuilt client to replace the old stored bio.
-
-# Talent Settings Rebuild Plan — 2026-07-04
-
-- [x] Research Pholio talent workflow settings needs from code and industry references.
-- [x] Research general settings page IA patterns and map only necessary categories.
-- [x] Replace the current talent settings page from scratch with a premium, Pholio-aligned surface.
-- [x] Verify lint/build and document review findings.
-
-## Review
-
-- Rebuilt the talent settings page around necessary settings only: identity/contact, portfolio visibility, submissions, Studio+, security, privacy/data, and account control.
-- Preserved existing settings API contracts and removed filler display/status treatments from the old surface.
-- `npm run client:build` passes after installing client dependencies with `--legacy-peer-deps`.
-- `cd client && npm run lint` still fails on pre-existing repository lint errors outside this change; the new settings file had one lint issue during the run and it was fixed after the run.
-
-# Talent Settings Corrective Pass — 2026-07-04
-
-- [x] Audit comp card ownership and remove settings-page controls that duplicate `/media` or comp-card generation ownership.
-- [x] Verify necessary settings IA: account, privacy, security, notifications, legal/compliance, billing, and talent-facing visibility controls only.
-- [x] Correct textbox/input styling against the Talent Studio pressed-paper input language and profile tab references.
-- [x] Optimize desktop and mobile layouts, then capture a clean desktop screenshot.
-- [x] Record lessons to prevent future textbox/design-system drift.
-
-## Review
-
-- Removed comp card default controls from Settings because comp card image/layout decisions belong to Media and generation flows, not account settings.
-- Reframed Submissions into Notifications and added Legal & compliance as a separate section for consent, minor exposure, and safety reporting.
-- Updated settings textboxes to match the Profile tab white hairline field treatment and corrected the shared form comments that implied decorative inset fields as a universal dashboard rule.
-- Improved mobile navigation with horizontal snap sections and simplified stacked controls for small screens.
-- Verification: focused settings ESLint and production client build passed; screenshot capture was superseded by the follow-up push request before a screenshot artifact was produced.
-
-# Pre-production business/status document — 2026-07-06
-
-- [x] Read repository guidance and product context.
-- [x] Research current pricing and legal/immigration source material.
-- [x] Inspect codebase for production-readiness signals and cost-bearing integrations.
-- [x] Draft comprehensive Pholio-designed founder/business report.
-- [x] Run formatting checks and capture line citations.
-- [x] Commit changes and create pull request record.
-
-## Review
-
-- Added `docs/business/pre-production-founder-status-report.md` as a comprehensive founder/business status document for the pre-production Fashion Week Brooklyn launch decision.
-
-# Pre-production report DOCX formatting follow-up — 2026-07-06
-
-- [x] Inspect live Pholio legal-page styling cues where local `pholio-landing` repo was unavailable.
-- [x] Add a reproducible DOCX generator with Pholio legal-page inspired styling.
-- [x] Generate `docs/business/pre-production-founder-status-report.docx`.
-- [x] Validate the DOCX package contains expected document, styles, footer, title, table of contents, and contact sections.
-
-## Review
-
-- Added the requested `.docx` meeting artifact and a generator script so the styled file can be recreated from the Markdown source.
-
-# Pre-production report binary-support follow-up — 2026-07-06
-
-- [x] Remove committed binary DOCX files that the review surface cannot display.
-- [x] Add a text-safe `.docx.b64` payload for the same Word document.
-- [x] Add a dependency-free rebuild script that writes `Pholio-Pre-Production-Founder-Status-Report.docx` locally.
-- [x] Add business-doc instructions explaining how to rebuild the DOCX.
-
-## Review
-
-- The PR now carries the DOCX as text, so binary-file restrictions should no longer hide the artifact from review.
-# Agency Workspace Commissioning — 2026-07-11
-
-## Plan
-
-- [x] Audit the orphaned agency onboarding route, current form flow, agency design system, talent `/apply`, and talent onboarding references.
-- [x] Restore first-login routing for incomplete agency workspaces without changing completed-agency entry behavior.
-- [x] Rebuild setup as five focused commissioning chapters with a persistent editorial progress narrative.
-- [x] Replace the submit/checklist ending with a dedicated “agency workspace ready” reveal.
-- [x] Preserve real API behavior for profile, branding, provisioned team access, first-view selection, and completion.
-- [x] Verify focused lint, production build, and rendered desktop/mobile behavior.
-
-## Design decision
-
-- Apply the agency system’s “two systems, one material” rule: Playfair identity moments, Inter controls, rectangular 8–12px controls, ink/cream/white layering, rare gold, and 150–200ms state motion. Borrow only the talent flows’ one-subject-per-chapter pacing and terminal reveal—not their pill controls, dark screen-test styling, or spring choreography.
-- Treat setup as commissioning a manually approved private workspace. The first-value moment is the assembled agency identity resolving into a ready operational workspace.
-
-## Review
-
-- Restored `/dashboard/agency/onboarding` as a standalone route inside the authenticated agency gate and routed only incomplete agency sessions into it; completed agencies continue directly to the dashboard.
-- Replaced the beige setup document with five focused chapters: The house, Identity, The team, Working rhythm, and Commission. The persistent ink rail, Playfair mastheads, cream working stage, rectangular controls, rare gold, and 180–200ms transitions follow the agency “Editorial Ledger” system.
-- Added a live agency workspace proof, real provisioned-login role mapping (Booker/Scout/Administrator/View only), inactive-member filtering, inline URL validation, query/error states, focused-heading announcements, and a hard session refresh after the ready reveal.
-- Removed false setup promises: notification preferences are not surfaced because no delivery path consumes them, and the selected first working view is described and used only for the post-commissioning entry where it is actually honored.
-- The final API completion now resolves into a dedicated dark “Your agency workspace is ready” reveal before entering the selected workspace view.
-- Verification: focused ESLint passes; `npm run build` passes (3,675 modules, existing large-chunk warning); `git diff --check` passes for every touched file. Rendered browser QA covered all five chapters plus the final reveal at 1440×900 and the first chapter at 390×844, with no horizontal overflow at mobile width.
-# Agency Onboarding Brand Audit & Redesign — 2026-07-11
-
-## Audit findings
-
-- [x] P0 — Replace the approximated title-case `Pholio.` mark with the exact shared uppercase Noto Serif Display wordmark and gold sweep used elsewhere in-product.
-- [x] P1 — Remove the full-height dark stepper rail; it reads as generic SaaS onboarding navigation rather than authored Pholio framing.
-- [x] P1 — Remove the fake dashboard/navigation preview, circular member avatars, checkmark review list, and boxed upload-card composition.
-- [x] P1 — Replace repeated form/admin layouts with chapter-specific editorial compositions and more decisive negative space.
-- [x] P1 — Strengthen cinematic pacing with a fixed brand masthead, thin narrative progress spine, scene transitions, and a reserved action dock.
-- [x] P2 — Reduce filler copy and repeated explanation; keep only copy that directs the commissioning decision.
-
-## Plan
-
-- [x] Rebuild the shell and progress framing around the canonical shared Pholio wordmark.
-- [x] Distill each chapter into one visual idea while preserving the existing APIs and validation.
-- [x] Rework the final review and ready reveal as a true co-branded commissioning moment.
-- [x] Verify banned-pattern compliance and focused lint/build; rendered browser QA was attempted but blocked by the local-run approval limit.
-
-## Audit baseline
-
-- Accessibility: 3/4
-- Performance: 3/4
-- Responsive: 4/4
-- Theming: 3/4
-- Anti-patterns: 1/4
-- **Total: 14/20 — technically sound, visually generic.**
-
-## Review
-
-- Replaced both hand-typed `Pholio.` approximations with the exact shared `PholioBillingWordmark` treatment: uppercase Noto Serif Display, 400 weight, 0.2em tracking, fixed Pholio gold, and canonical sweep.
-- Removed the fixed dark SaaS sidebar and introduced a full-width ink masthead, two-pixel progress light, slim narrative spine, chapter-specific paper stage, and stable bottom action dock.
-- Reduced the flow from five chapters to four consequential chapters by removing the trivial first-view preference: Agency, Brand, Team, and Commission.
-- Removed the fake dashboard nav preview, circular member avatars, repeated Lucide intro blocks, checkmark review list, success facts strip, and repeated explanatory filler.
-- Replaced invented luxury metaphors with credible agency language: agency identity, agency owner, booker, team access, brand mark, and commission.
-- Branding now resolves into a full-stage real Pholio/agency lockup using the uploaded mark and selected agency accent; Commission resolves the same identity into a co-branded handoff.
-- The final reveal now contains only the canonical Pholio mark, the agency mark, one ready statement, and the workspace entry action.
-- Verification: Impeccable detector reports zero anti-pattern hits; focused ESLint passes; production build passes (3,675 modules, existing large-chunk warning); scoped `git diff --check` passes. Browser QA could not be rerun because local-server approval was blocked by the environment usage limit; the prior version had been verified at 1440×900 and 390×844, and the new CSS retains explicit desktop/tablet/mobile structures.
-
----
-
-# Dedicated agency dashboard review: security, legal/compliance, and talent alignment — 2026-07-12
-
-- [x] Review scoped dashboard docs and industry references.
-- [x] Inspect agency and talent dashboard frontend surfaces, API clients, and route protections.
-- [x] Inspect backend auth, agency routes, upload/media, notes/decisions, and privacy-sensitive data handling.
-- [x] Produce concrete audit findings by lens with launch risks and recommendations.
-- [x] Commit audit artifacts and create PR.
-
-## Review
-
-Completed on 2026-07-12. Findings are documented in `docs/audits/2026-07-12-agency-security-compliance-alignment-audit.md`.
-
----
-
-# Agency dashboard audit — INF-0.3 dependency triage
-
-- [x] Continue from Claude's latest `origin/claude/agency-dashboard-audit-0c2g52` implementation without replacing completed dashboard work.
-- [x] Trace the eight root critical findings to `concurrently`, the legacy `to-ico` chain, and transitive `protobufjs`.
-- [x] Remove unused root `tmux` and `gsap` dependencies.
-- [x] Remove `to-ico` while preserving PNG generation and distribution of the checked-in ICO fallback.
-- [x] Override `shell-quote` to patched 1.8.4 without upgrading `concurrently` to Node-22-only v10.
-- [x] Refresh root and client `protobufjs` to 7.6.5 within existing dependency ranges.
-- [x] Standardize the client on materially used Recharts; remove unused Chart.js packages and their orphan component.
-- [x] Verify both audits report zero critical findings, fresh lockfile installs succeed, client tests/build pass, and root tests load the upgraded graph.
-
-## Review
-
-- Root audit: 49 findings / 8 critical before; 36 findings / 0 critical after.
-- Client audit: 13 findings / 1 critical before; 11 findings / 0 critical after. The official npm registry was used because the configured client mirror does not implement the audit endpoint.
-- Client Vitest passes: 5 files, 36 tests. Production build passes with the existing large-chunk warning.
-- Full root Jest executes against the upgraded dependency graph: 127 of 137 suites and 1,892 tests pass. Remaining failures are the existing seed/date/RBAC/CSRF/foreign-key test-isolation baseline and are not missing or incompatible upgraded dependencies.
-- Full client lint retains its existing unrelated 68-error baseline. No linted application source was added by INF-0.3; the only source change removes an unreferenced component.
-
----
-
-# Agency dashboard audit — Phase 0 continuation
-
-## Plan
-
-- [x] Reconcile the completed roster-export hardening onto this implementation branch and verify SQLite/PostgreSQL dialect handling plus notes redaction.
-- [x] Add a same-origin mutation guard for unsafe talent, agency, and magic-link reply API requests without widening the protected route scope.
-- [x] Wire the canonical talent, agency, setup, and reply clients to send the required non-simple same-origin header.
-- [x] Add focused server and client regression coverage for allowed same-origin mutations and rejected cross-site/headerless mutations.
-- [x] Wire persistent agency notification and message read state, including an agency-scoped mark-all-read endpoint.
-- [x] Canonicalize Submissions/Signing routes, lifecycle terminology, loading/error/empty states, keyboard row activation, reduced motion, and shell skip navigation.
-- [x] Replace talent-facing “application accepted/declined” notifications, email copy, and status detail with representation / not-moving-forward language.
-- [x] Remove the fabricated Analytics and Roster surfaces, scripted intelligence, money-shaped representation UI, and dead API exports rather than ship mock data.
-- [x] Remove the audited count-bubble, gradient-text, colored-side-stripe, and match-score badge treatments from touched shipped surfaces.
-- [x] Run targeted tests, client lint/build, the inherited dependency-audit checks, the Impeccable detector, and scoped diff checks; record the evidence below.
-
-## Design and product constraints
-
-- Security work follows the implementation plan's launch-gate order before later roster/calendar UI expansion.
-- Preserve the agency Editorial Ledger system: dense, composed, real-data-first, with no money surfaces or banned status/chip treatments introduced by this tranche.
-
-## Review
-
-- Export is owner/admin-only, excludes internal notes by default, supports an explicit privileged notes export, escapes spreadsheet formulas, works across SQLite/PostgreSQL aggregation differences, and writes an audit event.
-- Unsafe agency, talent, and magic-link reply mutations now require both a trusted Origin/Referer and `X-Pholio-Request: same-origin`; production cannot disable the guard. Invalid/null Origin never falls back to Referer.
-- Messages and notifications now load real unread state. “Mark all read” persists and message writes are constrained to inbound talent messages on the current agency's visible, non-withdrawn threads.
-- Navigation now uses Submissions and Signing with legacy redirects. Analytics redirects to Overview. The mock Roster route also redirects to Overview and is absent from navigation until the real roster data model/API rebuild lands.
-- Deleted 4,830 lines of fabricated/dead UI, including Analytics, the static roster and workspace, scripted roster intelligence, commission/day-rate presentation, and the representation terms panel.
-- Targeted server/security verification: 6 suites, 27 tests passed (same-origin middleware/full-app/config, export, message read isolation, route-permission coverage). The shared Pholio email contract also passes: 1 suite, 4 tests.
-- Client verification: focused ESLint passed; 7 Vitest files / 49 tests passed; production build passed with 3,684 modules and the existing large-chunk warning.
-- Dependency audit state remains the verified INF-0.3 baseline (root and client: 0 critical); this tranche does not modify dependency manifests or lockfiles.
-- Impeccable detector found no errors or newly introduced banned patterns. Its warnings are the intentional agency-system Inter body face plus existing layout-property transitions; `git diff --check` passes.
-- The legacy `tests/notifications.test.js` suite still requires a seeded TALENT user and exits before assertions in an unseeded isolated worktree; that baseline prerequisite is unrelated to this change and was not counted as passing verification.
-
----
-
-# Agency dashboard — final implementation continuation (2026-07-14)
-
-## Plan
-
-- [x] Rebase the implementation worktree onto the exact latest `origin/claude/agency-dashboard-audit-0c2g52` tip and run the live app from that worktree.
-- [x] Fix anonymous session write amplification that exhausted the PostgreSQL pool and remove credential-bearing database URL previews from startup logs.
-- [x] Complete the launch security gate: same-origin mutations, fail-closed RBAC coverage, SVG rasterization, session rotation, reply bootstrap tokens, prompt-injection containment, and per-member legal acceptance.
-- [x] Replace the fabricated roster with persisted roster memberships, private off-platform talent records, real paginated APIs, and a keyboard-operable roster surface.
-- [x] Add hashed, expiring, single-use team email invitations with verified-email acceptance and a real pending UI state.
-- [x] Finish minor consent revocation enforcement, the internal access-review console, and the non-financial Booking Desk.
-- [x] Run fresh full migration, server/client test, lint, build, banned-pattern, and live-browser verification; document final evidence.
-
-## Review
-
-- Rebased onto the exact `origin/claude/agency-dashboard-audit-0c2g52` tip and ran the live app from the implementation worktree, eliminating the stale-runtime mismatch that hid the dashboard changes.
-- Shipped the launch gate and Phase 1/Booking Desk scope: fail-closed agency authorization, same-origin mutations, upload/token/session hardening, per-member legal acceptance, minor grant revocation across the audited endpoint matrix, real roster memberships/private records, internal access review, note provenance, team invitations, notifications/read state, audience-specific profile selects, and a non-financial conflict-aware Booking Desk.
-- Repaired live PostgreSQL profile-schema drift with an idempotent migration; the canonical 41-column agency Discover select now executes successfully against Neon.
-- Fresh SQLite verification applied all 181 migrations with none pending. The focused agency/security matrix passed 73/73 tests; guardian consent passed 22/22 after a dialect-safe expiry fix.
-- Client verification passed: ESLint 0 errors/0 warnings, Vitest 11 files/57 tests, production build 3,645 modules. Root and client dependency audits report 0 critical vulnerabilities. `git diff --check` and the shipped-agency banned-pattern scan pass.
-- Live browser verification passed for Overview, the real Roster empty state/filter surface, and Booking Desk. The server log has no recurrence of the Knex pool-timeout or missing-`specializations` error after the session-write and schema repairs.
-- Repository-wide Jest remains informational because legacy suites have pre-existing shared-SQLite lifecycle and stale route/fixture failures. The runner now refuses PostgreSQL and gives fallback suites an isolated temporary SQLite database, preventing local `.env` credentials from reaching destructive tests. CI client lint is now required; the server job remains non-blocking until that legacy baseline is retired.

@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
-import { Calibrating, nf } from './parts';
+import { Calibrating } from './parts';
+import { nf } from './metrics';
 
 /**
  * Zone 2 — The Seismograph. The page's centerpiece: a tall, layered,
@@ -77,8 +78,8 @@ export default function Seismograph({ seismograph }) {
   const [hover, setHover] = useState(null); // day index under cursor
   const svgRef = useRef(null);
 
-  const days = seismograph?.days || [];
-  const prior = seismograph?.prior || null;
+  const days = useMemo(() => seismograph?.days || [], [seismograph]);
+  const prior = useMemo(() => seismograph?.prior || null, [seismograph]);
 
   const model = useMemo(() => {
     const n = days.length;

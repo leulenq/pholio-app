@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Calibrating, SPRING } from './parts';
+import { Calibrating } from './parts';
+import { SPRING } from './metrics';
 import './BookRanked.css';
 
 /**
