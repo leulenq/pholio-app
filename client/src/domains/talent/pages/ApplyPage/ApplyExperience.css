@@ -808,9 +808,10 @@
 /* Open call invitation — plain typeset line, never a chip. */
 .apply-house__invite {
   display: block;
-  color: var(--ag-gold, #b8956a);
+  color: var(--app-gold);
   font-size: 12px;
   line-height: 1.25;
+  transition: color 0.25s var(--app-ease);
 }
 
 .apply-relink {

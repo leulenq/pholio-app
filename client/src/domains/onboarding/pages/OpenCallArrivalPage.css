@@ -1,16 +1,35 @@
-/* Agency open call arrival — full-viewport editorial handoff.
-   Cream canvas, one breathing gold glow, serif agency mark. No chips, no
+/* Agency open call arrival — full-viewport editorial handoff, speaking the
+   same editorial-ledger vocabulary as the Apply/Applications surfaces
+   (.app-* tokens, cream canvas, Noto Serif Display, JetBrains Mono
+   numerals). Standalone/pre-auth, so the token set is redeclared locally —
+   same values as ApplicationsView.css's .applications-view-container and
+   ApplyExperience.css's portaled .apply-success block. No chips, no
    gradient text, no glass. Wide content never scrolls the body sideways. */
 
 .opencall {
+  --app-cream: #faf7f2;
+  --app-cream-warm: #f5f0e8;
+  --app-gold: #c9a55a;
+  --app-gold-warm: #c8a96e;
+  --app-gold-light: #d4bc8a;
+  --app-ink: #050505;
+  --app-text: #1a1a1a;
+  --app-text-soft: rgba(26, 26, 26, 0.62);
+  --app-text-faint: rgba(26, 26, 26, 0.38);
+  --app-hair: rgba(26, 26, 26, 0.09);
+  --app-hair-strong: rgba(26, 26, 26, 0.16);
+  --app-hair-gold: rgba(201, 165, 90, 0.24);
+  --app-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-radius: 6px;
+
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #faf8f5;
-  color: #1a1815;
+  background: var(--app-cream);
+  color: var(--app-text);
   overflow: hidden;
   padding: clamp(24px, 6vw, 64px);
 }
@@ -21,7 +40,7 @@
   pointer-events: none;
   background: radial-gradient(
     ellipse 70% 55% at 50% 38%,
-    rgba(184, 149, 106, 0.16),
+    rgba(201, 165, 90, 0.14),
     transparent 70%
   );
 }
@@ -64,9 +83,10 @@
   width: 72px;
   height: 72px;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: var(--app-radius);
   background: #ffffff;
-  box-shadow: 0 0 20px rgba(184, 149, 106, 0.12);
+  border: 1px solid var(--app-hair);
+  box-shadow: 0 0 20px rgba(201, 165, 90, 0.1);
 }
 
 .opencall__monogram {
@@ -74,31 +94,34 @@
   height: 72px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: var(--app-radius);
   background: #ffffff;
-  box-shadow: 0 0 20px rgba(184, 149, 106, 0.12);
-  font-family: 'Playfair Display', 'Noto Serif Display', Georgia, serif;
-  font-size: 34px;
-  color: #b8956a;
+  border: 1px solid var(--app-hair);
+  box-shadow: 0 0 20px rgba(201, 165, 90, 0.1);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 32px;
+  color: var(--app-gold-warm);
 }
 
 .opencall__agency-name {
-  font-family: 'Playfair Display', 'Noto Serif Display', Georgia, serif;
+  font-family: 'Noto Serif Display', Georgia, serif;
   font-size: clamp(18px, 2.4vw, 22px);
+  color: var(--app-text);
   letter-spacing: 0.01em;
 }
 
 .opencall__agency-loc {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
-  color: #6b6560;
+  color: var(--app-text-faint);
 }
 
 .opencall__headline {
-  font-family: 'Playfair Display', 'Noto Serif Display', Georgia, serif;
+  font-family: 'Noto Serif Display', Georgia, serif;
   font-weight: 500;
   font-size: clamp(30px, 5.4vw, 46px);
   line-height: 1.12;
+  color: var(--app-ink);
   margin: 0 0 18px;
   text-wrap: balance;
 }
@@ -107,7 +130,7 @@
   font-family: 'Inter', system-ui, sans-serif;
   font-size: clamp(14px, 1.7vw, 16px);
   line-height: 1.6;
-  color: #6b6560;
+  color: var(--app-text-soft);
   max-width: 52ch;
   margin: 0 0 14px;
 }
@@ -116,7 +139,7 @@
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.55;
-  color: #8a6f4d;
+  color: var(--app-gold-warm);
   margin: 0 0 26px;
 }
 
@@ -128,14 +151,14 @@
   flex-direction: column;
   gap: 16px;
   text-align: left;
-  border-top: 1px solid rgba(26, 24, 21, 0.08);
+  border-top: 1px solid var(--app-hair);
 }
 
 .opencall__steps li {
   display: flex;
   align-items: baseline;
   gap: 16px;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s var(--app-ease);
 }
 
 @media (hover: hover) {
@@ -143,7 +166,7 @@
     transform: translateX(3px);
   }
   .opencall__steps li:hover .opencall__step-num {
-    color: #a6845c;
+    color: var(--app-gold);
   }
 }
 
@@ -154,21 +177,21 @@
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: #b8956a;
-  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--app-gold-warm);
+  transition: color 0.2s var(--app-ease);
 }
 
 .opencall__step-text {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.55;
-  color: #1a1815;
+  color: var(--app-text);
 }
 
 .opencall__signin-note {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 12.5px;
-  color: #6b6560;
+  color: var(--app-text-faint);
   margin: 14px 0 0;
 }
 
