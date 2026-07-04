@@ -129,7 +129,9 @@ export function filterNotifications(items, filterId, variant = 'talent') {
   }
   if (filterId === 'applications') {
     return items.filter((item) =>
-      ['application_submitted', 'application_status'].includes(item.type),
+      ['application_submitted', 'application_status', 'message_received'].includes(
+        item.type,
+      ),
     );
   }
   if (filterId === 'alerts') {

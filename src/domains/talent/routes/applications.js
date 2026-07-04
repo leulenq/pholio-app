@@ -10,6 +10,7 @@ const asyncHandler = require("express-async-handler");
 const crypto = require("crypto");
 const {
   notifyTalentApplicationSubmitted,
+  markMessageNotificationsReadForApplication,
 } = require("../../../shared/services/notifications");
 const {
   notifyAgencyNewApplication,
@@ -2074,6 +2075,9 @@ router.get(
     await knex("messages")
       .where({ application_id: id, sender_type: "AGENCY", is_read: false })
       .update({ is_read: true, read_at: knex.fn.now() });
+
+    // Keep the bell in step: opening the thread clears its message notification.
+    await markMessageNotificationsReadForApplication(req.session.userId, id);
 
     res.json({ success: true, data: messages });
   }),
