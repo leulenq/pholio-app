@@ -13,6 +13,7 @@ import {
   Download,
   Eye,
   FileText,
+  Scale,
   Lock,
   Mail,
   Monitor,
@@ -39,10 +40,11 @@ const EASE = [0.22, 1, 0.36, 1];
 const SECTIONS = [
   { id: 'identity', label: 'Identity', icon: User, summary: 'Sign-in, contact, timezone' },
   { id: 'visibility', label: 'Visibility', icon: Eye, summary: 'Portfolio, agency discovery, contact exposure' },
-  { id: 'submissions', label: 'Submissions', icon: FileText, summary: 'Agency updates and comp card defaults' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, summary: 'Agency updates and email rhythm' },
   { id: 'subscription', label: 'Studio+', icon: CreditCard, summary: 'Plan, trial, invoices' },
   { id: 'security', label: 'Security', icon: Shield, summary: 'Password and signed-in browsers' },
-  { id: 'privacy', label: 'Privacy & data', icon: Lock, summary: 'Cookies, export, legal controls' },
+  { id: 'privacy', label: 'Privacy & data', icon: Lock, summary: 'Cookies and data export' },
+  { id: 'legal', label: 'Legal & compliance', icon: Scale, summary: 'Consent, minors, safety reporting' },
   { id: 'account', label: 'Account control', icon: Archive, summary: 'Pause or permanently erase' },
 ];
 
@@ -204,10 +206,11 @@ export default function SettingsPage() {
             <motion.div key={activeSection} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.22, ease: EASE }}>
               {activeSection === 'identity' && <IdentitySection />}
               {activeSection === 'visibility' && <VisibilitySection />}
-              {activeSection === 'submissions' && <SubmissionsSection />}
+              {activeSection === 'notifications' && <NotificationsSection />}
               {activeSection === 'subscription' && <SubscriptionSection />}
               {activeSection === 'security' && <SecuritySection />}
               {activeSection === 'privacy' && <PrivacySection />}
+              {activeSection === 'legal' && <LegalComplianceSection />}
               {activeSection === 'account' && <AccountControlSection />}
             </motion.div>
           </AnimatePresence>
@@ -337,22 +340,18 @@ const NOTIFICATION_ROWS = [
   ['marketing', 'Product guidance', 'Occasional Pholio announcements and workflow education.'],
 ];
 const FREQUENCIES = [['immediate', 'Immediate'], ['daily', 'Daily digest'], ['weekly', 'Weekly digest']];
-const LAYOUTS = [['editorial', 'Editorial comp card'], ['classic', 'Classic comp card'], ['minimal', 'Minimal comp card']];
-
-function SubmissionsSection() {
+function NotificationsSection() {
   const { data: settings, isLoading } = useTalentSettings();
   const mutation = useSettingsMutation({ onSuccess: () => toast.success('Submission preference saved') });
   const notifications = settings?.notifications || {};
-  const display = settings?.display || {};
   const notificationValue = (key) => notifications[key] ?? (key !== 'marketing');
 
   if (isLoading) return <Skeleton />;
 
   const saveNotifications = (next) => mutation.mutate({ notifications: { ...notifications, ...next } });
-  const saveDisplay = (next) => mutation.mutate({ display: { ...display, ...next } });
   return (
     <div className="talent-settings-stack">
-      <SectionPanel title="Submission communication" intro="Keep the agency workflow visible without flooding your inbox.">
+      <SectionPanel title="Notification rhythm" intro="Keep agency workflow signals visible without turning settings into a second inbox. Comp card images and layouts stay with Media and the comp-card generator.">
         <div className="talent-settings-choice-line">
           <span>Email rhythm</span>
           <PholioToggleGroup role="group" aria-label="Email rhythm">
@@ -360,15 +359,6 @@ function SubmissionsSection() {
           </PholioToggleGroup>
         </div>
         {NOTIFICATION_ROWS.map(([key, title, desc]) => <SettingRow key={key} icon={Bell} title={title} description={desc}><NativeSwitch label={title} checked={notificationValue(key)} disabled={mutation.isPending} onChange={() => saveNotifications({ [key]: !notificationValue(key) })} /></SettingRow>)}
-      </SectionPanel>
-      <SectionPanel title="Comp card defaults" intro="Defaults affect generated comp cards only. Your book, digitals, measurements, and application content are managed in their dedicated tabs.">
-        <div className="talent-settings-choice-line is-stacked">
-          <span>Default layout</span>
-          <PholioToggleGroup role="group" aria-label="Comp card layout">
-            {LAYOUTS.map(([value, label]) => <PholioToggleButton key={value} type="button" active={(display.cardLayout || 'editorial') === value} onClick={() => saveDisplay({ cardLayout: value })}>{label}</PholioToggleButton>)}
-          </PholioToggleGroup>
-        </div>
-        <SettingRow icon={Camera} title="Cover image source" description="Choose the default image used when a comp card is generated."><select value={display.coverImage || 'first'} onChange={(e) => saveDisplay({ coverImage: e.target.value })}><option value="first">First image in book</option><option value="latest">Most recently added</option><option value="featured">Manually pinned image</option></select></SettingRow>
       </SectionPanel>
     </div>
   );
@@ -459,11 +449,9 @@ function SecuritySection() {
 }
 
 function PrivacySection() {
-  const { profile } = useAuth();
   const { data: settings, isLoading } = useTalentSettings();
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
   const mutation = useSettingsMutation({ onSuccess: () => toast.success('Privacy preference saved') });
   const cookies = settings?.cookies || {};
 
@@ -485,12 +473,28 @@ function PrivacySection() {
     <div className="talent-settings-stack">
       <SectionPanel title="Data rights" intro="Export your Pholio profile, media records, applications, and account history. Permanent erasure lives under Account control.">
         <SettingRow icon={Download} title="Download your data" description={`Last requested: ${formatDate(settings?.data?.exportRequestedAt)}`}><PholioButton type="button" variant="secondary" onClick={exportData} disabled={exporting}>{exporting ? 'Preparing…' : 'Request export'}</PholioButton></SettingRow>
-        <SettingRow icon={FileText} title="Legal agreements" description="Review terms, privacy policy, and report a rights or safety concern."><PholioButton type="button" variant="tertiary" onClick={() => setReportOpen(true)}>Report concern</PholioButton></SettingRow>
       </SectionPanel>
       <SectionPanel title="Cookie choices" intro="Essential cookies keep sign-in and security working. Optional cookies support analytics and product communication.">
         <SettingRow icon={Lock} title="Essential" description="Required for authentication, sessions, security, and payments."><span className="talent-settings-fixed">Always on</span></SettingRow>
         <SettingRow icon={SlidersHorizontal} title="Analytics" description="Helps improve dashboard quality and reliability."><NativeSwitch label="Analytics cookies" checked={cookies.analytics ?? true} disabled={mutation.isPending} onChange={() => toggleCookie('analytics')} /></SettingRow>
         <SettingRow icon={Bell} title="Marketing" description="Allows non-essential product announcements and promotions."><NativeSwitch label="Marketing cookies" checked={cookies.marketing ?? false} disabled={mutation.isPending} onChange={() => toggleCookie('marketing')} /></SettingRow>
+      </SectionPanel>
+    </div>
+  );
+}
+
+
+function LegalComplianceSection() {
+  const { profile } = useAuth();
+  const { data: settings } = useTalentSettings();
+  const [reportOpen, setReportOpen] = useState(false);
+  const minorLocked = isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
+
+  return (
+    <div className="talent-settings-stack">
+      <SectionPanel title="Consent and safety" intro="Legal controls stay separate from privacy preferences so consent, minor protection, and safety reporting are easy to find.">
+        <SettingRow icon={Scale} title="Minor exposure controls" description={minorLocked ? 'Public portfolio and contact exposure are locked until guardian consent and a valid date of birth are in place.' : 'Public exposure checks are clear for this profile. Keep date of birth and guardian records current where required.'}><span className="talent-settings-fixed">{minorLocked ? 'Restricted' : 'Current'}</span></SettingRow>
+        <SettingRow icon={FileText} title="Terms and privacy" description="Review legal agreements and report rights, safety, impersonation, or agency-scam concerns."><PholioButton type="button" variant="tertiary" onClick={() => setReportOpen(true)}>Report concern</PholioButton></SettingRow>
       </SectionPanel>
       <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} targetType="user" targetId={profile?.user_id || settings?.user?.id || profile?.id || 'talent-settings'} targetLabel="Pholio settings" />
     </div>
