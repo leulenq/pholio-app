@@ -1,61 +1,39 @@
 /**
- * Pholio Email — Design Tokens
+ * Pholio Email — full-frame cinematic tokens.
  *
- * The brand DNA, distilled from the two real Pholio surfaces and re-expressed
- * in email-safe form:
- *   • Marketing site  (.pholio-landing-ref/app/globals.css) → editorial warmth,
- *     velvet/cream, Noto Serif Display headings, gold #C9A55A, restraint.
- *   • Talent dashboard (client/src/styles/tokens.css)       → structured trust,
- *     warm-cream canvas, white surfaces, 8px spacing rhythm, soft warm shadow.
- *
- * Gold (#C9A55A) is the single constant across every Pholio surface and is the
- * one accent these emails are allowed. Everything else is ink, warm neutral,
- * and negative space.
- *
- * Email constraint: web fonts only render in a few clients (Apple Mail, iOS).
- * The serif fallback to Georgia is intentional — it keeps the editorial voice
- * intact everywhere else.
+ * Derived from the onboarding dark stage and the agency applications language:
+ * black stage, warm-white serif identity, Inter for operational clarity, and
+ * one restrained gold light. Values are deliberately email-safe hex colors.
  */
 
 const COLOR = {
-  // Surfaces
-  canvas: "#FAF7F2", // warm cream — the outer inbox canvas (marketing cream)
-  card: "#FFFFFF", // white content surface (dashboard card)
-  panel: "#FAF8F4", // inset warm panel (codes, previews, detail rows)
-
-  // Ink & text (warm dark scale)
-  ink: "#1A1815", // headings
-  body: "#5C5650", // body copy
-  muted: "#9A938B", // captions, footer, metadata
-
-  // Brand
+  stage: "#050403",
+  stageRaised: "#0B0A08",
+  stageSoft: "#14110D",
+  panel: "#17130E",
+  panelWarm: "#211A12",
+  ink: "#F5F1EA",
+  body: "#D8D0C4",
+  muted: "#A79C8C",
+  ghost: "#6F665A",
   gold: "#C9A55A",
-  goldDark: "#A8894E",
-  goldSoft: "#EFE4CC", // faint gold wash for accents
-
-  // Lines
-  hairline: "#ECE6DB", // warm separators / card border
-  panelBorder: "#EAE3D6",
-
-  // Dark-mode counterparts (marketing velvet)
-  darkCanvas: "#0E0E11",
-  darkCard: "#17171B",
-  darkPanel: "#1E1E22",
-  darkInk: "#F5F0E8",
-  darkBody: "#B9B2A8",
+  goldDeep: "#B8956A",
+  goldInk: "#0A0806",
+  hairline: "#3A3023",
+  hairlineSoft: "#2A241C",
+  cream: "#FAF8F5",
+  creamInk: "#1A1815",
+  danger: "#E2A399",
 };
 
 const FONT = {
-  serif: "'Noto Serif Display', Georgia, 'Times New Roman', serif",
-  sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  mono: "'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace",
+  serif: "'Playfair Display', Georgia, 'Times New Roman', serif",
+  sans: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+  mono: "'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace",
 };
 
-// 8px spacing rhythm, inherited from the dashboard token scale.
-const SPACE = { xs: 8, sm: 12, md: 16, lg: 24, xl: 32, xxl: 40 };
-
-const RADIUS = { card: 16, panel: 10, button: 8 };
-
-const LAYOUT = { width: 600, gutter: 40 };
+const SPACE = { xs: 8, sm: 12, md: 18, lg: 28, xl: 40, xxl: 56 };
+const RADIUS = { frame: 4, panel: 8, button: 8 };
+const LAYOUT = { width: 720, gutter: 48 };
 
 module.exports = { COLOR, FONT, SPACE, RADIUS, LAYOUT };

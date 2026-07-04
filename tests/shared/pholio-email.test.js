@@ -38,15 +38,15 @@ describe("guardian consent email", () => {
       consentUrl: "https://app.pholio.studio/guardian-consent?token=test",
     });
 
-    expect(html).toContain("Authorization to submit to DNA Model Management.");
+    expect(html).toContain("Review this submission first.");
     expect(html).toContain("representation submission to");
     expect(html).toContain(
-      "Profile and contact details, measurements, digitals",
+      "Profile details, measurements, digitals",
     );
     expect(html).toContain(
       "A submission to another agency requires a separate guardian authorization.",
     );
-    expect(html).toContain("Review &amp; authorize");
+    expect(html).toContain("Review authorization");
   });
 
   test("escapes an agency name in the rendered email", () => {
@@ -86,8 +86,8 @@ describe("guardian consent email", () => {
       consentUrl: "https://app.pholio.studio/guardian-consent?token=test",
     });
 
-    expect(html).toContain("A consent request for your review.");
-    expect(html).toContain("build a modeling portfolio");
+    expect(html).toContain("Review this consent request.");
+    expect(html).toContain("would like to use Pholio");
     expect(html).not.toContain("another agency requires");
   });
 });
