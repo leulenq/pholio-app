@@ -394,3 +394,7 @@
   live backend stored the submitted value.
 - If live browser verification is unavailable, do not describe persistence as verified. Build a
   backend integration test against the real route/update mapping or report the remaining gap.
+
+## 2026-07-04 — Talent settings input ownership correction
+- When rebuilding talent dashboard settings, do not invent standalone textbox styling. Use the Profile tab field language as the reference: white hairline fields, 8px radius, Inter labels, no decorative inset well, no hover/focus translation.
+- Do not place comp-card image/layout controls in Settings unless the product has a true account-level default. Comp card composition belongs to Media / comp-card generation; Settings should only hold cross-cutting account, privacy, security, notification, billing, legal, and lifecycle controls.

@@ -1,4 +1,4 @@
-/* PholioForms.css - Luxury Editorial Form Styling */
+/* PholioForms.css - shared form baseline. Dashboard pages may scope stricter field styling to their domain; the talent profile uses plain white hairline fields. */
 
 :root {
   --pholio-gold: #C9A55A;
@@ -22,7 +22,7 @@
   position: relative;
 }
 
-/* Labels - Luxury Editorial Style */
+/* Labels */
 .pholio-label {
   font-family: 'Inter', sans-serif;
   font-size: 14.4px; /* 0.9rem */
@@ -95,12 +95,10 @@
   font-family: 'Inter', sans-serif;
   font-size: 16px;
   padding: 14px 18px;
-  /* Redesigned: Seamless Inset Look */
   border: 1px solid transparent; 
   border-radius: 8px; /* Medium radius 8px per guidelines */
   background: #f8f8f7; /* Very light brand off-white for the "well" */
   color: var(--pholio-text-dark);
-  /* Elegant Depth: Inner paper shadow + Subtle outer lift */
   box-shadow: 
     inset 0 2px 4px rgba(0, 0, 0, 0.03),
     0 1px 2px rgba(0, 0, 0, 0.01);
@@ -110,13 +108,12 @@
   resize: none;
 }
 
-/* Premium Focus State */
+/* Focus state */
 .pholio-input:focus,
 .pholio-select:focus,
 .pholio-textarea:focus {
   border-color: rgba(201, 165, 90, 0.3);
   background: #ffffff;
-  /* Premium Editorial Focus: Inner depth remains + Wide gold halo */
   box-shadow: 
     0 0 0 5px rgba(201, 165, 90, 0.12),
     inset 0 2px 4px rgba(0, 0, 0, 0.02);

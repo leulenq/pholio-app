@@ -31,11 +31,16 @@ async function recordLegalAcceptance(knex, userId, acceptance = {}) {
 }
 
 function requireLegalAcceptance(user, options = {}) {
+  // Acceptance must be recorded AND match the current version. Comparing the
+  // stored version (not just its presence) is what re-prompts talent when the
+  // Terms or Privacy Policy are bumped — otherwise a stale acceptance would
+  // satisfy the gate forever and the "our terms have changed" flow would never
+  // appear when it should.
   const hasAccepted =
     Boolean(user?.terms_accepted_at) &&
-    Boolean(user?.terms_accepted_version) &&
+    user?.terms_accepted_version === CURRENT_TERMS_VERSION &&
     Boolean(user?.privacy_accepted_at) &&
-    Boolean(user?.privacy_accepted_version);
+    user?.privacy_accepted_version === CURRENT_PRIVACY_VERSION;
 
   if (hasAccepted) {
     return true;
