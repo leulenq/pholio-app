@@ -3,6 +3,15 @@ const puppeteer = require("puppeteer");
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
 const { toFeetInches } = require("../talent/services/stats");
+const compCardDimensions = require("../../../shared/comp-card-dimensions.json");
+
+const {
+  trim: { widthInches: compCardWidthInches },
+  render: {
+    widthPixels: compCardWidthPixels,
+    heightPixels: compCardHeightPixels,
+  },
+} = compCardDimensions;
 
 // Import Chromium for serverless environments (Netlify Functions, AWS Lambda)
 let chromium = null;
@@ -21,9 +30,18 @@ async function loadProfile(slug) {
     const profile = await knex("profiles").where({ slug }).first();
     if (!profile) return null;
     const images = await knex("images")
-      .where({ profile_id: profile.id })
-      .orderBy("sort")
-      .orderBy("id");
+      .leftJoin("image_rights", "image_rights.image_id", "images.id")
+      .where({ "images.profile_id": profile.id })
+      .select(
+        "images.*",
+        "image_rights.rights_status as rights_status",
+        "image_rights.license_type as license_type",
+        "image_rights.copyright_owner as copyright_owner",
+        "image_rights.photographer_name as photographer_name",
+        "image_rights.model_release_ref as model_release_ref",
+      )
+      .orderBy("images.sort")
+      .orderBy("images.id");
 
     // Derive hero_image_path for backward compatibility in PDF views
     const primary = images.find((img) => img.is_primary) || images[0];
@@ -233,8 +251,8 @@ async function renderCompCard(slug, theme = null, opts = null) {
 
       // Set viewport size to match PDF dimensions (important for proper rendering)
       await page.setViewport({
-        width: 528, // 5.5in at 96 DPI
-        height: 816, // 8.5in at 96 DPI
+        width: compCardWidthPixels,
+        height: compCardHeightPixels,
         deviceScaleFactor: 2, // Higher DPI for better quality
       });
 
@@ -453,8 +471,8 @@ async function renderCompCard(slug, theme = null, opts = null) {
       let buffer;
       try {
         buffer = await page.pdf({
-          width: "5.5in",
-          // No fixed height — let CSS @page { size: 5.5in 8.5in } and
+          width: `${compCardWidthInches}in`,
+          // No fixed height — let the CSS @page size and
           // break-after: page handle multi-page pagination naturally.
           margin: { top: "0", bottom: "0", left: "0", right: "0" },
           printBackground: true,
@@ -586,8 +604,79 @@ async function renderCompCard(slug, theme = null, opts = null) {
   }
 }
 
+/**
+ * Render the talent's DIGITALS SHEET to PDF — the raw, dated set of digital
+ * frames + measurements that agencies request ("send me your digitals").
+ * Distinct from the comp card: no composition engine, no styling — a clean
+ * contact sheet of the unretouched set. Navigates to /pdf/digitals/view/:slug.
+ */
+async function renderDigitalsSheet(slug) {
+  if (config.nodeEnv === "test") {
+    return Buffer.from(`Digitals sheet placeholder for ${slug}`);
+  }
+
+  let browser = null;
+  try {
+    const target = new URL(
+      `/pdf/digitals/view/${slug}`,
+      config.pdfBaseUrl,
+    ).toString();
+
+    const puppeteerArgs = [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
+      "--disable-gpu",
+    ];
+
+    let launchOptions = { headless: "new", args: puppeteerArgs };
+
+    if (config.isServerless && chromium) {
+      let executablePath = chromium.executablePath();
+      if (executablePath && typeof executablePath.then === "function") {
+        executablePath = await executablePath;
+      }
+      launchOptions.executablePath = executablePath;
+      launchOptions.args = [
+        ...chromium.args,
+        ...puppeteerArgs,
+        "--hide-scrollbars",
+        "--disable-web-security",
+      ];
+    } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    browser = await puppeteer.launch(launchOptions);
+    const page = await browser.newPage();
+    await page.goto(target, { waitUntil: "networkidle0", timeout: 30000 });
+    const buffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: "0", bottom: "0", left: "0", right: "0" },
+      preferCSSPageSize: true,
+      timeout: 30000,
+      tagged: false,
+    });
+    return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch {
+        /* ignore close errors */
+      }
+    }
+  }
+}
+
 module.exports = {
   loadProfile,
   renderCompCard,
+  renderDigitalsSheet,
   toFeetInches,
 };

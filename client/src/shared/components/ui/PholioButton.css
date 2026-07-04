@@ -1,0 +1,504 @@
+/* Direction A — Editorial Ledger, sourced from button-audit.html. */
+
+.pholio-btn,
+.pholio-toggle-group {
+  --ph-btn-ink: #1a1815;
+  --ph-btn-ink-deep: #100e0b;
+  --ph-btn-canvas: #faf7f2;
+  --ph-btn-text: #1a1a1a;
+  --ph-btn-text-soft: rgba(26, 26, 26, 0.62);
+  --ph-btn-text-faint: rgba(26, 26, 26, 0.52);
+  --ph-btn-hair: rgba(26, 26, 26, 0.09);
+  --ph-btn-hair-strong: rgba(26, 26, 26, 0.16);
+  --ph-btn-hair-gold: rgba(201, 165, 90, 0.32);
+  --ph-btn-gold: #c9a55a;
+  --ph-btn-gold-warm: #c8a96e;
+  --ph-btn-gold-text: #75501b;
+  --ph-btn-danger: #8f3a3a;
+  --ph-btn-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ph-btn-radius: 3px;
+  --ph-btn-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ph-btn-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+}
+
+.pholio-btn--tone-dark,
+.pholio-toggle-group--tone-dark,
+.pholio-toggle-group--tone-dark .pholio-btn--toggle {
+  --ph-btn-canvas: #1a1815;
+  --ph-btn-text: #faf7f2;
+  --ph-btn-text-soft: rgba(250, 247, 242, 0.72);
+  --ph-btn-text-faint: rgba(250, 247, 242, 0.56);
+  --ph-btn-hair: rgba(250, 247, 242, 0.12);
+  --ph-btn-hair-strong: rgba(250, 247, 242, 0.26);
+  --ph-btn-hair-gold: rgba(201, 165, 90, 0.42);
+  --ph-btn-gold-text: #d4bc8a;
+}
+
+.pholio-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--ph-btn-radius);
+  font-family: var(--ph-btn-sans);
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none !important;
+  transform: none;
+  transition:
+    background-color 0.2s var(--ph-btn-ease),
+    border-color 0.2s var(--ph-btn-ease),
+    color 0.2s var(--ph-btn-ease),
+    opacity 0.2s var(--ph-btn-ease);
+}
+
+.pholio-btn > * {
+  position: relative;
+  z-index: 1;
+}
+
+.pholio-btn > svg {
+  display: block;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.pholio-btn:focus {
+  outline: none;
+}
+
+.pholio-btn:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+}
+
+.pholio-btn:active:not(:disabled):not([aria-disabled='true']) {
+  transform: none;
+}
+
+/* Route-level styles may control layout, but they must not reintroduce the
+   retired lift/scale/shadow interaction language. */
+.pholio-btn:hover:not(:disabled):not([aria-disabled='true']),
+.pholio-btn:active:not(:disabled):not([aria-disabled='true']) {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.pholio-btn:hover:not(:disabled):not([aria-disabled='true']) > svg {
+  transform: none !important;
+}
+
+.pholio-btn:disabled,
+.pholio-btn[aria-disabled='true'] {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.pholio-btn--full {
+  width: 100%;
+}
+
+.pholio-btn--primary {
+  min-height: 44px;
+  gap: 12px;
+  overflow: hidden;
+  padding: 10px 22px;
+  border: 1px solid var(--ph-btn-ink);
+  background: var(--ph-btn-ink);
+  color: var(--ph-btn-canvas);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pholio-btn--primary > svg {
+  color: var(--ph-btn-gold-warm);
+}
+
+.pholio-btn--primary::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 0;
+  width: 46px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--ph-btn-gold),
+    transparent
+  );
+  opacity: 0.6;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition:
+    width 0.45s var(--ph-btn-ease),
+    opacity 0.3s var(--ph-btn-ease);
+}
+
+.pholio-btn--primary:hover:not(:disabled):not([aria-disabled='true'])::after,
+.pholio-btn--primary:focus-visible::after {
+  width: 100%;
+  opacity: 1;
+}
+
+.pholio-btn--primary:disabled::after,
+.pholio-btn--primary[aria-disabled='true']::after {
+  opacity: 0.3;
+}
+
+.pholio-btn--primary.pholio-btn--tone-dark {
+  border-color: #faf7f2;
+  background: #faf7f2;
+  color: #1a1815;
+}
+
+.pholio-btn--primary > svg {
+  color: var(--ph-btn-gold-warm) !important;
+}
+
+.pholio-btn--primary.pholio-btn--tone-dark > svg {
+  color: #9b742f !important;
+}
+
+.pholio-btn--primary.pholio-btn--tone-dark > svg {
+  color: #9b742f;
+}
+
+.pholio-btn--secondary {
+  min-height: 44px;
+  gap: 9px;
+  padding: 10px 20px;
+  border: 1px solid var(--ph-btn-hair-strong);
+  background: transparent;
+  color: var(--ph-btn-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pholio-btn--secondary:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: var(--ph-btn-gold);
+  background: rgba(201, 165, 90, 0.05);
+  color: var(--ph-btn-gold-text);
+}
+
+.pholio-btn--tertiary {
+  min-height: 40px;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ph-btn-text-soft);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.pholio-btn--tertiary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgba(201, 165, 90, 0.06);
+  color: var(--ph-btn-gold-text);
+}
+
+.pholio-btn--meta {
+  min-height: 32px;
+  gap: 8px;
+  padding: 4px 0 6px;
+  border: 0;
+  border-bottom: 1px solid var(--ph-btn-hair-gold);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ph-btn-text);
+  font-family: var(--ph-btn-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.pholio-btn--meta:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: var(--ph-btn-gold);
+  color: var(--ph-btn-gold-text);
+}
+
+.pholio-btn--icon {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--ph-btn-hair-strong);
+  background: transparent;
+  color: var(--ph-btn-text-faint);
+}
+
+.pholio-btn--icon:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: var(--ph-btn-gold);
+  background: rgba(201, 165, 90, 0.05);
+  color: var(--ph-btn-gold-text);
+}
+
+.pholio-btn--icon-danger:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: rgba(143, 58, 58, 0.5);
+  background: rgba(143, 58, 58, 0.05);
+  color: var(--ph-btn-danger);
+}
+
+.pholio-btn--destructive {
+  min-height: 32px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid var(--ph-btn-hair-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ph-btn-text-faint);
+  font-family: var(--ph-btn-mono);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.pholio-btn--destructive:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: rgba(143, 58, 58, 0.5);
+  color: var(--ph-btn-danger);
+}
+
+.pholio-toggle-group {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 26px !important;
+  max-width: 100%;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ph-btn-hair) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.pholio-btn--toggle {
+  min-height: 40px;
+  padding: 0 0 11px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ph-btn-text-faint);
+  font-family: var(--ph-btn-mono);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.pholio-btn--toggle::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ph-btn-gold);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.28s var(--ph-btn-ease);
+}
+
+.pholio-btn--toggle:hover:not(:disabled):not([aria-disabled='true']) {
+  color: var(--ph-btn-text-soft);
+}
+
+.pholio-btn--toggle.is-active {
+  color: var(--ph-btn-text);
+}
+
+.pholio-btn--toggle.is-active::after {
+  transform: scaleX(1);
+}
+
+/* The taxonomy is a hard design-system boundary. Feature CSS may add layout
+   classes, but it cannot restyle a role into a one-off button variety. */
+.pholio-btn--primary {
+  min-height: 44px !important;
+  padding: 10px 22px !important;
+  border: 1px solid var(--ph-btn-ink) !important;
+  border-radius: var(--ph-btn-radius) !important;
+  background: var(--ph-btn-ink) !important;
+  color: var(--ph-btn-canvas) !important;
+  font-family: var(--ph-btn-sans) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+.pholio-btn--tertiary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgba(201, 165, 90, 0.06) !important;
+  color: var(--ph-btn-gold-text) !important;
+}
+
+.pholio-btn--primary.pholio-btn--tone-dark {
+  border-color: #faf7f2 !important;
+  background: #faf7f2 !important;
+  color: #1a1815 !important;
+}
+
+.pholio-btn--secondary {
+  min-height: 44px !important;
+  padding: 10px 20px !important;
+  border: 1px solid var(--ph-btn-hair-strong) !important;
+  border-radius: var(--ph-btn-radius) !important;
+  background: transparent !important;
+  color: var(--ph-btn-text) !important;
+  font-family: var(--ph-btn-sans) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+.pholio-btn--secondary:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: var(--ph-btn-gold) !important;
+  background: rgba(201, 165, 90, 0.05) !important;
+  color: var(--ph-btn-gold-text) !important;
+}
+
+.pholio-btn--tertiary {
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+  border: 0 !important;
+  border-radius: var(--ph-btn-radius) !important;
+  background: transparent !important;
+  color: var(--ph-btn-text-soft) !important;
+  font-family: var(--ph-btn-sans) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.pholio-btn--meta,
+.pholio-btn--destructive {
+  min-height: 32px !important;
+  padding: 4px 0 6px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--ph-btn-hair-gold) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-family: var(--ph-btn-mono) !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+}
+
+.pholio-btn--meta {
+  color: var(--ph-btn-text) !important;
+  font-size: 0.625rem !important;
+  font-weight: 500 !important;
+}
+
+.pholio-btn--meta:hover:not(:disabled):not([aria-disabled='true']) {
+  border-bottom-color: var(--ph-btn-gold) !important;
+  color: var(--ph-btn-gold-text) !important;
+}
+
+.pholio-btn--destructive {
+  color: var(--ph-btn-text-faint) !important;
+  font-size: 0.5625rem !important;
+  font-weight: 500 !important;
+}
+
+.pholio-btn--destructive:hover:not(:disabled):not([aria-disabled='true']) {
+  border-bottom-color: rgba(143, 58, 58, 0.5) !important;
+  color: var(--ph-btn-danger) !important;
+}
+
+.pholio-btn--icon {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  border: 1px solid var(--ph-btn-hair-strong) !important;
+  border-radius: var(--ph-btn-radius) !important;
+  background: transparent !important;
+  color: var(--ph-btn-text-faint) !important;
+}
+
+.pholio-btn--icon:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: var(--ph-btn-gold) !important;
+  background: rgba(201, 165, 90, 0.05) !important;
+  color: var(--ph-btn-gold-text) !important;
+}
+
+.pholio-btn--icon.pholio-btn--icon-danger:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: rgba(143, 58, 58, 0.5) !important;
+  background: rgba(143, 58, 58, 0.05) !important;
+  color: var(--ph-btn-danger) !important;
+}
+
+.pholio-btn--toggle {
+  min-height: 40px !important;
+  padding: 0 0 11px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--ph-btn-text-faint) !important;
+  font-family: var(--ph-btn-mono) !important;
+  font-size: 0.5625rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+}
+
+.pholio-btn--toggle.is-active {
+  color: var(--ph-btn-text) !important;
+}
+
+.pholio-btn--toggle:hover:not(:disabled):not([aria-disabled='true']) {
+  color: var(--ph-btn-text-soft) !important;
+}
+
+@media (pointer: coarse) {
+  .pholio-btn--tertiary,
+  .pholio-btn--meta,
+  .pholio-btn--icon,
+  .pholio-btn--destructive,
+  .pholio-btn--toggle {
+    min-height: 44px !important;
+  }
+
+  .pholio-btn--icon {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .pholio-btn--primary,
+  .pholio-btn--secondary {
+    white-space: normal;
+  }
+
+  .pholio-toggle-group {
+    gap: 18px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .pholio-toggle-group::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pholio-btn,
+  .pholio-btn::after {
+    transition-duration: 0.01ms !important;
+  }
+}

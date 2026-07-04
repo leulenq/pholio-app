@@ -47,19 +47,14 @@
     // Height: prefer formatted string, else cm
     const heightDisplay = (typeof heightFeet !== 'undefined' && heightFeet) ? heightFeet : (profile.height_cm ? profile.height_cm + ' cm' : null);
 
-    // Measurements: bust / waist / hips
-    let bust = profile.bust || null;
-    let waist = profile.waist || null;
-    let hips = profile.hips || null;
-    // Also parse legacy measurements string "32-25-35"
-    if ((!bust || !waist || !hips) && profile.measurements) {
-      const parts = profile.measurements.toString().split(/[-\/,]/).map(s => s.trim());
-      if (parts.length >= 3) {
-        bust  = bust  || parts[0];
-        waist = waist || parts[1];
-        hips  = hips  || parts[2];
-      }
-    }
+    // Measurements: canonical, track-driven stats (Wave 2C). `stats` is the
+    // shared stats-formatter output — it reads the real *_cm columns (chest_cm/
+    // bust_cm/waist_cm/hips_cm/inseam_cm), never the dropped profile.bust/waist/
+    // hips columns. `stats.fields` is the ordered, present-only line list.
+    const safeStats = (typeof stats !== 'undefined' && stats) ? stats : null;
+    const statLines = safeStats && Array.isArray(safeStats.fields)
+      ? safeStats.fields.filter((line) => !['height', 'hair', 'eyes'].includes(line.key))
+      : [];
 
     // Image URL helper (defined as string, used inline)
     function imgUrl(path) {
@@ -460,24 +455,12 @@
             <span class="back__stat-value"><%= heightDisplay %></span>
           </div>
           <% } %>
-          <% if (bust) { %>
+          <% statLines.forEach((line) => { %>
           <div class="back__stat-row">
-            <span class="back__stat-label">Bust</span>
-            <span class="back__stat-value"><%= bust %>"</span>
+            <span class="back__stat-label"><%= line.label %></span>
+            <span class="back__stat-value"><%= line.value %></span>
           </div>
-          <% } %>
-          <% if (waist) { %>
-          <div class="back__stat-row">
-            <span class="back__stat-label">Waist</span>
-            <span class="back__stat-value"><%= waist %>"</span>
-          </div>
-          <% } %>
-          <% if (hips) { %>
-          <div class="back__stat-row">
-            <span class="back__stat-label">Hips</span>
-            <span class="back__stat-value"><%= hips %>"</span>
-          </div>
-          <% } %>
+          <% }) %>
           <% if (profile.hair_color) { %>
           <div class="back__stat-row">
             <span class="back__stat-label">Hair</span>

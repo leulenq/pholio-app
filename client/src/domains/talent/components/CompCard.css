@@ -82,15 +82,10 @@
 @keyframes cc-ring { to { transform: rotate(360deg); } }
 
 .cc-showcase__foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 420px; margin: 0 auto; width: 100%; }
-.cc-sideswitch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--mw-hair); border-radius: 999px; background: #fff; }
+.cc-sideswitch { display: inline-flex; }
 .cc-sideswitch__btn {
-  border: none; background: transparent; cursor: pointer;
-  font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--mw-text-soft); padding: 6px 16px; border-radius: 999px;
-  transition: background 0.25s var(--mw-ease), color 0.25s var(--mw-ease);
+  flex: 0 0 auto;
 }
-.cc-sideswitch__btn:hover { color: var(--mw-text); }
-.cc-sideswitch__btn.is-active { background: var(--mw-ink); color: #fff; }
 .cc-showcase__meta { font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mw-text-faint); }
 
 /* ── Atelier panel ── */
@@ -102,17 +97,7 @@
 .cc-stage-head { display: flex; align-items: baseline; gap: 12px; }
 .cc-stage-title { font-family: var(--mw-serif); font-weight: 400; font-size: 19px; letter-spacing: -0.01em; color: var(--mw-text); }
 
-.cc-ghost-btn {
-  margin-left: auto;
-  display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--mw-sans); font-size: 11px; font-weight: 500;
-  color: var(--mw-text-soft); background: transparent;
-  border: 1px solid var(--mw-hair-strong); border-radius: 999px;
-  padding: 5px 12px; cursor: pointer;
-  transition: border-color 0.2s var(--mw-ease), color 0.2s var(--mw-ease);
-}
-.cc-ghost-btn:hover { border-color: var(--mw-gold); color: var(--mw-gold); }
-.cc-ghost-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cc-stage-head > .pholio-btn { margin-left: auto; }
 
 .cc-stage-note { font-family: var(--mw-sans); font-size: 12.5px; line-height: 1.6; color: var(--mw-text-soft); }
 .cc-stage-note--quiet { color: var(--mw-text-faint); font-size: 12px; }
@@ -130,17 +115,148 @@
   width: 6px; height: 1px; background: var(--mw-gold);
 }
 
-.cc-link-btn { font-family: var(--mw-sans); font-size: 12px; color: var(--mw-gold); background: none; border: none; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-.cc-link-btn:hover { color: var(--mw-gold-warm); }
-.cc-link-btn:disabled { color: var(--mw-text-faint); cursor: not-allowed; }
-
 /* Download */
 .cc-download-row { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 8px; padding-top: 26px; border-top: 1px solid var(--mw-hair); }
 .cc-download { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
-.cc-spinner { width: 14px; height: 14px; border: 2px solid rgba(5, 5, 5, 0.25); border-top-color: var(--mw-ink); border-radius: 50%; animation: mw-spin 0.8s linear infinite; }
+.cc-spinner { width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, 0.34); border-top-color: #fff; border-radius: 50%; animation: mw-spin 0.8s linear infinite; }
 .cc-unlock { font-family: var(--mw-sans); font-size: 12px; color: var(--mw-gold); text-decoration: none; }
 .cc-flip-hint { opacity: 0.85; }
 
+/*
+ * Official "Add to Apple Wallet" badge — Apple-provided artwork, never
+ * restyled or recreated. Sits directly on the cream workspace surface per
+ * Apple's light-background guidance; no chip/box, no shadow, aspect preserved.
+ */
+.cc-wallet { display: inline-flex; align-items: center; transition: opacity 0.2s var(--mw-ease); }
+.cc-wallet:hover { opacity: 0.85; }
+.cc-wallet img { display: block; height: 40px; width: auto; }
+
+.cc-gate {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--ag-surface-0, #faf8f5);
+}
+
+.cc-gate__copy {
+  margin: 0;
+  color: var(--ag-text-2, #6b6560);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Stats nudge (appearance fields, non-blocking) ── */
+.cc-stats-nudge {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 420px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.cc-stats-nudge__copy {
+  margin: 0;
+  font-family: var(--mw-sans);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ag-text-2, var(--mw-text-soft));
+}
+
+.cc-stats-nudge__link {
+  color: var(--mw-gold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cc-stats-nudge__link:hover {
+  color: var(--mw-gold-warm, var(--mw-gold));
+  text-decoration: underline;
+}
+
+.cc-stats-nudge__dismiss {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* ── Saved cards library ── */
+.cc-lib__count { margin-left: auto; font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mw-text-faint); }
+
+.cc-lib__save { display: flex; gap: 8px; align-items: stretch; }
+.cc-lib__name {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--mw-sans); font-size: 12.5px; color: var(--mw-text);
+  background: #fff; border: 1px solid var(--mw-hair-strong); border-radius: 8px;
+  padding: 8px 12px;
+  transition: border-color 0.2s var(--mw-ease);
+}
+.cc-lib__name::placeholder { color: var(--mw-text-faint); }
+.cc-lib__name:focus { outline: none; border-color: var(--mw-gold); }
+.cc-lib__name:disabled { opacity: 0.55; }
+/* purpose tags — board/lane + market, quiet selects under the name field */
+.cc-lib__purpose { display: flex; gap: 8px; margin-top: 8px; }
+.cc-lib__tag {
+  flex: 1 1 0; min-width: 0;
+  font-family: var(--mw-sans); font-size: 12px; color: var(--mw-text-soft);
+  background: #fff; border: 1px solid var(--mw-hair-strong); border-radius: 8px;
+  padding: 7px 10px; cursor: pointer;
+  transition: border-color 0.2s var(--mw-ease), color 0.2s var(--mw-ease);
+}
+.cc-lib__tag:focus { outline: none; border-color: var(--mw-gold); color: var(--mw-text); }
+.cc-lib__tag:disabled { opacity: 0.55; }
+.cc-lib__tagline {
+  font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--mw-text-faint);
+}
+
+.cc-lib__list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cc-lib__item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 8px; border-radius: 10px;
+  transition: background 0.2s var(--mw-ease);
+}
+.cc-lib__item:hover { background: var(--mw-cream-warm); }
+.cc-lib__item.is-active { background: var(--mw-cream-warm); }
+
+.cc-lib__thumb {
+  position: relative; flex: 0 0 auto;
+  width: 44px; height: 68px;
+  padding: 0; border: 1px solid var(--mw-hair); border-radius: 3px;
+  background: #fff; overflow: hidden; cursor: pointer;
+  box-shadow: 0 6px 16px -10px rgba(26, 26, 26, 0.5);
+  transition: border-color 0.2s var(--mw-ease);
+}
+.cc-lib__thumb:hover { border-color: var(--mw-gold); }
+.cc-lib__item.is-active .cc-lib__thumb { border-color: var(--mw-gold); }
+.cc-lib__thumbframe { position: absolute; inset: 0; overflow: hidden; }
+.cc-lib__thumbframe iframe {
+  width: 528px; height: 1632px; border: 0; display: block; background: #fff;
+  transform: scale(calc(44 / 528)); transform-origin: top left; pointer-events: none;
+}
+.cc-lib__thumbmark {
+  position: absolute; top: 3px; right: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--mw-gold); color: #fff;
+}
+
+.cc-lib__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cc-lib__itemname {
+  font-family: var(--mw-serif); font-size: 14.5px; color: var(--mw-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cc-lib__flag { font-family: var(--mw-mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mw-gold); }
+
+.cc-lib__actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 12px; }
+.cc-lib__del {
+  min-width: 34px;
+  padding: 0;
+}
+.cc-lib__confirm { display: inline-flex; align-items: center; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
   .cc-card__flip { transition: none; }
   .cc-veil__ring { animation: none; }

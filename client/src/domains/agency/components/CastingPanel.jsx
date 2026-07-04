@@ -4,7 +4,7 @@ import { X, Mail, Zap, Target, TrendingUp, AlertCircle, PenLine } from 'lucide-r
 import MatchScore from './ui/MatchScore';
 import './CastingPanel.css';
 
-const STAGES = ['Applied', 'Shortlisted', 'Interview', 'Offered', 'Booked'];
+const STAGES = ['Applied', 'Shortlisted', 'Interview', 'Offered', 'Represented'];
 
 const AI_SIGNALS = [
   { icon: Target,      text: 'Matches 3 open castings based on measurements and type.' },
@@ -24,8 +24,8 @@ function getAdvanceLabel(stage) {
     case 'Applied':     return 'Shortlist →';
     case 'Shortlisted': return 'Invite to Interview →';
     case 'Interview':   return 'Make Offer →';
-    case 'Offered':     return 'Book →';
-    case 'Booked':      return '✓ Booked';
+    case 'Offered':     return 'Sign →';
+    case 'Represented': return '✓ Represented';
     case 'Passed':      return 'Restore to Applied';
     default:            return 'Advance →';
   }
@@ -44,7 +44,7 @@ export const CastingPanel = ({ candidate, casting, onClose, onAction }) => {
 
   const currentStageIndex = STAGES.indexOf(candidate.stage);
   const isPassed = candidate.stage === 'Passed';
-  const isBooked = candidate.stage === 'Booked';
+  const isRepresented = candidate.stage === 'Represented';
 
   const handleAction = (action, payload) => {
     if (onAction) onAction(action, candidate, payload);
@@ -132,8 +132,8 @@ export const CastingPanel = ({ candidate, casting, onClose, onAction }) => {
           ) : (
             <button
               className="cp-btn cp-btn--advance"
-              disabled={isBooked}
-              onClick={() => !isBooked && handleAction('advance')}
+              disabled={isRepresented}
+              onClick={() => !isRepresented && handleAction('advance')}
             >
               {getAdvanceLabel(candidate.stage)}
             </button>

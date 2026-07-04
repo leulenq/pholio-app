@@ -2,7 +2,7 @@ import React, { forwardRef, useId } from 'react';
 import InlineErrorText from '../../states/InlineErrorText';
 import './PholioForms.css';
 
-const PholioSelect = forwardRef(({ label, options = [], error, className = '', placeholder, id: providedId, ...props }, ref) => {
+const PholioSelect = forwardRef(({ label, options = [], error, className = '', placeholder, id: providedId, value, ...props }, ref) => {
   const generatedId = useId();
   const selectId = providedId || `select-${generatedId}`;
   const errorId = error ? `${selectId}-error` : undefined;
@@ -20,6 +20,7 @@ const PholioSelect = forwardRef(({ label, options = [], error, className = '', p
         className={`pholio-select ${error ? 'has-error' : ''}`}
         aria-invalid={!!error}
         aria-describedby={errorId}
+        value={value === null ? '' : value}
         {...props}
       >
         <option value="" disabled>

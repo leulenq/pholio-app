@@ -28,7 +28,8 @@ const TABS = [
   { key: 'all', label: 'All', match: () => true },
   { key: 'submitted', label: 'New', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
-  { key: 'booked', label: 'Booked', match: (s) => s === 'booked' },
+  { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
+  { key: 'represented', label: 'Represented', match: (s) => s === 'represented' || s === 'booked' },
   { key: 'accepted', label: 'Signed', match: (s) => s === 'accepted' },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
 ];
@@ -38,7 +39,7 @@ function boardBrief(board) {
   if (!board) return null;
   const pipeline = board.application_count || 0;
   const waiting = board.submitted_count || 0;
-  const booked = board.booked_count || 0;
+  const represented = board.represented_count || board.booked_count || 0;
   return {
     title: board.name || 'Untitled Board',
     status: board.is_active === false ? 'Closed' : 'Open',
@@ -51,7 +52,7 @@ function boardBrief(board) {
       },
       {
         label: 'Where It Stands',
-        body: `${pipeline} in pipeline · ${waiting} awaiting review · ${booked} booked.`,
+        body: `${pipeline} in pipeline · ${waiting} awaiting review · ${represented} represented.`,
       },
     ],
   };
@@ -289,6 +290,7 @@ function ApplicationsPage() {
   const ledger = [
     { label: 'New', value: newCount, tone: newCount ? 'gold' : 'mute' },
     { label: 'Shortlisted', value: counts.shortlisted || 0, tone: 'ink' },
+    { label: 'New Faces', value: counts.development || 0, tone: 'ink' },
     { label: 'Signed', value: counts.accepted || 0, tone: 'ink' },
     { label: 'Pass Rate', value: passRate == null ? '—' : passRate, suffix: passRate == null ? '' : '%', tone: 'mute' },
   ];

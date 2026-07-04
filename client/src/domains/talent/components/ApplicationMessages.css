@@ -1,0 +1,136 @@
+/* Talent-facing message thread inside the application detail panel.
+   Inherits --app-* tokens from .applications-view-container. */
+
+.app-msg {
+  margin-top: 24px;
+}
+
+.app-msg__title {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+  margin-bottom: 14px;
+}
+
+.app-msg__empty {
+  margin: 0 0 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  color: var(--app-text-faint);
+}
+
+.app-msg__thread {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.app-msg__bubble {
+  max-width: 82%;
+  padding: 10px 13px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-msg__bubble--them {
+  align-self: flex-start;
+  background: rgba(26, 26, 26, 0.05);
+  border: 1px solid var(--app-hair);
+  border-bottom-left-radius: 4px;
+}
+
+.app-msg__bubble--me {
+  align-self: flex-end;
+  background: rgba(201, 165, 90, 0.12);
+  border: 1px solid var(--app-hair-gold);
+  border-bottom-right-radius: 4px;
+}
+
+.app-msg__text {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--app-text);
+  white-space: pre-wrap;
+}
+
+.app-msg__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.app-msg__time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--app-text-faint);
+}
+
+.app-msg__report {
+  flex-shrink: 0;
+}
+
+.app-msg__compose {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-msg__compose-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-msg__toolbar {
+  align-self: flex-start;
+}
+
+.app-msg__input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.app-msg__input {
+  flex: 1;
+  resize: none;
+  min-height: 42px;
+  max-height: 160px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: 10px;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--app-text);
+  transition: border-color 0.2s ease;
+}
+
+.app-msg__input:focus {
+  outline: none;
+  border-color: var(--app-gold);
+}
+
+.app-msg__send {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+}

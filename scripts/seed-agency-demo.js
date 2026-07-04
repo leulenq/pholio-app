@@ -13,10 +13,10 @@ const AGENCY_LOCATION = "New York, NY";
 const AGENCY_SLUG = "lumen-models";
 const AGENCY_WEBSITE = "https://lumenmodels.com";
 const AGENCY_DESCRIPTION =
-  "Lumen Model Management is a boutique agency representing editorial, runway, and commercial talent across North America and Europe. Founded in New York, we scout globally and place talent on luxury campaigns, fashion weeks, and brand lookbooks.";
-const AGENCY_LOGO =
-  "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=200&h=200&q=80";
+  "Lumen Model Management is a boutique New York agency focused on editorial, runway, commercial, and development talent. The team scouts selective new faces and builds polished books for luxury campaigns, fashion week packages, and brand lookbooks.";
+const AGENCY_LOGO = "/agency-logos/lumen-model-management.svg";
 const AGENCY_BRAND_COLOR = "#B8956A";
+const AGENCY_OPEN_BOARDS = ["Women", "Men", "Runway", "Development"];
 const OWNER_FIRST = "Sarah";
 const OWNER_LAST = "Chen";
 
@@ -322,11 +322,7 @@ async function seedAgencyDemo(knex) {
     description: AGENCY_DESCRIPTION,
     logo_path: AGENCY_LOGO,
     brand_color: AGENCY_BRAND_COLOR,
-    instagram_handle: "lumenmodels",
-    tiktok_handle: "lumenmodels",
-    twitter_handle: "lumenmodels",
-    youtube_handle: "lumenmodelsnyc",
-    video_reel_url: "https://vimeo.com/lumenmodels/showreel",
+    open_boards: JSON.stringify(AGENCY_OPEN_BOARDS),
     notify_new_applications: true,
     notify_status_changes: true,
     default_view: "overview",
@@ -492,7 +488,6 @@ async function seedAgencyDemo(knex) {
             shoe_size: `${ri(7, 10)} US`,
             hair_color: pick(["Brown", "Blonde", "Black", "Auburn"]),
             eye_color: pick(["Brown", "Blue", "Green", "Hazel"]),
-            instagram_handle: `${p.first.toLowerCase()}${p.last.toLowerCase().slice(0, 4)}`,
           }
         : {}),
     };
@@ -548,7 +543,7 @@ async function seedAgencyDemo(knex) {
     );
   for (let i = 0; i < 6; i++) addApp("shortlisted", daysAgo(ri(2, 14)));
   for (let i = 0; i < 6; i++)
-    addApp("booked", daysAgo(ri(5, 45)), { accepted_at: daysAgo(ri(3, 40)) });
+    addApp("represented", daysAgo(ri(5, 45)), { accepted_at: daysAgo(ri(3, 40)) });
   for (let i = 0; i < 5; i++)
     addApp("declined", daysAgo(ri(3, 30)), { declined_at: daysAgo(ri(1, 25)) });
   for (let i = 0; i < 9; i++)
@@ -609,7 +604,7 @@ async function seedAgencyDemo(knex) {
   );
 
   const linkable = apps.filter((a) =>
-    ["submitted", "shortlisted", "booked"].includes(a.status),
+    ["submitted", "shortlisted", "represented"].includes(a.status),
   );
   const accepted = apps.filter((a) => a.status === "accepted");
   const toLink = [...linkable, ...accepted.slice(0, 5)]; // leave 4 accepted idle

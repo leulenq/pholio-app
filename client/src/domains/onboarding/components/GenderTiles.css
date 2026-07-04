@@ -1,0 +1,93 @@
+/* GenderTiles — portrait tiles (ported from prototype .tiles / .tile) */
+.gender-tiles {
+  display: flex;
+  gap: 1.1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.gender-tile {
+  width: 150px;
+  height: 188px;
+  padding: 0;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.15rem;
+  cursor: pointer;
+  background: rgba(245, 241, 234, 0.015);
+  transition: all 0.3s var(--ease);
+}
+
+.gender-tile svg {
+  stroke: var(--text-3);
+  fill: none;
+  transition: stroke 0.3s var(--ease);
+}
+
+.gender-tile-label {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  transition: color 0.3s var(--ease);
+}
+
+.gender-tile:hover {
+  border-color: rgba(201, 165, 90, 0.4);
+}
+
+.gender-tile.is-selected {
+  border-color: var(--gold);
+  background: rgba(201, 165, 90, 0.05);
+  box-shadow: 0 0 34px rgba(201, 165, 90, 0.14);
+}
+
+.gender-tile.is-selected svg {
+  stroke: var(--gold);
+}
+
+.gender-tile.is-selected .gender-tile-label {
+  color: var(--gold);
+}
+
+.gender-tile:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.gender-tile:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  /* Two per row, always — a fixed-width flex row can't fit two tiles once the
+     stage gutters are subtracted, so it collapsed to one-per-row. A 2-col grid
+     guarantees the 2×2 layout and shorter tiles keep it above the fold. */
+  .gender-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    max-width: 360px;
+    width: 100%;
+  }
+  .gender-tile {
+    width: auto;
+    height: 128px;
+    gap: 0.85rem;
+  }
+  .gender-tile svg {
+    width: 26px;
+    height: 26px;
+  }
+  .gender-tile-label {
+    font-size: 0.62rem;
+  }
+}

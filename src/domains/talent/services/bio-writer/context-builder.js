@@ -5,6 +5,11 @@
  * Aggressive exclusion of admin/noise; max ~6 high-signal lines for token efficiency.
  */
 
+const {
+  resolveTalentDivision,
+  getDivisionReadinessConfig,
+} = require("../../../../shared/constants/profile-division");
+
 const MAX_SIGNALS = 6;
 const MAX_CREDIT_LINES = 2;
 const MAX_LANES = 3;
@@ -73,9 +78,6 @@ function lanesFromProfile(profile) {
   const categories = parseJsonArray(profile.modeling_categories);
   if (categories.length) return categories.slice(0, MAX_LANES);
 
-  const specialties = parseJsonArray(profile.specialties);
-  if (specialties.length) return specialties.slice(0, MAX_LANES);
-
   if (profile.archetype) {
     return [String(profile.archetype).replace(/ Icon$/, "")];
   }
@@ -118,7 +120,7 @@ function buildBioContext(profile = {}, options = {}) {
   if (lanes.length) {
     signals.push({
       key: "lanes",
-      label: "Lanes",
+      label: "Booking lanes",
       fact: lanes.join(", "),
       weight: 10,
     });
@@ -189,11 +191,17 @@ function buildBioContext(profile = {}, options = {}) {
   const hasMinimumForGenerate =
     !!name && (!!market || lanes.length > 0) && hasProfessionalSignal;
 
+  const division = resolveTalentDivision(profile);
+  const divisionConfig = getDivisionReadinessConfig(division);
+
   return {
     name: name || "Talent",
     signals: prioritized,
     signalCount: prioritized.length,
     hasMinimumForGenerate,
+    division,
+    divisionLabel: divisionConfig.label,
+    divisionTagline: divisionConfig.tagline,
     existingBio: options.existingBio
       ? String(options.existingBio).trim()
       : null,

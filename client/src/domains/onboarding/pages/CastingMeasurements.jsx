@@ -1,135 +1,568 @@
 /**
- * Casting Measurements - Step 3: Sequential Wizard Flow
- * "High-end fitting session" vibe with AI-assisted inputs and global unit toggle.
+ * Casting Measurements — the fitting.
+ * Height is the only required step. Adults are then offered their stats once,
+ * with a confident skip. The stat sequence is gender-aware. No weight, no AI
+ * prediction — the dials start on a neutral anchor and read empty until touched.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fadeVariants, childVariants } from './animations';
+import { fadeVariants } from './animations';
 import { useCastingMeasurements, useCastingStatus } from '../hooks/useCasting';
-import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Check, Sparkles } from 'lucide-react';
 
-import { ThinkingText } from './ThinkingText';
-import { CinematicDivider } from './CinematicDivider';
-import { CinematicNextButton, CinematicBackButton } from './CinematicNextButton';
+import StepBeat from '../components/StepBeat';
+import ColorSelect from '../components/ColorSelect';
+import { AcknowledgmentBeat } from './AcknowledgmentBeat';
+import { InlineErrorText } from '../../../shared/components/states';
+import { useActionDock } from '../components/ActionDockContext';
+import '../styles/CastingSteps.css';
+import './CastingMeasurements.screen.css';
 
 // Helpers
 const IN_PER_CM = 0.393701;
-const KG_TO_LBS = 2.20462;
 
-function CastingMeasurements({ photoData: propPhotoData, onComplete, initialStep }) {
-  const { data: status } = useCastingStatus();
-  const scoutStepData = status?.state?.step_data?.scout || {};
+// Neutral starting anchors for dial physics only — rendered dimmed/empty
+// until the user first interacts (nothing is prefilled as a real answer).
+const START = {
+  height_cm: 170,
+  bust_cm: 88,
+  waist_cm: 70,
+  hips_cm: 94,
+  chest_cm: 98,
+  inseam_cm: 80,
+};
 
-  const photoData = propPhotoData || {
-    photo_url: scoutStepData.photo_url,
-    predictions: status?.state?.predictions || scoutStepData.predictions
-  };
+// Gender-aware stat fields (adults only). Non-Binary / Prefer not to say
+// (and unknown) are offered no stats in onboarding — height → review.
+function statFieldsFor(gender) {
+  if (gender === 'Female') {
+    return [
+      { key: 'bust_cm', question: '*Bust*?', label: 'Bust' },
+      { key: 'waist_cm', question: '*Waist*?', label: 'Waist' },
+      { key: 'hips_cm', question: '*Hips*?', label: 'Hips' },
+    ];
+  }
+  if (gender === 'Male') {
+    return [
+      { key: 'chest_cm', question: '*Chest*?', label: 'Chest' },
+      { key: 'waist_cm', question: '*Waist*?', label: 'Waist' },
+      { key: 'inseam_cm', question: '*Inseam*?', label: 'Inseam' },
+    ];
+  }
+  return [];
+}
 
-  // Global Unit Toggle
-  const [unitSystem, setUnitSystem] = useState('imperial'); // 'imperial' or 'metric'
+// heightOnly: minors (and age-unknown profiles) confirm height only during
+// onboarding — body measurements stay locked until guardian consent.
 
-  // Wizard Step (initialStep is a dev-preview entry point; defaults to 'height')
-  const [step, setStep] = useState(initialStep || 'height'); // height -> weight -> bust -> waist -> hips -> review
+// Optional NON-SENSITIVE appearance steps — offered to ALL talent (including
+// minors and non-binary/undisclosed), every one skippable. Values must match
+// the server enums in routes/casting.js exactly.
+const APPEARANCE_STEPS = ['hair', 'eyes', 'shoe'];
 
-  // Measurements State (Always stored in Metric internally)
-  const [measurements, setMeasurements] = useState({
-    height_cm: 175,
-    weight_kg: 68,
-    bust_cm: 86,
-    waist_cm: 66,
-    hips_cm: 91
-  });
+const HAIR_OPTIONS = [
+  { value: 'Black', swatch: '#1A1512' },
+  { value: 'Brown', swatch: '#5A3A24' },
+  { value: 'Blonde', swatch: '#D8B27A' },
+  { value: 'Red', swatch: '#8E3B22' },
+  { value: 'Gray', swatch: '#9A948C' },
+  { value: 'White', swatch: '#EDE9E2' },
+  { value: 'Other', swatch: null },
+];
 
-  // Track which fields were AI predicted and their VALUES (for Truth Anchor logic)
-  const [predictedValues, setPredictedValues] = useState({});
+const EYE_OPTIONS = [
+  { value: 'Brown', swatch: '#4E3520' },
+  { value: 'Blue', swatch: '#5E82A8' },
+  { value: 'Green', swatch: '#5F7A52' },
+  { value: 'Hazel', swatch: '#7A5C33' },
+  { value: 'Gray', swatch: '#8E969C' },
+  { value: 'Amber', swatch: '#B0762D' },
+  { value: 'Other', swatch: null },
+];
+
+// Per-region shoe scales. Switching region resets to that region's neutral
+// anchor (scales are not interconvertible without gender-specific tables).
+const SHOE_SCALES = {
+  US: { min: 3, max: 16, anchor: 8 },
+  EU: { min: 34, max: 50, anchor: 41 },
+  UK: { min: 2, max: 15, anchor: 7 },
+};
+const SHOE_REGIONS = ['US', 'EU', 'UK'];
+
+const formatShoe = (size) => (Number.isInteger(size) ? String(size) : size.toFixed(1));
+
+const tapeViewFor = (type, unitSystem) => {
+  if (type === 'height') {
+    return unitSystem === 'metric'
+      ? { min: 122, max: 229, px: 6.7, major: 10, mid: 5 }
+      : { min: 48, max: 90, px: 17, major: 12, mid: 6 };
+  }
+  // Bust / waist / hips — same tick rhythm as height, ~82% scale
+  return unitSystem === 'metric'
+    ? { min: 55, max: 145, px: 5.5, major: 10, mid: 5 }
+    : { min: 22, max: 58, px: 14, major: 12, mid: 6 };
+};
+
+const DialArrow = ({ direction, onPointerDown, onPointerUp, onPointerCancel }) => (
+  <button
+    type="button"
+    onPointerDown={onPointerDown}
+    onPointerUp={onPointerUp}
+    onPointerCancel={onPointerCancel}
+    className="csm-dial-arrow"
+    data-d={direction}
+    aria-label={direction < 0 ? 'Decrease' : 'Increase'}
+  >
+    {direction < 0 ? (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+    ) : (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    )}
+  </button>
+);
+
+const PrecisionDeck = ({ value, onAdjust, onTouch, unitSystem, onToggleUnits, type = 'stat' }) => {
+  const isStat = type === 'stat';
+  const [isDragging, setIsDragging] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editVal, setEditVal] = useState('');
+  const [dragContVal, setDragContVal] = useState(null);
+  const inputRef = React.useRef(null);
+  const dragRef = React.useRef({ x: null, baseVal: 0 });
+  const dragContValRef = React.useRef(null);
+  const intervalRef = React.useRef(null);
+  const timeoutRef = React.useRef(null);
+  const view = tapeViewFor(type, unitSystem);
+
+  const ticks = useMemo(() => {
+    const items = [];
+    const majH = isStat ? 24 : 30;
+    const midH = isStat ? 15 : 19;
+    const minH = isStat ? 10 : 12;
+    for (let v = view.min; v <= view.max; v += 1) {
+      const isMaj = v % view.major === 0;
+      const isMid = v % view.mid === 0;
+      items.push({
+        v,
+        left: (v - view.min) * view.px,
+        height: isMaj ? majH : isMid ? midH : minH,
+        color: isMaj
+          ? 'rgba(245, 241, 234, 0.55)'
+          : isMid
+            ? 'rgba(245, 241, 234, 0.3)'
+            : 'rgba(245, 241, 234, 0.14)',
+      });
+    }
+    return items;
+  }, [view, isStat]);
 
   useEffect(() => {
-    if (photoData?.predictions) {
-      const preds = photoData.predictions;
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
-      // Do not prefill if AI confidence is Low
-      if (preds.confidence === 'Low') {
-        console.warn('[CastingMeasurements] Low confidence AI prediction. Not pre-filling.');
-        return;
-      }
-
-      const newMeasurements = { ...measurements };
-      const newAiPredictions = {};
-
-      if (preds.height_estimate_cm) {
-        newMeasurements.height_cm = Math.round(preds.height_estimate_cm);
-        newAiPredictions.height = Math.round(preds.height_estimate_cm);
-      }
-      if (preds.weight_kg) {
-        newMeasurements.weight_kg = Math.round(preds.weight_kg);
-        newAiPredictions.weight = Math.round(preds.weight_kg);
-      }
-      if (preds.bust_cm) {
-        newMeasurements.bust_cm = Math.round(preds.bust_cm);
-        newAiPredictions.bust = Math.round(preds.bust_cm);
-      }
-      if (preds.waist_cm) {
-        newMeasurements.waist_cm = Math.round(preds.waist_cm);
-        newAiPredictions.waist = Math.round(preds.waist_cm);
-      }
-      if (preds.hips_cm) {
-        newMeasurements.hips_cm = Math.round(preds.hips_cm);
-        newAiPredictions.hips = Math.round(preds.hips_cm);
-      }
-
-      setMeasurements(newMeasurements);
-      setPredictedValues(newAiPredictions);
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
     }
-  }, [photoData]);
+  }, [isEditing]);
+
+  const clampVal = (v) => Math.max(view.min, Math.min(view.max, v));
+  const tapeVal = dragContVal ?? value;
+  const trackX = -((tapeVal - view.min) * view.px);
+
+  const isImperial = unitSystem === 'imperial';
+  const displayUnit = isImperial ? 'Imperial' : 'Metric';
+
+  const formatDisplayValue = (val) => {
+    if (type === 'height' && isImperial) {
+      const ft = Math.floor(val / 12);
+      const inc = val % 12;
+      return (
+        <>
+          {ft}<span className="csm-dial-u">&apos;</span>{inc}<span className="csm-dial-u">&quot;</span>
+        </>
+      );
+    }
+    if (!isImperial) {
+      return <>{val}<span className="csm-dial-u">cm</span></>;
+    }
+    return <>{val}<span className="csm-dial-u">&quot;</span></>;
+  };
+
+  const commitEdit = () => {
+    const parsed = parseInt(editVal, 10);
+    if (!isNaN(parsed)) {
+      onTouch?.();
+      const clamped = clampVal(parsed);
+      const delta = clamped - value;
+      if (delta !== 0) onAdjust(delta);
+    }
+    setIsEditing(false);
+    setEditVal('');
+  };
+
+  const handlePointerDown = (e) => {
+    e.preventDefault();
+    onTouch?.();
+    setIsDragging(true);
+    dragRef.current = { x: e.clientX, baseVal: value };
+    dragContValRef.current = value;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (dragRef.current.x === null) return;
+    const contVal = clampVal(dragRef.current.baseVal - (e.clientX - dragRef.current.x) / view.px);
+    dragContValRef.current = contVal;
+    setDragContVal(contVal);
+
+    // Actively update parent state during drag
+    const snapped = Math.round(contVal);
+    if (snapped !== value) {
+      onAdjust(snapped - value);
+    }
+  };
+
+  const endDrag = (e) => {
+    if (dragRef.current.x === null) return;
+    const contVal = dragContValRef.current ?? value;
+    const snapped = Math.round(clampVal(contVal));
+    dragRef.current.x = null;
+    dragContValRef.current = null;
+    setIsDragging(false);
+    setDragContVal(null);
+    if (snapped !== value) {
+      onAdjust(snapped - value);
+    }
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+  };
+
+  const startAdjusting = (e, direction) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onTouch?.();
+    onAdjust(direction);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    timeoutRef.current = setTimeout(() => {
+      intervalRef.current = setInterval(() => { onAdjust(direction); }, 50);
+    }, 400);
+  };
+
+  const stopAdjusting = (e) => {
+    if (e?.currentTarget) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+  };
+
+  return (
+    <div className={`csm-dial-wrap${isStat ? ' csm-dial-wrap--stat' : ''}`}>
+      <div className="csm-dial-row">
+        <DialArrow
+          direction={-1}
+          onPointerDown={(e) => startAdjusting(e, -1)}
+          onPointerUp={stopAdjusting}
+          onPointerCancel={stopAdjusting}
+        />
+
+        {isEditing ? (
+          <div className="csm-dial-edit">
+            <input
+              ref={inputRef}
+              type="number"
+              inputMode="numeric"
+              enterKeyHint="done"
+              value={editVal}
+              onChange={(e) => setEditVal(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+                if (e.key === 'Escape') { setIsEditing(false); setEditVal(''); }
+              }}
+              className="cinematic-tap-input"
+              placeholder={String(value)}
+              min={view.min}
+              max={view.max}
+            />
+          </div>
+        ) : (
+          <div
+            className="csm-dial-val"
+            onClick={() => { setEditVal(String(value)); setIsEditing(true); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setEditVal(String(value));
+                setIsEditing(true);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            {formatDisplayValue(Math.round(tapeVal))}
+          </div>
+        )}
+
+        <DialArrow
+          direction={1}
+          onPointerDown={(e) => startAdjusting(e, 1)}
+          onPointerUp={stopAdjusting}
+          onPointerCancel={stopAdjusting}
+        />
+      </div>
+
+      {!isEditing && (
+        <div className="csm-dial-tap-hint" aria-hidden="true">Tap to type</div>
+      )}
+
+      <div className="csm-dial-unit-label">{displayUnit}</div>
+
+      <div
+        className={`csm-ruler${isDragging ? ' is-dragging' : ''}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        <div
+          className="csm-ruler-track"
+          style={{ transform: `translateX(${trackX}px)` }}
+        >
+          {ticks.map((t) => (
+            <div
+              key={t.v}
+              className="csm-ruler-tick"
+              style={{ left: t.left, height: t.height, background: t.color }}
+            />
+          ))}
+        </div>
+        <div className="csm-ruler-center" aria-hidden="true" />
+      </div>
+
+      <button
+        type="button"
+        onClick={onToggleUnits}
+        className="csm-unit-toggle"
+        aria-label="Toggle unit system"
+      >
+        <span className={unitSystem === 'imperial' ? 'is-on' : ''}>Imperial</span>
+        <span className="csm-unit-bar" aria-hidden="true" />
+        <span className={unitSystem === 'metric' ? 'is-on' : ''}>Metric</span>
+      </button>
+    </div>
+  );
+};
+
+// Shoe size — same dial instrument as the stats, no tape (half-size steps),
+// with a three-way region toggle in the unit-toggle language.
+const ShoeDeck = ({ shoe, onAdjust, onRegion }) => {
+  const scale = SHOE_SCALES[shoe.region];
+  const noop = () => {};
+  return (
+    <div className="csm-dial-wrap csm-dial-wrap--stat">
+      <div className="csm-dial-row">
+        <DialArrow
+          direction={-1}
+          onPointerDown={(e) => { e.preventDefault(); onAdjust(-0.5); }}
+          onPointerUp={noop}
+          onPointerCancel={noop}
+        />
+        <div className="csm-dial-val csm-dial-val--shoe">
+          {formatShoe(shoe.size)}
+          <span className="csm-dial-u">{shoe.region}</span>
+        </div>
+        <DialArrow
+          direction={1}
+          onPointerDown={(e) => { e.preventDefault(); onAdjust(0.5); }}
+          onPointerUp={noop}
+          onPointerCancel={noop}
+        />
+      </div>
+      <div className="csm-dial-unit-label">
+        {scale.min}–{scale.max}
+      </div>
+      <div className="csm-unit-toggle csm-shoe-toggle" role="radiogroup" aria-label="Shoe size region">
+        {SHOE_REGIONS.map((region, i) => (
+          <React.Fragment key={region}>
+            {i > 0 && <span className="csm-unit-bar" aria-hidden="true" />}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={shoe.region === region}
+              className={shoe.region === region ? 'is-on' : ''}
+              onClick={() => onRegion(region)}
+            >
+              {region}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = false, initialStep, registerBack, firstName }) {
+  const { data: status } = useCastingStatus();
+  // Prefer the explicit prop; fall back to the persisted profile so the live
+  // flow still branches correctly if the parent hasn't wired gender through.
+  const gender = genderProp ?? status?.profile?.gender;
+
+  // Memoized so its identity is stable across renders — the dock's memoized
+  // onAdvance/skip depend on it, and a fresh array each render would make the
+  // dock re-publish endlessly against the always-mounted ActionDock provider.
+  const statFields = useMemo(() => (heightOnly ? [] : statFieldsFor(gender)), [heightOnly, gender]);
+  const offersStats = statFields.length > 0;
+
+  // Global Unit Toggle
+  const [unitSystem, setUnitSystem] = useState('imperial'); // 'imperial' | 'metric'
+
+  // Wizard Step (initialStep is a dev-preview entry point; defaults to 'height')
+  const [step, setStep] = useState(initialStep || 'height');
+
+  // Measurements State (always stored in metric internally). Values start on a
+  // neutral anchor for the dial physics; `touched` gates what actually gets sent.
+  const [measurements, setMeasurements] = useState({ ...START });
+  const [touched, setTouched] = useState({});
+
+  // Optional appearance answers — null / untouched means "not answered" and
+  // is simply left out of the payload (these steps can never block the flow).
+  const [hairColor, setHairColor] = useState(null);
+  const [eyeColor, setEyeColor] = useState(null);
+  const [shoe, setShoe] = useState({ region: 'US', size: SHOE_SCALES.US.anchor, touched: false });
+
+  const [saveError, setSaveError] = useState('');
+  const [showBeat, setShowBeat] = useState(false);
+  const pendingPayload = React.useRef(null);
 
   const measurementsMutation = useCastingMeasurements();
-  
-  const handleNext = () => {
-    const sequence = ['height', 'weight', 'bust', 'waist', 'hips', 'review'];
-    const currentIndex = sequence.indexOf(step);
-    if (currentIndex < sequence.length - 1) {
-      setStep(sequence[currentIndex + 1]);
-    } else {
-      handleConfirm();
-    }
+
+  const markTouched = (field) => {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }));
   };
 
-  const handleBack = () => {
-    const sequence = ['height', 'weight', 'bust', 'waist', 'hips', 'review'];
-    const currentIndex = sequence.indexOf(step);
-    if (currentIndex > 0) {
-      setStep(sequence[currentIndex - 1]);
-    }
-  };
+  // Ordered step list for the current path. The appearance steps (hair / eyes
+  // / shoe) are non-sensitive, offered to everyone — minors included — and
+  // each one is skippable from the dock.
+  const sequence = React.useMemo(() => {
+    if (heightOnly || !offersStats) return ['height', ...APPEARANCE_STEPS, 'review'];
+    return ['height', 'fitting', ...statFields.map((f) => f.key), ...APPEARANCE_STEPS, 'review'];
+  }, [heightOnly, offersStats, statFields]);
 
-  const handleConfirm = async () => {
+  // Payload is built the same as before — height always, touched stats only.
+  // Memoized so the dock's onAdvance identity stays stable across re-renders
+  // (the ActionDock re-publishes only when a real value changes).
+  const buildPayload = useCallback(() => {
+    const payload = { height_cm: Math.round(measurements.height_cm) };
+    if (!heightOnly) {
+      statFields.forEach((f) => {
+        if (touched[f.key]) payload[f.key] = Math.round(measurements[f.key]);
+      });
+    }
+    // Appearance answers travel only when actually given.
+    if (hairColor) payload.hair_color = hairColor;
+    if (eyeColor) payload.eye_color = eyeColor;
+    if (shoe.touched) {
+      payload.shoe_size = shoe.size;
+      payload.shoe_region = shoe.region;
+    }
+    return payload;
+  }, [measurements, heightOnly, statFields, touched, hairColor, eyeColor, shoe]);
+
+  const handleConfirm = useCallback(async () => {
+    if (measurementsMutation.isPending) return;
+    setSaveError('');
+    const payload = buildPayload();
     try {
-      // Map local state keys to the exact backend schema expectations
-      const payload = {
-        height_cm: measurements.height_cm,
-        weight_kg: measurements.weight_kg,
-        bust_cm: measurements.bust_cm,
-        waist_cm: measurements.waist_cm,
-        hips_cm: measurements.hips_cm
-      };
-      
       await measurementsMutation.mutateAsync(payload);
-      toast.success('Stats saved');
-      onComplete(measurements); // Pass measurements data back
+      pendingPayload.current = payload;
+      setShowBeat(true); // "Noted." beat, then onComplete
     } catch (error) {
-      toast.error(error.message || 'Failed to save');
+      setSaveError(error.message || 'That did not save. Try once more.');
     }
+  }, [measurementsMutation, buildPayload]);
+
+  const goNext = useCallback(() => {
+    if (statFields.some((f) => f.key === step)) {
+      setTouched((prev) => ({ ...prev, [step]: true }));
+    }
+    const i = sequence.indexOf(step);
+    if (i < sequence.length - 1) setStep(sequence[i + 1]);
+    else handleConfirm();
+  }, [sequence, step, handleConfirm, statFields]);
+
+  const goBack = () => {
+    const i = sequence.indexOf(step);
+    if (i > 0) setStep(sequence[i - 1]);
   };
+
+  // The shell's single back control owns "back": step backward through the
+  // fitting's sub-steps first; from the first sub-step fall through to the
+  // previous flow step.
+  React.useEffect(() => {
+    if (!registerBack) return undefined;
+    registerBack(() => {
+      if (sequence.indexOf(step) > 0) {
+        goBack();
+        return true;
+      }
+      return false;
+    });
+    return () => registerBack(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- goBack is stable per step/sequence
+  }, [registerBack, step, sequence]);
+
+  // Height gates on touch — the dock stays dimmed until height is set, so no
+  // nudge copy is needed (onAdvance is only reachable when enabled).
+  const handleHeightNext = useCallback(() => {
+    if (!touched.height_cm) return;
+    goNext();
+  }, [touched.height_cm, goNext]);
+
+  // "Later" on the fitting offer skips the body stats but still passes through
+  // the light appearance beats (all individually skippable too).
+  const skipStats = useCallback(() => setStep('hair'), []);
+
+  // Skipping an appearance step discards any picked value so "Skip" means skip.
+  const skipHair = useCallback(() => { setHairColor(null); goNext(); }, [goNext]);
+  const skipEyes = useCallback(() => { setEyeColor(null); goNext(); }, [goNext]);
+  const skipShoe = useCallback(() => {
+    setShoe((s) => ({ ...s, size: SHOE_SCALES[s.region].anchor, touched: false }));
+    goNext();
+  }, [goNext]);
+
+  const adjustShoe = useCallback((delta) => {
+    setShoe((s) => {
+      const scale = SHOE_SCALES[s.region];
+      const size = Math.max(scale.min, Math.min(scale.max, s.size + delta));
+      return { ...s, size, touched: true };
+    });
+  }, []);
+
+  // Scales are not interconvertible without gender tables — changing region
+  // resets to that region's neutral anchor, un-answered.
+  const setShoeRegion = useCallback((region) => {
+    setShoe((s) =>
+      s.region === region ? s : { region, size: SHOE_SCALES[region].anchor, touched: false },
+    );
+  }, []);
 
   // --- Display & Adjustment Helpers ---
 
-  // Height
-  const augmentHeight = (delta) => {
-    // If imperial, adjust by 1 inch (~2.54cm). If metric, 1cm.
+  const augment = (field, delta) => {
+    // imperial adjusts by 1 inch (~2.54cm), metric by 1cm.
     const cmDelta = unitSystem === 'imperial' ? 2.54 : 1;
-    setMeasurements(m => ({ ...m, height_cm: m.height_cm + (delta * cmDelta) }));
+    markTouched(field);
+    setMeasurements((m) => ({ ...m, [field]: m[field] + delta * cmDelta }));
   };
 
   const displayHeight = () => {
@@ -140,480 +573,226 @@ function CastingMeasurements({ photoData: propPhotoData, onComplete, initialStep
     return `${ft}'${inc}"`;
   };
 
-  // Weight
-  const augmentWeight = (delta) => {
-    // If imperial, adjust by 1 lb. If metric, 1 kg.
-    const kgDelta = unitSystem === 'imperial' ? (1 / KG_TO_LBS) : 1;
-    setMeasurements(m => ({ ...m, weight_kg: m.weight_kg + (delta * kgDelta) }));
-  };
-
-  const displayWeight = () => {
-    if (unitSystem === 'metric') return `${Math.round(measurements.weight_kg)} kg`;
-    return `${Math.round(measurements.weight_kg * KG_TO_LBS)} lbs`;
-  };
-
-  // Circumferences (Bust, Waist, Hips)
-  const augmentCircumference = (field, delta) => {
-    // If imperial, 1 inch. Metric, 1 cm.
-    const cmDelta = unitSystem === 'imperial' ? 2.54 : 1;
-    setMeasurements(m => ({ ...m, [field]: m[field] + (delta * cmDelta) }));
-  };
-
   const displayCircumference = (valCm) => {
     if (unitSystem === 'metric') return `${Math.round(valCm)} cm`;
     return `${Math.round(valCm * IN_PER_CM)}"`;
   };
 
+  const toggleUnits = () => setUnitSystem((s) => (s === 'imperial' ? 'metric' : 'imperial'));
 
-  // Truth Anchor Helper: Check if current value matches prediction
-  const isMatchingPrediction = (key, currentVal) => {
-    // Only check if we have a prediction
-    if (predictedValues[key] === undefined) return false;
-    
-    // Compare with small tolerance for floating point safety
-    return Math.abs(currentVal - predictedValues[key]) < 0.1;
-  };
+  const deckValue = (field) =>
+    unitSystem === 'metric'
+      ? Math.round(measurements[field])
+      : Math.round(measurements[field] * IN_PER_CM);
 
-  // --- Interaction Helpers (Drag & Keyboard) ---
-  
-
-
-// Cinematic Next Button - The "Signature" Footer
-
-// Precision Deck - A tactile, horizontal ruler
-const PrecisionDeck = ({ value, onAdjust, isAi, hasPrediction, unitLabel, type, onUnitToggle, unitSystem }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editVal, setEditVal]     = useState('');
-  const inputRef   = React.useRef(null);
-  const dragStart  = React.useRef({ x: 0, val: 0 });
-  const intervalRef = React.useRef(null);
-  const timeoutRef  = React.useRef(null);
-
-  // Cleanup on unmount or update
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  // Auto-focus the input when entering edit mode
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+  // Height dims until touched; stat steps always advance; review confirms.
+  // During the "Noted." beat the dock is hidden (label: null).
+  const dockConfig = useMemo(() => {
+    if (showBeat) return { label: null };
+    if (step === 'height') {
+      return {
+        label: 'Next',
+        enabled: !!touched.height_cm,
+        onAdvance: handleHeightNext,
+      };
     }
-  }, [isEditing]);
-
-  // Formatting Helper
-  const formatDisplayValue = (val) => {
-    if (type === 'height' && unitLabel === 'IN') {
-      const ft = Math.floor(val / 12);
-      const inc = val % 12;
-      return (
-        <span className="tracking-tighter">
-          {ft}<span className="text-white/20 font-sans text-5xl align-top" style={{fontSize:'0.42em',lineHeight:1,marginLeft:'0.05em',marginRight:'0.08em'}}>&apos;</span>{inc}<span className="text-white/20 font-sans align-top" style={{fontSize:'0.35em',lineHeight:1,marginLeft:'0.04em'}}>"</span>
-        </span>
-      );
+    if (step === 'fitting') {
+      return {
+        label: 'Add them now',
+        enabled: true,
+        onAdvance: goNext,
+        skip: { label: 'Later', onClick: skipStats },
+      };
     }
-    return val;
-  };
-
-  // Commit edit: parse the typed value, apply delta
-  const commitEdit = () => {
-    const parsed = parseInt(editVal, 10);
-    if (!isNaN(parsed)) {
-      const delta = parsed - value;
-      if (delta !== 0) onAdjust(delta);
+    if (step === 'review') {
+      return {
+        label: measurementsMutation.isPending ? 'Saving…' : 'Confirm',
+        enabled: !measurementsMutation.isPending,
+        onAdvance: handleConfirm,
+      };
     }
-    setIsEditing(false);
-    setEditVal('');
-  };
-
-  // Drag Logic
-  const handlePointerDown = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX };
-    e.target.setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e) => {
-    if (!isDragging) return;
-    const deltaX = e.clientX - dragStart.current.x;
-    const sensitivity = 20;
-    const steps = Math.floor(deltaX / sensitivity);
-    if (steps !== 0) {
-      onAdjust(-steps);
-      dragStart.current.x += steps * sensitivity;
+    // Appearance beats — Next only once answered; Skip is always available and
+    // never blocks (the answer just stays unset).
+    if (step === 'hair') {
+      return {
+        label: 'Next', enabled: !!hairColor, onAdvance: goNext,
+        skip: { label: 'Skip', onClick: skipHair },
+      };
     }
-  };
-
-  const handlePointerUp = (e) => {
-    setIsDragging(false);
-    e.target.releasePointerCapture(e.pointerId);
-  };
-
-  // Arrow Auto-Repeat Logic
-  const startAdjusting = (e, direction) => {
-    e.preventDefault();
-    e.target.setPointerCapture(e.pointerId);
-    onAdjust(direction);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    timeoutRef.current = setTimeout(() => {
-      intervalRef.current = setInterval(() => { onAdjust(direction); }, 50);
-    }, 400);
-  };
-
-  const stopAdjusting = (e) => {
-    if (e && e.target) {
-      try { e.target.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (step === 'eyes') {
+      return {
+        label: 'Next', enabled: !!eyeColor, onAdvance: goNext,
+        skip: { label: 'Skip', onClick: skipEyes },
+      };
     }
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-  };
+    if (step === 'shoe') {
+      return {
+        label: 'Review', enabled: shoe.touched, onAdvance: goNext,
+        skip: { label: 'Skip', onClick: skipShoe },
+      };
+    }
+    // A gender-aware stat step (bust / waist / hips / chest / inseam).
+    return { label: 'Next', enabled: true, onAdvance: goNext };
+  }, [
+    showBeat, step, touched.height_cm,
+    measurementsMutation.isPending,
+    hairColor, eyeColor, shoe.touched,
+    handleHeightNext, goNext, handleConfirm, skipStats,
+    skipHair, skipEyes, skipShoe,
+  ]);
 
-  // RULER VISUALS
-  const range = Array.from({ length: 41 }, (_, i) => value - 20 + i);
+  useActionDock(dockConfig);
 
-  return (
-    <div className="w-full flex flex-col items-center justify-end h-[55vh] pb-40 relative pointer-events-none">
 
-       {/* Main Value Display with Arrows */}
-       <div className="mb-auto mt-auto flex items-center justify-center gap-12 w-full max-w-4xl px-4 relative z-40 pointer-events-auto">
 
-          {/* Left Arrow */}
-          <button
-            onPointerDown={(e) => startAdjusting(e, -1)}
-            onPointerUp={stopAdjusting}
-            onPointerCancel={stopAdjusting}
-            className="p-4 rounded-full text-white/50 hover:text-white border border-white/10 hover:border-white/25 hover:bg-white/8 transition-all duration-200 transform active:scale-95 select-none touch-none"
-            aria-label="Decrease"
-          >
-            <ChevronLeft size={44} strokeWidth={1.5} />
-          </button>
 
-          {/* Value display — click to type */}
-          <div className="text-center transform transition-all duration-300 w-64" style={{ scale: isDragging ? '1.05' : '1' }}>
-            {isEditing ? (
-              /* ── Inline edit input ── */
-              <div className="h-32 flex flex-col items-center justify-end gap-2">
-                <input
-                  ref={inputRef}
-                  type="number"
-                  inputMode="numeric"
-                  value={editVal}
-                  onChange={e => setEditVal(e.target.value)}
-                  onBlur={commitEdit}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
-                    if (e.key === 'Escape') { setIsEditing(false); setEditVal(''); }
-                  }}
-                  className="cinematic-tap-input"
-                  placeholder={String(value)}
-                  min={type === 'height' ? 48 : 0}
-                  max={type === 'height' ? 96 : 999}
-                />
-                <span className="text-[10px] uppercase tracking-[0.3em] text-white/25">
-                  {unitLabel === 'IN' ? 'total inches' : unitLabel.toLowerCase()}  · Enter to confirm
-                </span>
-              </div>
-            ) : (
-              /* ── Normal display — tap to edit ── */
-              <div
-                className="text-9xl font-serif text-white tracking-tighter drop-shadow-[0_10px_40px_rgba(0,0,0,0.5)] h-32 flex items-end justify-center cursor-text select-none group relative"
-                title="Tap to type"
-                onClick={() => { setEditVal(String(value)); setIsEditing(true); }}
-              >
-                {formatDisplayValue(value)}
-                {/* Subtle "tap to edit" hint that fades in on hover */}
-                <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] tracking-[0.2em] uppercase text-white/20 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  tap to type
-                </span>
-              </div>
-            )}
-            <div className="text-xs uppercase tracking-[0.4em] text-[#C9A55A] mt-6 font-medium flex justify-center gap-2">
-              {unitLabel}
-            </div>
-            {/* Quiet estimate cue — a single premium icon, present only while
-                the value is still our estimate; it slips away once you adjust it. */}
-            <div className="h-6 mt-3 flex items-center justify-center pointer-events-none">
-              <AnimatePresence>
-                {hasPrediction && isAi && !isDragging && (
-                  <motion.span
-                    key="estimate-cue"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                    className="relative flex items-center text-[#C9A55A]/70 pointer-events-auto group cursor-help"
-                    aria-label="We predicted this from your photo"
-                  >
-                    <Sparkles size={15} strokeWidth={1.6} />
-                    <span
-                      role="tooltip"
-                      className="pointer-events-none absolute bottom-full left-1/2 mb-2.5 -translate-x-1/2 whitespace-nowrap rounded-[3px] border border-[#C9A55A]/20 bg-[#100d08]/95 px-3 py-1.5 text-[10px] tracking-wide text-white/70 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                    >
-                      We predicted this from your photo
-                    </span>
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* Right Arrow */}
-          <button
-            onPointerDown={(e) => startAdjusting(e, 1)}
-            onPointerUp={stopAdjusting}
-            onPointerCancel={stopAdjusting}
-            className="p-4 rounded-full text-white/50 hover:text-white border border-white/10 hover:border-white/25 hover:bg-white/8 transition-all duration-200 transform active:scale-95 select-none touch-none"
-            aria-label="Increase"
-          >
-            <ChevronRight size={44} strokeWidth={1.5} />
-          </button>
-       </div>
-
-       {/* The "Luxury Precision Dial" */}
-       <div className="relative w-full h-40 flex items-center justify-center">
-
-          {/* Center Jewel - The "Hero" */}
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 z-30 flex flex-col items-center">
-             <div className="w-[3px] h-12 bg-[#C9A55A] shadow-[0_0_20px_rgba(201,165,90,0.6)] rounded-full" />
-             <div className="absolute top-0 w-[1px] h-full bg-white/50" />
-          </div>
-
-          {/* The Scrolling Masked Container */}
-          <div
-            className="relative w-full h-full select-none touch-none cursor-ew-resize overflow-hidden cinematic-dial-mask pointer-events-auto"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-          >
-             <div className="absolute inset-0 flex items-end justify-center pointer-events-none pb-0">
-                <div className="relative w-full h-full flex items-end justify-center">
-                  {range.map((num) => {
-                    const diff = num - value;
-                    const xPos = diff * 40;
-                    const dist = Math.abs(diff);
-                    const isCentre = diff === 0;
-                    const isNear   = dist <= 2;
-                    const isMid    = dist <= 6;
-                    const isFive   = num % 5 === 0;
-
-                    // Opacity: centre full, falls off toward edges
-                    const opacity = isCentre ? 1 : Math.max(0, 1 - (dist / 16));
-
-                    // Tick height and colour
-                    const tickH = isCentre ? 'h-10' : isNear ? 'h-7' : isMid ? 'h-5' : 'h-4';
-                    const tickBg = isCentre
-                      ? 'bg-[#C9A55A] shadow-[0_0_8px_rgba(201,165,90,0.7)]'
-                      : isNear ? 'bg-white/60' : isMid ? 'bg-white/35' : 'bg-white/15';
-                    const tickW = isCentre ? 'w-[2px]' : 'w-[1px]';
-
-                    // Label: show for multiples of 5, brighter near centre
-                    const labelOpacity = isCentre ? 0 : isNear ? 'text-white/55' : isMid ? 'text-white/30' : 'text-white/15';
-
-                    return (
-                      <div
-                        key={num}
-                        className="absolute bottom-0 flex flex-col items-center gap-3 transition-transform duration-75 ease-linear will-change-transform"
-                        style={{ transform: `translateX(${xPos}px)`, opacity }}
-                      >
-                         {isFive && !isCentre && (
-                            <span className={`text-[10px] font-sans tracking-widest mb-0.5 ${labelOpacity}`}>
-                               {num}
-                            </span>
-                         )}
-                         <div className={`${tickW} ${tickH} ${tickBg} rounded-full`} />
-                      </div>
-                    );
-                  })}
-                </div>
-             </div>
-          </div>
-       </div>
-
-       {/* Unit toggle — below the ruler, centred, clearly secondary */}
-       <div className="flex justify-center mt-5 mb-2 pointer-events-auto relative z-40">
-         <button
-           onClick={onUnitToggle}
-           className="group flex items-center gap-3 transition-opacity duration-200 opacity-30 hover:opacity-75"
-           aria-label="Toggle unit system"
-         >
-           <span className={`text-[9px] font-sans tracking-[0.25em] uppercase transition-colors duration-150 ${
-             unitSystem === 'imperial' ? 'text-[#C9A55A]' : 'text-[#C9A55A]/40'
-           }`}>Imperial</span>
-           {/* Minimal divider */}
-           <span className="w-4 h-px bg-[#C9A55A]/20 group-hover:bg-[#C9A55A]/40 transition-colors" />
-           <span className={`text-[9px] font-sans tracking-[0.25em] uppercase transition-colors duration-150 ${
-             unitSystem === 'metric' ? 'text-[#C9A55A]' : 'text-[#C9A55A]/40'
-           }`}>Metric</span>
-         </button>
-       </div>
-
-    </div>
+  // A stat step (bust / waist / hips / chest / inseam)
+  const renderStatStep = (field) => (
+    <motion.div key={field.key} variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+      <StepBeat text={field.question} dividerDelay={0.3} />
+      <PrecisionDeck
+        value={deckValue(field.key)}
+        unitSystem={unitSystem}
+        onToggleUnits={toggleUnits}
+        onTouch={() => markTouched(field.key)}
+        onAdjust={(delta) => augment(field.key, delta)}
+      />
+    </motion.div>
   );
-};
-
-  // --- Main Render ---
-
 
   return (
     <div className="relative w-full h-full">
-
       <AnimatePresence mode="wait">
-        
+        {showBeat && (
+          <AcknowledgmentBeat
+            key="beat"
+            text="Noted."
+            onDone={() => onComplete(pendingPayload.current)}
+          />
+        )}
 
-        {/* Step 1: Height */}
-        {step === 'height' && (
-          <motion.div key="height" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="text-center pt-10">
-            <ThinkingText text="Let's confirm your *height*" className="cinematic-question" style={{ marginBottom: '2.5rem' }} />
-            <motion.div className="cinematic-ghost max-w-[600px] mx-auto" variants={childVariants}>
-              <PrecisionDeck
-                value={unitSystem === 'metric' ? Math.round(measurements.height_cm) : Math.round(measurements.height_cm * IN_PER_CM)}
-                unitLabel={unitSystem === 'metric' ? 'CM' : 'IN'}
-                onAdjust={(delta) => augmentHeight(delta)}
-                isAi={isMatchingPrediction('height', measurements.height_cm)}
-                hasPrediction={predictedValues.height !== undefined}
-                type="height"
-                unitSystem={unitSystem}
-                onUnitToggle={() => setUnitSystem(s => s === 'imperial' ? 'metric' : 'imperial')}
-              />
-            </motion.div>
-            <div className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto">
-                <CinematicNextButton onClick={handleNext}>NEXT</CinematicNextButton>
-            </div>
+        {/* Height — the only required step */}
+        {!showBeat && step === 'height' && (
+          <motion.div key="height" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat
+              text={firstName ? `${firstName}, how tall are *you*?` : 'How tall are *you*?'}
+              dividerDelay={0.3}
+            />
+            <PrecisionDeck
+              value={deckValue('height_cm')}
+              unitSystem={unitSystem}
+              onToggleUnits={toggleUnits}
+              onTouch={() => markTouched('height_cm')}
+              onAdjust={(delta) => augment('height_cm', delta)}
+              type="height"
+            />
           </motion.div>
         )}
 
-        {/* Step 2: Weight */}
-        {step === 'weight' && (
-          <motion.div key="weight" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="text-center pt-10">
-            <ThinkingText text="Let's confirm your *weight*" className="cinematic-question" style={{ marginBottom: '2.5rem' }} />
-            <motion.div className="cinematic-ghost max-w-[600px] mx-auto" variants={childVariants}>
-              <PrecisionDeck
-                value={unitSystem === 'metric' ? Math.round(measurements.weight_kg) : Math.round(measurements.weight_kg * KG_TO_LBS)}
-                unitLabel={unitSystem === 'metric' ? 'KG' : 'LBS'}
-                onAdjust={(delta) => augmentWeight(delta)}
-                isAi={isMatchingPrediction('weight', measurements.weight_kg)}
-                hasPrediction={predictedValues.weight !== undefined}
-                unitSystem={unitSystem}
-                onUnitToggle={() => setUnitSystem(s => s === 'imperial' ? 'metric' : 'imperial')}
-              />
-            </motion.div>
-            <div className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto">
-                <CinematicNextButton onClick={handleNext}>NEXT</CinematicNextButton>
-                <CinematicBackButton onClick={handleBack} />
-            </div>
+        {/* The fitting offer — adults only, once */}
+        {!showBeat && step === 'fitting' && (
+          <motion.div key="fitting" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="A quick *fitting*." dividerDelay={0.3} />
+            <p className="cs-stage-helper">
+              Add your measurements now, or whenever you&apos;re ready — agencies need them before you apply.
+            </p>
           </motion.div>
         )}
 
-        {/* Step 3: Bust */}
-        {step === 'bust' && (
-          <motion.div key="bust" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="text-center pt-10">
-            <ThinkingText text="Bust *measurement*?" className="cinematic-question" style={{ marginBottom: '2.5rem' }} />
-            <motion.div className="cinematic-ghost max-w-[600px] mx-auto" variants={childVariants}>
-              <PrecisionDeck
-                value={unitSystem === 'metric' ? Math.round(measurements.bust_cm) : Math.round(measurements.bust_cm * IN_PER_CM)}
-                unitLabel={unitSystem === 'metric' ? 'CM' : 'IN'}
-                onAdjust={(delta) => augmentCircumference('bust_cm', delta)}
-                isAi={isMatchingPrediction('bust', measurements.bust_cm)}
-                hasPrediction={predictedValues.bust !== undefined}
-                unitSystem={unitSystem}
-                onUnitToggle={() => setUnitSystem(s => s === 'imperial' ? 'metric' : 'imperial')}
-              />
-            </motion.div>
-            <div className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto">
-                <CinematicNextButton onClick={handleNext}>NEXT</CinematicNextButton>
-                <CinematicBackButton onClick={handleBack} />
-            </div>
+        {/* Gender-aware stat steps */}
+        {!showBeat && offersStats && statFields.map((f) => (step === f.key ? renderStatStep(f) : null))}
+
+        {/* Appearance beats — non-sensitive, offered to everyone, skippable */}
+        {!showBeat && step === 'hair' && (
+          <motion.div key="hair" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="Your *hair*?" dividerDelay={0.3} />
+            <ColorSelect
+              options={HAIR_OPTIONS}
+              value={hairColor}
+              onChange={setHairColor}
+              ariaLabel="Hair color"
+            />
           </motion.div>
         )}
 
-        {/* Step 4: Waist */}
-         {step === 'waist' && (
-          <motion.div key="waist" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="text-center pt-10">
-            <ThinkingText text="Waist *measurement*?" className="cinematic-question" style={{ marginBottom: '2.5rem' }} />
-            <motion.div className="cinematic-ghost max-w-[600px] mx-auto" variants={childVariants}>
-              <PrecisionDeck
-                value={unitSystem === 'metric' ? Math.round(measurements.waist_cm) : Math.round(measurements.waist_cm * IN_PER_CM)}
-                unitLabel={unitSystem === 'metric' ? 'CM' : 'IN'}
-                onAdjust={(delta) => augmentCircumference('waist_cm', delta)}
-                isAi={isMatchingPrediction('waist', measurements.waist_cm)}
-                hasPrediction={predictedValues.waist !== undefined}
-                unitSystem={unitSystem}
-                onUnitToggle={() => setUnitSystem(s => s === 'imperial' ? 'metric' : 'imperial')}
-              />
-            </motion.div>
-            <div className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto">
-                <CinematicNextButton onClick={handleNext}>NEXT</CinematicNextButton>
-                <CinematicBackButton onClick={handleBack} />
-            </div>
+        {!showBeat && step === 'eyes' && (
+          <motion.div key="eyes" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="Your *eyes*?" dividerDelay={0.3} />
+            <ColorSelect
+              options={EYE_OPTIONS}
+              value={eyeColor}
+              onChange={setEyeColor}
+              ariaLabel="Eye color"
+            />
           </motion.div>
         )}
 
-        {/* Step 5: Hips */}
-         {step === 'hips' && (
-          <motion.div key="hips" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="text-center pt-10">
-            <ThinkingText text="Hips *measurement*?" className="cinematic-question" style={{ marginBottom: '2.5rem' }} />
-            <motion.div className="cinematic-ghost max-w-[600px] mx-auto" variants={childVariants}>
-              <PrecisionDeck
-                value={unitSystem === 'metric' ? Math.round(measurements.hips_cm) : Math.round(measurements.hips_cm * IN_PER_CM)}
-                unitLabel={unitSystem === 'metric' ? 'CM' : 'IN'}
-                onAdjust={(delta) => augmentCircumference('hips_cm', delta)}
-                isAi={isMatchingPrediction('hips', measurements.hips_cm)}
-                hasPrediction={predictedValues.hips !== undefined}
-                unitSystem={unitSystem}
-                onUnitToggle={() => setUnitSystem(s => s === 'imperial' ? 'metric' : 'imperial')}
-              />
-            </motion.div>
-            <div className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto">
-                <CinematicNextButton onClick={handleNext}>REVIEW</CinematicNextButton>
-                <CinematicBackButton onClick={handleBack} />
-            </div>
+        {!showBeat && step === 'shoe' && (
+          <motion.div key="shoe" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="*Shoe* size?" dividerDelay={0.3} />
+            <ShoeDeck shoe={shoe} onAdjust={adjustShoe} onRegion={setShoeRegion} />
           </motion.div>
         )}
 
-        {/* Step 6: Final Review */}
-        {step === 'review' && (
-           <motion.div key="review" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="text-center pt-10">
-             <ThinkingText text="The *Final Look*" className="cinematic-question" style={{ marginBottom: '2.5rem' }} />
-             <CinematicDivider delay={0.2} style={{ marginBottom: '2.5rem' }} />
+        {/* Review */}
+        {!showBeat && step === 'review' && (
+          <motion.div key="review" variants={fadeVariants} initial="initial" animate="animate" exit="exit" className="csm-step-stage">
+            <StepBeat text="The *Final Look*" dividerDelay={0.2} />
 
-             <motion.div className="cinematic-ghost max-w-[600px] mx-auto grid grid-cols-2 gap-y-8 gap-x-4 mb-12" variants={childVariants}>
-                <div className="text-right border-r border-white/10 pr-6">
-                   <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Height</div>
-                   <div className="text-2xl font-serif text-white">{displayHeight()}</div>
+            <div className="csm-rev-grid">
+              <div className="csm-rev-cell-l">
+                <div className="csm-rev-label">Height</div>
+                <div className="csm-rev-val">{displayHeight()}</div>
+              </div>
+              <div className="csm-rev-cell-r">
+                <div className="csm-rev-label">Weight</div>
+                <div className="csm-rev-val">—</div>
+              </div>
+
+              {offersStats && (
+                <div className="csm-rev-measure">
+                  <div className="csm-rev-measure-val">
+                    {statFields.map((f, i) => (
+                      <React.Fragment key={f.key}>
+                        {i > 0 && ' — '}
+                        {touched[f.key] ? displayCircumference(measurements[f.key]).replace(/["cm ]/g, '') : '—'}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                  <div className="csm-rev-measure-lbls">
+                    {statFields.map((f, i) => (
+                      <React.Fragment key={f.key}>
+                        {i > 0 && <i>|</i>}
+                        <span>{f.label.toUpperCase()}</span>
+                      </React.Fragment>
+                    ))}
+                  </div>
                 </div>
-                <div className="text-left pl-6">
-                   <div className="text-[10px] uppercase tracking-[0.2em] text-white/40 mb-1">Weight</div>
-                   <div className="text-2xl font-serif text-white">{displayWeight()}</div>
-                </div>
-                <div className="col-span-2 text-center pt-8">
-                   <div className="text-3xl font-serif text-white tracking-widest mb-2">
-                      {displayCircumference(measurements.bust_cm).replace(/["cm]/g, '')} - {displayCircumference(measurements.waist_cm).replace(/["cm]/g, '')} - {displayCircumference(measurements.hips_cm).replace(/["cm]/g, '')}
-                   </div>
-                   <div className="text-[10px] tracking-widest text-white/20 flex justify-center gap-3">
-                      <span>BUST</span>
-                      <span className="opacity-30">|</span>
-                      <span>WAIST</span>
-                      <span className="opacity-30">|</span>
-                      <span>HIPS</span>
-                   </div>
-                </div>
-             </motion.div>
+              )}
 
-            <div className="fixed bottom-12 left-0 right-0 flex flex-col items-center gap-1 z-50 pointer-events-auto">
-                 <CinematicNextButton onClick={handleConfirm} icon={Check}>CONFIRM</CinematicNextButton>
-                 <CinematicBackButton onClick={() => setStep('height')}>EDIT</CinematicBackButton>
+              {(hairColor || eyeColor || shoe.touched) && (
+                <div className="csm-rev-look">
+                  {[
+                    hairColor && `${hairColor} hair`,
+                    eyeColor && `${eyeColor} eyes`,
+                    shoe.touched && `${shoe.region} ${formatShoe(shoe.size)} shoe`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+              )}
+
+              {heightOnly && (
+                <p className="csm-rev-note">
+                  Body measurements stay locked until a parent or guardian consents.
+                  You can add them later from your profile.
+                </p>
+              )}
             </div>
-           </motion.div>
-        )}
 
+            <InlineErrorText message={saveError} className="cinematic-field-error" />
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

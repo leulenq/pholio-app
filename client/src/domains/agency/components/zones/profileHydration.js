@@ -1,10 +1,18 @@
+// Social links moved out of the flat profile row into `social_accounts`
+// (migration 20260629160000). Agency-facing DTOs now carry them as
+// `profile.social` — an array of { platform, handle, url, verified }.
+function findSocialUrl(profile, platform) {
+  const social = Array.isArray(profile?.social) ? profile.social : [];
+  return social.find((account) => account?.platform === platform)?.url || null;
+}
+
 export function buildProfileHydration(profile, images) {
   if (!profile) return null;
   return {
     images: images?.length ? images : undefined,
     bio: profile.bio_curated || profile.bio_raw || null,
     slug: profile.slug || null,
-    portfolioUrl: profile.portfolio_url || null,
+    portfolioUrl: findSocialUrl(profile, 'portfolio'),
     isPro: Boolean(profile.is_pro),
   };
 }

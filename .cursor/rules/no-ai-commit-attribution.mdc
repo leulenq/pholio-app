@@ -1,0 +1,16 @@
+---
+description: Never add AI tool attribution to git commits or PRs
+alwaysApply: true
+---
+
+# Commit Attribution
+
+This repository attributes all published work to the human owner only.
+
+When creating commits or pull requests:
+
+- Do **not** add `Co-authored-by` / `Co-Authored-By` trailers for Cursor, Claude Code, Codex, Anthropic, or OpenAI.
+- Do **not** add `Made-with: Cursor`, `Claude-Session`, `Generated with Claude Code`, or similar attribution lines.
+- Write commit messages with only the human-authored summary. No AI tool signatures or trailers.
+
+The `.githooks/prepare-commit-msg` hook removes any AI attribution that slips through.

@@ -31,10 +31,17 @@ export function IdentitySection({
   isImproving,
   improveMode,
   previousBio,
+  bioOptions,
+  onBioOptionsChange,
   onBioRefine,
   onBioGenerate,
   handleUndoAI,
-  watchDob
+  watchDob,
+  guardianStatus,
+  onSendGuardianLink,
+  guardianSending,
+  guardianLinkSent,
+  guardianSentTo,
 }) {
   return (
     <>
@@ -46,82 +53,18 @@ export function IdentitySection({
         isImproving={isImproving}
         improveMode={improveMode}
         previousBio={previousBio}
+        bioOptions={bioOptions}
+        onBioOptionsChange={onBioOptionsChange}
         onBioRefine={onBioRefine}
         onBioGenerate={onBioGenerate}
         handleUndoAI={handleUndoAI}
         watchDob={watchDob}
+        guardianStatus={guardianStatus}
+        onSendGuardianLink={onSendGuardianLink}
+        guardianSending={guardianSending}
+        guardianLinkSent={guardianLinkSent}
+        guardianSentTo={guardianSentTo}
       />
-
-      <Section
-        id="heritage"
-        title="Heritage & Background"
-        titleEmphasis="Background"
-        description="Helps match you with diverse casting calls."
-      >
-        <div className={styles.formRow}>
-          <Controller
-            name="ethnicity"
-            control={control}
-            render={({ field }) => (
-              <PholioMultiSelect
-                label="Ethnicity / Heritage"
-                id="ethnicity"
-                options={ETHNICITY_OPTIONS}
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.ethnicity}
-                placeholder="Select ethnicity (multi-select)"
-              />
-            )}
-          />
-        </div>
-        <div className={`${styles.formGrid2} ${styles.formRow}`}>
-          <Controller
-            name="nationality"
-            control={control}
-            render={({ field }) => (
-              <CountrySelectField
-                label="Nationality"
-                placeholder="Choose or type (e.g. American, dual citizenship…)"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                error={errors.nationality}
-              />
-            )}
-          />
-          <Controller
-            name="place_of_birth"
-            control={control}
-            render={({ field }) => (
-              <CityAutocompleteField
-                label="Place of Birth"
-                placeholder="City, country"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                error={errors.place_of_birth}
-              />
-            )}
-          />
-        </div>
-        <div className={`${styles.formGrid2} ${styles.formRow}`}>
-          <Controller
-            name="city_secondary"
-            control={control}
-            render={({ field }) => (
-              <CityAutocompleteField
-                label="Secondary City"
-                placeholder="Also based in…"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                error={errors.city_secondary}
-              />
-            )}
-          />
-        </div>
-      </Section>
     </>
   );
 }

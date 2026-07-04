@@ -9,22 +9,29 @@
     "dev": "nodemon server.js",
     "client:dev": "cd client && npm run dev",
     "client:build": "cd client && npm run build",
-    "dev:all": "concurrently \"npm run dev\" \"npm run client:dev\"",
+    "dev:all": "concurrently -k \"npm run dev\" \"wait-on tcp:127.0.0.1:3000 -t 60000 && npm run client:dev\"",
     "migrate": "knex migrate:latest",
     "migrate:status": "knex migrate:status",
     "migrate:rollback": "knex migrate:rollback",
     "seed": "knex seed:run",
+    "seed:analytics": "node scripts/seed-analytics.js",
     "verify:embeddings": "node scripts/verify-openai-embeddings.js",
     "preview:emails": "node scripts/preview-all-emails.js",
     "backfill:discover": "node scripts/backfill-discover-embeddings.js",
-    "test": "jest",
+    "backfill:classification": "node scripts/backfill-image-classification.js",
+    "analyze:classification-feedback": "node scripts/analyze-classification-feedback.js",
+    "test": "jest --runInBand --forceExit",
     "test:db": "node scripts/test-neon-connection.js",
-    "postinstall": "node scripts/patch-express.js",
+    "setup:hooks": "sh scripts/setup-git-hooks.sh",
+    "postinstall": "node scripts/patch-express.js && npm run setup:hooks",
     "build": "echo 'Build complete'",
     "build:function": "node_modules/.bin/esbuild netlify/function/server.js --bundle --platform=node --target=node20 --outfile=netlify/function-built/server.js --external:bcrypt --external:sharp --external:@img --external:@unrs --external:fsevents --external:sqlite3 --external:better-sqlite3 --external:mysql --external:mysql2 --external:tedious --external:oracledb --external:pg-native --external:pg-query-stream --external:mssql --external:@sparticuz/chromium --external:puppeteer --external:mime --external:zod --external:validator --external:ejs --external:express-ejs-layouts",
     "generate:favicons": "node scripts/generate-favicons.js",
+    "setup:sender-avatar": "node scripts/setup-email-sender-avatar.js",
+    "setup:env": "node scripts/setup-env.js",
+    "setup:stripe-billing": "node scripts/setup-stripe-billing.js --write",
     "build:migrate": "npm run migrate && npm run build",
-    "netlify:cache-bust": "echo 2"
+    "netlify:cache-bust": "echo 3"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1008.0",
@@ -65,16 +72,19 @@
     "zod": "^3.25.76"
   },
   "optionalDependencies": {
+    "@img/sharp-libvips-linux-x64": "1.2.4",
+    "@img/sharp-linux-x64": "0.34.5",
     "sqlite3": "5.1.7"
   },
   "devDependencies": {
     "axios": "^1.13.5",
     "axios-cookiejar-support": "^6.0.5",
     "concurrently": "^9.2.1",
-    "jest": "^30.2.0",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.14",
     "supertest": "^7.2.2",
     "to-ico": "^1.1.5",
-    "tough-cookie": "^6.0.0"
+    "tough-cookie": "^6.0.0",
+    "wait-on": "^9.0.10"
   }
 }

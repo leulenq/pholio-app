@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MomentumChart } from './MomentumChart';
 import { useAuth } from '../../../auth/hooks/useAuth';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
 import './RightSidebar.css';
 
 export const RightSidebar = ({ nextPriority }) => {
@@ -56,15 +57,16 @@ export const RightSidebar = ({ nextPriority }) => {
             </a>
           </li>
           <li>
-            <button
+            <PholioButton
+              variant="tertiary"
+              fullWidth
               onClick={() => {
                 toast.info('Comp card download is not available yet — we will add it in a future update.');
               }}
-              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors text-left group decoration-0 cursor-pointer border-0 bg-transparent"
             >
                <FileDown className="w-4 h-4 text-slate-400 group-hover:text-[#C9A55A] transition-colors" />
                <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">Download Comp Card</span>
-            </button>
+            </PholioButton>
           </li>
         </ul>
       </div>
@@ -91,29 +93,33 @@ export const RightSidebar = ({ nextPriority }) => {
             </div>
 
             <p className="text-slate-500 text-sm leading-relaxed mb-6">
-              Elevate your online presence with professional editorial tools.
+              14-day free trial, then $9.99/month or $95.88/year.
             </p>
 
-            <ul className="space-y-4 mb-8">
+            <ul className="space-y-3 mb-8">
               {[
-                'Premium PDF Themes',
-                'Advanced Insights',
-                'Priority Selection'
-              ].map((benefit, i) => (
-                <li key={i} className="flex items-center gap-3 text-xs font-medium text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#C9A55A]" />
+                'Premium PDF themes',
+                'Advanced insights',
+                'Unlimited applications',
+              ].map((benefit) => (
+                <li key={benefit} className="relative pl-3.5 text-xs text-slate-600">
+                  <span
+                    className="absolute left-0 top-[0.55em] w-1.5 h-px bg-[#C9A55A]"
+                    aria-hidden="true"
+                  />
                   {benefit}
                 </li>
               ))}
             </ul>
 
-            <a 
-              href="https://www.pholio.studio/pricing"
-              className="w-full py-3.5 bg-[#C9A55A] hover:bg-[#b08d45] text-white text-xs font-bold rounded-lg transition-all shadow-button-hover flex items-center justify-center gap-2 decoration-0 tracking-widest uppercase"
+            <PholioButton
+              to="/dashboard/talent/settings/subscription"
+              variant="primary"
+              fullWidth
             >
               <span>Upgrade Now</span>
               <ArrowRight className="w-3.5 h-3.5" />
-            </a>
+            </PholioButton>
           </div>
         </div>
       )}

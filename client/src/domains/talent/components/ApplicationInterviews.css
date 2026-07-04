@@ -1,0 +1,121 @@
+/* Talent-facing interview cards, shown inside the application detail panel.
+   Inherits the --app-* tokens from .applications-view-container. */
+
+.app-iv {
+  margin-top: 24px;
+}
+
+.app-iv__title {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+  margin-bottom: 14px;
+}
+
+.app-iv__card {
+  border: 1px solid var(--app-hair);
+  border-left: 2px solid var(--app-gold);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-iv__card + .app-iv__card {
+  margin-top: 12px;
+}
+
+.app-iv__card--cancelled,
+.app-iv__card--declined {
+  border-left-color: var(--app-hair-strong);
+  opacity: 0.72;
+}
+
+.app-iv__card--accepted {
+  border-left-color: var(--app-gold);
+}
+
+.app-iv__when {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--app-text);
+}
+
+.app-iv__when strong {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+.app-iv__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--app-text-soft);
+}
+
+.app-iv__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.app-iv__detail,
+.app-iv__notes {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--app-text-soft);
+}
+
+.app-iv__notes {
+  color: var(--app-text-faint);
+  font-style: italic;
+}
+
+.app-iv__link {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--app-gold);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.app-iv__link:hover {
+  text-decoration: underline;
+}
+
+.app-iv__status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+}
+
+.app-iv__status--pending,
+.app-iv__status--rescheduled {
+  color: var(--app-gold-warm);
+}
+
+.app-iv__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.app-iv__accept,
+.app-iv__decline {
+  flex: 1;
+}

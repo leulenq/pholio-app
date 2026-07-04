@@ -47,7 +47,7 @@ async function request(endpoint, options = {}) {
     let data;
     try {
       data = await response.json();
-    } catch (err) {
+    } catch {
       data = null;
     }
 
@@ -195,6 +195,35 @@ export async function declineApplication(applicationId) {
  */
 export async function shortlistApplication(applicationId) {
   return apiClient.patch(`/applications/${applicationId}/status`, { status: 'shortlisted' });
+}
+
+/**
+ * Keep an application on file (soft outcome — future consideration, not a hard decline).
+ */
+export async function keepOnFileApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'kept_on_file' });
+}
+
+/**
+ * Request more from a submission (more digitals / specific shots / in-person) — an
+ * advancing state, not a decision.
+ */
+export async function requestMoreApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'requested_more' });
+}
+
+/**
+ * Invite the talent to a meeting / go-see — the advancing step before a signing decision.
+ */
+export async function requestMeetingApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'meeting_requested' });
+}
+
+/**
+ * Offer a New Face development relationship before full representation.
+ */
+export async function offerDevelopmentApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'development' });
 }
 
 /**
@@ -744,6 +773,9 @@ export default {
   acceptApplication,
   declineApplication,
   shortlistApplication,
+  keepOnFileApplication,
+  requestMoreApplication,
+  requestMeetingApplication,
   archiveApplication,
   getDiscoverableTalent,
   getProfilePreview,
@@ -776,6 +808,4 @@ export default {
   bulkArchiveApplications,
   bulkAddTag,
   bulkRemoveTag,
-  createCheckoutSession: () => apiClient.post('/stripe/create-checkout-session'),
-  getCustomerPortalSession: () => apiClient.get('/stripe/customer-portal'),
 };

@@ -3,44 +3,24 @@ import { createPortal } from 'react-dom';
 import { AlignLeft, Calendar, Camera, Crop, EyeOff, Image as ImageIcon, Save, Shield, Tags, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
+import {
+  shotPickerOptions,
+  imageTypePickerOptions,
+  stylePickerOptions,
+  COMP_CARD_SLOT_LABELS,
+} from '../../../shared/constants/frameTaxonomy';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import './ImageMetadataModal.css';
 
 const COMP_CARD_ROLES = [
-  { id: 'headshot',  label: 'Headshot',  color: '#C9A55A' },
-  { id: 'full_body', label: 'Full Body', color: '#2563EB' },
-  { id: 'editorial', label: 'Editorial', color: '#7C3AED' },
-  { id: 'lifestyle', label: 'Lifestyle', color: '#059669' },
-];
-
-const IMAGE_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'digital', label: 'Digital' },
-  { value: 'portfolio', label: 'Portfolio' },
-  { value: 'comp_card', label: 'Comp card' },
-  { value: 'campaign', label: 'Campaign' },
-  { value: 'test', label: 'Test' },
-];
-
-const SHOT_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'headshot', label: 'Headshot' },
-  { value: 'three_quarter', label: 'Three-quarter' },
-  { value: 'full_length', label: 'Full length' },
-  { value: 'profile_left', label: 'Profile (left)' },
-  { value: 'profile_right', label: 'Profile (right)' },
-  { value: 'back', label: 'Back' },
-  { value: 'detail', label: 'Detail' },
-];
-
-const STYLE_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'lifestyle', label: 'Lifestyle' },
-  { value: 'beauty', label: 'Beauty' },
-  { value: 'ecommerce', label: 'E-commerce' },
-  { value: 'swimwear', label: 'Swimwear' },
-  { value: 'fitness', label: 'Fitness' },
+  { id: 'headshot', label: COMP_CARD_SLOT_LABELS.headshot },
+  { id: 'full_body', label: COMP_CARD_SLOT_LABELS.full_length },
+  { id: 'editorial', label: COMP_CARD_SLOT_LABELS.editorial },
+  { id: 'lifestyle', label: COMP_CARD_SLOT_LABELS.lifestyle },
 ];
 
 const STATUS_OPTIONS = [
@@ -191,9 +171,9 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
       <section className="imd-shell" aria-label="Edit image details" onClick={e => e.stopPropagation()}>
         <aside className="imd-preview" aria-label="Selected image preview">
           <div className="imd-preview__bar">
-            <button type="button" onClick={onClose} className="imd-icon-btn" aria-label="Close details">
+            <PholioIconButton type="button" tone="dark" onClick={onClose} className="imd-icon-btn" aria-label="Close details">
               <X size={18} />
-            </button>
+            </PholioIconButton>
           </div>
           <div className="imd-image-stage">
             <img src={previewUrl} alt={formData.metadata.caption || 'Selected portfolio frame'} className="imd-preview-image" />
@@ -202,10 +182,10 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
               {selectedRole && <span className="imd-pill imd-pill--gold">{selectedRole.label}</span>}
             </div>
           </div>
-          <button type="button" onClick={() => onOpenEditor(image)} className="imd-crop-action">
+          <PholioButton type="button" variant="secondary" tone="dark" fullWidth onClick={() => onOpenEditor(image)}>
             <Crop size={15} />
             Crop & rotate
-          </button>
+          </PholioButton>
         </aside>
 
         <div className="imd-panel">
@@ -224,22 +204,24 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
               </div>
               <div className="imd-control-row">
                 <span className="imd-control-label">Visibility</span>
-                <div className="imd-segment" role="group" aria-label="Visibility">
-                  <button
+                <PholioToggleGroup className="imd-segment" role="group" aria-label="Visibility">
+                  <PholioToggleButton
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'public' } }))}
+                    active={formData.metadata.visibility === 'public'}
                     className={formData.metadata.visibility === 'public' ? 'is-active' : ''}
                   >
                     Public
-                  </button>
-                  <button
+                  </PholioToggleButton>
+                  <PholioToggleButton
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, visibility: 'private' } }))}
+                    active={formData.metadata.visibility === 'private'}
                     className={formData.metadata.visibility === 'private' ? 'is-active is-private' : ''}
                   >
                     Private
-                  </button>
-                </div>
+                  </PholioToggleButton>
+                </PholioToggleGroup>
               </div>
               <div className="imd-switch-list">
                 <label className="imd-switch">
@@ -264,29 +246,35 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
             <section className="imd-section">
               <div className="imd-section__head">
                 <ImageIcon size={15} />
-                <h3>Catalog</h3>
+                <h3>Frame read</h3>
               </div>
               <div className="imd-grid">
                 <label>
-                  <span className="imd-label">Image type</span>
+                  <span className="imd-label">Use</span>
                   <select className="imd-input" value={formData.image_type} onChange={(e) => setFormData((prev) => ({ ...prev, image_type: e.target.value }))}>
-                    {IMAGE_TYPE_OPTIONS.map((o) => <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
+                    {imageTypePickerOptions(formData.image_type).map((o) => (
+                      <option key={`it-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
-                  <span className="imd-label">Shot type</span>
+                  <span className="imd-label">Framing</span>
                   <select className="imd-input" value={formData.shot_type} onChange={(e) => setFormData((prev) => ({ ...prev, shot_type: e.target.value }))}>
-                    {SHOT_TYPE_OPTIONS.map((o) => <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
+                    {shotPickerOptions(formData.shot_type).map((o) => (
+                      <option key={`st-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
-                  <span className="imd-label">Style</span>
+                  <span className="imd-label">Register</span>
                   <select className="imd-input" value={formData.style_type} onChange={(e) => setFormData((prev) => ({ ...prev, style_type: e.target.value }))}>
-                    {STYLE_TYPE_OPTIONS.map((o) => <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>)}
+                    {stylePickerOptions().map((o) => (
+                      <option key={`sty-${o.value || 'unset'}`} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </label>
                 <label>
-                  <span className="imd-label">Status</span>
+                  <span className="imd-label">Library state</span>
                   <select className="imd-input" value={formData.status} onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}>
                     {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -320,22 +308,22 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                 <Camera size={15} />
                 <h3>Comp card role</h3>
               </div>
-              <div className="imd-chip-grid">
+              <PholioToggleGroup className="imd-chip-grid">
                 {COMP_CARD_ROLES.map((role) => {
                   const isActive = formData.metadata.role === role.id;
                   return (
-                    <button
+                    <PholioToggleButton
                       key={role.id}
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, metadata: { ...prev.metadata, role: isActive ? null : role.id } }))}
+                      active={isActive}
                       className={`imd-role-chip ${isActive ? 'is-active' : ''}`}
-                      style={{ '--role-color': role.color }}
                     >
                       {role.label}
-                    </button>
+                    </PholioToggleButton>
                   );
                 })}
-              </div>
+              </PholioToggleGroup>
             </section>
 
             <section className="imd-section">
@@ -343,13 +331,13 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
                 <Tags size={15} />
                 <h3>Categories</h3>
               </div>
-              <div className="imd-tags">
+              <PholioToggleGroup className="imd-tags">
                 {availableTags.map(tag => (
-                  <button key={tag} type="button" onClick={() => toggleTag(tag)} className={formData.metadata.tags.includes(tag) ? 'is-selected' : ''}>
+                  <PholioToggleButton key={tag} type="button" onClick={() => toggleTag(tag)} active={formData.metadata.tags.includes(tag)} className={formData.metadata.tags.includes(tag) ? 'is-selected' : ''}>
                     {tag}
-                  </button>
+                  </PholioToggleButton>
                 ))}
-              </div>
+              </PholioToggleGroup>
             </section>
 
             <section className="imd-section">
@@ -415,10 +403,10 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
           </div>
 
           <footer className="imd-footer">
-            <button type="button" onClick={onClose} className="imd-secondary-btn">Cancel</button>
-            <button type="button" onClick={handleSave} disabled={loading} className="imd-primary-btn">
+            <PholioButton type="button" variant="secondary" onClick={onClose}>Cancel</PholioButton>
+            <PholioButton type="button" variant="primary" onClick={handleSave} disabled={loading}>
               {loading ? 'Saving...' : <><Save size={15} />Save changes</>}
-            </button>
+            </PholioButton>
           </footer>
         </div>
       </section>

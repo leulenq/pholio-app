@@ -22,6 +22,11 @@ input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none; 
   margin: 0; 
 }
+
+/* Global: Prevent textarea resizing (dragging) */
+textarea {
+  resize: none;
+}
 input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;

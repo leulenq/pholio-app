@@ -1,5 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Bell, ChevronRight } from 'lucide-react';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../ui/PholioButton';
 import {
   filterNotifications,
   getDetailCardText,
@@ -46,38 +50,36 @@ export default function NotificationPanel({
             <h2 id={titleId} className="nc-dropdown__title">
               Notifications
             </h2>
-            {unreadCount > 0 ? (
-              <span className="nc-dropdown__count" aria-label={`${unreadCount} unread`}>
-                {unreadCount}
-              </span>
-            ) : null}
+            {unreadCount > 0 ? <span aria-label={`${unreadCount} unread`}>{unreadCount} unread</span> : null}
           </div>
           {unreadCount > 0 ? (
-            <button
+            <PholioButton
               type="button"
+              variant="tertiary"
               className="nc-dropdown__mark-all"
               disabled={markAllPending}
               onClick={onMarkAllRead}
             >
               Mark all read
-            </button>
+            </PholioButton>
           ) : null}
         </div>
 
-        <div className="nc-dropdown__filters" role="tablist" aria-label="Filter notifications">
+        <PholioToggleGroup className="nc-dropdown__filters" role="tablist" aria-label="Filter notifications">
           {filters.map((filter) => (
-            <button
+            <PholioToggleButton
               key={filter.id}
               type="button"
               role="tab"
+              active={activeFilter === filter.id}
               aria-selected={activeFilter === filter.id}
               className={`nc-dropdown__filter${activeFilter === filter.id ? ' is-active' : ''}`}
               onClick={() => setActiveFilter(filter.id)}
             >
               {filter.label}
-            </button>
+            </PholioToggleButton>
           ))}
-        </div>
+        </PholioToggleGroup>
       </header>
 
       <div className="nc-dropdown__body">
@@ -118,8 +120,9 @@ export default function NotificationPanel({
 
                 return (
                   <li key={item.id}>
-                    <button
+                    <PholioButton
                       type="button"
+                      variant="tertiary"
                       className={`nc-dropdown__item${item.isRead ? '' : ' is-unread'}`}
                       onClick={() => onItemClick?.(item)}
                       aria-label={ariaLabel}
@@ -142,7 +145,7 @@ export default function NotificationPanel({
                         {detail ? <span className="nc-dropdown__detail">{detail}</span> : null}
                         <span className="nc-dropdown__time">{item.timeAgo || 'Recently'}</span>
                       </span>
-                    </button>
+                    </PholioButton>
                   </li>
                 );
               })}
@@ -154,15 +157,21 @@ export default function NotificationPanel({
       {footerHref || onFooterClick ? (
         <footer className="nc-dropdown__foot">
           {footerHref ? (
-            <a href={footerHref} className="nc-dropdown__foot-link" onClick={onFooterClick}>
+            <PholioButton as="a" href={footerHref} variant="meta" fullWidth className="nc-dropdown__foot-link" onClick={onFooterClick}>
               {footerLabel}
               <ChevronRight size={14} aria-hidden className="nc-dropdown__foot-chev" />
-            </a>
+            </PholioButton>
           ) : (
-            <button type="button" className="nc-dropdown__foot-link" onClick={onFooterClick}>
+            <PholioButton
+              type="button"
+              variant="meta"
+              fullWidth
+              className="nc-dropdown__foot-link"
+              onClick={onFooterClick}
+            >
               {footerLabel}
               <ChevronRight size={14} aria-hidden className="nc-dropdown__foot-chev" />
-            </button>
+            </PholioButton>
           )}
         </footer>
       ) : null}

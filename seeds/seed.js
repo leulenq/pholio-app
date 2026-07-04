@@ -12,41 +12,53 @@ async function seedDemoData(knex, talentId, profileId) {
       name: "Wilhelmina Models",
       location: "New York, NY",
       website: "https://wilhelmina.com",
+      openBoards: ["Women", "Men", "Curve", "New Faces"],
     },
     {
       name: "IMG Models",
       location: "New York, NY",
       website: "https://imgmodels.com",
+      openBoards: ["Women", "Men", "New Faces"],
     },
     {
       name: "Elite Model Management",
       location: "Paris, France",
       website: "https://elitemodel.com",
+      openBoards: ["Women", "Men", "Development"],
     },
     {
       name: "Ford Models",
       location: "New York, NY",
       website: "https://fordmodels.com",
+      openBoards: ["Women", "Men", "Commercial", "Petite"],
     },
     {
       name: "DNA Model Management",
       location: "Los Angeles, CA",
       website: "https://dnamodels.com",
+      openBoards: ["Women", "Men", "Development"],
     },
     {
       name: "The Society Management",
       location: "Los Angeles, CA",
       website: "https://thesocietymanagement.com",
+      openBoards: ["Women", "Men"],
     },
     {
       name: "Next Management",
       location: "New York, NY",
       website: "https://nextmanagement.com",
+      openBoards: ["Women", "Men", "Development", "Curve"],
     },
     {
       name: "Marilyn Agency",
       location: "Paris, France",
       website: "https://marilynagency.com",
+      description:
+        "Founded in Paris in 1985, Marilyn Agency represents women, men, celebrities, and new faces across editorial, runway, and luxury fashion. The house is known for developing internationally visible talent and maintaining a Paris-led point of view with New York reach.",
+      logoPath: "/agency-logos/marilyn-agency.svg",
+      brandColor: "#050505",
+      openBoards: ["Women", "Men", "Celebrities", "New Faces"],
     },
   ];
 
@@ -59,6 +71,10 @@ async function seedDemoData(knex, talentId, profileId) {
       name: ag.name,
       location: ag.location,
       website: ag.website,
+      description: ag.description || null,
+      logo_path: ag.logoPath || null,
+      brand_color: ag.brandColor || null,
+      open_boards: JSON.stringify(ag.openBoards),
       status: "ACTIVE",
     });
   }
@@ -70,7 +86,7 @@ async function seedDemoData(knex, talentId, profileId) {
     { agencyIdx: 6, status: "submitted", days: 5 }, // Next Management
     { agencyIdx: 1, status: "accepted", days: 14 }, // IMG Models
     { agencyIdx: 2, status: "submitted", days: 21 }, // Elite
-    { agencyIdx: 3, status: "booked", days: 28 }, // Ford
+    { agencyIdx: 3, status: "represented", days: 28 }, // Ford
     { agencyIdx: 4, status: "declined", days: 45 }, // DNA
     { agencyIdx: 5, status: "submitted", days: 7 }, // Society
   ];
@@ -237,8 +253,8 @@ async function seedDemoData(knex, talentId, profileId) {
       type: "profile_updated",
       meta: () => ({
         fields: [
-          ["bio", "measurements", "instagram_handle", "city", "training"][
-            Math.floor(Math.random() * 5)
+          ["bio", "measurements", "city", "training"][
+            Math.floor(Math.random() * 4)
           ],
         ],
       }),
@@ -296,9 +312,6 @@ async function seedDemoData(knex, talentId, profileId) {
   return { agencyIds, now };
 }
 
-/**
- * @param {import('knex')} knex
- */
 exports.seed = async function seed(knex) {
   // Delete existing data (optional - comment out if you want to keep existing data)
   await knex("applications")
@@ -332,6 +345,10 @@ exports.seed = async function seed(knex) {
     id: agencyId,
     email: "agency@example.com",
     password_hash: passwordHash,
+    terms_accepted_at: new Date(),
+    terms_accepted_version: "2026-06-25",
+    privacy_accepted_at: new Date(),
+    privacy_accepted_version: "2026-06-25",
     role: "AGENCY",
     first_name: "Sarah",
     last_name: "Chen",
@@ -357,6 +374,10 @@ exports.seed = async function seed(knex) {
     id: talentId,
     email: "talent@example.com",
     password_hash: passwordHash,
+    terms_accepted_at: new Date(),
+    terms_accepted_version: "2026-06-25",
+    privacy_accepted_at: new Date(),
+    privacy_accepted_version: "2026-06-25",
     role: "TALENT",
   });
 
@@ -384,9 +405,6 @@ exports.seed = async function seed(knex) {
     experience_level: "Experienced",
     specialties: JSON.stringify(["Editorial", "Commercial", "Runway"]),
     languages: JSON.stringify(["English", "French"]),
-    instagram_handle: "miavoss",
-    portfolio_url: "https://miavoss.com",
-    twitter_handle: "miavoss",
     bio_raw:
       "LA-based editorial and commercial model with six years of campaign and runway experience.",
     bio_curated:
@@ -401,40 +419,64 @@ exports.seed = async function seed(knex) {
     emergency_contact_name: "Sophie Voss",
     emergency_contact_phone: "+1 (310) 555-0182",
     emergency_contact_relationship: "Sister",
+    phone: "+1 (310) 555-0144",
     is_pro: true,
     partner_agency_id: null,
     onboarding_completed_at: new Date().toISOString(),
   });
 
+  const recentDigitalCaptured = new Date(Date.now() - 14 * 86400000).toISOString();
+
   const miaImages = [
     {
-      label: "Headshot",
+      label: "Digital Headshot",
       sort: 1,
+      shot_type: "headshot",
+      image_type: "digital",
+      style_type: "digitals",
+      is_primary: true,
+      captured_at: recentDigitalCaptured,
       path: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=1000&q=80",
     },
     {
-      label: "Editorial",
+      label: "Digital Full-Length",
       sort: 2,
-      path: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1000&q=80",
+      shot_type: "full_length",
+      image_type: "digital",
+      style_type: "digitals",
+      captured_at: recentDigitalCaptured,
+      path: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=80",
     },
     {
-      label: "Runway",
+      label: "Editorial",
       sort: 3,
-      path: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=80",
+      shot_type: "three_quarter",
+      image_type: "portfolio",
+      style_type: "editorial",
+      path: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1000&q=80",
     },
     {
       label: "Commercial",
       sort: 4,
+      shot_type: "three_quarter",
+      image_type: "portfolio",
+      style_type: "commercial",
       path: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1000&q=80",
     },
     {
       label: "Editorial 2",
       sort: 5,
+      shot_type: "profile",
+      image_type: "portfolio",
+      style_type: "editorial",
       path: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=1000&q=80",
     },
     {
       label: "Lifestyle",
       sort: 6,
+      shot_type: "three_quarter",
+      image_type: "portfolio",
+      style_type: "lifestyle",
       path: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=1000&q=80",
     },
   ];
@@ -452,6 +494,10 @@ exports.seed = async function seed(knex) {
     id: elaraUserId,
     email: "elara@example.com",
     password_hash: passwordHash,
+    terms_accepted_at: new Date(),
+    terms_accepted_version: "2026-06-25",
+    privacy_accepted_at: new Date(),
+    privacy_accepted_version: "2026-06-25",
     role: "TALENT",
   });
 
@@ -486,10 +532,6 @@ exports.seed = async function seed(knex) {
     availability_schedule: "Full-time",
     experience_level: "Experienced",
     training: "Formal training in editorial modeling and commercial acting.",
-    portfolio_url: "https://elarakeats.portfolio.com",
-    instagram_handle: "elarakeats",
-    twitter_handle: "elarakeats",
-    tiktok_handle: "elarakeats",
     reference_name: null,
     reference_email: null,
     reference_phone: null,
@@ -551,3 +593,5 @@ exports.seed = async function seed(knex) {
   await seedDemoData(knex, talentId, profileId);
   await seedAgencyDemo(knex);
 };
+
+exports.seedDemoData = seedDemoData;

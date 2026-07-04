@@ -19,20 +19,17 @@ const PHASE_KEY = {
 
 const ALL_ANCHOR_KEYS = [...new Set(Object.values(PHASE_KEY))];
 
-// How long each phase stays before auto-advancing
+// Only these two phases auto-advance: the opening confetti beat (intentional
+// cinema) and the silent 'nav' transition (just navigation glue, never seen).
+// Every other phase is user-paced — advanced via the Next/Skip actions.
+const AUTO_ADVANCE_PHASES = new Set(['celebrate', 'nav']);
 const DURATIONS = {
   celebrate: 3000,
-  market: 1900,
-  intel: 1900,
   nav: 1300,
-  'tour-hero': 3500,
-  'tour-ledger': 3500,
-  'tour-discovery': 3500,
-  'tour-apply-cta': 3500,
 };
 const DURATIONS_FAST = {
-  celebrate: 400, market: 300, intel: 300, nav: 200,
-  'tour-hero': 500, 'tour-ledger': 500, 'tour-discovery': 500, 'tour-apply-cta': 500,
+  celebrate: 400,
+  nav: 200,
 };
 
 const NAV_STEPS = {
@@ -96,6 +93,8 @@ export default function ProfileUnlockExperience({
   const isTourPhase = phase.startsWith('tour-');
   // Click is intercepted during all phases except the silent nav transition and final fade
   const isClickable = phase !== 'nav' && phase !== 'done';
+  // Last user-paced step before the silent close — the Next action reads "Done" here.
+  const isFinalPacedStep = sequence[phaseIdx + 1] === 'done';
 
   // Reset when the experience is dismissed and re-opened (defensive; it's a once-ever event)
   useEffect(() => {
@@ -112,18 +111,55 @@ export default function ProfileUnlockExperience({
     setPhaseIdx((i) => Math.min(i + 1, sequence.length - 1));
   }, [sequence.length]);
 
-  // Single-timer auto-advance — reschedules each time the phase changes
+  // Single-timer auto-advance — only 'celebrate' and the silent 'nav' glue
+  // phase advance on their own; everything else waits for Next/Skip.
   useEffect(() => {
-    if (!isOpen || phase === 'done') return undefined;
+    if (!isOpen || !AUTO_ADVANCE_PHASES.has(phase)) return undefined;
     const durations = reduceMotion ? DURATIONS_FAST : DURATIONS;
     timerRef.current = setTimeout(advance, durations[phase] ?? 3000);
     return () => clearTimeout(timerRef.current);
   }, [isOpen, phaseIdx, phase, advance, reduceMotion]);
 
+  // Instantly dismissible at any phase.
+  const handleSkip = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    onClose?.();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') handleSkip();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleSkip]);
+
+  // Defensive: if a user-paced phase's anchor never resolves (e.g. the nav
+  // item isn't rendered on the current page), the coach card — and its
+  // Next/Skip actions — never mounts. Don't strand the user with no visible
+  // controls; advance automatically after a short grace period.
+  useEffect(() => {
+    if (!isOpen || AUTO_ADVANCE_PHASES.has(phase) || phase === 'done') return undefined;
+    if (!(isNavPhase || isTourPhase)) return undefined;
+    const key = PHASE_KEY[phase];
+    if (key && anchors[key]) return undefined; // anchor resolved — coach + actions are visible
+    const id = setTimeout(advance, reduceMotion ? 200 : 1200);
+    return () => clearTimeout(id);
+  }, [isOpen, phase, isNavPhase, isTourPhase, anchors, advance, reduceMotion]);
+
   // Navigate to applications when the silent transition phase fires
   useEffect(() => {
-    if (phase === 'nav') navigate('/dashboard/talent/applications');
-  }, [phase, navigate]);
+    if (phase !== 'nav') return;
+    if (isTargeted && targetAgency?.id) {
+      navigate(`/dashboard/talent/applications/apply?agency=${encodeURIComponent(targetAgency.id)}`);
+      return;
+    }
+    navigate('/dashboard/talent/applications');
+  }, [phase, navigate, isTargeted, targetAgency?.id]);
 
   // Auto-close after done
   useEffect(() => {
@@ -339,6 +375,22 @@ export default function ProfileUnlockExperience({
               <span className="reveal-coach-state">Now open</span>
               <span className="reveal-coach-label">{step.label}</span>
               <span className="reveal-coach-blurb">{step.blurb}</span>
+              <div className="reveal-coach-actions">
+                <button
+                  type="button"
+                  className="reveal-coach-action reveal-coach-action--skip"
+                  onClick={(event) => { event.stopPropagation(); handleSkip(); }}
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  className="reveal-coach-action reveal-coach-action--next"
+                  onClick={(event) => { event.stopPropagation(); advance(); }}
+                >
+                  {isFinalPacedStep ? 'Done' : 'Next'}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         ) : null}

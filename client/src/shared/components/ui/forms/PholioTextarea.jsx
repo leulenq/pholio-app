@@ -2,7 +2,7 @@ import React, { forwardRef, useId } from 'react';
 import InlineErrorText from '../../states/InlineErrorText';
 import './PholioForms.css';
 
-const PholioTextarea = forwardRef(({ label, error, className = '', id: providedId, ...props }, ref) => {
+const PholioTextarea = forwardRef(({ label, error, className = '', id: providedId, value, ...props }, ref) => {
   const generatedId = useId();
   const textareaId = providedId || `textarea-${generatedId}`;
   const errorId = error ? `${textareaId}-error` : undefined;
@@ -20,6 +20,7 @@ const PholioTextarea = forwardRef(({ label, error, className = '', id: providedI
         className={`pholio-textarea ${error ? 'has-error' : ''}`}
         aria-invalid={!!error}
         aria-describedby={errorId}
+        value={value === null ? '' : value}
         {...props}
       />
       {error && <InlineErrorText id={errorId} message={error} className="pholio-error-message" />}

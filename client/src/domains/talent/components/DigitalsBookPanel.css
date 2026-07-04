@@ -1,0 +1,131 @@
+/* Pholio Intelligence — collapsible, quiet refinements on The Book */
+
+.phi {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* Collapsed bar — the resting state, deliberately light */
+.phi__bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.phi__title {
+  font-family: var(--mw-serif, "Noto Serif Display", Georgia, serif);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--mw-text, #1a1a1a);
+  white-space: nowrap;
+  transition: color 0.2s var(--mw-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.phi__bar:hover .phi__title {
+  color: var(--mw-gold, #c9a55a);
+}
+
+.phi__coverage {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.phi__seg {
+  width: 14px;
+  height: 1px;
+  background: var(--mw-hair-strong, rgba(26, 26, 26, 0.16));
+  transition: background 0.4s var(--mw-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.phi__seg--on {
+  background: var(--mw-gold, #c9a55a);
+}
+
+.phi__count {
+  margin-left: auto;
+  font-family: var(--mw-sans, Inter, sans-serif);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--mw-text-faint, rgba(26, 26, 26, 0.42));
+  white-space: nowrap;
+}
+
+.phi__chevron {
+  color: var(--mw-text-faint, rgba(26, 26, 26, 0.42));
+  transition: transform 0.3s var(--mw-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.phi--open .phi__chevron {
+  transform: rotate(180deg);
+}
+
+/* Expanded body */
+.phi__body {
+  overflow: hidden;
+}
+
+.phi__inner {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.phi__reads {
+  max-width: 100%;
+}
+
+.phi__list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 2px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-left: 1px solid rgba(201, 165, 90, 0.24);
+  max-width: 68ch;
+}
+
+.phi__item {
+  position: relative;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.phi__item::before {
+  content: none;
+}
+
+.phi__item-title {
+  font-family: var(--mw-sans, Inter, sans-serif);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--mw-text, #1a1a1a);
+}
+
+.phi__item-text {
+  font-family: var(--mw-sans, Inter, sans-serif);
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--mw-text-soft, rgba(26, 26, 26, 0.62));
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phi__seg,
+  .phi__chevron {
+    transition: none;
+  }
+}

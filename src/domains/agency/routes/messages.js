@@ -1,6 +1,13 @@
 const express = require("express");
 const knex = require("../../../shared/db/knex");
-const { requireRole } = require("../../auth/middleware/require-auth");
+const {
+  requireRole,
+  requireActiveAccount,
+} = require("../../auth/middleware/require-auth");
+const {
+  isAgencyBlockedForTalent,
+  validateHttpsAttachmentUrl,
+} = require("../../../shared/lib/blocked-agencies");
 const { sendNewMessageEmail } = require("../../../shared/lib/email");
 const {
   issueReplyTokenForApplication,
@@ -42,6 +49,7 @@ router.get(
           this.andOn("m.created_at", "=", "latest_msgs.max_created_at");
         })
         .where("a.agency_id", agencyId)
+        .whereNot("a.status", "withdrawn")
         .select([
           "a.id as id",
           knex.raw("p.first_name || ' ' || p.last_name as \"senderName\""),
@@ -56,6 +64,7 @@ router.get(
       const unreadCounts = await knex("messages")
         .join("applications", "messages.application_id", "applications.id")
         .where("applications.agency_id", agencyId)
+        .whereNot("applications.status", "withdrawn")
         .where("messages.is_read", false)
         .where("messages.sender_type", "TALENT")
         .groupBy("messages.application_id")
@@ -125,6 +134,12 @@ router.get(
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
       }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message: "This submission was withdrawn and its thread is closed.",
+        });
+      }
 
       // Get all messages for this application
       const messages = await knex("messages")
@@ -152,6 +167,7 @@ router.get(
 router.post(
   "/api/agency/applications/:applicationId/messages",
   requireRole("AGENCY"),
+  requireActiveAccount(),
   async (req, res, next) => {
     try {
       const { applicationId } = req.params;
@@ -163,6 +179,15 @@ router.post(
         return res.status(400).json({ error: "Message is required" });
       }
 
+      if (message.trim().length > 4000) {
+        return res.status(400).json({ error: "Message is too long" });
+      }
+
+      const attachmentCheck = validateHttpsAttachmentUrl(attachment_url);
+      if (!attachmentCheck.ok) {
+        return res.status(400).json({ error: attachmentCheck.error });
+      }
+
       // Verify application belongs to this agency
       const application = await knex("applications")
         .where({ id: applicationId, agency_id: agencyId })
@@ -170,6 +195,31 @@ router.post(
 
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
+      }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message: "This submission was withdrawn and its thread is closed.",
+        });
+      }
+
+      const talentProfile = await knex("profiles")
+        .where({ id: application.profile_id })
+        .select("user_id")
+        .first();
+
+      if (
+        talentProfile?.user_id &&
+        (await isAgencyBlockedForTalent(
+          knex,
+          talentProfile.user_id,
+          agencyId,
+        ))
+      ) {
+        return res.status(403).json({
+          error: "Contact blocked",
+          message: "This talent has blocked contact from your agency.",
+        });
       }
 
       const { v4: uuidv4 } = require("uuid");
@@ -181,7 +231,7 @@ router.post(
         sender_id: actorUserId,
         sender_type: "AGENCY",
         message: message.trim(),
-        attachment_url: attachment_url || null,
+        attachment_url: attachmentCheck.value,
         is_read: false,
         created_at: knex.fn.now(),
       });

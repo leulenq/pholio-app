@@ -100,6 +100,18 @@ describe("shoeDual", () => {
     expect(shoeDual("40", "women")).toBe("US 9 / EU 40");
   });
 
+  test('labeled UK: "8 UK" women → US 9 / EU 40', () => {
+    expect(shoeDual("8 UK", "women")).toBe("US 9 / EU 40");
+  });
+
+  test('explicit region UK: "8" with region UK → US 9 / EU 40', () => {
+    expect(shoeDual("8", "women", "UK")).toBe("US 9 / EU 40");
+  });
+
+  test('explicit region EU: "40" with region EU → US 9 / EU 40', () => {
+    expect(shoeDual("40", "women", "EU")).toBe("US 9 / EU 40");
+  });
+
   test("kids sizes render natively without conversion", () => {
     expect(shoeDual("13", "kids")).toBe("US 13");
   });

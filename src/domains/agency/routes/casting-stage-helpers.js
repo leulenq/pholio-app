@@ -2,7 +2,7 @@ const CASTING_PIPELINE_STAGES = [
   "Applied",
   "Shortlisted",
   "Offered",
-  "Booked",
+  "Represented",
   "Passed",
 ];
 
@@ -12,11 +12,14 @@ function mapApplicationStatusToCastingStage(status) {
     case "pending":
       return "Applied";
     case "shortlisted":
+    case "requested_more":
+    case "meeting_requested":
       return "Shortlisted";
     case "accepted":
+    case "development":
       return "Offered";
-    case "booked":
-      return "Booked";
+    case "represented":
+      return "Represented";
     case "passed":
     case "declined":
     case "archived":
@@ -34,8 +37,8 @@ function mapCastingStageToApplicationStatus(stage) {
       return "shortlisted";
     case "offered":
       return "accepted";
-    case "booked":
-      return "booked";
+    case "represented":
+      return "represented";
     case "passed":
       return "passed";
     default:

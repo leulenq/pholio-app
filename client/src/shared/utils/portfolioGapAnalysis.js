@@ -1,82 +1,95 @@
 /**
- * portfolioGapAnalysis.js
- * Analyzes a talent's portfolio images to identify missing standard agency requirements.
+ * portfolioGapAnalysis.js — agency digitals checklist via structured shot/style fields.
  */
 
-// The "Gold Standard" Book Checklist
+import {
+  analyzeDigitalsReadiness,
+  isHeadshotImage,
+  isFullBodyImage,
+  isSmileHeadshot,
+} from './profileReadinessImages';
+import { analyzePackageIntelligence } from './packageIntelligence';
+import { DIGITALS_STALE_DAYS, BOOK_MIN_FRAME_COUNT } from '../constants/packageIntelligence';
+import { READINESS_CHECKLIST_COPY } from '../constants/frameTaxonomy';
+
 const STANDARD_CHECKLIST = [
   {
     id: 'headshot',
-    label: 'Clean Headshot',
-    description: 'Face forward, neutral expression, minimal makeup.',
-    tags: ['Headshot', 'Beauty', 'Polaroid', 'Face']
+    ...READINESS_CHECKLIST_COPY.headshot,
+    met: (images) => images.some(isHeadshotImage),
   },
   {
     id: 'fullbody',
-    label: 'Full Body Shot',
-    description: 'Shows your proportions and physique clearly.',
-    tags: ['Full Body', 'Body', 'Fitness', 'Swim']
+    ...READINESS_CHECKLIST_COPY.fullbody,
+    met: (images) => images.some(isFullBodyImage),
   },
   {
     id: 'side_profile',
-    label: 'Side Profile',
-    description: 'Profile view of your face (left or right).',
-    tags: ['Side Profile', 'Profile', 'Lateral']
+    ...READINESS_CHECKLIST_COPY.side_profile,
+    met: (images) => analyzeDigitalsReadiness(images).hasProfile,
   },
   {
     id: 'smile',
-    label: 'Smile / Commercial',
-    description: 'Warm, approachable smile showing teeth.',
-    tags: ['Smile', 'Commercial', 'Lifestyle', 'Happy']
+    ...READINESS_CHECKLIST_COPY.smile,
+    met: (images) => images.some(isSmileHeadshot),
   },
   {
     id: 'editorial',
-    label: 'Editorial / Creative',
-    description: 'High-fashion or styled creative work.',
-    tags: ['Editorial', 'Fashion', 'Creative', 'Studio']
-  }
+    ...READINESS_CHECKLIST_COPY.editorial,
+    met: (images) => analyzeDigitalsReadiness(images).hasEditorial,
+  },
+  {
+    id: 'back',
+    ...READINESS_CHECKLIST_COPY.back,
+    met: (images) => analyzeDigitalsReadiness(images).hasBack,
+  },
+  {
+    id: 'lifestyle',
+    ...READINESS_CHECKLIST_COPY.lifestyle,
+    met: (images) => analyzeDigitalsReadiness(images).hasLifestyle,
+  },
 ];
 
-// Helper to check if an image matches any of the required tags (case-insensitive)
-function imageHasTag(image, tagList) {
-  if (!image || !image.metadata || !Array.isArray(image.metadata.tags)) return false;
-  return image.metadata.tags.some(t => 
-    tagList.some(reqTag => reqTag.toLowerCase() === t.toLowerCase())
-  );
-}
+/** Checklist ids that coach for body imagery — withheld from unconsented minors. */
+const BODY_IMAGERY_CHECK_IDS = new Set(['fullbody', 'back']);
 
-/**
- * Analyzes the current set of images against the standard checklist.
- * @param {Array} images - Array of image objects from the DB
- * @returns {Object} result - { checks, score, missingCount }
- */
-export function analyzePortfolio(images = []) {
-  const checks = STANDARD_CHECKLIST.map(item => {
-    // Check if any image in the portfolio meets this requirement
-    const met = images.some(img => imageHasTag(img, item.tags));
-    return {
-      ...item,
-      met
-    };
-  });
+export function analyzePortfolio(images = [], profile = null) {
+  const list = Array.isArray(images) ? images : [];
+  const pkg = analyzePackageIntelligence({ images: list, profile });
+  const suppressBodyImagery = pkg.suppressBodyImagery;
 
-  // Calculate generic checks
-  const minCountMet = images.length >= 5;
+  const checks = STANDARD_CHECKLIST.filter(
+    (item) => !(suppressBodyImagery && BODY_IMAGERY_CHECK_IDS.has(item.id)),
+  ).map((item) => ({
+    id: item.id,
+    label: item.label,
+    description: item.description,
+    met: item.met(list),
+  }));
+
+  const minCountMet = list.length >= BOOK_MIN_FRAME_COUNT;
   checks.unshift({
     id: 'min_count',
-    label: 'At least 5 photos',
-    description: 'Agencies need to see variety.',
+    ...READINESS_CHECKLIST_COPY.min_count,
     met: minCountMet,
-    tags: [] // Logic check, not tag check
   });
 
-  const metCount = checks.filter(c => c.met).length;
+  checks.push({
+    id: 'recency',
+    label: READINESS_CHECKLIST_COPY.recency.label,
+    description: `Reshoot your digitals within ${DIGITALS_STALE_DAYS} days to stay current.`,
+    met: !pkg.recency.isStale,
+  });
+
+  const metCount = checks.filter((c) => c.met).length;
   const score = Math.round((metCount / checks.length) * 100);
 
   return {
     checks,
     score,
     missingCount: checks.length - metCount,
-    isComplete: score === 100
+    isComplete: score === 100,
+    digitals: pkg.digitals,
+    package: pkg,
   };
 }

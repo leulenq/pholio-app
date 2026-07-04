@@ -1,46 +1,48 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertCircle,
   ArrowUpRight,
-  Building2,
   Check,
-  ChevronDown,
   CircleDashed,
-  Clock,
   ExternalLink,
   Loader2,
   Lock,
   MapPin,
+  MessageSquare,
+  RotateCcw,
   Send,
+  Trash2,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import ProfileGateBanner from '../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../shared/utils/profileGating';
+import { sendBlockerLabel } from '../../../shared/utils/sendReadiness';
+import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { talentApi } from '../api/talent';
+import { canWithdrawApplication, statusConfig } from '../utils/applicationStatus';
+import ApplicationInterviews from './ApplicationInterviews';
+import ApplicationMessages from './ApplicationMessages';
 import './ApplicationsView.css';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'active', label: 'Active' },
-  { id: 'accepted', label: 'Accepted' },
+  { id: 'inReview', label: 'In Review' },
+  { id: 'advancing', label: 'Advancing' },
+  { id: 'signed', label: 'Signed' },
   { id: 'closed', label: 'Closed' },
 ];
 
 function asArray(payload) {
   if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  return [];
-}
-
-function asMediaSets(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.sets)) return payload.sets;
   if (Array.isArray(payload?.data)) return payload.data;
   return [];
 }
@@ -81,68 +83,37 @@ function websiteUrl(value) {
   return `https://${trimmed}`;
 }
 
-function statusConfig(status) {
-  const normalized = String(status || 'pending').toLowerCase();
-  const configs = {
-    pending: {
-      label: 'Under Review',
-      short: 'Review',
-      tone: 'pending',
-      icon: Clock,
-      next: 'Agency review is open.',
-      detail: 'The agency has your current profile and book.',
-    },
-    reviewing: {
-      label: 'In Review',
-      short: 'Review',
-      tone: 'pending',
-      icon: Clock,
-      next: 'Agency review is active.',
-      detail: 'Your application is moving through the agency queue.',
-    },
-    shortlisted: {
-      label: 'Shortlisted',
-      short: 'Shortlist',
-      tone: 'accepted',
-      icon: Check,
-      next: 'Watch for a direct agency signal.',
-      detail: 'Your application has been marked for closer review.',
-    },
-    accepted: {
-      label: 'Accepted',
-      short: 'Accepted',
-      tone: 'accepted',
-      icon: Check,
-      next: 'Prepare for agency follow-up.',
-      detail: 'The agency has accepted your application.',
-    },
-    declined: {
-      label: 'Not Selected',
-      short: 'Closed',
-      tone: 'closed',
-      icon: AlertCircle,
-      next: 'This thread is closed.',
-      detail: 'Keep the book current for future submissions.',
-    },
-    rejected: {
-      label: 'Not Selected',
-      short: 'Closed',
-      tone: 'closed',
-      icon: AlertCircle,
-      next: 'This thread is closed.',
-      detail: 'Keep the book current for future submissions.',
-    },
-  };
-  return configs[normalized] || configs.pending;
+// Bare domain for an editorial site fact (e.g. "marilynagency.com").
+function domainLabel(url) {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+  }
+}
+
+// The agency's lead board/division — the "Review focus" a booker reviews against.
+function firstBoard(value) {
+  if (!value) return null;
+  let list = value;
+  if (typeof value === 'string') {
+    try {
+      list = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(list)) return null;
+  const cleaned = list.filter(Boolean);
+  return cleaned.length ? cleaned[0] : null;
 }
 
 function applicationMatchesFilter(app, filter) {
   if (filter === 'all') return true;
-  const config = statusConfig(app.status);
-  if (filter === 'active') return config.tone === 'pending';
-  if (filter === 'accepted') return config.tone === 'accepted';
-  if (filter === 'closed') return config.tone === 'closed';
-  return true;
+  // Filter ids align 1:1 with the standing groups (inReview / advancing / signed / closed),
+  // so the filter row exposes the same tiers the activity legend shows.
+  return statusConfig(app.status).group === filter;
 }
 
 function agencyInitial(name) {
@@ -153,50 +124,23 @@ function metricLabel(count, singular, plural) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function imageUrl(image) {
-  return image?.public_url || image?.url || image?.path || null;
-}
-
-function normalizeToken(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_');
-}
-
-function hasShotType(image, types) {
-  const shot = normalizeToken(image?.shot_type);
-  const imageType = normalizeToken(image?.image_type);
-  return types.includes(shot) || types.includes(imageType);
-}
-
-function measurementValue(profile, keys) {
-  for (const key of keys) {
-    const value = profile?.[key];
-    if (value !== null && value !== undefined && value !== '') return value;
-  }
-  return null;
-}
-
-
-function agencyTypeLabel(agency) {
-  return agency?.division || agency?.type || agency?.agency_type || 'Open representation';
+function canResumeDraft(draft) {
+  if (!draft || draft.lifecycleState !== 'active') return false;
+  if (draft.canResume === false || draft.agency?.isBlocked) return false;
+  if (!draft.agency) return false;
+  if (!draft.agency.status) return true;
+  return ['active', 'available', 'open', 'accepting'].includes(
+    String(draft.agency.status).trim().toLowerCase(),
+  );
 }
 
 export default function ApplicationsView() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { profile, subscription, images: authImages = [] } = useAuth();
+  const { profile, subscription, images } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
-  const [applyingId, setApplyingId] = useState(null);
-  const [isApplyFlowOpen, setIsApplyFlowOpen] = useState(false);
-  const [selectedAgencyId, setSelectedAgencyId] = useState(null);
-  const [selectedMediaSetId, setSelectedMediaSetId] = useState('current');
-  const [selectedCompCardId, setSelectedCompCardId] = useState('current');
-  const [applicationNote, setApplicationNote] = useState('');
-  const [hasSubmissionConsent, setHasSubmissionConsent] = useState(false);
-  const [submittedApplication, setSubmittedApplication] = useState(null);
 
   const applicationsQuery = useQuery({
     queryKey: ['applications'],
@@ -206,18 +150,18 @@ export default function ApplicationsView() {
   });
 
   const agenciesQuery = useQuery({
-    queryKey: ['talent-agencies'],
+    queryKey: ['talent-agencies', 'apply-content-v2'],
     queryFn: talentApi.getAgencies,
     staleTime: 1000 * 60 * 3,
     retry: 1,
   });
 
-  const mediaSetsQuery = useQuery({
-    queryKey: ['talent-media-sets'],
-    queryFn: talentApi.getMediaSets,
-    enabled: isApplyFlowOpen,
-    staleTime: 1000 * 60 * 3,
+  const draftsQuery = useQuery({
+    queryKey: ['application-drafts'],
+    queryFn: talentApi.listDrafts,
+    staleTime: 0,
     retry: 1,
+    refetchOnMount: 'always',
   });
 
   const withdrawMutation = useMutation({
@@ -232,37 +176,6 @@ export default function ApplicationsView() {
     },
   });
 
-  const applyMutation = useMutation({
-    mutationFn: talentApi.createApplication,
-    onSuccess: (_data, variables) => {
-      setApplyingId(null);
-      setApplicationNote('');
-      setHasSubmissionConsent(false);
-      setSubmittedApplication({
-        agency: {
-          id: variables?.agencyId,
-          name: variables?.submissionPackage?.agencyName,
-          agency_location: variables?.submissionPackage?.agencyLocation,
-        },
-        submittedAt: new Date().toISOString(),
-        mediaSetId: variables?.submissionPackage?.mediaSetId,
-        compCardId: variables?.submissionPackage?.compCardId,
-      });
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
-      queryClient.invalidateQueries({ queryKey: ['talent-agencies'] });
-      queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
-      toast.success('Application submitted');
-    },
-    onError: (err) => {
-      setApplyingId(null);
-      if (err?.data?.upgradeRequired) {
-        toast.error('Monthly application limit reached.');
-        return;
-      }
-      toast.error(err?.message || 'Failed to submit application');
-    },
-  });
-
   const applications = useMemo(
     () =>
       asArray(applicationsQuery.data).sort(
@@ -270,23 +183,93 @@ export default function ApplicationsView() {
       ),
     [applicationsQuery.data],
   );
+  const drafts = useMemo(() => {
+    const lifecycleOrder = { active: 0, expired: 1, deleted: 2 };
+    return asArray(draftsQuery.data)
+      .filter(
+        (draft) =>
+          draft.lifecycleState === 'active' ||
+          ((draft.lifecycleState === 'deleted' || draft.lifecycleState === 'expired') &&
+            draft.isRecoverable),
+      )
+      .sort((a, b) => {
+        const stateDelta =
+          (lifecycleOrder[a.lifecycleState] ?? 3) - (lifecycleOrder[b.lifecycleState] ?? 3);
+        if (stateDelta !== 0) return stateDelta;
+        return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+      });
+  }, [draftsQuery.data]);
+  const activeDraftByAgencyId = useMemo(
+    () =>
+      new Map(
+        drafts
+          .filter((draft) => draft.lifecycleState === 'active' && draft.agencyId)
+          .map((draft) => [draft.agencyId, draft]),
+      ),
+    [drafts],
+  );
+
+  const [searchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('application');
 
   const agencies = useMemo(() => asArray(agenciesQuery.data), [agenciesQuery.data]);
-  const mediaSets = useMemo(() => asMediaSets(mediaSetsQuery.data), [mediaSetsQuery.data]);
-  const gating = useMemo(() => checkGatingStatus(profile), [profile]);
+  const gating = useMemo(() => checkGatingStatus(profile, images), [profile, images]);
   const applicationGate = getProfileGateFeature('/dashboard/talent/applications');
 
-  const selectedApplication = applications.find((app) => app.id === selectedId) || applications[0] || null;
+  const { isSendReady, sendBlockers } = useMemo(() => {
+    if (typeof gating.isSendReady === 'boolean') {
+      return {
+        isSendReady: gating.isSendReady,
+        sendBlockers: gating.sendBlockers || [],
+      };
+    }
+
+    const strength = calculateProfileStrength({ ...profile, images: images ?? [] });
+    const blockers = [];
+
+    if (!strength.fieldCompletion.contact) {
+      blockers.push({
+        key: 'contact',
+        label: 'Email & Phone',
+        task: 'Add email and phone in settings',
+      });
+    }
+    if (!strength.fieldCompletion.digitals_recency) {
+      blockers.push({
+        key: 'digitals_recency',
+        label: 'Current Digitals',
+        task: 'Refresh your digitals — agencies expect a current set',
+      });
+    }
+
+    return {
+      isSendReady: strength.isCoreReady && blockers.length === 0,
+      sendBlockers: blockers,
+    };
+  }, [gating.isSendReady, gating.sendBlockers, profile, images]);
+
+  const selectedApplication =
+    applications.find((app) => app.id === selectedId) ||
+    (deepLinkId ? applications.find((app) => app.id === deepLinkId) : null) ||
+    applications[0] ||
+    null;
   const filteredApplications = applications.filter((app) => applicationMatchesFilter(app, activeFilter));
-  const appliedAgencyIds = new Set(applications.map((app) => app.agency_id).filter(Boolean));
+  const appliedAgencyIds = new Set(
+    applications
+      .filter((app) => app.status !== 'withdrawn')
+      .map((app) => app.agency_id)
+      .filter(Boolean),
+  );
   const openAgencies = agencies
     .filter((agency) => !appliedAgencyIds.has(agency.id))
+    .sort(
+      (a, b) =>
+        Number(activeDraftByAgencyId.has(b.id)) - Number(activeDraftByAgencyId.has(a.id)),
+    )
     .slice(0, 6);
-  const selectedAgency = agencies.find((agency) => agency.id === selectedAgencyId) || openAgencies[0] || null;
 
-  const activeCount = applications.filter((app) => statusConfig(app.status).tone === 'pending').length;
-  const acceptedCount = applications.filter((app) => statusConfig(app.status).tone === 'accepted').length;
-  const closedCount = applications.filter((app) => statusConfig(app.status).tone === 'closed').length;
+  const activeCount = applications.filter((app) => ['inReview', 'advancing'].includes(statusConfig(app.status).group)).length;
+  const acceptedCount = applications.filter((app) => statusConfig(app.status).group === 'signed').length;
   const monthCount = applications.filter((app) => {
     if (!app.created_at) return false;
     const created = new Date(app.created_at);
@@ -297,35 +280,8 @@ export default function ApplicationsView() {
   const monthlyLimitLabel = isPro ? 'Unlimited' : `${monthCount}/5`;
 
   const openApplyFlow = (agency = null) => {
-    if (agency?.id) {
-      setSelectedAgencyId(agency.id);
-    } else if (!selectedAgencyId && openAgencies[0]?.id) {
-      setSelectedAgencyId(openAgencies[0].id);
-    }
-    setSubmittedApplication(null);
-    setHasSubmissionConsent(false);
-    setIsApplyFlowOpen(true);
-  };
-
-  const closeApplyFlow = () => {
-    setIsApplyFlowOpen(false);
-    setApplicationNote('');
-    setHasSubmissionConsent(false);
-    setSubmittedApplication(null);
-  };
-
-  const handleApply = (agency, submissionPackage) => {
-    if (gating.isBlocked) {
-      toast.info('Complete your required profile fields before submitting to an agency.');
-      return;
-    }
-    if (!agency?.id) return;
-    setApplyingId(agency.id);
-    applyMutation.mutate({
-      agencyId: agency.id,
-      note: applicationNote.trim() || undefined,
-      submissionPackage,
-    });
+    const params = agency?.id ? `?agency=${encodeURIComponent(agency.id)}` : '?new=1';
+    navigate(`/dashboard/talent/applications/apply${params}`);
   };
 
   const confirmWithdraw = () => {
@@ -338,7 +294,7 @@ export default function ApplicationsView() {
     return (
       <div className="applications-view-container">
         <section className="app-error-state" role="alert">
-          <h1>Couldn&apos;t load the market ledger.</h1>
+          <h1>Couldn&apos;t load the market.</h1>
           <p>
             {isProfileMissing
               ? 'Profile setup needs attention before applications can load.'
@@ -346,19 +302,22 @@ export default function ApplicationsView() {
           </p>
           <div className="app-error-actions">
             {isProfileMissing && (
-              <a href="/dashboard/talent/profile" className="app-primary-action">
+              <PholioButton
+                as="a"
+                href="/dashboard/talent/profile"
+                variant="primary"
+              >
                 Profile
                 <ArrowUpRight size={14} aria-hidden />
-              </a>
+              </PholioButton>
             )}
-            <button
-              type="button"
-              className="app-secondary-action"
+            <PholioButton
+              variant="secondary"
               onClick={() => applicationsQuery.refetch()}
               disabled={applicationsQuery.isFetching}
             >
-              {applicationsQuery.isFetching ? 'Retrying' : 'Retry'}
-            </button>
+              {applicationsQuery.isFetching ? 'Checking...' : 'Try Again'}
+            </PholioButton>
           </div>
         </section>
       </div>
@@ -373,11 +332,9 @@ export default function ApplicationsView() {
             The <em>Market.</em>
           </h1>
           <div className="app-hero__sweep" aria-hidden />
-          <p className="app-standfirst">Market submissions, decisions, and next moves.</p>
-          <button type="button" className="app-primary-action" onClick={() => openApplyFlow()}>
-            <Send size={14} aria-hidden />
-            Apply New
-          </button>
+          <p className="app-standfirst">
+            Open agencies, work in progress, and every submission on record.
+          </p>
         </div>
 
         <dl className="app-market-index" aria-label="Application summary">
@@ -390,7 +347,7 @@ export default function ApplicationsView() {
             <dd>{applicationsQuery.isLoading ? '-' : activeCount}</dd>
           </div>
           <div>
-            <dt>Accepted</dt>
+            <dt>Signed</dt>
             <dd>{applicationsQuery.isLoading ? '-' : acceptedCount}</dd>
           </div>
           <div>
@@ -400,36 +357,134 @@ export default function ApplicationsView() {
         </dl>
       </header>
 
-      <section className="app-proofline" aria-label="Application status summary">
-        <div className="app-proofline__lead">
-          <strong>{metricLabel(activeCount, 'live submission', 'live submissions')}</strong>
-        </div>
-        <div className="app-proofline__track" aria-hidden>
-          <span style={{ width: `${applications.length ? (activeCount / applications.length) * 100 : 0}%` }} />
-        </div>
-        <div className="app-proofline__states">
-          <span>{metricLabel(activeCount, 'under review', 'under review')}</span>
-          <span>{metricLabel(acceptedCount, 'accepted', 'accepted')}</span>
-          <span>{metricLabel(closedCount, 'closed', 'closed')}</span>
-        </div>
+      <section className="app-discovery" id="app-discovery" aria-label="Open agencies">
+        <p className="app-discovery__meta" data-tour="agency-discovery">
+          {agenciesQuery.isLoading ? 'Loading agencies' : `${openAgencies.length} open`}
+          {' · '}
+          {metricLabel(drafts.length, 'saved draft', 'saved drafts')}
+        </p>
+
+        {!gating.isCoreReady && (
+          <ProfileGateBanner
+            variant="compact"
+            featureName={applicationGate.featureName}
+            featureLabel={applicationGate.featureLabel}
+            description={applicationGate.description}
+            {...gating}
+          />
+        )}
+
+        {gating.isCoreReady && !isSendReady && sendBlockers.length > 0 && (
+          <div className="app-send-list" role="status" aria-label="Send requirements">
+            {sendBlockers.map((blocker) => (
+              <div key={blocker.key || blocker.label}>
+                <CircleDashed size={14} aria-hidden />
+                <span>Send</span>
+                <strong>{sendBlockerLabel(blocker)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {agenciesQuery.isLoading ? (
+          <div className="app-agency-grid">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="app-agency-card app-agency-card--skeleton" />
+            ))}
+          </div>
+        ) : openAgencies.length > 0 ? (
+          <div className="app-agency-grid">
+            {openAgencies.map((agency) => {
+              const agencyDraft = activeDraftByAgencyId.get(agency.id);
+              const draftCanResume = !agencyDraft || canResumeDraft(agencyDraft);
+              return (
+                <article key={agency.id} className="app-agency-card">
+                  <div className="app-agency-card__mark" aria-hidden>
+                    {agency.profile_image ? (
+                      <img src={agency.profile_image} alt="" />
+                    ) : (
+                      <span>{agencyInitial(agency.name)}</span>
+                    )}
+                  </div>
+                  <div className="app-agency-card__body">
+                    <h3>{agency.name || 'Unnamed Agency'}</h3>
+                    <p className="app-agency-card__location">
+                      <MapPin size={13} aria-hidden />
+                      {agency.agency_location || 'Global'}
+                    </p>
+                    <p className="app-agency-card__desc">
+                      {agency.agency_description || 'Open to new talent submissions.'}
+                    </p>
+                  </div>
+                  <PholioButton
+                    type="button"
+                    variant="meta"
+                    className="app-agency-card__apply"
+                    onClick={() => openApplyFlow(agency)}
+                    disabled={!gating.isCoreReady || !draftCanResume}
+                  >
+                    {!gating.isCoreReady ? (
+                      <>
+                        <Lock size={14} aria-hidden />
+                        Locked
+                      </>
+                    ) : !draftCanResume ? (
+                      <>
+                        <Lock size={14} aria-hidden />
+                        Unavailable
+                      </>
+                    ) : agencyDraft ? (
+                      <>
+                        Continue application
+                        <ArrowUpRight size={14} aria-hidden />
+                      </>
+                    ) : !isSendReady ? (
+                      <>
+                        Prepare
+                        <ArrowUpRight size={14} aria-hidden />
+                      </>
+                    ) : (
+                      <>
+                        Compose
+                        <ArrowUpRight size={14} aria-hidden />
+                      </>
+                    )}
+                  </PholioButton>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="app-empty-state app-empty-state--discovery">
+            <Check size={28} strokeWidth={1.4} aria-hidden />
+            <h3>Every available agency is already in your ledger</h3>
+          </div>
+        )}
       </section>
 
       <div className="app-workspace">
         <section className="app-ledger" aria-labelledby="application-ledger-title">
           <div className="app-section-head" data-tour="app-ledger">
-            <h2 id="application-ledger-title">Application history</h2>
-            <div className="app-filter-row" aria-label="Filter applications">
+            <h2 id="application-ledger-title">Submission history</h2>
+            <PholioToggleGroup
+              className="app-filter-row"
+              role="tablist"
+              aria-label="Filter applications"
+            >
               {FILTERS.map((filter) => (
-                <button
+                <PholioToggleButton
                   key={filter.id}
                   type="button"
+                  role="tab"
+                  active={activeFilter === filter.id}
+                  aria-selected={activeFilter === filter.id}
                   className={`app-filter ${activeFilter === filter.id ? 'app-filter--active' : ''}`}
                   onClick={() => setActiveFilter(filter.id)}
                 >
                   {filter.label}
-                </button>
+                </PholioToggleButton>
               ))}
-            </div>
+            </PholioToggleGroup>
           </div>
 
           {applicationsQuery.isLoading ? (
@@ -448,6 +503,8 @@ export default function ApplicationsView() {
                   <li key={app.id} className={`app-ledger-item app-ledger-item--${config.tone}`}>
                     <button
                       type="button"
+                      data-button-exception="submission-history-agency"
+                      aria-pressed={isSelected}
                       className={`app-ledger-card ${isSelected ? 'app-ledger-card--selected' : ''}`}
                       onClick={() => setSelectedId(app.id)}
                     >
@@ -469,10 +526,16 @@ export default function ApplicationsView() {
                 );
               })}
             </ol>
+          ) : applications.length === 0 ? (
+            <div className="app-empty-state">
+              <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
+              <h3>You haven&apos;t applied yet</h3>
+              <p>Browse agencies below and send your first submission.</p>
+            </div>
           ) : (
             <div className="app-empty-state">
               <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
-              <h3>No applications in this view</h3>
+              <h3>No submissions in this view</h3>
             </div>
           )}
         </section>
@@ -486,411 +549,22 @@ export default function ApplicationsView() {
             />
           ) : (
             <div className="app-detail-empty">
-              <p>No application selected.</p>
+              <p>No submission selected.</p>
             </div>
           )}
         </aside>
       </div>
 
-      <section className="app-discovery" id="app-discovery" aria-labelledby="application-discovery-title">
-        <div className="app-section-head app-section-head--discovery" data-tour="agency-discovery">
-          <h2 id="application-discovery-title">Next submissions</h2>
-          <p>{agenciesQuery.isLoading ? 'Loading agencies' : `${openAgencies.length} available`}</p>
-        </div>
-
-        {gating.isBlocked && (
-          <ProfileGateBanner
-            variant="compact"
-            featureName={applicationGate.featureName}
-            featureLabel={applicationGate.featureLabel}
-            description={applicationGate.description}
-            {...gating}
-          />
-        )}
-
-        {agenciesQuery.isLoading ? (
-          <div className="app-agency-grid">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="app-agency-card app-agency-card--skeleton" />
-            ))}
-          </div>
-        ) : openAgencies.length > 0 ? (
-          <div className="app-agency-grid">
-            {openAgencies.map((agency) => (
-              <article key={agency.id} className="app-agency-card">
-                <div className="app-agency-card__mark" aria-hidden>
-                  {agency.profile_image ? (
-                    <img src={agency.profile_image} alt="" />
-                  ) : (
-                    <span>{agencyInitial(agency.name)}</span>
-                  )}
-                </div>
-                <div className="app-agency-card__body">
-                  <h3>{agency.name || 'Unnamed Agency'}</h3>
-                  <p className="app-agency-card__location">
-                    <MapPin size={13} aria-hidden />
-                    {agency.agency_location || 'Global'}
-                  </p>
-                  <p className="app-agency-card__desc">
-                    {agency.agency_description || 'Open to new talent submissions.'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="app-agency-card__apply"
-                  onClick={() => openApplyFlow(agency)}
-                  disabled={applyMutation.isPending || gating.isBlocked}
-                >
-                  {gating.isBlocked ? (
-                    <>
-                      <Lock size={14} aria-hidden />
-                      Locked
-                    </>
-                  ) : applyingId === agency.id ? (
-                    <>
-                      <Loader2 size={14} className="app-spin" aria-hidden />
-                      Applying
-                    </>
-                  ) : (
-                    <>
-                      Compose
-                      <ArrowUpRight size={14} aria-hidden />
-                    </>
-                  )}
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="app-empty-state app-empty-state--discovery">
-            <Check size={28} strokeWidth={1.4} aria-hidden />
-            <h3>Every available agency is already in your ledger</h3>
-          </div>
-        )}
-      </section>
-
       <ConfirmationDialog
         isOpen={withdrawingApplication !== null}
-        title="Withdraw Application?"
-        message={`Withdraw the application to ${withdrawingApplication?.agency_name || 'this agency'}?`}
+        title="Withdraw submission?"
+        message={`Withdraw the submission to ${withdrawingApplication?.agency_name || 'this agency'}? Pholio will immediately revoke the agency's platform access, redact the submitted package, and delete its message thread. Copies already downloaded by the agency cannot be recalled.`}
         confirmLabel="Withdraw"
         cancelLabel="Keep"
         variant="warning"
         onConfirm={confirmWithdraw}
         onCancel={() => setWithdrawingApplication(null)}
       />
-
-      {isApplyFlowOpen &&
-        createPortal(
-          <AgencyApplicationModal
-            agencies={openAgencies}
-            selectedAgency={selectedAgency}
-            selectedAgencyId={selectedAgencyId}
-            onSelectAgency={setSelectedAgencyId}
-            onClose={closeApplyFlow}
-            onSubmit={handleApply}
-            isSubmitting={applyMutation.isPending && applyingId === selectedAgency?.id}
-            isBlocked={gating.isBlocked}
-            profile={profile}
-            images={authImages}
-            mediaSets={mediaSets}
-            mediaSetsLoading={mediaSetsQuery.isLoading}
-            selectedMediaSetId={selectedMediaSetId}
-            onSelectedMediaSetIdChange={setSelectedMediaSetId}
-            selectedCompCardId={selectedCompCardId}
-            onSelectedCompCardIdChange={setSelectedCompCardId}
-            monthlyLimitLabel={monthlyLimitLabel}
-            applicationNote={applicationNote}
-            onApplicationNoteChange={setApplicationNote}
-            hasSubmissionConsent={hasSubmissionConsent}
-            onSubmissionConsentChange={setHasSubmissionConsent}
-            submittedApplication={submittedApplication}
-          />,
-          document.body,
-        )}
-    </div>
-  );
-}
-
-function AgencyApplicationModal({
-  agencies,
-  selectedAgency,
-  selectedAgencyId,
-  onSelectAgency,
-  onClose,
-  onSubmit,
-  isSubmitting,
-  isBlocked,
-  profile,
-  images,
-  mediaSets,
-  mediaSetsLoading,
-  selectedMediaSetId,
-  onSelectedMediaSetIdChange,
-  selectedCompCardId,
-  onSelectedCompCardIdChange,
-  monthlyLimitLabel,
-  applicationNote,
-  onApplicationNoteChange,
-  hasSubmissionConsent,
-  onSubmissionConsentChange,
-  submittedApplication,
-}) {
-  const [noteOpen, setNoteOpen] = useState(false);
-
-  const hasAgencies = agencies.length > 0;
-  const site = websiteUrl(selectedAgency?.agency_website);
-  const visibleImages = images.filter((image) => !image.exclude_from_agency && imageUrl(image));
-  const selectedImages = selectedMediaSetId === 'current'
-    ? visibleImages
-    : visibleImages.filter((image) => image.set_id === selectedMediaSetId);
-
-  const hasHeadshot     = selectedImages.some((img) => hasShotType(img, ['headshot']));
-  const hasFullBody     = selectedImages.some((img) => hasShotType(img, ['full_length', 'full_body', 'three_quarter']));
-  const hasMeasurements = !!measurementValue(profile, ['height_cm'])  &&
-                          !!measurementValue(profile, ['bust', 'bust_cm'])  &&
-                          !!measurementValue(profile, ['waist', 'waist_cm']) &&
-                          !!measurementValue(profile, ['hips', 'hips_cm']);
-  const hasContact = !!profile?.email && !!profile?.phone;
-
-  const checks = [
-    { label: 'Headshot',     complete: hasHeadshot },
-    { label: 'Full-body',    complete: hasFullBody },
-    { label: 'Measurements', complete: hasMeasurements },
-    { label: 'Contact',      complete: hasContact },
-  ];
-  const missingChecks = checks.filter((c) => !c.complete);
-
-  const compCardOptions = [
-    { id: 'current',   label: 'Current comp card' },
-    { id: 'agency',    label: 'Agency review card' },
-    { id: 'editorial', label: 'Editorial card' },
-  ];
-  const selectedMediaSetName = selectedMediaSetId === 'current'
-    ? 'Current book'
-    : mediaSets.find((s) => s.id === selectedMediaSetId)?.name || 'Selected image set';
-  const selectedCompCardName = compCardOptions.find((o) => o.id === selectedCompCardId)?.label || 'Current comp card';
-
-  const canSubmit = hasAgencies && selectedAgency && !isBlocked && missingChecks.length === 0 && hasSubmissionConsent;
-  const packagePayload = {
-    agencyName:       selectedAgency?.name           || null,
-    agencyLocation:   selectedAgency?.agency_location || null,
-    mediaSetId:       selectedMediaSetId,
-    mediaSetName:     selectedMediaSetName,
-    compCardId:       selectedCompCardId,
-    compCardName:     selectedCompCardName,
-    imageIds:         selectedImages.map((img) => img.id),
-    readiness:        missingChecks.length === 0 ? 'Ready' : `Missing ${missingChecks.length}`,
-    consentConfirmed: hasSubmissionConsent,
-  };
-
-  // portfolio frames: fill a 3×3 contact sheet (9 cells); empty cells stay dark
-  const frames = Array.from({ length: 9 }, (_, i) => selectedImages[i] || visibleImages[i] || null);
-
-  const agencyMeta = [
-    selectedAgency?.agency_location,
-    agencyTypeLabel(selectedAgency),
-  ].filter(Boolean).join(' · ');
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  return (
-    /* Backdrop — clicking it closes the modal */
-    <div
-      className="agnapp"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="agnapp-title"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      {/* Modal box — all content lives here, no z-index fights */}
-      <div className="agnapp__box" onMouseDown={(e) => e.stopPropagation()}>
-
-        {/* Close button — inside the box, always on top */}
-        <button
-          type="button"
-          className="agnapp__close"
-          onClick={onClose}
-          aria-label="Close"
-          disabled={isSubmitting}
-        >
-          <X size={14} strokeWidth={2} aria-hidden />
-        </button>
-
-        {/* ── Success ───────────────────────────────────────── */}
-        {submittedApplication ? (
-          <div className="agnapp__sent" role="status">
-            <span className="agnapp__sent-check" aria-hidden>&#10003;</span>
-            <p className="agnapp__sent-pre">Submitted to</p>
-            <h2 id="agnapp-title" className="agnapp__sent-name">
-              {submittedApplication.agency?.name || selectedAgency?.name || 'Agency'}
-            </h2>
-            <p className="agnapp__sent-when">{dateLabel(submittedApplication.submittedAt)}</p>
-            <dl className="agnapp__sent-meta">
-              <div><dt>Portfolio</dt><dd>{selectedMediaSetName}</dd></div>
-              <div><dt>Comp card</dt><dd>{selectedCompCardName}</dd></div>
-              <div><dt>Status</dt><dd>Under review</dd></div>
-            </dl>
-            <button type="button" className="agnapp__sent-done" onClick={onClose}>Done</button>
-          </div>
-
-        ) : !hasAgencies ? (
-          <div className="agnapp__none">
-            <CircleDashed size={26} strokeWidth={1.3} aria-hidden />
-            <p>Every available agency is already in your ledger.</p>
-          </div>
-
-        ) : (
-          <>
-            {/* ── Left: controls ──────────────────────────────── */}
-            <div className="agnapp__left">
-              <div className="agnapp__left-body">
-                <p className="agnapp__pre">Submitting to</p>
-
-                <div className="agnapp__who">
-                  {selectedAgency?.profile_image && (
-                    <div className="agnapp__who-thumb" aria-hidden>
-                      <img src={selectedAgency.profile_image} alt="" />
-                    </div>
-                  )}
-                  <h2 id="agnapp-title" className="agnapp__who-name">
-                    {selectedAgency?.name || 'Select an agency'}
-                  </h2>
-                </div>
-
-                {agencyMeta && <p className="agnapp__who-meta">{agencyMeta}</p>}
-                {site && (
-                  <a href={site} target="_blank" rel="noreferrer" className="agnapp__who-site">
-                    View agency ↗
-                  </a>
-                )}
-
-                {agencies.length > 1 && (
-                  <div className="agnapp__swap">
-                    <select
-                      value={selectedAgencyId || ''}
-                      onChange={(e) => onSelectAgency(e.target.value)}
-                      aria-label="Change agency"
-                    >
-                      {agencies.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name || 'Unnamed Agency'}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} aria-hidden />
-                  </div>
-                )}
-
-                <div className="agnapp__pkg">
-                  <div className="agnapp__sel">
-                    <select
-                      value={selectedMediaSetId}
-                      onChange={(e) => onSelectedMediaSetIdChange(e.target.value)}
-                      aria-label="Image set"
-                    >
-                      <option value="current">{mediaSetsLoading ? 'Loading…' : 'Current book'}</option>
-                      {mediaSets.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name || `${s.kind || 'Image'} set`}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} aria-hidden />
-                  </div>
-                  <div className="agnapp__sel">
-                    <select
-                      value={selectedCompCardId}
-                      onChange={(e) => onSelectedCompCardIdChange(e.target.value)}
-                      aria-label="Comp card"
-                    >
-                      {compCardOptions.map((o) => (
-                        <option key={o.id} value={o.id}>{o.label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} aria-hidden />
-                  </div>
-                </div>
-
-                {missingChecks.length > 0 && (
-                  <p className="agnapp__missing">
-                    {missingChecks.map((c) => c.label).join(' · ')} not complete
-                  </p>
-                )}
-
-                {noteOpen ? (
-                  <div className="agnapp__note-wrap">
-                    <textarea
-                      className="agnapp__note"
-                      value={applicationNote}
-                      onChange={(e) => onApplicationNoteChange(e.target.value.slice(0, 1200))}
-                      placeholder={`A note to ${selectedAgency?.name || 'the agency'}…`}
-                      rows={4}
-                      autoFocus
-                    />
-                    <small className="agnapp__note-ct">{applicationNote.length} / 1200</small>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="agnapp__note-trigger"
-                    onClick={() => setNoteOpen(true)}
-                  >
-                    + Add a note
-                  </button>
-                )}
-              </div>
-
-              <div className="agnapp__left-foot">
-                <label className="agnapp__consent">
-                  <input
-                    type="checkbox"
-                    checked={hasSubmissionConsent}
-                    onChange={(e) => onSubmissionConsentChange(e.target.checked)}
-                  />
-                  <span>
-                    I consent to sharing my profile with {selectedAgency?.name || 'this agency'}.
-                  </span>
-                </label>
-
-                <button
-                  type="button"
-                  className="agnapp__submit"
-                  onClick={() => onSubmit(selectedAgency, packagePayload)}
-                  disabled={!canSubmit || isSubmitting}
-                >
-                  {isBlocked ? (
-                    <><Lock size={13} aria-hidden />Profile incomplete</>
-                  ) : isSubmitting ? (
-                    <><Loader2 size={13} className="app-spin" aria-hidden />Submitting</>
-                  ) : (
-                    'Submit'
-                  )}
-                </button>
-
-                <p className="agnapp__limit">{monthlyLimitLabel} this month</p>
-              </div>
-            </div>
-
-            {/* ── Right: portfolio contact sheet ──────────────── */}
-            <div className="agnapp__right" aria-hidden="true">
-              <div className="agnapp__sheet">
-                {frames.map((img, i) => (
-                  <div key={i} className="agnapp__frame">
-                    {img && <img src={imageUrl(img)} alt="" />}
-                  </div>
-                ))}
-              </div>
-              <div className="agnapp__sheet-bar">
-                <span>{selectedImages.length || visibleImages.length} images</span>
-                <span className="agnapp__sheet-sep" />
-                <span>{selectedMediaSetName}</span>
-              </div>
-            </div>
-          </>
-        )}
-
-      </div>{/* .agnapp__box */}
     </div>
   );
 }
@@ -899,73 +573,100 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
   const config = statusConfig(app.status);
   const StatusIcon = config.icon;
   const site = websiteUrl(app.agency_website);
-  const canWithdraw = config.tone === 'pending';
+  const domain = domainLabel(site);
+  const board = firstBoard(app.agency_open_boards);
+  const canWithdraw = canWithdrawApplication(app.status);
   const age = daysSince(app.created_at);
+
+  // No scheduler exists to auto-expire stale applications, so surface a calm,
+  // truthful cue when an active submission has gone quiet for a while.
+  const daysWaiting = daysSince(app.updated_at || app.created_at);
+  const isStale = config.tone === 'pending' && daysWaiting !== null && daysWaiting >= 21;
+
+  const [messagesOpen, setMessagesOpen] = useState(false);
+  const agencyShort = app.agency_name ? app.agency_name.split(' ')[0] : 'agency';
 
   return (
     <div className="app-detail">
       <div className="app-detail__mast">
-        <div className="app-detail__agency">
-          <div className="app-detail__mark" aria-hidden>
-            {app.agency_logo ? <img src={app.agency_logo} alt="" /> : <span>{agencyInitial(app.agency_name)}</span>}
-          </div>
-          <div>
-            <h2>{app.agency_name || 'Unknown Agency'}</h2>
-            <p>
-              <MapPin size={13} aria-hidden />
-              {app.agency_location || 'Location pending'}
-            </p>
-          </div>
-        </div>
+        <span className="app-detail__mark" aria-hidden>
+          {app.agency_logo ? <img src={app.agency_logo} alt="" /> : <span>{agencyInitial(app.agency_name)}</span>}
+        </span>
+        <h2 className="app-detail__name">{app.agency_name || 'Unknown Agency'}</h2>
       </div>
 
       <div className={`app-detail__status app-detail__status--${config.tone}`}>
-        <StatusIcon size={16} aria-hidden />
+        <StatusIcon size={15} aria-hidden />
         <span>{config.label}</span>
       </div>
 
-      <p className="app-detail__summary">{config.detail}</p>
+      <p className="app-detail__next">{config.next}</p>
+      {isStale && (
+        <p className="app-detail__stale">
+          {daysWaiting} days without a reply — message {agencyShort}, or withdraw to free the slot.
+        </p>
+      )}
 
-      <div className="app-detail__timeline">
+      <dl className="app-detail__facts">
         <div>
-          <span>Submitted</span>
-          <strong>{dateLabel(app.created_at)}</strong>
+          <dt>Market</dt>
+          <dd>{app.agency_location || 'Global'}</dd>
+        </div>
+        {board && (
+          <div>
+            <dt>Review focus</dt>
+            <dd>{board}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Submitted</dt>
+          <dd>{dateLabel(app.created_at)}</dd>
         </div>
         <div>
-          <span>Updated</span>
-          <strong>{dateLabel(app.updated_at || app.created_at)}</strong>
+          <dt>Age</dt>
+          <dd>{age === null ? 'Pending' : `${age} days`}</dd>
         </div>
-        <div>
-          <span>Age</span>
-          <strong>{age === null ? 'Pending' : `${age}d`}</strong>
-        </div>
-      </div>
+        {domain && (
+          <div>
+            <dt>Agency site</dt>
+            <dd>
+              <a href={site} target="_blank" rel="noreferrer">
+                {domain}
+              </a>
+            </dd>
+          </div>
+        )}
+      </dl>
 
-      <div className="app-detail__next">
-        <p>{config.next}</p>
-      </div>
+      {app.note && (
+        <div className="app-detail__note">
+          <span className="app-detail__note-title">Your note</span>
+          <p className="app-detail__note-text">{app.note}</p>
+        </div>
+      )}
+
+      <ApplicationInterviews applicationId={app.id} />
 
       <div className="app-detail__actions">
-        {site && (
-          <a href={site} target="_blank" rel="noreferrer" className="app-secondary-action">
-            Agency Site
-            <ExternalLink size={13} aria-hidden />
-          </a>
-        )}
+        <PholioButton
+          type="button"
+          variant="secondary"
+          className="app-detail__act"
+          onClick={() => setMessagesOpen(true)}
+        >
+          <MessageSquare size={14} aria-hidden />
+          Message {agencyShort}
+        </PholioButton>
         {canWithdraw && (
-          <button type="button" className="app-withdraw-action" onClick={onWithdraw} disabled={isWithdrawing}>
-            {isWithdrawing ? (
-              <>
-                <Loader2 size={13} className="app-spin" aria-hidden />
-                Withdrawing
-              </>
-            ) : (
-              <>
-                <X size={13} aria-hidden />
-                Withdraw
-              </>
-            )}
-          </button>
+          <PholioButton
+            type="button"
+            variant="destructive"
+            className="app-detail__withdraw"
+            onClick={onWithdraw}
+            disabled={isWithdrawing}
+          >
+            {isWithdrawing ? 'Withdrawing…' : 'Withdraw submission'}
+          </PholioButton>
         )}
       </div>
 
@@ -974,6 +675,49 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         <a href="/dashboard/talent/profile">Profile</a>
         <a href="/dashboard/talent/media">Comp Card</a>
       </div>
+
+      {messagesOpen && <MessageDock app={app} onClose={() => setMessagesOpen(false)} />}
     </div>
+  );
+}
+
+// On-demand messaging — a focused dock anchored bottom-right, opened from the
+// submission detail. Keeps the conversation out of the panel until it's wanted.
+function MessageDock({ app, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <>
+      <div
+        className="app-msgdock__scrim"
+        aria-hidden="true"
+        onClick={onClose}
+      />
+      <aside
+        className="app-msgdock"
+        role="dialog"
+        aria-label={`Messages with ${app.agency_name || 'agency'}`}
+      >
+        <header className="app-msgdock__head">
+          <span className="app-msgdock__title">{app.agency_name || 'Agency'}</span>
+          <PholioIconButton
+            label="Close messages"
+            className="app-msgdock__close"
+            onClick={onClose}
+          >
+            <X size={15} aria-hidden />
+          </PholioIconButton>
+        </header>
+        <div className="app-msgdock__body">
+          <ApplicationMessages applicationId={app.id} agencyName={app.agency_name} hideTitle />
+        </div>
+      </aside>
+    </>
   );
 }

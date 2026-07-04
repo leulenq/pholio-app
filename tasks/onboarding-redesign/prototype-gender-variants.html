@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Identity Step — Gender Field Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..600;1,400..600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{--bg:#000;--gold:#C9A55A;--gold-deep:#B8956A;--text:#F5F1EA;--text-2:rgba(245,241,234,.55);--text-3:rgba(245,241,234,.3);--ghost:rgba(245,241,234,.15);
+    --serif:"Playfair Display",Georgia,serif;--sans:"Inter",sans-serif;--ease:cubic-bezier(0.16,1,0.3,1)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;padding-bottom:6rem}
+  .orb{position:fixed;border-radius:50%;filter:blur(80px);z-index:0;opacity:.35;pointer-events:none}
+  .orb-1{top:-14%;left:-8%;width:44vw;height:44vw;background:radial-gradient(circle,rgba(201,165,90,.28),transparent 70%)}
+  .orb-2{bottom:-14%;right:-8%;width:52vw;height:52vw;background:radial-gradient(circle,rgba(120,120,128,.16),transparent 70%)}
+
+  .head{position:relative;z-index:2;text-align:center;padding:4rem 1.5rem 1rem}
+  .head h1{font-family:var(--serif);font-weight:400;font-size:2rem;letter-spacing:-.02em}
+  .head p{color:var(--text-3);font-size:.8rem;letter-spacing:.02em;margin-top:.6rem}
+
+  .variant{position:relative;z-index:2;max-width:820px;margin:0 auto;padding:3.2rem 1.5rem;border-top:1px solid rgba(245,241,234,.07)}
+  .variant:first-of-type{border-top:none}
+  .vtag{display:flex;align-items:center;gap:.7rem;justify-content:center;margin-bottom:.4rem}
+  .vtag .letter{font-family:var(--serif);font-style:italic;color:var(--gold);font-size:1.2rem}
+  .vtag .name{font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--text-2)}
+  .vdesc{text-align:center;color:var(--text-3);font-size:.75rem;line-height:1.55;max-width:38rem;margin:0 auto 2.6rem}
+  .q{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3.4vw,2.4rem);letter-spacing:-.02em;text-align:center;margin-bottom:2rem;white-space:nowrap}
+  .q em{font-style:italic;color:var(--gold)}
+  .stage{display:flex;justify-content:center;align-items:center;min-height:190px}
+
+  /* ── A · Segmented control ── */
+  .seg{display:inline-flex;border:1px solid rgba(245,241,234,.14);border-radius:100px;overflow:hidden;background:rgba(255,255,255,.015)}
+  .seg button{background:none;border:none;padding:.9rem clamp(1rem,2.4vw,1.9rem);font-family:var(--serif);font-size:clamp(1rem,2vw,1.3rem);
+    color:var(--text-3);cursor:pointer;transition:color .3s var(--ease),background .3s var(--ease)}
+  .seg button+button{border-left:1px solid rgba(245,241,234,.1)}
+  .seg button:hover{color:var(--text-2)}
+  .seg button.sel{color:var(--gold);background:rgba(201,165,90,.1)}
+
+  /* ── B · Radio ledger ── */
+  .rl{width:100%;max-width:400px;text-align:left}
+  .rl button{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;
+    padding:1.05rem .2rem;border-bottom:1px solid rgba(245,241,234,.08);font-family:var(--serif);font-size:1.5rem;color:var(--text-2);transition:color .3s}
+  .rl button:first-child{border-top:1px solid rgba(245,241,234,.08)}
+  .rl button:hover{color:var(--text)}
+  .rl .ring{width:20px;height:20px;border-radius:50%;border:1px solid rgba(245,241,234,.25);position:relative;transition:border-color .3s;flex-shrink:0}
+  .rl button.sel{color:var(--gold)}
+  .rl button.sel .ring{border-color:var(--gold)}
+  .rl button.sel .ring::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(201,165,90,.6)}
+
+  /* ── C · Portrait tiles ── */
+  .tiles{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+  .tile{width:148px;height:184px;border:1px solid rgba(245,241,234,.14);border-radius:4px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:1.1rem;cursor:pointer;background:rgba(245,241,234,.015);transition:all .3s var(--ease)}
+  .tile svg{stroke:var(--text-3);transition:stroke .3s}
+  .tile .lbl{font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);transition:color .3s}
+  .tile:hover{border-color:rgba(201,165,90,.4)}
+  .tile.sel{border-color:var(--gold);background:rgba(201,165,90,.05);box-shadow:0 0 34px rgba(201,165,90,.14)}
+  .tile.sel svg{stroke:var(--gold)}
+  .tile.sel .lbl{color:var(--gold)}
+
+  /* ── D · Inline sentence select ── */
+  .sentence{font-family:var(--serif);font-size:clamp(1.7rem,4vw,2.8rem);letter-spacing:-.02em;color:#fff;position:relative}
+  .blank{color:var(--gold);cursor:pointer;padding:0 .12em;border-bottom:2px solid rgba(201,165,90,.45);transition:border-color .25s}
+  .blank:hover{border-color:var(--gold)}
+  .menu{position:absolute;top:calc(100% + 14px);left:50%;transform:translateX(-50%);background:#0b0a08;border:1px solid rgba(245,241,234,.12);
+    border-radius:10px;padding:.4rem;display:none;flex-direction:column;min-width:230px;box-shadow:0 24px 50px -12px rgba(0,0,0,.7);z-index:5}
+  .menu.open{display:flex}
+  .menu button{background:none;border:none;text-align:left;font-family:var(--serif);font-size:1.15rem;color:var(--text-2);padding:.6rem .9rem;border-radius:6px;cursor:pointer;transition:all .2s}
+  .menu button:hover{color:var(--gold);background:rgba(201,165,90,.08)}
+
+  /* ── E · Outline pills ── */
+  .pills{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+  .pill{padding:.75rem 1.7rem;border-radius:100px;border:1px solid rgba(245,241,234,.2);background:none;color:var(--text-2);
+    font-family:var(--serif);font-size:1.15rem;cursor:pointer;transition:all .25s var(--ease)}
+  .pill:hover{border-color:rgba(201,165,90,.5);color:var(--text)}
+  .pill.sel{background:var(--gold);color:#0a0806;border-color:var(--gold);box-shadow:0 0 22px rgba(201,165,90,.3)}
+
+  @media (max-width:520px){.q{white-space:normal}.seg{flex-wrap:wrap;border-radius:16px}.seg button+button{border-left:none}}
+</style>
+</head>
+<body>
+  <div class="orb orb-1"></div><div class="orb orb-2"></div>
+
+  <div class="head">
+    <h1>Identity step — pick a direction</h1>
+    <p>Five different premium takes on the gender field, all black / gold / cinematic. Each is live — click to try it.</p>
+  </div>
+
+  <!-- A -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">A</span><span class="name">Segmented control</span></div>
+    <p class="vdesc">One continuous elegant bar, divided into four. Familiar and confident — the selected cell fills soft gold. Compact, reads as a single deliberate instrument.</p>
+    <h1 class="q">How do you <em>identify</em>?</h1>
+    <div class="stage"><div class="seg" data-pick>
+      <button>Female</button><button>Male</button><button>Non-Binary</button><button>Undisclosed</button>
+    </div></div>
+  </section>
+
+  <!-- B -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">B</span><span class="name">Radio ledger</span></div>
+    <p class="vdesc">A quiet vertical list — serif name on the left, a gold radio that lights on the right. Scannable, calm, editorial. Kin to a printed intake form.</p>
+    <h1 class="q">How do you <em>identify</em>?</h1>
+    <div class="stage"><div class="rl" data-pick>
+      <button><span>Female</span><span class="ring"></span></button>
+      <button><span>Male</span><span class="ring"></span></button>
+      <button><span>Non-Binary</span><span class="ring"></span></button>
+      <button><span>Undisclosed</span><span class="ring"></span></button>
+    </div></div>
+  </section>
+
+  <!-- C -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">C</span><span class="name">Portrait tiles</span></div>
+    <p class="vdesc">Four framed portrait tiles — a hairline frame + neutral portrait mark + label — that light gold when chosen. The most visual / editorial, echoes the digitals frames.</p>
+    <h1 class="q">How do you <em>identify</em>?</h1>
+    <div class="stage"><div class="tiles" data-pick>
+      <div class="tile"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4.2"/><line x1="12" y1="12.2" x2="12" y2="21"/><line x1="8.4" y1="18" x2="15.6" y2="18"/></svg><span class="lbl">Female</span></div>
+      <div class="tile"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="14" r="4.2"/><line x1="13.6" y1="10.9" x2="20" y2="4.5"/><polyline points="15,4.5 20,4.5 20,9.5"/></svg><span class="lbl">Male</span></div>
+      <div class="tile"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.6" r="4.2"/><line x1="12" y1="9.4" x2="12" y2="2.6"/></svg><span class="lbl">Non-Binary</span></div>
+      <div class="tile"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.6"/><path d="M5.5 20.5c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg><span class="lbl">Undisclosed</span></div>
+    </div></div>
+  </section>
+
+  <!-- D -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">D</span><span class="name">Inline sentence</span></div>
+    <p class="vdesc">The answer becomes a sentence: “I identify as ___”. Tap the gold blank to choose. Most integrated with the “typing onto the screen” voice — reads like a person speaking.</p>
+    <div class="stage"><div class="sentence">I identify as <span class="blank" id="blank">Female</span>
+      <div class="menu" id="menu"><button>Female</button><button>Male</button><button>Non-Binary</button><button>Undisclosed</button></div>
+    </div></div>
+  </section>
+
+  <!-- E -->
+  <section class="variant">
+    <div class="vtag"><span class="letter">E</span><span class="name">Outline pills</span></div>
+    <p class="vdesc">Four refined outline pills; the chosen one fills solid gold. The simplest and most modern — instant to read, easy on mobile.</p>
+    <h1 class="q">How do you <em>identify</em>?</h1>
+    <div class="stage"><div class="pills" data-pick>
+      <button class="pill">Female</button><button class="pill">Male</button><button class="pill">Non-Binary</button><button class="pill">Undisclosed</button>
+    </div></div>
+  </section>
+
+<script>
+  // generic single-select for A/B/C/E
+  document.querySelectorAll('[data-pick]').forEach(group=>{
+    const opts=[...group.children];
+    opts.forEach(o=>o.onclick=()=>{opts.forEach(x=>x.classList.remove('sel'));o.classList.add('sel');});
+  });
+  // D · inline sentence menu
+  const blank=document.getElementById('blank'),menu=document.getElementById('menu');
+  blank.onclick=e=>{e.stopPropagation();menu.classList.toggle('open');};
+  menu.querySelectorAll('button').forEach(b=>b.onclick=()=>{blank.textContent=b.textContent;menu.classList.remove('open');});
+  document.addEventListener('click',()=>menu.classList.remove('open'));
+</script>
+</body>
+</html>

@@ -13,14 +13,18 @@ const WEEK_MS = 7 * DAY_MS;
 const PIPELINE_LABEL_MAP = {
   submitted: "Submitted",
   shortlisted: "Shortlisted",
-  booked: "Booked",
+  development: "New Face — Development",
+  accepted: "Signed",
+  represented: "Represented",
   passed: "Passed",
   declined: "Declined",
 };
 const PIPELINE_STAGE_ORDER = [
   "submitted",
   "shortlisted",
-  "booked",
+  "development",
+  "accepted",
+  "represented",
   "passed",
   "declined",
 ];
@@ -103,7 +107,7 @@ async function getActiveCastings(db, agencyId) {
 }
 
 /**
- * Returns roster count (accepted talent with non-null accepted_at),
+ * Returns signed roster count (accepted talent with non-null accepted_at),
  * a 7-element cumulative trend array, and new acceptances this month.
  *
  * trend[0] = oldest week, trend[6] = current week (equals `count`).
@@ -116,7 +120,8 @@ async function getRosterSize(db, agencyId) {
 
   // Single aggregation query for count, base, and changeThisMonth
   const [aggRow] = await db("applications")
-    .where({ agency_id: agencyId, status: "accepted" })
+    .whereIn("status", ["accepted", "represented"])
+    .where({ agency_id: agencyId })
     .whereNotNull("accepted_at")
     .select(
       db.raw("COUNT(*) as count"),
@@ -134,7 +139,8 @@ async function getRosterSize(db, agencyId) {
 
   // Per-week new acceptances within the window (JS bucketing, dialect-agnostic)
   const windowRows = await db("applications")
-    .where({ agency_id: agencyId, status: "accepted" })
+    .whereIn("status", ["accepted", "represented"])
+    .where({ agency_id: agencyId })
     .whereNotNull("accepted_at")
     .where("accepted_at", ">=", sevenWeeksAgo)
     .select("accepted_at");
@@ -167,7 +173,7 @@ async function getRosterSize(db, agencyId) {
  * prior 90-day window ("last season"). Both windows use exclusive upper
  * bounds so no application is counted twice.
  *
- * placementRate = booked / (booked + passed + declined + accepted) × 100
+ * placementRate = represented / (represented + passed + declined + accepted) × 100
  *
  * @returns {{ current: number, lastSeason: number }}
  */
@@ -181,15 +187,15 @@ async function getPlacementRate(db, agencyId) {
       .where("agency_id", agencyId)
       .where("created_at", ">=", windowStart)
       .where("created_at", "<", windowEnd)
-      .whereIn("status", ["booked", "passed", "declined", "accepted"])
+      .whereIn("status", ["represented", "passed", "declined", "accepted"])
       .select(
-        db.raw("SUM(CASE WHEN status = 'booked' THEN 1 ELSE 0 END) as booked"),
+        db.raw("SUM(CASE WHEN status = 'represented' THEN 1 ELSE 0 END) as represented"),
         db.raw("COUNT(*) as decided"),
       );
 
-    const booked = parseInt(row.booked, 10) || 0;
+    const represented = parseInt(row.represented, 10) || 0;
     const decided = parseInt(row.decided, 10) || 0;
-    return decided > 0 ? Math.round((booked / decided) * 100) : 0;
+    return decided > 0 ? Math.round((represented / decided) * 100) : 0;
   }
 
   const [current, lastSeason] = await Promise.all([
@@ -235,7 +241,7 @@ async function getPipeline(db, agencyId) {
 }
 
 /**
- * Returns archetype breakdown for accepted talent on the roster.
+ * Returns archetype breakdown for signed talent on the roster.
  * Only accepted applications whose profile has a non-null archetype are included.
  * pct = archetype count / total-with-archetype × 100.
  *
@@ -245,7 +251,7 @@ async function getTalentMix(db, agencyId) {
   const rows = await db("applications as a")
     .join("profiles as p", "p.id", "a.profile_id")
     .where("a.agency_id", agencyId)
-    .where("a.status", "accepted")
+    .whereIn("a.status", ["accepted", "represented"])
     .whereNotNull("p.archetype")
     .groupBy("p.archetype")
     .select("p.archetype as name", db.raw("COUNT(*) as count"))
@@ -384,7 +390,7 @@ async function getPulse(db, agencyId) {
     // Accepted talent not submitted to any casting (this agency) in 30 days
     db("applications as a")
       .where("a.agency_id", agencyId)
-      .where("a.status", "accepted")
+      .whereIn("a.status", ["accepted", "represented"])
       .whereNotIn("a.profile_id", function () {
         this.select("a2.profile_id")
           .from("board_applications as ba")
@@ -442,7 +448,8 @@ async function getActiveUtilization(db, agencyId) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * DAY_MS);
 
   const [totalRow] = await db("applications")
-    .where({ agency_id: agencyId, status: "accepted" })
+    .whereIn("status", ["accepted", "represented"])
+    .where({ agency_id: agencyId })
     .countDistinct("profile_id as count");
 
   const total = parseInt(totalRow.count, 10) || 0;
@@ -451,7 +458,7 @@ async function getActiveUtilization(db, agencyId) {
   const [activeRow] = await db("applications as a")
     .join("board_applications as ba", "ba.application_id", "a.id")
     .where("a.agency_id", agencyId)
-    .where("a.status", "accepted")
+    .whereIn("a.status", ["accepted", "represented"])
     .where("ba.created_at", ">=", thirtyDaysAgo.toISOString())
     .countDistinct("a.profile_id as count");
 

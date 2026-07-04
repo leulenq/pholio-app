@@ -28,18 +28,31 @@
             <p class="portfolio-pro-location"><%= profile.city %></p>
             
             <!-- Stats Grid - Editorial Style -->
+            <%
+              // Wave 2C: stats (canonical, track-driven) render ONLY when the
+              // profile opted measurements into the PUBLIC audience. `stats` is
+              // null by default (agency-visible only, per profile_field_visibility).
+              // Age is shown as an audience-safe BAND, never the exact age.
+              // TODO(public-portfolio-DTO): gender, city, and social handles are
+              // still rendered raw here — route this whole template through a
+              // public-card DTO + per-field visibility in the follow-up pass.
+              const publicStats = (typeof stats !== 'undefined' && stats) ? stats : null;
+              const publicAgeBand = (typeof ageBand !== 'undefined') ? ageBand : null;
+            %>
             <div class="portfolio-pro-stats">
-            <% if (profile.height_cm) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Height</span>
-                <span class="portfolio-pro-stat__value"><%= profile.height_cm %> cm</span>
-              </div>
-            <% } %>
-            <% if (profile.measurements) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Measurements</span>
-                <span class="portfolio-pro-stat__value"><%= profile.measurements %></span>
-              </div>
+            <% if (publicStats) { %>
+              <% publicStats.fields.forEach((line) => { %>
+                <div class="portfolio-pro-stat">
+                  <span class="portfolio-pro-stat__label"><%= line.label %></span>
+                  <span class="portfolio-pro-stat__value"><%= line.value %></span>
+                </div>
+              <% }) %>
+              <% if (publicStats.weight) { %>
+                <div class="portfolio-pro-stat">
+                  <span class="portfolio-pro-stat__label">Weight</span>
+                  <span class="portfolio-pro-stat__value"><%= publicStats.weight.dual %></span>
+                </div>
+              <% } %>
             <% } %>
             <% if (profile.gender) { %>
               <div class="portfolio-pro-stat">
@@ -47,24 +60,10 @@
                 <span class="portfolio-pro-stat__value"><%= profile.gender %></span>
               </div>
             <% } %>
-            <% if (profile.age) { %>
+            <% if (publicAgeBand) { %>
               <div class="portfolio-pro-stat">
                 <span class="portfolio-pro-stat__label">Age</span>
-                <span class="portfolio-pro-stat__value"><%= profile.age %></span>
-              </div>
-            <% } %>
-            <% if (profile.weight_kg || profile.weight_lbs) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Weight</span>
-                <span class="portfolio-pro-stat__value">
-                  <% if (profile.weight_kg && profile.weight_lbs) { %>
-                    <%= profile.weight_kg %> kg / <%= profile.weight_lbs %> lbs
-                  <% } else if (profile.weight_kg) { %>
-                    <%= profile.weight_kg %> kg
-                  <% } else if (profile.weight_lbs) { %>
-                    <%= profile.weight_lbs %> lbs
-                  <% } %>
-                </span>
+                <span class="portfolio-pro-stat__value"><%= publicAgeBand %></span>
               </div>
             <% } %>
             <% if (profile.is_pro && profile.languages) { %>
@@ -208,7 +207,7 @@
           <h2 class="portfolio-pro-section-title">Gallery</h2>
           <div class="portfolio-pro-gallery__grid">
             <% images.forEach((item) => { %>
-              <figure class="portfolio-pro-gallery__item">
+              <figure class="portfolio-pro-gallery__item" data-image-id="<%= item.id %>">
                 <img src="<%= item.path %>" alt="<%= item.label || 'Portfolio image' %>" class="portfolio-pro-gallery__image">
                 <% if (item.label) { %>
                   <figcaption class="portfolio-pro-gallery__caption"><%= item.label %></figcaption>
@@ -227,34 +226,27 @@
       <span class="eyebrow">Pholio portfolio</span>
       <h1 class="display"><%= profile.first_name %> <%= profile.last_name %></h1>
       <p class="portfolio-location"><%= profile.city %></p>
+      <%
+        // Wave 2C: measurements render only when opted public (default: agency-
+        // only). Age shown as a band, never exact. See TODO in the pro block for
+        // the remaining public-DTO follow-up (gender/city/handles).
+        const publicStatsFree = (typeof stats !== 'undefined' && stats) ? stats : null;
+        const publicAgeBandFree = (typeof ageBand !== 'undefined') ? ageBand : null;
+      %>
       <ul class="portfolio-stats">
-        <li><span>Height</span> <%= profile.height_cm %> cm (<%= heightFeet %>)</li>
-        <li><span>Measurements</span> <%= profile.measurements %></li>
+        <% if (publicStatsFree) { %>
+          <% publicStatsFree.fields.forEach((line) => { %>
+            <li><span><%= line.label %></span> <%= line.value %></li>
+          <% }) %>
+          <% if (publicStatsFree.weight) { %>
+            <li><span>Weight</span> <%= publicStatsFree.weight.dual %></li>
+          <% } %>
+        <% } %>
         <% if (profile.gender) { %>
           <li><span>Gender</span> <%= profile.gender %></li>
         <% } %>
-        <% if (profile.age) { %>
-          <li><span>Age</span> <%= profile.age %></li>
-        <% } %>
-        <% if (profile.weight_kg || profile.weight_lbs) { %>
-          <li><span>Weight</span>
-            <% if (profile.weight_kg && profile.weight_lbs) { %>
-              <%= profile.weight_kg %> kg (<%= profile.weight_lbs %> lbs)
-            <% } else if (profile.weight_kg) { %>
-              <%= profile.weight_kg %> kg
-            <% } else if (profile.weight_lbs) { %>
-              <%= profile.weight_lbs %> lbs
-            <% } %>
-          </li>
-        <% } %>
-        <% if (profile.dress_size) { %>
-          <li><span>Dress Size</span> <%= profile.dress_size %></li>
-        <% } %>
-        <% if (profile.hair_length) { %>
-          <li><span>Hair Length</span> <%= profile.hair_length %></li>
-        <% } %>
-        <% if (profile.skin_tone) { %>
-          <li><span>Skin Tone</span> <%= profile.skin_tone %></li>
+        <% if (publicAgeBandFree) { %>
+          <li><span>Age</span> <%= publicAgeBandFree %></li>
         <% } %>
       </ul>
     </div>
@@ -296,7 +288,7 @@
       <h2>Gallery</h2>
       <div class="portfolio-grid">
         <% images.forEach((item) => { %>
-          <figure>
+          <figure data-image-id="<%= item.id %>">
             <img src="<%= item.path %>" alt="<%= item.label || 'Portfolio image' %>">
             <figcaption><%= item.label || 'Portfolio image' %></figcaption>
           </figure>
@@ -352,6 +344,79 @@
         trackEvent('portfolio_click', { url: href });
       }
     });
+
+    // Image-level attention (Intel Capture v2): impressions, opens, dwell.
+    // The book is the product — the intel page needs to know which frames
+    // carry it. Dwell accumulates per image while ≥60% visible and is
+    // flushed once on page hide via sendBeacon.
+    (() => {
+      const frames = document.querySelectorAll('[data-image-id]');
+      if (!frames.length || !('IntersectionObserver' in window)) return;
+
+      const dwell = new Map(); // imageId -> { total, since }
+      const seen = new Set();
+
+      const imageObserver = new IntersectionObserver((entries) => {
+        const now = Date.now();
+        entries.forEach(entry => {
+          const id = entry.target.getAttribute('data-image-id');
+          if (!id) return;
+          const state = dwell.get(id) || { total: 0, since: null };
+          if (entry.isIntersecting) {
+            if (!seen.has(id)) {
+              seen.add(id);
+              fetch(`/portfolio/${slug}/event`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventType: 'image_impression', imageId: id })
+              }).catch(() => {});
+            }
+            if (state.since === null) state.since = now;
+          } else if (state.since !== null) {
+            state.total += now - state.since;
+            state.since = null;
+          }
+          dwell.set(id, state);
+        });
+      }, { threshold: 0.6 });
+      frames.forEach(f => imageObserver.observe(f));
+
+      // Open = deliberate tap/click on a frame.
+      frames.forEach(f => {
+        f.addEventListener('click', () => {
+          const id = f.getAttribute('data-image-id');
+          fetch(`/portfolio/${slug}/event`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventType: 'image_open', imageId: id })
+          }).catch(() => {});
+        });
+      });
+
+      let flushed = false;
+      const flushDwell = () => {
+        if (flushed) return;
+        flushed = true;
+        const now = Date.now();
+        dwell.forEach((state, id) => {
+          const total = state.total + (state.since !== null ? now - state.since : 0);
+          if (total < 1200) return; // below a meaningful look
+          const payload = JSON.stringify({ eventType: 'image_dwell', imageId: id, dwellMs: total });
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(`/portfolio/${slug}/event`, new Blob([payload], { type: 'application/json' }));
+          } else {
+            fetch(`/portfolio/${slug}/event`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: payload, keepalive: true
+            }).catch(() => {});
+          }
+        });
+      };
+      window.addEventListener('pagehide', flushDwell);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushDwell();
+      });
+    })();
 
     // Track Scroll Depth
     let maxDepthReached = 0;

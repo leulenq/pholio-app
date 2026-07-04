@@ -172,6 +172,132 @@ describe("Demo seed: analytics", () => {
     const { engagement } = res.body.data;
     expect(engagement.counts.bio_read).toBeGreaterThan(0);
   });
+
+  test("analytics endpoint returns measured website traffic without comp-card metrics", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/analytics?days=30"),
+    );
+    expect(res.status).toBe(200);
+
+    const { website } = res.body.data;
+    expect(website.status).toBe("connected");
+    expect(website.source).toBe("first_party");
+    expect(website.period.days).toBe(30);
+    expect(website.series).toHaveLength(30);
+    expect(website.metrics.visits).toBeGreaterThanOrEqual(0);
+    expect(website.metrics.uniqueVisitors).toBeGreaterThanOrEqual(0);
+    expect(website.metrics.uniqueVisitors).toBeLessThanOrEqual(
+      website.metrics.visits,
+    );
+    expect(website.metrics.pageViews).toBeGreaterThanOrEqual(0);
+    expect(website.metrics.outboundClicks).toBeGreaterThanOrEqual(0);
+    expect(
+      website.series.reduce((total, point) => total + point.visits, 0),
+    ).toBe(website.metrics.visits);
+    expect(website.metrics).not.toHaveProperty("downloads");
+    expect(["complete", "partial"]).toContain(
+      website.measurement.uniqueVisitors,
+    );
+  });
+
+  test("website analytics counts ISO timestamps in SQLite", async () => {
+    const profile = await knex("profiles")
+      .where({ user_id: TALENT_USER_ID })
+      .first();
+    const sessionId = uuidv4();
+    const visitorId = uuidv4();
+    const viewId = uuidv4();
+    const clickId = uuidv4();
+    const now = new Date().toISOString();
+    const before = await withTalentSession(
+      request(app).get("/api/talent/analytics?days=30"),
+    );
+
+    try {
+      await knex("visitor_sessions").insert({
+        id: sessionId,
+        profile_id: profile.id,
+        visitor_id: visitorId,
+        started_at: now,
+        last_activity_at: now,
+        is_returning: false,
+      });
+      await knex("analytics").insert([
+        {
+          id: viewId,
+          profile_id: profile.id,
+          event_type: "view",
+          event_source: "web",
+          metadata: JSON.stringify({ slug: profile.slug }),
+          created_at: now,
+        },
+        {
+          id: clickId,
+          profile_id: profile.id,
+          event_type: "social_click",
+          event_source: "web",
+          metadata: JSON.stringify({ platform: "instagram" }),
+          created_at: now,
+        },
+      ]);
+
+      const after = await withTalentSession(
+        request(app).get("/api/talent/analytics?days=30"),
+      );
+
+      expect(after.body.data.website.metrics.visits).toBe(
+        before.body.data.website.metrics.visits + 1,
+      );
+      expect(after.body.data.website.metrics.pageViews).toBe(
+        before.body.data.website.metrics.pageViews + 1,
+      );
+      expect(after.body.data.website.metrics.outboundClicks).toBe(
+        before.body.data.website.metrics.outboundClicks + 1,
+      );
+    } finally {
+      await knex("analytics").whereIn("id", [viewId, clickId]).delete();
+      await knex("visitor_sessions").where({ id: sessionId }).delete();
+    }
+  });
+});
+
+describe("Public portfolio analytics integrity", () => {
+  test("signed-in owner engagement is acknowledged but not recorded", async () => {
+    const profile = await knex("profiles")
+      .where({ user_id: TALENT_USER_ID })
+      .first();
+    const before = await knex("analytics")
+      .where({ profile_id: profile.id, event_type: "social_click" })
+      .count({ total: "*" })
+      .first();
+
+    const res = await withTalentSession(
+      request(app)
+        .post(`/portfolio/${profile.slug}/event`)
+        .send({ eventType: "social_click", metadata: { platform: "instagram" } }),
+    );
+
+    const after = await knex("analytics")
+      .where({ profile_id: profile.id, event_type: "social_click" })
+      .count({ total: "*" })
+      .first();
+
+    expect(res.status).toBe(200);
+    expect(res.body.recorded).toBe(false);
+    expect(Number(after.total)).toBe(Number(before.total));
+  });
+
+  test("rejects arbitrary public analytics event names", async () => {
+    const profile = await knex("profiles")
+      .where({ user_id: TALENT_USER_ID })
+      .first();
+    const res = await request(app)
+      .post(`/portfolio/${profile.slug}/event`)
+      .send({ eventType: "download", metadata: {} });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Unsupported analytics event");
+  });
 });
 
 describe("Demo seed: activities", () => {

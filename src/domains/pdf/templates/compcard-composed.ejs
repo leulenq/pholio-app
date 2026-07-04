@@ -98,7 +98,14 @@
       if (!row) return null;
       const src = row.public_url || row.path || null;
       if (!src) return null;
-      return /^https?:\/\//i.test(src) ? src : `${origin}${src.startsWith('/') ? '' : '/'}${src}`;
+      // Local uploads stay same-origin relative so the dashboard preview
+      // (served via the Vite dev proxy on a different origin than the API)
+      // is not blocked by Cross-Origin-Resource-Policy. Puppeteer navigates
+      // to `${pdfBaseUrl}/pdf/view/:slug`, so relative paths still resolve
+      // against the API origin during PDF generation. The absolute `origin`
+      // prefix is kept only as a fallback when no leading slash is present.
+      if (/^https?:\/\//i.test(src)) return src;
+      return src.startsWith('/') ? src : `${origin}/${src}`;
     };
 
     const heroSrc = imgSrc(front.imageId);

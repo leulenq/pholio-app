@@ -14,8 +14,10 @@ const STATUS = {
   submitted:   { label: 'Submitted',    tone: 'slate' },
   underReview: { label: 'Under Review', tone: 'gold' },
   shortlisted: { label: 'Shortlisted',  tone: 'ink' },
-  booked:      { label: 'On Booking',   tone: 'green' },
+  booked:      { label: 'Represented',  tone: 'sage' },
+  represented: { label: 'Represented',  tone: 'sage' },
   accepted:    { label: 'Signed',       tone: 'sage' },
+  development: { label: 'New Face',     tone: 'sage' },
   declined:    { label: 'Passed',       tone: 'muted' },
   inactive:    { label: 'Inactive',     tone: 'muted' },
 };

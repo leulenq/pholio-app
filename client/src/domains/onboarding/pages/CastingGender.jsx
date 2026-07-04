@@ -1,41 +1,46 @@
 /**
- * Casting Gender - Standalone cinematic step for gender selection
- * Redesigned: 2x2 card grid with gold accent system
+ * Casting Gender — identity tiles.
+ * Four portrait tiles (Female / Male / Non-Binary / Undisclosed) sit free on
+ * the stage; the chosen tile lights gold. Confirming routes through the
+ * flow's single fixed Action Dock, not a page-local button.
  */
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
 import { fadeVariants, childVariants } from './animations';
 import { useCastingGender } from '../hooks/useCasting';
-import { ThinkingText } from './ThinkingText';
-import { CinematicDivider } from './CinematicDivider';
+import { useActionDock } from '../components/ActionDockContext';
+import GenderTiles from '../components/GenderTiles';
+import StepBeat from '../components/StepBeat';
+import { InlineErrorText } from '../../../shared/components/states';
+import '../styles/CastingSteps.css';
+import './CastingGender.screen.css';
 
-const GENDER_OPTIONS = [
-  { id: 'Female', label: 'Female' },
-  { id: 'Male', label: 'Male' },
-  { id: 'Non-Binary', label: 'Non-Binary' },
-  { id: 'Prefer not to say', label: 'Undisclosed' },
-];
-
-export function CastingGender({ onComplete }) {
+export function CastingGender({ onComplete, firstName }) {
   const [selected, setSelected] = useState(null);
+  const [error, setError] = useState('');
   const genderMutation = useCastingGender();
 
-  // Selecting an option immediately advances: a brief beat lets the gold
-  // selection register, then we persist gender and move to the next section.
-  const handleSelect = (optionId) => {
-    if (genderMutation.isPending) return;
-    setSelected(optionId);
-    setTimeout(async () => {
-      try {
-        await genderMutation.mutateAsync({ gender: optionId });
-        onComplete({ gender: optionId });
-      } catch (error) {
-        toast.error(error?.message || 'Could not save. Please try again.');
-      }
-    }, 320);
+  const handleConfirm = async () => {
+    if (!selected || genderMutation.isPending) return;
+    setError('');
+    try {
+      await genderMutation.mutateAsync({ gender: selected });
+      onComplete({ gender: selected });
+    } catch (err) {
+      setError(err?.message || 'Could not save. Try again.');
+    }
   };
+
+  useActionDock({
+    label: genderMutation.isPending ? 'Saving…' : 'Next',
+    enabled: !!selected,
+    onAdvance: handleConfirm,
+  });
+
+  const headline = firstName
+    ? `${firstName}, how do you *identify*?`
+    : 'How do you *identify*?';
 
   return (
     <motion.div
@@ -43,43 +48,21 @@ export function CastingGender({ onComplete }) {
       initial="initial"
       animate="animate"
       exit="exit"
-      className="text-center"
+      className="cs-step-stage"
     >
-      <ThinkingText
-        text="How do you *identify*?"
-        className="cinematic-question"
-        style={{ marginBottom: '2rem' }}
-        delay={0.3}
-      />
+      <StepBeat text={headline} />
 
-      <CinematicDivider delay={0.4} style={{ marginBottom: '3rem' }} />
+      <motion.div variants={childVariants} className="casting-gender-stage">
+        <GenderTiles
+          value={selected}
+          onChange={(v) => {
+            setError('');
+            setSelected(v);
+          }}
+          disabled={genderMutation.isPending}
+        />
 
-      <motion.div
-        className="cinematic-ghost"
-        layoutId="cinematic-card"
-        variants={childVariants}
-        style={{ maxWidth: '600px', margin: '0 auto' }}
-      >
-        <div className="identity-options">
-          {GENDER_OPTIONS.map((option, i) => {
-            const isActive = selected === option.id;
-
-            return (
-              <motion.button
-                key={option.id}
-                type="button"
-                onClick={() => handleSelect(option.id)}
-                disabled={genderMutation.isPending}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + i * 0.07, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className={`identity-option${isActive ? ' is-selected' : ''}`}
-              >
-                {option.label}
-              </motion.button>
-            );
-          })}
-        </div>
+        <InlineErrorText message={error} className="cinematic-field-error casting-gender-error" />
       </motion.div>
     </motion.div>
   );

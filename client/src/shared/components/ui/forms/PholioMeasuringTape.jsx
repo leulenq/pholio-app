@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { PencilLine } from 'lucide-react';
 import styles from './PholioMeasuringTape.module.css';
 
 /**
@@ -48,10 +49,14 @@ const PholioMeasuringTape = ({
   unit = 'cm',
   size = 'medium',
   formatter, // Function to format the display value (e.g. val => val + "'")
-  className = ''
+  className = '',
+  label,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy
 }) => {
   const containerRef = useRef(null);
   const scaleRef = useRef(null);
+  const syncedScrollTargetRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -80,6 +85,7 @@ const PholioMeasuringTape = ({
       // If there's no value, default the visual scroll position to the middle of the tape
       const numericValue = value !== null && value !== undefined && value !== '' ? value : Math.round((min + max) / 2);
       const targetScroll = (numericValue - min) * (tickWidth / step);
+      syncedScrollTargetRef.current = targetScroll;
       containerRef.current.scrollLeft = targetScroll;
     }
   }, [value, min, max, step, tickWidth, isDragging]);
@@ -88,13 +94,22 @@ const PholioMeasuringTape = ({
     if (!containerRef.current || isDragging) return;
     
     const scrollPos = containerRef.current.scrollLeft;
+    const syncedTarget = syncedScrollTargetRef.current;
+    if (syncedTarget !== null && Math.abs(scrollPos - syncedTarget) < 0.5) {
+      syncedScrollTargetRef.current = null;
+      return;
+    }
+    syncedScrollTargetRef.current = null;
+
     const newValue = min + (scrollPos / (tickWidth / step));
     const roundedValue = Math.round(newValue / step) * step;
     
     // Clamp within bounds
     const clampedValue = Math.max(min, Math.min(max, roundedValue));
-    
-    if (clampedValue !== value) {
+
+    const hasValue = value !== null && value !== undefined && value !== '';
+    const numericValue = hasValue ? Number(value) : null;
+    if (!Number.isFinite(numericValue) || clampedValue !== numericValue) {
       onChange(clampedValue);
     }
   }, [min, max, step, value, onChange, tickWidth, isDragging]);
@@ -183,8 +198,68 @@ const PholioMeasuringTape = ({
     }
   };
 
+  const handleTapeKeyDown = (e) => {
+    if (isEditing) return;
+
+    const stepSize = step;
+    const pageStepSize = unit === 'cm' ? 5 : (unit === 'in' ? 12 : 5);
+    
+    let newValue = hasValue ? value : Math.round((min + max) / 2);
+
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowUp':
+        e.preventDefault();
+        newValue = Math.min(max, newValue + stepSize);
+        onChange(newValue);
+        break;
+      case 'ArrowLeft':
+      case 'ArrowDown':
+        e.preventDefault();
+        newValue = Math.max(min, newValue - stepSize);
+        onChange(newValue);
+        break;
+      case 'PageUp':
+        e.preventDefault();
+        newValue = Math.min(max, newValue + pageStepSize);
+        onChange(newValue);
+        break;
+      case 'PageDown':
+        e.preventDefault();
+        newValue = Math.max(min, newValue - pageStepSize);
+        onChange(newValue);
+        break;
+      case 'Home':
+        e.preventDefault();
+        onChange(min);
+        break;
+      case 'End':
+        e.preventDefault();
+        onChange(max);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        handleDoubleClick();
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
-    <div className={`${styles.tapeWrapper} ${styles[size]} ${className} ${!hasValue ? styles.tapeUnset : ''}`}>
+    <div 
+      className={`${styles.tapeWrapper} ${styles[size]} ${className} ${!hasValue ? styles.tapeUnset : ''}`}
+      tabIndex={isEditing ? -1 : 0}
+      role="slider"
+      aria-valuenow={hasValue ? value : ''}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuetext={displayVal}
+      aria-label={ariaLabel || label || `Measurement in ${unit}`}
+      aria-labelledby={ariaLabelledBy || undefined}
+      onKeyDown={handleTapeKeyDown}
+    >
       {/* Current Value Display */}
       <div className={`${styles.valueDisplay} ${!hasValue ? styles.valueDisplayUnset : ''}`}>
         {isEditing ? (
@@ -200,14 +275,25 @@ const PholioMeasuringTape = ({
         ) : (
           <span 
             className={styles.value} 
-            onDoubleClick={handleDoubleClick}
+            onClick={handleDoubleClick}
             style={{ cursor: 'text' }}
-            title="Double-click to type"
+            title="Click to type"
           >
             {displayVal}
           </span>
         )}
         <span className={styles.unit}>{unit}</span>
+        {!isEditing && (
+          <span
+            className={styles.manualHint}
+            aria-hidden="true"
+            title="Click to edit"
+            onClick={handleDoubleClick}
+            style={{ cursor: 'pointer' }}
+          >
+            <PencilLine size={10} strokeWidth={1.8} />
+          </span>
+        )}
       </div>
 
       {/* The Tape Container */}

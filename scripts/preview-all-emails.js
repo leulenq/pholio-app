@@ -19,7 +19,8 @@ const {
   buildPasswordChangedEmailHtml,
   buildMagicSignInEmailHtml,
   buildTeamInviteEmailHtml,
-} = require("../src/shared/lib/email-templates");
+  buildGuardianConsentEmailHtml,
+} = require("../src/shared/lib/pholio-email");
 
 const APP = "https://app.pholio.studio";
 
@@ -144,6 +145,21 @@ const templates = [
       inviterName: "Sarah Chen",
       roleLabel: "Agent · Booker",
       acceptUrl: `${APP}/dashboard/agency/team/accept?token=sample-team-token`,
+    }),
+  },
+  {
+    id: "guardian-consent",
+    category: "Compliance",
+    subject: "Consent requested for Nova Chen on Pholio",
+    description:
+      "Sent to a parent or guardian when minor talent requests verified consent.",
+    html: buildGuardianConsentEmailHtml({
+      guardianName: "Pat Chen",
+      talentName: "Nova Chen",
+      talentCity: "New York, USA",
+      talentPhotoUrl: "https://app.pholio.studio/uploads/sample-headshot.webp",
+      consentUrl: `${APP}/guardian-consent?token=sample-consent-token`,
+      expiresDays: 7,
     }),
   },
 ];

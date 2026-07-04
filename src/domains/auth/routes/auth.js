@@ -3,12 +3,14 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../../../config");
 const knex = require("../../../shared/db/knex");
+const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   loginSchema,
   agencySignupSchema,
 } = require("../../../shared/lib/validation");
 const { addMessage } = require("../../../shared/middleware/context");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const { recordLegalAcceptance } = require("../../../shared/lib/legal-acceptance");
 const {
   verifyIdToken,
   createUser: createFirebaseUser,
@@ -103,6 +105,8 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
   // Support both JSON and form-encoded requests
   let idToken = null;
   let nextPath = null;
+  const termsAccepted = req.body?.terms_accepted === true;
+  const privacyAccepted = req.body?.privacy_accepted === true;
 
   // Check if request is JSON
   if (
@@ -197,6 +201,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     const providerUser = normalizeOAuthUser(decodedToken);
     const firebaseUid = providerUser.uid;
     const email = providerUser.email;
+    const emailVerified = decodedToken.email_verified === true;
     const displayName = providerUser.name || null;
     const photoURL = providerUser.picture || null;
     const instagramHandle = providerUser.instagram_handle || null;
@@ -243,8 +248,13 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // Look up user in database by Firebase UID
     let user = await knex("users").where({ firebase_uid: firebaseUid }).first();
 
-    // Fallback: Try to find user by email (for migration period)
-    if (!user && email) {
+    // Fallback: match an existing account by email ONLY when Firebase asserts a
+    // verified email. Matching (and binding firebase_uid to) a pre-existing row
+    // on an UNVERIFIED email claim is an account-takeover vector — a user whose
+    // email isn't registered in Firebase (seeds, imports, legacy/Instagram
+    // rows) could otherwise be claimed by registering that email and logging in
+    // with an unverified token (audit finding H3).
+    if (!user && email && emailVerified) {
       const normalizedEmail = email.toLowerCase().trim();
       user = await knex("users").where({ email: normalizedEmail }).first();
 
@@ -421,6 +431,20 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               });
         }
 
+      if (role === "TALENT" && (!termsAccepted || !privacyAccepted)) {
+          const msg =
+            "You must accept the Terms of Service and Privacy Policy to create an account.";
+          return isJsonRequest
+            ? res.status(400).json({ success: false, error: msg })
+            : res.status(400).render("auth/login", {
+                title: "Sign in",
+                values: req.body,
+                errors: { email: [msg] },
+                layout: "layout",
+                currentPage: "login",
+              });
+        }
+
         // Safe fallbacks for all required DB fields so INSERT never fails
         const safeFirstName = firstName || "User";
         const safeLastName = lastName || null;
@@ -443,6 +467,11 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
 
           // Create a profile row for TALENT users so the dashboard loads immediately
           if (role === "TALENT") {
+            await recordLegalAcceptance(trx, userId, {
+              terms: true,
+              privacy: true,
+            });
+
             const slug = await ensureUniqueSlug(
               trx,
               "profiles",
@@ -453,8 +482,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             } = require("../../onboarding/services/state-machine");
             const startState = initialState("entry", trx);
 
+            const newProfileId = uuidv4();
             await trx("profiles").insert({
-              id: uuidv4(),
+              id: newProfileId,
               user_id: userId,
               slug,
               first_name: safeFirstName,
@@ -465,7 +495,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               phone: null,
               height_cm: 0,
               is_pro: false,
-              instagram_handle: instagramHandle,
               // Setup correct state machine baseline
               ...startState,
               // Mark onboarding done so the gate lets them into the dashboard.
@@ -474,6 +503,12 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               created_at: knex.fn.now(),
               updated_at: knex.fn.now(),
             });
+
+            if (instagramHandle) {
+              await saveProfileSocialFields(newProfileId, {
+                instagram_handle: instagramHandle
+              });
+            }
           }
 
           user = await trx("users").where({ id: userId }).first();
@@ -617,6 +652,16 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           profileError.message,
         );
       }
+    }
+
+    // Keep users.email_verified in sync with Firebase's verified claim, so a
+    // user who clicks the verification link after abandoning onboarding is
+    // recorded as verified the next time they sign in.
+    if (decodedToken.email_verified === true && !user.email_verified) {
+      await knex("users")
+        .where({ id: user.id })
+        .update({ email_verified: true });
+      user.email_verified = true;
     }
 
     console.log("[Login] Login successful for user:", {

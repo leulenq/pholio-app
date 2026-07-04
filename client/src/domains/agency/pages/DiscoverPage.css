@@ -495,13 +495,11 @@ body.is-agency .dc-bar-input:focus {
   );
 }
 
-/* ── Match — light marker, top-left, no box ── */
-/* Name + match share a baseline; the score belongs to the identity block */
 .dc-card-namerow {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .dc-card-namerow .dc-card-name {
@@ -509,9 +507,9 @@ body.is-agency .dc-bar-input:focus {
   min-width: 0;
 }
 
-/* typography lives in MatchScore; layout only */
+/* layout only — mount handles visual design */
 .dc-card-score {
-  align-self: baseline;
+  flex: none;
 }
 
 .dc-card-featured {

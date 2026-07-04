@@ -1,4 +1,9 @@
 const { z } = require("zod");
+const {
+  BOOKING_LANE_SLUGS,
+  normalizeBookingLaneList,
+  normalizeBookingLaneSlug,
+} = require("../constants/booking-lanes");
 
 /**
  * Core field schemas
@@ -625,7 +630,11 @@ const applyProfileSchema = z
     bust: bustSchema,
     waist: waistSchema,
     hips: hipsSchema,
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     eye_color: z.string().trim().max(30).optional(),
     hair_color: z.string().trim().max(30).optional(),
     bio: bioSchema,
@@ -671,6 +680,7 @@ const applyProfileSchema = z
     experience_level: experienceLevelSchema,
     training: trainingSchema,
     portfolio_url: portfolioUrlSchema,
+    onlyfans_url: portfolioUrlSchema,
     instagram_handle: socialMediaHandleSchema,
     instagram_url: socialMediaUrlSchema,
     twitter_handle: socialMediaHandleSchema,
@@ -745,6 +755,13 @@ function normalizeTalentProfileUpdateBody(input) {
   mergeScalar("first_name", "firstName");
   mergeScalar("last_name", "lastName");
   mergeScalar("city", "location");
+  mergeScalar("booking_primary_lane", "primary_booking_lane");
+  mergeScalar("booking_primary_lane", "primaryBookingLane");
+
+  if (o.booking_secondary_lanes === undefined && input.secondaryBookingLanes !== undefined) {
+    o.booking_secondary_lanes = input.secondaryBookingLanes;
+  }
+  delete o.secondaryBookingLanes;
 
   const dobCanon = input.date_of_birth;
   const dobAlt1 = input.dateOfBirth;
@@ -765,6 +782,22 @@ function normalizeTalentProfileUpdateBody(input) {
   return o;
 }
 
+const bookingLaneSlugSchema = z.preprocess(
+  (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    return normalizeBookingLaneSlug(value);
+  },
+  z
+    .string()
+    .refine((value) => BOOKING_LANE_SLUGS.has(value), "Invalid booking lane")
+    .nullable(),
+);
+
+const bookingSecondaryLanesSchema = z.preprocess(
+  (value) => normalizeBookingLaneList(value),
+  z.array(z.string().refine((value) => BOOKING_LANE_SLUGS.has(value))).max(3),
+);
+
 const talentProfileUpdateInnerSchema = z.object({
   first_name: nameSchema.optional(), // Keep required if provided, but optional in the partial update object
   last_name: nameSchema.optional(),
@@ -777,6 +810,9 @@ const talentProfileUpdateInnerSchema = z.object({
   bust: bustSchema.optional(),
   waist: waistSchema.optional(),
   hips: hipsSchema.optional(),
+  bust_cm: bustSchema.optional(),
+  waist_cm: waistSchema.optional(),
+  hips_cm: hipsSchema.optional(),
   shoe_size: z.preprocess(
     (v) => {
       if (v === "" || v === null || v === undefined) return v;
@@ -785,6 +821,7 @@ const talentProfileUpdateInnerSchema = z.object({
     },
     z.string().trim().max(20).optional().or(z.literal("")).or(z.null()),
   ),
+  shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
   eye_color: z
     .string()
     .trim()
@@ -831,6 +868,7 @@ const talentProfileUpdateInnerSchema = z.object({
   experience_level: experienceLevelSchema.optional(),
   training: talentProfileTrainingFieldSchema,
   portfolio_url: portfolioUrlSchema,
+  onlyfans_url: optionalHttpUrlSchema,
   instagram_handle: socialMediaHandleSchema,
   instagram_url: socialMediaUrlSchema,
   twitter_handle: socialMediaHandleSchema,
@@ -917,11 +955,19 @@ const talentProfileUpdateInnerSchema = z.object({
     .or(z.null()),
   drivers_license: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
   passport_ready: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
+  guardian_consent_recorded: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
+  work_permit_on_file: z.union([z.boolean(), z.literal(""), z.null()]).optional(),
   modeling_categories: z
     .array(z.string().trim().max(80))
     .max(50)
     .optional()
     .or(z.null()),
+  booking_primary_lane: bookingLaneSlugSchema.optional(),
+  booking_secondary_lanes: bookingSecondaryLanesSchema.optional(),
+  stats_track: z.enum(["womenswear", "menswear", "ungendered"]).nullable().optional().or(z.literal("")),
+  discipline: z.enum(["model", "performer", "creator"]).nullable().optional().or(z.literal("")),
+  chest_cm: bustSchema.optional(),
+  suit_size: z.string().trim().max(20).optional().or(z.literal("")).or(z.null()),
 });
 
 const talentProfileUpdateSchema = z.preprocess(
@@ -953,7 +999,11 @@ const onboardingDraftSchema = z
     bust: bustSchema.optional(),
     waist: waistSchema.optional(),
     hips: hipsSchema.optional(),
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     eye_color: z.string().trim().max(30).optional(),
     hair_color: z.string().trim().max(30).optional(),
     bio: bioSchema.optional(),
@@ -991,6 +1041,7 @@ const onboardingDraftSchema = z
     experience_level: experienceLevelSchema,
     training: trainingSchema,
     portfolio_url: portfolioUrlSchema,
+    onlyfans_url: portfolioUrlSchema,
     instagram_handle: socialMediaHandleSchema,
     twitter_handle: socialMediaHandleSchema,
     tiktok_handle: socialMediaHandleSchema,
@@ -1050,10 +1101,14 @@ const onboardingSubmitSchema = z
     bust: bustSchema, // Required for submission
     waist: waistSchema, // Required for submission
     hips: hipsSchema, // Required for submission
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     bio: bioSchema,
     // All other fields optional
     city_secondary: nameSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     eye_color: z.string().trim().max(30).optional(),
     hair_color: z.string().trim().max(30).optional(),
     specialties: z.array(z.string()).optional(),
@@ -1093,6 +1148,7 @@ const onboardingSubmitSchema = z
     experience_level: experienceLevelSchema,
     training: trainingSchema,
     portfolio_url: portfolioUrlSchema,
+    onlyfans_url: portfolioUrlSchema,
     instagram_handle: socialMediaHandleSchema,
     twitter_handle: socialMediaHandleSchema,
     tiktok_handle: socialMediaHandleSchema,
@@ -1151,7 +1207,11 @@ const essentialsDraftSchema = z
     bust: bustSchema.optional(),
     waist: waistSchema.optional(),
     hips: hipsSchema.optional(),
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     date_of_birth: dateOfBirthSchema,
   })
   .passthrough(); // Allow extra fields for flexibility
@@ -1167,7 +1227,11 @@ const essentialsSubmitSchema = z
     bust: bustSchema, // Required for essentials
     waist: waistSchema, // Required for essentials
     hips: hipsSchema, // Required for essentials
+    bust_cm: bustSchema.optional(),
+    waist_cm: waistSchema.optional(),
+    hips_cm: hipsSchema.optional(),
     shoe_size: z.string().trim().max(10).optional(),
+    shoe_region: z.enum(["US", "UK", "EU"]).nullable().optional().or(z.literal("")),
     date_of_birth: dateOfBirthSchema, // Optional for essentials
   })
   .strict();
@@ -1220,17 +1284,27 @@ const onboardingCompleteSchema = z
 const IMAGE_TYPE_VALUES = [
   "digital",
   "portfolio",
-  "comp_card",
+  "comp_card", // legacy — still accepted from old records
   "campaign",
+  "tearsheet", // published editorial/campaign page (distinct from unpublished `campaign`)
   "test",
+  "editorial",
+  "runway",
 ];
+
+/** Allowed motion-asset MIME types (P2 video). */
+const VIDEO_MIME_VALUES = ["video/mp4", "video/webm", "video/quicktime"];
+const videoMimeSet = new Set(VIDEO_MIME_VALUES);
 
 const SHOT_TYPE_VALUES = [
   "headshot",
+  "beauty",
+  "half_body",
   "three_quarter",
   "full_length",
-  "profile_left",
-  "profile_right",
+  "profile",
+  "profile_left",  // legacy — kept for existing records
+  "profile_right", // legacy — kept for existing records
   "back",
   "detail",
 ];
@@ -1243,9 +1317,10 @@ const STYLE_TYPE_VALUES = [
   "ecommerce",
   "swimwear",
   "fitness",
+  "couture",
 ];
 
-const IMAGE_STATUS_VALUES = ["active", "archived", "retired", "test"];
+const IMAGE_STATUS_VALUES = ["active", "inactive", "archived", "retired", "test"];
 
 const IMAGE_STRUCTURED_KEYS = [
   "image_type",
@@ -1393,7 +1468,17 @@ const imageRightsPutSchema = z
       .union([z.string().trim().max(200), z.literal(""), z.null()])
       .optional(),
     license_type: z
-      .union([z.string().trim().max(80), z.literal(""), z.null()])
+      .union([
+        z.enum([
+          "owned",
+          "licensed",
+          "model_release",
+          "agency_permission",
+          "editorial_release",
+        ]),
+        z.literal(""),
+        z.null(),
+      ])
       .optional(),
     usage_scope: z
       .union([z.string().trim().max(80), z.literal(""), z.null()])
@@ -1410,7 +1495,20 @@ const imageRightsPutSchema = z
       .union([z.string().trim().max(255), z.literal(""), z.null()])
       .optional(),
     rights_status: z
-      .union([z.string().trim().max(80), z.literal(""), z.null()])
+      .union([
+        z.enum([
+          "pending",
+          "cleared",
+          "licensed",
+          "owned",
+          "approved",
+          "restricted",
+          "blocked",
+          "denied",
+        ]),
+        z.literal(""),
+        z.null(),
+      ])
       .optional(),
     notes: z.union([z.string().max(5000), z.literal(""), z.null()]).optional(),
   })
@@ -1516,6 +1614,11 @@ function defaultImageRightsApiShape() {
     model_release_ref: null,
     rights_status: null,
     notes: null,
+    release_ref: null,
+    release_url: null,
+    release_signer_name: null,
+    release_signer_role: null,
+    release_signed_at: null,
   };
 }
 
@@ -1540,7 +1643,209 @@ function imageRightsRowToApi(row) {
     model_release_ref: row.model_release_ref ?? null,
     rights_status: row.rights_status ?? null,
     notes: row.notes ?? null,
+    release_ref: row.release_ref ?? null,
+    release_url: row.release_url ?? null,
+    release_signer_name: row.release_signer_name ?? null,
+    release_signer_role: row.release_signer_role ?? null,
+    release_signed_at: iso(row.release_signed_at),
   };
+}
+
+/**
+ * Model-release artifact (P1 #6). A real release record attached to an image:
+ * file/url reference + signer + signed date + parties.
+ */
+const imageModelReleasePutSchema = z
+  .object({
+    release_ref: z
+      .union([z.string().trim().max(1024), z.literal(""), z.null()])
+      .optional(),
+    release_url: z
+      .union([z.string().trim().max(1024), z.literal(""), z.null()])
+      .optional(),
+    signer_name: z
+      .union([z.string().trim().max(200), z.literal(""), z.null()])
+      .optional(),
+    signer_role: z
+      .union([
+        z.enum(["self", "guardian", "authorized_representative"]),
+        z.literal(""),
+        z.null(),
+      ])
+      .optional(),
+    signed_at: z.union([z.string(), z.null()]).optional(),
+    // parties: free text or an array of names/{name, role}; stored as text/JSON.
+    parties: z
+      .union([
+        z.string().max(4000),
+        z.array(z.unknown()).max(50),
+        z.literal(""),
+        z.null(),
+      ])
+      .optional(),
+    notes: z.union([z.string().max(5000), z.literal(""), z.null()]).optional(),
+  })
+  .strict();
+
+function normalizePartiesField(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  if (Array.isArray(value)) {
+    try {
+      const json = JSON.stringify(value);
+      return json.length > 8000 ? json.slice(0, 8000) : json;
+    } catch {
+      return null;
+    }
+  }
+  return String(value).slice(0, 4000);
+}
+
+/**
+ * @param {unknown} body
+ * @returns {{ ok: boolean, patch?: Record<string, unknown>, error?: string }}
+ */
+function parseImageModelReleasePatchFromBody(body) {
+  const parsed = imageModelReleasePutSchema.safeParse(body || {});
+  if (!parsed.success) {
+    const msg =
+      parsed.error.flatten().formErrors.join("; ") ||
+      "Invalid model release payload";
+    return { ok: false, error: msg };
+  }
+  const d = parsed.data;
+  const patch = {};
+  const trimOrNull = (v) =>
+    v === "" || v === null || v === undefined ? null : String(v).trim();
+
+  if (Object.hasOwn(d, "release_ref")) patch.release_ref = trimOrNull(d.release_ref);
+  if (Object.hasOwn(d, "release_url")) {
+    const url = trimOrNull(d.release_url);
+    if (url && !/^https?:\/\/.+/i.test(url)) {
+      return { ok: false, error: "release_url must start with http:// or https://" };
+    }
+    patch.release_url = url;
+  }
+  if (Object.hasOwn(d, "signer_name")) patch.signer_name = trimOrNull(d.signer_name);
+  if (Object.hasOwn(d, "signer_role")) patch.signer_role = trimOrNull(d.signer_role);
+  if (Object.hasOwn(d, "signed_at")) {
+    if (d.signed_at === null || d.signed_at === "") patch.signed_at = null;
+    else {
+      const dt = new Date(d.signed_at);
+      if (Number.isNaN(dt.getTime())) {
+        return { ok: false, error: "Invalid signed_at" };
+      }
+      patch.signed_at = dt;
+    }
+  }
+  if (Object.hasOwn(d, "parties")) patch.parties = normalizePartiesField(d.parties);
+  if (Object.hasOwn(d, "notes")) {
+    patch.notes = d.notes === "" || d.notes === null ? null : String(d.notes).slice(0, 5000);
+  }
+  return { ok: true, patch };
+}
+
+function defaultImageModelReleaseApiShape() {
+  return {
+    release_ref: null,
+    release_url: null,
+    signer_name: null,
+    signer_role: null,
+    signed_at: null,
+    parties: null,
+    notes: null,
+    on_file: false,
+  };
+}
+
+function imageModelReleaseRowToApi(row) {
+  const base = defaultImageModelReleaseApiShape();
+  if (!row) return base;
+  const iso = (v) => {
+    if (!v) return null;
+    const d = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+  };
+  let parties = row.parties ?? null;
+  if (typeof parties === "string" && parties.trim().startsWith("[")) {
+    try {
+      parties = JSON.parse(parties);
+    } catch {
+      /* keep string */
+    }
+  }
+  const onFile = Boolean(
+    (row.release_ref || row.release_url) &&
+      row.signer_name &&
+      row.signer_role &&
+      row.signed_at,
+  );
+  return {
+    release_ref: row.release_ref ?? null,
+    release_url: row.release_url ?? null,
+    signer_name: row.signer_name ?? null,
+    signer_role: row.signer_role ?? null,
+    signed_at: iso(row.signed_at),
+    parties,
+    notes: row.notes ?? null,
+    on_file: onFile,
+  };
+}
+
+/**
+ * Motion-asset (video) creation payload (P2 video). URL-referenced — the image
+ * binary pipeline is untouched.
+ * @param {unknown} body
+ * @returns {{ ok: boolean, values?: Record<string, unknown>, error?: string }}
+ */
+function parseVideoAssetFromBody(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, error: "Invalid video payload" };
+  }
+  const rawUrl = typeof body.video_url === "string" ? body.video_url.trim() : "";
+  if (!rawUrl) {
+    return { ok: false, error: "video_url is required" };
+  }
+  if (rawUrl.length > 1024 || !/^https?:\/\/.+/i.test(rawUrl)) {
+    return { ok: false, error: "video_url must be a valid http(s) URL" };
+  }
+
+  const values = { video_url: rawUrl };
+
+  if (Object.hasOwn(body, "video_mime") && body.video_mime != null && body.video_mime !== "") {
+    const mime = String(body.video_mime).trim().toLowerCase();
+    if (!videoMimeSet.has(mime)) {
+      return {
+        ok: false,
+        error: `video_mime must be one of: ${VIDEO_MIME_VALUES.join(", ")}`,
+      };
+    }
+    values.video_mime = mime;
+  }
+
+  if (
+    Object.hasOwn(body, "video_duration_seconds") &&
+    body.video_duration_seconds != null &&
+    body.video_duration_seconds !== ""
+  ) {
+    const dur = Number(body.video_duration_seconds);
+    if (!Number.isFinite(dur) || dur < 0 || dur > 86400) {
+      return { ok: false, error: "Invalid video_duration_seconds" };
+    }
+    values.video_duration_seconds = dur;
+  }
+
+  if (Object.hasOwn(body, "captured_at")) {
+    const r = parseOptionalIsoDate(body.captured_at, "captured_at");
+    if (!r.ok) return { ok: false, error: r.error };
+    values.captured_at = r.value;
+  }
+
+  if (Object.hasOwn(body, "label") && typeof body.label === "string") {
+    values.label = body.label.trim().slice(0, 200);
+  }
+
+  return { ok: true, values };
 }
 
 module.exports = {
@@ -1562,9 +1867,15 @@ module.exports = {
   STYLE_TYPE_VALUES,
   IMAGE_STATUS_VALUES,
   IMAGE_STRUCTURED_KEYS,
+  VIDEO_MIME_VALUES,
   parseImageStructuredFieldsFromBody,
   imageRightsPutSchema,
   parseImageRightsPatchFromBody,
   defaultImageRightsApiShape,
   imageRightsRowToApi,
+  imageModelReleasePutSchema,
+  parseImageModelReleasePatchFromBody,
+  defaultImageModelReleaseApiShape,
+  imageModelReleaseRowToApi,
+  parseVideoAssetFromBody,
 };

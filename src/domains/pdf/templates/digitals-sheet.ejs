@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Digitals — <%= name %></title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      color: #1a1815;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 16mm 16mm 14mm;
+    }
+
+    /* masthead */
+    .head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid #1a1815;
+    }
+    .head__name {
+      font-size: 30px;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .head__meta { text-align: right; }
+    .head__label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #b8956a;
+    }
+    .head__sub {
+      margin-top: 4px;
+      font-size: 9px;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: #6b6560;
+    }
+
+    /* frames grid */
+    .frames {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6mm;
+      margin-top: 9mm;
+    }
+    .frame { break-inside: avoid; }
+    .frame__img {
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+      border: 1px solid #e7e2da;
+      display: block;
+      background: #f4f1ec;
+    }
+    .frame__cap {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      font-size: 8px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #6b6560;
+    }
+    .frame__cap strong { color: #1a1815; font-weight: 600; }
+
+    .empty {
+      margin-top: 12mm;
+      font-size: 11px;
+      color: #6b6560;
+      font-style: italic;
+    }
+
+    /* stats footer */
+    .stats {
+      margin-top: 10mm;
+      padding-top: 6px;
+      border-top: 1px solid #1a1815;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 22px;
+    }
+    .stat { display: flex; gap: 6px; align-items: baseline; }
+    .stat__k {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: #6b6560;
+    }
+    .stat__v { font-size: 11px; font-weight: 400; }
+
+    .foot {
+      margin-top: 7mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #9b958d;
+    }
+    .foot__mark { color: #b8956a; font-weight: 700; letter-spacing: 2px; }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <header class="head">
+      <div class="head__name"><%= name %></div>
+      <div class="head__meta">
+        <div class="head__label">Digitals</div>
+        <div class="head__sub">
+          <%= location %><% if (measuredLabel) { %> · Measured <%= measuredLabel %><% } %>
+        </div>
+      </div>
+    </header>
+
+    <% if (digitals && digitals.length) { %>
+      <div class="frames">
+        <% digitals.forEach(function(d) { %>
+          <div class="frame">
+            <img class="frame__img" src="<%= d.url %>" alt="" />
+            <div class="frame__cap">
+              <strong><%= d.shotLabel %></strong>
+              <span><%= d.capturedLabel %></span>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } else { %>
+      <p class="empty">No digital frames on file. Tag images as digitals on your media page to build this set.</p>
+    <% } %>
+
+    <% if (stats && stats.length) { %>
+      <div class="stats">
+        <% stats.forEach(function(s) { %>
+          <div class="stat">
+            <span class="stat__k"><%= s.label %></span>
+            <span class="stat__v"><%= s.value %></span>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <div class="foot">
+      <span>Unretouched · for agency review<% if (generatedLabel) { %> · <%= generatedLabel %><% } %></span>
+      <span class="foot__mark">PHOLIO</span>
+    </div>
+  </div>
+</body>
+</html>

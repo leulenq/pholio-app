@@ -1,0 +1,105 @@
+/* ColorSelect — hair / eye colour tiles.
+   Ported from the GenderTiles selection language (hairline frame, gold active),
+   compacted for a wrapping set of colour options. Swatch replaces the icon. */
+.color-select {
+  display: flex;
+  gap: 0.9rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.color-tile {
+  width: 122px;
+  height: 108px;
+  padding: 0;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  cursor: pointer;
+  background: rgba(245, 241, 234, 0.015);
+  transition: all 0.3s var(--ease);
+}
+
+.color-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(245, 241, 234, 0.22);
+  transition: box-shadow 0.3s var(--ease);
+}
+
+.color-swatch--other {
+  background: none;
+  border: 1px dashed rgba(245, 241, 234, 0.3);
+  box-shadow: none;
+}
+
+.color-tile-label {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  transition: color 0.3s var(--ease);
+}
+
+.color-tile:hover {
+  border-color: rgba(201, 165, 90, 0.4);
+}
+
+.color-tile.is-selected {
+  border-color: var(--gold);
+  background: rgba(201, 165, 90, 0.05);
+  box-shadow: 0 0 34px rgba(201, 165, 90, 0.14);
+}
+
+.color-tile.is-selected .color-swatch {
+  box-shadow: inset 0 0 0 1px rgba(245, 241, 234, 0.22), 0 0 0 2px rgba(201, 165, 90, 0.55);
+}
+
+.color-tile.is-selected .color-swatch--other {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(201, 165, 90, 0.35);
+}
+
+.color-tile.is-selected .color-tile-label {
+  color: var(--gold);
+}
+
+.color-tile:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.color-tile:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  /* Fixed tile width (not vw) guarantees a stable three-per-row set at every
+     phone width — the vw sizing rounded unpredictably and could drop to two. */
+  .color-select {
+    gap: 0.6rem;
+    max-width: 340px;
+  }
+  .color-tile {
+    width: 96px;
+    max-width: none;
+    height: 92px;
+    gap: 0.6rem;
+  }
+  .color-swatch {
+    width: 26px;
+    height: 26px;
+  }
+  .color-tile-label {
+    font-size: 0.6rem;
+  }
+}

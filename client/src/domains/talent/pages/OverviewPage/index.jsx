@@ -1,12 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import {
   ArrowUpRight,
   ChevronRight,
   FileText,
-  Activity,
   TrendingUp,
   AlertCircle,
   Download,
@@ -18,6 +26,12 @@ import { useProfileStrength } from '../../hooks/useProfileStrength';
 import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessItems';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
+import { bucketCounts } from '../../utils/applicationStatus';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
+import {
+  isMinorProfile,
+  minorSensitiveFieldsUnlocked,
+} from '../../../../shared/utils/talentAge';
 import './OverviewPage.css';
 
 function imageUrl(img) {
@@ -40,19 +54,41 @@ function parseChangePct(change) {
   return m ? asNum(m[0]) : 0;
 }
 
+const PUBLIC_PORTFOLIO_ORIGIN = (
+  import.meta.env.VITE_PORTFOLIO_URL || 'https://pholio.studio'
+).replace(/\/$/, '');
+
 function portfolioShareUrl(slug) {
   if (!slug) return null;
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${origin}/portfolio/${slug}`;
+  return `${PUBLIC_PORTFOLIO_ORIGIN}/${encodeURIComponent(slug)}`;
 }
 
-function displayHost(url) {
+function displayPublicUrl(url) {
   if (!url) return '';
   try {
-    return new URL(url).host;
+    const parsed = new URL(url);
+    return `${parsed.host}${parsed.pathname}`.replace(/\/$/, '');
   } catch {
-    return url.replace(/^https?:\/\//, '');
+    return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   }
+}
+
+function chartDateLabel(value, options = { month: 'short', day: 'numeric' }) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
+}
+
+function WebsiteChartTooltip({ active, payload, label }) {
+  if (!active || !Array.isArray(payload) || payload.length === 0) return null;
+  const visits = asNum(payload[0]?.value);
+
+  return (
+    <div className="ov-website-tooltip">
+      <span>{chartDateLabel(label, { month: 'long', day: 'numeric' })}</span>
+      <strong>{visits.toLocaleString()} {visits === 1 ? 'visit' : 'visits'}</strong>
+    </div>
+  );
 }
 
 function getGreetingByTime(date = new Date()) {
@@ -76,13 +112,19 @@ function applicationsCount(payload) {
 
 
 export default function OverviewPage() {
-  const { profile, subscription, completeness, images, isLoading: profileLoading } = useAuth();
+  const {
+    profile,
+    subscription,
+    completeness,
+    images,
+    isLoading: profileLoading,
+  } = useAuth();
   const isPro = !!subscription?.isPro;
 
   const {
     summary,
     analytics,
-    timeseries,
+    analyticsError,
     summaryError,
     isLoading: analyticsLoading,
     isAnalyticsLoading,
@@ -108,6 +150,25 @@ export default function OverviewPage() {
       ? applicationsPayload.length
       : applicationsPayload?.data?.length || 0;
 
+  const applicationsList = Array.isArray(applicationsPayload)
+    ? applicationsPayload
+    : applicationsPayload?.data || [];
+  const standing = bucketCounts(applicationsList);
+
+  // Interviews awaiting the talent's response — the clearest "ball in your court" signal.
+  const { data: interviewsPayload } = useQuery({
+    queryKey: ['talent-interviews'],
+    queryFn: () => talentApi.getInterviews(),
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+  const interviewsList = Array.isArray(interviewsPayload)
+    ? interviewsPayload
+    : interviewsPayload?.data || [];
+  const interviewsNeedingResponse = interviewsList.filter(
+    (iv) => iv.status === 'pending' || iv.status === 'rescheduled',
+  ).length;
+
   const firstName = profile?.first_name || '';
   const imageCount = Array.isArray(images) ? images.length : 0;
   const greeting = getGreetingByTime();
@@ -117,27 +178,52 @@ export default function OverviewPage() {
     summary?.views?.changePct ?? summary?.views?.change
   );
   const websiteUrl = portfolioShareUrl(profile?.slug);
-  const websiteHost = displayHost(websiteUrl);
-
-  const siteViews = asNum(analytics?.views?.total ?? summary?.views?.total);
-  const siteDownloads = asNum(analytics?.downloads?.total ?? summary?.downloads?.total);
-  const engagement = analytics?.engagement?.counts || {};
-  const linkClicks =
-    asNum(engagement.social_click) + asNum(engagement.portfolio_click);
-  const bioReads = asNum(engagement.bio_read);
-  const topSource =
-    Array.isArray(analytics?.views?.latestSourceBreakdown) &&
-    analytics.views.latestSourceBreakdown.length > 0
-      ? analytics.views.latestSourceBreakdown[0]
-      : null;
-
-  const websiteSparkline = (Array.isArray(timeseries) ? timeseries : [])
-    .slice(-14)
-    .map((d) => asNum(d.views));
-  const sparkMax = Math.max(1, ...websiteSparkline);
+  const websiteDisplayUrl = displayPublicUrl(websiteUrl);
+  const websiteAnalytics = analytics?.website;
+  const websiteAnalyticsConnected = websiteAnalytics?.status === 'connected';
+  const websiteMetrics = websiteAnalytics?.metrics || {};
+  const siteVisits = asNum(websiteMetrics.visits);
+  const uniqueVisitors = asNum(websiteMetrics.uniqueVisitors);
+  const sitePageViews = asNum(websiteMetrics.pageViews);
+  const outboundClicks = asNum(websiteMetrics.outboundClicks);
+  const uniqueVisitorsComplete =
+    websiteAnalytics?.measurement?.uniqueVisitors === 'complete';
+  const websiteTrend = websiteAnalytics?.trend?.visitsChangePct;
+  const websiteSeries = Array.isArray(websiteAnalytics?.series)
+    ? websiteAnalytics.series.map((item) => ({
+        date: item.date,
+        visits: asNum(item.visits),
+      }))
+    : [];
+  const websiteGradientId = `ov-website-gradient-${React.useId().replace(/:/g, '')}`;
   const readinessPct = asNum(completeness?.percentage);
 
-  const { topGaps, totalGaps, isRequiredComplete, isLoading: auditLoading } = useProfileStrength();
+  const { topGaps, totalGaps, isRequiredComplete, fieldCompletion, isLoading: auditLoading } = useProfileStrength();
+  const shouldReduce = useReducedMotion();
+
+  const minor = isMinorProfile(profile);
+  const sensitiveUnlocked = minorSensitiveFieldsUnlocked(profile);
+  const minorGated = minor && !sensitiveUnlocked;
+  const showPublicWebsite = isPro && !minorGated;
+
+  // Digitals recency: fieldCompletion.digitals_recency is false when existing digital
+  // images are older than DIGITALS_STALE_DAYS (client-side signal, no new date math).
+  const isDigitalsStale = fieldCompletion?.digitals_recency === false;
+  // Cap displayed readiness at 98 when stale so it never reads as fully complete.
+  const displayReadinessPct = isDigitalsStale ? Math.min(readinessPct, 98) : readinessPct;
+
+  const auditCtaLabel = minorGated
+    ? 'Record guardian consent'
+    : isDigitalsStale
+      ? 'Reshoot your digitals'
+      : isRequiredComplete
+        ? 'View Profile'
+        : 'Continue Audit';
+  const auditCtaTo = minorGated
+    ? '/dashboard/talent/profile?tab=identity'
+    : isDigitalsStale
+      ? '/dashboard/talent/media'
+      : '/dashboard/talent/profile';
 
   const photoSlots = Array.isArray(images) ? images.slice(0, 5) : [];
   const extraCount = Math.max(0, imageCount - 5);
@@ -147,9 +233,9 @@ export default function OverviewPage() {
         <header className="ov-hero">
           <motion.div
             className="ov-hero-identity"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduce ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: shouldReduce ? 0 : 0.7, ease: [0.22, 1, 0.36, 1] }}
           >
             {profileLoading ? (
               <span className="ov-skel ov-skel--name" aria-hidden />
@@ -168,24 +254,36 @@ export default function OverviewPage() {
             <motion.div
               className="ov-hero-sweep"
               style={{ transformOrigin: 'left' }}
-              initial={{ scaleX: 0 }}
+              initial={shouldReduce ? false : { scaleX: 0 }}
               animate={{ scaleX: 1 }}
-              transition={{ duration: 0.9, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: shouldReduce ? 0 : 0.9, delay: shouldReduce ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
               aria-hidden
             />
 
-            <div className="ov-hero-kpis" aria-label="Performance summary">
-              <div className="ov-hero-kpi">
-                <span className="ov-hero-kpi-label">Profile Views</span>
-                <span className="ov-hero-kpi-value">{views.toLocaleString()}</span>
-              </div>
-              <div className="ov-hero-kpi">
-                <span className="ov-hero-kpi-label">Readiness</span>
-                <span className="ov-hero-kpi-value">{readinessPct}%</span>
-              </div>
-              <div className="ov-hero-kpi">
+            <div className="ov-hero-kpis" aria-label="Submission summary">
+              <div className="ov-hero-kpi ov-hero-kpi--lead">
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : appsCount}
+                </span>
                 <span className="ov-hero-kpi-label">Submissions</span>
-                <span className="ov-hero-kpi-value">{appsPending || appsError ? '—' : appsCount}</span>
+              </div>
+              <div className="ov-hero-kpi">
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : standing.inReview}
+                </span>
+                <span className="ov-hero-kpi-label">In review</span>
+              </div>
+              <div className="ov-hero-kpi">
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : standing.advancing}
+                </span>
+                <span className="ov-hero-kpi-label">Advancing</span>
+              </div>
+              <div className="ov-hero-kpi">
+                <span className="ov-hero-kpi-value">
+                  {appsPending || appsError ? '—' : standing.signed}
+                </span>
+                <span className="ov-hero-kpi-label">Signed</span>
               </div>
             </div>
           </motion.div>
@@ -203,12 +301,12 @@ export default function OverviewPage() {
                       The <em>Book.</em>
                     </span>
                     <span className="ov-book-count">
-                      {imageCount} {imageCount === 1 ? 'frame' : 'frames'}
+                      {imageCount} {imageCount === 1 ? 'image' : 'images'}
                     </span>
                   </div>
                 </div>
-                <Link to="/dashboard/talent/media" className="ov-book-manage" aria-label="Manage portfolio frames">
-                  Manage Frames <ArrowUpRight size={12} aria-hidden />
+                <Link to="/dashboard/talent/media" className="ov-book-manage" aria-label="Manage portfolio images">
+                  Manage images <ArrowUpRight size={12} aria-hidden />
                 </Link>
               </div>
 
@@ -234,7 +332,7 @@ export default function OverviewPage() {
                     role="listitem"
                     aria-label="Add first portfolio image"
                   >
-                    <span className="ov-book-empty-headline">Add a frame</span>
+                    <span className="ov-book-empty-headline">Add an image</span>
                     <span className="ov-book-empty-sub">Your cover image</span>
                   </Link>
                 )}
@@ -270,7 +368,7 @@ export default function OverviewPage() {
                     aria-label={`${extraCount} more images`}
                   >
                     <span className="ov-book-more-count">+{extraCount}</span>
-                    <span className="ov-book-more-label">Frames</span>
+                    <span className="ov-book-more-label">Images</span>
                   </Link>
                 ) : photoSlots[4] ? (
                   <Link
@@ -295,18 +393,18 @@ export default function OverviewPage() {
               <div className="ov-readiness-header">
                 <div>
                   <h2 className="ov-readiness-title">
-                    The <em>Audit.</em>
+                    Submission <em>Readiness</em>
                   </h2>
                 </div>
-                <div className="ov-readiness-pct" aria-label={`${readinessPct}% complete`}>
-                  {readinessPct}
+                <div className="ov-readiness-pct" aria-label={`${displayReadinessPct}% complete`}>
+                  {displayReadinessPct}
                   <sup>%</sup>
                 </div>
               </div>
 
               <div className="ov-checklist" role="list">
                 {auditLoading ? (
-                  [0, 1, 2].map((i) => (
+                  [0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="ov-check-item" role="listitem" style={{ pointerEvents: 'none' }}>
                       <div className="ov-check-left">
                         <span
@@ -327,10 +425,6 @@ export default function OverviewPage() {
                     aria-label={`${item.label}${item.tier === 'required' ? ': Required' : ''}`}
                   >
                     <div className="ov-check-left">
-                      <span
-                        className={`ov-check-mark ${item.tier === 'required' ? 'ov-check-mark--critical' : 'ov-check-mark--improve'}`}
-                        aria-hidden
-                      />
                       <span className="ov-check-label">{item.label}</span>
                     </div>
                     <div className="ov-check-right">
@@ -343,13 +437,19 @@ export default function OverviewPage() {
                 ))}
               </div>
 
-              {!auditLoading && totalGaps > 3 && (
-                <p className="ov-audit-more">+{totalGaps - 3} more</p>
+              {!auditLoading && totalGaps > 5 && (
+                <p className="ov-audit-more">+{totalGaps - 5} more</p>
               )}
 
-              <Link to="/dashboard/talent/profile" className="ov-audit-cta">
-                {isRequiredComplete ? 'View Profile' : 'Continue Audit'}
-              </Link>
+              {minorGated && (
+                <p className="ov-minor-notice">
+                  Guardian consent is required before measurements, full-length photos, or public sharing can be enabled.
+                </p>
+              )}
+
+              <PholioButton to={auditCtaTo} variant="primary" tone="dark">
+                {auditCtaLabel}
+              </PholioButton>
             </div>
           </div>
         </div>
@@ -360,13 +460,13 @@ export default function OverviewPage() {
               <div className="ov-exposure-header">
                 <div>
                   <h2 className="ov-exposure-title">
-                    The <em>Market.</em>
+                    Your <em>Reach.</em>
                   </h2>
                 </div>
-                {!analyticsLoading && !summaryError && viewsDelta > 0 && (
-                  <p className="ov-delta-note">
-                    <TrendingUp size={11} aria-hidden />
-                    <span>+{viewsDelta}% views</span>
+                {!analyticsLoading && !summaryError && viewsDelta !== 0 && (
+                  <p className={`ov-delta-note ${viewsDelta < 0 ? 'ov-delta-note--negative' : ''}`}>
+                    <TrendingUp size={11} aria-hidden style={{ transform: viewsDelta < 0 ? 'scaleY(-1)' : 'none' }} />
+                    <span>{viewsDelta > 0 ? '+' : ''}{viewsDelta}% views</span>
                   </p>
                 )}
               </div>
@@ -386,14 +486,14 @@ export default function OverviewPage() {
                 <div className="ov-error-inline" role="alert">
                   <AlertCircle size={14} aria-hidden />
                   <span>Analytics unavailable.</span>
-                  <button
-                    type="button"
-                    className="ov-retry-btn"
+                  <PholioButton
+                    variant="tertiary"
+                    tone="dark"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >
                     {isAnalyticsRefetching ? '…' : 'Retry'}
-                  </button>
+                  </PholioButton>
                 </div>
               ) : (
                 <>
@@ -402,38 +502,25 @@ export default function OverviewPage() {
                       <div className="ov-stat-number">
                         <span className="ov-stat-value">{views.toLocaleString()}</span>
                       </div>
-                      <p className="ov-stat-label">Global Views (30d)</p>
-                    </div>
-                    <div>
-                      <div className="ov-stat-number">
-                        <span className="ov-stat-value ov-stat-value--gold">
-                          {appsPending || appsError ? '—' : appsCount}
-                        </span>
-                      </div>
-                      <p className="ov-stat-label">Submissions</p>
+                      <p className="ov-stat-label">Profile views (30d)</p>
                     </div>
                   </div>
-                  <div className="ov-readiness-track-wrap">
-                    <div className="ov-readiness-track-head">
-                      <span className="ov-visibility-label">Visibility Index</span>
-                      <span className="ov-readiness-track-pct">{readinessPct}%</span>
-                    </div>
-                    <div
-                      className="ov-vis-track"
-                      role="progressbar"
-                      aria-valuenow={readinessPct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Profile readiness"
+
+                  {interviewsNeedingResponse > 0 && (
+                    <PholioButton
+                      to="/dashboard/talent/applications"
+                      variant="meta"
+                      tone="dark"
+                      className="ov-standing-action"
                     >
-                      <motion.div
-                        className="ov-vis-fill"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${readinessPct}%` }}
-                        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                    </div>
-                  </div>
+                      <span>
+                        {interviewsNeedingResponse}{' '}
+                        {interviewsNeedingResponse === 1 ? 'interview needs' : 'interviews need'} your response
+                      </span>
+                      <ArrowUpRight size={13} aria-hidden />
+                    </PholioButton>
+                  )}
+
                 </>
               )}
             </div>
@@ -441,65 +528,78 @@ export default function OverviewPage() {
 
           <div className="ov-col-6">
             <div className="ov-artifacts">
-              <Link
-                to="/dashboard/talent/media"
-                className="ov-artifact-card ov-artifact-card--light"
-                aria-label="Build your comp card"
-              >
-                <div>
-                  <div className="ov-artifact-icon" aria-hidden>
-                    <FileText size={20} />
+              <div className="ov-artifact-card ov-artifact-card--light ov-artifact-card--feature">
+                {minorGated ? (
+                  <div className="ov-artifact-main ov-artifact-main--gated">
+                    <div className="ov-artifact-icon" aria-hidden>
+                      <FileText size={20} />
+                    </div>
+                    <h3 className="ov-artifact-title">
+                      Digital <em>Comp Card</em>
+                    </h3>
+                    <p className="ov-artifact-desc">
+                      Comp-card export unlocks after guardian consent is recorded on your profile.
+                    </p>
+                    <PholioButton to="/dashboard/talent/profile?tab=identity" variant="secondary">
+                      Record guardian consent
+                    </PholioButton>
                   </div>
-                  <h3 className="ov-artifact-title">
-                    Digital <em>Comp Card</em>
-                  </h3>
-                  <p className="ov-artifact-desc">
-                    Generate professional specs with latest polaroids for agency submission.
-                  </p>
-                </div>
-                <div className="ov-artifact-footer">
-                  <span className="ov-artifact-badge">{imageCount > 0 ? 'Ready' : 'Add photos first'}</span>
-                  <div className="ov-artifact-action">
-                    <span>Export</span>
-                    <Download size={13} aria-hidden />
+                ) : !isRequiredComplete ? (
+                  <div className="ov-artifact-main ov-artifact-main--gated">
+                    <div className="ov-artifact-icon" aria-hidden>
+                      <FileText size={20} />
+                    </div>
+                    <h3 className="ov-artifact-title">
+                      Digital <em>Comp Card</em>
+                    </h3>
+                    <p className="ov-artifact-desc">
+                      Complete your required profile fields to unlock comp card export.
+                    </p>
+                    <PholioButton to="/dashboard/talent/profile" variant="secondary">
+                      Complete your card
+                    </PholioButton>
                   </div>
-                </div>
-              </Link>
-
-              <Link
-                to="/dashboard/talent/media"
-                className="ov-artifact-card ov-artifact-card--dark"
-                aria-label="Intro reel"
-              >
-                <div>
-                  <div className="ov-artifact-icon" aria-hidden>
-                    <Activity size={20} />
-                  </div>
-                  <h3 className="ov-artifact-title">
-                    Intro <em>Reel</em>
-                  </h3>
-                  <p className="ov-artifact-desc">
-                    Capture a quick 30s screen-test to verify presence and personality.
-                  </p>
-                </div>
-                <div className="ov-artifact-footer">
-                  <span className="ov-artifact-badge ov-artifact-badge--missing">Missing</span>
-                  <div className="ov-artifact-action">
-                    <ArrowUpRight size={14} aria-hidden />
-                  </div>
-                </div>
-              </Link>
+                ) : (
+                  <>
+                    <Link
+                      to="/dashboard/talent/media"
+                      className="ov-artifact-main"
+                      aria-label="Build your comp card"
+                    >
+                      <div className="ov-artifact-icon" aria-hidden>
+                        <FileText size={20} />
+                      </div>
+                      <h3 className="ov-artifact-title">
+                        Digital <em>Comp Card</em>
+                      </h3>
+                      <p className="ov-artifact-desc">
+                        Your defining identity artifact — professional specs composed from your book and current stats, export-ready for agency submission.
+                      </p>
+                    </Link>
+                    <div className="ov-artifact-footer">
+                      <PholioButton
+                        to="/dashboard/talent/media"
+                        variant="meta"
+                        className="ov-artifact-action"
+                      >
+                        <span>Export</span>
+                        <Download size={13} aria-hidden />
+                      </PholioButton>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {isPro && (
+        {showPublicWebsite && (
           <motion.section
             className="ov-website"
             aria-labelledby="ov-website-heading"
-            initial={{ opacity: 0, y: 16 }}
+            initial={shouldReduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: shouldReduce ? 0 : 0.65, delay: shouldReduce ? 0 : 0.15, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="ov-website-header">
               <div>
@@ -515,32 +615,14 @@ export default function OverviewPage() {
                   className="ov-website-live"
                 >
                   <Globe size={12} aria-hidden />
-                  <span>{websiteHost || 'Live site'}</span>
+                  <span>{websiteDisplayUrl}</span>
                   <ExternalLink size={11} aria-hidden />
                 </a>
               )}
             </div>
 
             <div className="ov-website-panel">
-              {websiteUrl ? (
-                <a
-                  href={websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ov-website-url"
-                >
-                  <span className="ov-website-url-label">Public URL</span>
-                  <span className="ov-website-url-path">/portfolio/{profile?.slug}</span>
-                  <ArrowUpRight size={14} className="ov-website-url-arrow" aria-hidden />
-                </a>
-              ) : (
-                <div className="ov-website-url ov-website-url--muted">
-                  <span className="ov-website-url-label">Public URL</span>
-                  <span className="ov-website-url-path">Set your handle in settings</span>
-                </div>
-              )}
-
-              {analyticsLoading || isAnalyticsLoading ? (
+              {isAnalyticsLoading ? (
                 <div className="ov-website-metrics ov-website-metrics--loading">
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="ov-website-stat">
@@ -549,66 +631,145 @@ export default function OverviewPage() {
                     </div>
                   ))}
                 </div>
-              ) : summaryError ? (
+              ) : analyticsError ? (
                 <div className="ov-error-inline ov-website-error" role="alert">
                   <AlertCircle size={14} aria-hidden />
                   <span>Website analytics unavailable.</span>
-                  <button
-                    type="button"
-                    className="ov-retry-btn"
+                  <PholioButton
+                    variant="tertiary"
+                    tone="dark"
                     onClick={() => refetchAnalytics()}
                     disabled={isAnalyticsRefetching}
                   >
                     {isAnalyticsRefetching ? '…' : 'Retry'}
-                  </button>
+                  </PholioButton>
+                </div>
+              ) : !websiteAnalyticsConnected ? (
+                <div className="ov-website-unavailable">
+                  Website analytics are not connected yet. No estimates are shown.
                 </div>
               ) : (
                 <div className="ov-website-analytics">
                   <div className="ov-website-metrics">
                     <div className="ov-website-stat">
-                      <div className="ov-website-stat-row">
-                        <span className="ov-stat-value">{siteViews.toLocaleString()}</span>
-                        {viewsDelta > 0 && (
-                          <span className="ov-website-delta">+{viewsDelta}%</span>
-                        )}
-                      </div>
-                      <p className="ov-stat-label">Site visits (30d)</p>
+                      <span className="ov-stat-value">{siteVisits.toLocaleString()}</span>
+                      <p className="ov-stat-label">Visits</p>
                     </div>
                     <div className="ov-website-stat">
-                      <span className="ov-stat-value ov-stat-value--gold">
-                        {siteDownloads.toLocaleString()}
+                      <span className="ov-stat-value">
+                        {uniqueVisitorsComplete ? uniqueVisitors.toLocaleString() : '—'}
                       </span>
-                      <p className="ov-stat-label">Comp downloads</p>
-                    </div>
-                    <div className="ov-website-stat">
-                      <span className="ov-stat-value">{linkClicks.toLocaleString()}</span>
-                      <p className="ov-stat-label">Link clicks</p>
-                    </div>
-                    <div className="ov-website-stat">
-                      <span className="ov-stat-value">{bioReads.toLocaleString()}</span>
-                      <p className="ov-stat-label">
-                        {topSource?.label ? `Bio reads · ${topSource.label}` : 'Bio reads'}
+                      <p
+                        className="ov-stat-label"
+                        title={
+                          uniqueVisitorsComplete
+                            ? 'Distinct visitors'
+                            : 'Some legacy visits did not include a visitor ID'
+                        }
+                      >
+                        {uniqueVisitorsComplete ? 'Unique visitors' : 'Unique visitors unavailable'}
                       </p>
+                    </div>
+                    <div className="ov-website-stat">
+                      <span className="ov-stat-value">{sitePageViews.toLocaleString()}</span>
+                      <p className="ov-stat-label">Page views</p>
+                    </div>
+                    <div className="ov-website-stat">
+                      <span className="ov-stat-value">{outboundClicks.toLocaleString()}</span>
+                      <p className="ov-stat-label">Outbound clicks</p>
                     </div>
                   </div>
 
-                  {websiteSparkline.length > 1 && (
-                    <div className="ov-website-spark" aria-hidden>
-                      {websiteSparkline.map((v, i) => (
-                        <span
-                          key={i}
-                          className="ov-website-spark-bar"
-                          style={{ height: `${Math.max(8, (v / sparkMax) * 100)}%` }}
-                        />
-                      ))}
+                  <div className="ov-website-chart-block">
+                    <div className="ov-website-chart-header">
+                      <div>
+                        <h3 className="ov-website-chart-title">Visits over time</h3>
+                      </div>
+                      <p className="ov-website-period">
+                        {websiteAnalytics?.period?.days || 30} days
+                        {typeof websiteTrend === 'number'
+                          ? ` · ${websiteTrend > 0 ? '+' : ''}${websiteTrend}% vs prior period`
+                          : ' · No prior baseline'}
+                      </p>
                     </div>
-                  )}
+
+                    {websiteAnalytics.hasData && websiteSeries.some((point) => point.visits > 0) ? (
+                      <div
+                        className="ov-website-chart"
+                        role="img"
+                        aria-label={`Daily portfolio visits over the last ${websiteAnalytics?.period?.days || 30} days`}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart
+                            data={websiteSeries}
+                            margin={{ top: 12, right: 2, bottom: 0, left: 0 }}
+                          >
+                            <defs>
+                              <linearGradient id={websiteGradientId} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#C9A55A" stopOpacity={0.22} />
+                                <stop offset="100%" stopColor="#C9A55A" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid
+                              vertical={false}
+                              stroke="rgba(255,255,255,0.055)"
+                              strokeDasharray="2 8"
+                            />
+                            <XAxis
+                              dataKey="date"
+                              axisLine={false}
+                              tickLine={false}
+                              tickFormatter={(value) => chartDateLabel(value)}
+                              minTickGap={36}
+                              tick={{ fill: 'rgba(245,240,232,0.38)', fontSize: 10 }}
+                              dy={10}
+                            />
+                            <YAxis
+                              axisLine={false}
+                              tickLine={false}
+                              allowDecimals={false}
+                              width={28}
+                              tickCount={4}
+                              tick={{ fill: 'rgba(245,240,232,0.3)', fontSize: 10 }}
+                            />
+                            <Tooltip
+                              content={<WebsiteChartTooltip />}
+                              cursor={{ stroke: 'rgba(201,165,90,0.28)', strokeWidth: 1 }}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="visits"
+                              stroke="#C9A55A"
+                              strokeWidth={2}
+                              fill={`url(#${websiteGradientId})`}
+                              activeDot={{
+                                r: 4,
+                                fill: '#111111',
+                                stroke: '#C9A55A',
+                                strokeWidth: 2,
+                              }}
+                              dot={false}
+                              isAnimationActive={!shouldReduce}
+                              animationDuration={700}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="ov-website-chart-empty">
+                        <span>No visits recorded in this period.</span>
+                        <span>Tracking is connected and will populate after your portfolio is visited.</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <Link to="/dashboard/talent/analytics" className="ov-website-intel">
-                Full intel <ArrowUpRight size={12} aria-hidden />
-              </Link>
+              <div className="ov-website-footer">
+                <Link to="/dashboard/talent/analytics" className="ov-website-intel">
+                  Full analytics <ArrowUpRight size={12} aria-hidden />
+                </Link>
+              </div>
             </div>
           </motion.section>
         )}

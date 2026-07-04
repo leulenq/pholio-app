@@ -166,6 +166,34 @@ const {
 const {
   reciprocalRankFusion,
 } = require("../../src/domains/agency/services/discover-retrieval");
+const { FORBIDDEN_KEYS } = require("../contract/audience-dto.test");
+
+// Recursively collect every object key that appears anywhere in a payload.
+function collectKeys(node, acc = new Set()) {
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectKeys(item, acc));
+  } else if (node && typeof node === "object") {
+    for (const [key, value] of Object.entries(node)) {
+      acc.add(key);
+      collectKeys(value, acc);
+    }
+  }
+  return acc;
+}
+
+// UTC date string (YYYY-MM-DD) for a DOB `yearsAgo` years and `dayOffset` days
+// from today — used to seed exact age-boundary birthdays.
+function dobForBoundary(yearsAgo, dayOffset = 0) {
+  const now = new Date();
+  const d = new Date(
+    Date.UTC(
+      now.getUTCFullYear() - yearsAgo,
+      now.getUTCMonth(),
+      now.getUTCDate() + dayOffset,
+    ),
+  );
+  return d.toISOString().slice(0, 10);
+}
 
 const TEST_DB_PATH = path.resolve(
   __dirname,
@@ -194,20 +222,47 @@ async function createSchema() {
       t.string("last_name", 100).nullable();
       t.string("slug", 200).nullable();
       t.string("city", 100).nullable();
+      t.string("city_secondary", 100).nullable();
+      t.string("nationality", 100).nullable();
       t.integer("height_cm").nullable();
+      t.integer("bust_cm").nullable();
+      t.integer("chest_cm").nullable();
+      t.integer("waist_cm").nullable();
+      t.integer("hips_cm").nullable();
+      t.integer("inseam_cm").nullable();
+      t.string("shoe_size", 20).nullable();
+      t.string("dress_size", 20).nullable();
+      t.string("suit_size", 20).nullable();
+      t.string("stats_track", 20).nullable();
+      t.timestamp("measurements_updated_at").nullable();
       t.integer("age").nullable();
+      // Age is DERIVED from DOB (audit P0-7) — the stored `age` column above is
+      // legacy and no longer read by discover-search.
+      t.string("date_of_birth", 40).nullable();
+      t.timestamp("guardian_consent_at").nullable();
       t.string("gender", 50).nullable();
       t.string("archetype", 50).nullable();
       t.string("experience_level", 50).nullable();
+      t.string("discipline", 20).nullable();
       t.text("bio_curated").nullable();
       t.text("bio_raw").nullable();
       t.text("look_descriptor").nullable();
       t.text("image_analysis").nullable();
       t.text("search_document").nullable();
       t.string("hair_color", 50).nullable();
+      t.string("hair_length", 50).nullable();
+      t.string("hair_type", 50).nullable();
       t.string("eye_color", 50).nullable();
       t.text("ethnicity").nullable();
       t.text("specialties").nullable();
+      t.text("specializations").nullable();
+      t.text("languages").nullable();
+      t.text("training").nullable();
+      t.boolean("availability_travel").nullable();
+      t.boolean("seeking_representation").nullable();
+      t.string("union_membership", 100).nullable();
+      t.integer("playing_age_min").nullable();
+      t.integer("playing_age_max").nullable();
       t.boolean("is_discoverable").defaultTo(false);
       t.string("profile_status", 50).nullable();
       t.timestamp("created_at").defaultTo(knex.fn.now());
@@ -250,8 +305,38 @@ async function createSchema() {
       t.string("id", 36).primary();
       t.string("profile_id", 36).nullable();
       t.string("path").nullable();
+      t.string("public_url").nullable();
+      t.boolean("is_primary").defaultTo(false);
+      t.string("shot_type", 50).nullable();
+      t.string("image_type", 50).nullable();
       t.integer("sort").defaultTo(0);
+      // Visibility columns consumed by applyImageVisibility (AGENCY_DISCOVERY).
+      t.string("status", 20).nullable();
+      t.string("moderation_status", 20).nullable();
+      t.boolean("exclude_from_public").defaultTo(false);
+      t.boolean("exclude_from_agency").defaultTo(false);
       t.timestamp("created_at").defaultTo(knex.fn.now());
+    });
+  }
+
+  if (!(await knex.schema.hasTable("social_accounts"))) {
+    // Mirrors migrations/20260629160000_create_social_accounts_table.js —
+    // shared/lib/social-accounts.js (Wave 2D canonical loader) batch-loads
+    // this table for every Discover result page.
+    await knex.schema.createTable("social_accounts", (t) => {
+      t.string("id", 36).primary();
+      t.string("profile_id", 36).nullable();
+      t.string("agency_id", 36).nullable();
+      t.string("platform", 50).notNullable();
+      t.string("handle", 255).nullable();
+      t.string("url", 500).nullable();
+      t.integer("follower_count").nullable();
+      t.decimal("engagement_rate", 5, 2).nullable();
+      t.boolean("is_oauth_connected").defaultTo(false);
+      t.timestamp("metrics_updated_at").nullable();
+      t.timestamps(true, true);
+      t.unique(["profile_id", "platform"]);
+      t.unique(["agency_id", "platform"]);
     });
   }
 
@@ -598,6 +683,147 @@ describe("hybrid discover search (SQLite)", () => {
     const heritage = result.profiles.find((p) => p.last_name === "Heritage");
     expect(heritage).toBeDefined();
     expect(heritage.gender).toBe("Male");
+  });
+});
+
+describe("agency-discovery DTO contract (SQLite)", () => {
+  beforeEach(async () => {
+    await seedDiscoverProfiles();
+    await seedHybridEmbeddings();
+  });
+
+  test("browse results never expose a forbidden key or owner email", async () => {
+    const prev = process.env.DISCOVER_HYBRID;
+    process.env.DISCOVER_HYBRID = "false";
+
+    const result = await searchDiscoverableTalent(knex, {
+      agencyId: AGENCY_ID,
+      q: "",
+      limit: "50",
+    });
+
+    process.env.DISCOVER_HYBRID = prev;
+
+    expect(result.profiles.length).toBeGreaterThan(0);
+    const keys = collectKeys(result.profiles);
+    const leaked = [...keys].filter((k) => FORBIDDEN_KEYS.has(k));
+    expect(leaked).toEqual([]);
+    // Explicit spot-checks for the P0-3 leak surface.
+    expect(keys.has("owner_email")).toBe(false);
+    expect(keys.has("user_email")).toBe(false);
+    expect(keys.has("search_document")).toBe(false);
+    expect(keys.has("date_of_birth")).toBe(false);
+  });
+
+  test("hybrid results are shaped DTOs with only coarse age bands", async () => {
+    const result = await searchDiscoverableTalent(knex, {
+      agencyId: AGENCY_ID,
+      q: "sharp jawline editorial",
+      limit: "10",
+    });
+
+    expect(result.profiles.length).toBeGreaterThan(0);
+    const keys = collectKeys(result.profiles);
+    expect([...keys].filter((k) => FORBIDDEN_KEYS.has(k))).toEqual([]);
+    for (const profile of result.profiles) {
+      expect(profile.age).toBeUndefined();
+      expect("age_band" in profile).toBe(true);
+    }
+  });
+});
+
+describe("DOB-derived age filter (SQLite, audit P0-7)", () => {
+  async function seedAgeBoundaryProfiles() {
+    await knex("applications").del();
+    await knex("images").del();
+    if (await knex.schema.hasTable("profiles_fts")) {
+      await knex("profiles_fts").del();
+    }
+    await knex("profiles").del();
+    await knex("users").del();
+
+    await knex("users").insert({
+      id: AGENCY_ID,
+      email: "age-agency@test.pholio",
+      role: "AGENCY",
+    });
+
+    // Named by exact birthday relative to today.
+    const rows = [
+      { last_name: "Turns18Today", dob: dobForBoundary(18, 0) }, // age 18
+      { last_name: "Turns18Tomorrow", dob: dobForBoundary(18, 1) }, // age 17
+      { last_name: "Turned31Today", dob: dobForBoundary(31, 0) }, // age 31
+      { last_name: "Turns31Tomorrow", dob: dobForBoundary(31, 1) }, // age 30
+    ];
+
+    for (const r of rows) {
+      await knex("profiles").insert({
+        id: uuidv4(),
+        user_id: uuidv4(),
+        first_name: "Age",
+        last_name: r.last_name,
+        slug: r.last_name.toLowerCase(),
+        date_of_birth: r.dob,
+        bio_curated: "Boundary birthday fixture",
+        is_discoverable: true,
+        profile_status: "active",
+        created_at: new Date(),
+      });
+    }
+  }
+
+  beforeEach(async () => {
+    await seedAgeBoundaryProfiles();
+  });
+
+  test("min_age is inclusive on the birthday (>= min_age)", async () => {
+    const result = await searchDiscoverableTalent(knex, {
+      agencyId: AGENCY_ID,
+      q: "",
+      min_age: "18",
+      limit: "50",
+    });
+    const names = result.profiles.map((p) => p.last_name);
+    // Turns 18 today (exactly 18) is included; turns 18 tomorrow (17) is not.
+    expect(names).toContain("Turns18Today");
+    expect(names).not.toContain("Turns18Tomorrow");
+  });
+
+  test("max_age excludes the day the talent ages out", async () => {
+    const result = await searchDiscoverableTalent(knex, {
+      agencyId: AGENCY_ID,
+      q: "",
+      max_age: "30",
+      limit: "50",
+    });
+    const names = result.profiles.map((p) => p.last_name);
+    // Turns 31 tomorrow (still 30) is included; turned 31 today (31) is not.
+    expect(names).toContain("Turns31Tomorrow");
+    expect(names).not.toContain("Turned31Today");
+  });
+
+  test("null date_of_birth is excluded by any age filter (fail closed)", async () => {
+    await knex("profiles").insert({
+      id: uuidv4(),
+      user_id: uuidv4(),
+      first_name: "Age",
+      last_name: "NoDob",
+      slug: "nodob",
+      date_of_birth: null,
+      bio_curated: "No DOB on file",
+      is_discoverable: true,
+      profile_status: "active",
+      created_at: new Date(),
+    });
+
+    const result = await searchDiscoverableTalent(knex, {
+      agencyId: AGENCY_ID,
+      q: "",
+      min_age: "18",
+      limit: "50",
+    });
+    const names = result.profiles.map((p) => p.last_name);
+    expect(names).not.toContain("NoDob");
   });
 });
 

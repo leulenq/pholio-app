@@ -11,11 +11,13 @@ import { Loader2, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
 import { markAuthEntryTransition } from '../../../../shared/lib/pholio-auth/entry-transition';
+import { purgeApplyDraftStorage } from '../../../talent/pages/ApplyPage/applicationDraftStorage';
 import { useAuthenticatedEntryRedirect } from '../../hooks/useAuthenticatedEntryRedirect';
 import {
   isInstagramAuthConfigured,
   startInstagramAuth,
 } from '../../lib/instagram-auth';
+import LegalNoticeLine from '../../../../shared/components/LegalNoticeLine';
 import styles from './LoginPage.module.css';
 
 const GoogleIcon = () => (
@@ -66,6 +68,7 @@ export default function LoginPage() {
         credentials: 'include',
         headers: { Accept: 'application/json' },
       }).catch(() => {});
+      purgeApplyDraftStorage();
     }
 
     clearSession();
@@ -168,7 +171,9 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({ firebase_token: idToken }),
+        body: JSON.stringify({
+          firebase_token: idToken,
+        }),
       });
 
       const contentType = response.headers.get('content-type');
@@ -351,6 +356,9 @@ export default function LoginPage() {
           {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Sign in'}
         </button>
       </form>
+
+      {/* Quiet legal colophon — returning users never re-accept here */}
+      <LegalNoticeLine className={styles.legalNotice} />
 
       {/* Footer */}
       <div className={styles.footerRow}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
+import { SectionHelpHint } from './SectionHelpHint';
 
 function renderTitle(title, titleEmphasis) {
   if (!titleEmphasis || !title.includes(titleEmphasis)) {
@@ -25,13 +26,19 @@ export const Section = ({
   children,
   showDivider = true,
   headerAction,
+  className,
 }) => (
-  <section id={id} className={styles.section}>
+  <section
+    id={id}
+    className={`${styles.section} ${showDivider ? '' : styles.sectionWithoutDivider} ${className || ''}`}
+  >
     {showDivider && <hr className={styles.sectionDivider} aria-hidden="true" />}
     <div className={styles.sectionHeader}>
       <div className={styles.sectionTitleGroup}>
-        {title ? renderTitle(title, titleEmphasis) : null}
-        {description && <p className={styles.sectionDescription}>{description}</p>}
+        <div className={styles.sectionTitleRow}>
+          {title ? renderTitle(title, titleEmphasis) : null}
+          {description ? <SectionHelpHint description={description} hintId={id || title} /> : null}
+        </div>
       </div>
       {headerAction && <div className={styles.sectionHeaderAction}>{headerAction}</div>}
     </div>

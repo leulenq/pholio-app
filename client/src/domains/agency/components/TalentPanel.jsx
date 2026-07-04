@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { X, Maximize2, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
@@ -42,11 +42,8 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
     if (payload.images?.length) setCarouselImages(payload.images);
   }, []);
 
-  useEffect(() => {
-    setCarouselIdx(0);
-    setCarouselImages(null);
-    setProfileHydrated(null);
-  }, [talent?.id]);
+  // Per-talent state resets via remount: every call site renders this panel
+  // with key={talent id}, so switching talents mounts a fresh instance.
 
   if (!talent) return null;
 

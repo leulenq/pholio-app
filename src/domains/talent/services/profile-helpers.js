@@ -43,8 +43,10 @@ function parseSocialMediaHandle(handle) {
   // Remove any URLs
   cleaned = cleaned.replace(/^https?:\/\//i, '');
   cleaned = cleaned.replace(/^www\./i, '');
-  cleaned = cleaned.replace(/^(instagram|twitter|tiktok)\.com\//i, '');
+  cleaned = cleaned.replace(/^(instagram|twitter|x|tiktok|youtube)\.com\//i, '');
   cleaned = cleaned.replace(/^@/, ''); // Remove @ again in case it was in URL
+  cleaned = cleaned.replace(/^(c|channel|user|profile)\//i, ''); // Strip YouTube/etc sub-paths
+  cleaned = cleaned.replace(/^@/, ''); // Remove @ again
   
   // Get just the username part (before any / or ?)
   cleaned = cleaned.split('/')[0].split('?')[0].trim();
@@ -54,7 +56,7 @@ function parseSocialMediaHandle(handle) {
 
 /**
  * Generate full social media URL from handle
- * @param {string} platform - Platform name ('instagram', 'twitter', 'tiktok')
+ * @param {string} platform - Platform name ('instagram', 'twitter', 'tiktok', 'youtube')
  * @param {string} handle - Handle (with or without @)
  * @returns {string|null} Full URL or null if invalid
  */
@@ -66,14 +68,16 @@ function generateSocialMediaUrl(platform, handle) {
   
   const platformUrls = {
     instagram: 'https://instagram.com',
-    twitter: 'https://twitter.com',
-    tiktok: 'https://tiktok.com'
+    twitter: 'https://x.com',
+    tiktok: 'https://tiktok.com',
+    youtube: 'https://youtube.com/c'
   };
   
   const baseUrl = platformUrls[platform.toLowerCase()];
   if (!baseUrl) return null;
   
-  return `${baseUrl}/${cleanedHandle}`;
+  const prefix = platform.toLowerCase() === 'tiktok' ? '@' : '';
+  return `${baseUrl}/${prefix}${cleanedHandle}`;
 }
 
 /**

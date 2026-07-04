@@ -67,7 +67,21 @@ const theme = {
   tagline: "Talent portfolios & agency tools",
   siteUrl: "https://www.pholio.studio",
   siteLabel: "pholio.studio",
+  brandMarkPath: "/brand/pholio-sender-avatar.png",
 };
+
+function brandMarkUrl() {
+  const override = process.env.EMAIL_BRAND_MARK_URL || process.env.BRAND_MARK_URL;
+  if (override) return String(override).trim().replace(/\/$/, "");
+
+  const base =
+    process.env.APP_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://app.pholio.studio"
+      : "http://localhost:3000");
+
+  return `${String(base).trim().replace(/\/$/, "")}${theme.brandMarkPath}`;
+}
 
 function appBaseUrl() {
   return (
@@ -78,4 +92,4 @@ function appBaseUrl() {
   );
 }
 
-module.exports = { theme, appBaseUrl };
+module.exports = { theme, appBaseUrl, brandMarkUrl };

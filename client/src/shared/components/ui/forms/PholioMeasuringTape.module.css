@@ -60,6 +60,29 @@
   text-transform: uppercase;
 }
 
+.manualHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: 3px;
+  color: #b4a798;
+  opacity: 0.2;
+  line-height: 1;
+  pointer-events: auto;
+  cursor: pointer;
+  transform: translateY(0.5px);
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tapeWrapper:hover .manualHint,
+.valueDisplay:focus-within .manualHint {
+  color: #9c8c78;
+  opacity: 0.42;
+}
+
 /* Size: Small */
 .small .value {
   font-size: 18px;
@@ -203,4 +226,21 @@
 
 .tapeUnset .indicator {
   background: #cbd5e1;
+}
+
+.tapeWrapper {
+  outline: none;
+}
+
+.tapeWrapper:focus-visible .tapeContainerOuter {
+  outline: 2px solid #C9A55A;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tapeContainerUnset,
+  .manualHint {
+    transition-duration: 0.01ms !important;
+  }
 }

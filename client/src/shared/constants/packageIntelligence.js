@@ -1,0 +1,4 @@
+export const DIGITALS_MAX_AGE_DAYS = 90;
+export const DIGITALS_STALE_DAYS = DIGITALS_MAX_AGE_DAYS;
+export const BOOK_MIN_FRAME_COUNT = 5;
+export const PITS_MAX_CONCURRENT_VISION = 3;

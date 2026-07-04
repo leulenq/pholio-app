@@ -1,9 +1,11 @@
+const { v4: uuidv4 } = require("uuid");
 const knex = require("../src/shared/db/knex");
 const {
   upsertUserNotification,
   listUserNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  notifyTalentApplicationStatusChange,
 } = require("../src/shared/services/notifications");
 
 describe("notifications service", () => {
@@ -94,5 +96,31 @@ describe("notifications service", () => {
     await markAllNotificationsRead(userId);
     listed = await listUserNotifications(userId);
     expect(listed.unreadCount).toBe(0);
+  });
+
+  it("notifies a development offer as a high-priority New Face outcome", async () => {
+    const applicationId = uuidv4();
+
+    await notifyTalentApplicationStatusChange({
+      userId,
+      applicationId,
+      agencyId: "test-agency",
+      agencyName: "North Star Models",
+      status: "development",
+    });
+
+    const row = await knex("notifications")
+      .where({
+        user_id: userId,
+        group_key: `application_status:${applicationId}:development`,
+      })
+      .first();
+
+    expect(row).toBeDefined();
+    expect(row.title).toBe("Development offer");
+    expect(row.body).toContain("develop you as a new face");
+    expect(row.priority).toBe("high");
+
+    await knex("notifications").where({ id: row.id }).del();
   });
 });

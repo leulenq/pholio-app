@@ -1,0 +1,704 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   CASTING STEPS — new styles for the redesigned wizard steps
+   (measurements fitting, scout digitals frames, profile lanes + city,
+   segmented birthdate, and the shared acknowledgment beat).
+   Owned by the wizard-steps work; the shared CastingCinematic.css is
+   read-only. No backdrop-filter here (banned outside full-screen scrims).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Shared: vertically centered step — prototype .stage / .panel ───── */
+.cs-step-stage,
+.csm-step-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* Prototype .q + .divider rhythm — headline has no bottom margin; divider is 2.4rem auto */
+.cs-step-beat {
+  width: 100%;
+  overflow: visible;
+}
+
+.cs-step-beat .cinematic-question {
+  margin-bottom: 0;
+}
+
+.cs-step-beat .cinematic-divider-container {
+  margin: 2.4rem auto;
+}
+
+/* Prototype .helper — subtle uppercase guidance copy on the stage */
+.cs-stage-helper {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(245, 241, 234, 0.2);
+  max-width: 52ch;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ─── Verify email — the inbox beat ─────────────────────────────────── */
+/* The address is the one thing worth reading twice (a typo'd signup email is
+   only catchable here), so it sits brighter than the helper around it. */
+.cs-verify-email {
+  color: var(--gold);
+  letter-spacing: 0.08em;
+}
+.cs-verify-note {
+  margin-top: 1.4rem;
+  color: rgba(245, 241, 234, 0.45);
+}
+
+/* Variant B Address Card */
+.cs-address-card {
+  width: 100%;
+  max-width: 420px;
+  margin: 2.2rem auto 0;
+  border-radius: 12px;
+  border: 1px dashed var(--hair);
+  padding: 1.25rem;
+  text-align: center;
+  background: rgba(201, 165, 90, 0.015);
+  transition: all 0.3s var(--ease);
+}
+
+.cs-address-card:hover {
+  border-color: rgba(201, 165, 90, 0.4);
+  background: rgba(201, 165, 90, 0.035);
+}
+
+.cs-address-label {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.cs-address-email {
+  font-family: var(--cinematic-font-serif);
+  font-size: 1.25rem;
+  color: #fff;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Shared: quiet hint beneath a field (prototype .hint) ──────────── */
+.cs-hint,
+.entry-hint {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-top: 2rem;
+  height: 1rem;
+}
+
+/* ─── Shared: sans whisper beneath a serif heading ──────────────────── */
+.cs-whisper {
+  font-family: var(--cinematic-font-sans);
+  font-weight: 300;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.42);
+  max-width: 46ch;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* ─── Shared: soft inline nudge (not an error — a gentle prompt) ─────── */
+.cs-nudge {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.7);
+  margin-top: 1.25rem;
+  text-align: center;
+}
+
+/* ─── Shared: quiet text link (Later / Skip for now) ────────────────── */
+.cs-text-link {
+  background: none;
+  border: none;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.3s ease;
+}
+
+.cs-text-link:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACKNOWLEDGMENT BEAT — full-surface typographic response
+   ═══════════════════════════════════════════════════════════════════════ */
+.cs-ack-beat {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 30;
+}
+
+.cs-ack-line {
+  font-family: var(--cinematic-font-serif);
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MEASUREMENTS — the fitting offer
+   ═══════════════════════════════════════════════════════════════════════ */
+.cs-fitting-choices {
+  margin-top: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Dimmed empty-state value on a dial that hasn't been touched yet */
+.cs-deck-value--empty {
+  color: rgba(255, 255, 255, 0.22) !important;
+  text-shadow: none !important;
+}
+
+.cs-deck-empty-hint {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SCOUT — two labeled digitals frames (prototype .frames / .drop / .pits)
+   ═══════════════════════════════════════════════════════════════════════ */
+.cs-frames {
+  display: flex;
+  gap: 2.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.cs-frames--single {
+  justify-content: center;
+}
+
+.cs-frame-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 212px;
+  text-align: center;
+}
+
+/* Gallery placard — label beneath the frame like a caption card */
+.cs-frame-placard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  font-family: var(--cinematic-font-sans, 'Inter', sans-serif);
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.cs-frame-placard-index {
+  color: var(--cinematic-accent);
+  letter-spacing: 0.12em;
+}
+
+.cs-frame-drop {
+  position: relative;
+  width: 212px;
+  height: 280px;
+  border: 1px solid rgba(245, 241, 234, 0.14);
+  border-radius: 3px;
+  background: rgba(245, 241, 234, 0.015);
+  overflow: hidden;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.4s ease;
+}
+
+.cs-frame-drop:hover {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: rgba(201, 165, 90, 0.03);
+}
+
+.cs-frame-drop.is-filled {
+  border-color: rgba(201, 165, 90, 0.6);
+  box-shadow: 0 0 34px rgba(201, 165, 90, 0.14);
+}
+
+/* Empty slot — plus only; border lives on .cs-frame-drop */
+.cs-frame-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+/* The plus: two hairlines, static on hover (prototype .plus) */
+.cs-frame-plus {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  opacity: 0.5;
+}
+
+.cs-frame-plus::before,
+.cs-frame-plus::after {
+  content: '';
+  position: absolute;
+  background: var(--text-2);
+}
+
+.cs-frame-plus::before {
+  left: 12px;
+  top: 0;
+  width: 2px;
+  height: 26px;
+}
+
+.cs-frame-plus::after {
+  top: 12px;
+  left: 0;
+  height: 2px;
+  width: 26px;
+}
+
+.cs-frame-empty-label {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Filled frame — image fills the drop directly (prototype .drop.filled) */
+.cs-frame-filled {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  background: #0d0d0d;
+}
+
+.cs-frame-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  filter: saturate(0.96);
+}
+
+/* Uploading overlay (no backdrop-filter — solid scrim) */
+.cs-frame-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 5, 4, 0.55);
+  color: var(--cinematic-accent);
+}
+
+/* Replace affordance on hover of a filled frame */
+.cs-frame-replace {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cs-frame-drop:hover .cs-frame-replace {
+  opacity: 1;
+}
+
+/* PITS signal chips — prototype .pits */
+.cs-frame-pits {
+  display: flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  min-height: 0.9rem;
+}
+
+.cs-frame-pits span {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.72);
+}
+
+.cs-frame-pits span + span::before {
+  content: '·';
+  margin-right: 0.4rem;
+  color: var(--text-3);
+}
+
+.cs-frame-pits .reading {
+  color: var(--text-3);
+}
+
+/* Consequence / hint line under a frame — legacy; prefer .cs-frame-pits */
+.cs-frame-consequence {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.64rem;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.32);
+  min-height: 1.5em;
+}
+
+/* Per-frame inline error */
+.cs-frame-error-text {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.64rem;
+  letter-spacing: 0.02em;
+  color: #d08a8a;
+}
+
+/* Drag overlay for a slot (solid tint, no blur) */
+.cs-frame-dragover {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed rgba(201, 165, 90, 0.5);
+  border-radius: 2px;
+  background: rgba(201, 165, 90, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: rgba(201, 165, 90, 0.85);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Error overlay filling a slot (solid tint, no blur) */
+.cs-frame-error-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(40, 12, 12, 0.55);
+  color: #d08a8a;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* Remove (X) action on a filled slot */
+.cs-frame-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  background: rgba(15, 14, 12, 0.85);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  opacity: 0.8;
+  transition: opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  z-index: 6;
+}
+
+.cs-frame-drop:hover .cs-frame-remove,
+.cs-frame-drop:focus-within .cs-frame-remove {
+  opacity: 1;
+}
+
+.cs-frame-remove:hover {
+  color: #d08a8a;
+  border-color: rgba(208, 138, 138, 0.4);
+  background: rgba(20, 10, 10, 0.95);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PROFILE — work lanes (multi-select, text only) + city
+   ═══════════════════════════════════════════════════════════════════════ */
+.cs-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.cs-lane-option {
+  position: relative;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 1.05rem 1.5rem;
+  cursor: pointer;
+  font-family: var(--cinematic-font-serif);
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.cs-lane-option:hover {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.cs-lane-option.is-selected {
+  color: var(--cinematic-accent);
+  font-style: italic;
+  background: rgba(201, 165, 90, 0.08);
+  border-color: rgba(201, 165, 90, 0.3);
+  box-shadow: 0 0 30px rgba(201, 165, 90, 0.1);
+}
+
+/* City sub-prompt — a quiet secondary serif line (clearly not the headline) */
+.cs-subquestion {
+  font-family: var(--cinematic-font-serif);
+  font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: -0.01em;
+}
+
+.cs-subquestion em,
+.cs-subquestion .cs-em {
+  color: var(--cinematic-accent);
+  font-style: italic;
+}
+
+/* City autocomplete dropdown — solid dark surface, no backdrop-filter */
+.cs-city-suggest {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 1rem;
+  background: #0d0b08;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 50;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.cs-city-option {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.15s ease;
+}
+
+.cs-city-option:last-child {
+  border-bottom: none;
+}
+
+.cs-city-option.is-active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cs-city-option:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cs-city-name {
+  font-family: var(--cinematic-font-serif);
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.15s ease;
+}
+
+.cs-city-option.is-active .cs-city-name,
+.cs-city-option:hover .cs-city-name {
+  color: var(--cinematic-accent);
+}
+
+.cs-city-country {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.3);
+  margin-left: 0.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BIRTHDATE — segmented DD / MM / YYYY entry
+   ═══════════════════════════════════════════════════════════════════════ */
+.cs-dob {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.cs-dob-seg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cs-dob-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+  outline: none;
+  text-align: center;
+  font-family: var(--cinematic-font-serif);
+  font-size: clamp(2.75rem, 6vw, 4.25rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #fff;
+  padding: 0 0 0.5rem;
+  caret-color: var(--cinematic-accent);
+  transition: border-color 0.3s ease;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.cs-dob-input::-webkit-outer-spin-button,
+.cs-dob-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cs-dob-input::placeholder {
+  color: rgba(255, 255, 255, 0.14);
+}
+
+.cs-dob-input:focus {
+  border-bottom-color: var(--cinematic-accent);
+}
+
+.cs-dob-input--dd,
+.cs-dob-input--mm {
+  width: 2.4ch;
+}
+
+.cs-dob-input--yyyy {
+  width: 4.6ch;
+}
+
+.cs-dob-caption {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.56rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.cs-dob-sep {
+  font-family: var(--cinematic-font-serif);
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: rgba(255, 255, 255, 0.18);
+  line-height: 1;
+  padding-bottom: 1.4rem;
+}
+
+/* ─── Phones: tighten the stage so option grids + headline fit above the
+   fixed dock/rail. Stages are vertically centered inside an overflow-hidden
+   container; slimmer padding + a shorter divider keep tall steps on-screen. */
+@media (max-width: 640px) {
+  .cs-step-stage,
+  .csm-step-stage {
+    padding: 1rem 0.5rem;
+  }
+  .cs-step-beat .cinematic-divider-container {
+    margin: 1.6rem auto;
+  }
+
+  /* Scout digitals: fixed 212px frames overflow small phones. Make them fluid
+     so a single frame is comfortably large and two sit side-by-side scaled to
+     fit. The step now scrolls, so vertical height is free. */
+  .cs-frame-slot {
+    width: min(44vw, 212px);
+  }
+  .cs-frames--single .cs-frame-slot {
+    width: min(74vw, 240px);
+  }
+  .cs-frame-drop {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 4;
+  }
+}
+
+@media (max-width: 480px) {
+  .cs-frames {
+    gap: 0.75rem;
+  }
+  .cs-dob {
+    gap: 0.4rem;
+  }
+}

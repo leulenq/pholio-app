@@ -402,7 +402,7 @@ function buildDiscoverIndexText(profile, extras = {}) {
 
   const modelingCategories = parseJsonArray(profile.modeling_categories);
   if (modelingCategories.length) {
-    parts.push(`Modeling categories: ${modelingCategories.join(", ")}`);
+    parts.push(`Booking lanes: ${modelingCategories.join(", ")}`);
   }
 
   const fitScores = [];
@@ -550,7 +550,7 @@ function buildMarketIndexText(profile, extras = {}) {
 
   const modelingCategories = parseJsonArray(profile.modeling_categories);
   if (modelingCategories.length) {
-    parts.push(`Categories: ${modelingCategories.join(", ")}`);
+    parts.push(`Booking lanes: ${modelingCategories.join(", ")}`);
   }
 
   const scout = extras.scout;

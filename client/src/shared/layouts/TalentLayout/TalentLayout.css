@@ -141,26 +141,14 @@
 }
 
 .tl-btn-upgrade {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 8px 16px;
-  border-radius: 2px;
-  border: 1px solid var(--tl-gold);
-  background: var(--tl-gold);
-  color: var(--tl-ink);
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1;
+  flex-shrink: 0;
   text-decoration: none;
-  white-space: nowrap;
+  cursor: pointer;
   transition:
-    background 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    background 0.25s var(--tl-ease),
+    color 0.25s var(--tl-ease),
+    border-color 0.25s var(--tl-ease),
+    transform 0.2s var(--tl-ease);
 }
 
 .tl-btn-upgrade:hover {
@@ -170,7 +158,7 @@
 }
 
 .tl-btn-upgrade:focus-visible {
-  outline: 2px solid rgba(201, 165, 90, 0.55);
+  outline: 2px solid var(--tl-gold);
   outline-offset: 2px;
 }
 
@@ -420,14 +408,20 @@
   display: inline-flex;
   align-items: center;
   min-height: 18px;
-  padding: 2px 8px;
+  padding: 5px 11px;
   border-radius: 999px;
-  font-size: 9px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   line-height: 1;
+  white-space: nowrap;
   border: 1px solid transparent;
+  transition:
+    background 0.25s var(--tl-ease),
+    color 0.25s var(--tl-ease),
+    border-color 0.25s var(--tl-ease);
 }
 
 .tl-tier-pill.is-studio {
@@ -674,18 +668,6 @@
   color: rgba(26, 26, 26, 0.88);
 }
 
-.tl-root--tone-light .tl-btn-upgrade {
-  background: var(--tl-gold);
-  border-color: var(--tl-gold);
-  color: var(--tl-ink);
-}
-
-.tl-root--tone-light .tl-btn-upgrade:hover {
-  background: #d4bc8a;
-  border-color: #d4bc8a;
-  color: var(--tl-ink);
-}
-
 /* Flash messages */
 .tl-flash {
   display: flex;
@@ -718,15 +700,9 @@
 }
 
 .tl-flash-close {
-  background: none;
-  border: none;
-  color: inherit;
-  opacity: 0.45;
-  cursor: pointer;
-}
-
-.tl-flash-close:hover {
-  opacity: 1;
+  flex-shrink: 0;
+  min-width: 34px;
+  padding: 0;
 }
 
 /* Responsive */
@@ -848,4 +824,3 @@
     animation: none;
   }
 }
-

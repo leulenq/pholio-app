@@ -1,0 +1,240 @@
+/**
+ * Frame taxonomy label system — linked editorial chips.
+ * Color palette: Pholio --ag-* tokens (agency-tokens.css), with --mw-* fallbacks in media workspace.
+ * Component structure unchanged; only token-driven color logic.
+ */
+
+:root {
+  /* Chip shell */
+  --ft-chip-bg: var(--ag-surface-1, #ffffff);
+  --ft-chip-border: var(--ag-border, rgba(26, 24, 21, 0.08));
+  --ft-chip-ink: var(--ag-text-0, #1a1815);
+  --ft-chip-ink-body: var(--ag-text-1, #2d2a26);
+
+  /* Category accents — warm ink → secondary → tertiary → gold */
+  --ft-framing-accent: var(--ag-text-0, #1a1815);
+  --ft-framing-ink: var(--ag-text-0, #1a1815);
+
+  --ft-use-accent: var(--ag-gold-dim, rgba(201, 165, 90, 0.65));
+  --ft-use-ink: var(--ag-text-1, #2d2a26);
+
+  --ft-register-accent: var(--ag-text-3, #9c958e);
+  --ft-register-ink: var(--ag-text-2, #6b6560);
+
+  --ft-signal-accent: var(--ag-gold, #c9a55a);
+  --ft-signal-ink: var(--ag-text-2, #6b6560);
+  --ft-signal-bg: var(--ag-gold-ghost, rgba(201, 165, 90, 0.08));
+  --ft-signal-border: var(--ag-border-gold, rgba(201, 165, 90, 0.25));
+
+  /* Supporting copy */
+  --ft-state-muted: var(--ag-text-3, #9c958e);
+  --ft-note-secondary: var(--ag-text-2, #6b6560);
+  --ft-note-muted: var(--ag-text-3, #9c958e);
+  --ft-hint: var(--ag-text-2, #6b6560);
+
+  --ft-font-sans: var(--ag-font-body, var(--mw-sans, 'Inter', sans-serif));
+
+  /* Vertical rhythm only — within a row, segments stay linked */
+  --ft-chip-row-gap: 8px;
+}
+
+/* ── Signal stacks ─────────────────────────────────────────── */
+
+.crs-read-signals,
+.mw-frame-read-signals,
+.frame-read-signals {
+  display: inline-flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.crs-read-signals,
+.frame-read-signals {
+  min-width: 0;
+}
+
+.crs-read-signal,
+.mw-frame-read-signal,
+.frame-read-signal {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid var(--ft-chip-border);
+  border-left-width: 2px;
+  border-left-color: var(--ft-framing-accent);
+  background: var(--ft-chip-bg);
+  color: var(--ft-chip-ink);
+  font-family: var(--ft-font-sans);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Linked strip — one composite read, shared borders */
+.crs-read-signal + .crs-read-signal,
+.mw-frame-read-signal + .mw-frame-read-signal,
+.frame-read-signal + .frame-read-signal {
+  margin-left: -1px;
+}
+
+.crs-read-signal {
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.mw-frame-read-signal {
+  min-height: 22px;
+  padding: 0 7px;
+  font-size: 10px;
+}
+
+.frame-read-signal {
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+/* Framing — primary anchor (warm ink) */
+.crs-read-signal--framing,
+.mw-frame-read-signal--framing,
+.frame-read-signal--framing,
+.frame-taxonomy-label--framing {
+  border-left-color: var(--ft-framing-accent);
+  color: var(--ft-framing-ink);
+}
+
+/* Use — book context (muted gold accent) */
+.crs-read-signal--use,
+.mw-frame-read-signal--use,
+.frame-read-signal--use,
+.frame-taxonomy-label--use {
+  border-left-color: var(--ft-use-accent);
+  color: var(--ft-use-ink);
+}
+
+/* Register — style lane (tertiary accent) */
+.crs-read-signal--register,
+.mw-frame-read-signal--register,
+.frame-read-signal--register,
+.frame-taxonomy-label--register {
+  border-left-color: var(--ft-register-accent);
+  color: var(--ft-register-ink);
+  font-weight: 400;
+}
+
+/* PITS intelligence signals — gold lane */
+.crs-read-signal--signal,
+.mw-frame-read-signal--signal,
+.frame-read-signal--signal,
+.frame-taxonomy-label--signal {
+  border-color: var(--ft-signal-border);
+  border-left-color: var(--ft-signal-accent);
+  background: var(--ft-signal-bg);
+  color: var(--ft-signal-ink);
+  font-weight: 400;
+  font-size: 10px;
+}
+
+.crs-read-signal--signal {
+  font-size: 10px;
+}
+
+/* Standalone taxonomy label chip */
+.frame-taxonomy-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--ft-chip-border);
+  border-left-width: 2px;
+  border-left-color: var(--ft-framing-accent);
+  background: var(--ft-chip-bg);
+  font-family: var(--ft-font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ft-chip-ink);
+}
+
+/* ── Review state title (strip column) ─────────────────────── */
+
+.frame-review-state {
+  font-family: var(--ft-font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ft-state-muted);
+  white-space: nowrap;
+}
+
+/* ── Lifecycle notes (pending / needs placement) ─────────────── */
+
+.mw-frame__read-note,
+.frame-read-note {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--ft-font-sans);
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--ft-note-secondary);
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+.mw-frame__read-note--pending,
+.frame-read-note--pending {
+  color: var(--ft-note-muted);
+}
+
+.mw-frame__read-note--ask,
+.frame-read-note--ask {
+  color: var(--ft-chip-ink);
+}
+
+.mw-frame__read-note--suggest {
+  font-style: italic;
+  color: var(--ft-note-secondary);
+}
+
+/* ── Quality hint + strip supporting copy ──────────────────── */
+
+.frame-read-hint,
+.crs-strip__reason {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  font-family: var(--ft-font-sans);
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--ft-hint);
+  text-wrap: pretty;
+}
+
+.frame-read-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ft-chip-row-gap);
+  min-width: 0;
+}
+
+/* ── Honest per-frame age (read from captured_at, not upload) ── */
+.frame-read-age {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font-family: var(--ft-font-sans);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  color: var(--ft-note-muted);
+}
+
+.frame-read-age--stale {
+  color: #9a5b32;
+}

@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import clsx from 'clsx';
+import PholioButton from './PholioButton';
 export const Input = forwardRef(({ label, error, helpText, className, type = 'text', ...props }, ref) => {
   return (
     <div className="form-group">
@@ -56,13 +57,14 @@ export const Select = forwardRef(({ label, error, helpText, className, options =
 
 export const Button = ({ children, variant = 'primary', className, loading, ...props }) => {
   return (
-    <button
-      className={clsx('btn', `btn-${variant}`, className)}
-      disabled={loading || props.disabled}
+    <PholioButton
+      variant={variant}
+      className={className}
+      loading={loading}
       {...props}
     >
       {loading ? 'Loading...' : children}
-    </button>
+    </PholioButton>
   );
 };
 
@@ -71,14 +73,16 @@ export const Accordion = ({ title, children, defaultOpen = false, className }) =
 
   return (
     <div className={clsx('accordion', className)}>
-      <button 
+      <PholioButton
         type="button" 
+        variant="tertiary"
+        fullWidth
         className={clsx('accordion-header', isOpen && 'bg-zinc-50')} 
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className="font-semibold text-lg text-zinc-900">{title}</span>
         <span className={clsx('accordion-icon', isOpen && 'rotate-180')}>▼</span>
-      </button>
+      </PholioButton>
       {isOpen && (
         <div className="accordion-content">
           {children}

@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
+import {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 
 /**
  * Rotating Insight Card for Free Users
@@ -58,16 +62,17 @@ export default function InsightCard({ insights = [] }) {
       )}
 
       {/* Pagination dots */}
-      <div className="insight-pagination">
+      <PholioToggleGroup className="insight-pagination" aria-label="Insights">
         {displayInsights.map((_, idx) => (
-          <button
+          <PholioToggleButton
             key={idx}
+            active={idx === currentIndex}
             className={`pagination-dot ${idx === currentIndex ? 'active' : ''}`}
             onClick={() => setCurrentIndex(idx)}
             aria-label={`View insight ${idx + 1}`}
           />
         ))}
-      </div>
+      </PholioToggleGroup>
     </div>
   );
 }

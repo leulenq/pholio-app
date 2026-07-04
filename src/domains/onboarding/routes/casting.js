@@ -1,15 +1,19 @@
 /**
- * Casting Call Routes (Phase 2: API Implementation)
- * Implements the "2-Minute Casting Call" onboarding flow
+ * Casting Call Routes — talent onboarding API
  *
- * Flow: Entry → Scout/Vibe (parallel) → Reveal → Done
+ * Flow: entry → birthdate → gender → scout → measurements → profile → done
+ * (birthdate before gender: COPPA age-gate precedes further personal data)
  *
  * Endpoints:
- * - POST /onboarding/entry - Smart Entry (OAuth authentication)
- * - POST /onboarding/scout - Visual Interview (photo upload + AI)
- * - POST /onboarding/vibe - Maverick Chat (3 psychographic questions)
- * - GET /onboarding/reveal - The Reveal (archetype calculation)
- * - GET /onboarding/status - Status polling (current state)
+ * - POST /onboarding/entry        - Auth (OAuth or manual) + profile bootstrap
+ * - POST /onboarding/birthdate    - DOB (13+ floor), advances to gender
+ * - POST /onboarding/gender       - Gender, advances to scout
+ * - POST /onboarding/scout        - Digitals upload (shot_type: headshot|full_body)
+ * - POST /onboarding/scout/confirm- Confirm primary, advances to measurements
+ * - POST /onboarding/measurements - Height (+ optional gender-branched stats)
+ * - POST /onboarding/profile      - Lanes + city (skippable), completes onboarding
+ * - POST /onboarding/reveal-complete / /onboarding/complete - finalization
+ * - GET  /onboarding/status       - State polling / resume
  */
 
 const express = require("express");
@@ -18,15 +22,15 @@ const router = express.Router();
 
 // Dependencies
 const knex = require("../../../shared/db/knex");
+const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   requireAuth,
   requireRole,
+  requireActiveAccount,
 } = require("../../auth/middleware/require-auth");
 const { addMessage } = require("../../../shared/middleware/context");
 const { upload, processImage } = require("../../../shared/lib/uploader");
 // Deprecated: const { analyzePhoto } = require('../../ai/photo-analysis');
-const { generateArchetype } = require("../../ai/groq-casting");
-const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const SignalCollector = require("../services/signal-collector");
 const {
   getState,
@@ -35,9 +39,30 @@ const {
   getNextSteps,
   initialState,
 } = require("../services/state-machine");
+const {
+  parseDateOfBirthParts,
+  computeAge,
+  canCollectSensitiveProfileFields,
+} = require("../../../shared/lib/talent-age");
+const {
+  MODERATION_STATUS,
+  MODERATION_QUEUE_STATUS,
+  analyzeImageBuffer,
+} = require("../../../shared/lib/content-moderation");
+const {
+  screenImageForCsam,
+  recordCsamEscalation,
+} = require("../../../shared/lib/csam-moderation");
+const {
+  purgeStoredImageArtifacts,
+} = require("../../../shared/lib/purge-image-artifacts");
 const { verifyGoogleToken } = require("../services/providers/google");
+const {
+  sendVerificationEmailViaSmtp,
+} = require("../../auth/services/email-verification");
 const { normalizeOAuthUser } = require("../services/providers/oauth-user");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const { recordLegalAcceptance } = require("../../../shared/lib/legal-acceptance");
 const OnboardingAnalytics = require("../analytics/onboarding-events");
 const {
   updateProfileCompleteness,
@@ -53,23 +78,66 @@ function invalidOnboardingSequence(res, state, message) {
   });
 }
 
+// Intake lane shortcut (canonical labels). The dashboard's full modeling
+// taxonomy remains the real home; these three are just the onboarding subset.
+const ONBOARDING_MODELING_CATEGORIES = ["Editorial", "Commercial", "Runway"];
+
+// Optional non-sensitive appearance stats collected at the measurements step.
+// Unlike body measurements these are NOT gated by canCollectSensitiveProfileFields
+// — they are collected for ALL talent (including minors and non-binary/undisclosed).
+const HAIR_COLORS = ["Black", "Brown", "Blonde", "Red", "Gray", "White", "Other"];
+const EYE_COLORS = ["Brown", "Blue", "Green", "Hazel", "Gray", "Amber", "Other"];
+const SHOE_REGIONS = ["US", "EU", "UK"];
+
+/**
+ * Normalize an incoming modeling_categories payload to the valid onboarding
+ * subset. Returns null when the value is not an array (caller leaves the column
+ * untouched); returns an ordered, de-duplicated array (possibly empty) otherwise.
+ */
+function normalizeOnboardingModelingCategories(raw) {
+  if (!Array.isArray(raw)) return null;
+  const canonicalByLower = new Map(
+    ONBOARDING_MODELING_CATEGORIES.map((label) => [label.toLowerCase(), label]),
+  );
+  const seen = new Set();
+  const out = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const canonical = canonicalByLower.get(item.trim().toLowerCase());
+    if (canonical && !seen.has(canonical)) {
+      seen.add(canonical);
+      out.push(canonical);
+    }
+  }
+  return out;
+}
+
 /**
  * POST /onboarding/entry
- * Smart Entry: OAuth authentication OR manual signup
+ * Smart Entry: Firebase OAuth authentication.
  *
- * Creates or retrieves user/profile and initializes casting call state
+ * Creates or retrieves user/profile and initializes casting call state. The
+ * client always authenticates with Firebase and sends `firebase_token`.
  */
 router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
   try {
-    const { firebase_token, manual_signup, name, email, password } = req.body;
+    const {
+      firebase_token,
+      name,
+      terms_accepted,
+      privacy_accepted,
+    } = req.body;
+    const termsAccepted = terms_accepted === true;
+    const privacyAccepted = privacy_accepted === true;
 
     let user,
       profile,
       isNewUser = false,
       isNewProfile = false,
-      hasOAuthData = false;
+      hasOAuthData = false,
+      authMethod = "google";
 
-    // Path 1: OAuth (Google/Instagram)
+    // Firebase OAuth (Google/Instagram) is the only supported entry path.
     if (firebase_token) {
       // Verify Firebase token
       let decodedToken;
@@ -95,31 +163,148 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         });
       }
 
+      // Real auth method for state/analytics: every path is Firebase, but the
+      // provider differs — email/password carries sign_in_provider "password".
+      authMethod =
+        providerUser.oauth_provider === "instagram"
+          ? "instagram"
+          : decodedToken.firebase?.sign_in_provider === "password"
+            ? "email"
+            : "google";
+
       const normalizedEmail = providerUser.email
         ? providerUser.email.toLowerCase().trim()
         : `instagram_${providerUser.uid.replace(":", "_")}@pholio.me`;
 
+      // Match an existing account by email ONLY when Firebase asserts a
+      // verified email. Matching on an UNVERIFIED email claim is an
+      // account-takeover vector (audit finding H3): any DB user whose email is
+      // not registered in Firebase (seeds, imports, legacy rows, or
+      // Instagram-synthesized addresses) could otherwise be claimed by
+      // registering that email in Firebase and hitting entry with an unverified
+      // token. When the email is unverified we fall back to firebase_uid only,
+      // which for a genuinely new identity simply creates a fresh account.
+      const emailVerified = decodedToken.email_verified === true;
       let userQuery = knex("users").where({ firebase_uid: providerUser.uid });
-      if (providerUser.email) {
+      if (providerUser.email && emailVerified) {
         userQuery = userQuery.orWhere({
           email: providerUser.email.toLowerCase().trim(),
         });
       }
       user = await userQuery.first();
 
+      // Role guard (audit finding M2): talent onboarding must never run for an
+      // AGENCY account. Entry sets req.session.role = "TALENT" unconditionally
+      // and creates a talent profile row; if an existing AGENCY user signs in
+      // here (e.g. same Google identity), their session role would disagree with
+      // users.role and they'd get a stray talent profile. Reject instead.
+      if (user && user.role === "AGENCY") {
+        return res.status(409).json({
+          error: "AGENCY_ACCOUNT",
+          message:
+            "This account is registered as an agency. Sign in from the agency dashboard instead of talent onboarding.",
+        });
+      }
+
+      // Use normalized Google/OAuth data (extracting given_name/family_name)
+      // Fallback to explicit 'name' payload if token claims are missing (e.g. immediate manual signup delay)
+      const fallbackParts = name ? name.trim().split(/\s+/) : [];
+      const derivedFirstName =
+        providerUser.first_name || fallbackParts[0] || "User";
+      const derivedLastName =
+        providerUser.last_name || fallbackParts.slice(1).join(" ") || null;
+
       // Create user if doesn't exist
       if (!user) {
-        const userId = uuidv4();
-        await knex("users").insert({
-          id: userId,
-          email: normalizedEmail,
-          firebase_uid: providerUser.uid,
-          role: "TALENT",
-          created_at: knex.fn.now(),
-        });
+        if (!termsAccepted) {
+          return res.status(400).json({
+            error: "Terms acceptance required",
+            message: "You must accept the Terms of Service to create an account",
+          });
+        }
 
-        user = await knex("users").where({ id: userId }).first();
-        isNewUser = true;
+        const userId = uuidv4();
+        try {
+          await knex.transaction(async (trx) => {
+            await trx("users").insert({
+              id: userId,
+              email: normalizedEmail,
+              firebase_uid: providerUser.uid,
+              role: "TALENT",
+              first_name: derivedFirstName,
+              last_name: derivedLastName,
+              created_at: knex.fn.now(),
+            });
+            await recordLegalAcceptance(trx, userId, {
+              terms: true,
+              privacy: privacyAccepted,
+            });
+          });
+
+          user = await knex("users").where({ id: userId }).first();
+          isNewUser = true;
+        } catch (insertErr) {
+          // Duplicate-user race (audit finding L4): two concurrent first entries
+          // for the SAME identity race on the users unique constraints. Re-read
+          // the row the winning request created instead of surfacing an
+          // unhandled 500. We recover by firebase_uid — and by email ONLY when
+          // Firebase verified it. Recovering on an unverified email would
+          // reintroduce the H3 takeover through this error path: an insert that
+          // collides with a pre-existing row on an UNVERIFIED email claim must
+          // fail closed, not silently bind to that account.
+          let recoverQuery = knex("users").where({
+            firebase_uid: providerUser.uid,
+          });
+          if (providerUser.email && emailVerified) {
+            recoverQuery = recoverQuery.orWhere({ email: normalizedEmail });
+          }
+          user = await recoverQuery.first();
+          if (!user) {
+            // Not our own row from a race. If the collision was on an email
+            // owned by a DIFFERENT identity and this token's email is
+            // unverified, fail closed (H3) with a clean 409 rather than an
+            // unhandled 500 — never bind the caller to that account.
+            const emailOwner = providerUser.email
+              ? await knex("users").where({ email: normalizedEmail }).first()
+              : null;
+            if (emailOwner && !emailVerified) {
+              return res.status(409).json({
+                error: "EMAIL_IN_USE",
+                message:
+                  "An account already exists for this email. Please sign in with your original method.",
+              });
+            }
+            throw insertErr;
+          }
+        }
+      } else {
+        // Backfill name in users table if missing or default "User"
+        if (!user.first_name || user.first_name === "User") {
+          const userUpdates = {};
+          if (derivedFirstName && derivedFirstName !== "User") {
+            userUpdates.first_name = derivedFirstName;
+          }
+          if (derivedLastName && !user.last_name) {
+            userUpdates.last_name = derivedLastName;
+          }
+          if (Object.keys(userUpdates).length > 0) {
+            await knex("users")
+              .where({ id: user.id })
+              .update(userUpdates);
+            user = { ...user, ...userUpdates };
+          }
+        }
+      }
+
+      // Keep users.email_verified in sync with Firebase's verified claim —
+      // Google users arrive verified; email/password users flip after they
+      // click the verification link (also synced at /login and via
+      // POST /onboarding/email-verified).
+      if (decodedToken.email_verified === true && !user.email_verified) {
+        await knex("users")
+          .where({ id: user.id })
+          .update({ email_verified: true });
+        user.email_verified = true;
       }
 
       // Check if profile exists
@@ -131,21 +316,13 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         const slug = await ensureUniqueSlug(
           knex,
           "profiles",
-          providerUser.first_name && providerUser.last_name
-            ? `${providerUser.first_name}-${providerUser.last_name}`
+          derivedFirstName && derivedLastName
+            ? `${derivedFirstName}-${derivedLastName}`
             : `user-${user.id.substring(0, 8)}`,
         );
 
         // Initialize with casting machine state
         const initial = initialState("entry", knex);
-
-        // Use normalized Google data (now robustly extracting given_name/family_name)
-        // Fallback to explicit 'name' payload if token claims are missing (e.g. immediate manual signup delay)
-        const fallbackParts = name ? name.trim().split(" ") : [];
-        const derivedFirstName =
-          providerUser.first_name || fallbackParts[0] || "User";
-        const derivedLastName =
-          providerUser.last_name || fallbackParts.slice(1).join(" ") || null;
 
         await knex("profiles").insert({
           id: profileId,
@@ -153,11 +330,10 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           slug,
           first_name: derivedFirstName,
           last_name: derivedLastName,
-          city: "Not specified",
+          city: "Not specified", // NOT NULL column; sentinel filtered to null at the API edge
           height_cm: 0,
           bio_raw: "",
           bio_curated: "",
-          instagram_handle: providerUser.instagram_handle || null,
           ...initial,
           visibility_mode: "private_intake",
           services_locked: true,
@@ -166,6 +342,12 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           created_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
+
+        if (providerUser.instagram_handle) {
+          await saveProfileSocialFields(profileId, {
+            instagram_handle: providerUser.instagram_handle
+          });
+        }
 
         // Add Google photo to images table as primary
         if (providerUser.picture) {
@@ -190,6 +372,23 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
 
         profile = await knex("profiles").where({ id: profileId }).first();
         isNewProfile = true;
+      } else {
+        // Backfill name in profiles table if missing or placeholder
+        if (!profile.first_name || profile.first_name === "User") {
+          const profileUpdates = {};
+          if (derivedFirstName && derivedFirstName !== "User") {
+            profileUpdates.first_name = derivedFirstName;
+          }
+          if (derivedLastName && !profile.last_name) {
+            profileUpdates.last_name = derivedLastName;
+          }
+          if (Object.keys(profileUpdates).length > 0) {
+            await knex("profiles")
+              .where({ id: profile.id })
+              .update(profileUpdates);
+            profile = { ...profile, ...profileUpdates };
+          }
+        }
       }
 
       hasOAuthData = true;
@@ -199,97 +398,27 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         inferred_location: null,
         inferred_bio_keywords: [],
       });
-    }
-    // Path 2: Manual Signup
-    else if (manual_signup) {
-      if (!name || !email || !password) {
-        return res.status(400).json({
-          error: "Missing required fields",
-          message: "Name, email, and password are required for manual signup",
-        });
-      }
-
-      // Check if email already exists
-      const existingUser = await knex("users").where({ email }).first();
-      if (existingUser) {
-        return res.status(409).json({
-          error: "Email already exists",
-          message: "An account with this email already exists",
-        });
-      }
-
-      // Create user
-      const userId = uuidv4();
-      const bcrypt = require("bcrypt");
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      await knex("users").insert({
-        id: userId,
-        email,
-        password_hash: hashedPassword,
-        role: "TALENT",
-        created_at: knex.fn.now(),
-      });
-
-      user = await knex("users").where({ id: userId }).first();
-      isNewUser = true;
-
-      // Create profile
-      const profileId = uuidv4();
-      const nameParts = name.trim().split(" ");
-      const firstName = nameParts[0] || "User";
-      const lastName = nameParts.slice(1).join(" ") || null;
-
-      const slug = await ensureUniqueSlug(
-        knex,
-        "profiles",
-        `${firstName}${lastName ? "-" + lastName : ""}`,
-      );
-
-      const initial = initialState("entry", knex);
-
-      await knex("profiles").insert({
-        id: profileId,
-        user_id: user.id,
-        slug,
-        first_name: firstName,
-        last_name: lastName,
-        city: "Not specified",
-        height_cm: 0,
-        bio_raw: "",
-        bio_curated: "",
-        ...initial,
-        visibility_mode: "private_intake",
-        services_locked: true,
-        analysis_status: "pending",
-        profile_completeness: 0,
-        created_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
-      });
-
-      profile = await knex("profiles").where({ id: profileId }).first();
-      isNewProfile = true;
-      hasOAuthData = false;
-
-      // Collect entry signals
-      await SignalCollector.collectEntrySignals(profile.id, {
-        oauth_provider: "manual",
-        inferred_location: null,
-        inferred_bio_keywords: [],
-      });
     } else {
       return res.status(400).json({
         error: "Invalid request",
-        message: "Either firebase_token or manual_signup data is required",
+        message: "A firebase_token is required.",
       });
     }
 
-    // Set session
+    // Session fixation defense: regenerate the session (issuing a fresh id)
+    // BEFORE binding the authenticated identity to it, then persist. Any id an
+    // unauthenticated client may have held is discarded before it carries auth.
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
     req.session.userId = user.id;
     req.session.role = "TALENT";
     req.session.profileId = profile.id;
 
-    // Save session
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
         if (err) reject(err);
@@ -297,35 +426,16 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       });
     });
 
-    // Transition state to 'entry'
+    // Transition state to the first intake step. Birthdate runs before gender
+    // (COPPA hygiene) — the age screen gates before any further personal data.
     const state = getState(profile);
 
     if (state.current_step === "entry" || state.completed_steps.length === 0) {
-      let nextStep = "gender";
-
-      // If manual signup, skip verification (Temporary override)
-      if (manual_signup) {
-        nextStep = "gender"; // Was 'verification_pending'
-
-        // Still generate verification code (mock for now) so email flows still work if needed later
-
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-
-        await knex("users").where({ id: user.id }).update({
-          verification_code: code,
-          verification_code_expires_at: expiresAt,
-          email_verified: false,
-        });
-
-        console.log(`[Email Verification] Code for ${email}: ${code}`);
-      }
-
       const updatePayload = transitionTo(
         state,
-        nextStep,
+        "birthdate",
         {
-          auth_method: manual_signup ? "manual" : "google",
+          auth_method: authMethod,
           is_new_user: isNewUser,
           is_new_profile: isNewProfile,
         },
@@ -347,8 +457,28 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
     if (isNewProfile) {
       await OnboardingAnalytics.trackEntry(profile.id, "entry", {
         source: "casting_call",
-        auth_method: manual_signup ? "manual" : "google",
+        auth_method: authMethod,
       });
+    }
+
+    // Email/password signups verify through OUR SMTP provider, not Firebase's
+    // built-in sender: generate the verification link with the Admin SDK and
+    // send the branded email ourselves. Best-effort — delivery must never block
+    // or fail entry — but log failures loudly (a broken SMTP or unauthorized
+    // continue-URL domain would otherwise be invisible). OAuth (Google) users
+    // arrive already verified and are skipped.
+    if (authMethod === "email" && !user.email_verified) {
+      try {
+        await sendVerificationEmailViaSmtp({
+          email: normalizedEmail,
+          firstName: derivedFirstName,
+        });
+      } catch (verifyErr) {
+        console.error(
+          "[Casting Entry] SMTP verification email failed to send:",
+          verifyErr.message,
+        );
+      }
     }
 
     // Return success with next steps
@@ -358,10 +488,8 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       profile_id: profile.id,
       is_new_user: isNewUser,
       has_oauth_data: hasOAuthData,
-      next_step: "gender",
-      message: manual_signup
-        ? "Account created. Email verification skipped."
-        : "Authentication successful. Ready to start casting call.",
+      next_step: "birthdate",
+      message: "Authentication successful. Ready to start casting call.",
     });
   } catch (error) {
     console.error("[Casting Entry] Error:", error);
@@ -369,88 +497,113 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
   }
 });
 
+// Active-account gate for the rest of onboarding (audit finding M1). Entry above
+// is deliberately exempt so a stale/deleted-account session can still re-signup,
+// but every step AFTER entry must refuse suspended/banned accounts — otherwise a
+// banned TALENT could keep uploading photos and writing profile data through the
+// onboarding endpoints (which are mounted before the app-level requireActiveAccount
+// so new signups aren't blocked). Unauthenticated requests pass through untouched.
+router.use(requireActiveAccount());
+
 /**
- * POST /onboarding/verify-email
- * Verifies the 6-digit code and transitions to Scout
+ * POST /onboarding/email-verified
+ * Verification sync for the inbox beat: after the user clicks the Firebase
+ * verification link, the client refreshes its ID token and posts it here. The
+ * server trusts only the token's verified claim — bound to the signed-in
+ * user's firebase_uid — never a bare client assertion. Idempotent.
  */
 router.post(
-  "/onboarding/verify-email",
+  ["/onboarding/email-verified", "/casting/email-verified"],
   requireRole("TALENT"),
   async (req, res, next) => {
     try {
-      const { code } = req.body;
+      const { firebase_token } = req.body;
+      if (!firebase_token) {
+        return res.status(400).json({
+          error: "Invalid request",
+          message: "A firebase_token is required.",
+        });
+      }
 
-      if (!code) {
-        return res.status(400).json({ error: "Verification code required" });
+      let decodedToken;
+      try {
+        decodedToken = await verifyGoogleToken(firebase_token);
+      } catch (error) {
+        return res.status(401).json({
+          error: "Authentication failed",
+          message: error.message || "Invalid or expired token",
+        });
       }
 
       const user = await knex("users")
         .where({ id: req.session.userId })
         .first();
-
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-
-      if (user.email_verified) {
-        return res.json({
-          success: true,
-          next_step: "gender",
-          message: "Email already verified",
+      if (!decodedToken.uid || decodedToken.uid !== user.firebase_uid) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "Token does not belong to the signed-in user.",
         });
       }
 
-      // specific debug bypass
-      if (
-        code !== "000000" &&
-        (user.verification_code !== code ||
-          new Date() > new Date(user.verification_code_expires_at))
-      ) {
-        return res.status(400).json({
-          error: "Invalid or expired code",
-          message: "Please check your code and try again",
-        });
+      if (decodedToken.email_verified === true && !user.email_verified) {
+        await knex("users")
+          .where({ id: user.id })
+          .update({ email_verified: true });
+        user.email_verified = true;
       }
-
-      // Mark verified
-      await knex("users").where({ id: user.id }).update({
-        email_verified: true,
-        verification_code: null,
-        verification_code_expires_at: null,
-      });
-
-      // Transition Profile State
-      const profile = await knex("profiles")
-        .where({ user_id: user.id })
-        .first();
-
-      const state = getState(profile);
-      const updatePayload = transitionTo(
-        state,
-        "gender",
-        {
-          email_verified_at: new Date().toISOString(),
-        },
-        knex,
-      );
-
-      if (!updatePayload) {
-        return invalidOnboardingSequence(
-          res,
-          state,
-          "Email verification does not apply at this onboarding step.",
-        );
-      }
-
-      await knex("profiles").where({ id: profile.id }).update(updatePayload);
 
       return res.json({
         success: true,
-        next_step: "gender",
-        message: "Email verified successfully",
+        email_verified: Boolean(user.email_verified),
       });
     } catch (error) {
-      console.error("[Verify Email] Error:", error);
+      console.error("[Casting Email Verified] Error:", error);
+      return next(error);
+    }
+  },
+);
+
+/**
+ * POST /onboarding/resend-verification
+ * Re-send the email-verification link (the inbox beat's "Resend email" action)
+ * through our SMTP provider. Resolves the signed-in user's own address server
+ * side — the client never names the recipient — and no-ops cleanly if the
+ * account is already verified.
+ */
+router.post(
+  ["/onboarding/resend-verification", "/casting/resend-verification"],
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const user = await knex("users")
+        .where({ id: req.session.userId })
+        .first();
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (user.email_verified) {
+        return res.json({ success: true, already_verified: true });
+      }
+      if (!user.email) {
+        return res.status(400).json({
+          error: "NO_EMAIL",
+          message: "No email address on file to verify.",
+        });
+      }
+
+      await sendVerificationEmailViaSmtp({
+        email: user.email,
+        firstName: user.first_name,
+      });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error(
+        "[Casting Resend Verification] Error:",
+        error.message,
+      );
       return next(error);
     }
   },
@@ -460,6 +613,7 @@ router.post(
  * POST /onboarding/gender
  * Persist the talent's gender and advance the state machine to "scout".
  *
+ * New order runs birthdate before gender, so gender advances gender → scout.
  * This is the server counterpart to the client gender step. Without it the
  * server stays parked at "gender" while the client moves on, and the later
  * scout → measurements transition is rejected as out of sequence. Gender is
@@ -506,10 +660,16 @@ router.post(
         updated_at: knex.fn.now(),
       };
 
+      // New order is birthdate → gender → scout. A legacy in-flight profile
+      // parked at "gender" under the OLD order has no DOB yet — send it to
+      // birthdate instead of scout, or scout would 403 on DOB_REQUIRED with no
+      // way back.
+      const genderNextStep = profile.date_of_birth ? "scout" : "birthdate";
+
       if (state.current_step === "gender") {
         const transition = transitionTo(
           state,
-          "scout",
+          genderNextStep,
           { gender: normalizedGender },
           knex,
         );
@@ -529,7 +689,7 @@ router.post(
 
       return res.json({
         success: true,
-        next_step: "scout",
+        next_step: genderNextStep,
         message: "Gender saved",
       });
     } catch (error) {
@@ -540,10 +700,122 @@ router.post(
 );
 
 /**
- * POST /onboarding/scout
- * Visual Interview: Single photo upload with AI analysis
+ * POST /onboarding/birthdate
+ * Persist the talent's date of birth and advance the state machine to "gender".
  *
- * Processes "digi" (headshot), runs AI analysis, stores phenotype signals
+ * Birthdate now runs before gender (COPPA hygiene: age-gate before collecting
+ * more personal data). Validates: YYYY-MM-DD format, not in the future, minimum
+ * age 13 (COPPA floor). Idempotent: date_of_birth is always saved; the step only
+ * advances when the profile is actually on the birthdate step, so re-submits stay
+ * safe.
+ */
+router.post(
+  ["/onboarding/birthdate", "/casting/birthdate"],
+  requireRole("TALENT"),
+  async (req, res, next) => {
+    try {
+      const { date_of_birth } = req.body;
+
+      if (!date_of_birth || !String(date_of_birth).trim()) {
+        return res.status(400).json({
+          error: "DOB_REQUIRED",
+          message: "Date of birth is required.",
+        });
+      }
+
+      const dobStr = String(date_of_birth).trim();
+
+      const parts = parseDateOfBirthParts(dobStr);
+      if (!parts) {
+        return res.status(400).json({
+          error: "DOB_INVALID",
+          message: "Please provide a valid date in YYYY-MM-DD format.",
+        });
+      }
+
+      // Must not be in the future
+      const dobDate = new Date(`${dobStr}T00:00:00.000Z`);
+      if (dobDate > new Date()) {
+        return res.status(400).json({
+          error: "DOB_FUTURE",
+          message: "Date of birth cannot be in the future.",
+        });
+      }
+
+      // COPPA minimum age: 13
+      const age = computeAge(dobStr);
+      if (age === null || age < 13) {
+        return res.status(400).json({
+          error: "DOB_TOO_YOUNG",
+          message: "You must be at least 13 years old to create an account.",
+        });
+      }
+
+      const profile = await knex("profiles")
+        .where({ user_id: req.session.userId })
+        .first();
+
+      if (!profile) {
+        return res.status(404).json({
+          error: "Profile not found",
+          message: "Please complete entry step first",
+        });
+      }
+
+      const state = getState(profile);
+
+      // Only advance the state machine when on the birthdate step.
+      // Otherwise just persist the value idempotently.
+      let updatePayload = {
+        date_of_birth: dobStr,
+        updated_at: knex.fn.now(),
+      };
+
+      // A legacy in-flight profile parked at "birthdate" under the OLD order
+      // (gender → birthdate) already answered gender — skip straight to scout
+      // so nothing is asked twice.
+      const birthdateNextStep = profile.gender ? "scout" : "gender";
+
+      if (state.current_step === "birthdate") {
+        const transition = transitionTo(
+          state,
+          birthdateNextStep,
+          { date_of_birth: dobStr, age },
+          knex,
+        );
+
+        if (!transition) {
+          return invalidOnboardingSequence(
+            res,
+            state,
+            "Submit your date of birth when the birthdate step is active.",
+          );
+        }
+
+        updatePayload = { ...transition, date_of_birth: dobStr };
+      }
+
+      await knex("profiles").where({ id: profile.id }).update(updatePayload);
+
+      return res.json({
+        success: true,
+        next_step: birthdateNextStep,
+        message: "Date of birth saved",
+      });
+    } catch (error) {
+      console.error("[Casting Birthdate] Error:", error);
+      return next(error);
+    }
+  },
+);
+
+/**
+ * POST /onboarding/scout
+ * Visual Interview: labeled photo upload (headshot / full_body).
+ *
+ * Multipart body: `digi` (file) + `shot_type` ('headshot' | 'full_body').
+ * The headshot is the casting photo and becomes/stays primary; a full-body
+ * upload is stored but never steals primary.
  */
 router.post(
   ["/onboarding/scout", "/casting/scout"],
@@ -562,6 +834,13 @@ router.post(
         });
       }
 
+      if (!profile.date_of_birth) {
+        return res.status(403).json({
+          error: "DOB_REQUIRED",
+          message: "Please enter your date of birth before uploading photos.",
+        });
+      }
+
       // Check if file uploaded
       if (!req.file) {
         return res.status(400).json({
@@ -570,43 +849,147 @@ router.post(
         });
       }
 
-      // Process image (converts to WebP, optimizes)
-      const { storageKey, publicUrl, absolutePath } = await processImage(
-        req.file,
-        profile.id,
-      );
-      const { v4: uuidv4 } = require("uuid");
-      const imageId = uuidv4();
-
-      // Become primary if there's no existing *locally uploaded* photo yet.
-      // A seeded remote avatar (e.g. the Google profile picture inserted at
-      // entry — path is a URL, no absolute_path) must NOT count: it isn't on
-      // disk, so scout/confirm could never read it for analysis. The user's
-      // uploaded digi is the real casting photo and should be analyzed.
-      const existingLocalImage = await knex("images")
-        .where({ profile_id: profile.id })
-        .whereNotNull("absolute_path")
-        .first();
-      const isPrimary = !existingLocalImage;
-
-      // Demote any existing primary (e.g. the seeded Google avatar) BEFORE
-      // inserting the new one. The `one_primary_per_profile` constraint forbids
-      // two primaries existing simultaneously, so the order matters.
-      if (isPrimary) {
-        await knex("images")
-          .where({ profile_id: profile.id })
-          .update({ is_primary: false });
+      // shot_type is required and constrained to the two labeled slots.
+      const shotType =
+        typeof req.body?.shot_type === "string"
+          ? req.body.shot_type.trim().toLowerCase()
+          : "";
+      if (shotType !== "headshot" && shotType !== "full_body") {
+        return res.status(400).json({
+          error: "INVALID_SHOT_TYPE",
+          message: "shot_type must be 'headshot' or 'full_body'.",
+        });
       }
 
-      // Save image to the images table
-      await knex("images").insert({
-        id: imageId,
-        profile_id: profile.id,
-        path: publicUrl, // Save public URL to be consistent with Media API
-        absolute_path: absolutePath, // Reliable path to the optimized webp image
-        is_primary: isPrimary,
-        label: "Scout photo",
-        created_at: knex.fn.now(),
+      // Minor / no-consent gate at COLLECTION (audit finding M5): full_body is a
+      // sensitive shot type. A minor without recorded guardian consent — and any
+      // profile with no verifiable DOB — may not upload it. The client hides the
+      // slot, but the server must enforce the same policy at collection, not
+      // just gate exposure downstream.
+      if (shotType === "full_body" && !canCollectSensitiveProfileFields(profile)) {
+        return res.status(403).json({
+          error: "SENSITIVE_SHOT_BLOCKED",
+          message:
+            "A full-length photo can't be added yet — guardian consent is required first.",
+        });
+      }
+
+      // Process image (converts to WebP, optimizes). processedBuffer is the exact
+      // bytes we persist; it is what content moderation must inspect.
+      const { storageKey, publicUrl, absolutePath, processedBuffer } =
+        await processImage(req.file, profile.id);
+
+      // Content moderation + CSAM screening (audit finding H2). The onboarding
+      // scout path is where 13+ minors upload photos and previously ran NO
+      // screening — inconsistent with the dashboard media path and a safety /
+      // legal (CSAM reporting) gap. Fails toward review; never auto-approves
+      // uncertain content.
+      let moderation;
+      try {
+        moderation = await analyzeImageBuffer(processedBuffer);
+      } catch (modErr) {
+        moderation = {
+          status: MODERATION_STATUS.REVIEW,
+          reason: "moderation_error",
+          flags: { error: modErr.message },
+        };
+      }
+      let isRejected = moderation.status === MODERATION_STATUS.REJECTED;
+      let isReview = moderation.status === MODERATION_STATUS.REVIEW;
+
+      const csamScreen = await screenImageForCsam(processedBuffer, {
+        moderationFlags: moderation.flags,
+        moderationReason: moderation.reason,
+      });
+      if (csamScreen.shouldBlock) isRejected = true;
+      if (csamScreen.shouldEscalate) isReview = true;
+
+      if (isRejected) {
+        // Do not persist a rejected image — purge the bytes we already wrote to
+        // storage before returning.
+        await purgeStoredImageArtifacts({
+          storage_key: storageKey,
+          absolute_path: absolutePath,
+        });
+        return res.status(422).json({
+          error: "IMAGE_REJECTED",
+          message:
+            "This photo was blocked by automated content moderation and was not saved. Please upload a different photo.",
+        });
+      }
+
+      const imageId = uuidv4();
+      const hasModerationColumns = await knex.schema.hasColumn(
+        "images",
+        "moderation_status",
+      );
+      const hasModerationQueue = hasModerationColumns
+        ? await knex.schema.hasTable("moderation_queue")
+        : false;
+
+      // Headshots are the casting photo: they become/stay primary (demoting any
+      // seeded Google avatar). A full-body upload never steals primary, and a
+      // flagged (review) image must NEVER surface publicly or become the primary
+      // casting photo until a moderator approves it.
+      const isPrimary = shotType === "headshot" && !isReview;
+      const effectiveModStatus = isReview
+        ? MODERATION_STATUS.REVIEW
+        : MODERATION_STATUS.APPROVED;
+
+      // Demote-then-insert in one transaction. The one_primary_per_profile
+      // constraint forbids two simultaneous primaries, so two concurrent
+      // headshot uploads would otherwise race and 500 one of them (audit
+      // finding L3); the transaction serializes the swap.
+      await knex.transaction(async (trx) => {
+        if (isPrimary) {
+          await trx("images")
+            .where({ profile_id: profile.id })
+            .update({ is_primary: false });
+        }
+
+        await trx("images").insert({
+          id: imageId,
+          profile_id: profile.id,
+          path: publicUrl, // Save public URL to be consistent with Media API
+          absolute_path: absolutePath, // Reliable path to the optimized webp image
+          is_primary: isPrimary,
+          label: "Scout photo",
+          image_type: "digital",
+          shot_type: shotType,
+          ...(hasModerationColumns
+            ? {
+                moderation_status: effectiveModStatus,
+                moderation_reason: moderation.reason || null,
+                moderated_at: trx.fn.now(),
+              }
+            : {}),
+          created_at: knex.fn.now(),
+        });
+
+        if (isReview && hasModerationQueue) {
+          await trx("moderation_queue").insert({
+            id: uuidv4(),
+            image_id: imageId,
+            profile_id: profile.id,
+            status: MODERATION_QUEUE_STATUS.PENDING,
+            flags: JSON.stringify({
+              ...(moderation.flags || {}),
+              ...(csamScreen.flags || {}),
+              ...(csamScreen.shouldEscalate ? { csam_escalation: true } : {}),
+            }),
+            created_at: trx.fn.now(),
+          });
+        }
+
+        if (csamScreen.shouldEscalate) {
+          await recordCsamEscalation(trx, {
+            imageId,
+            profileId: profile.id,
+            provider: csamScreen.provider,
+            severity: csamScreen.severity,
+            flags: csamScreen.flags,
+          });
+        }
       });
 
       return res.json({
@@ -614,7 +997,10 @@ router.post(
         imageId,
         isPrimary,
         photo_url: publicUrl,
-        message: "Photo uploaded successfully",
+        ...(isReview ? { pending_review: true } : {}),
+        message: isReview
+          ? "Photo uploaded and is pending a quick review before it appears."
+          : "Photo uploaded successfully",
       });
     } catch (error) {
       console.error("[Casting Scout] Upload Error:", error);
@@ -657,10 +1043,6 @@ router.patch(
       // Set new primary
       await knex("images").where({ id: imageId }).update({ is_primary: true });
 
-      const derivedStorageKey = targetImage.path
-        ? targetImage.path.replace(/^\//, "")
-        : null;
-
       // profiles table sync removed: hero_image_path is now a derived field
 
       console.log("[Onboarding] Primary image updated:", profile.id, imageId);
@@ -678,8 +1060,11 @@ router.patch(
 
 /**
  * POST /onboarding/scout/confirm
- * The user taps "Continue".
- * Runs master vision analysis on the single chosen primary image, returning completion.
+ * The user taps "Continue" — advances scout → measurements.
+ *
+ * AI body-stat estimation has been removed from intake; the archetype pipeline
+ * now runs at the measurements step (where height first exists). This route just
+ * confirms the chosen primary photo and stores its resume metadata.
  */
 router.post(
   ["/onboarding/scout/confirm", "/casting/scout/confirm"],
@@ -698,8 +1083,8 @@ router.post(
         .first();
 
       // Defense-in-depth: if the primary is a remote seed with no file on disk
-      // (e.g. a Google avatar), fall back to the most recent local upload so we
-      // analyze a real, readable photo instead of failing.
+      // (e.g. a Google avatar), fall back to the most recent local upload so the
+      // resume photo_url points at the real casting photo.
       if (primaryImage && !primaryImage.absolute_path) {
         const localImage = await knex("images")
           .where({ profile_id: profile.id })
@@ -713,60 +1098,20 @@ router.post(
         return res.status(400).json({ error: "No primary image set" });
       }
 
-      const fs = require("fs");
-
-      let imageBuffer;
-      try {
-        // Use absolute_path if available (safest), else try back-filling path
-        const safePath =
-          primaryImage.absolute_path ||
-          require("path").join(
-            require("../../config").uploadsDir,
-            require("path").basename(primaryImage.path || ""),
-          );
-        imageBuffer = await fs.promises.readFile(safePath);
-      } catch (err) {
-        console.error("[Scout] Failed to read primary image from disk:", err);
-        return res.status(500).json({
-          error:
-            "Failed to access uploaded image. Please re-select your photo.",
+      // Photo-gate truth (audit finding M4): the confirmed photo must be a REAL
+      // uploaded headshot, not the seeded Google avatar. Scout uploads are
+      // stored with image_type='digital'; the avatar row has neither an
+      // image_type nor a local file. Without this a Google user could pass the
+      // "photo" gate via direct API calls without ever uploading a headshot.
+      const realUpload = await knex("images")
+        .where({ profile_id: profile.id, image_type: "digital" })
+        .first();
+      if (!realUpload) {
+        return res.status(400).json({
+          error: "HEADSHOT_REQUIRED",
+          message: "Please upload a headshot photo before continuing.",
         });
       }
-
-      // Call Master Vision (Do not await, fire and forget)
-      masterVisionAnalysis(knex, imageBuffer, profile.id)
-        .then((measurementEstimates) => {
-          if (
-            measurementEstimates &&
-            measurementEstimates.confidence !== "Low"
-          ) {
-            const isPg =
-              knex.client.config.client === "pg" ||
-              knex.client.config.client === "postgresql";
-            const rawUpdate = isPg
-              ? knex.raw(
-                  `jsonb_set(COALESCE(onboarding_state_json::jsonb, '{}'::jsonb), '{predictions}', ?::jsonb, true)`,
-                  [JSON.stringify(measurementEstimates)],
-                )
-              : knex.raw(
-                  `json_set(COALESCE(onboarding_state_json, '{}'), '$.predictions', json(?))`,
-                  [JSON.stringify(measurementEstimates)],
-                );
-
-            // Save predictions to profiles.onboarding_state_json for frontend polling
-            return knex("profiles").where({ id: profile.id }).update({
-              onboarding_state_json: rawUpdate,
-            });
-          }
-        })
-        .catch((err) =>
-          console.error("[Scout] Master vision analysis failed silently:", err),
-        );
-
-      console.log(
-        "[Onboarding] Master image analysis triggered on confirmed primary:",
-        profile.id,
-      );
 
       // Transition state
       const state = getState(profile);
@@ -780,7 +1125,6 @@ router.post(
           photo_uploaded: true,
           storage_key: derivedStorageKey,
           photo_url: primaryImage.path,
-          predictions: null, // Predictions arrive async
         },
         knex,
       );
@@ -806,7 +1150,7 @@ router.post(
 
       // Track completion
       await OnboardingAnalytics.trackCompletion(profile.id, "scout", null, {
-        ai_success: true, // Background job dispatched
+        ai_success: true,
       });
 
       return res.json({
@@ -815,7 +1159,7 @@ router.post(
         photo_url: primaryImage.path,
         can_complete: canComplete(updatedState),
         next_steps: getNextSteps(updatedState),
-        message: "Scout confirmed and analysis triggered",
+        message: "Scout confirmed",
       });
     } catch (error) {
       console.error("[Casting Scout] Confirm Error:", error);
@@ -848,23 +1192,44 @@ router.get(
 
       const state = getState(profile);
 
+      // The signed-in user's account facts drive the resume-time verification
+      // beat (email/password signups only) — never gate onboarding completion.
+      const user = await knex("users")
+        .where({ id: req.session.userId })
+        .first();
+
       return res.json({
         success: true,
+        user: {
+          email: user?.email || null,
+          email_verified: Boolean(user?.email_verified),
+          auth_method: state.step_data?.entry?.auth_method || null,
+        },
         // Persisted profile values so the client can rehydrate collected answers
         // after a mid-flow reload instead of resuming with empty local state.
         profile: {
           first_name: profile.first_name || null,
           gender: profile.gender || null,
+          // DOB + guardian consent drive the client's minor gate on resume —
+          // without them a mid-flow reload fails closed and shows adults the
+          // height-only path.
+          date_of_birth: profile.date_of_birth || null,
+          guardian_consent_at: profile.guardian_consent_at || null,
           city:
             profile.city && profile.city !== "Not specified"
               ? profile.city
               : null,
-          experience_level: profile.experience_level || null,
           height_cm: profile.height_cm || null,
-          weight_kg: profile.weight_kg || null,
           bust_cm: profile.bust_cm || null,
           waist_cm: profile.waist_cm || null,
           hips_cm: profile.hips_cm || null,
+          chest_cm: profile.chest_cm || null,
+          inseam_cm: profile.inseam_cm || null,
+          // Optional non-sensitive appearance stats (resume rehydration).
+          hair_color: profile.hair_color || null,
+          eye_color: profile.eye_color || null,
+          shoe_size: profile.shoe_size || null,
+          shoe_region: profile.shoe_region || null,
         },
         state: {
           current_step: state.current_step,
@@ -873,7 +1238,6 @@ router.get(
           next_steps: getNextSteps(state),
           version: state.version || "v2_onboarding",
           started_at: state.started_at || null,
-          predictions: state.predictions || null,
           step_data: state.step_data || {},
         },
       });
@@ -910,14 +1274,47 @@ router.post(
         });
       }
 
-      console.log("[Casting Measurements] Request Body:", req.body);
+      // Never log req.body here — it carries body measurements (sensitive data).
+      // weight_kg is intentionally NOT accepted: weight is not a standard
+      // submission stat and was removed from intake.
+      const {
+        height_cm,
+        bust_cm,
+        waist_cm,
+        hips_cm,
+        chest_cm,
+        inseam_cm,
+        hair_color,
+        eye_color,
+        shoe_size,
+        shoe_region,
+      } = req.body;
 
-      const { height_cm, weight_kg, bust_cm, waist_cm, hips_cm } = req.body;
+      // Body measurements (bust/chest/waist/hips/inseam) are sensitive fields:
+      // minors without recorded guardian consent — and profiles with no
+      // verifiable DOB — may only store height. Same fail-closed policy as the
+      // profile routes.
+      const allowSensitive = canCollectSensitiveProfileFields(profile);
 
-      // REMOVED: Strict range validation logic to allow outlier inputs (e.g., child models)
-      // Frontend validation is sufficient for UX guidance. Backend should accept reasonable numbers.
+      const asRoundedNumber = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+      };
 
-      console.log("[Casting Measurements] Updating profile measurements...");
+      // Height is the one genuinely required measurement (audit finding M4).
+      // Accept it from this request or an already-saved positive value; without
+      // a usable height we must NOT advance measurements → profile. Otherwise a
+      // profile could complete onboarding with height_cm = 0 — the client-only
+      // "height required" rule was never enforced on the server.
+      const submittedHeight = asRoundedNumber(height_cm);
+      const existingHeight = asRoundedNumber(profile.height_cm);
+      const effectiveHeight = submittedHeight ?? existingHeight;
+      if (effectiveHeight === null) {
+        return res.status(400).json({
+          error: "HEIGHT_REQUIRED",
+          message: "Please enter your height before continuing.",
+        });
+      }
 
       // Transition state
       const state = getState(profile);
@@ -938,20 +1335,55 @@ router.post(
         );
       }
 
-      // Merge measurement values into the same update payload
-      // Ensure unexpected nulls/undefined doesn't override existing data with null unless intended
-      // But for this flow, user input is authoritative for the session.
+      // Only write fields the client actually sent — an absent field must never
+      // null out a previously saved value (stats are optional/skippable now, and
+      // the set differs by gender: bust/waist/hips vs chest/waist/inseam).
       const finalUpdate = {
         ...updatePayload,
-        height_cm: height_cm ? Math.round(height_cm) : null,
-        weight_kg: weight_kg ? Math.round(weight_kg) : null,
-        bust_cm: bust_cm ? Math.round(bust_cm) : null,
-        waist_cm: waist_cm ? Math.round(waist_cm) : null,
-        hips_cm: hips_cm ? Math.round(hips_cm) : null,
         updated_at: knex.fn.now(),
       };
 
-      console.log("[Casting Measurements] Updating profile...", finalUpdate);
+      if (submittedHeight !== null) finalUpdate.height_cm = submittedHeight;
+
+      if (allowSensitive) {
+        const sensitiveFields = {
+          bust_cm,
+          waist_cm,
+          hips_cm,
+          chest_cm,
+          inseam_cm,
+        };
+        for (const [column, raw] of Object.entries(sensitiveFields)) {
+          const value = asRoundedNumber(raw);
+          if (value !== null) finalUpdate[column] = value;
+        }
+      }
+
+      // Optional NON-SENSITIVE appearance stats — collected for ALL talent
+      // (including minors and non-binary/undisclosed), so intentionally NOT
+      // behind the `allowSensitive` gate. Only write fields actually provided;
+      // an invalid enum value is ignored rather than rejected.
+      if (typeof hair_color === "string" && HAIR_COLORS.includes(hair_color)) {
+        finalUpdate.hair_color = hair_color;
+      }
+      if (typeof eye_color === "string" && EYE_COLORS.includes(eye_color)) {
+        finalUpdate.eye_color = eye_color;
+      }
+      // Shoe sizes round to the nearest half — half sizes are standard in
+      // US/UK sizing and the dashboard stores them as plain numbers too.
+      const shoeRaw = Number(shoe_size);
+      const shoeSize =
+        Number.isFinite(shoeRaw) && shoeRaw > 0
+          ? Math.round(shoeRaw * 2) / 2
+          : null;
+      if (shoeSize !== null) {
+        finalUpdate.shoe_size = shoeSize;
+        // shoe_region only travels with a shoe_size; default to "US".
+        finalUpdate.shoe_region =
+          typeof shoe_region === "string" && SHOE_REGIONS.includes(shoe_region)
+            ? shoe_region
+            : "US";
+      }
 
       await knex("profiles").where({ id: profile.id }).update(finalUpdate);
 
@@ -989,24 +1421,42 @@ router.post(
         });
       }
 
-      const { city, gender, experience_level } = req.body;
+      // gender and experience_level are intentionally NOT read here: gender is
+      // owned by /onboarding/gender (this route used to re-persist it with
+      // broken casing and null-wipe it when absent), and experience level was
+      // removed from intake (dashboard-owned, no default write).
+      const { city, modeling_categories } = req.body;
 
       console.log("[Casting Profile] User:", req.session.userId);
-      console.log("[Casting Profile] Request Body:", {
-        city,
-        gender,
-        experience_level,
-      });
       console.log("[Casting Profile] Profile ID:", profile.id);
 
-      // Relaxed Validation: Allow any gender string (e.g. custom input)
-      // if (gender && !validGenders.includes(gender.toLowerCase())) { ... }
-
-      // Relaxed Validation: Allow any string to match Dashboard behavior
-      // This allows "Emerging", "Established" etc without failing
-      // if (experience_level && !validLevels.includes(experience_level)) { ... }
+      // Gate: DOB must be on file before we allow onboarding completion.
+      if (!profile.date_of_birth || !parseDateOfBirthParts(profile.date_of_birth)) {
+        return res.status(400).json({
+          error: "DOB_REQUIRED",
+          message: "Date of birth is required to complete your profile. Please go back and enter your birthdate.",
+        });
+      }
 
       const state = getState(profile);
+
+      // State integrity: completion requires the photo (scout) and height
+      // (measurements) steps to have genuinely been passed through. transitionTo
+      // no longer fabricates completion of skipped steps, so a client parked at
+      // an earlier step can no longer POST straight here to finish onboarding
+      // without ever uploading a photo or entering a height.
+      const completedSteps = state.completed_steps || [];
+      if (
+        !completedSteps.includes("scout") ||
+        !completedSteps.includes("measurements")
+      ) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Upload your photo and enter your measurements before completing onboarding.",
+        );
+      }
+
       const updatePayload = transitionTo(
         state,
         "done",
@@ -1025,11 +1475,27 @@ router.post(
         );
       }
 
-      updatePayload.city = city || "Not specified";
-      updatePayload.gender = gender
-        ? gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase()
-        : null;
-      updatePayload.experience_level = experience_level || "beginner";
+      // City is skippable — only write a real value; a skip/clear stores the
+      // "Not specified" sentinel (the column is NOT NULL; the API edge filters
+      // the sentinel back to null).
+      if (city !== undefined) {
+        const normalizedCity = typeof city === "string" ? city.trim() : "";
+        updatePayload.city =
+          normalizedCity && normalizedCity.toLowerCase() !== "not specified"
+            ? normalizedCity
+            : "Not specified";
+      }
+
+      // Intake lanes shortcut. null = field not sent (leave column untouched);
+      // [] = explicit "Not sure yet" (stored as an empty set — a first-class
+      // answer, not missing data). Stored JSON-stringified per profile-route
+      // convention.
+      const normalizedLanes =
+        normalizeOnboardingModelingCategories(modeling_categories);
+      if (normalizedLanes !== null) {
+        updatePayload.modeling_categories = JSON.stringify(normalizedLanes);
+      }
+
       updatePayload.onboarding_completed_at = knex.fn.now();
 
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
@@ -1052,11 +1518,7 @@ router.post(
 
 /**
  * POST /onboarding/reveal-complete
- * Mark reveal screen as viewed and generate AI archetype.
- *
- * Runs the 2-step Groq casting pipeline (Scout → Director) using the
- * profile's primary photo and confirmed stats, then persists scores.
- * The AI call is best-effort: completion succeeds even if AI fails.
+ * Mark the reveal as viewed: state transition + timestamps only.
  */
 router.post(
   "/onboarding/reveal-complete",
@@ -1114,115 +1576,12 @@ router.post(
 
       console.log("[Casting Reveal Complete] State → done");
 
-      // ── AI Archetype Pipeline (best-effort) ────────────────────────────────
-      let archetypeResult = null;
-
-      const primaryImage = await knex("images")
-        .where({ profile_id: profile.id, is_primary: true })
-        .first();
-      const primaryKey = primaryImage
-        ? primaryImage.storage_key ||
-          (primaryImage.path ? primaryImage.path.replace(/^\//, "") : null)
-        : null;
-
-      if (primaryKey) {
-        try {
-          // Calculate age from date_of_birth if available
-          const age = profile.date_of_birth
-            ? Math.floor(
-                (Date.now() - new Date(profile.date_of_birth).getTime()) /
-                  (365.25 * 24 * 60 * 60 * 1000),
-              )
-            : null;
-
-          const stats = {
-            height_cm: profile.height_cm || null,
-            gender: profile.gender || null,
-            age,
-          };
-
-          archetypeResult = await generateArchetype(
-            knex,
-            profile.id,
-            primaryKey,
-            stats,
-          );
-
-          console.log(
-            "[Casting Reveal Complete] AI archetype:",
-            archetypeResult.primary_archetype,
-            archetypeResult.scores,
-          );
-
-          // Persist scores to profile fit_score_* columns
-          const clamp = (v) =>
-            Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
-          await knex("profiles")
-            .where({ id: profile.id })
-            .update({
-              fit_score_runway: clamp(archetypeResult.scores.runway),
-              fit_score_editorial: clamp(archetypeResult.scores.editorial),
-              fit_score_commercial: clamp(archetypeResult.scores.commercial),
-              fit_score_lifestyle: clamp(archetypeResult.scores.lifestyle),
-              fit_score_overall: clamp(
-                (archetypeResult.scores.runway +
-                  archetypeResult.scores.editorial +
-                  archetypeResult.scores.commercial +
-                  archetypeResult.scores.lifestyle) /
-                  4,
-              ),
-              fit_scores_calculated_at: knex.fn.now(),
-              updated_at: knex.fn.now(),
-            });
-
-          // Persist raw AI output + new columns to onboarding_signals
-          const isPostgres =
-            knex.client.config.client === "pg" ||
-            knex.client.config.client === "postgresql";
-          const aiResultsValue = isPostgres
-            ? archetypeResult
-            : JSON.stringify(archetypeResult);
-
-          await knex("onboarding_signals")
-            .where({ profile_id: profile.id })
-            .update({
-              ai_results: aiResultsValue,
-              archetype_runway_pct: clamp(archetypeResult.scores.runway),
-              archetype_commercial_pct: clamp(
-                archetypeResult.scores.commercial,
-              ),
-              archetype_editorial_pct: clamp(archetypeResult.scores.editorial),
-              archetype_lifestyle_pct: clamp(archetypeResult.scores.lifestyle),
-              archetype_label: archetypeResult.primary_archetype,
-              casting_verdict: archetypeResult.verdict,
-              updated_at: knex.fn.now(),
-            });
-        } catch (aiErr) {
-          console.warn(
-            "[Casting Reveal Complete] AI pipeline failed (non-blocking):",
-            aiErr.message,
-          );
-        }
-      } else {
-        console.warn(
-          "[Casting Reveal Complete] No primary image found — skipping AI pipeline",
-        );
-      }
-      // ── End AI Pipeline ────────────────────────────────────────────────────
-
       await updateProfileCompleteness(profile.id);
 
       return res.json({
         success: true,
         next_step: "complete",
         message: "Reveal completed successfully",
-        ...(archetypeResult && {
-          archetype: {
-            primary: archetypeResult.primary_archetype,
-            verdict: archetypeResult.verdict,
-            scores: archetypeResult.scores,
-          },
-        }),
       });
     } catch (error) {
       console.error("[Casting Reveal Complete] Error:", error);

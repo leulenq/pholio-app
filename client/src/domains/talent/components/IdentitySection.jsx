@@ -1,22 +1,16 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
 import { Sparkles } from 'lucide-react';
-import { PholioInput, PholioTextarea } from '../../../shared/components/ui/forms';
+import { PholioInput, PholioTextarea, PholioToggle } from '../../../shared/components/ui/forms';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
+import { computeAge, isMinorProfile } from '../../../shared/utils/talentAge';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
-
-function computeAge(dob) {
-  if (!dob) return null;
-  const birth = new Date(dob);
-  if (isNaN(birth.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age > 0 && age < 120 ? age : null;
-}
 
 /**
  * Identity Section
@@ -30,19 +24,34 @@ export const IdentitySection = ({
   isImproving,
   improveMode,
   previousBio,
+  bioOptions = { length: 'standard', person: 'third' },
+  onBioOptionsChange,
   onBioRefine,
   onBioGenerate,
   handleUndoAI,
-  watchDob
+  watchDob,
+  guardianStatus = 'none',
+  onSendGuardianLink,
+  guardianSending = false,
+  guardianLinkSent = false,
+  guardianSentTo = '',
 }) => {
   const age = computeAge(watchDob);
+  const isMinor = isMinorProfile({ date_of_birth: watchDob });
   const hasBio = (bioValue || '').trim().length >= 10;
+  const bioLength = bioOptions?.length === 'tight' ? 'tight' : 'standard';
+  const bioPerson = bioOptions?.person === 'first' ? 'first' : 'third';
+  const setBioOption = (patch) => {
+    if (onBioOptionsChange) {
+      onBioOptionsChange({ length: bioLength, person: bioPerson, ...patch });
+    }
+  };
   return (
     <Section
       id="identity"
       title="Personal Details"
       titleEmphasis="Details"
-      description="Your core information visible to agencies."
+      description="What agencies see first: name, bases, age, and your written bio. Keep this current — it influences search and how you’re introduced."
       showDivider={false}
     >
       <div className={styles.formGrid2}>
@@ -66,7 +75,7 @@ export const IdentitySection = ({
           control={control}
           render={({ field }) => (
             <CityAutocompleteField
-              label="City"
+              label="Primary Base"
               placeholder="Start typing — e.g. New York, USA"
               value={field.value}
               onChange={field.onChange}
@@ -75,6 +84,23 @@ export const IdentitySection = ({
             />
           )}
         />
+        <Controller
+          name="city_secondary"
+          control={control}
+          render={({ field }) => (
+            <CityAutocompleteField
+              label="Secondary Base"
+              placeholder="Also based in…"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.city_secondary}
+            />
+          )}
+        />
+      </div>
+
+      <div className={`${styles.formGrid2} ${styles.formRow}`}>
         <Controller
           name="gender"
           control={control}
@@ -144,6 +170,77 @@ export const IdentitySection = ({
         />
       </div>
 
+      {isMinor && (
+        <div className={`${styles.formRow} ${styles.minorComplianceBlock}`}>
+          <p className={styles.minorComplianceCopy}>
+            Because this talent is under 18, a parent or legal guardian must verify
+            consent before measurements or full-length photos can be collected or
+            shared publicly. We email the guardian a secure, one-time link.
+          </p>
+
+          {guardianStatus === 'verified' ? (
+            <p className={styles.guardianConsentStatus}>
+              Guardian consent: <strong>Verified</strong>
+            </p>
+          ) : (
+            <>
+              <div className={styles.guardianConsentRow}>
+                <PholioInput
+                  label="Guardian email"
+                  type="email"
+                  placeholder="parent@example.com"
+                  error={errors.guardian_email}
+                  {...register('guardian_email')}
+                />
+                <PholioButton
+                  type="button"
+                  variant="secondary"
+                  className={styles.guardianConsentBtn}
+                  onClick={() => {
+                    if (typeof onSendGuardianLink !== 'function') return;
+                    void onSendGuardianLink();
+                  }}
+                  disabled={guardianSending || typeof onSendGuardianLink !== 'function'}
+                >
+                  {guardianSending
+                    ? 'Sending…'
+                    : guardianStatus === 'pending'
+                      ? 'Resend verification link'
+                      : 'Send verification link'}
+                </PholioButton>
+              </div>
+              {guardianLinkSent && (
+                <p className={styles.guardianConsentSent} role="status">
+                  Verification link sent to{' '}
+                  <strong>{guardianSentTo || 'the guardian'}</strong>. Ask them to
+                  check their inbox and spam folder — the link expires in 7 days.
+                </p>
+              )}
+              <p className={styles.guardianConsentStatus}>
+                Guardian consent:{' '}
+                <strong>
+                  {guardianStatus === 'pending'
+                    ? 'Pending — awaiting guardian'
+                    : 'Not yet requested'}
+                </strong>
+              </p>
+            </>
+          )}
+
+          <Controller
+            name="work_permit_on_file"
+            control={control}
+            render={({ field }) => (
+              <PholioToggle
+                label="Work permit on file"
+                checked={!!field.value}
+                onChange={(event) => field.onChange(event.target.checked)}
+              />
+            )}
+          />
+        </div>
+      )}
+
       <div className={styles.formRow}>
         <div className={styles.bioHeader}>
           <p className={styles.bioKicker}>Bio</p>
@@ -152,30 +249,92 @@ export const IdentitySection = ({
               About <em>you</em>
             </h3>
             {hasBio ? (
-              <button
+              <PholioButton
                 type="button"
+                variant="secondary"
                 onClick={onBioRefine}
                 disabled={isImproving}
                 className={styles.bioRefineBtn}
               >
                 <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
                 {isImproving && improveMode === 'refine' ? 'Refining…' : 'Refine'}
-              </button>
+              </PholioButton>
             ) : (
-              <button
+              <PholioButton
                 type="button"
+                variant="primary"
                 onClick={onBioGenerate}
                 disabled={isImproving}
                 className={styles.bioRefineBtn}
               >
                 <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
                 {isImproving && improveMode === 'generate' ? 'Generating…' : 'Generate'}
-              </button>
+              </PholioButton>
             )}
           </div>
           <p className={styles.bioLede}>
             Tell agencies what makes you unique.
           </p>
+          <div className={styles.bioModeControls}>
+            <div
+              className={styles.bioModeGroup}
+              role="group"
+              aria-label="Bio length"
+            >
+              <span className={styles.bioModeLabel}>Length</span>
+              <PholioToggleGroup className={styles.bioModeOptions}>
+                <PholioToggleButton
+                  type="button"
+                  onClick={() => setBioOption({ length: 'tight' })}
+                  disabled={isImproving}
+                  aria-pressed={bioLength === 'tight'}
+                  active={bioLength === 'tight'}
+                  className={`${styles.bioModeBtn} ${bioLength === 'tight' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Tight
+                </PholioToggleButton>
+                <PholioToggleButton
+                  type="button"
+                  onClick={() => setBioOption({ length: 'standard' })}
+                  disabled={isImproving}
+                  aria-pressed={bioLength === 'standard'}
+                  active={bioLength === 'standard'}
+                  className={`${styles.bioModeBtn} ${bioLength === 'standard' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Standard
+                </PholioToggleButton>
+              </PholioToggleGroup>
+            </div>
+            <div
+              className={styles.bioModeGroup}
+              role="group"
+              aria-label="Bio voice"
+            >
+              <span className={styles.bioModeLabel}>Voice</span>
+              <PholioToggleGroup className={styles.bioModeOptions}>
+                <PholioToggleButton
+                  type="button"
+                  onClick={() => setBioOption({ person: 'third' })}
+                  disabled={isImproving}
+                  aria-pressed={bioPerson === 'third'}
+                  active={bioPerson === 'third'}
+                  className={`${styles.bioModeBtn} ${bioPerson === 'third' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Agency
+                </PholioToggleButton>
+                <PholioToggleButton
+                  type="button"
+                  onClick={() => setBioOption({ person: 'first' })}
+                  disabled={isImproving}
+                  aria-pressed={bioPerson === 'first'}
+                  active={bioPerson === 'first'}
+                  className={`${styles.bioModeBtn} ${bioPerson === 'first' ? styles.bioModeBtnActive : ''}`}
+                >
+                  Personal
+                </PholioToggleButton>
+              </PholioToggleGroup>
+            </div>
+          </div>
         </div>
         <PholioTextarea
           label=""
@@ -186,13 +345,14 @@ export const IdentitySection = ({
         />
         {previousBio && (
           <div className={styles.bioActions}>
-            <button
+            <PholioButton
               type="button"
+              variant="tertiary"
               onClick={handleUndoAI}
               className={styles.bioUndoBtn}
             >
               Revert to original
-            </button>
+            </PholioButton>
           </div>
         )}
       </div>

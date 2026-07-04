@@ -2,16 +2,14 @@ import { normalizeScore, resolveTier } from '../../lib/matchTier';
 import './MatchScore.css';
 
 /**
- * MatchScore — the core match score figure, number-only.
+ * MatchScore — editorial serif numeral, gradient fill.
  *
- * The design lives in the numeral itself: a serif figure with a metallic tonal
- * fill and material depth, no container. Strength is read through tone and
- * presence (high = gold + weight + lift; low = muted + recessive), all within
- * one system.
+ * tone="light"   (default): numeral only, for cards and rows on cream/white
+ * tone="overlay": numeral inside a dark semi-transparent mount, for photo contexts
+ * tone="dark":   same as overlay — numeral shifts to cream fill on dark panels
  *
- * @param {number} score   0–100
- * @param {'light'|'dark'|'overlay'} tone  rendering surface (default light)
- * @param {'xs'|'sm'|'md'|'lg'} size       optical size (default md)
+ * On overlay/dark, the outer wrapper (.match-score-mount) receives className
+ * for layout positioning. On light, className applies to the numeral directly.
  */
 export default function MatchScore({
   score = 0,
@@ -21,6 +19,28 @@ export default function MatchScore({
 }) {
   const normalized = normalizeScore(score);
   const strength = resolveTier(normalized);
+
+  const numeral = (
+    <span
+      className={[
+        'match-score',
+        `match-score--${tone}`,
+        `match-score--${size}`,
+        `match-score--${strength}`,
+      ].filter(Boolean).join(' ')}
+      aria-label={`${normalized} match score`}
+    >
+      {normalized}
+    </span>
+  );
+
+  if (tone === 'overlay' || tone === 'dark') {
+    return (
+      <span className={['match-score-mount', className].filter(Boolean).join(' ')}>
+        {numeral}
+      </span>
+    );
+  }
 
   return (
     <span

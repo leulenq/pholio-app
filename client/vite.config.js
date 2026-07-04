@@ -1,15 +1,21 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   root: '.',
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+  },
   envPrefix: ['VITE_', 'FIREBASE_'],
   // Use '/' in dev mode (serve), '/dashboard-app/' in build mode
   base: command === 'serve' ? '/' : '/dashboard-app/',
   build: {
     outDir: '../public/dashboard-app',
-    emptyOutDir: true
+    emptyOutDir: true,
   },
   server: {
     port: 5173,
@@ -38,7 +44,8 @@ export default defineConfig(({ command }) => ({
         secure: false,
         // We match any /onboarding/ path EXCEPT the base /onboarding page
         bypass: (req) => {
-          if (req.url === '/onboarding' || req.url === '/onboarding/') {
+          const pathname = req.url?.split('?')[0];
+          if (pathname === '/onboarding' || pathname === '/onboarding/') {
             return '/index.html'; // Let Vite handle the SPA page route
           }
           // For all other /onboarding/... paths, return undefined to proxy to backend

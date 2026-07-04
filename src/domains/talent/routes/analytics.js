@@ -37,6 +37,111 @@ function parseActivityMetadata(rawMetadata) {
   return {};
 }
 
+function analyticsWindowDays(rawDays, fallback = 30) {
+  const parsed = Number.parseInt(rawDays, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, 1), 90);
+}
+
+function startOfUtcDay(date) {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
+function websiteAnalyticsWindow(days, now = new Date()) {
+  const currentStart = startOfUtcDay(
+    new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000),
+  );
+  const previousStart = new Date(
+    currentStart.getTime() - days * 24 * 60 * 60 * 1000,
+  );
+
+  return {
+    currentStart,
+    currentEnd: now,
+    previousStart,
+    previousEnd: currentStart,
+  };
+}
+
+function countValue(row) {
+  return Number(row?.total ?? row?.count ?? 0);
+}
+
+function calculatePeriodChange(current, previous) {
+  if (previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+function applyTimestampRange(
+  query,
+  {
+    column,
+    start,
+    end,
+    endInclusive = true,
+    isPostgres,
+  },
+) {
+  if (isPostgres) {
+    query.where(column, ">=", start);
+    query.where(column, endInclusive ? "<=" : "<", end);
+    return query;
+  }
+
+  query.whereRaw("datetime(??) >= datetime(?)", [
+    column,
+    start.toISOString(),
+  ]);
+  query.whereRaw(`datetime(??) ${endInclusive ? "<=" : "<"} datetime(?)`, [
+    column,
+    end.toISOString(),
+  ]);
+  return query;
+}
+
+function emptyWebsiteAnalytics(days) {
+  const { currentStart, currentEnd } = websiteAnalyticsWindow(days);
+  const series = [];
+
+  for (let offset = 0; offset < days; offset += 1) {
+    series.push({
+      date: new Date(
+        currentStart.getTime() + offset * 24 * 60 * 60 * 1000,
+      )
+        .toISOString()
+        .slice(0, 10),
+      visits: 0,
+    });
+  }
+
+  return {
+    status: "connected",
+    source: "first_party",
+    period: {
+      days,
+      start: currentStart.toISOString(),
+      end: currentEnd.toISOString(),
+    },
+    metrics: {
+      visits: 0,
+      uniqueVisitors: 0,
+      pageViews: 0,
+      outboundClicks: 0,
+    },
+    measurement: {
+      uniqueVisitors: "complete",
+    },
+    trend: {
+      visitsChangePct: null,
+      hasPriorBaseline: false,
+    },
+    series,
+    hasData: false,
+  };
+}
+
 /**
  * GET /api/talent/analytics
  * Get analytics data for the profile
@@ -45,6 +150,7 @@ router.get(
   "/analytics",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
+    const breakdownDays = analyticsWindowDays(req.query.days);
     const profile = await knex("profiles")
       .where({ user_id: req.session.userId })
       .first();
@@ -55,6 +161,7 @@ router.get(
         data: {
           views: { total: 0, thisWeek: 0, thisMonth: 0 },
           downloads: { total: 0, thisWeek: 0, thisMonth: 0, byTheme: [] },
+          website: emptyWebsiteAnalytics(breakdownDays),
         },
       });
     }
@@ -67,8 +174,7 @@ router.get(
         : knex.raw(`json_extract(metadata, '$.${path}') as ${path}`);
 
     // Dynamic Date Filter
-    const daysParam = req.query.days ? parseInt(req.query.days) : null;
-    const breakdownDays = daysParam || 30; // Default to 30 days for breakdowns if not specified
+    const daysParam = req.query.days ? breakdownDays : null;
 
     const filterDate = new Date();
     filterDate.setDate(filterDate.getDate() - breakdownDays);
@@ -158,6 +264,143 @@ router.get(
       .count({ total: "*" })
       .groupBy("theme");
 
+    const {
+      currentStart,
+      currentEnd,
+      previousStart,
+      previousEnd,
+    } = websiteAnalyticsWindow(breakdownDays);
+
+    const [
+      currentVisitsRow,
+      previousVisitsRow,
+      identifiedVisitsRow,
+      uniqueVisitorsRow,
+      websitePageViewsRow,
+      outboundClicksRow,
+      dailyVisits,
+    ] = await Promise.all([
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: previousStart,
+            end: previousEnd,
+            endInclusive: false,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .whereNotNull("visitor_id")
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .whereNotNull("visitor_id")
+        .countDistinct({ total: "visitor_id" })
+        .first(),
+      knex("analytics")
+        .where({ profile_id: profile.id, event_type: "view" })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "created_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("analytics")
+        .where({ profile_id: profile.id })
+        .whereIn("event_type", ["social_click", "portfolio_click"])
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "created_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .count({ total: "*" })
+        .first(),
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .select(knex.raw("DATE(started_at) as date"))
+        .count({ total: "*" })
+        .groupBy("date")
+        .orderBy("date", "asc"),
+    ]);
+
+    const visits = countValue(currentVisitsRow);
+    const previousVisits = countValue(previousVisitsRow);
+    const identifiedVisits = countValue(identifiedVisitsRow);
+    const uniqueVisitors = countValue(uniqueVisitorsRow);
+    const pageViews = countValue(websitePageViewsRow);
+    const outboundClicks = countValue(outboundClicksRow);
+    const dailyVisitMap = new Map(
+      dailyVisits.map((row) => {
+        const date =
+          typeof row.date === "string"
+            ? row.date.slice(0, 10)
+            : new Date(row.date).toISOString().slice(0, 10);
+        return [date, countValue(row)];
+      }),
+    );
+    const websiteSeries = [];
+
+    for (let offset = 0; offset < breakdownDays; offset += 1) {
+      const date = new Date(
+        currentStart.getTime() + offset * 24 * 60 * 60 * 1000,
+      )
+        .toISOString()
+        .slice(0, 10);
+      websiteSeries.push({
+        date,
+        visits: dailyVisitMap.get(date) || 0,
+      });
+    }
+
     return res.json({
       success: true,
       data: {
@@ -183,13 +426,37 @@ router.get(
             count: Number(item.total || 0),
           })),
         },
+        // Intel spec §6: the invented engagement score does not migrate.
+        // Raw event counts remain; interpretation happens on the intel page.
         engagement: {
           counts: engagementMap,
-          score:
-            viewsTotal * 1 +
-            (engagementMap.bio_read || 0) * 5 +
-            (engagementMap.social_click || 0) * 10 +
-            (engagementMap.portfolio_click || 0) * 10,
+        },
+        website: {
+          status: "connected",
+          source: "first_party",
+          period: {
+            days: breakdownDays,
+            start: currentStart.toISOString(),
+            end: currentEnd.toISOString(),
+          },
+          metrics: {
+            visits,
+            uniqueVisitors,
+            pageViews,
+            outboundClicks,
+          },
+          measurement: {
+            uniqueVisitors:
+              visits === 0 || identifiedVisits === visits
+                ? "complete"
+                : "partial",
+          },
+          trend: {
+            visitsChangePct: calculatePeriodChange(visits, previousVisits),
+            hasPriorBaseline: previousVisits > 0,
+          },
+          series: websiteSeries,
+          hasData: visits > 0 || pageViews > 0 || outboundClicks > 0,
         },
       },
     });
@@ -486,110 +753,11 @@ router.get(
   }),
 );
 
-/**
- * GET /api/talent/analytics/insights
- * Get dynamic insights based on real data patterns
+/*
+ * Removed (intel spec §6, explicit kills): GET /insights (fabricated
+ * multipliers) and GET /cohorts (website-operator retention metric).
+ * The intel endpoint (routes/intel.js) is the replacement surface.
  */
-router.get(
-  "/insights",
-  requireRole("TALENT"),
-  asyncHandler(async (req, res) => {
-    const profile = await knex("profiles")
-      .where({ user_id: req.session.userId })
-      .first();
-    if (!profile) return res.json({ success: true, insights: [] });
-
-    const images = await knex("images")
-      .where({ profile_id: profile.id })
-      .select("id", "is_primary");
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const insights = [];
-
-    // Determine DB client for specific functions
-    const isPostgres = knex.client.config.client === "pg";
-
-    // 1. Peak Day Insight
-    const dailyViews = await knex("analytics")
-      .where({ profile_id: profile.id, event_type: "view" })
-      .where("created_at", ">=", thirtyDaysAgo)
-      .select(
-        knex.raw(
-          isPostgres
-            ? "to_char(created_at, 'ID') as day_of_week"
-            : "strftime('%w', created_at) as day_of_week",
-        ),
-      )
-      .count("* as count")
-      .groupBy("day_of_week")
-      .orderBy("count", "desc")
-      .first();
-
-    if (dailyViews) {
-      // Note: strftime %w is 0-6 (Sun-Sat), to_char ID is 1-7 (Mon-Sun)
-      const dayIndex = isPostgres
-        ? Number(dailyViews.day_of_week) % 7
-        : Number(dailyViews.day_of_week);
-      const days = [
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-      ];
-      insights.push({
-        title: "Peak Performance",
-        message: `Your profile gets the most engagement on ${days[dayIndex]}s.`,
-        tip: "Consider updating your portfolio mid-week to capitalize on this spike.",
-      });
-    }
-
-    // 2. Completeness Insight
-    const hasPrimaryImg = images.some((img) => img.is_primary);
-    const requiredFields = ["height_cm", "city"];
-    const missing = requiredFields.filter((f) => !profile[f]);
-    if (missing.length > 0 || !hasPrimaryImg) {
-      insights.push({
-        title: "Boost Visibility",
-        message: `Your profile is missing some key details.`,
-        tip: "Talent with complete profiles are 3x more likely to be found by agencies.",
-      });
-    }
-
-    // 3. Growth Insight (Simple version)
-    const views = await knex("analytics")
-      .where({ profile_id: profile.id, event_type: "view" })
-      .where("created_at", ">=", thirtyDaysAgo)
-      .count("* as count")
-      .first();
-
-    if (Number(views?.count || 0) > 4) {
-      insights.push({
-        title: "Audience Growth",
-        message: `You've had ${views.count} profile views this month.`,
-        tip: "Sharing your Pholio link on social media can increase this by up to 40%.",
-      });
-    }
-
-    // Fallback if no specific data
-    if (insights.length === 0) {
-      insights.push({
-        title: "Welcome to Insights",
-        message: "We're gathering data to provide you with personalized tips.",
-        tip: "Keep your profile up to date to get the best results.",
-      });
-    }
-
-    res.json({
-      success: true,
-      insights: insights.slice(0, 3),
-    });
-  }),
-);
 
 /**
  * GET /api/talent/analytics/sessions
@@ -650,105 +818,6 @@ router.get(
       success: true,
       data,
     });
-  }),
-);
-
-/**
- * GET /api/talent/analytics/cohorts
- * Get cohort analysis data for retention heatmap
- */
-router.get(
-  "/cohorts",
-  requireRole("TALENT"),
-  asyncHandler(async (req, res) => {
-    const profile = await knex("profiles")
-      .where({ user_id: req.session.userId })
-      .first();
-    if (!profile) return res.json({ success: true, data: [] });
-
-    const isPostgres = knex.client.config.client === "pg";
-
-    // Logic:
-    // 1. Find the first session date for each visitor
-    // 2. Map sessions to weeks relative to first session
-    // 3. Aggregate into cohorts
-
-    try {
-      // This is a complex query, we'll use subqueries for clarity
-      const firstSessions = knex("visitor_sessions")
-        .where({ profile_id: profile.id })
-        .groupBy("visitor_id")
-        .select("visitor_id", knex.raw("MIN(started_at) as first_visit"));
-
-      const sessionsWithCohort = knex
-        .select(
-          "vs.visitor_id",
-          "vs.started_at",
-          "fs.first_visit",
-          knex.raw(
-            isPostgres
-              ? "floor(extract(day from vs.started_at - fs.first_visit) / 7) as week_number"
-              : "cast((julianday(vs.started_at) - julianday(fs.first_visit)) / 7 as integer) as week_number",
-          ),
-        )
-        .from("visitor_sessions as vs")
-        .join(firstSessions.as("fs"), "vs.visitor_id", "fs.visitor_id")
-        .where("vs.profile_id", profile.id);
-
-      const cohortStats = await knex
-        .select(
-          knex.raw(
-            isPostgres
-              ? "to_char(first_visit, 'DD/MM') || ' - ' || to_char(first_visit + interval '4 days', 'DD/MM') as label"
-              : "strftime('%d/%m', first_visit) || ' - ' || strftime('%d/%m', date(first_visit, '+4 days')) as label",
-          ),
-          "week_number",
-        )
-        .from(sessionsWithCohort.as("swc"))
-        .countDistinct("visitor_id as unique_visitors")
-        .groupBy("label", "week_number")
-        .orderBy("label", "asc");
-
-      // Pivot data for frontend CohortHeatmap
-      const pivoted = {};
-      cohortStats.forEach((row) => {
-        if (!pivoted[row.label]) {
-          pivoted[row.label] = {
-            label: row.label,
-            retention: [0, 0, 0, 0, 0, 0],
-          };
-        }
-        if (row.week_number >= 0 && row.week_number < 6) {
-          pivoted[row.label].retention[row.week_number] = Number(
-            row.unique_visitors,
-          );
-        }
-      });
-
-      // Convert to percentages relative to week 0 (W0 is always 100%)
-      const finalData = Object.values(pivoted).map((row) => {
-        const w0Count = row.retention[0] || 1;
-        return {
-          label: row.label,
-          retention: row.retention.map((count, i) =>
-            i === 0
-              ? 100
-              : count > 0
-                ? Math.round((count / w0Count) * 100 * 10) / 10
-                : i < 2
-                  ? 0
-                  : null,
-          ),
-        };
-      });
-
-      res.json({ success: true, data: finalData.slice(-6) }); // Last 6 cohorts
-    } catch (error) {
-      console.error("[Cohorts API] Error:", error);
-      res
-        .status(500)
-        .json({ success: false, error: "Failed to calculate cohorts" });
-    }
   }),
 );
 

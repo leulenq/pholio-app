@@ -13,8 +13,21 @@ const PholioCustomSelect = ({
   id
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef(null);
+  const listboxRef = useRef(null);
   const blurTimeoutRef = useRef(null);
+  const selectId = id || 'pholio-select';
+
+  // Sync activeIndex with selected value or first item when opening
+  useEffect(() => {
+    if (isOpen) {
+      const selectedIdx = options.findIndex(opt => opt.value === value);
+      setActiveIndex(selectedIdx >= 0 ? selectedIdx : 0);
+    } else {
+      setActiveIndex(-1);
+    }
+  }, [isOpen, value, options]);
 
   // Close on click outside
   useEffect(() => {
@@ -38,11 +51,63 @@ const PholioCustomSelect = ({
     setIsOpen(false);
   };
 
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (isOpen) {
+        if (activeIndex >= 0 && activeIndex < options.length) {
+          handleSelect(options[activeIndex].value);
+        }
+      } else {
+        setIsOpen(true);
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else {
+        setActiveIndex((prev) => (prev + 1) % options.length);
+      }
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) {
+        setIsOpen(true);
+      } else {
+        setActiveIndex((prev) => (prev - 1 + options.length) % options.length);
+      }
+      return;
+    }
+    if (e.key === 'Home') {
+      if (isOpen) {
+        e.preventDefault();
+        setActiveIndex(0);
+      }
+      return;
+    }
+    if (e.key === 'End') {
+      if (isOpen) {
+        e.preventDefault();
+        setActiveIndex(options.length - 1);
+      }
+      return;
+    }
+  };
+
   const selectedOption = options.find(opt => opt.value === value);
 
   return (
     <div className={`pholio-form-group ${disabled ? 'disabled' : ''}`} ref={containerRef}>
-      {label && <label htmlFor={id} className="pholio-label">{label}</label>}
+      {label && <label htmlFor={selectId} className="pholio-label">{label}</label>}
       
       <div className="pholio-select-control-wrapper">
         <div 
@@ -58,23 +123,10 @@ const PholioCustomSelect = ({
           role="combobox"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
-          id={id}
-          onKeyDown={(e) => {
-            if (disabled) return;
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              setIsOpen(false);
-              return;
-            }
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setIsOpen((prev) => !prev);
-            }
-            if (e.key === 'ArrowDown' && !isOpen) {
-              e.preventDefault();
-              setIsOpen(true);
-            }
-          }}
+          aria-controls={`${selectId}-listbox`}
+          aria-activedescendant={isOpen && activeIndex >= 0 ? `${selectId}-opt-${activeIndex}` : undefined}
+          id={selectId}
+          onKeyDown={handleKeyDown}
           onBlur={(e) => {
             if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
             const nextFocus = e.relatedTarget;
@@ -91,11 +143,12 @@ const PholioCustomSelect = ({
         </div>
 
         {isOpen && (
-          <div className="pholio-custom-select-dropdown" role="listbox">
-            {options.map((option) => (
+          <div ref={listboxRef} id={`${selectId}-listbox`} className="pholio-custom-select-dropdown" role="listbox" aria-label={label || placeholder}>
+            {options.map((option, index) => (
               <div
                 key={option.value}
-                className={`pholio-select-option ${value === option.value ? 'selected' : ''}`}
+                id={`${selectId}-opt-${index}`}
+                className={`pholio-select-option ${value === option.value ? 'selected' : ''} ${index === activeIndex ? 'active' : ''}`}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleSelect(option.value)}
                 role="option"

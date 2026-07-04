@@ -5,8 +5,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../api/talent';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { TransferFailureNotice } from '../../../shared/components/states';
+import PholioButton, { PholioIconButton } from '../../../shared/components/ui/PholioButton';
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 12;
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 
@@ -65,7 +66,7 @@ function partitionUploadFiles(files) {
       continue;
     }
     if (file.size > MAX_FILE_BYTES) {
-      invalid.push({ name: file.name || 'Unknown file', reason: 'Each file must be 5MB or smaller' });
+      invalid.push({ name: file.name || 'Unknown file', reason: 'Each file must be 25MB or smaller' });
       continue;
     }
     valid.push(file);
@@ -308,7 +309,7 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
         <p className="text-slate-600 font-medium mb-1">
           {isUploading ? 'Uploading...' : isDragOver ? 'Drop photos to upload' : 'Drag & drop photos here, or click to select files'}
         </p>
-        <p className="text-xs text-slate-400">Supports JPG, PNG, WebP up to 5MB</p>
+        <p className="text-xs text-slate-400">Supports JPG, PNG, WebP up to 25MB</p>
       </div>
 
       <div className="mt-8">
@@ -358,8 +359,9 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
                     }`}
                   >
                     {!photo.isPrimary && (
-                      <button
+                      <PholioButton
                         type="button"
+                        variant="secondary"
                         disabled={rowBusy}
                         onClick={async () => {
                           const snapshot = photos.map((p) => ({ ...p }));
@@ -385,7 +387,6 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
                             setSettingHeroId(null);
                           }
                         }}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white text-slate-900 text-xs font-medium rounded-lg hover:bg-[#C9A55A] hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
                       >
                         {isSettingHero ? (
                           <>
@@ -395,13 +396,14 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
                         ) : (
                           'Set as Primary'
                         )}
-                      </button>
+                      </PholioButton>
                     )}
-                    <button
+                    <PholioIconButton
                       type="button"
+                      tone="dark"
+                      danger
                       disabled={rowBusy}
                       onClick={() => handleDelete(photo.id)}
-                      className="p-1.5 bg-white/20 hover:bg-red-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed inline-flex items-center justify-center"
                       title="Remove photo"
                       aria-label="Remove photo"
                     >
@@ -410,7 +412,7 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
                       ) : (
                         <X size={16} />
                       )}
-                    </button>
+                    </PholioIconButton>
                   </div>
                 </div>
               );

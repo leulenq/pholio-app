@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Check, Info, AlertCircle, Camera } from 'lucide-react';
 import { analyzePortfolio } from '../../../shared/utils/portfolioGapAnalysis';
+import { PholioIconButton } from '../../../shared/components/ui/PholioButton';
 
 export default function CurationGuidance({ images }) {
   const [isVisible, setIsVisible] = useState(true);
@@ -15,13 +16,13 @@ export default function CurationGuidance({ images }) {
   
   return (
     <div className="curation-guidance p-4 mb-6 bg-white rounded-xl border border-[#e2e8f0] shadow-sm relative transition-all duration-300">
-      <button 
+      <PholioIconButton
         onClick={() => setIsVisible(false)}
-        className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 transition-colors"
+        className="absolute top-3 right-3"
         aria-label="Dismiss guidance"
       >
         <X size={16} />
-      </button>
+      </PholioIconButton>
 
       <div className="flex items-start gap-4">
         {/* Dynamic Icon based on score */}

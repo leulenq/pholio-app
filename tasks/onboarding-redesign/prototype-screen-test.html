@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Screen Test — Onboarding Redesign Prototype v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..600;1,400..600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#000000;
+    --gold:#C9A55A;
+    --gold-deep:#B8956A;
+    --text:#F5F1EA;
+    --text-2:rgba(245,241,234,0.55);
+    --text-3:rgba(245,241,234,0.30);
+    --ghost:rgba(245,241,234,0.15);
+    --serif:"Playfair Display",Georgia,serif;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --ease:cubic-bezier(0.16,1,0.3,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  /* ── The stage (ORIGINAL background: black + grain + two ambient orbs) ── */
+  .stage{position:fixed;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  /* clean dark stage — no grain */
+  .orb{position:absolute;border-radius:50%;filter:blur(80px);z-index:0;opacity:.4;animation:float 22s var(--ease) infinite}
+  .orb-1{top:-10%;left:-10%;width:50vw;height:50vw;background:radial-gradient(circle,rgba(201,165,90,0.3),rgba(0,0,0,0) 70%)}
+  .orb-2{bottom:-10%;right:-10%;width:60vw;height:60vw;background:radial-gradient(circle,rgba(120,120,128,0.18),rgba(0,0,0,0) 70%);animation-delay:-11s}
+  @keyframes float{0%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-50px) scale(1.1)}66%{transform:translate(-20px,20px) scale(.95)}100%{transform:translate(0,0) scale(1)}}
+
+  /* room-tint — the talent's own photo faintly lighting the room from digitals on */
+  .room-tint{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center 28%;
+    filter:blur(90px) saturate(0.35) brightness(0.45);transform:scale(1.2);opacity:0;transition:opacity 1.6s var(--ease);pointer-events:none}
+  body.lit .room-tint{opacity:0.16}
+
+  /* ── Digitals: the momentous gold-shimmer stage (only on that screen) ── */
+  /* momentous gold pool — soft, breathing warm gold light (no dot texture) */
+  .shimmer{position:fixed;inset:0;z-index:0;opacity:0;transition:opacity 1.1s var(--ease);pointer-events:none}
+  .shimmer::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(85% 64% at 50% 36%,rgba(201,165,90,0.14),transparent 62%);animation:digiPulse 5s var(--ease) infinite}
+  body.digi .shimmer{opacity:1}
+  @keyframes digiPulse{0%,100%{opacity:.78}50%{opacity:1}}
+
+  /* ── Top rail / back / progress ── */
+  .rail{position:fixed;top:2.3rem;left:50%;transform:translateX(-50%);z-index:20;display:inline-flex;gap:1.9rem;pointer-events:none;opacity:0;transition:opacity .5s var(--ease)}
+  .rail.show{opacity:1}
+  .rail span{font-size:.58rem;letter-spacing:.24em;text-transform:uppercase;color:var(--ghost);transition:color .5s ease;white-space:nowrap}
+  .rail span.done{color:var(--text-3)} .rail span.cur{color:var(--gold)}
+  .backbtn{position:fixed;top:2.1rem;left:2.2rem;z-index:20;display:inline-flex;align-items:center;gap:.5rem;background:none;border:none;
+    color:var(--text-3);font-family:var(--sans);font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;cursor:pointer;transition:color .3s ease;opacity:0}
+  .backbtn.show{opacity:1} .backbtn:hover{color:var(--gold)}
+  .progress{position:fixed;top:0;left:0;height:2px;background:var(--gold);width:0;z-index:25;box-shadow:0 0 12px rgba(201,165,90,.5);transition:width 1s var(--ease)}
+
+  /* ── Screen container ── */
+  .panel{position:relative;z-index:10;width:100%;max-width:1200px;padding:2rem;text-align:center}
+  .screen{display:none;animation:enter .55s var(--ease)}
+  .screen.active{display:block}
+  @keyframes enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+  /* headline — ALWAYS one line; scales with viewport so it never wraps or overflows */
+  .q{font-family:var(--serif);font-weight:400;font-size:clamp(2.5rem,5vw,5rem);line-height:1.18;letter-spacing:-0.02em;
+    color:#fff;text-shadow:0 0 44px rgba(255,255,255,.09);white-space:nowrap;max-width:96vw;margin:0 auto;padding-bottom:.14em}
+  .q em{font-style:italic;color:var(--gold)}
+  .divider{width:120px;height:2px;margin:2.4rem auto;border-radius:2px;
+    background:linear-gradient(90deg,transparent,rgba(201,165,90,.4) 20%,var(--gold) 50%,rgba(201,165,90,.4) 80%,transparent);
+    box-shadow:0 0 15px rgba(201,165,90,.5);transform-origin:center;animation:grow 1s var(--ease)}
+  @keyframes grow{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}
+
+  /* ════════════════════════════════════════════════════════════
+     THE INPUT — typing directly onto the screen. No box. No line.
+     The answer is set in the same display serif as the question and
+     lit by the stage; a gold caret and a soft pooled glow are the
+     only chrome. One instrument, reused for every text answer.
+     ════════════════════════════════════════════════════════════ */
+  .type{position:relative;max-width:900px;margin:0 auto;display:flex;justify-content:center;align-items:center;min-height:5.5rem}
+  .type-glow{position:absolute;left:50%;top:50%;width:70%;height:220%;transform:translate(-50%,-50%);pointer-events:none;
+    background:radial-gradient(ellipse at center,rgba(201,165,90,0.12),transparent 68%);opacity:0;transition:opacity .7s var(--ease)}
+  .type input{position:relative;z-index:1;width:100%;background:none;border:none;outline:none;text-align:center;
+    font-family:var(--serif);font-weight:400;color:#fff;caret-color:var(--gold);letter-spacing:-0.02em;
+    font-size:clamp(1.9rem,4.6vw,3.5rem);line-height:1.15;text-shadow:0 0 34px rgba(201,165,90,0.14)}
+  .type input::placeholder{color:var(--ghost);font-style:italic;font-weight:400}
+  .type input:focus ~ .type-glow{opacity:1}
+  /* the caret feels alive even before you type */
+  .type input:placeholder-shown{caret-color:var(--gold)}
+
+  /* birthdate — native MM / DD / YYYY segments written onto the screen, no box,
+     with a gold calendar button (the picker toolbar) at the end of the line */
+  .type input.date-native{position:relative;z-index:1;width:auto;background:none;border:none;outline:none;color-scheme:dark;
+    font-family:var(--serif);color:#fff;font-size:clamp(1.9rem,4.6vw,3.4rem);letter-spacing:-0.01em;
+    text-shadow:0 0 34px rgba(201,165,90,0.14);text-align:center}
+  .date-native::-webkit-datetime-edit{padding:0}
+  .date-native::-webkit-datetime-edit-fields-wrapper{padding:0}
+  .date-native::-webkit-datetime-edit-text{color:var(--text-3);padding:0 .22em}
+  .date-native:required:invalid::-webkit-datetime-edit{color:var(--ghost);font-style:italic}
+  .date-native::-webkit-calendar-picker-indicator{
+    filter:invert(72%) sepia(30%) saturate(560%) hue-rotate(2deg);cursor:pointer;opacity:.85;
+    width:.86em;height:.86em;margin-left:.5em;transition:opacity .2s,transform .2s}
+  .date-native::-webkit-calendar-picker-indicator:hover{opacity:1;transform:scale(1.08)}
+
+  .hint{font-family:var(--sans);font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--text-3);margin-top:2rem;height:1rem}
+
+  /* ════════════════════════════════════════════════════════════
+     GENDER — portrait tiles (direction C). A hairline frame + a mark
+     that reflects the identity + label; the chosen tile lights gold.
+     ════════════════════════════════════════════════════════════ */
+  .tiles{display:flex;gap:1.1rem;justify-content:center;flex-wrap:wrap;max-width:760px;margin:0 auto}
+  .tile{width:150px;height:188px;border:1px solid rgba(245,241,234,.14);border-radius:4px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:1.15rem;cursor:pointer;background:rgba(245,241,234,.015);transition:all .3s var(--ease)}
+  .tile svg{stroke:var(--text-3);fill:none;transition:stroke .3s var(--ease)}
+  .tile .lbl{font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);transition:color .3s var(--ease)}
+  .tile:hover{border-color:rgba(201,165,90,.4)}
+  .tile.sel{border-color:var(--gold);background:rgba(201,165,90,.05);box-shadow:0 0 34px rgba(201,165,90,.14)}
+  .tile.sel svg{stroke:var(--gold)}
+  .tile.sel .lbl{color:var(--gold)}
+  @media (max-width:640px){.tile{width:132px;height:168px}}
+
+  /* ════════════════════════════════════════════════════════════
+     LANES — editorial image plates (direction A). Choose your lane by
+     its visual world; the chosen plate saturates + frames in gold.
+     Multi-select; "Not sure yet" is an exclusive dashed text plate.
+     ════════════════════════════════════════════════════════════ */
+  .plates{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;max-width:780px;margin:0 auto}
+  .plate{position:relative;width:168px;height:232px;border:1px solid rgba(245,241,234,.14);border-radius:4px;overflow:hidden;cursor:pointer;transition:all .3s var(--ease)}
+  .plate img{width:100%;height:100%;object-fit:cover;filter:grayscale(.35) brightness(.6);transition:filter .4s}
+  .plate .pl-label{position:absolute;left:0;right:0;bottom:0;padding:.9rem;font-family:var(--serif);font-size:1.25rem;color:#fff;
+    background:linear-gradient(to top,rgba(0,0,0,.8),transparent);text-align:left}
+  .plate .pl-check{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.55);opacity:0;transition:all .3s}
+  .plate:hover{border-color:rgba(201,165,90,.4)} .plate:hover img{filter:grayscale(.1) brightness(.72)}
+  .plate.sel{border-color:var(--gold);box-shadow:0 0 30px rgba(201,165,90,.2)}
+  .plate.sel img{filter:grayscale(0) brightness(.82)}
+  .plate.sel .pl-label{color:var(--gold)}
+  .plate.sel .pl-check{opacity:1;background:var(--gold);border-color:var(--gold)}
+  .plate.sel .pl-check::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #0a0806;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .plate-text{width:168px;height:232px;border:1px dashed rgba(245,241,234,.22);border-radius:4px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-size:1.2rem;color:var(--text-3);cursor:pointer;transition:all .3s;text-align:center;padding:1rem}
+  .plate-text:hover{border-color:rgba(201,165,90,.4);color:var(--text-2)}
+  .plate-text.sel{border-color:var(--gold);border-style:solid;color:var(--gold);background:rgba(201,165,90,.05)}
+  @media (max-width:640px){.plate,.plate-text{width:44vw;max-width:180px;height:60vw;max-height:240px}}
+
+  /* market suggestions — quiet serif options on the stage, no dropdown chrome */
+  .suggest{margin:1.9rem auto 0;max-width:560px;display:flex;flex-direction:column;gap:0;min-height:2rem;text-align:left}
+  .suggest button{display:flex;align-items:baseline;justify-content:space-between;gap:1.5rem;width:100%;
+    background:none;border:none;cursor:pointer;font-family:var(--serif);padding:.8rem .3rem;
+    border-bottom:1px solid rgba(245,241,234,.06);transition:background .2s}
+  .suggest button:hover{background:rgba(255,255,255,.02)}
+  .suggest .s-city{font-size:1.55rem;color:var(--text);transition:color .25s}
+  .suggest .s-country{font-size:.95rem;color:var(--text-3);font-style:italic;white-space:nowrap;transition:color .25s}
+  .suggest button:hover .s-city,.suggest button.on .s-city{color:var(--gold)}
+
+  /* ── Digitals frames — aligned to /media tiles + quiet PITS signal chips ── */
+  .frames{display:flex;gap:2.6rem;justify-content:center;flex-wrap:wrap;margin-top:.5rem}
+  .frame{width:212px}
+  .drop{width:212px;height:280px;border:1px solid rgba(245,241,234,.14);border-radius:3px;display:flex;align-items:center;justify-content:center;
+    background:rgba(245,241,234,.015);cursor:pointer;transition:border-color .3s,background .3s,box-shadow .4s;position:relative;overflow:hidden}
+  .drop:hover{border-color:rgba(201,165,90,.5);background:rgba(201,165,90,.03)}
+  .drop.filled{border-color:rgba(201,165,90,.6);box-shadow:0 0 34px rgba(201,165,90,.14)}
+  .drop img{width:100%;height:100%;object-fit:cover;filter:saturate(.96)}
+  .plus{position:relative;width:26px;height:26px;opacity:.5}
+  .plus::before,.plus::after{content:"";position:absolute;background:var(--text-2)}
+  .plus::before{left:12px;top:0;width:2px;height:26px}.plus::after{top:12px;left:0;height:2px;width:26px}
+  .placard{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.85rem;font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--text-2)}
+  .placard .idx{color:var(--gold);font-family:var(--serif);font-style:italic;font-size:.85rem;letter-spacing:0}
+  .pits{display:flex;flex-wrap:nowrap;white-space:nowrap;justify-content:center;gap:.4rem;margin-top:.6rem;min-height:.9rem}
+  .pits span{font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(201,165,90,.72)}
+  .pits span+span::before{content:"·";margin-right:.4rem;color:var(--text-3)}
+  .pits .reading{color:var(--text-3)}
+  .helper{font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,241,234,.2);margin-top:2.6rem}
+
+  /* ── Measurement dial (preserved) ── */
+  .dial-wrap{margin:1rem auto 0;max-width:760px}
+  .dial-row{display:flex;align-items:center;justify-content:center;gap:3rem}
+  /* integrated arrows — thin gold chevrons in the flow's language (no chrome circle) */
+  .dial-arrow{background:none;border:none;color:var(--text-3);cursor:pointer;padding:1rem;display:flex;align-items:center;justify-content:center;
+    transition:color .25s var(--ease),transform .25s var(--ease)}
+  .dial-arrow:hover{color:var(--gold)}
+  .dial-arrow[data-d="-1"]:hover{transform:translateX(-4px)}
+  .dial-arrow[data-d="1"]:hover{transform:translateX(4px)}
+  .dial-val{font-family:var(--serif);font-size:clamp(4rem,11vw,7.5rem);line-height:1;letter-spacing:-0.03em;min-width:220px}
+  .dial-val .u{font-family:var(--sans);color:var(--text-3);font-size:.32em;vertical-align:super;margin-left:.05em}
+  .dial-unit-label{font-size:.72rem;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);margin-top:1.3rem}
+  .ruler{position:relative;height:96px;margin-top:1.6rem;overflow:hidden;cursor:ew-resize;touch-action:none;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent);mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)}
+  /* the sliding tape — ticks live on absolute values; the strip translates so the current value sits under the fixed center marker */
+  .ruler-track{position:absolute;bottom:0;left:50%;height:100%;will-change:transform;transition:transform .22s var(--ease)}
+  .ruler.dragging .ruler-track{transition:none}
+  .tick{position:absolute;bottom:0;width:1px;border-radius:1px}
+  .center-tick{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:3px;height:46px;background:var(--gold);border-radius:2px;box-shadow:0 0 20px rgba(201,165,90,.6);z-index:2}
+  .unit-toggle{display:inline-flex;align-items:center;gap:.75rem;margin-top:2rem;opacity:.55;cursor:pointer}
+  .unit-toggle span{font-size:.58rem;letter-spacing:.25em;text-transform:uppercase;color:rgba(201,165,90,.4)}
+  .unit-toggle span.on{color:var(--gold)} .unit-toggle .bar{width:16px;height:1px;background:rgba(201,165,90,.25)}
+
+  /* review — "The Final Look": two-column ledger (Height | Weight) + centered measures */
+  .rev-grid{max-width:600px;margin:2.5rem auto 0;display:grid;grid-template-columns:1fr 1fr;gap:2rem 0}
+  .rev-cell-l{text-align:right;border-right:1px solid rgba(245,241,234,.1);padding-right:1.5rem}
+  .rev-cell-r{text-align:left;padding-left:1.5rem}
+  .rev-label{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--text-3);margin-bottom:.35rem}
+  .rev-val{font-family:var(--serif);font-size:2rem;color:#fff}
+  .rev-measure{grid-column:1 / -1;text-align:center;padding-top:2rem}
+  .rev-measure-val{font-family:var(--serif);font-size:2.4rem;letter-spacing:.14em;color:#fff;margin-bottom:.55rem}
+  .rev-measure-lbls{display:flex;justify-content:center;gap:.75rem;font-size:.58rem;letter-spacing:.2em;color:var(--text-3)}
+  .rev-measure-lbls i{opacity:.3;font-style:normal}
+
+  /* ── Entry (kept as production) ── */
+  .auth-card{max-width:440px;margin:0 auto;padding:3rem 2.5rem;border-radius:2rem;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);box-shadow:0 25px 50px -12px rgba(0,0,0,.5)}
+  .auth{display:flex;flex-direction:column;gap:.75rem}
+  .door{width:100%;display:flex;align-items:center;justify-content:center;gap:.75rem;padding:1rem 1.5rem;border-radius:.5rem;
+    font-family:var(--sans);font-size:14px;font-weight:600;letter-spacing:.05em;cursor:pointer;border:1px solid transparent;transition:all .2s ease}
+  .door:hover{transform:translateY(-1px)}
+  .door-google{background:rgba(255,255,255,.96);color:#1A1815;border-color:rgba(255,255,255,.1);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+  .door-google:hover{box-shadow:0 8px 22px rgba(201,165,90,.18)}
+  .door-ig{color:#fff;background:linear-gradient(45deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);box-shadow:0 4px 12px rgba(0,0,0,.18)}
+  .door-ig:hover{box-shadow:0 8px 22px rgba(220,39,67,.26)}
+  .door-email{background:transparent;border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.8)}
+  .door-email:hover{border-color:var(--gold);color:var(--gold);background:rgba(255,255,255,.04)}
+  .door-email svg{color:rgba(255,255,255,.6)}
+  /* legal colophon — identical to production LegalNoticeLine */
+  .legal{font-size:11px;line-height:1.6;letter-spacing:.01em;color:rgba(255,255,255,.4);margin-top:1.75rem;max-width:340px;margin-inline:auto}
+  .legal a{color:#8a7040;text-decoration:none;text-underline-offset:2px;transition:color .2s cubic-bezier(0.4,0,0.2,1)}
+  .legal a:hover{color:#c9a55a;text-decoration:underline}
+
+  /* ── Action Dock (fixed, never moves) ── */
+  .dock{position:fixed;left:0;right:0;bottom:0;height:118px;z-index:22;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .dock-inner{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:.5rem}
+  .cta{display:inline-flex;align-items:center;gap:.6rem;background:none;border:none;cursor:pointer;padding:.5rem;
+    font-family:var(--sans);font-size:.66rem;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);transition:color .3s,opacity .3s}
+  .cta .arw{transition:transform .3s ease} .cta:hover .arw{transform:translateX(4px)}
+  .cta[disabled]{color:var(--text-3);opacity:.5;cursor:default} .cta[disabled] .arw{opacity:.4}
+  .cta.text-link{color:var(--text-3);letter-spacing:.22em;font-size:.6rem} .cta.text-link:hover{color:var(--text-2)}
+
+  /* finishing */
+  .rings{position:relative;width:120px;height:120px;margin:0 auto}
+  .ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(201,165,90,.2)}
+  .ring:nth-child(1){animation:ripple 2s ease-out infinite}
+  .ring:nth-child(2){animation:ripple 2s ease-out infinite .5s}
+  .ring:nth-child(3){animation:ripple 2s ease-out infinite 1s}
+  .ring-dot{position:absolute;inset:0;margin:auto;width:12px;height:12px;border-radius:50%;background:var(--gold);box-shadow:0 0 22px rgba(201,165,90,.6);animation:pulse 1.5s ease-in-out infinite}
+  @keyframes ripple{from{transform:scale(1);opacity:.5}to{transform:scale(2.4);opacity:0}}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.25);opacity:1}}
+
+  /* dev switcher */
+  .devbar{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;z-index:60;display:flex;gap:2px;flex-wrap:wrap;justify-content:center;
+    background:rgba(10,9,8,.85);border:1px solid rgba(245,241,234,.1);border-radius:100px;padding:5px 8px;backdrop-filter:blur(8px);max-width:94vw}
+  .devbar button{background:none;border:none;color:var(--text-3);font-family:var(--sans);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:5px 9px;border-radius:100px;cursor:pointer;transition:all .15s}
+  .devbar button:hover{color:var(--text)} .devbar button.on{background:rgba(201,165,90,.16);color:var(--gold)}
+  .devlabel{position:fixed;top:8px;left:10px;z-index:60;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);opacity:.5}
+
+  @media (max-width:640px){
+    .frames{gap:1.2rem}.frame,.drop{width:150px}.drop{height:200px}
+    .dial-row{gap:1.2rem}.dial-arrow{padding:.6rem}
+    .rail span:not(.cur){display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;transition-duration:.05ms!important}.orb,.shimmer::before{animation:none}
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="room-tint" id="roomTint"></div>
+    <div class="shimmer"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="progress" id="progress"></div>
+    <div class="rail" id="rail">
+      <span data-rail="birthdate">Birthdate</span><span data-rail="gender">Identity</span>
+      <span data-rail="digitals">Digitals</span><span data-rail="height">Stats</span><span data-rail="lanes">Details</span>
+    </div>
+    <button class="backbtn" id="backbtn">← Back</button>
+
+    <div class="panel">
+
+      <!-- 1. ENTRY (kept as production) -->
+      <section class="screen active" data-screen="entry">
+        <h1 class="q">Let's get you <em>seen</em></h1>
+        <div class="divider"></div>
+        <div class="auth-card"><div class="auth">
+          <button class="door door-google">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Sign up with Google</button>
+          <button class="door door-ig">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85 0 3.2-.01 3.58-.07 4.85-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07-3.2 0-3.58-.01-4.85-.07-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85 0-3.2.01-3.58.07-4.85.15-3.23 1.66-4.77 4.92-4.92 1.27-.06 1.65-.07 4.85-.07zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12c0 3.26.01 3.67.07 4.95.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.2-4.35-2.62-6.78-6.98-6.98C15.67.01 15.26 0 12 0zm0 5.84a6.16 6.16 0 100 12.32 6.16 6.16 0 000-12.32zm0 10.16a4 4 0 110-8 4 4 0 010 8zm6.41-11.85a1.44 1.44 0 100 2.88 1.44 1.44 0 000-2.88z"/></svg>
+            Sign up with Instagram</button>
+          <button class="door door-email">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+            Sign up with Email</button>
+        </div>
+        <p class="legal">By continuing, you agree to the <a href="#">Terms</a>, <a href="#">Privacy Policy</a>, and <a href="#">AI Notice</a>.</p></div>
+      </section>
+
+      <!-- 2. NAME -->
+      <section class="screen" data-screen="name">
+        <h1 class="q" data-h="name">What is your <em>name</em>?</h1>
+        <div class="divider"></div>
+        <div class="type"><input id="nameInput" type="text" placeholder="Type your name" autocomplete="off" /><div class="type-glow"></div></div>
+        <p class="hint">Press Enter ↵</p>
+      </section>
+
+      <!-- 3. BIRTHDATE -->
+      <section class="screen" data-screen="birthdate">
+        <h1 class="q" data-h="birthdate">When were you <em>born</em>?</h1>
+        <div class="divider"></div>
+        <div class="type"><input type="date" id="dateInput" class="date-native" required /><div class="type-glow"></div></div>
+        <p class="hint">Type MM / DD / YYYY — or tap the calendar</p>
+      </section>
+
+      <!-- 4. GENDER -->
+      <section class="screen" data-screen="gender">
+        <h1 class="q" data-h="gender">How do you <em>identify</em>?</h1>
+        <div class="divider"></div>
+        <div class="tiles" data-picker="gender">
+          <div class="tile" data-v="Female">
+            <svg width="30" height="30" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4.2"/><line x1="12" y1="12.2" x2="12" y2="21"/><line x1="8.4" y1="18" x2="15.6" y2="18"/></svg>
+            <span class="lbl">Female</span></div>
+          <div class="tile" data-v="Male">
+            <svg width="30" height="30" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="14" r="4.2"/><line x1="13.6" y1="10.9" x2="20" y2="4.5"/><polyline points="15,4.5 20,4.5 20,9.5"/></svg>
+            <span class="lbl">Male</span></div>
+          <div class="tile" data-v="Non-Binary">
+            <svg width="30" height="30" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.6" r="4.2"/><line x1="12" y1="9.4" x2="12" y2="2.6"/></svg>
+            <span class="lbl">Non-Binary</span></div>
+          <div class="tile" data-v="Undisclosed">
+            <svg width="30" height="30" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.6"/><path d="M5.5 20.5c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg>
+            <span class="lbl">Undisclosed</span></div>
+        </div>
+      </section>
+
+      <!-- 5. DIGITALS -->
+      <section class="screen" data-screen="digitals">
+        <h1 class="q" data-h="digitals">Now — let's <em>see you</em>.</h1>
+        <div class="divider"></div>
+        <div class="frames">
+          <div class="frame">
+            <div class="drop filled"><img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=440&q=80" alt="headshot" /></div>
+            <div class="placard">Headshot</div>
+            <div class="pits"><span>Natural light</span><span>Editorial</span><span>Eye-level</span></div>
+          </div>
+          <div class="frame">
+            <div class="drop"><span class="plus"></span></div>
+            <div class="placard">Full length</div>
+            <div class="pits"><span class="reading">Needed before you apply</span></div>
+          </div>
+        </div>
+        <p class="helper">Plain background · Natural light · Minimal makeup · No filters</p>
+      </section>
+
+      <!-- 6. HEIGHT -->
+      <section class="screen" data-screen="height">
+        <h1 class="q" data-h="height">How tall are <em>you</em>?</h1>
+        <div class="divider"></div>
+        <div class="dial-wrap">
+          <div class="dial-row">
+            <button class="dial-arrow" data-d="-1" aria-label="Decrease"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+            <div class="dial-val" id="heightVal">5<span class="u">'</span>9<span class="u">"</span></div>
+            <button class="dial-arrow" data-d="1" aria-label="Increase"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div>
+          <div class="dial-unit-label" id="heightUnit">Imperial</div>
+          <div class="ruler" id="ruler"><div class="ruler-track" id="rulerTrack"></div><div class="center-tick"></div></div>
+          <div class="unit-toggle" id="unitToggle"><span class="on">Imperial</span><span class="bar"></span><span>Metric</span></div>
+        </div>
+      </section>
+
+      <!-- 7. REVIEW — "The Final Look" -->
+      <section class="screen" data-screen="review">
+        <h1 class="q" data-h="review">The <em>Final Look</em></h1>
+        <div class="divider"></div>
+        <div class="rev-grid">
+          <div class="rev-cell-l">
+            <div class="rev-label">Height</div>
+            <div class="rev-val" id="revHeight">5'9"</div>
+          </div>
+          <div class="rev-cell-r">
+            <div class="rev-label">Weight</div>
+            <div class="rev-val">130 lb</div>
+          </div>
+          <div class="rev-measure">
+            <div class="rev-measure-val">34 — 24 — 35</div>
+            <div class="rev-measure-lbls"><span>BUST</span><i>|</i><span>WAIST</span><i>|</i><span>HIPS</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. LANES -->
+      <section class="screen" data-screen="lanes">
+        <h1 class="q" data-h="lanes">What work calls to <em>you</em>?</h1>
+        <div class="divider"></div>
+        <div class="plates" data-picker="lanes">
+          <div class="plate"><img src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=380&q=70" alt="editorial"><span class="pl-check"></span><span class="pl-label">Editorial</span></div>
+          <div class="plate"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=380&q=70" alt="commercial"><span class="pl-check"></span><span class="pl-label">Commercial</span></div>
+          <div class="plate"><img src="https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=380&q=70" alt="runway"><span class="pl-check"></span><span class="pl-label">Runway</span></div>
+          <div class="plate-text" data-excl>Not sure yet</div>
+        </div>
+      </section>
+
+      <!-- 9. CITY -->
+      <section class="screen" data-screen="city">
+        <h1 class="q" data-h="city">And your <em>market</em>?</h1>
+        <div class="divider"></div>
+        <div class="type"><input id="cityInput" type="text" placeholder="Type your city" autocomplete="off" /><div class="type-glow"></div></div>
+        <div class="suggest" id="citySuggest"></div>
+      </section>
+
+      <!-- 10. FINISHING -->
+      <section class="screen" data-screen="finishing">
+        <div class="rings"><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="ring-dot"></div></div>
+      </section>
+
+    </div>
+
+    <div class="dock" id="dock"><div class="dock-inner" id="dockInner"></div></div>
+  </div>
+
+  <div class="devlabel">Prototype v2 · The Screen Test</div>
+  <nav class="devbar" id="devbar"></nav>
+
+<script>
+  const SCREENS=[
+    {id:'entry',label:'Entry',rail:null,dock:null},
+    {id:'name',label:'Name',rail:null,dock:{text:'Continue',on:true}},
+    {id:'birthdate',label:'Birthdate',rail:'birthdate',dock:{text:'Continue',on:true}},
+    {id:'gender',label:'Identity',rail:'gender',dock:{text:'Next',on:false}},
+    {id:'digitals',label:'Digitals',rail:'digitals',dock:{text:'Continue',on:true}},
+    {id:'height',label:'Stats',rail:'height',dock:{text:'Next',on:true}},
+    {id:'review',label:'Review',rail:'height',dock:{text:'Confirm',on:true}},
+    {id:'lanes',label:'Lanes',rail:'lanes',dock:{text:'Next',on:false}},
+    {id:'city',label:'Market',rail:'lanes',dock:{text:'Finish',on:false,skip:true}},
+    {id:'finishing',label:'Finishing',rail:null,dock:null},
+  ];
+  const railOrder=['birthdate','gender','digitals','height','lanes'];
+  // personalized headlines — {name} is threaded in once the name is known
+  const HEADS={
+    name:"What is your <em>name</em>?",
+    birthdate:"{name}when were you <em>born</em>?",
+    gender:"{name}how do you <em>identify</em>?",
+    digitals:"{name}let's <em>see you</em>.",
+    height:"How tall are <em>you</em>?",
+    review:"The <em>Final Look</em>",
+    lanes:"What work calls to <em>you</em>?",
+    city:"And your <em>market</em>?",
+  };
+  let name="Ava"; // seeded so personalization shows when jumping via devbar
+  const $=s=>document.querySelector(s);
+  const dockInner=$('#dockInner');
+  let cur='entry';
+
+  function cap(s){return s? s.charAt(0).toUpperCase()+s.slice(1):s;}
+  function head(id){
+    let t=HEADS[id]; if(!t) return;
+    if(t.includes('{name}')){
+      const n=name.trim().split(' ')[0];
+      // lead with the name, lowercasing the question's first word: "Ava, when were you born?"
+      t = n ? cap(n)+', '+t.replace('{name}','') : cap(t.replace('{name}','')) ;
+    }
+    const el=document.querySelector(`[data-h="${id}"]`); if(el) el.innerHTML=t;
+  }
+
+  function go(id){
+    cur=id;
+    document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===id));
+    document.querySelectorAll('.devbar button').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+    head(id);
+    const cfg=SCREENS.find(s=>s.id===id);
+    const rail=$('#rail');
+    if(cfg.rail){rail.classList.add('show');const idx=railOrder.indexOf(cfg.rail);
+      rail.querySelectorAll('span').forEach((sp,i)=>{sp.classList.toggle('cur',i===idx);sp.classList.toggle('done',i<idx)});
+      $('#backbtn').classList.toggle('show',idx>0);
+    }else{rail.classList.remove('show');$('#backbtn').classList.remove('show');}
+    const gi=SCREENS.findIndex(s=>s.id===id);
+    $('#progress').style.width=(id==='finishing'?100:(gi/(SCREENS.length-1))*100)+'%';
+    const litFrom=['digitals','height','review','lanes','city','finishing'];
+    document.body.classList.toggle('lit',litFrom.includes(id));
+    document.body.classList.toggle('digi',id==='digitals');
+    $('#roomTint').style.backgroundImage="url('https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=60')";
+    renderDock(cfg.dock);
+  }
+
+  function renderDock(d){
+    dockInner.innerHTML=''; if(!d) return;
+    const btn=document.createElement('button');btn.className='cta';
+    btn.innerHTML=`<span>${d.text}</span><span class="arw">→</span>`;
+    if(!d.on) btn.setAttribute('disabled','');
+    btn.onclick=()=>{const i=SCREENS.findIndex(s=>s.id===cur);if(i<SCREENS.length-1)go(SCREENS[i+1].id)};
+    dockInner.appendChild(btn);
+    if(d.skip){const s=document.createElement('button');s.className='cta text-link';s.textContent='Skip for now';
+      s.onclick=()=>{const i=SCREENS.findIndex(x=>x.id===cur);if(i<SCREENS.length-1)go(SCREENS[i+1].id)};dockInner.appendChild(s);}
+  }
+  function enableDock(){const b=dockInner.querySelector('.cta:not(.text-link)');if(b)b.removeAttribute('disabled');}
+
+  // gender portrait tiles (direction C): single-select, icons reflect state
+  document.querySelectorAll('[data-picker="gender"] .tile').forEach(o=>o.onclick=()=>{
+    o.parentElement.querySelectorAll('.tile').forEach(x=>x.classList.remove('sel'));o.classList.add('sel');enableDock();
+  });
+
+  // lanes image plates (direction A): multi-select, "Not sure yet" exclusive
+  (function(){
+    const group=document.querySelector('[data-picker="lanes"]');const opts=[...group.children];
+    const sync=()=>{const any=group.querySelector('.sel');const b=dockInner.querySelector('.cta:not(.text-link)');if(b)b.toggleAttribute('disabled',!any);};
+    opts.forEach(o=>o.onclick=()=>{
+      if(o.hasAttribute('data-excl')){opts.forEach(x=>x.classList.remove('sel'));o.classList.add('sel');}
+      else{opts.forEach(x=>{if(x.hasAttribute('data-excl'))x.classList.remove('sel');});o.classList.toggle('sel');}
+      sync();
+    });
+  })();
+
+  // name typing → personalization
+  const ni=$('#nameInput');
+  ni.addEventListener('input',()=>{name=ni.value||'';});
+  ni.addEventListener('keydown',e=>{if(e.key==='Enter')go('birthdate')});
+
+  // city suggestions
+  const ci=$('#cityInput'),cs=$('#citySuggest');
+  const CITIES=['New York, USA','Paris, France','London, UK','Milan, Italy','Tokyo, Japan','Los Angeles, USA','Berlin, Germany','Copenhagen, Denmark'];
+  ci.addEventListener('input',()=>{
+    const v=ci.value.toLowerCase();cs.innerHTML='';
+    if(v.length<1){toggleFinish(false);return;}
+    CITIES.filter(c=>c.toLowerCase().includes(v)).slice(0,4).forEach(c=>{
+      const [city,country]=c.split(', ');
+      const b=document.createElement('button');
+      b.innerHTML=`<span class="s-city">${city}</span><span class="s-country">${country}</span>`;
+      b.onclick=()=>{ci.value=c;cs.innerHTML='';toggleFinish(true);};cs.appendChild(b);
+    });
+    toggleFinish(v.length>1);
+  });
+  function toggleFinish(on){const b=dockInner.querySelector('.cta:not(.text-link)');if(b)b.toggleAttribute('disabled',!on);}
+
+  // devbar
+  const devbar=$('#devbar');
+  SCREENS.forEach(s=>{const b=document.createElement('button');b.textContent=s.label;b.dataset.go=s.id;b.onclick=()=>go(s.id);devbar.appendChild(b);});
+
+  // dial — height stored in inches; the ruler is a real sliding tape
+  let heightIn=69,metric=false;
+  const PX_IN=17, PX_CM=6.7;               // px between unit ticks on the tape
+  const RANGE_IN=[48,90], RANGE_CM=[122,229];
+  // active-unit view: min/px/spacing so the tape can be built + positioned in either unit
+  const view=()=>metric
+    ? {min:RANGE_CM[0],max:RANGE_CM[1],px:PX_CM,major:10,mid:5,val:Math.round(heightIn*2.54)}
+    : {min:RANGE_IN[0],max:RANGE_IN[1],px:PX_IN,major:12,mid:6,val:heightIn};
+  // build the fixed strip of ticks once per unit; it never redraws while dragging
+  function buildTape(){
+    const track=$('#rulerTrack');track.innerHTML='';const {min,max,px,major,mid}=view();
+    for(let v=min;v<=max;v++){
+      const t=document.createElement('div');t.className='tick';
+      const isMaj=v%major===0,isMid=v%mid===0;
+      t.style.height=(isMaj?30:isMid?19:12)+'px';
+      t.style.background=isMaj?'rgba(245,241,234,.55)':isMid?'rgba(245,241,234,.3)':'rgba(245,241,234,.14)';
+      t.style.left=((v-min)*px)+'px';track.appendChild(t);
+    }
+  }
+  // translate the strip so the current value lands under the center marker
+  function positionTape(){const {min,px,val}=view();$('#rulerTrack').style.transform='translateX('+(-(val-min)*px)+'px)';}
+  function drawVal(){const v=$('#heightVal');
+    if(metric)v.innerHTML=Math.round(heightIn*2.54)+'<span class="u">cm</span>';
+    else{const ft=Math.floor(heightIn/12),inc=heightIn%12;v.innerHTML=ft+'<span class="u">\'</span>'+inc+'<span class="u">"</span>';}
+    $('#heightUnit').textContent=metric?'Metric':'Imperial';
+    const rh=$('#revHeight');if(rh){const ft=Math.floor(heightIn/12),inc=heightIn%12;rh.textContent=metric?Math.round(heightIn*2.54)+' cm':ft+"'"+inc+'"';}}
+  const clampH=v=>Math.max(48,Math.min(90,v));
+  document.querySelectorAll('.dial-arrow').forEach(a=>a.onclick=()=>{heightIn=clampH(heightIn+parseInt(a.dataset.d));drawVal();positionTape();});
+  $('#unitToggle').onclick=()=>{metric=!metric;const sp=$('#unitToggle').querySelectorAll('span');sp[0].classList.toggle('on',!metric);sp[2].classList.toggle('on',metric);buildTape();drawVal();positionTape();};
+
+  // draggable tape — grab the strip and slide it; the value follows the tape (like the real PrecisionDeck)
+  const ruler=$('#ruler');
+  let dragX=null,dragBaseIn=0;
+  ruler.addEventListener('pointerdown',e=>{dragX=e.clientX;dragBaseIn=heightIn;ruler.classList.add('dragging');ruler.setPointerCapture(e.pointerId);});
+  ruler.addEventListener('pointermove',e=>{
+    if(dragX===null)return;
+    const {min,max,px}=view();
+    const baseVal=metric?Math.round(dragBaseIn*2.54):dragBaseIn;
+    // the tape slides 1:1 with the finger; drag right ⇒ smaller values scroll toward center
+    let contVal=Math.max(min,Math.min(max,baseVal-(e.clientX-dragX)/px));
+    const nv=clampH(metric?Math.round(Math.round(contVal)/2.54):Math.round(contVal));
+    if(nv!==heightIn){heightIn=nv;drawVal();}
+    $('#rulerTrack').style.transform='translateX('+(-(contVal-min)*px)+'px)';
+  });
+  const endDrag=e=>{if(dragX!==null){dragX=null;ruler.classList.remove('dragging');positionTape();try{ruler.releasePointerCapture(e.pointerId);}catch{}}};
+  ruler.addEventListener('pointerup',endDrag);ruler.addEventListener('pointercancel',endDrag);
+
+  buildTape();drawVal();positionTape();go('entry');
+</script>
+</body>
+</html>

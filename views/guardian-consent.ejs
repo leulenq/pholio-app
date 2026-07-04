@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title><%= title || 'Guardian Consent · Pholio' %></title>
+  <style>
+    :root { --gold: #C9A55A; --ink: #1A1A1A; --paper: #FAF7F2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--paper); color: var(--ink); font-family: Georgia, "Times New Roman", serif;
+      padding: 32px 16px; }
+    .wrap { width: 100%; max-width: 560px; }
+    .card { background: #fff; border: 1px solid rgba(26,26,26,0.08); border-radius: 16px;
+      padding: 40px 36px; box-shadow: 0 12px 40px rgba(26,26,26,0.06); }
+    .mark { color: var(--gold); letter-spacing: 0.24em; font-size: 13px; margin-bottom: 20px;
+      font-family: system-ui, sans-serif; }
+    h1 { font-weight: 400; font-size: 26px; margin: 0 0 12px; line-height: 1.25; }
+    p { font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.6; color: rgba(26,26,26,0.68); }
+    .icon { font-size: 38px; line-height: 1; margin-bottom: 12px; }
+    strong { color: var(--ink); }
+    .lede { font-size: 16px; color: rgba(26,26,26,0.78); margin: 0 0 24px; }
+    .section { margin: 0 0 20px; }
+    .section h2 { font-family: system-ui, sans-serif; font-size: 12px; letter-spacing: 0.12em;
+      text-transform: uppercase; color: rgba(26,26,26,0.5); margin: 0 0 8px; font-weight: 600; }
+    .section p { margin: 0; }
+    ul { font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.6;
+      color: rgba(26,26,26,0.68); margin: 0; padding-left: 20px; }
+    ul li { margin-bottom: 4px; }
+    .divider { height: 1px; background: rgba(26,26,26,0.08); margin: 28px 0; border: 0; }
+    button { font-family: system-ui, sans-serif; font-size: 16px; font-weight: 600;
+      background: var(--gold); color: #fff; border: 0; border-radius: 10px; padding: 15px 24px;
+      width: 100%; cursor: pointer; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
+    button:hover { background: #B8945A; transform: translateY(-1px); }
+    .fine { font-family: system-ui, sans-serif; font-size: 13px; color: rgba(26,26,26,0.5);
+      margin: 16px 0 0; text-align: center; }
+    .center { text-align: center; }
+    a { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="mark">PHOLIO</div>
+
+      <% if (mode === 'disclose') { %>
+        <%
+          const isAgency = disclosure.scope === 'agency';
+          const talent = disclosure.talentName || 'this talent';
+        %>
+        <h1>Guardian consent</h1>
+        <p class="lede">
+          You are being asked, as the parent or legal guardian
+          <% if (disclosure.guardianEmail) { %>(<strong><%= disclosure.guardianEmail %></strong>)<% } %>,
+          to authorize <strong><%= talent %></strong>, a minor, on Pholio.
+        </p>
+
+        <div class="section">
+          <h2>What you are authorizing</h2>
+          <% if (isAgency) { %>
+            <p>
+              Permission to disclose <strong><%= talent %></strong>'s submission
+              package (portfolio and profile details) to
+              <strong><%= disclosure.agencyName || 'the named agency' %></strong>
+              for the purpose of talent consideration. This permission applies to
+              <strong>this agency only</strong> and does not extend to any other
+              agency or to public publication.
+            </p>
+          <% } else { %>
+            <p>
+              Account-level permission for <strong><%= talent %></strong> to
+              manage their Pholio profile. This currently covers three purposes:
+            </p>
+            <ul style="margin-top: 8px;">
+              <li><strong>Account management</strong> — collecting and storing measurements, full-length photos, and portfolio details.</li>
+              <li><strong>Public publication</strong> — displaying the profile on a public portfolio page.</li>
+              <li><strong>AI processing</strong> — automated photo analysis used to organize the portfolio.</li>
+            </ul>
+            <p style="margin-top: 8px;">
+              This does <strong>not</strong> authorize disclosure to any specific
+              agency — each agency submission is authorized separately.
+            </p>
+          <% } %>
+        </div>
+
+        <div class="section">
+          <h2>Data categories</h2>
+          <p>Name, city, date of birth (to confirm minor status), body measurements, and photographs, including full-length images.</p>
+        </div>
+
+        <div class="section">
+          <h2>Retention</h2>
+          <p>Data is retained while the account is active. You may revoke this consent at any time, after which the associated data is removed or restricted.</p>
+        </div>
+
+        <div class="section">
+          <h2>How to revoke</h2>
+          <p>Reply to the email that delivered this link, or contact Pholio at <a href="mailto:privacy@pholio.studio">privacy@pholio.studio</a>, to withdraw consent.</p>
+        </div>
+
+        <hr class="divider" />
+
+        <form method="POST" action="/guardian-consent">
+          <input type="hidden" name="token" value="<%= token %>" />
+          <button type="submit">
+            <% if (isAgency) { %>
+              I consent to sharing with <%= disclosure.agencyName || 'this agency' %>
+            <% } else { %>
+              I consent as parent or guardian
+            <% } %>
+          </button>
+        </form>
+        <p class="fine">Only clicking the button above records your consent. Simply opening this page does not.</p>
+
+      <% } else if (mode === 'confirmed') { %>
+        <div class="center">
+          <div class="icon" aria-hidden="true">&#10003;</div>
+          <h1>Consent confirmed</h1>
+          <% if (disclosure && disclosure.scope === 'agency') { %>
+            <p>
+              Thank you. You authorized this talent to share their submission
+              package with
+              <strong><%= (disclosure && disclosure.agencyName) || 'the named agency' %></strong>.
+              This permission does not apply to another agency.
+            </p>
+          <% } else { %>
+            <p>
+              Thank you. Your account-level consent has been recorded. The talent
+              can now manage measurements, full-length photos, and portfolio
+              details on Pholio.
+            </p>
+          <% } %>
+          <p>You can safely close this window.</p>
+        </div>
+
+      <% } else { %>
+        <div class="center">
+          <div class="icon" aria-hidden="true">&#9888;</div>
+          <h1>This link is no longer valid</h1>
+          <% if (reason === 'expired') { %>
+            <p>This consent link has expired. Please ask the talent to send a new verification link.</p>
+          <% } else if (reason === 'revoked') { %>
+            <p>This link was replaced by a newer request. Please use the most recent email, or ask the talent to resend.</p>
+          <% } else { %>
+            <p>We couldn't verify this consent link. Please ask the talent to send a new verification link.</p>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

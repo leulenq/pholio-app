@@ -1,18 +1,249 @@
 const express = require("express");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
-const { requireRole } = require("../../auth/middleware/require-auth");
+const { requireRole, requireActiveAccount } = require("../../auth/middleware/require-auth");
+const {
+  getBlockedAgencyIds,
+  isAgencyBlockedForTalent,
+} = require("../../../shared/lib/blocked-agencies");
 const asyncHandler = require("express-async-handler");
+const crypto = require("crypto");
 const {
   notifyTalentApplicationSubmitted,
 } = require("../../../shared/services/notifications");
 const {
   notifyAgencyNewApplication,
+  notifyAgencyApplicationWithdrawn,
+  notifyAgencyNewMessage,
 } = require("../../../shared/services/agency-notifications");
+const {
+  validateSubmissionPackage,
+} = require("../services/validate-submission-package");
+const { loadImageRightsMap } = require("../../../shared/lib/image-rights");
+const { isMinorProfile, hasGuardianConsent } = require("../../../shared/lib/talent-age");
+const {
+  buildSubmissionProfileSnapshot,
+} = require("../../../shared/lib/submission-profile");
+const {
+  loadSocialAccountsForProfile,
+} = require("../../../shared/lib/social-accounts");
+const {
+  getAgencyConsentGrant,
+  hasAgencyConsent,
+} = require("../services/guardian-consent");
+const logActivity = require("../../agency/routes/agency-log-activity");
+const { v4: uuidv4 } = require("uuid");
+const {
+  CURRENT_SUBMISSION_PROGRAM_VERSION,
+  recordSubmissionProgramAcknowledgment,
+  requireSubmissionProgramAcknowledgment,
+} = require("../../../shared/lib/submission-program");
+const {
+  SUBMISSION_PROGRAM_CONTENT,
+} = require("../../../shared/lib/submission-program-content");
+const {
+  DRAFT_LIFECYCLE_STATES,
+  DRAFT_SCHEMA_VERSION,
+  expiryTimestamp,
+  expireInactiveDrafts,
+  isEligibleAgencyImage,
+  mapDraftRow,
+  normalizeClientId,
+  normalizeClientUpdatedAt,
+  normalizeDraftPayloadWithRepairs,
+  normalizeStepId,
+  parseDraftPayload,
+  recordDraftEvent,
+  recoveryTimestamp,
+  scrubUnrecoverableDrafts,
+} = require("../services/application-drafts");
+const { toPresetPayload } = require("../../pdf/presets");
+const {
+  buildSubmissionDisclosureSnapshot,
+  buildSubmissionPackageFingerprint,
+  normalizeSubmissionNote,
+  recordSubmissionDisclosureConsent,
+  requestClientMeta,
+} = require("../services/submission-disclosure-consent");
+const {
+  redactSubmissionPackages,
+  submissionRetentionExpiry,
+} = require("../../../shared/lib/submission-retention");
+const {
+  loadApplicationQuota,
+} = require("../services/application-quota");
+
+// Statuses a talent may withdraw from (still in process). Terminal states stay put.
+const WITHDRAWABLE_STATUSES = new Set([
+  "pending",
+  "submitted",
+  "reviewing",
+  "shortlisted",
+  "requested_more",
+  "meeting_requested",
+  "kept_on_file",
+  "development",
+  "accepted",
+]);
 
 async function getProfileBySessionUserId(userId) {
   return knex("profiles").where({ user_id: userId }).first();
 }
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function submissionRequestHash(body) {
+  return crypto
+    .createHash("sha256")
+    .update(canonicalJson(body || {}))
+    .digest("hex");
+}
+
+function parseNonNegativeInteger(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function fingerprintsMatch(left, right) {
+  if (
+    typeof left !== "string" ||
+    typeof right !== "string" ||
+    !/^[a-f0-9]{64}$/i.test(left) ||
+    !/^[a-f0-9]{64}$/i.test(right)
+  ) {
+    return false;
+  }
+  return crypto.timingSafeEqual(
+    Buffer.from(left.toLowerCase(), "hex"),
+    Buffer.from(right.toLowerCase(), "hex"),
+  );
+}
+
+function snapshotSubmissionImage(image) {
+  return {
+    id: image.id,
+    path: image.path || null,
+    public_url: image.public_url || null,
+    alt: image.alt || image.alt_text || null,
+    image_type: image.image_type || null,
+    shot_type: image.shot_type || null,
+    sort: image.sort ?? null,
+    is_primary: Boolean(image.is_primary),
+  };
+}
+
+function boardNameKey(value) {
+  return String(value || "").trim().toLocaleLowerCase("en-US");
+}
+
+async function resolveRelationalSubmissionBoards(
+  trx,
+  agencyId,
+  selectedBoardNames,
+) {
+  if (!selectedBoardNames.length) return [];
+
+  const existingBoards = await trx("boards")
+    .where({ agency_id: agencyId, is_active: true })
+    .select("id", "name")
+    .orderBy("created_at", "asc")
+    .orderBy("id", "asc");
+  const boardsByName = new Map();
+  for (const board of existingBoards) {
+    const key = boardNameKey(board.name);
+    if (key && !boardsByName.has(key)) {
+      boardsByName.set(key, board);
+    }
+  }
+
+  const resolvedBoards = [];
+  const resolvedKeys = new Set();
+  for (const boardName of selectedBoardNames) {
+    const key = boardNameKey(boardName);
+    if (!key || resolvedKeys.has(key)) continue;
+
+    let board = boardsByName.get(key);
+    if (!board) {
+      board = { id: uuidv4(), name: boardName.trim() };
+      await trx("boards").insert({
+        id: board.id,
+        agency_id: agencyId,
+        name: board.name,
+        is_active: true,
+        sort_order: 0,
+        created_at: trx.fn.now(),
+        updated_at: trx.fn.now(),
+      });
+      boardsByName.set(key, board);
+    }
+
+    resolvedKeys.add(key);
+    resolvedBoards.push(board);
+  }
+
+  return resolvedBoards;
+}
+
+/**
+ * GET /api/talent/applications/submission-program-status
+ * Whether the talent must acknowledge the submission program notice.
+ */
+router.get(
+  "/submission-program-status",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const user = await knex("users").where({ id: req.session.userId }).first();
+    const acknowledged = requireSubmissionProgramAcknowledgment(user, {
+      throwOnMissing: false,
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        needsAcknowledgment: !acknowledged,
+        currentVersion: CURRENT_SUBMISSION_PROGRAM_VERSION,
+        content: SUBMISSION_PROGRAM_CONTENT,
+      },
+    });
+  }),
+);
+
+/**
+ * POST /api/talent/applications/submission-program-acknowledgment
+ * Record one-time (per version) acknowledgment of the submission program notice.
+ */
+router.post(
+  "/submission-program-acknowledgment",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    if (req.body?.acknowledged !== true) {
+      return res.status(400).json({
+        success: false,
+        error: "Validation error",
+        message: "acknowledged: true is required.",
+      });
+    }
+
+    await recordSubmissionProgramAcknowledgment(knex, req.session.userId);
+
+    return res.json({
+      success: true,
+      data: {
+        acknowledged: true,
+        version: CURRENT_SUBMISSION_PROGRAM_VERSION,
+      },
+    });
+  }),
+);
 
 /**
  * GET /api/talent/applications
@@ -51,10 +282,38 @@ router.get(
         "agencies.location as agency_location",
         "agencies.website as agency_website",
         "agencies.logo_path as agency_logo",
+        "agencies.open_boards as agency_open_boards",
+        // The talent's submitted note lives in the messages table as the first
+        // TALENT-authored message for the application (see POST "/" below).
+        knex("messages as note_msg")
+          .select("note_msg.message")
+          .whereRaw("note_msg.application_id = applications.id")
+          .where("note_msg.sender_type", "TALENT")
+          .orderBy("note_msg.created_at", "asc")
+          .limit(1)
+          .as("note"),
       )
       .orderBy("applications.created_at", "desc");
 
     res.json({ success: true, data: applications });
+  }),
+);
+
+router.get(
+  "/quota",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+      });
+    }
+    return res.json({
+      success: true,
+      data: await loadApplicationQuota(knex, profile),
+    });
   }),
 );
 
@@ -75,8 +334,8 @@ router.get(
       });
     }
 
-    // Redirect/invite source-of-truth: latest app rows with invited_by_agency_id.
-    // redirect-apply writes invited_by_agency_id below, so both flows are normalized.
+    // Legacy invite source-of-truth: latest rows written before redirect-apply
+    // was retired. Keep these records readable without accepting new writes.
     const latestRedirectSignal = await knex("applications as a")
       .leftJoin("agencies as ag", "ag.id", "a.invited_by_agency_id")
       .where("a.profile_id", profile.id)
@@ -130,7 +389,13 @@ router.post(
   "/",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const { agencyId, note, submissionPackage } = req.body;
+    const {
+      agencyId,
+      note,
+      submissionPackage,
+      draftVersion,
+      draftGeneration,
+    } = req.body;
     if (!agencyId) {
       return res.status(400).json({
         success: false,
@@ -138,7 +403,6 @@ router.post(
         message: "Agency ID required",
       });
     }
-
     const profile = await getProfileBySessionUserId(req.session.userId);
     if (!profile) {
       return res.status(404).json({
@@ -148,101 +412,753 @@ router.post(
       });
     }
 
-    // 1. Check if already applied
-    const existingparams = { profile_id: profile.id, agency_id: agencyId };
-    const existing = await knex("applications").where(existingparams).first();
-    if (existing) {
+    const user = await knex("users").where({ id: req.session.userId }).first();
+    // Contact email is owned by users, while the rest of submission readiness
+    // lives on profiles. Validate the same combined shape the client receives.
+    const submissionProfile = {
+      ...profile,
+      email: profile.email || user?.email || null,
+    };
+    const minorSubmission = isMinorProfile(submissionProfile);
+    // Minors never get social links in a submission snapshot (data
+    // minimization) — skip the query entirely rather than load-then-discard.
+    const submissionSocial = minorSubmission
+      ? []
+      : await loadSocialAccountsForProfile(profile.id);
+    if (
+      minorSubmission &&
+      !hasGuardianConsent(submissionProfile)
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "minor_guardian_consent_required",
+        message:
+          "A parent or guardian must verify consent before a minor can submit to an agency.",
+      });
+    }
+    const agencyConsentGranted =
+      !minorSubmission ||
+      (await hasAgencyConsent(knex, profile.id, agencyId));
+    if (
+      !requireSubmissionProgramAcknowledgment(user, { throwOnMissing: false })
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "SUBMISSION_PROGRAM_ACKNOWLEDGMENT_REQUIRED",
+        message:
+          "Please acknowledge how agency submissions work on Pholio before submitting.",
+      });
+    }
+    const submittedSchemaVersion = submissionPackage?.schemaVersion;
+    if (
+      !Number.isInteger(submittedSchemaVersion) ||
+      submittedSchemaVersion <= 0
+    ) {
       return res.status(400).json({
         success: false,
-        error: "Already applied to this agency",
-        message: "Already applied to this agency",
+        error: "invalid_draft_schema",
+        message:
+          "submissionPackage.schemaVersion must be a positive integer.",
+        supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
+      });
+    }
+    if (submittedSchemaVersion > DRAFT_SCHEMA_VERSION) {
+      return res.status(422).json({
+        success: false,
+        error: "unsupported_draft_schema",
+        message: "This draft was created by a newer version of Pholio.",
+        supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
       });
     }
 
-    // 2. Check limits for Free Tier
+    const idempotencyKey = String(
+      req.get("Idempotency-Key") || req.body?.idempotencyKey || "",
+    ).trim();
+    if (!/^[a-zA-Z0-9:_-]{8,128}$/.test(idempotencyKey)) {
+      return res.status(400).json({
+        success: false,
+        error: "invalid_idempotency_key",
+        message:
+          "A valid Idempotency-Key header or idempotencyKey value is required.",
+      });
+    }
+    const expectedDraftVersion = parseNonNegativeInteger(draftVersion);
+    const expectedDraftGeneration = parseNonNegativeInteger(draftGeneration);
+    if (expectedDraftVersion === null || expectedDraftGeneration === null) {
+      return res.status(428).json({
+        success: false,
+        error: "draft_precondition_required",
+        message: "draftVersion and draftGeneration are required.",
+      });
+    }
+    const requestHash = submissionRequestHash(req.body);
+    const priorRequest = await knex("application_submission_requests")
+      .where({ profile_id: profile.id, idempotency_key: idempotencyKey })
+      .first();
+    if (priorRequest) {
+      if (priorRequest.request_hash !== requestHash) {
+        return res.status(409).json({
+          success: false,
+          error: "idempotency_conflict",
+          message: "This idempotency key was already used for another submission.",
+        });
+      }
+      if (priorRequest.status === "completed" && priorRequest.application_id) {
+        return res.json({
+          success: true,
+          id: priorRequest.application_id,
+          idempotent: true,
+        });
+      }
+      return res.status(409).json({
+        success: false,
+        error: "submission_in_progress",
+        message: "This application submission is already being processed.",
+      });
+    }
+
+    if (submissionPackage?.consentConfirmed !== true) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_consent_required",
+        message: "Confirm the application package before submitting.",
+      });
+    }
+    if (
+      !minorSubmission &&
+      submissionPackage?.accuracyConfirmed !== true
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_accuracy_attestation_required",
+        message:
+          "Confirm that your statistics are current and your agency digitals are unretouched.",
+      });
+    }
+    if (
+      !minorSubmission &&
+      submissionPackage?.adultAuthorityConfirmed !== true
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_adult_authority_required",
+        message:
+          "Confirm that you are 18 or older and authorised to submit your own work.",
+      });
+    }
+
+    await expireInactiveDrafts(knex);
+    await scrubUnrecoverableDrafts(knex);
+
+    if (await isAgencyBlockedForTalent(knex, req.session.userId, agencyId)) {
+      return res.status(403).json({
+        success: false,
+        error: "Agency blocked",
+        message: "You have blocked this agency.",
+      });
+    }
+
+    // 1. Check if already applied. A previously withdrawn application can be
+    //    resubmitted (we revive that row below to preserve its history).
+    const existingparams = { profile_id: profile.id, agency_id: agencyId };
+    const existing = await knex("applications").where(existingparams).first();
+    if (existing && existing.status !== "withdrawn") {
+      return res.status(409).json({
+        success: false,
+        error: "application_already_submitted",
+        message: "You've already applied to this agency.",
+      });
+    }
+    const reapplying = !!existing;
+
+    const profileImages = (await knex("images")
+      .where({ profile_id: profile.id })
+      .orderBy("sort", "asc"))
+      .filter(isEligibleAgencyImage);
+    let packageImages = profileImages;
+    const submittedImageIds = submissionPackage?.imageIds;
+    if (Array.isArray(submittedImageIds) && submittedImageIds.length > 0) {
+      const idSet = new Set(submittedImageIds);
+      packageImages = profileImages.filter((img) => idSet.has(img.id));
+    }
+    const rightsMap = await loadImageRightsMap(
+      knex,
+      packageImages.map((img) => img.id),
+    );
+    const packageValidation = validateSubmissionPackage(submissionProfile, packageImages, {
+      rightsMap,
+      agencyConsentGranted,
+    });
+    if (!packageValidation.ok) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_package_incomplete",
+        message:
+          packageValidation.errors[0]?.message ||
+          "Your submission package is not ready to send.",
+        errors: packageValidation.errors,
+      });
+    }
+
+    // Fast preflight for UX. The authoritative quota check is repeated while
+    // holding the profile lock inside the final submission transaction.
     if (!profile.is_pro) {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const count = await knex("applications")
-        .where({ profile_id: profile.id })
-        .where("created_at", ">=", startOfMonth)
-        .count("id as c")
-        .first();
-
-      if (Number(count.c) >= 5) {
+      const quota = await loadApplicationQuota(knex, profile);
+      if (quota.remaining === 0) {
         return res.status(403).json({
           success: false,
           error: "Monthly application limit reached",
           message: "Monthly application limit reached",
-          limit: 5,
-          current: Number(count.c),
+          limit: quota.limit,
+          current: quota.used,
           upgradeRequired: true,
         });
       }
     }
 
-    // 3. Create Application
-    const [insertedApplication] = await knex("applications")
-      .insert({
-        id: knex.raw("gen_random_uuid()"),
-        profile_id: profile.id,
-        agency_id: agencyId,
-        status: "pending",
-      })
-      .returning("id");
+    const agency = await knex("agencies")
+      .where({ id: agencyId })
+      .select("id", "name", "open_boards", "status")
+      .first();
+    if (!agency) {
+      return res.status(404).json({
+        success: false,
+        error: "Agency not found",
+        message: "Agency not found",
+      });
+    }
+    if (String(agency.status || "").toUpperCase() !== "ACTIVE") {
+      return res.status(409).json({
+        success: false,
+        error: "agency_unavailable",
+        message: "This agency is not currently accepting applications.",
+      });
+    }
+    let normalizedSubmissionResult;
+    try {
+      normalizedSubmissionResult = await normalizeDraftPayloadWithRepairs(knex, {
+        profileId: profile.id,
+        agency,
+        payload: {
+          schemaVersion: submissionPackage?.schemaVersion,
+          boards: submissionPackage?.boards,
+          mediaSetId: submissionPackage?.mediaSetId,
+          digitalSlotPicks: submissionPackage?.digitalSlotPicks,
+          compCardPresetId: submissionPackage?.compCardPresetId,
+          note,
+        },
+      });
+    } catch (error) {
+      if (error.code === "UNSUPPORTED_DRAFT_SCHEMA") {
+        return res.status(422).json({
+          success: false,
+          error: "unsupported_draft_schema",
+          message: "This draft was created by a newer version of Pholio.",
+          supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
+        });
+      }
+      throw error;
+    }
+    const normalizedSubmissionReferences = normalizedSubmissionResult.payload;
+    if (normalizedSubmissionResult.repairWarnings.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: "submission_references_changed",
+        message:
+          "Some saved selections are no longer available. Review the repaired draft before submitting.",
+        repairWarnings: normalizedSubmissionResult.repairWarnings,
+      });
+    }
+    if (normalizedSubmissionReferences.mediaSetId !== "current") {
+      packageImages = packageImages.filter(
+        (image) =>
+          String(image.image_type || "").toLowerCase() === "digital" ||
+          image.set_id === normalizedSubmissionReferences.mediaSetId,
+      );
+    }
+    const packageImageIdSet = new Set(packageImages.map((image) => image.id));
+    for (const [slot, imageId] of Object.entries(
+      normalizedSubmissionReferences.digitalSlotPicks,
+    )) {
+      if (!packageImageIdSet.has(imageId)) {
+        delete normalizedSubmissionReferences.digitalSlotPicks[slot];
+      }
+    }
+    const canonicalRightsMap = await loadImageRightsMap(
+      knex,
+      packageImages.map((image) => image.id),
+    );
+    const canonicalPackageValidation = validateSubmissionPackage(
+      submissionProfile,
+      packageImages,
+      {
+        rightsMap: canonicalRightsMap,
+        agencyConsentGranted,
+      },
+    );
+    if (!canonicalPackageValidation.ok) {
+      return res.status(400).json({
+        success: false,
+        error: "submission_package_incomplete",
+        message:
+          canonicalPackageValidation.errors[0]?.message ||
+          "Your submission package is not ready to send.",
+        errors: canonicalPackageValidation.errors,
+      });
+    }
 
-    const applicationId =
-      typeof insertedApplication === "object"
-        ? insertedApplication.id
-        : insertedApplication;
-
-    const applicationNote = typeof note === "string" ? note.trim() : "";
+    // 3. Create (or revive a withdrawn) application, snapshot the exact
+    // submission, write its first message, and retire the draft atomically.
+    let applicationId;
+    const applicationNote = minorSubmission
+      ? ""
+      : normalizeSubmissionNote(normalizedSubmissionReferences.note);
+    const packageFingerprint = buildSubmissionPackageFingerprint({
+      agencyId,
+      boards: normalizedSubmissionReferences.boards,
+      mediaSetId: normalizedSubmissionReferences.mediaSetId,
+      digitalSlotPicks: normalizedSubmissionReferences.digitalSlotPicks,
+      compCardPresetId:
+        normalizedSubmissionReferences.compCardPreset?.id ||
+        submissionPackage?.compCardPresetId ||
+        null,
+      imageIds: packageImages.map((image) => image.id),
+      note: applicationNote,
+    });
+    if (
+      !minorSubmission &&
+      !fingerprintsMatch(
+        submissionPackage?.consentPackageFingerprint,
+        packageFingerprint,
+      )
+    ) {
+      return res.status(409).json({
+        success: false,
+        error: "consent_package_changed",
+        message:
+          "Your submission package changed after you confirmed it. Review the current package and consent again.",
+        errors: [
+          {
+            code: "consent_package_changed",
+            key: "submission_consent",
+            message:
+              "Review the current package and confirm consent again before submitting.",
+          },
+        ],
+      });
+    }
+    const disclosureSnapshot = buildSubmissionDisclosureSnapshot({
+      agencyName: agency.name,
+      isMinor: minorSubmission,
+      minorAgencyAuthorized: agencyConsentGranted,
+      accountGuardianConsent: hasGuardianConsent(submissionProfile),
+      accuracyConfirmed:
+        minorSubmission || submissionPackage?.accuracyConfirmed === true,
+      adultAuthorityConfirmed:
+        !minorSubmission &&
+        submissionPackage?.adultAuthorityConfirmed === true,
+    });
+    const clientMeta = requestClientMeta(req);
     const hasSubmissionPackagesTable = await knex.schema.hasTable(
       "talent_submission_packages",
     );
-    if (
-      hasSubmissionPackagesTable &&
-      submissionPackage &&
-      typeof submissionPackage === "object"
-    ) {
-      await knex("talent_submission_packages").insert({
-        id: knex.raw("gen_random_uuid()"),
-        user_id: req.session.userId,
-        profile_id: profile.id,
-        label: `Application to ${agencyId}`,
-        payload: {
+    try {
+      await knex.transaction(async (trx) => {
+        let quotaProfileQuery = trx("profiles")
+          .where({ id: profile.id })
+          .select("id", "is_pro");
+        if (trx.client.config.client === "pg") {
+          quotaProfileQuery = quotaProfileQuery.forUpdate();
+        }
+        const quotaProfile = await quotaProfileQuery.first();
+        const quota = await loadApplicationQuota(
+          trx,
+          quotaProfile || profile,
+        );
+        if (!quota.unlimited && quota.remaining === 0) {
+          const error = new Error("Monthly application limit reached");
+          error.code = "MONTHLY_APPLICATION_LIMIT";
+          error.quota = quota;
+          throw error;
+        }
+
+        let guardianConsentRequestId = null;
+        let agencyGuardQuery = trx("agencies")
+          .where({ id: agencyId })
+          .select("id", "status");
+        if (trx.client.config.client === "pg") {
+          agencyGuardQuery = agencyGuardQuery.forUpdate();
+        }
+        const agencyGuard = await agencyGuardQuery.first();
+        if (
+          !agencyGuard ||
+          String(agencyGuard.status || "").toUpperCase() !== "ACTIVE"
+        ) {
+          const error = new Error("Agency unavailable");
+          error.code = "AGENCY_UNAVAILABLE";
+          throw error;
+        }
+        if (minorSubmission) {
+          const guardianGrant = await getAgencyConsentGrant(
+            trx,
+            profile.id,
+            agencyId,
+          );
+          if (!guardianGrant) {
+            const error = new Error("Guardian agency consent required");
+            error.code = "GUARDIAN_AGENCY_CONSENT_REQUIRED";
+            throw error;
+          }
+          guardianConsentRequestId = guardianGrant.consent_request_id;
+        }
+
+        const draft = await trx("application_drafts")
+          .where({ profile_id: profile.id, agency_id: agencyId })
+          .first();
+        const isActiveDraft =
+          draft?.lifecycle_state === DRAFT_LIFECYCLE_STATES.ACTIVE ||
+          (draft && !draft.lifecycle_state);
+        const currentDraftVersion = isActiveDraft ? Number(draft.version) : 0;
+        const currentDraftGeneration = isActiveDraft
+          ? Number(draft.generation || 1)
+          : 0;
+        if (
+          (draft && !isActiveDraft) ||
+          currentDraftVersion !== expectedDraftVersion ||
+          currentDraftGeneration !== expectedDraftGeneration
+        ) {
+          const error = new Error("Draft version conflict");
+          error.code = "DRAFT_CONFLICT";
+          throw error;
+        }
+        if (
+          draft &&
+          parseDraftPayload(draft.payload).consent !== true
+        ) {
+          const error = new Error("Draft consent required");
+          error.code = "DRAFT_CONSENT_REQUIRED";
+          throw error;
+        }
+        if (draft && !minorSubmission) {
+          const draftPayload = parseDraftPayload(draft.payload);
+          if (
+            draftPayload.accuracyConfirmed !== true ||
+            draftPayload.adultAuthorityConfirmed !== true
+          ) {
+            const error = new Error("Draft attestations required");
+            error.code = "DRAFT_CONSENT_REQUIRED";
+            throw error;
+          }
+        }
+
+        await trx("application_submission_requests").insert({
+          id: uuidv4(),
+          profile_id: profile.id,
+          agency_id: agencyId,
+          idempotency_key: idempotencyKey,
+          request_hash: requestHash,
+          status: "processing",
+          created_at: trx.fn.now(),
+        });
+
+        if (reapplying) {
+          const revived = await trx("applications")
+            .where({ id: existing.id, status: "withdrawn" })
+            .update({ status: "pending", updated_at: trx.fn.now() });
+          if (revived !== 1) {
+            const error = new Error("Application already submitted");
+            error.code = "APPLICATION_ALREADY_SUBMITTED";
+            throw error;
+          }
+          applicationId = existing.id;
+          await logActivity(
+            req,
+            trx,
+            applicationId,
+            agencyId,
+            "status_change",
+            "Application resubmitted",
+            { old_status: "withdrawn", new_status: "pending" },
+          );
+        } else {
+          applicationId = uuidv4();
+          await trx("applications").insert({
+            id: applicationId,
+            profile_id: profile.id,
+            agency_id: agencyId,
+            status: "pending",
+          });
+        }
+
+        await recordSubmissionDisclosureConsent(trx, {
           applicationId,
+          userId: req.session.userId,
+          profileId: profile.id,
           agencyId,
-          mediaSetId: submissionPackage.mediaSetId || null,
-          mediaSetName: submissionPackage.mediaSetName || null,
-          compCardId: submissionPackage.compCardId || null,
-          compCardName: submissionPackage.compCardName || null,
-          imageIds: Array.isArray(submissionPackage.imageIds)
-            ? submissionPackage.imageIds
-            : [],
-          readiness: submissionPackage.readiness || null,
-          consentConfirmed: !!submissionPackage.consentConfirmed,
-          submittedAt: new Date().toISOString(),
-        },
-      });
-    }
+          packageFingerprint,
+          disclosureSnapshot,
+          guardianConsentRequestId,
+          ipAddress: clientMeta.ipAddress,
+          userAgent: clientMeta.userAgent,
+        });
 
-    if (applicationNote) {
-      await knex("messages").insert({
-        application_id: applicationId,
-        sender_id: req.session.userId,
-        sender_type: "TALENT",
-        message: applicationNote.slice(0, 1200),
-        is_read: false,
-      });
-    }
+        await trx("application_submission_boards")
+          .where({ application_id: applicationId })
+          .delete();
+        if (normalizedSubmissionReferences.boards.length > 0) {
+          await trx("application_submission_boards").insert(
+            normalizedSubmissionReferences.boards.map((boardName) => ({
+              id: uuidv4(),
+              application_id: applicationId,
+              agency_id: agencyId,
+              board_name: boardName,
+              created_at: trx.fn.now(),
+            })),
+          );
+        }
 
-    const agency = await knex("agencies")
-      .where({ id: agencyId })
-      .select("name")
-      .first();
+        const relationalBoards = await resolveRelationalSubmissionBoards(
+          trx,
+          agencyId,
+          normalizedSubmissionReferences.boards,
+        );
+        await trx("board_applications")
+          .where({ application_id: applicationId })
+          .delete();
+        if (relationalBoards.length > 0) {
+          await trx("board_applications").insert(
+            relationalBoards.map((board) => ({
+              id: uuidv4(),
+              board_id: board.id,
+              application_id: applicationId,
+              match_score: null,
+              match_details: null,
+              created_at: trx.fn.now(),
+              updated_at: trx.fn.now(),
+            })),
+          );
+        }
+
+        if (
+          hasSubmissionPackagesTable &&
+          submissionPackage &&
+          typeof submissionPackage === "object"
+        ) {
+          const selectedPresetId =
+            normalizedSubmissionReferences.compCardPreset?.id || null;
+          const selectedPreset = selectedPresetId
+            ? await trx("comp_card_presets")
+                .where({
+                  id: selectedPresetId,
+                  profile_id: profile.id,
+                })
+                .first()
+            : null;
+          const selectedMediaSet =
+            normalizedSubmissionReferences.mediaSetId !== "current"
+              ? await trx("image_sets")
+                  .where({
+                    id: normalizedSubmissionReferences.mediaSetId,
+                    profile_id: profile.id,
+                  })
+                  .first("id", "name")
+              : null;
+          const compCard = selectedPreset
+            ? {
+                id: selectedPreset.id,
+                ...toPresetPayload(selectedPreset),
+              }
+            : {
+                id: null,
+                name: "Comp card",
+                seed: `profile:${submissionProfile.slug}`,
+                layoutFamily: null,
+                styleVariant: null,
+                lockHeroId: null,
+                lockGridIds: [],
+                board: null,
+                market: null,
+              };
+          await trx("talent_submission_packages").insert({
+            id: uuidv4(),
+            application_id: applicationId,
+            user_id: req.session.userId,
+            profile_id: profile.id,
+            label: `Application to ${agencyId}`,
+            created_at: new Date(),
+            retention_expires_at: submissionRetentionExpiry().toISOString(),
+            payload: {
+              packageSchemaVersion: 2,
+              applicationId,
+              agencyId,
+              agencyName: agency.name || null,
+              boards: normalizedSubmissionReferences.boards,
+              boardLabels: normalizedSubmissionReferences.boards,
+              mediaSetId: normalizedSubmissionReferences.mediaSetId,
+              mediaSetName:
+                selectedMediaSet?.name ||
+                (normalizedSubmissionReferences.mediaSetId === "current"
+                  ? "Current book"
+                  : null),
+              compCardId: selectedPresetId,
+              compCardName: compCard.name,
+              compCardPresetId:
+                normalizedSubmissionReferences.compCardPreset?.id || null,
+              compCardPresetName:
+                normalizedSubmissionReferences.compCardPreset?.name || null,
+              compCardSeed: compCard.seed,
+              compCard,
+              digitalSlotPicks:
+                normalizedSubmissionReferences.digitalSlotPicks,
+              imageIds: packageImages.map((image) => image.id),
+              images: packageImages.map(snapshotSubmissionImage),
+              profile: buildSubmissionProfileSnapshot(submissionProfile, {
+                minor: minorSubmission,
+                social: submissionSocial,
+              }),
+              contact: minorSubmission
+                ? null
+                : {
+                    email: submissionProfile.email || null,
+                    phone: submissionProfile.phone || null,
+                  },
+              minorDataMinimized: minorSubmission,
+              consentConfirmed: !!submissionPackage.consentConfirmed,
+              accuracyConfirmed:
+                minorSubmission ||
+                submissionPackage.accuracyConfirmed === true,
+              adultAuthorityConfirmed:
+                !minorSubmission &&
+                submissionPackage.adultAuthorityConfirmed === true,
+              submittedAt: new Date().toISOString(),
+            },
+          });
+        }
+
+        if (applicationNote) {
+          await trx("messages").insert({
+            application_id: applicationId,
+            sender_id: req.session.userId,
+            sender_type: "TALENT",
+            message: applicationNote.slice(0, 1200),
+            is_read: false,
+          });
+        }
+
+        if (draft) {
+          const deleted = await trx("application_drafts")
+            .where({
+              id: draft.id,
+              version: currentDraftVersion,
+              generation: currentDraftGeneration,
+              lifecycle_state: DRAFT_LIFECYCLE_STATES.ACTIVE,
+            })
+            .del();
+          if (deleted !== 1) {
+            const error = new Error("Draft changed during submission");
+            error.code = "DRAFT_CONFLICT";
+            throw error;
+          }
+          await recordDraftEvent(trx, {
+            ...draft,
+            eventType: "submitted",
+            lifecycleState: "submitted",
+            metadata: { hadDraft: true },
+          });
+        }
+
+        await trx("application_submission_requests")
+          .where({ profile_id: profile.id, idempotency_key: idempotencyKey })
+          .update({
+            status: "completed",
+            application_id: applicationId,
+            completed_at: trx.fn.now(),
+          });
+      });
+    } catch (error) {
+      if (error.code === "DRAFT_CONFLICT") {
+        const latestRow = await knex("application_drafts")
+          .where({ profile_id: profile.id, agency_id: agencyId })
+          .first();
+        const latest = await loadDraftRepresentation(
+          knex,
+          latestRow,
+          profile.id,
+          agency,
+        );
+        return sendDraftConflict(res, latest);
+      }
+      if (error.code === "DRAFT_CONSENT_REQUIRED") {
+        return res.status(409).json({
+          success: false,
+          error: "draft_consent_required",
+          message: "Review and confirm the latest saved draft before submitting.",
+        });
+      }
+      if (error.code === "AGENCY_UNAVAILABLE") {
+        return res.status(409).json({
+          success: false,
+          error: "agency_unavailable",
+          message: "This agency is not currently accepting applications.",
+        });
+      }
+      if (error.code === "GUARDIAN_AGENCY_CONSENT_REQUIRED") {
+        return res.status(403).json({
+          success: false,
+          error: "guardian_agency_consent_required",
+          message:
+            "A parent or guardian must authorize this submission to the selected agency.",
+        });
+      }
+      if (error.code === "MONTHLY_APPLICATION_LIMIT") {
+        return res.status(403).json({
+          success: false,
+          error: "Monthly application limit reached",
+          message: "Monthly submission limit reached. Pholio maintains a monthly quota to ensure agency submission quality and prevent spam.",
+          limit: error.quota?.limit || 5,
+          current: error.quota?.used || 5,
+          upgradeRequired: true,
+        });
+      }
+      if (error.code === "APPLICATION_ALREADY_SUBMITTED") {
+        return res.status(409).json({
+          success: false,
+          error: "application_already_submitted",
+          message: "This application has already been submitted.",
+        });
+      }
+      if (
+        error.code === "SQLITE_CONSTRAINT" ||
+        error.code === "23505"
+      ) {
+        const completed = await knex("application_submission_requests")
+          .where({ profile_id: profile.id, idempotency_key: idempotencyKey })
+          .first();
+        if (
+          completed?.request_hash === requestHash &&
+          completed?.status === "completed" &&
+          completed?.application_id
+        ) {
+          return res.json({
+            success: true,
+            id: completed.application_id,
+            idempotent: true,
+          });
+        }
+        const racedApplication = await knex("applications")
+          .where({ profile_id: profile.id, agency_id: agencyId })
+          .whereNot("status", "withdrawn")
+          .first("id");
+        if (racedApplication) {
+          return res.status(409).json({
+            success: false,
+            error: "application_already_submitted",
+            message: "This application has already been submitted.",
+          });
+        }
+      }
+      throw error;
+    }
 
     try {
       await notifyTalentApplicationSubmitted({
@@ -276,6 +1192,702 @@ router.post(
   }),
 );
 
+/* ── Application drafts ──────────────────────────────────────────────────────
+   An in-progress submission, one per (talent, agency). Kept off the
+   `applications` table so it can never surface in the agency's inbox until the
+   talent actually sends. */
+
+router.use("/drafts", (_req, res, next) => {
+  res.set("Cache-Control", "private, no-store, max-age=0");
+  res.set("Pragma", "no-cache");
+  next();
+});
+
+async function loadDraftRepresentation(db, row, profileId, agency) {
+  if (!row) return null;
+  const storedPayload = parseDraftPayload(row.payload);
+  if (
+    Number(row.schema_version) > DRAFT_SCHEMA_VERSION ||
+    Number(storedPayload.schemaVersion) > DRAFT_SCHEMA_VERSION
+  ) {
+    return mapDraftRow(row, {}, Date.now(), {
+      agency: agency
+        ? {
+            id: agency.id,
+            name: agency.name || null,
+            location: agency.location || null,
+            logo: agency.logo_path || null,
+            website: agency.website || null,
+            status: agency.status || null,
+            isBlocked: agency.isBlocked === true,
+          }
+        : null,
+      repairWarnings: [
+        {
+          code: "unsupported_schema",
+          field: "schemaVersion",
+          message:
+            "This draft was created by a newer version of Pholio and cannot be resumed here.",
+        },
+      ],
+    });
+  }
+  const normalized = await normalizeDraftPayloadWithRepairs(db, {
+    profileId,
+    agency,
+    payload: storedPayload,
+  });
+  return mapDraftRow(row, normalized.payload, Date.now(), {
+    agency: agency
+      ? {
+          id: agency.id,
+          name: agency.name || null,
+          location: agency.location || null,
+          logo: agency.logo_path || null,
+          website: agency.website || null,
+          status: agency.status || null,
+          isBlocked: agency.isBlocked === true,
+        }
+      : null,
+    repairWarnings: normalized.repairWarnings,
+  });
+}
+
+async function getDraftAgency(db, agencyId) {
+  return db("agencies")
+    .where({ id: agencyId })
+    .first(
+      "id",
+      "name",
+      "location",
+      "logo_path",
+      "website",
+      "open_boards",
+      "status",
+    );
+}
+
+function unavailableDraftAgency(agencyId) {
+  return {
+    id: agencyId,
+    name: null,
+    location: null,
+    logo_path: null,
+    website: null,
+    open_boards: "[]",
+    status: "unavailable",
+  };
+}
+
+function sendDraftConflict(res, latest) {
+  return res.status(409).json({
+    success: false,
+    error: "draft_conflict",
+    message:
+      "This draft was updated elsewhere. Choose which version to continue with.",
+    latest,
+  });
+}
+
+function sendDraftLifecycleConflict(res, latest) {
+  const state = latest?.lifecycleState;
+  const error =
+    state === DRAFT_LIFECYCLE_STATES.DELETED
+      ? "draft_deleted"
+      : state === DRAFT_LIFECYCLE_STATES.EXPIRED
+        ? "draft_expired"
+        : "draft_conflict";
+  const message =
+    error === "draft_deleted"
+      ? "This draft was deleted. Recover it before making changes."
+      : error === "draft_expired"
+        ? "This draft expired. Recover it before making changes."
+        : "This draft was updated elsewhere.";
+  return res.status(409).json({
+    success: false,
+    error,
+    message,
+    latest,
+  });
+}
+
+async function maintainDraftLifecycle() {
+  await expireInactiveDrafts(knex);
+  await scrubUnrecoverableDrafts(knex);
+}
+
+function validateDraftPreconditions(body, { allowZero = true } = {}) {
+  const expectedVersion = parseNonNegativeInteger(body?.expectedVersion);
+  const expectedGeneration = parseNonNegativeInteger(body?.expectedGeneration);
+  if (
+    expectedVersion === null ||
+    expectedGeneration === null ||
+    (!allowZero && (expectedVersion < 1 || expectedGeneration < 1))
+  ) {
+    return null;
+  }
+  return { expectedVersion, expectedGeneration };
+}
+
+// GET /api/talent/applications/drafts — all drafts the talent can resume,
+// recover, or intentionally discard. Submitted applications are never mixed in.
+router.get(
+  "/drafts",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
+    await maintainDraftLifecycle();
+    const blockedAgencyIds = await getBlockedAgencyIds(
+      knex,
+      req.session.userId,
+    );
+    const rows = await knex("application_drafts")
+      .where({ profile_id: profile.id })
+      .whereIn("lifecycle_state", [
+        DRAFT_LIFECYCLE_STATES.ACTIVE,
+        DRAFT_LIFECYCLE_STATES.DELETED,
+        DRAFT_LIFECYCLE_STATES.EXPIRED,
+      ])
+      .orderBy("updated_at", "desc");
+    const data = [];
+    for (const row of rows) {
+      const agency =
+        (await getDraftAgency(knex, row.agency_id)) ||
+        unavailableDraftAgency(row.agency_id);
+      agency.isBlocked = blockedAgencyIds.has(row.agency_id);
+      data.push(
+        await loadDraftRepresentation(knex, row, profile.id, agency),
+      );
+    }
+    return res.json({ success: true, data });
+  }),
+);
+
+// GET /api/talent/applications/drafts/latest — route-level resume when /apply
+// is opened without an agency query parameter.
+router.get(
+  "/drafts/latest",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+    await maintainDraftLifecycle();
+    const blockedAgencyIds = await getBlockedAgencyIds(
+      knex,
+      req.session.userId,
+    );
+    const latestQuery = knex("application_drafts as draft")
+      .join("agencies as agency", "agency.id", "draft.agency_id")
+      .where({
+        "draft.profile_id": profile.id,
+        "draft.lifecycle_state": DRAFT_LIFECYCLE_STATES.ACTIVE,
+      })
+      .whereRaw("UPPER(agency.status) = ?", ["ACTIVE"])
+      .select("draft.*")
+      .orderBy("draft.updated_at", "desc");
+    if (blockedAgencyIds.size > 0) {
+      latestQuery.whereNotIn("draft.agency_id", [...blockedAgencyIds]);
+    }
+    const draft = await latestQuery
+      .first();
+    if (!draft) {
+      return res.json({ success: true, data: null });
+    }
+    const agency = await getDraftAgency(knex, draft.agency_id);
+    if (!agency) {
+      return res.json({ success: true, data: null });
+    }
+    return res.json({
+      success: true,
+      data: await loadDraftRepresentation(knex, draft, profile.id, agency),
+    });
+  }),
+);
+
+// GET /api/talent/applications/drafts/:agencyId — resume a saved draft.
+router.get(
+  "/drafts/:agencyId",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+    await maintainDraftLifecycle();
+    const agency =
+      (await getDraftAgency(knex, req.params.agencyId)) ||
+      unavailableDraftAgency(req.params.agencyId);
+    agency.isBlocked = await isAgencyBlockedForTalent(
+      knex,
+      req.session.userId,
+      req.params.agencyId,
+    );
+    const draft = await knex("application_drafts")
+      .where({ profile_id: profile.id, agency_id: req.params.agencyId })
+      .first();
+    res.json({
+      success: true,
+      data: await loadDraftRepresentation(knex, draft, profile.id, agency),
+    });
+  }),
+);
+
+// PUT /api/talent/applications/drafts/:agencyId — upsert the in-progress dossier.
+router.put(
+  "/drafts/:agencyId",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { agencyId } = req.params;
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+    await maintainDraftLifecycle();
+    const agency = await getDraftAgency(knex, agencyId);
+    if (!agency) {
+      return res.status(404).json({
+        success: false,
+        error: "Agency not found",
+        message: "Agency not found",
+      });
+    }
+    if (String(agency.status || "").toUpperCase() !== "ACTIVE") {
+      return res.status(409).json({
+        success: false,
+        error: "agency_unavailable",
+        message: "This agency is not currently accepting applications.",
+      });
+    }
+    if (await isAgencyBlockedForTalent(knex, req.session.userId, agencyId)) {
+      return res.status(403).json({
+        success: false,
+        error: "Agency blocked",
+        message: "You have blocked this agency.",
+      });
+    }
+    const submittedApplication = await knex("applications")
+      .where({ profile_id: profile.id, agency_id: agencyId })
+      .whereNot("status", "withdrawn")
+      .first("id");
+    if (submittedApplication) {
+      return res.status(409).json({
+        success: false,
+        error: "application_already_submitted",
+        message: "This application has already been submitted.",
+      });
+    }
+
+    const preconditions = validateDraftPreconditions(req.body);
+    if (!preconditions) {
+      return res.status(400).json({
+        success: false,
+        error: "invalid_draft_precondition",
+        message: "Valid expectedVersion and expectedGeneration values are required.",
+      });
+    }
+    const { expectedVersion, expectedGeneration } = preconditions;
+
+    let normalized;
+    try {
+      normalized = await normalizeDraftPayloadWithRepairs(knex, {
+        profileId: profile.id,
+        agency,
+        payload: req.body?.payload,
+      });
+    } catch (error) {
+      if (error.code === "UNSUPPORTED_DRAFT_SCHEMA") {
+        return res.status(422).json({
+          success: false,
+          error: "unsupported_draft_schema",
+          message: "This draft was created by a newer version of Pholio.",
+          supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
+        });
+      }
+      throw error;
+    }
+    const normalizedPayload = normalized.payload;
+    const serializedPayload = JSON.stringify(normalizedPayload);
+    const clientId = normalizeClientId(req.body?.clientId);
+    const clientUpdatedAt = normalizeClientUpdatedAt(req.body?.clientUpdatedAt);
+    const currentStepId = normalizeStepId(req.body?.currentStepId);
+    let savedRow = null;
+
+    let inactiveRow = null;
+    try {
+      await knex.transaction(async (trx) => {
+        const existing = await trx("application_drafts")
+          .where({ profile_id: profile.id, agency_id: agencyId })
+          .first();
+
+        if (!existing) {
+          if (expectedVersion !== 0 || expectedGeneration !== 0) return;
+          const id = uuidv4();
+          await trx("application_drafts").insert({
+            id,
+            profile_id: profile.id,
+            agency_id: agencyId,
+            payload: serializedPayload,
+            schema_version: DRAFT_SCHEMA_VERSION,
+            current_step_id: currentStepId,
+            version: 1,
+            generation: 1,
+            lifecycle_state: DRAFT_LIFECYCLE_STATES.ACTIVE,
+            expires_at: expiryTimestamp(),
+            repair_warnings: JSON.stringify(normalized.repairWarnings),
+            last_saved_by_client_id: clientId,
+            client_updated_at: clientUpdatedAt,
+            created_at: trx.fn.now(),
+            updated_at: trx.fn.now(),
+          });
+          savedRow = await trx("application_drafts").where({ id }).first();
+          await recordDraftEvent(trx, {
+            ...savedRow,
+            eventType: "created",
+            lifecycleState: DRAFT_LIFECYCLE_STATES.ACTIVE,
+            metadata: {
+              repairCount: normalized.repairWarnings.length,
+              repairCodes: normalized.repairWarnings.map((item) => item.code),
+            },
+          });
+          return;
+        }
+
+        if (existing.lifecycle_state !== DRAFT_LIFECYCLE_STATES.ACTIVE) {
+          inactiveRow = existing;
+          return;
+        }
+        if (
+          Number(existing.version) !== expectedVersion ||
+          Number(existing.generation || 1) !== expectedGeneration
+        ) {
+          return;
+        }
+        const nextVersion = expectedVersion + 1;
+        const updated = await trx("application_drafts")
+          .where({
+            id: existing.id,
+            version: expectedVersion,
+            generation: expectedGeneration,
+            lifecycle_state: DRAFT_LIFECYCLE_STATES.ACTIVE,
+          })
+          .update({
+            payload: serializedPayload,
+            schema_version: DRAFT_SCHEMA_VERSION,
+            current_step_id: currentStepId,
+            version: nextVersion,
+            expires_at: expiryTimestamp(),
+            repair_warnings: JSON.stringify(normalized.repairWarnings),
+            last_saved_by_client_id: clientId,
+            client_updated_at: clientUpdatedAt,
+            updated_at: trx.fn.now(),
+          });
+        if (updated) {
+          savedRow = await trx("application_drafts")
+            .where({ id: existing.id })
+            .first();
+          await recordDraftEvent(trx, {
+            ...savedRow,
+            eventType: "saved",
+            lifecycleState: DRAFT_LIFECYCLE_STATES.ACTIVE,
+            metadata: {
+              repairCount: normalized.repairWarnings.length,
+              repairCodes: normalized.repairWarnings.map((item) => item.code),
+            },
+          });
+        }
+      });
+    } catch (error) {
+      if (error.code !== "SQLITE_CONSTRAINT" && error.code !== "23505") {
+        throw error;
+      }
+    }
+
+    if (!savedRow) {
+      const latestRow = inactiveRow || await knex("application_drafts")
+        .where({ profile_id: profile.id, agency_id: agencyId })
+        .first();
+      const latest = await loadDraftRepresentation(
+        knex,
+        latestRow,
+        profile.id,
+        agency,
+      );
+      await recordDraftEvent(knex, {
+        ...(latestRow || {}),
+        profileId: profile.id,
+        agencyId,
+        eventType: "save_conflict",
+        lifecycleState: latest?.lifecycleState || null,
+      });
+      return sendDraftLifecycleConflict(res, latest);
+    }
+
+    return res.json({
+      success: true,
+      data: await loadDraftRepresentation(
+        knex,
+        savedRow,
+        profile.id,
+        agency,
+      ),
+    });
+  }),
+);
+
+// DELETE /api/talent/applications/drafts/:agencyId — discard a draft.
+router.delete(
+  "/drafts/:agencyId",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+    await maintainDraftLifecycle();
+    const agency =
+      (await getDraftAgency(knex, req.params.agencyId)) ||
+      unavailableDraftAgency(req.params.agencyId);
+    const preconditions = validateDraftPreconditions(req.body, {
+      allowZero: false,
+    });
+    if (!preconditions) {
+      return res.status(400).json({
+        success: false,
+        error: "invalid_draft_precondition",
+        message: "Valid expectedVersion and expectedGeneration values are required.",
+      });
+    }
+    const existing = await knex("application_drafts")
+      .where({
+        profile_id: profile.id,
+        agency_id: req.params.agencyId,
+      })
+      .first();
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: "draft_not_found",
+        message: "Draft not found.",
+      });
+    }
+    const latest = await loadDraftRepresentation(
+      knex,
+      existing,
+      profile.id,
+      agency,
+    );
+    const canDelete = [
+      DRAFT_LIFECYCLE_STATES.ACTIVE,
+      DRAFT_LIFECYCLE_STATES.EXPIRED,
+    ].includes(existing.lifecycle_state);
+    if (
+      !canDelete ||
+      Number(existing.version) !== preconditions.expectedVersion ||
+      Number(existing.generation || 1) !== preconditions.expectedGeneration
+    ) {
+      await recordDraftEvent(knex, {
+        ...existing,
+        eventType: "delete_conflict",
+        lifecycleState: existing.lifecycle_state,
+      });
+      return sendDraftLifecycleConflict(res, latest);
+    }
+    const nextVersion = Number(existing.version) + 1;
+    const now = new Date();
+    const updated = await knex("application_drafts")
+      .where({
+        id: existing.id,
+        version: preconditions.expectedVersion,
+        generation: preconditions.expectedGeneration,
+        lifecycle_state: existing.lifecycle_state,
+      })
+      .update({
+        lifecycle_state: DRAFT_LIFECYCLE_STATES.DELETED,
+        deleted_at: now.toISOString(),
+        recoverable_until: recoveryTimestamp(now),
+        expires_at: null,
+        version: nextVersion,
+        updated_at: knex.fn.now(),
+      });
+    if (updated !== 1) {
+      const conflicting = await knex("application_drafts")
+        .where({ id: existing.id })
+        .first();
+      return sendDraftLifecycleConflict(
+        res,
+        await loadDraftRepresentation(knex, conflicting, profile.id, agency),
+      );
+    }
+    const deleted = await knex("application_drafts")
+      .where({ id: existing.id })
+      .first();
+    await recordDraftEvent(knex, {
+      ...deleted,
+      eventType: "deleted",
+      lifecycleState: DRAFT_LIFECYCLE_STATES.DELETED,
+    });
+    return res.json({
+      success: true,
+      data: await loadDraftRepresentation(knex, deleted, profile.id, agency),
+    });
+  }),
+);
+
+// POST /api/talent/applications/drafts/:agencyId/recover
+router.post(
+  "/drafts/:agencyId/recover",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
+    await maintainDraftLifecycle();
+    const agency = await getDraftAgency(knex, req.params.agencyId);
+    if (!agency) {
+      return res.status(404).json({
+        success: false,
+        error: "Agency not found",
+        message: "Agency not found",
+      });
+    }
+    if (String(agency.status || "").toUpperCase() !== "ACTIVE") {
+      return res.status(409).json({
+        success: false,
+        error: "agency_unavailable",
+        message: "This agency is not currently accepting applications.",
+      });
+    }
+    if (
+      await isAgencyBlockedForTalent(
+        knex,
+        req.session.userId,
+        req.params.agencyId,
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: "Agency blocked",
+        message: "You have blocked this agency.",
+      });
+    }
+    const expectedGeneration = parseNonNegativeInteger(
+      req.body?.expectedGeneration,
+    );
+    if (expectedGeneration === null || expectedGeneration < 1) {
+      return res.status(400).json({
+        success: false,
+        error: "invalid_draft_generation",
+        message: "A valid expectedGeneration is required.",
+      });
+    }
+    const existing = await knex("application_drafts")
+      .where({
+        profile_id: profile.id,
+        agency_id: req.params.agencyId,
+      })
+      .first();
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: "draft_not_found",
+        message: "Draft not found or its recovery window has ended.",
+      });
+    }
+    const recoverableUntil = existing.recoverable_until
+      ? new Date(existing.recoverable_until)
+      : null;
+    const isRecoverableState = [
+      DRAFT_LIFECYCLE_STATES.DELETED,
+      DRAFT_LIFECYCLE_STATES.EXPIRED,
+    ].includes(existing.lifecycle_state);
+    if (
+      !isRecoverableState ||
+      Number(existing.generation || 1) !== expectedGeneration ||
+      !recoverableUntil ||
+      Number.isNaN(recoverableUntil.getTime()) ||
+      recoverableUntil.getTime() <= Date.now()
+    ) {
+      const latest = await loadDraftRepresentation(
+        knex,
+        existing,
+        profile.id,
+        agency,
+      );
+      await recordDraftEvent(knex, {
+        ...existing,
+        eventType: "recovery_failed",
+        lifecycleState: existing.lifecycle_state,
+      });
+      return sendDraftLifecycleConflict(res, latest);
+    }
+    const nextGeneration = expectedGeneration + 1;
+    const updated = await knex("application_drafts")
+      .where({
+        id: existing.id,
+        generation: expectedGeneration,
+        lifecycle_state: existing.lifecycle_state,
+      })
+      .update({
+        lifecycle_state: DRAFT_LIFECYCLE_STATES.ACTIVE,
+        generation: nextGeneration,
+        version: 1,
+        expires_at: expiryTimestamp(),
+        deleted_at: null,
+        expired_at: null,
+        recoverable_until: null,
+        updated_at: knex.fn.now(),
+      });
+    if (updated !== 1) {
+      const conflicting = await knex("application_drafts")
+        .where({ id: existing.id })
+        .first();
+      return sendDraftLifecycleConflict(
+        res,
+        await loadDraftRepresentation(knex, conflicting, profile.id, agency),
+      );
+    }
+    const recovered = await knex("application_drafts")
+      .where({ id: existing.id })
+      .first();
+    await recordDraftEvent(knex, {
+      ...recovered,
+      eventType: "recovered",
+      lifecycleState: DRAFT_LIFECYCLE_STATES.ACTIVE,
+    });
+    return res.json({
+      success: true,
+      data: await loadDraftRepresentation(
+        knex,
+        recovered,
+        profile.id,
+        agency,
+      ),
+    });
+  }),
+);
+
 /**
  * POST /api/talent/applications/:id/withdraw
  * Withdraw an application
@@ -294,11 +1906,11 @@ router.post(
       });
     }
 
-    const deleted = await knex("applications")
+    const application = await knex("applications")
       .where({ id, profile_id: profile.id })
-      .del();
+      .first();
 
-    if (!deleted) {
+    if (!application) {
       return res.status(404).json({
         success: false,
         error: "Application not found",
@@ -306,32 +1918,79 @@ router.post(
       });
     }
 
-    res.json({ success: true });
+    if (!WITHDRAWABLE_STATUSES.has(application.status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot withdraw",
+        message: "This application can no longer be withdrawn.",
+      });
+    }
+
+    const previousStatus = application.status;
+
+    const withdrawnAt = new Date();
+    await knex.transaction(async (trx) => {
+      await trx("applications")
+        .where({ id, profile_id: profile.id })
+        .update({ status: "withdrawn", updated_at: withdrawnAt });
+      await redactSubmissionPackages(trx, {
+        applicationId: id,
+        reason: "talent_withdrawal",
+        at: withdrawnAt,
+        revoke: true,
+      });
+      await trx("messages").where({ application_id: id }).delete();
+    });
+
+    // Preserve the journey: record the withdrawal in application history.
+    await logActivity(
+      req,
+      knex,
+      id,
+      application.agency_id,
+      "status_change",
+      "Application withdrawn",
+      { old_status: previousStatus, new_status: "withdrawn" },
+    );
+
+    // Let the agency know the talent stepped back.
+    try {
+      const talentName = [profile.first_name, profile.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      await notifyAgencyApplicationWithdrawn({
+        agencyId: application.agency_id,
+        applicationId: id,
+        talentName: talentName || profile.name || "A talent",
+      });
+    } catch (notifyErr) {
+      console.error("[Applications] Withdrawal notification failed:", notifyErr);
+    }
+
+    res.json({
+      success: true,
+      disclosure: {
+        agencyAccessRevokedAt: withdrawnAt.toISOString(),
+        packageRedacted: true,
+        platformMessagesDeleted: true,
+        limitation:
+          "Pholio cannot delete copies the agency downloaded before withdrawal.",
+      },
+    });
   }),
 );
 
 /**
- * POST /api/talent/redirect-apply
- * Handle agency-initiated application via redirect (bypasses limits)
+ * GET /api/talent/applications/:id/activity
+ * Status-change history (the lifecycle timeline) for one of the talent's
+ * applications. Read-only; scoped to the requesting talent's own profile.
  */
-router.post(
-  "/redirect-apply",
+router.get(
+  "/:id/activity",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const { agencyId, token } = req.body;
-    if (!agencyId || !token) {
-      return res.status(400).json({
-        success: false,
-        error: "Agency ID and token required",
-        message: "Agency ID and token required",
-      });
-    }
-
-    // verify token (Mock logic for now, or check against stored invitation)
-    // In production: jwt.verify(token, process.env.AGENCY_INVITE_SECRET)
-    // For now, accept any token that is passed (assuming validity checked on generation or non-critical for this tier)
-    // Or check if token matches agencyId simply
-
+    const { id } = req.params;
     const profile = await getProfileBySessionUserId(req.session.userId);
     if (!profile) {
       return res.status(404).json({
@@ -341,57 +2000,181 @@ router.post(
       });
     }
 
-    // Check if already applied
-    const existingparams = { profile_id: profile.id, agency_id: agencyId };
-    const existing = await knex("applications").where(existingparams).first();
-
-    if (existing) {
-      return res
-        .status(200)
-        .json({ success: true, message: "Already applied" });
+    const application = await knex("applications")
+      .where({ id, profile_id: profile.id })
+      .first();
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
     }
 
-    // Create Application (No limit check)
-    const [appId] = await knex("applications")
-      .insert({
-        id: knex.raw("gen_random_uuid()"),
-        profile_id: profile.id,
-        agency_id: agencyId,
-        invited_by_agency_id: agencyId,
-        status: "pending", // or 'reviewing' immediately since they asked for it?
-        // Let's set to 'pending'
-      })
-      .returning("id");
+    const rows = await knex("application_activities")
+      .where({ application_id: id, activity_type: "status_change" })
+      .orderBy("created_at", "asc")
+      .select("id", "activity_type", "description", "metadata", "created_at");
 
-    const applicationId = typeof appId === "object" ? appId.id : appId;
+    const data = rows.map((row) => {
+      let metadata = row.metadata;
+      if (typeof metadata === "string") {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch {
+          metadata = {};
+        }
+      }
+      return {
+        id: row.id,
+        type: row.activity_type,
+        description: row.description,
+        metadata: metadata || {},
+        created_at: row.created_at,
+      };
+    });
 
-    const agency = await knex("agencies")
-      .where({ id: agencyId })
-      .select("name")
+    res.json({ success: true, data });
+  }),
+);
+
+/**
+ * GET /api/talent/applications/:id/messages
+ * Conversation thread for one of the talent's applications. Marks the agency's
+ * messages as read on view.
+ */
+router.get(
+  "/:id/messages",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+
+    const application = await knex("applications")
+      .where({ id, profile_id: profile.id })
       .first();
-    const talentName = [profile.first_name, profile.last_name]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
+    }
+
+    const messages = await knex("messages")
+      .where({ application_id: id })
+      .orderBy("created_at", "asc")
+      .select("id", "sender_type", "message", "attachment_url", "is_read", "created_at");
+
+    await knex("messages")
+      .where({ application_id: id, sender_type: "AGENCY", is_read: false })
+      .update({ is_read: true, read_at: knex.fn.now() });
+
+    res.json({ success: true, data: messages });
+  }),
+);
+
+/**
+ * POST /api/talent/applications/:id/messages
+ * Talent sends a message to the agency from inside the dashboard.
+ */
+router.post(
+  "/:id/messages",
+  requireRole("TALENT"),
+  requireActiveAccount(),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const trimmed = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    if (!trimmed) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Message required", message: "Message is required." });
+    }
+    if (trimmed.length > 4000) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Too long", message: "Message is too long." });
+    }
+
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Profile not found", message: "Profile not found" });
+    }
+
+    const application = await knex("applications")
+      .where({ id, profile_id: profile.id })
+      .first();
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
+    }
+
+    const messageId = uuidv4();
+    await knex("messages").insert({
+      id: messageId,
+      application_id: id,
+      sender_id: req.session.userId,
+      sender_type: "TALENT",
+      message: trimmed,
+      is_read: false,
+      created_at: knex.fn.now(),
+    });
+
+    await logActivity(
+      req,
+      knex,
+      id,
+      application.agency_id,
+      "message_sent",
+      "Talent sent a message",
+      { message_preview: trimmed.substring(0, 100), via: "dashboard" },
+    );
 
     try {
-      await notifyTalentApplicationSubmitted({
-        userId: req.session.userId,
-        applicationId,
-        agencyId,
-        agencyName: agency?.name,
-      });
-      await notifyAgencyNewApplication({
-        agencyId,
-        applicationId,
-        talentName: talentName || "A talent",
+      const talentName =
+        [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
+        profile.name ||
+        "A talent";
+      await notifyAgencyNewMessage({
+        agencyId: application.agency_id,
+        applicationId: id,
+        talentName,
+        preview: trimmed.substring(0, 80),
       });
     } catch (notifyErr) {
-      console.error("[Redirect Apply] Notification failed:", notifyErr);
+      console.error("[Applications] Message notification failed:", notifyErr);
     }
 
-    res.json({ success: true, id: applicationId });
+    const newMessage = await knex("messages").where({ id: messageId }).first();
+    res.json({ success: true, data: newMessage });
   }),
+);
+
+/**
+ * POST /api/talent/redirect-apply
+ * Retired agency-invite write path. Canonical submissions go through /apply.
+ */
+router.post(
+  "/redirect-apply",
+  requireRole("TALENT"),
+  (_req, res) =>
+    res.status(410).json({
+      success: false,
+      error: "redirect_apply_retired",
+      message:
+        "Agency invite submissions must be reviewed and sent through the standard submission flow.",
+      redirectTo: "/apply",
+    }),
 );
 
 module.exports = router;

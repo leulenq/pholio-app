@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finishing Preloader · Pholio Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --surface-card: #141312;
+      --gold: #c9a55a;
+      --gold-hover: #b8954e;
+      --gold-glow: rgba(201, 165, 90, 0.12);
+      
+      --text-main: #f5f4f0;
+      --text-muted: #9e9b94;
+      --text-dim: #5c5954;
+      
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+      --font-display: 'Outfit', sans-serif;
+      
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Control Header ── */
+    .control-header {
+      background: #11100f;
+      border-bottom: 1px solid #1c1a19;
+      padding: 1.25rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .header-title h1 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .header-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-tab {
+      background: #1a1817;
+      border: 1px solid #2d2927;
+      color: var(--text-muted);
+      padding: 0.5rem 1.2rem;
+      font-size: 0.8rem;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s var(--ease);
+    }
+
+    .btn-tab:hover {
+      border-color: var(--gold);
+      color: var(--text-main);
+    }
+
+    .btn-tab.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: #000;
+      font-weight: 600;
+    }
+
+    /* ── Cinematic Stage ── */
+    .viewport {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 2rem;
+      position: relative;
+    }
+
+    .shimmer {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, rgba(20, 19, 18, 0.4) 0%, rgba(11, 10, 9, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .cinematic-orb {
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(201, 165, 90, 0.02) 0%, rgba(0,0,0,0) 70%);
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .orb-1 { top: 15%; left: 25%; }
+    .orb-2 { bottom: 10%; right: 25%; }
+
+    /* Active Container */
+    .variant-container {
+      width: 100%;
+      max-width: 600px;
+      position: relative;
+      z-index: 10;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 380px;
+      text-align: center;
+    }
+
+    .variant-container.active {
+      display: flex;
+      animation: stage-entrance 0.5s var(--ease) forwards;
+    }
+
+    @keyframes stage-entrance {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Shared loader label styling */
+    .preloader-status {
+      font-family: var(--font-serif);
+      font-size: 1.7rem;
+      font-style: italic;
+      font-weight: 400;
+      color: var(--text-main);
+      margin-top: 2.5rem;
+      height: 2.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.08);
+      transition: all 0.5s var(--ease);
+    }
+
+    .preloader-subtext {
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      margin-top: 0.6rem;
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT A: Curation Radar Ripple
+       ═══════════════════════════════════════ */
+    .radar-rings {
+      position: relative;
+      width: 130px;
+      height: 130px;
+    }
+
+    .radar-circle {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(201, 165, 90, 0.18);
+      animation: radar-ripple 2.4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+    }
+
+    .radar-circle:nth-child(2) {
+      animation-delay: 0.8s;
+    }
+
+    .radar-circle:nth-child(3) {
+      animation-delay: 1.6s;
+    }
+
+    /* Dashed orbit frame adding compilation detail styling */
+    .radar-dashed-orbit {
+      position: absolute;
+      inset: -12px;
+      border-radius: 50%;
+      border: 1px dashed rgba(245, 241, 234, 0.04);
+      animation: slow-orbit-spin 40s linear infinite;
+    }
+
+    .radar-center-dot {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 25px var(--gold), 0 0 10px rgba(201, 165, 90, 0.4);
+      animation: center-pulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes radar-ripple {
+      from { transform: scale(0.9); opacity: 0.6; }
+      to { transform: scale(2.2); opacity: 0; }
+    }
+
+    @keyframes center-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+
+    @keyframes slow-orbit-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT B: Editorial Typography Gated Loader
+       ═══════════════════════════════════════ */
+    .editorial-loader-wrap {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .editorial-large-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 6vw, 3.8rem);
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 2.2rem;
+    }
+
+    .editorial-large-title em {
+      font-style: italic;
+      color: var(--gold);
+      font-weight: 400;
+    }
+
+    /* Cinematic horizontal filling line */
+    .progress-bar-container {
+      width: 180px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      border-radius: 2px;
+    }
+
+    .progress-bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+      background: var(--gold);
+      transform: scaleX(0);
+      transform-origin: left;
+      animation: fill-trace-bar 6s cubic-bezier(0.2, 0.85, 0.25, 1) infinite;
+    }
+
+    @keyframes fill-trace-bar {
+      0% { transform: scaleX(0); }
+      100% { transform: scaleX(1); }
+    }
+
+    /* ═══════════════════════════════════════
+       VARIANT C: Compass Orbit
+       ═══════════════════════════════════════ */
+    .compass-wrapper {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .compass-orbit-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(245, 241, 234, 0.06);
+    }
+
+    /* Orbiting compass satellite dot */
+    .compass-dot-satellite {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      margin-left: -4px;
+      margin-top: -4px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 15px var(--gold);
+      transform-origin: 4px 74px; /* Rotates around the compass center */
+      animation: rotate-satellite 6s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+    }
+
+    .compass-percent {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 300;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+      animation: percent-count-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes rotate-satellite {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes percent-count-pulse {
+      0%, 100% { opacity: 0.75; }
+      50% { opacity: 1; }
+    }
+
+    /* ── Specifications footer ── */
+    .spec-panel {
+      background: #11100f;
+      border-top: 1px solid #1c1a19;
+      padding: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .spec-card h3 {
+      font-family: var(--font-display);
+      color: var(--gold);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .spec-card ul {
+      list-style-type: none;
+    }
+
+    .spec-card li {
+      margin-bottom: 0.5rem;
+      position: relative;
+      padding-left: 1rem;
+    }
+
+    .spec-card li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Reviewer Control Header -->
+  <header class="control-header">
+    <div class="header-title">
+      <h1>Finishing Preloader Beats</h1>
+      <p>Interactive preloader concept variants for the final onboarding compile screen</p>
+    </div>
+    
+    <div class="selector-group">
+      <span class="selector-label">Preloader Style:</span>
+      <button class="btn-tab active" onclick="switchVariant('radar')">Variant A: Radar Ripple</button>
+      <button class="btn-tab" onclick="switchVariant('editorial')">Variant B: Editorial Text Gated</button>
+      <button class="btn-tab" onclick="switchVariant('compass')">Variant C: Compass Orbit</button>
+    </div>
+  </header>
+
+  <!-- Interactive Stage -->
+  <main class="viewport">
+    <div class="shimmer" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-1" aria-hidden="true"></div>
+    <div class="cinematic-orb orb-2" aria-hidden="true"></div>
+
+    <!-- Variant A: Radar Ripple -->
+    <div class="variant-container active" id="view-radar">
+      <div class="radar-rings">
+        <div class="radar-circle"></div>
+        <div class="radar-circle"></div>
+        <div class="radar-circle"></div>
+        <div class="radar-dashed-orbit"></div>
+        <div class="radar-center-dot"></div>
+      </div>
+      
+      <h3 class="preloader-status" id="lbl-radar">Compiling portfolio...</h3>
+      <span class="preloader-subtext">Casting Call Submission Active</span>
+    </div>
+
+    <!-- Variant B: Editorial Text Gated -->
+    <div class="variant-container" id="view-editorial">
+      <div class="editorial-loader-wrap">
+        <h2 class="editorial-large-title" id="lbl-editorial">Structuring <em>Roster Ranks</em></h2>
+        
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill"></div>
+        </div>
+
+        <span class="preloader-subtext" style="margin-top: 1.8rem;">Compiling digital card</span>
+      </div>
+    </div>
+
+    <!-- Variant C: Compass Orbit -->
+    <div class="variant-container" id="view-compass">
+      <div class="compass-wrapper">
+        <div class="compass-orbit-ring"></div>
+        <div class="compass-dot-satellite"></div>
+        <span class="compass-percent" id="lbl-percent">0%</span>
+      </div>
+
+      <h3 class="preloader-status" id="lbl-compass">Initializing keys...</h3>
+      <span class="preloader-subtext">Compiling profile structures</span>
+    </div>
+  </main>
+
+  <!-- Technical specifications footer -->
+  <footer class="spec-panel">
+    <div class="spec-grid">
+      <div class="spec-card">
+        <h3>Variant A: Radar Ripple</h3>
+        <ul>
+          <li><strong>Aesthetic:</strong> Adds a dashed compilation orbit frame rotating slowly around the ripple core.</li>
+          <li><strong>Transitions:</strong> Ripple scaling scales up to `2.2x` on a slow ease-out curve, ensuring clean visual expansion.</li>
+          <li><strong>Typography:</strong> Centered Playfair Display status lines that dynamically shift as compilers run.</li>
+        </ul>
+      </div>
+
+      <div class="spec-card">
+        <h3>Variant B: Editorial Text Gated</h3>
+        <ul>
+          <li><strong>Aesthetic:</strong> Completely removes shapes, focusing strictly on oversized serif typography.</li>
+          <li><strong>Transitions:</strong> Uses a single horizontal 180px hairline loading bar that fills up over time.</li>
+          <li><strong>Typography:</strong> Focuses visual weight onto the textual statements ("Structuring roster...", "Polishing card...").</li>
+        </ul>
+      </div>
+
+      <div class="spec-card">
+        <h3>Variant C: Compass Orbit</h3>
+        <ul>
+          <li><strong>Aesthetic:</strong> Astronomical minimal circle with a satellite dot tracking along the circumference.</li>
+          <li><strong>Transitions:</strong> Constant circular translation with percentage counters fading inside the boundary.</li>
+          <li><strong>Typography:</strong> Light Outfit display font displaying percentage loads (`0%` to `100%`).</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Simulated compilation labels
+    const STATUS_LABELS = [
+      "Curating roster files...",
+      "Compiling digital frames...",
+      "Structuring composite card...",
+      "Polishing model metrics...",
+      "Sealing portfolio profile..."
+    ];
+
+    const EDITORIAL_LABELS = [
+      "Curating <em>Roster Files</em>",
+      "Compiling <em>Digital Frames</em>",
+      "Structuring <em>Comp Card</em>",
+      "Polishing <em>Model Metrics</em>",
+      "Sealing <em>Portfolio Card</em>"
+    ];
+
+    let currentLabelIdx = 0;
+    let currentPercentVal = 0;
+
+    // Loop to cycle labels and percentage
+    setInterval(() => {
+      currentLabelIdx = (currentLabelIdx + 1) % STATUS_LABELS.length;
+      
+      // Update Variant A label
+      const lblRadar = document.getElementById('lbl-radar');
+      if (lblRadar) {
+        lblRadar.style.opacity = 0;
+        setTimeout(() => {
+          lblRadar.innerText = STATUS_LABELS[currentLabelIdx];
+          lblRadar.style.opacity = 1;
+        }, 500);
+      }
+
+      // Update Variant B label
+      const lblEditorial = document.getElementById('lbl-editorial');
+      if (lblEditorial) {
+        lblEditorial.style.opacity = 0;
+        setTimeout(() => {
+          lblEditorial.innerHTML = EDITORIAL_LABELS[currentLabelIdx];
+          lblEditorial.style.opacity = 1;
+        }, 500);
+      }
+
+      // Update Variant C label
+      const lblCompass = document.getElementById('lbl-compass');
+      if (lblCompass) {
+        lblCompass.style.opacity = 0;
+        setTimeout(() => {
+          lblCompass.innerText = STATUS_LABELS[currentLabelIdx];
+          lblCompass.style.opacity = 1;
+        }, 500);
+      }
+    }, 3000);
+
+    // Compass percent simulator
+    setInterval(() => {
+      currentPercentVal = (currentPercentVal + 1) % 101;
+      const lblPercent = document.getElementById('lbl-percent');
+      if (lblPercent) {
+        lblPercent.innerText = `${currentPercentVal}%`;
+      }
+    }, 80);
+
+    function switchVariant(variant) {
+      // Toggle Tab Button Active Class
+      const tabs = document.querySelectorAll('.btn-tab');
+      tabs.forEach(tab => {
+        if (tab.getAttribute('onclick').includes(variant)) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Toggle Active View Container
+      const containers = document.querySelectorAll('.variant-container');
+      containers.forEach(container => {
+        if (container.id === `view-${variant}`) {
+          container.classList.add('active');
+        } else {
+          container.classList.remove('active');
+        }
+      });
+
+      // Reset percent simulation when switching to Variant C
+      if (variant === 'compass') {
+        currentPercentVal = 0;
+      }
+    }
+  </script>
+</body>
+</html>

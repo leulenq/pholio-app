@@ -52,8 +52,14 @@ export function useCastingStatus(enabled = true) {
     queryFn: () => castingRequest('/status'),
     enabled,
     retry: false,
-    // Stop polling once the status endpoint errors (e.g. no active session on entry).
-    refetchInterval: (query) => (query.state.error ? false : 5000),
+    // Stop polling once the status endpoint errors (e.g. no active session on
+    // entry) and once onboarding reaches its terminal state — there is nothing
+    // left to observe after `done`, so don't keep hitting the API every 5s.
+    refetchInterval: (query) => {
+      if (query.state.error) return false;
+      if (query.state.data?.state?.current_step === 'done') return false;
+      return 5000;
+    },
     refetchIntervalInBackground: false,
   });
 }
@@ -79,6 +85,39 @@ export function useCastingEntry() {
 }
 
 /**
+ * Hook: Email-verified sync (the inbox beat). Posts a fresh Firebase ID token
+ * so the server can record the verified claim. No state transition involved.
+ */
+export function useCastingEmailVerified() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ firebase_token }) => {
+      return castingRequest('/email-verified', {
+        method: 'POST',
+        body: JSON.stringify({ firebase_token })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
+    }
+  });
+}
+
+/**
+ * Hook: Resend the email-verification link (the inbox beat's "Resend email").
+ * The server generates the Firebase link and delivers it via our SMTP provider,
+ * resolving the recipient from the session — the client names no address.
+ */
+export function useCastingResendVerification() {
+  return useMutation({
+    mutationFn: async () => {
+      return castingRequest('/resend-verification', { method: 'POST' });
+    },
+  });
+}
+
+/**
  * Hook: Gender step (persist gender, advance state → scout)
  */
 export function useCastingGender() {
@@ -89,6 +128,25 @@ export function useCastingGender() {
       return castingRequest('/gender', {
         method: 'POST',
         body: JSON.stringify({ gender })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
+    }
+  });
+}
+
+/**
+ * Hook: Birthdate step (persist date of birth, advance state → scout)
+ */
+export function useCastingBirthdate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ date_of_birth }) => {
+      return castingRequest('/birthdate', {
+        method: 'POST',
+        body: JSON.stringify({ date_of_birth })
       });
     },
     onSuccess: () => {

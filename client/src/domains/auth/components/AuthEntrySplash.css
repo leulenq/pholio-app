@@ -204,6 +204,7 @@
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
+  display: none; /* Replaced by inline SVG background circle */
 }
 
 .auth-entry--talent .auth-entry__icon-float::before {
@@ -217,34 +218,12 @@
 /* The sweep itself: transparent → gold → transparent, bent into a circle,
    orbiting the icon border */
 .auth-entry__icon-ring {
-  position: absolute;
-  inset: -1px;
-  border-radius: 50%;
-  padding: 2px;
-  pointer-events: none;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 242deg,
-    rgba(200, 169, 110, 0.22) 268deg,
-    #c8a96e 300deg,
-    rgba(200, 169, 110, 0.22) 332deg,
-    transparent 358deg
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: auth-entry-orbit 2.4s linear infinite;
+  display: none; /* Replaced by inline SVG outline spinner */
 }
 
 .auth-entry__icon-avatar {
   position: absolute;
-  inset: 5px;
+  inset: 2px; /* Close to outer border with zero gap */
   border-radius: 50%;
   overflow: hidden;
   display: flex;

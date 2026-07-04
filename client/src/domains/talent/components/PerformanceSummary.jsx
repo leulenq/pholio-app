@@ -2,6 +2,7 @@ import React, { useId, useState } from 'react';
 import { PerformanceOverview } from './PerformanceOverview';
 import { ArrowUp, ArrowDown, ChevronDown, ChevronUp, Activity } from 'lucide-react';
 import { useAnalytics } from '../hooks/useAnalytics';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './PerformanceSummary.css';
 
 export const PerformanceSummary = () => {
@@ -39,14 +40,15 @@ export const PerformanceSummary = () => {
         <div className="performance-summary-error-inner">
           <p className="performance-summary-error-title">Couldn't load performance data</p>
           <p className="performance-summary-error-copy">Check your connection and try again.</p>
-          <button
+          <PholioButton
             type="button"
+            variant="secondary"
             className="performance-summary-retry"
             onClick={() => refetch()}
             disabled={isAnalyticsRefetching}
           >
             {isAnalyticsRefetching ? 'Retrying…' : 'Retry'}
-          </button>
+          </PholioButton>
         </div>
       </div>
     );
@@ -57,8 +59,10 @@ export const PerformanceSummary = () => {
       className={`performance-summary-widget ${isExpanded ? 'expanded' : ''}`}
       aria-busy={isLoading ? true : undefined}
     >
-      <button
+      <PholioButton
         type="button"
+        variant="tertiary"
+        fullWidth
         className="summary-header"
         onClick={() => setIsExpanded(!isExpanded)}
         aria-expanded={isExpanded}
@@ -96,7 +100,7 @@ export const PerformanceSummary = () => {
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
         </div>
-      </button>
+      </PholioButton>
 
       <div
         id={panelId}

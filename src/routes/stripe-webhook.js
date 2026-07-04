@@ -1,6 +1,9 @@
 const knex = require('../shared/db/knex');
 const { verifyWebhookSignature, getSubscription } = require('../shared/lib/stripe');
-const { updateSubscription, syncProfileIsPro } = require('../shared/lib/subscriptions');
+const {
+  updateSubscription,
+  upsertSubscriptionFromStripe,
+} = require('../shared/lib/subscriptions');
 
 /**
  * Stripe Webhook Handler
@@ -34,20 +37,7 @@ async function handleStripeWebhook(req, res) {
 
           if (userId) {
             const subscription = await getSubscription(subscriptionId);
-            
-            const subscriptionUpdates = {
-              stripeSubscriptionId: subscription.id,
-              status: subscription.status,
-              trialStart: subscription.trial_start ? new Date(subscription.trial_start * 1000) : null,
-              trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
-              currentPeriodStart: subscription.current_period_start ? new Date(subscription.current_period_start * 1000) : null,
-              currentPeriodEnd: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
-              cancelAtPeriodEnd: subscription.cancel_at_period_end || false
-            };
-
-            // Update subscription using Stripe subscription ID
-            await updateSubscription(subscription.id, subscriptionUpdates);
-            await syncProfileIsPro(userId);
+            await upsertSubscriptionFromStripe(subscription, { userId });
           }
         }
         break;
@@ -56,29 +46,7 @@ async function handleStripeWebhook(req, res) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
-        const customerId = subscription.customer;
-
-        // Find user by customer ID
-        const user = await knex('users')
-          .where({ stripe_customer_id: customerId })
-          .first();
-
-        if (user) {
-          const subscriptionUpdates = {
-            stripeSubscriptionId: subscription.id,
-            status: subscription.status,
-            trialStart: subscription.trial_start ? new Date(subscription.trial_start * 1000) : null,
-            trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
-            currentPeriodStart: subscription.current_period_start ? new Date(subscription.current_period_start * 1000) : null,
-            currentPeriodEnd: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
-            canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null
-          };
-
-          // Update subscription using Stripe subscription ID
-          await updateSubscription(subscription.id, subscriptionUpdates);
-          await syncProfileIsPro(user.id);
-        }
+        await upsertSubscriptionFromStripe(subscription);
         break;
       }
 
@@ -90,15 +58,11 @@ async function handleStripeWebhook(req, res) {
           .where({ stripe_customer_id: customerId })
           .first();
 
-        if (user && subscription.id) {
-          const subscriptionUpdates = {
+        if (user?.role === 'TALENT' && subscription.id) {
+          await updateSubscription(subscription.id, {
             status: 'canceled',
-            canceledAt: new Date()
-          };
-
-          // Update subscription using Stripe subscription ID
-          await updateSubscription(subscription.id, subscriptionUpdates);
-          await syncProfileIsPro(user.id);
+            canceledAt: subscription.canceled_at || Math.floor(Date.now() / 1000),
+          });
         }
         break;
       }
@@ -114,16 +78,8 @@ async function handleStripeWebhook(req, res) {
             .where({ stripe_customer_id: customerId })
             .first();
 
-          if (user) {
-            // Update subscription status to active if it was past_due
-            const subscriptionUpdates = {
-              status: subscription.status,
-              currentPeriodStart: subscription.current_period_start ? new Date(subscription.current_period_start * 1000) : null,
-              currentPeriodEnd: subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null
-            };
-
-            await updateSubscription(user.id, subscriptionUpdates);
-            await syncProfileIsPro(user.id);
+          if (user?.role === 'TALENT') {
+            await upsertSubscriptionFromStripe(subscription, { userId: user.id });
           }
         }
         break;
@@ -140,13 +96,8 @@ async function handleStripeWebhook(req, res) {
             .where({ stripe_customer_id: customerId })
             .first();
 
-          if (user) {
-            const subscriptionUpdates = {
-              status: subscription.status
-            };
-
-            await updateSubscription(user.id, subscriptionUpdates);
-            await syncProfileIsPro(user.id);
+          if (user?.role === 'TALENT') {
+            await upsertSubscriptionFromStripe(subscription, { userId: user.id });
           }
         }
         break;
@@ -171,4 +122,3 @@ async function handleStripeWebhook(req, res) {
 }
 
 module.exports = handleStripeWebhook;
-

@@ -183,36 +183,6 @@
   color: var(--imd-ink);
 }
 
-.imd-crop-action,
-.imd-primary-btn,
-.imd-secondary-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 38px;
-  border-radius: 2px;
-  font-family: var(--imd-sans);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: background 0.2s var(--imd-ease), border-color 0.2s var(--imd-ease), color 0.2s var(--imd-ease), opacity 0.2s var(--imd-ease);
-}
-
-.imd-crop-action {
-  width: 100%;
-  border: 1px solid rgba(201, 165, 90, 0.45);
-  background: rgba(201, 165, 90, 0.12);
-  color: var(--imd-gold-light);
-}
-
-.imd-crop-action:hover {
-  background: var(--imd-gold);
-  border-color: var(--imd-gold);
-  color: var(--imd-ink);
-}
-
 .imd-panel {
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -301,38 +271,16 @@
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
   min-width: 190px;
-  padding: 3px;
-  border: 1px solid var(--imd-hair);
-  background: rgba(245, 240, 232, 0.62);
 }
 
 .imd-segment button,
 .imd-tags button,
 .imd-role-chip {
-  border: 0;
-  background: transparent;
-  color: var(--imd-text-soft);
-  cursor: pointer;
-  font-family: var(--imd-sans);
-  transition: background 0.2s var(--imd-ease), color 0.2s var(--imd-ease), border-color 0.2s var(--imd-ease);
+  flex: 0 0 auto;
 }
 
 .imd-segment button {
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 1px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.imd-segment button.is-active {
-  background: var(--imd-gold);
-  color: var(--imd-ink);
-}
-
-.imd-segment button.is-private {
-  background: var(--imd-ink);
-  color: #fff;
+  min-width: 72px;
 }
 
 .imd-switch-list {
@@ -455,63 +403,17 @@
 .imd-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
 }
 
 .imd-role-chip,
 .imd-tags button {
-  min-height: 30px;
-  padding: 0 12px;
-  border: 1px solid var(--imd-hair);
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.imd-role-chip.is-active {
-  border-color: var(--role-color);
-  background: var(--role-color);
-  color: #fff;
-}
-
-.imd-tags button.is-selected {
-  border-color: rgba(201, 165, 90, 0.58);
-  background: rgba(201, 165, 90, 0.12);
-  color: #8b6f32;
+  flex: 0 0 auto;
 }
 
 .imd-footer {
   padding: 18px 30px;
   border-top: 1px solid var(--imd-hair);
   background: rgba(250, 247, 242, 0.92);
-}
-
-.imd-secondary-btn {
-  padding: 0 16px;
-  border: 1px solid var(--imd-hair-strong);
-  background: transparent;
-  color: var(--imd-text);
-}
-
-.imd-secondary-btn:hover {
-  border-color: rgba(26, 26, 26, 0.32);
-}
-
-.imd-primary-btn {
-  padding: 0 18px;
-  border: 1px solid var(--imd-gold);
-  background: var(--imd-gold);
-  color: var(--imd-ink);
-}
-
-.imd-primary-btn:hover {
-  border-color: var(--imd-gold-light);
-  background: var(--imd-gold-light);
-}
-
-.imd-primary-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 @keyframes imd-arrive {
@@ -565,8 +467,7 @@
   }
 
   .imd-segment,
-  .imd-primary-btn,
-  .imd-secondary-btn {
+  .imd-footer .pholio-btn {
     width: 100%;
   }
 

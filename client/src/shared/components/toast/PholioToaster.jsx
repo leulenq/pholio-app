@@ -1,6 +1,7 @@
 import React from 'react';
 import { Toaster, toast } from 'sonner';
 import { AlertTriangle, Check, Info, Loader2 } from 'lucide-react';
+import PholioButton from '../ui/PholioButton';
 import './PholioToaster.css';
 
 const ICONS = {
@@ -63,15 +64,16 @@ export function PholioToastCard({
           <div className="pholio-toast-card__footer">
             {meta ? <span className="pholio-toast-card__meta">{meta}</span> : <span />}
             {actionLabel && onAction ? (
-              <button
+              <PholioButton
                 type="button"
+                variant="meta"
                 className="pholio-toast-card__action"
                 onPointerDown={stopControlEvent}
                 onPointerUp={stopControlEvent}
                 onClick={handleAction}
               >
                 {actionLabel}
-              </button>
+              </PholioButton>
             ) : null}
           </div>
         ) : null}

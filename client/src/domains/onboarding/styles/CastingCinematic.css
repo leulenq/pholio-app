@@ -1,20 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600&display=swap');
 
 :root {
+  /* Legacy cinematic tokens still referenced across the flow */
   --cinematic-bg: #000000;
   --cinematic-accent: #C9A55A;
   --cinematic-text: #ffffff;
-  --cinematic-text-muted: #94a3b8;
   --cinematic-text-dark: #0f172a; /* For light cards */
   --cinematic-font-serif: "Playfair Display", serif;
   --cinematic-font-sans: "Inter", sans-serif;
-  --cinematic-border: #334155;
+
+  /* Screen Test token set (ported from the approved prototype) */
+  --gold: #C9A55A;
+  --gold-deep: #B8956A;
+  --gold-ink: #0A0806;
+  --text: #F5F1EA;
+  --text-2: rgba(245, 241, 234, 0.55);
+  --text-3: rgba(245, 241, 234, 0.30);
+  --ghost: rgba(245, 241, 234, 0.15);
+  --hair: rgba(245, 241, 234, 0.14);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Paint the document surface black while the casting flow is mounted. The app
+   body is a light warm neutral (#faf9f7); with viewport-fit=cover the top
+   safe-area / status-bar region adopts the body background and rendered as a
+   white bar above the dark stage. Toggled by CastingCallPage on mount/unmount
+   so the (light) dashboard theme is untouched. */
+body.casting-dark-body {
+  background: #000;
 }
 
 /* Background container with relative positioning for absolute children */
 .cinematic-container {
   background: var(--cinematic-bg);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   width: 100vw;
   display: flex;
   align-items: center;
@@ -25,28 +45,16 @@
   z-index: 1;
 }
 
-/* 1. Grain/Noise Texture */
-.cinematic-container::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-  opacity: 0.03;
-  pointer-events: none;
-  z-index: 0;
-}
+/* Clean dark stage — no grain (removed per Screen Test redesign) */
 
-/* 2. Ambient Light Orbs */
+/* Ambient Light Orbs */
 .cinematic-orb {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
   opacity: 0.4;
   z-index: -1;
-  animation: float 20s ease-in-out infinite;
+  animation: float 22s var(--ease) infinite;
 }
 
 .cinematic-orb-1 {
@@ -63,7 +71,7 @@
   right: -10%;
   width: 60vw;
   height: 60vw;
-  background: radial-gradient(circle, rgba(100, 116, 139, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(120, 120, 128, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
   animation-delay: -10s;
 }
 
@@ -72,6 +80,23 @@
   33% { transform: translate(30px, -50px) scale(1.1); }
   66% { transform: translate(-20px, 20px) scale(0.95); }
   100% { transform: translate(0, 0) scale(1); }
+}
+
+/* Reduced motion: kill infinite ambient loops (orbs, gold pool) and collapse
+   transition/animation durations to near-instant. Mirrors the prototype block. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.05ms !important;
+  }
+  .cinematic-orb,
+  .cinematic-shimmer,
+  .cinematic-shimmer::after,
+  .cinematic-gold-pool {
+    animation: none !important;
+  }
 }
 
 .cinematic-focus-panel {
@@ -85,20 +110,77 @@
 
 .cinematic-question {
   font-family: var(--cinematic-font-serif);
-  /* Responsive font size to scale gracefully */
-  font-size: clamp(2.5rem, 5vw, 5rem); 
+  /* Always one line, like the prototype .q — scales with the viewport so a
+     personalized headline never wraps or overflows. */
+  font-size: clamp(2.5rem, 5vw, 5rem);
   font-weight: 400; /* Lighter, more elegant */
-  line-height: 1.1;
-  margin-bottom: 2rem;
+  line-height: 1.3;
+  margin-bottom: 0;
   letter-spacing: -0.02em;
   text-align: center;
   color: #ffffff; /* Clean White */
-  text-shadow: 0 0 40px rgba(255, 255, 255, 0.1); /* Subtle atmospheric glow */
-  white-space: normal; /* Allow wrapping for longer headlines */
-  word-wrap: break-word; /* Ensure it never breaks bounds */
-  max-width: 90vw; /* Prevent absolute edge hitting */
+  text-shadow: 0 0 44px rgba(255, 255, 255, 0.09);
+  white-space: nowrap;
+  max-width: 96vw;
   margin-left: auto;
   margin-right: auto;
+  /* Italic Playfair descenders (the swash "f" / "y" in "identify") run deep —
+     give them real headroom so the tails are never clipped. */
+  padding-bottom: 0.5em;
+  overflow: visible;
+}
+
+/* Phones: lower the clamp floor so long personalized headlines stay one line. */
+@media (max-width: 640px) {
+  .cinematic-question {
+    /* As large as will fit: let the headline wrap to a second line on phones
+       and scale up to fill the width, rather than shrinking a long personalized
+       headline down to a sliver to keep it on one line. */
+    font-size: clamp(2.5rem, 9.5vw, 3.4rem);
+    white-space: normal;
+    /* Descenders on the italic gold words (the "y" in identify, "g" in fitting)
+       need headroom — a tight line-height + small padding was clipping them. */
+    line-height: 1.2;
+    padding-bottom: 0.5em;
+    overflow: visible;
+    max-width: 100%;
+  }
+
+  /* ── Mobile stage model (audit: viewport / keyboard / safe-area) ──────────
+     Desktop keeps its fixed, overflow-hidden, perfectly-centered stage. On a
+     phone that model traps a focused input under the on-screen keyboard (the
+     container can never scroll) and letterboxes content into a floating "box".
+     Here the container becomes a real full-height SCROLL column so:
+       • a focused field can always be scrolled into view above the keyboard
+         (iOS/Android auto-scroll focus into a scrollable ancestor),
+       • tall steps are fully reachable instead of clipped,
+       • short steps still center via margin:auto (scroll-safe, unlike
+         justify-content:center which would clip the top when content overflows).
+     100svh (not vh/lvh) keeps the bottom action clear of the browser toolbar. */
+  .cinematic-container {
+    height: 100svh;
+    width: 100%;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reclaim width and reserve room for the fixed chrome + device safe areas
+     (notch / home indicator, now exposed by viewport-fit=cover): rail + back
+     at the top, the action dock at the bottom. margin:auto centers a short
+     step yet collapses to allow scrolling once a step is taller than the view. */
+  .cinematic-focus-panel {
+    margin: auto;
+    width: 100%;
+    padding:
+      calc(env(safe-area-inset-top) + 4.25rem)
+      max(0.75rem, env(safe-area-inset-left))
+      calc(env(safe-area-inset-bottom) + 8.5rem)
+      max(0.75rem, env(safe-area-inset-right));
+  }
 }
 
 /* Italic accent styling - brand gold */
@@ -114,7 +196,7 @@
   width: 100%;
   max-width: 120px; /* Short, elegant */
   height: 2px;
-  margin: 3.5rem auto; /* More whitespace */
+  margin: 2.4rem auto;
   position: relative;
   display: flex;
   justify-content: center;
@@ -144,21 +226,14 @@
 }
 
 .cinematic-question .highlight-blue {
-  /* Overwrite gradient for the intro text if desired, or keep it uniform. 
-     User said "All the texts need to be... have a gradient". 
-     I will apply a subtle silver/blue gradient to the secondary text to distinguish it 
-     but keep it "brand aligned". 
-  */
+  /* Secondary intro line — recolored off the retired slate gradient to warm gold. */
   display: block;
   font-size: 2.5rem;
   font-family: var(--cinematic-font-sans);
   font-weight: 400;
   letter-spacing: normal;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--gold);
 }
 
 /* Card Style */
@@ -186,32 +261,47 @@
   display: none !important;
 }
 
-/* Minimalist Inputs & Buttons in Ghost Mode */
-/* Minimalist Inputs & Buttons in Ghost Mode */
+/* Inputs in Ghost Mode — one contained field system for the whole flow.
+   The field is a quiet surface in the same vocabulary as the auth buttons
+   (hairline border, soft dark fill, 8px radius): serif text centered inside,
+   border and fill warming toward gold on focus. No underlines, no glow. */
 .cinematic-ghost .cinematic-input {
-  background: transparent;
-  border: none !important;
-  border-bottom: none !important;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px;
   box-shadow: none !important;
   outline: none !important;
   text-align: center;
   font-family: var(--cinematic-font-serif);
-  font-size: 3.5rem;
+  font-size: 2.1rem;
+  line-height: 1.2;
   color: #fff;
-  padding: 0;
+  padding: 1.15rem 1.5rem;
   margin-bottom: 1rem;
+  caret-color: var(--cinematic-accent);
+  transition: border-color 0.35s ease, background 0.35s ease;
 }
 
 .cinematic-ghost .cinematic-input.cinematic-input-email {
-  font-size: 2.5rem; /* Smaller font for email to prevent clipping */
+  font-size: 1.7rem; /* Smaller font for email to prevent clipping */
+}
+
+.cinematic-ghost .cinematic-input.cinematic-input-date {
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+}
+
+.cinematic-ghost .cinematic-input:hover {
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 .cinematic-ghost .cinematic-input:focus,
 .cinematic-ghost .cinematic-input:active {
-  border: none !important;
+  border: 1px solid rgba(201, 165, 90, 0.5) !important;
+  background: rgba(201, 165, 90, 0.03) !important;
   box-shadow: none !important;
   outline: none !important;
-  background: transparent !important;
   transform: none !important; /* Stop the scale effect */
 }
 
@@ -376,15 +466,15 @@
   left: 0;
   width: 100%;
   height: 2px;
-  background: rgba(255, 255, 255, 0.05); /* quiet full-width track */
-  z-index: 50;
+  z-index: 25;
+  pointer-events: none;
 }
 
 .cinematic-progress-bar {
   height: 100%;
-  background: var(--cinematic-accent);
-  box-shadow: 0 0 8px rgba(201, 165, 90, 0.4);
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--gold);
+  box-shadow: 0 0 12px rgba(201, 165, 90, 0.5);
+  transition: width 1s var(--ease);
 }
 
 /* Legacy styles support */
@@ -400,22 +490,185 @@
 /* Premium Input Focus - Enhanced Border Animation */
 .cinematic-input {
   width: 100%;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem 0;
-  font-size: 2.5rem;
-  font-family: var(--cinematic-font-sans);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 1.15rem 1.5rem;
+  font-size: 1.9rem;
+  font-family: var(--cinematic-font-serif);
   color: var(--cinematic-text);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  caret-color: var(--cinematic-accent);
+  transition: border-color 0.35s ease, background 0.35s ease;
   outline: none;
   text-align: center;
 }
 
-.cinematic-input:focus { 
-  border-bottom-color: var(--cinematic-accent);
-  transform: scale(1.01); /* Subtle emphasis */
-  box-shadow: 0 2px 15px rgba(201, 165, 90, 0.2);
+.cinematic-input:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.cinematic-input:focus {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: rgba(201, 165, 90, 0.03);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STAGE SELECT — gender
+   The chosen value is cast large on a stage (serif, white, a gold jewel
+   tick beneath — the fitting dial's value language); the options wait
+   below as a quiet small-caps track. Selection is staging, not tapping
+   a box.
+   ═══════════════════════════════════════════════════════════════════════ */
+.cine-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 7.5rem;
+  margin-bottom: 2.4rem;
+}
+
+.cine-stage-value {
+  font-family: var(--cinematic-font-serif);
+  font-size: 3.4rem;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.cine-stage-value.is-empty {
+  color: rgba(255, 255, 255, 0.12);
+}
+
+.cine-stage-jewel {
+  width: 1px;
+  height: 26px;
+  margin-top: 1.1rem;
+  background: var(--cinematic-accent);
+  box-shadow: 0 0 12px rgba(201, 165, 90, 0.5);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.cine-stage-jewel.is-lit {
+  opacity: 1;
+}
+
+.cine-stage-track {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2.4rem;
+  row-gap: 1.2rem;
+}
+
+.cine-stage-option {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem 0.1rem;
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+  transition: color 0.3s ease;
+}
+
+.cine-stage-option:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.cine-stage-option.is-active {
+  color: var(--cinematic-accent);
+}
+
+@media (max-width: 640px) {
+  .cine-stage-value {
+    font-size: 2.5rem;
+  }
+  .cine-stage-track {
+    gap: 1.5rem;
+    row-gap: 0.4rem;
+  }
+  /* Give the small-caps option words a real ≥44px tap target on touch without
+     enlarging the type (audit: sub-spec touch targets). */
+  .cine-stage-option {
+    padding: 0.85rem 0.6rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TYPOGRAPHIC CHOICE SYSTEM — gender, lanes
+   Options are set as serif words, not boxes: dim at rest, brighter on
+   hover, gold with a drawn underline when chosen. One system for single-
+   and multi-select; the page speaks for itself, no captions.
+   ═══════════════════════════════════════════════════════════════════════ */
+.cine-choices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.55rem;
+}
+
+.cine-choice {
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--cinematic-font-serif);
+  font-size: 2.1rem;
+  line-height: 1.15;
+  color: rgba(255, 255, 255, 0.42);
+  padding: 0.1rem 0.35rem 0.6rem;
+  transition: color 0.35s ease;
+}
+
+.cine-choice::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.25);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.3s ease;
+}
+
+.cine-choice:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cine-choice:hover::after {
+  transform: scaleX(0.45);
+}
+
+.cine-choice.is-selected {
+  color: var(--cinematic-accent);
+}
+
+.cine-choice.is-selected::after {
+  transform: scaleX(1);
+  background: var(--cinematic-accent);
+}
+
+.cine-choice:disabled {
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .cine-choice {
+    font-size: 1.7rem;
+    min-height: 44px;
+    padding-top: 0.4rem;
+    padding-bottom: 0.7rem;
+  }
 }
 .cinematic-button-primary {
   /* ... keeping for other pages ... */
@@ -1876,11 +2129,111 @@
    GUIDED SHELL — Back control
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* The room becomes theirs — full-bleed, heavily blurred echo of the talent's
+   own photo behind the orbs once one exists. Environmental treatment (fixed,
+   inset 0), NOT a glass card; the blur here is the image itself, not a
+   backdrop-filter over content. */
+.cinematic-room-tint {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center 28%;
+  filter: blur(90px) saturate(0.35) brightness(0.45);
+  transform: scale(1.2);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+/* Finishing preloader — prototype .rings */
+.cine-finishing-rings {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+.cine-finishing-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 165, 90, 0.2);
+  animation: cine-ripple 2s ease-out infinite;
+}
+.cine-finishing-ring:nth-child(2) {
+  animation-delay: 0.5s;
+}
+.cine-finishing-ring:nth-child(3) {
+  animation-delay: 1s;
+}
+.cine-finishing-dot {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 22px rgba(201, 165, 90, 0.6);
+  animation: cine-pulse 1.5s ease-in-out infinite;
+}
+@keyframes cine-ripple {
+  from { transform: scale(1); opacity: 0.5; }
+  to { transform: scale(2.4); opacity: 0; }
+}
+@keyframes cine-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+
+/* Quiet step rail — top center, small caps, the current step in gold.
+   Orientation without ceremony: no numbers, no chips, type only. */
+.cine-rail {
+  position: fixed;
+  /* env() is 0 off notched devices, so desktop is unchanged; on a phone this
+     drops the rail below the status bar / notch (viewport-fit=cover). */
+  top: calc(env(safe-area-inset-top) + 2.3rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 41;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1.9rem;
+  pointer-events: none;
+}
+
+.cine-rail-step {
+  font-family: var(--cinematic-font-sans);
+  font-size: 0.58rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ghost);
+  transition: color 0.5s ease;
+  white-space: nowrap;
+}
+
+.cine-rail-step.is-done {
+  color: var(--text-3);
+}
+
+.cine-rail-step.is-current {
+  color: var(--gold);
+}
+
+@media (max-width: 640px) {
+  /* Small screens: only the current label carries the rail */
+  .cine-rail {
+    gap: 1.1rem;
+  }
+  .cine-rail-step:not(.is-current) {
+    display: none;
+  }
+}
+
 /* Shell-level back control — top-left, leaves the current step */
 .cine-back {
   position: fixed;
-  top: 2.2rem;
-  left: 2.2rem;
+  top: calc(env(safe-area-inset-top) + 2.1rem);
+  left: calc(env(safe-area-inset-left) + 2.2rem);
   z-index: 41;
   display: inline-flex;
   align-items: center;
@@ -1889,7 +2242,7 @@
   border: none;
   padding: 0.4rem 0.5rem;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-3);
   font-family: var(--cinematic-font-sans);
   font-size: 0.6rem;
   letter-spacing: 0.22em;
@@ -1898,7 +2251,7 @@
 }
 
 .cine-back:hover {
-  color: var(--cinematic-accent);
+  color: var(--gold);
 }
 
 .cine-back svg {
@@ -1983,8 +2336,13 @@
     top: 1.7rem;
   }
   .cine-back {
-    top: 1.4rem;
-    left: 1.2rem;
+    /* Keep the notch offset (this rule would otherwise clobber the safe-area
+       top/left set above) and give the icon-only control a real 44px target. */
+    top: calc(env(safe-area-inset-top) + 1.4rem);
+    left: calc(env(safe-area-inset-left) + 0.6rem);
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
   }
   .cine-back span {
     display: none;
@@ -2309,6 +2667,202 @@
 
 @media (max-width: 480px) {
   .pt-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
+}
+
+/* ── Google & Instagram sign-up beats ── */
+.google-serene-word {
+  font-family: var(--cinematic-font-serif, 'Playfair Display', Georgia, serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(2.8rem, 5vw, 4rem);
+  color: var(--text);
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+  letter-spacing: -0.01em;
+  opacity: 0;
+  animation: word-fade-in 1.4s var(--ease) forwards;
+}
+
+.title-serif {
+  font-family: var(--cinematic-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-weight: 400;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.12);
+  margin-bottom: 0.75rem;
+}
+
+.title-serif em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--gold);
+}
+
+.label-sans {
+  font-family: var(--cinematic-font-sans, "Inter", sans-serif);
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+/* Google quadrant color orbit ring */
+.google-orbit-avatar {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.google-orbit-avatar img,
+.instagram-orbit-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid #000;
+  z-index: 2;
+}
+
+.google-quadrant-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: linear-gradient(#000, #000) content-box, 
+              linear-gradient(135deg, #4d86e3 0%, #4d86e3 45%, 
+                                     #e05343 45%, #e05343 70%, 
+                                     #ebb12a 70%, #ebb12a 85%, 
+                                     #48a859 85%, #48a859 100%) border-box;
+  z-index: 1;
+}
+
+/* Instagram quadrant colored ring */
+.instagram-orbit-avatar {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.instagram-quadrant-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: linear-gradient(#000, #000) content-box, 
+              linear-gradient(45deg, #f09433 0%, #dc2743 50%, #bc1888 100%) border-box;
+  z-index: 1;
+}
+
+/* Ingested details list */
+.google-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin: 2.8rem auto 0;
+  width: 100%;
+  max-width: 460px;
+}
+
+.google-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.detail-label {
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.detail-value {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+/* Instagram Aperture spin animation */
+.ig-aperture-ring {
+  position: relative;
+}
+
+/* Monogram Greet Halo */
+.monogram-orbit {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.monogram-circle {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  background: linear-gradient(#000, #000) content-box, 
+              linear-gradient(45deg, rgba(201, 165, 90, 0.1) 0%, var(--gold) 50%, rgba(201, 165, 90, 0.1) 100%) border-box;
+  z-index: 1;
+  animation: orbit-spin 25s linear infinite 1.8s;
+}
+
+.monogram-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #141312;
+  border: 1.5px solid rgba(245, 241, 234, 0.08);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.monogram-letter {
+  font-family: var(--cinematic-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 3.2rem;
+  font-style: italic;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-0.06em);
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(201, 165, 90, 0.25);
+}
+
+@keyframes orbit-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes word-fade-in {
+  0% { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
 

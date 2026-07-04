@@ -15,7 +15,11 @@ export function useProfileStrength() {
 
   const auditData = useMemo(() => {
     const strength = calculateProfileStrength({ ...profile, images: images ?? [] });
-    const { missingRequired, missingImprove, topGaps } = buildReadinessLists(strength.fieldCompletion);
+    const { missingRequired, missingImprove, topGaps } = buildReadinessLists(
+      strength.fieldCompletion,
+      profile,
+      images ?? [],
+    );
     return {
       fieldCompletion: strength.fieldCompletion,
       isRequiredComplete: strength.isRequiredComplete,

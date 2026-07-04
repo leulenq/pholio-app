@@ -458,6 +458,14 @@ describe("query functions — data correctness", () => {
         accepted_at: fourWeeksAgo,
         created_at: fourWeeksAgo,
       },
+      {
+        id: uuidv4(),
+        profile_id: PROFILE_ID,
+        agency_id: AGENCY_USER_ID,
+        status: "development",
+        accepted_at: now,
+        created_at: now,
+      },
     ]);
 
     // 1 declined application
@@ -514,6 +522,17 @@ describe("query functions — data correctness", () => {
     const expected = parseInt(row.count, 10); // 2
     const result = await queries.getRosterSize(knex, AGENCY_USER_ID);
     expect(result.count).toBe(expected);
+  });
+
+  test("development is an advancing pipeline state, not signed roster talent", async () => {
+    const roster = await queries.getRosterSize(knex, AGENCY_USER_ID);
+    expect(roster.count).toBe(2);
+
+    const pipeline = await queries.getPipeline(knex, AGENCY_USER_ID);
+    const development = pipeline.find(
+      (stage) => stage.label === "New Face — Development",
+    );
+    expect(development).toMatchObject({ count: 1 });
   });
 
   test("rosterSize trend[6] equals rosterSize.count", async () => {

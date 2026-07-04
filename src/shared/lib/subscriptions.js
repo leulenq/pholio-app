@@ -1,9 +1,119 @@
 const knex = require('../db/knex');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Subscription statuses that grant Pro access
  */
 const ACTIVE_STATUSES = ['trialing', 'active'];
+const STORED_STATUSES = new Set([
+  'trialing',
+  'active',
+  'past_due',
+  'canceled',
+  'unpaid',
+]);
+
+function normalizeStatus(status) {
+  const value = String(status || '').trim();
+  return STORED_STATUSES.has(value) ? value : 'unpaid';
+}
+
+function timestampToDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value * 1000);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined);
+}
+
+function normalizeSubscriptionFields(updates = {}) {
+  const out = {};
+
+  const stripeSubscriptionId = firstDefined(
+    updates.stripe_subscription_id,
+    updates.stripeSubscriptionId,
+  );
+  if (stripeSubscriptionId !== undefined) {
+    out.stripe_subscription_id = stripeSubscriptionId || null;
+  }
+
+  const stripeCustomerId = firstDefined(
+    updates.stripe_customer_id,
+    updates.stripeCustomerId,
+  );
+  if (stripeCustomerId !== undefined) {
+    out.stripe_customer_id = stripeCustomerId;
+  }
+
+  const stripePriceId = firstDefined(
+    updates.stripe_price_id,
+    updates.stripePriceId,
+  );
+  if (stripePriceId !== undefined) {
+    out.stripe_price_id = stripePriceId;
+  }
+
+  const status = updates.status;
+  if (status !== undefined) out.status = normalizeStatus(status);
+
+  const trialStart = firstDefined(updates.trial_start, updates.trialStart);
+  if (trialStart !== undefined) out.trial_start = timestampToDate(trialStart);
+
+  const trialEnd = firstDefined(updates.trial_end, updates.trialEnd);
+  if (trialEnd !== undefined) out.trial_end = timestampToDate(trialEnd);
+
+  const currentPeriodStart = firstDefined(
+    updates.current_period_start,
+    updates.currentPeriodStart,
+  );
+  if (currentPeriodStart !== undefined) {
+    out.current_period_start = timestampToDate(currentPeriodStart);
+  }
+
+  const currentPeriodEnd = firstDefined(
+    updates.current_period_end,
+    updates.currentPeriodEnd,
+  );
+  if (currentPeriodEnd !== undefined) {
+    out.current_period_end = timestampToDate(currentPeriodEnd);
+  }
+
+  const cancelAtPeriodEnd = firstDefined(
+    updates.cancel_at_period_end,
+    updates.cancelAtPeriodEnd,
+  );
+  if (cancelAtPeriodEnd !== undefined) {
+    out.cancel_at_period_end = !!cancelAtPeriodEnd;
+  }
+
+  const canceledAt = firstDefined(updates.canceled_at, updates.canceledAt);
+  if (canceledAt !== undefined) out.canceled_at = timestampToDate(canceledAt);
+
+  return out;
+}
+
+function priceIdFromStripeSubscription(subscription) {
+  return subscription?.items?.data?.[0]?.price?.id || null;
+}
+
+function stripeSubscriptionToFields(subscription) {
+  return normalizeSubscriptionFields({
+    stripeSubscriptionId: subscription.id,
+    stripeCustomerId: subscription.customer,
+    stripePriceId: priceIdFromStripeSubscription(subscription),
+    status: subscription.status,
+    trialStart: subscription.trial_start,
+    trialEnd: subscription.trial_end,
+    currentPeriodStart: subscription.current_period_start,
+    currentPeriodEnd: subscription.current_period_end,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    canceledAt: subscription.canceled_at,
+  });
+}
 
 /**
  * Get subscription status for a user
@@ -92,21 +202,10 @@ function isCanceling(subscription) {
  * @returns {Promise<Object>} Created subscription
  */
 async function createSubscription(subscriptionData) {
-  const { v4: uuidv4 } = require('uuid');
-
   const subscription = {
     id: uuidv4(),
     user_id: subscriptionData.userId,
-    stripe_customer_id: subscriptionData.stripeCustomerId,
-    stripe_subscription_id: subscriptionData.stripeSubscriptionId || null,
-    stripe_price_id: subscriptionData.stripePriceId,
-    status: subscriptionData.status || 'trialing',
-    trial_start: subscriptionData.trialStart || null,
-    trial_end: subscriptionData.trialEnd || null,
-    current_period_start: subscriptionData.currentPeriodStart || null,
-    current_period_end: subscriptionData.currentPeriodEnd || null,
-    cancel_at_period_end: subscriptionData.cancelAtPeriodEnd || false,
-    canceled_at: subscriptionData.canceledAt || null,
+    ...normalizeSubscriptionFields(subscriptionData),
     created_at: knex.fn.now(),
     updated_at: knex.fn.now()
   };
@@ -126,12 +225,13 @@ async function createSubscription(subscriptionData) {
  * @returns {Promise<Object>} Updated subscription
  */
 async function updateSubscription(subscriptionId, updates) {
-  const whereClause = subscriptionId.length > 20 
-    ? { stripe_subscription_id: subscriptionId } // Stripe subscription ID
-    : { id: subscriptionId }; // Database subscription ID
+  const id = String(subscriptionId || '');
+  const whereClause = id.startsWith('sub_')
+    ? { stripe_subscription_id: id }
+    : { id };
 
   const updateData = {
-    ...updates,
+    ...normalizeSubscriptionFields(updates),
     updated_at: knex.fn.now()
   };
 
@@ -151,6 +251,83 @@ async function updateSubscription(subscriptionId, updates) {
   return subscription;
 }
 
+async function updateSubscriptionByUserId(userId, updates) {
+  const updateData = {
+    ...normalizeSubscriptionFields(updates),
+    updated_at: knex.fn.now()
+  };
+
+  await knex('subscriptions')
+    .where({ user_id: userId })
+    .update(updateData);
+
+  const subscription = await getSubscriptionStatus(userId);
+  await syncProfileIsPro(userId);
+  return subscription;
+}
+
+async function upsertSubscriptionFromStripe(stripeSubscription, options = {}) {
+  if (!stripeSubscription || !stripeSubscription.id || !stripeSubscription.customer) {
+    throw new Error('Stripe subscription payload is missing required identifiers');
+  }
+
+  let userId = options.userId || stripeSubscription.metadata?.userId || null;
+  let user = null;
+
+  if (userId) {
+    user = await knex('users').where({ id: userId }).first();
+  }
+
+  if (!user) {
+    user = await knex('users')
+      .where({ stripe_customer_id: stripeSubscription.customer })
+      .first();
+    userId = user?.id || null;
+  }
+
+  if (!user || user.role !== 'TALENT') {
+    console.warn('[Subscriptions] Ignoring Stripe subscription for non-talent or unknown customer', {
+      stripeCustomerId: stripeSubscription.customer,
+      stripeSubscriptionId: stripeSubscription.id,
+    });
+    return null;
+  }
+
+  if (user.stripe_customer_id !== stripeSubscription.customer) {
+    await knex('users')
+      .where({ id: user.id })
+      .update({ stripe_customer_id: stripeSubscription.customer });
+  }
+
+  const fields = stripeSubscriptionToFields(stripeSubscription);
+  const existing = await knex('subscriptions')
+    .where({ stripe_subscription_id: stripeSubscription.id })
+    .orWhere({ stripe_customer_id: stripeSubscription.customer })
+    .orWhere({ user_id: user.id })
+    .orderBy('created_at', 'desc')
+    .first();
+
+  if (existing) {
+    await knex('subscriptions')
+      .where({ id: existing.id })
+      .update({
+        ...fields,
+        updated_at: knex.fn.now(),
+      });
+  } else {
+    await knex('subscriptions').insert({
+      id: uuidv4(),
+      user_id: user.id,
+      ...fields,
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    });
+  }
+
+  await syncProfileIsPro(user.id);
+  return getSubscriptionStatus(user.id);
+}
+
 module.exports = {
   getSubscriptionStatus,
   isSubscriptionActive,
@@ -159,6 +336,9 @@ module.exports = {
   isInTrial,
   isCanceling,
   createSubscription,
-  updateSubscription
+  updateSubscription,
+  updateSubscriptionByUserId,
+  upsertSubscriptionFromStripe,
+  normalizeSubscriptionFields,
+  normalizeStatus
 };
-

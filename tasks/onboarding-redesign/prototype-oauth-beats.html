@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OAuth Sign-up Beats · Pholio Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --surface-card: #141312;
+      --gold: #c9a55a;
+      --gold-hover: #b8954e;
+      --gold-glow: rgba(201, 165, 90, 0.12);
+      
+      /* Google Brand Colors - desaturated to look premium */
+      --g-blue: #4d86e3;
+      --g-red: #e05343;
+      --g-yellow: #ebb12a;
+      --g-green: #48a859;
+
+      --text-main: #f5f4f0;
+      --text-muted: #9e9b94;
+      --text-dim: #5c5954;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+      --font-display: 'Outfit', sans-serif;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Reviewer Layout Header ── */
+    .control-header {
+      background: #11100f;
+      border-bottom: 1px solid #1c1a19;
+      padding: 1.25rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .header-title h1 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .header-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .selector-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    .btn-tab {
+      background: #1a1817;
+      border: 1px solid #2d2927;
+      color: var(--text-muted);
+      padding: 0.5rem 1.2rem;
+      font-size: 0.8rem;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+    }
+
+    .btn-tab:hover {
+      color: var(--text-main);
+      border-color: var(--text-muted);
+      background: #22201e;
+    }
+
+    .btn-tab.active {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+      font-weight: 600;
+      box-shadow: 0 0 16px var(--gold-glow);
+    }
+
+    /* ── Stage Viewports ── */
+    .viewport-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 3rem 1.5rem;
+    }
+
+    /* Cinematic Onboarding Canvas (replicates index.css wrapper) */
+    .stage {
+      width: 100%;
+      max-width: 900px;
+      height: 600px;
+      background: #000;
+      border: 1px solid #1c1a19;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Ambient Orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      opacity: 0.45;
+      transition: all 1.8s var(--ease);
+    }
+
+    .orb-1 {
+      width: 320px;
+      height: 320px;
+      left: 15%;
+      top: 10%;
+      background: radial-gradient(circle, rgba(201, 165, 90, 0.16) 0%, transparent 70%);
+    }
+
+    .orb-2 {
+      width: 400px;
+      height: 400px;
+      right: 10%;
+      bottom: 5%;
+      background: radial-gradient(circle, rgba(184, 149, 106, 0.12) 0%, transparent 70%);
+    }
+
+    /* Active Variant Container */
+    .scene-variant {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(15px);
+      transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+    }
+
+    .scene-variant.active {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(0);
+      z-index: 10;
+    }
+
+    /* Replay Trigger */
+    .replay-trigger {
+      position: absolute;
+      bottom: 2rem;
+      right: 2rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 0.4rem 0.8rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+      z-index: 50;
+    }
+
+    .replay-trigger:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+    }
+
+    /* ── Typography & Beats ── */
+    .title-serif {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 400;
+      line-height: 1.15;
+      text-align: center;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+      text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+      margin-bottom: 0.5rem;
+    }
+
+    .title-serif em {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--gold);
+    }
+
+    .label-sans {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+
+    /* ── Google Flow: Combined C → A ── */
+    .flow-stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Auth state (Variant C elements - strictly "Authenticating.") */
+    .flow-auth-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+    }
+
+    .flow-auth-view.exit {
+      opacity: 0;
+      transform: translateY(-20px);
+      pointer-events: none;
+    }
+
+    /* Success result phase (Variant A look) */
+    .flow-success-view {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: translateY(20px);
+      pointer-events: none;
+      transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+    }
+
+    .flow-success-view.enter {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+    }
+
+    /* Google Colored Halo Orbit Ring */
+    .google-orbit-avatar {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      margin-bottom: 1.8rem;
+    }
+
+    .google-orbit-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #000;
+      filter: blur(10px) grayscale(100%);
+      opacity: 0;
+      transform: scale(0.9);
+      transition: filter 1.6s var(--ease), opacity 1.6s var(--ease), transform 1.2s var(--ease);
+    }
+
+    .flow-success-view.enter .google-orbit-avatar img {
+      filter: blur(0) grayscale(0);
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* The google quadrant colored ring */
+    .google-quadrant-ring {
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 1.5px solid transparent;
+      background: linear-gradient(#000, #000) content-box, 
+                  linear-gradient(135deg, var(--g-blue) 0%, var(--g-blue) 45%, 
+                                         var(--g-red) 45%, var(--g-red) 70%, 
+                                         var(--g-yellow) 70%, var(--g-yellow) 85%, 
+                                         var(--g-green) 85%, var(--g-green) 100%) border-box;
+      opacity: 0;
+      transform: rotate(-120deg) scale(0.9);
+      transition: opacity 1.2s var(--ease) 0.3s, transform 1.6s var(--ease) 0.3s;
+    }
+
+    .flow-success-view.enter .google-quadrant-ring {
+      opacity: 0.85;
+      transform: rotate(0deg) scale(1);
+    }
+
+    .google-success-text {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.8s var(--ease) 0.5s, transform 0.8s var(--ease) 0.5s;
+    }
+
+    .flow-success-view.enter .google-success-text {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Verified Data Details Ingest Grid */
+    .google-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.6rem;
+      width: 100%;
+      max-width: 320px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.8s var(--ease) 0.8s, transform 0.8s var(--ease) 0.8s;
+    }
+
+    .flow-success-view.enter .google-details,
+    .google-details.static-show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .google-detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      padding: 0.2rem 0;
+    }
+
+    .detail-label {
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+
+    .detail-value {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* ── Single individual Variant visual classes (Static Views) ── */
+    .google-sync-avatar {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      margin-bottom: 2rem;
+    }
+
+    .google-sync-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid rgba(201, 165, 90, 0.25);
+    }
+
+    .google-sync-avatar::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1px dashed rgba(201, 165, 90, 0.3);
+      animation: spin 35s linear infinite;
+    }
+
+    .google-card {
+      background: var(--surface-card);
+      border: 1.5px solid #23211f;
+      border-radius: 12px;
+      padding: 3rem 2.5rem;
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      animation: card-entry 0.8s var(--ease) forwards;
+    }
+
+    .google-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #1d1b1a;
+      border: 1px solid #33302e;
+      padding: 0.4rem 0.8rem;
+      border-radius: 99px;
+      margin-bottom: 2rem;
+    }
+
+    .google-badge svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .google-badge span {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .google-card-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .google-card-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .google-serene-word {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      font-style: italic;
+      color: var(--text-main);
+      opacity: 0;
+      animation: word-fade-in 1.4s var(--ease) forwards;
+    }
+
+    .google-serene-sub {
+      margin-top: 1.5rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      opacity: 0;
+      animation: delay-fade-in 1.5s var(--ease) 0.6s forwards;
+    }
+
+    /* ── Instagram Variant 1: Aesthetic Scan (Grid scanner) ── */
+    .ig-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 100%;
+      max-width: 240px;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+
+    .ig-grid-item {
+      aspect-ratio: 1;
+      background: #11100f;
+      border: 1px solid #1f1d1c;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      opacity: 0;
+      transform: scale(0.9);
+      animation: grid-item-entry 0.6s var(--ease) forwards;
+    }
+
+    .ig-grid-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(100%) contrast(1.1);
+      opacity: 0.45;
+      transition: filter 1s var(--ease), opacity 1s var(--ease);
+    }
+
+    /* Staggered entry */
+    .ig-grid-item:nth-child(1) { animation-delay: 0.1s; }
+    .ig-grid-item:nth-child(2) { animation-delay: 0.2s; }
+    .ig-grid-item:nth-child(3) { animation-delay: 0.3s; }
+    .ig-grid-item:nth-child(4) { animation-delay: 0.4s; }
+    .ig-grid-item:nth-child(5) { animation-delay: 0.5s; }
+    .ig-grid-item:nth-child(6) { animation-delay: 0.6s; }
+    .ig-grid-item:nth-child(7) { animation-delay: 0.7s; }
+    .ig-grid-item:nth-child(8) { animation-delay: 0.8s; }
+    .ig-grid-item:nth-child(9) { animation-delay: 0.9s; }
+
+    /* Scanline bar */
+    .ig-scanline {
+      position: absolute;
+      left: -10px;
+      right: -10px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
+      box-shadow: 0 0 15px rgba(201, 165, 90, 0.6);
+      top: 0%;
+      animation: scan-vertical 3s linear infinite;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .ig-scan-status {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+
+    /* ── Instagram Variant 2: Editorial Frame (Single developing photo) ── */
+    .ig-editorial-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .ig-editorial-frame {
+      width: 160px;
+      aspect-ratio: 0.75;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 8px;
+      background: #0d0c0b;
+      position: relative;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+    }
+
+    .ig-editorial-image {
+      width: 100%;
+      height: 100%;
+      background: #171514;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .ig-editorial-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: blur(12px) grayscale(100%);
+      opacity: 0;
+      animation: develop-image 2.4s var(--ease) 0.3s forwards;
+    }
+
+    .ig-editorial-border-draw {
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--gold);
+      opacity: 0;
+      animation: border-draw 1.5s var(--ease) 0.6s forwards;
+    }
+
+    /* ── Instagram Variant 3: Aperture (Atmospheric Motion) ── */
+    .ig-aperture-ring {
+      width: 80px;
+      height: 80px;
+      position: relative;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ig-aperture-ring svg {
+      width: 100%;
+      height: 100%;
+      fill: none;
+      stroke: var(--gold);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      animation: spin-aperture 15s linear infinite;
+    }
+
+    .ig-aperture-core {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 20px var(--gold);
+      animation: pulse-glow 2.5s var(--ease) infinite;
+    }
+
+    /* ── Animations ── */
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes spin-aperture {
+      100% { transform: rotate(-360deg); }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    @keyframes loader-slide {
+      0% { left: -40%; }
+      50% { left: 100%; }
+      100% { left: 100%; }
+    }
+
+    @keyframes card-entry {
+      0% { opacity: 0; transform: scale(0.96) translateY(12px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    @keyframes word-fade-in {
+      0% { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+      100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+    }
+
+    @keyframes delay-fade-in {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes grid-item-entry {
+      0% { opacity: 0; transform: scale(0.85); }
+      100% { opacity: 0.6; transform: scale(1); }
+    }
+
+    @keyframes scan-vertical {
+      0% { top: 0%; }
+      50% { top: 100%; }
+      100% { top: 0%; }
+    }
+
+    @keyframes develop-image {
+      0% { filter: blur(15px) grayscale(100%); opacity: 0; }
+      40% { opacity: 0.8; }
+      100% { filter: blur(0px) grayscale(0%); opacity: 1; }
+    }
+
+    @keyframes border-draw {
+      0% { opacity: 0; clip-path: inset(0 100% 100% 0); }
+      50% { opacity: 1; clip-path: inset(0 0 100% 0); }
+      100% { opacity: 1; clip-path: inset(0 0 0 0); }
+    }
+
+    /* Footer / Explanations */
+    .explanation-section {
+      background: #11100f;
+      border-top: 1px solid #1c1a19;
+      padding: 3rem 2rem;
+      margin-top: auto;
+    }
+
+    .explanation-grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2.5rem;
+    }
+
+    .explanation-card h3 {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gold);
+      margin-bottom: 0.75rem;
+    }
+
+    .explanation-card p {
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Controls Header -->
+  <header class="control-header">
+    <div class="header-title">
+      <h1>OAuth Sign-up Beats</h1>
+      <p>Cinematic transitions representing credential verification and initial ingest</p>
+    </div>
+
+    <!-- Provider Toggles -->
+    <div class="selector-group">
+      <span class="selector-label">Provider:</span>
+      <button class="btn-tab active" id="prov-google" onclick="setProvider('google')">Google</button>
+      <button class="btn-tab" id="prov-instagram" onclick="setProvider('instagram')">Instagram</button>
+    </div>
+
+    <!-- Variant Toggles -->
+    <div class="selector-group" id="variantSelectorGroup">
+      <span class="selector-label">Variant:</span>
+      <button class="btn-tab active" id="vbtn-0" onclick="setVariant(0)">Interactive Flow (C → A)</button>
+      <button class="btn-tab" id="vbtn-1" onclick="setVariant(1)">B: Welcome Card</button>
+      <button class="btn-tab" id="vbtn-2" onclick="setVariant(2)">C: Serene Beat</button>
+      <button class="btn-tab" id="vbtn-3" onclick="setVariant(3)">A: Identity Sync</button>
+    </div>
+  </header>
+
+  <!-- Viewport Area -->
+  <main class="viewport-container">
+    <div class="stage">
+      <div class="orb orb-1" id="stageOrb1"></div>
+      <div class="orb orb-2" id="stageOrb2"></div>
+
+      <button class="replay-trigger" onclick="replayAnimation()">Replay Motion</button>
+
+      <!-- ==================== GOOGLE VARIANTS ==================== -->
+
+      <!-- Interactive Flow (C → A) -->
+      <section class="scene-variant active" data-provider="google" data-variant="0" id="google-v0">
+        <div class="flow-stage">
+          <!-- Auth loading phase (Variant C look - Strictly "Authenticating.") -->
+          <div class="flow-auth-view" id="gFlowAuth">
+            <span class="google-serene-word" style="font-size: 2.2rem; opacity: 1; animation: none;">Authenticating.</span>
+          </div>
+
+          <!-- Success result phase (Variant A look) -->
+          <div class="flow-success-view" id="gFlowSuccess">
+            <div class="google-orbit-avatar">
+              <!-- Quad-color circular border outline -->
+              <div class="google-quadrant-ring"></div>
+              <img id="gFlowAvatarImg" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80" alt="Avatar">
+            </div>
+            <div class="google-success-text text-center">
+              <h2 class="title-serif">Good to meet you, <em>Ava</em></h2>
+            </div>
+
+            <!-- Ingested Data Grid -->
+            <div class="google-details">
+              <div class="google-detail-item">
+                <span class="detail-label">Legal Name</span>
+                <span class="detail-value">Ava Martinez</span>
+              </div>
+              <div class="google-detail-item">
+                <span class="detail-label">Verified Email</span>
+                <span class="detail-value">ava.martinez@gmail.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Variant B: Welcome Card (Static View) -->
+      <section class="scene-variant" data-provider="google" data-variant="1" id="google-v1">
+        <div class="google-card">
+          <div class="google-badge">
+            <svg viewBox="0 0 24 24">
+              <path fill="var(--gold)" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="var(--gold)" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="var(--gold)" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z"/>
+              <path fill="var(--gold)" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            <span>Google Account</span>
+          </div>
+          <div class="google-card-avatar">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80" alt="Avatar">
+          </div>
+          <h2 class="title-serif" style="font-size: 1.8rem; margin-bottom: 0.5rem;">Ava Martinez</h2>
+          <p class="label-sans" style="color: var(--text-dim);">Google account connected</p>
+        </div>
+      </section>
+
+      <!-- Variant C: Serene Beat (Static View) -->
+      <section class="scene-variant" data-provider="google" data-variant="2" id="google-v2">
+        <span class="google-serene-word">Authenticating.</span>
+        <span class="google-serene-sub">Secure exchange in progress</span>
+      </section>
+
+      <!-- Variant A: Identity Sync (Static View) -->
+      <section class="scene-variant" data-provider="google" data-variant="3" id="google-v3">
+        <div class="google-sync-avatar">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80" alt="Avatar">
+        </div>
+        <h2 class="title-serif">Good to meet you, <em>Ava</em></h2>
+        <div class="google-details static-show">
+          <div class="google-detail-item">
+            <span class="detail-label">Legal Name</span>
+            <span class="detail-value">Ava Martinez</span>
+          </div>
+          <div class="google-detail-item">
+            <span class="detail-label">Verified Email</span>
+            <span class="detail-value">ava.martinez@gmail.com</span>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==================== INSTAGRAM VARIANTS ==================== -->
+
+      <!-- Variant A: Aesthetic Scan (Grid scanner) -->
+      <section class="scene-variant" data-provider="instagram" data-variant="0" id="instagram-v0">
+        <div class="ig-grid">
+          <div class="ig-scanline"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80"></div>
+          <div class="ig-grid-item"><img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=150&q=80"></div>
+        </div>
+        <h2 class="title-serif">Reading <em>@ava.martinez</em></h2>
+        <p class="ig-scan-status">Analyzing grid aesthetic...</p>
+      </section>
+
+      <!-- Variant B: Editorial Frame -->
+      <section class="scene-variant" data-provider="instagram" data-variant="1" id="instagram-v1">
+        <div class="ig-editorial-container">
+          <div class="ig-editorial-frame">
+            <div class="ig-editorial-image">
+              <img id="editorialImg" src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80" alt="Instagram Editorial">
+              <div class="ig-editorial-border-draw" id="borderDraw"></div>
+            </div>
+          </div>
+          <div>
+            <h2 class="title-serif" style="margin-bottom: 0.5rem;">Importing Ingest</h2>
+            <p class="label-sans">Building your aesthetic model...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Variant C: Aperture (Atmospheric Motion) -->
+      <section class="scene-variant" data-provider="instagram" data-variant="2" id="instagram-v2">
+        <div class="ig-aperture-ring">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44"/>
+            <path d="M50 6 L50 94"/>
+            <path d="M6 50 L94 50"/>
+            <path d="M19 19 L81 81"/>
+            <path d="M19 81 L81 19"/>
+          </svg>
+          <div class="ig-aperture-core"></div>
+        </div>
+        <h2 class="title-serif">Syncing <em>Grid</em></h2>
+        <p class="label-sans">Connecting secure Instagram session</p>
+      </section>
+
+      <!-- Variant D: Static Greet -->
+      <section class="scene-variant" data-provider="instagram" data-variant="3" id="instagram-v3">
+        <h2 class="title-serif">Good to meet you, <em>@ava</em></h2>
+        <p class="label-sans">Instagram account successfully linked</p>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Explanations footer -->
+  <footer class="explanation-section">
+    <div class="explanation-grid">
+      <div class="explanation-card">
+        <h3>Google C → A Flow</h3>
+        <p>Starts strictly with the word *"Authenticating."* (Variant C). Once Google returns the OAuth data, it transitions to the Identity Sync layout (Variant A), rendering a quad-color border around the user's avatar.</p>
+      </div>
+      <div class="explanation-card">
+        <h3>Visual Data Report</h3>
+        <p>Visually report the exact metadata parsed and verified from the Google account (Legal Name and Verified Email) in a clean, desaturated two-column grid fading in beneath the greeting.</p>
+      </div>
+      <div class="explanation-card">
+        <h3>Interactive Replay</h3>
+        <p>Use the "Replay Motion" floating button to reset timers and watch the transition sequence play out again in real time.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    let currentProvider = 'google';
+    let currentVariant = 0;
+    let flowTimeout = null;
+
+    const variantLabels = {
+      google: ['Interactive Flow (C → A)', 'B: Welcome Card', 'C: Serene Beat', 'A: Identity Sync'],
+      instagram: ['A: Aesthetic Scan', 'B: Editorial Frame', 'C: Aperture Ring', 'D: Static Greet']
+    };
+
+    function setProvider(prov) {
+      currentProvider = prov;
+      
+      // Update provider tab buttons
+      document.getElementById('prov-google').classList.toggle('active', prov === 'google');
+      document.getElementById('prov-instagram').classList.toggle('active', prov === 'instagram');
+
+      // Update variant button labels
+      const varGroup = document.getElementById('variantSelectorGroup');
+      const varBtns = varGroup.querySelectorAll('.btn-tab');
+      const labels = variantLabels[prov];
+      varBtns.forEach((btn, idx) => {
+        btn.textContent = labels[idx];
+      });
+
+      // Shifting background orbs dynamically to signal context change
+      const orb1 = document.getElementById('stageOrb1');
+      const orb2 = document.getElementById('stageOrb2');
+      if (prov === 'instagram') {
+        orb1.style.background = 'radial-gradient(circle, rgba(233, 89, 135, 0.1) 0%, transparent 70%)'; // pinkish hint
+        orb2.style.background = 'radial-gradient(circle, rgba(201, 165, 90, 0.12) 0%, transparent 70%)';
+      } else {
+        orb1.style.background = 'radial-gradient(circle, rgba(201, 165, 90, 0.16) 0%, transparent 70%)';
+        orb2.style.background = 'radial-gradient(circle, rgba(184, 149, 106, 0.12) 0%, transparent 70%)';
+      }
+
+      updateScene();
+    }
+
+    function setVariant(vIdx) {
+      currentVariant = vIdx;
+      
+      // Update variant tab buttons
+      for (let i = 0; i < 4; i++) {
+        const btn = document.getElementById(`vbtn-${i}`);
+        if (btn) btn.classList.toggle('active', i === vIdx);
+      }
+
+      updateScene();
+    }
+
+    function updateScene() {
+      if (flowTimeout) {
+        clearTimeout(flowTimeout);
+        flowTimeout = null;
+      }
+
+      // Deactivate all scenes
+      document.querySelectorAll('.scene-variant').forEach(scene => {
+        scene.classList.remove('active');
+      });
+
+      // Activate selected scene
+      const activeId = `${currentProvider}-v${currentVariant}`;
+      const activeScene = document.getElementById(activeId);
+      if (activeScene) {
+        activeScene.classList.add('active');
+      }
+
+      replayAnimation();
+    }
+
+    function replayAnimation() {
+      if (flowTimeout) {
+        clearTimeout(flowTimeout);
+        flowTimeout = null;
+      }
+
+      const activeId = `${currentProvider}-v${currentVariant}`;
+      const scene = document.getElementById(activeId);
+      if (!scene) return;
+
+      // Google Interactive Flow handler
+      if (currentProvider === 'google' && currentVariant === 0) {
+        const authView = document.getElementById('gFlowAuth');
+        const successView = document.getElementById('gFlowSuccess');
+        
+        // Reset state
+        authView.classList.remove('exit');
+        successView.classList.remove('enter');
+        
+        // Trigger exit of C, entry of A after 1.5 seconds (representing swift API return)
+        flowTimeout = setTimeout(() => {
+          authView.classList.add('exit');
+          successView.classList.add('enter');
+        }, 1600);
+        return;
+      }
+
+      // Instagram variant A staggered loading reset
+      if (currentProvider === 'instagram' && currentVariant === 0) {
+        const items = scene.querySelectorAll('.ig-grid-item');
+        items.forEach((item, idx) => {
+          item.style.animation = 'none';
+          item.offsetHeight; /* trigger reflow */
+          item.style.animation = `grid-item-entry 0.6s var(--ease) forwards`;
+          item.style.animationDelay = `${idx * 0.08}s`;
+        });
+      }
+
+      // Instagram variant B Polaroid developing reset
+      if (currentProvider === 'instagram' && currentVariant === 1) {
+        const img = document.getElementById('editorialImg');
+        const border = document.getElementById('borderDraw');
+        img.style.animation = 'none';
+        border.style.animation = 'none';
+        img.offsetHeight;
+        border.offsetHeight;
+        img.style.animation = 'develop-image 2.4s var(--ease) 0.3s forwards';
+        border.style.animation = 'border-draw 1.5s var(--ease) 0.6s forwards';
+      }
+
+      // Google Variant C text animation reset
+      if (currentProvider === 'google' && currentVariant === 2) {
+        const word = scene.querySelector('.google-serene-word');
+        const sub = scene.querySelector('.google-serene-sub');
+        word.style.animation = 'none';
+        sub.style.animation = 'none';
+        word.offsetHeight;
+        sub.offsetHeight;
+        word.style.animation = 'word-fade-in 1.4s var(--ease) forwards';
+        sub.style.animation = 'delay-fade-in 1.5s var(--ease) 0.6s forwards';
+      }
+
+      // Re-trigger base entry transitions
+      scene.style.animation = 'none';
+      scene.offsetHeight;
+      scene.style.animation = '';
+    }
+
+    // Start with the interactive flow playing immediately on load
+    window.addEventListener('DOMContentLoaded', () => {
+      replayAnimation();
+    });
+  </script>
+</body>
+</html>

@@ -11,6 +11,13 @@ async function loadTalentProfile(userId) {
   return knex("profiles").where({ user_id: userId }).first();
 }
 
+function parseBioOptions(body = {}) {
+  return {
+    length: body.length === "tight" ? "tight" : "standard",
+    person: body.person === "first" ? "first" : "third",
+  };
+}
+
 async function requireStudioPlus(req, res) {
   const profile = await loadTalentProfile(req.session.userId);
   if (!profile) {
@@ -43,11 +50,12 @@ router.post(
     }
 
     const trimmedBio = bio.trim();
+    const options = parseBioOptions(req.body);
     const context = buildBioContext(profile, { existingBio: trimmedBio });
 
     let result;
     try {
-      result = await refineBio({ context, bio: trimmedBio });
+      result = await refineBio({ context, bio: trimmedBio, options });
     } catch (err) {
       console.error("[Bio Writer] Refine error:", err);
       const status = err.message?.includes("GROQ") ? 503 : 500;
@@ -62,6 +70,8 @@ router.post(
 
     return apiResponse.success(res, {
       mode: result.mode,
+      length: result.length,
+      person: result.person,
       original: trimmedBio,
       bio: result.bio,
       refined: result.bio,
@@ -79,6 +89,7 @@ router.post(
     if (!profile) return;
 
     const context = buildBioContext(profile);
+    const options = parseBioOptions(req.body);
 
     if (!context.hasMinimumForGenerate) {
       return apiResponse.error(
@@ -91,7 +102,7 @@ router.post(
 
     let result;
     try {
-      result = await generateBio({ context });
+      result = await generateBio({ context, options });
     } catch (err) {
       console.error("[Bio Writer] Generate error:", err);
       const status = err.message?.includes("GROQ") ? 503 : 500;
@@ -106,6 +117,8 @@ router.post(
 
     return apiResponse.success(res, {
       mode: result.mode,
+      length: result.length,
+      person: result.person,
       bio: result.bio,
       refined: result.bio,
       wordCount: result.wordCount,

@@ -8,7 +8,7 @@ const { validateSessionStructure } = require('../domains/auth/middleware/session
 
 // Initialize Groq client
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || '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'
+  apiKey: process.env.GROQ_API_KEY
 });
 
 // Configure multer for file uploads

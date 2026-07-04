@@ -4,9 +4,11 @@ const Groq = require("groq-sdk");
 const config = require("../../../../config");
 const {
   SYSTEM_PROMPT,
+  buildSystemPrompt,
   buildGeneratePrompt,
   buildRefinePrompt,
   buildRetryNudge,
+  normalizeBioOptions,
 } = require("./prompt-builder");
 const { validateBioOutput } = require("./output-validator");
 
@@ -45,10 +47,10 @@ function countWords(text) {
   return text.split(/\s+/).filter(Boolean).length;
 }
 
-async function callModel(userPrompt, { temperature = 0.45 } = {}) {
+async function callModel(systemPrompt, userPrompt, { temperature = 0.45 } = {}) {
   const completion = await getGroq().chat.completions.create({
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
     model: BIO_MODEL,
@@ -63,7 +65,15 @@ async function callModel(userPrompt, { temperature = 0.45 } = {}) {
 /**
  * Generate with validation + single retry on weak output.
  */
-async function runWithValidation({ context, userPrompt, mode, existingBio }) {
+async function runWithValidation({
+  context,
+  systemPrompt,
+  userPrompt,
+  mode,
+  existingBio,
+  options,
+}) {
+  const { length, person } = options;
   let lastIssues = [];
   let lastBio = "";
 
@@ -71,9 +81,9 @@ async function runWithValidation({ context, userPrompt, mode, existingBio }) {
     const prompt =
       attempt === 0
         ? userPrompt
-        : `${userPrompt}\n\n${buildRetryNudge(lastIssues)}`;
+        : `${userPrompt}\n\n${buildRetryNudge(lastIssues, options)}`;
 
-    const raw = await callModel(prompt, {
+    const raw = await callModel(systemPrompt, prompt, {
       temperature: attempt === 0 ? 0.45 : 0.35,
     });
 
@@ -83,13 +93,20 @@ async function runWithValidation({ context, userPrompt, mode, existingBio }) {
     }
 
     lastBio = raw;
-    const validation = validateBioOutput(raw, context, { existingBio, mode });
+    const validation = validateBioOutput(raw, context, {
+      existingBio,
+      mode,
+      length,
+      person,
+    });
 
     if (validation.valid) {
       return {
         bio: raw,
         wordCount: countWords(raw),
         mode,
+        length,
+        person,
         qualityScore: validation.rubric.score,
         attempts: attempt + 1,
       };
@@ -109,11 +126,15 @@ async function runWithValidation({ context, userPrompt, mode, existingBio }) {
     const validation = validateBioOutput(lastBio, context, {
       existingBio,
       mode,
+      length,
+      person,
     });
     return {
       bio: lastBio,
       wordCount: countWords(lastBio),
       mode,
+      length,
+      person,
       qualityScore: validation.rubric.score,
       attempts: MAX_ATTEMPTS,
       qualityWarning: true,
@@ -123,22 +144,28 @@ async function runWithValidation({ context, userPrompt, mode, existingBio }) {
   throw new Error("Bio output failed quality validation");
 }
 
-async function refineBio({ context, bio }) {
-  const userPrompt = buildRefinePrompt(context, bio);
+async function refineBio({ context, bio, options = {} }) {
+  const normalized = normalizeBioOptions(options);
+  const userPrompt = buildRefinePrompt(context, bio, normalized);
   return runWithValidation({
     context,
+    systemPrompt: buildSystemPrompt(normalized),
     userPrompt,
     mode: "refine",
     existingBio: bio,
+    options: normalized,
   });
 }
 
-async function generateBio({ context }) {
-  const userPrompt = buildGeneratePrompt(context);
+async function generateBio({ context, options = {} }) {
+  const normalized = normalizeBioOptions(options);
+  const userPrompt = buildGeneratePrompt(context, normalized);
   return runWithValidation({
     context,
+    systemPrompt: buildSystemPrompt(normalized),
     userPrompt,
     mode: "generate",
+    options: normalized,
   });
 }
 

@@ -3,6 +3,7 @@ import { Controller } from 'react-hook-form';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { PholioInput } from '../../../shared/components/ui/forms';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import {
   looksLikeUrl,
   normalizeSocialFieldValue,
@@ -80,14 +81,15 @@ export const SocialInput = ({
               className={styles.socialInput}
             />
             {field.value && (
-              <button
-                type="button"
+              <PholioButton
+                variant="meta"
+                aria-label="Test link"
                 className={styles.testLinkBtn}
                 onClick={() => testLink(field.value)}
                 title="Test Link"
               >
                 <ExternalLink size={16} />
-              </button>
+              </PholioButton>
             )}
           </div>
         )}

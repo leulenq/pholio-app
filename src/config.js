@@ -1,9 +1,11 @@
 const path = require("path");
 const os = require("os");
-require("dotenv").config();
+
+const ROOT_DIR = path.join(__dirname, "..");
+require("dotenv").config({ path: path.join(ROOT_DIR, ".env") });
 
 const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || "0.25");
-const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || "8");
+const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || "25");
 
 function readEnv(...keys) {
   for (const key of keys) {
@@ -39,10 +41,28 @@ const rootUploads = process.env.UPLOAD_DIR
     ? path.join(os.tmpdir(), "pholio-uploads")
     : path.join(__dirname, "..", "..", "uploads");
 
+const nodeEnv = process.env.NODE_ENV || "development";
+
+// Fail closed in production: a missing SESSION_SECRET must crash startup
+// rather than silently signing sessions with a hardcoded, publicly-known
+// fallback. In dev/test, fall back to a clearly-labeled dev-only secret.
+function resolveSessionSecret() {
+  const secret = process.env.SESSION_SECRET;
+  if (secret && secret.trim()) return secret;
+
+  if (nodeEnv === "production") {
+    throw new Error(
+      "SESSION_SECRET is required when NODE_ENV=production. Set it in the environment before starting the server.",
+    );
+  }
+
+  return "pholio-dev-secret-do-not-use-in-production";
+}
+
 module.exports = {
   port: Number(process.env.PORT || 3000),
-  nodeEnv: process.env.NODE_ENV || "development",
-  sessionSecret: process.env.SESSION_SECRET || "pholio-secret",
+  nodeEnv,
+  sessionSecret: resolveSessionSecret(),
   dbClient: (process.env.DB_CLIENT || "sqlite3").toLowerCase(),
   databaseUrl: process.env.DATABASE_URL || "sqlite://./dev.sqlite3",
   commissionRate: Number.isFinite(COMMISSION_RATE) ? COMMISSION_RATE : 0.25,
@@ -159,5 +179,13 @@ module.exports = {
       `${process.env.APP_URL || "http://localhost:3000"}/api/auth/instagram/callback`,
     scope:
       process.env.INSTAGRAM_OAUTH_SCOPE || "instagram_business_basic",
+  },
+  // SMTP Email configuration
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.EMAIL_FROM || "Pholio <noreply@pholio.studio>",
   },
 };

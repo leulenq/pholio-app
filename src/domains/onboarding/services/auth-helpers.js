@@ -6,6 +6,7 @@
 const { v4: uuidv4 } = require("uuid");
 const knex = require("../../../shared/db/knex");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const { injectSocialFields, saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   verifyGoogleToken,
   normalizeGoogleUser,
@@ -87,6 +88,9 @@ async function ensureUserAndDraftProfile(providerUser, lockedAgencyId = null) {
 
   // Find or create draft profile
   let profile = await knex("profiles").where({ user_id: user.id }).first();
+  if (profile) {
+    profile = await injectSocialFields(profile);
+  }
   let isNewProfile = false;
 
   if (!profile) {
@@ -124,13 +128,16 @@ async function ensureUserAndDraftProfile(providerUser, lockedAgencyId = null) {
       analysis_status: "pending",
       profile_completeness: 0,
       partner_agency_id: lockedAgencyId || null, // Keep for backward compatibility
-      instagram_handle: instagram_handle || null,
       is_pro: false,
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
     };
 
     await knex("profiles").insert(draftProfileData);
+
+    if (instagram_handle) {
+      await saveProfileSocialFields(profileId, { instagram_handle });
+    }
 
     // Sync provider picture to images table as primary
     if (picture) {
@@ -145,6 +152,9 @@ async function ensureUserAndDraftProfile(providerUser, lockedAgencyId = null) {
       });
     }
     profile = await knex("profiles").where({ id: profileId }).first();
+    if (profile) {
+      profile = await injectSocialFields(profile);
+    }
     isNewProfile = true;
   } else {
     // Profile exists - update onboarding_stage if needed
@@ -167,6 +177,9 @@ async function ensureUserAndDraftProfile(providerUser, lockedAgencyId = null) {
       // More than just updated_at
       await knex("profiles").where({ id: profile.id }).update(updateData);
       profile = await knex("profiles").where({ id: profile.id }).first();
+      if (profile) {
+        profile = await injectSocialFields(profile);
+      }
     }
 
     // Update hero image if profile picture available and no primary exists
@@ -189,10 +202,7 @@ async function ensureUserAndDraftProfile(providerUser, lockedAgencyId = null) {
 
     // Update Instagram handle if provided and not set
     if (instagram_handle && !profile.instagram_handle) {
-      await knex("profiles").where({ id: profile.id }).update({
-        instagram_handle: instagram_handle,
-        updated_at: knex.fn.now(),
-      });
+      await saveProfileSocialFields(profile.id, { instagram_handle });
       profile.instagram_handle = instagram_handle;
     }
   }

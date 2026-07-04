@@ -6,18 +6,18 @@ const {
   getOrCreateCustomer,
   createCheckoutSession,
   createCustomerPortalSession,
-  verifyWebhookSignature,
   getSubscription,
 } = require("../shared/lib/stripe");
 const {
-  createSubscription,
-  updateSubscription,
   getSubscriptionStatus,
-  syncProfileIsPro,
+  upsertSubscriptionFromStripe,
 } = require("../shared/lib/subscriptions");
-const config = require("../config");
+const { normalizeBillingInterval, STUDIO_PLUS_PLAN } = require("../shared/lib/billing-plan");
 
 const router = express.Router();
+
+const BILLING_HOME = "/dashboard/talent/settings/subscription";
+const MANAGEABLE_STATUSES = new Set(["trialing", "active", "past_due", "unpaid"]);
 
 /**
  * Create Stripe Checkout Session for subscription
@@ -25,7 +25,7 @@ const router = express.Router();
  */
 router.post(
   "/create-checkout-session",
-  requireRole("TALENT", "AGENCY"),
+  requireRole("TALENT"),
   async (req, res, next) => {
     try {
       const userId = req.session.userId;
@@ -35,15 +35,21 @@ router.post(
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Check if user already has an active subscription
+      if (req.body?.billing_disclosure_accepted !== true) {
+        return res.status(400).json({
+          error:
+            "Please accept the Studio+ trial and auto-renewal terms before checkout.",
+        });
+      }
+
+      // Existing non-canceled subscriptions should be managed in Stripe Portal.
       const existingSubscription = await getSubscriptionStatus(userId);
       if (
         existingSubscription &&
-        (existingSubscription.status === "trialing" ||
-          existingSubscription.status === "active")
+        MANAGEABLE_STATUSES.has(existingSubscription.status)
       ) {
         return res.status(400).json({
-          error: "You already have an active subscription",
+          error: "You already have a Studio+ subscription. Manage billing from the portal.",
           subscription: existingSubscription,
         });
       }
@@ -54,6 +60,12 @@ router.post(
         // Customer exists, retrieve it
         const { stripe } = require("../shared/lib/stripe");
         customer = await stripe.customers.retrieve(user.stripe_customer_id);
+        if (customer?.deleted) {
+          customer = await getOrCreateCustomer(userId, user.email);
+          await knex("users")
+            .where({ id: userId })
+            .update({ stripe_customer_id: customer.id });
+        }
       } else {
         // Create new customer
         customer = await getOrCreateCustomer(userId, user.email);
@@ -64,8 +76,8 @@ router.post(
           .update({ stripe_customer_id: customer.id });
       }
 
-      const requested = (req.body && req.body.interval) || "monthly";
-      const interval = requested === "annual" ? "annual" : "monthly";
+      const interval = normalizeBillingInterval(req.body?.interval);
+      const trialEligible = !existingSubscription?.trial_start;
 
       // Create checkout session
       const session = await createCheckoutSession(
@@ -73,28 +85,8 @@ router.post(
         userId,
         user.email,
         interval,
+        { trialEligible },
       );
-
-      // Create subscription record in database (status: trialing, trial starts after checkout)
-      // We'll update this when webhook confirms checkout completion
-      const { resolvePriceId } = require("../shared/lib/stripe");
-      const subscriptionData = {
-        userId,
-        stripeCustomerId: customer.id,
-        stripePriceId: resolvePriceId(interval),
-        status: "trialing",
-        trialStart: null, // Will be set when checkout is confirmed
-        trialEnd: null, // Will be set when checkout is confirmed
-      };
-
-      // Check if subscription record already exists
-      const existingSubRecord = await knex("subscriptions")
-        .where({ user_id: userId })
-        .first();
-
-      if (!existingSubRecord) {
-        await createSubscription(subscriptionData);
-      }
 
       return res.json({
         sessionId: session.id,
@@ -113,14 +105,14 @@ router.post(
  */
 router.get(
   "/checkout/success",
-  requireRole("TALENT", "AGENCY"),
+  requireRole("TALENT"),
   async (req, res, next) => {
     try {
       const { session_id } = req.query;
 
       if (!session_id) {
         addMessage(req, "error", "Invalid checkout session");
-        return res.redirect("/dashboard/talent/settings");
+        return res.redirect(`${BILLING_HOME}?checkout=invalid`);
       }
 
       const { stripe } = require("../shared/lib/stripe");
@@ -128,7 +120,7 @@ router.get(
 
       if (!session || session.mode !== "subscription") {
         addMessage(req, "error", "Invalid checkout session");
-        return res.redirect("/dashboard/talent/settings");
+        return res.redirect(`${BILLING_HOME}?checkout=invalid`);
       }
 
       const userId = session.metadata.userId;
@@ -136,42 +128,20 @@ router.get(
 
       if (!subscriptionId) {
         addMessage(req, "error", "Subscription not found in checkout session");
-        return res.redirect("/dashboard/talent/settings");
+        return res.redirect(`${BILLING_HOME}?checkout=missing-subscription`);
       }
 
       // Retrieve full subscription from Stripe
       const subscription = await getSubscription(subscriptionId);
 
-      // Update subscription record in database
-      const subscriptionUpdates = {
-        stripeSubscriptionId: subscription.id,
-        status: subscription.status,
-        trialStart: subscription.trial_start
-          ? new Date(subscription.trial_start * 1000)
-          : null,
-        trialEnd: subscription.trial_end
-          ? new Date(subscription.trial_end * 1000)
-          : null,
-        currentPeriodStart: subscription.current_period_start
-          ? new Date(subscription.current_period_start * 1000)
-          : null,
-        currentPeriodEnd: subscription.current_period_end
-          ? new Date(subscription.current_period_end * 1000)
-          : null,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
-      };
-
-      await updateSubscription(userId, subscriptionUpdates);
-
-      // Sync is_pro flag
-      await syncProfileIsPro(userId);
+      await upsertSubscriptionFromStripe(subscription, { userId });
 
       addMessage(
         req,
         "success",
-        "Subscription started successfully! Your 14-day free trial has begun.",
+        `Subscription started successfully! Your ${STUDIO_PLUS_PLAN.trialDays}-day free trial has begun.`,
       );
-      return res.redirect("/dashboard/talent/settings");
+      return res.redirect(`${BILLING_HOME}?checkout=success`);
     } catch (error) {
       console.error("[Stripe] Error handling checkout success:", error);
       addMessage(
@@ -179,7 +149,7 @@ router.get(
         "error",
         "There was an error processing your subscription. Please contact support.",
       );
-      return res.redirect("/dashboard/talent/settings");
+      return res.redirect(`${BILLING_HOME}?checkout=error`);
     }
   },
 );
@@ -188,9 +158,9 @@ router.get(
  * Handle canceled Stripe Checkout
  * GET /stripe/checkout/cancel
  */
-router.get("/checkout/cancel", requireRole("TALENT", "AGENCY"), (req, res) => {
+router.get("/checkout/cancel", requireRole("TALENT"), (req, res) => {
   addMessage(req, "info", "Checkout was canceled. You can try again anytime.");
-  return res.redirect("/dashboard/talent/settings");
+  return res.redirect(`${BILLING_HOME}?checkout=canceled`);
 });
 
 /**
@@ -199,7 +169,7 @@ router.get("/checkout/cancel", requireRole("TALENT", "AGENCY"), (req, res) => {
  */
 router.get(
   "/customer-portal",
-  requireRole("TALENT", "AGENCY"),
+  requireRole("TALENT"),
   async (req, res, next) => {
     try {
       const userId = req.session.userId;
@@ -211,7 +181,7 @@ router.get(
           "error",
           "No subscription found. Please start a subscription first.",
         );
-        return res.redirect("/dashboard/talent/settings");
+        return res.redirect(BILLING_HOME);
       }
 
       const session = await createCustomerPortalSession(
@@ -226,7 +196,7 @@ router.get(
         "error",
         "There was an error accessing the billing portal. Please try again.",
       );
-      return res.redirect("/dashboard/talent/settings");
+      return res.redirect(BILLING_HOME);
     }
   },
 );

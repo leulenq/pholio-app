@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import PholioButton, { PholioIconButton } from '../PholioButton';
 import './PholioForms.css';
 
 const CreditsEditor = ({
@@ -159,29 +160,30 @@ const CreditsEditor = ({
                     <option value="Other">Other</option>
                  </select>
                  
-                 <button
-                    type="button"
+                 <PholioIconButton
+                    label="Remove credit"
                     onClick={() => removeCredit(index)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-2"
+                    danger
                     title="Remove credit"
                  >
                     <Trash2 size={16} />
-                 </button>
+                 </PholioIconButton>
                </div>
 
              </div>
           </div>
         ))}
         
-        <button
+        <PholioButton
           type="button"
           onClick={addCredit}
           disabled={disabled}
-          className="flex items-center justify-center gap-2 w-full py-3 border border-dashed border-[#C9A55A] text-[#C9A55A] rounded-lg hover:bg-[#C9A55A]/5 transition-colors font-medium text-sm mt-1"
+          variant="secondary"
+          fullWidth
         >
           <Plus size={16} />
           Add Credit
-        </button>
+        </PholioButton>
       </div>
 
        {error && (

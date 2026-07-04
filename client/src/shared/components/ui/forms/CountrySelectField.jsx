@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { X } from 'lucide-react';
+import { PholioIconButton } from '../PholioButton';
 import './PholioForms.css';
 
 /** Common countries for quick pick; any string remains valid via free-text input. */
@@ -362,15 +363,14 @@ const CountrySelectField = forwardRef(function CountrySelectField(
           autoComplete={autoComplete}
         />
         {!!value && !disabled && (
-          <button
-            type="button"
+          <PholioIconButton
+            label="Clear country"
             className="pholio-autocomplete-clear"
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleClear}
-            aria-label="Clear country"
           >
             <X size={16} aria-hidden />
-          </button>
+          </PholioIconButton>
         )}
 
         {showList && (

@@ -1,0 +1,199 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import './PholioButton.css';
+
+const BUTTON_VARIANTS = new Set([
+  'primary',
+  'secondary',
+  'tertiary',
+  'meta',
+  'icon',
+  'destructive',
+  'toggle',
+]);
+
+function cx(...values) {
+  return values.filter(Boolean).join(' ');
+}
+
+function normalizeVariant(variant) {
+  return BUTTON_VARIANTS.has(variant) ? variant : 'secondary';
+}
+
+/**
+ * Canonical talent button primitive.
+ *
+ * Roles come directly from button-audit.html:
+ * primary commit, secondary alternative, tertiary quiet action, meta/inline
+ * action, icon action, destructive action, and toggle item.
+ */
+export default function PholioButton({
+  children,
+  variant = 'secondary',
+  tone = 'light',
+  fullWidth = false,
+  className = '',
+  disabled = false,
+  loading = false,
+  type,
+  as,
+  to,
+  href,
+  tabIndex,
+  onClick,
+  ...props
+}) {
+  const resolvedVariant = normalizeVariant(variant);
+  const isDisabled = disabled || loading;
+  const classes = cx(
+    'pholio-btn',
+    `pholio-btn--${resolvedVariant}`,
+    tone === 'dark' && 'pholio-btn--tone-dark',
+    fullWidth && 'pholio-btn--full',
+    loading && 'is-loading',
+    className,
+  );
+
+  const handleClick = (event) => {
+    if (isDisabled) {
+      event.preventDefault();
+      return;
+    }
+    onClick?.(event);
+  };
+
+  const sharedProps = {
+    ...props,
+    className: classes,
+    'aria-busy': loading || undefined,
+    onClick: handleClick,
+  };
+
+  if (as === 'a' || href) {
+    return (
+      <a
+        href={isDisabled ? undefined : href}
+        aria-disabled={isDisabled || undefined}
+        tabIndex={isDisabled ? -1 : tabIndex}
+        {...sharedProps}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  if (as === Link || to) {
+    return (
+      <Link
+        to={isDisabled ? '#' : to}
+        aria-disabled={isDisabled || undefined}
+        tabIndex={isDisabled ? -1 : tabIndex}
+        {...sharedProps}
+      >
+        {children}
+      </Link>
+    );
+  }
+
+  const Component = as || 'button';
+
+  return (
+    <Component
+      type={type || 'button'}
+      disabled={isDisabled}
+      {...sharedProps}
+    >
+      {children}
+    </Component>
+  );
+}
+
+export function PholioIconButton({
+  label,
+  danger = false,
+  className = '',
+  children,
+  ...props
+}) {
+  return (
+    <PholioButton
+      variant="icon"
+      aria-label={label}
+      className={cx(danger && 'pholio-btn--icon-danger', className)}
+      {...props}
+    >
+      {children}
+    </PholioButton>
+  );
+}
+
+export function PholioToggleGroup({
+  children,
+  className = '',
+  tone = 'light',
+  role = 'group',
+  onKeyDown,
+  ...props
+}) {
+  const handleKeyDown = (event) => {
+    onKeyDown?.(event);
+    if (event.defaultPrevented) return;
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+
+    const items = Array.from(
+      event.currentTarget.querySelectorAll(
+        '[data-pholio-toggle]:not(:disabled):not([aria-disabled="true"])',
+      ),
+    );
+    if (!items.length) return;
+
+    const currentIndex = items.indexOf(document.activeElement);
+    let nextIndex = currentIndex;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = items.length - 1;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1 + items.length) % items.length;
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + items.length) % items.length;
+    if (nextIndex < 0) nextIndex = 0;
+
+    event.preventDefault();
+    items[nextIndex]?.focus();
+  };
+
+  return (
+    <div
+      className={cx(
+        'pholio-toggle-group',
+        tone === 'dark' && 'pholio-toggle-group--tone-dark',
+        className,
+      )}
+      role={role}
+      onKeyDown={handleKeyDown}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function PholioToggleButton({
+  active = false,
+  className = '',
+  children,
+  ...props
+}) {
+  const stateProps = props.role
+    ? {}
+    : { 'aria-pressed': props['aria-pressed'] ?? active };
+
+  return (
+    <PholioButton
+      variant="toggle"
+      className={cx(active && 'is-active', className)}
+      data-pholio-toggle
+      {...stateProps}
+      {...props}
+    >
+      {children}
+    </PholioButton>
+  );
+}

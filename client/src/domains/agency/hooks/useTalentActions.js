@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   acceptApplication, declineApplication, shortlistApplication,
-  archiveApplication, assignToBoard,
+  keepOnFileApplication, requestMoreApplication, requestMeetingApplication,
+  offerDevelopmentApplication, archiveApplication, assignToBoard,
 } from '../api/agency';
 
 // Shared talent action mutations — used by both the panel and the full-page view
@@ -26,12 +27,28 @@ export function useTalentActions(applicationId) {
   const accept = useMutation({ mutationFn: () => acceptApplication(applicationId), ...opts('Talent accepted') });
   const shortlist = useMutation({ mutationFn: () => shortlistApplication(applicationId), ...opts('Added to shortlist') });
   const decline = useMutation({ mutationFn: () => declineApplication(applicationId), ...opts('Application declined') });
+  const keepOnFile = useMutation({ mutationFn: () => keepOnFileApplication(applicationId), ...opts('Kept on file') });
+  const requestMore = useMutation({ mutationFn: () => requestMoreApplication(applicationId), ...opts('Requested more materials') });
+  const requestMeeting = useMutation({ mutationFn: () => requestMeetingApplication(applicationId), ...opts('Meeting requested') });
+  const offerDevelopment = useMutation({ mutationFn: () => offerDevelopmentApplication(applicationId), ...opts('Development offer sent') });
   const archive = useMutation({ mutationFn: () => archiveApplication(applicationId), ...opts('Archived') });
   const addToBoard = useMutation({ mutationFn: (boardId) => assignToBoard(applicationId, boardId), ...opts('Added to board') });
 
   const isPending =
     accept.isPending || shortlist.isPending || decline.isPending ||
-    archive.isPending || addToBoard.isPending;
+    keepOnFile.isPending || requestMore.isPending || requestMeeting.isPending ||
+    offerDevelopment.isPending || archive.isPending || addToBoard.isPending;
 
-  return { accept, shortlist, decline, archive, addToBoard, isPending };
+  return {
+    accept,
+    shortlist,
+    decline,
+    keepOnFile,
+    requestMore,
+    requestMeeting,
+    offerDevelopment,
+    archive,
+    addToBoard,
+    isPending,
+  };
 }

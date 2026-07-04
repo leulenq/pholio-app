@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
+import PholioButton from './PholioButton';
 import './ConfirmationDialog.css';
 
 /**
@@ -73,17 +74,17 @@ export default function ConfirmationDialog({
           </div>
 
           <div className="cfd-foot">
-            <button
+            <PholioButton
               type="button"
-              className="cfd-btn cfd-btn--ghost"
+              variant="tertiary"
               disabled={isConfirming}
               onClick={onCancel}
             >
               {cancelLabel}
-            </button>
-            <button
+            </PholioButton>
+            <PholioButton
               type="button"
-              className={`cfd-btn ${style.btnClass}`}
+              variant={variant === 'danger' ? 'destructive' : 'primary'}
               disabled={isConfirming}
               onClick={onConfirm}
             >
@@ -93,7 +94,7 @@ export default function ConfirmationDialog({
                   {confirmLabel}
                 </>
               ) : confirmLabel}
-            </button>
+            </PholioButton>
           </div>
         </div>
       </div>

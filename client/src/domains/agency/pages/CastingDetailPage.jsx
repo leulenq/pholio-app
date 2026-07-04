@@ -17,6 +17,7 @@ const TABS = [
   { key: 'all', label: 'All', match: () => true },
   { key: 'new', label: 'New', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
+  { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
   { key: 'booked', label: 'Booked', match: (s) => s === 'booked' },
   { key: 'accepted', label: 'Signed', match: (s) => s === 'accepted' },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },

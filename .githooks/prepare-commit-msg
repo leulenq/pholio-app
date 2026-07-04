@@ -1,0 +1,18 @@
+#!/bin/sh
+# Strip AI tool attribution trailers from commit messages.
+# Active when: git config core.hooksPath .githooks (see scripts/setup-git-hooks.sh)
+
+MSG_FILE="$1"
+[ -f "$MSG_FILE" ] || exit 0
+
+TMP="${MSG_FILE}.tmp.$$"
+
+grep -viE 'co-authored-by:.*(cursoragent@cursor\.com|noreply@anthropic\.com|noreply@openai\.com)' "$MSG_FILE" \
+  | grep -viE '^made-with:.*cursor' \
+  | grep -viE '^claude-session:' \
+  | grep -viE '^generated with \[claude code\]' \
+  | grep -viE '^🤖 generated with' \
+  > "$TMP"
+
+mv "$TMP" "$MSG_FILE"
+exit 0

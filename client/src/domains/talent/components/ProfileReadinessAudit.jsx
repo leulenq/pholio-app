@@ -1,27 +1,24 @@
 import React from 'react';
 import { Check, X } from 'lucide-react';
 import { buildReadinessLists } from './profileReadinessItems';
+import PholioButton, { PholioIconButton } from '../../../shared/components/ui/PholioButton';
 import styles from './ProfileReadinessAudit.module.css';
 
 function AuditItem({ item, tier, scrollTargetByKey, onItemClick }) {
   if (item.isComplete) return null;
 
   const targetSection = scrollTargetByKey[item.key];
-  const dotClass = tier === 'required' ? styles.dotRed : styles.dotSlate;
-
   return (
-    <button
+    <PholioButton
       type="button"
+      variant="tertiary"
       className={styles.auditItem}
       onClick={() => targetSection && onItemClick?.(targetSection)}
       disabled={!targetSection}
     >
-      <span className={`${styles.dot} ${dotClass}`} aria-hidden="true" />
       <span className={styles.auditLabel}>{item.label}</span>
-      {tier === 'required' ? (
-        <span className={styles.badgeRequired}>Required</span>
-      ) : null}
-    </button>
+      {tier === 'required' ? <span>Required</span> : null}
+    </PholioButton>
   );
 }
 
@@ -40,14 +37,13 @@ export default function ProfileReadinessAudit({
       <section className={styles.audit} aria-labelledby="readiness-audit-title">
         <header className={styles.auditHead}>
           <div>
-            <p className={styles.auditKicker}>Readiness</p>
             <h2 id="readiness-audit-title" className={styles.auditTitle}>
               Profile <em>complete</em>
             </h2>
           </div>
-          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close checklist">
+          <PholioIconButton type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close checklist">
             <X size={18} />
-          </button>
+          </PholioIconButton>
         </header>
         <div className={styles.completeState}>
           <Check size={28} className={styles.completeIcon} aria-hidden="true" />
@@ -61,7 +57,6 @@ export default function ProfileReadinessAudit({
     <section className={styles.audit} aria-labelledby="readiness-audit-title">
       <header className={styles.auditHead}>
         <div>
-          <p className={styles.auditKicker}>Readiness</p>
           <h2 id="readiness-audit-title" className={styles.auditTitle}>
             Full <em>checklist</em>
           </h2>
@@ -69,9 +64,9 @@ export default function ProfileReadinessAudit({
             {totalOpen} {totalOpen === 1 ? 'item' : 'items'} to address — tap any row to jump to that section.
           </p>
         </div>
-        <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close checklist">
+        <PholioIconButton type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close checklist">
           <X size={18} />
-        </button>
+        </PholioIconButton>
       </header>
 
       <div className={styles.auditGrid}>

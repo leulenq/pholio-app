@@ -1,0 +1,105 @@
+import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
+import PholioButton from '../../../shared/components/ui/PholioButton';
+import { analyzePortfolio } from '../../../shared/utils/portfolioGapAnalysis';
+import { analyzePackageIntelligence } from '../../../shared/utils/packageIntelligence';
+import { imageNeedsReview } from '../../../shared/utils/imageClassification';
+import { buildBookIntelligence } from '../utils/bookIntelligence';
+import { ClassificationReviewRows } from './ClassificationReviewStrip';
+import './ClassificationReviewStrip.css';
+import './DigitalsBookPanel.css';
+
+function countLabel(readCount, refinementCount) {
+  if (readCount > 0 && refinementCount > 0) {
+    return `${readCount} ${readCount === 1 ? 'read' : 'reads'} · ${refinementCount} ${refinementCount === 1 ? 'refinement' : 'refinements'}`;
+  }
+  if (readCount > 0) return `${readCount} frame ${readCount === 1 ? 'read' : 'reads'}`;
+  return `${refinementCount} ${refinementCount === 1 ? 'refinement' : 'refinements'}`;
+}
+
+// Body-imagery coaching withheld from an unconsented minor — keeps the /media
+// "Digitals read" panel in agreement with the readiness path's consent gate.
+const SUPPRESSED_BODY_SUGGESTION_IDS = new Set([
+  'fullbody',
+  'back',
+  'book_full_length_not_digital',
+]);
+
+export default function DigitalsBookPanel({ images = [], profile = null, onConfirm, onEdit }) {
+  // Profile is threaded so minor-suppression activates: analyzePortfolio drops the
+  // body-imagery checks, and we strip any residual body suggestions below.
+  const analysis = useMemo(() => analyzePortfolio(images, profile), [images, profile]);
+  const pkg = useMemo(() => analyzePackageIntelligence({ images, profile }), [images, profile]);
+  const intel = useMemo(() => buildBookIntelligence(analysis, images), [analysis, images]);
+  const suggestions = useMemo(() => {
+    if (!pkg.suppressBodyImagery) return intel.suggestions;
+    return intel.suggestions.filter((s) => !SUPPRESSED_BODY_SUGGESTION_IDS.has(s.id));
+  }, [intel.suggestions, pkg.suppressBodyImagery]);
+  const reviewItems = useMemo(() => images.filter(imageNeedsReview), [images]);
+  const [open, setOpen] = useState(true);
+
+  if (images.length === 0 || (suggestions.length === 0 && reviewItems.length === 0)) return null;
+
+  const refinementCount = suggestions.length;
+  const readCount = reviewItems.length;
+  const segments = Array.from({ length: intel.total }, (_, i) => i < intel.covered);
+
+  return (
+    <div className={`phi${open ? ' phi--open' : ''}`}>
+      <PholioButton
+        type="button"
+        variant="tertiary"
+        fullWidth
+        className="phi__bar"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="phi__title">Digitals read</span>
+        <span className="phi__coverage" aria-hidden="true">
+          {segments.map((filled, i) => (
+            <span key={i} className={`phi__seg${filled ? ' phi__seg--on' : ''}`} />
+          ))}
+        </span>
+        <span className="phi__count">
+          {countLabel(readCount, refinementCount)}
+        </span>
+        <ChevronDown size={14} className="phi__chevron" aria-hidden="true" />
+      </PholioButton>
+
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            className="phi__body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="phi__inner">
+              {reviewItems.length > 0 ? (
+                <div className="phi__reads">
+                  <ClassificationReviewRows
+                    images={images}
+                    onConfirm={onConfirm}
+                    onEdit={onEdit}
+                  />
+                </div>
+              ) : null}
+              {suggestions.length > 0 ? (
+                <ul className="phi__list">
+                  {suggestions.map((s) => (
+                    <li key={s.id} className="phi__item">
+                      <span className="phi__item-title">{s.title}</span>
+                      <span className="phi__item-text">{s.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}

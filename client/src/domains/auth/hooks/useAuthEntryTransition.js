@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   AUTH_ENTRY_EXIT_MS,
   clearAuthEntryTransition,
+  consumeArrivedFromReveal,
   getAuthEntryRemainingMs,
   getAuthEntryStartedAt,
   shouldShowAuthEntrySplash,
@@ -13,9 +14,19 @@ import {
  *    display duration elapses.
  * 2. exiting — data is ready; the splash crossfades out over the mounted
  *    dashboard shell, then unmounts.
+ *
+ * Exception: arriving from the RevealPage welcome letter is a one-shot
+ * handoff — that flow already closed with its own farewell beat, so the
+ * splash is skipped entirely and the flag is consumed on read.
  */
 export function useAuthEntryTransition(isDataReady) {
-  const [active, setActive] = useState(() => shouldShowAuthEntrySplash());
+  const [active, setActive] = useState(() => {
+    if (consumeArrivedFromReveal()) {
+      clearAuthEntryTransition();
+      return false;
+    }
+    return shouldShowAuthEntrySplash();
+  });
   const [minElapsed, setMinElapsed] = useState(() => getAuthEntryRemainingMs() === 0);
   // Captured once — the exit phase clears sessionStorage.
   const [startedAt] = useState(() => getAuthEntryStartedAt());

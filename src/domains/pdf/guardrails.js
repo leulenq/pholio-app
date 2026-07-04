@@ -1,13 +1,7 @@
 const MIN_REQUIRED_IMAGES = 5;
 const MIN_PRINT_SHORT_EDGE_PX = 1200;
-
-const RIGHTS_DENIED_VALUES = new Set([
-  "denied",
-  "blocked",
-  "forbidden",
-  "unlicensed",
-  "restricted",
-]);
+const { RIGHTS_DENIED_STATUSES } = require("../../shared/lib/image-rights");
+const RIGHTS_DENIED_VALUES = RIGHTS_DENIED_STATUSES;
 
 function parseMetadata(metadata) {
   if (!metadata) return {};
@@ -101,25 +95,39 @@ function checkSourcePaths(selectedImages) {
   return checks;
 }
 
+/**
+ * Comp-card composition guardrail — NOT the final send-to-agency gate.
+ *
+ * This only needs to know (a) is the image explicitly denied for use, and
+ * (b) is there any rights signal on the image at all. Full legal
+ * distribution certification (license basis, copyright/photographer
+ * credit, active license dates — see `imageHasDistributionRights` in
+ * `shared/lib/image-rights.js`) is a stricter, separate gate enforced at
+ * actual submission time by `talent/services/send-readiness.js`. Reusing
+ * that stricter check here previously made nearly every real fixture
+ * (e.g. `usage_rights: "granted"` with no `license_type`/copyright yet on
+ * file) blocking-fail composition, which is not what this guardrail is for.
+ */
 function checkRightsMetadata(selectedImages) {
   const checks = [];
   selectedImages.forEach((image) => {
     const rights = resolveRightsToken(image);
-    if (!rights) {
-      checks.push({
-        id: "rights-metadata-present",
-        level: "warn",
-        message: `Image ${image?.id || "unknown"} has no explicit rights metadata.`,
-      });
-      return;
-    }
-
     if (RIGHTS_DENIED_VALUES.has(rights)) {
       checks.push({
         id: "rights-permitted",
         level: "error",
         message: `Image ${image?.id || "unknown"} is marked as not licensed for use.`,
       });
+      return;
+    }
+
+    if (!rights) {
+      checks.push({
+        id: "rights-metadata-present",
+        level: "error",
+        message: `Image ${image?.id || "unknown"} is missing distribution rights metadata.`,
+      });
+      return;
     }
   });
   return checks;
@@ -214,5 +222,6 @@ function evaluateCompCardGuardrails({
 module.exports = {
   MIN_REQUIRED_IMAGES,
   MIN_PRINT_SHORT_EDGE_PX,
+  RIGHTS_DENIED_VALUES,
   evaluateCompCardGuardrails,
 };

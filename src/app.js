@@ -13,8 +13,12 @@ const {
   initializeFirebaseAdmin,
 } = require("./domains/auth/services/firebase-admin");
 const { errorHandler } = require("./shared/middleware/error-handler");
+const {
+  createTalentAiWriterRateLimit,
+} = require("./shared/middleware/ai-writer-rate-limit");
 const cookieParser = require("cookie-parser");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
+const { requireActiveAccount } = require("./domains/auth/middleware/require-auth");
 
 // +++ 1. ADD THIS LINE +++
 const ejs = require("ejs");
@@ -37,6 +41,8 @@ const scoutRoutes = require("./routes/scout");
 const apiRoutes = require("./routes/api");
 const publicRoutes = require("./routes/api/public");
 const portfolioRoutes = require("./routes/portfolio");
+const moderationRoutes = require("./domains/moderation/routes/reports");
+const guardianConsentRoutes = require("./domains/talent/routes/guardian-consent");
 
 const app = express();
 
@@ -213,26 +219,23 @@ app.use((req, res, next) => {
 // Custom key generator for rate limiting that works in serverless environments
 // This ensures we always return a valid key for rate limiting
 function rateLimitKeyGenerator(req) {
-  // Fallback to session ID if available (more reliable in serverless)
-  if (req.session && req.sessionID) {
-    return `session:${req.sessionID}`;
-  }
-
-  // Fallback to user ID if authenticated
+  // Authenticated requests: key on the stable user identity so a signed-in
+  // user shares one bucket across requests.
   if (req.session && req.session.userId) {
     return `user:${req.session.userId}`;
   }
 
-  // Use express-rate-limit's IPv6-safe helper when falling back to IP keys.
+  // Unauthenticated requests: key on client IP. We deliberately do NOT key on
+  // req.sessionID here — with saveUninitialized:false, express-session mints a
+  // fresh sessionID for every cookieless request, so a scripted client that
+  // drops cookies would get a unique bucket per request and bypass the limiter
+  // entirely (audit finding H1). ipKeyGenerator is the IPv6-safe helper.
   const ip =
     req.ip ||
     req.connection?.remoteAddress ||
     req.socket?.remoteAddress ||
     "127.0.0.1";
   return ipKeyGenerator(ip);
-
-  // Final fallback: use a combination that's unique enough
-  // This should rarely be used since we ensure req.ip is set
 }
 
 // --- 3. COMMENT OUT YOUR OLD MIDDLEWARE ---
@@ -256,9 +259,46 @@ app.use((req, res, next) => {
 */
 // --- END OF COMMENTED-OUT BLOCK ---
 
+// Baseline CSP, built on helmet's defaults (object-src 'none', base-uri 'self',
+// font-src/style-src already allow https:/'unsafe-inline', which covers Google
+// Fonts and the app's existing inline <style>/style= usage).
+// Shipped in REPORT-ONLY mode: this app mixes an EJS-rendered shell (inline
+// Firebase init <script>) with a React SPA, and there is no nonce/hash
+// infrastructure today, so we can't safely verify a fully-enforced policy
+// without a browser pass. Report-Only makes the policy active/observable via
+// the Content-Security-Policy-Report-Only header with zero risk of breaking
+// auth, uploads, or PDF rendering; flip `reportOnly` to false once violation
+// reports come back clean.
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      useDefaults: true,
+      reportOnly: true,
+      directives: {
+        // Inline <script type="module"> Firebase bootstrap in views/layout.ejs
+        // has no nonce yet, so 'unsafe-inline' is required for now.
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.gstatic.com"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://*.googleusercontent.com", // Google/Firebase auth avatars
+          "https://*.firebasestorage.app",
+          "https://*.appspot.com",
+          "https://*.r2.dev", // Cloudflare R2 public uploads bucket
+          "https://*.r2.cloudflarestorage.com",
+        ],
+        connectSrc: [
+          "'self'",
+          "https://*.googleapis.com", // Firebase Auth/Firestore REST + Google Fonts CSS
+          "https://*.firebaseio.com",
+          "https://www.gstatic.com",
+          "https://*.r2.dev",
+          "https://*.r2.cloudflarestorage.com",
+        ],
+        frameSrc: ["'self'", "https://*.firebaseapp.com"],
+      },
+    },
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   }),
 );
@@ -407,31 +447,92 @@ if (process.env.AUTH_PASSTHROUGH_ENABLED === "1") {
 
 app.use(attachLocals);
 
-// Rate limiters: skipped in serverless (Netlify Functions) because the in-memory store
-// is shared across all users hitting the same Lambda instance — causing everyone to get
-// blocked after just 10 combined requests. Netlify's edge handles DDoS/abuse at the CDN level.
-if (!config.isServerless) {
-  const authLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: rateLimitKeyGenerator,
-    validate: { ip: false },
-  });
+// Rate limiters: always enabled. Serverless uses higher per-instance limits because
+// the in-memory store is shared across users on the same Lambda instance.
+const rateLimitMax = {
+  auth: config.isServerless ? 15 : 10,
+  upload: config.isServerless ? 60 : 20,
+  message: config.isServerless ? 30 : 15,
+  report: config.isServerless ? 20 : 10,
+  aiWriter: config.isServerless ? 20 : 10,
+};
 
-  const uploadLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 20,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: rateLimitKeyGenerator,
-    validate: { ip: false },
-  });
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.auth,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
 
-  app.use(["/login", "/signup"], authLimiter);
-  app.use("/upload", uploadLimiter);
-}
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.upload,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
+const messageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.message,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
+const reportsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.report,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
+const talentAiWriterLimiter = createTalentAiWriterRateLimit({
+  max: rateLimitMax.aiWriter,
+});
+
+app.use(["/login", "/signup"], authLimiter);
+app.use(["/onboarding/entry", "/casting/entry"], authLimiter);
+app.use("/upload", uploadLimiter);
+app.use("/api/talent/media", uploadLimiter);
+app.use(["/onboarding/scout", "/casting/scout"], uploadLimiter);
+app.use(talentAiWriterLimiter);
+app.use((req, res, next) => {
+  if (req.method !== "POST") return next();
+  const path = (req.originalUrl || req.path || "").split("?")[0];
+  const isAgencyMessage = /^\/api\/agency\/applications\/[^/]+\/messages$/.test(
+    path,
+  );
+  const isTalentMessage = /^\/api\/talent\/applications\/[^/]+\/messages$/.test(
+    path,
+  );
+  if (isAgencyMessage || isTalentMessage) {
+    return messageLimiter(req, res, next);
+  }
+  return next();
+});
+app.use((req, res, next) => {
+  if (req.method !== "POST") return next();
+  const path = (req.originalUrl || req.path || "").split("?")[0];
+  if (path === "/api/reports") {
+    return reportsLimiter(req, res, next);
+  }
+  return next();
+});
+
+// Authenticated dashboard APIs return account-scoped data and must never be
+// stored by browser/shared caches. Scoped to the authenticated API mounts
+// only — public/static asset routes are untouched.
+app.use(["/api/talent", "/api/agency"], (req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  next();
+});
 
 // Migration endpoint (protected by secret token)
 // Call this once after deployment to set up database tables
@@ -439,22 +540,22 @@ app.post("/api/migrate", async (req, res) => {
   try {
     // Check for migration secret (required for security)
     const migrationSecret = process.env.MIGRATION_SECRET;
+
+    // Fail closed: an unset/empty MIGRATION_SECRET must refuse the request,
+    // never run migrations over an unauthenticated HTTP endpoint.
+    if (!migrationSecret) {
+      return res.status(404).end();
+    }
+
     const providedSecret =
       req.query.secret || req.headers["x-migration-secret"];
 
-    if (migrationSecret && providedSecret !== migrationSecret) {
+    if (providedSecret !== migrationSecret) {
       return res.status(401).json({
         error: "Unauthorized",
         message:
           "Invalid migration secret. Set MIGRATION_SECRET in environment variables and provide it as ?secret=... or X-Migration-Secret header.",
       });
-    }
-
-    // If no secret is set, warn but allow (for initial setup)
-    if (!migrationSecret) {
-      console.warn(
-        "[Migration] WARNING: MIGRATION_SECRET not set. Migration endpoint is unprotected!",
-      );
     }
 
     console.log("[Migration] Starting database migrations...");
@@ -499,9 +600,27 @@ app.post("/api/migrate", async (req, res) => {
   }
 });
 
-// Migration status endpoint (read-only, no secret required)
+// Migration status endpoint (same fail-closed secret gate as POST /api/migrate
+// — this exposes migration/schema internals and must not be public).
 app.get("/api/migrate/status", async (req, res) => {
   try {
+    const migrationSecret = process.env.MIGRATION_SECRET;
+
+    if (!migrationSecret) {
+      return res.status(404).end();
+    }
+
+    const providedSecret =
+      req.query.secret || req.headers["x-migration-secret"];
+
+    if (providedSecret !== migrationSecret) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message:
+          "Invalid migration secret. Set MIGRATION_SECRET in environment variables and provide it as ?secret=... or X-Migration-Secret header.",
+      });
+    }
+
     const currentVersion = await knex.migrate.currentVersion();
     const status = await knex.migrate.status();
     const list = await knex.migrate.list();
@@ -540,10 +659,16 @@ app.use("/", scoutRoutes);
 // API Routes
 app.use("/api", apiRoutes);
 app.use("/api/public", publicRoutes);
-app.use("/", agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
-
-// Application/onboarding routes (casting API; see TODO on onboardingRoutes require above)
+app.use("/api", moderationRoutes);
+// Guardian consent (token-verified). Mounted before onboarding-gated routes so the
+// public guardian-facing surfaces (page + verify) are reachable without a session.
+app.use("/", guardianConsentRoutes);
+// Casting onboarding API must run before requireActiveAccount so stale/deleted
+// sessions do not block new Google/email sign-up at POST /onboarding/entry.
 app.use("/", onboardingRoutes);
+app.use("/", requireActiveAccount(), agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
+
+// Application/onboarding routes mounted above (casting API)
 
 // Onboarding redirect middleware (applied to dashboard routes)
 const {
@@ -556,7 +681,7 @@ app.use("/", portfolioRoutes);
 // Dashboard routes (protected by onboarding middleware).
 // requireProfileUnlocked is not applied here: it only redirects HTML and would block
 // /api/talent/* needed to complete essentials; comp card / PDF locking stays per-route in domain routers.
-app.use("/", requireOnboardingComplete, dashboardTalentRoutes);
+app.use("/", requireOnboardingComplete, requireActiveAccount(), dashboardTalentRoutes);
 // Agency dashboard routes handled by agencyDomainRoutes above
 
 // PDF generation routes (public viewing routes don't need unlock check)

@@ -12,12 +12,20 @@ const {
   processAgencyLogo,
 } = require("../../../shared/lib/uploader");
 const { v4: uuidv4 } = require("uuid");
-const { sendApplicationStatusEmail } = require("../../../shared/lib/email");
+const {
+  sendApplicationStatusEmail,
+  sendAgencyInviteEmail,
+} = require("../../../shared/lib/email");
 const {
   getSessionActorUserId,
   getSessionAgencyId,
 } = require("../services/context");
+const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
 const { searchDiscoverableTalent } = require("../services/discover-search");
+const {
+  recordDiscoveryImpressions,
+  recordProfileEvent,
+} = require("../../talent/services/intel/capture");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const { recalculateBoardScores } = require("./recalculate-board-scores");
 const {
@@ -34,6 +42,33 @@ const {
 
 const { recordAuditEvent } = require("../services/audit");
 const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
+const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
+const {
+  loadApplicationSubmissionPackages,
+} = require("../services/application-submission-package");
+const {
+  buildSubmissionProfileSnapshot,
+} = require("../../../shared/lib/submission-profile");
+const {
+  AUDIENCE,
+  buildAgencyDiscoveryDTO,
+  buildAgencySubmissionDTO,
+} = require("../../../shared/lib/audience-dto");
+const {
+  applyImageVisibility,
+  isAgencyDiscoverable,
+} = require("../../../shared/lib/profile-visibility");
+const {
+  ensureModerationColumnChecked,
+} = require("../../../shared/lib/content-moderation");
+const {
+  loadSocialAccountsForProfile,
+  loadSocialAccountsForProfiles,
+} = require("../../../shared/lib/social-accounts");
+const {
+  computeAge,
+  isMinorProfile,
+} = require("../../../shared/lib/talent-age");
 
 const addTeamMemberSchema = z.object({
   email: z
@@ -111,7 +146,7 @@ router.get(
       // Get application counts for each board
       const boardsWithCounts = await Promise.all(
         boards.map(async (board) => {
-          const [count, submittedCount, bookedCount] = await Promise.all([
+          const [count, submittedCount, representedCount] = await Promise.all([
             knex("board_applications")
               .where({ board_id: board.id })
               .count("* as count")
@@ -124,7 +159,8 @@ router.get(
               .first(),
             knex("board_applications as ba")
               .join("applications as a", "a.id", "ba.application_id")
-              .where({ "ba.board_id": board.id, "a.status": "booked" })
+              .where({ "ba.board_id": board.id })
+              .whereIn("a.status", ["booked", "represented"])
               .count("* as count")
               .first(),
           ]);
@@ -132,7 +168,8 @@ router.get(
             ...board,
             application_count: parseInt(count?.count || 0),
             submitted_count: parseInt(submittedCount?.count || 0),
-            booked_count: parseInt(bookedCount?.count || 0),
+            represented_count: parseInt(representedCount?.count || 0),
+            booked_count: parseInt(representedCount?.count || 0),
             preview: previewByBoard[board.id] || [],
           };
         }),
@@ -672,17 +709,20 @@ router.get(
         date_to = "",
       } = req.query;
 
+      // SECURITY (audit P0-3): this endpoint returns ONLY real applicants to the
+      // session agency. An INNER JOIN scoped to `applications.agency_id = <session
+      // agency>` replaces the previous LEFT JOIN + `whereNull("applications.id")`
+      // path, which leaked every discoverable profile (non-applicants included) to
+      // any agency. Withdrawn submissions are excluded.
       let query = knex("profiles")
         .select(
           "profiles.*",
-          "users.email as owner_email",
           "applications.status as application_status",
           "applications.id as application_id",
           "applications.match_score as match_score",
           "applications.created_at as application_created_at",
         )
-        .leftJoin("users", "profiles.user_id", "users.id")
-        .leftJoin("applications", (join) => {
+        .innerJoin("applications", (join) => {
           join
             .on("applications.profile_id", "=", "profiles.id")
             .andOn(
@@ -691,7 +731,8 @@ router.get(
               knex.raw("?", [req.session.userId]),
             );
         })
-        .whereNotNull("profiles.bio_curated");
+        .whereNotNull("profiles.bio_curated")
+        .whereNot("applications.status", "withdrawn");
 
       // Apply filters (same logic as main route)
       if (city) {
@@ -776,14 +817,39 @@ router.get(
 
       const profiles = await query;
 
-      // Fetch images
-      const profileIds = profiles.map((p) => p.id);
-      const allImages =
-        profileIds.length > 0
-          ? await knex("images")
-              .whereIn("profile_id", profileIds)
-              .orderBy(["profile_id", "sort", "created_at"])
-          : [];
+      const submissionPackages = await loadApplicationSubmissionPackages(
+        knex,
+        profiles
+          .filter((profile) => profile.application_id)
+          .map((profile) => ({
+            id: profile.application_id,
+            profile_id: profile.id,
+            slug: profile.slug,
+          })),
+      );
+
+      // Legacy applications without a package retain the live-profile fallback.
+      // Once a package exists, only its submitted image selection is exposed.
+      const profileIds = profiles
+        .filter(
+          (profile) =>
+            !profile.application_id ||
+            !submissionPackages.has(profile.application_id),
+        )
+        .map((profile) => profile.id);
+      let allImages = [];
+      if (profileIds.length > 0) {
+        await ensureModerationColumnChecked(knex);
+        const imageQuery = knex("images").whereIn("profile_id", profileIds);
+        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        allImages = await imageQuery.orderBy([
+          "profile_id",
+          "sort",
+          "created_at",
+        ]);
+      }
 
       const imagesByProfile = {};
       allImages.forEach((img) => {
@@ -792,6 +858,10 @@ router.get(
         }
         imagesByProfile[img.profile_id].push(img);
       });
+
+      // Batched with the image query above — same live-fallback profileIds,
+      // one query for the whole page (audit P1-4, avoids N+1).
+      const socialByProfile = await loadSocialAccountsForProfiles(profileIds);
 
       // Fetch tags for each application
       const applicationIds = profiles
@@ -812,12 +882,34 @@ router.get(
         tagsByApplication[tag.application_id].push(tag);
       });
 
-      profiles.forEach((profile) => {
-        profile.images = imagesByProfile[profile.id] || [];
-        profile.tags = tagsByApplication[profile.application_id] || [];
+      const safeProfiles = profiles.map((profile) => {
+        const submissionPackage = submissionPackages.get(
+          profile.application_id,
+        );
+        // A frozen submission snapshot (already minor-safe) wins; otherwise shape
+        // the live row through the agency-submission DTO. Never spread the raw
+        // profile row and never surface the owner's account email (audit P0-3).
+        const submitted = submissionPackage?.profile
+          ? {
+              ...submissionPackage.profile,
+              images: submissionPackage.images || [],
+            }
+          : buildAgencySubmissionDTO(profile, {
+              images: imagesByProfile[profile.id] || [],
+              social: socialByProfile.get(profile.id) || [],
+            });
+        return {
+          ...submitted,
+          application_status: profile.application_status,
+          application_id: profile.application_id,
+          match_score: profile.match_score,
+          application_created_at: profile.application_created_at,
+          submission_package: submissionPackage || null,
+          tags: tagsByApplication[profile.application_id] || [],
+        };
       });
 
-      return res.json({ profiles, count: profiles.length });
+      return res.json({ profiles: safeProfiles, count: safeProfiles.length });
     } catch (error) {
       console.error("[API/Agency/Applications] Error:", error);
       return next(error);
@@ -841,6 +933,9 @@ router.get(
           (a) => !a.status || a.status === "pending",
         ).length,
         accepted: allApplications.filter((a) => a.status === "accepted").length,
+        development: allApplications.filter(
+          (a) => a.status === "development",
+        ).length,
         declined: allApplications.filter((a) => a.status === "declined").length,
         archived: allApplications.filter((a) => a.status === "archived").length,
         newToday: allApplications.filter((a) => {
@@ -973,11 +1068,16 @@ router.patch(
       const allowedStatuses = [
         "submitted",
         "shortlisted",
+        "requested_more",
+        "meeting_requested",
+        "development",
         "accepted",
         "booked",
+        "represented",
         "passed",
         "declined",
         "archived",
+        "kept_on_file",
       ];
 
       if (!allowedStatuses.includes(requestedStatus)) {
@@ -1001,7 +1101,13 @@ router.patch(
           accepted_at:
             requestedStatus === "accepted"
               ? knex.fn.now()
-              : application.accepted_at,
+              : (requestedStatus === "booked" || requestedStatus === "represented")
+                ? application.accepted_at || knex.fn.now()
+                : null,
+          declined_at:
+            requestedStatus === "declined" || requestedStatus === "passed"
+              ? knex.fn.now()
+              : null,
           updated_at: knex.fn.now(),
         });
 
@@ -1290,11 +1396,16 @@ router.patch(
       const allowedStatuses = [
         "submitted",
         "shortlisted",
+        "requested_more",
+        "meeting_requested",
+        "development",
         "accepted",
         "booked",
+        "represented",
         "passed",
         "declined",
         "archived",
+        "kept_on_file",
       ];
 
       if (!allowedStatuses.includes(requestedStatus)) {
@@ -1315,7 +1426,16 @@ router.patch(
         .whereIn("id", applicationIds)
         .update({
           status: requestedStatus,
-          accepted_at: requestedStatus === "accepted" ? knex.fn.now() : null,
+          accepted_at:
+            requestedStatus === "accepted"
+              ? knex.fn.now()
+              : (requestedStatus === "booked" || requestedStatus === "represented")
+                ? knex.raw("COALESCE(accepted_at, CURRENT_TIMESTAMP)")
+                : null,
+          declined_at:
+            requestedStatus === "declined" || requestedStatus === "passed"
+              ? knex.fn.now()
+              : null,
           updated_at: knex.fn.now(),
         });
 
@@ -1486,7 +1606,10 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
     const actorUserId = getSessionActorUserId(req);
     const agencyId = getSessionAgencyId(req);
     const user = await knex("users").where({ id: actorUserId }).first();
-    const agency = await knex("agencies").where({ id: agencyId }).first();
+    let agency = await knex("agencies").where({ id: agencyId }).first();
+    if (agency) {
+      agency = await injectAgencySocialFields(agency);
+    }
 
     if (!user || !agency) {
       return res.status(404).json({ error: "Agency account not found" });
@@ -1527,6 +1650,20 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
   }
 });
 
+const agencyProfileUpdateSchema = z.object({
+  first_name: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  last_name: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_name: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_location: z.string().trim().max(255).optional().or(z.literal("")).or(z.null()),
+  agency_website: z.string().trim().url("Enter a valid URL").max(255).optional().or(z.literal("")).or(z.null()),
+  agency_description: z.string().trim().max(1000).optional().or(z.literal("")).or(z.null()),
+  agency_instagram_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_tiktok_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_twitter_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_youtube_handle: z.string().trim().max(100).optional().or(z.literal("")).or(z.null()),
+  agency_video_reel_url: z.string().trim().url("Enter a valid URL").max(500).optional().or(z.literal("")).or(z.null()),
+});
+
 // PUT /api/agency/profile - Update agency profile
 router.put(
   "/api/agency/profile",
@@ -1536,6 +1673,16 @@ router.put(
     try {
       const actorUserId = getSessionActorUserId(req);
       const agencyId = getSessionAgencyId(req);
+
+      const parsed = agencyProfileUpdateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Validation failed",
+          errors: parsed.error.flatten().fieldErrors,
+        });
+      }
+
       const {
         first_name,
         last_name,
@@ -1548,7 +1695,7 @@ router.put(
         agency_twitter_handle,
         agency_youtube_handle,
         agency_video_reel_url,
-      } = req.body;
+      } = parsed.data;
 
       const updateData = {};
       if (first_name !== undefined) updateData.first_name = first_name || null;
@@ -1566,21 +1713,20 @@ router.put(
         agencyUpdateData.website = agency_website || null;
       if (agency_description !== undefined)
         agencyUpdateData.description = agency_description || null;
-      if (agency_instagram_handle !== undefined)
-        agencyUpdateData.instagram_handle = agency_instagram_handle || null;
-      if (agency_tiktok_handle !== undefined)
-        agencyUpdateData.tiktok_handle = agency_tiktok_handle || null;
-      if (agency_twitter_handle !== undefined)
-        agencyUpdateData.twitter_handle = agency_twitter_handle || null;
-      if (agency_youtube_handle !== undefined)
-        agencyUpdateData.youtube_handle = agency_youtube_handle || null;
-      if (agency_video_reel_url !== undefined)
-        agencyUpdateData.video_reel_url = agency_video_reel_url || null;
 
       if (Object.keys(agencyUpdateData).length > 0) {
         agencyUpdateData.updated_at = knex.fn.now();
         await knex("agencies").where({ id: agencyId }).update(agencyUpdateData);
       }
+
+      const socialData = {};
+      if (agency_instagram_handle !== undefined) socialData.instagram_handle = agency_instagram_handle;
+      if (agency_tiktok_handle !== undefined) socialData.tiktok_handle = agency_tiktok_handle;
+      if (agency_twitter_handle !== undefined) socialData.twitter_handle = agency_twitter_handle;
+      if (agency_youtube_handle !== undefined) socialData.youtube_handle = agency_youtube_handle;
+      if (agency_video_reel_url !== undefined) socialData.video_reel_url = agency_video_reel_url;
+
+      await saveAgencySocialFields(agencyId, socialData);
 
       return res.json({
         success: true,
@@ -2075,7 +2221,8 @@ router.get(
           "profiles.bust_cm as bust",
           "profiles.waist_cm as waist",
           "profiles.hips_cm as hips",
-          "profiles.age",
+          // Age is DERIVED from DOB (audit P0-7) — never the stored column.
+          "profiles.date_of_birth",
           "profiles.bio_curated",
           "applications.id as application_id",
           "applications.status as application_status",
@@ -2090,7 +2237,8 @@ router.get(
             .on("applications.profile_id", "=", "profiles.id")
             .andOn("applications.agency_id", "=", knex.raw("?", [agencyId]));
         })
-        .whereNotNull("profiles.bio_curated");
+        .whereNotNull("profiles.bio_curated")
+        .whereNot("applications.status", "withdrawn");
 
       // Apply filters
       if (status && status !== "all") {
@@ -2167,13 +2315,18 @@ router.get(
         const measurementsStr =
           measurements.length > 0 ? measurements.join(", ") : "";
 
+        // Applicant email to the agency they applied to is legitimate — but a
+        // minor's contact is nulled (guardian-mediated), matching the DTO layer.
+        const minor = isMinorProfile(app);
+        const derivedAge = computeAge(app.date_of_birth);
+
         return {
           name: `${app.first_name} ${app.last_name}`,
-          email: app.owner_email || "",
+          email: minor ? "" : app.owner_email || "",
           city: app.city || "",
           height_cm: app.height_cm || "",
           measurements: measurementsStr,
-          age: app.age || "",
+          age: derivedAge != null ? derivedAge : "",
           bio: app.bio_curated || "",
           notes: notesMap[app.application_id] || "",
           tags: tagsMap[app.application_id] || "",
@@ -2290,6 +2443,13 @@ router.get(
 
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
+      }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message:
+            "The talent withdrew this submission and Pholio revoked access to its disclosure package.",
+        });
       }
 
       const notes = await knex("application_notes")
@@ -2481,6 +2641,13 @@ router.get(
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
       }
+      if (application.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message:
+            "The talent withdrew this submission and Pholio revoked access to its disclosure package.",
+        });
+      }
 
       // Get full profile with all details
       const profile = await knex("profiles")
@@ -2491,13 +2658,46 @@ router.get(
         return res.status(404).json({ error: "Profile not found" });
       }
 
-      // Get all images
-      const images = await knex("images")
-        .where({ profile_id: profile.id })
-        .orderBy(["sort", "created_at"]);
-
       // Get user info
       const user = await knex("users").where({ id: profile.user_id }).first();
+      const submissionPackages = await loadApplicationSubmissionPackages(knex, [
+        {
+          id: application.id,
+          profile_id: application.profile_id,
+          slug: profile.slug,
+        },
+      ]);
+      const submittedPackage = submissionPackages.get(application.id) || null;
+      // Only needed for the live-profile fallback below — a frozen package
+      // snapshot already has its social links baked in.
+      const social = submittedPackage?.profile
+        ? []
+        : await loadSocialAccountsForProfile(profile.id);
+      const submittedProfile =
+        submittedPackage?.profile ||
+        buildSubmissionProfileSnapshot(profile, { social });
+      let images;
+      if (submittedPackage) {
+        images = submittedPackage.images;
+      } else {
+        await ensureModerationColumnChecked(knex);
+        const imageQuery = knex("images").where({ profile_id: profile.id });
+        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        images = await imageQuery.orderBy(["sort", "created_at"]);
+      }
+      const submissionPackage = submittedPackage
+        ? {
+            ...submittedPackage,
+            contact: submittedProfile.is_minor
+              ? null
+              : submittedPackage.contact || {
+                  email: user?.email || profile.email || null,
+                  phone: profile.phone || null,
+                },
+          }
+        : null;
 
       // Get notes
       const notes = await knex("application_notes")
@@ -2526,10 +2726,11 @@ router.get(
           invited_by_agency_id: application.invited_by_agency_id,
         },
         profile: {
-          ...profile,
+          ...submittedProfile,
           images,
-          user_email: user?.email || null,
+          user_email: submittedProfile.is_minor ? null : user?.email || null,
         },
+        submissionPackage,
         notes,
         tags,
       });
@@ -2562,18 +2763,27 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Get all images
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .orderBy(["sort", "created_at"]);
-
-      // Get user info
-      const user = await knex("users").where({ id: profile.user_id }).first();
-
       // Check if there's an existing application for this profile
       const application = await knex("applications")
         .where({ profile_id: profileId, agency_id: agencyId })
         .first();
+
+      // Without an application this is GENERIC discovery — a minor (no named-
+      // agency guardian auth) or a profile excluding this agency must not be
+      // exposed here (audit P0-3, fail closed).
+      if (!application && !isAgencyDiscoverable(profile, { agencyId })) {
+        return res
+          .status(404)
+          .json({ error: "Profile not found or not discoverable" });
+      }
+
+      // Get visible images only (moderation + agency-exclusion filtered).
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]);
 
       // If application exists, get notes and tags
       let notes = [];
@@ -2588,6 +2798,14 @@ router.get(
           .orderBy("created_at", "desc");
       }
 
+      // Static-allowlist DTO — never spread the raw profile row and never leak
+      // the owner's account email. An actual submission gets the richer (still
+      // minor-safe) submission snapshot; generic discovery gets the tighter card.
+      const social = await loadSocialAccountsForProfile(profileId);
+      const profileDto = application
+        ? buildAgencySubmissionDTO(profile, { images, social })
+        : buildAgencyDiscoveryDTO(profile, { images, social });
+
       return res.json({
         application: application
           ? {
@@ -2600,11 +2818,7 @@ router.get(
               invited_by_agency_id: application.invited_by_agency_id,
             }
           : null,
-        profile: {
-          ...profile,
-          images,
-          user_email: user?.email || null,
-        },
+        profile: profileDto,
         notes,
         tags,
       });
@@ -2623,11 +2837,10 @@ router.get(
     try {
       const agencyId = getSessionAgencyId(req.session);
 
-      // Fetch all accepted applications for this agency
-      const applications = await knex("applications").where({
-        agency_id: agencyId,
-        status: "accepted",
-      });
+      // Development is an advancing New Face state, not signed representation.
+      const applications = await knex("applications")
+        .where({ agency_id: agencyId })
+        .whereIn("status", ["accepted", "booked", "represented"]);
 
       if (!applications.length) {
         return res.json([]);
@@ -2680,6 +2893,9 @@ router.get(
         const profileImages = images.filter((i) => i.profile_id === p.id);
         const coverImage =
           profileImages.find((i) => i.is_cover) || profileImages[0];
+        // Signed roster talent contact is legitimate to the representing agency,
+        // but a minor's email/phone is guardian-mediated → nulled here.
+        const minor = isMinorProfile(p);
 
         let archetype = p.archetype ? p.archetype.toLowerCase() : "editorial";
         if (
@@ -2704,7 +2920,8 @@ router.get(
           id: p.id,
           applicationId: app.id,
           name:
-            [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
+            [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+            "Roster talent",
           gender: p.gender || "female",
           type: archetype,
           status: status,
@@ -2717,8 +2934,8 @@ router.get(
           dateAdded: app.accepted_at || app.updated_at,
           tags: tagsByApp[app.id] || [],
           img: coverImage ? coverImage.url : null,
-          email: p.email,
-          phone: p.phone,
+          email: minor ? null : p.email,
+          phone: minor ? null : p.phone,
           notes: p.bio,
         };
       });
@@ -2748,8 +2965,8 @@ router.get(
         .where({
           profile_id: profileId,
           agency_id: agencyId,
-          status: "accepted",
         })
+        .whereIn("status", ["accepted", "booked", "represented"])
         .first();
 
       if (!application) {
@@ -2762,9 +2979,12 @@ router.get(
         return res.status(404).json({ error: "Profile not found" });
       }
 
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .orderBy(["sort", "created_at"]);
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]);
 
       // Booking stats from commissions table
       const commissionStats = await knex("commissions")
@@ -2776,11 +2996,11 @@ router.get(
         )
         .first();
 
+      // Roster = represented talent, so the richer (minor-safe) submission
+      // snapshot is warranted — but NEVER a raw row spread (audit P0-3).
+      const social = await loadSocialAccountsForProfile(profileId);
       return res.json({
-        profile: {
-          ...profile,
-          images,
-        },
+        profile: buildAgencySubmissionDTO(profile, { images, social }),
         bookings: {
           total_bookings: commissionStats?.total_bookings
             ? Number(commissionStats.total_bookings)
@@ -2982,10 +3202,11 @@ router.get(
       const limit = parseInt(req.query.limit) || 5;
 
       // Get recent applications with profile data
+      // Explicit allowlist select (no users join / owner email needed — the
+      // response below is a hand-built shape, not a raw row).
       const recentApplications = await knex("applications")
         .where({ "applications.agency_id": agencyId })
         .join("profiles", "applications.profile_id", "profiles.id")
-        .join("users", "profiles.user_id", "users.id")
         .select(
           "applications.id as application_id",
           "applications.status as application_status",
@@ -2999,7 +3220,6 @@ router.get(
           "profiles.height_cm",
           "profiles.date_of_birth",
           "profiles.slug",
-          "users.email as user_email",
         )
         .orderBy("applications.created_at", "desc")
         .limit(limit);
@@ -3074,9 +3294,10 @@ router.get(
     try {
       const agencyId = req.session.userId;
 
-      // Calculate total talent pool (accepted applications + all public talent)
+      // Calculate total talent pool (signed applications + public talent).
       const acceptedCount = await knex("applications")
-        .where({ agency_id: agencyId, status: "accepted" })
+        .where({ agency_id: agencyId })
+        .whereIn("status", ["accepted", "booked", "represented"])
         .count("id as count")
         .first();
 
@@ -3155,6 +3376,19 @@ router.get(
         agencyId,
         ...req.query,
       });
+      // Intel Capture v2 — discovery demand ("the market is searching for
+      // someone like you"). Aggregate only: no agency identity on the event.
+      const shownIds = (result?.profiles || [])
+        .map((p) => p?.id)
+        .filter(Boolean);
+      if (shownIds.length) {
+        const filterKeys = Object.keys(req.query).filter(
+          (k) => !["page", "limit", "offset"].includes(k),
+        );
+        recordDiscoveryImpressions(shownIds, {
+          filters: filterKeys.length ? filterKeys : null,
+        });
+      }
       return res.json(result);
     } catch (error) {
       console.error("[API/Agency/Discover] Error:", error);
@@ -3181,12 +3415,23 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Get images
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .orderBy(["sort", "created_at"]);
-
+      // Generic discovery preview — fail closed on minors (no named-agency
+      // guardian auth here) and agency-excluded profiles (audit P0-3).
       const agencyId = getSessionAgencyId(req);
+      if (!isAgencyDiscoverable(profile, { agencyId })) {
+        return res
+          .status(404)
+          .json({ error: "Profile not found or not discoverable" });
+      }
+
+      // Get visible images only (moderation + agency-exclusion filtered).
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]);
+
       if (agencyId && profile.user_id) {
         const agency = await knex("agencies")
           .where({ id: agencyId })
@@ -3201,15 +3446,20 @@ router.get(
         );
       }
 
+      // Intel Capture v2 — profile opened from discovery results (aggregate
+      // only; the agency identity is never stored on the event).
+      recordProfileEvent({
+        profile,
+        action: "discovery_open",
+        req,
+        viewerClass: "agency",
+      });
+
+      // Static-allowlist DTO — never spread the raw discoverable profile row.
+      const social = await loadSocialAccountsForProfile(profileId);
       return res.json({
         success: true,
-        profile: {
-          ...profile,
-          images: images.map((img) => ({
-            path: img.path,
-            alt: img.alt || `${profile.first_name} ${profile.last_name}`,
-          })),
-        },
+        profile: buildAgencyDiscoveryDTO(profile, { images, social }),
       });
     } catch (error) {
       console.error("[API/Agency/Discover Preview] Error:", error);
@@ -3237,6 +3487,16 @@ router.post(
           .json({ error: "Profile not found or not discoverable" });
       }
 
+      if (
+        profile.user_id &&
+        (await isAgencyBlockedForTalent(knex, profile.user_id, agencyId))
+      ) {
+        return res.status(403).json({
+          error: "Contact blocked",
+          message: "This talent has blocked contact from your agency.",
+        });
+      }
+
       const existingApplication = await knex("applications")
         .where({ profile_id: profileId, agency_id: agencyId })
         .first();
@@ -3260,7 +3520,6 @@ router.post(
 
       // Send invitation email (optional)
       try {
-        const { sendAgencyInviteEmail } = require("../../shared/lib/email");
         const talentUser = await knex("users")
           .where({ id: profile.user_id })
           .first();

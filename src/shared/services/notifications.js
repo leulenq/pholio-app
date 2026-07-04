@@ -9,6 +9,7 @@ const NOTIFICATION_TYPES = {
   AGENCY_PROFILE_VIEW: "agency_profile_view",
   APPLICATION_SUBMITTED: "application_submitted",
   APPLICATION_STATUS: "application_status",
+  INTERVIEW_SCHEDULED: "interview_scheduled",
   PROFILE_NOT_SUBMISSION_READY: "profile_not_submission_ready",
   CONFIRMATION: "confirmation",
 };
@@ -219,6 +220,18 @@ function applicationStatusCopy(status, agencyName) {
       title: "You were shortlisted",
       body: `${agency} moved your application forward.`,
     },
+    requested_more: {
+      title: "More materials requested",
+      body: `${agency} asked for more from your submission.`,
+    },
+    meeting_requested: {
+      title: "Meeting requested",
+      body: `${agency} wants to meet — check your submission for details.`,
+    },
+    development: {
+      title: "Development offer",
+      body: `${agency} wants to develop you as a new face before full representation.`,
+    },
     accepted: {
       title: "Application accepted",
       body: `${agency} accepted your application.`,
@@ -239,6 +252,10 @@ function applicationStatusCopy(status, agencyName) {
       title: "Application archived",
       body: `${agency} archived this application.`,
     },
+    kept_on_file: {
+      title: "Kept on file",
+      body: `${agency} is keeping your profile on file for future openings.`,
+    },
   };
   return (
     map[status] || {
@@ -252,11 +269,15 @@ const NOTIFY_STATUSES = new Set([
   "submitted",
   "pending",
   "shortlisted",
+  "requested_more",
+  "meeting_requested",
+  "development",
   "accepted",
   "booked",
   "declined",
   "passed",
   "archived",
+  "kept_on_file",
 ]);
 
 async function notifyTalentApplicationSubmitted({
@@ -297,10 +318,15 @@ async function notifyTalentApplicationStatusChange({
     title: copy.title,
     body: copy.body,
     routeTarget: `/dashboard/talent/applications?application=${applicationId}`,
-    priority:
-      status === "accepted" || status === "booked"
-        ? PRIORITIES.HIGH
-        : PRIORITIES.NORMAL,
+    priority: [
+      "development",
+      "accepted",
+      "booked",
+      "meeting_requested",
+      "requested_more",
+    ].includes(status)
+      ? PRIORITIES.HIGH
+      : PRIORITIES.NORMAL,
     groupKey: `application_status:${applicationId}:${status}`,
     sourceType: "application",
     sourceId: applicationId,

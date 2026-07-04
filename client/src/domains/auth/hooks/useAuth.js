@@ -1,5 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '../../../shared/lib/api-client';
 import { talentApi } from '../../talent/api/talent';
+
+function shouldRetryAuthQuery(failureCount, error, skipRedirect) {
+  if (skipRedirect) return false;
+  if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+    return false;
+  }
+  return failureCount < 1;
+}
 
 /**
  * useAuth Hook
@@ -28,7 +37,8 @@ export function useAuth(options = {}) {
     refetchOnMount: 'always',
     // Disable retries and redirects if we are specifically asking to skip them
     // This is crucial for the Login page to prevent loops
-    retry: options.skipRedirect ? false : 1,
+    retry: (failureCount, error) =>
+      shouldRetryAuthQuery(failureCount, error, options.skipRedirect),
     staleTime: 1000 * 30,
   });
 

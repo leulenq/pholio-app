@@ -1,32 +1,137 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Check, ClipboardList } from 'lucide-react';
 import { getStrengthUI } from '../../../shared/utils/profileScoring';
 import { buildReadinessLists } from './profileReadinessItems';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import styles from './ProfileStrengthSidebar.module.css';
 
-function GlanceGap({ item, tier, scrollTargetByKey, onItemClick }) {
+const TOOLTIP_PAD = 8;
+const TOOLTIP_MIN_WIDTH = 120;
+const TOOLTIP_ESTIMATED_HEIGHT = 56;
+
+function computeTooltipPosition(btnEl, containerEl) {
+  const rect = btnEl.getBoundingClientRect();
+  const containerRect = containerEl?.getBoundingClientRect();
+  const maxWidth = containerRect
+    ? containerRect.width - TOOLTIP_PAD * 2
+    : Math.max(window.innerWidth - TOOLTIP_PAD * 2, TOOLTIP_MIN_WIDTH);
+  const width = Math.min(Math.max(rect.width - TOOLTIP_PAD * 2, TOOLTIP_MIN_WIDTH), maxWidth);
+
+  let left;
+  if (containerRect) {
+    const idealLeft = rect.left + TOOLTIP_PAD;
+    left = Math.max(
+      containerRect.left + TOOLTIP_PAD,
+      Math.min(idealLeft, containerRect.right - width - TOOLTIP_PAD),
+    );
+  } else {
+    left = rect.left + TOOLTIP_PAD;
+  }
+
+  const containerTop = containerRect?.top ?? 0;
+  const containerBottom = containerRect?.bottom ?? window.innerHeight;
+  const spaceAbove = rect.top - containerTop;
+  const spaceBelow = containerBottom - rect.bottom;
+  const placeAbove =
+    spaceAbove >= TOOLTIP_ESTIMATED_HEIGHT + TOOLTIP_PAD || spaceAbove >= spaceBelow;
+
+  return {
+    left,
+    width,
+    top: placeAbove ? rect.top - TOOLTIP_PAD : rect.bottom + TOOLTIP_PAD,
+    placement: placeAbove ? 'above' : 'below',
+  };
+}
+
+function ReadinessGap({
+  item,
+  tier,
+  scrollTargetByKey,
+  onItemClick,
+  showTier = false,
+  inAuditList = false,
+  containerRef,
+}) {
   const targetSection = scrollTargetByKey[item.key];
-  const dotClass = tier === 'required' ? styles.dotRed : styles.dotSlate;
+  const btnRef = useRef(null);
+  const [fixedTip, setFixedTip] = useState(null);
+  const tipId = item.why
+    ? `gap-tip-${inAuditList ? 'audit' : 'next'}-${item.key}`
+    : undefined;
+
+  const placeFixedTip = () => {
+    if (!item.why || !btnRef.current) return;
+    const position = computeTooltipPosition(btnRef.current, containerRef?.current);
+    setFixedTip({
+      ...position,
+      text: item.why,
+    });
+  };
+
+  const clearFixedTip = () => setFixedTip(null);
+
+  useEffect(() => {
+    if (!fixedTip) return undefined;
+
+    const hideOnScroll = () => setFixedTip(null);
+    window.addEventListener('scroll', hideOnScroll, true);
+    window.addEventListener('resize', hideOnScroll);
+    return () => {
+      window.removeEventListener('scroll', hideOnScroll, true);
+      window.removeEventListener('resize', hideOnScroll);
+    };
+  }, [fixedTip]);
 
   return (
-    <button
-      type="button"
-      className={styles.gapItem}
-      onClick={() => targetSection && onItemClick?.(targetSection)}
-      disabled={!targetSection}
-    >
-      <span className={`${styles.dot} ${dotClass}`} aria-hidden="true" />
-      <span className={styles.gapLabel}>{item.label}</span>
-      {tier === 'required' ? (
-        <span className={styles.badgeRed}>Required</span>
-      ) : null}
-    </button>
+    <>
+      <PholioButton
+        ref={btnRef}
+        type="button"
+        variant="tertiary"
+        className={`${styles.gapItem}${inAuditList ? ` ${styles.gapItemAudit}` : ''}`}
+        onClick={() => targetSection && onItemClick?.(targetSection)}
+        disabled={!targetSection}
+        aria-describedby={tipId}
+        onMouseEnter={item.why ? placeFixedTip : undefined}
+        onMouseLeave={item.why ? clearFixedTip : undefined}
+        onFocus={item.why ? placeFixedTip : undefined}
+        onBlur={item.why ? clearFixedTip : undefined}
+      >
+        <span className={styles.gapRow}>
+          <span className={styles.gapLabel}>{item.label}</span>
+          {showTier && tier === 'required' ? (
+            <span className={styles.gapTier}>Core</span>
+          ) : null}
+        </span>
+      </PholioButton>
+      {fixedTip
+        ? createPortal(
+            <div
+              id={tipId}
+              className={styles.gapTooltipFixed}
+              role="tooltip"
+              data-placement={fixedTip.placement}
+              style={{
+                left: fixedTip.left,
+                width: fixedTip.width,
+                top: fixedTip.top,
+              }}
+            >
+              {fixedTip.text}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
 export default function ProfileStrengthSidebar({
   strength,
+  profile = null,
+  images = [],
   isSaving,
   hasChanges,
   onSaveClick,
@@ -38,37 +143,50 @@ export default function ProfileStrengthSidebar({
   const ui = getStrengthUI(score, isRequiredComplete);
   const hasUnsavedChanges = hasChanges && !isSaving;
 
-  const { missingRequired, missingImprove, topGaps } = buildReadinessLists(fieldCompletion);
-  const totalGaps = missingRequired.length + missingImprove.length;
+  const { missingRequired, missingImprove, topGaps } = buildReadinessLists(
+    fieldCompletion,
+    profile,
+    images,
+  );
+
+  const topGapsKeys = new Set(topGaps.map((item) => item.key));
+  const hiddenRequired = missingRequired.filter((item) => !topGapsKeys.has(item.key));
+  const hiddenImprove = missingImprove.filter((item) => !topGapsKeys.has(item.key));
+  const hiddenGapsCount = hiddenRequired.length + hiddenImprove.length;
+
   const isComplete = isRequiredComplete && missingImprove.length === 0;
+  const reduceMotion = useReducedMotion();
+  const cardRef = useRef(null);
 
-  const statusColor = isRequiredComplete ? (score === 100 ? 'statusGold' : 'statusGreen') : 'statusRed';
-  const progressColor = isRequiredComplete ? (score === 100 ? 'statusGold' : 'progressGreen') : 'progressRed';
+  const progressColor = isRequiredComplete
+    ? (score === 100 ? 'statusGold' : 'progressGreen')
+    : 'progressRed';
 
-  // Smooth numerical count-up animation for the score
-  const [displayScore, setDisplayScore] = React.useState(0);
+  const [displayScore, setDisplayScore] = React.useState(score);
+  const displayScoreRef = useRef(score);
 
-  React.useEffect(() => {
-    let start = displayScore;
+  useEffect(() => {
+    const start = displayScoreRef.current;
     const end = score;
-    if (start === end) return;
+    if (start === end) {
+      return undefined;
+    }
 
-    const duration = 750; // ms
+    const duration = 750;
     const startTime = performance.now();
     let animationFrameId;
 
     const animate = (currentTime) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-
-      // Ease out quad
       const easeProgress = progress * (2 - progress);
       const currentScore = Math.round(start + (end - start) * easeProgress);
-
       setDisplayScore(currentScore);
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);
+      } else {
+        displayScoreRef.current = end;
       }
     };
 
@@ -77,53 +195,59 @@ export default function ProfileStrengthSidebar({
   }, [score]);
 
   return (
-    <aside className={styles.sidebar} aria-label="Profile readiness">
-      <div className={styles.card}>
+    <aside className={styles.sidebar} aria-label="Profile completeness">
+      <div className={styles.card} ref={cardRef}>
         <div className={styles.header}>
-          <span className={styles.title}>Readiness</span>
+          <span className={styles.smallTitle}>Profile readiness</span>
           <div className={styles.scoreBlock}>
             <span className={styles.score} aria-live="polite">
               {displayScore}
               <span className={styles.percentSign}>%</span>
             </span>
           </div>
-          <div className={styles.statusContainer}>
-            <span className={styles.statusLabel}>{ui.label}</span>
-          </div>
-          {hasUnsavedChanges && (
-            <p className={styles.unsavedHint}>Unsaved changes</p>
-          )}
+          {hasUnsavedChanges ? (
+            <p className={styles.unsavedHint}>Unsaved changes — save to sync your score</p>
+          ) : null}
         </div>
 
         <div className={styles.progressContainer}>
-          <div className={styles.progressBarTrack}>
-            {/* 60% Core Milestone */}
-            <div 
-              className={`${styles.tick} ${score >= 60 ? styles.tickActive : ''}`} 
-              style={{ left: '60%' }}
-            >
-              <span className={`${styles.tickLabel} ${score >= 60 ? styles.tickLabelActive : ''}`}>Core</span>
+          <div className={styles.progressInstrument}>
+            <div className={styles.progressBarTrack}>
+              <div
+                className={`${styles.tick} ${score >= 60 ? styles.tickActive : ''}`}
+                style={{ left: '60%' }}
+                aria-hidden
+              />
+              <div
+                className={`${styles.tick} ${score >= 85 ? styles.tickActive : ''}`}
+                style={{ left: '85%' }}
+                aria-hidden
+              />
+
+              <motion.div
+                className={`${styles.progressFill} ${styles[progressColor]}`}
+                initial={false}
+                animate={{ width: `${score}%` }}
+                transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+                role="progressbar"
+                aria-valuenow={score}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              />
             </div>
 
-            {/* 85% Strong Milestone */}
-            <div 
-              className={`${styles.tick} ${score >= 85 ? styles.tickActive : ''}`} 
-              style={{ left: '85%' }}
-            >
-              <span className={`${styles.tickLabel} ${score >= 85 ? styles.tickLabelActive : ''}`}>Strong</span>
+            <div className={styles.progressLabels} aria-hidden>
+              <span
+                className={`${styles.progressLabel} ${styles.progressLabelCore} ${score >= 60 ? styles.progressLabelActive : ''}`}
+              >
+                Core
+              </span>
+              <span
+                className={`${styles.progressLabel} ${styles.progressLabelStrong} ${score >= 85 ? styles.progressLabelActive : ''}`}
+              >
+                Strong
+              </span>
             </div>
-
-            {/* Animated progress fill via Framer Motion */}
-            <motion.div
-              className={`${styles.progressFill} ${styles[progressColor]}`}
-              initial={{ width: 0 }}
-              animate={{ width: `${score}%` }}
-              transition={{ type: 'spring', stiffness: 55, damping: 16 }}
-              role="progressbar"
-              aria-valuenow={score}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            />
           </div>
           <p className={styles.statusMessage}>{ui.message}</p>
         </div>
@@ -131,103 +255,123 @@ export default function ProfileStrengthSidebar({
         {isComplete ? (
           <div className={styles.completeBrief}>
             <Check size={20} className={styles.checkIcon} aria-hidden="true" />
-            <p>Profile complete — ready for agency review.</p>
+            <p>Submission package complete — ready for agency review.</p>
           </div>
         ) : topGaps.length > 0 ? (
           <div className={styles.gapsBlock}>
             <p className={styles.gapsLabel}>Next up</p>
             <div className={styles.gapList}>
               {topGaps.map((item) => (
-                <GlanceGap
+                <ReadinessGap
                   key={item.key}
                   item={item}
                   tier={item.tier}
                   scrollTargetByKey={scrollTargetByKey}
                   onItemClick={onItemClick}
+                  containerRef={cardRef}
                 />
               ))}
             </div>
           </div>
         ) : null}
 
-        {totalGaps > 0 && (
+        {hiddenGapsCount > 0 ? (
           <button
             type="button"
+            data-button-exception="profile-checklist"
             className={`${styles.auditToggle} ${auditOpen ? styles.auditToggleActive : ''}`}
             onClick={onToggleAudit}
             aria-expanded={auditOpen}
           >
             <ClipboardList size={15} aria-hidden="true" />
-            {auditOpen ? 'Hide full checklist' : `View full checklist (${totalGaps})`}
+            {auditOpen ? 'Hide full checklist' : 'View full checklist'}
           </button>
-        )}
+        ) : null}
 
-        {/* Smooth Expand/Collapse Checklist Audit Panel via Framer Motion */}
         <AnimatePresence initial={false}>
-          {auditOpen && totalGaps > 0 && (
-            <motion.div 
+          {auditOpen && hiddenGapsCount > 0 ? (
+            <motion.div
               key="audit-panel"
-              className={styles.auditPanel} 
-              role="region" 
+              className={styles.auditPanelMotion}
+              role="region"
               aria-label="Full profile checklist"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 80, damping: 18 }}
-              style={{ overflow: 'hidden' }}
+              initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+              animate={
+                reduceMotion
+                  ? { height: 'auto', opacity: 1 }
+                  : {
+                      height: 'auto',
+                      opacity: 1,
+                      transition: {
+                        height: { type: 'spring', stiffness: 55, damping: 16 },
+                        opacity: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
+                      },
+                    }
+              }
+              exit={
+                reduceMotion
+                  ? { height: 0, opacity: 0, transition: { duration: 0 } }
+                  : {
+                      height: 0,
+                      opacity: 0,
+                      transition: {
+                        height: { type: 'spring', stiffness: 55, damping: 16 },
+                        opacity: { duration: 0.14, ease: [0.4, 0, 1, 1] },
+                      },
+                    }
+              }
             >
-              {missingRequired.length > 0 && (
-                <div className={styles.auditSection}>
-                  <p className={styles.auditSectionLabel}>Required</p>
-                  {missingRequired.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={styles.gapItem}
-                      onClick={() => {
-                        const target = scrollTargetByKey[item.key];
-                        if (target) onItemClick?.(target);
-                      }}
-                    >
-                      <span className={`${styles.dot} ${styles.dotRed}`} aria-hidden="true" />
-                      <span className={styles.gapLabel}>{item.label}</span>
-                      <span className={styles.badgeRed}>Required</span>
-                    </button>
-                  ))}
+              <div className={styles.auditPanel}>
+                <div className={styles.auditPanelScroll}>
+                  {hiddenRequired.length > 0 ? (
+                    <div className={styles.auditSection}>
+                      <p className={styles.auditSectionLabel}>Core</p>
+                      {hiddenRequired.map((item) => (
+                        <ReadinessGap
+                          key={item.key}
+                          item={item}
+                          tier="required"
+                          scrollTargetByKey={scrollTargetByKey}
+                          onItemClick={onItemClick}
+                          showTier
+                          inAuditList
+                          containerRef={cardRef}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {hiddenImprove.length > 0 ? (
+                    <div className={styles.auditSection}>
+                      <p className={styles.auditSectionLabel}>Strengthen</p>
+                      {hiddenImprove.map((item) => (
+                        <ReadinessGap
+                          key={item.key}
+                          item={item}
+                          tier="improve"
+                          scrollTargetByKey={scrollTargetByKey}
+                          onItemClick={onItemClick}
+                          inAuditList
+                          containerRef={cardRef}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              )}
-              {missingImprove.length > 0 && (
-                <div className={styles.auditSection}>
-                  <p className={styles.auditSectionLabel}>Improve</p>
-                  {missingImprove.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={styles.gapItem}
-                      onClick={() => {
-                        const target = scrollTargetByKey[item.key];
-                        if (target) onItemClick?.(target);
-                      }}
-                    >
-                      <span className={`${styles.dot} ${styles.dotSlate}`} aria-hidden="true" />
-                      <span className={styles.gapLabel}>{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              </div>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
 
         <div className={styles.saveContainer}>
-          <motion.button
-            type="button"
-            className={`${styles.saveButton} ${!hasChanges && !isSaving ? styles.saveButtonMuted : ''}`}
+          <PholioButton
+            as={motion.button}
+            variant={!hasChanges && !isSaving ? 'secondary' : 'primary'}
+            className={styles.saveButton}
+            fullWidth
             onClick={onSaveClick}
-            disabled={isSaving}
-            aria-disabled={!hasChanges && !isSaving}
-            whileHover={!isSaving ? { scale: 1.015 } : {}}
-            whileTap={!isSaving ? { scale: 0.985 } : {}}
+            disabled={isSaving || !hasChanges}
+            whileHover={hasChanges && !isSaving ? { scale: 1.015 } : {}}
+            whileTap={hasChanges && !isSaving ? { scale: 0.985 } : {}}
           >
             {isSaving ? (
               <>
@@ -237,7 +381,7 @@ export default function ProfileStrengthSidebar({
             ) : (
               'Save profile'
             )}
-          </motion.button>
+          </PholioButton>
         </div>
       </div>
     </aside>

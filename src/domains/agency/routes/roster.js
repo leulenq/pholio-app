@@ -1,17 +1,25 @@
 const express = require("express");
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
+const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
 const { addMessage } = require("../../../shared/middleware/context");
 const {
-  sendRejectedApplicantEmail,
-  sendApplicationStatusChangeEmail,
+  sendApplicationStatusEmail,
   sendAgencyInviteEmail,
 } = require("../../../shared/lib/email");
-const {
-  getSessionActorUserId,
-  getSessionAgencyId,
-} = require("../services/context");
+const { getSessionAgencyId } = require("../services/context");
 const { v4: uuidv4 } = require("uuid");
+const {
+  ensureModerationColumnChecked,
+} = require("../../../shared/lib/content-moderation");
+const {
+  AUDIENCE,
+  buildAgencyDiscoveryDTO,
+} = require("../../../shared/lib/audience-dto");
+const {
+  applyImageVisibility,
+  isAgencyDiscoverable,
+} = require("../../../shared/lib/profile-visibility");
 
 const router = express.Router();
 
@@ -100,7 +108,6 @@ router.post(
   async (req, res, next) => {
     try {
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
       const { applicationId, action } = req.params;
 
       if (!["accept", "archive", "decline"].includes(action)) {
@@ -158,27 +165,15 @@ router.post(
             .where({ id: profile.user_id })
             .first();
 
-          const [agency, actorUser] = await Promise.all([
-            knex("agencies").where({ id: agencyId }).first(),
-            knex("users").where({ id: actorUserId }).first(),
-          ]);
+          const agency = await knex("agencies").where({ id: agencyId }).first();
 
-          if (talentUser && agency) {
-            if (action === "decline") {
-              await sendRejectedApplicantEmail({
-                talentEmail: talentUser.email,
-                talentName: `${profile.first_name} ${profile.last_name}`,
-                agencyName: agency.name,
-                agencyEmail: actorUser?.email || null,
-              });
-            } else if (action === "accept") {
-              await sendApplicationStatusChangeEmail({
-                talentEmail: talentUser.email,
-                talentName: `${profile.first_name} ${profile.last_name}`,
-                agencyName: agency.name,
-                status: "accepted",
-              });
-            }
+          if (talentUser && talentUser.email && agency && (action === "accept" || action === "decline")) {
+            await sendApplicationStatusEmail({
+              to: talentUser.email,
+              talentName: `${profile.first_name} ${profile.last_name}`,
+              agencyName: agency.name,
+              status: action === "accept" ? "accepted" : "declined",
+            });
           }
         }
       } catch (emailError) {
@@ -216,33 +211,28 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Get images
-      const images = await knex("images")
-        .where({ profile_id: profileId })
-        .where(function agencyShareableImages() {
-          this.whereNull("status").orWhere("status", "active");
-        })
-        .where(function notExcludedFromAgency() {
-          this.whereNull("exclude_from_agency").orWhere(
-            "exclude_from_agency",
-            false,
-          );
-        })
-        .orderBy(["sort", "created_at"])
-        .limit(5);
+      // Generic discovery preview — fail closed on minors (no named-agency
+      // guardian auth here) and agency-excluded profiles (audit P0-3).
+      const agencyId = getSessionAgencyId(req.session);
+      if (!isAgencyDiscoverable(profile, { agencyId })) {
+        return res
+          .status(404)
+          .json({ error: "Profile not found or not discoverable" });
+      }
 
+      // Warm the moderation-column cache so the visibility filter is a safe
+      // no-op when the column doesn't exist yet (deploy-before-migrate).
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const images = await imageQuery.orderBy(["sort", "created_at"]).limit(5);
+
+      // Static-allowlist DTO — never spread the raw discoverable profile row.
       return res.json({
         success: true,
-        profile: {
-          ...profile,
-          images: images.map((img) => ({
-            path:
-              typeof img.path === "string" && img.path.startsWith("http")
-                ? img.path
-                : `/${img.path || ""}`,
-            alt: img.alt || `${profile.first_name} ${profile.last_name}`,
-          })),
-        },
+        profile: buildAgencyDiscoveryDTO(profile, { images, social: null }),
       });
     } catch (error) {
       console.error("[Discover Preview] Error:", error);
@@ -271,6 +261,20 @@ router.post(
             .json({ error: "Profile not found or not discoverable" });
         }
         addMessage(req, "error", "Profile not found or not discoverable");
+        return res.redirect("/dashboard/agency/discover");
+      }
+
+      if (
+        profile.user_id &&
+        (await isAgencyBlockedForTalent(knex, profile.user_id, agencyId))
+      ) {
+        if (req.headers.accept?.includes("application/json")) {
+          return res.status(403).json({
+            error: "Contact blocked",
+            message: "This talent has blocked contact from your agency.",
+          });
+        }
+        addMessage(req, "error", "This talent has blocked contact from your agency.");
         return res.redirect("/dashboard/agency/discover");
       }
 

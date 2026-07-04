@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generate PNG + ICO favicons from client/public/favicon.svg (brand Initial · P.).
+ * Generate PNG + ICO favicons from the 02 wordmark primary brand asset.
  * Run: node scripts/generate-favicons.js
  */
 const fs = require("fs");
@@ -8,25 +8,16 @@ const path = require("path");
 const sharp = require("sharp");
 
 const ROOT = path.join(__dirname, "..");
-const SVG = path.join(ROOT, "client/public/favicon.svg");
+const SOURCE = path.join(ROOT, "client/public/brand/pholio-brand-mark.png");
 const OUT_DIRS = [
   path.join(ROOT, "client/public"),
   path.join(ROOT, "public"),
   path.join(ROOT, "public/dashboard-app"),
 ];
 
-async function writePng(dir, name, size) {
-  const out = path.join(dir, name);
-  await sharp(SVG)
-    .resize(size, size, { fit: "contain", background: "#050505" })
-    .png()
-    .toFile(out);
-  return out;
-}
-
 async function main() {
-  if (!fs.existsSync(SVG)) {
-    console.error("Missing", SVG);
+  if (!fs.existsSync(SOURCE)) {
+    console.error("Missing", SOURCE);
     process.exit(1);
   }
 
@@ -34,18 +25,9 @@ async function main() {
   const png32 = path.join(ROOT, "client/public/favicon-32x32.png");
   const png180 = path.join(ROOT, "client/public/apple-touch-icon.png");
 
-  await sharp(SVG)
-    .resize(16, 16, { fit: "contain", background: "#050505" })
-    .png()
-    .toFile(png16);
-  await sharp(SVG)
-    .resize(32, 32, { fit: "contain", background: "#050505" })
-    .png()
-    .toFile(png32);
-  await sharp(SVG)
-    .resize(180, 180, { fit: "contain", background: "#050505" })
-    .png()
-    .toFile(png180);
+  await sharp(SOURCE).resize(16, 16).png().toFile(png16);
+  await sharp(SOURCE).resize(32, 32).png().toFile(png32);
+  await sharp(SOURCE).resize(180, 180).png().toFile(png180);
 
   let toIco;
   try {
@@ -66,8 +48,6 @@ async function main() {
     "favicon-16x16.png",
     "favicon-32x32.png",
     "apple-touch-icon.png",
-    "favicon.svg",
-    "apple-touch-icon.svg",
   ];
 
   for (const dir of OUT_DIRS) {

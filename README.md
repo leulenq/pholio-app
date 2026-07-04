@@ -1,8 +1,13 @@
 # Pholio
 
-**The talent portfolio and agency management platform for the modern modeling industry.**
+**A full-stack talent portfolio and agency management platform for the modeling industry.**
 
-Pholio connects talent with agencies through polished digital portfolios, AI-assisted photo curation, PDF comp card generation, and a streamlined application workflow — all in one platform.
+Pholio connects talent with agencies through polished digital portfolios, AI-assisted photo curation, PDF comp card generation, and a streamlined casting workflow — all in one platform. The talent surface is cinematic and tactile; the agency surface is dense and authoritative. Both share a warm editorial identity built on cream, gold, and serif type.
+
+> [!IMPORTANT]  
+> **🚧 Repository Boundaries**  
+> This repository (`pholio-app`) is the **application product repo only**. It contains the backend API and the React SPA dashboard.  
+> **All marketing-site content and legal pages** (TOS, Privacy Policy, etc.) belong in the completely separate `pholio-landing` repository.
 
 ---
 
@@ -28,45 +33,49 @@ Pholio connects talent with agencies through polished digital portfolios, AI-ass
 
 ### For Talent
 - **Portfolio Builder** — Upload, reorder (drag-and-drop), and curate professional photos
-- **AI Photo Analysis** — Groq-powered image scoring and selection recommendations
+- **AI Photo Analysis** — Groq-powered image scoring and curation recommendations
 - **PDF Comp Cards** — Generate print-ready comp cards via Puppeteer with customisable layouts
-- **Agency Applications** — Browse and apply to agencies directly from the dashboard
+- **Agency Applications** — Browse agencies and apply directly from the dashboard
 - **Analytics** — Track portfolio views, engagement, and application status
 - **Public Portfolio Pages** — SEO-optimised, shareable profile URLs with auto-generated QR codes
+- **Profile Strength** — Live completeness scoring with guided improvement suggestions
+- **Messaging** — In-app direct messaging with agencies
 
 ### For Agencies
-- **Talent Roster Management** — Browse, filter, and manage represented talent
-- **Application Review** — Accept, reject, or shortlist talent applications
-- **Commission Tracking** — Log and monitor talent earnings and agency commissions
+- **Talent Roster Management** — Browse, filter, tag, and manage represented talent
+- **Application Inbox** — Accept, reject, or shortlist incoming talent applications
+- **Casting Boards** — Kanban-style boards for organising talent across castings
+- **Commission Tracking** — Log and monitor talent earnings and agency commission splits
+- **Interview & Reminder Scheduling** — Attach interviews and reminders to talent profiles
 - **Activity Timeline** — Full audit trail of roster events and interactions
-- **Scout Tools** — Proactive outreach and candidate discovery
+- **Scout / Discover** — Semantic natural-language search across all platform talent using OpenAI embeddings
+- **Team RBAC** — Role-based access control for agency team members
 
 ### Platform
 - **Firebase Authentication** — Email/password and Google OAuth sign-in
 - **Stripe Subscriptions** — Pro plans with webhook-driven lifecycle management
-- **Image Background Removal** — In-browser processing
 - **Transactional Email** — Automated notifications via Nodemailer
 
 ---
 
 ## Architecture
 
-Pholio is deployed as **app + API** from this repository, with an optional **marketing** app when the `landing/` tree is present (not all checkouts include it).
+Pholio runs as two separate projects across two repositories. This repository (`pholio-app`) contains the **Express API + React SPA** (the application product). The **Next.js marketing site** lives in the `pholio-landing` repository.
 
-| App | Stack | Directory | Dev Port | Production Domain |
-|-----|-------|-----------|----------|-------------------|
-| Marketing Site (optional) | Next.js 16, TypeScript, Tailwind 4 | `landing/` (if checked out) | 3001 | `www.pholio.studio` |
+| App | Stack | Location | Dev Port | Production Domain |
+|-----|-------|----------|----------|-------------------|
 | React SPA | Vite + React 19 | `client/` | 5173 | `app.pholio.studio` |
-| API Server | Node.js 20 + Express | `src/` | 3000 | `app.pholio.studio` |
+| API Server | Node.js 20 + Express 4 | `src/` | 3000 | `app.pholio.studio` |
+| Marketing Site | Next.js 16, TypeScript, Tailwind 4 | `pholio-landing` repo | 3001 | `www.pholio.studio` |
 
-The Vite dev server proxies all `/api`, `/uploads`, and auth routes to the Express server. In production the React SPA compiles to `public/dashboard-app/` and is served statically alongside the Express API, which is deployed as a Netlify Function via `serverless-http`.
+The Vite dev server proxies `/api`, `/uploads`, and all auth routes to the Express server. In production, the React SPA builds to `public/dashboard-app/` and is served statically alongside the Express API, which is deployed as a Netlify Function via `serverless-http`.
 
 ---
 
 ## Tech Stack
 
 **Backend**
-- Node.js 20, Express 5, CommonJS
+- Node.js 20, Express 4, CommonJS
 - Knex.js (SQLite for local dev, PostgreSQL/Neon for production)
 - Firebase Admin SDK (ID token verification)
 - Stripe (subscriptions + webhooks)
@@ -104,12 +113,10 @@ The Vite dev server proxies all `/api`, `/uploads`, and auth routes to the Expre
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd pholio
+cd pholio-app
 
-# Install dependencies (root + client; add landing if that directory exists)
+# Install dependencies (root + client)
 npm install && cd client && npm install && cd ..
-# Optional: marketing site — only if you have landing/
-# (cd landing && npm install && cd ..)
 
 # Set up environment variables
 cp .env.example .env
@@ -158,8 +165,10 @@ FIREBASE_CLIENT_ID=
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRO_PRICE_ID=price_...
+STRIPE_PRICE_ID_MONTHLY=price_... # Studio+ $9.99/month
+STRIPE_PRICE_ID_ANNUAL=price_...  # Studio+ $95.88/year
 
 # AWS S3
 AWS_ACCESS_KEY_ID=
@@ -167,11 +176,10 @@ AWS_SECRET_ACCESS_KEY=
 AWS_REGION=
 S3_BUCKET_NAME=
 
-# Groq (AI photo analysis, casting Scout/Director)
+# Groq (AI photo analysis)
 GROQ_API_KEY=
 
 # OpenAI (Discover semantic search — text-embedding-3-small @ 512 dims)
-# Required for agency Discover ?q= vector search. Get key: https://platform.openai.com/api-keys
 OPENAI_API_KEY=
 
 # Email
@@ -200,7 +208,7 @@ SESSION_SECRET=<long-random-string>
 DB_CLIENT=pg
 DATABASE_URL=postgresql://user:password@ep-xxxx.neon.tech/dbname?sslmode=verify-full
 
-# Firebase (same keys as dev)
+# Firebase (same keys as dev, plus Admin SDK)
 FIREBASE_API_KEY=...
 FIREBASE_AUTH_DOMAIN=...
 FIREBASE_PROJECT_ID=...
@@ -212,8 +220,10 @@ FIREBASE_CLIENT_EMAIL=...
 FIREBASE_CLIENT_ID=...
 
 STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRO_PRICE_ID=price_...
+STRIPE_PRICE_ID_MONTHLY=price_...  # Studio+ $9.99/month
+STRIPE_PRICE_ID_ANNUAL=price_...   # Studio+ $95.88/year
 
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
@@ -221,7 +231,7 @@ AWS_REGION=...
 S3_BUCKET_NAME=...
 
 GROQ_API_KEY=...
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=...
 COMMISSION_RATE=0.25
 MAX_UPLOAD_MB=8
 ```
@@ -232,7 +242,7 @@ MAX_UPLOAD_MB=8
 
 ### Local Development (SQLite)
 
-SQLite is used by default with no additional setup required.
+SQLite requires no additional setup.
 
 ```bash
 npm run migrate          # Apply pending migrations
@@ -251,20 +261,20 @@ npm run seed             # Load seed data
    POST https://app.pholio.studio/api/migrate?secret=YOUR_MIGRATION_SECRET
    ```
 
-Migrations live in `migrations/` as numbered Knex files (`YYYYMMDDhhmmss_description.js`). All primary keys are UUIDs.
+Migrations live in `migrations/` as timestamped Knex files (`YYYYMMDDhhmmss_description.js`). All primary keys are UUIDs.
 
-> **Note:** PostgreSQL stores `date_of_birth` as a full ISO timestamp. The frontend handles both `"1995-03-15"` and `"1995-03-15T05:00:00.000Z"` formats.
+> **Note:** PostgreSQL stores `date_of_birth` as a full ISO timestamp. The frontend handles both `"1995-03-15"` and `"1995-03-15T05:00:00.000Z"`.
 
-### Discover semantic search (Postgres + OpenAI)
+### Discover Semantic Search
 
-Agency Discover natural-language search (`GET /api/agency/discover?q=...`) uses OpenAI **text-embedding-3-small** (512 dimensions). **SQLite dev** stores vectors in `talent_embedding_cache` and runs semantic search in-process. **Postgres production** uses pgvector.
+Agency Discover natural-language search (`GET /api/agency/discover?q=...`) uses OpenAI **text-embedding-3-small** (512 dimensions). SQLite stores vectors in `talent_embedding_cache` and runs semantic search in-process; Postgres uses pgvector.
 
-1. Add `OPENAI_API_KEY` to `.env` ([platform.openai.com/api-keys](https://platform.openai.com/api-keys))
-2. Verify the key: `npm run verify:embeddings`
-3. Index talent: `npm run backfill:discover` (works on SQLite and Postgres)
-4. Restart the API (`npm run dev:all`) and search in **Discover** — response `meta.semantic_search` should be `true`
-
-For production at launch, use Postgres/Neon (`DB_CLIENT=pg`) so vectors live in pgvector tables. Local SQLite is fine for pre-launch dev.
+```bash
+# Add OPENAI_API_KEY to .env, then:
+npm run verify:embeddings     # Confirm the key works
+npm run backfill:discover     # Index all talent (works on SQLite and Postgres)
+# Restart the server — response meta.semantic_search should be true
+```
 
 Optional tuning: `DISCOVER_MAX_DISTANCE` (default `0.55`), `DISCOVER_FUSION_TEXT_WEIGHT` (`0.6`), `DISCOVER_FUSION_IMAGE_WEIGHT` (`0.4`).
 
@@ -273,17 +283,15 @@ Optional tuning: `DISCOVER_MAX_DISTANCE` (default `0.55`), `DISCOVER_FUSION_TEXT
 ## Development
 
 ```bash
-# Recommended: run all three apps concurrently
+# Recommended: run both apps concurrently
 npm run dev:all          # Express :3000 + Vite :5173
 
-# Or run individually:
+# Or individually:
 npm run dev              # Express API on :3000
 npm run client:dev       # React SPA on :5173 (proxies /api to :3000)
-cd landing && npm run dev  # Next.js marketing site on :3001
 ```
 
 **Local access:**
-- Marketing site: http://localhost:3001
 - Dashboard app: http://localhost:5173
 - API: http://localhost:3000/api
 
@@ -291,14 +299,12 @@ cd landing && npm run dev  # Next.js marketing site on :3001
 
 ```bash
 npm run client:build         # React SPA → public/dashboard-app/
-cd landing && npm run build  # Next.js marketing site
 ```
 
 ### Linting
 
 ```bash
 cd client && npm run lint     # React SPA
-cd landing && npm run lint    # Next.js site
 ```
 
 ---
@@ -306,9 +312,9 @@ cd landing && npm run lint    # Next.js site
 ## Testing
 
 ```bash
-npm test                                          # All Jest + Supertest integration tests
-npm run test:db                                   # Verify database connection
-npx jest path/to/test.js --testNamePattern "name" # Run a single test
+npm test                                           # All Jest + Supertest integration tests
+npm run test:db                                    # Verify database connection
+npx jest path/to/test.js --testNamePattern "name"  # Run a single test
 ```
 
 ---
@@ -319,11 +325,11 @@ npx jest path/to/test.js --testNamePattern "name" # Run a single test
 
 The Express API and React SPA deploy together as a single Netlify site.
 
-- `netlify/function/server.js` wraps Express with `serverless-http`
+- `netlify/functions/server.js` wraps Express with `serverless-http`
 - Netlify builds the React SPA during deploy (`npm run client:build`)
 - Static files are served from `public/` via Netlify CDN
-- All unmatched requests proxy to the `server` Netlify Function
-- Function timeout: 26s / Memory: 3008 MB (Netlify Pro required for Puppeteer)
+- All unmatched routes proxy to the `server` Netlify Function
+- Function config: 26s timeout, 3008 MB memory (Netlify Pro required for Puppeteer)
 
 **Steps:**
 1. Connect the repository to a Netlify site
@@ -340,9 +346,9 @@ Value: <your-site>.netlify.app
 
 ### Marketing Site — `www.pholio.studio`
 
-Deploy the `landing/` directory as a separate Netlify or Vercel site.
+The marketing site is deployed from the separate `pholio-landing` repository.
 
-Required env vars:
+Required env vars (in the `pholio-landing` project):
 ```
 NEXT_PUBLIC_APP_URL=https://app.pholio.studio
 NEXT_PUBLIC_API_URL=https://app.pholio.studio/api
@@ -352,7 +358,7 @@ NEXT_PUBLIC_API_URL=https://app.pholio.studio/api
 
 ## Design System
 
-The dashboard uses a warm editorial palette with strong typographic hierarchy.
+The dashboard uses a warm editorial palette with strong typographic hierarchy. Two separate design systems (talent and agency) share a material vocabulary — warm neutrals, one gold accent, Inter body type — without being averaged into a single look.
 
 | Token | Value | Usage |
 |-------|-------|-------|
@@ -363,13 +369,13 @@ The dashboard uses a warm editorial palette with strong typographic hierarchy.
 | `--ag-text-0` | `#1A1815` | Headlines |
 | `--ag-text-2` | `#6B6560` | Secondary / supporting text |
 
-**Typography:** Inter (body), Playfair Display / Noto Serif Display (headings)
+**Typography:** Inter (body), Playfair Display / Noto Serif Display (display headings)
 
 **Motion:** Spring-physics Framer Motion (`stiffness: 55, damping: 16`) for all interactive elements. Standard transition: `all 0.2s cubic-bezier(0.4, 0, 0.2, 1)`.
 
 **Spacing:** 4px base scale (4, 8, 12, 16, 24, 32, 40, 48px). Card border-radius: 16px.
 
-Design tokens live in `client/src/styles/agency-tokens.css`. The landing page scene components in `landing/components/` define the visual and motion language for the entire product.
+Design tokens live in `client/src/styles/agency-tokens.css`. The landing page scene components in the `pholio-landing` repository define the visual and motion language for the entire product.
 
 ---
 
@@ -378,7 +384,7 @@ Design tokens live in `client/src/styles/agency-tokens.css`. The landing page sc
 1. User authenticates with Firebase (email/password or Google OAuth)
 2. Firebase ID token is `POST`ed to `/login`
 3. Server verifies the token via Firebase Admin SDK
-4. Express session is created and stored in the database (via `connect-session-knex`)
+4. Express session is created and stored in the database via `connect-session-knex`
 5. `requireAuth` / `requireRole('TALENT'|'AGENCY')` middleware protects all subsequent routes
 6. API routes return `401 JSON` on failure; page routes redirect to `/login`
 
@@ -387,45 +393,51 @@ Design tokens live in `client/src/styles/agency-tokens.css`. The landing page sc
 ## Project Structure
 
 ```
-pholio/
-├── archive/                    # Retired assets & backups (not used at runtime; see archive/README.md)
-│   ├── legacy-public/          # Old standalone trees removed from public/
-│   ├── backups/                # Source snapshots (.backup / .bak)
-│   └── transient/              # Logs / scratch output
-│
-├── client/                     # React 19 SPA (Vite)
+pholio-app/
+├── client/                         # React 19 SPA (Vite)
 │   └── src/
-│       ├── App.jsx             # Router + layout shells
-│       ├── api/                # Fetch wrapper + named API methods
-│       ├── components/         # Shared UI (forms, agency widgets)
-│       ├── features/           # Feature modules (media, applications, analytics)
-│       ├── routes/             # Page-level components (talent/, agency/)
-│       ├── hooks/              # Custom hooks (useAuth, useProfile, useMedia)
-│       └── styles/             # Global CSS, agency-tokens.css
+│       ├── App.jsx                 # Router root + layout shells
+│       ├── domains/                # Feature domains (mirrors backend structure)
+│       │   ├── agency/             # Agency dashboard pages, components, hooks, API
+│       │   ├── auth/               # Login, session gate, useAuth hook
+│       │   ├── messaging/          # In-app direct messaging
+│       │   ├── onboarding/         # Casting / onboarding flow
+│       │   └── talent/             # Talent dashboard pages, components, hooks, API
+│       ├── shared/                 # Cross-cutting UI
+│       │   ├── components/         # PholioInput, Card, StatCard, loaders, Header, …
+│       │   ├── layouts/            # DashboardLayoutShell, AgencyLayout, AuthLayout
+│       │   ├── hooks/              # Shared UX hooks
+│       │   └── lib/                # api-client.js and shared utilities
+│       ├── schemas/                # Zod validation schemas
+│       └── styles/                 # Global CSS + agency-tokens.css
 │
-├── docs/                       # Internal specs and plans (e.g. docs/superpowers/)
-├── landing/                    # Next.js marketing site (optional; not in every clone)
+├── src/                            # Express API (CommonJS)
+│   ├── app.js                      # Middleware chain + route mounting
+│   ├── domains/                    # Domain-driven route and service modules
+│   │   ├── agency/                 # Roster, inbox, casting, tags, interviews, messages, …
+│   │   ├── ai/                     # Photo analysis, embeddings, scoring
+│   │   ├── auth/                   # Firebase token verification, session helpers
+│   │   ├── messaging/              # In-app messaging
+│   │   ├── onboarding/             # Casting pipeline + state machine
+│   │   ├── pdf/                    # Puppeteer PDF generation + templates
+│   │   └── talent/                 # Media, profile, analytics, applications, settings, …
+│   ├── routes/                     # Cross-cutting HTTP handlers (api.js, stripe.js, …)
+│   └── shared/                     # DB client, middleware, utilities
+│       ├── db/knex.js
+│       ├── middleware/             # requireAuth, requireRole, error-handler, …
+│       └── lib/                    # uploader, email, geolocation, stripe, …
 │
-├── src/                        # Express API
-│   ├── app.js                  # Middleware chain + route mounting
-│   ├── routes/                 # Handlers (auth, talent/, agency/, api/, pdf, …)
-│   ├── middleware/             # requireAuth, requireRole, errors
-│   └── lib/                    # Business logic (pdf, uploader, ai/, onboarding/)
-│
-├── views/                      # EJS templates (auth, portfolio, PDF HTML, …)
-├── migrations/                 # Knex migrations
-├── seeds/                      # Knex seeds
-├── scripts/                    # Tooling, DB helpers, one-off maintenance
-├── tests/                      # Jest + Supertest
-├── netlify/                    # Netlify Function source
-├── netlify.toml
-├── server.js                   # Local server entry (requires ./src/app)
-└── public/                     # Static files served by Express / Netlify publish root
-    ├── dashboard-app/          # Vite build output (gitignored)
-    ├── scripts/                # Legacy/static JS for EJS pages (not Node scripts/)
-    ├── styles/
-    ├── assets/
-    └── images/
+├── views/                          # EJS templates (auth pages, portfolios, PDFs)
+├── migrations/                     # Knex migrations (111 files, UUID PKs)
+├── seeds/                          # Knex seed data
+├── scripts/                        # Tooling: backfills, DB helpers, favicon generation
+├── tests/                          # Jest + Supertest integration tests
+├── netlify/functions/server.js     # serverless-http entry point
+├── netlify.toml                    # Netlify build + redirect config
+├── server.js                       # Local server entry
+├── public/
+│   └── dashboard-app/              # Vite build output (gitignored)
+└── archive/                        # Retired assets and backups (not used at runtime)
 ```
 
 ---
@@ -451,17 +463,16 @@ Symptom: `Cannot find module './get-event-type'` in function logs. Ensure `serve
 ```bash
 # React SPA
 cd client && rm -rf dist node_modules && npm install && npm run build
-
-# Next.js marketing site (only if landing/ exists)
-cd landing && rm -rf .next node_modules && npm install && npm run build
 ```
 
 ---
 
 ## Documentation
 
-- **`CLAUDE.md`** — Architecture deep-dive and development guide
-- **`docs/superpowers/`** — Feature specs and implementation plans
+- **`CLAUDE.md`** — Architecture deep-dive and AI development guide
+- **`PRODUCT.md`** — Product purpose, brand personality, and design principles
+- **`DESIGN.md`** — Visual design system and component reference
+- **`docs/`** — Feature specs and implementation plans
 - **`archive/README.md`** — What lives under `archive/` and why
 
 ---

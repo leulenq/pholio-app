@@ -25,19 +25,124 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function isLocalhostUrl(value) {
+  if (!value) return false;
+  try {
+    const host = new URL(String(value).trim()).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+  } catch {
+    return /localhost|127\.0\.0\.1/i.test(String(value));
+  }
+}
+
+function pickPublicBaseUrl(candidates, fallback) {
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const normalized = String(raw).trim().replace(/\/$/, "");
+    if (!isLocalhostUrl(normalized)) return normalized;
+  }
+  return fallback;
+}
+
+const PRODUCTION_APP_URL = "https://app.pholio.studio";
+const PRODUCTION_MARKETING_URL = "https://www.pholio.studio";
+
+/** App base URL for links inside outbound transactional emails (never localhost). */
+function getEmailAppBaseUrl() {
+  return pickPublicBaseUrl(
+    [
+      process.env.EMAIL_APP_URL,
+      process.env.APP_URL,
+      process.env.BASE_URL,
+      process.env.URL,
+      process.env.DEPLOY_PRIME_URL,
+    ],
+    PRODUCTION_APP_URL,
+  );
+}
+
+/** Marketing site base URL for legal docs and public pages in emails. */
+function getMarketingSiteUrl() {
+  return pickPublicBaseUrl(
+    [process.env.EMAIL_MARKETING_SITE_URL, process.env.MARKETING_SITE_URL],
+    PRODUCTION_MARKETING_URL,
+  );
+}
+
+/** Public brand mark used in email headers and inbox sender avatar (Gravatar/BIMI). */
+function getBrandMarkUrl() {
+  return pickPublicBaseUrl(
+    [process.env.EMAIL_BRAND_MARK_URL, process.env.BRAND_MARK_URL],
+    `${PRODUCTION_APP_URL}/brand/pholio-sender-avatar.png`,
+  );
+}
+
+function buildEmailBrandMark({
+  width = 168,
+  href = getMarketingSiteUrl(),
+} = {}) {
+  const src = escapeHtml(getBrandMarkUrl());
+  const safeHref = escapeHtml(href);
+  return `<a href="${safeHref}" style="text-decoration:none;display:inline-block;line-height:0;"><img src="${src}" alt="Pholio" width="${width}" style="display:block;width:${width}px;max-width:100%;height:auto;border:0;outline:none;" /></a>`;
+}
+
 function getAppBaseUrl() {
   return (
     process.env.APP_URL ||
     (process.env.NODE_ENV === "production"
-      ? "https://app.pholio.studio"
+      ? PRODUCTION_APP_URL
       : "http://localhost:5173")
   );
+}
+
+/** Resolve a profile/media path to an absolute URL suitable for email clients. */
+function resolveEmailAssetUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const base = getEmailAppBaseUrl();
+  return `${base}${raw.startsWith("/") ? raw : `/${raw}`}`;
+}
+
+function buildLegalLinksRow({ separator = " · " } = {}) {
+  const marketing = getMarketingSiteUrl();
+  const linkStyle = `color:${BRAND.textSecondary};text-decoration:underline;`;
+  const items = [
+    `<a href="${escapeHtml(`${marketing}/terms`)}" style="${linkStyle}">Terms of Service</a>`,
+    `<a href="${escapeHtml(`${marketing}/privacy`)}" style="${linkStyle}">Privacy Policy</a>`,
+    `<a href="${escapeHtml(`${marketing}/ai-notice`)}" style="${linkStyle}">AI Notice</a>`,
+  ];
+  return items.join(separator);
+}
+
+function buildEmailFooter({ includeLegal = true } = {}) {
+  const marketing = getMarketingSiteUrl();
+  const legalBlock = includeLegal
+    ? `<p style="margin:10px 0 0;font-size:11px;line-height:1.7;color:${BRAND.textMuted};">
+        ${buildLegalLinksRow()}
+      </p>
+      <p style="margin:8px 0 0;font-size:11px;line-height:1.6;color:${BRAND.textMuted};">
+        Questions? <a href="mailto:support@pholio.studio" style="color:${BRAND.textSecondary};text-decoration:underline;">support@pholio.studio</a>
+      </p>`
+    : "";
+
+  return `<tr>
+    <td align="center" style="padding:28px 12px 0;">
+      <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:${BRAND.textMuted};">
+        © ${new Date().getFullYear()} Pholio Studio · Talent portfolios &amp; agency tools
+      </p>
+      <p style="margin:0;font-size:11px;line-height:1.6;color:${BRAND.textMuted};">
+        <a href="${escapeHtml(marketing)}" style="color:${BRAND.textSecondary};text-decoration:underline;">pholio.studio</a>
+      </p>
+      ${legalBlock}
+    </td>
+  </tr>`;
 }
 
 /**
  * Shared Pholio email shell — warm editorial luxury.
  */
-function getPholioEmailShell({ preheader = "", bodyHtml = "" }) {
+function getPholioEmailShell({ preheader = "", bodyHtml = "", includeLegalFooter = false }) {
   const preheaderText = escapeHtml(preheader);
 
   return `<!DOCTYPE html>
@@ -81,7 +186,7 @@ function getPholioEmailShell({ preheader = "", bodyHtml = "" }) {
           <!-- Logo -->
           <tr>
             <td align="center" style="padding-bottom:28px;">
-              <span style="font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:400;letter-spacing:0.12em;color:${BRAND.gold};text-transform:uppercase;">Pholio</span>
+              ${buildEmailBrandMark({ width: 168 })}
             </td>
           </tr>
 
@@ -93,18 +198,7 @@ function getPholioEmailShell({ preheader = "", bodyHtml = "" }) {
           </tr>
 
           <!-- Footer -->
-          <tr>
-            <td align="center" style="padding:28px 12px 0;">
-              <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:${BRAND.textMuted};">
-                © ${new Date().getFullYear()} Pholio Studio · Talent portfolios &amp; agency tools
-              </p>
-              <p style="margin:0;font-size:11px;line-height:1.6;color:${BRAND.textMuted};">
-                <a href="https://www.pholio.studio" style="color:${BRAND.textSecondary};text-decoration:underline;">pholio.studio</a>
-                &nbsp;·&nbsp;
-                <a href="${escapeHtml(getAppBaseUrl())}/dashboard/talent/settings" style="color:${BRAND.textSecondary};text-decoration:underline;">Notification preferences</a>
-              </p>
-            </td>
-          </tr>
+          ${buildEmailFooter({ includeLegal: includeLegalFooter })}
 
         </table>
       </td>
@@ -207,7 +301,7 @@ function getWelcomeEmailShell({
         <table role="presentation" class="email-container" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;width:100%;">
           <tr>
             <td align="center" style="padding-bottom:24px;">
-              <span style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;letter-spacing:0.14em;color:${BRAND.gold};text-transform:uppercase;">Pholio</span>
+              ${buildEmailBrandMark({ width: 156 })}
             </td>
           </tr>
           <tr>
@@ -778,10 +872,245 @@ function buildTeamInviteEmailHtml({
   });
 }
 
+/**
+ * Guardian consent — premium shell with hero band + legal footer.
+ */
+function getGuardianConsentEmailShell({ preheader = "", heroHtml = "", bodyHtml = "" }) {
+  const preheaderText = escapeHtml(preheader);
+
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Pholio · Guardian consent</title>
+  <style>
+    @media only screen and (max-width: 620px) {
+      .email-container { width: 100% !important; }
+      .email-card-flush { padding: 0 !important; }
+      .email-body-pad { padding: 28px 20px !important; }
+      .email-hero-pad { padding: 28px 20px !important; }
+      .email-cta { display: block !important; width: 100% !important; box-sizing: border-box !important; text-align: center !important; }
+      .talent-photo-col { display: block !important; width: 100% !important; padding: 0 0 16px !important; text-align: center !important; }
+      .talent-copy-col { display: block !important; width: 100% !important; text-align: center !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:${BRAND.canvas};font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${preheaderText}</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${BRAND.canvas};">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" class="email-container" width="560" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;width:100%;">
+          <tr>
+            <td align="center" style="padding-bottom:24px;">
+              ${buildEmailBrandMark({ width: 156 })}
+            </td>
+          </tr>
+          <tr>
+            <td class="email-card email-card-flush" style="background-color:${BRAND.card};border:1px solid ${BRAND.border};border-radius:18px;overflow:hidden;box-shadow:0 8px 40px rgba(26,24,21,0.08);padding:0;">
+              ${heroHtml}
+              <div class="email-body-pad" style="padding:32px 36px 36px;">${bodyHtml}</div>
+            </td>
+          </tr>
+          ${buildEmailFooter({ includeLegal: true })}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildTalentInitials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "P";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
+}
+
+function buildGuardianConsentHero({ talentName, talentPhotoUrl, talentCity }) {
+  const safeName = escapeHtml(talentName || "Talent profile");
+  const safeCity = talentCity ? escapeHtml(talentCity) : null;
+  const photoSrc = resolveEmailAssetUrl(talentPhotoUrl);
+  const initials = escapeHtml(buildTalentInitials(talentName));
+
+  const avatarHtml = photoSrc
+    ? `<img src="${escapeHtml(photoSrc)}" alt="${safeName}" width="72" height="72" style="display:block;width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid ${BRAND.card};box-shadow:0 4px 16px rgba(26,24,21,0.12);" />`
+    : `<table role="presentation" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td align="center" width="72" height="72" style="width:72px;height:72px;border-radius:50%;background-color:${BRAND.goldGhost};border:2px solid rgba(201,165,90,0.35);font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:400;color:${BRAND.gold};line-height:72px;text-align:center;">${initials}</td>
+        </tr>
+      </table>`;
+
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${BRAND.goldMuted};border-bottom:1px solid ${BRAND.border};">
+    <tr>
+      <td class="email-hero-pad" style="padding:32px 36px 28px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td class="talent-photo-col" valign="middle" width="88" style="width:88px;padding-right:18px;vertical-align:middle;">
+              ${avatarHtml}
+            </td>
+            <td class="talent-copy-col" valign="middle" style="vertical-align:middle;">
+              <p style="margin:0 0 6px;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:${BRAND.gold};font-weight:700;">Consent request</p>
+              <h1 style="margin:0 0 4px;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.25;font-weight:400;color:${BRAND.text};letter-spacing:-0.01em;">${safeName}</h1>
+              ${safeCity ? `<p style="margin:0;font-size:13px;line-height:1.5;color:${BRAND.textMuted};">${safeCity}</p>` : ""}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>`;
+}
+
+function buildLeadParagraph(html) {
+  return `<p style="margin:0 0 28px;font-size:16px;line-height:1.65;color:${BRAND.textSecondary};">${html}</p>`;
+}
+
+function buildSupportingCopy(html) {
+  return `<p style="margin:0 0 20px;font-size:13px;line-height:1.6;color:${BRAND.textMuted};">${html}</p>`;
+}
+
+function buildInfoPanel({ title, items }) {
+  const rows = items
+    .map(
+      (item) => `
+      <tr>
+        <td valign="top" width="10" style="padding:0 10px 10px 0;vertical-align:top;">
+          <span style="display:inline-block;width:6px;height:6px;margin-top:7px;border-radius:50%;background-color:${BRAND.gold};"></span>
+        </td>
+        <td valign="top" style="padding:0 0 10px;vertical-align:top;">
+          <p style="margin:0;font-size:14px;line-height:1.55;color:${BRAND.textSecondary};">${item}</p>
+        </td>
+      </tr>`,
+    )
+    .join("");
+
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;background-color:${BRAND.canvas};border:1px solid ${BRAND.border};border-radius:12px;">
+    <tr>
+      <td style="padding:18px 20px;">
+        <p style="margin:0 0 12px;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:${BRAND.gold};font-weight:700;">${escapeHtml(title)}</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows}</table>
+      </td>
+    </tr>
+  </table>`;
+}
+
+function buildLegalConsentBlock() {
+  const marketing = getMarketingSiteUrl();
+  const linkStyle = `color:${BRAND.gold};text-decoration:underline;font-weight:600;`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0;">
+    <tr>
+      <td style="padding:18px 20px;background-color:${BRAND.canvas};border-radius:12px;border:1px solid ${BRAND.border};">
+        <p style="margin:0 0 8px;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:${BRAND.gold};font-weight:700;">Legal &amp; privacy</p>
+        <p style="margin:0;font-size:13px;line-height:1.65;color:${BRAND.textSecondary};">
+          Confirming consent authorizes Pholio to collect and share this talent&apos;s profile information
+          (including measurements and imagery) with agencies as described in our
+          <a href="${escapeHtml(`${marketing}/privacy`)}" style="${linkStyle}">Privacy Policy</a>.
+          Platform use is governed by our
+          <a href="${escapeHtml(`${marketing}/terms`)}" style="${linkStyle}">Terms of Service</a>
+          and
+          <a href="${escapeHtml(`${marketing}/ai-notice`)}" style="${linkStyle}">AI Notice</a>.
+        </p>
+      </td>
+    </tr>
+  </table>`;
+}
+
+/**
+ * Guardian consent verification for minor talent profiles.
+ */
+function buildGuardianConsentEmailHtml({
+  guardianName,
+  talentName,
+  talentPhotoUrl,
+  talentCity,
+  agencyName,
+  consentUrl,
+  expiresDays = 7,
+}) {
+  const marketing = getMarketingSiteUrl();
+  const safeTalent = escapeHtml(talentName || "this talent");
+  const greetingName = guardianName ? escapeHtml(guardianName) : null;
+  const safeAgency = agencyName ? escapeHtml(agencyName) : null;
+  const heroHtml = buildGuardianConsentHero({
+    talentName,
+    talentPhotoUrl,
+    talentCity,
+  });
+
+  const bodyHtml = `
+    <p style="margin:0 0 8px;font-family:Georgia,'Times New Roman',serif;font-size:22px;line-height:1.35;color:${BRAND.text};font-weight:400;">
+      ${greetingName ? `Hi ${greetingName},` : "Hello,"}
+    </p>
+    ${buildLeadParagraph(
+      safeAgency
+        ? `<strong style="color:${BRAND.text};font-weight:600;">${safeTalent}</strong> listed you as their parent or legal guardian and needs your permission to send their profile, measurements, and images to <strong style="color:${BRAND.text};font-weight:600;">${safeAgency}</strong> for representation review.`
+        : `<strong style="color:${BRAND.text};font-weight:600;">${safeTalent}</strong> listed you as their parent or legal guardian on Pholio and needs your verified consent to continue building their portfolio.`,
+    )}
+    ${buildInfoPanel({
+      title: "What you are confirming",
+      items: [
+        "You are the parent or legal guardian of this talent.",
+        safeAgency
+          ? `Pholio may disclose this talent's measurements, full-length photos, and profile details to ${safeAgency}.`
+          : "Pholio may collect measurements, full-length photos, and profile details for agency submissions.",
+        safeAgency
+          ? `This permission applies only to ${safeAgency}; another agency requires a separate request.`
+          : "Agencies may review this portfolio only after your consent is recorded.",
+      ],
+    })}
+    ${buildSectionLabel("What happens next")}
+    ${buildStepList([
+      {
+        title: "Review the request",
+        description:
+          "Open the secure link below to see who requested consent and what Pholio will collect.",
+      },
+      {
+        title: "Confirm on Pholio",
+        description:
+          safeAgency
+            ? `One click authorizes this submission to ${safeAgency}.`
+            : "One click records verified guardian consent on this talent's profile.",
+      },
+      {
+        title: "They can finish their book",
+        description:
+          safeAgency
+            ? `After confirmation, they can submit this package to ${safeAgency}.`
+            : "After confirmation, they can complete measurements, upload imagery, and apply to agencies.",
+      },
+    ])}
+    ${buildCtaButton({ href: consentUrl, label: "Review & confirm consent" })}
+    ${buildSupportingCopy(
+      `This link is unique to you, works once, and expires in <strong style="color:${BRAND.textSecondary};">${expiresDays} days</strong>.`,
+    )}
+    ${buildLegalConsentBlock()}
+    ${buildSecurityNote(
+      `If you did not expect this email or do not consent, ignore it — no consent will be recorded. Learn more at <a href="${escapeHtml(marketing)}" style="color:${BRAND.gold};text-decoration:underline;">pholio.studio</a>.`,
+    )}`;
+
+  return getGuardianConsentEmailShell({
+    preheader: talentName
+      ? `${talentName} needs your guardian consent on Pholio`
+      : "A talent on Pholio needs your guardian consent",
+    heroHtml,
+    bodyHtml,
+  });
+}
+
 module.exports = {
   BRAND,
   escapeHtml,
   getAppBaseUrl,
+  getEmailAppBaseUrl,
+  getMarketingSiteUrl,
+  resolveEmailAssetUrl,
   getPholioEmailShell,
   buildNewMessageEmailHtml,
   buildApplicationStatusEmailHtml,
@@ -793,4 +1122,5 @@ module.exports = {
   buildPasswordChangedEmailHtml,
   buildMagicSignInEmailHtml,
   buildTeamInviteEmailHtml,
+  buildGuardianConsentEmailHtml,
 };

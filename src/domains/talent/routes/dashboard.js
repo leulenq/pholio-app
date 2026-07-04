@@ -198,4 +198,23 @@ router.get(
   }),
 );
 
+/**
+ * POST /api/talent/unlock-celebrated
+ * One-shot marker: records that the post-unlock celebration
+ * (ProfileUnlockExperience) has already played for this profile, so it
+ * never re-opens on later visits. Replaces the old
+ * `talent-gate-celebrated:<id>` localStorage flag with a server-side one.
+ */
+router.post(
+  "/unlock-celebrated",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const userId = req.session.userId;
+    await knex("profiles")
+      .where({ user_id: userId })
+      .update({ unlock_celebrated_at: knex.fn.now() });
+    return res.json({ success: true });
+  }),
+);
+
 module.exports = router;

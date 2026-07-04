@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 function normalizePostgresSslMode(connectionString) {
   try {
@@ -41,6 +42,12 @@ const sqlite = {
 };
 
 const client = (process.env.DB_CLIENT || 'sqlite3').toLowerCase();
+const isServerless = Boolean(
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.NETLIFY ||
+  process.env.NETLIFY_DEV ||
+  process.env.VERCEL
+);
 
 // Validate DATABASE_URL when using PostgreSQL
 if (client === 'pg') {
@@ -246,13 +253,14 @@ const pg = {
   // Connection pool configuration for serverless environments
   // This helps handle connection termination issues with pooled connections (e.g., Neon)
   pool: {
-    min: 0, // Minimum connections in pool (0 for serverless)
-    max: 3, // Maximum connections in pool (small for serverless to avoid connection limits)
-    idleTimeoutMillis: 10000, // Close idle connections after 10 seconds
-    acquireTimeoutMillis: 60000, // Wait up to 60 seconds to acquire a connection
-    createTimeoutMillis: 30000, // Wait up to 30 seconds to create a new connection
-    reapIntervalMillis: 1000, // Check for idle connections every second
-    createRetryIntervalMillis: 200, // Wait 200ms before retrying connection creation
+    min: 0,
+    // One connection per serverless invocation; Neon pooler handles concurrency.
+    max: isServerless ? 1 : 3,
+    idleTimeoutMillis: isServerless ? 5000 : 10000,
+    acquireTimeoutMillis: isServerless ? 10000 : 60000,
+    createTimeoutMillis: isServerless ? 10000 : 30000,
+    reapIntervalMillis: 1000,
+    createRetryIntervalMillis: 200,
     // Auto-reconnect on connection errors
     afterCreate: (connection, done) => {
       // Set connection timeout to prevent hanging connections
@@ -263,7 +271,7 @@ const pg = {
     }
   },
   // Increase query timeout for serverless (functions can be slow to cold start)
-  acquireConnectionTimeout: 60000,
+  acquireConnectionTimeout: isServerless ? 10000 : 60000,
   ...shared
 };
 

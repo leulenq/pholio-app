@@ -333,12 +333,29 @@ function solveBackProgram(input = {}) {
   }
   decide("stats-side", side, stats.skip ? "no stats" : "seeded, formality-biased");
 
-  // Desired photo count is density-driven: restrained cards show FEWER
-  // photos even when more are available; dense cards pack them. The
-  // full-length and the strongest frames survive the trim.
+  // Desired photo count is density-driven, but anchored to the industry
+  // convention: a standard comp-card back shows ~4 frames (the "3–5" range).
+  // We bias the neutral default to 4 and floor standard cards at 3; a 2-photo
+  // back is reserved for an EXPLICITLY minimal style (very low density), which
+  // is the only case the restrained-duo architecture should win. The
+  // full-length and strongest frames survive the trim.
   const maxN = clamp(n0, 1, 6);
-  const desired = clamp(Math.round(lerp(2, maxN, 0.18 + 0.82 * density)), Math.min(2, maxN), maxN);
-  decide("photo-count", `${desired}/${maxN}`, `density ${r3(density)} → ${desired} of ${maxN} frames`);
+  const STANDARD_BACK_COUNT = 4;
+  const minimalStyle = density < 0.18; // explicit minimal → duo permitted
+  const floorN = clamp(minimalStyle ? 2 : 3, 1, maxN);
+  let desired;
+  if (density >= 0.66) {
+    // Dense cards climb from the standard toward the full available set.
+    desired = Math.round(lerp(STANDARD_BACK_COUNT, maxN, (density - 0.66) / 0.34));
+  } else if (density <= 0.34) {
+    // Quiet cards ease from the standard down to the floor (3, or 2 if minimal).
+    desired = Math.round(lerp(floorN, STANDARD_BACK_COUNT, density / 0.34));
+  } else {
+    // Neutral density holds the 4-frame standard.
+    desired = STANDARD_BACK_COUNT;
+  }
+  desired = clamp(desired, floorN, maxN);
+  decide("photo-count", `${desired}/${maxN}`, `density ${r3(density)} → ${desired} of ${maxN} frames (standard ${STANDARD_BACK_COUNT}, floor ${floorN})`);
 
   // architecture selection — eligibility by the DESIRED count, biased by density
   const n = desired;

@@ -15,7 +15,16 @@ async function loadProfileStrengthInput(profileId) {
   const images = await knex("images")
     .where({ profile_id: profileId })
     .orderBy("sort", "asc")
-    .select("id", "path", "label", "is_primary");
+    .select(
+      "id",
+      "path",
+      "public_url",
+      "is_primary",
+      "metadata",
+      "image_type",
+      "shot_type",
+      "style_type",
+    );
 
   const primary = images.find((img) => img.is_primary) || images[0];
   return {

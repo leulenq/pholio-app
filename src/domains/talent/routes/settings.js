@@ -4,14 +4,33 @@ const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
+const { deleteUserAccount } = require("../../../shared/lib/account-deletion");
+const { buildTalentDataExport } = require("../../../shared/lib/data-export");
+const {
+  recordLegalAcceptance,
+  requireLegalAcceptance,
+} = require("../../../shared/lib/legal-acceptance");
 const apiResponse = require("../../../shared/lib/api-response");
 const {
   getSubscriptionStatus,
   getTrialDaysRemaining,
   isCanceling,
+  isInTrial,
   isSubscriptionActive,
 } = require("../../../shared/lib/subscriptions");
+const config = require("../../../config");
+const {
+  STUDIO_PLUS_PLAN,
+  getStudioPlusCheckoutPlans,
+  getStudioPlusPlan,
+  getStudioPlusPlanForPriceId,
+} = require("../../../shared/lib/billing-plan");
 const { v4: uuidv4 } = require("uuid");
+const {
+  minorPublicExposureAllowed,
+  canCollectSensitiveProfileFields,
+  isSensitiveImageShotType,
+} = require("../../../shared/lib/talent-age");
 
 const DEFAULT_NOTIFICATIONS = {
   emailFrequency: "immediate",
@@ -183,14 +202,24 @@ function formatDate(value) {
 }
 
 function formatSubscription(subscription, profile) {
+  const checkoutPlans = getStudioPlusCheckoutPlans();
+  const defaultPlan = getStudioPlusPlan();
+
   if (!subscription) {
+    const displayPlan = profile?.is_pro ? defaultPlan : null;
     return {
       planName: profile?.is_pro ? "Studio+" : "Free",
       status: profile?.is_pro ? "active" : "free",
       isPro: !!profile?.is_pro,
-      priceLabel: profile?.is_pro ? "$29" : "$0",
-      priceUnit: profile?.is_pro ? "/month" : "/month",
+      isTrialing: false,
+      billingInterval: displayPlan?.interval || defaultPlan.interval,
+      priceLabel: displayPlan?.priceLabel || "$0",
+      priceUnit: displayPlan?.priceUnit || "/month",
+      trialDays: STUDIO_PLUS_PLAN.trialDays,
+      billingDisclosureVersion: STUDIO_PLUS_PLAN.billingDisclosureVersion,
+      checkoutPlans,
       renewalDate: null,
+      trialEndDate: null,
       trialDaysRemaining: null,
       cancelAtPeriodEnd: false,
       stripeCustomerId: null,
@@ -198,14 +227,27 @@ function formatSubscription(subscription, profile) {
   }
 
   const active = isSubscriptionActive(subscription.status);
+  const trialing = isInTrial(subscription);
+  const displayPlan = active
+    ? getStudioPlusPlanForPriceId(subscription.stripe_price_id, config)
+    : null;
+  const renewalLabel = displayPlan?.renewalLabel || defaultPlan.renewalLabel;
+
   return {
     planName: active ? "Studio+" : "Free",
     status: subscription.status,
     isPro: active,
-    priceLabel: active ? "$29" : "$0",
-    priceUnit: active ? "/month" : "/month",
+    isTrialing: trialing,
+    billingInterval: displayPlan?.interval || defaultPlan.interval,
+    priceLabel: trialing ? "$0" : displayPlan?.priceLabel || "$0",
+    priceUnit: trialing ? " during trial" : displayPlan?.priceUnit || "/month",
+    trialDays: STUDIO_PLUS_PLAN.trialDays,
+    billingDisclosureVersion: STUDIO_PLUS_PLAN.billingDisclosureVersion,
+    checkoutPlans,
     renewalDate: formatDate(subscription.current_period_end),
+    trialEndDate: formatDate(subscription.trial_end),
     trialDaysRemaining: getTrialDaysRemaining(subscription),
+    renewalLabel,
     cancelAtPeriodEnd: isCanceling(subscription),
     stripeCustomerId: subscription.stripe_customer_id || null,
   };
@@ -371,7 +413,15 @@ router.put(
     }
 
     if (isPublic !== undefined) {
-      profileUpdate.is_public = !!isPublic;
+      const wantsPublic = !!isPublic;
+      if (wantsPublic && !minorPublicExposureAllowed(profile)) {
+        return apiResponse.error(
+          res,
+          "A valid date of birth is required (and guardian consent for minors) before a profile can be made public.",
+          403,
+        );
+      }
+      profileUpdate.is_public = wantsPublic;
     }
 
     if (isDiscoverable !== undefined) {
@@ -417,11 +467,20 @@ router.put(
       }
 
       if (showContact !== undefined || blockedAgencies !== undefined) {
+        const effectiveShowContact =
+          showContact !== undefined ? !!showContact : undefined;
+        if (effectiveShowContact && !minorPublicExposureAllowed(profile)) {
+          return apiResponse.error(
+            res,
+            "A valid date of birth is required (and guardian consent for minors) before contact details can be shown publicly.",
+            403,
+          );
+        }
         update.privacy_preferences = jsonForDb(
           sanitizePrivacy({
             ...DEFAULT_PRIVACY,
             ...parseJson(row.privacy_preferences, {}),
-            ...(showContact !== undefined ? { showContact } : {}),
+            ...(showContact !== undefined ? { showContact: effectiveShowContact } : {}),
             ...(blockedAgencies !== undefined ? { blockedAgencies } : {}),
           }),
         );
@@ -450,42 +509,15 @@ router.post(
       });
     }
 
-    const [user, profile, images, applications, settings] = await Promise.all([
-      knex("users").where({ id: userId }).first(),
-      knex("profiles").where({ user_id: userId }).first(),
-      knex("profiles")
-        .where({ user_id: userId })
-        .first()
-        .then((p) =>
-          p ? knex("images").where({ profile_id: p.id }).orderBy("sort", "asc") : [],
-        ),
-      knex("profiles")
-        .where({ user_id: userId })
-        .first()
-        .then((p) =>
-          p
-            ? knex("applications")
-                .where({ profile_id: p.id })
-                .orderBy("created_at", "desc")
-            : [],
-        ),
+    const [exportPayload, settings] = await Promise.all([
+      buildTalentDataExport(knex, userId),
       buildSettingsPayload(userId, req.sessionID),
     ]);
 
     return apiResponse.success(res, {
       requestedAt: new Date().toISOString(),
       export: {
-        user: user
-          ? {
-              id: user.id,
-              email: user.email,
-              role: user.role,
-              createdAt: user.created_at,
-            }
-          : null,
-        profile,
-        images,
-        applications,
+        ...exportPayload,
         settings,
       },
     });
@@ -496,15 +528,43 @@ router.post(
   "/settings/erasure-request",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const row = await ensureSettingsRow(req.session.userId);
-    if (row) {
-      await knex("talent_user_settings").where({ id: row.id }).update({
-        data_erasure_requested_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
+    return res.status(400).json({
+      error: "Use account deletion",
+      message:
+        "To permanently erase your personal data, delete your account from Danger Zone in Settings. That removes your profile, images, and account from Pholio.",
+    });
+  }),
+);
+
+router.get(
+  "/settings/legal-status",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const user = await knex("users").where({ id: req.session.userId }).first();
+    const accepted = requireLegalAcceptance(user, { throwOnMissing: false });
+    return apiResponse.success(res, { needsAcceptance: !accepted });
+  }),
+);
+
+router.post(
+  "/settings/legal-acceptance",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const terms = req.body?.terms_accepted === true;
+    const privacy = req.body?.privacy_accepted === true;
+    if (!terms || !privacy) {
+      return res.status(400).json({
+        error: "Validation error",
+        message: "Terms and Privacy Policy acceptance are required.",
       });
     }
-    const settings = await buildSettingsPayload(req.session.userId, req.sessionID);
-    return apiResponse.success(res, settings.data);
+
+    await recordLegalAcceptance(knex, req.session.userId, {
+      terms: true,
+      privacy: true,
+    });
+
+    return apiResponse.success(res, { accepted: true });
   }),
 );
 
@@ -541,15 +601,27 @@ router.delete(
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
     const userId = req.session.userId;
-    await knex("users").where({ id: userId }).del();
+    const result = await deleteUserAccount(knex, userId);
+
+    // The account row (and everything cascaded from it) is gone from
+    // Pholio's own systems either way, so we always sign the caller out and
+    // redirect. What must stay truthful is whether erasure is actually
+    // COMPLETE: if an R2/Firebase provider purge failed, `fullyErased` is
+    // false and the failure was durably recorded for retry — the response
+    // must not claim full erasure it hasn't verified.
+    const payload = {
+      deleted: !!result.deleted,
+      fullyErased: !!result.fullyErased,
+      erasureStatus: result.fullyErased ? "complete" : "pending_provider_purge",
+    };
 
     if (!req.session) {
-      return apiResponse.success(res, { deleted: true });
+      return apiResponse.success(res, payload);
     }
 
     req.session.destroy(() => {
       res.clearCookie("connect.sid");
-      return apiResponse.success(res, { deleted: true, redirect: "/login" });
+      return apiResponse.success(res, { ...payload, redirect: "/login" });
     });
   }),
 );

@@ -20,6 +20,7 @@ export const PROFILE_SOCIAL_FIELD_CONFIG = {
   twitter_handle: { base: 'https://x.com/', prefix: '@' },
   youtube_handle: { base: 'https://youtube.com/', prefix: '' },
   portfolio_url: { base: '', prefix: '' },
+  onlyfans_url: { base: 'https://onlyfans.com/', prefix: '' },
   video_reel_url: { base: '', prefix: '' },
 };
 

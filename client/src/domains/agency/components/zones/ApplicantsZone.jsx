@@ -5,6 +5,7 @@ import { getApplicationDetails, getTimeline } from '../../api/agency';
 import { PortfolioStrip } from './PortfolioStrip';
 import { SectionSkeleton } from './SectionSkeleton';
 import { buildProfileHydration } from './profileHydration';
+import { SubmissionPackageDetails } from './SubmissionPackageDetails';
 import './zones.css';
 
 const formatDate = (ts) =>
@@ -66,7 +67,7 @@ export const ApplicantsZone = ({ applicationId, onProfileHydrated }) => {
     );
   }
 
-  const { application, profile } = appQuery.data || {};
+  const { application, profile, submissionPackage } = appQuery.data || {};
   const images = profile?.images || [];
   const timeline = timelineQuery.data || [];
   const visibleTimeline = showAllTimeline ? timeline : timeline.slice(0, 5);
@@ -83,8 +84,14 @@ export const ApplicantsZone = ({ applicationId, onProfileHydrated }) => {
 
       {images.length > 0 && (
         <div className="zone-section">
-          <div className="zone-section-header">Portfolio</div>
+          <div className="zone-section-header">
+            {submissionPackage ? 'Submitted package' : 'Portfolio'}
+          </div>
           <PortfolioStrip images={images} />
+          <SubmissionPackageDetails
+            submissionPackage={submissionPackage}
+            compact
+          />
         </div>
       )}
 

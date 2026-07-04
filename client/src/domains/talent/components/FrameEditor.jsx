@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import Cropper from 'react-easy-crop';
 import {
   Calendar, Camera, Crop, EyeOff, Image as ImageIcon,
@@ -7,7 +8,19 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
+import { classificationFormDefaults } from '../../../shared/utils/imageClassification';
+import {
+  shotPickerOptions,
+  imageTypePickerOptions,
+  stylePickerOptions,
+  expressionPickerOptions,
+} from '../../../shared/constants/frameTaxonomy';
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
+import PholioButton, {
+  PholioIconButton,
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../shared/components/ui/PholioButton';
 import './FrameEditor.css';
 
 const ASPECTS = [
@@ -17,52 +30,40 @@ const ASPECTS = [
   { val: 16 / 9, label: 'Wide', meta: '16:9' },
 ];
 
-const COMP_CARD_ROLES = [
-  { id: 'headshot', label: 'Headshot' },
-  { id: 'full_body', label: 'Full Body' },
-  { id: 'editorial', label: 'Editorial' },
-  { id: 'lifestyle', label: 'Lifestyle' },
-];
-
-const IMAGE_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'digital', label: 'Digital' },
-  { value: 'portfolio', label: 'Portfolio' },
-  { value: 'comp_card', label: 'Comp card' },
-  { value: 'campaign', label: 'Campaign' },
-  { value: 'test', label: 'Test' },
-];
-
-const SHOT_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'headshot', label: 'Headshot' },
-  { value: 'three_quarter', label: 'Three-quarter' },
-  { value: 'full_length', label: 'Full length' },
-  { value: 'profile_left', label: 'Profile (left)' },
-  { value: 'profile_right', label: 'Profile (right)' },
-  { value: 'back', label: 'Back' },
-  { value: 'detail', label: 'Detail' },
-];
-
-const STYLE_TYPE_OPTIONS = [
-  { value: '', label: 'Not set' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'lifestyle', label: 'Lifestyle' },
-  { value: 'beauty', label: 'Beauty' },
-  { value: 'ecommerce', label: 'E-commerce' },
-  { value: 'swimwear', label: 'Swimwear' },
-  { value: 'fitness', label: 'Fitness' },
-];
-
+// Status — operational state (affects comp card eligibility)
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
   { value: 'archived', label: 'Archived' },
-  { value: 'retired', label: 'Retired' },
-  { value: 'test', label: 'Test' },
 ];
 
-const AVAILABLE_TAGS = ['Editorial', 'Commercial', 'Runway', 'Swimwear', 'Beauty', 'Lifestyle', 'Digitals'];
+const RIGHTS_STATUS_OPTIONS = [
+  { value: '', label: 'Unset' },
+  { value: 'pending', label: 'Pending review' },
+  { value: 'cleared', label: 'Cleared for distribution' },
+  { value: 'licensed', label: 'Licensed' },
+  { value: 'owned', label: 'Owned' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'restricted', label: 'Restricted' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'denied', label: 'Denied' },
+];
+
+const LICENSE_TYPE_OPTIONS = [
+  { value: '', label: 'Unset' },
+  { value: 'owned', label: 'Owned by talent' },
+  { value: 'licensed', label: 'Licensed use' },
+  { value: 'model_release', label: 'Model release on file' },
+  { value: 'agency_permission', label: 'Agency permission' },
+  { value: 'editorial_release', label: 'Editorial release' },
+];
+
+const RELEASE_SIGNER_ROLE_OPTIONS = [
+  { value: '', label: 'Select signer role' },
+  { value: 'self', label: 'Talent (self)' },
+  { value: 'guardian', label: 'Parent or legal guardian' },
+  { value: 'authorized_representative', label: 'Authorized representative' },
+];
 
 function isoToDateInput(iso) {
   if (!iso) return '';
@@ -77,6 +78,17 @@ function dateInputToPayload(value) {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+/** License expiry read — drives the "expires in N days / expired" indicator. */
+function expiryState(expiresAtIso, now = new Date()) {
+  if (!expiresAtIso) return null;
+  const d = new Date(expiresAtIso);
+  if (Number.isNaN(d.getTime())) return null;
+  const days = Math.ceil((d.getTime() - now.getTime()) / 86400000);
+  if (days < 0) return { label: `Rights expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago`, expired: true };
+  if (days === 0) return { label: 'Rights expire today', expired: false };
+  return { label: `Rights expire in ${days} day${days === 1 ? '' : 's'}`, expired: false };
+}
+
 function readMetadata(metadata) {
   if (!metadata) return {};
   if (typeof metadata === 'object') return metadata;
@@ -89,7 +101,13 @@ function getImageUrl(value) {
   return value.startsWith('/') ? value : `/uploads/${value}`;
 }
 
+function toText(value) {
+  if (value == null) return '';
+  return String(value);
+}
+
 export default function FrameEditor({ image, initialMode = 'details', mediaSets = [], onClose, onUpdate, onReplace, onRestore }) {
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState(initialMode);
 
   // Crop state
@@ -103,23 +121,51 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
 
   // Details state
   const [saving, setSaving] = useState(false);
+  const [rights, setRights] = useState({
+    license_type: '',
+    rights_status: '',
+    copyright_owner: '',
+    photographer_name: '',
+    usage_scope: '',
+    territory: '',
+    start_at: '',
+    expires_at: '',
+    exclusive: false,
+  });
+  const [rightsLoaded, setRightsLoaded] = useState(false);
+  const [rightsLoading, setRightsLoading] = useState(true);
+  const [rightsError, setRightsError] = useState('');
+  const [releaseOnFile, setReleaseOnFile] = useState(false);
+  // Model-release artifact (P1 #6) — a real release record attached to the frame.
+  const [release, setRelease] = useState({
+    release_url: '',
+    signer_name: '',
+    signer_role: '',
+    signed_at: '',
+  });
+  const [releaseLoaded, setReleaseLoaded] = useState(false);
+  const [releaseDirty, setReleaseDirty] = useState(false);
   const initialMeta = readMetadata(image.metadata);
   const initialCredits = initialMeta.credits || {};
+  const classDefaults = classificationFormDefaults(image);
   const [form, setForm] = useState({
     metadata: {
-      role: initialMeta.role || null,
-      tags: Array.isArray(initialMeta.tags) ? initialMeta.tags : [],
       credits: {
         photographer: initialCredits.photographer || '',
         mua: initialCredits.mua || '',
+        hair_stylist: initialCredits.hair_stylist || '',
         stylist: initialCredits.stylist || '',
+        publication: initialCredits.publication || '',
+        issue: initialCredits.issue || '',
+        credit: initialCredits.credit || '',
       },
-      caption: initialMeta.caption || '',
+      description: initialMeta.description || initialMeta.caption || '',
       visibility: initialMeta.visibility || 'public',
     },
-    image_type: image.image_type ?? '',
-    shot_type: image.shot_type ?? '',
-    style_type: image.style_type ?? '',
+    image_type: classDefaults.image_type,
+    shot_type: classDefaults.shot_type,
+    style_type: classDefaults.style_type,
+    expression: classDefaults.expression,
     status: image.status != null ? image.status : 'active',
     exclude_from_public: !!image.exclude_from_public,
     exclude_from_agency: !!image.exclude_from_agency,
@@ -129,6 +175,58 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
   });
 
   const imageSrc = getImageUrl(image.public_url || image.path);
+
+  React.useEffect(() => {
+    let active = true;
+    setRightsLoading(true);
+    setRightsLoaded(false);
+    setRightsError('');
+    talentApi.getImageRights(image.id)
+      .then((res) => {
+        if (!active) return;
+        const row = res?.rights || {};
+        setRights({
+          license_type: toText(row.license_type),
+          rights_status: toText(row.rights_status),
+          copyright_owner: toText(row.copyright_owner),
+          photographer_name: toText(row.photographer_name),
+          usage_scope: toText(row.usage_scope),
+          territory: toText(row.territory),
+          start_at: isoToDateInput(row.start_at),
+          expires_at: isoToDateInput(row.expires_at),
+          exclusive: !!row.exclusive,
+        });
+        if (res?.release_on_file) setReleaseOnFile(true);
+        setRightsLoaded(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRightsError('Rights metadata is unavailable right now.');
+      })
+      .finally(() => {
+        if (!active) return;
+        setRightsLoading(false);
+      });
+
+    talentApi.getModelRelease(image.id)
+      .then((res) => {
+        if (!active) return;
+        const row = res?.release || {};
+        setRelease({
+          release_url: toText(row.release_url || row.release_ref),
+          signer_name: toText(row.signer_name),
+          signer_role: toText(row.signer_role),
+          signed_at: isoToDateInput(row.signed_at),
+        });
+        if (row.on_file) setReleaseOnFile(true);
+        setReleaseLoaded(true);
+      })
+      .catch(() => { /* release is best-effort; rights UI still works */ });
+
+    return () => {
+      active = false;
+    };
+  }, [image.id]);
 
   const onCropComplete = useCallback((_, pixels) => { setCroppedAreaPixels(pixels); }, []);
 
@@ -157,15 +255,39 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
   const setCredit = (field, value) => setForm((p) => ({
     ...p, metadata: { ...p.metadata, credits: { ...p.metadata.credits, [field]: value } },
   }));
-  const toggleTag = (tag) => setMeta({
-    tags: form.metadata.tags.includes(tag)
-      ? form.metadata.tags.filter((t) => t !== tag)
-      : [...form.metadata.tags, tag],
-  });
+  const setReleaseField = (field, value) => {
+    setReleaseDirty(true);
+    setRelease((p) => ({ ...p, [field]: value }));
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const normalizedRightsStatus = rights.rights_status.trim().toLowerCase();
+      const hasLicenseType = rights.license_type.trim().length > 0;
+      const hasCredit = rights.copyright_owner.trim().length > 0
+        || rights.photographer_name.trim().length > 0;
+      if (normalizedRightsStatus === 'cleared' && (!hasLicenseType || !hasCredit)) {
+        toast.error(
+          "Set a license type and either copyright owner or photographer before marking rights as cleared.",
+        );
+        return;
+      }
+      const releaseStarted = Boolean(
+        release.release_url || release.signer_name || release.signer_role || release.signed_at,
+      );
+      if (
+        (rights.license_type === 'model_release' || releaseStarted)
+        && (!release.release_url
+          || !release.signer_name
+          || !release.signer_role
+          || !release.signed_at)
+      ) {
+        toast.error('Complete the release reference, signer, signer role, and signed date.');
+        return;
+      }
+
+      const isDigitalUse = String(form.image_type || '').toLowerCase() === 'digital';
       const payload = {
         image_type: form.image_type || null,
         shot_type: form.shot_type || null,
@@ -174,12 +296,56 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         exclude_from_public: form.exclude_from_public,
         exclude_from_agency: form.exclude_from_agency,
         captured_at: dateInputToPayload(form.captured_at),
-        retouched_at: dateInputToPayload(form.retouched_at),
+        // Digitals must stay raw — never persist a retouch date on a digital.
+        retouched_at: isDigitalUse ? null : dateInputToPayload(form.retouched_at),
         set_id: form.set_id || null,
-        metadata: form.metadata,
+        metadata: {
+          ...form.metadata,
+          // Preserve legacy caption key for read compat
+          caption: form.metadata.description || '',
+          // Preserve existing AI signal data; mark classification as user-confirmed
+          ai: {
+            ...(initialMeta.ai || {}),
+            signals: (() => {
+              const next = { ...(initialMeta.ai?.signals || {}) };
+              if (form.expression) next.expression = form.expression;
+              else delete next.expression;
+              return next;
+            })(),
+            classification: {
+              ...(initialMeta.ai?.classification || {}),
+              source: 'user',
+              confirmed: true,
+            },
+          },
+        },
       };
       const res = await talentApi.updateMedia(image.id, payload);
       if (res.success) {
+        if (rightsLoaded) {
+          await talentApi.updateImageRights(image.id, {
+            license_type: rights.license_type || null,
+            rights_status: rights.rights_status || null,
+            copyright_owner: rights.copyright_owner || null,
+            photographer_name: rights.photographer_name || null,
+            usage_scope: rights.usage_scope || null,
+            territory: rights.territory || null,
+            start_at: dateInputToPayload(rights.start_at),
+            expires_at: dateInputToPayload(rights.expires_at),
+            exclusive: !!rights.exclusive,
+          });
+          await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+        }
+        if (releaseLoaded && releaseDirty) {
+          const releaseRes = await talentApi.updateModelRelease(image.id, {
+            release_url: release.release_url || null,
+            signer_name: release.signer_name || null,
+            signer_role: release.signer_role || null,
+            signed_at: dateInputToPayload(release.signed_at),
+          });
+          if (releaseRes?.release?.on_file != null) setReleaseOnFile(!!releaseRes.release.on_file);
+          setReleaseDirty(false);
+        }
         const next = res.image;
         onUpdate(image.id, next ? {
           metadata: next.metadata,
@@ -202,6 +368,9 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
     }
   };
 
+  const isDigitalUse = String(form.image_type || '').toLowerCase() === 'digital';
+  const isTearsheet = String(form.image_type || '').toLowerCase() === 'tearsheet';
+  const expiry = expiryState(dateInputToPayload(rights.expires_at));
   const currentAspect = ASPECTS.find((a) => Math.abs(a.val - aspect) < 0.01);
   const isPrivate = (
     form.metadata.visibility === 'private'
@@ -218,32 +387,41 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         {/* ── Head ── */}
         <header className="fe-head">
           <div className="fe-head__left">
-            <nav className="fe-tabs" role="tablist">
-              <button
+            <PholioToggleGroup className="fe-tabs" tone="dark" role="tablist">
+              <PholioToggleButton
                 type="button" role="tab"
+                tone="dark"
+                active={mode === 'crop'}
                 className={`fe-tab ${mode === 'crop' ? 'is-active' : ''}`}
                 aria-selected={mode === 'crop'}
                 onClick={() => setMode('crop')}
               >
                 <Crop size={13} aria-hidden="true" />
                 Crop & adjust
-              </button>
-              <button
+              </PholioToggleButton>
+              <PholioToggleButton
                 type="button" role="tab"
+                tone="dark"
+                active={mode === 'details'}
                 className={`fe-tab ${mode === 'details' ? 'is-active' : ''}`}
                 aria-selected={mode === 'details'}
                 onClick={() => setMode('details')}
               >
                 <Tags size={13} aria-hidden="true" />
                 Details
-              </button>
-            </nav>
+              </PholioToggleButton>
+            </PholioToggleGroup>
           </div>
           <div className="fe-head__right">
             <span className="fe-head__id">{frameLabel}</span>
-            <button type="button" className="fe-icon-btn" onClick={onClose} aria-label="Close editor">
+            <PholioIconButton
+              label="Close editor"
+              tone="dark"
+              className="fe-icon-btn"
+              onClick={onClose}
+            >
               <X size={18} aria-hidden="true" />
-            </button>
+            </PholioIconButton>
           </div>
         </header>
 
@@ -276,7 +454,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
               <div className="fe-stage__preview">
                 <img
                   src={imageSrc}
-                  alt={initialMeta.caption || 'Portfolio frame'}
+                  alt={initialMeta.description || initialMeta.caption || 'Portfolio frame'}
                 />
                 {isPrivate && (
                   <span className="fe-stage__badge">
@@ -300,19 +478,28 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       <Crop size={14} aria-hidden="true" />
                       <h3>Aspect ratio</h3>
                     </div>
-                    <div className="fe-aspect-grid">
+                    <PholioToggleGroup
+                      className="fe-aspect-grid"
+                      tone="dark"
+                      role="radiogroup"
+                      aria-label="Aspect ratio"
+                    >
                       {ASPECTS.map((opt) => (
-                        <button
+                        <PholioToggleButton
                           key={opt.label} type="button"
+                          tone="dark"
+                          active={Math.abs(aspect - opt.val) < 0.01}
+                          role="radio"
+                          aria-checked={Math.abs(aspect - opt.val) < 0.01}
                           className={`fe-aspect-btn ${Math.abs(aspect - opt.val) < 0.01 ? 'is-active' : ''}`}
                           onClick={() => setAspect(opt.val)}
                         >
                           <span className="fe-aspect-icon" style={{ aspectRatio: String(opt.val) }} aria-hidden="true" />
                           <span className="fe-aspect-label">{opt.label}</span>
                           <span className="fe-aspect-meta">{opt.meta}</span>
-                        </button>
+                        </PholioToggleButton>
                       ))}
-                    </div>
+                    </PholioToggleGroup>
                   </div>
 
                   {/* Zoom */}
@@ -350,19 +537,27 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       className="fe-range"
                     />
                     <div className="fe-nudge-row">
-                      <button type="button" onClick={() => rotateBy(-90)}>
+                      <PholioButton
+                        type="button"
+                        variant="tertiary" tone="dark"
+                        onClick={() => rotateBy(-90)}
+                      >
                         <RotateCcw size={13} aria-hidden="true" /><span>−90°</span>
-                      </button>
-                      <button type="button" onClick={() => rotateBy(90)}>
+                      </PholioButton>
+                      <PholioButton
+                        type="button"
+                        variant="tertiary" tone="dark"
+                        onClick={() => rotateBy(90)}
+                      >
                         <RotateCw size={13} aria-hidden="true" /><span>+90°</span>
-                      </button>
+                      </PholioButton>
                     </div>
                   </div>
 
-                  <button type="button" className="fe-reset-btn" onClick={resetCrop}>
+                  <PholioButton type="button" variant="secondary" tone="dark" className="fe-reset-btn" onClick={resetCrop}>
                     <ScanLine size={14} aria-hidden="true" />
                     Reset composition
-                  </button>
+                  </PholioButton>
                 </>
               ) : (
                 <>
@@ -372,21 +567,24 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       <Shield size={14} aria-hidden="true" />
                       <h3>Publishing</h3>
                     </div>
-                    <div className="fe-control-row">
-                      <span className="fe-control-label">Visibility</span>
-                      <div className="fe-segment" role="group" aria-label="Visibility">
-                        <button
-                          type="button"
-                          className={form.metadata.visibility === 'public' ? 'is-active' : ''}
-                          onClick={() => setMeta({ visibility: 'public' })}
-                        >Public</button>
-                        <button
-                          type="button"
-                          className={form.metadata.visibility === 'private' ? 'is-active is-private' : ''}
-                          onClick={() => setMeta({ visibility: 'private' })}
-                        >Private</button>
-                      </div>
-                    </div>
+                    <PholioToggleGroup className="fe-segment" tone="dark" role="group" aria-label="Visibility">
+                      <PholioToggleButton
+                        type="button"
+                        tone="dark"
+                        active={form.metadata.visibility === 'public'}
+                        aria-pressed={form.metadata.visibility === 'public'}
+                        className={form.metadata.visibility === 'public' ? 'is-active' : ''}
+                        onClick={() => setMeta({ visibility: 'public' })}
+                      >Public</PholioToggleButton>
+                      <PholioToggleButton
+                        type="button"
+                        tone="dark"
+                        active={form.metadata.visibility === 'private'}
+                        aria-pressed={form.metadata.visibility === 'private'}
+                        className={form.metadata.visibility === 'private' ? 'is-active is-private' : ''}
+                        onClick={() => setMeta({ visibility: 'private' })}
+                      >Private</PholioToggleButton>
+                    </PholioToggleGroup>
                     <div className="fe-switch-list">
                       <label className="fe-switch">
                         <input type="checkbox" checked={form.exclude_from_public}
@@ -401,41 +599,269 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                     </div>
                   </div>
 
-                  {/* Catalog */}
+                  {/* Rights */}
+                  <div className="fe-section">
+                    <div className="fe-section__head">
+                      <Shield size={14} aria-hidden="true" />
+                      <h3>Rights</h3>
+                    </div>
+                    {rightsError ? (
+                      <p className="fe-rights-error">{rightsError}</p>
+                    ) : (
+                      <p className="fe-rights-note">
+                        Required for comp card export and agency distribution.
+                      </p>
+                    )}
+                    <div className="fe-grid">
+                      <label>
+                        <span className="fe-label">License type</span>
+                        <select
+                          className="fe-input"
+                          value={rights.license_type}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, license_type: e.target.value }))}
+                        >
+                          {LICENSE_TYPE_OPTIONS.map((option) => (
+                            <option key={`license-${option.value || 'empty'}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="fe-label">Rights status</span>
+                        <select
+                          className="fe-input"
+                          value={rights.rights_status}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, rights_status: e.target.value }))}
+                        >
+                          {RIGHTS_STATUS_OPTIONS.map((option) => (
+                            <option key={`status-${option.value || 'empty'}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="fe-label">Copyright owner</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="Name or entity"
+                          value={rights.copyright_owner}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, copyright_owner: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label">Photographer</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="Photographer name"
+                          value={rights.photographer_name}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, photographer_name: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label">Usage scope</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="e.g. editorial, advertising, web"
+                          value={rights.usage_scope}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, usage_scope: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label">Territory</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="e.g. worldwide, US, EU"
+                          value={rights.territory}
+                          disabled={rightsLoading}
+                          onChange={(e) =>
+                            setRights((p) => ({ ...p, territory: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />License start</span>
+                        <input
+                          type="date"
+                          className="fe-input"
+                          value={rights.start_at}
+                          disabled={rightsLoading}
+                          onChange={(e) => setRights((p) => ({ ...p, start_at: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />License expiry</span>
+                        <input
+                          type="date"
+                          className="fe-input"
+                          value={rights.expires_at}
+                          disabled={rightsLoading}
+                          onChange={(e) => setRights((p) => ({ ...p, expires_at: e.target.value }))}
+                        />
+                      </label>
+                      <label className="fe-grid__wide fe-switch">
+                        <input
+                          type="checkbox"
+                          checked={rights.exclusive}
+                          disabled={rightsLoading}
+                          onChange={(e) => setRights((p) => ({ ...p, exclusive: e.target.checked }))}
+                        />
+                        <span>Exclusive license</span>
+                      </label>
+                    </div>
+                    {expiry ? (
+                      <p className={`fe-rights-expiry${expiry.expired ? ' fe-rights-expiry--expired' : ''}`}>
+                        {expiry.label}
+                        {expiry.expired ? ' — expired-rights frames are blocked from packages and export.' : ''}
+                      </p>
+                    ) : null}
+
+                    {/* Model release */}
+                    <div className="fe-release">
+                      <div className="fe-release__head">
+                        <span className="fe-label">Model release</span>
+                        <span className={`fe-release__state${releaseOnFile ? ' fe-release__state--on' : ''}`}>
+                          {releaseOnFile ? 'On file' : 'Not on file'}
+                        </span>
+                      </div>
+                      <div className="fe-grid">
+                        <label className="fe-grid__wide">
+                          <span className="fe-label">Release reference / URL</span>
+                          <input
+                            type="text"
+                            className="fe-input"
+                            placeholder="Link or document reference"
+                            value={release.release_url}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('release_url', e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          <span className="fe-label">Signer</span>
+                          <input
+                            type="text"
+                            className="fe-input"
+                            placeholder="Signer name"
+                            value={release.signer_name}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('signer_name', e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          <span className="fe-label">Signer role</span>
+                          <select
+                            className="fe-input"
+                            value={release.signer_role}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('signer_role', e.target.value)}
+                          >
+                            {RELEASE_SIGNER_ROLE_OPTIONS.map((option) => (
+                              <option key={`release-role-${option.value || 'empty'}`} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span className="fe-label"><Calendar size={12} aria-hidden="true" />Signed</span>
+                          <input
+                            type="date"
+                            className="fe-input"
+                            value={release.signed_at}
+                            disabled={rightsLoading}
+                            onChange={(e) => setReleaseField('signed_at', e.target.value)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Frame read */}
                   <div className="fe-section">
                     <div className="fe-section__head">
                       <ImageIcon size={14} aria-hidden="true" />
-                      <h3>Catalog</h3>
+                      <h3>Frame read</h3>
                     </div>
                     <div className="fe-grid">
                       <label>
-                        <span className="fe-label">Image type</span>
-                        <select className="fe-input" value={form.image_type}
-                          onChange={(e) => setForm((p) => ({ ...p, image_type: e.target.value }))}>
-                          {IMAGE_TYPE_OPTIONS.map((o) => <option key={`it-${o.value || 'ns'}`} value={o.value}>{o.label}</option>)}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label">Shot type</span>
+                        <span className="fe-label">Framing</span>
                         <select className="fe-input" value={form.shot_type}
                           onChange={(e) => setForm((p) => ({ ...p, shot_type: e.target.value }))}>
-                          {SHOT_TYPE_OPTIONS.map((o) => <option key={`st-${o.value || 'ns'}`} value={o.value}>{o.label}</option>)}
+                          {/* Show legacy profile_left/profile_right only if current image has that value */}
+                          {shotPickerOptions(form.shot_type).map((o) => (
+                            <option key={`st-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
+                              {o.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
                       <label>
-                        <span className="fe-label">Style</span>
+                        <span className="fe-label">Register</span>
                         <select className="fe-input" value={form.style_type}
                           onChange={(e) => setForm((p) => ({ ...p, style_type: e.target.value }))}>
-                          {STYLE_TYPE_OPTIONS.map((o) => <option key={`sty-${o.value || 'ns'}`} value={o.value}>{o.label}</option>)}
+                          {stylePickerOptions().map((o) => (
+                            <option key={`sty-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
+                              {o.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
                       <label>
-                        <span className="fe-label">Status</span>
-                        <select className="fe-input" value={form.status}
-                          onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
-                          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        <span className="fe-label">Use</span>
+                        <select className="fe-input" value={form.image_type}
+                          onChange={(e) => setForm((p) => ({ ...p, image_type: e.target.value }))}>
+                          {imageTypePickerOptions(form.image_type).map((o) => (
+                            <option key={`it-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
+                              {o.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
+                      <label>
+                        <span className="fe-label">Expression</span>
+                        <select className="fe-input" value={form.expression}
+                          onChange={(e) => setForm((p) => ({ ...p, expression: e.target.value }))}>
+                          {expressionPickerOptions().map((o) => (
+                            <option key={`ex-${o.value || 'ns'}`} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="fe-label">Library state</span>
+                        <select className="fe-input" value={form.status}
+                          onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+                          {/* Show legacy retired/test values only if current image has them */}
+                          {[
+                            ...STATUS_OPTIONS,
+                            ...(form.status === 'retired' ? [{ value: 'retired', label: 'Archived (legacy)' }] : []),
+                            ...(form.status === 'test' ? [{ value: 'test', label: 'Test (legacy)' }] : []),
+                          ].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Shoot info */}
+                  <div className="fe-section">
+                    <div className="fe-section__head">
+                      <Camera size={14} aria-hidden="true" />
+                      <h3>Shoot info</h3>
+                    </div>
+                    <div className="fe-grid">
                       <label className="fe-grid__wide">
                         <span className="fe-label">Image set</span>
                         <select className="fe-input" value={form.set_id}
@@ -453,48 +879,18 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                         <input type="date" className="fe-input" value={form.captured_at}
                           onChange={(e) => setForm((p) => ({ ...p, captured_at: e.target.value }))} />
                       </label>
-                      <label>
-                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />Retouched</span>
-                        <input type="date" className="fe-input" value={form.retouched_at}
-                          onChange={(e) => setForm((p) => ({ ...p, retouched_at: e.target.value }))} />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Comp card role */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <Camera size={14} aria-hidden="true" />
-                      <h3>Comp card role</h3>
-                    </div>
-                    <div className="fe-role-grid">
-                      {COMP_CARD_ROLES.map((role) => {
-                        const active = form.metadata.role === role.id;
-                        return (
-                          <button key={role.id} type="button"
-                            className={`fe-role-chip ${active ? 'is-active' : ''}`}
-                            onClick={() => setMeta({ role: active ? null : role.id })}>
-                            {role.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Categories */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <Tags size={14} aria-hidden="true" />
-                      <h3>Categories</h3>
-                    </div>
-                    <div className="fe-tag-cloud">
-                      {AVAILABLE_TAGS.map((tag) => (
-                        <button key={tag} type="button"
-                          className={`fe-tag ${form.metadata.tags.includes(tag) ? 'is-selected' : ''}`}
-                          onClick={() => toggleTag(tag)}>
-                          {tag}
-                        </button>
-                      ))}
+                      {isDigitalUse ? (
+                        <p className="fe-grid__wide fe-note-warn">
+                          Digitals must stay raw — retouching is disabled on this frame. Replacing it with a
+                          retouched version turns it into book work, not a digital.
+                        </p>
+                      ) : (
+                        <label>
+                          <span className="fe-label"><Calendar size={12} aria-hidden="true" />Retouched</span>
+                          <input type="date" className="fe-input" value={form.retouched_at}
+                            onChange={(e) => setForm((p) => ({ ...p, retouched_at: e.target.value }))} />
+                        </label>
+                      )}
                     </div>
                   </div>
 
@@ -505,6 +901,28 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       <h3>Credits</h3>
                     </div>
                     <div className="fe-grid">
+                      {isTearsheet ? (
+                        <>
+                          <label>
+                            <span className="fe-label">Publication</span>
+                            <input type="text" className="fe-input" placeholder="Vogue, Elle…"
+                              value={form.metadata.credits.publication}
+                              onChange={(e) => setCredit('publication', e.target.value)} />
+                          </label>
+                          <label>
+                            <span className="fe-label">Issue</span>
+                            <input type="text" className="fe-input" placeholder="March 2026"
+                              value={form.metadata.credits.issue}
+                              onChange={(e) => setCredit('issue', e.target.value)} />
+                          </label>
+                          <label className="fe-grid__wide">
+                            <span className="fe-label">Credit line</span>
+                            <input type="text" className="fe-input" placeholder="Story / editorial credit"
+                              value={form.metadata.credits.credit}
+                              onChange={(e) => setCredit('credit', e.target.value)} />
+                          </label>
+                        </>
+                      ) : null}
                       <label className="fe-grid__wide">
                         <span className="fe-label">Photographer</span>
                         <input type="text" className="fe-input" placeholder="@photographer"
@@ -518,17 +936,23 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                           onChange={(e) => setCredit('mua', e.target.value)} />
                       </label>
                       <label>
+                        <span className="fe-label">Hair stylist</span>
+                        <input type="text" className="fe-input" placeholder="@hair"
+                          value={form.metadata.credits.hair_stylist}
+                          onChange={(e) => setCredit('hair_stylist', e.target.value)} />
+                      </label>
+                      <label className="fe-grid__wide">
                         <span className="fe-label">Stylist</span>
                         <input type="text" className="fe-input" placeholder="@stylist"
                           value={form.metadata.credits.stylist}
                           onChange={(e) => setCredit('stylist', e.target.value)} />
                       </label>
                       <label className="fe-grid__wide">
-                        <span className="fe-label">Caption</span>
+                        <span className="fe-label">Description</span>
                         <textarea rows={3} className="fe-input fe-textarea"
-                          placeholder="Add a description or context"
-                          value={form.metadata.caption}
-                          onChange={(e) => setMeta({ caption: e.target.value })} />
+                          placeholder="Add context, publication, or shoot notes"
+                          value={form.metadata.description}
+                          onChange={(e) => setMeta({ description: e.target.value })} />
                       </label>
                     </div>
                   </div>
@@ -541,10 +965,10 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
 
         {/* ── Footer ── */}
         <footer className="fe-foot">
-          <button type="button" className="fe-cancel" onClick={onClose}>Cancel</button>
+          <PholioButton type="button" variant="tertiary" tone="dark" onClick={onClose}>Cancel</PholioButton>
           {image.has_original && onRestore && (
-            <button
-              type="button" className="fe-restore"
+            <PholioButton
+              type="button" variant="tertiary" tone="dark" className="fe-restore"
               onClick={handleRestore}
               disabled={isRestoring || isProcessing || saving}
               title="Remove all edits and restore the original uploaded file"
@@ -552,20 +976,20 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
               {isRestoring
                 ? <><span className="fe-spin" aria-hidden="true" />Restoring…</>
                 : 'Restore original'}
-            </button>
+            </PholioButton>
           )}
           {mode === 'crop' ? (
-            <button type="button" className="fe-primary" onClick={handleApplyCrop} disabled={isProcessing || isRestoring}>
+            <PholioButton type="button" variant="primary" onClick={handleApplyCrop} disabled={isProcessing || isRestoring}>
               {isProcessing
                 ? <><span className="fe-spin" aria-hidden="true" />Processing…</>
                 : <><Crop size={15} aria-hidden="true" />Apply crop</>}
-            </button>
+            </PholioButton>
           ) : (
-            <button type="button" className="fe-primary" onClick={handleSave} disabled={saving || isRestoring}>
+            <PholioButton type="button" variant="primary" onClick={handleSave} disabled={saving || isRestoring}>
               {saving
                 ? <><span className="fe-spin" aria-hidden="true" />Saving…</>
-                : <><Save size={15} aria-hidden="true" />Save details</>}
-            </button>
+                : <><Save size={15} aria-hidden="true" />Save frame</>}
+            </PholioButton>
           )}
         </footer>
 

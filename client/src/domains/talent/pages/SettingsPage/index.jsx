@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -9,7 +9,22 @@ import {
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
+import { purgeApplyDraftStorage } from '../ApplyPage/applicationDraftStorage';
 import { auth } from '../../../../shared/lib/firebase';
+import {
+  isMinorProfile,
+  minorPublicExposureAllowed,
+} from '../../../../shared/utils/talentAge';
+import ReportDialog from '../../../../shared/components/ReportDialog';
+import { SubscriptionCheckoutModal } from '../../../../shared/components/SubscriptionCheckoutDisclosure';
+import CheckoutHandoff from '../../../../shared/components/billing/CheckoutHandoff';
+import SubscriptionReturnBanner from '../../../../shared/components/billing/SubscriptionReturnBanner';
+import PholioButton, {
+  PholioToggleButton,
+  PholioToggleGroup,
+} from '../../../../shared/components/ui/PholioButton';
+import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
+import { moderationApi } from '../../../../shared/lib/moderation-api';
 import './SettingsPage.css';
 
 const EASING = [0.22, 1, 0.36, 1];
@@ -119,6 +134,7 @@ export default function SettingsPage() {
                 <button
                   key={s.id}
                   type="button"
+                  data-button-exception="settings-index"
                   className={`ts-nav-item${activeSection === s.id ? ' active' : ''}`}
                   onClick={() => { if (activeSection !== s.id) navigate(`/dashboard/talent/settings/${s.id}`); }}
                   aria-current={activeSection === s.id ? 'page' : undefined}
@@ -232,7 +248,9 @@ function AccountSection() {
       const result = await talentApi.uploadMedia(formData);
       const uploaded = result?.images?.[0];
       if (uploaded?.id) {
-        await updateProfile({ primary_photo_id: uploaded.id });
+        // Setting the primary image is a /media concern (PUT /media/:id/hero); the
+        // profile endpoint no longer accepts primary_photo_id.
+        await talentApi.setHeroImage(uploaded.id);
       }
       await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       toast.success('Profile photo updated');
@@ -390,23 +408,23 @@ function AccountSection() {
 
       <div className="ts-card-footer">
         {isChanged && (
-          <button
+          <PholioButton
             type="button"
-            className="ts-btn ts-btn-secondary"
+            variant="tertiary"
             onClick={handleCancel}
             disabled={isUpdatingProfile}
           >
             Cancel
-          </button>
+          </PholioButton>
         )}
-        <button
+        <PholioButton
           type="button"
-          className="ts-btn ts-btn-primary"
+          variant="primary"
           onClick={handleSave}
           disabled={!isChanged || isUpdatingProfile}
         >
           {isUpdatingProfile ? 'Saving…' : 'Save Changes'}
-        </button>
+        </PholioButton>
       </div>
     </div>
   );
@@ -485,19 +503,20 @@ function NotificationsSection() {
             <span className="ts-toggle-label">Email Frequency</span>
             <span className="ts-toggle-desc">Notification timing</span>
           </div>
-          <div className="ts-freq-options" role="group" aria-label="Email frequency">
+          <PholioToggleGroup className="ts-freq-options" role="group" aria-label="Email frequency">
             {FREQ_OPTIONS.map(opt => (
-              <button
+              <PholioToggleButton
                 key={opt.value}
                 type="button"
+                active={emailFrequency === opt.value}
                 className={`ts-freq-btn${emailFrequency === opt.value ? ' active' : ''}`}
                 onClick={() => handleFrequency(opt.value)}
                 aria-pressed={emailFrequency === opt.value}
               >
                 {opt.label}
-              </button>
+              </PholioToggleButton>
             ))}
-          </div>
+          </PholioToggleGroup>
         </div>
         <span className="ts-toggle-group-label">Email</span>
         {EMAIL_TOGGLES.map(renderRow)}
@@ -519,6 +538,9 @@ function PrivacySection() {
 }
 
 function PrivacySectionForm({ initialSettings }) {
+  const { profile } = useAuth();
+  const minorBlocked =
+    isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
   const [blockedAgencies, setBlockedAgencies] = useState(initialSettings.blockedAgencies || []);
   const [blockInput, setBlockInput] = useState('');
   const [form, setForm] = useState(() => ({
@@ -528,7 +550,15 @@ function PrivacySectionForm({ initialSettings }) {
     showContact:    initialSettings.showContact    ?? true,
   }));
   const [isChanged, setIsChanged] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
   const mutation = useSettingsMutation();
+
+  useEffect(() => {
+    moderationApi.getMe()
+      .then((res) => setIsModerator(Boolean(res?.data?.isModerator)))
+      .catch(() => setIsModerator(false));
+  }, []);
 
   const addBlockedAgency = () => {
     const name = blockInput.trim();
@@ -562,9 +592,9 @@ function PrivacySectionForm({ initialSettings }) {
     if (slugError) { toast.error(slugError); return; }
     mutation.mutate({
       slug: form.slug,
-      isPublic: form.isPublic,
+      isPublic: minorBlocked ? false : form.isPublic,
       isDiscoverable: form.isDiscoverable,
-      showContact: form.showContact,
+      showContact: minorBlocked ? false : form.showContact,
       blockedAgencies,
     }, {
       onSuccess: () => {
@@ -606,12 +636,18 @@ function PrivacySectionForm({ initialSettings }) {
             <select
               id="ts-visibility"
               className="ts-select"
-              value={form.isPublic ? 'public' : 'private'}
+              value={(minorBlocked ? false : form.isPublic) ? 'public' : 'private'}
               onChange={e => set('isPublic', e.target.value === 'public')}
+              disabled={minorBlocked}
             >
               <option value="public">Public — anyone can view</option>
               <option value="private">Private — hidden from search</option>
             </select>
+            {minorBlocked ? (
+              <span className="ts-input-help">
+                Guardian consent is required before a minor profile can be made public.
+              </span>
+            ) : null}
           </div>
 
           <div className="ts-toggle-row ts-toggle-row--inline">
@@ -638,8 +674,11 @@ function PrivacySectionForm({ initialSettings }) {
             <label className="ts-switch">
               <input
                 type="checkbox"
-                checked={form.showContact}
-                onChange={() => set('showContact', !form.showContact)}
+                checked={minorBlocked ? false : form.showContact}
+                disabled={minorBlocked}
+                onChange={() => {
+                  if (!minorBlocked) set('showContact', !form.showContact);
+                }}
               />
               <span className="ts-slider" />
               <span className="sr-only">Show contact information</span>
@@ -648,16 +687,55 @@ function PrivacySectionForm({ initialSettings }) {
         </div>
 
         <div className="ts-card-footer">
-          <button
+          <PholioButton
             type="button"
-            className="ts-btn ts-btn-primary"
+            variant="primary"
             onClick={handleSave}
             disabled={!isChanged || mutation.isPending || Boolean(slugError)}
           >
             {mutation.isPending ? 'Saving…' : 'Save Changes'}
-          </button>
+          </PholioButton>
         </div>
       </div>
+
+      {/* Report a concern */}
+      <div className="ts-card">
+        <div className="ts-card-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <p className="ts-toggle-label" style={{ margin: 0 }}>Report a concern</p>
+            <p className="ts-toggle-desc" style={{ margin: '2px 0 0' }}>
+              Flag harassment, scams, or inappropriate content to our trust and safety team.
+            </p>
+          </div>
+          <PholioButton
+            type="button"
+            variant="secondary"
+            style={{ flexShrink: 0 }}
+            onClick={() => setReportOpen(true)}
+          >
+            Report
+          </PholioButton>
+        </div>
+      </div>
+
+      <ReportDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+      />
+
+      {isModerator && (
+        <div className="ts-card">
+          <div className="ts-card-inner">
+            <p className="ts-toggle-label" style={{ margin: 0 }}>Moderation queue</p>
+            <p className="ts-toggle-desc" style={{ margin: '4px 0 12px' }}>
+              Review images flagged during upload.
+            </p>
+            <PholioButton to="/dashboard/moderation" variant="secondary">
+              Open queue
+            </PholioButton>
+          </div>
+        </div>
+      )}
 
       {/* Agency blocklist */}
       <div className="ts-card">
@@ -671,15 +749,14 @@ function PrivacySectionForm({ initialSettings }) {
               {blockedAgencies.map(name => (
                 <div key={name} className="ts-blocklist-row">
                   <span className="ts-blocklist-name">{name}</span>
-                  <button
+                  <PholioButton
                     type="button"
-                    className="ts-btn ts-btn-ghost"
-                    style={{ padding: '4px 0', fontSize: '12px' }}
+                    variant="tertiary"
                     onClick={() => removeBlockedAgency(name)}
                     disabled={mutation.isPending}
                   >
                     Unblock
-                  </button>
+                  </PholioButton>
                 </div>
               ))}
             </div>
@@ -696,14 +773,14 @@ function PrivacySectionForm({ initialSettings }) {
               onKeyDown={e => { if (e.key === 'Enter') addBlockedAgency(); }}
               aria-label="Agency name to block"
             />
-            <button
+            <PholioButton
               type="button"
-              className="ts-btn ts-btn-secondary"
+              variant="secondary"
               onClick={addBlockedAgency}
               disabled={!blockInput.trim() || mutation.isPending}
             >
               Block
-            </button>
+            </PholioButton>
           </div>
         </div>
       </div>
@@ -713,77 +790,160 @@ function PrivacySectionForm({ initialSettings }) {
 
 function SubscriptionSection() {
   const { data: settings, isLoading } = useTalentSettings();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isOpeningBilling, setIsOpeningBilling] = useState(false);
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
+  const [returnBannerState, setReturnBannerState] = useState(null);
   const subscription = settings?.subscription;
   const invoices = settings?.invoices || [];
+  const checkoutState = searchParams.get('checkout');
 
-  const openBilling = async () => {
-    if (subscription?.isPro || subscription?.stripeCustomerId) {
-      window.location.href = '/stripe/customer-portal';
-      return;
+  const { handoffOpen, redirectToCheckout } = useBrandedStripeCheckout(
+    (payload) => talentApi.createCheckoutSession(payload),
+  );
+
+  useEffect(() => {
+    if (!checkoutState) return;
+
+    if (checkoutState === 'success') {
+      setReturnBannerState('success');
+      toast.success('Studio+ is being activated.');
+      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+    } else if (checkoutState === 'canceled') {
+      setReturnBannerState('canceled');
+      toast.info('Checkout was canceled.');
+    } else if (checkoutState === 'error' || checkoutState === 'invalid' || checkoutState === 'missing-subscription') {
+      setReturnBannerState(checkoutState);
+      toast.error('Billing could not be confirmed.');
     }
 
+    setSearchParams({}, { replace: true });
+  }, [checkoutState, queryClient, setSearchParams]);
+
+  const startCheckout = async (payload = {}) => {
     setIsOpeningBilling(true);
     try {
-      const session = await talentApi.createCheckoutSession();
-      if (session?.url) {
-        window.location.href = session.url;
-      } else {
-        window.location.href = '/pro/upgrade';
-      }
+      await redirectToCheckout(payload);
     } catch (error) {
       toast.error(error?.message || 'Unable to open billing');
       setIsOpeningBilling(false);
     }
   };
 
+  const openBilling = async () => {
+    const shouldOpenPortal = subscription?.stripeCustomerId
+      && subscription?.status
+      && !['free', 'canceled'].includes(subscription.status);
+
+    if (shouldOpenPortal) {
+      window.location.href = '/stripe/customer-portal';
+      return;
+    }
+
+    setCheckoutModalOpen(true);
+  };
+
+  const handleCheckoutConfirm = async (payload) => {
+    setCheckoutModalOpen(false);
+    await startCheckout(payload);
+  };
+
   if (isLoading || !subscription) {
     return <div className="ts-loading"><span>Loading…</span></div>;
   }
 
+  const trialRenewalCopy = () => {
+    if (subscription.isTrialing) {
+      const days = subscription.trialDaysRemaining;
+      const end = subscription.trialEndDate
+        ? formatDisplayDate(subscription.trialEndDate)
+        : null;
+      const afterTrial = subscription.renewalLabel || '$9.99/month';
+      if (days != null && end) {
+        return `Free trial — ${days} day${days === 1 ? '' : 's'} left (ends ${end}) · then ${afterTrial}`;
+      }
+      if (end) {
+        return `Free trial ends ${end} · then ${afterTrial}`;
+      }
+      return `${subscription.trialDays}-day free trial active · then ${afterTrial}`;
+    }
+    if (subscription.renewalDate) {
+      return `Next renewal: ${formatDisplayDate(subscription.renewalDate)}`;
+    }
+    if (subscription.isPro) {
+      return 'Manage billing, payment method, and invoices below';
+    }
+    return `14-day free trial · $9.99/month or $95.88/year`;
+  };
+
   return (
     <div className="ts-card-stack">
+      <CheckoutHandoff open={handoffOpen} planLabel="Studio+" />
+      <SubscriptionReturnBanner
+        state={returnBannerState}
+        onDismiss={() => setReturnBannerState(null)}
+      />
       <div className="ts-card">
         <div className="ts-plan-card">
           <div className="ts-plan-left">
             <span className="ts-plan-name">{subscription.planName}</span>
             <div className="ts-plan-price">
-              <span className="ts-plan-price-num">{subscription.priceLabel}</span>
-              <span className="ts-plan-price-unit">{subscription.priceUnit}</span>
+              <span className="ts-plan-price-num">
+                {subscription.isPro ? subscription.priceLabel : '$9.99'}
+              </span>
+              <span className="ts-plan-price-unit">
+                {subscription.isPro ? subscription.priceUnit : '/month'}
+              </span>
             </div>
             <span className="ts-plan-renewal">
-              {subscription.renewalDate
-                ? `Next renewal: ${formatDisplayDate(subscription.renewalDate)}`
-                : subscription.isPro
-                  ? 'Billing is managed through Stripe'
-                  : 'Upgrade to unlock Studio+ features'}
+              {trialRenewalCopy()}
             </span>
-            <button
+            {!subscription.isPro && (
+              <ul className="ts-plan-features">
+                <li>Premium analytics and profile insights</li>
+                <li>Unlimited agency applications</li>
+                <li>Priority portfolio presentation</li>
+              </ul>
+            )}
+            <PholioButton
               type="button"
-              className="ts-btn ts-btn-ghost"
-              style={{ marginTop: '16px', padding: '6px 14px', fontSize: '12px' }}
+              variant="secondary"
+              style={{ marginTop: '16px' }}
               onClick={openBilling}
-              disabled={isOpeningBilling}
+              disabled={isOpeningBilling || handoffOpen}
             >
-              {isOpeningBilling ? 'Opening…' : subscription.isPro ? 'Manage Plan' : 'Upgrade Plan'}
-            </button>
+              {isOpeningBilling || handoffOpen
+                ? 'Opening…'
+                : subscription.isTrialing
+                  ? 'Manage trial'
+                  : subscription.isPro
+                    ? 'Manage Studio+'
+                    : 'Start Studio+ trial'}
+            </PholioButton>
           </div>
           <div className="ts-plan-right">
             <div className="ts-payment-method">
               <CreditCard size={15} aria-hidden="true" />
               <span className="ts-payment-label">
-                {subscription.stripeCustomerId ? 'Stripe billing' : 'No payment method'}
+                {subscription.stripeCustomerId
+                  ? subscription.isPro
+                    ? 'Billing on file'
+                    : 'Payment profile saved'
+                  : 'No payment method yet'}
               </span>
             </div>
-            <button
-              type="button"
-              className="ts-btn ts-btn-ghost"
-              style={{ padding: '5px 12px', fontSize: '12px' }}
-              onClick={openBilling}
-              disabled={isOpeningBilling}
-            >
-              Update Payment
-            </button>
+            {subscription.stripeCustomerId && (
+              <PholioButton
+                type="button"
+                variant="secondary"
+                onClick={openBilling}
+                disabled={isOpeningBilling}
+              >
+                Update Payment
+              </PholioButton>
+            )}
           </div>
         </div>
       </div>
@@ -803,16 +963,24 @@ function SubscriptionSection() {
             <span className="ts-invoice-status">
               <Check size={10} aria-hidden="true" /> Paid
             </span>
-            <button
+            <PholioButton
               type="button"
-              className="ts-invoice-download"
+              variant="tertiary"
               onClick={() => downloadJson(`pholio-invoice-${inv.id}.json`, inv)}
             >
               Download
-            </button>
+            </PholioButton>
           </div>
         ))}
       </div>
+
+      <SubscriptionCheckoutModal
+        open={checkoutModalOpen}
+        onClose={() => setCheckoutModalOpen(false)}
+        onConfirm={handleCheckoutConfirm}
+        isLoading={isOpeningBilling}
+        subscription={subscription}
+      />
     </div>
   );
 }
@@ -869,14 +1037,14 @@ function SecuritySection() {
               <span className="ts-toggle-label">Password</span>
               <span className="ts-toggle-desc">Send a reset link</span>
             </div>
-            <button
+            <PholioButton
               type="button"
-              className="ts-btn ts-btn-secondary"
+              variant="secondary"
               onClick={handlePasswordReset}
               disabled={isSendingReset}
             >
               {isSendingReset ? 'Sending…' : 'Update Password'}
-            </button>
+            </PholioButton>
           </div>
 
         </div>
@@ -906,14 +1074,14 @@ function SecuritySection() {
               {s.active ? 'Active' : 'Expired'}
             </span>
             {!s.isCurrent && (
-              <button
+              <PholioButton
                 type="button"
-                className="ts-invoice-download"
+                variant="tertiary"
                 onClick={() => revokeMutation.mutate(s.id)}
                 disabled={revokeMutation.isPending}
               >
                 Revoke
-              </button>
+              </PholioButton>
             )}
           </div>
         ))}
@@ -971,20 +1139,21 @@ function DisplaySection() {
         <div className="ts-card-inner">
           <div className="ts-field">
             <div className="ts-label">Comp Card Layout</div>
-            <div className="ts-display-grid">
+            <PholioToggleGroup className="ts-display-grid" role="group" aria-label="Comp card layout">
               {LAYOUT_OPTIONS.map(opt => (
-                <button
+                <PholioToggleButton
                   key={opt.value}
                   type="button"
+                  active={prefs.cardLayout === opt.value}
                   className={`ts-display-option${prefs.cardLayout === opt.value ? ' active' : ''}`}
                   onClick={() => set('cardLayout', opt.value)}
                   aria-pressed={prefs.cardLayout === opt.value}
                 >
                   <span className="ts-display-option-label">{opt.label}</span>
                   <span className="ts-display-option-desc">{opt.desc}</span>
-                </button>
+                </PholioToggleButton>
               ))}
-            </div>
+            </PholioToggleGroup>
           </div>
         </div>
       </div>
@@ -1025,14 +1194,6 @@ function DataSection() {
   const cookieMutation = useSettingsMutation({
     onSuccess: () => toast.success('Cookie preference saved'),
   });
-  const erasureMutation = useMutation({
-    mutationFn: talentApi.requestDataErasure,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
-      toast.info('Erasure request submitted — our team will respond within 30 days');
-    },
-    onError: (error) => toast.error(error?.message || 'Failed to submit erasure request'),
-  });
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -1068,30 +1229,23 @@ function DataSection() {
                 Export profile, images, applications, and account history.
               </span>
             </div>
-            <button
+            <PholioButton
               type="button"
-              className="ts-btn ts-btn-secondary"
+              variant="secondary"
               onClick={handleExport}
               disabled={isExporting}
             >
               {isExporting ? 'Requesting…' : 'Request Export'}
-            </button>
+            </PholioButton>
           </div>
           <div className="ts-data-row">
             <div className="ts-action-info">
-              <span className="ts-action-label">Erase Data</span>
+              <span className="ts-action-label">Erase personal data</span>
               <span className="ts-action-desc">
-                Request permanent deletion of personal data.
+                Permanent erasure is available in Danger Zone — delete your account to remove
+                your profile, images, and related data from Pholio.
               </span>
             </div>
-            <button
-              type="button"
-              className="ts-btn ts-btn-ghost"
-              onClick={() => erasureMutation.mutate()}
-              disabled={erasureMutation.isPending}
-            >
-              {erasureMutation.isPending ? 'Submitting…' : settings?.data?.erasureRequestedAt ? 'Request Submitted' : 'Submit Request'}
-            </button>
           </div>
         </div>
       </div>
@@ -1144,6 +1298,7 @@ function DangerZoneSection() {
   const deleteMutation = useMutation({
     mutationFn: talentApi.deleteAccount,
     onSuccess: (result) => {
+      purgeApplyDraftStorage();
       toast.success('Account deleted');
       window.location.href = result?.redirect || '/login';
     },
@@ -1175,14 +1330,14 @@ function DangerZoneSection() {
             Hide your profile and suspend access.
           </span>
         </div>
-        <button
+        <PholioButton
           type="button"
-          className="ts-btn ts-btn-danger-ghost"
+          variant="destructive"
           onClick={handleDeactivate}
           disabled={deactivateMutation.isPending || settings?.account?.isDeactivated}
         >
           {deactivateMutation.isPending ? 'Deactivating…' : settings?.account?.isDeactivated ? 'Deactivated' : 'Deactivate'}
-        </button>
+        </PholioButton>
       </div>
 
       <div className="ts-action-row">
@@ -1192,14 +1347,14 @@ function DangerZoneSection() {
             Permanently delete your account.
           </span>
         </div>
-        <button
+        <PholioButton
           type="button"
-          className="ts-btn ts-btn-danger"
+          variant="destructive"
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
         >
           {deleteMutation.isPending ? 'Deleting…' : 'Delete Account'}
-        </button>
+        </PholioButton>
       </div>
     </div>
   );

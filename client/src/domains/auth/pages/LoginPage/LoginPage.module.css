@@ -12,6 +12,10 @@
   margin-bottom: 30px;
 }
 
+.legalNotice {
+  margin-top: 26px;
+}
+
 .title {
   font-family: var(--ag-font-serif, 'Playfair Display', Georgia, serif);
   font-style: italic;

@@ -10,6 +10,19 @@ const {
 const {
   listReferenceLanguages,
 } = require("../../shared/lib/language-reference");
+const {
+  ensureModerationColumnChecked,
+} = require("../../shared/lib/content-moderation");
+const {
+  AUDIENCE,
+  buildPublicCardDTO,
+  buildPublicImageDTO,
+} = require("../../shared/lib/audience-dto");
+const {
+  selectColumnsForAudience,
+  applyImageVisibility,
+  isPubliclyExposable,
+} = require("../../shared/lib/profile-visibility");
 
 function dashboardPathForRole(role) {
   if (role === "TALENT") return "/dashboard/talent";
@@ -37,33 +50,31 @@ router.get("/languages", async (req, res) => {
 // GET /api/public/home
 router.get("/home", async (req, res) => {
   try {
+    // Warm the moderation-column cache once per request so that all
+    // applyViewerVisibilityFilter calls below are safe no-ops when the
+    // column doesn't exist yet (deploy-before-migrate window).
+    await ensureModerationColumnChecked(knex);
+
     // Load Elara Keats data for homepage demo (main featured talent)
     // Use fallback data if database query fails
     let elaraProfile = null;
     let elaraImages = [];
 
     try {
-      elaraProfile = await knex("profiles").where({ slug: "elara-k" }).first();
-
-      // Alias legacy measurement fields
-      if (elaraProfile) {
-        if (elaraProfile.bust_cm) elaraProfile.bust = elaraProfile.bust_cm;
-        if (elaraProfile.waist_cm) elaraProfile.waist = elaraProfile.waist_cm;
-        if (elaraProfile.hips_cm) elaraProfile.hips = elaraProfile.hips_cm;
+      elaraProfile = await knex("profiles")
+        .select(selectColumnsForAudience(AUDIENCE.PUBLIC))
+        .where({ slug: "elara-k" })
+        .first();
+      // Gate through the canonical public-exposure rule (is_public flag AND
+      // minor/guardian-consent check) before this row is allowed any further.
+      if (!isPubliclyExposable(elaraProfile)) {
+        elaraProfile = null;
       }
 
       if (elaraProfile) {
         elaraImages = await knex("images")
           .where({ profile_id: elaraProfile.id })
-          .where(function publicShareableStatus() {
-            this.whereNull("status").orWhere("status", "active");
-          })
-          .where(function notExcludedFromPublic() {
-            this.whereNull("exclude_from_public").orWhere(
-              "exclude_from_public",
-              false,
-            );
-          })
+          .modify((qb) => applyImageVisibility(qb, AUDIENCE.PUBLIC))
           .orderBy("sort", "asc");
       }
     } catch (dbError) {
@@ -80,77 +91,68 @@ router.get("/home", async (req, res) => {
     let floatingTalentsWithImages = [];
 
     try {
-      if (config.dbClient === "pg") {
-        floatingTalents = await knex("profiles")
+      // Shared filter builder: only profiles that are public and have a shareable
+      // primary image. Selects the public allowlist + the age-gating columns
+      // (date_of_birth, guardian_consent_at, is_public) so isPubliclyExposable
+      // has what it needs; no other column is fetched.
+      function applyFloatingTalentFilters(query) {
+        return query
+          .select(selectColumnsForAudience(AUDIENCE.PUBLIC))
           .whereNot({ slug: "elara-k" })
+          // Profile must be publicly visible (NULL treated as true per column
+          // default). This is a query-efficiency prefilter only — the
+          // authoritative gate is isPubliclyExposable() applied below.
+          .where(function profileIsPublic() {
+            this.whereNull("is_public").orWhere("is_public", true);
+          })
           .whereExists(function publicPrimaryImageExists() {
             this.select("*")
               .from("images")
               .whereRaw("images.profile_id = profiles.id")
               .andWhere("images.is_primary", true)
-              .where(function publicShareableStatus() {
-                this.whereNull("images.status").orWhere(
-                  "images.status",
-                  "active",
-                );
-              })
-              .where(function notExcludedFromPublic() {
-                this.whereNull("images.exclude_from_public").orWhere(
-                  "images.exclude_from_public",
-                  false,
-                );
-              });
-          })
-          .limit(4)
-          .orderByRaw("RANDOM()");
-      } else {
-        // SQLite: use a simple approach - get all and shuffle in JS, or just order by id
-        floatingTalents = await knex("profiles")
-          .whereNot({ slug: "elara-k" })
-          .whereExists(function publicPrimaryImageExists() {
-            this.select("*")
-              .from("images")
-              .whereRaw("images.profile_id = profiles.id")
-              .andWhere("images.is_primary", true)
-              .where(function publicShareableStatus() {
-                this.whereNull("images.status").orWhere(
-                  "images.status",
-                  "active",
-                );
-              })
-              .where(function notExcludedFromPublic() {
-                this.whereNull("images.exclude_from_public").orWhere(
-                  "images.exclude_from_public",
-                  false,
-                );
-              });
-          })
-          .limit(10)
-          .orderBy("created_at", "desc");
-        // Shuffle and take first 4
-        floatingTalents = floatingTalents
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 4);
+              .modify((qb) =>
+                applyImageVisibility(qb, AUDIENCE.PUBLIC, { table: "images" }),
+              );
+          });
       }
 
-      // For each floating talent, get their first image
+      // Fetch extra candidates so we still have 4 after the minor post-filter
+      const CARD_LIMIT = 4;
+      const FETCH_LIMIT = CARD_LIMIT * 4; // generous overselect
+
+      if (config.dbClient === "pg") {
+        const candidates = await applyFloatingTalentFilters(
+          knex("profiles"),
+        )
+          .limit(FETCH_LIMIT)
+          .orderByRaw("RANDOM()");
+        floatingTalents = candidates
+          .filter((t) => isPubliclyExposable(t))
+          .slice(0, CARD_LIMIT);
+      } else {
+        // SQLite: shuffle in JS then apply minor post-filter
+        const candidates = await applyFloatingTalentFilters(
+          knex("profiles"),
+        )
+          .limit(FETCH_LIMIT)
+          .orderBy("created_at", "desc");
+        floatingTalents = candidates
+          .sort(() => Math.random() - 0.5)
+          .filter((t) => isPubliclyExposable(t))
+          .slice(0, CARD_LIMIT);
+      }
+
+      // For each floating talent, get their first image and shape the whole
+      // card through the public DTO allowlist — never spread the raw row.
       floatingTalentsWithImages = await Promise.all(
         floatingTalents.map(async (talent) => {
           try {
             const primaryImage = await knex("images")
               .where({ profile_id: talent.id, is_primary: true })
-              .where(function publicShareableStatus() {
-                this.whereNull("status").orWhere("status", "active");
-              })
-              .where(function notExcludedFromPublic() {
-                this.whereNull("exclude_from_public").orWhere(
-                  "exclude_from_public",
-                  false,
-                );
-              })
+              .modify((qb) => applyImageVisibility(qb, AUDIENCE.PUBLIC))
               .first();
             return {
-              ...talent,
+              ...buildPublicCardDTO(talent, { image: primaryImage }),
               hero_image: primaryImage
                 ? primaryImage.public_url || primaryImage.path
                 : null,
@@ -161,7 +163,7 @@ router.get("/home", async (req, res) => {
               imgError.message,
             );
             return {
-              ...talent,
+              ...buildPublicCardDTO(talent, { image: null }),
               hero_image: null,
             };
           }
@@ -173,20 +175,26 @@ router.get("/home", async (req, res) => {
       floatingTalentsWithImages = [];
     }
 
-    // Ensure elaraProfile has all required fields for transformation hero
-    const elaraProfileForHero = elaraProfile || {
-      first_name: "Elara",
-      last_name: "Keats",
-      city: "Los Angeles, CA",
-      slug: "elara-k",
-      bio_raw:
-        "hi!!!\n\ni saw on insta you guys are looking for new faces?? im elara keats and im a model based in LA (but i can travel anywhere, i have a passport!!) im really looking to get into more editorial and runway work.\n\na bit about me:\n\nim 5'11\"\nmy measurements are 32-25-35\nmy shoe is a 9\ni have brown hair/green eyes.\n\nMy insta is @elara.k -- i post most of my new work there. im a super hard worker and everyone says im professional, i have a background in some smaller campaigns. i was with [Agency Name] last year but left, it wasnt a good fit.\n\nI put my best photos (some are digitals my friend took, some are from real shoots but they are not edited yet) in this google drive. hope you can see them?\n\nhere is the link:\n\nhttps://www.google.com/search?q=https://drive.google.com/drive/folders/1aBcD-THIS-IS-A-MESSY-LINK-xyz\n\nI also have a portfolio on a wix site i made, i think this is the link:\n\nhttps://www.google.com/search?q=elara-portfolio.wixsite.com/mysite\n\nLet me know what you think! Thx so much!! 🙏 I'm free for a meeting basically any time next week.\n\n-Elara K.",
-      bio_curated:
-        "Elara Keats is an emerging model based in Los Angeles with a strong foundation in editorial and runway work. Standing at 5'11\" with measurements of 32-25-35, she brings a commanding presence to both high-fashion editorials and commercial campaigns. With brown hair and green eyes, Elara's versatile look has made her a sought-after talent for diverse creative projects. Her professional approach and extensive experience in smaller campaigns demonstrate her commitment to excellence. Elara is available for travel and actively seeking opportunities in editorial and runway work, bringing dedication and professionalism to every project.",
-      // hero_image_path removed from Elara fallback
-      height_cm: 180,
-      measurements: "32-25-35",
-    };
+    // Ensure elaraProfile has all required fields for transformation hero.
+    // When a real (gated) profile was loaded, shape it through the public DTO
+    // allowlist — the row carries date_of_birth/guardian_consent_at/is_public
+    // for gating only and must never reach the client raw. The literal
+    // fallback below is static developer-authored copy, not a DB row.
+    const elaraProfileForHero = elaraProfile
+      ? buildPublicCardDTO(elaraProfile, { image: elaraImages[0] || null })
+      : {
+          first_name: "Elara",
+          last_name: "Keats",
+          city: "Los Angeles, CA",
+          slug: "elara-k",
+          bio_raw:
+            "hi!!!\n\ni saw on insta you guys are looking for new faces?? im elara keats and im a model based in LA (but i can travel anywhere, i have a passport!!) im really looking to get into more editorial and runway work.\n\na bit about me:\n\nim 5'11\"\nmy measurements are 32-25-35\nmy shoe is a 9\ni have brown hair/green eyes.\n\nMy insta is @elara.k -- i post most of my new work there. im a super hard worker and everyone says im professional, i have a background in some smaller campaigns. i was with [Agency Name] last year but left, it wasnt a good fit.\n\nI put my best photos (some are digitals my friend took, some are from real shoots but they are not edited yet) in this google drive. hope you can see them?\n\nhere is the link:\n\nhttps://www.google.com/search?q=https://drive.google.com/drive/folders/1aBcD-THIS-IS-A-MESSY-LINK-xyz\n\nI also have a portfolio on a wix site i made, i think this is the link:\n\nhttps://www.google.com/search?q=elara-portfolio.wixsite.com/mysite\n\nLet me know what you think! Thx so much!! 🙏 I'm free for a meeting basically any time next week.\n\n-Elara K.",
+          bio_curated:
+            "Elara Keats is an emerging model based in Los Angeles with a strong foundation in editorial and runway work. Standing at 5'11\" with measurements of 32-25-35, she brings a commanding presence to both high-fashion editorials and commercial campaigns. With brown hair and green eyes, Elara's versatile look has made her a sought-after talent for diverse creative projects. Her professional approach and extensive experience in smaller campaigns demonstrate her commitment to excellence. Elara is available for travel and actively seeking opportunities in editorial and runway work, bringing dedication and professionalism to every project.",
+          // hero_image_path removed from Elara fallback
+          height_cm: 180,
+          measurements: "32-25-35",
+        };
 
     const fallbackFloatingTalents = [
       {
@@ -225,7 +233,7 @@ router.get("/home", async (req, res) => {
 
     res.json({
       elaraProfile: elaraProfileForHero,
-      elaraImages: elaraImages.length > 0 ? elaraImages : [],
+      elaraImages: elaraImages.map(buildPublicImageDTO).filter(Boolean),
       floatingTalents:
         floatingTalentsWithImages.length > 0
           ? floatingTalentsWithImages

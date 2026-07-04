@@ -1,9 +1,62 @@
 const express = require("express");
 const knex = require("../shared/db/knex");
 const { toFeetInches } = require("../domains/talent/services/stats");
+const {
+  minorPublicExposureAllowed,
+  computeAge,
+  isMinorProfile,
+} = require("../shared/lib/talent-age");
+const { buildCanonicalStats } = require("../shared/lib/stats-formatter");
+const {
+  applyViewerVisibilityFilter,
+  ensureModerationColumnChecked,
+} = require("../shared/lib/content-moderation");
 const { v4: uuidv4 } = require("uuid");
 
+const { injectSocialFields } = require("../shared/lib/social-helpers");
+const {
+  loadFieldVisibility,
+  isFieldGroupVisible,
+} = require("../shared/lib/field-visibility");
+
+const {
+  recordProfileEvent,
+  resolveViewerClass,
+  resolveShareToken,
+} = require("../domains/talent/services/intel/capture");
+
 const router = express.Router();
+const TRACKED_PORTFOLIO_EVENTS = new Set([
+  "bio_read",
+  "social_click",
+  "portfolio_click",
+  "scroll_depth",
+]);
+// Capture v2 (intel) events accepted by the beacon in addition to the legacy
+// set. Image events carry imageId (+ dwellMs) for image-level attention.
+const INTEL_PORTFOLIO_EVENTS = new Set([
+  "image_impression",
+  "image_open",
+  "image_dwell",
+  "contact_click",
+]);
+
+function isLikelyBot(userAgent = "") {
+  return /bot|crawler|spider|slurp|facebookexternalhit|linkedinbot|preview/i.test(
+    String(userAgent),
+  );
+}
+
+function shouldExcludeFromAnalytics(profile, req) {
+  const isOwner =
+    Boolean(req?.session?.userId) &&
+    req.session.userId === profile?.user_id;
+  return isOwner || isLikelyBot(req?.headers?.["user-agent"]);
+}
+
+function portfolioSessionCookieName(profileId) {
+  return `pholio_session_${String(profileId).replace(/[^a-z0-9]/gi, "")}`;
+}
 
 // Helper function to log analytics event (non-blocking)
 async function logAnalyticsEvent(
@@ -50,7 +103,8 @@ async function trackVisitorSession(profileId, req, res) {
 
   try {
     const visitorId = req.cookies.pholio_visitor_id || uuidv4();
-    const sessionId = req.cookies.pholio_session_id;
+    const sessionCookieName = portfolioSessionCookieName(profileId);
+    const sessionId = req.cookies[sessionCookieName];
 
     // Set visitor cookie (1 year)
     res.cookie("pholio_visitor_id", visitorId, {
@@ -62,7 +116,7 @@ async function trackVisitorSession(profileId, req, res) {
     if (sessionId) {
       // Check if session exists in DB and update last activity
       const existingSession = await knex("visitor_sessions")
-        .where({ id: sessionId })
+        .where({ id: sessionId, profile_id: profileId })
         .first();
       if (existingSession) {
         await knex("visitor_sessions")
@@ -90,7 +144,7 @@ async function trackVisitorSession(profileId, req, res) {
     });
 
     // Set session cookie (30 mins)
-    res.cookie("pholio_session_id", newSessionId, {
+    res.cookie(sessionCookieName, newSessionId, {
       maxAge: 30 * 60 * 1000,
       httpOnly: true,
       sameSite: "lax",
@@ -208,6 +262,37 @@ function getDemoProfile(slug) {
 }
 
 // Helper function to detect database connection errors
+/**
+ * Public portfolio stats visibility (Wave 2C + Wave 2B).
+ *
+ * Stats/measurements default to AGENCY-visible, NOT public (design decision 3;
+ * `profile_field_visibility` seeds field_key='stats', audience='public',
+ * visible=false). The public portfolio therefore renders measurements ONLY when
+ * the profile has explicitly opted stats into the public audience.
+ *
+ * Delegates to the canonical `field-visibility` helper (single source of truth
+ * shared with the read/write API), which is itself fail-closed on any DB error
+ * (e.g. a deploy-before-migrate with no table yet) — "not public" is the safe
+ * default. The synthetic demo profile is a marketing showcase, so it keeps its
+ * full stat block.
+ */
+async function isStatsPublic(profileId, { isDemo } = {}) {
+  if (isDemo) return true;
+  if (!profileId) return false;
+  const visibility = await loadFieldVisibility(profileId);
+  return isFieldGroupVisible(visibility, "stats", "public");
+}
+
+/**
+ * Public age exposure: an audience-safe band, never the exact age
+ * (audit "Public controls are not field-granular"). "18+" / "Under 18" / null.
+ */
+function publicAgeBand(profile) {
+  const age = computeAge(profile?.date_of_birth ?? profile?.dob);
+  if (age == null) return null;
+  return isMinorProfile(profile) ? "Under 18" : "18+";
+}
+
 function isDatabaseError(error) {
   if (!error) return false;
 
@@ -276,6 +361,10 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       try {
         profile = await knex("profiles").where({ slug: slug }).first();
         if (profile) {
+          profile = await injectSocialFields(profile);
+          // Warm the moderation-column cache once so applyViewerVisibilityFilter
+          // is a safe no-op if the column doesn't exist yet (deploy-before-migrate).
+          await ensureModerationColumnChecked(knex);
           // Public portfolio: only shareable images (active status, not excluded from public).
           // NULL status → treat as active; NULL exclude_from_public → treat as not excluded.
           images = await knex("images")
@@ -289,6 +378,7 @@ router.get("/portfolio/:slug", async (req, res, next) => {
                 false,
               );
             })
+            .modify((qb) => applyViewerVisibilityFilter(qb))
             .orderBy("sort");
           const primaryImage =
             images.find((img) => img.is_primary) || images[0];
@@ -354,27 +444,69 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       });
     }
 
+    if (!isDemo && !minorPublicExposureAllowed(profile)) {
+      console.log("[Portfolio] Minor profile blocked without guardian consent:", slug);
+      return res.status(404).render("errors/404", {
+        title: "Profile not found",
+        layout: "layout",
+      });
+    }
+
     // Render portfolio page
     res.locals.currentPage = "portfolio";
     // Use pro layout for pro portfolios (no header/footer), regular layout for free
     const layoutType = profile.is_pro ? "portfolio-pro" : "layout";
 
-    // Track portfolio view (non-blocking)
-    logAnalyticsEvent(
-      profile.id,
-      "view",
-      { source: "web", slug: profile.slug },
-      req,
-    );
+    // Signed-in owner previews and automated crawlers do not represent audience
+    // traffic. Await tracking so the session cookie is written before render
+    // commits the response headers.
+    if (!shouldExcludeFromAnalytics(profile, req)) {
+      // Per-recipient share link (?st=...) — marks the open/re-open on the
+      // token and classifies this visit as client/casting attention.
+      const shareToken = isDemo
+        ? null
+        : await resolveShareToken(profile, req.query.st, req);
+      const [, visitorSessionId] = await Promise.all([
+        logAnalyticsEvent(
+          profile.id,
+          "view",
+          { source: "web", slug: profile.slug },
+          req,
+        ),
+        trackVisitorSession(profile.id, req, res),
+      ]);
+      if (!isDemo) {
+        // Capture v2 write path — non-blocking; geo/market resolves inside.
+        recordProfileEvent({
+          profile,
+          action: "view",
+          req,
+          sessionId: visitorSessionId,
+          shareToken,
+        });
+        if (shareToken) {
+          recordProfileEvent({
+            profile,
+            action: "link_open",
+            req,
+            sessionId: visitorSessionId,
+            shareToken,
+            metadata: { reopen: Boolean(shareToken.first_opened_at) },
+          });
+        }
+      }
+    }
 
-    // Track visitor session (Tier 2)
-    trackVisitorSession(profile.id, req, res);
-
+    const statsPublic = await isStatsPublic(profile.id, { isDemo });
     return res.render("portfolio/show", {
       title: `${profile.first_name} ${profile.last_name}`,
       profile,
       images,
       heightFeet: toFeetInches(profile.height_cm),
+      // Stats render only when explicitly opted public (default: agency-only).
+      stats: statsPublic ? buildCanonicalStats(profile) : null,
+      // Public sees an age BAND, never the exact age.
+      ageBand: publicAgeBand(profile),
       layout: layoutType,
       currentPage: "portfolio",
     });
@@ -401,6 +533,9 @@ router.get("/portfolio/:slug", async (req, res, next) => {
           profile: demoData.profile,
           images: demoData.images,
           heightFeet: toFeetInches(demoData.profile.height_cm),
+          // Demo is a marketing showcase — keep the full stat block.
+          stats: buildCanonicalStats(demoData.profile),
+          ageBand: publicAgeBand(demoData.profile),
           layout: demoLayoutType,
           currentPage: "portfolio",
         });
@@ -413,14 +548,61 @@ router.get("/portfolio/:slug", async (req, res, next) => {
 
 router.post("/portfolio/:slug/event", async (req, res) => {
   const slug = req.params.slug;
-  const { eventType, metadata } = req.body;
+  const { eventType, metadata, imageId, dwellMs } = req.body || {};
 
   try {
-    const profile = await knex("profiles").where({ slug: slug }).first();
+    let profile = await knex("profiles").where({ slug: slug }).first();
     if (profile) {
-      // Log event using the existing helper
-      await logAnalyticsEvent(profile.id, eventType, metadata, req);
-      return res.json({ success: true });
+      profile = await injectSocialFields(profile);
+      const isLegacyEvent = TRACKED_PORTFOLIO_EVENTS.has(eventType);
+      const isIntelEvent = INTEL_PORTFOLIO_EVENTS.has(eventType);
+      if (!isLegacyEvent && !isIntelEvent) {
+        return res.status(400).json({ error: "Unsupported analytics event" });
+      }
+
+      const safeMetadata =
+        metadata && typeof metadata === "object" && !Array.isArray(metadata)
+          ? metadata
+          : {};
+      if (JSON.stringify(safeMetadata).length > 2000) {
+        return res.status(400).json({ error: "Analytics metadata is too large" });
+      }
+
+      if (shouldExcludeFromAnalytics(profile, req)) {
+        return res.json({ success: true, recorded: false });
+      }
+
+      // Image-level attention events must reference an image on this profile.
+      let safeImageId = null;
+      if (eventType.startsWith("image_")) {
+        if (typeof imageId !== "string" || imageId.length > 64) {
+          return res.status(400).json({ error: "imageId required" });
+        }
+        const image = await knex("images")
+          .where({ id: imageId, profile_id: profile.id })
+          .select("id")
+          .first();
+        if (!image) {
+          return res.status(400).json({ error: "Unknown image" });
+        }
+        safeImageId = image.id;
+      }
+
+      if (isLegacyEvent) {
+        await logAnalyticsEvent(profile.id, eventType, safeMetadata, req);
+      }
+      // Capture v2 write (all beacon events), non-blocking.
+      recordProfileEvent({
+        profile,
+        action: eventType === "scroll_depth" ? "scroll_depth" : eventType,
+        req,
+        viewerClass: resolveViewerClass(profile, req),
+        sessionId: req.cookies?.[portfolioSessionCookieName(profile.id)] || null,
+        imageId: safeImageId,
+        dwellMs: Number.isFinite(Number(dwellMs)) ? Number(dwellMs) : null,
+        metadata: Object.keys(safeMetadata).length ? safeMetadata : null,
+      });
+      return res.json({ success: true, recorded: true });
     }
     return res.status(404).json({ error: "Profile not found" });
   } catch (error) {

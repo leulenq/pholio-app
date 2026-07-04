@@ -1,6 +1,10 @@
 import React from 'react';
-import { Controller } from 'react-hook-form';
+import { Controller, useFieldArray } from 'react-hook-form';
+import { Building2, Plus, Trash2 } from 'lucide-react';
 import { PholioInput, PholioTextarea } from '../../../shared/components/ui/forms';
+import PholioButton, {
+  PholioIconButton,
+} from '../../../shared/components/ui/PholioButton';
 import { Section } from './Section';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
@@ -11,9 +15,21 @@ const STATUS = {
 };
 
 const OPTIONS = [
-  { value: STATUS.SEEKING, num: '01', label: 'Seeking', hint: 'Open to representation' },
-  { value: STATUS.REPRESENTED, num: '02', label: 'Represented', hint: 'Currently signed' },
-  { value: STATUS.NOT_SEEKING, num: '03', label: 'Not seeking', hint: 'Freelance / independent' }
+  {
+    value: STATUS.SEEKING,
+    label: 'Seeking Representation',
+    hint: 'Open to agency submissions and development conversations.',
+  },
+  {
+    value: STATUS.REPRESENTED,
+    label: 'Represented',
+    hint: 'Your agency is the contact route for bookings.',
+  },
+  {
+    value: STATUS.NOT_SEEKING,
+    label: 'Direct Bookings',
+    hint: 'Booking inquiries come directly to you.',
+  }
 ];
 
 /**
@@ -22,17 +38,37 @@ const OPTIONS = [
  */
 export const RepresentationSection = ({ register, control, errors, setValue, watch }) => {
   const representationStatus = watch('representation_status');
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'representations',
+    keyName: '_formKey',
+  });
 
   const applyStatus = (next) => {
     setValue('representation_status', next, { shouldDirty: true, shouldValidate: true });
     if (next === STATUS.SEEKING) {
       setValue('seeking_representation', true, { shouldDirty: true });
-      setValue('current_agency', null, { shouldDirty: true });
     } else if (next === STATUS.REPRESENTED) {
       setValue('seeking_representation', false, { shouldDirty: true });
     } else {
       setValue('seeking_representation', false, { shouldDirty: true });
-      setValue('current_agency', null, { shouldDirty: true });
+    }
+  };
+
+  const addRepresentation = () => {
+    append({
+      agency_id: null,
+      external_agency_name: '',
+      relationship_type: 'placement',
+      market: '',
+      territory: '',
+      division: '',
+      is_exclusive: false,
+      started_on: '',
+      status: 'active',
+    });
+    if (representationStatus === STATUS.NOT_SEEKING) {
+      applyStatus(STATUS.REPRESENTED);
     }
   };
 
@@ -41,23 +77,23 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
       id="representation"
       title="Agency Representation"
       titleEmphasis="Agency"
-      description="Tell agencies whether you're signed, looking, or not seeking representation."
+      description="Set the contact route agencies and clients should use for representation and bookings."
       showDivider={false}
     >
-      <div className={styles.formStack}>
+      <div className={styles.repSurface}>
         <Controller
           name="representation_status"
           control={control}
           render={({ field }) => (
-            <fieldset className={styles.repFieldset}>
-              <legend className={styles.repLegend}>Status</legend>
-              <div className={styles.repOptions} role="radiogroup" aria-label="Representation status">
+            <fieldset className={`${styles.repFieldset} ${styles.repPathGroup}`}>
+              <legend className={styles.repLegend}>Representation status</legend>
+              <div className={styles.repPathGrid} role="radiogroup" aria-label="Representation status">
                 {OPTIONS.map((opt) => {
                   const isActive = field.value === opt.value;
                   return (
                     <label
                       key={opt.value}
-                      className={`${styles.repOption} ${isActive ? styles.repOptionActive : ''}`}
+                      className={`${styles.repPathOption} ${isActive ? styles.repPathOptionActive : ''}`}
                     >
                       <input
                         type="radio"
@@ -68,9 +104,8 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
                         onBlur={field.onBlur}
                         className={styles.repRadioHidden}
                       />
-                      <span className={styles.repNum}>{opt.num}</span>
                       <span className={styles.repLabel}>
-                        {isActive ? <em>{opt.label}</em> : opt.label}
+                        {opt.label}
                       </span>
                       <span className={styles.repHint}>{opt.hint}</span>
                     </label>
@@ -86,21 +121,132 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
           )}
         />
 
-        {representationStatus === STATUS.REPRESENTED && (
-          <PholioInput
-            label="Current agency"
-            placeholder="e.g. Elite Model Management"
-            error={errors.current_agency}
-            {...register('current_agency')}
-          />
-        )}
+        <div className={`${styles.repDetailGroup} ${styles.repRelationshipsPanel}`}>
+          <div className={styles.repRelationshipsHead}>
+            <div className={styles.repRelationshipsTitle}>
+              <Building2 size={18} strokeWidth={1.6} aria-hidden="true" />
+              <div>
+                <h4>Active Relationships</h4>
+                <p>Record one mother agency, then add each market or placement agency.</p>
+              </div>
+            </div>
+            <PholioButton
+              type="button"
+              variant="secondary"
+              className={styles.repAddButton}
+              onClick={addRepresentation}
+            >
+              <Plus size={16} aria-hidden="true" />
+              Add agency
+            </PholioButton>
+          </div>
 
-        <PholioTextarea
-          label="Previous Representation"
-          placeholder="List any previous agencies or management (one per line)..."
-          rows={3}
-          {...register('previous_representations')}
-        />
+          {fields.length === 0 ? (
+            <div className={styles.repEmpty}>
+              <Building2 size={22} strokeWidth={1.4} aria-hidden="true" />
+              <div>
+                <strong>No agency relationships yet</strong>
+                <p>Add an agency only if it currently represents you.</p>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.repRelationshipList}>
+              {fields.map((field, index) => {
+                const fieldErrors = errors.representations?.[index] || {};
+                const isInternal = Boolean(field.agency_id);
+                return (
+                  <div className={styles.repRelationshipCard} key={field._formKey}>
+                    <input type="hidden" {...register(`representations.${index}.id`)} />
+                    <input type="hidden" {...register(`representations.${index}.agency_id`)} />
+                    <input type="hidden" {...register(`representations.${index}.status`)} />
+
+                    <div className={styles.repRelationshipTop}>
+                      <label className={styles.repNativeField}>
+                        <span>Relationship</span>
+                        <select {...register(`representations.${index}.relationship_type`)}>
+                          <option value="mother">Mother agency</option>
+                          <option value="placement">Placement agency</option>
+                        </select>
+                      </label>
+                      <PholioIconButton
+                        label={`Remove ${field.agency_name || field.external_agency_name || 'agency'}`}
+                        danger
+                        className={styles.repRemoveButton}
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </PholioIconButton>
+                    </div>
+
+                    <div className={styles.repRelationshipGrid}>
+                      {isInternal ? (
+                        <>
+                          <PholioInput
+                            label="Agency name"
+                            value={field.agency_name || ''}
+                            readOnly
+                          />
+                          <input
+                            type="hidden"
+                            {...register(`representations.${index}.external_agency_name`)}
+                          />
+                        </>
+                      ) : (
+                        <PholioInput
+                          label="Agency name"
+                          placeholder="e.g. Women Management"
+                          error={fieldErrors.external_agency_name}
+                          {...register(`representations.${index}.external_agency_name`)}
+                        />
+                      )}
+                      <PholioInput
+                        label="Market"
+                        placeholder="e.g. New York"
+                        error={fieldErrors.market}
+                        {...register(`representations.${index}.market`)}
+                      />
+                      <PholioInput
+                        label="Territory"
+                        placeholder="e.g. United States"
+                        error={fieldErrors.territory}
+                        {...register(`representations.${index}.territory`)}
+                      />
+                      <PholioInput
+                        label="Division"
+                        placeholder="e.g. Women / Editorial"
+                        error={fieldErrors.division}
+                        {...register(`representations.${index}.division`)}
+                      />
+                      <PholioInput
+                        label="Start date"
+                        type="date"
+                        error={fieldErrors.started_on}
+                        {...register(`representations.${index}.started_on`)}
+                      />
+                      <label className={styles.repExclusive}>
+                        <input
+                          type="checkbox"
+                          {...register(`representations.${index}.is_exclusive`)}
+                        />
+                        <span>Exclusive in this market or territory</span>
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className={styles.repDetailGroup}>
+          <PholioTextarea
+            label="Legacy representation notes"
+            placeholder="Optional historical notes retained from your previous profile"
+            rows={3}
+            className={styles.repPremiumField}
+            {...register('previous_representations')}
+          />
+        </div>
       </div>
     </Section>
   );

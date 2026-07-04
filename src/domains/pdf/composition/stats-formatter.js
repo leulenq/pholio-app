@@ -31,6 +31,11 @@
  *     imperial-native convention with no metric form).
  */
 
+const {
+  resolveStatsTrack,
+  resolveCoreCircumference,
+} = require("../../../shared/lib/stats-formatter");
+
 const CM_PER_INCH = 2.54;
 const LBS_PER_KG = 2.20462;
 
@@ -40,8 +45,15 @@ const SUIT_REGULAR_MAX_CM = 183;
 
 /** EU ≈ US shoe-size offsets by presentation track. */
 const SHOE_EU_OFFSET = { women: 31, men: 33 };
-/** EU ≈ US + 32 for dresses. */
-const DRESS_EU_OFFSET = 32;
+/**
+ * Dress-size conversions from the US convention. Standard women's grading:
+ *   US 4 = EU 36 = UK 8 = FR 38 = IT 40 (each step is +2 within a system).
+ * Offsets are relative to the US number.
+ */
+const DRESS_EU_OFFSET = 32; // EU ≈ US + 32
+const DRESS_UK_OFFSET = 4; // UK ≈ US + 4
+const DRESS_FR_OFFSET = 34; // FR ≈ US + 34 (EU + 2)
+const DRESS_IT_OFFSET = 36; // IT ≈ US + 36 (EU + 4)
 
 /** Bare numeric shoe sizes at/above this are assumed to already be EU. */
 const EU_SHOE_ASSUME_THRESHOLD = 32;
@@ -120,16 +132,17 @@ function cmToInchesHalf(cm) {
  * Accepts: "9", "9.5", "9.5 US", "US 9.5", "40 EU", "EU 40".
  * Bare numerics ≥ EU_SHOE_ASSUME_THRESHOLD are assumed EU.
  * @param {*} raw
- * @returns {{ numeric: boolean, system?: 'us'|'eu', value?: number, raw: string }|null}
+ * @param {string} [shoeRegion]
+ * @returns {{ numeric: boolean, system?: 'us'|'eu'|'uk', value?: number, raw: string }|null}
  */
-function parseShoeSize(raw) {
+function parseShoeSize(raw, shoeRegion) {
   if (raw == null) return null;
   const s = String(raw).trim();
   if (!s) return null;
-  const m = s.match(/^(?:(us|eu)\s*)?(\d+(?:\.\d+)?)(?:\s*(us|eu))?$/i);
+  const m = s.match(/^(?:(us|eu|uk)\s*)?(\d+(?:\.\d+)?)(?:\s*(us|eu|uk))?$/i);
   if (!m) return { numeric: false, raw: s };
   const value = parseFloat(m[2]);
-  let system = (m[1] || m[3] || "").toLowerCase();
+  let system = (m[1] || m[3] || shoeRegion || "").toLowerCase();
   if (!system) {
     system = value >= EU_SHOE_ASSUME_THRESHOLD ? "eu" : "us";
   }
@@ -141,23 +154,33 @@ function parseShoeSize(raw) {
  * @param {*} raw — raw `shoe_size` value
  * @param {'women'|'men'|'kids'} category
  * @param {'dual'|'imperial'|'metric'} units
+ * @param {string} [shoeRegion]
  * @returns {string|null} e.g. `US 9 / EU 40`; raw string when non-numeric;
  *   null when missing.
  */
-function renderShoe(raw, category, units) {
-  const parsed = parseShoeSize(raw);
+function renderShoe(raw, category, units, shoeRegion) {
+  const parsed = parseShoeSize(raw, shoeRegion);
   if (!parsed) return null;
   if (!parsed.numeric) return parsed.raw;
 
   // Kids sizing has no reliable adult US↔EU offset: render natively.
   if (category === "kids") {
-    const prefix = parsed.system === "eu" ? "EU" : "US";
+    const prefix = parsed.system === "eu" ? "EU" : parsed.system === "uk" ? "UK" : "US";
     return `${prefix} ${fmtNum(parsed.value)}`;
   }
 
   const offset = SHOE_EU_OFFSET[category] ?? SHOE_EU_OFFSET.women;
-  const us = parsed.system === "eu" ? parsed.value - offset : parsed.value;
-  const eu = parsed.system === "eu" ? parsed.value : parsed.value + offset;
+  let us = parsed.value;
+  let eu = parsed.value;
+
+  if (parsed.system === "eu") {
+    us = parsed.value - offset;
+  } else if (parsed.system === "uk") {
+    us = parsed.value + 1; // standard offset UK to US
+    eu = us + offset;
+  } else { // us
+    eu = parsed.value + offset;
+  }
 
   if (units === "imperial") return `US ${fmtNum(us)}`;
   if (units === "metric") return `EU ${fmtNum(eu)}`;
@@ -169,10 +192,11 @@ function renderShoe(raw, category, units) {
  * Women EU ≈ US + 31; men EU ≈ US + 33. Non-numeric input renders as-is.
  * @param {*} raw — raw `shoe_size` value
  * @param {'women'|'men'|'kids'} [category='women']
+ * @param {string} [shoeRegion]
  * @returns {string|null}
  */
-function shoeDual(raw, category = "women") {
-  return renderShoe(raw, category, "dual");
+function shoeDual(raw, category = "women", shoeRegion) {
+  return renderShoe(raw, category, "dual", shoeRegion);
 }
 
 /**
@@ -203,6 +227,47 @@ function renderDress(raw, units) {
  */
 function dressDual(raw) {
   return renderDress(raw, "dual");
+}
+
+/**
+ * Resolve a US dress size into the international systems agencies request on
+ * cross-market submissions (US / EU / UK / IT / FR). Keeps the printed card
+ * lean (US/EU) while exposing the full conversion set to callers that need it.
+ * @param {*} raw — raw `dress_size` value (US convention)
+ * @returns {{ numeric: boolean, us: number|string, eu?: number, uk?: number,
+ *   it?: number, fr?: number }|null} null when missing; `{ numeric:false, us }`
+ *   for non-numeric ("S") values.
+ */
+function dressConversions(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const m = s.match(/^(\d+(?:\.\d+)?)$/);
+  if (!m) return { numeric: false, us: s };
+  const us = parseFloat(m[1]);
+  return {
+    numeric: true,
+    us,
+    eu: us + DRESS_EU_OFFSET,
+    uk: us + DRESS_UK_OFFSET,
+    it: us + DRESS_IT_OFFSET,
+    fr: us + DRESS_FR_OFFSET,
+  };
+}
+
+/**
+ * International dress strip (`UK 8 · IT 40 · FR 38`) for submission surfaces.
+ * @param {*} raw — raw `dress_size` value
+ * @returns {{ uk: string, it: string, fr: string }|null}
+ */
+function dressIntl(raw) {
+  const conv = dressConversions(raw);
+  if (!conv || !conv.numeric) return null;
+  return {
+    uk: `UK ${fmtNum(conv.uk)}`,
+    it: `IT ${fmtNum(conv.it)}`,
+    fr: `FR ${fmtNum(conv.fr)}`,
+  };
 }
 
 /**
@@ -277,6 +342,13 @@ function resolveStatsCategory(profile, referenceDate) {
   const age = resolveAge(profile || {}, ref);
   if (age != null && age < KIDS_AGE_MAX) return "kids";
 
+  // Prefer the canonical stats_track (Wave 2C) — measurement set is decoupled
+  // from gender. womenswear → women, menswear → men. `ungendered` (or absent)
+  // falls through to the gender/measurement heuristic below.
+  const rawTrack = String(profile?.stats_track ?? "").trim().toLowerCase();
+  if (rawTrack === "womenswear") return "women";
+  if (rawTrack === "menswear") return "men";
+
   const gender = String(profile?.gender ?? "")
     .trim()
     .toLowerCase();
@@ -284,8 +356,13 @@ function resolveStatsCategory(profile, referenceDate) {
   if (gender === "female") return "women";
 
   const legacy = parseMeasurements(profile?.measurements);
-  const bust = toPositiveNumber(profile?.bust_cm) ?? legacy.bust;
-  return bust != null ? "women" : "men";
+  const chest =
+    toPositiveNumber(profile?.chest_cm) ??
+    toPositiveNumber(profile?.bust_cm) ??
+    legacy.bust;
+  // Non-binary / unknown with a torso circumference defaults to the women set
+  // (bust/waist/hips) — matches historic behavior for ungendered profiles.
+  return chest != null ? "women" : "men";
 }
 
 /**
@@ -437,7 +514,12 @@ function buildStatsBlock(profile, options) {
   // --- Field sourcing (prefer *_cm columns, fall back to legacy string) ----
   const legacy = parseMeasurements(p.measurements);
   const heightCm = toPositiveNumber(p.height_cm);
-  const bustCm = toPositiveNumber(p.bust_cm) ?? legacy.bust;
+  // Canonical core circumference (chest/bust per track, Wave 2C). menswear reads
+  // chest_cm (legacy fallback bust_cm); womenswear reads bust_cm (fallback
+  // chest_cm). Legacy `measurements` string is the final fallback.
+  const core = resolveCoreCircumference(p, resolveStatsTrack(p));
+  const bustCm = core.cm ?? legacy.bust;
+  const chestCm = core.cm ?? legacy.bust;
   const waistCm = toPositiveNumber(p.waist_cm) ?? legacy.waist;
   const hipsCm = toPositiveNumber(p.hips_cm) ?? legacy.hips;
   const inseamCm = toPositiveNumber(p.inseam_cm);
@@ -501,7 +583,7 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "shoes",
       "SHOES",
-      renderShoe(p.shoe_size, category, units),
+      renderShoe(p.shoe_size, category, units, p.shoe_region),
       "Shoe size missing — line skipped.",
     );
   } else if (category === "men") {
@@ -515,7 +597,7 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "chest",
       "CHEST",
-      bustCm != null ? renderGirth(bustCm, units) : null,
+      chestCm != null ? renderGirth(chestCm, units) : null,
       "Chest missing — line skipped.",
     );
     pushLine(
@@ -533,13 +615,17 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "suit",
       "SUIT",
-      deriveSuitSize(bustCm, heightCm),
+      // Prefer the real `suit_size` column (Wave 2B); else derive `40R` from
+      // chest + height so classic cards still show a suit line.
+      (p.suit_size != null && String(p.suit_size).trim() !== ""
+        ? String(p.suit_size).trim()
+        : deriveSuitSize(chestCm, heightCm)),
       "Suit size unavailable (needs both chest and height) — line skipped.",
     );
     pushLine(
       "shoes",
       "SHOES",
-      renderShoe(p.shoe_size, category, units),
+      renderShoe(p.shoe_size, category, units, p.shoe_region),
       "Shoe size missing — line skipped.",
     );
   } else {
@@ -577,7 +663,7 @@ function buildStatsBlock(profile, options) {
     pushLine(
       "shoes",
       "SHOES",
-      renderShoe(p.shoe_size, category, units),
+      renderShoe(p.shoe_size, category, units, p.shoe_region),
       "Shoe size missing — line skipped.",
     );
   }
@@ -639,4 +725,6 @@ module.exports = {
   cmToInchesHalf,
   shoeDual,
   dressDual,
+  dressConversions,
+  dressIntl,
 };

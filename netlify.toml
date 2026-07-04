@@ -1,7 +1,7 @@
 [build]
   # Run patch script first (strips browser fields from iconv-lite/readable-stream/pg
   # and silences extend-node.js) so esbuild bundles server-side versions correctly.
-  command = "node scripts/patch-express.js && npm run build:function && npm run generate:favicons && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
+  command = "node scripts/patch-express.js && npm run build:function && npm run generate:favicons && npm run setup:sender-avatar && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
   publish = "public"
 
 [build.environment]
@@ -23,12 +23,21 @@
   # Native binaries + packages with directory requires or ESM/CJS conflicts.
   # Knex optional dialects (mysql, tedious, oracledb) are not installed but referenced in knex source.
   external_node_modules = [
-    "bcrypt", "sharp", "puppeteer", "@sparticuz/chromium", "better-sqlite3", "sqlite3",
+    "bcrypt", "sharp", "@img/sharp-linux-x64", "@img/sharp-libvips-linux-x64",
+    "puppeteer", "@sparticuz/chromium", "better-sqlite3", "sqlite3",
     "mysql", "mysql2", "tedious", "oracledb", "mssql",
     "fsevents", "pg-native", "pg-query-stream",
     "firebase-admin",
     # EJS uses dynamic requires; must ship from node_modules, not esbuild bundle.
     "ejs", "express-ejs-layouts"
+  ]
+
+[functions."cleanup-application-drafts"]
+  schedule = "@daily"
+  external_node_modules = [
+    "better-sqlite3", "sqlite3",
+    "mysql", "mysql2", "tedious", "oracledb", "mssql",
+    "pg-native", "pg-query-stream",
   ]
 
 ##
@@ -108,9 +117,41 @@
   to = "/dashboard-app/index.html"
   status = 200
 
+# Casting SPA pages (client-side steps live under /onboarding only)
+[[redirects]]
+  from = "/onboarding/test"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/onboarding/preview-reveal"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/onboarding"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+# Casting API + other /onboarding/* backend routes (entry, status, scout, …)
 [[redirects]]
   from = "/onboarding/*"
-  to = "/dashboard-app/index.html"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/upload"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/uploads/*"
+  to = "/.netlify/functions/server"
+  status = 200
+
+[[redirects]]
+  from = "/portfolio/*"
+  to = "/.netlify/functions/server"
   status = 200
 
 [[redirects]]
