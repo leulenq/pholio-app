@@ -3,21 +3,21 @@
 Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.
 
 ## Phase 1 — Capture v2 (data pipeline)
-- [ ] Migration: `profile_events` (viewer_class, session_id, market, image_id, dwell_ms, share_token, source, action, occurred_at)
-- [ ] Migration: `share_tokens` (per-recipient links; open/re-open tracking)
-- [ ] Capture service: viewer_class resolution (agency/client/public/self), market-only geo resolution
-- [ ] Wire capture into portfolio view + card pull paths
-- [ ] Client beacon endpoint for image-level attention (impression, lightbox, dwell)
-- [ ] Discovery-impression logging from agency search/scout
-- [ ] Aggregates job (market rollups, image ranks, momentum composite)
+- [x] Migration: `profile_events` (viewer_class, session_id, market, image_id, dwell_ms, share_token, source, action, occurred_at)
+- [x] Migration: `share_tokens` (per-recipient links; open/re-open tracking)
+- [x] Capture service: viewer_class resolution (agency/client/public/self), market-only geo resolution
+- [x] Wire capture into portfolio view + card pull paths
+- [x] Client beacon endpoint for image-level attention (impression, lightbox, dwell)
+- [x] Discovery-impression logging from agency search/scout
+- [~] Aggregates job — v1 aggregates at read time (per-profile volumes are small); a nightly rollup job follows when volume demands it. Benchmark bands stay 'calibrating' (never faked) per spec.
 
 ## Phase 2 — Intel backend
-- [ ] `src/domains/talent/services/intel/` aggregation modules (pulse, seismograph, markets, pipeline, book, lens, trajectory)
-- [ ] `src/domains/talent/routes/intel.js`: `GET /api/talent/intel` + `GET /api/talent/intel/day/:date`
-- [ ] Tier gating (free 7d / Studio+ 90d) via existing pattern
-- [ ] Privacy: aggregate-only agency attention; minors branch; self-view exclusion; small-n suppression
-- [ ] Kill `/analytics/insights`, `/analytics/cohorts`, `engagement.score`
-- [ ] Mount router; tests
+- [x] `src/domains/talent/services/intel/` aggregation modules (pulse, seismograph, markets, pipeline, book, lens, trajectory)
+- [x] `src/domains/talent/routes/intel.js`: `GET /api/talent/intel` + `GET /api/talent/intel/day/:date`
+- [x] Tier gating (free 7d / Studio+ 90d) via existing pattern
+- [x] Privacy: aggregate-only agency attention; minors branch; self-view exclusion; small-n suppression
+- [x] Kill `/analytics/insights`, `/analytics/cohorts`, `engagement.score`
+- [x] Mount router; tests
 
 ## Phase 3 — Frontend instruments
 - [ ] `useIntel` hook + API method; IntelPage route + nav entry
