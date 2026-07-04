@@ -87,9 +87,13 @@ exports.up = async function up(knex) {
     });
 
     const profileColumnSet = new Set(
-      await knex("information_schema.columns")
-        .where({ table_name: "profiles", table_schema: "public" })
-        .pluck("column_name"),
+      knex.client.config.client === "pg"
+        ? await knex("information_schema.columns")
+            .where({ table_name: "profiles", table_schema: "public" })
+            .pluck("column_name")
+        : (await knex.raw("PRAGMA table_info(profiles)")).map(
+            (row) => row.name,
+          ),
     );
 
     const selectColumns = [

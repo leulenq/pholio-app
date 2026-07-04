@@ -1,10 +1,15 @@
 const crypto = require("crypto");
 
 async function existingColumns(knex, tableName) {
-  const rows = await knex("information_schema.columns")
-    .where({ table_name: tableName, table_schema: "public" })
-    .select("column_name");
-  return new Set(rows.map((row) => row.column_name));
+  if (knex.client.config.client === "pg") {
+    const rows = await knex("information_schema.columns")
+      .where({ table_name: tableName, table_schema: "public" })
+      .select("column_name");
+    return new Set(rows.map((row) => row.column_name));
+  }
+  // SQLite: information_schema does not exist.
+  const rows = await knex.raw(`PRAGMA table_info(${tableName})`);
+  return new Set(rows.map((row) => row.name));
 }
 
 function pickExisting(source, columns) {

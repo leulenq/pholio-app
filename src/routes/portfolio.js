@@ -19,12 +19,26 @@ const {
   isFieldGroupVisible,
 } = require("../shared/lib/field-visibility");
 
+const {
+  recordProfileEvent,
+  resolveViewerClass,
+  resolveShareToken,
+} = require("../domains/talent/services/intel/capture");
+
 const router = express.Router();
 const TRACKED_PORTFOLIO_EVENTS = new Set([
   "bio_read",
   "social_click",
   "portfolio_click",
   "scroll_depth",
+]);
+// Capture v2 (intel) events accepted by the beacon in addition to the legacy
+// set. Image events carry imageId (+ dwellMs) for image-level attention.
+const INTEL_PORTFOLIO_EVENTS = new Set([
+  "image_impression",
+  "image_open",
+  "image_dwell",
+  "contact_click",
 ]);
 
 function isLikelyBot(userAgent = "") {
@@ -447,7 +461,12 @@ router.get("/portfolio/:slug", async (req, res, next) => {
     // traffic. Await tracking so the session cookie is written before render
     // commits the response headers.
     if (!shouldExcludeFromAnalytics(profile, req)) {
-      await Promise.all([
+      // Per-recipient share link (?st=...) — marks the open/re-open on the
+      // token and classifies this visit as client/casting attention.
+      const shareToken = isDemo
+        ? null
+        : await resolveShareToken(profile, req.query.st, req);
+      const [, visitorSessionId] = await Promise.all([
         logAnalyticsEvent(
           profile.id,
           "view",
@@ -456,6 +475,26 @@ router.get("/portfolio/:slug", async (req, res, next) => {
         ),
         trackVisitorSession(profile.id, req, res),
       ]);
+      if (!isDemo) {
+        // Capture v2 write path — non-blocking; geo/market resolves inside.
+        recordProfileEvent({
+          profile,
+          action: "view",
+          req,
+          sessionId: visitorSessionId,
+          shareToken,
+        });
+        if (shareToken) {
+          recordProfileEvent({
+            profile,
+            action: "link_open",
+            req,
+            sessionId: visitorSessionId,
+            shareToken,
+            metadata: { reopen: Boolean(shareToken.first_opened_at) },
+          });
+        }
+      }
     }
 
     const statsPublic = await isStatsPublic(profile.id, { isDemo });
@@ -509,13 +548,15 @@ router.get("/portfolio/:slug", async (req, res, next) => {
 
 router.post("/portfolio/:slug/event", async (req, res) => {
   const slug = req.params.slug;
-  const { eventType, metadata } = req.body || {};
+  const { eventType, metadata, imageId, dwellMs } = req.body || {};
 
   try {
     let profile = await knex("profiles").where({ slug: slug }).first();
     if (profile) {
       profile = await injectSocialFields(profile);
-      if (!TRACKED_PORTFOLIO_EVENTS.has(eventType)) {
+      const isLegacyEvent = TRACKED_PORTFOLIO_EVENTS.has(eventType);
+      const isIntelEvent = INTEL_PORTFOLIO_EVENTS.has(eventType);
+      if (!isLegacyEvent && !isIntelEvent) {
         return res.status(400).json({ error: "Unsupported analytics event" });
       }
 
@@ -531,7 +572,36 @@ router.post("/portfolio/:slug/event", async (req, res) => {
         return res.json({ success: true, recorded: false });
       }
 
-      await logAnalyticsEvent(profile.id, eventType, safeMetadata, req);
+      // Image-level attention events must reference an image on this profile.
+      let safeImageId = null;
+      if (eventType.startsWith("image_")) {
+        if (typeof imageId !== "string" || imageId.length > 64) {
+          return res.status(400).json({ error: "imageId required" });
+        }
+        const image = await knex("images")
+          .where({ id: imageId, profile_id: profile.id })
+          .select("id")
+          .first();
+        if (!image) {
+          return res.status(400).json({ error: "Unknown image" });
+        }
+        safeImageId = image.id;
+      }
+
+      if (isLegacyEvent) {
+        await logAnalyticsEvent(profile.id, eventType, safeMetadata, req);
+      }
+      // Capture v2 write (all beacon events), non-blocking.
+      recordProfileEvent({
+        profile,
+        action: eventType === "scroll_depth" ? "scroll_depth" : eventType,
+        req,
+        viewerClass: resolveViewerClass(profile, req),
+        sessionId: req.cookies?.[portfolioSessionCookieName(profile.id)] || null,
+        imageId: safeImageId,
+        dwellMs: Number.isFinite(Number(dwellMs)) ? Number(dwellMs) : null,
+        metadata: Object.keys(safeMetadata).length ? safeMetadata : null,
+      });
       return res.json({ success: true, recorded: true });
     }
     return res.status(404).json({ error: "Profile not found" });

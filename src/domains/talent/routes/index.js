@@ -9,6 +9,7 @@ const {
 const profileRouter = require("./profile");
 const mediaRouter = require("./media");
 const analyticsRouter = require("./analytics");
+const intelRouter = require("./intel");
 const applicationsRouter = require("./applications");
 const interviewsRouter = require("./interviews");
 const agenciesRouter = require("./agencies");
@@ -32,6 +33,7 @@ router.use("/api/talent/media", mediaRouter);
 router.use("/api/talent", representationsRouter);
 router.use("/api/talent", profileRouter);
 router.use("/api/talent", analyticsRouter);
+router.use("/api/talent", intelRouter);
 router.use("/api/talent/applications", applicationsRouter);
 router.use("/api/talent/interviews", interviewsRouter);
 router.use("/api/talent/agencies", agenciesRouter);
