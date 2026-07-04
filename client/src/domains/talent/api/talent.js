@@ -73,13 +73,9 @@ export const talentApi = {
   getAnalytics: (days) => apiClient.get(`/analytics${days ? `?days=${days}` : ''}`),
   getActivity: () => apiClient.get('/activity'),
 
-  // Intel — the composed intelligence hub (tasks/intel-page-spec.md)
+  // Intel (talent intelligence hub — composed payload + per-day scrub detail)
   getIntel: (days) => apiClient.get(`/intel${days ? `?days=${days}` : ''}`),
-  getIntelDay: (date) => apiClient.get(`/intel/day/${encodeURIComponent(date)}`),
-  getShareTokens: () => apiClient.get('/intel/share-tokens'),
-  createShareToken: (body) => apiClient.post('/intel/share-tokens', body),
-  revokeShareToken: (id) =>
-    apiClient.delete(`/intel/share-tokens/${encodeURIComponent(id)}`),
+  getIntelDay: (date) => apiClient.get(`/intel/day/${date}`),
 
   // Notifications (high-signal bell center)
   getNotifications: (options = {}) => {
@@ -93,8 +89,6 @@ export const talentApi = {
   getSummary: () => apiClient.get('/summary'),
   getTimeseries: (days = 30) => apiClient.get(`/timeseries?days=${days}`),
   getSessions: (days = 30) => apiClient.get(`/sessions?days=${days}`),
-  getCohorts: () => apiClient.get('/cohorts'),
-  getInsights: () => apiClient.get('/insights'),
 
   // Applications
   getApplications: () => apiClient.get('/applications'),
@@ -146,6 +140,11 @@ export const talentApi = {
   getApplicationMessages: (id) => apiClient.get(`/applications/${id}/messages`),
   sendApplicationMessage: (id, message) =>
     apiClient.post(`/applications/${id}/messages`, { message }),
+
+  // Messages (unified inbox across every conversation)
+  getMessageThreads: (options) => apiClient.get('/messages/threads', options),
+  getMessagesUnreadCount: (options) =>
+    apiClient.get('/messages/unread-count', options),
   
   setDiscoverability: (isDiscoverable) => apiClient.post('/discoverability', { isDiscoverable }), // Logic moved to proper endpoint
 

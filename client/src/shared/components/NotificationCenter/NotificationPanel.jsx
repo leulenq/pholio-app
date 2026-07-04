@@ -145,6 +145,9 @@ export default function NotificationPanel({
                         {detail ? <span className="nc-dropdown__detail">{detail}</span> : null}
                         <span className="nc-dropdown__time">{item.timeAgo || 'Recently'}</span>
                       </span>
+                      {item.isRead ? null : (
+                        <span className="nc-dropdown__unread-mark">New</span>
+                      )}
                     </PholioButton>
                   </li>
                 );

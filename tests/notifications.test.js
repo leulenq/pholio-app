@@ -6,6 +6,8 @@ const {
   markNotificationRead,
   markAllNotificationsRead,
   notifyTalentApplicationStatusChange,
+  notifyTalentNewMessage,
+  markMessageNotificationsReadForApplication,
 } = require("../src/shared/services/notifications");
 
 describe("notifications service", () => {
@@ -120,6 +122,47 @@ describe("notifications service", () => {
     expect(row.title).toBe("Development offer");
     expect(row.body).toContain("develop you as a new face");
     expect(row.priority).toBe("high");
+
+    await knex("notifications").where({ id: row.id }).del();
+  });
+
+  it("surfaces an inbound agency message on the bell and clears it on thread open", async () => {
+    const applicationId = uuidv4();
+
+    const id = await notifyTalentNewMessage({
+      userId,
+      applicationId,
+      agencyId: "agency-x",
+      agencyName: "Elite Model Management",
+      preview: "Loved your digitals — can you come in Thursday?",
+    });
+    expect(id).toBeTruthy();
+
+    let row = await knex("notifications")
+      .where({ user_id: userId, group_key: `message:${applicationId}` })
+      .first();
+    expect(row.type).toBe("message_received");
+    expect(row.priority).toBe("high");
+    expect(row.title).toContain("Elite Model Management");
+    expect(row.route_target).toContain(`thread=${applicationId}`);
+    expect(row.read_at).toBeNull();
+
+    // Opening the thread clears the bell.
+    await markMessageNotificationsReadForApplication(userId, applicationId);
+    row = await knex("notifications").where({ id: row.id }).first();
+    expect(row.read_at).not.toBeNull();
+
+    // A follow-up reply re-opens the same grouped conversation as unread.
+    await notifyTalentNewMessage({
+      userId,
+      applicationId,
+      agencyId: "agency-x",
+      agencyName: "Elite Model Management",
+      preview: "Following up on times.",
+    });
+    row = await knex("notifications").where({ id: row.id }).first();
+    expect(row.occurrence_count).toBe(2);
+    expect(row.read_at).toBeNull();
 
     await knex("notifications").where({ id: row.id }).del();
   });
