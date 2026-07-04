@@ -1,7 +1,7 @@
 # Agency Open Call Links — Quota-Exempt Direct-Agency Submissions
 
 **Date:** 2026-07-04
-**Status:** Design proposal (no code changed)
+**Status:** Implemented (Phases 0–2 core: schema, claims, quota accounting, arrival screen, dashboard surfaces, agency link management). Phase 3 (signed personal invite tokens) and Phase 4 (Discover-invite consolidation) remain as designed.
 **Scope:** A system that lets talent who arrive through an agency-controlled path (agency website, email, campaign link) submit to *that agency* without consuming the free-tier monthly submission allowance, while platform-discovery submissions continue to count toward the limit and drive Studio+ conversion.
 
 ---

@@ -37,7 +37,14 @@ const NAV_STEPS = {
   intel: { label: 'Intel', blurb: "See who's viewing and saving your profile." },
 };
 
-function getPageStep(phase, agencyName) {
+function expiryLabel(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getPageStep(phase, agencyName, invitation = null) {
   switch (phase) {
     case 'tour-hero':
       return { label: 'The Market', blurb: 'Your submission hub. Every agency, every status, one view.' };
@@ -45,8 +52,20 @@ function getPageStep(phase, agencyName) {
       return { label: 'Your Ledger', blurb: 'Track every submission — status, decisions, and next moves.' };
     case 'tour-discovery':
       return { label: 'Open Agencies', blurb: 'Apply to any agency with one click. Your profile goes directly to their inbox.' };
-    case 'tour-apply-cta':
+    case 'tour-apply-cta': {
+      // An open call invitation carries its own framing: the agency asked,
+      // and the window is real.
+      if (invitation?.isOpenCall) {
+        const expires = expiryLabel(invitation.expiresAt);
+        return {
+          label: agencyName,
+          blurb: expires
+            ? `Finish your submission to ${agencyName} — their invitation expires ${expires}.`
+            : `Finish your submission to ${agencyName} — they invited you.`,
+        };
+      }
       return { label: agencyName, blurb: `Open your application to ${agencyName} — tap to get started.` };
+    }
     default:
       return null;
   }
@@ -65,6 +84,7 @@ export default function ProfileUnlockExperience({
   isOpen,
   mode = 'generic',
   targetAgency = null,
+  invitation = null,
   profile = null,
   onClose,
 }) {
@@ -241,7 +261,7 @@ export default function ProfileUnlockExperience({
   const activeKey = PHASE_KEY[phase];
   const active = activeKey ? anchors[activeKey] : null;
   const navStep = isNavPhase ? NAV_STEPS[phase] : null;
-  const pageStep = isTourPhase ? getPageStep(phase, agencyName) : null;
+  const pageStep = isTourPhase ? getPageStep(phase, agencyName, invitation) : null;
   const step = navStep || pageStep;
 
   const pad = isTourPhase ? 10 : 9;

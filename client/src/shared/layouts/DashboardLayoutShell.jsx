@@ -140,6 +140,11 @@ export default function DashboardLayoutShell() {
         isOpen={isPromptOpen}
         mode={promptContext?.hasRedirectSignal ? 'targeted' : 'generic'}
         targetAgency={promptContext?.targetAgency}
+        invitation={
+          promptContext?.source === 'open_call'
+            ? { isOpenCall: true, expiresAt: promptContext?.claimExpiresAt }
+            : null
+        }
         profile={profile}
         onClose={dismissPrompt}
       />

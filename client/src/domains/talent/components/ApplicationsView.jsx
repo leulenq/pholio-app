@@ -532,6 +532,7 @@ export default function ApplicationsView() {
                         <span className="app-ledger-card__meta">
                           <MapPin size={13} aria-hidden />
                           {app.agency_location || 'Location pending'}
+                          {app.source === 'open_call' ? ' · Open call' : ''}
                         </span>
                       </span>
                       <span className={`app-status app-status--${config.tone}`}>
@@ -639,6 +640,14 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         <div>
           <dt>Submitted</dt>
           <dd>{dateLabel(app.created_at)}</dd>
+        </div>
+        <div>
+          <dt>Source</dt>
+          <dd>
+            {app.source === 'open_call'
+              ? 'Open call — invited'
+              : 'Pholio discovery'}
+          </dd>
         </div>
         <div>
           <dt>Age</dt>

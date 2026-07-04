@@ -191,6 +191,25 @@ body.is-agency textarea.st-textarea,
 .st-toggles--muted { opacity: .6; pointer-events: none; }
 .st-fieldset--last { border-bottom: none; }
 
+/* ---------- OPEN CALL LINKS ---------- */
+.st-opencall-create { display: flex; gap: 10px; align-items: center; }
+.st-opencall-create .st-input { flex: 1; }
+.st-opencall-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.st-opencall-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 14px 16px; background: #fff; border: 1px solid #ece4d4; border-radius: 12px; }
+.st-opencall-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.st-opencall-label { font-size: 13.5px; font-weight: 600; color: #16130D; }
+.st-opencall-url { font-size: 12px; color: #8a8073; word-break: break-all; }
+.st-opencall-funnel { font-size: 12px; color: #9b9082; margin-top: 3px; }
+.st-opencall-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
+.st-opencall-confirm { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-width: 260px; }
+.st-opencall-confirm-text { font-size: 12px; line-height: 1.45; color: #c0563f; text-align: right; }
+@media (max-width: 720px) {
+  .st-opencall-row { flex-direction: column; }
+  .st-opencall-actions { justify-content: flex-start; }
+  .st-opencall-confirm { align-items: flex-start; }
+  .st-opencall-confirm-text { text-align: left; }
+}
+
 /* ---------- BOARD LADDER ---------- */
 .st-ladder { display: flex; flex-direction: column; gap: 0; }
 .st-ladder-step { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 0 0 18px 0; }

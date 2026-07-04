@@ -100,7 +100,7 @@ export const RightSidebar = ({ nextPriority }) => {
               {[
                 'Premium PDF themes',
                 'Advanced insights',
-                'Unlimited applications',
+                'Unlimited discovery submissions',
               ].map((benefit) => (
                 <li key={benefit} className="relative pl-3.5 text-xs text-slate-600">
                   <span

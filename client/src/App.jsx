@@ -23,6 +23,7 @@ const RevealPage = lazy(() => import('./domains/talent/pages/RevealPage'));
 const SettingsPage = lazy(() => import('./domains/talent/pages/SettingsPage'));
 const CastingCallPage = lazy(() => import('./domains/onboarding/pages/CastingCallPage'));
 const TestPreview = lazy(() => import('./domains/onboarding/pages/TestPreview'));
+const OpenCallArrivalPage = lazy(() => import('./domains/onboarding/pages/OpenCallArrivalPage'));
 
 // Agency pages
 const AgencyOverview = lazy(() => import('./domains/agency/pages/OverviewPage'));
@@ -89,6 +90,9 @@ function App() {
           {/* Standalone Reveal */}
           <Route path="/reveal" element={<RevealPage />} />
           <Route path="/dashboard/talent/reveal" element={<RevealPage />} />
+
+          {/* Agency open call arrival — standalone, pre-auth */}
+          <Route path="/opencall/:code" element={<OpenCallArrivalPage />} />
 
           {/* Standalone full-screen submission studio (no dashboard chrome) */}
           <Route path="/dashboard/talent/applications/apply" element={<ApplyPage />} />

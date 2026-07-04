@@ -761,6 +761,22 @@ export async function markAllAgencyNotificationsRead() {
   return request('/notifications/read-all', { method: 'POST', body: {} });
 }
 
+/**
+ * Open call links — agency-controlled entry links whose invited submissions
+ * are exempt from the talent's monthly discovery limit.
+ */
+export async function getOpenCallLinks() {
+  return apiClient.get('/open-call/links');
+}
+
+export async function createOpenCallLink(label) {
+  return apiClient.post('/open-call/links', { label });
+}
+
+export async function updateOpenCallLink(linkId, payload) {
+  return apiClient.patch(`/open-call/links/${linkId}`, payload);
+}
+
 export default {
   getAgencyStats,
   getAgencyOverview,
@@ -808,4 +824,7 @@ export default {
   bulkArchiveApplications,
   bulkAddTag,
   bulkRemoveTag,
+  getOpenCallLinks,
+  createOpenCallLink,
+  updateOpenCallLink,
 };
