@@ -179,7 +179,11 @@ function InMotionTicker({ rows }) {
 export default function Pulse({ pulse, periodLabel, minor }) {
   return (
     <div className="pulse">
-      <Headline headline={pulse?.headline} periodLabel={periodLabel} />
+      {minor ? (
+        <p className="pulse-headline">Your materials readiness and submissions, at a glance.</p>
+      ) : (
+        <Headline headline={pulse?.headline} periodLabel={periodLabel} />
+      )}
       <div className="pulse__grid">
         <div className="pulse__spectrum">
           {minor ? (
