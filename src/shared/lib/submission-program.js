@@ -1,4 +1,6 @@
-const CURRENT_SUBMISSION_PROGRAM_VERSION = "2026-06-29";
+// Bumped 2026-07-04: added the monthly-limit / agency open call section, so
+// every talent re-acknowledges the quota rules.
+const CURRENT_SUBMISSION_PROGRAM_VERSION = "2026-07-04";
 
 async function recordSubmissionProgramAcknowledgment(knex, userId) {
   if (!knex) {

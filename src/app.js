@@ -499,6 +499,7 @@ const talentAiWriterLimiter = createTalentAiWriterRateLimit({
 
 app.use(["/login", "/signup"], authLimiter);
 app.use(["/onboarding/entry", "/casting/entry"], authLimiter);
+app.use("/api/public/open-call", authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
 app.use(["/onboarding/scout", "/casting/scout"], uploadLimiter);
@@ -755,6 +756,8 @@ app.get(
     "/login",
     "/reply",
     "/reply/*",
+    "/opencall",
+    "/opencall/*",
   ],
   (req, res) => {
     // Development: Redirect to Vite dev server
