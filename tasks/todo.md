@@ -2445,3 +2445,33 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
   that disposable copy.
 - Live browser automation remained unavailable, and no write was made to Mia's real profile during
   verification. The user must retry Save once with the rebuilt client to replace the old stored bio.
+
+# Talent Settings Rebuild Plan — 2026-07-04
+
+- [x] Research Pholio talent workflow settings needs from code and industry references.
+- [x] Research general settings page IA patterns and map only necessary categories.
+- [x] Replace the current talent settings page from scratch with a premium, Pholio-aligned surface.
+- [x] Verify lint/build and document review findings.
+
+## Review
+
+- Rebuilt the talent settings page around necessary settings only: identity/contact, portfolio visibility, submissions, Studio+, security, privacy/data, and account control.
+- Preserved existing settings API contracts and removed filler display/status treatments from the old surface.
+- `npm run client:build` passes after installing client dependencies with `--legacy-peer-deps`.
+- `cd client && npm run lint` still fails on pre-existing repository lint errors outside this change; the new settings file had one lint issue during the run and it was fixed after the run.
+
+# Talent Settings Corrective Pass — 2026-07-04
+
+- [x] Audit comp card ownership and remove settings-page controls that duplicate `/media` or comp-card generation ownership.
+- [x] Verify necessary settings IA: account, privacy, security, notifications, legal/compliance, billing, and talent-facing visibility controls only.
+- [x] Correct textbox/input styling against the Talent Studio pressed-paper input language and profile tab references.
+- [x] Optimize desktop and mobile layouts, then capture a clean desktop screenshot.
+- [x] Record lessons to prevent future textbox/design-system drift.
+
+## Review
+
+- Removed comp card default controls from Settings because comp card image/layout decisions belong to Media and generation flows, not account settings.
+- Reframed Submissions into Notifications and added Legal & compliance as a separate section for consent, minor exposure, and safety reporting.
+- Updated settings textboxes to match the Profile tab white hairline field treatment and corrected the shared form comments that implied decorative inset fields as a universal dashboard rule.
+- Improved mobile navigation with horizontal snap sections and simplified stacked controls for small screens.
+- Verification: focused settings ESLint and production client build passed; screenshot capture was superseded by the follow-up push request before a screenshot artifact was produced.
