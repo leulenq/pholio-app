@@ -1,0 +1,971 @@
+/* IntelPage.css — the talent intelligence hub (tasks/intel-page-spec.md §5).
+   Editorial serif statements over hand-drawn SVG instruments; JetBrains Mono
+   for numerals and axes; warm ink + gold on the talent cream canvas. */
+
+.intel2-page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 40px 32px 120px;
+  color: #1a1815;
+}
+
+/* ---------- header ---------- */
+
+.intel2-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.intel2-title {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-weight: 400;
+  font-size: 1.75rem;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.intel2-range-lock {
+  margin-left: 5px;
+  opacity: 0.55;
+  vertical-align: middle;
+}
+
+/* ---------- zones ---------- */
+
+.intel2-zone {
+  margin-top: 88px;
+}
+
+.intel2-zone:first-of-type {
+  margin-top: 0;
+}
+
+.intel2-zone-head {
+  border-top: 1px solid rgba(26, 24, 21, 0.1);
+  padding-top: 20px;
+  margin-bottom: 26px;
+}
+
+.intel2-zone-title {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-weight: 400;
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.intel2-subhead {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b6560;
+  margin: 34px 0 14px;
+}
+
+.intel2-inline-link {
+  color: #b08d45;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(176, 141, 69, 0.4);
+}
+
+.intel2-inline-link:hover {
+  border-bottom-color: #b08d45;
+}
+
+/* ---------- loading / error ---------- */
+
+.intel2-loading {
+  padding: 72px 0;
+  text-align: center;
+}
+
+.intel2-loading-band {
+  width: 220px;
+  height: 10px;
+  margin: 0 auto 18px;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    rgba(201, 165, 90, 0.12),
+    rgba(201, 165, 90, 0.4),
+    rgba(201, 165, 90, 0.12)
+  );
+  background-size: 200% 100%;
+  animation: intel2-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes intel2-shimmer {
+  0% { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intel2-loading-band { animation: none; }
+}
+
+.intel2-loading-copy,
+.intel2-error-copy {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: #6b6560;
+}
+
+.intel2-error {
+  padding: 64px 0;
+  text-align: center;
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.intel2-minor-note {
+  font-size: 0.85rem;
+  color: #6b6560;
+  margin: -18px 0 34px;
+}
+
+/* ---------- lock + calibrating ---------- */
+
+.intel2-lock {
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  padding: 30px 32px;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.intel2-lock-icon { color: #b08d45; }
+
+.intel2-lock-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.intel2-lock-copy {
+  font-size: 0.9rem;
+  color: #6b6560;
+  max-width: 52ch;
+  margin: 0 0 6px;
+}
+
+.intel2-calibrating {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px dashed rgba(176, 141, 69, 0.4);
+  border-radius: 12px;
+  padding: 24px 26px;
+  margin-top: 6px;
+}
+
+.intel2-calibrating-icon {
+  color: #b08d45;
+  flex: none;
+  margin-top: 2px;
+}
+
+.intel2-calibrating-copy {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #4d463f;
+  margin: 0;
+  max-width: 58ch;
+}
+
+/* ---------- zone 1 — the pulse ---------- */
+
+.intel2-pulse-headline {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-weight: 400;
+  font-size: clamp(1.5rem, 3.4vw, 2.15rem);
+  line-height: 1.35;
+  max-width: 24em;
+  margin: 0 0 34px;
+}
+
+.intel2-pulse-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82em;
+  color: #b08d45;
+  padding: 0 0.06em;
+}
+
+.intel2-pulse-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px 32px;
+  margin-top: 26px;
+}
+
+.intel2-motion-label {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b6560;
+  margin-bottom: 8px;
+}
+
+.intel2-motion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.intel2-motion-row {
+  font-size: 0.9rem;
+  color: #4d463f;
+}
+
+.intel2-motion-agency { font-weight: 600; color: #1a1815; }
+
+.intel2-motion-row--urgent .intel2-motion-agency { color: #b08d45; }
+
+.intel2-motion-urge { color: #b08d45; font-weight: 600; }
+
+.intel2-pulse-materials {
+  font-size: 0.9rem;
+  color: #6b6560;
+  margin: 0;
+}
+
+.intel2-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  font-family: 'Noto Serif Display', serif;
+  font-style: italic;
+  font-size: 1.05rem;
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+}
+
+.intel2-verdict--current { color: #7a6a3f; }
+.intel2-verdict--aging { color: #b98b3e; }
+.intel2-verdict--stale { color: #8c5a33; }
+
+/* ---------- the signal spectrum ---------- */
+
+.intel2-spectrum-band {
+  display: flex;
+  align-items: stretch;
+  height: 34px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.intel2-spectrum-empty {
+  flex: 1;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(26, 24, 21, 0.04),
+    rgba(26, 24, 21, 0.04) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.intel2-spectrum-seg { min-width: 3px; }
+
+.intel2-spectrum-tick {
+  width: 2px;
+  flex: none;
+  opacity: 0.5;
+}
+
+.intel2-spectrum-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 12px;
+}
+
+.intel2-spectrum-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: #6b6560;
+}
+
+.intel2-spectrum-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.intel2-spectrum-legend-num { color: #1a1815; font-weight: 600; }
+
+/* ---------- zone 2 — the seismograph ---------- */
+
+.intel2-seis-plot { position: relative; }
+
+.intel2-seis-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.intel2-seis-pop {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  background: #1a1815;
+  color: #faf8f5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: grid;
+  gap: 4px;
+  pointer-events: none;
+  min-width: 170px;
+  max-width: 240px;
+  z-index: 4;
+}
+
+.intel2-seis-pop-date,
+.intel2-traj-pop-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.intel2-seis-pop-line { font-size: 0.78rem; }
+
+.intel2-seis-ledger {
+  border-top: 1px solid rgba(250, 248, 245, 0.18);
+  margin-top: 4px;
+  padding-top: 7px;
+  display: grid;
+  gap: 4px;
+}
+
+.intel2-seis-ledger-date { display: none; }
+
+.intel2-seis-ledger-classes,
+.intel2-seis-ledger-markets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.intel2-seis-ledger-loading {
+  font-size: 0.68rem;
+  opacity: 0.6;
+  margin: 2px 0 0;
+}
+
+.intel2-seis-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  color: #6b6560;
+}
+
+.intel2-seis-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.intel2-seis-key {
+  display: inline-block;
+  width: 12px;
+  height: 8px;
+}
+
+.intel2-seis-key--wash {
+  background: linear-gradient(180deg, rgba(201, 165, 90, 0.35), rgba(201, 165, 90, 0.05));
+  border-radius: 2px;
+}
+
+.intel2-seis-key--strike {
+  width: 2px;
+  height: 12px;
+  background: #1a1815;
+}
+
+.intel2-seis-key--review {
+  width: 9px;
+  height: 9px;
+  border: 1.4px solid #1a1815;
+  transform: rotate(45deg);
+  background: transparent;
+}
+
+.intel2-seis-key--advance {
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  background: #c9a55a;
+}
+
+.intel2-seis-note {
+  font-size: 0.82rem;
+  color: #6b6560;
+  margin: 10px 0 0;
+}
+
+/* ---------- the rhythm field ---------- */
+
+.intel2-rhythm { margin-top: 44px; }
+
+.intel2-rhythm-grid {
+  display: grid;
+  grid-template-columns: 18px repeat(24, 1fr);
+  gap: 3px;
+  align-items: center;
+}
+
+.intel2-rhythm-daylabel,
+.intel2-rhythm-hourlabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: #9a938c;
+}
+
+.intel2-rhythm-hourlabel { text-align: left; white-space: nowrap; }
+
+.intel2-rhythm-cell {
+  display: block;
+  aspect-ratio: 1 / 1;
+  border-radius: 3px;
+  background: #b8956a;
+}
+
+.intel2-rhythm-cell--peak {
+  outline: 1.5px solid #1a1815;
+  outline-offset: 1px;
+}
+
+.intel2-rhythm-caption {
+  font-size: 0.88rem;
+  color: #4d463f;
+  margin: 16px 0 0;
+}
+
+/* ---------- zone 3 — the market board ---------- */
+
+.intel2-market-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.intel2-market-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 84px minmax(90px, auto) minmax(150px, 1.2fr);
+  align-items: center;
+  gap: 18px;
+  padding: 13px 2px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.07);
+}
+
+.intel2-market-name {
+  font-family: 'Noto Serif Display', serif;
+  font-size: 1.02rem;
+}
+
+.intel2-spark {
+  width: 72px;
+  height: 22px;
+  display: block;
+}
+
+.intel2-spark--flat {
+  border-bottom: 1px solid rgba(26, 24, 21, 0.15);
+}
+
+.intel2-market-figs {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+}
+
+.intel2-market-share { color: #1a1815; font-weight: 600; }
+
+.intel2-market-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+}
+
+.intel2-market-delta.is-up { color: #7a6a3f; }
+.intel2-market-delta.is-down { color: #8c5a33; }
+
+.intel2-mix { display: grid; gap: 5px; }
+
+.intel2-mix-bar {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(26, 24, 21, 0.05);
+}
+
+.intel2-mix-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: #9a938c;
+}
+
+.intel2-source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.intel2-source-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.6fr) auto 1.6fr;
+  align-items: baseline;
+  gap: 18px;
+  padding: 10px 2px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.06);
+  font-size: 0.86rem;
+}
+
+.intel2-source-name { font-weight: 600; }
+
+.intel2-source-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: #6b6560;
+}
+
+.intel2-source-meaning { color: #6b6560; }
+
+/* ---------- zone 4 — the pipeline ---------- */
+
+.intel2-pipe-controls { margin-bottom: 22px; }
+
+.intel2-pipe-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.intel2-pipe-axis {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: #9a938c;
+}
+
+.intel2-pipe-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  fill: #1a1815;
+}
+
+.intel2-pipe-outlabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  fill: #4d463f;
+}
+
+.intel2-pipe-diagnosis {
+  font-family: 'Noto Serif Display', serif;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  max-width: 46em;
+  margin: 22px 0 0;
+}
+
+.intel2-pipe-kept {
+  font-size: 0.9rem;
+  color: #4d463f;
+  margin: 12px 0 0;
+}
+
+.intel2-pipe-kept--quiet { color: #9a938c; }
+
+/* ---------- the stage clock ---------- */
+
+.intel2-clock-copy {
+  font-size: 0.9rem;
+  color: #4d463f;
+  margin: 0 0 12px;
+  max-width: 56ch;
+}
+
+.intel2-clock-svg {
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  display: block;
+}
+
+.intel2-clock-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  fill: #1a1815;
+}
+
+.intel2-clock-note {
+  font-size: 0.84rem;
+  color: #9a938c;
+  margin: 4px 0 0;
+}
+
+/* ---------- zone 5 — the book, ranked ---------- */
+
+.intel2-book-caption,
+.intel2-book-empty {
+  font-size: 0.9rem;
+  color: #4d463f;
+  margin: 0 0 22px;
+  max-width: 58ch;
+}
+
+.intel2-book-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px 22px;
+}
+
+.intel2-book-frame { margin: 0; }
+
+.intel2-book-photo-wrap {
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background: rgba(26, 24, 21, 0.05);
+}
+
+.intel2-book-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.intel2-book-meta {
+  padding-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.intel2-book-rankline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.intel2-book-rank {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.intel2-book-rank--muted { color: #c4beb6; font-weight: 400; }
+
+.intel2-book-front {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #b08d45;
+}
+
+.intel2-book-dwell {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(26, 24, 21, 0.06);
+  overflow: hidden;
+}
+
+.intel2-book-dwell-fill {
+  display: block;
+  height: 100%;
+  background: #c9a55a;
+  border-radius: 2px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.intel2-book-flag {
+  font-size: 0.76rem;
+  font-style: italic;
+  color: #6b6560;
+}
+
+/* ---------- zone 6 — the agency lens ---------- */
+
+.intel2-rings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 34px 54px;
+}
+
+.intel2-ring {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.intel2-ring-svg {
+  width: 108px;
+  height: 108px;
+}
+
+.intel2-ring-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  fill: #1a1815;
+}
+
+.intel2-ring-state {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  fill: #9a938c;
+}
+
+.intel2-ring-label {
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.intel2-ring-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  color: #9a938c;
+}
+
+.intel2-range-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.intel2-range-row {
+  display: grid;
+  grid-template-columns: 22px minmax(110px, 0.5fr) 1.8fr;
+  align-items: baseline;
+  gap: 14px;
+  padding: 11px 2px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.06);
+  font-size: 0.88rem;
+}
+
+.intel2-range-mark { color: #7a6a3f; display: inline-flex; }
+
+.intel2-range-gap {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.4px solid rgba(26, 24, 21, 0.25);
+  border-radius: 50%;
+}
+
+.intel2-range-name { font-weight: 600; }
+
+.intel2-range-row:not(.is-present) .intel2-range-name { color: #8c5a33; }
+
+.intel2-range-reason { color: #6b6560; }
+
+.intel2-moves-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 22px;
+}
+
+.intel2-move {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 16px;
+}
+
+.intel2-move-index {
+  font-family: 'Noto Serif Display', serif;
+  font-size: 1.5rem;
+  color: rgba(176, 141, 69, 0.55);
+  line-height: 1.15;
+}
+
+.intel2-move-observation {
+  font-family: 'Noto Serif Display', serif;
+  font-size: 1.08rem;
+  margin: 0 0 5px;
+}
+
+.intel2-move-reason {
+  font-size: 0.87rem;
+  color: #6b6560;
+  margin: 0 0 9px;
+  max-width: 58ch;
+}
+
+.intel2-moves-clear {
+  font-family: 'Noto Serif Display', serif;
+  font-size: 1.05rem;
+  color: #4d463f;
+  margin: 30px 0 0;
+}
+
+/* ---------- zone 7 — trajectory ---------- */
+
+.intel2-traj-plot { position: relative; }
+
+.intel2-traj-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.intel2-traj-bandlabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  fill: #9a938c;
+}
+
+.intel2-traj-pop {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  background: #1a1815;
+  color: #faf8f5;
+  border-radius: 8px;
+  padding: 9px 13px;
+  display: grid;
+  gap: 3px;
+  pointer-events: none;
+  min-width: 180px;
+  z-index: 4;
+}
+
+.intel2-traj-pop-line { font-size: 0.78rem; font-weight: 600; }
+
+.intel2-traj-pop-parts { font-size: 0.68rem; opacity: 0.8; }
+
+.intel2-traj-bandnote {
+  font-size: 0.84rem;
+  color: #6b6560;
+  margin: 14px 0 0;
+  max-width: 62ch;
+}
+
+.intel2-traj-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #b08d45;
+}
+
+.intel2-traj-disclosure svg {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.intel2-traj-disclosure svg.is-open { transform: rotate(180deg); }
+
+.intel2-traj-composition {
+  font-size: 0.85rem;
+  color: #4d463f;
+  margin: 10px 0 0;
+  max-width: 60ch;
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 860px) {
+  .intel2-page { padding: 28px 20px 90px; }
+
+  .intel2-zone { margin-top: 64px; }
+
+  .intel2-market-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name figs'
+      'spark spark'
+      'mix mix';
+    gap: 8px 14px;
+  }
+
+  .intel2-market-name { grid-area: name; }
+  .intel2-spark { grid-area: spark; width: 100%; }
+  .intel2-market-figs { grid-area: figs; }
+  .intel2-mix { grid-area: mix; }
+
+  .intel2-source-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .intel2-source-meaning {
+    grid-column: 1 / -1;
+    font-size: 0.8rem;
+  }
+
+  .intel2-book-grid { grid-template-columns: repeat(2, 1fr); gap: 20px 14px; }
+
+  .intel2-range-row { grid-template-columns: 22px 1fr; }
+
+  .intel2-range-reason { grid-column: 2; }
+
+  .intel2-rhythm-hourlabel { font-size: 0.5rem; }
+}
+
+@media (max-width: 520px) {
+  .intel2-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .intel2-pulse-foot { flex-direction: column; }
+
+  .intel2-rings { gap: 22px 26px; }
+
+  .intel2-ring-svg { width: 92px; height: 92px; }
+}

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { talentApi } from '../api/talent';
 
-/** apiClient unwraps { success, data } → data; some routes use { success, insights } (no data key). */
+/** apiClient unwraps { success, data } → data. */
 function asArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (payload && Array.isArray(payload.data)) return payload.data;
@@ -12,14 +12,6 @@ function asArray(payload) {
 function asActivityList(payload) {
   if (Array.isArray(payload)) return payload;
   if (payload && Array.isArray(payload.activities)) return payload.activities;
-  return [];
-}
-
-function asInsightsList(payload) {
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload.insights)) return payload.insights;
-  if (Array.isArray(payload.data)) return payload.data;
   return [];
 }
 
@@ -70,27 +62,11 @@ export function useAnalytics(days = 30, options = {}) {
     retry: 1
   });
 
-  const insightsQuery = useQuery({
-    queryKey: ['talent-insights'],
-    queryFn: () => talentApi.getInsights(),
-    enabled: includeAdvanced,
-    staleTime: 1000 * 60 * 10, // 10 minutes
-    retry: 1
-  });
-
   const sessionsQuery = useQuery({
     queryKey: ['talent-sessions', days],
     queryFn: () => talentApi.getSessions(days),
     enabled: includeAdvanced,
     staleTime: 1000 * 60 * 5, // 5 minutes
-    retry: 1
-  });
-
-  const cohortsQuery = useQuery({
-    queryKey: ['talent-cohorts'],
-    queryFn: () => talentApi.getCohorts(),
-    enabled: includeAdvanced,
-    staleTime: 1000 * 60 * 30, // 30 minutes (infrequent)
     retry: 1
   });
 
@@ -103,7 +79,7 @@ export function useAnalytics(days = 30, options = {}) {
   const detailedStats = useMemo(() => {
     const summaryData = summaryQuery.data;
     const viewsCount = asFiniteNumber(summaryData?.views?.total);
-    const cohortsData = asArray(cohortsQuery.data);
+    const cohortsData = [];
     const sourceBreakdown = Array.isArray(analyticsData.views?.latestSourceBreakdown)
       ? analyticsData.views.latestSourceBreakdown
       : [];
@@ -187,14 +163,14 @@ export function useAnalytics(days = 30, options = {}) {
         ],
       },
     };
-  }, [summaryQuery.data, analyticsData, timeseriesData, cohortsQuery.data]);
+  }, [summaryQuery.data, analyticsData, timeseriesData]);
 
   const isAnalyticsRefetching =
     analyticsQuery.isFetching ||
     activityQuery.isFetching ||
     summaryQuery.isFetching ||
     timeseriesQuery.isFetching ||
-    (includeAdvanced && (insightsQuery.isFetching || sessionsQuery.isFetching || cohortsQuery.isFetching));
+    (includeAdvanced && sessionsQuery.isFetching);
 
   return {
     analytics: analyticsData,
@@ -202,9 +178,7 @@ export function useAnalytics(days = 30, options = {}) {
     summary,
     timeseries: timeseriesData,
     detailedStats, // New structured data for the detailed view
-    insights: asInsightsList(insightsQuery.data),
     sessions: asArray(sessionsQuery.data),
-    cohorts: asArray(cohortsQuery.data),
     // Only block on critical queries (activities, summary) - not advanced analytics
     isLoading: activityQuery.isLoading || summaryQuery.isLoading,
     isError:
@@ -222,9 +196,7 @@ export function useAnalytics(days = 30, options = {}) {
     timeseriesError: timeseriesQuery.isError,
     // Loading states for optional queries
     isAnalyticsLoading: analyticsQuery.isLoading,
-    isInsightsLoading: insightsQuery.isLoading,
     isSessionsLoading: sessionsQuery.isLoading,
-    isCohortsLoading: cohortsQuery.isLoading,
     refetch: () => {
       const queries = [
         analyticsQuery.refetch(),
@@ -234,11 +206,7 @@ export function useAnalytics(days = 30, options = {}) {
       ];
 
       if (includeAdvanced) {
-        queries.push(
-          insightsQuery.refetch(),
-          sessionsQuery.refetch(),
-          cohortsQuery.refetch()
-        );
+        queries.push(sessionsQuery.refetch());
       }
 
       return Promise.all(queries);
