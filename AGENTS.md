@@ -42,6 +42,28 @@ Pholio is a full-stack talent portfolio and agency management platform. Talent u
 - **Aesthetics:** High-polish tech/SaaS (glowing radial gradients, gamification, floating UI) blended with editorial serif typography.
 - **Standard Transition:** `all 0.2s cubic-bezier(0.4, 0, 0.2, 1)`; smooth: `0.3s` same easing.
 
+## Dashboard-Specific Claude Context
+
+Pholio has separate dashboard instruction and design files. Before editing a dashboard surface, read the scoped guide in addition to this root file:
+
+- **Talent dashboard:** `client/src/domains/talent/CLAUDE.md` and `client/src/domains/talent/DESIGN.md` for `/dashboard/talent/*`, `/reveal`, and talent-facing overlays.
+- **Agency dashboard:** `client/src/domains/agency/CLAUDE.md` and `client/src/domains/agency/DESIGN.md` for `/dashboard/agency/*` and agency-facing overlays.
+- **Onboarding:** `client/src/domains/onboarding/DESIGN.md` for `/onboarding/*`.
+- **Root design router:** `DESIGN.md` explains which design system applies to each surface.
+
+Do not average the talent and agency systems into one generic dashboard language. If a shared component is used by both dashboards, preserve the intentional differences documented in both domain design files.
+
+## Model Routing Guidance
+
+Use the least-expensive model class that can reliably complete the task, then escalate when quality or risk demands it. When a requested model is unavailable in the current environment, use the nearest available model in the same capability tier and state that substitution clearly.
+
+- **Haiku-class:** quick lookups, simple file edits, formatting, small copy changes, command-output summarization, and low-risk mechanical tasks.
+- **Sonnet-class:** default for everyday implementation, moderate debugging, routine refactors, test writing, product copy, and most single-surface UI work.
+- **Opus-class:** complex architecture, high-risk production fixes, multi-system debugging, security/auth/payment work, difficult migrations, deep code review, and important product/design decisions.
+- **Fable-class:** only for the most demanding long-horizon work if available: broad redesigns, large multi-agent plans, ambiguous architecture, major cross-domain refactors, or work where a mistake would be very expensive.
+
+Prefer a planner/reviewer split for hard tasks: use Opus/Fable-class reasoning for planning or review, and Sonnet/Haiku-class execution for narrow, well-specified subtasks when safe.
+
 ## 🚫 Banned UI Patterns (NEVER implement these)
 
 The following patterns have been explicitly removed from the codebase and must never be reintroduced:
@@ -57,6 +79,11 @@ The following patterns have been explicitly removed from the codebase and must n
 9. **Tiny count badge on nav or cards** — no `<span className="ag-nav-count">` or equivalent counter bubbles attached to navigation items.
 10. **Pulsing dots / status indicators** — no animated or static colored dots next to text (like 'Strong Profile' or 'Live') to indicate status or completeness. Use plain text labels without dots instead.
 11. **Draggable/Resizable Textboxes** — no textbox or textarea should be draggable/resizable by the user. Always enforce `resize: none` on textareas.
+12. **Gradient text** — no `background-clip: text` / gradient-fill headline treatment. Use typography, spacing, and one solid accent color instead.
+13. **Colored side-stripe cards** — no `border-left` / `border-right` wider than 1px as a decorative accent on cards, rows, callouts, or alerts.
+14. **Generic AI card grids** — no repeated icon + heading + paragraph card grids as filler. Each panel must earn its structure from real product work.
+15. **Decorative AI dashboard ornament** — no unnecessary blobs, particles, diagonal stripe backgrounds, fake grain, orbiting dots, or ornamental widgets that do not support the task.
+16. **Over-rounded generic surfaces** — no 24px+ rounded cards/sections/inputs unless the scoped design file explicitly calls for that shape.
 
 Violating any of these rules requires explicit approval and a design discussion first.
 
