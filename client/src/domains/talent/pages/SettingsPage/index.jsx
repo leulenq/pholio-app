@@ -22,6 +22,7 @@ import {
   Trash2,
   User,
 } from 'lucide-react';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { purgeApplyDraftStorage } from '../ApplyPage/applicationDraftStorage';
