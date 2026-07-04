@@ -22,6 +22,10 @@ const {
 } = require("../services/context");
 const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
 const { searchDiscoverableTalent } = require("../services/discover-search");
+const {
+  recordDiscoveryImpressions,
+  recordProfileEvent,
+} = require("../../talent/services/intel/capture");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const { recalculateBoardScores } = require("./recalculate-board-scores");
 const {
@@ -3372,6 +3376,19 @@ router.get(
         agencyId,
         ...req.query,
       });
+      // Intel Capture v2 — discovery demand ("the market is searching for
+      // someone like you"). Aggregate only: no agency identity on the event.
+      const shownIds = (result?.profiles || [])
+        .map((p) => p?.id)
+        .filter(Boolean);
+      if (shownIds.length) {
+        const filterKeys = Object.keys(req.query).filter(
+          (k) => !["page", "limit", "offset"].includes(k),
+        );
+        recordDiscoveryImpressions(shownIds, {
+          filters: filterKeys.length ? filterKeys : null,
+        });
+      }
       return res.json(result);
     } catch (error) {
       console.error("[API/Agency/Discover] Error:", error);
@@ -3428,6 +3445,15 @@ router.get(
           console.error("[Discover Preview] Notification failed:", err),
         );
       }
+
+      // Intel Capture v2 — profile opened from discovery results (aggregate
+      // only; the agency identity is never stored on the event).
+      recordProfileEvent({
+        profile,
+        action: "discovery_open",
+        req,
+        viewerClass: "agency",
+      });
 
       // Static-allowlist DTO — never spread the raw discoverable profile row.
       const social = await loadSocialAccountsForProfile(profileId);

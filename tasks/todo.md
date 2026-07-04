@@ -1,3 +1,41 @@
+# Intel Page — Ground-Up Build — 2026-07-03
+
+Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.
+
+## Phase 1 — Capture v2 (data pipeline)
+- [x] Migration: `profile_events` (viewer_class, session_id, market, image_id, dwell_ms, share_token, source, action, occurred_at)
+- [x] Migration: `share_tokens` (per-recipient links; open/re-open tracking)
+- [x] Capture service: viewer_class resolution (agency/client/public/self), market-only geo resolution
+- [x] Wire capture into portfolio view + card pull paths
+- [x] Client beacon endpoint for image-level attention (impression, lightbox, dwell)
+- [x] Discovery-impression logging from agency search/scout
+- [~] Aggregates job — v1 aggregates at read time (per-profile volumes are small); a nightly rollup job follows when volume demands it. Benchmark bands stay 'calibrating' (never faked) per spec.
+
+## Phase 2 — Intel backend
+- [x] `src/domains/talent/services/intel/` aggregation modules (pulse, seismograph, markets, pipeline, book, lens, trajectory)
+- [x] `src/domains/talent/routes/intel.js`: `GET /api/talent/intel` + `GET /api/talent/intel/day/:date`
+- [x] Tier gating (free 7d / Studio+ 90d) via existing pattern
+- [x] Privacy: aggregate-only agency attention; minors branch; self-view exclusion; small-n suppression
+- [x] Kill `/analytics/insights`, `/analytics/cohorts`, `engagement.score`
+- [x] Mount router; tests
+
+## Phase 3 — Frontend instruments
+- [ ] `useIntel` hook + API method; IntelPage route + nav entry
+- [ ] Zone 1 Pulse (headline, Signal Spectrum, In Motion ticker, materials verdict, period control)
+- [ ] Zone 2 Seismograph (layered scrubbable field) + Rhythm Field (7×24 grid)
+- [ ] Zone 3 Market Board (ranked ledger; arc map deferred)
+- [ ] Zone 4 Pipeline flow + Stage Clock + kept-on-file framing
+- [ ] Zone 5 The Book, Ranked (calibrating until image attention accrues)
+- [ ] Zone 6 Agency Lens (Currency Rings, range read, Next Moves)
+- [ ] Zone 7 Trajectory (momentum line; benchmark band "calibrating")
+- [ ] Designed calibrating/low-data states everywhere; small-n honesty
+
+## Phase 4 — deferred by spec
+- Benchmark cohort aggregation (population-gated), arc map, forward detection
+
+## Review
+(to be filled at end)
+
 # Divider-Free Section Spacing — 2026-07-02
 
 - [x] Restore spacing between adjacent Reach sections without restoring divider lines.

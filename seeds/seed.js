@@ -86,7 +86,7 @@ async function seedDemoData(knex, talentId, profileId) {
     { agencyIdx: 6, status: "submitted", days: 5 }, // Next Management
     { agencyIdx: 1, status: "accepted", days: 14 }, // IMG Models
     { agencyIdx: 2, status: "submitted", days: 21 }, // Elite
-    { agencyIdx: 3, status: "booked", days: 28 }, // Ford
+    { agencyIdx: 3, status: "represented", days: 28 }, // Ford
     { agencyIdx: 4, status: "declined", days: 45 }, // DNA
     { agencyIdx: 5, status: "submitted", days: 7 }, // Society
   ];
@@ -345,6 +345,10 @@ exports.seed = async function seed(knex) {
     id: agencyId,
     email: "agency@example.com",
     password_hash: passwordHash,
+    terms_accepted_at: new Date(),
+    terms_accepted_version: "2026-06-25",
+    privacy_accepted_at: new Date(),
+    privacy_accepted_version: "2026-06-25",
     role: "AGENCY",
     first_name: "Sarah",
     last_name: "Chen",
@@ -370,6 +374,10 @@ exports.seed = async function seed(knex) {
     id: talentId,
     email: "talent@example.com",
     password_hash: passwordHash,
+    terms_accepted_at: new Date(),
+    terms_accepted_version: "2026-06-25",
+    privacy_accepted_at: new Date(),
+    privacy_accepted_version: "2026-06-25",
     role: "TALENT",
   });
 
@@ -486,6 +494,10 @@ exports.seed = async function seed(knex) {
     id: elaraUserId,
     email: "elara@example.com",
     password_hash: passwordHash,
+    terms_accepted_at: new Date(),
+    terms_accepted_version: "2026-06-25",
+    privacy_accepted_at: new Date(),
+    privacy_accepted_version: "2026-06-25",
     role: "TALENT",
   });
 

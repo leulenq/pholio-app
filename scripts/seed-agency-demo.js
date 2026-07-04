@@ -543,7 +543,7 @@ async function seedAgencyDemo(knex) {
     );
   for (let i = 0; i < 6; i++) addApp("shortlisted", daysAgo(ri(2, 14)));
   for (let i = 0; i < 6; i++)
-    addApp("booked", daysAgo(ri(5, 45)), { accepted_at: daysAgo(ri(3, 40)) });
+    addApp("represented", daysAgo(ri(5, 45)), { accepted_at: daysAgo(ri(3, 40)) });
   for (let i = 0; i < 5; i++)
     addApp("declined", daysAgo(ri(3, 30)), { declined_at: daysAgo(ri(1, 25)) });
   for (let i = 0; i < 9; i++)
@@ -604,7 +604,7 @@ async function seedAgencyDemo(knex) {
   );
 
   const linkable = apps.filter((a) =>
-    ["submitted", "shortlisted", "booked"].includes(a.status),
+    ["submitted", "shortlisted", "represented"].includes(a.status),
   );
   const accepted = apps.filter((a) => a.status === "accepted");
   const toLink = [...linkable, ...accepted.slice(0, 5)]; // leave 4 accepted idle
