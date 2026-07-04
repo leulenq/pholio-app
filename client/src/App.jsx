@@ -16,6 +16,7 @@ const ProfilePage = lazy(() => import('./domains/talent/pages/ProfilePage'));
 const MediaPage = lazy(() => import('./domains/talent/pages/MediaPage'));
 const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const ApplicationsPage = lazy(() => import('./domains/talent/pages/ApplicationsPage'));
+const MessagesPage = lazy(() => import('./domains/talent/pages/MessagesPage'));
 const ApplyPage = lazy(() => import('./domains/talent/pages/ApplyPage'));
 const RevealPage = lazy(() => import('./domains/talent/pages/RevealPage'));
 
@@ -99,6 +100,7 @@ function App() {
             <Route path="/dashboard/talent/media" element={<MediaPage />} />
             <Route path="/dashboard/talent/analytics" element={<IntelPage />} />
             <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
+            <Route path="/dashboard/talent/messages" element={<MessagesPage />} />
             <Route path="/dashboard/talent/settings" element={<SettingsPage />} />
             <Route path="/dashboard/talent/settings/:section" element={<SettingsPage />} />
             <Route path="/dashboard/moderation" element={<ModerationQueuePage />} />

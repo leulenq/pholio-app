@@ -140,6 +140,11 @@ export const talentApi = {
   getApplicationMessages: (id) => apiClient.get(`/applications/${id}/messages`),
   sendApplicationMessage: (id, message) =>
     apiClient.post(`/applications/${id}/messages`, { message }),
+
+  // Messages (unified inbox across every conversation)
+  getMessageThreads: (options) => apiClient.get('/messages/threads', options),
+  getMessagesUnreadCount: (options) =>
+    apiClient.get('/messages/unread-count', options),
   
   setDiscoverability: (isDiscoverable) => apiClient.post('/discoverability', { isDiscoverable }), // Logic moved to proper endpoint
 
