@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
+import { ArrowUpRight } from 'lucide-react';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './OpenCallArrivalPage.css';
 
 /*
@@ -109,13 +111,9 @@ export default function OpenCallArrivalPage() {
             your portfolio and submit to agencies on Pholio.
           </motion.p>
           <motion.div {...enter(0.4)}>
-            <button
-              type="button"
-              className="opencall__cta"
-              onClick={() => navigate('/login')}
-            >
+            <PholioButton variant="primary" onClick={() => navigate('/login')}>
               Continue to Pholio
-            </button>
+            </PholioButton>
           </motion.div>
         </main>
       </div>
@@ -186,9 +184,9 @@ export default function OpenCallArrivalPage() {
               agency, or keep building your book from your dashboard.
             </motion.p>
             <motion.div {...enter(0.7)}>
-              <button type="button" className="opencall__cta" onClick={handleBegin}>
-                View your submission
-              </button>
+              <PholioButton variant="primary" onClick={handleBegin}>
+                View your submission <ArrowUpRight size={14} aria-hidden />
+              </PholioButton>
             </motion.div>
           </>
         ) : (
@@ -212,21 +210,27 @@ export default function OpenCallArrivalPage() {
             >
               <li>
                 <span className="opencall__step-num">01</span>
-                Prepare your digitals — current, unretouched, head to toe.
+                <span className="opencall__step-text">
+                  Prepare your digitals — current, unretouched, head to toe.
+                </span>
               </li>
               <li>
                 <span className="opencall__step-num">02</span>
-                Review your package — stats, book, and comp card.
+                <span className="opencall__step-text">
+                  Review your package — stats, book, and comp card.
+                </span>
               </li>
               <li>
                 <span className="opencall__step-num">03</span>
-                {name} reviews your submission directly.
+                <span className="opencall__step-text">
+                  {name} reviews your submission directly.
+                </span>
               </li>
             </motion.ol>
             <motion.div {...enter(0.95)}>
-              <button type="button" className="opencall__cta" onClick={handleBegin}>
-                Begin your submission
-              </button>
+              <PholioButton variant="primary" onClick={handleBegin}>
+                Begin your submission <ArrowUpRight size={14} aria-hidden />
+              </PholioButton>
               {!authenticated && (
                 <p className="opencall__signin-note">
                   You&apos;ll create a free Pholio account first — your

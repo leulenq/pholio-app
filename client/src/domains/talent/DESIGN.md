@@ -66,14 +66,14 @@ spacing:
   "2xl": "40px"
 components:
   button-primary:
-    backgroundColor: "{colors.gold}"
-    textColor: "{colors.surface}"
-    rounded: "{rounded.pill}"
-    padding: "0.75rem 1.75rem"
+    backgroundColor: "{colors.ink-warm}"
+    textColor: "{colors.canvas}"
+    rounded: "{rounded.sm}"
+    padding: "10px 22px"
     typography: "{typography.title}"
   button-primary-hover:
-    backgroundColor: "{colors.gold-hover}"
-    textColor: "{colors.surface}"
+    # Ink fill holds; a gold underline sweeps in beneath the label.
+    underlineColor: "{colors.gold}"
   input:
     backgroundColor: "{colors.well}"
     textColor: "{colors.text-dark}"
@@ -95,7 +95,7 @@ components:
 
 The talent dashboard is a stage on which a creative's work performs. Where the agency system is a calm ledger, this one is cinematic: surfaces reveal, images take the lead, and milestone moments (unlocking a portfolio, hitting full profile strength, generating a comp card) are celebrated with spring-physics motion rather than a static toast. A model or actor should open this surface and feel their presence is being *staged for an audience* — the software disappears behind the work.
 
-This system is **warm, tactile, and motion-forward**. It shares Pholio's material — cream paper, a single gold accent, Inter body — but speaks in its own voice: Noto Serif Display for editorial headlines, generously rounded pill buttons, deeper "pressed paper" form wells, and Framer Motion entrances tuned to feel alive (`stiffness ~55, damping ~16`). It is intentionally a *separate design system* from the agency command center; it trades operational density for breathing room and choreography.
+This system is **warm, tactile, and motion-forward**. It shares Pholio's material — cream paper, a single gold accent, Inter body — but speaks in its own voice: Noto Serif Display for editorial headlines, the ink-fill "Editorial Ledger" button system (see `PholioButton`), deeper "pressed paper" form wells, and Framer Motion entrances tuned to feel alive (`stiffness ~55, damping ~16`). It is intentionally a *separate design system* from the agency command center; it trades operational density for breathing room and choreography.
 
 What it explicitly rejects: static, lifeless pages; gamified badge soup; corner metadata chips on portfolio thumbnails; glassmorphism; and any small uppercase eyebrow above a heading. The talent studio should feel like a couture house's private app, not a generic profile editor.
 
@@ -103,7 +103,7 @@ What it explicitly rejects: static, lifeless pages; gamified badge soup; corner 
 - Warm paper canvas (`#FAF9F7`) with white surfaces and soft "well" insets (`#F8F8F7`).
 - Noto Serif Display editorial headlines; Inter for the working interface.
 - Spring-based Framer Motion entrances, reveals, and celebration moments.
-- Pill-shaped primary buttons; deep inset gold-halo focus on fields.
+- Ink-fill primary buttons with a gold underline sweep on hover; deep inset gold-halo focus on fields.
 - Imagery-led — the portfolio is the hero, chrome stays quiet.
 
 ## 2. Colors
@@ -164,10 +164,12 @@ Layered and lifted. Unlike the flatter agency system, talent surfaces use a real
 ## 5. Components
 
 ### Buttons
-- **Shape:** Fully rounded pill (`border-radius: 9999px`) — the signature talent button silhouette, distinct from the agency rectangle.
-- **Primary:** Gold (`#C9A55A`) fill, white text, padding `0.75rem 1.75rem`, letter-spacing 0.02em.
-- **Hover / Focus:** Lifts with `transform` + gold shadow (`0 4px 12px rgba(201,165,90,0.2)`); transitions ~220ms ease. Keyboard focus shows the gold outline ring.
-- **Secondary:** Outlined / ghost pill on the warm canvas; tints on hover.
+**Always use the shared `PholioButton` component** (`client/src/shared/components/ui/PholioButton.jsx`) — it is the single canonical implementation for talent controls. Never hand-roll a `<button>` with inline/custom CSS on a talent surface; if a needed variant doesn't exist, extend `PholioButton`/`PholioButton.css`, don't fork it.
+- **Shape:** Tight rounded rectangle (`border-radius: 3px`, "Editorial Ledger" direction) — not a pill. No talent variant should reintroduce `border-radius: 9999px` on a button.
+- **Primary:** Ink fill (`--ph-btn-ink #1a1815`) with canvas text, 1px ink border, `padding: 10px 22px`, letter-spacing 0.02em. A thin gold underline sweeps in from center on hover/focus — the fill itself never lifts or changes color.
+- **Hover / Focus:** No transform, no shadow (`transform`/`box-shadow` are explicitly suppressed by the component) — the gold underline sweep is the entire hover language. Keyboard focus shows a gold outline ring (`outline: 2px solid rgba(201,165,90,0.72)`).
+- **Secondary:** Transparent fill, hairline border, ink text; border and text tint gold on hover.
+- **Other roles** (`tertiary`, `meta`, `icon`, `destructive`, `toggle`) exist for quieter/inline actions — see the component for the full taxonomy before inventing a new button style.
 
 ### Cards / Containers
 - **Corner Style:** Extra-large radius (16px).
@@ -195,13 +197,14 @@ Milestone moments (profile unlock, comp-card generation, full profile strength) 
 
 ### Do:
 - **Do** keep photography the brightest, most saturated element — chrome and gold stay quieter than the work.
-- **Do** use pill-shaped primary buttons (the talent signature) and the pressed-paper gold-halo field focus.
+- **Do** use the shared `PholioButton` component (ink-fill primary, gold underline sweep) and the pressed-paper gold-halo field focus — never a custom pill button.
 - **Do** animate with spring physics (Framer Motion ~stiffness 55 / damping 16); motion is part of the build.
 - **Do** stage milestone moments as cinematic reveals, not static posters or a lone toast.
 - **Do** use Noto Serif Display / Playfair for names and headings; Inter for controls and data.
 - **Do** ship a `prefers-reduced-motion` alternative for every entrance, reveal, and celebration.
 
 ### Don't:
+- **Don't** build a custom/pill-shaped button on a talent surface — use `PholioButton`; the shipped primitive is an ink-fill rectangle with a gold underline sweep, not a pill.
 - **Don't** build static, lifeless pages — stillness is the resting state, not the whole experience.
 - **Don't** place a small uppercase / letter-spaced eyebrow or kicker above any heading.
 - **Don't** use status badges or New / Beta / Live / AI-powered feature chips.
