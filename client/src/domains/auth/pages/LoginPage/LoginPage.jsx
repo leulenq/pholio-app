@@ -4,7 +4,6 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
   signOut,
 } from 'firebase/auth';
 import { Loader2, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
@@ -148,15 +147,21 @@ export default function LoginPage() {
     setResetSent(false);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to send reset email.');
+      }
       setResetSent(true);
       setIsLoading(false);
     } catch (err) {
       let msg = 'Failed to send reset email. Please try again.';
-      if (err.code === 'auth/user-not-found') {
-        msg = 'No account found with this email.';
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'Please enter a valid email address.';
+      if (err.message) {
+        msg = err.message;
       }
       setError(msg);
       setIsLoading(false);

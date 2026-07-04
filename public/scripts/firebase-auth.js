@@ -9,7 +9,6 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
-  sendPasswordResetEmail as sendPasswordReset,
   onAuthStateChanged as onAuthStateChangedFn
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
@@ -166,9 +165,17 @@ window.FirebaseAuth = {
    */
   sendPasswordResetEmail: async function(email) {
     try {
-      const auth = await getAuthInstance();
-      await sendPasswordReset(auth, email);
-      console.log('[Firebase Auth] Password reset email sent');
+      const response = await fetch('/api/auth/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email })
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Unable to send password reset');
+      }
+      console.log('[Pholio Auth] Password reset email sent');
     } catch (error) {
       console.error('[Firebase Auth] Send password reset email error:', error);
       throw error;

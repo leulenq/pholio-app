@@ -10,8 +10,14 @@
  * clicking it flips the user's `emailVerified` claim exactly as before, and the
  * inbox beat's poll (`user.reload()`) notices and advances.
  */
-const { generateEmailVerificationLink } = require("./firebase-admin");
-const { sendEmailVerificationEmail } = require("../../../shared/lib/email");
+const {
+  generateEmailVerificationLink,
+  generatePasswordResetLink,
+} = require("./firebase-admin");
+const {
+  sendEmailVerificationEmail,
+  sendPasswordResetEmail,
+} = require("../../../shared/lib/email");
 const config = require("../../../config");
 
 /**
@@ -45,4 +51,18 @@ async function sendVerificationEmailViaSmtp({ email, firstName }) {
   return { ok: true };
 }
 
-module.exports = { sendVerificationEmailViaSmtp };
+async function sendPasswordResetViaSmtp({ email, firstName }) {
+  if (!email) {
+    throw new Error("email is required to send a password reset email");
+  }
+
+  const resetUrl = await generatePasswordResetLink(email, {
+    url: `${config.appUrl}/login`,
+    handleCodeInApp: false,
+  });
+
+  await sendPasswordResetEmail({ to: email, firstName, resetUrl });
+  return { ok: true };
+}
+
+module.exports = { sendVerificationEmailViaSmtp, sendPasswordResetViaSmtp };

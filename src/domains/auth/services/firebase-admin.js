@@ -192,6 +192,19 @@ async function getUserByEmail(email) {
  * @param {import('firebase-admin').auth.ActionCodeSettings} [actionCodeSettings]
  * @returns {Promise<string>} The verification link URL.
  */
+async function generatePasswordResetLink(email, actionCodeSettings) {
+  const auth = getAuth();
+  if (!auth) {
+    throw new Error("Firebase Admin not initialized");
+  }
+
+  try {
+    return await auth.generatePasswordResetLink(email, actionCodeSettings);
+  } catch (error) {
+    throw new Error(`Password reset link generation failed: ${error.message}`);
+  }
+}
+
 async function generateEmailVerificationLink(email, actionCodeSettings) {
   const auth = getAuth();
   if (!auth) {
@@ -235,5 +248,6 @@ module.exports = {
   getUser,
   getUserByEmail,
   generateEmailVerificationLink,
+  generatePasswordResetLink,
   createCustomToken,
 };
