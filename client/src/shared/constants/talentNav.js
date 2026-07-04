@@ -24,6 +24,12 @@ export const TALENT_NAV_SECTIONS = [
         requiresProfileGate: true,
       },
       {
+        label: 'Messages',
+        to: '/dashboard/talent/messages',
+        pageKicker: 'Messages',
+        requiresProfileGate: true,
+      },
+      {
         label: 'Intel',
         to: '/dashboard/talent/analytics',
         pageKicker: 'Intel',

@@ -233,7 +233,22 @@
 }
 
 .nc-dropdown__item.is-unread {
-  border-left: 2px solid var(--nc-gold);
+  background: var(--nc-gold-soft);
+}
+
+.nc-dropdown__item.is-unread:hover {
+  background: rgba(201, 165, 90, 0.2);
+}
+
+.nc-dropdown__unread-mark {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-left: auto;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--nc-gold-deep);
 }
 
 .nc-dropdown__icon {
