@@ -18,6 +18,10 @@ const SUBMISSION_PROGRAM_CONTENT = {
       body: "Unless you have a signed exclusivity agreement with a specific agency, you are free to submit to other agencies on Pholio.",
     },
     {
+      heading: "Monthly submissions and agency open calls",
+      body: "Free accounts include 5 discovery submissions per calendar month (UTC); this limit keeps agency inboxes high-quality. When an agency invites you through its own open call link, your submission to that agency does not use your monthly allowance. Invited submissions are limited to 3 per month; Studio+ removes the discovery limit.",
+    },
+    {
       heading: "What Pholio delivers",
       body: "When an adult submits, Pholio sends the named agency their name, age derived from date of birth, city, email and phone, measurements, selected images and book, comp card, note, and linked social profiles included in the package. For minors, direct contact, social links, portfolio URL, optional note, and raw date of birth are omitted; the agency receives an age band and can communicate through Pholio.",
     },

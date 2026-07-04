@@ -29,6 +29,8 @@ const SUBMISSION_DISCLOSURE_CONTENT = {
     "I have reviewed this package and consent to submitting it to {{agencyName}} through Pholio.",
   minorConsentStatementTemplate:
     "Guardian authorization verified for submission to {{agencyName}} through Pholio.",
+  openCallInvitedStatementTemplate:
+    "This is an invited open call submission to {{agencyName}}. It does not count toward your monthly discovery limit.",
 };
 
 function formatAgencyName(agencyName) {
@@ -124,9 +126,24 @@ function buildSubmissionDisclosureSnapshot({
   };
 }
 
+/**
+ * Disclosure fragment recorded when a submission is exempt via an agency
+ * open call claim — the audit record must state the same thing the UI did.
+ */
+function buildOpenCallDisclosure(agencyName) {
+  return {
+    invited: true,
+    statement: interpolate(
+      SUBMISSION_DISCLOSURE_CONTENT.openCallInvitedStatementTemplate,
+      agencyName,
+    ),
+  };
+}
+
 module.exports = {
   CURRENT_SUBMISSION_DISCLOSURE_VERSION,
   CURRENT_SUBMISSION_ACKNOWLEDGEMENT_VERSION,
   SUBMISSION_DISCLOSURE_CONTENT,
   buildSubmissionDisclosureSnapshot,
+  buildOpenCallDisclosure,
 };

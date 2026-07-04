@@ -700,7 +700,19 @@ export default function ApplyExperience() {
     },
     onError: (err) => {
       if (err?.data?.upgradeRequired) {
-        toast.error('Monthly application limit reached.');
+        const claims = err?.data?.activeClaims || [];
+        if (err?.data?.error === 'open_call_exemption_cap_reached') {
+          toast.error(
+            "You've used this month's invited submissions. Invited submissions now count toward your monthly limit.",
+          );
+        } else if (claims.length > 0) {
+          // Never upsell past a free entitlement the talent already holds.
+          toast.error(
+            `Monthly discovery limit reached. You can still submit to ${claims[0].agencyName} — they invited you.`,
+          );
+        } else {
+          toast.error('Monthly discovery limit reached.');
+        }
         return;
       }
       const code = err?.data?.error;
@@ -1161,11 +1173,22 @@ export default function ApplyExperience() {
   /* ── derived submission state ── */
 
   const applicationQuota = applicationQuotaQuery.data || null;
-  const monthlyLimitLabel = applicationQuota?.unlimited
-    ? 'Unlimited submissions this month'
-    : applicationQuota
-      ? `${applicationQuota.used}/${applicationQuota.limit} submissions this month`
-      : 'Submission limit unavailable';
+  // A live open call claim for the selected agency — that submission is
+  // invited and never draws on the monthly discovery allowance.
+  const openCallClaim = useMemo(
+    () =>
+      (applicationQuota?.activeClaims || []).find(
+        (claim) => claim.agencyId === selectedAgencyId,
+      ) || null,
+    [applicationQuota, selectedAgencyId],
+  );
+  const monthlyLimitLabel = openCallClaim
+    ? `Invited by ${openCallClaim.agencyName} — this submission won't use your monthly allowance`
+    : applicationQuota?.unlimited
+      ? 'Unlimited submissions this month'
+      : applicationQuota
+        ? `${applicationQuota.used}/${applicationQuota.limit} discovery submissions this month`
+        : 'Submission limit unavailable';
 
   const visibleImages = useMemo(
     () => authImages.filter((image) => !image.exclude_from_agency && imageUrl(image)),
@@ -1657,6 +1680,7 @@ export default function ApplyExperience() {
         )}
         <AgencyChooser
           agencies={openAgencies}
+          activeClaims={applicationQuota?.activeClaims || []}
           isLoading={agenciesQuery.isLoading}
           onSelect={(id) => {
             setSelectedAgencyId(id);
@@ -1940,6 +1964,7 @@ export default function ApplyExperience() {
                 compCardPreset={selectedCompCardPreset}
                 checks={checks}
                 packageAudit={packageAudit}
+                openCallClaim={openCallClaim}
                 consent={minor ? agencyConsentGranted : adultConsentCurrent}
                 accuracyConfirmed={accuracyConfirmed}
                 onAccuracyChange={setAccuracyConfirmed}
@@ -2250,8 +2275,20 @@ function ApplyHeader({
    House chooser (pre-dossier)
    ════════════════════════════════════════════════════════════ */
 
-function AgencyChooser({ agencies, isLoading, onSelect }) {
+function AgencyChooser({ agencies, activeClaims = [], isLoading, onSelect }) {
   const [previewId, setPreviewId] = useState(null);
+  // Open call invitations lead the list — a house that asked to see this
+  // talent is genuinely more relevant than the alphabet.
+  const claimsByAgencyId = useMemo(
+    () => new Map(activeClaims.map((claim) => [claim.agencyId, claim])),
+    [activeClaims],
+  );
+  const orderedAgencies = useMemo(() => {
+    if (claimsByAgencyId.size === 0) return agencies;
+    const invited = agencies.filter((a) => claimsByAgencyId.has(a.id));
+    const rest = agencies.filter((a) => !claimsByAgencyId.has(a.id));
+    return [...invited, ...rest];
+  }, [agencies, claimsByAgencyId]);
   const preview = agencies.find((a) => a.id === previewId) || null;
   const site = websiteUrl(preview?.agency_website);
 
@@ -2274,8 +2311,9 @@ function AgencyChooser({ agencies, isLoading, onSelect }) {
               ? [1, 2, 3].map((i) => (
                   <div key={i} className="apply-house apply-house--skeleton" aria-hidden />
                 ))
-              : agencies.map((agency, index) => {
+              : orderedAgencies.map((agency, index) => {
                   const selected = previewId === agency.id;
+                  const claim = claimsByAgencyId.get(agency.id);
                   return (
                     <PholioToggleButton
                       key={agency.id}
@@ -2294,6 +2332,11 @@ function AgencyChooser({ agencies, isLoading, onSelect }) {
                           <MapPin size={12} aria-hidden />
                           {agency.agency_location || 'Global'}
                         </span>
+                        {claim && (
+                          <span className="apply-house__invite">
+                            Open call invitation · expires {dateLabel(claim.expiresAt)}
+                          </span>
+                        )}
                       </span>
                     </PholioToggleButton>
                   );
@@ -3404,6 +3447,7 @@ function ReviewSendPage({
   compCardPreset,
   checks,
   packageAudit,
+  openCallClaim,
   consent,
   accuracyConfirmed,
   onAccuracyChange,
@@ -3731,6 +3775,13 @@ function ReviewSendPage({
         </p>
 
         <ul className="apply-seal__acks" aria-label="Submission facts">
+          {openCallClaim && (
+            <li>
+              This is an invited open call submission to {name}. It does not
+              count toward your monthly discovery limit and is recorded with
+              your consent receipt.
+            </li>
+          )}
           {minor && (
             <li>Digitals marked as retouched are blocked from submission.</li>
           )}

@@ -406,10 +406,11 @@ function SubscriptionSection() {
     <div className="talent-settings-stack">
       <CheckoutHandoff open={handoffOpen} planLabel="Studio+" />
       <SubscriptionReturnBanner state={returnState} onDismiss={() => setReturnState(null)} />
-      <SectionPanel title="Studio+ plan" intro="Manage the subscription that powers expanded insights, application volume, and premium presentation." action={<PholioButton type="button" variant="primary" onClick={openBilling} disabled={opening}>{opening || handoffOpen ? 'Opening…' : subscription.isPro ? 'Manage billing' : 'Start Studio+'}</PholioButton>}>
+      <SectionPanel title="Studio+ plan" intro="Manage the subscription that powers expanded insights, discovery submission volume, and premium presentation." action={<PholioButton type="button" variant="primary" onClick={openBilling} disabled={opening}>{opening || handoffOpen ? 'Opening…' : subscription.isPro ? 'Manage billing' : 'Start Studio+'}</PholioButton>}>
         <div className="talent-settings-plan">
           <div><strong>{subscription.planName}</strong><span>{subscription.priceLabel || '$9.99'} {subscription.priceUnit || '/month'}</span></div>
           <p>{subscription.renewalDate ? `Next renewal ${formatDate(subscription.renewalDate)}` : subscription.isTrialing ? `Trial ends ${formatDate(subscription.trialEndDate)}` : '14-day trial available. Cancel anytime in Settings.'}</p>
+          <p>Submissions invited by an agency through their open call never count toward the monthly limit, on any plan.</p>
           <span><CreditCard size={15} aria-hidden />{subscription.stripeCustomerId ? 'Billing profile on file' : 'No payment method on file'}</span>
         </div>
       </SectionPanel>

@@ -805,6 +805,14 @@
   color: var(--app-ink-faint);
 }
 
+/* Open call invitation — plain typeset line, never a chip. */
+.apply-house__invite {
+  display: block;
+  color: var(--ag-gold, #b8956a);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
 .apply-relink {
   margin: clamp(20px, 3vw, 28px) 0 0;
   color: var(--app-text-faint);

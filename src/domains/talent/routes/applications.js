@@ -73,6 +73,28 @@ const {
 const {
   loadApplicationQuota,
 } = require("../services/application-quota");
+const {
+  OPEN_CALL_EXEMPT_MONTHLY_CAP,
+  hasOpenCallSchema,
+  ensureClaimFromSession,
+  listActiveClaims,
+  resolveActiveClaim,
+  consumeClaim,
+  countExemptThisMonth,
+} = require("../services/open-call-claims");
+const {
+  buildOpenCallDisclosure,
+} = require("../../../shared/lib/submission-disclosure-content");
+
+function serializeClaim(claim) {
+  return {
+    agencyId: claim.agency_id,
+    agencyName: claim.agency_name,
+    agencyLocation: claim.agency_location,
+    agencyLogo: claim.agency_logo,
+    expiresAt: claim.expires_at,
+  };
+}
 
 // Statuses a talent may withdraw from (still in process). Terminal states stay put.
 const WITHDRAWABLE_STATUSES = new Set([
@@ -263,6 +285,8 @@ router.get(
       });
     }
 
+    const openCallReady = await hasOpenCallSchema(knex);
+
     // Fetch applications with organization-backed agency info
     const applications = await knex("applications")
       .leftJoin("agencies", "applications.agency_id", "agencies.id")
@@ -293,10 +317,31 @@ router.get(
           .orderBy("note_msg.created_at", "asc")
           .limit(1)
           .as("note"),
+        ...(openCallReady
+          ? [
+              // Provenance: the latest completed quota event tells whether this
+              // submission was an invited open call or platform discovery.
+              knex("application_submission_requests as sr")
+                .select("sr.quota_exempt")
+                .whereRaw("sr.application_id = applications.id")
+                .where("sr.status", "completed")
+                .orderBy("sr.completed_at", "desc")
+                .limit(1)
+                .as("open_call_exempt"),
+            ]
+          : []),
       )
       .orderBy("applications.created_at", "desc");
 
-    res.json({ success: true, data: applications });
+    const data = applications.map((application) => {
+      const { open_call_exempt: openCallExempt, ...rest } = application;
+      return {
+        ...rest,
+        source: openCallExempt ? "open_call" : "discovery",
+      };
+    });
+
+    res.json({ success: true, data });
   }),
 );
 
@@ -311,9 +356,23 @@ router.get(
         error: "Profile not found",
       });
     }
+    const openCallReady = await hasOpenCallSchema(knex);
+    if (openCallReady) {
+      // Convert any pending open-call arrival carried through signup into a
+      // durable claim now that a talent profile exists.
+      await ensureClaimFromSession(knex, req, profile.id);
+    }
+    const quota = await loadApplicationQuota(knex, profile);
+    const activeClaims = openCallReady
+      ? await listActiveClaims(knex, profile.id)
+      : [];
     return res.json({
       success: true,
-      data: await loadApplicationQuota(knex, profile),
+      data: {
+        ...quota,
+        exemptMonthlyCap: OPEN_CALL_EXEMPT_MONTHLY_CAP,
+        activeClaims: activeClaims.map(serializeClaim),
+      },
     });
   }),
 );
@@ -333,6 +392,37 @@ router.get(
         error: "Profile not found",
         message: "Profile not found",
       });
+    }
+
+    // Live open-call claims are the primary invite signal: target the first
+    // invited agency the talent hasn't already applied to.
+    if (await hasOpenCallSchema(knex)) {
+      await ensureClaimFromSession(knex, req, profile.id);
+      const claims = await listActiveClaims(knex, profile.id);
+      for (const claim of claims) {
+        const existing = await knex("applications")
+          .where({ profile_id: profile.id, agency_id: claim.agency_id })
+          .whereNot("status", "withdrawn")
+          .first("id");
+        if (!existing) {
+          return res.json({
+            success: true,
+            data: {
+              hasRedirectSignal: true,
+              source: "open_call",
+              targetAgency: {
+                id: claim.agency_id,
+                name: claim.agency_name,
+                location: claim.agency_location,
+                logo: claim.agency_logo,
+                website: null,
+              },
+              claimExpiresAt: claim.expires_at,
+              alreadyAppliedToTarget: false,
+            },
+          });
+        }
+      }
     }
 
     // Legacy invite source-of-truth: latest rows written before redirect-apply
@@ -367,6 +457,7 @@ router.get(
       success: true,
       data: {
         hasRedirectSignal: !!latestRedirectSignal,
+        source: latestRedirectSignal ? "legacy_invite" : null,
         targetAgency: latestRedirectSignal
           ? {
               id: latestRedirectSignal.agency_id,
@@ -601,19 +692,49 @@ router.post(
       });
     }
 
-    // Fast preflight for UX. The authoritative quota check is repeated while
-    // holding the profile lock inside the final submission transaction.
+    // Fast preflight for UX. The authoritative quota + claim check is
+    // repeated while holding the profile lock inside the final submission
+    // transaction — nothing here grants anything.
+    const openCallReady = await hasOpenCallSchema(knex);
+    if (openCallReady) {
+      await ensureClaimFromSession(knex, req, profile.id);
+    }
     if (!profile.is_pro) {
       const quota = await loadApplicationQuota(knex, profile);
       if (quota.remaining === 0) {
-        return res.status(403).json({
-          success: false,
-          error: "Monthly application limit reached",
-          message: "Monthly application limit reached",
-          limit: quota.limit,
-          current: quota.used,
-          upgradeRequired: true,
-        });
+        const preflightClaim = openCallReady
+          ? await knex("agency_open_call_claims")
+              .where({
+                profile_id: profile.id,
+                agency_id: agencyId,
+                status: "active",
+              })
+              .first()
+          : null;
+        const exemptCapReached =
+          openCallReady &&
+          (await countExemptThisMonth(knex, profile.id)) >=
+            OPEN_CALL_EXEMPT_MONTHLY_CAP;
+        if (!preflightClaim || exemptCapReached) {
+          const activeClaims = openCallReady
+            ? await listActiveClaims(knex, profile.id)
+            : [];
+          return res.status(403).json({
+            success: false,
+            error:
+              preflightClaim && exemptCapReached
+                ? "open_call_exemption_cap_reached"
+                : "Monthly application limit reached",
+            message:
+              preflightClaim && exemptCapReached
+                ? "You have used this month's invited submissions. Invited submissions now count toward your monthly limit."
+                : "Monthly application limit reached",
+            limit: quota.limit,
+            current: quota.used,
+            upgradeRequired: true,
+            activeClaims: activeClaims.map(serializeClaim),
+          });
+        }
       }
     }
 
@@ -776,7 +897,23 @@ router.post(
           trx,
           quotaProfile || profile,
         );
-        if (!quota.unlimited && quota.remaining === 0) {
+        // Authoritative open-call resolution: an active claim for this exact
+        // agency exempts this submission from the monthly discovery quota,
+        // bounded by the monthly exemption cap. The claim is consumed below
+        // in this same transaction. Nothing client-supplied participates.
+        let openCallClaim = null;
+        if (openCallReady) {
+          openCallClaim = await resolveActiveClaim(trx, profile.id, agencyId);
+          if (
+            openCallClaim &&
+            (await countExemptThisMonth(trx, profile.id)) >=
+              OPEN_CALL_EXEMPT_MONTHLY_CAP
+          ) {
+            openCallClaim = null;
+          }
+        }
+        const quotaExempt = Boolean(openCallClaim);
+        if (!quotaExempt && !quota.unlimited && quota.remaining === 0) {
           const error = new Error("Monthly application limit reached");
           error.code = "MONTHLY_APPLICATION_LIMIT";
           error.quota = quota;
@@ -860,6 +997,12 @@ router.post(
           request_hash: requestHash,
           status: "processing",
           created_at: trx.fn.now(),
+          ...(openCallReady
+            ? {
+                quota_exempt: quotaExempt,
+                exemption_claim_id: quotaExempt ? openCallClaim.id : null,
+              }
+            : {}),
         });
 
         if (reapplying) {
@@ -889,6 +1032,13 @@ router.post(
             agency_id: agencyId,
             status: "pending",
           });
+        }
+
+        if (quotaExempt) {
+          // Spend the claim atomically with the submission it exempts, and
+          // make the consent record state what the UI stated.
+          await consumeClaim(trx, openCallClaim.id, applicationId);
+          disclosureSnapshot.openCall = buildOpenCallDisclosure(agency.name);
         }
 
         await recordSubmissionDisclosureConsent(trx, {
@@ -1112,6 +1262,9 @@ router.post(
         });
       }
       if (error.code === "MONTHLY_APPLICATION_LIMIT") {
+        const activeClaims = openCallReady
+          ? await listActiveClaims(knex, profile.id)
+          : [];
         return res.status(403).json({
           success: false,
           error: "Monthly application limit reached",
@@ -1119,6 +1272,15 @@ router.post(
           limit: error.quota?.limit || 5,
           current: error.quota?.used || 5,
           upgradeRequired: true,
+          activeClaims: activeClaims.map(serializeClaim),
+        });
+      }
+      if (error.code === "OPEN_CALL_CLAIM_CONFLICT") {
+        return res.status(409).json({
+          success: false,
+          error: "open_call_claim_conflict",
+          message:
+            "Your open call invitation was already used. Review your submissions and try again.",
         });
       }
       if (error.code === "APPLICATION_ALREADY_SUBMITTED") {

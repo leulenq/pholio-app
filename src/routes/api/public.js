@@ -273,6 +273,152 @@ router.get("/pro", async (req, res) => {
   }
 });
 
+const {
+  hasOpenCallSchema,
+  findActiveLinkByCode,
+  recordArrival,
+  mintClaim,
+  CLAIM_STATUSES,
+} = require("../../domains/talent/services/open-call-claims");
+
+// How long an anonymous arrival context survives in the session while the
+// visitor signs up. A later re-visit of the link simply records a new arrival.
+const OPEN_CALL_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+function parseOpenBoardsList(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+async function sessionTalentProfile(req) {
+  if (!req.session?.userId || req.session.role !== "TALENT") return null;
+  return knex("profiles")
+    .where({ user_id: req.session.userId })
+    .first("id");
+}
+
+function openCallAgencyDTO(link) {
+  return {
+    id: link.agency_id,
+    name: link.agency_name,
+    location: link.agency_location,
+    logo: link.agency_logo,
+    website: link.agency_website,
+    openBoards: parseOpenBoardsList(link.agency_open_boards),
+  };
+}
+
+// GET /api/public/open-call/:code — arrival-screen data. Safe agency fields
+// only; never confirms whether an unknown code maps to a real agency.
+router.get("/open-call/:code", async (req, res) => {
+  try {
+    if (!(await hasOpenCallSchema(knex))) {
+      return res.json({ success: true, data: { valid: false } });
+    }
+    const link = await findActiveLinkByCode(knex, req.params.code);
+    if (!link) {
+      return res.json({ success: true, data: { valid: false } });
+    }
+    let alreadyApplied = false;
+    const profile = await sessionTalentProfile(req);
+    if (profile) {
+      const existing = await knex("applications")
+        .where({ profile_id: profile.id, agency_id: link.agency_id })
+        .whereNot("status", "withdrawn")
+        .first("id");
+      alreadyApplied = Boolean(existing);
+    }
+    return res.json({
+      success: true,
+      data: {
+        valid: true,
+        agency: openCallAgencyDTO(link),
+        alreadyApplied,
+        authenticated: Boolean(profile),
+      },
+    });
+  } catch (error) {
+    console.error("[Public API] Error in /open-call/:code:", error);
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to load open call" });
+  }
+});
+
+// POST /api/public/open-call/:code/arrival — record the arrival and either
+// mint a claim (authenticated talent) or park the context in the session so
+// signup can convert it later. The claim itself is the only entitlement;
+// this endpoint never exempts anything by itself.
+router.post("/open-call/:code/arrival", async (req, res) => {
+  try {
+    if (!(await hasOpenCallSchema(knex))) {
+      return res.json({ success: true, data: { valid: false } });
+    }
+    const link = await findActiveLinkByCode(knex, req.params.code);
+    if (!link) {
+      return res.json({ success: true, data: { valid: false } });
+    }
+
+    const arrivalId = await recordArrival(knex, {
+      linkId: link.id,
+      agencyId: link.agency_id,
+      ip:
+        req.ip ||
+        req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+        null,
+      userAgent: req.get("user-agent"),
+    });
+
+    const profile = await sessionTalentProfile(req);
+    if (profile) {
+      const { claim } = await mintClaim(knex, {
+        linkId: link.id,
+        arrivalId,
+        agencyId: link.agency_id,
+        profileId: profile.id,
+      });
+      return res.json({
+        success: true,
+        data: {
+          valid: true,
+          claimed: Boolean(claim && claim.status === CLAIM_STATUSES.ACTIVE),
+          claimExpiresAt: claim?.expires_at || null,
+          agency: openCallAgencyDTO(link),
+        },
+      });
+    }
+
+    req.session.openCallContext = {
+      linkId: link.id,
+      arrivalId,
+      agencyId: link.agency_id,
+      exp: new Date(Date.now() + OPEN_CALL_SESSION_TTL_MS).toISOString(),
+    };
+    return res.json({
+      success: true,
+      data: {
+        valid: true,
+        claimed: false,
+        pendingSignup: true,
+        agency: openCallAgencyDTO(link),
+      },
+    });
+  } catch (error) {
+    console.error("[Public API] Error in /open-call/:code/arrival:", error);
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to record arrival" });
+  }
+});
+
 // GET /api/public/session
 router.get("/session", async (req, res) => {
   try {

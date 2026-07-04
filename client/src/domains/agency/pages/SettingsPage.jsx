@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Palette, Layers, Bell, ScrollText, Shield } from 'lucide-react';
+import { User, Palette, Layers, Bell, ScrollText, Shield, Link2 } from 'lucide-react';
 import { getAgencyProfile } from '../api/agency';
 import { useAgencyTeam } from '../hooks/useAgencyTeam';
 import { useCanManageOrg } from '../hooks/useAgencyPermissions';
@@ -14,6 +14,7 @@ import DivisionsPanel from './settings/DivisionsPanel';
 import NotificationsPanel from './settings/NotificationsPanel';
 import RepresentationPanel from './settings/RepresentationPanel';
 import SecurityPanel from './settings/SecurityPanel';
+import OpenCallPanel from './settings/OpenCallPanel';
 import './SettingsPage.css';
 
 const GROUPS = [
@@ -33,6 +34,7 @@ const GROUPS = [
   {
     label: 'Operations',
     items: [
+      { id: 'open-call', label: 'Open Call Links', icon: Link2, desc: 'Invite links for your website and scouting emails' },
       { id: 'notifications', label: 'Notifications', icon: Bell, desc: 'Board, booking & desk alerts' },
       { id: 'representation', label: 'Representation', icon: ScrollText, desc: 'Exclusivity, commission & contracts' },
     ],
@@ -86,6 +88,7 @@ export default function SettingsPage() {
     switch (activeTab) {
       case 'branding': return <BrandingPanel profile={profile} canManage={canManage} />;
       case 'divisions': return <DivisionsPanel />;
+      case 'open-call': return <OpenCallPanel canManage={canManage} />;
       case 'notifications': return <NotificationsPanel profile={profile} canManage={canManage} />;
       case 'representation': return <RepresentationPanel />;
       case 'security': return <SecurityPanel profile={profile} canManage={canManage} />;
