@@ -28,6 +28,9 @@ export const SocialInput = ({
   type = 'text',
   inputMode,
   autoComplete,
+  autoCapitalize,
+  autoCorrect,
+  spellCheck,
 }) => {
   const fieldConfig = {
     base: base || '',
@@ -71,6 +74,9 @@ export const SocialInput = ({
               type={type}
               inputMode={inputMode}
               autoComplete={autoComplete}
+              autoCapitalize={autoCapitalize}
+              autoCorrect={autoCorrect}
+              spellCheck={spellCheck}
               label={label}
               placeholder={placeholder}
               error={error}

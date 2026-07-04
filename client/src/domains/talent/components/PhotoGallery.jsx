@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Image as ImageIcon, ArrowRight, Eye, Edit, Camera, Sparkles, User, Upload } from 'lucide-react';
 import { useRecentPhotos } from '../../hooks/useRecentPhotos';
-import { PholioIconButton } from '../../../shared/components/ui/PholioButton';
 import './PhotoGallery.css';
 
 export const PhotoGallery = () => {
@@ -37,20 +36,22 @@ export const PhotoGallery = () => {
         ) : photos && photos.length > 0 ? (
           // Photo Cards
           photos.map((photo) => (
-            <div key={photo.id} className="photo-card">
-               <img 
-                 src={photo.url} 
-                 alt="Portfolio" 
-                 className="photo-img" 
+            <Link key={photo.id} to="/dashboard/talent/media" className="photo-card">
+               <img
+                 src={photo.url}
+                 alt="Portfolio"
+                 className="photo-img"
                  loading="lazy"
                />
-               <div className="photo-overlay">
+               {/* Decorative hover affordance only — the whole card is the link, so
+                   these must be non-interactive (no <button> nested inside the <a>). */}
+               <div className="photo-overlay" aria-hidden="true">
                   <div className="photo-actions">
-                     <PholioIconButton tone="dark" className="photo-action-btn" label="View photo"><Eye size={18} /></PholioIconButton>
-                     <PholioIconButton tone="dark" className="photo-action-btn" label="Edit photo"><Edit size={18} /></PholioIconButton>
+                     <span className="photo-action-btn"><Eye size={18} /></span>
+                     <span className="photo-action-btn"><Edit size={18} /></span>
                   </div>
                </div>
-            </div>
+            </Link>
           ))
         ) : (
           // Inspiring Multi-Card Empty State

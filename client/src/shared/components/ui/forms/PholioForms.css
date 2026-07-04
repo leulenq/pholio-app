@@ -343,13 +343,26 @@
     height: 48px;
     padding: 12px 14px;
   }
-  
+
   .pholio-label {
     font-size: 12px;
   }
-  
+
   .pholio-toggle-wrapper {
     padding: 10px 0;
+  }
+
+  /* iOS zoom-on-focus fix: the in-dropdown search input and the premium
+     tag input sit under Safari's 16px no-zoom threshold. */
+  .pholio-multiselect-search-input,
+  .pholio-premium-tag-input {
+    font-size: 16px;
+  }
+
+  /* Dropdown option rows are ~30px tall in a scrolling list — grow the
+     tap target. */
+  .pholio-select-option {
+    padding: 12px;
   }
 }
 

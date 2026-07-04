@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -141,6 +141,24 @@ export default function ApplicationsView() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
+  const detailPanelRef = useRef(null);
+
+  // On mobile the ledger collapses to a single column and the detail panel sits
+  // beneath the full submission list, so a tap silently swaps content far below
+  // the viewport. When the layout is stacked (≤1180px), bring the detail into
+  // view on an explicit selection. `selectedId` is null on first mount, so the
+  // default parked selection never triggers a scroll — desktop side-by-side is
+  // untouched because the media query never matches there.
+  useEffect(() => {
+    if (!selectedId) return;
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    if (!window.matchMedia('(max-width: 1180px)').matches) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    detailPanelRef.current?.scrollIntoView({
+      behavior: prefersReduced ? 'auto' : 'smooth',
+      block: 'start',
+    });
+  }, [selectedId]);
 
   const applicationsQuery = useQuery({
     queryKey: ['applications'],
@@ -540,7 +558,7 @@ export default function ApplicationsView() {
           )}
         </section>
 
-        <aside className="app-detail-panel" aria-label="Application detail">
+        <aside className="app-detail-panel" aria-label="Application detail" ref={detailPanelRef}>
           {selectedApplication ? (
             <ApplicationDetail
               app={selectedApplication}

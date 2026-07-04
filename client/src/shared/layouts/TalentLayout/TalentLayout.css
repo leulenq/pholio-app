@@ -726,12 +726,16 @@
 
 @media (max-width: 700px) {
   .tl-root {
-    --tl-topbar-h: 72px;
+    --tl-topbar-h: calc(72px + env(safe-area-inset-top));
+    --tl-tabbar-h: 64px;
+    height: 100dvh;
   }
 
   .tl-topbar {
-    grid-template-columns: auto 1fr auto;
-    padding: 0 16px;
+    grid-template-columns: auto 1fr;
+    padding-top: env(safe-area-inset-top);
+    padding-inline: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+    padding-bottom: 0;
   }
 
   .tl-logo-word {
@@ -743,6 +747,23 @@
     padding-right: 8px;
   }
 
+  /* Nav moves to the fixed bottom tab bar (MobileTabBar.jsx) on mobile;
+     the topbar collapses to two zones: logo left, actions right. */
+  .tl-topnav {
+    display: none;
+  }
+
+  .tl-header-actions {
+    grid-column: 2;
+  }
+
+  /* Demote the free-tier Upgrade pill on mobile — tier is still visible
+     inside the account panel — so the right-hand cluster isn't cramped. */
+  .tl-btn-upgrade,
+  .tl-header-actions-divider {
+    display: none;
+  }
+
   .tl-account-suite {
     min-width: auto;
   }
@@ -750,6 +771,7 @@
   .tl-account-trigger {
     gap: 10px;
     padding: 0 8px 0 6px;
+    min-height: 44px;
   }
 
 
@@ -762,27 +784,18 @@
     height: 32px;
   }
 
-  .tl-topnav {
-    overflow-x: auto;
-    scrollbar-width: none;
-    justify-content: flex-start;
-    max-width: 100%;
-    padding: 0 4px;
+  /* Invisible hit-slop: keeps the 32px visual roundel but grows the
+     effective tap target to the 44px floor. */
+  .tl-action-icon::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
   }
 
-  .tl-topnav::-webkit-scrollbar { display: none; }
-
-  .tl-topnav-section {
-    gap: 10px;
-  }
-
-  .tl-topnav-divider {
+  /* The numeric unread count is unreadable at mobile density and doubles
+     up with the dot indicator; keep only the dot. */
+  .tl-action-badge {
     display: none;
-  }
-
-  .tl-topnav-link {
-    letter-spacing: 0.2em;
-    font-size: 9px;
   }
 
   .tl-account-panel {
@@ -791,6 +804,16 @@
 
   .tl-notifications-panel .nc-dropdown {
     width: min(340px, calc(100vw - 24px));
+  }
+
+  /* Reserve space above the fixed bottom tab bar (height + safe area) so
+     content never renders underneath it. */
+  .tl-content {
+    padding-bottom: calc(var(--tl-tabbar-h, 64px) + env(safe-area-inset-bottom));
+  }
+
+  .tl-flash {
+    margin: 12px 16px 0;
   }
 }
 

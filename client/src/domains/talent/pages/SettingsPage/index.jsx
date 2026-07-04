@@ -474,12 +474,12 @@ function NotificationsSection() {
   };
 
   const renderRow = ({ key, label, desc }) => (
-    <div key={key} className="ts-toggle-row">
+    <label key={key} className="ts-toggle-row">
       <div className="ts-toggle-info">
         <span className="ts-toggle-label">{label}</span>
         <span className="ts-toggle-desc">{desc}</span>
       </div>
-      <label className="ts-switch">
+      <span className="ts-switch">
         <input
           type="checkbox"
           checked={prefs[key]}
@@ -488,8 +488,8 @@ function NotificationsSection() {
         />
         <span className="ts-slider" />
         <span className="sr-only">{label}</span>
-      </label>
-    </div>
+      </span>
+    </label>
   );
 
   if (isLoading) return <div className="ts-loading"><span>Loading…</span></div>;
@@ -650,12 +650,12 @@ function PrivacySectionForm({ initialSettings }) {
             ) : null}
           </div>
 
-          <div className="ts-toggle-row ts-toggle-row--inline">
+          <label className="ts-toggle-row ts-toggle-row--inline">
             <div className="ts-toggle-info">
               <span className="ts-toggle-label">Search Indexing</span>
               <span className="ts-toggle-desc">Allow search engines</span>
             </div>
-            <label className="ts-switch">
+            <span className="ts-switch">
               <input
                 type="checkbox"
                 checked={form.isDiscoverable}
@@ -663,15 +663,15 @@ function PrivacySectionForm({ initialSettings }) {
               />
               <span className="ts-slider" />
               <span className="sr-only">Allow search indexing</span>
-            </label>
-          </div>
+            </span>
+          </label>
 
-          <div className="ts-toggle-row ts-toggle-row--inline">
+          <label className="ts-toggle-row ts-toggle-row--inline">
             <div className="ts-toggle-info">
               <span className="ts-toggle-label">Contact Info</span>
               <span className="ts-toggle-desc">Show email and phone</span>
             </div>
-            <label className="ts-switch">
+            <span className="ts-switch">
               <input
                 type="checkbox"
                 checked={minorBlocked ? false : form.showContact}
@@ -682,8 +682,8 @@ function PrivacySectionForm({ initialSettings }) {
               />
               <span className="ts-slider" />
               <span className="sr-only">Show contact information</span>
-            </label>
-          </div>
+            </span>
+          </label>
         </div>
 
         <div className="ts-card-footer">
@@ -1119,12 +1119,12 @@ function DisplaySection() {
       <div className="ts-card">
         <CardHeader title="Display" />
         <div className="ts-toggle-list">
-          <div className="ts-toggle-row">
+          <label className="ts-toggle-row">
             <div className="ts-toggle-info">
               <span className="ts-toggle-label">Watermark</span>
               <span className="ts-toggle-desc">Add Pholio badge</span>
             </div>
-            <label className="ts-switch">
+            <span className="ts-switch">
               <input
                 type="checkbox"
                 checked={prefs.watermark}
@@ -1133,8 +1133,8 @@ function DisplaySection() {
               />
               <span className="ts-slider" />
               <span className="sr-only">Pholio watermark</span>
-            </label>
-          </div>
+            </span>
+          </label>
         </div>
         <div className="ts-card-inner">
           <div className="ts-field">
@@ -1258,12 +1258,12 @@ function DataSection() {
             { key: 'analytics', label: 'Analytics',  desc: 'Product improvement' },
             { key: 'marketing', label: 'Marketing',  desc: 'Announcements and promotions' },
           ].map(({ key, label, desc, locked }) => (
-            <div key={key} className="ts-toggle-row">
+            <label key={key} className="ts-toggle-row" style={locked ? { cursor: 'default' } : undefined}>
               <div className="ts-toggle-info">
                 <span className="ts-toggle-label">{label}</span>
                 <span className="ts-toggle-desc">{desc}</span>
               </div>
-              <label className="ts-switch" style={locked ? { opacity: 0.38, pointerEvents: 'none' } : {}}>
+              <span className="ts-switch" style={locked ? { opacity: 0.38, pointerEvents: 'none' } : {}}>
                 <input
                   type="checkbox"
                   checked={locked ? true : cookies[key]}
@@ -1274,8 +1274,8 @@ function DataSection() {
                 />
                 <span className="ts-slider" />
                 <span className="sr-only">{label} cookies</span>
-              </label>
-            </div>
+              </span>
+            </label>
           ))}
         </div>
       </div>

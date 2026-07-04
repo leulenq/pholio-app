@@ -119,3 +119,24 @@
 .app-iv__decline {
   flex: 1;
 }
+
+@media (max-width: 520px) {
+  /* Keep the calendar icon on the same line as the first word and stop the
+     serif date/time from wrapping awkwardly in the narrow mobile detail column. */
+  .app-iv__when {
+    align-items: flex-start;
+  }
+
+  .app-iv__when strong {
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  /* "Meeting link" is a primary exit from the submission — give it a 44px hit
+     area without changing its visual weight. */
+  .app-iv__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

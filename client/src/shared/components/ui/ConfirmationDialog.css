@@ -178,6 +178,10 @@
 }
 
 @media (max-width: 480px) {
+  .cfd-overlay {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
   .cfd-body {
     padding: 28px 24px 24px;
   }

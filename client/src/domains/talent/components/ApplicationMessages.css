@@ -134,3 +134,22 @@
   min-height: 42px;
   padding: 0;
 }
+
+@media (max-width: 520px) {
+  /* 16px stops iOS Safari from auto-zooming the page when the textarea focuses
+     (which would jerk the fixed message sheet). Desktop keeps 13px. */
+  .app-msg__input {
+    font-size: 16px;
+  }
+
+  /* Let the primary action size to its content so the icon + "Send" label show
+     at a real 44px target. The base primary variant forces 22px side padding
+     via !important, so the padding override must also be !important. */
+  .app-msg__send {
+    width: auto;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 16px !important;
+  }
+}

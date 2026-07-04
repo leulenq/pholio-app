@@ -256,3 +256,12 @@
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
 }
+
+/* iOS zoom-on-focus fix: the guardian's single consent field is 15px,
+   under Safari's 16px no-zoom threshold. Desktop keeps 15px above. */
+@media (max-width: 640px) {
+  .input,
+  .inputPrefix {
+    font-size: 16px;
+  }
+}
