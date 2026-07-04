@@ -1238,10 +1238,12 @@
 
   .ov-website-metrics {
     padding: 24px 22px;
+    gap: 28px 0;
   }
 
   .ov-website-stat {
     padding: 0 18px;
+    border-left: none;
   }
 
   .ov-website-chart-block {
@@ -1254,6 +1256,36 @@
 
   .ov-website-footer {
     padding-inline: 22px;
+    font-size: 11px;
+  }
+
+  /* Micro meta-labels: raise off the 9-10px floor for on-phone legibility */
+  .ov-hero-kpi-label,
+  .ov-check-status,
+  .ov-website-period,
+  .ov-website-intel,
+  .ov-book-more-label {
+    font-size: 11px;
+  }
+
+  .ov-book-count {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+  }
+
+  .ov-book-more-label {
+    letter-spacing: 0.15em;
+  }
+
+  /* Sub-44px inline tap targets: give "Manage images" / "Full analytics" real hit area */
+  .ov-book-manage {
+    min-height: 44px;
+    padding: 10px 0;
+  }
+
+  .ov-website-intel {
+    min-height: 44px;
+    padding: 10px 0;
   }
 }
 

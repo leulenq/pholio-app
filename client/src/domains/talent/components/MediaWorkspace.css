@@ -47,6 +47,9 @@
 }
 @media (max-width: 720px) {
   .mw-wrap { padding: 32px 24px 64px; }
+  /* iOS Safari zooms the viewport when a focused input is < 16px. Keep 16px on touch. */
+  .mw-modal__input,
+  .mw-digitals-set__select { font-size: 16px; }
 }
 
 /* ── Editorial primitives ── */
@@ -136,6 +139,9 @@
 }
 @media (max-width: 600px) {
   .mw-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  /* Long-press arms a drag (TouchSensor); vertical swipes still scroll the page.
+     dnd-kit requires touch-action:none on the drag handle for reliable touch drag. */
+  .mw-frame__stage { touch-action: none; }
 }
 
 .mw-helper {
@@ -265,6 +271,12 @@
 }
 .mw-frame:hover .mw-frame__actions,
 .mw-frame:focus-within .mw-frame__actions { opacity: 1; }
+/* Touch has no hover and the tile is not focusable, so the hover-revealed row
+   (Make cover / Edit / Crop / Delete) is otherwise unreachable on a phone.
+   Keep the bottom gradient scrim; just make the row persistently visible. */
+@media (pointer: coarse) {
+  .mw-frame__actions { opacity: 1; }
+}
 .mw-frame__action {
   min-width: 36px;
   min-height: 36px;
@@ -436,6 +448,19 @@
 .mw-modal__actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 8px; }
 @media (max-width: 600px) {
   .mw-modal__row { flex-direction: column; gap: 0; }
+  /* The centered fixed pill overflows a 360–390px viewport. Span the width,
+     let actions wrap, and clear the home indicator. */
+  .mw-bulk-bar {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+    /* Float above the shell's fixed mobile tab bar (var set on .tl-root at
+       <=700px), not just the home indicator. */
+    bottom: calc(16px + var(--tl-tabbar-h, 0px) + env(safe-area-inset-bottom));
+    flex-wrap: wrap;
+  }
+  .mw-bulk-bar__actions { flex-wrap: wrap; }
 }
 
 /* --- Bulk Mode Styles --- */

@@ -1893,6 +1893,53 @@
     background: transparent;
     border-right: 0;
   }
+
+  /* Long house names shouldn't clip mid-word in the narrow ledger column —
+     allow two lines with an ellipsis on the second. Desktop keeps its
+     single-line ellipsis (rule unchanged above the breakpoint). */
+  .app-ledger-card__agency {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.15;
+  }
+
+  /* CRITICAL — promote the floating message dock to a full-height bottom sheet
+     that tracks the dynamic (dvh) viewport and docks to the bottom edge, so the
+     composer clears the on-screen keyboard instead of being trapped beneath a
+     small fixed card sized in vh. The flex column (base rules) keeps the thread
+     scrolling with the composer pinned above the fold. */
+  .app-msgdock {
+    inset: auto 0 0 0;
+    right: auto;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-radius: var(--app-radius) var(--app-radius) 0 0;
+  }
+
+  .app-msgdock .app-msg__compose {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  /* Give the submission "package" exits (Book / Profile / Comp Card) a real
+     44px hit area and enough separation that adjacent links don't collide. */
+  .app-detail__package {
+    gap: 20px 24px;
+  }
+
+  .app-detail__package a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 /* ── Apply Workspace (full-page submission surface) ──────────────────────── */

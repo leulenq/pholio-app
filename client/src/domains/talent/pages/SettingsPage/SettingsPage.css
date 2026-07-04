@@ -802,6 +802,10 @@
     padding: 8px;
     margin-bottom: 20px;
     flex-wrap: nowrap;
+    /* Signal there are more tabs off-screen (e.g. Privacy, Danger Zone)
+       since the scrollbar itself is hidden above. */
+    mask-image: linear-gradient(to right, #000 85%, transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 85%, transparent);
   }
   .ts-nav::-webkit-scrollbar { display: none; }
 
@@ -833,4 +837,40 @@
   .ts-data-row { flex-direction: column; align-items: flex-start; gap: 12px; }
   .ts-notif-freq { flex-direction: column; align-items: flex-start; }
   .ts-freq-options { justify-content: flex-start; }
+
+  /* iOS zoom-on-focus fix: 14px fields sit under Safari's 16px threshold.
+     Desktop keeps 14px (base rule above, outside this query). */
+  .ts-input,
+  .ts-select,
+  .ts-textarea {
+    font-size: 16px;
+  }
+
+  /* Field labels: bump off the 10px readability floor on mobile. */
+  .ts-label {
+    font-size: 11px;
+  }
+
+  /* Toggle switches are a 40x22px target — grow the hit area. The row
+     itself is now a tappable <label> (see SettingsPage/index.jsx), which
+     is the primary fix; this bump makes the visible switch match. */
+  .ts-toggle-row {
+    cursor: pointer;
+  }
+
+  .ts-switch {
+    width: 48px;
+    height: 28px;
+  }
+
+  .ts-switch .ts-slider::before {
+    width: 20px;
+    height: 20px;
+    left: 4px;
+    top: 4px;
+  }
+
+  .ts-switch input:checked + .ts-slider::before {
+    transform: translateX(20px);
+  }
 }

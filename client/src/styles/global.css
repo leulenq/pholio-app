@@ -62,6 +62,16 @@ body {
   line-height: 1.6;
 }
 
+/* Backstop against whole-app horizontal side-scroll on mobile: any child
+   page that ships a fixed-width or 100vw element shouldn't be able to pan
+   the entire viewport sideways. Root cause fixes still belong in the page. */
+@media (max-width: 700px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+}
+
 /* ─── 4. Links ───────────────────────────────────────────────────────────────
    Strip link chrome globally; individual components re-apply decoration where
    needed (underlined body copy, gold nav links, etc.).

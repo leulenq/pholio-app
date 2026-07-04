@@ -1,3 +1,38 @@
+# Claude Configuration Audit & Build Plan — 2026-07-04
+
+## Audit findings
+
+- [x] Inventory current Claude-facing files: `CLAUDE.md`, mirrored `AGENTS.md`, root `DESIGN.md`, domain `DESIGN.md` files, `.claude/settings.json`, and project skills.
+- [x] Identify primary quality risk: `CLAUDE.md` / `AGENTS.md` are high-value but oversized and duplicate long architecture/design detail that should move into skills or linked docs.
+- [x] Identify current strength: Pholio already has strong design-system artifacts and domain skills (`impeccable`, `industry`) that can become the backbone of Claude's higher-quality UI and industry output.
+- [x] Identify current gap: `.claude/settings.json` only disables attribution; it does not yet encode safe command permissions, secret-deny rules, hooks, or project defaults.
+- [x] Identify current gap: root `DESIGN.md` is agency-specific, while talent and onboarding design systems live deeper in the tree; `CLAUDE.md` does not clearly tell Claude which design file applies to which surface.
+- [x] Identify current gap: workflow instructions tell agents to plan and verify, but the verification matrix is not yet explicit by change type.
+- [x] Identify current gap: lessons are valuable but very long; the top-level memory should summarize durable rules and point to `tasks/lessons.md` for deeper history rather than loading all lessons into primary context.
+
+## Proposed staged build
+
+- [~] Stage 1 — Added high-signal routing/model guidance to `CLAUDE.md`; full slimming remains a later pass.
+- [x] Stage 2 — Re-synced `AGENTS.md` with the new root guidance while keeping agent-specific opening wording.
+- [x] Stage 3 — Added design routing for root, talent, agency, and onboarding design files.
+- [ ] Stage 4 — Expand `.claude/settings.json` with conservative safe-command allow rules and secret/read deny rules.
+- [ ] Stage 5 — Add reusable project skills or agent prompts for code review, UI/design-system review, and verification if we agree they are worth carrying in-repo.
+- [ ] Stage 6 — Add a compact verification matrix by change type: backend, frontend, UI, migrations, auth/payments, and docs-only.
+- [ ] Stage 7 — Add a review section documenting before/after line counts, changed files, and validation.
+
+## Decisions needed before implementation
+
+- [ ] Confirm whether to optimize for Claude Code only, or keep `CLAUDE.md` and `AGENTS.md` tightly mirrored for both Claude and Codex.
+- [ ] Confirm whether team-shared `.claude/settings.json` should include command allowlists/denylists now, or stay attribution-only until tested in a Claude Code session.
+- [ ] Confirm whether design guidance should remain in Markdown files, become a `design-system` skill, or both.
+
+## Review
+
+- Added separate dashboard Claude guides for talent and agency.
+- Split agency dashboard design guidance into `client/src/domains/agency/DESIGN.md`.
+- Converted root `DESIGN.md` into a design-system router with global banned AI-generated UI patterns.
+- Added root model-routing instructions for Haiku, Sonnet, Opus, and Fable-class work.
+
 # Intel Page — Ground-Up Build — 2026-07-03
 
 Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.

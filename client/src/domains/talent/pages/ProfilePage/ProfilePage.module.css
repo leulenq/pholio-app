@@ -2401,6 +2401,37 @@
     top: calc(var(--tl-topbar-h, 68px) + 8px);
     left: 12px;
   }
+
+  /* iOS zoom-on-focus fix: profile-scoped inputs render at 15px which is
+     under the 16px threshold that keeps Safari from zooming the viewport
+     on focus. Desktop keeps 15px (rule above, outside this query). */
+  .profileForms :global(.pholio-input),
+  .profileForms :global(.pholio-textarea),
+  .profileForms :global(.pholio-select),
+  .profileForms :global(.pholio-custom-select-trigger) {
+    font-size: 16px;
+  }
+
+  /* Field labels: bump off the 10px readability floor on mobile. */
+  .profileForms :global(.pholio-label) {
+    font-size: 11px;
+  }
+
+  /* Segmented controls (unit / shoe-region toggles) — 44px touch target. */
+  .toggleBtn {
+    padding: 10px 16px;
+    min-height: 44px;
+  }
+
+  /* Secondary booking-lane pills — 44px touch target. */
+  .bookingLaneMini {
+    min-height: 44px;
+    padding: 11px 16px;
+  }
+
+  .bookingLaneSecondaryGrid {
+    gap: 10px;
+  }
 }
 
 @media (max-width: 560px) {

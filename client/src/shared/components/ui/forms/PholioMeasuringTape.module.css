@@ -201,9 +201,20 @@
   .tick {
     flex: 0 0 8px;
   }
-  
+
   .value {
     font-size: 28px;
+  }
+
+  /* Touch has no hover/focus-within reveal, so the "tap to type" hint
+     must be visible by default rather than only on hover. */
+  .manualHint {
+    opacity: 0.6;
+  }
+
+  /* 24px-tall manual-entry input is under the 44px touch target min. */
+  .editInput {
+    height: 44px !important;
   }
 }
 
