@@ -12,6 +12,9 @@ const { sendNewMessageEmail } = require("../../../shared/lib/email");
 const {
   issueReplyTokenForApplication,
 } = require("../../messaging/services/message-reply-tokens");
+const {
+  notifyTalentNewMessage,
+} = require("../../../shared/services/notifications");
 const { getSessionActorUserId } = require("../services/context");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const logActivity = require("./agency-log-activity");
@@ -246,6 +249,29 @@ router.post(
         "Message sent to talent",
         { message_preview: message.trim().substring(0, 100) },
       );
+
+      // In-app talent notification (bell) — the counterpart to the email below,
+      // so the message surfaces inside Pholio even if the email is missed.
+      if (talentProfile?.user_id) {
+        try {
+          const agencyRow = await knex("agencies")
+            .where({ id: agencyId })
+            .select("name")
+            .first();
+          await notifyTalentNewMessage({
+            userId: talentProfile.user_id,
+            applicationId,
+            agencyId,
+            agencyName: agencyRow?.name || "An agency",
+            preview: message.trim(),
+          });
+        } catch (notifyErr) {
+          console.error(
+            "[Messages API] Talent notification failed:",
+            notifyErr,
+          );
+        }
+      }
 
       // Send email notification with magic reply link (async, non-blocking)
       (async () => {

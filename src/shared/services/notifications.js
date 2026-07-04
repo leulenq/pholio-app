@@ -10,6 +10,7 @@ const NOTIFICATION_TYPES = {
   APPLICATION_SUBMITTED: "application_submitted",
   APPLICATION_STATUS: "application_status",
   INTERVIEW_SCHEDULED: "interview_scheduled",
+  MESSAGE_RECEIVED: "message_received",
   PROFILE_NOT_SUBMISSION_READY: "profile_not_submission_ready",
   CONFIRMATION: "confirmation",
 };
@@ -33,6 +34,34 @@ function parseMetadata(raw) {
 function serializeMetadata(metadata) {
   if (!metadata || typeof metadata !== "object") return null;
   return JSON.stringify(metadata);
+}
+
+/**
+ * Respect the talent's in-app notification preferences for the two opt-out-able
+ * categories. Defaults are ON, so a missing/failed lookup never suppresses.
+ * Time-sensitive categories (messages, interviews) are intentionally not gated
+ * here — a booker reaching out or a scheduled interview always reaches the bell.
+ *
+ * @param {string} userId
+ * @param {"profileViews"|"applicationUpdates"} prefKey
+ * @returns {Promise<boolean>}
+ */
+async function talentNotificationPrefEnabled(userId, prefKey) {
+  if (!userId || !prefKey) return true;
+  try {
+    if (!(await knex.schema.hasTable("talent_user_settings"))) return true;
+    const row = await knex("talent_user_settings")
+      .where({ user_id: userId })
+      .select("notification_preferences")
+      .first();
+    if (!row) return true;
+    const prefs = parseMetadata(row.notification_preferences);
+    // Only an explicit `false` opts out; any other value keeps the default ON.
+    return prefs?.[prefKey] !== false;
+  } catch (err) {
+    console.error("[Notifications] Preference lookup failed:", err);
+    return true;
+  }
 }
 
 function getTimeAgo(date) {
@@ -310,6 +339,9 @@ async function notifyTalentApplicationStatusChange({
   status,
 }) {
   if (!NOTIFY_STATUSES.has(status)) return null;
+  if (!(await talentNotificationPrefEnabled(userId, "applicationUpdates"))) {
+    return null;
+  }
 
   const copy = applicationStatusCopy(status, agencyName);
   return upsertUserNotification({
@@ -336,6 +368,9 @@ async function notifyTalentApplicationStatusChange({
 }
 
 async function notifyTalentAgencyProfileView({ userId, agencyId, agencyName }) {
+  if (!(await talentNotificationPrefEnabled(userId, "profileViews"))) {
+    return null;
+  }
   const name = agencyName || "An agency";
   const notificationId = await upsertUserNotification({
     userId,
@@ -403,6 +438,56 @@ async function notifyTalentProfileNotSubmissionReady({
   });
 }
 
+/**
+ * A booker sent the talent a message. This is the highest-signal inbound event
+ * in the talent workflow, so it always reaches the bell (email is sent
+ * separately). Grouped per thread so a burst of replies reads as one live
+ * conversation and re-opens as unread on each new message.
+ */
+async function notifyTalentNewMessage({
+  userId,
+  applicationId,
+  agencyId,
+  agencyName,
+  preview = "",
+}) {
+  if (!userId || !applicationId) return null;
+  const name = agencyName || "An agency";
+  const trimmedPreview =
+    typeof preview === "string" && preview.trim()
+      ? preview.trim().slice(0, 140)
+      : "Open the conversation to read it.";
+
+  return upsertUserNotification({
+    userId,
+    type: NOTIFICATION_TYPES.MESSAGE_RECEIVED,
+    title: `${name} sent you a message`,
+    body: trimmedPreview,
+    routeTarget: `/dashboard/talent/messages?thread=${applicationId}`,
+    priority: PRIORITIES.HIGH,
+    groupKey: `message:${applicationId}`,
+    sourceType: "application",
+    sourceId: applicationId,
+    metadata: { agencyId, agencyName: name, applicationId },
+    reopenOnRepeat: true,
+  });
+}
+
+/**
+ * Clear the grouped message notification for a thread once the talent opens it,
+ * keeping the bell's unread count in step with the read conversation.
+ */
+async function markMessageNotificationsReadForApplication(userId, applicationId) {
+  if (!userId || !applicationId) return;
+  await knex("notifications")
+    .where({
+      user_id: userId,
+      group_key: `message:${applicationId}`,
+    })
+    .whereNull("read_at")
+    .update({ read_at: knex.fn.now(), updated_at: knex.fn.now() });
+}
+
 async function notifyTalentConfirmation({
   userId,
   title,
@@ -440,8 +525,11 @@ module.exports = {
   notifyTalentApplicationStatusChange,
   notifyTalentAgencyProfileView,
   refreshAgencyViewNotificationTitle,
+  notifyTalentNewMessage,
+  markMessageNotificationsReadForApplication,
   notifyTalentProfileNotSubmissionReady,
   notifyTalentConfirmation,
+  talentNotificationPrefEnabled,
   formatNotificationRow,
   getTimeAgo,
 };

@@ -15,6 +15,20 @@ import ProfileUnlockExperience from '../../domains/onboarding/components/Profile
 import ProfileGateBanner from '../components/gating/ProfileGateBanner';
 import LegalAcceptanceGate from '../components/LegalAcceptanceGate';
 
+// Persist the one-shot "celebration seen" marker durably. A single fire-and-
+// forget POST is too fragile for a once-ever guarantee, so retry with backoff.
+async function persistUnlockCelebrated(retries = 3) {
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      await talentApi.markUnlockCelebrated();
+      return;
+    } catch {
+      if (attempt === retries) return;
+      await new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 500));
+    }
+  }
+}
+
 export default function DashboardLayoutShell() {
   const { profile, images, isLoading, isError, error } = useAuth();
   const location = useLocation();
@@ -38,6 +52,17 @@ export default function DashboardLayoutShell() {
       if (isLoading || !profile?.id || isBlocked) return;
       if (!location.pathname.startsWith('/dashboard/talent')) return;
       if (hasCelebratedThisSession || profile.unlock_celebrated_at) return;
+
+      // Never run the celebration over the legal-acceptance scrim. If updated
+      // Terms/Privacy are pending, defer the walkthrough until consent is
+      // recorded; fail safe (defer) if legal status can't be determined.
+      try {
+        const legal = await talentApi.getLegalStatus({ skipRedirect: true });
+        if (cancelled) return;
+        if (legal?.needsAcceptance) return;
+      } catch {
+        return;
+      }
 
       try {
         const context = await talentApi.getApplicationPromptContext();
@@ -64,7 +89,11 @@ export default function DashboardLayoutShell() {
   const dismissPrompt = () => {
     setIsPromptOpen(false);
     setHasCelebratedThisSession(true);
-    talentApi.markUnlockCelebrated().catch(() => {});
+    // The "only once per talent" guarantee lives in durable server metadata, so
+    // this write must actually land. Retry with backoff rather than dropping it
+    // on the first transient failure (which would replay the celebration next
+    // session). The session guard above still prevents any mid-session reopen.
+    persistUnlockCelebrated();
   };
 
   // If API says onboarding is required, redirect to casting flow

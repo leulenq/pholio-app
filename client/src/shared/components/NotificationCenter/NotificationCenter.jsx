@@ -15,6 +15,7 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
     queryKey: TALENT_NOTIFICATIONS_QUERY_KEY,
     queryFn: () => talentApi.getNotifications(),
     refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 
   const notifications = data?.notifications ?? [];
@@ -75,6 +76,7 @@ export function useNotificationUnreadCount() {
     queryKey: TALENT_NOTIFICATIONS_QUERY_KEY,
     queryFn: () => talentApi.getNotifications(),
     refetchInterval: 30000,
+    refetchOnWindowFocus: true,
     staleTime: 15000,
     select: (payload) => payload?.unreadCount ?? 0,
   });
