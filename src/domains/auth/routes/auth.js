@@ -36,6 +36,7 @@ const {
   getIPGeolocation,
   createVerifiedLocationIntel,
 } = require("../../../shared/lib/geolocation");
+const { sendPasswordResetViaSmtp } = require("../services/email-verification");
 
 const router = express.Router();
 
@@ -66,6 +67,36 @@ function safeNext(input) {
   if (input.startsWith("//")) return null;
   return input;
 }
+
+
+// POST /api/auth/password-reset — deliver Firebase password-reset action links
+// through Pholio SMTP instead of Firebase's stock email sender. Always returns
+// success for syntactically valid email so account existence is not exposed.
+router.post("/api/auth/password-reset", async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: "INVALID_EMAIL",
+        message: "Enter a valid email address.",
+      });
+    }
+
+    const user = await knex("users").whereRaw("LOWER(email) = ?", [email]).first();
+    if (user?.email) {
+      await sendPasswordResetViaSmtp({
+        email: user.email,
+        firstName: user.first_name,
+      });
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("[Password Reset] SMTP reset email failed:", error.message);
+    return next(error);
+  }
+});
 
 // GET /login
 router.get("/login", async (req, res) => {
