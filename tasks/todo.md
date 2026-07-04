@@ -2480,3 +2480,17 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
   that disposable copy.
 - Live browser automation remained unavailable, and no write was made to Mia's real profile during
   verification. The user must retry Save once with the rebuilt client to replace the old stored bio.
+
+# Talent Settings Rebuild Plan — 2026-07-04
+
+- [x] Research Pholio talent workflow settings needs from code and industry references.
+- [x] Research general settings page IA patterns and map only necessary categories.
+- [x] Replace the current talent settings page from scratch with a premium, Pholio-aligned surface.
+- [x] Verify lint/build and document review findings.
+
+## Review
+
+- Rebuilt the talent settings page around necessary settings only: identity/contact, portfolio visibility, submissions, Studio+, security, privacy/data, and account control.
+- Preserved existing settings API contracts and removed filler display/status treatments from the old surface.
+- `npm run client:build` passes after installing client dependencies with `--legacy-peer-deps`.
+- `cd client && npm run lint` still fails on pre-existing repository lint errors outside this change; the new settings file had one lint issue during the run and it was fixed after the run.
