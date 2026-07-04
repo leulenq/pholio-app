@@ -1,0 +1,144 @@
+/* Mobile bottom tab bar — talent shell's primary navigation on phones.
+   Mirrors the desktop .tl-topnav's items, lock behaviour, and active routing.
+   Hidden entirely above 700px; desktop keeps the centered top strip. */
+
+.tl-tabbar {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .tl-tabbar {
+    display: block;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    height: var(--tl-tabbar-h, 64px);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: rgba(5, 5, 5, 0.97);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.28);
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .tl-root--tone-light .tl-tabbar {
+    background: rgba(250, 247, 242, 0.97);
+    border-top-color: rgba(26, 26, 26, 0.08);
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.06);
+  }
+
+  .tl-tabbar-list {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tl-tabbar-item {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .tl-tabbar-link {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 4px;
+    color: rgba(245, 240, 232, 0.42);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .tl-root--tone-light .tl-tabbar-link {
+    color: rgba(26, 26, 26, 0.4);
+  }
+
+  .tl-tabbar-link:active {
+    color: rgba(245, 240, 232, 0.68);
+  }
+
+  .tl-root--tone-light .tl-tabbar-link:active {
+    color: rgba(26, 26, 26, 0.62);
+  }
+
+  .tl-tabbar-link--active {
+    color: var(--tl-gold, #c9a55a);
+  }
+
+  .tl-tabbar-link--active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 18px;
+    height: 2px;
+    border-radius: 0 0 2px 2px;
+    background: var(--tl-gold, #c9a55a);
+    transform: translateX(-50%);
+  }
+
+  .tl-tabbar-link--locked {
+    color: rgba(245, 240, 232, 0.24);
+    cursor: not-allowed;
+  }
+
+  .tl-root--tone-light .tl-tabbar-link--locked {
+    color: rgba(26, 26, 26, 0.28);
+  }
+
+  .tl-tabbar-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .tl-tabbar-link--active .tl-tabbar-icon {
+    transform: translateY(-1px) scale(1.04);
+  }
+
+  .tl-tabbar-lock {
+    position: absolute;
+    right: -4px;
+    bottom: -2px;
+    padding: 1px;
+    color: rgba(201, 165, 90, 0.85);
+    background: rgba(5, 5, 5, 0.97);
+    border-radius: 50%;
+  }
+
+  .tl-root--tone-light .tl-tabbar-lock {
+    background: rgba(250, 247, 242, 0.97);
+  }
+
+  .tl-tabbar-label {
+    max-width: 100%;
+    overflow: hidden;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-tabbar,
+  .tl-tabbar-link,
+  .tl-tabbar-icon {
+    transition: none;
+  }
+}

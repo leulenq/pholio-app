@@ -579,8 +579,18 @@ select.fe-input {
 /* ── Responsive ── */
 @media (max-width: 720px) {
   .fe-overlay { padding: 0; align-items: flex-end; }
-  .fe-shell   { max-width: 100%; max-height: 95vh; border-radius: 14px 14px 0 0; }
+  /* Dynamic viewport height so the sheet resizes above the software keyboard. */
+  .fe-shell   { max-width: 100%; max-height: 100dvh; border-radius: 14px 14px 0 0; }
   .fe-body    { flex-direction: column; }
   .fe-stage   { min-height: 240px; max-height: 38vh; }
+  /* Crop needs a taller canvas for precise pinch/drag framing of a 2:3 portrait. */
+  .fe-stage:has(.fe-stage__crop) { max-height: 52vh; }
   .fe-panel   { width: 100%; border-left: none; border-top: 1px solid var(--fe-border); }
+  /* iOS Safari zooms the viewport when a focused input is < 16px. */
+  .fe-input   { font-size: 16px; }
+  /* Keep Save reachable above the keyboard / home indicator; allow buttons to wrap. */
+  .fe-foot    {
+    flex-wrap: wrap;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
 }

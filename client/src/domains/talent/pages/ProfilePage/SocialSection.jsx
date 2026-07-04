@@ -240,6 +240,10 @@ const PlatformCard = ({ platformKey, control, setValue, errors, watch, reloadPro
                    control={control}
                    setValue={setValue}
                    error={errors[p.id]}
+                   inputMode="url"
+                   autoCapitalize="none"
+                   autoCorrect="off"
+                   spellCheck={false}
                  />
 
                  {p.isOAuth && (

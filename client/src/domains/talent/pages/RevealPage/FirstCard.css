@@ -225,3 +225,12 @@
     opacity: 0.8;
   }
 }
+
+/* The single progression control of the reveal deserves a proper 44px target
+   on touch — it's the moment that carries the user into the app. */
+@media (max-width: 640px) {
+  .fc-cta {
+    min-height: 44px;
+    padding: 0.6rem 0.9rem;
+  }
+}

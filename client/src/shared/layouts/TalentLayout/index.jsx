@@ -12,6 +12,7 @@ import NotificationCenter, {
 import PholioButton, {
   PholioIconButton,
 } from '../../components/ui/PholioButton';
+import MobileTabBar from './MobileTabBar';
 import '../../components/NotificationCenter/NotificationCenter.css';
 import './TalentLayout.css';
 
@@ -279,6 +280,8 @@ export default function TalentLayout({ outletContext = {}, children }) {
         )}
         {children || <Outlet context={outletContext} />}
       </main>
+
+      <MobileTabBar isBlocked={outletContext?.isBlocked} />
     </div>
   );
 }

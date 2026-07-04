@@ -27,6 +27,37 @@
     padding: 24px 20px 40px;
     border-top: 1px solid rgba(26, 26, 26, 0.08);
   }
+
+  /* The sidebar (and its Save button) becomes the last static DOM node on
+     mobile, buried below the entire form. Pin the save bar to the bottom
+     of the viewport instead so it stays reachable while scrolling.
+     Fixed (not sticky) is used deliberately: .card has overflow:hidden
+     without a scroll mechanism of its own, so a sticky child would never
+     find a scrolling container to stick within. .card has no transform,
+     so it doesn't create a containing block that would clip a fixed
+     descendant. Desktop's in-sidebar save (outside this query) is
+     untouched. */
+  .saveContainer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    /* Sit above the shell's fixed mobile tab bar. --tl-tabbar-h is set on
+       .tl-root at <=700px; the 0px fallback collapses this offset at widths
+       (700-768px) where no tab bar renders, so the bar drops to the edge. */
+    bottom: calc(var(--tl-tabbar-h, 0px) + env(safe-area-inset-bottom));
+    z-index: 60;
+    margin-top: 0;
+    padding: 12px 20px;
+    border-top: 1px solid rgba(26, 24, 21, 0.08);
+    background: #FFFFFF;
+    box-shadow: 0 -8px 24px rgba(26, 24, 21, 0.08);
+  }
+
+  /* Reserve room at the bottom of the scroll flow so the fixed bar never
+     overlaps the last bit of sidebar content (audit panel / gap list). */
+  .card {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
 }
 
 .card {
