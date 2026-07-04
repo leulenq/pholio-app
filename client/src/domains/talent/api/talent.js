@@ -73,6 +73,14 @@ export const talentApi = {
   getAnalytics: (days) => apiClient.get(`/analytics${days ? `?days=${days}` : ''}`),
   getActivity: () => apiClient.get('/activity'),
 
+  // Intel — the composed intelligence hub (tasks/intel-page-spec.md)
+  getIntel: (days) => apiClient.get(`/intel${days ? `?days=${days}` : ''}`),
+  getIntelDay: (date) => apiClient.get(`/intel/day/${encodeURIComponent(date)}`),
+  getShareTokens: () => apiClient.get('/intel/share-tokens'),
+  createShareToken: (body) => apiClient.post('/intel/share-tokens', body),
+  revokeShareToken: (id) =>
+    apiClient.delete(`/intel/share-tokens/${encodeURIComponent(id)}`),
+
   // Notifications (high-signal bell center)
   getNotifications: (options = {}) => {
     const limit = options.limit ? `?limit=${options.limit}` : '';
