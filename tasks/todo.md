@@ -55,21 +55,56 @@ Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.
 - [x] Mount router; tests
 
 ## Phase 3 — Frontend instruments
-- [ ] `useIntel` hook + API method; IntelPage route + nav entry
-- [ ] Zone 1 Pulse (headline, Signal Spectrum, In Motion ticker, materials verdict, period control)
-- [ ] Zone 2 Seismograph (layered scrubbable field) + Rhythm Field (7×24 grid)
-- [ ] Zone 3 Market Board (ranked ledger; arc map deferred)
-- [ ] Zone 4 Pipeline flow + Stage Clock + kept-on-file framing
-- [ ] Zone 5 The Book, Ranked (calibrating until image attention accrues)
-- [ ] Zone 6 Agency Lens (Currency Rings, range read, Next Moves)
-- [ ] Zone 7 Trajectory (momentum line; benchmark band "calibrating")
-- [ ] Designed calibrating/low-data states everywhere; small-n honesty
+- [x] `useIntel` hook + API method; IntelPage route + nav entry
+- [x] Zone 1 Pulse (headline, Signal Spectrum, In Motion ticker, materials verdict, period control)
+- [x] Zone 2 Seismograph (layered scrubbable field) + Rhythm Field (7×24 grid)
+- [x] Zone 3 Market Board (ranked ledger; arc map deferred)
+- [x] Zone 4 Pipeline flow + Stage Clock + kept-on-file framing
+- [x] Zone 5 The Book, Ranked (calibrating until image attention accrues)
+- [x] Zone 6 Agency Lens (Currency Rings, range read, Next Moves)
+- [x] Zone 7 Trajectory (momentum line; benchmark band "calibrating")
+- [x] Designed calibrating/low-data states everywhere; small-n honesty
 
 ## Phase 4 — deferred by spec
 - Benchmark cohort aggregation (population-gated), arc map, forward detection
 
 ## Review
-(to be filled at end)
+
+- **Capture v2 shipped**: `profile_events` records every attention event with a
+  resolved viewer class (agency/client/public; self never written) and a
+  market-only geo slug (raw IP/city never persisted). Per-recipient
+  `share_tokens` track opens and re-opens; the public portfolio now runs an
+  image beacon (impressions, opens, dwell via sendBeacon); comp-card pulls,
+  card short-link taps, and agency discovery impressions/opens all flow in.
+- **Intel backend shipped**: one composed `GET /api/talent/intel` (pulse,
+  spectrum, seismograph, rhythm, markets, sources, pipeline + stage clock,
+  book, lens, trajectory) + Studio+ scrub detail `GET /intel/day/:date` +
+  share-token CRUD. Free tier clamps to 7 days and omits Studio+ zones
+  (never blurred fakes). Minors receive materials + submission states only.
+  Legacy `/insights`, `/cohorts`, and `engagement.score` are gone.
+- **Frontend shipped**: `IntelPage` replaces `AnalyticsPage` at
+  `/dashboard/talent/analytics` (nav already read "Intel"). All seven zones
+  are bespoke hand-drawn SVG instruments with house spring physics, draw-on
+  entrances, count-up numerals, scrub micro-ledger, depleting Currency
+  Rings, and designed calibrating states. Old analytics page, CohortHeatmap,
+  SessionsBarChart deleted; `useAnalytics` trimmed of killed endpoints
+  (Overview consumers untouched).
+- **Deviation (documented)**: v1 aggregates at read time instead of a nightly
+  rollup job — per-profile volumes are small and there is no in-repo cron
+  infra; the payload shape lets a rollup slot in behind `services/intel/`
+  without touching the route. Benchmarks render as "calibrating" until a
+  population-gated cohort job exists (spec phase 4).
+- **Repairs made en route**: two pending migrations were PG-only
+  (`information_schema`) and blocked SQLite; seeds still wrote the renamed
+  `booked` status and never stamped legal acceptance; `views/portfolio-pro.ejs`
+  was missing entirely (every Studio+ public portfolio 500'd).
+- **Verification**: `tests/talent/intel.test.js` — 16/16 green (composed
+  payload, tier clamp, privacy micro-ledger, capture integrity incl.
+  self-exclusion and share-token client classification, legacy kills).
+  Focused ESLint clean; `npm run client:build` passes (existing large-chunk
+  warning). Rendered browser QA unavailable in this environment (Chromium
+  cannot reach the host loopback) — same limitation as prior sessions.
+
 
 # Divider-Free Section Spacing — 2026-07-02
 
@@ -2459,19 +2494,3 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 - Preserved existing settings API contracts and removed filler display/status treatments from the old surface.
 - `npm run client:build` passes after installing client dependencies with `--legacy-peer-deps`.
 - `cd client && npm run lint` still fails on pre-existing repository lint errors outside this change; the new settings file had one lint issue during the run and it was fixed after the run.
-
-# Talent Settings Corrective Pass — 2026-07-04
-
-- [x] Audit comp card ownership and remove settings-page controls that duplicate `/media` or comp-card generation ownership.
-- [x] Verify necessary settings IA: account, privacy, security, notifications, legal/compliance, billing, and talent-facing visibility controls only.
-- [x] Correct textbox/input styling against the Talent Studio pressed-paper input language and profile tab references.
-- [x] Optimize desktop and mobile layouts, then capture a clean desktop screenshot.
-- [x] Record lessons to prevent future textbox/design-system drift.
-
-## Review
-
-- Removed comp card default controls from Settings because comp card image/layout decisions belong to Media and generation flows, not account settings.
-- Reframed Submissions into Notifications and added Legal & compliance as a separate section for consent, minor exposure, and safety reporting.
-- Updated settings textboxes to match the Profile tab white hairline field treatment and corrected the shared form comments that implied decorative inset fields as a universal dashboard rule.
-- Improved mobile navigation with horizontal snap sections and simplified stacked controls for small screens.
-- Verification: focused settings ESLint and production client build passed; screenshot capture was superseded by the follow-up push request before a screenshot artifact was produced.
