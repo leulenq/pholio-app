@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { purgeApplyDraftStorage } from '../ApplyPage/applicationDraftStorage';
+import { auth } from '../../../../shared/lib/firebase';
 import { isMinorProfile, minorPublicExposureAllowed } from '../../../../shared/utils/talentAge';
 import ReportDialog from '../../../../shared/components/ReportDialog';
 import { SubscriptionCheckoutModal } from '../../../../shared/components/SubscriptionCheckoutDisclosure';
@@ -349,7 +350,6 @@ function SubmissionsSection() {
 
   const saveNotifications = (next) => mutation.mutate({ notifications: { ...notifications, ...next } });
   const saveDisplay = (next) => mutation.mutate({ display: { ...display, ...next } });
-
   return (
     <div className="talent-settings-stack">
       <SectionPanel title="Submission communication" intro="Keep the agency workflow visible without flooding your inbox.">
@@ -441,20 +441,7 @@ function SecuritySection() {
   const resetPassword = async () => {
     if (!profile?.email) return;
     setSending(true);
-    try {
-      const response = await fetch('/api/auth/password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: profile.email }),
-      });
-      if (!response.ok) throw new Error('Unable to send password reset');
-      toast.success(`Password reset sent to ${profile.email}`);
-    } catch {
-      toast.error('Unable to send password reset');
-    } finally {
-      setSending(false);
-    }
+    try { await sendPasswordResetEmail(auth, profile.email); toast.success(`Password reset sent to ${profile.email}`); } catch { toast.error('Unable to send password reset'); } finally { setSending(false); }
   };
 
   return (
