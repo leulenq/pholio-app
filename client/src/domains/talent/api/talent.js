@@ -73,6 +73,10 @@ export const talentApi = {
   getAnalytics: (days) => apiClient.get(`/analytics${days ? `?days=${days}` : ''}`),
   getActivity: () => apiClient.get('/activity'),
 
+  // Intel (talent intelligence hub — composed payload + per-day scrub detail)
+  getIntel: (days) => apiClient.get(`/intel${days ? `?days=${days}` : ''}`),
+  getIntelDay: (date) => apiClient.get(`/intel/day/${date}`),
+
   // Notifications (high-signal bell center)
   getNotifications: (options = {}) => {
     const limit = options.limit ? `?limit=${options.limit}` : '';
@@ -85,8 +89,6 @@ export const talentApi = {
   getSummary: () => apiClient.get('/summary'),
   getTimeseries: (days = 30) => apiClient.get(`/timeseries?days=${days}`),
   getSessions: (days = 30) => apiClient.get(`/sessions?days=${days}`),
-  getCohorts: () => apiClient.get('/cohorts'),
-  getInsights: () => apiClient.get('/insights'),
 
   // Applications
   getApplications: () => apiClient.get('/applications'),
