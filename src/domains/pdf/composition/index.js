@@ -471,9 +471,19 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
               ? opts.matteById.get(plan.front.imageId)
               : opts.matteById[plan.front.imageId]) || null
           : null;
+      const heroPoolEntry =
+        plan.front && plan.front.imageId && Array.isArray(poolAnalysis?.pool)
+          ? poolAnalysis.pool.find((p) => p.id === plan.front.imageId) || null
+          : null;
       const front = designFrontProgram(
         {
-          heroAspect: null,
+          // raw image aspect + the cover crop the renderer will apply — the
+          // sampler maps all on-photo verification into the visible window
+          heroAspect:
+            (heroForensics && Number(heroForensics.aspect)) ||
+            (heroPoolEntry && Number(heroPoolEntry.aspect)) ||
+            null,
+          heroCrop: plan.front?.crop || null,
           heroForensics,
           matteGrid: matteGrid && matteGrid.maskGrid ? matteGrid.maskGrid : matteGrid,
           palette: plan.palette,
@@ -482,6 +492,8 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
             `${profileRow.first_name || ""} ${profileRow.last_name || ""}`.trim() || "Untitled",
           nameMetrics: {
             advanceEm: plan.language?.name?.glyphEm || 0.6,
+            advanceLongestEm: plan.language?.name?.glyphEmLongest || null,
+            measured: Boolean(plan.language?.name?.glyphMeasured),
             trackingEm: plan.language?.name?.trackingEm,
           },
           contactLine: plan.back?.contact?.line || null,
@@ -491,6 +503,8 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
         {
           seed: opts.seed,
           candidates: 5,
+          // named-directions seam: pin the field structure for this compose
+          forceStructure: opts.forceStructure || null,
           // P4 jury wiring: `frontCandidateIndex` forces a specific
           // candidate (the rasterizer renders each; the jury picks the
           // winner, then the final card re-renders with that index).
@@ -549,6 +563,43 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
       console.warn(`[composition] front program failed (${error.message}) — legacy front`);
       plan.frontProgram = null;
     }
+  }
+
+  // Rendered-name-integrity tripwire (audit P0-1): with measured glyph
+  // metrics the program's name must fit the rect the search verified — a
+  // violation is an engine regression, caught here instead of shipping.
+  // The renderer's fit guard additionally self-heals at draw time, so this
+  // surfaces as a warning (telemetry + test tripwire), not a user blocker.
+  try {
+    const nameEl = plan.frontProgram?.elements?.find((e) => e.type === "name");
+    const lang = plan.language?.name;
+    if (nameEl && lang && nameEl.orientation === "horizontal") {
+      const { nameAdvanceEm } = require("./perception/font-files");
+      const lines = nameEl.stacked && String(lang.text).includes(" ")
+        ? [String(lang.text).split(/\s+/)[0], String(lang.text).split(/\s+/).slice(1).join(" ")]
+        : [String(lang.text)];
+      const longest = lines.reduce((a, b) => (b.length > a.length ? b : a), "");
+      const { advanceEm: adv } = nameAdvanceEm({
+        family: plan.typography?.display,
+        weight: lang.weightClass,
+        text: longest,
+        nameCase: lang.case,
+      });
+      const widthIn = longest.length * (adv + (nameEl.trackingEm || 0)) * (nameEl.sizePt / 72);
+      if (widthIn > nameEl.rect.w * 1.02 + 0.02) {
+        const checks = [
+          ...guardrailReport.checks,
+          {
+            id: "rendered-name-integrity",
+            level: "warn",
+            message: `Front name measures ${widthIn.toFixed(2)}in against a ${nameEl.rect.w.toFixed(2)}in rect — renderer fit guard will shrink it; the composer should not have produced this.`,
+          },
+        ];
+        Object.assign(guardrailReport, summarizeChecks(checks), { checks });
+      }
+    }
+  } catch {
+    /* tripwire only — never block composition */
   }
 
   return { plan, statsBlock, poolAnalysis, guardrailReport, brief, advice: brief };

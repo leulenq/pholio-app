@@ -417,6 +417,7 @@ async function forensicsForImages(images, options = {}) {
 module.exports = {
   measureImage,
   forensicsForImages,
+  buildQuiet, // recompute per-edge quietness for a transformed grid (crop-space.js)
   FORENSICS_VERSION,
   GRID_ROWS,
   GRID_COLS,

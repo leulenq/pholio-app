@@ -13,10 +13,16 @@ const {
   calculateProfileCompleteness,
 } = require("../domains/talent/services/completeness");
 
-// Initialize Groq client
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+// Groq client is lazy-initialized: constructing it at module load crashes
+// the whole app at boot when GROQ_API_KEY is unset (the SDK throws), even
+// though only the chat endpoints need it.
+let groqClient = null;
+function getGroq() {
+  if (!groqClient) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groqClient;
+}
 
 /**
  * Maverick System Prompt - Token-Optimized 8-Stage State Machine
@@ -226,7 +232,7 @@ router.post(
       ];
 
       // Call Groq API (text model — configurable via GROQ_TEXT_MODEL)
-      const completion = await groq.chat.completions.create({
+      const completion = await getGroq().chat.completions.create({
         messages: messages,
         model: config.groq.textModel,
         temperature: 1,
@@ -385,7 +391,7 @@ Respond in JSON:
   "isUnicorn": true/false
 }`;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await getGroq().chat.completions.create({
       messages: [
         { role: "system", content: librarianPrompt },
         { role: "user", content: "Synthesize the onboarding data." },

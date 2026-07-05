@@ -38,6 +38,7 @@ const {
   advanceEm,
   resolveWeight,
 } = require("./font-library");
+const { nameAdvanceEm } = require("./perception/font-files");
 
 const TYPE_RATIOS = [1.2, 1.25, 1.333, 1.414, 1.5, 1.618];
 const PAPERS = { pure: "#FFFFFF", ivory: "#FFFEFA", warm: "#FAF8F5" };
@@ -407,7 +408,6 @@ function synthesizeDesignLanguage(input = {}) {
   decide("typography-voice", voiceId, voiceBecause);
   const display = voice.display;
   const nameCase = voice.nameCase;
-  const glyphEm = advanceEm(display, nameCase);
 
   const first = String(profile.first_name || "").trim();
   const last = String(profile.last_name || "").trim();
@@ -434,7 +434,34 @@ function synthesizeDesignLanguage(input = {}) {
   const rotation = tone.formality >= 0.6 && rng() < 0.08 ? -90 : 0;
   if (rotation !== 0) decide("name-rotation", "-90 (vertical spine)", "rare editorial treatment, formality-gated");
 
-  const name = { text, case: nameCase, weightClass, trackingEm, targetSpan, rotation, glyphEm };
+  // Real glyph metrics (audit P0-1): measure the exact string the renderer
+  // will draw, in the cast voice's family/weight/case, from the vendored
+  // font files. Falls back to the library's calibrated estimate.
+  const { advanceEm: glyphEm, measured: glyphMeasured } = nameAdvanceEm({
+    family: display,
+    weight: weightClass,
+    text,
+    nameCase,
+  });
+  // Stacked (two-line) treatments size from the longest segment, whose
+  // per-glyph average differs from the full string's (spaces are narrow) —
+  // measure it separately so stacked solves are exact too.
+  const longestPart = text.split(/\s+/).reduce((a, b) => (b.length > a.length ? b : a), "");
+  const { advanceEm: glyphEmLongest } = nameAdvanceEm({
+    family: display,
+    weight: weightClass,
+    text: longestPart,
+    nameCase,
+  });
+  decide(
+    "name-metrics",
+    glyphMeasured ? "measured" : "estimated",
+    glyphMeasured
+      ? "glyph advances measured from vendored font files (opentype)"
+      : "no vendored font file — calibrated per-family estimate",
+  );
+
+  const name = { text, case: nameCase, weightClass, trackingEm, targetSpan, rotation, glyphEm, glyphEmLongest, glyphMeasured };
   decide(
     "name-treatment",
     `${display} ${nameCase} w${weightClass} tracking ${trackingEm}em span ${targetSpan}`,

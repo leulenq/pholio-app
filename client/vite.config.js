@@ -76,6 +76,12 @@ export default defineConfig(({ command }) => ({
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false
+      },
+      // vendored comp card fonts (@font-face inside the /pdf/view preview iframe)
+      '/fonts': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
       }
     }
   }

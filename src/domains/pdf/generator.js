@@ -366,6 +366,32 @@ async function renderCompCard(slug, theme = null, opts = null) {
             });
           });
 
+          // Composed template only: wait for the rendered-geometry fit guard
+          // (name overflow self-heal) and log its report — the tripwire that
+          // keeps "name drowned into the photo" impossible at print time.
+          try {
+            const isComposed = await page.evaluate(
+              () => document.body?.dataset?.compcardEngine === "composed",
+            );
+            if (isComposed) {
+              await page.waitForFunction(
+                () => document.body.getAttribute("data-name-fit-done") === "1",
+                { timeout: 4000 },
+              );
+              const fitReport = await page.evaluate(() =>
+                document.body.getAttribute("data-name-fit"),
+              );
+              if (fitReport) {
+                console.log("[renderCompCard] name-fit report:", fitReport);
+              }
+            }
+          } catch (fitErr) {
+            console.warn(
+              "[renderCompCard] name-fit guard did not report:",
+              fitErr.message,
+            );
+          }
+
           // Verify page has content and is visible
           const pageInfo = await page.evaluate(() => {
             // Support both the new 2-page template (.comp-card-page) and the legacy template (.comp-card)

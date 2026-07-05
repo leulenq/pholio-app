@@ -602,13 +602,13 @@ function designComposition(input = {}) {
   //      line drives the size
   //   4. absolute floor 12pt (unreachable in practice after stacking)
   const glyphEm = language.name.glyphEm || (language.name.case === "upper" ? 0.58 : 0.52);
-  const sizeFor = (text, trackingEm) =>
+  const sizeFor = (text, trackingEm, glyph = glyphEm) =>
     solveNameSizePt({
       text,
       bandWidthIn: frontGeometry.nameBand.w,
       targetSpan: language.name.targetSpan,
       trackingEm,
-      glyphEm,
+      glyphEm: glyph,
       clamp: false,
     });
   let nameTrackingEm = language.name.trackingEm;
@@ -626,7 +626,7 @@ function designComposition(input = {}) {
       const secondLine = parts.slice(1).join(" ");
       nameLines = [firstLine, secondLine];
       const longest = nameLines.reduce((a, b) => (b.length > a.length ? b : a));
-      rawPt = sizeFor(longest, nameTrackingEm);
+      rawPt = sizeFor(longest, nameTrackingEm, language.name.glyphEmLongest || glyphEm);
       decide("name-fit", "stacked on two lines", "name cannot fit on one line at the minimum size");
     }
   }

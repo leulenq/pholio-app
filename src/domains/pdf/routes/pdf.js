@@ -887,6 +887,10 @@ async function renderComposedView(req, res, data, isDemo) {
     }
 
     res.locals.layout = false;
+    // Vendored fonts: same files the engine MEASURED with — the render is
+    // deterministic and CDN-independent. Null falls back to Google Fonts.
+    const { fontFaceCss } = require("../composition/perception/font-files");
+    const fontsCss = fontFaceCss([plan.typography.display, plan.typography.body]);
     // Render to a string first so any template error can still fall back to
     // the classic path (nothing has been written to the response yet).
     const html = await new Promise((resolve, reject) => {
@@ -902,6 +906,7 @@ async function renderComposedView(req, res, data, isDemo) {
           watermark: !profile.is_pro,
           baseUrl,
           printBleed,
+          fontsCss,
           frontProgram: plan.frontProgram || null,
         },
         (err, output) => (err ? reject(err) : resolve(output)),
