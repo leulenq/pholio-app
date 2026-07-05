@@ -67,13 +67,30 @@ curation, and product advantage. Executed in loop iterations on branch
 - [x] Live mix at typical energy: ~25% inset split, ~8% straddle, ~9% color
       block, ~58% classic registers — statement motifs, not new templates
 
+## Iteration 5 — Name choreography + dormant stack ✅
+
+- [x] Choreography menu: straddle v2 (edge-to-edge translucent), over
+      (on-photo hierarchical lockup), band (translucent strip), inset
+- [x] Studio mattes (sharp-only, clean-backdrop, honesty-gated) at render +
+      upload; alpha mattes take precedence when installed; cutout alpha-gated
+- [x] Jury default-on for downloads with a Groq key
+- [x] Downloads carry structure/board/preset/treatment end to end
+
+## Iteration 6 — Treatment control + hygiene ✅
+
+- [x] Talent-facing name-treatment chips (Pholio's choice / Classic /
+      Statement); ?treatment= pins persist on presets and ride downloads
+- [x] Uploader computes best available matte; width/height already persisted
+- [x] @imgly evaluation: not installable here (proxy 403 on sharp rebuild),
+      too heavy for serverless — optional dependency stands, studio matte
+      covers negative-space placement
+- [x] Back page reviewed against the new fronts — no changes needed
+
 ## Remaining queue
 
-- [ ] Light the dormant stack: subject mattes at upload → cutout direction;
-      vision jury on download/master renders (P1-4)
 - [ ] Post-render Puppeteer name-integrity loop on downloads
-- [ ] Digitals sheet + back-page treatments aligned with the new front range
-- [ ] Upload pipeline: persist image width/height metadata (guardrail noise)
+- [ ] Digitals sheet review against the new front range
+- [ ] Direction/treatment-aware preview takes in the dashboard (side-by-side)
 
 ## Review
 
