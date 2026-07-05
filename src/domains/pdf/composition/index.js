@@ -437,6 +437,9 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
     seed: opts.seed,
     brief,
     representation: opts.representation || null,
+    // Deterministic advice (e.g. board → tone register from the directions
+    // catalog); validated and clamped inside design-language/director.
+    advice: opts.advice || null,
     overrides: buildOverrides(opts),
   });
 
@@ -605,8 +608,13 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
   return { plan, statsBlock, poolAnalysis, guardrailReport, brief, advice: brief };
 }
 
+// Composition engine version, stamped onto frozen saved cards (P1-6). Bump
+// when a change would redesign existing seeds (geometry, scoring, grammar).
+const ENGINE_VERSION = "composed-v5.0";
+
 module.exports = {
   composeCompCard,
+  ENGINE_VERSION,
   // Exposed for tests:
   buildComposedGuardrailReport,
   buildPoolSummary,

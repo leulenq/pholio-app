@@ -16,10 +16,13 @@ import {
 import CompCardStatsNudge from './CompCardStatsNudge';
 import './CompCard.css';
 
-// Build the `/pdf/view` preview URL for a saved preset from its stored query
-// (seed + any locked hero/grid). Mirrors the server preset → query contract.
+// Build the `/pdf/view` preview URL for a saved preset. A frozen preset
+// (design captured at save time) renders by id — the stored plan is
+// authoritative and never silently redesigns. Older presets fall back to
+// their stored query (seed + locks + direction).
 function presetPreviewUrl(slug, preset) {
   if (!slug) return null;
+  if (preset?.frozen) return `/pdf/view/${slug}?preset=${encodeURIComponent(preset.id)}`;
   const q = preset?.query || (preset?.seed ? { seed: preset.seed } : {});
   const params = new URLSearchParams();
   if (q.seed) params.set('seed', q.seed);
@@ -27,7 +30,16 @@ function presetPreviewUrl(slug, preset) {
   if (q.styleVariant) params.set('styleVariant', q.styleVariant);
   if (q.lockHeroId) params.set('lockHeroId', q.lockHeroId);
   if (q.lockGridIds) params.set('lockGridIds', q.lockGridIds);
+  if (q.structure) params.set('structure', q.structure);
   return `/pdf/view/${slug}?${params.toString()}`;
+}
+
+// Same-origin image URL (uploads are proxied in dev).
+function imageUrl(img) {
+  const src = img?.public_url || img?.path || '';
+  if (!src) return null;
+  if (/^https?:\/\//i.test(src)) return src;
+  return src.startsWith('/') ? src : `/${src}`;
 }
 
 // The default (active) preset is the most-recently-used one — the server bumps
@@ -79,6 +91,40 @@ const SUGGESTIONS = [
   [/months old|under 6 months/i, 'Refresh your photos — casting directors expect images under six months old.'],
 ];
 
+// Blocking guardrail classes → accurate status + coaching copy. A talent
+// whose real blocker is photo rights must not be told "needs photos".
+const BLOCKING_COPY = [
+  [/rights/i, {
+    label: 'Rights check',
+    note: 'Confirm usage rights on your photos — the card can only carry photos cleared for distribution.',
+  }],
+  [/type-safety/i, {
+    label: 'Placement check',
+    note: 'We could not verify a safe placement for your name — try another direction or a different front photo.',
+  }],
+  [/crop/i, {
+    label: 'Crop check',
+    note: 'A photo cannot be cropped safely at card size — try a different front photo.',
+  }],
+  [/booking|contact/i, {
+    label: 'Contact needed',
+    note: 'Add contact details or representation so casters can reach you.',
+  }],
+];
+
+function blockingInfo(meta) {
+  const checks = meta?.guardrails?.blockingChecks || [];
+  for (const [pattern, info] of BLOCKING_COPY) {
+    if (checks.some((c) => pattern.test(String(c?.id || '')) || pattern.test(String(c?.message || '')))) {
+      return info;
+    }
+  }
+  if (checks.length > 0) {
+    return { label: 'Needs attention', note: checks[0]?.message || 'The card is blocked — review your photos and details.' };
+  }
+  return null;
+}
+
 function friendlySuggestions(meta) {
   if (!meta) return [];
   const raw = [
@@ -107,6 +153,14 @@ export default function CompCard({ images = [], profile }) {
   const [downloadError, setDownloadError] = React.useState(null);
   const [meta, setMeta] = React.useState(null);
 
+  // ── Art direction ──
+  // structure: a named direction pinned by the talent (null = Pholio's
+  // choice); lockHeroId: the front photo locked by the talent (null = the
+  // engine casts the strongest frame).
+  const [directions, setDirections] = React.useState([]);
+  const [structure, setStructure] = React.useState(null);
+  const [lockHeroId, setLockHeroId] = React.useState(null);
+
   // ── Saved-cards library (comp_card_presets) ──
   const [presets, setPresets] = React.useState([]);
   const [activePresetId, setActivePresetId] = React.useState(null);
@@ -120,6 +174,18 @@ export default function CompCard({ images = [], profile }) {
   const cardRef = React.useRef(null);
 
   React.useEffect(() => { if (slug) setSeed(`profile:${slug}`); }, [slug]);
+
+  // Named creative directions this profile can be composed in (engine
+  // catalog; e.g. the cutout direction only unlocks with a subject matte).
+  React.useEffect(() => {
+    if (!slug || minorGated) return undefined;
+    const controller = new AbortController();
+    fetch(`/pdf/view/${slug}?directions=1`, { credentials: 'include', signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (Array.isArray(data?.directions)) setDirections(data.directions); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [slug, minorGated]);
 
   const loadPresets = React.useCallback(async () => {
     if (!slug) return;
@@ -142,6 +208,8 @@ export default function CompCard({ images = [], profile }) {
     setLibBusyId(preset.id);
     setActivePresetId(preset.id);
     setSeed(preset.seed || `profile:${slug}`);
+    setStructure(preset.structure || null);
+    setLockHeroId(preset.lockHeroId || null);
     setSide('front');
     try {
       await talentApi.setDefaultCompCardPreset(slug, preset.id);
@@ -164,6 +232,8 @@ export default function CompCard({ images = [], profile }) {
         seed,
         board: saveBoard || undefined,
         market: saveMarket || undefined,
+        structure: structure || undefined,
+        lockHeroId: lockHeroId || undefined,
       });
       setSaveName('');
       setSaveBoard('');
@@ -207,7 +277,23 @@ export default function CompCard({ images = [], profile }) {
     return () => ro.disconnect();
   }, []);
 
-  const previewUrl = slug ? `/pdf/view/${slug}?seed=${encodeURIComponent(seed)}` : null;
+  // The composer preview: a frozen saved card renders by preset id (its
+  // stored design is authoritative); otherwise the live parameters — seed,
+  // pinned direction, locked front photo, and the board the design should
+  // respond to.
+  const activePreset = React.useMemo(
+    () => presets.find((p) => p.id === activePresetId) || null,
+    [presets, activePresetId],
+  );
+  const previewUrl = React.useMemo(() => {
+    if (!slug) return null;
+    if (activePreset?.frozen) return `/pdf/view/${slug}?preset=${encodeURIComponent(activePreset.id)}`;
+    const params = new URLSearchParams({ seed });
+    if (structure) params.set('structure', structure);
+    if (lockHeroId) params.set('lockHeroId', lockHeroId);
+    if (saveBoard) params.set('board', saveBoard);
+    return `/pdf/view/${slug}?${params.toString()}`;
+  }, [slug, activePreset, seed, structure, lockHeroId, saveBoard]);
   React.useEffect(() => { setFrontReady(false); }, [previewUrl]);
 
   // Design summary + refinement notes from the engine (deterministic meta).
@@ -222,16 +308,27 @@ export default function CompCard({ images = [], profile }) {
   }, [previewUrl]);
 
   const hasImages = (images || []).length > 0;
-  const blocked = minorGated || !slug || !hasImages || meta?.guardrails?.status === 'fail';
-  const suggestions = friendlySuggestions(meta);
-  const statusTone = minorGated ? 'blocked' : blocked ? 'blocked' : suggestions.length > 0 ? 'warning' : 'ready';
+  const guardrailFail = meta?.guardrails?.status === 'fail';
+  const blocked = minorGated || !slug || !hasImages || guardrailFail;
+  // Accurate blocking status: rights vs placement vs crops each get their
+  // own label and coaching note — "Needs photos" only when photos are the
+  // actual blocker.
+  const blocking = guardrailFail ? blockingInfo(meta) : null;
+  const suggestions = React.useMemo(() => {
+    const notes = friendlySuggestions(meta);
+    if (blocking?.note && !notes.includes(blocking.note)) return [blocking.note, ...notes].slice(0, 3);
+    return notes;
+  }, [meta, blocking]);
+  const statusTone = blocked ? 'blocked' : suggestions.length > 0 ? 'warning' : 'ready';
   const statusLabel = minorGated
     ? 'Consent required'
-    : blocked
+    : !slug || !hasImages
       ? 'Needs photos'
-      : suggestions.length > 0
-        ? `${suggestions.length} ${suggestions.length === 1 ? 'note' : 'notes'}`
-        : 'Ready';
+      : blocking
+        ? blocking.label
+        : suggestions.length > 0
+          ? `${suggestions.length} ${suggestions.length === 1 ? 'note' : 'notes'}`
+          : 'Ready';
 
   const voiceLabel = meta && VOICE_LABELS[meta.voice];
   const flipped = side === 'back';
@@ -364,17 +461,46 @@ export default function CompCard({ images = [], profile }) {
         <div className="cc-panel">
           <section className="cc-stage-block">
             <header className="cc-stage-head">
-              <h3 className="cc-stage-title">This design</h3>
+              <h3 className="cc-stage-title">Art direction</h3>
               <PholioButton type="button" variant="secondary"
                 onClick={() => { setSeed(nextSeed()); setActivePresetId(null); }}
-                disabled={!previewUrl} title="Compose another take of your card">
-                <RefreshCw size={13} aria-hidden="true" /> New direction
+                disabled={!previewUrl} title="Compose another take in this direction">
+                <RefreshCw size={13} aria-hidden="true" /> Another take
               </PholioButton>
             </header>
+            {directions.length > 0 && (
+              <div className="cc-directions" role="group" aria-label="Creative direction">
+                <PholioToggleButton
+                  type="button"
+                  active={!structure}
+                  aria-pressed={!structure}
+                  className={`cc-directions__chip ${!structure ? 'is-active' : ''}`}
+                  onClick={() => { setStructure(null); setActivePresetId(null); }}
+                  title="Let the engine choose the strongest direction for your photos"
+                >
+                  Pholio’s choice
+                </PholioToggleButton>
+                {directions.map((d) => (
+                  <PholioToggleButton
+                    key={d.id}
+                    type="button"
+                    active={structure === d.structure}
+                    aria-pressed={structure === d.structure}
+                    className={`cc-directions__chip ${structure === d.structure ? 'is-active' : ''}`}
+                    onClick={() => { setStructure(d.structure); setActivePresetId(null); }}
+                    title={d.description}
+                  >
+                    {d.label}
+                  </PholioToggleButton>
+                ))}
+              </div>
+            )}
             <p className="cc-stage-note">
-              {voiceLabel
-                ? <>Set in the <span className="cc-em">{voiceLabel}</span> voice, composed from your strongest frames. Every take is designed around your photographs, statistics, and market.</>
-                : 'Composed from your strongest frames — typography, layout, and crops are designed around your photographs, statistics, and market.'}
+              {meta?.direction?.label && voiceLabel
+                ? <>A <span className="cc-em">{meta.direction.label.toLowerCase()}</span> composition set in the <span className="cc-em">{voiceLabel}</span> voice. Each direction is a real layout language — “Another take” explores within it.</>
+                : voiceLabel
+                  ? <>Set in the <span className="cc-em">{voiceLabel}</span> voice, composed from your strongest frames. Every take is designed around your photographs, statistics, and market.</>
+                  : 'Composed from your strongest frames — typography, layout, and crops are designed around your photographs, statistics, and market.'}
             </p>
             {meta?.booking?.label && (
               <p className="cc-stage-note cc-stage-note--quiet">
@@ -383,6 +509,45 @@ export default function CompCard({ images = [], profile }) {
               </p>
             )}
           </section>
+
+          {!minorGated && hasImages && (
+            <section className="cc-stage-block">
+              <header className="cc-stage-head">
+                <h3 className="cc-stage-title">Front photo</h3>
+              </header>
+              <p className="cc-stage-note cc-stage-note--quiet">
+                Lock the frame the front is built around, or leave the casting to Pholio.
+              </p>
+              <div className="cc-hero__strip" role="group" aria-label="Front photo">
+                <PholioToggleButton
+                  type="button"
+                  active={!lockHeroId}
+                  aria-pressed={!lockHeroId}
+                  className={`cc-hero__auto ${!lockHeroId ? 'is-active' : ''}`}
+                  onClick={() => { setLockHeroId(null); setActivePresetId(null); }}
+                  title="The engine casts your strongest frame"
+                >
+                  Pholio’s pick
+                </PholioToggleButton>
+                {(images || []).filter((img) => img && img.id && !img.video_url).slice(0, 12).map((img) => {
+                  const src = imageUrl(img);
+                  const active = lockHeroId === img.id;
+                  return (
+                    <button
+                      key={img.id}
+                      type="button"
+                      className={`cc-hero__thumb ${active ? 'is-active' : ''}`}
+                      aria-pressed={active}
+                      onClick={() => { setLockHeroId(active ? null : img.id); setActivePresetId(null); }}
+                      title={active ? 'Unlock — let Pholio cast the front' : 'Build the front around this frame'}
+                    >
+                      {src ? <img src={src} alt="" loading="lazy" /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {!minorGated && slug && (
             <section className="cc-stage-block cc-lib">
@@ -533,7 +698,11 @@ export default function CompCard({ images = [], profile }) {
                 to={minorGated ? '/dashboard/talent/profile?tab=identity' : '/dashboard/talent/profile'}
                 className="cc-unlock"
               >
-                {minorGated ? 'Record guardian consent to unlock' : 'Complete your profile to unlock'}
+                {minorGated
+                  ? 'Record guardian consent to unlock'
+                  : blocking
+                    ? 'Resolve the note above to unlock'
+                    : 'Complete your profile to unlock'}
               </Link>
             ) : (
               <PholioButton type="button" variant="tertiary" className="cc-flip-hint" onClick={previewUrl ? flip : undefined} disabled={!previewUrl}>

@@ -748,11 +748,65 @@ async function loadCompCardForensics(images, { isDemo } = {}) {
 async function renderComposedView(req, res, data, isDemo) {
   const { profile, images } = data;
   try {
-    const seed = normalizeCompCardSeed(req.query.seed);
+    let seed = normalizeCompCardSeed(req.query.seed);
     const locks = parseCompCardLocks(req);
     const unitsPreference = resolveUnitsPreference(req);
     const generationMode = resolveGenerationMode(req);
     const wantsMeta = normalizeQueryValue(req.query.meta) === "1";
+    const wantsDirections = normalizeQueryValue(req.query.directions) === "1";
+
+    // ── Named creative directions (audit P0-3) ────────────────────────────
+    // ?structure pins the front field structure to one of the catalog
+    // directions; ?board conditions the design language through the bounded
+    // advice channel (a Runway card skews formal, a Commercial card warm).
+    const {
+      DIRECTIONS,
+      isDirectionStructure,
+      directionForStructure,
+      boardAdvice,
+    } = require("../composition/directions");
+    let forceStructure = (() => {
+      const raw = normalizeQueryValue(req.query.structure);
+      return isDirectionStructure(raw) ? raw : null;
+    })();
+    let boardParam = toSafeMetadataToken(normalizeQueryValue(req.query.board), null, 32);
+
+    // ── Frozen saved cards (audit P1-6) ───────────────────────────────────
+    // ?preset=<id> renders a saved card. If the preset captured a plan at
+    // save time, that stored design is authoritative — a card a talent has
+    // sent to agencies must never silently redesign under a new engine.
+    // The saved parameters remain the fallback when the stored plan can no
+    // longer render (e.g. an image it uses was deleted).
+    let presetRow = null;
+    let frozenPlan = null;
+    const presetId = toSafeMetadataToken(normalizeQueryValue(req.query.preset), null, 64);
+    if (presetId && !isDemo && profile.id) {
+      try {
+        presetRow = await knex("comp_card_presets")
+          .where({ id: presetId, profile_id: profile.id })
+          .first();
+      } catch {
+        presetRow = null;
+      }
+      if (presetRow) {
+        if (!req.query.seed && presetRow.seed) seed = normalizeCompCardSeed(presetRow.seed);
+        if (!locks.heroId && presetRow.lock_hero_id) locks.heroId = presetRow.lock_hero_id;
+        if (!forceStructure && isDirectionStructure(presetRow.structure)) {
+          forceStructure = presetRow.structure;
+        }
+        if (!boardParam && presetRow.board) boardParam = presetRow.board;
+        if (presetRow.plan_json) {
+          try {
+            const parsed = typeof presetRow.plan_json === "string"
+              ? JSON.parse(presetRow.plan_json)
+              : presetRow.plan_json;
+            if (parsed && parsed.front && parsed.back) frozenPlan = parsed;
+          } catch {
+            frozenPlan = null;
+          }
+        }
+      }
+    }
     // ?print=1 → 0.125in-bleed canvas (5.75×8.75) for print shops. The PDF
     // stays RGB — online printers convert; CMYK proofing is the shop's step.
     const printBleed = normalizeQueryValue(req.query.print) === "1";
@@ -838,18 +892,69 @@ async function renderComposedView(req, res, data, isDemo) {
         })(),
         matteById,
         representation,
+        // Named-direction pin + deterministic board conditioning (P0-3).
+        forceStructure,
+        advice: boardAdvice(boardParam),
       },
     });
+
+    // Frozen preset render: the stored plan wins whenever it can still
+    // render (every image it references must still exist). Stats and the
+    // portfolio link stay live — the DESIGN is what is frozen.
+    let planIsFrozen = false;
+    if (frozenPlan) {
+      const availableIds = new Set(
+        (images || []).filter((img) => img && img.id != null).map((img) => String(img.id)),
+      );
+      const neededIds = [
+        frozenPlan.front?.imageId,
+        ...(Array.isArray(frozenPlan.back?.layout?.cells)
+          ? frozenPlan.back.layout.cells.map((c) => c && c.imageId)
+          : []),
+      ].filter((id) => id != null);
+      if (neededIds.every((id) => availableIds.has(String(id)))) {
+        Object.assign(plan, frozenPlan);
+        planIsFrozen = true;
+      } else {
+        console.warn(
+          `[renderComposedView] preset ${presetId} references removed images — recomposed from saved parameters`,
+        );
+      }
+    }
+
+    // ?directions=1 — the named creative directions catalog for this
+    // profile (audit P0-3): stable ids, talent-facing copy, availability.
+    // The dashboard renders one preview per direction via ?structure=.
+    if (wantsDirections) {
+      const hasMatte = Object.keys(matteById).length > 0;
+      res.json({
+        engine: "composed",
+        seed: toSafeMetadataToken(seed, "auto", 96),
+        current: plan.frontProgramMeta?.structure || null,
+        directions: DIRECTIONS.filter((d) => !d.requiresMatte || hasMatte).map((d) => ({
+          id: d.id,
+          structure: d.structure,
+          label: d.label,
+          description: d.description,
+        })),
+      });
+      return true;
+    }
 
     // ?meta=1 — JSON design summary for the dashboard comp card surface
     // (same information the rendered card itself exposes; no extra fields).
     if (wantsMeta) {
+      const metaStructure = plan.frontProgramMeta?.structure || null;
+      const metaDirection = metaStructure ? directionForStructure(metaStructure) : null;
       res.json({
         engine: "composed",
         seed: toSafeMetadataToken(seed, "auto", 96),
         toneProfile: plan.toneProfile,
         voice: plan.typography.voiceId,
         display: plan.typography.display,
+        structure: metaStructure,
+        direction: metaDirection ? { id: metaDirection.id, label: metaDirection.label } : null,
+        frozen: planIsFrozen,
         booking: plan.back.booking
           ? { mode: plan.back.booking.mode, label: plan.back.booking.label }
           : null,
@@ -858,6 +963,13 @@ async function renderComposedView(req, res, data, isDemo) {
         guardrails: {
           status: guardrailReport.status,
           blockingIssues: guardrailReport.blockingIssues.map((c) => c.message),
+          // Structured variant: check ids let the dashboard coach the talent
+          // accurately (rights vs type-safety vs crops), instead of
+          // collapsing every failure into "needs photos" (audit P1-7).
+          blockingChecks: guardrailReport.blockingIssues.map((c) => ({
+            id: c.id,
+            message: c.message,
+          })),
           warnings: guardrailReport.warnings.map((c) => c.message),
         },
       });
@@ -2194,6 +2306,96 @@ router.get("/pdf/:slug", async (req, res, next) => {
 
 // API Endpoints for PDF Customization (Studio+ users only)
 
+/**
+ * Freeze a saved card's design (audit P1-6): compose the plan exactly the
+ * way /pdf/view would render it (same forensics, mattes, cached brief,
+ * direction pin, board conditioning) and persist it on the preset row with
+ * the engine version. From then on the stored plan is authoritative — an
+ * artifact a talent sends to agencies never silently redesigns.
+ *
+ * Best-effort by design: any failure leaves the preset unfrozen (it renders
+ * from its saved parameters, the pre-freeze behavior) — saving never fails
+ * because freezing did.
+ */
+async function freezePresetPlan(slug, presetRow) {
+  try {
+    const { composeCompCard, ENGINE_VERSION } = require("../composition");
+    const { isDirectionStructure, boardAdvice } = require("../composition/directions");
+    const data = await loadProfile(slug);
+    if (!data || !data.profile) return;
+    const { profile, images } = data;
+    const forensicsById = await loadCompCardForensics(images, { isDemo: false });
+    const matteById = {};
+    for (const img of images || []) {
+      if (!img || img.id == null) continue;
+      try {
+        const meta = typeof img.metadata === "string" ? JSON.parse(img.metadata) : img.metadata;
+        if (meta && meta.matte && Array.isArray(meta.matte.maskGrid)) matteById[img.id] = meta.matte;
+      } catch {
+        /* no matte */
+      }
+    }
+    let representation = null;
+    if (profile.partner_agency_id) {
+      try {
+        const agency = await knex("agencies")
+          .where({ id: profile.partner_agency_id })
+          .select("name")
+          .first();
+        representation = agency?.name || null;
+      } catch {
+        representation = null;
+      }
+    }
+    const gridIds = (() => {
+      try {
+        const parsed = typeof presetRow.lock_grid_ids === "string"
+          ? JSON.parse(presetRow.lock_grid_ids)
+          : presetRow.lock_grid_ids;
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })();
+    const { plan } = await composeCompCard({
+      profile,
+      images: images || [],
+      archetype: await loadArchetype(profile.id),
+      options: {
+        seed: normalizeCompCardSeed(presetRow.seed),
+        locks: { heroId: presetRow.lock_hero_id || null, gridIds },
+        forensicsById,
+        matteById,
+        representation,
+        frontEngine: "program",
+        forceStructure: isDirectionStructure(presetRow.structure) ? presetRow.structure : null,
+        advice: boardAdvice(presetRow.board),
+        briefStore: {
+          load: async () => {
+            try {
+              const raw = profile.pdf_design_brief;
+              if (!raw) return null;
+              return typeof raw === "string" ? JSON.parse(raw) : raw;
+            } catch {
+              return null;
+            }
+          },
+          save: null,
+        },
+      },
+    });
+    await knex("comp_card_presets")
+      .where({ id: presetRow.id })
+      .update({
+        plan_json: JSON.stringify(plan),
+        engine_version: ENGINE_VERSION,
+        updated_at: new Date(),
+      });
+  } catch (error) {
+    console.warn(`[presets] freeze failed for ${presetRow?.id}: ${error.message}`);
+  }
+}
+
 // GET /api/pdf/presets/:slug - List saved comp-card presets for this profile
 router.get(
   "/api/pdf/presets/:slug",
@@ -2271,9 +2473,16 @@ router.post(
         }
         throw insertError;
       }
+      // Freeze the design at save time (P1-6); the preset row is re-read so
+      // the response carries frozen/engineVersion. Failure leaves the
+      // preset parameter-rendered — never blocks the save.
+      await freezePresetPlan(slug, created);
+      const finalRow = await knex("comp_card_presets")
+        .where({ id: created.id })
+        .first();
       return res.status(201).json({
         ok: true,
-        preset: mapPresetRow(created),
+        preset: mapPresetRow(finalRow || created),
       });
     } catch (error) {
       if (error.status) {
@@ -2333,6 +2542,7 @@ router.put(
               lock_grid_ids: JSON.stringify(normalized.lock_grid_ids),
               board: normalized.board,
               market: normalized.market,
+              structure: normalized.structure,
               updated_at: trx.fn.now(),
             });
           updated = await trx("comp_card_presets")
@@ -2350,7 +2560,12 @@ router.put(
         }
         throw updateError;
       }
-      return res.json({ ok: true, preset: mapPresetRow(updated) });
+      // Parameters changed → the frozen design must be re-captured (P1-6).
+      await freezePresetPlan(slug, updated);
+      const finalRow = await knex("comp_card_presets")
+        .where({ id: presetId })
+        .first();
+      return res.json({ ok: true, preset: mapPresetRow(finalRow || updated) });
     } catch (error) {
       if (error.status) {
         return res
