@@ -440,6 +440,9 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
     // Deterministic advice (e.g. board → tone register from the directions
     // catalog); validated and clamped inside design-language/director.
     advice: opts.advice || null,
+    // Pinned creative direction — salts the voice cast so each direction
+    // carries a distinct typographic identity for the same seed.
+    direction: opts.forceStructure || null,
     overrides: buildOverrides(opts),
   });
 
@@ -493,12 +496,48 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
           typography: plan.typography,
           nameText:
             `${profileRow.first_name || ""} ${profileRow.last_name || ""}`.trim() || "Untitled",
-          nameMetrics: {
-            advanceEm: plan.language?.name?.glyphEm || 0.6,
-            advanceLongestEm: plan.language?.name?.glyphEmLongest || null,
-            measured: Boolean(plan.language?.name?.glyphMeasured),
-            trackingEm: plan.language?.name?.trackingEm,
-          },
+          nameMetrics: (() => {
+            const metrics = {
+              advanceEm: plan.language?.name?.glyphEm || 0.6,
+              advanceLongestEm: plan.language?.name?.glyphEmLongest || null,
+              measured: Boolean(plan.language?.name?.glyphMeasured),
+              trackingEm: plan.language?.name?.trackingEm,
+            };
+            // Split-zone lockup metrics (first name in heavy display over
+            // the photo, surname in tracked caps on a panel): measured per
+            // segment at the weights the motif renders.
+            try {
+              const { nameAdvanceEm, heaviestWeight } = require("./perception/font-files");
+              const nameText =
+                `${profileRow.first_name || ""} ${profileRow.last_name || ""}`.trim();
+              const parts = nameText.split(/\s+/);
+              if (parts.length > 1) {
+                const display = plan.typography?.display;
+                const heavy = heaviestWeight(display);
+                metrics.first = {
+                  advanceEm: nameAdvanceEm({
+                    family: display,
+                    weight: heavy,
+                    text: parts[0],
+                    nameCase: "upper",
+                  }).advanceEm,
+                  weight: heavy,
+                };
+                metrics.last = {
+                  advanceEm: nameAdvanceEm({
+                    family: display,
+                    weight: plan.language?.name?.weightClass || 500,
+                    text: parts.slice(1).join(" "),
+                    nameCase: "upper",
+                  }).advanceEm,
+                  weight: plan.language?.name?.weightClass || 500,
+                };
+              }
+            } catch {
+              /* split metrics are optional — the motif falls back to estimates */
+            }
+            return metrics;
+          })(),
           contactLine: plan.back?.contact?.line || null,
           language: plan.language,
           brief,

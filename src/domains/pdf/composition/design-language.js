@@ -314,6 +314,9 @@ function synthesizeDesignLanguage(input = {}) {
     advice = null,
     brief = null, // art-director design brief (validated upstream)
     overrides = null,
+    direction = null, // pinned creative direction — salts the voice cast so
+    // each direction carries its own typographic identity (same seed, same
+    // talent, different register per direction)
   } = input;
 
   const decisions = [];
@@ -400,7 +403,7 @@ function synthesizeDesignLanguage(input = {}) {
   // the tone vector's affinity distance with a seeded tie-break.
   const kids = statsBlock?.category === "kids";
   const { voiceId, voice, because: voiceBecause } = resolveVoice(tone, {
-    seed: `${seed ?? "auto"}:${salt}:${identity}`,
+    seed: `${seed ?? "auto"}:${salt}:${identity}${direction ? `:dir-${direction}` : ""}`,
     salt: "voice",
     requested: brief?.typographyVoice || null,
     kids,

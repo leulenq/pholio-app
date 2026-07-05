@@ -119,20 +119,32 @@ describe("pixel-exact type safety — production blocker", () => {
     const f = studioForensics({ focal: { x: 0.5, y: 0.22 } });
     for (let i = 0; i < 200; i++) {
       const { program } = designFrontProgram(ctx({ heroForensics: f }), { seed: `face-${i}`, candidates: 2 });
-      const name = program.elements.find((e) => e.type === "name");
       const photo = program.elements.find((e) => e.type === "photo");
-      if (!name.onPhoto) continue; // on paper is always safe
-      const place = scoreOverPhoto(name.rect, photo.rect, f);
-      expect(place.faceOverlap).toBe(false);
-      expect(place.subjectOccupancy).toBeLessThanOrEqual(0.34 + 1e-6);
+      for (const name of program.elements.filter((e) => e.type === "name")) {
+        if (!name.onPhoto) continue; // on paper is always safe
+        const place = scoreOverPhoto(name.rect, photo.rect, f);
+        // the face is inviolable for EVERY motif, including the deliberate
+        // split-zone overlay
+        expect(place.faceOverlap).toBe(false);
+        // the subject-occupancy cap governs the generic register only: the
+        // split-zone first name is a deliberate, contrast-verified overlay
+        // on the subject's lower frame (reference: editorial split-name
+        // cards) and is exempt by design.
+        if (name.role !== "split-first") {
+          expect(place.subjectOccupancy).toBeLessThanOrEqual(0.34 + 1e-6);
+        }
+      }
     }
   });
 
   test("no forensics ⇒ name never placed on the photo", () => {
     for (let i = 0; i < 40; i++) {
       const { program } = designFrontProgram(ctx({ heroForensics: null }), { seed: `nf-${i}`, candidates: 2 });
-      const name = program.elements.find((e) => e.type === "name");
-      expect(name.onPhoto).toBe(false);
+      // without forensics the split motif is refused too — every name
+      // stays on paper
+      for (const name of program.elements.filter((e) => e.type === "name")) {
+        expect(name.onPhoto).toBe(false);
+      }
     }
   });
 });
@@ -172,9 +184,9 @@ describe("P3 matte-dependent layers (gated on a real matte)", () => {
     const mg = matteGrid();
     for (let i = 0; i < 60; i++) {
       const { program } = designFrontProgram(ctx({ matteGrid: mg, heroForensics: studioForensics() }), { seed: `mns-${i}`, candidates: 1 });
-      const name = program.elements.find((e) => e.type === "name");
+      const name = program.elements.find((e) => e.type === "name" && !e.role);
       const photo = program.elements.find((e) => e.type === "photo");
-      if (!name.onPhoto) continue;
+      if (!name || !name.onPhoto) continue;
       // the name center must not fall in the dense subject column band
       const cx = (name.rect.x + name.rect.w / 2 - photo.rect.x) / photo.rect.w;
       const cy = (name.rect.y + name.rect.h / 2 - photo.rect.y) / photo.rect.h;
@@ -191,6 +203,9 @@ describe("P3 matte-dependent layers (gated on a real matte)", () => {
         ctx({ matteGrid: matteGrid(), language: { toneVector: { formality: 0.4, energy: 0.95, warmth: 0.5, density: 0.6 } } }),
         { seed: `ko-${i}`, candidates: 1 },
       );
+      // the split-zone lockup also uses a band (the accent panel) — this
+      // test targets the KNOCKOUT register, so skip split takes.
+      if (program.elements.some((e) => e.role === "split-first")) continue;
       const band = program.elements.find((e) => e.type === "band");
       const name = program.elements.find((e) => e.type === "name");
       if (!band) continue;
@@ -211,7 +226,9 @@ describe("intent conditions distributions, not structure", () => {
           ctx({ language: { toneVector: { formality: 0.4, energy, warmth: 0.5, density: 0.5 } }, brief: { risk } }),
           { seed: `e-${energy}-${i}`, candidates: 1 },
         );
-        if (program.elements.some((e) => e.type === "ghost")) g += 1;
+        // layering appetite now expresses through two premium motifs: the
+        // ghost echo and the split-zone lockup
+        if (program.elements.some((e) => e.type === "ghost" || e.role === "split-first")) g += 1;
       }
       return g;
     };

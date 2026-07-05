@@ -109,10 +109,18 @@ function fontFaceCss(families) {
   return rules.length ? rules.join("\n") : null;
 }
 
+/** Heaviest vendored weight for a family (display-scale split-name type). */
+function heaviestWeight(family) {
+  const meta = FAMILIES[family];
+  if (!meta) return 700;
+  return Math.max(...meta.weights);
+}
+
 module.exports = {
   fontPathFor,
   nameAdvanceEm,
   applyNameCase,
   fontFaceCss,
+  heaviestWeight,
   FONT_DIR,
 };

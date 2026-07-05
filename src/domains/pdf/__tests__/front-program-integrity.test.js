@@ -104,25 +104,52 @@ describe("front-program geometry integrity sweep", () => {
 
       const els = program.elements;
       const photo = els.find((e) => e.type === "photo");
-      const nameEl = els.find((e) => e.type === "name");
+      const nameEls = els.filter((e) => e.type === "name");
+      const nameEl = nameEls.find((e) => !e.role) || nameEls[0];
       const ghost = els.find((e) => e.type === "ghost");
       const band = els.find((e) => e.type === "band");
 
-      // 1. measured name fits its rect (per line for stacked treatments)
-      if (nameEl && nameEl.orientation === "horizontal") {
-        const lineText = nameEl.stacked ? longest : name;
-        const adv = nameEl.stacked ? longestMetrics.advanceEm : metrics.advanceEm;
-        const widthIn = lineText.length * (adv + nameEl.trackingEm) * (nameEl.sizePt / 72);
-        if (widthIn > nameEl.rect.w * 1.02 + 0.02) {
-          violations.push(`${seed}/${name}: name ${widthIn.toFixed(2)}in > rect ${nameEl.rect.w.toFixed(2)}in`);
+      // 1. every name line, measured with the advance the engine used,
+      // fits the rect the search verified (split segments carry their own
+      // text; the sweep supplies no per-segment metrics so the engine used
+      // the full-string advance for them too)
+      for (const el of nameEls) {
+        if (el.orientation !== "horizontal") continue;
+        const elText = el.text || name;
+        const lineText = el.stacked
+          ? elText.split(/\s+/).reduce((a, b) => (b.length > a.length ? b : a), "")
+          : elText;
+        const adv = el.stacked ? longestMetrics.advanceEm : metrics.advanceEm;
+        const widthIn = lineText.length * (adv + el.trackingEm) * (el.sizePt / 72);
+        if (widthIn > el.rect.w * 1.02 + 0.02) {
+          violations.push(`${seed}/${name}: ${el.role || "name"} ${widthIn.toFixed(2)}in > rect ${el.rect.w.toFixed(2)}in`);
         }
-        // 4. presence floor for on-paper names: a name may be narrow when it
-        // confidently owns a side plane (large type), but never narrow AND
-        // small — that is the audit's "name loses prominence" failure.
-        if (!nameEl.onPhoto && nameEl.rect.w / PAGE_W < 0.25 && nameEl.sizePt < 18) {
-          violations.push(
-            `${seed}/${name}: timid name (${(nameEl.rect.w / PAGE_W).toFixed(2)} of page width at ${nameEl.sizePt}pt)`,
-          );
+      }
+      // 4. presence floor for the primary on-paper name
+      if (nameEl && !nameEl.role && nameEl.orientation === "horizontal" &&
+          !nameEl.onPhoto && nameEl.rect.w / PAGE_W < 0.25 && nameEl.sizePt < 18) {
+        violations.push(
+          `${seed}/${name}: timid name (${(nameEl.rect.w / PAGE_W).toFixed(2)} of page width at ${nameEl.sizePt}pt)`,
+        );
+      }
+
+      // 5. split-zone lockup invariants: first name entirely below the face
+      // line and inside the photo; surname panel seam-tight under the photo
+      const splitFirst = nameEls.find((e) => e.role === "split-first");
+      const splitLast = nameEls.find((e) => e.role === "split-last");
+      if (splitFirst) {
+        if (!splitLast || !band) {
+          violations.push(`${seed}/${name}: split lockup missing its panel or surname`);
+        } else {
+          const fy0 = (splitFirst.rect.y - photo.rect.y) / photo.rect.h;
+          // face fixture focal y=0.22, half-height 0.16 → face bottom ≈ 0.38
+          if (fy0 <= 0.38) {
+            violations.push(`${seed}/${name}: split first name enters the face zone (fy0 ${fy0.toFixed(2)})`);
+          }
+          const seamGap = Math.abs(band.rect.y - (photo.rect.y + photo.rect.h));
+          if (seamGap > 0.005) {
+            violations.push(`${seed}/${name}: surname panel floats ${seamGap.toFixed(2)}in off the photo seam`);
+          }
         }
       }
 
@@ -141,8 +168,9 @@ describe("front-program geometry integrity sweep", () => {
         }
       }
 
-      // 3. knockout band only under an on-photo name
-      if (band && !(nameEl && nameEl.onPhoto)) {
+      // 3. a band is either the split lockup's accent panel or a knockout
+      // under an on-photo name — never a floating decoration
+      if (band && !splitFirst && !(nameEl && nameEl.onPhoto)) {
         violations.push(`${seed}/${name}: knockout band without an on-photo name`);
       }
     }

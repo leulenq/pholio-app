@@ -351,10 +351,10 @@
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; background: <%= e.fill %>;"></div>
       <% } else if (e.type === 'rule' && e.variant === 'frame') { %>
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; border: <%= (e.weight||0.01) %>in solid <%= e.color %>;"></div>
-      <% } else if (e.type === 'name') { const lines = e.stacked && fullName.includes(' ') ? [fullName.split(/\s+/)[0], fullName.split(/\s+/).slice(1).join(' ')] : [fullName]; %>
+      <% } else if (e.type === 'name') { const nameSource = e.text || fullName; const lines = e.stacked && nameSource.includes(' ') ? [nameSource.split(/\s+/)[0], nameSource.split(/\s+/).slice(1).join(' ')] : [nameSource]; %>
         <% if (e.scrim) { %><%- fpScrim(e) %><% } %>
-        <div class="abs" data-fit-text style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : 'align-items: flex-start;' %>">
-          <% lines.forEach((ln) => { %><span style="font-family: '<%= displayFont %>', serif; font-size: <%= e.sizePt %>pt; font-weight: <%= nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= nameCase %>; line-height: 1.05; white-space: nowrap;"><%= ln %></span><% }); %>
+        <div class="abs" data-fit-text style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : (e.align === 'center' ? 'align-items: center; text-align: center;' : 'align-items: flex-start;') %>">
+          <% lines.forEach((ln) => { %><span style="font-family: '<%= displayFont %>', serif; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= e.transform || nameCase %>; line-height: 1.05; white-space: nowrap;"><%= ln %></span><% }); %>
         </div>
       <% } else if (e.type === 'contact') { %>
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg);' : '' %>">
