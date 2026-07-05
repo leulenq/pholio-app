@@ -209,7 +209,12 @@ function placeText(rng, { wIn, hIn, heroRect, paperRects, heroForensics, allowOn
     // a grid of seeded positions; keep only those clear of siblings
     for (let i = 0; i < 6; i++) {
       const x = pr.x + (pr.w - wIn) * (0.5 * rng());
-      const y = pr.y + (pr.h - hIn) * (0.1 + 0.85 * rng());
+      // Anchored rhythm, not uniform drift: type in a tall paper plane
+      // sits at the head, the lower third, or the foot — a name floating
+      // mid-plane reads as dead space above AND below it (user critique).
+      const anchors = [0.08, 0.62, 0.88];
+      const anchor = anchors[Math.floor(rng() * anchors.length) % anchors.length];
+      const y = pr.y + (pr.h - hIn) * clamp(anchor + (rng() * 2 - 1) * 0.05, 0, 1);
       const r = rect(x, y, wIn, hIn);
       if (clearOfSiblings(r)) paperCands.push(r);
     }
@@ -1043,6 +1048,11 @@ function designFrontProgram(ctx = {}, opts = {}) {
     forceStructure: opts.forceStructure || ctx.forceStructure || null,
     forceTreatment: opts.forceTreatment || ctx.forceTreatment || null,
   };
+  // "Another take" must be a materially different art direction, not a
+  // nudge: candidates repeating the previous take's structure or name
+  // treatment are penalized in the pick (soft — validity still wins when
+  // the pool leaves no alternative).
+  const avoid = opts.avoid && typeof opts.avoid === "object" ? opts.avoid : null;
   const seed = opts.seed == null ? "auto" : String(opts.seed);
   const k = Math.max(1, Math.min(opts.candidates || 5, 8));
 
@@ -1067,7 +1077,13 @@ function designFrontProgram(ctx = {}, opts = {}) {
     const program = sampleProgram(`${seed}:cand${i}`, fullCtx);
     // every program is paper-safe by construction (name has a guaranteed
     // fallback; on-photo elements are pre-verified during placement).
-    const score = scoreProgram(program, fullCtx);
+    let score = scoreProgram(program, fullCtx);
+    if (avoid) {
+      const splitEl = program.elements.find((e) => e.role === "split-first");
+      const takeTreatment = splitEl ? splitEl.variant : "classic";
+      if (avoid.structure && program.structure === avoid.structure) score -= 18;
+      if (avoid.treatment && takeTreatment === avoid.treatment) score -= 12;
+    }
     if (!best || score > best.score) best = { program, score, i };
   }
   return {

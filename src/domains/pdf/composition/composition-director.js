@@ -455,6 +455,7 @@ function designComposition(input = {}) {
     brief,
     overrides,
     direction: input.direction || null,
+    avoidVoice: input.avoidVoice || null,
   });
   language.decisions.forEach((d) => decisions.push(d));
   language.warnings.forEach(warn);

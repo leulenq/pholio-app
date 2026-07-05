@@ -317,6 +317,7 @@ function synthesizeDesignLanguage(input = {}) {
     direction = null, // pinned creative direction — salts the voice cast so
     // each direction carries its own typographic identity (same seed, same
     // talent, different register per direction)
+    avoidVoice = null, // the previous take's voice — excluded from the cast
   } = input;
 
   const decisions = [];
@@ -407,6 +408,7 @@ function synthesizeDesignLanguage(input = {}) {
     salt: "voice",
     requested: brief?.typographyVoice || null,
     kids,
+    avoid: avoidVoice,
   });
   decide("typography-voice", voiceId, voiceBecause);
   const display = voice.display;

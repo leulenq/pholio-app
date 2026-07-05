@@ -203,7 +203,7 @@ function getVoice(id) {
  * @returns {{ voiceId, voice, because }}
  */
 function resolveVoice(tone = {}, options = {}) {
-  const { seed, salt = "voice", requested = null, kids = false } = options;
+  const { seed, salt = "voice", requested = null, kids = false, avoid = null } = options;
 
   if (requested && isVoice(requested)) {
     if (!kids || !["hairline-fashion", "romantic-didone"].includes(requested)) {
@@ -223,6 +223,10 @@ function resolveVoice(tone = {}, options = {}) {
   const axes = ["formality", "warmth", "energy", "density"];
   const candidates = Object.entries(VOICES)
     .filter(([id]) => !kids || !["hairline-fashion", "romantic-didone"].includes(id))
+    // take-to-take diversity: the previous take's voice is excluded so a
+    // fresh take always speaks in a different register (unless it is the
+    // only voice left standing)
+    .filter(([id], _, all) => !avoid || id !== avoid || all.length <= 1)
     .map(([id, voice]) => {
       let dist = 0;
       for (const axis of axes) {
