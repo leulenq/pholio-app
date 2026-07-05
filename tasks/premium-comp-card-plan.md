@@ -57,6 +57,24 @@ curation, and product advantage. Executed in loop iterations on branch
 - [ ] Seed-sweep exit test: N seeds × name shapes → zero name/photo collisions,
       zero clipped display type
 
+## Iteration 4 — Editorial range: color blocks, straddle, pairing contrast ✅
+
+- [x] Palette-pulled color-block planes (reversed type verified 4.5:1)
+- [x] Straddle split variant — type crosses the photo seam into white space
+- [x] Grotesque surname pairing (display × body classification contrast)
+- [x] Worst-cell fill contrast for on-photo display type (band means hid
+      dark-torso glyph sinkage — every covered cell now clears the ratio)
+- [x] Live mix at typical energy: ~25% inset split, ~8% straddle, ~9% color
+      block, ~58% classic registers — statement motifs, not new templates
+
+## Remaining queue
+
+- [ ] Light the dormant stack: subject mattes at upload → cutout direction;
+      vision jury on download/master renders (P1-4)
+- [ ] Post-render Puppeteer name-integrity loop on downloads
+- [ ] Digitals sheet + back-page treatments aligned with the new front range
+- [ ] Upload pipeline: persist image width/height metadata (guardrail noise)
+
 ## Review
 
 (appended per iteration)
