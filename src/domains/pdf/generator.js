@@ -150,7 +150,7 @@ async function renderCompCard(slug, theme = null, opts = null) {
       // Composed-engine art direction params: pinned structure, board
       // conditioning, and frozen preset id must survive into the internal
       // /pdf/view navigation or downloads would silently lose the design.
-      for (const key of ["structure", "board", "preset"]) {
+      for (const key of ["structure", "treatment", "board", "preset"]) {
         const value = opts && opts[key];
         if (value != null && value !== "") {
           url.searchParams.set(key, String(Array.isArray(value) ? value[0] : value));

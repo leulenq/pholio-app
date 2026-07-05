@@ -28,6 +28,7 @@ describe("comp-card presets helpers", () => {
       board: null,
       market: null,
       structure: null,
+      treatment: null,
     });
   });
 
@@ -63,6 +64,7 @@ describe("comp-card presets helpers", () => {
       board: null,
       market: null,
       structure: null,
+      treatment: null,
     });
     expect(mapped.query).toEqual({
       seed: "seed:abc",
@@ -83,6 +85,7 @@ describe("comp-card presets helpers", () => {
       board: null,
       market: null,
       structure: null,
+      treatment: null,
     });
   });
 

@@ -159,6 +159,10 @@ export default function CompCard({ images = [], profile }) {
   // engine casts the strongest frame).
   const [directions, setDirections] = React.useState([]);
   const [structure, setStructure] = React.useState(null);
+  // treatment: how the name is choreographed — null lets the engine decide,
+  // 'classic' keeps the quiet register, 'statement' asks for one of the
+  // verified editorial lockups (split/over/band/straddle).
+  const [treatment, setTreatment] = React.useState(null);
   const [lockHeroId, setLockHeroId] = React.useState(null);
 
   // ── Saved-cards library (comp_card_presets) ──
@@ -209,6 +213,7 @@ export default function CompCard({ images = [], profile }) {
     setActivePresetId(preset.id);
     setSeed(preset.seed || `profile:${slug}`);
     setStructure(preset.structure || null);
+    setTreatment(preset.treatment || null);
     setLockHeroId(preset.lockHeroId || null);
     setSide('front');
     try {
@@ -233,6 +238,7 @@ export default function CompCard({ images = [], profile }) {
         board: saveBoard || undefined,
         market: saveMarket || undefined,
         structure: structure || undefined,
+        treatment: treatment || undefined,
         lockHeroId: lockHeroId || undefined,
       });
       setSaveName('');
@@ -290,10 +296,11 @@ export default function CompCard({ images = [], profile }) {
     if (activePreset?.frozen) return `/pdf/view/${slug}?preset=${encodeURIComponent(activePreset.id)}`;
     const params = new URLSearchParams({ seed });
     if (structure) params.set('structure', structure);
+    if (treatment) params.set('treatment', treatment);
     if (lockHeroId) params.set('lockHeroId', lockHeroId);
     if (saveBoard) params.set('board', saveBoard);
     return `/pdf/view/${slug}?${params.toString()}`;
-  }, [slug, activePreset, seed, structure, lockHeroId, saveBoard]);
+  }, [slug, activePreset, seed, structure, treatment, lockHeroId, saveBoard]);
   React.useEffect(() => { setFrontReady(false); }, [previewUrl]);
 
   // Design summary + refinement notes from the engine (deterministic meta).
@@ -347,6 +354,7 @@ export default function CompCard({ images = [], profile }) {
       } else {
         dl.set('seed', seed);
         if (structure) dl.set('structure', structure);
+        if (treatment) dl.set('treatment', treatment);
         if (lockHeroId) dl.set('lockHeroId', lockHeroId);
         if (saveBoard) dl.set('board', saveBoard);
       }
@@ -479,6 +487,27 @@ export default function CompCard({ images = [], profile }) {
                 <RefreshCw size={13} aria-hidden="true" /> Another take
               </PholioButton>
             </header>
+            {directions.length > 0 && (
+              <div className="cc-directions" role="group" aria-label="Name treatment" style={{ marginBottom: 2 }}>
+                {[
+                  { id: null, label: 'Pholio’s choice', hint: 'The engine chooses how your name is set' },
+                  { id: 'classic', label: 'Classic', hint: 'The quiet register — name on paper, photography leads' },
+                  { id: 'statement', label: 'Statement', hint: 'An editorial lockup — display type layered with the photograph, always legibility-verified' },
+                ].map((t) => (
+                  <PholioToggleButton
+                    key={t.id || 'auto'}
+                    type="button"
+                    active={treatment === t.id}
+                    aria-pressed={treatment === t.id}
+                    className={`cc-directions__chip ${treatment === t.id ? 'is-active' : ''}`}
+                    onClick={() => { setTreatment(t.id); setActivePresetId(null); }}
+                    title={t.hint}
+                  >
+                    {t.label}
+                  </PholioToggleButton>
+                ))}
+              </div>
+            )}
             {directions.length > 0 && (
               <div className="cc-directions" role="group" aria-label="Creative direction">
                 <PholioToggleButton

@@ -527,7 +527,15 @@ function sampleProgram(seed, ctx) {
       structure !== "cutout" &&
       heroRect.w >= PAGE_W * 0.55 &&
       !!faceZoneEff;
-    if (eligible && !planeTone && rng() < 0.24 + 0.42 * intent.energy) {
+    // Talent-facing treatment pin: 'classic' refuses the choreography
+    // outright; 'statement' opens the gate (seeded menu pick); a named
+    // variant pins it when the geometry allows. Verification never relaxes.
+    const TREATMENTS = ["classic", "statement", "straddle", "over", "band", "inset"];
+    const forceTreatment = TREATMENTS.includes(ctx.forceTreatment) ? ctx.forceTreatment : null;
+    const gateOpen = forceTreatment
+      ? forceTreatment !== "classic"
+      : rng() < 0.24 + 0.42 * intent.energy;
+    if (eligible && !planeTone && gateOpen) {
       const firstText = parts[0];
       const lastText = parts.slice(1).join(" ");
       const fAdv = nameMetrics?.first?.advanceEm || advance;
@@ -546,7 +554,12 @@ function sampleProgram(seed, ctx) {
       if (structure !== "matted" && seamRoom >= 1.0) menu.push("straddle", "straddle");
       if (heroRect.h >= 3.6) menu.push("over", "band");
       if (seamRoom >= 0.55 && seamRoom <= 2.6) menu.push("inset");
-      const variant = menu.length ? pick(rng, menu) : null;
+      const variant =
+        forceTreatment && forceTreatment !== "statement"
+          ? (menu.includes(forceTreatment) ? forceTreatment : null)
+          : menu.length
+            ? pick(rng, menu)
+            : null;
 
       if (variant === "straddle") {
         // ── straddle: EDGE-TO-EDGE display type crossing the photo seam
@@ -1024,7 +1037,12 @@ function structuralSignature(program) {
  */
 function designFrontProgram(ctx = {}, opts = {}) {
   const intent = resolveIntent(ctx.language, ctx.brief);
-  const fullCtx = { ...ctx, intent, forceStructure: opts.forceStructure || ctx.forceStructure || null };
+  const fullCtx = {
+    ...ctx,
+    intent,
+    forceStructure: opts.forceStructure || ctx.forceStructure || null,
+    forceTreatment: opts.forceTreatment || ctx.forceTreatment || null,
+  };
   const seed = opts.seed == null ? "auto" : String(opts.seed);
   const k = Math.max(1, Math.min(opts.candidates || 5, 8));
 

@@ -562,6 +562,8 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
           candidates: 5,
           // named-directions seam: pin the field structure for this compose
           forceStructure: opts.forceStructure || null,
+          // talent-facing name-treatment pin (classic/statement/variant)
+          forceTreatment: opts.forceTreatment || null,
           // P4 jury wiring: `frontCandidateIndex` forces a specific
           // candidate (the rasterizer renders each; the jury picks the
           // winner, then the final card re-renders with that index).

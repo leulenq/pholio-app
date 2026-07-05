@@ -861,6 +861,11 @@ async function renderComposedView(req, res, data, isDemo) {
       const raw = normalizeQueryValue(req.query.structure);
       return isDirectionStructure(raw) ? raw : null;
     })();
+    const TREATMENTS = ["classic", "statement", "straddle", "over", "band", "inset"];
+    let forceTreatment = (() => {
+      const raw = normalizeQueryValue(req.query.treatment);
+      return TREATMENTS.includes(raw) ? raw : null;
+    })();
     let boardParam = toSafeMetadataToken(normalizeQueryValue(req.query.board), null, 32);
 
     // ── Frozen saved cards (audit P1-6) ───────────────────────────────────
@@ -885,6 +890,9 @@ async function renderComposedView(req, res, data, isDemo) {
         if (!locks.heroId && presetRow.lock_hero_id) locks.heroId = presetRow.lock_hero_id;
         if (!forceStructure && isDirectionStructure(presetRow.structure)) {
           forceStructure = presetRow.structure;
+        }
+        if (!forceTreatment && TREATMENTS.includes(presetRow.treatment)) {
+          forceTreatment = presetRow.treatment;
         }
         if (!boardParam && presetRow.board) boardParam = presetRow.board;
         if (presetRow.plan_json) {
@@ -976,6 +984,7 @@ async function renderComposedView(req, res, data, isDemo) {
         representation,
         // Named-direction pin + deterministic board conditioning (P0-3).
         forceStructure,
+        forceTreatment,
         advice: boardAdvice(boardParam),
       },
     });
@@ -1039,6 +1048,8 @@ async function renderComposedView(req, res, data, isDemo) {
         display: plan.typography.display,
         structure: metaStructure,
         direction: metaDirection ? { id: metaDirection.id, label: metaDirection.label } : null,
+        treatment:
+          plan.frontProgram?.elements?.find((e) => e.role === "split-first")?.variant || "classic",
         frozen: planIsFrozen,
         booking: plan.back.booking
           ? { mode: plan.back.booking.mode, label: plan.back.booking.label }
@@ -2215,6 +2226,7 @@ router.get("/pdf/:slug", async (req, res, next) => {
       units: req.query.units,
       print: req.query.print,
       structure: req.query.structure,
+      treatment: req.query.treatment,
       board: req.query.board,
       preset: req.query.preset,
       // Vision jury: DEFAULT ON for downloads when a Groq key is present
@@ -2450,6 +2462,9 @@ async function freezePresetPlan(slug, presetRow) {
         representation,
         frontEngine: "program",
         forceStructure: isDirectionStructure(presetRow.structure) ? presetRow.structure : null,
+        forceTreatment: ["classic", "statement", "straddle", "over", "band", "inset"].includes(presetRow.treatment)
+          ? presetRow.treatment
+          : null,
         advice: boardAdvice(presetRow.board),
         briefStore: {
           load: async () => {
@@ -2624,6 +2639,7 @@ router.put(
               board: normalized.board,
               market: normalized.market,
               structure: normalized.structure,
+              treatment: normalized.treatment,
               updated_at: trx.fn.now(),
             });
           updated = await trx("comp_card_presets")
