@@ -27,6 +27,8 @@ describe("comp-card presets helpers", () => {
       lock_grid_ids: ["g-1", "g-2", "bad", null],
       board: null,
       market: null,
+      structure: null,
+      treatment: null,
     });
   });
 
@@ -61,6 +63,8 @@ describe("comp-card presets helpers", () => {
       lockGridIds: ["img-1", "img-2", null, null],
       board: null,
       market: null,
+      structure: null,
+      treatment: null,
     });
     expect(mapped.query).toEqual({
       seed: "seed:abc",
@@ -80,6 +84,8 @@ describe("comp-card presets helpers", () => {
       lockGridIds: ["img-1", "img-2", null, null],
       board: null,
       market: null,
+      structure: null,
+      treatment: null,
     });
   });
 

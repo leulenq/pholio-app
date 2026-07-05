@@ -437,6 +437,12 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
     seed: opts.seed,
     brief,
     representation: opts.representation || null,
+    // Deterministic advice (e.g. board → tone register from the directions
+    // catalog); validated and clamped inside design-language/director.
+    advice: opts.advice || null,
+    // Pinned creative direction — salts the voice cast so each direction
+    // carries a distinct typographic identity for the same seed.
+    direction: opts.forceStructure || null,
     overrides: buildOverrides(opts),
   });
 
@@ -471,19 +477,82 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
               ? opts.matteById.get(plan.front.imageId)
               : opts.matteById[plan.front.imageId]) || null
           : null;
+      const heroPoolEntry =
+        plan.front && plan.front.imageId && Array.isArray(poolAnalysis?.pool)
+          ? poolAnalysis.pool.find((p) => p.id === plan.front.imageId) || null
+          : null;
       const front = designFrontProgram(
         {
-          heroAspect: null,
+          // raw image aspect + the cover crop the renderer will apply — the
+          // sampler maps all on-photo verification into the visible window
+          heroAspect:
+            (heroForensics && Number(heroForensics.aspect)) ||
+            (heroPoolEntry && Number(heroPoolEntry.aspect)) ||
+            null,
+          heroCrop: plan.front?.crop || null,
           heroForensics,
           matteGrid: matteGrid && matteGrid.maskGrid ? matteGrid.maskGrid : matteGrid,
+          // 'alpha' (real matting) unlocks the cutout structure; 'studio'
+          // (sharp-only backdrop estimate) powers negative-space placement
+          // only. Legacy cached mattes predate the source field = alpha.
+          matteSource: matteGrid ? matteGrid.source || "alpha" : null,
           palette: plan.palette,
           typography: plan.typography,
           nameText:
             `${profileRow.first_name || ""} ${profileRow.last_name || ""}`.trim() || "Untitled",
-          nameMetrics: {
-            advanceEm: plan.language?.name?.glyphEm || 0.6,
-            trackingEm: plan.language?.name?.trackingEm,
-          },
+          nameMetrics: (() => {
+            const metrics = {
+              advanceEm: plan.language?.name?.glyphEm || 0.6,
+              advanceLongestEm: plan.language?.name?.glyphEmLongest || null,
+              measured: Boolean(plan.language?.name?.glyphMeasured),
+              trackingEm: plan.language?.name?.trackingEm,
+            };
+            // Split-zone lockup metrics (first name in heavy display over
+            // the photo, surname in tracked caps on a panel): measured per
+            // segment at the weights the motif renders.
+            try {
+              const { nameAdvanceEm, heaviestWeight } = require("./perception/font-files");
+              const nameText =
+                `${profileRow.first_name || ""} ${profileRow.last_name || ""}`.trim();
+              const parts = nameText.split(/\s+/);
+              if (parts.length > 1) {
+                const display = plan.typography?.display;
+                const heavy = heaviestWeight(display);
+                metrics.first = {
+                  advanceEm: nameAdvanceEm({
+                    family: display,
+                    weight: heavy,
+                    text: parts[0],
+                    nameCase: "upper",
+                  }).advanceEm,
+                  weight: heavy,
+                };
+                metrics.last = {
+                  advanceEm: nameAdvanceEm({
+                    family: display,
+                    weight: plan.language?.name?.weightClass || 500,
+                    text: parts.slice(1).join(" "),
+                    nameCase: "upper",
+                  }).advanceEm,
+                  weight: plan.language?.name?.weightClass || 500,
+                };
+                // body-font surname variant (grotesque caps against the
+                // display first name — classification contrast on purpose)
+                metrics.lastBody = {
+                  advanceEm: nameAdvanceEm({
+                    family: plan.typography?.body || "Inter",
+                    weight: 600,
+                    text: parts.slice(1).join(" "),
+                    nameCase: "upper",
+                  }).advanceEm,
+                  weight: 600,
+                };
+              }
+            } catch {
+              /* split metrics are optional — the motif falls back to estimates */
+            }
+            return metrics;
+          })(),
           contactLine: plan.back?.contact?.line || null,
           language: plan.language,
           brief,
@@ -491,6 +560,10 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
         {
           seed: opts.seed,
           candidates: 5,
+          // named-directions seam: pin the field structure for this compose
+          forceStructure: opts.forceStructure || null,
+          // talent-facing name-treatment pin (classic/statement/variant)
+          forceTreatment: opts.forceTreatment || null,
           // P4 jury wiring: `frontCandidateIndex` forces a specific
           // candidate (the rasterizer renders each; the jury picks the
           // winner, then the final card re-renders with that index).
@@ -551,11 +624,55 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
     }
   }
 
+  // Rendered-name-integrity tripwire (audit P0-1): with measured glyph
+  // metrics the program's name must fit the rect the search verified — a
+  // violation is an engine regression, caught here instead of shipping.
+  // The renderer's fit guard additionally self-heals at draw time, so this
+  // surfaces as a warning (telemetry + test tripwire), not a user blocker.
+  try {
+    // split-role names carry their own text and are verified inside the
+    // sampler; the tripwire measures the generic full-name element only
+    const nameEl = plan.frontProgram?.elements?.find((e) => e.type === "name" && !e.role);
+    const lang = plan.language?.name;
+    if (nameEl && lang && nameEl.orientation === "horizontal") {
+      const { nameAdvanceEm } = require("./perception/font-files");
+      const lines = nameEl.stacked && String(lang.text).includes(" ")
+        ? [String(lang.text).split(/\s+/)[0], String(lang.text).split(/\s+/).slice(1).join(" ")]
+        : [String(lang.text)];
+      const longest = lines.reduce((a, b) => (b.length > a.length ? b : a), "");
+      const { advanceEm: adv } = nameAdvanceEm({
+        family: plan.typography?.display,
+        weight: lang.weightClass,
+        text: longest,
+        nameCase: lang.case,
+      });
+      const widthIn = longest.length * (adv + (nameEl.trackingEm || 0)) * (nameEl.sizePt / 72);
+      if (widthIn > nameEl.rect.w * 1.02 + 0.02) {
+        const checks = [
+          ...guardrailReport.checks,
+          {
+            id: "rendered-name-integrity",
+            level: "warn",
+            message: `Front name measures ${widthIn.toFixed(2)}in against a ${nameEl.rect.w.toFixed(2)}in rect — renderer fit guard will shrink it; the composer should not have produced this.`,
+          },
+        ];
+        Object.assign(guardrailReport, summarizeChecks(checks), { checks });
+      }
+    }
+  } catch {
+    /* tripwire only — never block composition */
+  }
+
   return { plan, statsBlock, poolAnalysis, guardrailReport, brief, advice: brief };
 }
 
+// Composition engine version, stamped onto frozen saved cards (P1-6). Bump
+// when a change would redesign existing seeds (geometry, scoring, grammar).
+const ENGINE_VERSION = "composed-v5.0";
+
 module.exports = {
   composeCompCard,
+  ENGINE_VERSION,
   // Exposed for tests:
   buildComposedGuardrailReport,
   buildPoolSummary,

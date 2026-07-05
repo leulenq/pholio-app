@@ -38,6 +38,7 @@ const {
   advanceEm,
   resolveWeight,
 } = require("./font-library");
+const { nameAdvanceEm } = require("./perception/font-files");
 
 const TYPE_RATIOS = [1.2, 1.25, 1.333, 1.414, 1.5, 1.618];
 const PAPERS = { pure: "#FFFFFF", ivory: "#FFFEFA", warm: "#FAF8F5" };
@@ -313,6 +314,9 @@ function synthesizeDesignLanguage(input = {}) {
     advice = null,
     brief = null, // art-director design brief (validated upstream)
     overrides = null,
+    direction = null, // pinned creative direction — salts the voice cast so
+    // each direction carries its own typographic identity (same seed, same
+    // talent, different register per direction)
   } = input;
 
   const decisions = [];
@@ -399,7 +403,7 @@ function synthesizeDesignLanguage(input = {}) {
   // the tone vector's affinity distance with a seeded tie-break.
   const kids = statsBlock?.category === "kids";
   const { voiceId, voice, because: voiceBecause } = resolveVoice(tone, {
-    seed: `${seed ?? "auto"}:${salt}:${identity}`,
+    seed: `${seed ?? "auto"}:${salt}:${identity}${direction ? `:dir-${direction}` : ""}`,
     salt: "voice",
     requested: brief?.typographyVoice || null,
     kids,
@@ -407,7 +411,6 @@ function synthesizeDesignLanguage(input = {}) {
   decide("typography-voice", voiceId, voiceBecause);
   const display = voice.display;
   const nameCase = voice.nameCase;
-  const glyphEm = advanceEm(display, nameCase);
 
   const first = String(profile.first_name || "").trim();
   const last = String(profile.last_name || "").trim();
@@ -434,7 +437,34 @@ function synthesizeDesignLanguage(input = {}) {
   const rotation = tone.formality >= 0.6 && rng() < 0.08 ? -90 : 0;
   if (rotation !== 0) decide("name-rotation", "-90 (vertical spine)", "rare editorial treatment, formality-gated");
 
-  const name = { text, case: nameCase, weightClass, trackingEm, targetSpan, rotation, glyphEm };
+  // Real glyph metrics (audit P0-1): measure the exact string the renderer
+  // will draw, in the cast voice's family/weight/case, from the vendored
+  // font files. Falls back to the library's calibrated estimate.
+  const { advanceEm: glyphEm, measured: glyphMeasured } = nameAdvanceEm({
+    family: display,
+    weight: weightClass,
+    text,
+    nameCase,
+  });
+  // Stacked (two-line) treatments size from the longest segment, whose
+  // per-glyph average differs from the full string's (spaces are narrow) —
+  // measure it separately so stacked solves are exact too.
+  const longestPart = text.split(/\s+/).reduce((a, b) => (b.length > a.length ? b : a), "");
+  const { advanceEm: glyphEmLongest } = nameAdvanceEm({
+    family: display,
+    weight: weightClass,
+    text: longestPart,
+    nameCase,
+  });
+  decide(
+    "name-metrics",
+    glyphMeasured ? "measured" : "estimated",
+    glyphMeasured
+      ? "glyph advances measured from vendored font files (opentype)"
+      : "no vendored font file — calibrated per-family estimate",
+  );
+
+  const name = { text, case: nameCase, weightClass, trackingEm, targetSpan, rotation, glyphEm, glyphEmLongest, glyphMeasured };
   decide(
     "name-treatment",
     `${display} ${nameCase} w${weightClass} tracking ${trackingEm}em span ${targetSpan}`,

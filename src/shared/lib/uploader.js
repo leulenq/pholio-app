@@ -231,8 +231,10 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       // negative-space layers when present.
       let matte = null;
       try {
-        const { computeMatte } = require("../../domains/pdf/composition/perception/matte");
-        matte = await computeMatte(processedBuffer);
+        // best available: real alpha matte when @imgly is installed, else
+        // the sharp-only studio estimate for clean-backdrop photography
+        const { computeBestMatte } = require("../../domains/pdf/composition/perception/matte");
+        matte = await computeBestMatte(processedBuffer);
       } catch {
         matte = null;
       }

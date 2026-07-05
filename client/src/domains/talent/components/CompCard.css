@@ -103,6 +103,33 @@
 .cc-stage-note--quiet { color: var(--mw-text-faint); font-size: 12px; }
 .cc-em { color: var(--mw-gold-warm, var(--mw-gold)); font-style: italic; font-family: var(--mw-serif); font-size: 13.5px; }
 
+/* ── Creative directions — named art directions, not reshuffles ── */
+.cc-directions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cc-directions__chip { flex: 0 0 auto; }
+
+/* ── Front photo casting strip ── */
+.cc-hero__strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cc-hero__auto { flex: 0 0 auto; }
+.cc-hero__thumb {
+  flex: 0 0 auto;
+  width: 44px; height: 58px;
+  padding: 0; border: 1px solid var(--mw-hair);
+  border-radius: 8px; overflow: hidden;
+  background: var(--mw-paper, #fff);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cc-hero__thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cc-hero__thumb:hover { transform: translateY(-1px) scale(1.03); border-color: var(--mw-gold); }
+.cc-hero__thumb.is-active {
+  border-color: var(--mw-gold);
+  box-shadow: 0 0 0 2px var(--mw-gold);
+}
+.cc-hero__thumb:focus-visible { outline: 2px solid var(--mw-gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .cc-hero__thumb, .cc-hero__thumb:hover { transition: none; transform: none; }
+}
+
 /* Refinement notes — plain editorial list, gold rule per entry. */
 .cc-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .cc-notes li {

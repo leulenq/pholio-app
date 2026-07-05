@@ -6,10 +6,15 @@ const multer = require('multer');
 const { requireRole } = require('../domains/auth/middleware/require-auth');
 const { validateSessionStructure } = require('../domains/auth/middleware/session-validator');
 
-// Initialize Groq client
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
-});
+// Groq client is lazy-initialized: constructing it at module load crashes
+// the whole app at boot when GROQ_API_KEY is unset (the SDK throws).
+let groqClient = null;
+function getGroq() {
+  if (!groqClient) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groqClient;
+}
 
 // Configure multer for file uploads
 const uploadMiddleware = multer({
@@ -78,7 +83,7 @@ Respond in JSON format:
 
     // Use Groq vision API with Scout model
     // Note: Groq may not have llama-4-scout, so we'll use the best available vision model
-    const completion = await groq.chat.completions.create({
+    const completion = await getGroq().chat.completions.create({
       messages: [
         {
           role: 'user',

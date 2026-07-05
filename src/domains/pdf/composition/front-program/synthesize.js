@@ -33,6 +33,7 @@ const {
   faceZone,
 } = require("../type-safety");
 const { resolveTextContrast } = require("../contrast");
+const { visibleCropWindow, cropForensics, cropMatteGrid } = require("../crop-space");
 
 // ── PRNG (selector-compatible) ──────────────────────────────────────────────
 
@@ -79,6 +80,54 @@ function overlapArea(a, b) {
   const w = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
   const h = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
   return w * h;
+}
+
+// WCAG-style relative luminance / contrast for fill selection against the
+// measured photo band (band luma is linearized with the same transfer).
+function srgbLinear(c) {
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+function hexLuminance(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return 0.5;
+  const n = parseInt(m[1], 16);
+  return (
+    0.2126 * srgbLinear(((n >> 16) & 255) / 255) +
+    0.7152 * srgbLinear(((n >> 8) & 255) / 255) +
+    0.0722 * srgbLinear((n & 255) / 255)
+  );
+}
+const contrastRatio = (l1, l2) => (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+
+/**
+ * Palette-pulled COLOR BLOCK tone for a paper plane (the editorial move:
+ * a deep, muted field carrying reversed type instead of bare paper).
+ * Derived from the hero's own palette; lightness is walked down until
+ * white type clears 4.5:1 on it. Null when the palette offers nothing —
+ * callers keep paper.
+ */
+function derivePlaneTone(forensics) {
+  const palette = Array.isArray(forensics?.palette) ? forensics.palette : [];
+  const candidate = palette.find(
+    (c) => c && typeof c.hex === "string" && c.sat >= 0.04 && c.luma > 0.05 && c.luma < 0.8,
+  );
+  if (!candidate) return null;
+  const m = /^#?([0-9a-f]{6})$/i.exec(candidate.hex);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  let r = (n >> 16) & 255;
+  let g = (n >> 8) & 255;
+  let b = n & 255;
+  // mute toward a deep block: scale channels down until white clears 4.5:1
+  for (let i = 0; i < 24; i++) {
+    const hex = `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+    const lum = hexLuminance(hex);
+    if (contrastRatio(1, lum) >= 4.5) {
+      return { hex, ink: "#FFFFFF", mutedInk: "#FFFFFFC0" };
+    }
+    r *= 0.88; g *= 0.88; b *= 0.88;
+  }
+  return null;
 }
 
 // ── intent vector ───────────────────────────────────────────────────────────
@@ -273,10 +322,21 @@ function sampleProgram(seed, ctx) {
   let heroRect;
   let paperRects = [];
   let structure;
+  // Directions seam: a caller (named-directions endpoint) may FORCE the
+  // field structure; the rest of the program still samples freely. Cutout
+  // stays matte-gated even when requested.
+  const FORCEABLE = ["cutout", "photo-dominant", "matted", "split"];
+  let forced = FORCEABLE.includes(ctx.forceStructure) ? ctx.forceStructure : null;
+  // cutout needs a REAL alpha matte (the renderer draws the silhouette);
+  // a studio coverage estimate only powers negative-space type placement
+  const hasAlphaMatte = !!matteGrid && (ctx.matteSource || "alpha") === "alpha";
+  if (forced === "cutout" && !hasAlphaMatte) forced = null;
   // Cutout structure is GATED on a real matte: subject placed on a flat
   // palette-pulled plane, type set into the silhouette's negative space.
   // Without a matte the grammar never samples it (no safe way to do it).
-  const cutoutEligible = !!matteGrid && rng() < 0.3 + 0.3 * intent.risk;
+  let planeTone = null; // palette-pulled color block for paper planes (split)
+  const cutoutRoll = rng() < 0.3 + 0.3 * intent.risk;
+  const cutoutEligible = forced ? forced === "cutout" : hasAlphaMatte && cutoutRoll;
   if (cutoutEligible) {
     structure = "cutout";
     const planeFill = ctx.palette?.background || paper;
@@ -289,7 +349,7 @@ function sampleProgram(seed, ctx) {
     heroRect = rect(sideInset, top, PAGE_W - sideInset * 2, PAGE_H - top - bottom);
     paperRects.push(rect(SAFE, PAGE_H - bottom + 0.06, PAGE_W - 2 * SAFE, bottom - 0.18));
     if (top > 0.5) paperRects.push(rect(SAFE, SAFE, PAGE_W - 2 * SAFE, top - 0.12));
-  } else if (fieldRoll < 0.32 + 0.25 * intent.energy) {
+  } else if (forced ? forced === "photo-dominant" : fieldRoll < 0.32 + 0.25 * intent.energy) {
     // photo-dominant: hero fills the page; a confident leave-behind reads as
     // near-full-bleed with the name on a tight strip — not a floating photo
     // marooned in dead paper. Either a side gutter OR a bottom strip, rarely
@@ -299,7 +359,7 @@ function sampleProgram(seed, ctx) {
     const side = rng() < 0.5 ? "left" : "right";
     const gutter = useGutter ? lerp(0.85, 1.3, rng()) : 0;
     // bottom strip just tall enough for the name lockup; no cavernous gap
-    const bottom = useGutter ? 0 : lerp(0.7, 1.05, rng());
+    const bottom = useGutter ? 0 : lerp(0.72, 1.28, rng());
     const top = 0;
     heroRect = side === "left"
       ? rect(0, top, PAGE_W - gutter, PAGE_H - top - bottom)
@@ -312,7 +372,7 @@ function sampleProgram(seed, ctx) {
       // name hugs the photo edge: a tight band at the TOP of the strip
       paperRects.push(rect(SAFE, PAGE_H - bottom + 0.06, PAGE_W - 2 * SAFE, bottom - 0.14));
     }
-  } else if (fieldRoll < 0.72) {
+  } else if (forced ? forced === "matted" : fieldRoll < 0.72) {
     // matted: hero inset on paper with asymmetric borders (gallery register)
     structure = "matted";
     const ml = lerp(0.3, 0.9, rng());
@@ -335,21 +395,32 @@ function sampleProgram(seed, ctx) {
     // photo takes the larger share; the plane is a band, not half the card
     const ratio = lerp(0.62, 0.8, rng());
     const photoFirst = rng() < 0.5;
+    // Color block (reference: intentional panel color): the paper plane may
+    // be a palette-pulled deep field carrying reversed type — energy-led,
+    // formality resists, and only when white verifiably clears 4.5:1 on it.
+    if (rng() < 0.2 + 0.35 * intent.energy - 0.3 * intent.formality) {
+      planeTone = derivePlaneTone(heroForensics);
+      if (planeTone) decide("plane", planeTone.hex, "palette-pulled color block, reversed type verified");
+    }
     if (vertical) {
       const photoW = PAGE_W * ratio;
       heroRect = photoFirst ? rect(0, 0, photoW, PAGE_H) : rect(PAGE_W - photoW, 0, photoW, PAGE_H);
       const planeRect = photoFirst
         ? rect(photoW, 0, PAGE_W - photoW, PAGE_H)
         : rect(0, 0, PAGE_W - photoW, PAGE_H);
-      elements.push({ type: "colorPlane", rect: planeRect, fill: paper, z: 0 });
+      elements.push({ type: "colorPlane", rect: planeRect, fill: planeTone ? planeTone.hex : paper, z: 0 });
       paperRects.push(rect(planeRect.x + 0.16, SAFE, planeRect.w - 0.32, PAGE_H - 2 * SAFE));
     } else {
-      const photoH = PAGE_H * ratio;
+      // Tight plane: the paper field is sized to its content — a plane much
+      // taller than the name lockup reads as dead space and kills the
+      // tension at the seam (reference critique).
+      const tightRatio = lerp(0.7, 0.84, rng());
+      const photoH = PAGE_H * tightRatio;
       heroRect = photoFirst ? rect(0, 0, PAGE_W, photoH) : rect(0, PAGE_H - photoH, PAGE_W, photoH);
       const planeRect = photoFirst
         ? rect(0, photoH, PAGE_W, PAGE_H - photoH)
         : rect(0, 0, PAGE_W, PAGE_H - photoH);
-      elements.push({ type: "colorPlane", rect: planeRect, fill: paper, z: 0 });
+      elements.push({ type: "colorPlane", rect: planeRect, fill: planeTone ? planeTone.hex : paper, z: 0 });
       // The name lockup HUGS the photo seam (a tight band at the plane edge
       // nearest the photo) instead of floating in the middle of the plane —
       // this removes the dead gap between image and name.
@@ -359,7 +430,23 @@ function sampleProgram(seed, ctx) {
       paperRects.push(seamBand);
     }
   }
-  decide("structure", structure, `field roll ${r3(fieldRoll)}, energy ${r3(intent.energy)}`);
+  decide("structure", structure, forced
+    ? `forced direction '${forced}'`
+    : `field roll ${r3(fieldRoll)}, energy ${r3(intent.energy)}`);
+
+  // ── Crop-space (audit P0-2) ────────────────────────────────────────────────
+  // The hero renders object-fit: cover, so only a sub-window of the raw
+  // image is visible in the cell. Every on-photo verification below (quiet
+  // bands, face zone, subject mask, matte negative space) must consult the
+  // VISIBLE pixels — remap the forensics/matte into the crop window. When
+  // aspects are unknown the transform is the identity (pre-fix behavior).
+  const cropWindow = visibleCropWindow({
+    imageAspect: ctx.heroAspect,
+    cellAspect: heroRect.h > 0 ? heroRect.w / heroRect.h : null,
+    objectPosition: ctx.heroCrop?.objectPosition || "50% 50%",
+  });
+  const effForensics = cropForensics(heroForensics, cropWindow);
+  const effMatte = cropMatteGrid(matteGrid, cropWindow);
 
   // hero photo plane
   const fullBleed = heroRect.x <= 1e-6 && heroRect.y <= 1e-6 &&
@@ -381,17 +468,325 @@ function sampleProgram(seed, ctx) {
   }
 
   // ── Name element ──────────────────────────────────────────────────────────
+  const chars = Math.max(1, String(nameText || "Name").replace(/\s+/g, " ").trim().length);
+  // measured per-string advance when fonts are vendored (font-files.js);
+  // the estimate fallback keeps composing, just less precisely
+  const advance = nameMetrics?.advanceEm || 0.6;
+  const advanceLongest = nameMetrics?.advanceLongestEm || advance;
+  const trackingEm = nameMetrics?.trackingEm ?? clamp(0.06 + 0.3 * intent.formality * rng(), 0.02, 0.42);
+
+  // ── Name choreography (signature premium motifs) ─────────────────────────
+  // A menu of art-directed name treatments beyond the generic register,
+  // built from the reference study (editorial split cards, on-photo
+  // hierarchical lockups, translucent bands, seam-crossing display type).
+  // Every variant is REFUSED unless the face is located and the fill is
+  // verified against the worst visible cell it covers — statements, never
+  // risks. Sampled ~1 take in 3 at typical energy so the classic registers
+  // still carry the catalog.
+  let namePlacement = null;
+  let splitLockup = null;
+  {
+    const parts = String(nameText || "").trim().split(/\s+/).filter(Boolean);
+    const heroBottom = heroRect.y + heroRect.h;
+    const seamRoom = PAGE_H - heroBottom;
+    const faceZoneEff = faceZone(effForensics);
+    const grid = effForensics?.luma?.grid;
+
+    // worst-cell fill pick: every visible forensic cell under `r` (page
+    // coords) must clear `minRatio` — a band mean hides dark torsos.
+    const pickFill = (r, candidates, { alsoPaper = false, minRatio = 2.0 } = {}) => {
+      if (!Array.isArray(grid) || !grid.length) return null;
+      const rows = grid.length;
+      const cols = grid[0].length;
+      const gy0 = clamp((r.y - heroRect.y) / heroRect.h, 0, 1);
+      const gy1 = clamp((r.y + r.h - heroRect.y) / heroRect.h, 0, 1);
+      const gx0 = clamp((r.x - heroRect.x) / heroRect.w, 0, 1);
+      const gx1 = clamp((r.x + r.w - heroRect.x) / heroRect.w, 0, 1);
+      const r0 = Math.max(0, Math.min(rows - 1, Math.floor(gy0 * rows)));
+      const r1 = Math.max(r0, Math.min(rows - 1, Math.ceil(gy1 * rows) - 1));
+      const c0 = Math.max(0, Math.min(cols - 1, Math.floor(gx0 * cols)));
+      const c1 = Math.max(c0, Math.min(cols - 1, Math.ceil(gx1 * cols) - 1));
+      const cells = [];
+      for (let rr = r0; rr <= r1; rr++) for (let cc = c0; cc <= c1; cc++) cells.push(srgbLinear(grid[rr][cc]));
+      if (!cells.length) return null;
+      const paperLum = hexLuminance(paper);
+      return candidates.find((f) => {
+        const l = hexLuminance(f.hex);
+        if (cells.some((cl) => contrastRatio(l, cl) < minRatio)) return false;
+        return !alsoPaper || contrastRatio(l, paperLum) >= 2.2;
+      }) || null;
+    };
+    // the display type must sit entirely below the located face
+    const clearsFace = (r) => {
+      const gy0 = (r.y - heroRect.y) / heroRect.h;
+      return gy0 > faceZoneEff.y1 + 0.02 && r.y > heroRect.y + 0.15;
+    };
+
+    const eligible =
+      parts.length > 1 &&
+      structure !== "cutout" &&
+      heroRect.w >= PAGE_W * 0.55 &&
+      !!faceZoneEff;
+    // Talent-facing treatment pin: 'classic' refuses the choreography
+    // outright; 'statement' opens the gate (seeded menu pick); a named
+    // variant pins it when the geometry allows. Verification never relaxes.
+    const TREATMENTS = ["classic", "statement", "straddle", "over", "band", "inset"];
+    const forceTreatment = TREATMENTS.includes(ctx.forceTreatment) ? ctx.forceTreatment : null;
+    const gateOpen = forceTreatment
+      ? forceTreatment !== "classic"
+      : rng() < 0.24 + 0.42 * intent.energy;
+    if (eligible && !planeTone && gateOpen) {
+      const firstText = parts[0];
+      const lastText = parts.slice(1).join(" ");
+      const fAdv = nameMetrics?.first?.advanceEm || advance;
+      // surname voice: seeded display/body-grotesque pairing
+      const lastBody = nameMetrics?.lastBody || null;
+      const useBodyFont = !!lastBody && rng() < 0.5;
+      const lAdv = useBodyFont ? lastBody.advanceEm : (nameMetrics?.last?.advanceEm || advance);
+      const lWeight = useBodyFont ? lastBody.weight : (nameMetrics?.last?.weight || 500);
+      const heavyWeight = nameMetrics?.first?.weight || 700;
+      const fTrack = 0.02;
+      const lTrack = clamp(0.2 + 0.18 * intent.formality, 0.16, 0.4);
+
+      // variant menu by geometry, seeded pick
+      const menu = [];
+      // straddle is the marquee interrupt — weighted double when available
+      if (structure !== "matted" && seamRoom >= 1.0) menu.push("straddle", "straddle");
+      if (heroRect.h >= 3.6) menu.push("over", "band");
+      if (seamRoom >= 0.55 && seamRoom <= 2.6) menu.push("inset");
+      const variant =
+        forceTreatment && forceTreatment !== "statement"
+          ? (menu.includes(forceTreatment) ? forceTreatment : null)
+          : menu.length
+            ? pick(rng, menu)
+            : null;
+
+      if (variant === "straddle") {
+        // ── straddle: EDGE-TO-EDGE display type crossing the photo seam
+        // into the white space (magazine-cover scale), surname on paper
+        // beneath. Translucent white/ink when it verifies — the type reads
+        // as layered INTO the photograph, not captioned under it.
+        const margin = lerp(0.1, 0.3, rng());
+        const fPt = clamp(((PAGE_W - 2 * margin) * 72) / (firstText.length * (fAdv + fTrack)), 34, 120);
+        // width recomputed from the CLAMPED size — a floor-clamped point
+        // size must never outgrow the rect the checks verify
+        const fW = firstText.length * (fAdv + fTrack) * (fPt / 72);
+        const fH = (fPt / 72) * 1.02;
+        const fRect = rect((PAGE_W - fW) / 2, heroBottom - fH * 0.55, fW, fH);
+        if (fW <= PAGE_W - 0.12 && clearsFace(fRect) && seamRoom >= fH * 0.45 + 0.55) {
+          const fill = pickFill(fRect, [
+            { hex: "#FFFFFF", why: "paper-white, set translucent", opacity: 0.92 },
+            { hex: ink, why: "ink, set translucent", opacity: 0.88 },
+            { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
+          ], { alsoPaper: true });
+          if (fill) {
+            const lPt = clamp((heroRect.w * 0.5 * 72) / (Math.max(1, lastText.length) * (lAdv + lTrack)), 13, Math.min(fPt * 0.4, 24));
+            const lH = (lPt / 72) * 1.05;
+            const lY = fRect.y + fH + 0.08;
+            if (lY + lH <= PAGE_H - 0.3) {
+              const lW = lastText.length * (lAdv + lTrack) * (lPt / 72);
+              const lRect = rect((PAGE_W - lW) / 2, lY, lW, lH);
+              elements.push({
+                type: "name", role: "split-first", variant: "straddle", text: firstText, rect: fRect,
+                orientation: "horizontal", stacked: false, sizePt: r3(fPt), trackingEm: fTrack,
+                onPhoto: true, color: fill.hex, opacity: fill.opacity, weight: heavyWeight,
+                align: "center", transform: "uppercase", scrim: null, z: 4,
+              });
+              elements.push({
+                type: "name", role: "split-last", variant: "straddle", text: lastText, rect: lRect,
+                orientation: "horizontal", stacked: false, sizePt: r3(lPt), trackingEm: r3(lTrack),
+                onPhoto: false, color: ink, weight: lWeight, font: useBodyFont ? "body" : undefined,
+                align: "center", transform: "uppercase", scrim: null, z: 3,
+              });
+              splitLockup = { variant: "straddle" };
+              namePlacement = { rect: lRect, onPhoto: false, ink: "dark", scrim: null, split: true };
+              decide("name", `split-straddle ${r3(fPt)}pt / ${r3(lPt)}pt`,
+                `edge-to-edge display crosses the photo seam (${fill.why}), surname in ${useBodyFont ? "grotesque" : "display"} caps on paper`);
+            }
+          }
+        }
+      } else if (variant === "over") {
+        // ── over: hierarchical lockup ON the photograph — large display
+        // first name, small wide-tracked surname directly beneath, one ink
+        // (the reference "Morgan" register). Fashion-book energy without a
+        // single extra element.
+        const fPt = clamp(
+          ((heroRect.w * lerp(0.66, 0.82, rng())) * 72) / (firstText.length * (fAdv + fTrack)),
+          30,
+          84,
+        );
+        const fW = firstText.length * (fAdv + fTrack) * (fPt / 72);
+        const fH = (fPt / 72) * 1.02;
+        const lPt = clamp(fPt * 0.24, 10, 16);
+        const lH = (lPt / 72) * 1.1;
+        const blockH = fH + 0.06 + lH;
+        const fRect = rect(heroRect.x + (heroRect.w - fW) / 2, heroBottom - 0.3 - blockH, fW, fH);
+        const lW = lastText.length * (lAdv + lTrack) * (lPt / 72);
+        const lRect = rect(heroRect.x + (heroRect.w - lW) / 2, fRect.y + fH + 0.06, lW, lH);
+        const blockRect = rect(Math.min(fRect.x, lRect.x), fRect.y, Math.max(fW, lW), blockH);
+        if (clearsFace(blockRect) && fW <= heroRect.w - 0.2 && lW <= heroRect.w - 0.3) {
+          const fill = pickFill(blockRect, [
+            { hex: "#FFFFFF", why: "reversed on the photograph", opacity: 1 },
+            { hex: ink, why: "ink on the photograph", opacity: 1 },
+            { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
+          ]);
+          if (fill) {
+            elements.push({
+              type: "name", role: "split-first", variant: "over", text: firstText, rect: fRect,
+              orientation: "horizontal", stacked: false, sizePt: r3(fPt), trackingEm: fTrack,
+              onPhoto: true, color: fill.hex, weight: heavyWeight,
+              align: "center", transform: "uppercase", scrim: null, z: 4,
+            });
+            elements.push({
+              type: "name", role: "split-last", variant: "over", text: lastText, rect: lRect,
+              orientation: "horizontal", stacked: false, sizePt: r3(lPt), trackingEm: r3(lTrack),
+              onPhoto: true, color: fill.hex, weight: lWeight, font: useBodyFont ? "body" : undefined,
+              align: "center", transform: "uppercase", scrim: null, z: 4,
+            });
+            splitLockup = { variant: "over" };
+            namePlacement = { rect: blockRect, onPhoto: true, ink: fill.hex === ink ? "dark" : "light", scrim: null, split: true };
+            decide("name", `over-lockup ${r3(fPt)}pt / ${r3(lPt)}pt`,
+              `hierarchical lockup on the photograph (${fill.why})`);
+          }
+        }
+      } else if (variant === "band") {
+        // ── band: a TRANSLUCENT full-width band across the photo carrying
+        // the full name (the reference "frosted strip" register) — a strong
+        // overlay whose contrast is guaranteed by its own fill, elegant
+        // because the photograph reads through it.
+        const bandLuma = (() => {
+          if (!Array.isArray(grid) || !grid.length) return 0.5;
+          const rows = grid.length;
+          let sum = 0; let n = 0;
+          for (let rr = Math.floor(rows * 0.62); rr < rows; rr++) for (const v of grid[rr]) { sum += v; n += 1; }
+          return n ? sum / n : 0.5;
+        })();
+        const frost = bandLuma < 0.55; // dark zone → light veil; light → dark veil
+        const bandFill = frost ? "rgba(250,249,246,0.82)" : "rgba(12,11,10,0.55)";
+        const bandInk = frost ? ink : "#FFFFFF";
+        const nPt = clamp((PAGE_W * 0.76 * 72) / (chars * (advance + 0.14)), 16, 30);
+        const nH = (nPt / 72) * 1.1;
+        const bH = nH + 0.24;
+        const bRect = rect(heroRect.x, heroBottom - lerp(0.35, 0.8, rng()) - bH, heroRect.w, bH);
+        const nW = chars * (advance + 0.14) * (nPt / 72);
+        const nRect = rect(heroRect.x + (heroRect.w - nW) / 2, bRect.y + (bH - nH) / 2, nW, nH);
+        if (clearsFace(bRect) && nW <= heroRect.w - 0.3) {
+          elements.push({ type: "band", rect: bRect, fill: bandFill, z: 3.4 });
+          elements.push({
+            type: "name", role: "split-first", variant: "band", text: nameText, rect: nRect,
+            orientation: "horizontal", stacked: false, sizePt: r3(nPt), trackingEm: 0.14,
+            onPhoto: true, color: bandInk, weight: nameMetrics?.last?.weight || 500,
+            align: "center", transform: "uppercase", scrim: null, z: 4,
+          });
+          splitLockup = { variant: "band" };
+          namePlacement = { rect: bRect, onPhoto: true, ink: frost ? "dark" : "light", scrim: null, split: true };
+          decide("name", `translucent band ${r3(nPt)}pt`,
+            `full name on a ${frost ? "frosted" : "veiled"} band across the photograph`);
+        }
+      } else if (variant === "inset") {
+        // ── inset: display type on the photo above the seam, surname in
+        // tracked caps on a solid accent panel seam-tight below.
+        const fSpan = lerp(0.6, 0.8, rng());
+        const fPt = clamp((heroRect.w * fSpan * 72) / (firstText.length * (fAdv + fTrack)), 30, 96);
+        const fH = (fPt / 72) * 1.02;
+        const fW = firstText.length * (fAdv + fTrack) * (fPt / 72);
+        if (fW > heroRect.w - 0.16) {
+          /* floor-clamped size outgrew the hero — no inset statement */
+        } else {
+        const fRect = rect(heroRect.x + (heroRect.w - fW) / 2, heroBottom - 0.1 - fH, fW, fH);
+        const panelFull = structure !== "matted";
+        const px = panelFull ? 0 : heroRect.x;
+        const pw = panelFull ? PAGE_W : heroRect.w;
+        const lPt = clamp((pw * 0.7 * 72) / (Math.max(1, lastText.length) * (lAdv + lTrack)), 13, Math.min(fPt * 0.5, 30));
+        const lH = (lPt / 72) * 1.05;
+        const pH = clamp(lH + 0.22, 0.38, 0.8);
+        if (clearsFace(fRect) && heroBottom + pH <= PAGE_H - 0.28) {
+          const fill = pickFill(fRect, [
+            { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
+            { hex: "#FFFFFF", why: "paper-white reverse", opacity: 1 },
+            { hex: ink, why: "ink on a light band", opacity: 1 },
+          ]);
+          if (fill) {
+            const panelRect = rect(px, heroBottom, pw, pH);
+            const inkOnAccent = contrastRatio(hexLuminance(ink), hexLuminance(accent));
+            const whiteOnAccent = contrastRatio(hexLuminance("#FFFFFF"), hexLuminance(accent));
+            const panelInk = inkOnAccent >= whiteOnAccent ? ink : "#FFFFFF";
+            const lW = lastText.length * (lAdv + lTrack) * (lPt / 72);
+            const lRect = rect(px + (pw - lW) / 2, heroBottom + (pH - lH) / 2, lW, lH);
+            elements.push({ type: "band", rect: panelRect, fill: accent, z: 2.2 });
+            elements.push({
+              type: "name", role: "split-first", variant: "inset", text: firstText, rect: fRect,
+              orientation: "horizontal", stacked: false, sizePt: r3(fPt), trackingEm: fTrack,
+              onPhoto: true, color: fill.hex, weight: heavyWeight,
+              align: "center", transform: "uppercase", scrim: null, z: 4,
+            });
+            elements.push({
+              type: "name", role: "split-last", variant: "inset", text: lastText, rect: lRect,
+              orientation: "horizontal", stacked: false, sizePt: r3(lPt), trackingEm: r3(lTrack),
+              onPhoto: false, color: panelInk, weight: lWeight, font: useBodyFont ? "body" : undefined,
+              align: "center", transform: "uppercase", scrim: null, z: 3,
+            });
+            splitLockup = { variant: "inset", panelRect };
+            namePlacement = { rect: panelRect, onPhoto: false, ink: "dark", scrim: null, split: true };
+            decide("name", `split-zone ${r3(fPt)}pt / ${r3(lPt)}pt`,
+              `first name in heavy display over the photo (${fill.why}), surname in ${useBodyFont ? "grotesque" : "display"} caps on the accent panel`);
+          }
+        }
+        }
+      }
+    }
+  }
+
   // orientation is sampled; size from measured metrics; placement by search.
   const orientationRoll = rng();
   let nameOrientation = "horizontal";
-  if (orientationRoll < 0.12 + 0.18 * intent.formality && (paperRects.some((p) => p.h > 3))) {
+  if (!splitLockup && orientationRoll < 0.12 + 0.18 * intent.formality && (paperRects.some((p) => p.h > 3))) {
     nameOrientation = "vertical"; // spine — needs a tall paper gutter
   }
-  const chars = Math.max(1, String(nameText || "Name").replace(/\s+/g, " ").trim().length);
-  const advance = nameMetrics?.advanceEm || 0.6;
-  // base size in pt scaled by intent; measured width drives fit downstream
-  let namePt = clamp(lerp(18, 34, 0.5 * intent.energy + 0.5 * rng()), 14, 36);
-  const trackingEm = nameMetrics?.trackingEm ?? clamp(0.06 + 0.3 * intent.formality * rng(), 0.02, 0.42);
+  // Name presence is a first-class objective (audit P1-5): the size is
+  // SOLVED so the name spans a confident fraction of the widest paper band,
+  // instead of sampling a size and hoping. Formality tames the ceiling —
+  // quiet cards track wider, not louder — and band height caps the solve.
+  const spanTarget = clamp(0.74 + 0.1 * intent.energy + 0.08 * rng(), 0.72, 0.9);
+  const widestBand = paperRects.reduce((a, b) => (!a || b.w > a.w ? b : a), null);
+  // A narrow tall rail cannot hold confident horizontal type — the spine
+  // (vertical name along the rail) is the premium register there, and it
+  // sizes UP with name length instead of down.
+  if (!splitLockup && nameOrientation === "horizontal" && widestBand && widestBand.w < 1.45 && widestBand.h > 3) {
+    nameOrientation = "vertical";
+  }
+  let namePt;
+  let stackedPlan = false;
+  if (nameOrientation === "horizontal" && widestBand) {
+    const ceiling = lerp(44, 31, intent.formality);
+    const solveFor = (len, lineCount) => {
+      const adv = lineCount === 2 ? advanceLongest : advance;
+      const fit = (widestBand.w * spanTarget * 72) / (len * (adv + trackingEm));
+      const heightCap = ((widestBand.h - 0.04) * 72) / (lineCount === 2 ? 2.4 : 1.3);
+      return Math.min(fit, ceiling, heightCap);
+    };
+    let solved = solveFor(chars, 1);
+    // Long names go timid on one line — stack them like an art director
+    // would (editorial two-line treatment) when that buys real size.
+    const parts = String(nameText || "").trim().split(/\s+/);
+    if (solved < 17 && parts.length > 1) {
+      const longest = parts.reduce((a, b) => (b.length > a.length ? b : a), "");
+      const solved2 = solveFor(longest.length, 2);
+      if (solved2 > solved * 1.2) {
+        stackedPlan = true;
+        solved = solved2;
+      }
+    }
+    namePt = r3(clamp(solved, 15, 44));
+  } else if (nameOrientation === "vertical" && widestBand) {
+    // spine: solve along the rail's height, capped by its width
+    const heightFit =
+      ((Math.min(widestBand.h, PAGE_H - 1) - 0.25) * 72) / (chars * (advance + trackingEm));
+    const widthFit = (widestBand.w * 72) / 1.6;
+    namePt = r3(clamp(Math.min(heightFit, widthFit, 40), 14, 40));
+  } else {
+    namePt = clamp(lerp(18, 34, 0.5 * intent.energy + 0.5 * rng()), 14, 36);
+  }
 
   function nameBox(pt, stacked) {
     const linePx = pt / 72;
@@ -401,24 +796,23 @@ function sampleProgram(seed, ctx) {
     if (stacked) {
       const parts = String(nameText).split(/\s+/);
       const longest = parts.reduce((a, b) => (b.length > a.length ? b : a), "");
-      return { w: longest.length * (advance + trackingEm) * linePx, h: linePx * 2.3 };
+      return { w: longest.length * (advanceLongest + trackingEm) * linePx, h: linePx * 2.3 };
     }
     return { w: chars * (advance + trackingEm) * linePx, h: linePx * 1.25 };
   }
 
-  let namePlacement = null;
-  let stacked = false;
+  let stacked = stackedPlan;
   for (let attempt = 0; attempt < 5 && !namePlacement; attempt++) {
     const box = nameBox(namePt, stacked);
     // Matte-aware: set the name INTO the photograph's measured negative
     // space when a real matte is present (the cutout / photo-dominant
     // registers); contrast still verified before accepting.
-    if (matteGrid && (structure === "cutout" || structure === "photo-dominant" || fullBleed) && nameOrientation === "horizontal") {
-      const ns = matteNegativeSpace(matteGrid, heroRect, { minWIn: box.w, minHIn: box.h });
+    if (effMatte && (structure === "cutout" || structure === "photo-dominant" || fullBleed) && nameOrientation === "horizontal") {
+      const ns = matteNegativeSpace(effMatte, heroRect, { minWIn: box.w, minHIn: box.h });
       if (ns) {
         const r = rect(ns.x + (ns.w - box.w) * 0.5, ns.y + (ns.h - box.h) * 0.4, box.w, box.h);
         const edge = r.y + r.h / 2 < heroRect.y + heroRect.h / 2 ? "top" : "bottom";
-        const contrast = resolveTextContrast({ forensics: heroForensics, edge });
+        const contrast = resolveTextContrast({ forensics: effForensics, edge });
         if (contrast.verdict !== "relocate") {
           namePlacement = { rect: r, onPhoto: true, ink: contrast.ink, scrim: null, viaMatte: true };
         }
@@ -426,7 +820,7 @@ function sampleProgram(seed, ctx) {
     }
     if (!namePlacement) {
       namePlacement = placeText(rng, {
-        wIn: box.w, hIn: box.h, heroRect, paperRects, heroForensics,
+        wIn: box.w, hIn: box.h, heroRect, paperRects, heroForensics: effForensics,
         allowOnPhoto: structure === "photo-dominant" || fullBleed,
       });
     }
@@ -448,7 +842,9 @@ function sampleProgram(seed, ctx) {
   // may sit on a SOLID band (ink or accent) with reversed type — a distinct,
   // confident reference motif. Energy-gated; horizontal on-photo names only.
   let knockout = null;
-  if (namePlacement.onPhoto && nameOrientation === "horizontal" && rng() < 0.3 + 0.4 * intent.energy) {
+  const knockoutOdds =
+    0.3 + 0.4 * intent.energy + (namePlacement.scrim ? 0.3 : 0); // marginal contrast → prefer the solid band
+  if (!namePlacement.split && namePlacement.onPhoto && nameOrientation === "horizontal" && rng() < knockoutOdds) {
     const bandFill = rng() < 0.7 ? ink : accent;
     const bandRect = rect(
       heroRect.x,
@@ -460,38 +856,54 @@ function sampleProgram(seed, ctx) {
     elements.push({ type: "band", rect: bandRect, fill: bandFill, z: 3.5 });
     decide("knockout", `band ${bandFill}`, "energy-gated reversed-name band");
   }
-  const nameColor = knockout
-    ? "#FFFFFF"
-    : namePlacement.onPhoto
-      ? (namePlacement.ink === "light" ? "#FFFFFF" : ink)
-      : ink;
-  elements.push({
-    type: "name", text: nameText, rect: namePlacement.rect,
-    orientation: nameOrientation, stacked, sizePt: r3(namePt), trackingEm: r3(trackingEm),
-    onPhoto: namePlacement.onPhoto,
-    color: nameColor,
-    // a knockout band provides its own contrast; otherwise keep any scrim
-    scrim: knockout ? null : namePlacement.scrim,
-    z: namePlacement.onPhoto ? 4 : 3,
-  });
-  decide("name", `${nameOrientation}${stacked ? "/stacked" : ""} ${r3(namePt)}pt${knockout ? " knockout" : ""}`,
-    namePlacement.onPhoto ? (namePlacement.viaMatte ? "in matte negative space" : "verified on photo") : "on paper");
-
-  // ── Ghost echo (layered type) — risk-gated, behind everything on paper ────
-  if (rng() < 0.18 + 0.4 * intent.risk && nameOrientation === "horizontal") {
-    const gpt = clamp(namePt * lerp(1.8, 3.2, rng()), 40, 120);
-    let gw = chars * (advance + 0.04) * (gpt / 72);
-    const gh = (gpt / 72) * 1.1;
-    // The ghost echo is a behind-layer decorative element; it may extend to
-    // the page edge but never beyond it (the renderer clips to the page).
-    gw = Math.min(gw, PAGE_W + 0.4);
-    const gx = clamp(namePlacement.rect.x - 0.2, -0.4, PAGE_W + 0.4 - gw);
-    const gy = clamp(namePlacement.rect.y - gh * 0.3, 0.1, PAGE_H - gh);
+  if (!namePlacement.split) {
+    const nameColor = knockout
+      ? "#FFFFFF"
+      : namePlacement.onPhoto
+        ? (namePlacement.ink === "light" ? "#FFFFFF" : ink)
+        : (planeTone ? planeTone.ink : ink);
     elements.push({
-      type: "ghost", text: nameText, rect: rect(gx, gy, gw, gh),
-      sizePt: r3(gpt), color: accent, opacity: r3(lerp(0.05, 0.11, rng())), z: 0.5, clip: true,
+      type: "name", text: nameText, rect: namePlacement.rect,
+      orientation: nameOrientation, stacked, sizePt: r3(namePt), trackingEm: r3(trackingEm),
+      onPhoto: namePlacement.onPhoto,
+      color: nameColor,
+      // a knockout band provides its own contrast; otherwise keep any scrim
+      scrim: knockout ? null : namePlacement.scrim,
+      z: namePlacement.onPhoto ? 4 : 3,
     });
-    decide("ghost", `${r3(gpt)}pt @${r3(elements[elements.length - 1].opacity)}`, "risk-gated layered echo");
+    decide("name", `${nameOrientation}${stacked ? "/stacked" : ""} ${r3(namePt)}pt${knockout ? " knockout" : ""}`,
+      namePlacement.onPhoto ? (namePlacement.viaMatte ? "in matte negative space" : "verified on photo") : "on paper");
+  }
+
+  // ── Ghost echo (layered type) — risk-gated, plane-owned ──────────────────
+  // The echo must render as a COMPLETE word on the paper plane: amputated
+  // glyph fragments read as rendering bugs, not layered editorial type
+  // (audit P1-5). If the full name can't fit at display scale, no echo.
+  if (rng() < 0.18 + 0.4 * intent.risk && nameOrientation === "horizontal" && !namePlacement.onPhoto && !namePlacement.split && !planeTone) {
+    const gAdvance = advance + 0.04;
+    const fitPt = ((PAGE_W - 0.5) * 72) / (chars * gAdvance);
+    const gpt = Math.min(clamp(namePt * lerp(1.8, 3.2, rng()), 40, 120), fitPt);
+    if (gpt >= 40) {
+      const gw = chars * gAdvance * (gpt / 72);
+      const gh = (gpt / 72) * 1.05;
+      const gx = clamp(namePlacement.rect.x - 0.12, 0.15, PAGE_W - 0.15 - gw);
+      const clampY = (y) => clamp(y, 0.12, PAGE_H - 0.12 - gh);
+      // candidate positions: layered behind the name, else hugging the
+      // photo's far edge — the first that stays entirely off the photo wins
+      const candidates = [
+        rect(gx, clampY(namePlacement.rect.y - gh * 0.28), gw, gh),
+        rect(gx, clampY(heroRect.y + heroRect.h + 0.04), gw, gh),
+        rect(gx, clampY(heroRect.y - gh - 0.04), gw, gh),
+      ];
+      const gr = candidates.find((r) => !rectsOverlap(r, heroRect));
+      if (gr) {
+        elements.push({
+          type: "ghost", text: nameText, rect: gr,
+          sizePt: r3(gpt), color: accent, opacity: r3(lerp(0.05, 0.11, rng())), z: 0.5, clip: false,
+        });
+        decide("ghost", `${r3(gpt)}pt @${r3(elements[elements.length - 1].opacity)}`, "complete-word echo, paper-plane ownership");
+      }
+    }
   }
 
   // ── Contact / stat micro-line — placed by search, restraint-gated ─────────
@@ -513,7 +925,7 @@ function sampleProgram(seed, ctx) {
     if (!cp) {
       cp = placeText(rng, {
         wIn: cbox.w, hIn: cbox.h, heroRect,
-        paperRects: paperRects.map((p) => p), heroForensics, allowOnPhoto: false,
+        paperRects: paperRects.map((p) => p), heroForensics: effForensics, allowOnPhoto: false,
         occupied: [namePlacement.rect],
       });
     }
@@ -521,7 +933,9 @@ function sampleProgram(seed, ctx) {
       elements.push({
         type: "contact", text: ctx.contactLine, rect: cp.rect,
         orientation: cbox.w < 0.3 ? "vertical" : "horizontal",
-        sizePt: cpt, color: palette?.muted || "#6B6560", z: 3,
+        sizePt: cpt,
+        color: planeTone ? planeTone.mutedInk : (palette?.muted || "#6B6560"),
+        z: 3,
       });
     }
   }
@@ -551,15 +965,26 @@ function scoreProgram(program, ctx) {
   const uniqueEdges = new Set(edges.map((v) => Math.round(v * 20)));
   if (edges.length) score += 18 * (1 - uniqueEdges.size / (edges.length + 1));
 
-  // balance: name centroid shouldn't collide with the optical center of mass
+  // name presence: the name is the card's identity (audit P1-5) — a
+  // confident span is rewarded ahead of any positional preference, and a
+  // timid on-paper name is penalized. Size trades against photo coverage.
   const name = els.find((e) => e.type === "name");
   if (name) {
+    const wFrac = name.rect.w / PAGE_W;
+    score += 16 * clamp((wFrac - 0.28) / 0.44, 0, 1);
+    if ((name.sizePt || 0) < 18 && !name.onPhoto) score -= 6;
     const cx = (name.rect.x + name.rect.w / 2) / PAGE_W;
     const cy = (name.rect.y + name.rect.h / 2) / PAGE_H;
-    // reward lower-third or strong-thirds placement
-    score += 10 * (1 - Math.abs(cy - 0.78));
-    score += 6 * (1 - Math.abs(cx - 0.5));
+    score += 6 * (1 - Math.abs(cy - 0.74));
+    score += 4 * (1 - Math.abs(cx - 0.5));
   }
+  // the knockout band is the loudest name-prominence tool — count it (the
+  // split lockup's accent panel is not a knockout; it carries its own term)
+  const hasSplit = els.some((e) => e.role === "split-first");
+  if (!hasSplit && els.some((e) => e.type === "band")) score += 5;
+  // the split-zone lockup is a signature register, not the default: a small
+  // reward keeps it competitive without letting it swallow the catalog
+  if (hasSplit) score += 2;
 
   // breathing: penalize text crowding the trim edge
   for (const e of textEls) {
@@ -593,7 +1018,7 @@ function structuralSignature(program) {
     .slice()
     .sort((a, b) => (a.z - b.z) || a.type.localeCompare(b.type))
     .map((e) => {
-      if (e.type === "name") return `name:${e.orientation}:${e.stacked ? "stk" : "one"}:${e.onPhoto ? "img" : "pap"}`;
+      if (e.type === "name") return `name:${e.role || "solo"}${e.variant ? `-${e.variant}` : ""}:${e.orientation}:${e.stacked ? "stk" : "one"}:${e.onPhoto ? "img" : "pap"}`;
       if (e.type === "photo") return `photo:${[...(e.bleedEdges || [])].sort().join("") || "inset"}`;
       return e.type;
     });
@@ -603,14 +1028,21 @@ function structuralSignature(program) {
 /**
  * Synthesize the best valid front program from K seeded candidates.
  *
- * @param {object} ctx — { heroAspect, heroForensics, palette, typography,
- *   nameText, nameMetrics, contactLine, language, brief }
- * @param {object} opts — { seed, candidates = 5 }
+ * @param {object} ctx — { heroAspect (raw image w/h), heroCrop ({
+ *   objectPosition } — the cover-crop the renderer will apply), heroForensics,
+ *   palette, typography, nameText, nameMetrics, contactLine, language, brief }
+ * @param {object} opts — { seed, candidates = 5, forceStructure — pin the
+ *   field structure for named-direction generation }
  * @returns {{ program, signature, score, decisions, candidates: number }}
  */
 function designFrontProgram(ctx = {}, opts = {}) {
   const intent = resolveIntent(ctx.language, ctx.brief);
-  const fullCtx = { ...ctx, intent };
+  const fullCtx = {
+    ...ctx,
+    intent,
+    forceStructure: opts.forceStructure || ctx.forceStructure || null,
+    forceTreatment: opts.forceTreatment || ctx.forceTreatment || null,
+  };
   const seed = opts.seed == null ? "auto" : String(opts.seed);
   const k = Math.max(1, Math.min(opts.candidates || 5, 8));
 

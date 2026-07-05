@@ -147,9 +147,18 @@
     // Booking block: representation or BOOKINGS framing (industry standard).
     const booking = back.booking || null;
   %>
+  <%
+    // Vendored fonts: the same TTFs the composition engine measured with,
+    // served same-origin — deterministic rendering, no CDN dependency.
+    const localFontsCss = (typeof fontsCss !== 'undefined' && fontsCss) ? fontsCss : null;
+  %>
+  <% if (localFontsCss) { %>
+  <style><%- localFontsCss %></style>
+  <% } else { %>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="<%= fontsUrl %>">
+  <% } %>
   <style>
     @page { size: <%= PAGE_W_IN %>in <%= PAGE_H_IN %>in; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -335,17 +344,17 @@
         </div>
         <% if (e.scrimForName) { %><%- fpScrim(e.scrimForName) %><% } %>
       <% } else if (e.type === 'ghost') { %>
-        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; overflow: hidden;">
+        <div class="abs" data-ghost style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; overflow: hidden;">
           <span style="font-family: '<%= displayFont %>', serif; font-size: <%= e.sizePt %>pt; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: <%= e.color %>; opacity: <%= e.opacity %>; white-space: nowrap; line-height: 1;"><%= fullName %></span>
         </div>
       <% } else if (e.type === 'band') { %>
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; background: <%= e.fill %>;"></div>
       <% } else if (e.type === 'rule' && e.variant === 'frame') { %>
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; border: <%= (e.weight||0.01) %>in solid <%= e.color %>;"></div>
-      <% } else if (e.type === 'name') { const lines = e.stacked && fullName.includes(' ') ? [fullName.split(/\s+/)[0], fullName.split(/\s+/).slice(1).join(' ')] : [fullName]; %>
+      <% } else if (e.type === 'name') { const nameSource = e.text || fullName; const lines = e.stacked && nameSource.includes(' ') ? [nameSource.split(/\s+/)[0], nameSource.split(/\s+/).slice(1).join(' ')] : [nameSource]; %>
         <% if (e.scrim) { %><%- fpScrim(e) %><% } %>
-        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : 'align-items: flex-start;' %>">
-          <% lines.forEach((ln) => { %><span style="font-family: '<%= displayFont %>', serif; font-size: <%= e.sizePt %>pt; font-weight: <%= nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= nameCase %>; line-height: 1.05; white-space: nowrap;"><%= ln %></span><% }); %>
+        <div class="abs" data-fit-text style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : (e.align === 'center' ? 'align-items: center; text-align: center;' : 'align-items: flex-start;') %>">
+          <% lines.forEach((ln) => { %><span style="font-family: '<%= e.font === 'body' ? bodyFont : displayFont %>', <%= e.font === 'body' ? 'sans-serif' : 'serif' %>; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= e.transform || nameCase %>; line-height: 1.05; white-space: nowrap;<%= (e.opacity != null && e.opacity < 1) ? ` opacity: ${e.opacity};` : '' %>"><%= ln %></span><% }); %>
         </div>
       <% } else if (e.type === 'contact') { %>
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg);' : '' %>">
@@ -371,11 +380,11 @@
     </div>
 
     <% if (verticalName) { %>
-      <div class="vertical-spine name name--left" style="color: <%= nameInk %>;">
+      <div class="vertical-spine name name--left" data-fit-text style="color: <%= nameInk %>;">
         <span><%= fullName %></span>
       </div>
     <% } else { %>
-      <div class="abs name name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>"
+      <div class="abs name name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>" data-fit-text
            style="<%= rectStyle(nameBand) %> color: <%= nameInk %>;">
         <% const nameLines = (front.name && Array.isArray(front.name.lines)) ? front.name.lines : [fullName]; %>
         <% nameLines.forEach((line) => { %><span style="white-space: nowrap;"><%= line %></span><% }); %>
@@ -402,7 +411,7 @@
 
   <%/* ───────────── PAGE 2 — BACK ───────────── */%>
   <div class="comp-card-page" id="back">
-    <div class="abs back-name name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>"
+    <div class="abs back-name name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>" data-fit-text
          style="<%= rectStyle(layout.nameBlock) %> font-size: calc(<%= nameSize %> * 0.42); justify-content: <%= (front.name && front.name.align) === 'center' ? 'center' : 'flex-start' %>;">
       <span><%= fullName %></span>
     </div>
@@ -454,5 +463,55 @@
       <% if (wordmarkUrl) { %><span class="mark-url"><%= wordmarkUrl %></span><% } %>
     </div>
   </div>
+
+  <script>
+    // Rendered-geometry hard guard (audit P0-1). The engine solves sizes
+    // from measured glyph metrics, but the page is the final authority: any
+    // name that still renders wider/taller than its solved rect is scaled to
+    // fit, and a ghost echo that cannot render as a complete word is removed
+    // rather than shipped as amputated glyph fragments. Runs in both the
+    // dashboard preview iframe and the Puppeteer PDF pass; the report lands
+    // on <body data-name-fit> for the generator/tests to assert on.
+    (function () {
+      function fitAll() {
+        var report = { checked: 0, adjusted: 0, ghostsRemoved: 0, minScale: 1 };
+        document.querySelectorAll('[data-fit-text]').forEach(function (box) {
+          var boxRect = box.getBoundingClientRect();
+          if (!boxRect.width || !boxRect.height) return;
+          box.querySelectorAll('span').forEach(function (span) {
+            report.checked += 1;
+            var r = span.getBoundingClientRect();
+            var scale = Math.min(
+              boxRect.width / Math.max(r.width, 1),
+              boxRect.height / Math.max(r.height, 1)
+            );
+            if (scale < 0.995) {
+              var size = parseFloat(getComputedStyle(span).fontSize);
+              span.style.fontSize = Math.max(size * scale * 0.995, 8) + 'px';
+              report.adjusted += 1;
+              if (scale < report.minScale) report.minScale = Math.round(scale * 1000) / 1000;
+            }
+          });
+        });
+        document.querySelectorAll('[data-ghost]').forEach(function (box) {
+          var span = box.querySelector('span');
+          if (!span) return;
+          var boxRect = box.getBoundingClientRect();
+          var r = span.getBoundingClientRect();
+          if (r.width > boxRect.width + 0.5 || r.height > boxRect.height + 2) {
+            box.style.display = 'none';
+            report.ghostsRemoved += 1;
+          }
+        });
+        document.body.setAttribute('data-name-fit', JSON.stringify(report));
+        document.body.setAttribute('data-name-fit-done', '1');
+      }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(fitAll, fitAll);
+      } else {
+        fitAll();
+      }
+    })();
+  </script>
 </body>
 </html>

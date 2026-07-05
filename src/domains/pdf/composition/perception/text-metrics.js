@@ -102,6 +102,38 @@ function loadFont(fontPath) {
 }
 
 /**
+ * Total advance for a string at a given size, robust to fonts whose GSUB
+ * tables opentype.js cannot shape (e.g. Inter's lookup-type-6 features make
+ * getAdvanceWidth throw). Falls back to summing per-glyph advance widths
+ * plus pair kerning — no ligature substitution, which is irrelevant for
+ * tracked display names.
+ * @returns {number|null} advance in the same units as sizePt
+ */
+function totalAdvance(font, text, sizePt) {
+  try {
+    const adv = font.getAdvanceWidth(text, sizePt);
+    if (Number.isFinite(adv)) return adv;
+  } catch {
+    /* fall through to the manual path */
+  }
+  try {
+    const scale = sizePt / font.unitsPerEm;
+    let total = 0;
+    let prev = null;
+    for (const ch of text) {
+      const glyph = font.charToGlyph(ch);
+      if (!glyph) continue;
+      if (prev) total += (font.getKerningValue(prev, glyph) || 0) * scale;
+      total += (glyph.advanceWidth || 0) * scale;
+      prev = glyph;
+    }
+    return Number.isFinite(total) ? total : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Average per-glyph advance (em) for a string in a given font — the measured
  * analogue of font-library's capAdvanceEm/titleAdvanceEm estimates (same
  * semantics: tracking excluded, em units, divided by glyph count).
@@ -113,14 +145,10 @@ function advanceEmFor(font, text) {
   if (!font || typeof font.getAdvanceWidth !== "function") return null;
   const str = typeof text === "string" ? text : "";
   if (!str.length) return 0;
-  try {
-    // getAdvanceWidth at fontSize=1 returns total advance in em units.
-    const totalEm = font.getAdvanceWidth(str, 1);
-    if (!Number.isFinite(totalEm)) return null;
-    return totalEm / str.length;
-  } catch (err) {
-    return null;
-  }
+  // total advance at fontSize=1 is in em units.
+  const totalEm = totalAdvance(font, str, 1);
+  if (!Number.isFinite(totalEm)) return null;
+  return totalEm / str.length;
 }
 
 /** Cap-height / em ratio for a font, with sensible fallbacks. */
@@ -156,7 +184,7 @@ function measureLine({ fontPath, fontBuffer, text, sizePt, trackingEm = 0 } = {}
   const font = fontBuffer ? parseFontBuffer(fontBuffer) : loadFont(fontPath);
   if (!font) return null;
   try {
-    const advancePt = font.getAdvanceWidth(text, sizePt); // pt at this size
+    const advancePt = totalAdvance(font, text, sizePt); // pt at this size
     if (!Number.isFinite(advancePt)) return null;
     const track = Number.isFinite(trackingEm) ? trackingEm : 0;
     const trackingPt = track * sizePt * text.length;

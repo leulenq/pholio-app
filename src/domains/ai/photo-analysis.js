@@ -36,11 +36,16 @@ function generateMockEmbedding() {
 const path = require('path');
 const config = require('../../config');
 
-// Initialize Groq client
+// Groq client is lazy-initialized: constructing it at module load crashes
+// the whole app at boot when GROQ_API_KEY is unset (the SDK throws).
 const Groq = require('groq-sdk');
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
-});
+let groqClient = null;
+function getGroq() {
+  if (!groqClient) {
+    groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groqClient;
+}
 
 /**
  * Analyzes an uploaded photo and returns predictions and market fit rankings.
@@ -101,7 +106,7 @@ Respond in exactly this JSON format. Return null for any field not confidently v
   "visible_features": ["what was visible to make these estimates"]
 }`;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await getGroq().chat.completions.create({
       messages: [
         {
           role: 'user',
