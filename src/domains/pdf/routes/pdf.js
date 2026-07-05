@@ -741,6 +741,98 @@ async function loadCompCardForensics(images, { isDemo } = {}) {
   return result;
 }
 
+// Subject mattes for the composed engine: cached in image metadata like
+// forensics; on a miss the studio matte (sharp-only, clean-backdrop) is
+// computed under a strict budget and cached back. A real alpha matte
+// (@imgly, when installed) takes precedence inside computeBestMatte.
+const matteMemoryCache = new Map();
+const MATTE_MEMORY_CACHE_MAX = 300;
+async function loadCompCardMattes(images, { isDemo } = {}) {
+  const result = {};
+  const rows = Array.isArray(images) ? images.filter((i) => i && i.id != null) : [];
+  if (!rows.length) return result;
+  let matteModule;
+  try {
+    matteModule = require("../composition/perception/matte");
+  } catch {
+    return result;
+  }
+  const parseMeta = (metadata) => {
+    if (!metadata) return {};
+    if (typeof metadata === "object") return metadata;
+    try {
+      return JSON.parse(metadata) || {};
+    } catch {
+      return {};
+    }
+  };
+  const cacheKey = (img) => `${img.id}:${img.public_url || img.path || ""}`;
+  const toCompute = [];
+  for (const img of rows) {
+    const cached = parseMeta(img.metadata).matte;
+    if (cached && Array.isArray(cached.maskGrid)) {
+      // null-miss marker: a previous attempt found the backdrop unverifiable
+      result[img.id] = cached;
+    } else if (cached === false || (cached && cached.unavailable)) {
+      /* known-unmattable: skip */
+    } else if (matteMemoryCache.has(cacheKey(img))) {
+      const mem = matteMemoryCache.get(cacheKey(img));
+      if (mem) result[img.id] = mem;
+    } else {
+      toCompute.push(img);
+    }
+  }
+  if (!toCompute.length || process.env.NODE_ENV === "test") return result;
+
+  const fsPromises = require("fs/promises");
+  const path = require("path");
+  const readLocal = async (img) => {
+    const src = img.public_url || img.path || null;
+    if (!src || /^https?:\/\//i.test(src)) return null; // local files only (budget)
+    const relative = src.replace(/^\//, "");
+    for (const candidate of [
+      path.join(process.cwd(), relative),
+      path.join(process.cwd(), "public", relative),
+    ]) {
+      try {
+        return await fsPromises.readFile(candidate);
+      } catch {
+        /* try next */
+      }
+    }
+    return null;
+  };
+
+  // Budget: mattes must never make a render feel slow.
+  const work = (async () => {
+    for (const img of toCompute.slice(0, 8)) {
+      try {
+        const buffer = await readLocal(img);
+        const matte = buffer ? await matteModule.computeBestMatte(buffer) : null;
+        if (matteMemoryCache.size >= MATTE_MEMORY_CACHE_MAX) {
+          matteMemoryCache.delete(matteMemoryCache.keys().next().value);
+        }
+        matteMemoryCache.set(cacheKey(img), matte);
+        if (matte) result[img.id] = matte;
+        if (!isDemo) {
+          const metadata = {
+            ...parseMeta(img.metadata),
+            matte: matte || { unavailable: true, version: matteModule.MATTE_VERSION },
+          };
+          knex("images")
+            .where({ id: img.id })
+            .update({ metadata: JSON.stringify(metadata) })
+            .catch(() => {});
+        }
+      } catch {
+        /* per-image fail-soft */
+      }
+    }
+  })();
+  await Promise.race([work, new Promise((resolve) => setTimeout(resolve, 3500))]);
+  return result;
+}
+
 // Render the composed-engine comp card. Returns true when a response was
 // sent; false when composition/rendering failed and the caller should fall
 // back to the classic path (resilience: a composed failure never 500s when
@@ -812,22 +904,12 @@ async function renderComposedView(req, res, data, isDemo) {
     const printBleed = normalizeQueryValue(req.query.print) === "1";
     const archetype = await loadArchetype(profile.id);
     const forensicsById = await loadCompCardForensics(images, { isDemo });
-    // Subject mattes (P1): read cached masks from image metadata when the
-    // matte step has run (requires @imgly/background-removal-node at upload).
-    // Absent today ⇒ empty map ⇒ the front engine skips mask-dependent
-    // structures. Cheap, cache-only, never blocks.
-    const matteById = {};
-    for (const img of images || []) {
-      if (!img || img.id == null) continue;
-      try {
-        const meta = typeof img.metadata === "string" ? JSON.parse(img.metadata) : img.metadata;
-        if (meta && meta.matte && Array.isArray(meta.matte.maskGrid)) {
-          matteById[img.id] = meta.matte;
-        }
-      } catch {
-        /* no matte for this image */
-      }
-    }
+    // Subject mattes (P1): metadata-cached; on a miss the sharp-only STUDIO
+    // matte is computed under budget (clean-backdrop photography — the
+    // comp-card norm) and cached back. A real alpha matte (@imgly, when
+    // installed) takes precedence. Unverifiable backdrops stay matte-less
+    // and the engine simply skips mask-dependent moves.
+    const matteById = await loadCompCardMattes(images, { isDemo });
 
     // Representation: a represented talent's card leads with the agency.
     let representation = null;
@@ -926,7 +1008,10 @@ async function renderComposedView(req, res, data, isDemo) {
     // profile (audit P0-3): stable ids, talent-facing copy, availability.
     // The dashboard renders one preview per direction via ?structure=.
     if (wantsDirections) {
-      const hasMatte = Object.keys(matteById).length > 0;
+      // the cutout direction needs a REAL alpha matte on at least one image
+      const hasMatte = Object.values(matteById).some(
+        (m) => m && (m.source || "alpha") === "alpha",
+      );
       res.json({
         engine: "composed",
         seed: toSafeMetadataToken(seed, "auto", 96),
@@ -2129,9 +2214,14 @@ router.get("/pdf/:slug", async (req, res, next) => {
       engine: req.query.engine,
       units: req.query.units,
       print: req.query.print,
-      // ?jury=1 → render front candidates and rank them with the vision jury
-      // before the final render (opt-in; adds candidate renders + a Groq call).
-      jury: normalizeQueryValue(req.query.jury) === "1",
+      structure: req.query.structure,
+      board: req.query.board,
+      preset: req.query.preset,
+      // Vision jury: DEFAULT ON for downloads when a Groq key is present
+      // (a download is the master artifact — worth K candidate renders and
+      // one vision call). ?jury=0 opts out; keyless environments skip it
+      // inside the generator automatically.
+      jury: normalizeQueryValue(req.query.jury) !== "0",
     });
     const buffer = Buffer.isBuffer(rawPdf) ? rawPdf : Buffer.from(rawPdf);
 
@@ -2325,16 +2415,7 @@ async function freezePresetPlan(slug, presetRow) {
     if (!data || !data.profile) return;
     const { profile, images } = data;
     const forensicsById = await loadCompCardForensics(images, { isDemo: false });
-    const matteById = {};
-    for (const img of images || []) {
-      if (!img || img.id == null) continue;
-      try {
-        const meta = typeof img.metadata === "string" ? JSON.parse(img.metadata) : img.metadata;
-        if (meta && meta.matte && Array.isArray(meta.matte.maskGrid)) matteById[img.id] = meta.matte;
-      } catch {
-        /* no matte */
-      }
-    }
+    const matteById = await loadCompCardMattes(images, { isDemo: false });
     let representation = null;
     if (profile.partner_agency_id) {
       try {

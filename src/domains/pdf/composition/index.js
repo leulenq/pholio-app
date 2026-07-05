@@ -492,6 +492,10 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
           heroCrop: plan.front?.crop || null,
           heroForensics,
           matteGrid: matteGrid && matteGrid.maskGrid ? matteGrid.maskGrid : matteGrid,
+          // 'alpha' (real matting) unlocks the cutout structure; 'studio'
+          // (sharp-only backdrop estimate) powers negative-space placement
+          // only. Legacy cached mattes predate the source field = alpha.
+          matteSource: matteGrid ? matteGrid.source || "alpha" : null,
           palette: plan.palette,
           typography: plan.typography,
           nameText:

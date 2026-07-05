@@ -127,10 +127,10 @@ describe("pixel-exact type safety — production blocker", () => {
         // split-zone overlay
         expect(place.faceOverlap).toBe(false);
         // the subject-occupancy cap governs the generic register only: the
-        // split-zone first name is a deliberate, contrast-verified overlay
-        // on the subject's lower frame (reference: editorial split-name
-        // cards) and is exempt by design.
-        if (name.role !== "split-first") {
+        // name-choreography motifs (split/over/band) are deliberate,
+        // worst-cell-verified overlays on the subject's lower frame and
+        // are exempt by design.
+        if (!name.role) {
           expect(place.subjectOccupancy).toBeLessThanOrEqual(0.34 + 1e-6);
         }
       }

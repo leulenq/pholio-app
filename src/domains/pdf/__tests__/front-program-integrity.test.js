@@ -144,7 +144,8 @@ describe("front-program geometry integrity sweep", () => {
         if (fy0 <= 0.38) {
           violations.push(`${seed}/${name}: split first name enters the face zone (fy0 ${fy0.toFixed(2)})`);
         }
-        if (!splitLast) {
+        if (!splitLast && splitFirst.variant !== "band") {
+          // the band variant carries the FULL name on one element
           violations.push(`${seed}/${name}: split lockup missing its surname`);
         } else if (splitFirst.variant === "inset") {
           if (!band) {

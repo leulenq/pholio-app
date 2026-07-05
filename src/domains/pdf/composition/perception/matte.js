@@ -158,7 +158,110 @@ async function computeMatte(buffer, options = {}) {
   }
 }
 
+/**
+ * STUDIO matte — sharp-only subject coverage for clean-backdrop photography
+ * (the dominant comp-card case), no ML dependency. The backdrop color is
+ * estimated PER ROW from the frame's left/right edges (studio seamless
+ * varies vertically, not horizontally); a cell's coverage is the fraction
+ * of its pixels that deviate from that row's backdrop.
+ *
+ * Honesty gate: when the edges disagree (a busy/location backdrop) the
+ * image is UNVERIFIABLE and this returns null — the same refusal discipline
+ * as type-safety. Grids from this path carry source:'studio': good enough
+ * for negative-space type placement, NOT for cutout rendering (that needs
+ * a real alpha matte, source:'alpha').
+ *
+ * @param {Buffer} buffer
+ * @param {object} [options] — { gridW=12, gridH=18 }
+ * @returns {Promise<{ maskGrid, width, height, version, source:'studio' }|null>}
+ */
+async function computeStudioMatte(buffer, options = {}) {
+  const { gridW = 12, gridH = 18 } = options;
+  const sharp = getSharp();
+  if (!sharp || !buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) return null;
+  const SAMPLE_W = 96;
+  const SAMPLE_H = 144;
+  try {
+    const meta = await sharp(buffer, { failOn: "none" }).metadata();
+    const width = meta.width || null;
+    const height = meta.height || null;
+    if (!width || !height) return null;
+
+    const { data, info } = await sharp(buffer, { failOn: "none" })
+      .resize(SAMPLE_W, SAMPLE_H, { fit: "fill" })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const ch = info.channels;
+    const px = (x, y) => {
+      const i = (y * SAMPLE_W + x) * ch;
+      return [data[i], data[i + 1], data[i + 2]];
+    };
+    const dist = (a, b) =>
+      Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
+
+    // per-row backdrop from the outer edges; the edges must agree
+    const EDGE = 3;
+    const rowBackdrop = [];
+    let agree = 0;
+    for (let y = 0; y < SAMPLE_H; y++) {
+      const left = [0, 0, 0];
+      const right = [0, 0, 0];
+      for (let x = 0; x < EDGE; x++) {
+        const l = px(x, y);
+        const r = px(SAMPLE_W - 1 - x, y);
+        for (let k = 0; k < 3; k++) { left[k] += l[k] / EDGE; right[k] += r[k] / EDGE; }
+      }
+      if (dist(left, right) < 36) agree += 1;
+      rowBackdrop.push([(left[0] + right[0]) / 2, (left[1] + right[1]) / 2, (left[2] + right[2]) / 2]);
+    }
+    if (agree / SAMPLE_H < 0.8) return null; // not a clean studio backdrop
+
+    // subject mask → grid coverage
+    const cellW = SAMPLE_W / gridW;
+    const cellH = SAMPLE_H / gridH;
+    const maskGrid = [];
+    let subjectTotal = 0;
+    for (let gr = 0; gr < gridH; gr++) {
+      const row = [];
+      for (let gc = 0; gc < gridW; gc++) {
+        let subject = 0;
+        let n = 0;
+        for (let y = Math.floor(gr * cellH); y < Math.floor((gr + 1) * cellH); y++) {
+          for (let x = Math.floor(gc * cellW); x < Math.floor((gc + 1) * cellW); x++) {
+            n += 1;
+            if (dist(px(x, y), rowBackdrop[y]) > 42) subject += 1;
+          }
+        }
+        const cov = n ? subject / n : 0;
+        subjectTotal += cov;
+        row.push(round4(clamp01(cov)));
+      }
+      maskGrid.push(row);
+    }
+    const subjectFrac = subjectTotal / (gridW * gridH);
+    // sanity: a portrait has a real figure, not nothing and not everything
+    if (subjectFrac < 0.04 || subjectFrac > 0.85) return null;
+
+    return { maskGrid, width, height, version: MATTE_VERSION, source: "studio" };
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Best available matte: the real alpha matte when @imgly is installed,
+ * else the studio estimate, else null.
+ */
+async function computeBestMatte(buffer, options = {}) {
+  const alpha = await computeMatte(buffer, options);
+  if (alpha) return { ...alpha, source: "alpha" };
+  return computeStudioMatte(buffer, options);
+}
+
 module.exports = {
   computeMatte,
+  computeStudioMatte,
+  computeBestMatte,
   MATTE_VERSION,
 };

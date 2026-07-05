@@ -339,7 +339,18 @@ export default function CompCard({ images = [], profile }) {
     setDownloading(true);
     setDownloadError(null);
     try {
-      const res = await fetch(`/pdf/${slug}?seed=${encodeURIComponent(seed)}&download=1`, { credentials: 'include' });
+      // the download must carry the exact design being previewed: frozen
+      // preset id, or the live seed + pinned direction + hero lock + board
+      const dl = new URLSearchParams({ download: '1' });
+      if (activePreset?.frozen) {
+        dl.set('preset', activePreset.id);
+      } else {
+        dl.set('seed', seed);
+        if (structure) dl.set('structure', structure);
+        if (lockHeroId) dl.set('lockHeroId', lockHeroId);
+        if (saveBoard) dl.set('board', saveBoard);
+      }
+      const res = await fetch(`/pdf/${slug}?${dl.toString()}`, { credentials: 'include' });
       if (!res.ok) {
         let message = 'Failed to generate comp card PDF.';
         const ct = res.headers.get('content-type') || '';
