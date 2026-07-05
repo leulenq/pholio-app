@@ -1,3 +1,5 @@
+import { signOut } from 'firebase/auth';
+import { auth } from './firebase';
 import { purgeApplyDraftStorage } from '../../domains/talent/pages/ApplyPage/applicationDraftStorage';
 
 /** Marketing site — used after dashboard sign-out. */
@@ -11,6 +13,11 @@ export const MARKETING_SITE_URL = (
  */
 export async function postLogoutAndRedirectToMarketing() {
   let target = MARKETING_SITE_URL;
+
+  // Firebase must be signed out too — otherwise the global auth listener
+  // (PholioAuthBridge) treats the still-present Firebase user as a signal
+  // to silently re-create an Express session on the next page load.
+  await signOut(auth).catch(() => {});
 
   try {
     const response = await fetch('/api/logout', {
