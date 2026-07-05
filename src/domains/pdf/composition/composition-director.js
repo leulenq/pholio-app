@@ -661,6 +661,9 @@ function designComposition(input = {}) {
     aspect: Number(p.aspect) || null,
     role: p.role ?? null,
     rawShotType: p.rawShotType || "",
+    // measured face location — the crop engine's head-containment guarantee
+    // is only as good as the focal it protects
+    focal: p.focal ?? null,
   }));
 
   const pacingT = (Math.min(1.6, Math.max(0.8, language.pacing)) - 0.8) / 0.8;
