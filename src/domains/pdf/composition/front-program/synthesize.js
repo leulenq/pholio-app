@@ -99,6 +99,37 @@ function hexLuminance(hex) {
 }
 const contrastRatio = (l1, l2) => (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 
+/**
+ * Palette-pulled COLOR BLOCK tone for a paper plane (the editorial move:
+ * a deep, muted field carrying reversed type instead of bare paper).
+ * Derived from the hero's own palette; lightness is walked down until
+ * white type clears 4.5:1 on it. Null when the palette offers nothing —
+ * callers keep paper.
+ */
+function derivePlaneTone(forensics) {
+  const palette = Array.isArray(forensics?.palette) ? forensics.palette : [];
+  const candidate = palette.find(
+    (c) => c && typeof c.hex === "string" && c.sat >= 0.04 && c.luma > 0.05 && c.luma < 0.8,
+  );
+  if (!candidate) return null;
+  const m = /^#?([0-9a-f]{6})$/i.exec(candidate.hex);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  let r = (n >> 16) & 255;
+  let g = (n >> 8) & 255;
+  let b = n & 255;
+  // mute toward a deep block: scale channels down until white clears 4.5:1
+  for (let i = 0; i < 24; i++) {
+    const hex = `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+    const lum = hexLuminance(hex);
+    if (contrastRatio(1, lum) >= 4.5) {
+      return { hex, ink: "#FFFFFF", mutedInk: "#FFFFFFC0" };
+    }
+    r *= 0.88; g *= 0.88; b *= 0.88;
+  }
+  return null;
+}
+
 // ── intent vector ───────────────────────────────────────────────────────────
 
 /**
@@ -300,6 +331,7 @@ function sampleProgram(seed, ctx) {
   // Cutout structure is GATED on a real matte: subject placed on a flat
   // palette-pulled plane, type set into the silhouette's negative space.
   // Without a matte the grammar never samples it (no safe way to do it).
+  let planeTone = null; // palette-pulled color block for paper planes (split)
   const cutoutRoll = rng() < 0.3 + 0.3 * intent.risk;
   const cutoutEligible = forced ? forced === "cutout" : !!matteGrid && cutoutRoll;
   if (cutoutEligible) {
@@ -360,13 +392,20 @@ function sampleProgram(seed, ctx) {
     // photo takes the larger share; the plane is a band, not half the card
     const ratio = lerp(0.62, 0.8, rng());
     const photoFirst = rng() < 0.5;
+    // Color block (reference: intentional panel color): the paper plane may
+    // be a palette-pulled deep field carrying reversed type — energy-led,
+    // formality resists, and only when white verifiably clears 4.5:1 on it.
+    if (rng() < 0.2 + 0.35 * intent.energy - 0.3 * intent.formality) {
+      planeTone = derivePlaneTone(heroForensics);
+      if (planeTone) decide("plane", planeTone.hex, "palette-pulled color block, reversed type verified");
+    }
     if (vertical) {
       const photoW = PAGE_W * ratio;
       heroRect = photoFirst ? rect(0, 0, photoW, PAGE_H) : rect(PAGE_W - photoW, 0, photoW, PAGE_H);
       const planeRect = photoFirst
         ? rect(photoW, 0, PAGE_W - photoW, PAGE_H)
         : rect(0, 0, PAGE_W - photoW, PAGE_H);
-      elements.push({ type: "colorPlane", rect: planeRect, fill: paper, z: 0 });
+      elements.push({ type: "colorPlane", rect: planeRect, fill: planeTone ? planeTone.hex : paper, z: 0 });
       paperRects.push(rect(planeRect.x + 0.16, SAFE, planeRect.w - 0.32, PAGE_H - 2 * SAFE));
     } else {
       // Tight plane: the paper field is sized to its content — a plane much
@@ -378,7 +417,7 @@ function sampleProgram(seed, ctx) {
       const planeRect = photoFirst
         ? rect(0, photoH, PAGE_W, PAGE_H - photoH)
         : rect(0, 0, PAGE_W, PAGE_H - photoH);
-      elements.push({ type: "colorPlane", rect: planeRect, fill: paper, z: 0 });
+      elements.push({ type: "colorPlane", rect: planeRect, fill: planeTone ? planeTone.hex : paper, z: 0 });
       // The name lockup HUGS the photo seam (a tight band at the plane edge
       // nearest the photo) instead of floating in the middle of the plane —
       // this removes the dead gap between image and name.
@@ -453,11 +492,17 @@ function sampleProgram(seed, ctx) {
       heroRect.w >= PAGE_W * 0.55 &&
       seamRoom >= 0.55 && seamRoom <= 2.6 &&
       !!faceZoneEff;
-    if (eligible && rng() < 0.24 + 0.42 * intent.energy) {
+    if (eligible && !planeTone && rng() < 0.24 + 0.42 * intent.energy) {
       const firstText = parts[0];
       const lastText = parts.slice(1).join(" ");
       const fAdv = nameMetrics?.first?.advanceEm || advance;
-      const lAdv = nameMetrics?.last?.advanceEm || advance;
+      // surname voice: seeded choice between the display family and the
+      // BODY grotesque (classification contrast — display first name
+      // against tracked grotesque caps, the reference pairing)
+      const lastBody = nameMetrics?.lastBody || null;
+      const useBodyFont = !!lastBody && rng() < 0.5;
+      const lAdv = useBodyFont ? lastBody.advanceEm : (nameMetrics?.last?.advanceEm || advance);
+      const lWeight = useBodyFont ? lastBody.weight : (nameMetrics?.last?.weight || 500);
       const fTrack = 0.02; // tight display setting
       const lTrack = clamp(0.2 + 0.18 * intent.formality, 0.16, 0.4); // wide tracked caps
       const fSpan = lerp(0.6, 0.8, rng());
@@ -468,34 +513,90 @@ function sampleProgram(seed, ctx) {
       );
       const fH = (fPt / 72) * 1.02;
       const fW = firstText.length * (fAdv + fTrack) * (fPt / 72);
-      const fRect = rect(
-        heroRect.x + (heroRect.w - fW) / 2,
-        heroBottom - 0.1 - fH,
-        fW,
-        fH,
-      );
+      // Variant: 'inset' rides the photo above the seam (surname panel
+      // below); 'straddle' CROSSES the seam into the white space — the
+      // editorial interrupt — with the surname on paper beneath. Matted
+      // keeps the inset register (respect the frame).
+      const wantStraddle =
+        structure !== "matted" &&
+        seamRoom >= Math.max(1.0, fH * 0.45 + 0.7) &&
+        rng() < 0.45;
+      const fY = wantStraddle ? heroBottom - fH * 0.55 : heroBottom - 0.1 - fH;
+      const fRect = rect(heroRect.x + (heroRect.w - fW) / 2, fY, fW, fH);
       // face clearance: the display type must sit entirely below the face
       const fy0 = (fRect.y - heroRect.y) / heroRect.h;
       const belowFace = fy0 > faceZoneEff.y1 + 0.02 && fRect.y > heroRect.y + 0.15;
-      // measured contrast of candidate fills against the visible band the
-      // type actually covers (accent preferred — the reference register)
+      // WORST-CELL contrast of candidate fills against the visible cells
+      // the type actually covers — a band MEAN hides a dark torso behind a
+      // light backdrop and lets glyph centers sink into it. Every covered
+      // cell must clear the ratio (accent preferred: a mid-luminance accent
+      // is the classic fill that survives both extremes — the reference
+      // register). A straddling fill must ALSO clear the paper it lands on.
       let fill = null;
       const grid = effForensics?.luma?.grid;
       if (belowFace && Array.isArray(grid) && grid.length) {
         const rows = grid.length;
+        const cols = grid[0].length;
+        const fx0 = clamp((fRect.x - heroRect.x) / heroRect.w, 0, 1);
+        const fx1 = clamp((fRect.x + fRect.w - heroRect.x) / heroRect.w, 0, 1);
+        const fyBottom = clamp((fRect.y + fH - heroRect.y) / heroRect.h, 0, 1);
         const r0 = Math.max(0, Math.min(rows - 1, Math.floor(fy0 * rows)));
-        let sum = 0;
-        let n = 0;
-        for (let r = r0; r < rows; r++) for (const v of grid[r]) { sum += v; n += 1; }
-        const bandLuma = srgbLinear(n ? sum / n : 0.5);
+        const r1 = Math.max(r0, Math.min(rows - 1, Math.ceil(fyBottom * rows) - 1));
+        const c0 = Math.max(0, Math.min(cols - 1, Math.floor(fx0 * cols)));
+        const c1 = Math.max(c0, Math.min(cols - 1, Math.ceil(fx1 * cols) - 1));
+        const cellLums = [];
+        for (let r = r0; r <= r1; r++) {
+          for (let c = c0; c <= c1; c++) cellLums.push(srgbLinear(grid[r][c]));
+        }
+        const paperLum = hexLuminance(paper);
         fill = [
           { hex: accent, why: "accent pulled from the photograph" },
           { hex: "#FFFFFF", why: "paper-white reverse" },
           { hex: ink, why: "ink on a light band" },
-        ].find((f) => contrastRatio(hexLuminance(f.hex), bandLuma) >= 2.2) || null;
+        ].find((f) => {
+          const l = hexLuminance(f.hex);
+          if (!cellLums.length) return false;
+          if (cellLums.some((cl) => contrastRatio(l, cl) < 2.0)) return false;
+          return !wantStraddle || contrastRatio(l, paperLum) >= 2.2;
+        }) || null;
       }
-      if (belowFace && fill) {
-        // surname panel: seam-tight under the photo, sized to its content
+      if (belowFace && fill && wantStraddle) {
+        // ── straddle: type crosses the seam; surname on paper beneath ──
+        const lPt = clamp(
+          (heroRect.w * 0.6 * 72) / (Math.max(1, lastText.length) * (lAdv + lTrack)),
+          13,
+          Math.min(fPt * 0.5, 26),
+        );
+        const lH = (lPt / 72) * 1.05;
+        const lW = lastText.length * (lAdv + lTrack) * (lPt / 72);
+        const lY = fRect.y + fH + 0.12;
+        if (lY + lH <= PAGE_H - 0.42) {
+          const lRect = rect(heroRect.x + (heroRect.w - lW) / 2, lY, lW, lH);
+          elements.push({
+            type: "name", role: "split-first", variant: "straddle", text: firstText, rect: fRect,
+            orientation: "horizontal", stacked: false, sizePt: r3(fPt),
+            trackingEm: fTrack, onPhoto: true, color: fill.hex,
+            weight: nameMetrics?.first?.weight || 700, align: "center",
+            transform: "uppercase", scrim: null, z: 4,
+          });
+          elements.push({
+            type: "name", role: "split-last", variant: "straddle", text: lastText, rect: lRect,
+            orientation: "horizontal", stacked: false, sizePt: r3(lPt),
+            trackingEm: r3(lTrack), onPhoto: false, color: ink,
+            weight: lWeight, font: useBodyFont ? "body" : undefined,
+            align: "center", transform: "uppercase", scrim: null, z: 3,
+          });
+          splitLockup = { firstPt: fPt, lastPt: lPt, variant: "straddle" };
+          namePlacement = { rect: lRect, onPhoto: false, ink: "dark", scrim: null, split: true };
+          decide(
+            "name",
+            `split-straddle ${r3(fPt)}pt / ${r3(lPt)}pt`,
+            `first name crosses the photo seam (${fill.why}), surname in ${useBodyFont ? "grotesque" : "display"} caps on paper`,
+          );
+        }
+      }
+      if (!splitLockup && belowFace && fill) {
+        // ── inset: type on the photo, surname on the accent panel ──
         const panelFull = structure !== "matted";
         const px = panelFull ? 0 : heroRect.x;
         const pw = panelFull ? PAGE_W : heroRect.w;
@@ -506,7 +607,11 @@ function sampleProgram(seed, ctx) {
         );
         const lH = (lPt / 72) * 1.05;
         const pH = clamp(lH + 0.22, 0.38, 0.8);
-        if (heroBottom + pH <= PAGE_H - 0.28) {
+        // inset geometry (recomputed: a failed straddle falls back here)
+        const insetFRect = rect(heroRect.x + (heroRect.w - fW) / 2, heroBottom - 0.1 - fH, fW, fH);
+        const insetFy0 = (insetFRect.y - heroRect.y) / heroRect.h;
+        const insetBelowFace = insetFy0 > faceZoneEff.y1 + 0.02 && insetFRect.y > heroRect.y + 0.15;
+        if (insetBelowFace && heroBottom + pH <= PAGE_H - 0.28) {
           const panelRect = rect(px, heroBottom, pw, pH);
           const inkOnAccent = contrastRatio(hexLuminance(ink), hexLuminance(accent));
           const whiteOnAccent = contrastRatio(hexLuminance("#FFFFFF"), hexLuminance(accent));
@@ -515,25 +620,25 @@ function sampleProgram(seed, ctx) {
           const lRect = rect(px + (pw - lW) / 2, heroBottom + (pH - lH) / 2, lW, lH);
           elements.push({ type: "band", rect: panelRect, fill: accent, z: 2.2 });
           elements.push({
-            type: "name", role: "split-first", text: firstText, rect: fRect,
+            type: "name", role: "split-first", variant: "inset", text: firstText, rect: insetFRect,
             orientation: "horizontal", stacked: false, sizePt: r3(fPt),
             trackingEm: fTrack, onPhoto: true, color: fill.hex,
             weight: nameMetrics?.first?.weight || 700, align: "center",
             transform: "uppercase", scrim: null, z: 4,
           });
           elements.push({
-            type: "name", role: "split-last", text: lastText, rect: lRect,
+            type: "name", role: "split-last", variant: "inset", text: lastText, rect: lRect,
             orientation: "horizontal", stacked: false, sizePt: r3(lPt),
             trackingEm: r3(lTrack), onPhoto: false, color: panelInk,
-            weight: nameMetrics?.last?.weight || 500, align: "center",
-            transform: "uppercase", scrim: null, z: 3,
+            weight: lWeight, font: useBodyFont ? "body" : undefined,
+            align: "center", transform: "uppercase", scrim: null, z: 3,
           });
-          splitLockup = { firstPt: fPt, lastPt: lPt, panelRect };
+          splitLockup = { firstPt: fPt, lastPt: lPt, panelRect, variant: "inset" };
           namePlacement = { rect: panelRect, onPhoto: false, ink: "dark", scrim: null, split: true };
           decide(
             "name",
             `split-zone ${r3(fPt)}pt / ${r3(lPt)}pt`,
-            `first name in heavy display over the photo (${fill.why}), surname on the accent panel`,
+            `first name in heavy display over the photo (${fill.why}), surname in ${useBodyFont ? "grotesque" : "display"} caps on the accent panel`,
           );
         }
       }
@@ -664,7 +769,7 @@ function sampleProgram(seed, ctx) {
       ? "#FFFFFF"
       : namePlacement.onPhoto
         ? (namePlacement.ink === "light" ? "#FFFFFF" : ink)
-        : ink;
+        : (planeTone ? planeTone.ink : ink);
     elements.push({
       type: "name", text: nameText, rect: namePlacement.rect,
       orientation: nameOrientation, stacked, sizePt: r3(namePt), trackingEm: r3(trackingEm),
@@ -682,7 +787,7 @@ function sampleProgram(seed, ctx) {
   // The echo must render as a COMPLETE word on the paper plane: amputated
   // glyph fragments read as rendering bugs, not layered editorial type
   // (audit P1-5). If the full name can't fit at display scale, no echo.
-  if (rng() < 0.18 + 0.4 * intent.risk && nameOrientation === "horizontal" && !namePlacement.onPhoto && !namePlacement.split) {
+  if (rng() < 0.18 + 0.4 * intent.risk && nameOrientation === "horizontal" && !namePlacement.onPhoto && !namePlacement.split && !planeTone) {
     const gAdvance = advance + 0.04;
     const fitPt = ((PAGE_W - 0.5) * 72) / (chars * gAdvance);
     const gpt = Math.min(clamp(namePt * lerp(1.8, 3.2, rng()), 40, 120), fitPt);
@@ -736,7 +841,9 @@ function sampleProgram(seed, ctx) {
       elements.push({
         type: "contact", text: ctx.contactLine, rect: cp.rect,
         orientation: cbox.w < 0.3 ? "vertical" : "horizontal",
-        sizePt: cpt, color: palette?.muted || "#6B6560", z: 3,
+        sizePt: cpt,
+        color: planeTone ? planeTone.mutedInk : (palette?.muted || "#6B6560"),
+        z: 3,
       });
     }
   }
@@ -819,7 +926,7 @@ function structuralSignature(program) {
     .slice()
     .sort((a, b) => (a.z - b.z) || a.type.localeCompare(b.type))
     .map((e) => {
-      if (e.type === "name") return `name:${e.role || "solo"}:${e.orientation}:${e.stacked ? "stk" : "one"}:${e.onPhoto ? "img" : "pap"}`;
+      if (e.type === "name") return `name:${e.role || "solo"}${e.variant ? `-${e.variant}` : ""}:${e.orientation}:${e.stacked ? "stk" : "one"}:${e.onPhoto ? "img" : "pap"}`;
       if (e.type === "photo") return `photo:${[...(e.bleedEdges || [])].sort().join("") || "inset"}`;
       return e.type;
     });

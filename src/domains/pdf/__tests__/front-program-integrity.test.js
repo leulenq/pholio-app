@@ -50,6 +50,7 @@ function forensicsFixture() {
     },
     focal: { x: 0.5, y: 0.22 },
     palette: [{ hex: "#8A6A52", population: 0.4, sat: 0.3, luma: 0.45 }],
+    // second muted tone lets derivePlaneTone build color blocks in the sweep
     warmth: 0.2,
     saturation: 0.25,
     contrast: 0.5,
@@ -138,19 +139,40 @@ describe("front-program geometry integrity sweep", () => {
       const splitFirst = nameEls.find((e) => e.role === "split-first");
       const splitLast = nameEls.find((e) => e.role === "split-last");
       if (splitFirst) {
-        if (!splitLast || !band) {
-          violations.push(`${seed}/${name}: split lockup missing its panel or surname`);
-        } else {
-          const fy0 = (splitFirst.rect.y - photo.rect.y) / photo.rect.h;
-          // face fixture focal y=0.22, half-height 0.16 → face bottom ≈ 0.38
-          if (fy0 <= 0.38) {
-            violations.push(`${seed}/${name}: split first name enters the face zone (fy0 ${fy0.toFixed(2)})`);
+        const fy0 = (splitFirst.rect.y - photo.rect.y) / photo.rect.h;
+        // face fixture focal y=0.22, half-height 0.16 → face bottom ≈ 0.38
+        if (fy0 <= 0.38) {
+          violations.push(`${seed}/${name}: split first name enters the face zone (fy0 ${fy0.toFixed(2)})`);
+        }
+        if (!splitLast) {
+          violations.push(`${seed}/${name}: split lockup missing its surname`);
+        } else if (splitFirst.variant === "inset") {
+          if (!band) {
+            violations.push(`${seed}/${name}: inset split lockup missing its accent panel`);
+          } else {
+            const seamGap = Math.abs(band.rect.y - (photo.rect.y + photo.rect.h));
+            if (seamGap > 0.005) {
+              violations.push(`${seed}/${name}: surname panel floats ${seamGap.toFixed(2)}in off the photo seam`);
+            }
           }
-          const seamGap = Math.abs(band.rect.y - (photo.rect.y + photo.rect.h));
-          if (seamGap > 0.005) {
-            violations.push(`${seed}/${name}: surname panel floats ${seamGap.toFixed(2)}in off the photo seam`);
+        } else if (splitFirst.variant === "straddle") {
+          const photoBottom = photo.rect.y + photo.rect.h;
+          // the straddle must genuinely cross the seam (tension, not decoration)
+          if (!(splitFirst.rect.y < photoBottom - 0.05 && splitFirst.rect.y + splitFirst.rect.h > photoBottom + 0.05)) {
+            violations.push(`${seed}/${name}: straddle type does not cross the photo seam`);
+          }
+          // surname on paper, fully below the photo
+          if (splitLast.rect.y < photoBottom) {
+            violations.push(`${seed}/${name}: straddle surname overlaps the photo`);
           }
         }
+      }
+
+      // 6. color-block plane: reversed type only (a dark palette-pulled
+      // field must never carry dark ink)
+      const plane = els.find((e) => e.type === "colorPlane" && e.fill && e.fill !== "#FAF8F5");
+      if (plane && nameEl && !nameEl.onPhoto && !nameEl.role && nameEl.color !== "#FFFFFF") {
+        violations.push(`${seed}/${name}: colored plane carries non-reversed name ink ${nameEl.color}`);
       }
 
       // 2. ghost: complete word, on the page, off the photo plane

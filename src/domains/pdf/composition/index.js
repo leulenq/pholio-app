@@ -532,6 +532,17 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
                   }).advanceEm,
                   weight: plan.language?.name?.weightClass || 500,
                 };
+                // body-font surname variant (grotesque caps against the
+                // display first name — classification contrast on purpose)
+                metrics.lastBody = {
+                  advanceEm: nameAdvanceEm({
+                    family: plan.typography?.body || "Inter",
+                    weight: 600,
+                    text: parts.slice(1).join(" "),
+                    nameCase: "upper",
+                  }).advanceEm,
+                  weight: 600,
+                };
               }
             } catch {
               /* split metrics are optional — the motif falls back to estimates */
@@ -613,7 +624,9 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
   // The renderer's fit guard additionally self-heals at draw time, so this
   // surfaces as a warning (telemetry + test tripwire), not a user blocker.
   try {
-    const nameEl = plan.frontProgram?.elements?.find((e) => e.type === "name");
+    // split-role names carry their own text and are verified inside the
+    // sampler; the tripwire measures the generic full-name element only
+    const nameEl = plan.frontProgram?.elements?.find((e) => e.type === "name" && !e.role);
     const lang = plan.language?.name;
     if (nameEl && lang && nameEl.orientation === "horizontal") {
       const { nameAdvanceEm } = require("./perception/font-files");
