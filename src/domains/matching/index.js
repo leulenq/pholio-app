@@ -170,8 +170,37 @@ function adaptBriefToCriteria(brief = {}) {
 }
 
 /**
- * Full brief evaluation: inherit agency ← parent board criteria, layer the
- * compiled brief on top, load the talent's commitments, and evaluate.
+ * Resolve the full merged criteria for a scope, including brief-fact compilation
+ * for casting briefs (agency ← parent board ← brief). Shared by evaluateBrief and
+ * rankSet so brief inheritance behaves identically everywhere.
+ */
+async function resolveScopeCriteria(knex, scope) {
+  const inherited = await resolveCriteria(knex, scope);
+  if (scope.type !== "brief") return inherited;
+
+  let briefRow = null;
+  if (await knex.schema.hasTable("casting_briefs")) {
+    briefRow = await knex("casting_briefs").where({ board_id: scope.id }).first();
+  }
+  const merged = briefRow
+    ? mergeCriteria([inherited, adaptBriefToCriteria(briefRow)])
+    : inherited;
+  merged._briefRow = briefRow || null;
+  return merged;
+}
+
+/**
+ * Per-profile reasoning context for a scope. Availability/exclusivity vetoes only
+ * apply to briefs, so commitments are loaded there.
+ */
+async function loadContext(knex, scope, profile, criteria) {
+  if (scope.type !== "brief") return {};
+  const commitments = await loadCommitments(knex, profile.id);
+  return { commitments, brief: criteria?._briefRow || null };
+}
+
+/**
+ * Full brief evaluation: inherit + compile brief facts + load commitments + evaluate.
  *
  * @param {import('knex').Knex} knex
  * @param {string} briefBoardId - boards.id of the casting board
@@ -180,26 +209,9 @@ function adaptBriefToCriteria(brief = {}) {
  */
 async function evaluateBrief(knex, briefBoardId, profile, opts = {}) {
   const scope = { type: "brief", id: briefBoardId };
-  const inherited = await resolveCriteria(knex, scope);
-
-  let briefRow = null;
-  if (await knex.schema.hasTable("casting_briefs")) {
-    briefRow = await knex("casting_briefs").where({ board_id: briefBoardId }).first();
-  }
-  // resolveCriteria already folds the brief-scope match_criteria row (if any);
-  // layer the compiled casting_briefs facts as the most-specific level.
-  const merged = briefRow
-    ? mergeCriteria([inherited, adaptBriefToCriteria(briefRow)])
-    : inherited;
-
-  const commitments = await loadCommitments(knex, profile.id);
-  const brief = await evaluate({
-    profile,
-    scope,
-    criteria: merged,
-    context: { commitments, brief: briefRow },
-  });
-
+  const criteria = await resolveScopeCriteria(knex, scope);
+  const context = await loadContext(knex, scope, profile, criteria);
+  const brief = await evaluate({ profile, scope, criteria, context });
   if (opts.persist) await persistEvaluation(knex, { profile, scope, brief });
   return brief;
 }
@@ -283,11 +295,142 @@ function adaptBoardToCriteria(requirements = {}, weights = {}) {
   return { constraints, signal_relevance: { importance, interactions: {} }, look_target: null };
 }
 
+// ─── Cross-candidate ranking (Stage 2) ───────────────────────────────────────
+
+function scoreVector(evidence, dims) {
+  const v = {};
+  for (const dim of dims) {
+    if (evidence[dim]) v[dim] = evidence[dim].strength;
+  }
+  return v;
+}
+
+/** Turn PROMETHEE output into per-candidate comparability annotations. */
+function buildComparability(ranking) {
+  const map = new Map();
+  const ensure = (id) => {
+    if (!map.has(id)) map.set(id, { ahead_of: [], behind: [], tradeoff_with: [] });
+    return map.get(id);
+  };
+  for (const [a, b] of ranking.outranks || []) {
+    ensure(a).ahead_of.push(b);
+    ensure(b).behind.push(a);
+  }
+  for (const [a, b] of ranking.incomparable || []) {
+    ensure(a).tradeoff_with.push(b);
+    ensure(b).tradeoff_with.push(a);
+  }
+  return map;
+}
+
+/**
+ * Rank a candidate set for a scope: evaluate each, split feasible/ineligible,
+ * produce a PROMETHEE partial order over the feasible set (comparability, not a
+ * forced total order), and optionally attach case-based context + LLM reasoning
+ * to the top candidates. Returns a decision-support payload, not an auto-decision.
+ *
+ * @param {import('knex').Knex} knex
+ * @param {{type,id}} scope
+ * @param {Array} profiles
+ * @param {Object} [opts] - { withCases, withReasoning, reasonTopK=5, caseScopeIds, persist }
+ */
+async function rankSet(knex, scope, profiles, opts = {}) {
+  const { reasonTopK = 5, persist = false } = opts;
+  const { rankCandidates: promethee } = require("./ranker");
+  const { retrieveSimilarCases, summarizeCases } = require("./case-retriever");
+  const { reasonAboutFit } = require("./reasoner");
+  const { AGENCY_DISCLOSURE } = require("./notice");
+
+  const criteria = await resolveScopeCriteria(knex, scope);
+
+  const evals = [];
+  for (const profile of profiles) {
+    const context = await loadContext(knex, scope, profile, criteria);
+    const brief = await evaluate({ profile, scope, criteria, context });
+    evals.push({ profile, brief });
+    if (persist) await persistEvaluation(knex, { profile, scope, brief });
+  }
+
+  const feasible = evals.filter((e) => e.brief.feasible);
+  const ineligible = evals.filter((e) => !e.brief.feasible);
+
+  // Criterion weights: resolved priors, else uniform over the dims actually scored.
+  let importance = criteria.signal_relevance?.importance;
+  if (!importance || !Object.keys(importance).length) {
+    const dimSet = new Set();
+    for (const e of feasible)
+      for (const d of Object.keys(e.brief._aggregation?.shapley || {})) dimSet.add(d);
+    importance = {};
+    for (const d of dimSet) importance[d] = 1;
+  }
+  const dims = Object.keys(importance);
+
+  const candidates = feasible.map((e) => ({
+    id: e.profile.id,
+    scores: scoreVector(e.brief._evidence, dims),
+  }));
+  const ranking = candidates.length ? promethee(candidates, { weights: importance }) : { flows: [], order: [], outranks: [], incomparable: [], tiers: [] };
+
+  const flowById = new Map(ranking.flows.map((f) => [f.id, f]));
+  const comparability = buildComparability(ranking);
+  const byId = new Map(feasible.map((e) => [e.profile.id, e]));
+
+  // Assemble ranked output in PROMETHEE II order, enriching top-K with context.
+  const ranked = [];
+  for (let i = 0; i < ranking.order.length; i++) {
+    const id = ranking.order[i];
+    const entry = byId.get(id);
+    if (!entry) continue;
+    const { profile, brief } = entry;
+    const out = {
+      ...stripInternal(brief),
+      net_flow: flowById.get(id)?.net ?? null,
+      comparability: comparability.get(id) || { ahead_of: [], behind: [], tradeoff_with: [] },
+    };
+
+    if (opts.withCases || opts.withReasoning) {
+      const cases = await retrieveSimilarCases(knex, {
+        scopeType: scope.type,
+        scopeIds: opts.caseScopeIds || [scope.id],
+        evidence: brief._evidence,
+        excludeProfileId: profile.id,
+      });
+      if (opts.withCases) out.cases = summarizeCases(cases);
+      if (opts.withReasoning && i < reasonTopK) {
+        out.reasoning = await reasonAboutFit({
+          profile,
+          evidence: brief._evidence,
+          aggregation: brief._aggregation,
+          constraintResult: { feasible: brief.feasible },
+          lookTarget: criteria.look_target,
+          cases,
+        });
+      }
+    }
+    ranked.push(out);
+  }
+
+  return {
+    scope,
+    ranked,
+    ineligible: ineligible.map((e) => stripInternal(e.brief)),
+    partial_order: { outranks: ranking.outranks, incomparable: ranking.incomparable, tiers: ranking.tiers },
+    notice: AGENCY_DISCLOSURE,
+  };
+}
+
+function stripInternal(brief) {
+  const { _evidence, _aggregation, ...clean } = brief;
+  return clean;
+}
+
 module.exports = {
   evaluate,
   evaluateAgencyGate,
   evaluateBoard,
   evaluateBrief,
+  rankSet,
+  resolveScopeCriteria,
   persistEvaluation,
   adaptBoardToCriteria,
   adaptBriefToCriteria,
