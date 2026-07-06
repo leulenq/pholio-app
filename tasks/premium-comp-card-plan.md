@@ -86,11 +86,32 @@ curation, and product advantage. Executed in loop iterations on branch
       covers negative-space placement
 - [x] Back page reviewed against the new fronts — no changes needed
 
+## Iteration 7 — Real variety + no dead whitespace ✅
+
+- [x] Take-to-take divergence: "Another take" carries the previous take's
+      structure/treatment/voice as avoid-hints; previous voice excluded from
+      the cast; repeat structure/treatment penalized in the best-of-K pick
+      (measured: zero identical consecutive over a 16-press chain)
+- [x] Anchored paper rhythm (head/third/foot), no mid-plane float
+- [x] Back-page architecture variety (seeded alternate before feature-column
+      fallback; neutral photo count breathes 3/4/5) — six architectures live
+- [x] Head-containment crop guarantee (back-grid beheading fix)
+- [x] Split orphan fix: on-photo choreography gated to non-split structures
+- [x] Photo-dominant bleed-to-bottom when the name is on the photo — no
+      orphaned bottom strip
+
+## Iteration 8 — Polish ✅
+
+- [x] Post-render name-integrity tripwire on downloads (large fit-guard
+      repair logged loudly)
+- [x] Side-by-side direction previews in the dashboard
+- [x] Digitals sheet reviewed — intentionally distinct utilitarian artifact,
+      no changes
+
 ## Remaining queue
 
-- [ ] Post-render Puppeteer name-integrity loop on downloads
-- [ ] Digitals sheet review against the new front range
-- [ ] Direction/treatment-aware preview takes in the dashboard (side-by-side)
+- [ ] Optional: alpha-matte dependency if a lighter matting model appears
+- [ ] Optional: agency-application vs direct-booking card modes
 
 ## Review
 
