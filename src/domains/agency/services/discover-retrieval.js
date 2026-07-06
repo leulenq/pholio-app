@@ -224,26 +224,6 @@ async function lexicalLegSqlite(knex, lexicalQuery, eligibleIds, topK) {
   }
 }
 
-function heritageMatches(profile, value) {
-  const term = String(value).toLowerCase();
-  let ethnicity = profile.ethnicity;
-  if (typeof ethnicity === "string") {
-    try {
-      ethnicity = JSON.parse(ethnicity);
-    } catch {
-      ethnicity = [ethnicity];
-    }
-  }
-  if (Array.isArray(ethnicity)) {
-    if (ethnicity.some((e) => String(e).toLowerCase().includes(term))) {
-      return true;
-    }
-  }
-  const bio = (profile.bio_curated || "").toLowerCase();
-  const skin = (profile.skin_tone || "").toLowerCase();
-  return bio.includes(term) || skin.includes(term);
-}
-
 function structuredBoostForProfile(profile, constraints) {
   let boost = 0;
   const legHits = {};
@@ -262,10 +242,11 @@ function structuredBoostForProfile(profile, constraints) {
         legHits.gender = increment;
       }
     } else if (c.field === "heritage") {
-      if (heritageMatches(profile, c.value)) {
-        boost += increment;
-        legHits.heritage = increment;
-      }
+      // Compliance: ethnicity / skin-tone must NOT be a positive default ranking
+      // signal (LL144 / EU AI Act / fair-hiring). A bona-fide, client-stated
+      // diversity requirement is handled as an explicit, consented, logged brief
+      // tag — never a hidden retrieval boost. Intentionally ignored here.
+      continue;
     } else if (c.field === "hair_color") {
       if (
         profile.hair_color &&

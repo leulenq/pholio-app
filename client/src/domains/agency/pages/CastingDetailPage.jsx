@@ -10,6 +10,7 @@ import {
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import MatchScore from '../components/ui/MatchScore';
+import FitBriefsPanel from '../components/FitBriefs/FitBriefsPanel';
 import './CastingPage.css';
 
 const isNew = (s) => s === 'submitted' || s === 'pending' || !s;
@@ -89,6 +90,7 @@ function CastingDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [tab, setTab] = useState('all');
+  const [view, setView] = useState('board');
   const [selected, setSelected] = useState(null);
 
   const { data, isLoading, isError } = useQuery({
@@ -169,39 +171,64 @@ function CastingDetailPage() {
         ))}
       </motion.div>
 
-      <div className="cas-filters cd-filters">
-        {TABS.map((t) => (
-          <button key={t.key} className={`cas-chip${tab === t.key ? ' cas-chip--on' : ''}`} onClick={() => setTab(t.key)}>
-            {t.label}<span className="cas-chip-count">{counts[t.key] ?? 0}</span>
-          </button>
-        ))}
+      <div className="cd-viewswitch" role="tablist" aria-label="Board view">
+        <button
+          role="tab"
+          aria-selected={view === 'board'}
+          className={`cd-viewtab${view === 'board' ? ' cd-viewtab--on' : ''}`}
+          onClick={() => setView('board')}
+        >
+          Board
+        </button>
+        <button
+          role="tab"
+          aria-selected={view === 'briefs'}
+          className={`cd-viewtab${view === 'briefs' ? ' cd-viewtab--on' : ''}`}
+          onClick={() => setView('briefs')}
+        >
+          Fit Briefs
+        </button>
       </div>
 
-      {isLoading && <div className="cas-loading">Loading candidates…</div>}
-      {isError && <div className="cas-loading">Couldn’t load this board.</div>}
-      {!isLoading && !isError && filtered.length === 0 && (
-        <div className="cas-empty">
-          <p className="cas-empty-title">No talent in this view</p>
-          <p className="cas-empty-sub">Add applicants to this board, or switch the filter.</p>
-        </div>
+      {view === 'board' && (
+        <>
+          <div className="cas-filters cd-filters">
+            {TABS.map((t) => (
+              <button key={t.key} className={`cas-chip${tab === t.key ? ' cas-chip--on' : ''}`} onClick={() => setTab(t.key)}>
+                {t.label}<span className="cas-chip-count">{counts[t.key] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+
+          {isLoading && <div className="cas-loading">Loading candidates…</div>}
+          {isError && <div className="cas-loading">Couldn’t load this board.</div>}
+          {!isLoading && !isError && filtered.length === 0 && (
+            <div className="cas-empty">
+              <p className="cas-empty-title">No talent in this view</p>
+              <p className="cas-empty-sub">Add applicants to this board, or switch the filter.</p>
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="cd-grid">
+              {filtered.map((c, i) => (
+                <CandidateCard
+                  key={c.applicationId ?? c.id}
+                  c={c}
+                  index={i}
+                  busy={busyId === (c.applicationId ?? c.id)}
+                  onOpen={(cand) => setSelected(toTalent(cand))}
+                  onShortlist={(cand) => shortlist.mutate(cand.applicationId ?? cand.id)}
+                  onAccept={(cand) => accept.mutate(cand.applicationId ?? cand.id)}
+                  onDecline={(cand) => decline.mutate(cand.applicationId ?? cand.id)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {filtered.length > 0 && (
-        <div className="cd-grid">
-          {filtered.map((c, i) => (
-            <CandidateCard
-              key={c.applicationId ?? c.id}
-              c={c}
-              index={i}
-              busy={busyId === (c.applicationId ?? c.id)}
-              onOpen={(cand) => setSelected(toTalent(cand))}
-              onShortlist={(cand) => shortlist.mutate(cand.applicationId ?? cand.id)}
-              onAccept={(cand) => accept.mutate(cand.applicationId ?? cand.id)}
-              onDecline={(cand) => decline.mutate(cand.applicationId ?? cand.id)}
-            />
-          ))}
-        </div>
-      )}
+      {view === 'briefs' && <FitBriefsPanel boardId={boardId} />}
 
       <AnimatePresence>
         {selected && (

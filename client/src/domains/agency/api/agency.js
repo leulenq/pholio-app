@@ -299,6 +299,20 @@ export async function getCastingBoardPipeline(boardId) {
 }
 
 /**
+ * Rank a board's applicants with the Fit Briefs decision-support engine.
+ * This is decision support, not a decision — the response includes an explanatory
+ * case for / against each candidate, an eligibility split, and a required disclosure
+ * notice. `opts` may set { withCases, withReasoning } to include past-case context
+ * and the optional AI read.
+ */
+export async function rankBoard(boardId, opts = {}) {
+  const body = {};
+  if (opts.withCases) body.withCases = true;
+  if (opts.withReasoning) body.withReasoning = true;
+  return apiClient.post(`/boards/${boardId}/rank`, body);
+}
+
+/**
  * Create board
  */
 export async function createBoard(boardData) {
@@ -801,6 +815,8 @@ export default {
   fetchRosterProfile,
   inviteTalent,
   getBoards,
+  getCastingBoardPipeline,
+  rankBoard,
   createBoard,
   updateBoard,
   deleteBoard,
