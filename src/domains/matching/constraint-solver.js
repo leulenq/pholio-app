@@ -39,6 +39,22 @@ function profileAge(profile) {
   return calculateAge(profile.date_of_birth);
 }
 
+// Inclusive date-range overlap. Missing bounds are treated as open-ended.
+function datesOverlap(aStart, aEnd, bStart, bEnd) {
+  const as = aStart ? new Date(aStart).getTime() : -Infinity;
+  const ae = aEnd ? new Date(aEnd).getTime() : Infinity;
+  const bs = bStart ? new Date(bStart).getTime() : -Infinity;
+  const be = bEnd ? new Date(bEnd).getTime() : Infinity;
+  if ([as, ae, bs, be].some((n) => Number.isNaN(n))) return false;
+  return as <= be && ae >= bs;
+}
+
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return s[(v - 20) % 10] || s[v] || s[0];
+}
+
 function asArray(v) {
   if (v == null) return [];
   if (Array.isArray(v)) return v;
@@ -133,6 +149,69 @@ const EVALUATORS = {
     return { status: STATUS.FAIL, reason: "outside required market" };
   },
 
+  // Context-aware: reasons against the talent's option/hold/booked/bookout
+  // calendar (context.commitments). booked/bookout overlap ⇒ hard veto; an
+  // option/hold overlap ⇒ indeterminate "confirm release" (not a disqualifier);
+  // no overlap ⇒ free. Absent calendar data ⇒ indeterminate, never a silent pass.
+  availability(profile, params, context = {}) {
+    const commitments = context.commitments;
+    if (!Array.isArray(commitments))
+      return { status: STATUS.INDETERMINATE, reason: "availability not tracked" };
+    if (params.start == null && params.end == null)
+      return { status: STATUS.PASS, reason: "no dates specified" };
+
+    const overlapping = commitments.filter((c) =>
+      datesOverlap(c.start_date, c.end_date, params.start, params.end),
+    );
+    if (!overlapping.length)
+      return { status: STATUS.PASS, reason: "free on shoot dates" };
+
+    const hard = overlapping.find(
+      (c) => c.kind === "booked" || c.kind === "bookout",
+    );
+    if (hard)
+      return {
+        status: STATUS.FAIL,
+        reason: `${hard.kind} elsewhere on shoot dates`,
+      };
+
+    const soft = overlapping[0]; // option / hold
+    const tier = soft.option_tier ? `${soft.option_tier}${ordinal(soft.option_tier)} ` : "";
+    return {
+      status: STATUS.INDETERMINATE,
+      reason: `on ${tier}${soft.kind} for these dates — confirm release`,
+    };
+  },
+
+  // Context-aware: vetoes when the talent holds an active exclusivity commitment
+  // in the same category that is still live at the brief's shoot window.
+  usage_exclusivity(profile, params, context = {}) {
+    const commitments = context.commitments;
+    if (!Array.isArray(commitments))
+      return { status: STATUS.INDETERMINATE, reason: "usage conflicts not tracked" };
+    if (!params.exclusivity && !params.category)
+      return { status: STATUS.PASS, reason: "no exclusivity required" };
+
+    const category = params.category ? String(params.category).toLowerCase() : null;
+    const shootStart = params.start;
+    const conflict = commitments.find((c) => {
+      if (!c.exclusivity) return false;
+      const stillLive =
+        c.exclusivity_until == null ||
+        shootStart == null ||
+        new Date(c.exclusivity_until) >= new Date(shootStart);
+      if (!stillLive) return false;
+      if (!category) return true; // any exclusivity conflicts with an exclusive brief
+      return String(c.category || "").toLowerCase() === category;
+    });
+    if (conflict)
+      return {
+        status: STATUS.FAIL,
+        reason: `under ${conflict.category || "an"} exclusivity${conflict.exclusivity_until ? ` until ${String(conflict.exclusivity_until).slice(0, 10)}` : ""}`,
+      };
+    return { status: STATUS.PASS, reason: "no usage/exclusivity conflict" };
+  },
+
   media_required(profile, params) {
     // Soft by default: surfaces missing digitals/polaroids/reel as a near-miss.
     const required = asArray(params.types);
@@ -152,7 +231,7 @@ const EVALUATORS = {
  * @param {Array<{key,type,severity,locked,params}>} constraints
  * @returns {{ feasible:boolean, gates:Array, vetoes:Array, softMisses:Array, indeterminate:Array }}
  */
-function solveConstraints(profile, constraints) {
+function solveConstraints(profile, constraints, context = {}) {
   const gates = [];
   for (const c of constraints || []) {
     if (!c || !c.type) continue;
@@ -170,7 +249,7 @@ function solveConstraints(profile, constraints) {
       });
       continue;
     }
-    const { status, reason } = evaluator(profile, c.params || {});
+    const { status, reason } = evaluator(profile, c.params || {}, context);
     gates.push({
       key: c.key,
       type: c.type,
@@ -198,4 +277,4 @@ function solveConstraints(profile, constraints) {
   };
 }
 
-module.exports = { solveConstraints, calculateAge, profileAge, STATUS };
+module.exports = { solveConstraints, calculateAge, profileAge, datesOverlap, STATUS };

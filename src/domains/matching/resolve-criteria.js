@@ -114,13 +114,19 @@ async function loadCriteriaChain(knex, scope) {
       chainScopes.push({ type: "agency", id: board.agency_id });
     chainScopes.push({ type: "board", id: scope.id });
   } else if (scope.type === "brief") {
-    // A brief is (Stage 0) a board with kind='casting'. Resolve its agency and,
-    // when present, a parent division board it inherits from.
-    const brief = await knex("boards").where({ id: scope.id }).first();
-    if (brief?.agency_id)
-      chainScopes.push({ type: "agency", id: brief.agency_id });
-    if (brief?.parent_board_id)
-      chainScopes.push({ type: "board", id: brief.parent_board_id });
+    // A brief is a board with kind='casting'. Resolve its agency and, when the
+    // casting_briefs row names a parent division board, inherit that board too.
+    const board = await knex("boards").where({ id: scope.id }).first();
+    if (board?.agency_id)
+      chainScopes.push({ type: "agency", id: board.agency_id });
+    const hasBriefs = await knex.schema.hasTable("casting_briefs");
+    if (hasBriefs) {
+      const briefRow = await knex("casting_briefs")
+        .where({ board_id: scope.id })
+        .first();
+      if (briefRow?.parent_board_id)
+        chainScopes.push({ type: "board", id: briefRow.parent_board_id });
+    }
     chainScopes.push({ type: "brief", id: scope.id });
   }
 

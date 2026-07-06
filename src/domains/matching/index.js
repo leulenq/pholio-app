@@ -18,7 +18,7 @@
 
 const crypto = require("crypto");
 const { buildCapacity, choquet2additive } = require("./aggregator");
-const { resolveCriteria } = require("./resolve-criteria");
+const { resolveCriteria, mergeCriteria } = require("./resolve-criteria");
 const { extractEvidence } = require("./signal-extractor");
 const { solveConstraints } = require("./constraint-solver");
 const { composeFitBrief } = require("./explanation-composer");
@@ -34,9 +34,11 @@ const EMPTY_CRITERIA = { constraints: [], signal_relevance: {}, look_target: nul
  * @param {Object} p.profile
  * @param {{type:'agency'|'board'|'brief', id:string}} p.scope
  * @param {Object} [p.criteria] - pre-resolved criteria (skips DB load)
+ * @param {Object} [p.context]  - reasoning context, e.g. { commitments } for
+ *                                availability/exclusivity conflict checks
  * @returns {Promise<Object>} fit brief (+ non-persisted `_evidence`/`_aggregation`)
  */
-async function evaluate({ knex, profile, scope, criteria }) {
+async function evaluate({ knex, profile, scope, criteria, context = {} }) {
   const resolved =
     criteria || (knex ? await resolveCriteria(knex, scope) : EMPTY_CRITERIA);
 
@@ -71,7 +73,7 @@ async function evaluate({ knex, profile, scope, criteria }) {
   }
 
   const aggregation = choquet2additive(scores, capacity);
-  const constraintResult = solveConstraints(profile, resolved.constraints);
+  const constraintResult = solveConstraints(profile, resolved.constraints, context);
 
   const brief = composeFitBrief({
     constraintResult,
@@ -94,8 +96,113 @@ const evaluateAgencyGate = (knex, agencyId, profile, criteria) =>
 const evaluateBoard = (knex, boardId, profile, criteria) =>
   evaluate({ knex, profile, scope: { type: "board", id: boardId }, criteria });
 
-const evaluateBrief = (knex, briefId, profile, criteria) =>
-  evaluate({ knex, profile, scope: { type: "brief", id: briefId }, criteria });
+/**
+ * Load a talent's live commitments (option/hold/booked/bookout + exclusivity)
+ * for availability & usage-conflict reasoning. Returns [] when none, so the
+ * solver reads "free" rather than "untracked".
+ */
+async function loadCommitments(knex, profileId) {
+  const hasTable = await knex.schema.hasTable("talent_commitments");
+  if (!hasTable) return undefined; // untracked ⇒ solver stays indeterminate
+  return knex("talent_commitments").where({ profile_id: profileId }).select("*");
+}
+
+/**
+ * Compile a casting_briefs row into brief-scope criteria: date→availability,
+ * usage→usage_exclusivity, media_requirements→media_required, market→market_in,
+ * plus the brief's look target. Rights/logistics only — no money.
+ */
+function adaptBriefToCriteria(brief = {}) {
+  const parse = (v, f) => {
+    if (v == null) return f;
+    if (typeof v !== "string") return v;
+    try {
+      return JSON.parse(v);
+    } catch {
+      return f;
+    }
+  };
+  const usage = parse(brief.usage, {}) || {};
+  const constraints = [];
+
+  if (brief.shoot_start || brief.shoot_end)
+    constraints.push({
+      key: "availability",
+      type: "availability",
+      severity: "veto",
+      params: { start: brief.shoot_start, end: brief.shoot_end },
+    });
+
+  if (usage.exclusivity || usage.category)
+    constraints.push({
+      key: "usage_exclusivity",
+      type: "usage_exclusivity",
+      severity: "veto",
+      params: {
+        exclusivity: !!usage.exclusivity,
+        category: usage.category || null,
+        start: brief.shoot_start,
+      },
+    });
+
+  const media = parse(brief.media_requirements, []) || [];
+  if (Array.isArray(media) && media.length)
+    constraints.push({
+      key: "media",
+      type: "media_required",
+      severity: "soft",
+      params: { types: media },
+    });
+
+  if (brief.market)
+    constraints.push({
+      key: "market",
+      type: "market_in",
+      severity: "soft",
+      params: { values: [brief.market] },
+    });
+
+  return {
+    constraints,
+    signal_relevance: {},
+    look_target: parse(brief.look_target, null),
+  };
+}
+
+/**
+ * Full brief evaluation: inherit agency ← parent board criteria, layer the
+ * compiled brief on top, load the talent's commitments, and evaluate.
+ *
+ * @param {import('knex').Knex} knex
+ * @param {string} briefBoardId - boards.id of the casting board
+ * @param {Object} profile
+ * @param {Object} [opts] - { persist?: boolean }
+ */
+async function evaluateBrief(knex, briefBoardId, profile, opts = {}) {
+  const scope = { type: "brief", id: briefBoardId };
+  const inherited = await resolveCriteria(knex, scope);
+
+  let briefRow = null;
+  if (await knex.schema.hasTable("casting_briefs")) {
+    briefRow = await knex("casting_briefs").where({ board_id: briefBoardId }).first();
+  }
+  // resolveCriteria already folds the brief-scope match_criteria row (if any);
+  // layer the compiled casting_briefs facts as the most-specific level.
+  const merged = briefRow
+    ? mergeCriteria([inherited, adaptBriefToCriteria(briefRow)])
+    : inherited;
+
+  const commitments = await loadCommitments(knex, profile.id);
+  const brief = await evaluate({
+    profile,
+    scope,
+    criteria: merged,
+    context: { commitments, brief: briefRow },
+  });
+
+  if (opts.persist) await persistEvaluation(knex, { profile, scope, brief });
+  return brief;
+}
 
 /**
  * Persist a fit brief as an immutable reasoning record (audit + replay).
@@ -183,4 +290,6 @@ module.exports = {
   evaluateBrief,
   persistEvaluation,
   adaptBoardToCriteria,
+  adaptBriefToCriteria,
+  loadCommitments,
 };
