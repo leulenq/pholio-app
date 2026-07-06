@@ -135,7 +135,7 @@ function SectionPanel({ kicker, title, intro, children, action }) {
   const reduce = useReducedMotion();
   const id = panelId(title);
   return (
-    <motion.section className="talent-settings-panel" aria-labelledby={id} variants={panelVariants(reduce)}>
+    <motion.section className="talent-settings-panel" aria-labelledby={id} variants={panelVariants(reduce)} initial="hidden" animate="show">
       <motion.div className="talent-settings-panel__head" variants={childVariants(reduce)}>
         <div className="talent-settings-panel__heading">
           <span className="talent-settings-kicker">{kicker}</span>
@@ -178,7 +178,7 @@ function NativeSwitch({ checked, disabled, label, onChange }) {
 function Skeleton() {
   const reduce = useReducedMotion();
   return (
-    <motion.div className="talent-settings-skeleton" aria-label="Loading settings" variants={childVariants(reduce)}>
+    <motion.div className="talent-settings-skeleton" aria-label="Loading settings" variants={childVariants(reduce)} initial="hidden" animate="show">
       <span /><span /><span />
     </motion.div>
   );
