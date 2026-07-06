@@ -530,7 +530,13 @@ function sampleProgram(seed, ctx) {
     const eligible =
       parts.length > 1 &&
       structure !== "cutout" &&
-      heroRect.w >= PAGE_W * 0.55 &&
+      // Split structures reserve an asymmetric paper plane for the name;
+      // moving the name onto the photo orphans that plane as dead white
+      // space (only a lone contact line left behind). The on-photo
+      // choreography belongs to cards where the photo owns the width
+      // (photo-dominant / matted). In split the name stays on its plane.
+      structure !== "split" &&
+      heroRect.w >= PAGE_W * 0.72 &&
       !!faceZoneEff;
     // Talent-facing treatment pin: 'classic' refuses the choreography
     // outright; 'statement' opens the gate (seeded menu pick); a named
