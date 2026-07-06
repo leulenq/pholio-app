@@ -40,7 +40,7 @@ const EMPTY_CRITERIA = { constraints: [], signal_relevance: {}, look_target: nul
  */
 async function evaluate({ knex, profile, scope, criteria, context = {} }) {
   const resolved =
-    criteria || (knex ? await resolveCriteria(knex, scope) : EMPTY_CRITERIA);
+    criteria || (knex ? await resolveScopeCriteria(knex, scope) : EMPTY_CRITERIA);
 
   const evidence = extractEvidence(profile, resolved);
 
@@ -176,17 +176,57 @@ function adaptBriefToCriteria(brief = {}) {
  */
 async function resolveScopeCriteria(knex, scope) {
   const inherited = await resolveCriteria(knex, scope);
-  if (scope.type !== "brief") return inherited;
 
-  let briefRow = null;
-  if (await knex.schema.hasTable("casting_briefs")) {
-    briefRow = await knex("casting_briefs").where({ board_id: scope.id }).first();
+  let merged = inherited;
+  if (scope.type === "brief") {
+    let briefRow = null;
+    if (await knex.schema.hasTable("casting_briefs")) {
+      briefRow = await knex("casting_briefs").where({ board_id: scope.id }).first();
+    }
+    merged = briefRow
+      ? mergeCriteria([inherited, adaptBriefToCriteria(briefRow)])
+      : inherited;
+    merged._briefRow = briefRow || null;
   }
-  const merged = briefRow
-    ? mergeCriteria([inherited, adaptBriefToCriteria(briefRow)])
-    : inherited;
-  merged._briefRow = briefRow || null;
+
+  // Close the learning loop: if this agency has a learned preference model for
+  // this scope, its capacity (importance + interactions) overrides the priors.
+  await applyLearnedModel(knex, scope, merged);
   return merged;
+}
+
+/** Resolve the owning agency id for a scope. */
+async function agencyIdForScope(knex, scope) {
+  if (scope.type === "agency") return scope.id;
+  const board = await knex("boards").where({ id: scope.id }).first();
+  return board?.agency_id || null;
+}
+
+/** Overlay a learned per-agency capacity onto resolved criteria, if one exists. */
+async function applyLearnedModel(knex, scope, merged) {
+  if (!(await knex.schema.hasTable("agency_preference_model"))) return;
+  const agencyId = await agencyIdForScope(knex, scope);
+  if (!agencyId) return;
+  const pref = await knex("agency_preference_model")
+    .where({ agency_id: agencyId, scope_type: scope.type, scope_id: scope.id })
+    .first();
+  if (!pref) return;
+  let cap = pref.capacity;
+  if (typeof cap === "string") {
+    try {
+      cap = JSON.parse(cap);
+    } catch {
+      cap = null;
+    }
+  }
+  if (!cap || !cap.phi) return;
+  merged.signal_relevance = merged.signal_relevance || { importance: {}, interactions: {} };
+  merged.signal_relevance.importance = cap.phi;
+  merged.signal_relevance.interactions = {
+    ...(merged.signal_relevance.interactions || {}),
+    ...(cap.interaction || {}),
+  };
+  merged._learned = { version: pref.version };
 }
 
 /**
@@ -383,6 +423,10 @@ async function rankSet(knex, scope, profiles, opts = {}) {
     if (!entry) continue;
     const { profile, brief } = entry;
     const out = {
+      profile_id: profile.id,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      city: profile.city,
       ...stripInternal(brief),
       net_flow: flowById.get(id)?.net ?? null,
       comparability: comparability.get(id) || { ahead_of: [], behind: [], tradeoff_with: [] },
@@ -413,7 +457,13 @@ async function rankSet(knex, scope, profiles, opts = {}) {
   return {
     scope,
     ranked,
-    ineligible: ineligible.map((e) => stripInternal(e.brief)),
+    ineligible: ineligible.map((e) => ({
+      profile_id: e.profile.id,
+      first_name: e.profile.first_name,
+      last_name: e.profile.last_name,
+      city: e.profile.city,
+      ...stripInternal(e.brief),
+    })),
     partial_order: { outranks: ranking.outranks, incomparable: ranking.incomparable, tiers: ranking.tiers },
     notice: AGENCY_DISCLOSURE,
   };
