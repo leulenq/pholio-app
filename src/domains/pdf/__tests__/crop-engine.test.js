@@ -42,7 +42,9 @@ describe("resolveCrop", () => {
         }),
         { aspect: 1, kind: "cell" },
       );
-      expect(crop.objectPosition).toBe("30% 60%");
+      // unknown aspect → head-biased fallback: y capped at 35% so a
+      // vertical crop can never start below the head
+      expect(crop.objectPosition).toBe("30% 35%");
       expect(crop.safety.notes.join(" ")).toMatch(/metadata\.focal/);
     });
 
@@ -51,7 +53,7 @@ describe("resolveCrop", () => {
         poolImage({ metadata: JSON.stringify({ focal: { x: 0.2, y: 0.4 } }) }),
         { aspect: 1, kind: "cell" },
       );
-      expect(crop.objectPosition).toBe("20% 40%");
+      expect(crop.objectPosition).toBe("20% 35%");
     });
 
     test("invalid metadata.focal falls back to role heuristic", () => {
@@ -82,7 +84,8 @@ describe("resolveCrop", () => {
         resolveCrop(poolImage({ role: "editorial", style_type: "editorial" }), slot)
           .objectPosition,
       ).toBe("50% 35%");
-      expect(resolveCrop(poolImage(), slot).objectPosition).toBe("50% 50%");
+      // untyped/unknown-aspect: center x, head-biased y cap
+      expect(resolveCrop(poolImage(), slot).objectPosition).toBe("50% 35%");
     });
 
     test("metadata.focal values are clamped to 0-1", () => {
@@ -90,7 +93,7 @@ describe("resolveCrop", () => {
         poolImage({ metadata: { focal: { x: -2, y: 7 } } }),
         { aspect: 1, kind: "cell" },
       );
-      expect(crop.objectPosition).toBe("0% 100%");
+      expect(crop.objectPosition).toBe("0% 35%"); // y head-bias caps the clamp
     });
   });
 
@@ -122,13 +125,13 @@ describe("resolveCrop", () => {
       expect(crop.coverageLoss).toBeCloseTo(0.5, 3);
     });
 
-    test("unknown dimensions: focal-only positioning, safe with note, zero loss", () => {
+    test("unknown dimensions: head-biased positioning, caution with note, zero loss", () => {
       const crop = resolveCrop(
         poolImage({ role: "headshot", shot_type: "headshot" }),
         { aspect: 1, kind: "cell" },
       );
       expect(crop.coverageLoss).toBe(0);
-      expect(crop.safety.level).toBe("safe");
+      expect(crop.safety.level).toBe("caution"); // containment unverifiable
       expect(crop.safety.notes.join(" ")).toMatch(/dimensions unknown/);
     });
 
@@ -416,5 +419,57 @@ describe("computeFocalPoint", () => {
     expect(await computeFocalPoint(Buffer.alloc(0))).toBeNull();
     expect(await computeFocalPoint("not a buffer")).toBeNull();
     expect(await computeFocalPoint(Buffer.from("garbage bytes"))).toBeNull();
+  });
+});
+
+// ── Head containment (hard guarantee) ──────────────────────────────────────
+// Positioning the focal point is not the same as keeping the head in frame:
+// a portrait cover-cropped into a wide cell must never slice the face.
+describe("resolveCrop head containment", () => {
+  const { resolveCrop } = require("../composition/crop-engine");
+
+  function windowY0(crop, imageAspect, slotAspect) {
+    const m = /\s(\d+)%$/.exec(crop.objectPosition);
+    const posY = Number(m[1]) / 100;
+    const heightLoss = 1 - imageAspect / slotAspect;
+    return heightLoss * posY;
+  }
+
+  test("portrait with a high face in a landscape cell keeps the crown in frame", () => {
+    // face high in frame (focal y 0.14, like a standing three-quarter)
+    const img = {
+      aspect: 2 / 3,
+      metadata: JSON.stringify({ focal: { x: 0.5, y: 0.14 } }),
+      shot_type: "three_quarter",
+    };
+    const crop = resolveCrop(img, { aspect: 1.4, kind: "cell" });
+    const y0 = windowY0(crop, 2 / 3, 1.4);
+    // visible window must start at/above the head top (focal − 0.13)
+    expect(y0).toBeLessThanOrEqual(0.14 - 0.13 + 1e-6);
+  });
+
+  test("mid-frame face stays fully inside the window", () => {
+    const img = {
+      aspect: 2 / 3,
+      metadata: JSON.stringify({ focal: { x: 0.5, y: 0.4 } }),
+      shot_type: "editorial",
+    };
+    const slotAspect = 1.2;
+    const crop = resolveCrop(img, { aspect: slotAspect, kind: "cell" });
+    const y0 = windowY0(crop, 2 / 3, slotAspect);
+    const visH = (2 / 3) / slotAspect;
+    expect(y0).toBeLessThanOrEqual(0.4 - 0.13 + 1e-6);
+    expect(y0 + visH).toBeGreaterThanOrEqual(0.4 + 0.08 - 1e-6);
+  });
+
+  test("unknown aspect degrades to head-biased caution, never raw focal", () => {
+    const img = {
+      metadata: JSON.stringify({ focal: { x: 0.5, y: 0.6 } }),
+      shot_type: "headshot",
+    };
+    const crop = resolveCrop(img, { aspect: 1.4, kind: "cell" });
+    expect(crop.safety.level).toBe("caution");
+    const m = /\s(\d+)%$/.exec(crop.objectPosition);
+    expect(Number(m[1])).toBeLessThanOrEqual(35);
   });
 });

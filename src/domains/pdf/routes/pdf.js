@@ -866,6 +866,18 @@ async function renderComposedView(req, res, data, isDemo) {
       const raw = normalizeQueryValue(req.query.treatment);
       return TREATMENTS.includes(raw) ? raw : null;
     })();
+    // "Another take" diversity: the dashboard passes the previous take's
+    // structure/treatment/voice so the next take diverges materially.
+    const avoid = (() => {
+      const structureRaw = normalizeQueryValue(req.query.avoidStructure);
+      const treatmentRaw = normalizeQueryValue(req.query.avoidTreatment);
+      const voiceRaw = toSafeMetadataToken(normalizeQueryValue(req.query.avoidVoice), null, 32);
+      const out = {};
+      if (isDirectionStructure(structureRaw)) out.structure = structureRaw;
+      if (TREATMENTS.includes(treatmentRaw) || treatmentRaw === "classic") out.treatment = treatmentRaw;
+      if (voiceRaw) out.voice = voiceRaw;
+      return Object.keys(out).length ? out : null;
+    })();
     let boardParam = toSafeMetadataToken(normalizeQueryValue(req.query.board), null, 32);
 
     // ── Frozen saved cards (audit P1-6) ───────────────────────────────────
@@ -985,6 +997,7 @@ async function renderComposedView(req, res, data, isDemo) {
         // Named-direction pin + deterministic board conditioning (P0-3).
         forceStructure,
         forceTreatment,
+        avoid,
         advice: boardAdvice(boardParam),
       },
     });

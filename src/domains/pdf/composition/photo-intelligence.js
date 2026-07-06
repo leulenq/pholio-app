@@ -319,6 +319,14 @@ function analyzeImagePool({ images, profile, castingAnalysis } = {}) {
   const pool = eligible.map(({ img, metadata }) => {
     const { width, height } = resolveDimensions(img, metadata);
     const aspect = width && height ? width / height : null;
+    // measured face/attention point: explicit metadata.focal wins, else the
+    // forensics attention focal cached at upload/render — pool consumers
+    // (crop engine via the solvers) need it to keep heads in frame
+    const focalRaw = metadata.focal || (metadata.forensics && metadata.forensics.focal) || null;
+    const focal =
+      focalRaw && Number.isFinite(Number(focalRaw.x)) && Number.isFinite(Number(focalRaw.y))
+        ? { x: Number(focalRaw.x), y: Number(focalRaw.y) }
+        : null;
     const shortEdge = width && height ? Math.min(width, height) : null;
     const role = deriveCompCardRole(img);
     const rawShotType = normalizeToken(img.shot_type).replace(/\s+/g, "_");
@@ -345,6 +353,7 @@ function analyzeImagePool({ images, profile, castingAnalysis } = {}) {
       aspect,
       width,
       height,
+      focal,
       shortEdge,
       isPrimary,
       sort: Number.isFinite(Number(img.sort)) ? Number(img.sort) : null,

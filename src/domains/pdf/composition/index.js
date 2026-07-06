@@ -443,6 +443,8 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
     // Pinned creative direction — salts the voice cast so each direction
     // carries a distinct typographic identity for the same seed.
     direction: opts.forceStructure || null,
+    // take-to-take diversity: the previous take's voice is excluded
+    avoidVoice: (opts.avoid && opts.avoid.voice) || null,
     overrides: buildOverrides(opts),
   });
 
@@ -564,6 +566,8 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
           forceStructure: opts.forceStructure || null,
           // talent-facing name-treatment pin (classic/statement/variant)
           forceTreatment: opts.forceTreatment || null,
+          // "Another take" diversity: penalize repeating the previous take
+          avoid: opts.avoid || null,
           // P4 jury wiring: `frontCandidateIndex` forces a specific
           // candidate (the rasterizer renders each; the jury picks the
           // winner, then the final card re-renders with that index).

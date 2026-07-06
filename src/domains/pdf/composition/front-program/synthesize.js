@@ -209,7 +209,12 @@ function placeText(rng, { wIn, hIn, heroRect, paperRects, heroForensics, allowOn
     // a grid of seeded positions; keep only those clear of siblings
     for (let i = 0; i < 6; i++) {
       const x = pr.x + (pr.w - wIn) * (0.5 * rng());
-      const y = pr.y + (pr.h - hIn) * (0.1 + 0.85 * rng());
+      // Anchored rhythm, not uniform drift: type in a tall paper plane
+      // sits at the head, the lower third, or the foot — a name floating
+      // mid-plane reads as dead space above AND below it (user critique).
+      const anchors = [0.08, 0.62, 0.88];
+      const anchor = anchors[Math.floor(rng() * anchors.length) % anchors.length];
+      const y = pr.y + (pr.h - hIn) * clamp(anchor + (rng() * 2 - 1) * 0.05, 0, 1);
       const r = rect(x, y, wIn, hIn);
       if (clearOfSiblings(r)) paperCands.push(r);
     }
@@ -525,7 +530,13 @@ function sampleProgram(seed, ctx) {
     const eligible =
       parts.length > 1 &&
       structure !== "cutout" &&
-      heroRect.w >= PAGE_W * 0.55 &&
+      // Split structures reserve an asymmetric paper plane for the name;
+      // moving the name onto the photo orphans that plane as dead white
+      // space (only a lone contact line left behind). The on-photo
+      // choreography belongs to cards where the photo owns the width
+      // (photo-dominant / matted). In split the name stays on its plane.
+      structure !== "split" &&
+      heroRect.w >= PAGE_W * 0.72 &&
       !!faceZoneEff;
     // Talent-facing treatment pin: 'classic' refuses the choreography
     // outright; 'statement' opens the gate (seeded menu pick); a named
@@ -906,6 +917,43 @@ function sampleProgram(seed, ctx) {
     }
   }
 
+  // ── Bleed-to-bottom when the name lives on the photo ─────────────────────
+  // A photo-dominant card reserves a bottom paper strip sized for the name.
+  // When the name went ONTO the photo instead (over / band / knockout /
+  // classic-on-photo — but NOT straddle/inset, which deliberately use the
+  // region below the photo), that strip is orphaned dead space holding only
+  // a lone contact line. Bleed the photo to the page bottom edge so no dead
+  // strip remains; the contact then rides the photo's bottom margin.
+  let contactOnPhoto = null;
+  if (
+    namePlacement.onPhoto === true &&
+    structure === "photo-dominant" &&
+    heroRect.y + heroRect.h < PAGE_H - 0.02
+  ) {
+    const photoEl = elements.find((e) => e.type === "photo");
+    const oldBottom = heroRect.y + heroRect.h;
+    heroRect = rect(heroRect.x, heroRect.y, heroRect.w, PAGE_H - heroRect.y);
+    if (photoEl) {
+      photoEl.rect = heroRect;
+      if (!photoEl.bleedEdges.includes("bottom")) photoEl.bleedEdges.push("bottom");
+    }
+    // drop the now-orphaned bottom paper strip
+    paperRects = paperRects.filter((p) => p.y < oldBottom - 0.02);
+    // ink for a contact riding the photo's bottom band (measured luma)
+    const grid = effForensics?.luma?.grid;
+    let bottomLuma = 0.5;
+    if (Array.isArray(grid) && grid.length) {
+      let sum = 0;
+      let cnt = 0;
+      for (let r = Math.floor(grid.length * 0.85); r < grid.length; r++) {
+        for (const v of grid[r]) { sum += v; cnt += 1; }
+      }
+      bottomLuma = cnt ? sum / cnt : 0.5;
+    }
+    contactOnPhoto = { ink: bottomLuma < 0.5 ? "rgba(255,255,255,0.82)" : "rgba(20,18,16,0.72)" };
+    decide("photo-bleed", "full-bleed bottom", "name on photo — no orphaned paper strip");
+  }
+
   // ── Contact / stat micro-line — placed by search, restraint-gated ─────────
   if (ctx.contactLine) {
     const cpt = 7;
@@ -929,13 +977,20 @@ function sampleProgram(seed, ctx) {
         occupied: [namePlacement.rect],
       });
     }
+    // Photo bled to the bottom (name on photo): the contact rides the
+    // photo's bottom margin, ink chosen from the measured band.
+    let contactColor = planeTone ? planeTone.mutedInk : (palette?.muted || "#6B6560");
+    if (!cp && contactOnPhoto && nameOrientation === "horizontal") {
+      cp = { rect: rect(SAFE, PAGE_H - 0.36, cbox.w, cbox.h), onPhoto: true };
+      contactColor = contactOnPhoto.ink;
+    }
     if (cp) {
       elements.push({
         type: "contact", text: ctx.contactLine, rect: cp.rect,
         orientation: cbox.w < 0.3 ? "vertical" : "horizontal",
         sizePt: cpt,
-        color: planeTone ? planeTone.mutedInk : (palette?.muted || "#6B6560"),
-        z: 3,
+        color: contactColor,
+        z: cp.onPhoto ? 4 : 3,
       });
     }
   }
@@ -1043,6 +1098,11 @@ function designFrontProgram(ctx = {}, opts = {}) {
     forceStructure: opts.forceStructure || ctx.forceStructure || null,
     forceTreatment: opts.forceTreatment || ctx.forceTreatment || null,
   };
+  // "Another take" must be a materially different art direction, not a
+  // nudge: candidates repeating the previous take's structure or name
+  // treatment are penalized in the pick (soft — validity still wins when
+  // the pool leaves no alternative).
+  const avoid = opts.avoid && typeof opts.avoid === "object" ? opts.avoid : null;
   const seed = opts.seed == null ? "auto" : String(opts.seed);
   const k = Math.max(1, Math.min(opts.candidates || 5, 8));
 
@@ -1067,7 +1127,13 @@ function designFrontProgram(ctx = {}, opts = {}) {
     const program = sampleProgram(`${seed}:cand${i}`, fullCtx);
     // every program is paper-safe by construction (name has a guaranteed
     // fallback; on-photo elements are pre-verified during placement).
-    const score = scoreProgram(program, fullCtx);
+    let score = scoreProgram(program, fullCtx);
+    if (avoid) {
+      const splitEl = program.elements.find((e) => e.role === "split-first");
+      const takeTreatment = splitEl ? splitEl.variant : "classic";
+      if (avoid.structure && program.structure === avoid.structure) score -= 18;
+      if (avoid.treatment && takeTreatment === avoid.treatment) score -= 12;
+    }
     if (!best || score > best.score) best = { program, score, i };
   }
   return {

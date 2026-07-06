@@ -351,8 +351,10 @@ function solveBackProgram(input = {}) {
     // Quiet cards ease from the standard down to the floor (3, or 2 if minimal).
     desired = Math.round(lerp(floorN, STANDARD_BACK_COUNT, density / 0.34));
   } else {
-    // Neutral density holds the 4-frame standard.
-    desired = STANDARD_BACK_COUNT;
+    // Neutral density holds the 4-frame standard, with a seeded breath of
+    // variety (3 or 5 occasionally) so backs don't all share one census.
+    const jitter = rng();
+    desired = jitter < 0.18 ? STANDARD_BACK_COUNT - 1 : jitter > 0.85 ? STANDARD_BACK_COUNT + 1 : STANDARD_BACK_COUNT;
   }
   desired = clamp(desired, floorN, maxN);
   decide("photo-count", `${desired}/${maxN}`, `density ${r3(density)} → ${desired} of ${maxN} frames (standard ${STANDARD_BACK_COUNT}, floor ${floorN})`);
@@ -395,6 +397,33 @@ function solveBackProgram(input = {}) {
   // area (a stats band leaves little height).
   const hasFullLength = usable.some(isFullLength);
   const tallest = (cells) => cells.reduce((m, c) => Math.min(m, c.w / c.h), Infinity);
+  // Before collapsing to feature-column (the historical variety killer:
+  // nearly every back funneled through this rebuild), try the OTHER
+  // eligible architectures in seeded order — many can host a portrait cell
+  // depending on their rolls, and keeping the family keeps the variety.
+  if (hasFullLength && tallest(leaves) > 0.85 && count >= 2) {
+    const alternates = eligible.filter((id) => id !== chosenArch);
+    for (let i = alternates.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [alternates[i], alternates[j]] = [alternates[j], alternates[i]];
+    }
+    for (const altId of alternates) {
+      const alt = ARCHITECTURES[altId];
+      const altCount = clamp(count, alt.min, alt.max);
+      let altLeaves = [];
+      try {
+        altLeaves = alt.fn(photoArea, altCount, rng, gutter)
+          .filter((c) => c.w >= MIN_CELL - 0.02 && c.h >= MIN_CELL - 0.02);
+      } catch { altLeaves = []; }
+      if (altLeaves.length >= Math.min(altCount, 2) && tallest(altLeaves) <= 0.85) {
+        leaves = altLeaves;
+        chosenArch = altId;
+        count = altCount;
+        decide("architecture", altId, `${archId} had no portrait cell — seeded alternate keeps the variety`);
+        break;
+      }
+    }
+  }
   if (hasFullLength && tallest(leaves) > 0.85 && count >= 2) {
     // 0.04 headroom below the cap so the support column clears MIN_CELL even
     // after float rounding (an exact-MIN support otherwise fails the check).

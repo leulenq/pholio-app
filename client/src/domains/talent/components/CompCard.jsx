@@ -291,6 +291,10 @@ export default function CompCard({ images = [], profile }) {
     () => presets.find((p) => p.id === activePresetId) || null,
     [presets, activePresetId],
   );
+  // "Another take" must feel like a NEW art direction: the previous take's
+  // structure/treatment/voice ride along as avoid-hints (only for axes the
+  // talent hasn't pinned), and the engine steers away from them.
+  const [avoidHints, setAvoidHints] = React.useState(null);
   const previewUrl = React.useMemo(() => {
     if (!slug) return null;
     if (activePreset?.frozen) return `/pdf/view/${slug}?preset=${encodeURIComponent(activePreset.id)}`;
@@ -299,8 +303,13 @@ export default function CompCard({ images = [], profile }) {
     if (treatment) params.set('treatment', treatment);
     if (lockHeroId) params.set('lockHeroId', lockHeroId);
     if (saveBoard) params.set('board', saveBoard);
+    if (avoidHints) {
+      if (!structure && avoidHints.structure) params.set('avoidStructure', avoidHints.structure);
+      if (!treatment && avoidHints.treatment) params.set('avoidTreatment', avoidHints.treatment);
+      if (avoidHints.voice) params.set('avoidVoice', avoidHints.voice);
+    }
     return `/pdf/view/${slug}?${params.toString()}`;
-  }, [slug, activePreset, seed, structure, treatment, lockHeroId, saveBoard]);
+  }, [slug, activePreset, seed, structure, treatment, lockHeroId, saveBoard, avoidHints]);
   React.useEffect(() => { setFrontReady(false); }, [previewUrl]);
 
   // Design summary + refinement notes from the engine (deterministic meta).
@@ -482,8 +491,12 @@ export default function CompCard({ images = [], profile }) {
             <header className="cc-stage-head">
               <h3 className="cc-stage-title">Art direction</h3>
               <PholioButton type="button" variant="secondary"
-                onClick={() => { setSeed(nextSeed()); setActivePresetId(null); }}
-                disabled={!previewUrl} title="Compose another take in this direction">
+                onClick={() => {
+                  setAvoidHints(meta ? { structure: meta.structure, treatment: meta.treatment, voice: meta.voice } : null);
+                  setSeed(nextSeed());
+                  setActivePresetId(null);
+                }}
+                disabled={!previewUrl} title="Compose a genuinely different take">
                 <RefreshCw size={13} aria-hidden="true" /> Another take
               </PholioButton>
             </header>
@@ -549,6 +562,42 @@ export default function CompCard({ images = [], profile }) {
               </p>
             )}
           </section>
+
+          {!minorGated && hasImages && slug && directions.length > 0 && !activePreset?.frozen && (
+            <section className="cc-stage-block">
+              <header className="cc-stage-head">
+                <h3 className="cc-stage-title">Side by side</h3>
+              </header>
+              <p className="cc-stage-note cc-stage-note--quiet">
+                The same take, re-composed in each direction — tap one to move the card there.
+              </p>
+              <div className="cc-takes" role="group" aria-label="Direction previews">
+                {directions.map((d) => {
+                  const params = new URLSearchParams({ seed, structure: d.structure });
+                  if (treatment) params.set('treatment', treatment);
+                  if (lockHeroId) params.set('lockHeroId', lockHeroId);
+                  if (saveBoard) params.set('board', saveBoard);
+                  const takeUrl = `/pdf/view/${slug}?${params.toString()}`;
+                  const active = structure === d.structure;
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      className={`cc-takes__thumb ${active ? 'is-active' : ''}`}
+                      aria-pressed={active}
+                      onClick={() => { setStructure(active ? null : d.structure); setActivePresetId(null); }}
+                      title={d.description}
+                    >
+                      <span className="cc-takes__frame" aria-hidden="true">
+                        <iframe src={takeUrl} title={`${d.label} preview`} scrolling="no" tabIndex={-1} loading="lazy" />
+                      </span>
+                      <span className="cc-takes__label">{d.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {!minorGated && hasImages && (
             <section className="cc-stage-block">

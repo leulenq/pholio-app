@@ -149,24 +149,30 @@ function resolveCropRole(poolImage) {
  */
 function resolveFocalPoint(poolImage, cropRole) {
   const metadata = parseJsonish(poolImage && poolImage.metadata);
-  const focal = metadata.focal;
-  if (
-    focal &&
-    typeof focal === "object" &&
-    Number.isFinite(Number(focal.x)) &&
-    Number.isFinite(Number(focal.y))
-  ) {
-    return {
-      x: clamp01(Number(focal.x)),
-      y: clamp01(Number(focal.y)),
-      source: "metadata",
-    };
+  const isUsable = (f) =>
+    f && typeof f === "object" &&
+    Number.isFinite(Number(f.x)) && Number.isFinite(Number(f.y));
+  // explicit focal on the record (pool/solver entries carry the measured
+  // face location) → metadata.focal → the forensics attention focal cached
+  // at upload/render → role heuristic → people prior
+  const candidates = [
+    [poolImage && poolImage.focal, "metadata"],
+    [metadata.focal, "metadata"],
+    [metadata.forensics && metadata.forensics.focal, "metadata"],
+  ];
+  for (const [focal, source] of candidates) {
+    if (isUsable(focal)) {
+      return { x: clamp01(Number(focal.x)), y: clamp01(Number(focal.y)), source };
+    }
   }
   const roleDefault = cropRole ? ROLE_FOCAL_DEFAULTS[cropRole] : null;
   if (roleDefault) {
     return { x: roleDefault.x, y: roleDefault.y, source: "role" };
   }
-  return { x: 0.5, y: 0.5, source: "center" };
+  // Comp cards are photographs of PEOPLE: with nothing measured and no
+  // role, dead-center vertical focus is the wrong prior — faces live in
+  // the upper frame. (x stays centered.)
+  return { x: 0.5, y: 0.38, source: "people-default" };
 }
 
 /**
@@ -223,14 +229,19 @@ function resolveCrop(poolImage, slot) {
       ? Number(poolImage.aspect)
       : null;
 
-  // Without both aspects we cannot reason about overflow — emit the focal
-  // point directly and treat the crop as safe-with-note.
+  // Without both aspects we cannot reason about overflow. Emitting the
+  // focal as a raw position is DANGEROUS for portraits: any vertical crop
+  // then starts the window below the head top and slices the face. Bias
+  // the position toward the top of the head zone instead — a slightly
+  // high crop is always survivable; a beheaded portrait never is.
   if (imageAspect == null || slotAspect == null) {
-    notes.push("image or slot dimensions unknown; focal-only positioning");
+    notes.push(
+      "image or slot dimensions unknown; head-biased positioning (cannot verify containment)",
+    );
     return {
       fit: "cover",
-      objectPosition: toObjectPosition(focal.x, focal.y),
-      safety: { level: "safe", notes },
+      objectPosition: toObjectPosition(focal.x, Math.min(focal.y, 0.35)),
+      safety: { level: "caution", notes },
       coverageLoss: 0,
     };
   }
@@ -256,6 +267,43 @@ function resolveCrop(poolImage, slot) {
 
   let posX = focalToPosition(focal.x, displayedW, slotAspect);
   let posY = focalToPosition(focal.y, displayedH, 1);
+
+  // ---- Head containment (hard guarantee) -----------------------------------
+  // Centering the focal point in the window is not the same as KEEPING THE
+  // HEAD IN FRAME: a portrait cover-cropped into a wide cell can slice the
+  // face while the focal sits comfortably inside. Clamp the position so the
+  // head zone around the focal — it extends well ABOVE the eye line —
+  // stays inside the visible window. When the window is too short for the
+  // whole zone, the top of the head wins (chins survive crops; crowns
+  // read as mistakes).
+  const HEAD_ABOVE = 0.13; // image-height above the focal (crown/hair)
+  const HEAD_BELOW = 0.08; // below the focal (chin/jaw)
+  if (heightLoss > 1e-6) {
+    const visH = 1 - heightLoss; // visible fraction of image height
+    const faceTop = clamp01(focal.y - HEAD_ABOVE);
+    const faceBottom = clamp01(focal.y + HEAD_BELOW);
+    // window y0 = (1 - visH) · posY must sit at/above faceTop, and the
+    // window must reach faceBottom
+    const hi = faceTop / heightLoss;
+    const lo = (faceBottom - visH) / heightLoss;
+    const clamped = clamp01(Math.min(Math.max(posY, lo), hi));
+    if (Math.abs(clamped - posY) > 1e-3) {
+      posY = clamped;
+      notes.push("vertical position clamped to keep the head in frame");
+    }
+  }
+  if (widthLoss > 1e-6) {
+    const visW = 1 - widthLoss;
+    const faceLeft = clamp01(focal.x - 0.12);
+    const faceRight = clamp01(focal.x + 0.12);
+    const hi = faceLeft / widthLoss;
+    const lo = (faceRight - visW) / widthLoss;
+    const clamped = clamp01(Math.min(Math.max(posX, lo), hi));
+    if (Math.abs(clamped - posX) > 1e-3) {
+      posX = clamped;
+      notes.push("horizontal position clamped to keep the face in frame");
+    }
+  }
 
   // ---- Safety evaluation ---------------------------------------------------
   let level = "safe";
