@@ -2510,3 +2510,38 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 - Updated settings textboxes to match the Profile tab white hairline field treatment and corrected the shared form comments that implied decorative inset fields as a universal dashboard rule.
 - Improved mobile navigation with horizontal snap sections and simplified stacked controls for small screens.
 - Verification: focused settings ESLint and production client build passed; screenshot capture was superseded by the follow-up push request before a screenshot artifact was produced.
+
+# Pre-production business/status document — 2026-07-06
+
+- [x] Read repository guidance and product context.
+- [x] Research current pricing and legal/immigration source material.
+- [x] Inspect codebase for production-readiness signals and cost-bearing integrations.
+- [x] Draft comprehensive Pholio-designed founder/business report.
+- [x] Run formatting checks and capture line citations.
+- [x] Commit changes and create pull request record.
+
+## Review
+
+- Added `docs/business/pre-production-founder-status-report.md` as a comprehensive founder/business status document for the pre-production Fashion Week Brooklyn launch decision.
+
+# Pre-production report DOCX formatting follow-up — 2026-07-06
+
+- [x] Inspect live Pholio legal-page styling cues where local `pholio-landing` repo was unavailable.
+- [x] Add a reproducible DOCX generator with Pholio legal-page inspired styling.
+- [x] Generate `docs/business/pre-production-founder-status-report.docx`.
+- [x] Validate the DOCX package contains expected document, styles, footer, title, table of contents, and contact sections.
+
+## Review
+
+- Added the requested `.docx` meeting artifact and a generator script so the styled file can be recreated from the Markdown source.
+
+# Pre-production report binary-support follow-up — 2026-07-06
+
+- [x] Remove committed binary DOCX files that the review surface cannot display.
+- [x] Add a text-safe `.docx.b64` payload for the same Word document.
+- [x] Add a dependency-free rebuild script that writes `Pholio-Pre-Production-Founder-Status-Report.docx` locally.
+- [x] Add business-doc instructions explaining how to rebuild the DOCX.
+
+## Review
+
+- The PR now carries the DOCX as text, so binary-file restrictions should no longer hide the artifact from review.

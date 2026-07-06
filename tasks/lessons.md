@@ -398,3 +398,12 @@
 ## 2026-07-04 — Talent settings input ownership correction
 - When rebuilding talent dashboard settings, do not invent standalone textbox styling. Use the Profile tab field language as the reference: white hairline fields, 8px radius, Inter labels, no decorative inset well, no hover/focus translation.
 - Do not place comp-card image/layout controls in Settings unless the product has a true account-level default. Comp card composition belongs to Media / comp-card generation; Settings should only hold cross-cutting account, privacy, security, notification, billing, legal, and lifecycle controls.
+
+## 2026-07-06 — Deliverable format must match meeting artifact request
+
+- When the user asks for a founder/cofounder meeting document and references a styled legal page, do not stop at Markdown. Produce the actual requested shareable artifact format (`.docx` when requested) and mirror the referenced brand/document system: legal label, title metadata, table of contents, numbered sections, warm paper palette, gold rules, quiet callouts, and footer disclaimer.
+- If the visual reference lives in another repo that is unavailable locally, inspect the live site/source where possible and encode the styling decision in a reproducible generator rather than manually editing a binary document only.
+
+## 2026-07-06 — Binary artifacts may be invisible in review surfaces
+
+- If a requested `.docx` or other binary artifact is not visible because the review surface rejects binary files, replace the committed binary with a text-safe payload (`.b64`) plus a dependency-free rebuild script. Keep the generated binary out of the diff unless the platform explicitly supports binary artifacts.
