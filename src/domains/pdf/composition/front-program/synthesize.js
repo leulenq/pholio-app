@@ -917,6 +917,43 @@ function sampleProgram(seed, ctx) {
     }
   }
 
+  // ── Bleed-to-bottom when the name lives on the photo ─────────────────────
+  // A photo-dominant card reserves a bottom paper strip sized for the name.
+  // When the name went ONTO the photo instead (over / band / knockout /
+  // classic-on-photo — but NOT straddle/inset, which deliberately use the
+  // region below the photo), that strip is orphaned dead space holding only
+  // a lone contact line. Bleed the photo to the page bottom edge so no dead
+  // strip remains; the contact then rides the photo's bottom margin.
+  let contactOnPhoto = null;
+  if (
+    namePlacement.onPhoto === true &&
+    structure === "photo-dominant" &&
+    heroRect.y + heroRect.h < PAGE_H - 0.02
+  ) {
+    const photoEl = elements.find((e) => e.type === "photo");
+    const oldBottom = heroRect.y + heroRect.h;
+    heroRect = rect(heroRect.x, heroRect.y, heroRect.w, PAGE_H - heroRect.y);
+    if (photoEl) {
+      photoEl.rect = heroRect;
+      if (!photoEl.bleedEdges.includes("bottom")) photoEl.bleedEdges.push("bottom");
+    }
+    // drop the now-orphaned bottom paper strip
+    paperRects = paperRects.filter((p) => p.y < oldBottom - 0.02);
+    // ink for a contact riding the photo's bottom band (measured luma)
+    const grid = effForensics?.luma?.grid;
+    let bottomLuma = 0.5;
+    if (Array.isArray(grid) && grid.length) {
+      let sum = 0;
+      let cnt = 0;
+      for (let r = Math.floor(grid.length * 0.85); r < grid.length; r++) {
+        for (const v of grid[r]) { sum += v; cnt += 1; }
+      }
+      bottomLuma = cnt ? sum / cnt : 0.5;
+    }
+    contactOnPhoto = { ink: bottomLuma < 0.5 ? "rgba(255,255,255,0.82)" : "rgba(20,18,16,0.72)" };
+    decide("photo-bleed", "full-bleed bottom", "name on photo — no orphaned paper strip");
+  }
+
   // ── Contact / stat micro-line — placed by search, restraint-gated ─────────
   if (ctx.contactLine) {
     const cpt = 7;
@@ -940,13 +977,20 @@ function sampleProgram(seed, ctx) {
         occupied: [namePlacement.rect],
       });
     }
+    // Photo bled to the bottom (name on photo): the contact rides the
+    // photo's bottom margin, ink chosen from the measured band.
+    let contactColor = planeTone ? planeTone.mutedInk : (palette?.muted || "#6B6560");
+    if (!cp && contactOnPhoto && nameOrientation === "horizontal") {
+      cp = { rect: rect(SAFE, PAGE_H - 0.36, cbox.w, cbox.h), onPhoto: true };
+      contactColor = contactOnPhoto.ink;
+    }
     if (cp) {
       elements.push({
         type: "contact", text: ctx.contactLine, rect: cp.rect,
         orientation: cbox.w < 0.3 ? "vertical" : "horizontal",
         sizePt: cpt,
-        color: planeTone ? planeTone.mutedInk : (palette?.muted || "#6B6560"),
-        z: 3,
+        color: contactColor,
+        z: cp.onPhoto ? 4 : 3,
       });
     }
   }
