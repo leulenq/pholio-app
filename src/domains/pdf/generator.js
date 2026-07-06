@@ -392,6 +392,21 @@ async function renderCompCard(slug, theme = null, opts = null) {
               );
               if (fitReport) {
                 console.log("[renderCompCard] name-fit report:", fitReport);
+                // Post-render integrity loop: the fit guard self-heals, but a
+                // LARGE correction means the composer shipped geometry far
+                // from what it verified — that is an engine regression to
+                // surface loudly (telemetry tripwire), never to ship silently.
+                try {
+                  const parsed = JSON.parse(fitReport);
+                  if (parsed && (parsed.minScale < 0.8 || parsed.ghostsRemoved > 0)) {
+                    console.error(
+                      "[renderCompCard] RENDERED-NAME-INTEGRITY: fit guard made a non-trivial repair",
+                      parsed,
+                    );
+                  }
+                } catch {
+                  /* report parse is best-effort */
+                }
               }
             }
           } catch (fitErr) {
