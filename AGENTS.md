@@ -327,3 +327,20 @@ All commits in this repository are attributed to the human owner only.
 - Never add `Co-authored-by` / `Co-Authored-By` trailers for Cursor, Claude Code, Codex, Anthropic, or OpenAI.
 - Never add `Made-with: Cursor`, `Claude-Session`, `Generated with Claude Code`, or similar lines.
 - Project Codex config (`.codex/config.toml`) disables attribution; `.githooks/prepare-commit-msg` strips any that slip through.
+
+## Cursor Cloud specific instructions
+
+Dev runs fully local with **SQLite + a dev auth bypass** — no Firebase/Stripe/Groq credentials are needed to run and click through the app. Standard commands are in the `## Common Commands` section above; only the non-obvious caveats are captured here.
+
+**Required local env files (both gitignored, so not in the repo — they persist in the VM snapshot).** If either is missing, recreate it:
+
+- Root `.env` — SQLite + dev bypass. Must include `AUTH_PASSTHROUGH_ENABLED=1`, `NODE_ENV=development`, `DB_CLIENT=sqlite3`, `DATABASE_URL=sqlite://./dev.sqlite3`, and **`UPLOAD_DIR=/workspace/uploads`** (see uploads gotcha below).
+- `client/.env.local` — the client Firebase SDK calls `initializeApp` at load (`client/src/shared/lib/firebase.js`), so the SPA white-screens without config. Placeholder `VITE_FIREBASE_*` values are enough (real Firebase is never called because auth is bypassed).
+
+**Uploads path gotcha:** `src/config.js` resolves the default uploads dir to `<__dirname>/../../uploads`, which lands on `/uploads` (root, unwritable) when the repo is checked out at `/workspace`. Multer in `src/routes/scout.js` mkdir's this at require time, so without an override the Express server and ~27 test suites fail with `EACCES: /uploads`. Fix is an **absolute** `UPLOAD_DIR` inside the repo (relative values also resolve against `/`). `uploads/` is gitignored.
+
+**Dev auth bypass:** with `AUTH_PASSTHROUGH_ENABLED=1`, visiting `/dashboard/talent*` (or `/api/talent*`, `/onboarding*`) auto-logs in seeded `talent@example.com`; `/dashboard/agency*` (or `/api/agency*`) auto-logs in `agency@example.com`. Logic in `src/shared/middleware/dev-auto-auth.js`. Always browse via the Vite origin `http://localhost:5173` (it proxies `/api` etc. to Express :3000).
+
+**Client install** requires `npm install --legacy-peer-deps` (eslint 10 vs `eslint-plugin-react-hooks` peer conflict); plain `npm install` in `client/` fails with ERESOLVE. The update script already handles this.
+
+**Testing caveats:** `npm test` (Jest) uses the shared knex connection, i.e. it **rolls back → re-migrates → re-seeds the same `dev.sqlite3`** and leaves it in a test state. Run `npm run migrate && npm run seed` afterward to restore a clean DB before demoing the app. On a clean fresh DB all migrations apply, but during Jest's rollback/re-migrate cycle **7 suites fail on a pre-existing SQLite `FOREIGN KEY constraint failed` quirk** (Postgres-targeted migrations such as `20260704120000_create_agency_open_call_tables.js`); the other ~1078 tests pass. `cd client && npm run lint` currently reports ~83 pre-existing errors (unused schema vars) — not caused by setup. Client unit tests: `cd client && npm test` (vitest).
