@@ -1,294 +1,255 @@
-# Pholio Match Score System — Architecture & Design
+# Pholio Match System — Intelligent Decision-Support Architecture (v2)
 
-**Status:** Proposed (design + staged build plan). Awaiting sign-off before schema/engine work lands.
-**Scope:** Backend match-score system — agency ↔ talent and board/casting ↔ talent fit.
-**Author context:** Grounded in (a) the `industry` knowledge base, (b) the *actual* code already in this repo, (c) current regulation (NYC LL144, EU AI Act, GDPR/CCPA).
+**Status:** Proposed (design + staged build plan). Awaiting sign-off before implementation.
+**Direction change (v2):** Weighted scoring is **rejected as the core.** Pholio has many interacting variables, hard+soft constraints, incomplete data, context, and subjective fit signals. The system must be a genuine **decision-support reasoning engine**, not a weighted matrix pretending to be intelligence — and not a black box.
+**Explicit product note:** Pholio has **no commission / splits / payments system**. This design contains none. Any earlier reference to commissions is void.
+**Grounding:** the `industry` knowledge base, the *actual* code in this repo (§1), current regulation (§7), and the real decision-science / matching literature (Choquet integral & fuzzy measures, outranking, case-based reasoning, preference learning, explainable multi-stakeholder recommenders — sources at end).
 
 ---
 
-## 0. TL;DR — the decisions
+## 0. TL;DR — the new direction
 
-**Q1 — Which score(s)? → All three, because they are three *different jobs*, not two flavors of one.**
+**Stop producing a score. Produce an *argument*.** For each candidate against a scope, the engine emits a **fit brief**: a recommendation posture, the case *for*, the case *against*, what's missing, how confident it is, and how it compares to others — every claim traceable to a piece of evidence. A number, if shown at all, is a secondary sort handle, never the product.
 
-| Score | Scope | Question it answers | Primary jobs |
-|---|---|---|---|
-| **Agency gate** | Agency-wide | "Is this talent even in our universe?" | Talent-side guidance ("agencies you meet the bar for"), inbound triage / keep-on-file, discovery prefilter |
-| **Board fit** | Board / division | "Which of our boards would this talent sit on?" | Routing inbound to the right board director, roster organization, talent development guidance, broad discovery |
-| **Brief fit** | Casting call / brief | "For *this* client job, rank my shortlist." | Shortlist ranking, package/submission building, application review against a live brief |
+**Why not a weighted matrix (the thing you're rejecting):** linear "weights sum to 100" assumes criteria are **independent and additive**. They are not. Editorial look + editorial stats *reinforce* each other (synergy); two social-reach metrics *double-count* (redundancy); a fatal availability conflict must **veto**, not be averaged away. Linear weights model none of this, throw away near-misses at cliff edges, and turn missing data into false zeros. The literature's direct answer to "criteria interact" is **non-additive aggregation** (Choquet integral over a fuzzy measure), whose explanation *is* the interaction structure (Shapley importance + interaction indices).
 
-The mistake to avoid is collapsing these into one "match %". Selection in the real industry happens at **all three layers with different intent** (§2). Agency = *gate*, board = *typing/routing*, brief = *ranking*. Build them as **one engine with three configuration scopes and inheritance**, not three separate code paths (which is roughly what exists today — see §1).
-
-**Q2 — Which engine? → A layered explainable hybrid. NOT pure weighted scoring, and NOT a black-box model.**
+**The engine is a 5-stage reasoning pipeline, not an equation:**
 
 ```
-  ┌─ 1. HARD GATES (deterministic, disqualifying, auditable) ─────────────┐
-  │    age/minors, gender-for-gendered-brief, hard height gates,          │
-  │    market/travel, availability & bookout conflicts, usage/exclusivity │
-  │    conflicts, representation conflicts, house compliance rules        │
-  └───────────────────────────────────────────────────────────────────────┘
-             │ (fail → ineligible, with reason. never "weighted away")
-             ▼
-  ┌─ 2. WEIGHTED STRUCTURED FIT (graded, tunable, defensible) ────────────┐
-  │    measurements/stats closeness, experience, location proximity,      │
-  │    social reach — GRADED distance funcs, not binary in/out            │
-  └───────────────────────────────────────────────────────────────────────┘
-             │
-             ▼
-  ┌─ 3. ALGORITHMIC / INFERENCE LAYER (the part weights can't do) ────────┐
-  │    look-fit from image-analysis vectors (fit_score_*),                │
-  │    semantic fit via embeddings + optional LLM rerank (free-text brief)│
-  └───────────────────────────────────────────────────────────────────────┘
-             │
-             ▼
-  ┌─ 4. EXPLANATION + CALIBRATION ────────────────────────────────────────┐
-  │    per-signal reasons, data-completeness confidence, coarse BAND      │
-  │    (not false-precision 87 vs 84), full audit record                  │
-  └───────────────────────────────────────────────────────────────────────┘
+ 1. SIGNALS → evidence      Every input → a typed Evidence Unit
+    {dimension, value, direction, strength, confidence, provenance}
+    Missing/stale data = LOW-CONFIDENCE evidence, never a false zero.
+                    │
+ 2. CONSTRAINTS (feasibility, not scoring)   Hard + soft as a (weighted) CSP
+    Vetoes: age/minors, gender, hard height, market/travel, availability &
+    bookout conflicts, usage/exclusivity conflicts, representation conflicts.
+    Soft near-misses surface as "conditionally feasible + reason", not a fail.
+                    │
+ 3. INTERACTION-AWARE AGGREGATION  (the anti-weighted-matrix core)
+    Choquet integral over a fuzzy measure → captures synergy & redundancy.
+    Explained by Shapley values (importance) + interaction indices (reinforce/cancel).
+    Capacities are ELICITED from priors, then LEARNED per agency (Stage 5).
+                    │
+ 4. CONTEXT & SUBJECTIVE FIT   Retrieval + grounded reasoning
+    Case-based reasoning: "this resembles talent you advanced on your last 3
+    e-comm briefs." + LLM reasoner GROUNDED on evidence units & retrieved
+    cases to judge aesthetic fit and write the rationale (no free invention).
+                    │
+ 5. DECISION SUPPORT   A partial order + a fit brief per candidate
+    posture (advance/consider/hold/not-for-this), case for/against, missing
+    data, confidence, "what would change this", comparability (incl. ties).
+                    │
+    ── LEARNING LOOP ──  Every booker decision (advanced/shortlisted/rejected/
+    booked) is a PREFERENCE LABEL → refines the fuzzy measure + case base
+    PER AGENCY. Learns this agency's taste; never a global weighting.
 ```
 
-Weighted scoring **stays**, but it is *contained* to layer 2 where it is genuinely good. The "intelligence" the brief wants comes from the **look/semantic layer + graded distances + calibration**, not from cranking weight sliders (§5). This also keeps us on the right side of the law: a single opaque 0–100 that drives auto-decisions is exactly what LL144 / the EU AI Act regulate (§7).
+**How this satisfies your requirements, point by point:**
 
-**The compliance headline:** Pholio is, functionally, an *employment agency / job-matching tool*. That puts the match score squarely inside NYC LL144 (bias-audit + notice) and the EU AI Act's **high-risk** category (in force **2 Aug 2026**). The system must be **human-in-the-loop, explainable, auditable, and must not use protected attributes as positive scoring inputs.** One concrete existing landmine to fix: `discover-retrieval.js` boosts on **ethnicity / skin tone** (`heritageMatches`) — see §7.4.
-
----
-
-## 1. What already exists (honest inventory)
-
-Pholio does **not** have a blank slate. It already ships *three* scoring mechanisms and *three* config layers — but they are fragmented and partly overlapping. Any new design must reconcile these, not ignore them.
-
-**Three scoring mechanisms already in the codebase:**
-
-1. **Board weighted-rules engine** — `src/domains/agency/services/match-scoring.js`.
-   Hard filters (age/height/gender/critical-comfort) → weighted average over age, height, measurements, body type, comfort, experience, skills, location, social reach. Produces `board_applications.match_score` (0–100) + `match_details`. Driven by `recalculate-board-scores.js`. **This is already a hard-rules + weighted hybrid** — it just lives only at the board layer and uses mostly binary (0/100) sub-scores.
-
-2. **Profile AI "fit scores" (look typing)** — `src/domains/ai/scoring.js` → `scoreFromImageAnalysis()`.
-   Maps Groq Vision reads (bone structure, contrast, expression, market signals…) to category propensities: `runway / editorial / commercial / lifestyle / swimFitness`. Persisted on `profiles.fit_score_*` (migration `20260212000003`). **This is a talent-intrinsic typing vector — the raw material for board fit — and it is exactly the kind of "look" judgment weighted stat-scoring cannot make.**
-
-3. **Discover hybrid search + rerank** — `discover-retrieval.js` (dense embeddings across *visual/casting/market* channels + lexical BM25/tsvector + a structured boost) → RRF fusion → `discover-rerank.js` (Groq listwise rerank, final = `0.7·rerank + 0.3·rrf`). **This is the query-relative / semantic engine** for free-text agency search ("tall editorial blonde in Paris").
-
-**Three configuration layers already in the schema:**
-
-- **Agency-level:** `agencies.min_age/max_age`, `min/max_height_female`, `min/max_height_male` (migration `20260701110000`), plus `open_boards` (JSON list of divisions currently scouting, migration `20260624000000`). This is a thin agency *gate*.
-- **Board-level:** `board_requirements` (age/height/measurements ranges, `genders`, `body_types`, `comfort_levels`, `experience_levels`, `skills`, `locations`, `min_social_reach`, `social_reach_importance`) + `board_scoring_weights` (nine 0–5 sliders) + `board_applications`.
-- **"Casting" fields bolted onto boards:** `boards.client_name`, `boards.target_slots` (migration `20260321021000`), `boards.closes_at`. i.e. **casting briefs are currently modeled as a *flavor of board*.**
-
-**The core structural smell:** `boards` is overloaded. It is simultaneously (a) a **persistent division** (Women, Men, New Faces, Curve — the roster grouping) and (b) a **transient casting brief** (a client job with a deadline and slots). In the industry these are different objects with different lifecycles (§2, §6). This overload is the single biggest thing to resolve for Q1.
+| You asked for | How it's delivered |
+|---|---|
+| Smart, multi-signal | Evidence units fuse stats, look vectors, embeddings, availability, history, brief text |
+| Handles complex interactions | **Choquet integral / fuzzy measure** — synergy & redundancy, not additive weights |
+| Incomplete data | Evidence carries **explicit confidence**; missing = low confidence; **CBR** fills context by analogy |
+| Context & subjective fit | **Case-based retrieval** of the agency's own past decisions + **grounded LLM** aesthetic judgment |
+| Explainable | Shapley + interaction indices + cited evidence + analogical cases; every output traces to inputs |
+| Decision support, not automation | **Partial-order ranking** + fit brief; human decides; no auto-cutoff |
+| Not a rigid score / not "weights=100" | Non-additive aggregation + outranking; capacities elicited then learned |
+| Not a black box | Learned components are low-dimensional and inspectable; LLM is grounded & constrained |
 
 ---
 
-## 2. How the industry actually selects talent (the layered reality)
+## 1. What already exists (reused as *evidence sources*, not as the engine)
 
-From `industry/reference/standards.md` (§1, §2, §5) and `lifecycle.md`. Selection is **not** single-layer, and it is **not** generic HR screening.
+Pholio is not a blank slate. The new engine **consumes** these as evidence; it does **not** keep any of them as the decision layer.
 
-- **Agency-wide** is a coarse *eligibility universe*, not a ranking. An agency "does" certain markets, certain divisions, certain physical bands. Most inbound is rejected or **kept on file**. The agency-level question is binary-ish: *are you even the kind of talent we represent?* Height floors, age windows, and market are the classic agency gates. This is a **gate, not a score.**
-
-- **Board / division** is where *typing* happens. There is **no single "model"** — Fashion/Editorial, Commercial, Runway, Fit, Parts, Curve, Petite, Fitness, Mature, Kids, Influencer, Talent each have their own standards, stats, and gatekeeping. A booker's first real judgment is *which board does this person belong on* — and a talent can sit on more than one. Standards differ **sharply** by board (editorial height gates vs. curve measurement bands vs. commercial "relatability"). This is a **typing/routing problem**, and much of it is *look*, not measurable stats.
-
-- **Brief / casting call** is where the **sharp, transient** selection happens. A client brief specifies dates (→ availability), usage/buyout + exclusivity (→ conflicts), an exact look/wardrobe, specific measurements (esp. **fit/showroom**, booked for exact numbers), budget, market, and required media (digitals, polaroids, reel). Bookers build a **package/submission** of selected talent against this brief. This is the most decision-relevant fit and it is **inherently relative to the brief** — the same talent is a 95 for one job and a 20 for the next.
-
-- **Cross-cutting realities the engine must respect:** a talent is represented **non-exclusively across several agencies** with a **mother agency** and commission **splits** — so "fit" is never one-agency-owns-you. **Options/holds/bookouts** mean availability is a first-class, time-boxed gate, not a static flag. **Minors** are a different legal regime. **Usage/exclusivity** creates conflict gates (a talent under a brand buyout can't be submitted to a competitor).
-
-**Conclusion for Q1:** real selection is genuinely **multi-layer**, and each layer has a *different* job. So the recommendation is **all three scopes**, mapped precisely to the jobs in §0. Not "agency-only" (too coarse to rank a shortlist), not "brief-only" (you still need typing to route inbound and to organize a roster before any brief exists).
+- **`profiles.fit_score_*`** (`ai/scoring.js`, image-analysis → runway/editorial/commercial/lifestyle/swim vectors) → becomes the **look evidence unit**. Keep as a signal; it's exactly the subjective "look" input a stat matrix can't see.
+- **Discover hybrid retrieval** (`discover-retrieval.js`: dense visual/casting/market embeddings + lexical + RRF; `discover-rerank.js`: LLM listwise) → becomes the **candidate retriever + semantic evidence + the CBR similarity backbone**. Reused, re-roled.
+- **`match-scoring.js` weighted engine** (board hard filters + weighted average) → **retired as the decision layer.** Its *hard filters* migrate into Stage 2 (constraints); its weighted average is replaced by Stages 3–4. `board_applications.match_score` becomes a stored *fit-brief reference*, not a weighted number.
+- **Config layers already in schema** — `agencies.*` (age/height gates, `open_boards`), `board_requirements` + `board_scoring_weights`, `boards.client_name/target_slots/closes_at`. These become the **constraint + prior** definitions in §6 (the `board_scoring_weights` sliders are reinterpreted as *elicitation priors for the fuzzy measure*, not as summed weights).
+- **Structural fix (unchanged from v1):** `boards` is overloaded as both a persistent **division** and a transient **casting brief**. Split with `boards.kind ∈ {division, casting}` (§6.1).
 
 ---
 
-## 3. Q1 in detail — three scores, three jobs, one engine
+## 2. How the industry actually decides (why a reasoning engine, not a score)
 
-### 3.1 Agency gate (agency-wide)
-- **Not a precise %.** Output is `eligible: bool` + a coarse readiness band + reasons. Precision here is false and legally risky (auto-reject).
-- **Jobs:** (a) *talent-side guidance* — "you currently meet the submission bar for N agencies; you're 4cm short for these 3." (b) *inbound triage* — auto **keep-on-file** / surface, never silent auto-decline except on an explicit, disclosed hard rule (e.g. below an agency's absolute runway height floor). (c) *discovery prefilter* — the `is_discoverable/active/height/age` prefilter already in `loadEligibleProfileIds`.
-- **Mostly hard rules** + a completeness/readiness signal.
+From `industry/reference/standards.md` and `lifecycle.md`. Selection is **multi-layer** and **judgment-driven**, not screening:
 
-### 3.2 Board fit (division)
-- **Talent-intrinsic typing vector.** This already exists as `profiles.fit_score_{editorial,runway,commercial,lifestyle,swim_fitness,overall}`. Board fit = project that vector (plus board hard gates + stat closeness) onto a specific board's standard.
-- **Jobs:** route inbound to the right board director; organize/segment the roster; talent development guidance ("your look reads editorial, your stats sit commercial — here's the gap"); broad discovery ("show me New Faces candidates").
-- **Precompute** on profile/image change (it's intrinsic), store on the profile; project onto a board cheaply on read.
+- **Agency-wide** = a coarse *eligibility universe* ("are you the kind of talent we represent?"). A gate, not a ranking.
+- **Board / division** = *typing* ("which board — Editorial, Commercial, Curve, New Faces…?"). Standards differ sharply per board; much of it is **look**, not measurable stats. A talent can sit on more than one board.
+- **Brief / casting call** = the sharp, transient decision against a specific client job: dates (→ availability), usage/exclusivity (→ conflicts), exact look & measurements (fit/showroom is booked for exact numbers), market, required media (digitals, polaroids, reel). Bookers assemble a **package/submission**; the same talent is right for one brief and wrong for the next.
 
-### 3.3 Brief fit (casting call)
-- **Brief-relative ranking.** The sharpest score. Computed against a resolved brief spec (dates, usage, look, exact measurements, market, media, budget, slots).
-- **Jobs:** shortlist ranking, package building, reviewing applications *against a live brief*, and the agency-side sort in the casting Kanban.
-- **Compute on demand** at shortlist/package time; **persist each evaluation** to an audit table (`match_evaluations`) with the engine version and a config snapshot (needed for LL144/EU AI Act record-keeping and for showing staleness).
+Cross-cutting realities the engine must honor: **non-exclusive multi-agency representation** (fit is never "one agency owns you"); **options/holds/bookouts** make availability a first-class, time-boxed constraint; **minors** are a separate legal regime; **usage/exclusivity** create conflict vetoes. None of this is money — it's constraints and context.
 
-### 3.4 Talent-side vs agency-side are the *same* scores, different framing
-- Agency-side: "sort/rank talent for me."
-- Talent-side: "which agencies/boards should I apply to, and what's my gap?" — this is the **same** gate/board/brief computation, surfaced as guidance. Reuse the engine; never build a parallel talent scorer.
+**Implication:** a booker never wants a number; they want *"who should I look at, why, what's the risk, and what am I missing?"* That is a **decision brief**, which is exactly what Stages 1–5 produce. And the three layers map to three jobs: **agency = feasibility gate, board = typing/routing, brief = ranked decision brief** — one engine, three scopes (§6).
 
 ---
 
-## 4. Q2 in detail — the layered explainable hybrid
+## 3. The five stages in detail
 
-### 4.1 Why not *pure* weighted scoring
-Weighted scoring is attractive because it's transparent and cheap. But as the *whole* intelligence layer it fails in ways that matter here (industry + literature, §5, sources at end):
-- **Rigid & non-probabilistic** — hand-tuned weights can't capture nonlinear "it just works" look fit, and small stakeholders' biases get baked into the numbers.
-- **False precision** — averaging binary sub-scores into an `87` implies a resolution the inputs don't have. Bookers don't trust a spuriously exact number; regulators distrust it *more*.
-- **Can't judge "the look"** — the single most important editorial signal (does this face read for the brief?) is precisely what a stat-weighted average cannot see. The current `match-scoring.js` has **no look term at all** — it scores measurements and skills but not whether the person reads editorial. That's the gap.
-- **Invites illegal automation** — one opaque number begs to be thresholded into an auto-decision, the exact behavior LL144 / EU AI Act constrain.
-
-### 4.2 Why not a *pure* model (LTR / black box) — yet
-- **Cold start:** no labeled outcome data yet (which submissions got booked?). LTR needs labels.
-- **Explainability mandate:** EU AI Act high-risk + LL144 require human-oversight and explanation; an opaque ranker is a compliance problem, not just an ML choice.
-- **Sparsity & subjectivity:** casting is low-volume, per-market, and taste-driven; a model trained on thin data overfits one booker's taste.
-
-### 4.3 The recommended pipeline (layers, from §0)
-1. **Hard gates** — deterministic pass/fail with reasons. This is where BFOQs and compliance live. A gate is *never* traded off against a high look score.
-2. **Weighted structured fit** — keep weighted scoring here, but upgrade the sub-scores from **binary → graded distance** (a 173cm talent for a 175–182 board should not score 0 on height the way `scoreMeasurements` currently does; it should be a near-miss). Weights are sane defaults, tunable per scope.
-3. **Algorithmic inference** — two sub-signals: (a) **look-fit** = cosine/aligned match of the talent's `fit_score_*` vector (and image-analysis features) to the brief/board's target look; (b) **semantic fit** = the existing embedding retrieval + optional LLM rerank, used when the brief is free-text or aesthetic. This is the "algorithm" the brief is reaching for — bounded, and layered *on top of* gates, not replacing them.
-4. **Explanation + calibration** — decompose every score into `{gates, structured contributions, look, semantic}`, attach a **confidence** from data completeness/recency (stale stats/digitals → lower confidence, per the ≤3-month digitals rule), and present a **coarse band** (`strong / possible / stretch / ineligible`) as the primary UI signal, with the number secondary.
-
-### 4.4 The upgrade path to learning-to-rank (deferred, designed-for-now)
-Because the engine **emits structured features + an outcome-linked audit record**, once real labels accumulate (shortlisted → booked / released), a learned reranker can be trained and slotted in **behind layer 3** under a flag — while gates (layer 1) and explanations (layer 4) remain untouched. This gives explainability today and a data flywheel for tomorrow. Do **not** build the model now; build the feature/label plumbing now.
-
----
-
-## 5. Is weighted scoring "enough"? — the explicit test the brief asked for
-
-**Verdict: weighted scoring is *necessary but not sufficient*. Keep it, contain it to layer 2.**
-
-**Where weighted scoring is genuinely good (keep it):**
-- Structured, measurable, defensible signals: height/measurement closeness, experience level, location proximity, social reach vs. a floor.
-- Transparency and tunability — a booker can see and adjust why a stat mattered.
-- Cheap, deterministic, reproducible — ideal for the auditable middle band.
-
-**Where it fails (do not let it be the whole system):**
-- Cannot judge *look* (the dominant editorial signal) — needs the inference layer.
-- Binary in/out sub-scores (as coded today in `scoreMeasurements`/`scoreBodyType`) throw away near-misses and produce cliff-edge scores → fix with graded distance.
-- Averaging hides disqualifiers — a fatal availability conflict must be a **gate**, not a low weight. (Today `match-scoring.js` has *some* hard filters but no availability/usage/exclusivity gates at all.)
-- False precision + auto-decision risk (§4.1, §7).
-
-So: the brief's instinct ("I'm thinking more of an algorithm") is **right about the look/semantic layer** and **wrong if it means replacing gates and structured fit wholesale.** The elegant answer is the layered hybrid, where the *algorithmic* intelligence sits in layers 1-in-spirit (rules) + 3 (inference), and weighted scoring does the honest structured-closeness work in the middle.
-
----
-
-## 6. Data-collection & inheritance model (agency / board / brief)
-
-### 6.1 The object-model fix (prerequisite)
-Stop overloading `boards`. Introduce a discriminator and separate brief-only data:
-- `boards.kind` ∈ `{ 'division', 'casting' }` (default `'division'`; existing casting-flavored boards migrate to `'casting'` when they have `client_name`/`closes_at`/`target_slots`).
-- Brief-only fields (dates, usage, exclusivity, media requirements, budget) live in a `casting_briefs` extension keyed by `board_id` where `kind='casting'` — *or*, cleaner long-term, a first-class `casting_briefs` table that references a parent division `board_id`. v1 uses the discriminator + extension to avoid a disruptive rewrite of the casting Kanban.
-
-### 6.2 One uniform criteria store for all three scopes
-Replace the per-layer bespoke tables' *scoring role* with a single sparse-override store, resolved on read:
-
-`match_criteria` (one row per scope that has any config):
-- `scope_type` ∈ `{ 'agency', 'board', 'brief' }`, `scope_id`
-- `hard_rules` (JSON) — gates: age window (+ minors policy), genders, height gates, markets/travel, availability window, usage/exclusivity constraints, representation constraints, house rules
-- `soft_prefs` (JSON) — graded targets: measurement bands, experience, body type, look target vector, media-completeness expectations
-- `weights` (JSON) — the tunable weights for layer 2 (+ look/semantic mix for layer 3)
-- `version`, timestamps
-
-`board_requirements` / `board_scoring_weights` / `agencies.*` stay as the **editing surface** and are projected into `match_criteria` (or read directly by the resolver during migration). The point is *one resolver, one engine* — not three.
-
-### 6.3 What is configured where (and why)
-
-| Concern | Agency (once) | Board (per division) | Brief (per job) |
-|---|---|---|---|
-| Markets / cities represented | ✅ default universe | override subset | ✅ this job's market (gate if no-travel) |
-| Divisions offered (`open_boards`) | ✅ | — | brief hangs under one board |
-| Gender scope | ✅ default | ✅ per board | ✅ gate for gendered brief |
-| Age window + **minors policy** | ✅ **house floor/ceiling, minors rules** | tighten only | ✅ exact, cannot loosen minors rule |
-| Height bands (per gender) | ✅ baseline | ✅ board standard | ✅ exact / fit-critical |
-| Measurements / stats bands | — | ✅ board standard (curve ≠ editorial) | ✅ exact (fit/showroom) |
-| Look / category target | implied by divisions | ✅ target look vector | ✅ this job's look |
-| Body type / comfort / skills | house rules (e.g. no nudity) | ✅ | ✅ |
-| Social reach | default importance | ✅ | ✅ (influencer briefs) |
-| Availability / dates | — | — | ✅ **gate** (option/hold/bookout aware) |
-| Usage / buyout / exclusivity | representation model | — | ✅ **conflict gate** |
-| Media requirements (digitals/polaroids/reel) | house minimums | ✅ | ✅ |
-| Weights template | ✅ default template | ✅ override | ✅ override |
-
-### 6.4 Inheritance / default logic
-Resolve at compute time as **agency defaults ← board ← brief**:
-- **Soft prefs & weights:** most-specific non-null wins (brief > board > agency template). Store only overrides at each level (sparse); resolve on read. This kills today's duplication where a board re-declares everything.
-- **Hard rules:** the resolved gate set is the **union** of all levels. A child may **add** gates and **tighten** an inherited one; a child may **not remove** an agency-level compliance gate (e.g. minors handling, house "no nudity"). Encode this as: agency gates are `locked: true` unless explicitly overridable.
-- **Look target:** brief look overrides board look; if neither set, fall back to the board's canonical look vector.
-- **Confidence** rides on the *talent's* data recency/completeness, independent of scope.
-
----
-
-## 7. Compliance & guardrails (non-negotiable)
-
-Pholio ranks people for work → it is an **automated employment decision / job-matching tool**.
-
-### 7.1 Regimes that apply
-- **NYC Local Law 144:** annual independent **bias audit**, public summary, and **≥10 business days' candidate notice** before an AEDT is used, if the score materially drives selection. Penalties $500–$1,500/day. → We must (a) keep a human in the loop so the score is *decision-support*, (b) log selection/scoring rates by category to produce impact ratios, (c) be ready to publish an audit summary.
-- **EU AI Act (high-risk, in force 2 Aug 2026):** job-matching/ranking that scores/shortlists candidates is **high-risk** → risk management, data governance, technical documentation, **record-keeping**, transparency to affected individuals, **human oversight**, accuracy/robustness. Fines up to €30–35M / 6–7% turnover.
-- **GDPR / CCPA:** measurements + photos are sensitive, biometric-adjacent personal data; need lawful basis, consent, retention limits, and special care cross-border (placement abroad).
-
-### 7.2 Human-in-the-loop (hard requirement)
-- The score **suggests**, a person **decides**. No silent auto-reject on a composite score.
-- Auto **keep-on-file / surface** is fine. Auto **hard-decline** is permitted only on an **explicit, disclosed hard rule** (e.g. "we only represent 175cm+ for runway"), with notice — never on the weighted/inference composite.
-
-### 7.3 Explainability & audit (build it in, not on)
-- Every evaluation decomposes into `{gates (pass/fail + reason), structured contributions (raw, weight, distance, reason), look (rationale + source), semantic (rationale)}`. Partial support already exists (`match_details`, `discover-rerank` `match_rationale`) — standardize it.
-- Persist an immutable `match_evaluations` record: inputs snapshot ref, resolved criteria version, weights, gate results, engine version, timestamp. This is the substrate for the LL144 audit and EU AI Act record-keeping.
-- Store aggregate **selection/scoring rates by category** to compute impact ratios on demand.
-
-### 7.4 Protected attributes — remove from positive scoring
-- **Landmine:** `discover-retrieval.js` `heritageMatches()` / `structuredBoostForProfile()` currently **boosts on ethnicity / skin tone** as a generic structured signal. This is a legal and ethical hazard.
-  - Fix: **remove ethnicity/skin-tone from the generic structured boost.** If a brief has a *bona fide, client-stated* diversity/heritage requirement, model it as an **explicit, consented, brief-level tag** that the agency knowingly sets and that is logged — never a hidden default boost.
-- Do not use race, ethnicity, or skin tone as positive default inputs anywhere in the composite.
-
-### 7.5 Minors (separate regime)
-- Age is a legitimate BFOQ in modeling, but under-18 talent get a **branch**: measurements/full-length/swim images and contact gated + guardian-consented; excluded by default from usage/exclusivity/adult briefs; heightened privacy on any exposed stat. The minors gate is an **agency-locked hard rule** (§6.4) that a brief cannot loosen.
-
-### 7.6 Data recency & consent
-- Digitals/stats have a freshness expectation (≤3 months for digitals). Stale data → **lower confidence**, surfaced, and eligible for re-confirmation prompts. Discoverability/consent flags already gate retrieval (`is_discoverable`) — extend to scored surfacing.
-
----
-
-## 8. Unified engine — interfaces & storage
-
-### 8.1 Module shape (`src/domains/matching/`)
-- `resolveCriteria({ scopeType, scopeId, knex })` → resolved `{ hardRules, softPrefs, weights, lookTarget, version }` after inheritance (§6.4).
-- `evaluate({ profile, criteria, scopeType })` → the output below. Wraps/absorbs today's `calculateMatchScore`; adds gates, graded distances, look-fit, confidence, bands.
-- `evaluateBrief`, `evaluateBoard`, `evaluateAgencyGate` — thin wrappers over `evaluate` with scope-appropriate gate sets.
-- Look-fit consumes `profiles.fit_score_*`; semantic reuses `discover-*`. **One engine, three entry points.**
-
-### 8.2 Output contract
+### 3.1 Stage 1 — Evidence units (uniform, uncertainty-aware)
+Every input is normalized into:
 ```jsonc
-{
-  "engine_version": "1.0.0",
-  "scope": { "type": "brief", "id": "…" },
-  "eligible": true,
-  "band": "strong",              // strong | possible | stretch | ineligible
-  "gates": [ { "key": "availability", "passed": true, "reason": "free on shoot dates" } ],
-  "structured": {
-    "total": 78,
-    "contributions": [
-      { "key": "height", "raw": 176, "target": "175-182", "distance": 0.0, "weight": 3, "reason": "in band" }
-    ]
-  },
-  "look": { "vector": { "editorial": 82, "runway": 74 }, "briefFit": 80, "rationale": "…", "source": "fit_score_*" },
-  "semantic": { "score": 71, "rationale": "…" },   // null unless free-text/aesthetic brief
-  "confidence": 0.72,             // data completeness/recency
-  "composite": 79,                // secondary to band; null where a number would be false precision
-  "computed_at": "…",
-  "inputs_snapshot_ref": "…"
+{ "dimension": "height",            // stat | measurement | look | semantic | availability | history | media | market …
+  "value": 176,
+  "direction": "supports|opposes|neutral",
+  "strength": 0.0-1.0,              // how strongly it bears on fit for THIS scope
+  "confidence": 0.0-1.0,            // data completeness & recency (digitals ≤3mo, stats freshness…)
+  "provenance": "profile.height_cm@2026-05" }
+```
+- **Incomplete data is handled here, correctly:** a missing measurement is a **low-confidence** unit, not a zero. Confidence, not value, absorbs uncertainty. Stale digitals lower confidence and trigger re-confirmation prompts.
+- Look/aesthetic signals come from `fit_score_*` + image-analysis features; semantic signals from embeddings; availability from the options/holds calendar; history from the agency's prior decisions.
+
+### 3.2 Stage 2 — Constraint reasoning (feasibility, not scoring)
+Model hard + soft constraints as a **(weighted/partial) constraint-satisfaction** problem, not weights:
+- **Hard vetoes** (disqualifying, with reasons; never averaged away): minors/age policy, gender for a gendered brief, hard height gates (runway/fit), market/travel when the brief can't travel, **availability conflicts** against options/holds/bookouts on the brief dates, **usage/exclusivity conflicts** (already committed to a competitor for the requested media/territory/window), representation constraints.
+- **Soft constraints** → "conditionally feasible + reason" (measurements 2cm out, digitals stale) — surfaced, not silently failed.
+- Output: feasible set + near-miss diagnostics. This is where **compliance vetoes** live (§7).
+
+### 3.3 Stage 3 — Interaction-aware aggregation (the core; replaces weighted sum)
+Aggregate the commensurable fit evidence with a **Choquet integral over a fuzzy measure (capacity)**:
+- The capacity assigns importance to **subsets** of signals, so it encodes **synergy** (editorial-look ∧ editorial-stats worth more together than apart) and **redundancy** (two social metrics don't double-count) — the exact failure of additive weights.
+- **The explanation is built in:** **Shapley values** give each signal's overall importance; **interaction indices** say which signals reinforce or cancel. That is a human-readable account of *why*, not a post-hoc rationalization.
+- Capacities start from **elicited priors** (industry defaults + the reinterpreted board sliders) and are **learned per agency** (§3.5). No hand-tuned "weights sum to 100."
+
+### 3.4 Stage 4 — Context & subjective fit (retrieval + grounded reasoning)
+- **Case-based reasoning:** retrieve the most similar *past casting decisions for this agency/board* (over the discover embedding space + structured features). Yields cold-start robustness, context, and **analogical explanations** ("resembles 3 talents you advanced for similar e-comm briefs"). CBR is specifically strong under incomplete/knowledge-sparse data.
+- **Grounded LLM reasoner:** judges genuinely subjective/aesthetic fit ("does this face read for a raw-denim campaign?") and composes the natural-language rationale — **constrained to cite the evidence units and retrieved cases**, temperature-low, structured output. It is bounded and inspectable (inputs + outputs logged), so it is *not* a black box.
+
+### 3.5 Stage 5 — Decision-support output + the learning loop
+**Ranking:** **outranking (PROMETHEE-style)** pairwise comparison with indifference/preference thresholds → a **partial order**. It can legitimately say "A and B are **incomparable** — different strengths" instead of forcing a false total order, and needs no cross-criterion normalization. Great for "here are your top few, and here's the genuine tradeoff."
+
+**Per-candidate fit brief:**
+```jsonc
+{ "posture": "advance | consider | hold | not-for-this",
+  "case_for":   [ {evidence, confidence} ],
+  "case_against":[ {evidence/conflict, confidence} ],
+  "missing":    [ "availability unconfirmed", "digitals 5mo stale" ],
+  "interaction_notes": [ "strong: look ∧ stats reinforce", "social signals discounted (redundant)" ],
+  "confidence": 0.0-1.0,
+  "what_would_change_this": [ "confirm free on shoot dates → advance", "measurements 2cm off" ],
+  "comparability": { "clearly_ahead_of": [...], "tradeoff_with": [...] },
+  "fit_index": 0-100  // OPTIONAL secondary sort handle; never shown alone
 }
 ```
 
-### 8.3 When computed / where stored
-- **Board fit (typing):** intrinsic → precompute on profile/image change; store on `profiles.fit_score_*` (exists). Project onto a board on read.
-- **Agency gate:** cheap → compute on demand (inbound, talent guidance); optional cache per `(agency, profile)`.
-- **Brief fit:** compute at shortlist/package time; persist to `match_evaluations` (audit + staleness). Recompute when brief config or profile changes; show "recompute" when stale.
+**Learning loop (what makes it *intelligent*, per-agency):** every booker action (advanced / shortlisted / rejected / booked / released) is a **preference label**. An offline **preference-learning / learning-to-rank** job refines (a) the agency's Choquet capacities and (b) the CBR case weights — so the system learns *this agency's taste*, not a universal formula. Cold start is covered by priors + CBR. This is the flywheel, and it is *why* this beats any static configuration. **Guardrail:** learning from human decisions can amplify human bias, so the loop is monitored for fairness drift (§7).
 
 ---
 
-## 9. Staged build plan (each stage shippable)
+## 4. Why this specifically answers "many variables, interacting, incomplete, subjective"
 
-- **Stage 0 — foundation (non-breaking).** This doc + `boards.kind` discriminator + `match_criteria` (sparse overrides) + `match_evaluations` (audit) + `src/domains/matching/` facade wrapping `calculateMatchScore` + `resolveCriteria()` inheritance + graded-distance upgrade to structured sub-scores + **compliance fix: drop ethnicity/skin-tone from the generic structured boost** + minors gate. No UI change; existing board scoring keeps working through the facade.
-- **Stage 1 — brief scope.** `casting_briefs` extension (dates/usage/exclusivity/media/budget/slots) + availability/conflict gates + brief-fit using look vectors + persist `match_evaluations`.
-- **Stage 2 — calibration & audit surfacing.** Confidence + bands in agency + talent UI; audit logging; bias-audit aggregates (selection/scoring rates by category); candidate-notice copy.
-- **Stage 3 — learning-to-rank (deferred).** Once labels (shortlisted→booked/released) accumulate, add a learned reranker behind a flag at layer 3; keep gates + explanations intact.
+- **Many variables & interactions** → Choquet/fuzzy-measure aggregation is the literature-standard non-additive method; Shapley + interaction indices keep it explainable.
+- **Interacting constraints** → constraint reasoning (Stage 2) separates *feasibility* (vetoes/near-misses) from *desirability* (Stage 3), so a conflict can't be "scored away."
+- **Incomplete data** → per-evidence **confidence** + **CBR** analogical fill; uncertainty propagates to the brief's confidence instead of corrupting a score.
+- **Context** → CBR over the agency's own history + brief/board/agency scope resolution (§6).
+- **Subjective fit** → look-vectors + grounded LLM reasoning, cited to evidence.
+- **Explainable / decision support / not black box** → argument-shaped output, partial orders, low-dimensional learned components, grounded LLM.
 
-**Verification per stage:** migrations run on SQLite + Postgres paths; unit tests for `resolveCriteria` inheritance (union of gates, most-specific-wins, agency-locked rules) and graded distances; regression that existing `board_applications.match_score` values are stable through the facade; a scripted end-to-end on one seeded agency/board/brief.
+---
+
+## 5. Where (a little) weighting still legitimately lives — and why it's not the "weighted matrix" you rejected
+Honesty: the Choquet capacity generalizes weights (a capacity with **zero interaction** *is* a weighted average). The difference that matters:
+- It is **non-additive** (models synergy/redundancy) — the thing you're rejecting cannot.
+- It is **elicited-then-learned**, not hand-set to sum to 100.
+- It sits **after** constraint reasoning and **beside** CBR + reasoning, never as the whole intelligence.
+So "weights" as a *degenerate special case* remain available for trivial dimensions, but the system is a reasoning pipeline, not a scoring sheet.
+
+---
+
+## 6. Data-collection & inheritance model (constraints + priors, not weights)
+
+### 6.1 Object-model fix
+`boards.kind ∈ {division, casting}` (existing casting-flavored boards → `casting`). Brief-only data (dates, usage, exclusivity, media requirements, slots) in a `casting_briefs` extension keyed by the board, referencing a parent division board. (No money fields — no budget/commission.)
+
+### 6.2 One uniform criteria store, three scopes
+`match_criteria` (sparse; one row per scope with config):
+- `scope_type ∈ {agency, board, brief}`, `scope_id`
+- `constraints` (JSON) — hard vetoes + soft near-miss definitions (Stage 2)
+- `signal_relevance` (JSON) — which evidence dimensions matter here + **capacity priors** for the Choquet measure (Stage 3), **not** summed weights
+- `look_target` (JSON) — target look vector / brief aesthetic
+- `version`, timestamps
+
+The existing `board_requirements` / `board_scoring_weights` / `agencies.*` become the **editing surfaces** projected into this store; `board_scoring_weights` sliders are read as **capacity priors**, not weights.
+
+### 6.3 What is configured where
+
+| Concern | Agency (once) | Board (per division) | Brief (per job) |
+|---|---|---|---|
+| Markets represented | ✅ universe | subset | ✅ market (veto if no-travel) |
+| Divisions offered (`open_boards`) | ✅ | — | brief hangs under a board |
+| Gender scope | ✅ | ✅ | ✅ veto if gendered |
+| Age + **minors policy** | ✅ **locked floor/ceiling + minors rules** | tighten only | ✅ exact, can't loosen minors |
+| Height bands (per gender) | ✅ baseline | ✅ board standard | ✅ exact / fit-critical |
+| Measurements bands | — | ✅ (curve ≠ editorial) | ✅ exact (fit) |
+| Look / aesthetic target | implied by divisions | ✅ target vector | ✅ this job's look |
+| Availability / dates | — | — | ✅ **veto** (option/hold/bookout aware) |
+| Usage / exclusivity | representation model | — | ✅ **conflict veto** |
+| Media required (digitals/polaroids/reel) | house minimums | ✅ | ✅ |
+| Capacity priors (signal relevance) | ✅ default | ✅ override | ✅ override |
+
+### 6.4 Inheritance
+Resolve at compute time **agency ← board ← brief**:
+- **Constraints:** resolved veto set = **union**; a child may **add/tighten**, never **remove** an agency-**locked** compliance constraint (minors, house rules).
+- **Signal relevance / capacity priors & look target:** most-specific non-null wins; store only overrides (sparse). Learned capacities are keyed per (agency, scope) and layered over priors.
+- **Confidence** rides on the talent's data recency/completeness, independent of scope.
+
+---
+
+## 7. Compliance & guardrails (stronger, because this system learns)
+
+Pholio ranks people for work → an **automated employment/job-matching tool**. A *learning* one raises the stakes.
+
+- **NYC LL144:** annual independent **bias audit**, public summary, ≥10 business days' candidate notice when the tool materially drives selection.
+- **EU AI Act — high-risk (in force 2 Aug 2026):** risk management, data governance, technical documentation, **record-keeping**, transparency, **human oversight**, accuracy/robustness. The immutable fit-brief records (below) are the substrate for this.
+- **GDPR / CCPA:** measurements + images are sensitive, biometric-adjacent; lawful basis, consent, retention limits, cross-border care.
+
+**Built-in guardrails:**
+1. **Human-in-the-loop by construction** — the output is an *argument to a decider*, not a verdict. No auto-reject on the composite. Auto **keep-on-file/surface** is fine; auto-decline only on an explicit, disclosed **hard veto** (e.g. below a stated runway floor), with notice.
+2. **Explainability is the product** — Shapley + interaction indices + cited evidence + analogical cases. Already stronger than any weighted number.
+3. **Immutable reasoning records** (`match_evaluations`) — evidence snapshot, resolved criteria version, capacity version, ranker version, LLM rationale, timestamp. Enables the LL144 audit and EU AI Act record-keeping, and lets us replay any decision.
+4. **No protected attributes as positive signals** — **remove `heritageMatches()` (ethnicity/skin-tone boost) from `discover-retrieval.js`.** A bona-fide, client-stated diversity requirement is modeled as an explicit, consented, logged **brief tag**, never a hidden default boost.
+5. **Feedback-loop bias monitoring** — because Stage 5 learns from human choices, track impact ratios of the *learned* ranker over time; alert on drift; keep priors as a fair fallback; support periodic re-audit. Fairness is a first-class metric of the learning job, not an afterthought.
+6. **Minors branch** — measurements/full-length/swim gated + guardian-consented; excluded by default from usage/exclusivity/adult briefs; minors veto is agency-locked and non-overridable.
+7. **Data recency/consent** — freshness expectations lower confidence and prompt re-confirmation; discoverability/consent gates scored surfacing.
+
+---
+
+## 8. Engineering shape (not constrained to today's stack)
+
+A model-agnostic **`src/domains/matching/` reasoning service** with clean component seams so pieces can run in-process now and move to a dedicated service/worker later:
+
+- `SignalExtractor` → evidence units (wraps stats, `fit_score_*`, embeddings, availability, history).
+- `ConstraintSolver` → feasibility + near-misses (absorbs today's hard filters).
+- `Aggregator` → Choquet integral over the resolved capacity; emits Shapley + interaction indices.
+- `CaseRetriever` → CBR over past decisions (reuses discover retrieval).
+- `Reasoner` → grounded LLM aesthetic judgment + rationale.
+- `Ranker` → outranking / partial order.
+- `ExplanationComposer` → the fit brief.
+- `PreferenceLearner` → **offline** job updating per-agency capacities + case weights from decision labels; versioned, monitored for fairness.
+
+**Storage:** `match_evaluations` (immutable reasoning records); `agency_preference_model` (learned capacities + case weights, versioned per agency); `match_criteria` (§6). **Compute cadence:** board-typing precomputed on profile/image change; agency-gate on demand; brief briefs on shortlist/package build, persisted, recomputed on config/profile change with staleness shown.
+
+**Reuse vs. new:** reuse embeddings/retrieval and look-vectors as *evidence*; **retire** the weighted `calculateMatchScore` decision layer; build the constraint/aggregation/CBR/ranker/learning layers new.
+
+---
+
+## 9. Staged build plan (each stage shippable; verified before "done")
+
+- **Stage 0 — reasoning skeleton (non-breaking).** `boards.kind`; `match_criteria` + `match_evaluations` + `agency_preference_model` tables; `src/domains/matching/` with `SignalExtractor`, `ConstraintSolver` (absorb existing hard filters), a **first-cut `Aggregator`** (Choquet with elicited priors + Shapley/interaction output), and `ExplanationComposer`; **compliance fix: remove the ethnicity/skin-tone boost**; `resolveCriteria()` inheritance. Existing board scores keep working via a shim that reads the new brief but exposes a legacy number.
+- **Stage 1 — constraints + brief scope.** `casting_briefs`; availability (options/holds/bookouts) + usage/exclusivity conflict vetoes; near-miss diagnostics; brief-level fit briefs persisted to `match_evaluations`.
+- **Stage 2 — context & reasoning.** `CaseRetriever` (CBR over decisions) + grounded `Reasoner`; partial-order `Ranker`; full fit-brief UI (case for/against/missing/what-would-change), decision-support framing, candidate-notice copy.
+- **Stage 3 — learning loop.** `PreferenceLearner` updating per-agency capacities + case weights from decision labels; fairness/impact-ratio monitoring + bias-audit aggregates; priors as fair fallback.
+
+**Verification per stage:** migrations on SQLite + Postgres; unit tests for `resolveCriteria` inheritance (veto union, most-specific priors, agency-locked rules), Choquet aggregation + Shapley/interaction correctness, and constraint near-miss logic; a scripted end-to-end on one seeded agency/board/brief producing a full fit brief; fairness checks on any learned component before it ships.
 
 ---
 
 ## Sources (external research)
 
-- NYC LL144 / AEDT — [NYC DCWP](https://www.nyc.gov/site/dca/about/automated-employment-decision-tools.page), [NYC Rules (updated)](https://rules.cityofnewyork.us/rule/automated-employment-decision-tools-updated/), [Epstein Becker Green](https://www.workforcebulletin.com/taking-stock-of-new-york-citys-automated-employment-decision-tools-law)
-- EU AI Act & recruitment (high-risk, 2 Aug 2026) — [artificialintelligenceact.eu — staffing](https://artificialintelligenceact.eu/what-the-act-means-for-staffing-businesses/), [McCann FitzGerald — high-risk guidance](https://www.mccannfitzgerald.com/knowledge/technology/employment-spotlight-eu-ai-act-draft-guidelines-on-high-risk-ai-classification), [Ogletree](https://ogletree.com/insights-resources/blog-posts/cybersecurity-awareness-month-in-focus-part-iii-the-eu-ai-act-is-here-what-it-means-for-u-s-employers/)
-- Weighted scoring strengths/limits — [ProductPlan](https://www.productplan.com/glossary/weighted-scoring), [Fibery](https://fibery.com/blog/product-management/weighted-scoring/), [Univ. of Portsmouth](https://www.port.ac.uk/news-events-and-blogs/blogs/developing-enhanced-technologies/how-to-make-better-decisions-using-scoring-systems)
+- **Interaction-aware aggregation (Choquet / fuzzy measures):** [Choquet-integral fuzzy measures for aggregating satisfaction (Wiley, 2021)](https://onlinelibrary.wiley.com/doi/10.1155/2021/2319004); [Choquet-integral intuitionistic fuzzy aggregation operators (Expert Systems w/ Applications)](https://www.sciencedirect.com/science/article/abs/pii/S0957417421015529)
+- **Outranking / partial orders under uncertainty:** [PROMETHEE method overview (Iris Publishers)](https://irispublishers.com/ijebm/fulltext/using-promethee-method-for-multi-criteria-decision-making-applications-and-procedures.ID.000502.php); [Outranking + Bayesian networks under uncertainty (Annals of Operations Research, 2024)](https://link.springer.com/article/10.1007/s10479-024-06064-8)
+- **Preference learning / explainable talent matching:** [RankPO: Preference Optimization for Job-Talent Matching (arXiv 2503.10723)](https://arxiv.org/html/2503.10723v1); [OKRA: Explainable, multi-stakeholder job recommender (arXiv 2504.07108)](https://arxiv.org/pdf/2504.07108); [Modeling Two-Way Selection Preference for Person-Job Fit (arXiv 2208.08612)](https://arxiv.org/pdf/2208.08612)
+- **Case-based reasoning under incomplete data:** [Multiple-retrieval CBR for incomplete datasets (J. Biomedical Informatics)](https://www.sciencedirect.com/science/article/pii/S1532046419300450)
+- **Compliance:** [NYC DCWP — AEDT / LL144](https://www.nyc.gov/site/dca/about/automated-employment-decision-tools.page); [EU AI Act — staffing / high-risk](https://artificialintelligenceact.eu/what-the-act-means-for-staffing-businesses/)
 </content>
-</invoke>
