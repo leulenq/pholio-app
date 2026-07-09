@@ -89,12 +89,21 @@ describe("deriveAccent", () => {
       0.3,
     );
     expect(source).toMatch(/fallback/);
-    expect(["#B8956A", "#C9A55A"]).toContain(accent);
+    // The fallback passes the same gate as derived accents: raw brand gold
+    // is ~2.2–2.3:1 on the papers, so the shipped fallback is a darkened
+    // gold that clears 4.5:1 — never the raw swatch on text-bearing roles.
+    expect(contrastRatio(accent, paper)).toBeGreaterThanOrEqual(4.5);
   });
 
-  test("no forensics → brand gold (warmth picks the shade)", () => {
-    expect(deriveAccent(null, paper, 0.5).accent).toBe("#B8956A");
-    expect(deriveAccent(null, "#FFFFFF", 0).accent).toBe("#C9A55A");
+  test("no forensics → gated brand gold (contrast ≥ 4.5:1 on paper)", () => {
+    const warm = deriveAccent(null, paper, 0.5);
+    const neutral = deriveAccent(null, "#FFFFFF", 0);
+    expect(warm.source).toMatch(/fallback/);
+    expect(neutral.source).toMatch(/fallback/);
+    expect(contrastRatio(warm.accent, paper)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(neutral.accent, "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
+    // Warmth still differentiates the shade family (distinct gates).
+    expect(warm.accent).not.toBe(neutral.accent);
   });
 });
 

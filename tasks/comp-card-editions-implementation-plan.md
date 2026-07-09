@@ -255,11 +255,19 @@ parallel to 3/4 once sign-offs exist; 6 pending decision. Rollout stays
 behind `COMP_CARD_EDITIONS` until Gate 3. Saved cards: untouched by
 construction (frozen plan_json); legacy presets keep the legacy path.
 
-## Owner decisions required before/at each phase
+## Owner decisions — RESOLVED 2026-07-09
 
-1. Approve this plan (unblocks phase 0 — phase 0 is defensible even
-   standalone as pure bugfixing).
-2. Ghostscript AGPL sign-off or PrinceXML budget (blocks phase 5 print).
-3. Agency program: scope or non-goal (blocks phase 6 only).
-4. Monetization/watermark stance (blocks nothing; affects 3.4 copy).
-5. Licensed-typeface budget yes/no (affects phase 4 decision).
+1. Plan approved; implementation started (phase 0 first).
+2. **No paid dependencies or licenses anywhere in this system.**
+   PrinceXML fallback removed from the plan; ghostscript (free, AGPL,
+   unmodified subprocess) is the only PDF/X path in phase 5.
+3. Agency card program: **non-goal for this project** (orchestrator
+   decision, delegated by owner) — separate product surface; revisit as
+   its own project after Gate 3 with usage telemetry. Phase 6 removed
+   from scope.
+4. Monetization: **watermark-limited free tier** — full catalog visible
+   and generatable for free users under the existing non-pro watermark;
+   watermark removal stays a paid capability. No new gates beyond that.
+5. Licensed typefaces: **no.** Serif register leads with the vendored
+   open-license optical cuts (Fraunces, Bodoni Moda); Cormorant only
+   ≥20pt.
