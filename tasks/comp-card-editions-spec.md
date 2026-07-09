@@ -1,7 +1,10 @@
-# Comp Card Editions — living design system spec (v9)
+# Comp Card Editions — living design system spec (v9 design record)
 
-Date: 2026-07-09 · Status: PLAN ONLY — implementation deliberately not started;
-architecture revised after the v8 panel review (Round 6) and the v9 working
+Date: 2026-07-09 · Status: design record. Superseded for execution by
+tasks/comp-card-editions-implementation-plan.md (v10), which folds in the
+independent five-agent red team (tasks/comp-card-editions-redteam.md).
+Where this document and the implementation plan disagree, the plan wins.
+Architecture revised after the v8 panel review (Round 6) and the v9 working
 session + red team (Round 7).
 Supersedes: v6/v7 drafts (same file, earlier revisions) and extends
 tasks/comp-card-atelier-spec.md / docs/comp-card-frontpage-intelligence-proposal.md.
