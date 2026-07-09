@@ -1,7 +1,8 @@
-# Comp Card Editions — living design system spec (v7)
+# Comp Card Editions — living design system spec (v8)
 
-Date: 2026-07-09 · Status: architecture locked after internal debate; implementing
-Supersedes: v6 draft (same file, earlier revision) and extends
+Date: 2026-07-09 · Status: PLAN ONLY — implementation deliberately not started;
+architecture revised after the v8 panel review (Round 6 below).
+Supersedes: v6/v7 drafts (same file, earlier revisions) and extends
 tasks/comp-card-atelier-spec.md / docs/comp-card-frontpage-intelligence-proposal.md.
 
 ## Problem
@@ -165,18 +166,85 @@ renderer itself. (Future, phase 3: PDF/X + CMYK via ghostscript post-pass;
 already carries inches, so this is a constant-threading job, not a
 redesign.)
 
+### Round 6 — The panel review (v8 deltas)
+
+A five-seat review (creative director / booker / engineer / typographer /
+product) interrogated v7 before implementation. Verdicts, each a binding
+change to this spec:
+
+1. **Editions confirmed over a continuous style space.** The steelman
+   alternative (style embedding + repulsion sampling) was rejected —
+   interpolated styles are compromises, not directions; unnameable styles
+   can't be pinned, saved, or QA'd. But the repulsion idea is adopted
+   inside the resolver: **avoid-history depth 2–3** (edition + voice +
+   structure of the previous takes), not just the last edition — otherwise
+   takes ping-pong A→B→A→B.
+2. **Catalog: add `fresh-commercial` (9 editions).** The v7 catalog skewed
+   editorial while commercial talent is most of the market. Title-case
+   name culture (modern-warm / editorial-serif voices), warm paper,
+   brighter verified accent, smile-forward hero, clean bright back with
+   strip stats. **Kids is a gating profile, not an edition**: restricted
+   draw pool (house-classic, fresh-commercial, duet, studio-cutout) plus
+   the existing guardian-contact and tone clamps.
+3. **Matte precompute is a launch prerequisite.** Two editions are
+   matte-gated; if mattes are computed lazily most users never see them.
+   Mattes are computed at upload for eligible (studio-classified) frames;
+   `?editions=1` reports real availability.
+4. **`ink-noir` must be structurally dark, not a palette swap**: gallery
+   mat on a night field, hairline gold keyline, reversed footline — it must
+   pass the 3-of-6 distinctness matrix against house-classic on structure
+   and ornament, not just palette.
+5. **The global aesthetics scorer is a centralizing force and is replaced
+   by per-edition scoring objectives.** The current scorer (name near
+   bottom-center, hero-led coverage) is a root cause of today's
+   convergence; if editions share it, editions converge too. Each edition
+   scores its candidates against its own objectives (mat proportion and
+   caption discipline for the Monograph; type presence for the Poster;
+   grid adherence for Swiss; interlock quality for Cover Story).
+6. **Micro-variety becomes a tested invariant.** Every edition documents
+   its internal variation axes (mat depth, hero scale, lockup, alignment,
+   accent presence …) and the suite asserts (a) signature spread across
+   seeds *within* each edition and (b) a minimum composite-signature
+   distance between *consecutive* takes (edition, structure, lockup,
+   voice, palette, stats style).
+7. **Typography is promoted to a first-class edition property.** Per
+   edition: case, variable **width axis** (Archivo wdth 62–125 —
+   condensed masthead vs extended rail), **optical size axes** (Fraunces,
+   Bodoni Moda opsz for true display cuts), weight, stacked-caps negative
+   leading (0.92–0.98), `tabular-nums` stats, no synthesized small caps,
+   and a **size-tracking curve** (tracking tightens as size grows) instead
+   of sampled tracking noise. **Cormorant Garamond replaces Playfair
+   Display in the editorial-serif voice** (Canva-ubiquity risk); Playfair
+   remains only as a fallback family. Glyph-metric infra must measure or
+   calibrate per-axis instances before width axes ship.
+8. **Back chrome variants are edition identity; hierarchy is inviolable.**
+   Stats scannable at a glance, dual-unit, never over an image; roles
+   (name/stats/booking/wordmark) mandatory. Chrome varies per edition
+   (centered name + stats footline; ruled tabular stats; reversed noir;
+   indexed cells on dense backs). Ornament must be information-bearing and
+   foot-anchored — a folio above the name is the banned eyebrow pattern.
+9. **Gallery-first build order.** Before any edition ships, build the
+   review rig: N seeds × editions rendered to a screenshot grid (HTML
+   plan-render first, Puppeteer screenshots second). Every subsequent
+   design decision is reviewed against artifacts, not imagination. The
+   back renderer is extended (style flags), not rebuilt, in phase 1.
+10. **Persistence contract.** Frozen saved cards pin `edition` +
+    `ENGINE_VERSION composed-v6.0` and never re-resolve; legacy presets
+    (no edition) render byte-identically on the old path.
+
 ---
 
-## The catalog (v7 launch set — 8 editions)
+## The catalog (v8 launch set — 9 editions)
 
 | id | label | front structure | image hierarchy | type culture | paper | ornament | back program | needs |
 |----|-------|-----------------|-----------------|--------------|-------|----------|--------------|-------|
 | `house-classic` | The Standard | photo-dominant / matted | 1 hero | band 20–38pt, inline/contrast | auto whites | none | uniform-grid, feature-column/row, mosaic · stats column/strip | — |
+| `fresh-commercial` | The Commercial | photo-dominant (smile-forward hero) | 1 hero | 20–32pt title case | warm | none | uniform-grid, feature-row (bright, strip stats) | — |
 | `gallery-monograph` | The Monograph | matted, deep asymmetric mats (hero ≥42%) | 1 hero | 15–22pt, wide tracking, initial-line/inline | ivory | keyline, folio | restrained-duo, feature-column (airy, centered name) · stats footline | ≥3 imgs |
 | `editorial-masthead` | The Cover | masthead band above hero | 1 hero | 40–76pt masthead, stacked/contrast | auto | folio | feature-row, editorial-stagger · stats strip | — |
 | `swiss-modernist` | The Grid | column-grid: hero + paper rail | 1 hero | 18–30pt or spine, flush-left | pure white | hairline rules, folio | uniform-grid, filmstrip (ruled, tabular stats) | — |
 | `cover-story` | The Cover Story | type-behind-figure interlock | 1 hero + matte layers | 56–110pt stacked behind subject | auto | none | feature-column, mosaic · stats column | alpha matte |
-| `ink-noir` | The Night Edition | photo-dominant-dark / dark gallery mat | 1 hero | 22–40pt reversed | ink field (hero-pulled ≥7:1) | none | feature-column, restrained-duo (reversed) · stats column | not kids |
+| `ink-noir` | The Night Edition | dark gallery mat / photo-dominant-dark | 1 hero on night field | 22–40pt reversed | ink field (hero-pulled ≥7:1) | hairline gold keyline, reversed footline | feature-column, restrained-duo (reversed) · stats column | not kids |
 | `duet` | The Diptych | diptych hinge (headshot + full-length) | 2 paired frames | 18–30pt across hinge | auto | hinge rule | restrained-duo, feature-row · stats strip | pairable support |
 | `studio-cutout` | The Cutout | cutout on palette plane | 1 matted figure | 24–44pt in negative space | plane-pulled | none | uniform-grid, feature-column · stats column | alpha matte |
 
@@ -219,15 +287,24 @@ ever eliminated).
   Booker's-law invariants on sampled programs. Existing suites stay
   green; tests pinning old constants are updated to the new contract.
 
-## Phases
+## Phases (gallery-first order — panel verdict 9)
 
-1. **Core (this pass)** — catalog + resolver + language/front/back/director
-   threading + template IR + tests. Editions on by default in the composed
-   engine.
+0. **Review rig + prerequisites** — the fixture gallery (N seeds ×
+   editions → rendered grid, plan-level HTML first, Puppeteer screenshots
+   second) and matte precompute at upload. No edition ships unreviewed.
+1. **Core** — catalog + resolver (avoid-history depth 2–3) +
+   language/front/back/director threading + per-edition scoring
+   objectives + template IR extensions + test suite (distinctness matrix,
+   within-edition spread, consecutive-take distance, Booker's-law
+   invariants, palette contrast, determinism, kids pool gating).
+   Editions on by default in the composed engine.
 2. **Surface** — dashboard edition rail (chips with availability + tone
-   lines), edition cycling pass-through, preset persistence UI, seed-sweep
-   visual verification (Puppeteer screenshots per edition).
-3. **Print/format** — A5 via page-dimension parameterization; PDF/X-CMYK
+   lines), the two-gesture UX ("New direction" cycles editions; "Refine
+   this direction" re-seeds within the pinned edition), preset
+   persistence, seed-sweep visual verification.
+3. **Type depth** — variable width/optical axes + per-axis glyph metrics,
+   size-tracking curves, Cormorant swap.
+4. **Print/format** — A5 via page-dimension parameterization; PDF/X-CMYK
    post-pass; per-edition paper-stock guidance copy.
 
 ## Non-goals
