@@ -124,6 +124,9 @@ function buildOverrides(opts) {
   if (opts.locks && typeof opts.locks === "object") {
     overrides.locks = { ...(overrides.locks || {}), ...opts.locks };
   }
+  if (opts.forceBackArchitecture) {
+    overrides.forceBackArchitecture = opts.forceBackArchitecture;
+  }
   return Object.keys(overrides).length > 0 ? overrides : null;
 }
 

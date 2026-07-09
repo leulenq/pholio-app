@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pholio — Login Prototypes</title>
+  <!-- Google Fonts: Playfair Display (Serif) & Inter (Sans-Serif) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+  
+  <style>
+    /* =========================================================================
+       1. GLOBAL RESET & TOKENS
+       ========================================================================= */
+    :root {
+      /* Brand design token system (agency-tokens.css) */
+      --ag-surface-0: #FAF8F5;   /* Canvas background */
+      --ag-surface-1: #FFFFFF;   /* Cards, panels */
+      --ag-gold: #C9A55A;        /* Primary accent gold */
+      --ag-gold-hover: #B8956A;  /* Deepened gold hover */
+      --ag-text-0: #1A1815;      /* Headlines, ink-black */
+      --ag-text-2: #6B6560;      /* Secondary copy */
+      --ag-text-3: #A39E99;      /* Muted placeholders */
+      --ag-border: rgba(26, 24, 21, 0.08);
+      --ag-border-hover: rgba(26, 24, 21, 0.22);
+      
+      /* Dark mode tokens */
+      --ag-dark-surface-0: #0A0908;
+      --ag-dark-surface-1: #141311;
+      --ag-dark-text-0: #FAF8F5;
+      --ag-dark-text-2: #8E8983;
+      --ag-dark-border: rgba(250, 248, 245, 0.08);
+      --ag-dark-border-hover: rgba(250, 248, 245, 0.20);
+      
+      /* Animation */
+      --transition-smooth: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      --transition-quick: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      
+      /* Shadows */
+      --shadow-ambient: 0 1px 3px rgba(26, 24, 21, 0.06);
+      --shadow-float: 0 4px 20px rgba(26, 24, 21, 0.08);
+      --shadow-overlay: 0 12px 40px rgba(26, 24, 21, 0.12);
+      --shadow-glow: 0 0 20px rgba(201, 165, 90, 0.15);
+      
+      /* Layout width */
+      --sidebar-width: 320px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #0E0D0C;
+      color: var(--ag-text-0);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Input focus default ring */
+    input:focus-visible, button:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
+    }
+
+    /* SVG Icons Helper */
+    .icon {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: middle;
+    }
+
+    /* =========================================================================
+       2. INTERACTIVE SIDEBAR DECK (THE CONTROLLER)
+       ========================================================================= */
+    .control-deck {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: var(--sidebar-width);
+      background: #151413;
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      color: #E6E2DC;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .control-deck.collapsed {
+      transform: translateX(calc(-1 * var(--sidebar-width)));
+    }
+
+    .deck-toggle-btn {
+      position: absolute;
+      top: 24px;
+      right: -40px;
+      width: 40px;
+      height: 40px;
+      background: #151413;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-left: none;
+      color: var(--ag-gold);
+      border-radius: 0 8px 8px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 5px 0 15px rgba(0, 0, 0, 0.3);
+      transition: var(--transition-quick);
+    }
+
+    .deck-toggle-btn:hover {
+      color: #FFFFFF;
+      background: #1F1E1D;
+    }
+
+    .deck-header {
+      margin-bottom: 24px;
+    }
+
+    .deck-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-style: italic;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .deck-logo span {
+      color: var(--ag-gold);
+    }
+
+    .deck-subtitle {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #8E8983;
+      font-weight: 600;
+    }
+
+    .deck-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-grow: 1;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding-right: 4px;
+    }
+
+    .deck-menu::-webkit-scrollbar {
+      width: 4px;
+    }
+    .deck-menu::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    .deck-option {
+      background: #1F1D1C;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition-smooth);
+    }
+
+    .deck-option:hover {
+      background: #282624;
+      border-color: rgba(201, 165, 90, 0.2);
+    }
+
+    .deck-option.active {
+      background: rgba(201, 165, 90, 0.08);
+      border-color: var(--ag-gold);
+    }
+
+    .deck-option-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FFFFFF;
+      margin-bottom: 2px;
+    }
+
+    .deck-option.active .deck-option-title {
+      color: var(--ag-gold);
+    }
+
+    .deck-option-desc {
+      font-size: 10.5px;
+      color: #A39E99;
+      line-height: 1.4;
+    }
+
+    .deck-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 16px;
+    }
+
+    .deck-specs-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #8E8983;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .deck-spec-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      margin-bottom: 4px;
+      color: #B4AEA6;
+    }
+
+    .deck-spec-val {
+      font-family: monospace;
+      color: #FFFFFF;
+    }
+
+    .color-swatch-list {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .color-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* =========================================================================
+       3. PROTOTYPE VIEW STAGE
+       ========================================================================= */
+    .view-stage {
+      flex-grow: 1;
+      height: 100vh;
+      position: relative;
+      background: #000000;
+      transition: padding-left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      padding-left: var(--sidebar-width);
+    }
+
+    .view-stage.expanded {
+      padding-left: 0;
+    }
+
+    .variant-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: scale(0.98);
+      overflow-y: auto;
+    }
+
+    .variant-container.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+      z-index: 10;
+    }
+
+    /* =========================================================================
+       4. COMMON LAYOUT PARTS & UNIQUE SWEEP/UNDERLINE LOGO BUILDERS
+       ========================================================================= */
+    /* Pholio Wordmark Header */
+    .pholio-wordmark {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-style: italic;
+      color: #FFFFFF;
+      letter-spacing: -0.03em;
+      text-decoration: none;
+      display: inline-block;
+      line-height: 1;
+    }
+
+    /* Form Fields */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .input-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 16px;
+      background: none;
+      border: none;
+      color: currentColor;
+      opacity: 0.5;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s;
+    }
+
+    .password-toggle:hover {
+      opacity: 1;
+    }
+
+    /* Success / Error Banners */
+    .alert-banner {
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      text-align: left;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(-10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Action Links */
+    .link-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: -8px;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+
+    .text-link {
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-size: inherit;
+      font-family: inherit;
+    }
+
+    .text-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Social row separator */
+    .or-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 24px 0;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .or-divider::before, .or-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+    }
+
+    /* Social buttons */
+    .social-btn-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .social-btn {
+      flex: 1;
+      height: 48px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-quick);
+      background: transparent;
+      border: 1px solid currentColor;
+    }
+
+    .social-btn-google {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .social-btn-instagram {
+      background: linear-gradient(90deg, #FEDA75 0%, #FA7E1E 30%, #D62976 70%, #962FBF 100%);
+      border: none;
+      color: #FFFFFF !important;
+    }
+    .social-btn-instagram:hover {
+      filter: brightness(1.08);
+      box-shadow: 0 4px 15px rgba(214, 41, 118, 0.25);
+    }
+
+    /* Loader */
+    .loader-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* =========================================================================
+       SIGNATURE WORDMARK & GOLD SWEEP/DIVIDER STYLES
+       ========================================================================= */
+    .cinematic-wordmark-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+    .cinematic-wordmark-sweep {
+      width: 100px;
+      height: 1.5px;
+      background: linear-gradient(90deg, transparent 0%, var(--ag-gold) 50%, transparent 100%);
+      box-shadow: 0 0 10px rgba(201, 165, 90, 0.7);
+      border-radius: 999px;
+      margin-top: 8px;
+    }
+
+    .ledger-wordmark-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 12px;
+      width: 100%;
+    }
+    .ledger-wordmark-sweep {
+      width: 60px;
+      height: 1px;
+      background: var(--ag-gold);
+      margin-top: 6px;
+    }
+    .ledger-header-sweep {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201, 165, 90, 0.4) 50%, transparent);
+      margin-top: 16px;
+    }
+
+    .viewfinder-wordmark-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+    .viewfinder-wordmark-sweep {
+      width: 120px;
+      height: 1px;
+      background: rgba(201, 165, 90, 0.4);
+      position: relative;
+      margin-top: 8px;
+    }
+    .viewfinder-wordmark-sweep::after {
+      content: '+';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: monospace;
+      font-size: 8px;
+      color: var(--ag-gold);
+      background: #0C0B0A; /* matches gradient center */
+      padding: 0 4px;
+    }
+
+    .asymmetric-wordmark-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      width: 100%;
+      position: relative;
+    }
+
+    .roster-wordmark-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .roster-wordmark-sweep {
+      width: 90px;
+      height: 1px;
+      background: repeating-linear-gradient(90deg, var(--ag-gold), var(--ag-gold) 6px, transparent 6px, transparent 10px);
+      margin-top: 8px;
+    }
+
+    .slate-wordmark-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+    .slate-wordmark-sweep {
+      width: 140px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201, 165, 90, 0.6) 20%, var(--ag-gold) 50%, rgba(201, 165, 90, 0.6) 80%, transparent 100%);
+      margin-top: 8px;
+    }
+
+    /* =========================================================================
+       5. VARIANT 1: THE CINEMATIC STAGE (DARK EDITORIAL)
+       ========================================================================= */
+    #variant-cinematic {
+      /* Creative spotlight gradient sweep from top center */
+      background: radial-gradient(ellipse at top, rgba(201, 165, 90, 0.15) 0%, #000000 65%);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Ambient Light Orbs */
+    .cinematic-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.25;
+      z-index: -1;
+      animation: floatOrb 24s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    .cinematic-orb-1 {
+      top: 10%;
+      left: 10%;
+      width: 35vw;
+      height: 35vw;
+      background: radial-gradient(circle, rgba(201, 165, 90, 0.20) 0%, rgba(0, 0, 0, 0) 70%);
+    }
+
+    .cinematic-orb-2 {
+      bottom: 10%;
+      right: 10%;
+      width: 40vw;
+      height: 40vw;
+      background: radial-gradient(circle, rgba(120, 120, 128, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+      animation-delay: -12s;
+    }
+
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(3vw, -3vh) scale(1.05); }
+      100% { transform: translate(-1vw, 1vh) scale(0.98); }
+    }
+
+    .cinematic-panel {
+      width: 100%;
+      max-width: 440px;
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    .cinematic-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 3.5vw, 2.75rem);
+      font-weight: 400;
+      font-style: italic;
+      color: #FFFFFF;
+      line-height: 1.15;
+      margin-bottom: 12px;
+      text-shadow: 0 0 40px rgba(255, 255, 255, 0.08);
+      letter-spacing: -0.02em;
+    }
+
+    .cinematic-sub {
+      font-size: 13.5px;
+      color: rgba(255, 255, 255, 0.55);
+      margin-bottom: 36px;
+      line-height: 1.6;
+    }
+
+    /* Minimalist input controls */
+    .cinematic-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #FFFFFF;
+      caret-color: var(--ag-gold);
+      transition: var(--transition-smooth);
+      outline: none;
+    }
+
+    .cinematic-input:hover {
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .cinematic-input:focus {
+      border-color: rgba(201, 165, 90, 0.6);
+      background: rgba(201, 165, 90, 0.03);
+      box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.6);
+    }
+
+    .cinematic-input::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .cinematic-label {
+      color: var(--ag-gold);
+      opacity: 0.9;
+    }
+
+    .cinematic-primary-btn {
+      width: 100%;
+      height: 52px;
+      border-radius: 8px;
+      background: var(--ag-gold);
+      border: none;
+      color: #0A0806;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: var(--shadow-ambient);
+      transition: var(--transition-smooth);
+    }
+
+    .cinematic-primary-btn:hover {
+      background: var(--ag-gold-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(201, 165, 90, 0.25);
+    }
+
+    .cinematic-panel .social-btn-google {
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #FFFFFF;
+    }
+    .cinematic-panel .social-btn-google:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .cinematic-panel .or-divider::before, .cinematic-panel .or-divider::after {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .cinematic-panel .or-divider {
+      color: rgba(255, 255, 255, 0.4);
+    }
+    .cinematic-panel .alert-banner-error {
+      background: rgba(232, 133, 121, 0.10);
+      border: 1px solid rgba(232, 133, 121, 0.24);
+      color: #E88579;
+    }
+    .cinematic-panel .alert-banner-success {
+      background: rgba(111, 207, 151, 0.10);
+      border: 1px solid rgba(111, 207, 151, 0.24);
+      color: #6FCF97;
+    }
+    .cinematic-panel .text-link {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .cinematic-panel .text-link:hover {
+      color: var(--ag-gold);
+    }
+    .cinematic-footer {
+      margin-top: 36px;
+      font-size: 13.5px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+    .cinematic-footer a {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: var(--transition-quick);
+    }
+    .cinematic-footer a:hover {
+      color: var(--ag-gold);
+      border-bottom-color: rgba(201, 165, 90, 0.3);
+    }
+
+    /* =========================================================================
+       6. VARIANT 2: THE EDITORIAL LEDGER (LIGHT WORKSPACE)
+       ========================================================================= */
+    #variant-ledger {
+      background-color: var(--ag-surface-0);
+      color: var(--ag-text-0);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    .ledger-logo-wrap {
+      margin-bottom: 32px;
+      text-align: center;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .ledger-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--ag-surface-1);
+      border: 1px solid var(--ag-border);
+      border-radius: 16px;
+      box-shadow: var(--shadow-ambient);
+      padding: 40px 32px;
+      text-align: center;
+      transition: var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ledger-card:hover {
+      box-shadow: var(--shadow-float);
+    }
+
+    .ledger-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.25rem;
+      font-weight: 600;
+      color: var(--ag-text-0);
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .ledger-sub {
+      font-size: 13.5px;
+      color: var(--ag-text-2);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .ledger-input {
+      width: 100%;
+      height: 48px;
+      padding: 12px 16px;
+      background: var(--ag-surface-1);
+      border: 1px solid rgba(26, 24, 21, 0.12);
+      border-radius: 8px;
+      font-size: 14.5px;
+      font-family: inherit;
+      color: var(--ag-text-0);
+      outline: none;
+      box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.03);
+      transition: var(--transition-smooth);
+    }
+
+    .ledger-input:hover {
+      border-color: var(--ag-border-hover);
+      background: var(--ag-surface-0);
+    }
+
+    .ledger-input:focus {
+      border-color: var(--ag-gold);
+      background: var(--ag-surface-1);
+      box-shadow: 
+        0 0 0 3px rgba(201, 165, 90, 0.15),
+        inset 0 1px 2px rgba(26, 24, 21, 0.03);
+    }
+
+    .ledger-input::placeholder {
+      color: var(--ag-text-3);
+      font-style: italic;
+    }
+
+    .ledger-label {
+      color: var(--ag-text-2);
+    }
+
+    .ledger-primary-btn {
+      width: 100%;
+      height: 48px;
+      border-radius: 8px;
+      background: var(--ag-gold);
+      border: 1px solid rgba(0, 0, 0, 0.04);
+      color: #1A1815;
+      font-weight: 600;
+      font-size: 14.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+      transition: var(--transition-smooth);
+    }
+
+    .ledger-primary-btn:hover {
+      background: var(--ag-gold-hover);
+      transform: translateY(-1.5px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), var(--shadow-float);
+    }
+
+    .ledger-card .social-btn-google {
+      border-color: rgba(26, 24, 21, 0.15);
+      color: var(--ag-text-0);
+    }
+    .ledger-card .social-btn-google:hover {
+      background: rgba(26, 24, 21, 0.03);
+      border-color: rgba(26, 24, 21, 0.25);
+    }
+    .ledger-card .or-divider::before, .ledger-card .or-divider::after {
+      background: rgba(26, 24, 21, 0.08);
+    }
+    .ledger-card .or-divider {
+      color: var(--ag-text-2);
+    }
+    .ledger-card .alert-banner-error {
+      background: rgba(192, 57, 43, 0.05);
+      border: 1px solid rgba(192, 57, 43, 0.15);
+      color: #C0392B;
+    }
+    .ledger-card .alert-banner-success {
+      background: rgba(45, 138, 86, 0.05);
+      border: 1px solid rgba(45, 138, 86, 0.15);
+      color: #2D8A56;
+    }
+    .ledger-card .text-link {
+      color: var(--ag-text-2);
+    }
+    .ledger-card .text-link:hover {
+      color: var(--ag-gold-hover);
+    }
+    .ledger-footer {
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--ag-text-2);
+      text-align: center;
+    }
+    .ledger-footer a {
+      color: var(--ag-text-0);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .ledger-footer a:hover {
+      color: var(--ag-gold-hover);
+      text-decoration: underline;
+    }
+
+    /* =========================================================================
+       7. VARIANT 3: THE VIEWFINDER SPLIT (MEDIA FOCUS)
+       ========================================================================= */
+    #variant-viewfinder {
+      display: flex;
+      min-height: 100vh;
+      background: var(--ag-dark-surface-0);
+      color: var(--ag-dark-text-0);
+    }
+
+    .viewfinder-left {
+      flex: 1;
+      background: #090807;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    /* Fashion Graphic Placeholder — filled with central gold radial light sweep */
+    .viewfinder-graphic-container {
+      width: 100%;
+      max-width: 420px;
+      aspect-ratio: 3/4;
+      background: radial-gradient(circle at center, rgba(201, 165, 90, 0.12) 0%, #0C0B0A 100%);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+
+    /* Camera Viewfinder Marks */
+    .viewfinder-corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 1.5px solid rgba(201, 165, 90, 0.35);
+      pointer-events: none;
+    }
+    .vf-tl { top: 16px; left: 16px; border-right: none; border-bottom: none; }
+    .vf-tr { top: 16px; right: 16px; border-left: none; border-bottom: none; }
+    .vf-bl { bottom: 16px; left: 16px; border-right: none; border-top: none; }
+    .vf-br { bottom: 16px; right: 16px; border-left: none; border-top: none; }
+
+    .viewfinder-crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(201, 165, 90, 0.35);
+      font-size: 16px;
+      font-weight: 300;
+      pointer-events: none;
+    }
+
+    .viewfinder-meta-top {
+      display: flex;
+      justify-content: space-between;
+      font-family: monospace;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      letter-spacing: 0.05em;
+    }
+
+    .viewfinder-rec {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .viewfinder-rec-dot {
+      width: 6px;
+      height: 6px;
+      background: #E74C3C;
+      border-radius: 50%;
+    }
+
+    .viewfinder-center-logo {
+      align-self: center;
+      text-align: center;
+    }
+
+    .viewfinder-center-logo p {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--ag-gold);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .viewfinder-meta-bottom {
+      display: flex;
+      justify-content: space-between;
+      font-family: monospace;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .viewfinder-right {
+      width: 480px;
+      background: var(--ag-dark-surface-1);
+      border-left: 1px solid var(--ag-dark-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 48px;
+      position: relative;
+    }
+
+    .viewfinder-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 400;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .viewfinder-sub {
+      font-size: 13.5px;
+      color: var(--ag-dark-text-2);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .viewfinder-input {
+      width: 100%;
+      height: 48px;
+      padding: 12px 16px;
+      background: #0E0D0C;
+      border: 1px solid var(--ag-dark-border);
+      border-radius: 8px;
+      font-size: 14.5px;
+      font-family: inherit;
+      color: #FFFFFF;
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+
+    .viewfinder-input:hover {
+      border-color: var(--ag-dark-border-hover);
+    }
+
+    .viewfinder-input:focus {
+      border-color: var(--ag-gold);
+      background: rgba(201, 165, 90, 0.02);
+    }
+
+    .viewfinder-input::placeholder {
+      color: #55514C;
+      font-style: italic;
+    }
+
+    .viewfinder-label {
+      color: var(--ag-dark-text-2);
+    }
+
+    .viewfinder-primary-btn {
+      width: 100%;
+      height: 48px;
+      border-radius: 8px;
+      background: var(--ag-gold);
+      border: none;
+      color: #0A0806;
+      font-weight: 600;
+      font-size: 14.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: var(--transition-smooth);
+    }
+
+    .viewfinder-primary-btn:hover {
+      background: var(--ag-gold-hover);
+      transform: translateY(-1px);
+    }
+
+    .viewfinder-right .social-btn-google {
+      border-color: var(--ag-dark-border);
+      color: #FFFFFF;
+    }
+    .viewfinder-right .social-btn-google:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--ag-dark-border-hover);
+    }
+    .viewfinder-right .or-divider::before, .viewfinder-right .or-divider::after {
+      background: var(--ag-dark-border);
+    }
+    .viewfinder-right .or-divider {
+      color: var(--ag-dark-text-2);
+    }
+    .viewfinder-right .alert-banner-error {
+      background: rgba(231, 76, 60, 0.08);
+      border: 1px solid rgba(231, 76, 60, 0.2);
+      color: #E74C3C;
+    }
+    .viewfinder-right .alert-banner-success {
+      background: rgba(46, 204, 113, 0.08);
+      border: 1px solid rgba(46, 204, 113, 0.2);
+      color: #2ECC71;
+    }
+    .viewfinder-right .text-link {
+      color: var(--ag-dark-text-2);
+    }
+    .viewfinder-right .text-link:hover {
+      color: var(--ag-gold);
+    }
+    .viewfinder-footer {
+      margin-top: 32px;
+      font-size: 13px;
+      color: var(--ag-dark-text-2);
+    }
+    .viewfinder-footer a {
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .viewfinder-footer a:hover {
+      color: var(--ag-gold);
+    }
+
+    /* Responsive Viewfinder */
+    @media (max-width: 960px) {
+      #variant-viewfinder {
+        flex-direction: column;
+      }
+      .viewfinder-left {
+        flex: none;
+        height: 320px;
+        padding: 20px;
+      }
+      .viewfinder-graphic-container {
+        height: 100%;
+        max-width: 320px;
+      }
+      .viewfinder-right {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--ag-dark-border);
+        padding: 40px 24px;
+      }
+    }
+
+    /* =========================================================================
+       8. VARIANT 4: THE ASYMMETRIC COLUMN (1/3 TO 2/3 SPLIT)
+       ========================================================================= */
+    #variant-asymmetric {
+      display: flex;
+      min-height: 100vh;
+      background-color: var(--ag-surface-0);
+      color: var(--ag-text-0);
+    }
+
+    /* Left Column filled with vertical gold sweep gradient creatively */
+    .asymmetric-left {
+      width: 30%;
+      background: linear-gradient(to bottom, #000000 0%, #B8956A 50%, #000000 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .asymmetric-vertical-text {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3rem, 8vw, 6.5rem);
+      font-weight: 700;
+      font-style: italic;
+      color: #141311; /* stark ink-black contrast over glowing gold */
+      letter-spacing: 0.12em;
+      user-select: none;
+      text-shadow: 0 0 10px rgba(0,0,0,0.15);
+      mix-blend-mode: overlay; /* beautiful editorial overlay blend */
+    }
+
+    .asymmetric-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 80px;
+      background-color: var(--ag-surface-0);
+    }
+
+    .asymmetric-form-container {
+      width: 100%;
+      max-width: 460px;
+    }
+
+    .asymmetric-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--ag-text-0);
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .asymmetric-sub {
+      font-size: 14px;
+      color: var(--ag-text-2);
+      margin-bottom: 36px;
+      line-height: 1.6;
+    }
+
+    .asymmetric-input {
+      width: 100%;
+      height: 52px;
+      background: #FFFFFF;
+      border: 1px solid rgba(26, 24, 21, 0.10);
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--ag-text-0);
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+
+    .asymmetric-input:hover {
+      border-color: rgba(26, 24, 21, 0.20);
+      background: var(--ag-surface-0);
+    }
+
+    .asymmetric-input:focus {
+      border-color: var(--ag-gold);
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15);
+    }
+
+    .asymmetric-input::placeholder {
+      color: var(--ag-text-3);
+      font-style: italic;
+    }
+
+    .asymmetric-label {
+      color: var(--ag-text-2);
+      font-weight: 500;
+    }
+
+    .asymmetric-primary-btn {
+      width: 100%;
+      height: 52px;
+      border-radius: 8px;
+      background: #1A1815;
+      border: none;
+      color: #FFFFFF;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: var(--transition-smooth);
+    }
+
+    .asymmetric-primary-btn:hover {
+      background: var(--ag-gold);
+      color: #1A1815;
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-float);
+    }
+
+    .asymmetric-right .social-btn-google {
+      border-color: rgba(26, 24, 21, 0.12);
+      color: var(--ag-text-0);
+    }
+    .asymmetric-right .social-btn-google:hover {
+      background: rgba(26, 24, 21, 0.04);
+    }
+    .asymmetric-right .or-divider::before, .asymmetric-right .or-divider::after {
+      background: rgba(26, 24, 21, 0.08);
+    }
+    .asymmetric-right .or-divider {
+      color: var(--ag-text-2);
+    }
+    .asymmetric-right .alert-banner-error {
+      background: rgba(192, 57, 43, 0.05);
+      border: 1px solid rgba(192, 57, 43, 0.15);
+      color: #C0392B;
+    }
+    .asymmetric-right .alert-banner-success {
+      background: rgba(45, 138, 86, 0.05);
+      border: 1px solid rgba(45, 138, 86, 0.15);
+      color: #2D8A56;
+    }
+    .asymmetric-right .text-link {
+      color: var(--ag-text-2);
+    }
+    .asymmetric-right .text-link:hover {
+      color: var(--ag-gold-hover);
+    }
+    .asymmetric-footer {
+      margin-top: 36px;
+      font-size: 13.5px;
+      color: var(--ag-text-2);
+    }
+    .asymmetric-footer a {
+      color: var(--ag-text-0);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .asymmetric-footer a:hover {
+      color: var(--ag-gold-hover);
+    }
+
+    @media (max-width: 800px) {
+      #variant-asymmetric {
+        flex-direction: column;
+      }
+      .asymmetric-left {
+        width: 100%;
+        height: 120px;
+        padding: 20px;
+        background: linear-gradient(to right, #000000 0%, #B8956A 50%, #000000 100%);
+      }
+      .asymmetric-vertical-text {
+        writing-mode: horizontal-tb;
+        transform: none;
+        font-size: 2.5rem;
+      }
+      .asymmetric-right {
+        padding: 40px 24px;
+      }
+      .asymmetric-form-container {
+        margin: 0 auto;
+      }
+    }
+
+    /* =========================================================================
+       9. VARIANT 5: THE CINEMATIC ROSTER GRID (CONTACT SHEET CANVAS)
+       ========================================================================= */
+    #variant-roster {
+      background: #000000;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+      overflow: hidden;
+      padding: 40px 24px;
+    }
+
+    /* Background Contact Sheet Roster Grid Mock with giant diagonal sweep light pass */
+    .roster-grid-backdrop {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 16px;
+      padding: 24px;
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+      background: linear-gradient(135deg, transparent 20%, rgba(201, 165, 90, 0.08) 50%, transparent 80%);
+    }
+
+    .roster-grid-cell {
+      border: 1px dashed rgba(255, 255, 255, 0.4);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 9px;
+      color: #FFFFFF;
+    }
+
+    .roster-cell-center {
+      align-self: center;
+      font-size: 14px;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+    }
+
+    .roster-card {
+      width: 100%;
+      max-width: 440px;
+      background: #141311;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: 3px solid var(--ag-gold);
+      border-radius: 12px;
+      padding: 44px 32px;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+    }
+
+    .roster-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.25rem;
+      font-weight: 400;
+      font-style: italic;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+
+    .roster-sub {
+      font-size: 13px;
+      color: var(--ag-dark-text-2);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .roster-input {
+      width: 100%;
+      height: 48px;
+      background: #090807;
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14.5px;
+      font-family: inherit;
+      color: #FFFFFF;
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+
+    .roster-input:hover {
+      border-color: rgba(255, 255, 255, 0.20);
+    }
+
+    .roster-input:focus {
+      border-color: var(--ag-gold);
+      background: rgba(201, 165, 90, 0.02);
+    }
+
+    .roster-input::placeholder {
+      color: rgba(255, 255, 255, 0.15);
+      font-style: italic;
+    }
+
+    .roster-label {
+      color: var(--ag-dark-text-2);
+    }
+
+    .roster-primary-btn {
+      width: 100%;
+      height: 48px;
+      border-radius: 8px;
+      background: var(--ag-gold);
+      border: none;
+      color: #0A0806;
+      font-weight: 600;
+      font-size: 14.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: var(--transition-smooth);
+    }
+
+    .roster-primary-btn:hover {
+      background: var(--ag-gold-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .roster-card .social-btn-google {
+      border-color: rgba(255, 255, 255, 0.10);
+      color: #FFFFFF;
+    }
+    .roster-card .social-btn-google:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .roster-card .or-divider::before, .roster-card .or-divider::after {
+      background: rgba(255, 255, 255, 0.10);
+    }
+    .roster-card .or-divider {
+      color: var(--ag-dark-text-2);
+    }
+    .roster-card .alert-banner-error {
+      background: rgba(231, 76, 60, 0.08);
+      border: 1px solid rgba(231, 76, 60, 0.20);
+      color: #E74C3C;
+    }
+    .roster-card .alert-banner-success {
+      background: rgba(46, 204, 113, 0.08);
+      border: 1px solid rgba(46, 204, 113, 0.20);
+      color: #2ECC71;
+    }
+    .roster-card .text-link {
+      color: var(--ag-dark-text-2);
+    }
+    .roster-card .text-link:hover {
+      color: var(--ag-gold);
+    }
+    .roster-footer {
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--ag-dark-text-2);
+    }
+    .roster-footer a {
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .roster-footer a:hover {
+      color: var(--ag-gold);
+    }
+
+    /* =========================================================================
+       10. VARIANT 6: THE CENTERED SLATE (HIGH-CONTRAST EDITORIAL)
+       ========================================================================= */
+    #variant-slate {
+      background-color: var(--ag-surface-0);
+      color: var(--ag-text-0);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    /* Slate Card with radial gold sweep glowing from center */
+    .slate-card {
+      width: 100%;
+      max-width: 440px;
+      background: radial-gradient(circle at 50% 25%, #22201C 0%, #141311 100%);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 48px 36px;
+      text-align: center;
+      color: #FFFFFF;
+      box-shadow: var(--shadow-overlay);
+      transition: var(--transition-smooth);
+    }
+
+    .slate-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.25rem;
+      font-weight: 400;
+      color: #FFFFFF;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .slate-sub {
+      font-size: 13px;
+      color: var(--ag-dark-text-2);
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .slate-input {
+      width: 100%;
+      height: 48px;
+      padding: 12px 16px;
+      background: #1E1D1A;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      font-size: 14.5px;
+      font-family: inherit;
+      color: #FFFFFF;
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+
+    .slate-input:hover {
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .slate-input:focus {
+      border-color: var(--ag-gold);
+      background: #252420;
+    }
+
+    .slate-input::placeholder {
+      color: #5F5A54;
+      font-style: italic;
+    }
+
+    .slate-label {
+      color: var(--ag-dark-text-2);
+    }
+
+    .slate-primary-btn {
+      width: 100%;
+      height: 48px;
+      border-radius: 8px;
+      background: var(--ag-gold);
+      border: none;
+      color: #0A0806;
+      font-weight: 600;
+      font-size: 14.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: var(--transition-smooth);
+    }
+
+    .slate-primary-btn:hover {
+      background: var(--ag-gold-hover);
+      transform: translateY(-1px);
+    }
+
+    .slate-card .social-btn-google {
+      border-color: rgba(255, 255, 255, 0.08);
+      color: #FFFFFF;
+    }
+    .slate-card .social-btn-google:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .slate-card .or-divider::before, .slate-card .or-divider::after {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .slate-card .or-divider {
+      color: var(--ag-dark-text-2);
+    }
+    .slate-card .alert-banner-error {
+      background: rgba(231, 76, 60, 0.08);
+      border: 1px solid rgba(231, 76, 60, 0.18);
+      color: #E74C3C;
+    }
+    .slate-card .alert-banner-success {
+      background: rgba(46, 204, 113, 0.08);
+      border: 1px solid rgba(46, 204, 113, 0.18);
+      color: #2ECC71;
+    }
+    .slate-card .text-link {
+      color: var(--ag-dark-text-2);
+    }
+    .slate-card .text-link:hover {
+      color: var(--ag-gold);
+    }
+    .slate-footer {
+      margin-top: 28px;
+      font-size: 13px;
+      color: var(--ag-text-2);
+      text-align: center;
+    }
+    .slate-footer a {
+      color: var(--ag-text-0);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .slate-footer a:hover {
+      color: var(--ag-gold-hover);
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. CONTROL DECK (SIDEBAR SWITCHER)
+       ========================================================================= -->
+  <aside class="control-deck" id="sidebar-deck" aria-label="Style variation controller">
+    <button class="deck-toggle-btn" id="deck-toggle" aria-label="Toggle style controller" aria-expanded="true">
+      <!-- Chevron Left SVG -->
+      <svg class="icon" id="toggle-icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+    
+    <div class="deck-header">
+      <h2 class="deck-logo">Pholio <span>.</span></h2>
+      <p class="deck-subtitle">Login Page variations</p>
+    </div>
+
+    <nav class="deck-menu" aria-label="Login page options">
+      <!-- Option 1 -->
+      <button class="deck-option active" data-target="variant-cinematic" aria-selected="true">
+        <div class="deck-option-title">1. The Cinematic Stage</div>
+        <p class="deck-option-desc">Inspired directly by the onboarding screen test flow. Immersive dark canvas, floating glow light orbs, and minimal inputs.</p>
+      </button>
+
+      <!-- Option 2 -->
+      <button class="deck-option" data-target="variant-ledger" aria-selected="false">
+        <div class="deck-option-title">2. The Editorial Ledger</div>
+        <p class="deck-option-desc">Light mode canvas reflecting the agency design token system. Clean layout with precise hairline boundaries and soft warm shadows.</p>
+      </button>
+
+      <!-- Option 3 -->
+      <button class="deck-option" data-target="variant-viewfinder" aria-selected="false">
+        <div class="deck-option-title">3. The Viewfinder Split</div>
+        <p class="deck-option-desc">Split screen utilizing technical fashion camera viewfinder overlays on the left and a high-contrast dark form on the right.</p>
+      </button>
+
+      <!-- Option 4 -->
+      <button class="deck-option" data-target="variant-asymmetric" aria-selected="false">
+        <div class="deck-option-title">4. The Asymmetric Column</div>
+        <p class="deck-option-desc">Modern 1/3 dark column and 2/3 warm cream layout, displaying giant vertical rotated Playfair Display typography as a divider.</p>
+      </button>
+
+      <!-- Option 5 -->
+      <button class="deck-option" data-target="variant-roster" aria-selected="false">
+        <div class="deck-option-title">5. The Cinematic Roster Grid</div>
+        <p class="deck-option-desc">A dark contact sheet roster grid wall backdrop at 5% opacity, focused on a centered dark panel with a top gold accent stripe.</p>
+      </button>
+
+      <!-- Option 6 -->
+      <button class="deck-option" data-target="variant-slate" aria-selected="false">
+        <div class="deck-option-title">6. The Centered Slate</div>
+        <p class="deck-option-desc">A floating high-contrast dark charcoal card centered on the soft warm-cream canvas background. Editorial, modern, and distinct.</p>
+      </button>
+    </nav>
+
+    <div class="deck-footer">
+      <h3 class="deck-specs-title">Design specifications</h3>
+      <div class="deck-spec-row">
+        <span>Display font</span>
+        <span class="deck-spec-val" id="spec-display-font">Playfair Display</span>
+      </div>
+      <div class="deck-spec-row">
+        <span>Body font</span>
+        <span class="deck-spec-val">Inter</span>
+      </div>
+      <div class="deck-spec-row">
+        <span>Contrast</span>
+        <span class="deck-spec-val" style="color: #2ECC71;">Pass (&ge;4.5:1)</span>
+      </div>
+      <div class="deck-spec-row">
+        <span>Accent Hue</span>
+        <span class="deck-spec-val">Gold (#C9A55A)</span>
+      </div>
+      
+      <div class="color-swatch-list" id="spec-swatches">
+        <div class="color-swatch" style="background: #000000;" title="Stage Black"></div>
+        <div class="color-swatch" style="background: #C9A55A;" title="Pholio Gold"></div>
+        <div class="color-swatch" style="background: #FFFFFF;" title="White Ink"></div>
+        <div class="color-swatch" style="background: #8E8983;" title="Muted Grey"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- =========================================================================
+       2. VIEW STAGE
+       ========================================================================= -->
+  <main class="view-stage" id="main-stage">
+
+    <!-- =========================================================================
+         OPTION 1: THE CINEMATIC STAGE (DARK EDITORIAL)
+         ========================================================================= -->
+    <section class="variant-container active" id="variant-cinematic" aria-label="The Cinematic Stage variant">
+      <div class="cinematic-orb cinematic-orb-1" aria-hidden="true"></div>
+      <div class="cinematic-orb cinematic-orb-2" aria-hidden="true"></div>
+
+      <div class="cinematic-panel">
+        <header>
+          <div class="cinematic-wordmark-container">
+            <span class="pholio-wordmark">Pholio</span>
+            <div class="cinematic-wordmark-sweep"></div>
+          </div>
+          <h1 class="cinematic-heading">Welcome back.</h1>
+          <p class="cinematic-sub">Access your talent portfolio or agency roster stage.</p>
+        </header>
+
+        <div class="cinematic-banner-container"></div>
+
+        <form class="cinematic-form" onsubmit="handleMockSubmit(event, 'cinematic')">
+          <div class="form-group">
+            <label for="cine-email" class="input-label cinematic-label">Email</label>
+            <input type="email" id="cine-email" class="cinematic-input" placeholder="you@example.com" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="cine-password" class="input-label cinematic-label">Password</label>
+            </div>
+            <div class="input-wrapper">
+              <input type="password" id="cine-password" class="cinematic-input" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('cine-password', this)" aria-label="Toggle password visibility">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="link-row">
+            <button type="button" class="text-link" onclick="triggerForgotPassword('cinematic')">Forgot password?</button>
+          </div>
+
+          <button type="submit" class="cinematic-primary-btn">
+            <span>Sign in</span>
+          </button>
+        </form>
+
+        <div class="or-divider">or</div>
+
+        <div class="social-btn-row">
+          <button class="social-btn social-btn-google" onclick="triggerSocialAuth('Google', 'cinematic')">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="" aria-hidden="true">
+            <span>Google</span>
+          </button>
+          <button class="social-btn social-btn-instagram" onclick="triggerSocialAuth('Instagram', 'cinematic')">
+            <svg class="icon" viewBox="0 0 24 24" style="stroke: #FFFFFF;"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke-width="2"></circle><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-width="3"></line></svg>
+            <span>Instagram</span>
+          </button>
+        </div>
+
+        <footer class="cinematic-footer">
+          <span>New to Pholio?</span>
+          <a href="#join">Join as talent</a>
+          <span style="opacity: 0.3; margin: 0 4px;">·</span>
+          <a href="#agency">Bring your agency</a>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         OPTION 2: THE EDITORIAL LEDGER (LIGHT WORKSPACE)
+         ========================================================================= -->
+    <section class="variant-container" id="variant-ledger" aria-label="The Editorial Ledger variant">
+      <div class="ledger-logo-wrap">
+        <div class="ledger-wordmark-container">
+          <span class="pholio-wordmark">Pholio</span>
+          <div class="ledger-wordmark-sweep"></div>
+          <div class="ledger-header-sweep"></div>
+        </div>
+      </div>
+
+      <div class="ledger-card">
+        <header>
+          <h1 class="ledger-heading">Welcome back.</h1>
+          <p class="ledger-sub">Enter your credentials to manage your dashboard.</p>
+        </header>
+
+        <div class="ledger-banner-container"></div>
+
+        <form class="ledger-form" onsubmit="handleMockSubmit(event, 'ledger')">
+          <div class="form-group">
+            <label for="ledger-email" class="input-label ledger-label">Email</label>
+            <input type="email" id="ledger-email" class="ledger-input" placeholder="you@example.com" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label for="ledger-password" class="input-label ledger-label">Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="ledger-password" class="ledger-input" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('ledger-password', this)" aria-label="Toggle password visibility">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="link-row">
+            <button type="button" class="text-link" onclick="triggerForgotPassword('ledger')">Forgot password?</button>
+          </div>
+
+          <button type="submit" class="ledger-primary-btn">
+            <span>Sign in</span>
+          </button>
+        </form>
+
+        <div class="or-divider">or</div>
+
+        <div class="social-btn-row">
+          <button class="social-btn social-btn-google" onclick="triggerSocialAuth('Google', 'ledger')">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="" aria-hidden="true">
+            <span>Google</span>
+          </button>
+          <button class="social-btn social-btn-instagram" onclick="triggerSocialAuth('Instagram', 'ledger')">
+            <svg class="icon" viewBox="0 0 24 24" style="stroke: #FFFFFF;"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke-width="2"></circle><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-width="3"></line></svg>
+            <span>Instagram</span>
+          </button>
+        </div>
+      </div>
+
+      <footer class="ledger-footer">
+        <span>New here?</span>
+        <a href="#join">Join as talent</a>
+        <span style="opacity: 0.5; margin: 0 4px;">·</span>
+        <a href="#agency">Bring your agency</a>
+      </footer>
+    </section>
+
+    <!-- =========================================================================
+         OPTION 3: THE VIEWFINDER SPLIT (MEDIA FOCUS)
+         ========================================================================= -->
+    <section class="variant-container" id="variant-viewfinder" aria-label="The Viewfinder Split variant">
+      <!-- Left Split (Viewfinder Frame Graphic with central gold sweep lighting) -->
+      <div class="viewfinder-left" aria-hidden="true">
+        <div class="viewfinder-graphic-container">
+          <div class="viewfinder-corner vf-tl"></div>
+          <div class="viewfinder-corner vf-tr"></div>
+          <div class="viewfinder-corner vf-bl"></div>
+          <div class="viewfinder-corner vf-br"></div>
+          <div class="viewfinder-crosshair">+</div>
+
+          <div class="viewfinder-meta-top">
+            <div class="viewfinder-rec">
+              <div class="viewfinder-rec-dot"></div>
+              <span>REC</span>
+            </div>
+            <span>RAW 12bit</span>
+          </div>
+
+          <div class="viewfinder-center-logo">
+            <div class="viewfinder-wordmark-container">
+              <span class="pholio-wordmark">Pholio</span>
+              <div class="viewfinder-wordmark-sweep"></div>
+            </div>
+            <p>Creative Stage</p>
+          </div>
+
+          <div class="viewfinder-meta-bottom">
+            <span>85mm</span>
+            <span>f/1.4</span>
+            <span>ISO 100</span>
+            <span>3:4 RATIO</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Split (Login Form Panel) -->
+      <div class="viewfinder-right">
+        <header>
+          <h1 class="viewfinder-heading">Verify identity.</h1>
+          <p class="viewfinder-sub">Sign in to your talent viewfinder or management roster.</p>
+        </header>
+
+        <div class="viewfinder-banner-container"></div>
+
+        <form class="viewfinder-form" onsubmit="handleMockSubmit(event, 'viewfinder')">
+          <div class="form-group">
+            <label for="vf-email" class="input-label viewfinder-label">Email Address</label>
+            <input type="email" id="vf-email" class="viewfinder-input" placeholder="you@example.com" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label for="vf-password" class="input-label viewfinder-label">Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="vf-password" class="viewfinder-input" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('vf-password', this)" aria-label="Toggle password visibility">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="link-row">
+            <button type="button" class="text-link" onclick="triggerForgotPassword('viewfinder')">Forgot password?</button>
+          </div>
+
+          <button type="submit" class="viewfinder-primary-btn">
+            <span>Verify & Enter</span>
+          </button>
+        </form>
+
+        <div class="or-divider">or</div>
+
+        <div class="social-btn-row">
+          <button class="social-btn social-btn-google" onclick="triggerSocialAuth('Google', 'viewfinder')">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="" aria-hidden="true">
+            <span>Google</span>
+          </button>
+          <button class="social-btn social-btn-instagram" onclick="triggerSocialAuth('Instagram', 'viewfinder')">
+            <svg class="icon" viewBox="0 0 24 24" style="stroke: #FFFFFF;"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke-width="2"></circle><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-width="3"></line></svg>
+            <span>Instagram</span>
+          </button>
+        </div>
+
+        <footer class="viewfinder-footer">
+          <span>New to Pholio?</span>
+          <a href="#join">Register</a> or <a href="#agency">Import agency</a>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         OPTION 4: THE ASYMMETRIC COLUMN (1/3 TO 2/3 SPLIT)
+         ========================================================================= -->
+    <section class="variant-container" id="variant-asymmetric" aria-label="The Asymmetric Column variant">
+      <!-- Left Column (Filled with vertical gold sweep gradient creatively) -->
+      <div class="asymmetric-left" aria-hidden="true">
+        <div class="asymmetric-wordmark-container">
+          <div class="asymmetric-vertical-text">PHOLIO</div>
+        </div>
+      </div>
+
+      <!-- Right Column (Spacious Canvas Form) -->
+      <div class="asymmetric-right">
+        <div class="asymmetric-form-container">
+          <header>
+            <h1 class="asymmetric-heading">Welcome back.</h1>
+            <p class="asymmetric-sub">Unlock your access to the talent and booking interface.</p>
+          </header>
+
+          <div class="asymmetric-banner-container"></div>
+
+          <form class="asymmetric-form" onsubmit="handleMockSubmit(event, 'asymmetric')">
+            <div class="form-group">
+              <label for="asymmetric-email" class="input-label asymmetric-label">Email</label>
+              <input type="email" id="asymmetric-email" class="asymmetric-input" placeholder="you@example.com" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+              <label for="asymmetric-password" class="input-label asymmetric-label">Password</label>
+              <div class="input-wrapper">
+                <input type="password" id="asymmetric-password" class="asymmetric-input" placeholder="••••••••" required autocomplete="current-password">
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('asymmetric-password', this)" aria-label="Toggle password visibility">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="link-row">
+              <button type="button" class="text-link" onclick="triggerForgotPassword('asymmetric')">Forgot password?</button>
+            </div>
+
+            <button type="submit" class="asymmetric-primary-btn">
+              <span>Sign in</span>
+            </button>
+          </form>
+
+          <div class="or-divider">or</div>
+
+          <div class="social-btn-row">
+            <button class="social-btn social-btn-google" onclick="triggerSocialAuth('Google', 'asymmetric')">
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="" aria-hidden="true">
+              <span>Google</span>
+            </button>
+            <button class="social-btn social-btn-instagram" onclick="triggerSocialAuth('Instagram', 'asymmetric')">
+              <svg class="icon" viewBox="0 0 24 24" style="stroke: #FFFFFF;"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke-width="2"></circle><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-width="3"></line></svg>
+              <span>Instagram</span>
+            </button>
+          </div>
+
+          <footer class="asymmetric-footer">
+            <span>New here?</span>
+            <a href="#join">Create your account</a>
+          </footer>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         OPTION 5: THE CINEMATIC ROSTER GRID (CONTACT SHEET CANVAS)
+         ========================================================================= -->
+    <section class="variant-container" id="variant-roster" aria-label="The Cinematic Roster Grid variant">
+      <!-- Roster Contact Sheet Background Grid with giant diagonal gold sweep gradient light pass -->
+      <div class="roster-grid-backdrop" aria-hidden="true">
+        <div class="roster-grid-cell"><span>01 / ID-A</span><div class="roster-cell-center">3:4</div><span>PHOLIO</span></div>
+        <div class="roster-grid-cell"><span>02 / ID-B</span><div class="roster-cell-center">3:4</div><span>STAGE</span></div>
+        <div class="roster-grid-cell"><span>03 / ID-C</span><div class="roster-cell-center">3:4</div><span>MODEL</span></div>
+        <div class="roster-grid-cell"><span>04 / ID-D</span><div class="roster-cell-center">3:4</div><span>FRAME</span></div>
+        <div class="roster-grid-cell"><span>05 / ID-E</span><div class="roster-cell-center">3:4</div><span>PORTRAIT</span></div>
+        <div class="roster-grid-cell"><span>06 / ID-F</span><div class="roster-cell-center">3:4</div><span>SHOT</span></div>
+        <div class="roster-grid-cell"><span>07 / ID-G</span><div class="roster-cell-center">3:4</div><span>INDEX</span></div>
+        <div class="roster-grid-cell"><span>08 / ID-H</span><div class="roster-cell-center">3:4</div><span>VIEW</span></div>
+        <div class="roster-grid-cell"><span>09 / ID-I</span><div class="roster-cell-center">3:4</div><span>CAST</span></div>
+        <div class="roster-grid-cell"><span>10 / ID-J</span><div class="roster-cell-center">3:4</div><span>ROSTER</span></div>
+        <div class="roster-grid-cell"><span>11 / ID-K</span><div class="roster-cell-center">3:4</div><span>STUDIO</span></div>
+        <div class="roster-grid-cell"><span>12 / ID-L</span><div class="roster-cell-center">3:4</div><span>PHOLIO</span></div>
+      </div>
+
+      <div class="roster-card">
+        <header>
+          <div class="roster-wordmark-container">
+            <span class="pholio-wordmark" style="font-size: 1.5rem; color: var(--ag-gold);">Pholio</span>
+            <div class="roster-wordmark-sweep"></div>
+          </div>
+          <h1 class="roster-heading">Welcome back.</h1>
+          <p class="roster-sub">Authenticate access to client lists and models indexing.</p>
+        </header>
+
+        <div class="roster-banner-container"></div>
+
+        <form class="roster-form" onsubmit="handleMockSubmit(event, 'roster')">
+          <div class="form-group">
+            <label for="roster-email" class="input-label roster-label">Email Address</label>
+            <input type="email" id="roster-email" class="roster-input" placeholder="you@example.com" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label for="roster-password" class="input-label roster-label">Password Key</label>
+            <div class="input-wrapper">
+              <input type="password" id="roster-password" class="roster-input" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('roster-password', this)" aria-label="Toggle password visibility">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="link-row">
+            <button type="button" class="text-link" onclick="triggerForgotPassword('roster')">Forgot password?</button>
+          </div>
+
+          <button type="submit" class="roster-primary-btn">
+            <span>Access Stage</span>
+          </button>
+        </form>
+
+        <div class="or-divider">or</div>
+
+        <div class="social-btn-row">
+          <button class="social-btn social-btn-google" onclick="triggerSocialAuth('Google', 'roster')">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="" aria-hidden="true">
+            <span>Google</span>
+          </button>
+          <button class="social-btn social-btn-instagram" onclick="triggerSocialAuth('Instagram', 'roster')">
+            <svg class="icon" viewBox="0 0 24 24" style="stroke: #FFFFFF;"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke-width="2"></circle><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-width="3"></line></svg>
+            <span>Instagram</span>
+          </button>
+        </div>
+
+        <footer class="roster-footer">
+          <span>New talent?</span> <a href="#join">Apply here</a>
+        </footer>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         OPTION 6: THE CENTERED SLATE (HIGH-CONTRAST EDITORIAL)
+         ========================================================================= -->
+    <section class="variant-container" id="variant-slate" aria-label="The Centered Slate variant">
+      <div class="slate-card">
+        <header>
+          <div class="slate-wordmark-container">
+            <span class="pholio-wordmark" style="font-size: 1.75rem;">Pholio</span>
+            <div class="slate-wordmark-sweep"></div>
+          </div>
+          <h1 class="slate-heading">Welcome back.</h1>
+          <p class="slate-sub">Secure credentials authentication sequence.</p>
+        </header>
+
+        <div class="slate-banner-container"></div>
+
+        <form class="slate-form" onsubmit="handleMockSubmit(event, 'slate')">
+          <div class="form-group">
+            <label for="slate-email" class="input-label slate-label">Email</label>
+            <input type="email" id="slate-email" class="slate-input" placeholder="you@example.com" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label for="slate-password" class="input-label slate-label">Password</label>
+            <div class="input-wrapper">
+              <input type="password" id="slate-password" class="slate-input" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('slate-password', this)" aria-label="Toggle password visibility">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="link-row">
+            <button type="button" class="text-link" onclick="triggerForgotPassword('slate')">Forgot password?</button>
+          </div>
+
+          <button type="submit" class="slate-primary-btn">
+            <span>Sign in</span>
+          </button>
+        </form>
+
+        <div class="or-divider">or</div>
+
+        <div class="social-btn-row">
+          <button class="social-btn social-btn-google" onclick="triggerSocialAuth('Google', 'slate')">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="" aria-hidden="true">
+            <span>Google</span>
+          </button>
+          <button class="social-btn social-btn-instagram" onclick="triggerSocialAuth('Instagram', 'slate')">
+            <svg class="icon" viewBox="0 0 24 24" style="stroke: #FFFFFF;"><rect x="2" y="2" width="20" height="20" rx="5" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke-width="2"></circle><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-width="3"></line></svg>
+            <span>Instagram</span>
+          </button>
+        </div>
+      </div>
+
+      <footer class="slate-footer">
+        <span>Need workspace?</span>
+        <a href="#agency">Introduce agency</a>
+      </footer>
+    </section>
+
+  </main>
+
+  <!-- =========================================================================
+       9. INTERACTIVE PROTOTYPE CONTROLLER LOGIC (JS)
+       ========================================================================= -->
+  <script>
+    // ── Toggle Sidebar Controller ──────────────────────────────────────────
+    const sidebar = document.getElementById('sidebar-deck');
+    const stage = document.getElementById('main-stage');
+    const toggleBtn = document.getElementById('deck-toggle');
+    const toggleIcon = document.getElementById('toggle-icon');
+
+    toggleBtn.addEventListener('click', () => {
+      const isCollapsed = sidebar.classList.toggle('collapsed');
+      stage.classList.toggle('expanded', isCollapsed);
+      toggleBtn.setAttribute('aria-expanded', !isCollapsed);
+      
+      // Update chevron direction
+      if (isCollapsed) {
+        toggleIcon.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+      } else {
+        toggleIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline>';
+      }
+    });
+
+    // ── Switcher Variations Mechanics ──────────────────────────────────────
+    const deckOptions = document.querySelectorAll('.deck-option');
+    const containers = document.querySelectorAll('.variant-container');
+    
+    // Dynamic metadata specs per variant
+    const specs = {
+      'variant-cinematic': {
+        font: 'Playfair Display',
+        bg: '#000000 (Top Spot)',
+        colors: [
+          { color: '#000000', name: 'Cinema Stage Black' },
+          { color: '#C9A55A', name: 'Spotlight Gold' },
+          { color: '#FFFFFF', name: 'White Ink' },
+          { color: '#8E8983', name: 'Muted Grey' }
+        ]
+      },
+      'variant-ledger': {
+        font: 'Playfair + Inter',
+        bg: '#FAF8F5',
+        colors: [
+          { color: '#FAF8F5', name: 'Warm Cream Canvas' },
+          { color: '#FFFFFF', name: 'White Ledger Card' },
+          { color: '#C9A55A', name: 'Header Sweep Gold' },
+          { color: '#1A1815', name: 'Ledger Ink Black' }
+        ]
+      },
+      'variant-viewfinder': {
+        font: 'Playfair + Inter',
+        bg: '#0A0908',
+        colors: [
+          { color: '#0A0908', name: 'Viewfinder Dark Canvas' },
+          { color: '#141311', name: 'Panel Dark Charcoal' },
+          { color: '#C9A55A', name: 'Radial Sweep Gold' },
+          { color: '#E74C3C', name: 'Camera Rec Red' }
+        ]
+      },
+      'variant-asymmetric': {
+        font: 'Playfair + Inter',
+        bg: '#FAF8F5 + Gold Column',
+        colors: [
+          { color: '#FAF8F5', name: 'Warm Cream Canvas' },
+          { color: '#B8956A', name: 'Gold Column Sweep' },
+          { color: '#141311', name: 'Rotated Text Ink' },
+          { color: '#FFFFFF', name: 'Input Fields Ground' }
+        ]
+      },
+      'variant-roster': {
+        font: 'Playfair + Inter',
+        bg: '#000000 (Grid Spot)',
+        colors: [
+          { color: '#000000', name: 'Deep Black Stage' },
+          { color: '#141311', name: 'Slate Panel Card' },
+          { color: '#C9A55A', name: 'Backdrop Diagonal Gold' },
+          { color: '#FFFFFF', name: 'Contact Sheet Outlines' }
+        ]
+      },
+      'variant-slate': {
+        font: 'Playfair + Inter',
+        bg: '#FAF8F5 + #141311',
+        colors: [
+          { color: '#FAF8F5', name: 'Warm Cream Canvas' },
+          { color: '#22201C', name: 'Card Radial Gold' },
+          { color: '#C9A55A', name: 'Pholio Gold Accent' },
+          { color: '#FFFFFF', name: 'White Typography' }
+        ]
+      }
+    };
+
+    deckOptions.forEach(opt => {
+      opt.addEventListener('click', () => {
+        // Toggle active menu states
+        deckOptions.forEach(o => {
+          o.classList.remove('active');
+          o.setAttribute('aria-selected', 'false');
+        });
+        opt.classList.add('active');
+        opt.setAttribute('aria-selected', 'true');
+
+        // Toggle active container
+        const targetId = opt.getAttribute('data-target');
+        containers.forEach(container => {
+          container.classList.remove('active');
+        });
+        document.getElementById(targetId).classList.add('active');
+
+        // Update Deck Specification Meta Readout
+        updateSpecsReadout(targetId);
+      });
+    });
+
+    function updateSpecsReadout(variantId) {
+      const specData = specs[variantId];
+      if (!specData) return;
+
+      document.getElementById('spec-display-font').textContent = specData.font;
+      
+      const swatchContainer = document.getElementById('spec-swatches');
+      swatchContainer.innerHTML = '';
+      specData.colors.forEach(col => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.backgroundColor = col.color;
+        swatch.title = col.name;
+        swatchContainer.appendChild(swatch);
+      });
+    }
+
+    // ── Common Password Toggle helper ─────────────────────────────────────
+    function togglePasswordVisibility(fieldId, buttonEl) {
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+      
+      if (field.type === 'password') {
+        field.type = 'text';
+        buttonEl.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+        buttonEl.setAttribute('aria-label', 'Hide password');
+      } else {
+        field.type = 'password';
+        buttonEl.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+        buttonEl.setAttribute('aria-label', 'Show password');
+      }
+    }
+
+    // ── Form Alerts Rendering ──────────────────────────────────────────────
+    function showAlert(variant, type, text) {
+      const container = document.querySelector(`#variant-${variant} .${variant}-banner-container`);
+      if (!container) return;
+
+      const isError = type === 'error';
+      const iconMarkup = isError 
+        ? '<svg class="icon" viewBox="0 0 24 24" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
+        : '<svg class="icon" viewBox="0 0 24 24" style="flex-shrink:0;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+
+      container.innerHTML = `
+        <div class="alert-banner alert-banner-${type}">
+          ${iconMarkup}
+          <span>${text}</span>
+        </div>
+      `;
+    }
+
+    function clearAlert(variant) {
+      const container = document.querySelector(`#variant-${variant} .${variant}-banner-container`);
+      if (container) container.innerHTML = '';
+    }
+
+    // ── Mock Action Triggers ───────────────────────────────────────────────
+    function triggerForgotPassword(variant) {
+      showAlert(variant, 'success', 'Password reset instructions have been dispatched to your email.');
+    }
+
+    // ── Mock Social Auth Triggers ──────────────────────────────────────────
+    function triggerSocialAuth(provider, variant) {
+      showAlert(variant, 'success', `Connected via ${provider}. Fetching authorization tokens...`);
+    }
+
+    // ── Form Mock Submit Handler ──────────────────────────────────────────
+    function handleMockSubmit(event, variant) {
+      event.preventDefault();
+      clearAlert(variant);
+      
+      const emailVal = document.getElementById(`${variant === 'cinematic' ? 'cine' : variant === 'viewfinder' ? 'vf' : variant}-email`).value;
+
+      // Mock loading state on button
+      const submitBtn = event.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<svg class="icon loader-spin" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> <span>Authenticating...</span>';
+
+      setTimeout(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+
+        if (emailVal === 'error@pholio.studio') {
+          showAlert(variant, 'error', 'Invalid security credentials. Check key entries and try again.');
+        } else {
+          showAlert(variant, 'success', 'Authentication verified. Launching workspace stage...');
+        }
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

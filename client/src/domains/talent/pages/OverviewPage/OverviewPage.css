@@ -348,9 +348,12 @@
   transition: border-color 0.25s var(--ov-ease), background 0.25s var(--ov-ease);
 }
 
-.ov-book-more:hover {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(201, 165, 90, 0.18);
+.ov-book-featured,
+.ov-book-img-small,
+.ov-book-more,
+.ov-artifact-card,
+.ov-artifact-card--light {
+  border-radius: 0 !important;
 }
 
 .ov-book-more-count {

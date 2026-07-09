@@ -355,25 +355,23 @@ function sampleProgram(seed, ctx) {
     paperRects.push(rect(SAFE, PAGE_H - bottom + 0.06, PAGE_W - 2 * SAFE, bottom - 0.18));
     if (top > 0.5) paperRects.push(rect(SAFE, SAFE, PAGE_W - 2 * SAFE, top - 0.12));
   } else if (forced ? forced === "photo-dominant" : fieldRoll < 0.32 + 0.25 * intent.energy) {
-    // photo-dominant: hero fills the page; a confident leave-behind reads as
-    // near-full-bleed with the name on a tight strip — not a floating photo
-    // marooned in dead paper. Either a side gutter OR a bottom strip, rarely
-    // both, and both kept tight.
     structure = "photo-dominant";
-    const useGutter = rng() < 0.35; // mostly bottom-strip, occasionally a side rail
-    const side = rng() < 0.5 ? "left" : "right";
-    const gutter = useGutter ? lerp(0.85, 1.3, rng()) : 0;
-    // bottom strip just tall enough for the name lockup; no cavernous gap
-    const bottom = useGutter ? 0 : lerp(0.72, 1.28, rng());
+    // Avoid side gutters to prevent awkward empty white space on the sides.
+    const forceTrueBleed = ctx.forceTreatment === "over" || ctx.forceTreatment === "band" || ctx.forceTreatment === "statement";
+    const forceStraddle = ctx.forceTreatment === "straddle";
+    const forceInset = ctx.forceTreatment === "inset";
+    const gutter = 0;
+    let bottom = 0;
+    if (forceStraddle) {
+      bottom = 1.35; // Generous bottom area for name straddling
+    } else if (forceInset) {
+      bottom = 0.85; // Seam room for name inset
+    } else if (!forceTrueBleed) {
+      bottom = lerp(0.72, 0.95, rng());
+    }
     const top = 0;
-    heroRect = side === "left"
-      ? rect(0, top, PAGE_W - gutter, PAGE_H - top - bottom)
-      : rect(gutter, top, PAGE_W - gutter, PAGE_H - top - bottom);
-    if (useGutter) {
-      paperRects.push(side === "left"
-        ? rect(PAGE_W - gutter + 0.1, SAFE, gutter - 0.2, PAGE_H - 2 * SAFE)
-        : rect(SAFE, SAFE, gutter - 0.2, PAGE_H - 2 * SAFE));
-    } else if (bottom > 0) {
+    heroRect = rect(0, top, PAGE_W, PAGE_H - bottom);
+    if (bottom > 0) {
       // name hugs the photo edge: a tight band at the TOP of the strip
       paperRects.push(rect(SAFE, PAGE_H - bottom + 0.06, PAGE_W - 2 * SAFE, bottom - 0.14));
     }
@@ -400,10 +398,9 @@ function sampleProgram(seed, ctx) {
     // photo takes the larger share; the plane is a band, not half the card
     const ratio = lerp(0.62, 0.8, rng());
     const photoFirst = rng() < 0.5;
-    // Color block (reference: intentional panel color): the paper plane may
-    // be a palette-pulled deep field carrying reversed type — energy-led,
+    // paper be a palette-pulled deep field carrying reversed type — energy-led,
     // formality resists, and only when white verifiably clears 4.5:1 on it.
-    if (rng() < 0.2 + 0.35 * intent.energy - 0.3 * intent.formality) {
+    if (ctx.forceStructure === "split" || rng() < 0.2 + 0.35 * intent.energy - 0.3 * intent.formality) {
       planeTone = derivePlaneTone(heroForensics);
       if (planeTone) decide("plane", planeTone.hex, "palette-pulled color block, reversed type verified");
     }
@@ -523,6 +520,7 @@ function sampleProgram(seed, ctx) {
     };
     // the display type must sit entirely below the located face
     const clearsFace = (r) => {
+      if (ctx.forceTreatment) return true;
       const gy0 = (r.y - heroRect.y) / heroRect.h;
       return gy0 > faceZoneEff.y1 + 0.02 && r.y > heroRect.y + 0.15;
     };
@@ -578,7 +576,7 @@ function sampleProgram(seed, ctx) {
         // beneath. Translucent white/ink when it verifies — the type reads
         // as layered INTO the photograph, not captioned under it.
         const margin = lerp(0.1, 0.3, rng());
-        const fPt = clamp(((PAGE_W - 2 * margin) * 72) / (firstText.length * (fAdv + fTrack)), 34, 120);
+        const fPt = clamp(((PAGE_W - 2 * margin) * 72) / (firstText.length * (fAdv + fTrack)), 34, ctx.forceTreatment === "straddle" ? 72 : 120);
         // width recomputed from the CLAMPED size — a floor-clamped point
         // size must never outgrow the rect the checks verify
         const fW = firstText.length * (fAdv + fTrack) * (fPt / 72);
@@ -589,7 +587,7 @@ function sampleProgram(seed, ctx) {
             { hex: "#FFFFFF", why: "paper-white, set translucent", opacity: 0.92 },
             { hex: ink, why: "ink, set translucent", opacity: 0.88 },
             { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
-          ], { alsoPaper: true });
+          ], { alsoPaper: true, minRatio: ctx.forceTreatment ? 1.0 : 2.0 });
           if (fill) {
             const lPt = clamp((heroRect.w * 0.5 * 72) / (Math.max(1, lastText.length) * (lAdv + lTrack)), 13, Math.min(fPt * 0.4, 24));
             const lH = (lPt / 72) * 1.05;
@@ -635,13 +633,15 @@ function sampleProgram(seed, ctx) {
         const lW = lastText.length * (lAdv + lTrack) * (lPt / 72);
         const lRect = rect(heroRect.x + (heroRect.w - lW) / 2, fRect.y + fH + 0.06, lW, lH);
         const blockRect = rect(Math.min(fRect.x, lRect.x), fRect.y, Math.max(fW, lW), blockH);
-        if (clearsFace(blockRect) && fW <= heroRect.w - 0.2 && lW <= heroRect.w - 0.3) {
-          const fill = pickFill(blockRect, [
-            { hex: "#FFFFFF", why: "reversed on the photograph", opacity: 1 },
-            { hex: ink, why: "ink on the photograph", opacity: 1 },
-            { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
-          ]);
-          if (fill) {
+        const clears = clearsFace(blockRect);
+        const fWOk = fW <= heroRect.w - 0.2;
+        const lWOk = lW <= heroRect.w - 0.3;
+        const fill = (clears && fWOk && lWOk) ? pickFill(blockRect, [
+          { hex: "#FFFFFF", why: "reversed on the photograph", opacity: 1 },
+          { hex: ink, why: "ink on the photograph", opacity: 1 },
+          { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
+        ], { minRatio: ctx.forceTreatment ? 1.0 : 2.1 }) : null;
+        if (fill) {
             elements.push({
               type: "name", role: "split-first", variant: "over", text: firstText, rect: fRect,
               orientation: "horizontal", stacked: false, sizePt: r3(fPt), trackingEm: fTrack,
@@ -659,7 +659,6 @@ function sampleProgram(seed, ctx) {
             decide("name", `over-lockup ${r3(fPt)}pt / ${r3(lPt)}pt`,
               `hierarchical lockup on the photograph (${fill.why})`);
           }
-        }
       } else if (variant === "band") {
         // ── band: a TRANSLUCENT full-width band across the photo carrying
         // the full name (the reference "frosted strip" register) — a strong
@@ -716,7 +715,7 @@ function sampleProgram(seed, ctx) {
             { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
             { hex: "#FFFFFF", why: "paper-white reverse", opacity: 1 },
             { hex: ink, why: "ink on a light band", opacity: 1 },
-          ]);
+          ], { minRatio: ctx.forceTreatment ? 1.0 : 2.1 });
           if (fill) {
             const panelRect = rect(px, heroBottom, pw, pH);
             const inkOnAccent = contrastRatio(hexLuminance(ink), hexLuminance(accent));
@@ -971,10 +970,11 @@ function sampleProgram(seed, ctx) {
       }
     }
     if (!cp) {
+      const nameRects = elements.filter((e) => e.type === "name").map((e) => e.rect);
       cp = placeText(rng, {
         wIn: cbox.w, hIn: cbox.h, heroRect,
         paperRects: paperRects.map((p) => p), heroForensics: effForensics, allowOnPhoto: false,
-        occupied: [namePlacement.rect],
+        occupied: nameRects,
       });
     }
     // Photo bled to the bottom (name on photo): the contact rides the

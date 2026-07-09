@@ -375,10 +375,12 @@ function solveBackProgram(input = {}) {
     if (id === "filmstrip") w += 0.8 * (1 - formality);
     for (let k = 0; k < Math.max(1, Math.round(w * 2)); k++) weighted.push(id);
   }
-  const archId = weighted[Math.floor(rng() * weighted.length) % weighted.length];
+  const archId = input.forceArchitecture && ARCHITECTURES[input.forceArchitecture]
+    ? input.forceArchitecture
+    : weighted[Math.floor(rng() * weighted.length) % weighted.length];
   const arch = ARCHITECTURES[archId];
   let count = clamp(n, arch.min, arch.max);
-  decide("architecture", archId, `${eligible.length} eligible for ${n} image(s), density ${r3(density)}`);
+  decide("architecture", archId, input.forceArchitecture ? `forced '${archId}'` : `${eligible.length} eligible for ${n} image(s), density ${r3(density)}`);
 
   // build cells
   let chosenArch = archId;

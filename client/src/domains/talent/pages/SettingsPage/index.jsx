@@ -1,26 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Archive,
-  ArrowUpRight,
-  Bell,
-  CalendarDays,
   Camera,
+  Check,
+  Copy,
   CreditCard,
   Download,
-  Eye,
-  FileText,
-  Scale,
-  Lock,
-  Mail,
+  Link2,
+  Loader2,
   Monitor,
-  Shield,
-  SlidersHorizontal,
-  Trash2,
-  User,
+  Plus,
+  X,
 } from 'lucide-react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useAuth } from '../../../auth/hooks/useAuth';
@@ -36,20 +29,31 @@ import PholioButton, { PholioToggleButton, PholioToggleGroup } from '../../../..
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
 import './SettingsPage.css';
 
-const EASE = [0.22, 1, 0.36, 1];
+/* ------------------------------------------------------------------ *
+ * The settings ledger. One editorial surface synthesised from the
+ * profile "movements" rail and the applications masthead + market index.
+ * Every control writes to a live endpoint — nothing here is decorative.
+ * ------------------------------------------------------------------ */
 
-const SECTIONS = [
-  { id: 'identity', label: 'Identity', icon: User, summary: 'Sign-in, contact, timezone' },
-  { id: 'visibility', label: 'Visibility', icon: Eye, summary: 'Portfolio, agency discovery, contact exposure' },
-  { id: 'notifications', label: 'Notifications', icon: Bell, summary: 'Agency updates and email rhythm' },
-  { id: 'subscription', label: 'Studio+', icon: CreditCard, summary: 'Plan, trial, invoices' },
-  { id: 'security', label: 'Security', icon: Shield, summary: 'Password and signed-in browsers' },
-  { id: 'privacy', label: 'Privacy & data', icon: Lock, summary: 'Cookies and data export' },
-  { id: 'legal', label: 'Legal & compliance', icon: Scale, summary: 'Consent, minors, safety reporting' },
-  { id: 'account', label: 'Account control', icon: Archive, summary: 'Pause or permanently erase' },
+const PUBLIC_PORTFOLIO_ORIGIN = (
+  import.meta.env.VITE_PORTFOLIO_URL || 'https://pholio.studio'
+).replace(/\/$/, '');
+
+const MOVEMENTS = [
+  { id: 'identity', label: 'Identity', summary: 'Name, sign-in, handle' },
+  { id: 'presence', label: 'Presence', summary: 'Who can see and reach you' },
+  { id: 'presentation', label: 'Presentation', summary: 'How the book reads' },
+  { id: 'notifications', label: 'Signals', summary: 'What Pholio tells you' },
+  { id: 'studio', label: 'Membership', summary: 'Plan and billing' },
+  { id: 'security', label: 'Security', summary: 'Access and sessions' },
+  { id: 'privacy', label: 'Data', summary: 'Cookies and export' },
+  { id: 'legal', label: 'Standing', summary: 'Consent and protection' },
+  { id: 'account', label: 'Account', summary: 'Pause or close' },
 ];
 
-const DEFAULT_SECTION = 'identity';
+const MOVEMENT_IDS = MOVEMENTS.map((m) => m.id);
+
+/* --- data hooks (reused, live-wired) ------------------------------- */
 
 function useTalentSettings() {
   return useQuery({
@@ -76,6 +80,8 @@ function useSettingsMutation(options = {}) {
   });
 }
 
+/* --- helpers ------------------------------------------------------- */
+
 function parseJsonArray(raw) {
   if (Array.isArray(raw)) return raw;
   if (typeof raw !== 'string' || !raw.trim()) return [];
@@ -88,10 +94,19 @@ function parseJsonArray(raw) {
 }
 
 function formatDate(value) {
-  if (!value) return 'Not recorded';
+  if (!value) return null;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not recorded';
+  if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function slugify(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 function downloadJson(filename, payload) {
@@ -106,128 +121,176 @@ function downloadJson(filename, payload) {
   URL.revokeObjectURL(url);
 }
 
-function SectionPanel({ title, intro, children, action }) {
+/* --- shared primitives --------------------------------------------- */
+
+function Movement({ id, title, lede, children }) {
   return (
-    <section className="talent-settings-panel" aria-labelledby={`${title.replace(/\s+/g, '-').toLowerCase()}-title`}>
-      <div className="talent-settings-panel__header">
-        <div>
-          <h2 id={`${title.replace(/\s+/g, '-').toLowerCase()}-title`}>{title}</h2>
-          {intro && <p>{intro}</p>}
-        </div>
-        {action}
-      </div>
+    <article className="set-movement" id={`movement-${id}`} aria-labelledby={`${id}-title`}>
+      <header className="set-movement__head">
+        <h2 className="set-movement__title" id={`${id}-title`}>{title}</h2>
+        {lede && <p className="set-movement__lede">{lede}</p>}
+      </header>
       {children}
-    </section>
+    </article>
   );
 }
 
-function SettingRow({ icon: Icon, title, description, children }) {
+function Row({ title, description, children, muted = false }) {
   return (
-    <div className="talent-settings-row">
-      <div className="talent-settings-row__mark" aria-hidden="true">
-        <Icon size={18} />
-      </div>
-      <div className="talent-settings-row__copy">
+    <div className={`set-row${muted ? ' set-row--muted' : ''}`}>
+      <div className="set-row__copy">
         <h3>{title}</h3>
         {description && <p>{description}</p>}
       </div>
-      <div className="talent-settings-row__control">{children}</div>
+      <div className="set-row__control">{children}</div>
     </div>
   );
 }
 
-function NativeSwitch({ checked, disabled, label, onChange }) {
+function Toggle({ checked, disabled, label, onChange }) {
   return (
-    <label className="talent-settings-switch">
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
-      <span aria-hidden="true" />
-      <span className="sr-only">{label}</span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      className={`set-toggle${checked ? ' is-on' : ''}`}
+      onClick={onChange}
+    >
+      <span className="set-toggle__track" aria-hidden="true">
+        <span className="set-toggle__knob" />
+      </span>
+    </button>
+  );
+}
+
+function Field({ label, hint, children }) {
+  return (
+    <label className="set-field">
+      <span className="set-field__label">{label}</span>
+      {children}
+      {hint && <span className="set-field__hint">{hint}</span>}
     </label>
   );
 }
 
-function Skeleton() {
+function SkeletonRows({ count = 3 }) {
   return (
-    <div className="talent-settings-skeleton" aria-label="Loading settings">
-      <span /><span /><span />
+    <div className="set-skeleton" aria-label="Loading" aria-busy="true">
+      {Array.from({ length: count }).map((_, i) => <span key={i} />)}
     </div>
   );
 }
 
-export default function SettingsPage() {
-  const { section } = useParams();
-  const navigate = useNavigate();
-  const activeSection = SECTIONS.some((item) => item.id === section) ? section : DEFAULT_SECTION;
-  const activeMeta = SECTIONS.find((item) => item.id === activeSection);
-  const ActiveIcon = activeMeta.icon;
+/* --- page ---------------------------------------------------------- */
 
-  useEffect(() => {
-    if (section && section !== activeSection) navigate(`/dashboard/talent/settings/${DEFAULT_SECTION}`, { replace: true });
-  }, [activeSection, navigate, section]);
+export default function SettingsPage() {
+  const navigate = useNavigate();
+  const { section } = useParams();
+  const prefersReduced = useReducedMotion();
+  const { data: settings, isLoading } = useTalentSettings();
+
+  const active = MOVEMENT_IDS.includes(section) ? section : 'identity';
+
+  const selectTab = useCallback((id) => {
+    navigate(`/dashboard/talent/settings/${id}`);
+  }, [navigate]);
+
+  const renderActivePanel = () => {
+    switch (active) {
+      case 'identity':
+        return <IdentityMovement settings={settings} />;
+      case 'presence':
+        return <PresenceMovement settings={settings} isLoading={isLoading} />;
+      case 'presentation':
+        return <PresentationMovement settings={settings} isLoading={isLoading} />;
+      case 'notifications':
+        return <NotificationsMovement settings={settings} isLoading={isLoading} />;
+      case 'studio':
+        return <StudioMovement settings={settings} isLoading={isLoading} />;
+      case 'security':
+        return <SecurityMovement settings={settings} isLoading={isLoading} />;
+      case 'privacy':
+        return <PrivacyMovement settings={settings} isLoading={isLoading} />;
+      case 'legal':
+        return <LegalMovement settings={settings} />;
+      case 'account':
+        return <AccountMovement settings={settings} />;
+      default:
+        return <IdentityMovement settings={settings} />;
+    }
+  };
 
   return (
-    <div className="talent-settings-page">
-      <motion.header className="talent-settings-hero" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: EASE }}>
-        <div>
-          <h1>Settings for the work behind the book.</h1>
-          <p>
-            Control who can see your portfolio, how agencies reach you, how submissions travel, and how Pholio handles your account data.
-          </p>
-        </div>
-        <Link className="talent-settings-hero__link" to="/dashboard/talent/profile">
-          Review profile <ArrowUpRight size={16} aria-hidden />
-        </Link>
-      </motion.header>
+    <div className="talent-settings">
+      <header className="set-page-header">
+        <h1 className="set-page-title">Settings</h1>
+      </header>
 
-      <div className="talent-settings-shell">
-        <aside className="talent-settings-nav" aria-label="Settings sections">
-          {SECTIONS.map(({ id, label, summary, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              className={activeSection === id ? 'is-active' : ''}
-              onClick={() => navigate(`/dashboard/talent/settings/${id}`)}
-              aria-current={activeSection === id ? 'page' : undefined}
-            >
-              <Icon size={17} aria-hidden />
-              <span><strong>{label}</strong><small>{summary}</small></span>
-            </button>
-          ))}
-        </aside>
+      <div className="set-workspace">
+        <nav className="set-rail" aria-label="Settings sections">
+          <ol>
+            {MOVEMENTS.map((m) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  className={active === m.id ? 'is-active' : ''}
+                  aria-current={active === m.id ? 'true' : undefined}
+                  onClick={() => selectTab(m.id)}
+                >
+                  <span className="set-rail__text">
+                    <strong>{m.label}</strong>
+                    <small>{m.summary}</small>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
 
-        <main className="talent-settings-main">
-          <div className="talent-settings-main__title">
-            <ActiveIcon size={20} aria-hidden />
-            <div>
-              <h2>{activeMeta.label}</h2>
-              <p>{activeMeta.summary}</p>
-            </div>
-          </div>
+        <motion.main
+          className="set-main"
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           <AnimatePresence mode="wait">
-            <motion.div key={activeSection} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.22, ease: EASE }}>
-              {activeSection === 'identity' && <IdentitySection />}
-              {activeSection === 'visibility' && <VisibilitySection />}
-              {activeSection === 'notifications' && <NotificationsSection />}
-              {activeSection === 'subscription' && <SubscriptionSection />}
-              {activeSection === 'security' && <SecuritySection />}
-              {activeSection === 'privacy' && <PrivacySection />}
-              {activeSection === 'legal' && <LegalComplianceSection />}
-              {activeSection === 'account' && <AccountControlSection />}
+            <motion.div
+              key={active}
+              initial={prefersReduced ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={prefersReduced ? false : { opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {renderActivePanel()}
             </motion.div>
           </AnimatePresence>
-        </main>
+        </motion.main>
       </div>
     </div>
   );
 }
 
-function IdentitySection() {
+/* --- I · Identity -------------------------------------------------- */
+
+function IdentityMovement({ settings }) {
   const { profile, updateProfile, isUpdatingProfile } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', language: 'English', timezone: 'America/New_York' });
   const [dirty, setDirty] = useState(false);
+
+  const handleMutation = useSettingsMutation({ onSuccess: () => toast.success('Public handle updated') });
+  const canonicalSlug = settings?.slug || profile?.slug || '';
+  const [handle, setHandle] = useState(canonicalSlug);
+  const [handleDirty, setHandleDirty] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!handleDirty) setHandle(canonicalSlug);
+  }, [canonicalSlug, handleDirty]);
 
   useEffect(() => {
     if (!profile || dirty) return;
@@ -246,9 +309,26 @@ function IdentitySection() {
     try {
       await updateProfile({ ...form, languages: form.language ? [form.language] : [] });
       setDirty(false);
-      toast.success('Identity settings saved');
+      toast.success('Identity saved');
     } catch (error) {
-      toast.error(error?.message || 'Unable to save identity settings');
+      toast.error(error?.message || 'Unable to save identity');
+    }
+  };
+
+  const saveHandle = () => {
+    const cleaned = slugify(handle);
+    if (!cleaned || cleaned === canonicalSlug) { setHandleDirty(false); setHandle(canonicalSlug); return; }
+    handleMutation.mutate({ slug: cleaned }, { onSuccess: () => setHandleDirty(false) });
+  };
+
+  const copyLink = async () => {
+    if (!canonicalSlug) return;
+    try {
+      await navigator.clipboard.writeText(`${PUBLIC_PORTFOLIO_ORIGIN}/${canonicalSlug}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      toast.error('Unable to copy link');
     }
   };
 
@@ -277,34 +357,111 @@ function IdentitySection() {
   };
 
   return (
-    <div className="talent-settings-stack">
-      <SectionPanel title="Identity and contact" intro="These details support agency submissions, comp cards, and account recovery. Measurements and board details stay in Profile.">
-        <div className="talent-settings-identity-card">
-          <button type="button" className="talent-settings-avatar" onClick={() => fileRef.current?.click()} disabled={uploading}>
-            {profile?.photo_url_primary ? <img src={profile.photo_url_primary} alt="" /> : <Camera size={24} aria-hidden />}
-            <span>{uploading ? 'Uploading…' : 'Update primary image'}</span>
+    <Movement
+      id="identity"
+      title="Who you are on the record"
+      lede="The details that carry your submissions, comp cards, and account recovery. Measurements and board detail stay in Profile."
+    >
+      <div className="set-card">
+        <div className="set-identity">
+          <button
+            type="button"
+            className="set-identity__avatar"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            aria-label="Update primary image"
+          >
+            {profile?.photo_url_primary
+              ? <img src={profile.photo_url_primary} alt="" />
+              : <Camera size={22} aria-hidden="true" />}
+            <span className="set-identity__avatar-veil">
+              {uploading ? <Loader2 size={16} className="set-spin" aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+              {uploading ? 'Uploading' : 'Replace'}
+            </span>
           </button>
-          <input ref={fileRef} className="sr-only" type="file" accept="image/*" onChange={uploadPhoto} />
-          <div className="talent-settings-fields two-col">
-            <label>First name<input value={form.first_name} onChange={(e) => setField('first_name', e.target.value)} autoComplete="given-name" /></label>
-            <label>Last name<input value={form.last_name} onChange={(e) => setField('last_name', e.target.value)} autoComplete="family-name" /></label>
-            <label>Email<input value={profile?.email || ''} disabled type="email" /></label>
-            <label>Phone<input value={form.phone} onChange={(e) => setField('phone', e.target.value)} autoComplete="tel" placeholder="+1 (555) 000-0000" /></label>
-            <label>Working language<select value={form.language} onChange={(e) => setField('language', e.target.value)}><option>English</option><option>Spanish</option><option>French</option><option>Italian</option><option>German</option><option>Portuguese</option><option>Japanese</option><option>Korean</option></select></label>
-            <label>Home timezone<select value={form.timezone} onChange={(e) => setField('timezone', e.target.value)}><option value="America/New_York">Eastern (ET)</option><option value="America/Chicago">Central (CT)</option><option value="America/Denver">Mountain (MT)</option><option value="America/Los_Angeles">Pacific (PT)</option><option value="Europe/London">London</option><option value="Europe/Paris">Paris</option><option value="Asia/Tokyo">Tokyo</option></select></label>
+          <input ref={fileRef} className="set-visually-hidden" type="file" accept="image/*" onChange={uploadPhoto} />
+
+          <div className="set-fields set-fields--two">
+            <Field label="First name">
+              <input value={form.first_name} onChange={(e) => setField('first_name', e.target.value)} autoComplete="given-name" />
+            </Field>
+            <Field label="Last name">
+              <input value={form.last_name} onChange={(e) => setField('last_name', e.target.value)} autoComplete="family-name" />
+            </Field>
+            <Field label="Sign-in email" hint="Managed through your sign-in. Change it under Security.">
+              <input value={profile?.email || ''} disabled type="email" />
+            </Field>
+            <Field label="Phone">
+              <input value={form.phone} onChange={(e) => setField('phone', e.target.value)} autoComplete="tel" placeholder="+1 (555) 000-0000" />
+            </Field>
+            <Field label="Working language">
+              <select value={form.language} onChange={(e) => setField('language', e.target.value)}>
+                {['English', 'Spanish', 'French', 'Italian', 'German', 'Portuguese', 'Japanese', 'Korean'].map((l) => <option key={l}>{l}</option>)}
+              </select>
+            </Field>
+            <Field label="Home timezone">
+              <select value={form.timezone} onChange={(e) => setField('timezone', e.target.value)}>
+                <option value="America/New_York">Eastern (ET)</option>
+                <option value="America/Chicago">Central (CT)</option>
+                <option value="America/Denver">Mountain (MT)</option>
+                <option value="America/Los_Angeles">Pacific (PT)</option>
+                <option value="Europe/London">London (GMT)</option>
+                <option value="Europe/Paris">Paris (CET)</option>
+                <option value="Asia/Tokyo">Tokyo (JST)</option>
+              </select>
+            </Field>
           </div>
         </div>
-        <div className="talent-settings-footer"><PholioButton type="button" variant="primary" disabled={!dirty || isUpdatingProfile} onClick={save}>{isUpdatingProfile ? 'Saving…' : 'Save identity'}</PholioButton></div>
-      </SectionPanel>
-    </div>
+        <div className="set-card__foot">
+          <PholioButton type="button" variant="primary" disabled={!dirty || isUpdatingProfile} onClick={save}>
+            {isUpdatingProfile ? 'Saving…' : 'Save identity'}
+          </PholioButton>
+        </div>
+      </div>
+
+      <div className="set-card">
+        <div className="set-handle">
+          <div className="set-handle__label">
+            <Link2 size={15} aria-hidden="true" />
+            <span>Public handle</span>
+          </div>
+          <p className="set-handle__note">The address of your public book. Changing it retires the old link.</p>
+          <div className="set-handle__field">
+            <span className="set-handle__origin">{PUBLIC_PORTFOLIO_ORIGIN.replace(/^https?:\/\//, '')}/</span>
+            <input
+              value={handle}
+              onChange={(e) => { setHandle(e.target.value); setHandleDirty(true); }}
+              onBlur={() => setHandle((h) => slugify(h))}
+              placeholder="your-name"
+              aria-label="Public handle"
+              spellCheck={false}
+            />
+          </div>
+          <div className="set-handle__actions">
+            <PholioButton
+              type="button"
+              variant="secondary"
+              onClick={saveHandle}
+              disabled={handleMutation.isPending || !handleDirty || slugify(handle) === canonicalSlug || !slugify(handle)}
+            >
+              {handleMutation.isPending ? 'Saving…' : 'Save handle'}
+            </PholioButton>
+            <button type="button" className="set-inline-link" onClick={copyLink} disabled={!canonicalSlug}>
+              {copied ? <><Check size={14} aria-hidden="true" /> Copied</> : <><Copy size={14} aria-hidden="true" /> Copy link</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Movement>
   );
 }
 
-function VisibilitySection() {
+/* --- II · Public presence ------------------------------------------ */
+
+function PresenceMovement({ settings, isLoading }) {
   const { profile } = useAuth();
-  const { data: settings, isLoading } = useTalentSettings();
+  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Presence updated') });
   const [blockInput, setBlockInput] = useState('');
-  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Visibility settings saved') });
   const minorLocked = isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
   const blockedAgencies = settings?.blockedAgencies || [];
 
@@ -315,58 +472,176 @@ function VisibilitySection() {
     update({ blockedAgencies: [...new Set([...blockedAgencies, value])] });
     setBlockInput('');
   };
-
-  if (isLoading) return <Skeleton />;
+  const removeBlock = (name) => update({ blockedAgencies: blockedAgencies.filter((a) => a !== name) });
 
   return (
-    <div className="talent-settings-stack">
-      {minorLocked && <div className="talent-settings-notice">Guardian consent and a valid date of birth are required before public exposure or public contact details can be enabled.</div>}
-      <SectionPanel title="Portfolio visibility" intro="Decide how your public book and agency-discovery profile behave. Digitals and measurements remain sensitive submission material.">
-        <SettingRow icon={Eye} title="Public portfolio" description="Allow your portfolio link to be viewed outside your account."><NativeSwitch label="Public portfolio" checked={!!settings?.isPublic} disabled={mutation.isPending || minorLocked} onChange={() => update({ isPublic: !settings?.isPublic })} /></SettingRow>
-        <SettingRow icon={SlidersHorizontal} title="Agency discovery" description="Allow vetted agencies to find you in Pholio scout and roster workflows."><NativeSwitch label="Agency discovery" checked={!!settings?.isDiscoverable} disabled={mutation.isPending || minorLocked} onChange={() => update({ isDiscoverable: !settings?.isDiscoverable })} /></SettingRow>
-        <SettingRow icon={Mail} title="Show contact details" description="Expose email or phone on eligible public surfaces. Keep off if agencies should contact you only inside Pholio."><NativeSwitch label="Show contact details" checked={!!settings?.showContact} disabled={mutation.isPending || minorLocked} onChange={() => update({ showContact: !settings?.showContact })} /></SettingRow>
-      </SectionPanel>
-      <SectionPanel title="Agency blocks" intro="Prevent specific agencies from seeing your discoverable profile. Existing legal obligations or submitted applications may still remain in records.">
-        <div className="talent-settings-block-input"><input value={blockInput} onChange={(e) => setBlockInput(e.target.value)} placeholder="Agency name or domain" /><PholioButton type="button" variant="secondary" onClick={addBlock} disabled={!blockInput.trim() || mutation.isPending}>Block</PholioButton></div>
-        {blockedAgencies.length ? <div className="talent-settings-token-list">{blockedAgencies.map((agency) => <button key={agency} type="button" onClick={() => update({ blockedAgencies: blockedAgencies.filter((item) => item !== agency) })}>{agency}<span>Remove</span></button>)}</div> : <p className="talent-settings-empty">No agency blocks are active.</p>}
-      </SectionPanel>
-    </div>
+    <Movement
+      id="presence"
+      title="Who can see and reach you"
+      lede="Your book, your discoverability, and your contact details are three separate decisions. Digitals and measurements always stay sensitive submission material."
+    >
+      {minorLocked && (
+        <p className="set-notice">
+          Public exposure and public contact details are locked until a valid date of birth and guardian consent are on file.
+        </p>
+      )}
+
+      <div className="set-card">
+        {isLoading ? <SkeletonRows /> : (
+          <>
+            <Row title="Public portfolio" description="Let your book be viewed at its public link, outside your account.">
+              <Toggle label="Public portfolio" checked={!!settings?.isPublic} disabled={mutation.isPending || minorLocked} onChange={() => update({ isPublic: !settings?.isPublic })} />
+            </Row>
+            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio scout and roster search.">
+              <Toggle label="Agency discovery" checked={!!settings?.isDiscoverable} disabled={mutation.isPending || minorLocked} onChange={() => update({ isDiscoverable: !settings?.isDiscoverable })} />
+            </Row>
+            <Row title="Show contact details" description="Expose email or phone on eligible public surfaces. Leave off to keep agencies contacting you inside Pholio." muted>
+              <Toggle label="Show contact details" checked={!!settings?.showContact} disabled={mutation.isPending || minorLocked} onChange={() => update({ showContact: !settings?.showContact })} />
+            </Row>
+          </>
+        )}
+      </div>
+
+      <div className="set-card">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Blocked agencies</h3>
+            <p className="set-card__sub">Keep specific agencies from seeing your discoverable profile. Applications already submitted may remain on record.</p>
+          </div>
+        </div>
+        <div className="set-blockform">
+          <input
+            value={blockInput}
+            onChange={(e) => setBlockInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBlock(); } }}
+            placeholder="Agency name or domain"
+            aria-label="Agency to block"
+          />
+          <PholioButton type="button" variant="secondary" onClick={addBlock} disabled={!blockInput.trim() || mutation.isPending}>
+            <Plus size={15} aria-hidden="true" /> Block
+          </PholioButton>
+        </div>
+        {blockedAgencies.length ? (
+          <ul className="set-blocklist">
+            {blockedAgencies.map((agency) => (
+              <li key={agency}>
+                <span>{agency}</span>
+                <button type="button" onClick={() => removeBlock(agency)} disabled={mutation.isPending} aria-label={`Unblock ${agency}`}>
+                  <X size={13} aria-hidden="true" /> Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="set-empty">No agencies are blocked.</p>
+        )}
+      </div>
+    </Movement>
   );
 }
+
+/* --- III · Presentation -------------------------------------------- */
+
+const CARD_LAYOUTS = [['editorial', 'Editorial'], ['classic', 'Classic'], ['minimal', 'Minimal']];
+const COVER_CHOICES = [['first', 'First image'], ['latest', 'Latest'], ['featured', 'Featured']];
+
+function PresentationMovement({ settings, isLoading }) {
+  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Presentation updated') });
+  const display = settings?.display || {};
+  const save = (next) => mutation.mutate({ display: { ...display, ...next } });
+
+  return (
+    <Movement
+      id="presentation"
+      title="How the book reads"
+      lede="Defaults for how your comp card and public portfolio present. Layouts and images are still composed in Media and the comp-card studio — this sets the resting state."
+    >
+      <div className="set-card">
+        {isLoading ? <SkeletonRows count={2} /> : (
+          <>
+            <div className="set-choice">
+              <div className="set-choice__copy">
+                <h3>Comp-card layout</h3>
+                <p>The template a fresh comp card opens with.</p>
+              </div>
+              <PholioToggleGroup role="group" aria-label="Comp-card layout">
+                {CARD_LAYOUTS.map(([value, label]) => (
+                  <PholioToggleButton key={value} type="button" active={(display.cardLayout || 'editorial') === value} onClick={() => save({ cardLayout: value })}>{label}</PholioToggleButton>
+                ))}
+              </PholioToggleGroup>
+            </div>
+            <div className="set-choice">
+              <div className="set-choice__copy">
+                <h3>Cover image</h3>
+                <p>Which frame leads your public book.</p>
+              </div>
+              <PholioToggleGroup role="group" aria-label="Cover image">
+                {COVER_CHOICES.map(([value, label]) => (
+                  <PholioToggleButton key={value} type="button" active={(display.coverImage || 'first') === value} onClick={() => save({ coverImage: value })}>{label}</PholioToggleButton>
+                ))}
+              </PholioToggleGroup>
+            </div>
+            <Row title="Watermark exports" description="Stamp your handle onto downloaded comp cards and shared images." muted>
+              <Toggle label="Watermark exports" checked={!!display.watermark} disabled={mutation.isPending} onChange={() => save({ watermark: !display.watermark })} />
+            </Row>
+          </>
+        )}
+      </div>
+    </Movement>
+  );
+}
+
+/* --- IV · Notifications -------------------------------------------- */
 
 const NOTIFICATION_ROWS = [
-  ['applicationUpdates', 'Agency submission updates', 'Received, reviewed, kept on file, meeting, offer, and decline updates.'],
-  ['profileViews', 'Agency views', 'Signals when an agency reviews your portfolio or comp card.'],
-  ['newMessages', 'Messages', 'Booker or agency communication inside Pholio.'],
-  ['marketing', 'Product guidance', 'Occasional Pholio announcements and workflow education.'],
+  ['applicationUpdates', 'Submission updates', 'Received, reviewed, kept on file, meeting, offer, and decline.'],
+  ['profileViews', 'Agency views', 'When an agency opens your portfolio or comp card.'],
+  ['newMessages', 'Messages', 'Booker and agency communication inside Pholio.'],
+  ['marketing', 'Product notes', 'Occasional Pholio announcements and workflow guidance.'],
 ];
 const FREQUENCIES = [['immediate', 'Immediate'], ['daily', 'Daily digest'], ['weekly', 'Weekly digest']];
-function NotificationsSection() {
-  const { data: settings, isLoading } = useTalentSettings();
-  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Submission preference saved') });
+
+function NotificationsMovement({ settings, isLoading }) {
+  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Signal preference saved') });
   const notifications = settings?.notifications || {};
-  const notificationValue = (key) => notifications[key] ?? (key !== 'marketing');
+  const value = (key) => notifications[key] ?? (key !== 'marketing');
+  const save = (next) => mutation.mutate({ notifications: { ...notifications, ...next } });
 
-  if (isLoading) return <Skeleton />;
-
-  const saveNotifications = (next) => mutation.mutate({ notifications: { ...notifications, ...next } });
   return (
-    <div className="talent-settings-stack">
-      <SectionPanel title="Notification rhythm" intro="Keep agency workflow signals visible without turning settings into a second inbox. Comp card images and layouts stay with Media and the comp-card generator.">
-        <div className="talent-settings-choice-line">
-          <span>Email rhythm</span>
-          <PholioToggleGroup role="group" aria-label="Email rhythm">
-            {FREQUENCIES.map(([value, label]) => <PholioToggleButton key={value} type="button" active={(notifications.emailFrequency || 'immediate') === value} onClick={() => saveNotifications({ emailFrequency: value })}>{label}</PholioToggleButton>)}
-          </PholioToggleGroup>
-        </div>
-        {NOTIFICATION_ROWS.map(([key, title, desc]) => <SettingRow key={key} icon={Bell} title={title} description={desc}><NativeSwitch label={title} checked={notificationValue(key)} disabled={mutation.isPending} onChange={() => saveNotifications({ [key]: !notificationValue(key) })} /></SettingRow>)}
-      </SectionPanel>
-    </div>
+    <Movement
+      id="notifications"
+      title="What Pholio tells you"
+      lede="Keep the signals that move work forward without turning settings into a second inbox."
+    >
+      <div className="set-card">
+        {isLoading ? <SkeletonRows /> : (
+          <>
+            <div className="set-choice">
+              <div className="set-choice__copy">
+                <h3>Email rhythm</h3>
+                <p>How often email is allowed to reach you.</p>
+              </div>
+              <PholioToggleGroup role="group" aria-label="Email rhythm">
+                {FREQUENCIES.map(([v, label]) => (
+                  <PholioToggleButton key={v} type="button" active={(notifications.emailFrequency || 'immediate') === v} onClick={() => save({ emailFrequency: v })}>{label}</PholioToggleButton>
+                ))}
+              </PholioToggleGroup>
+            </div>
+            {NOTIFICATION_ROWS.map(([key, title, desc], i) => (
+              <Row key={key} title={title} description={desc} muted={i === NOTIFICATION_ROWS.length - 1}>
+                <Toggle label={title} checked={value(key)} disabled={mutation.isPending} onChange={() => save({ [key]: !value(key) })} />
+              </Row>
+            ))}
+          </>
+        )}
+      </div>
+    </Movement>
   );
 }
 
-function SubscriptionSection() {
-  const { data: settings, isLoading } = useTalentSettings();
+/* --- V · Studio+ --------------------------------------------------- */
+
+function StudioMovement({ settings, isLoading }) {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -378,9 +653,8 @@ function SubscriptionSection() {
   const invoices = settings?.invoices || [];
 
   useEffect(() => {
-    const state = returnState;
-    if (!state) return;
-    if (state === 'success') {
+    if (!returnState) return;
+    if (returnState === 'success') {
       toast.success('Studio+ is being activated');
       queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
@@ -388,10 +662,8 @@ function SubscriptionSection() {
     setSearchParams({}, { replace: true });
   }, [queryClient, returnState, setSearchParams]);
 
-  if (isLoading || !subscription) return <Skeleton />;
-
   const openBilling = async () => {
-    if (subscription.stripeCustomerId && subscription.status && !['free', 'canceled'].includes(subscription.status)) {
+    if (subscription?.stripeCustomerId && subscription.status && !['free', 'canceled'].includes(subscription.status)) {
       window.location.href = '/stripe/customer-portal';
       return;
     }
@@ -403,59 +675,152 @@ function SubscriptionSection() {
     try { await redirectToCheckout(payload); } catch (error) { toast.error(error?.message || 'Unable to open billing'); setOpening(false); }
   };
 
+  const renewalLine = subscription?.renewalDate
+    ? `Renews ${formatDate(subscription.renewalDate)}`
+    : subscription?.isTrialing
+      ? `Trial ends ${formatDate(subscription.trialEndDate)}`
+      : '14-day trial available. Cancel anytime.';
+
   return (
-    <div className="talent-settings-stack">
+    <Movement
+      id="studio"
+      title="Membership"
+      lede="The membership behind expanded insight, submission volume, and premium presentation."
+    >
       <CheckoutHandoff open={handoffOpen} planLabel="Studio+" />
       <SubscriptionReturnBanner state={returnState} onDismiss={() => setReturnState(null)} />
-      <SectionPanel title="Studio+ plan" intro="Manage the subscription that powers expanded insights, discovery submission volume, and premium presentation." action={<PholioButton type="button" variant="primary" onClick={openBilling} disabled={opening}>{opening || handoffOpen ? 'Opening…' : subscription.isPro ? 'Manage billing' : 'Start Studio+'}</PholioButton>}>
-        <div className="talent-settings-plan">
-          <div><strong>{subscription.planName}</strong><span>{subscription.priceLabel || '$9.99'} {subscription.priceUnit || '/month'}</span></div>
-          <p>{subscription.renewalDate ? `Next renewal ${formatDate(subscription.renewalDate)}` : subscription.isTrialing ? `Trial ends ${formatDate(subscription.trialEndDate)}` : '14-day trial available. Cancel anytime in Settings.'}</p>
-          <p>Submissions invited by an agency through their open call never count toward the monthly limit, on any plan.</p>
-          <span><CreditCard size={15} aria-hidden />{subscription.stripeCustomerId ? 'Billing profile on file' : 'No payment method on file'}</span>
-        </div>
-      </SectionPanel>
-      <SectionPanel title="Invoices" intro="Receipts are listed here when Stripe returns invoice records for your account.">
-        {invoices.length ? invoices.map((invoice) => <div className="talent-settings-invoice" key={invoice.id}><span>{invoice.id}</span><span>{invoice.date}</span><strong>{invoice.amount}</strong><PholioButton type="button" variant="tertiary" onClick={() => downloadJson(`pholio-invoice-${invoice.id}.json`, invoice)}>Download</PholioButton></div>) : <p className="talent-settings-empty">No invoices are available yet.</p>}
-      </SectionPanel>
+
+      {isLoading || !subscription ? (
+        <div className="set-card"><SkeletonRows count={2} /></div>
+      ) : (
+        <>
+          <div className="set-card set-plan">
+            <div className="set-plan__head">
+              <div className="set-plan__name">
+                <strong>{subscription.planName}</strong>
+                <span>{subscription.priceLabel || '$0'}{subscription.priceUnit || '/month'}</span>
+              </div>
+              <PholioButton type="button" variant="primary" onClick={openBilling} disabled={opening}>
+                {opening || handoffOpen ? 'Opening…' : subscription.isPro ? 'Manage billing' : 'Start Studio+'}
+              </PholioButton>
+            </div>
+            <p className="set-plan__renewal">{renewalLine}</p>
+            <p className="set-plan__fine">Submissions an agency invites through their open call never count toward the monthly limit, on any plan.</p>
+            <p className="set-plan__method">
+              <CreditCard size={14} aria-hidden="true" />
+              {subscription.stripeCustomerId ? 'Payment method on file' : 'No payment method on file'}
+            </p>
+          </div>
+
+          <div className="set-card">
+            <div className="set-card__head">
+              <div>
+                <h3 className="set-card__title">Invoices</h3>
+                <p className="set-card__sub">Receipts appear here once Stripe returns records for your account.</p>
+              </div>
+            </div>
+            {invoices.length ? (
+              <ul className="set-invoices">
+                {invoices.map((invoice) => (
+                  <li key={invoice.id}>
+                    <span className="set-invoices__id">{invoice.id}</span>
+                    <span className="set-invoices__date">{invoice.date}</span>
+                    <strong>{invoice.amount}</strong>
+                    <button type="button" className="set-inline-link" onClick={() => downloadJson(`pholio-invoice-${invoice.id}.json`, invoice)}>
+                      <Download size={13} aria-hidden="true" /> Save
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="set-empty">No invoices are available yet.</p>
+            )}
+          </div>
+        </>
+      )}
+
       <SubscriptionCheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onConfirm={confirmCheckout} isLoading={opening} subscription={subscription} />
-    </div>
+    </Movement>
   );
 }
 
-function SecuritySection() {
+/* --- VI · Security ------------------------------------------------- */
+
+function SecurityMovement({ settings, isLoading }) {
   const { profile } = useAuth();
-  const { data: settings, isLoading } = useTalentSettings();
   const queryClient = useQueryClient();
   const [sending, setSending] = useState(false);
-  const revokeMutation = useMutation({ mutationFn: talentApi.revokeSession, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['talent-settings'] }); toast.success('Browser session ended'); }, onError: (error) => toast.error(error?.message || 'Unable to end session') });
+  const revoke = useMutation({
+    mutationFn: talentApi.revokeSession,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['talent-settings'] }); toast.success('Session ended'); },
+    onError: (error) => toast.error(error?.message || 'Unable to end session'),
+  });
 
   const resetPassword = async () => {
     if (!profile?.email) return;
     setSending(true);
-    try { await sendPasswordResetEmail(auth, profile.email); toast.success(`Password reset sent to ${profile.email}`); } catch { toast.error('Unable to send password reset'); } finally { setSending(false); }
+    try { await sendPasswordResetEmail(auth, profile.email); toast.success(`Reset link sent to ${profile.email}`); }
+    catch { toast.error('Unable to send reset link'); }
+    finally { setSending(false); }
   };
 
+  const sessions = settings?.sessions || [];
+
   return (
-    <div className="talent-settings-stack">
-      <SectionPanel title="Sign-in security" intro="Sensitive account changes use your Firebase sign-in identity.">
-        <SettingRow icon={Mail} title="Sign-in email" description={profile?.email || 'No email on file'}><PholioButton type="button" variant="secondary" onClick={resetPassword} disabled={sending}>{sending ? 'Sending…' : 'Send password reset'}</PholioButton></SettingRow>
-      </SectionPanel>
-      <SectionPanel title="Signed-in browsers" intro="End browser sessions you no longer recognize. The current browser cannot be revoked from here.">
-        {isLoading && <Skeleton />}
-        {!isLoading && !settings?.sessions?.length && <p className="talent-settings-empty">No active browser sessions found.</p>}
-        {!isLoading && settings?.sessions?.map((session) => <div className="talent-settings-session" key={session.id}><Monitor size={17} aria-hidden /><div><strong>{session.device}</strong><span>{session.location || 'Location unavailable'} · {session.expiresAt ? `Expires ${formatDate(session.expiresAt)}` : 'Session active'}</span></div><em>{session.isCurrent ? 'Current browser' : session.active ? 'Active' : 'Expired'}</em>{!session.isCurrent && <PholioButton type="button" variant="tertiary" onClick={() => revokeMutation.mutate(session.id)} disabled={revokeMutation.isPending}>End</PholioButton>}</div>)}
-      </SectionPanel>
-    </div>
+    <Movement
+      id="security"
+      title="Access and sessions"
+      lede="Recover your sign-in and end any browser you no longer recognise. Sensitive changes always verify against your sign-in identity."
+    >
+      <div className="set-card">
+        <Row title="Password" description={profile?.email ? `Reset the password for ${profile.email}.` : 'Reset your account password.'}>
+          <PholioButton type="button" variant="secondary" onClick={resetPassword} disabled={sending}>
+            {sending ? 'Sending…' : 'Send reset link'}
+          </PholioButton>
+        </Row>
+      </div>
+
+      <div className="set-card">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Signed-in browsers</h3>
+            <p className="set-card__sub">Your current browser can’t be ended from here.</p>
+          </div>
+        </div>
+        {isLoading ? <SkeletonRows /> : sessions.length ? (
+          <ul className="set-sessions">
+            {sessions.map((session) => (
+              <li key={session.id}>
+                <span className="set-sessions__icon" aria-hidden="true"><Monitor size={16} /></span>
+                <div className="set-sessions__body">
+                  <strong>{session.device || 'Browser session'}</strong>
+                  <span>{(session.location || 'Location unavailable')} · {session.expiresAt ? `expires ${formatDate(session.expiresAt)}` : 'active'}</span>
+                </div>
+                <span className={`set-sessions__state${session.isCurrent ? ' is-current' : ''}`}>
+                  {session.isCurrent ? 'This browser' : session.active ? 'Active' : 'Expired'}
+                </span>
+                {!session.isCurrent && (
+                  <button type="button" className="set-inline-link set-inline-link--danger" onClick={() => revoke.mutate(session.id)} disabled={revoke.isPending}>End</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="set-empty">No other active sessions.</p>
+        )}
+      </div>
+    </Movement>
   );
 }
 
-function PrivacySection() {
-  const { data: settings, isLoading } = useTalentSettings();
+/* --- VII · Privacy & data ------------------------------------------ */
+
+function PrivacyMovement({ settings, isLoading }) {
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
-  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Privacy preference saved') });
+  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Cookie preference saved') });
   const cookies = settings?.cookies || {};
+  const lastExport = formatDate(settings?.data?.exportRequestedAt);
 
   const exportData = async () => {
     setExporting(true);
@@ -464,60 +829,181 @@ function PrivacySection() {
       downloadJson(`pholio-data-export-${new Date().toISOString().slice(0, 10)}.json`, result?.export || result);
       queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
       toast.success('Data export downloaded');
-    } catch (error) { toast.error(error?.message || 'Unable to export data'); } finally { setExporting(false); }
+    } catch (error) { toast.error(error?.message || 'Unable to export data'); }
+    finally { setExporting(false); }
   };
 
   const toggleCookie = (key) => mutation.mutate({ cookies: { ...cookies, [key]: !cookies[key] } });
 
-  if (isLoading) return <Skeleton />;
-
   return (
-    <div className="talent-settings-stack">
-      <SectionPanel title="Data rights" intro="Export your Pholio profile, media records, applications, and account history. Permanent erasure lives under Account control.">
-        <SettingRow icon={Download} title="Download your data" description={`Last requested: ${formatDate(settings?.data?.exportRequestedAt)}`}><PholioButton type="button" variant="secondary" onClick={exportData} disabled={exporting}>{exporting ? 'Preparing…' : 'Request export'}</PholioButton></SettingRow>
-      </SectionPanel>
-      <SectionPanel title="Cookie choices" intro="Essential cookies keep sign-in and security working. Optional cookies support analytics and product communication.">
-        <SettingRow icon={Lock} title="Essential" description="Required for authentication, sessions, security, and payments."><span className="talent-settings-fixed">Always on</span></SettingRow>
-        <SettingRow icon={SlidersHorizontal} title="Analytics" description="Helps improve dashboard quality and reliability."><NativeSwitch label="Analytics cookies" checked={cookies.analytics ?? true} disabled={mutation.isPending} onChange={() => toggleCookie('analytics')} /></SettingRow>
-        <SettingRow icon={Bell} title="Marketing" description="Allows non-essential product announcements and promotions."><NativeSwitch label="Marketing cookies" checked={cookies.marketing ?? false} disabled={mutation.isPending} onChange={() => toggleCookie('marketing')} /></SettingRow>
-      </SectionPanel>
-    </div>
+    <Movement
+      id="privacy"
+      title="Cookies and your data"
+      lede="Export everything Pholio holds about you at any time. Permanent erasure lives in Account."
+    >
+      <div className="set-card">
+        <Row title="Download your data" description={lastExport ? `Last exported ${lastExport}.` : 'Your profile, media records, applications, and account history as JSON.'}>
+          <PholioButton type="button" variant="secondary" onClick={exportData} disabled={exporting}>
+            {exporting ? 'Preparing…' : 'Request export'}
+          </PholioButton>
+        </Row>
+      </div>
+
+      <div className="set-card">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Cookies</h3>
+            <p className="set-card__sub">Essential cookies keep sign-in, security, and payments working. The rest are yours to decide.</p>
+          </div>
+        </div>
+        {isLoading ? <SkeletonRows /> : (
+          <>
+            <Row title="Essential" description="Authentication, sessions, security, and payments.">
+              <span className="set-fixed">Always on</span>
+            </Row>
+            <Row title="Analytics" description="Helps improve dashboard quality and reliability.">
+              <Toggle label="Analytics cookies" checked={cookies.analytics ?? true} disabled={mutation.isPending} onChange={() => toggleCookie('analytics')} />
+            </Row>
+            <Row title="Marketing" description="Non-essential product announcements and promotions." muted>
+              <Toggle label="Marketing cookies" checked={cookies.marketing ?? false} disabled={mutation.isPending} onChange={() => toggleCookie('marketing')} />
+            </Row>
+          </>
+        )}
+      </div>
+    </Movement>
   );
 }
 
+/* --- VIII · Legal & safety ----------------------------------------- */
 
-function LegalComplianceSection() {
+function LegalMovement({ settings }) {
   const { profile } = useAuth();
-  const { data: settings } = useTalentSettings();
+  const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
   const minorLocked = isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
 
+  const legalQuery = useQuery({
+    queryKey: ['talent-legal-status'],
+    queryFn: () => talentApi.getLegalStatus(),
+    select: (data) => data?.data ?? data,
+  });
+  const needsAcceptance = !!legalQuery.data?.needsAcceptance;
+
+  const accept = useMutation({
+    mutationFn: () => talentApi.acceptLegalTerms({ terms_accepted: true, privacy_accepted: true }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['talent-legal-status'] }); toast.success('Agreements acknowledged'); },
+    onError: (error) => toast.error(error?.message || 'Unable to record acceptance'),
+  });
+
   return (
-    <div className="talent-settings-stack">
-      <SectionPanel title="Consent and safety" intro="Legal controls stay separate from privacy preferences so consent, minor protection, and safety reporting are easy to find.">
-        <SettingRow icon={Scale} title="Minor exposure controls" description={minorLocked ? 'Public portfolio and contact exposure are locked until guardian consent and a valid date of birth are in place.' : 'Public exposure checks are clear for this profile. Keep date of birth and guardian records current where required.'}><span className="talent-settings-fixed">{minorLocked ? 'Restricted' : 'Current'}</span></SettingRow>
-        <SettingRow icon={FileText} title="Terms and privacy" description="Review legal agreements and report rights, safety, impersonation, or agency-scam concerns."><PholioButton type="button" variant="tertiary" onClick={() => setReportOpen(true)}>Report concern</PholioButton></SettingRow>
-      </SectionPanel>
-      <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} targetType="user" targetId={profile?.user_id || settings?.user?.id || profile?.id || 'talent-settings'} targetLabel="Pholio settings" />
-    </div>
+    <Movement
+      id="legal"
+      title="Standing and protection"
+      lede="Consent, minor protection, and safety reporting sit apart from preferences so they’re always easy to find."
+    >
+      <div className="set-card">
+        <Row
+          title="Terms & Privacy"
+          description={needsAcceptance ? 'Updated agreements are waiting for your acknowledgement.' : 'Your acceptance of Pholio’s Terms and Privacy Policy is current.'}
+        >
+          {needsAcceptance ? (
+            <PholioButton type="button" variant="primary" onClick={() => accept.mutate()} disabled={accept.isPending}>
+              {accept.isPending ? 'Saving…' : 'Acknowledge'}
+            </PholioButton>
+          ) : (
+            <span className="set-fixed">Current</span>
+          )}
+        </Row>
+        <Row
+          title="Minor protection"
+          description={minorLocked
+            ? 'Public exposure and contact details are locked until a valid date of birth and guardian consent are on file.'
+            : 'Public-exposure checks are clear for this profile. Keep date of birth and guardian records current where required.'}
+          muted
+        >
+          <span className="set-fixed">{minorLocked ? 'Restricted' : 'Clear'}</span>
+        </Row>
+      </div>
+
+      <div className="set-card">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Report a concern</h3>
+            <p className="set-card__sub">Rights, safety, impersonation, or an agency that doesn’t operate the way it should.</p>
+          </div>
+          <PholioButton type="button" variant="secondary" onClick={() => setReportOpen(true)}>Report</PholioButton>
+        </div>
+      </div>
+
+      <ReportDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="user"
+        targetId={profile?.user_id || settings?.user?.id || profile?.id || 'talent-settings'}
+        targetLabel="Pholio settings"
+      />
+    </Movement>
   );
 }
 
-function AccountControlSection() {
-  const { data: settings } = useTalentSettings();
-  const queryClient = useQueryClient();
-  const deactivateMutation = useMutation({ mutationFn: talentApi.deactivateAccount, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['talent-settings'] }); queryClient.invalidateQueries({ queryKey: ['auth-user'] }); toast.success('Account paused'); }, onError: (error) => toast.error(error?.message || 'Unable to pause account') });
-  const deleteMutation = useMutation({ mutationFn: talentApi.deleteAccount, onSuccess: (result) => { purgeApplyDraftStorage(); toast.success('Account deleted'); window.location.href = result?.redirect || '/login'; }, onError: (error) => toast.error(error?.message || 'Unable to delete account') });
+/* --- IX · Account -------------------------------------------------- */
 
-  const pause = () => { if (window.confirm('Pause your Pholio account? Your public portfolio and agency discovery profile will be hidden.')) deactivateMutation.mutate(); };
-  const erase = () => { if (window.confirm('Permanently delete your Pholio account, profile, images, applications, and account history? This cannot be undone.')) deleteMutation.mutate(); };
+function AccountMovement({ settings }) {
+  const queryClient = useQueryClient();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deactivate = useMutation({
+    mutationFn: talentApi.deactivateAccount,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['talent-settings'] }); queryClient.invalidateQueries({ queryKey: ['auth-user'] }); toast.success('Account paused'); },
+    onError: (error) => toast.error(error?.message || 'Unable to pause account'),
+  });
+  const remove = useMutation({
+    mutationFn: talentApi.deleteAccount,
+    onSuccess: (result) => { purgeApplyDraftStorage(); toast.success('Account deleted'); window.location.href = result?.redirect || '/login'; },
+    onError: (error) => toast.error(error?.message || 'Unable to delete account'),
+  });
+
+  const isPaused = !!settings?.account?.isDeactivated;
 
   return (
-    <div className="talent-settings-stack">
-      <SectionPanel title="Account control" intro="Use these controls only when you need to step away from Pholio or permanently erase your account.">
-        <SettingRow icon={CalendarDays} title="Pause visibility" description="Hide your public portfolio and agency discovery profile without deleting your records."><PholioButton type="button" variant="secondary" onClick={pause} disabled={deactivateMutation.isPending || settings?.account?.isDeactivated}>{settings?.account?.isDeactivated ? 'Paused' : deactivateMutation.isPending ? 'Pausing…' : 'Pause account'}</PholioButton></SettingRow>
-        <SettingRow icon={Trash2} title="Permanently delete account" description="Erase your profile, images, applications, draft submissions, and Pholio account records where deletion is permitted."><PholioButton type="button" variant="destructive" onClick={erase} disabled={deleteMutation.isPending}>{deleteMutation.isPending ? 'Deleting…' : 'Delete account'}</PholioButton></SettingRow>
-      </SectionPanel>
-    </div>
+    <Movement
+      id="account"
+      title="Pause or close"
+      lede="Step away without losing your records, or erase your account for good."
+    >
+      <div className="set-card">
+        <Row
+          title="Pause visibility"
+          description="Hide your public book and agency discovery without deleting anything. Turn it back on whenever you return."
+        >
+          <PholioButton type="button" variant="secondary" onClick={() => deactivate.mutate()} disabled={deactivate.isPending || isPaused}>
+            {isPaused ? 'Paused' : deactivate.isPending ? 'Pausing…' : 'Pause account'}
+          </PholioButton>
+        </Row>
+      </div>
+
+      <div className="set-card set-card--danger">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Delete account</h3>
+            <p className="set-card__sub">Permanently erases your profile, images, applications, drafts, and account history where deletion is permitted. This can’t be undone.</p>
+          </div>
+        </div>
+        {confirmDelete ? (
+          <div className="set-confirm">
+            <p>Delete everything and sign out for good?</p>
+            <div className="set-confirm__actions">
+              <PholioButton type="button" variant="destructive" onClick={() => remove.mutate()} disabled={remove.isPending}>
+                {remove.isPending ? 'Deleting…' : 'Yes, delete my account'}
+              </PholioButton>
+              <button type="button" className="set-inline-link" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>Keep my account</button>
+            </div>
+          </div>
+        ) : (
+          <div className="set-card__foot set-card__foot--start">
+            <PholioButton type="button" variant="destructive" onClick={() => setConfirmDelete(true)}>Delete account</PholioButton>
+          </div>
+        )}
+      </div>
+    </Movement>
   );
 }

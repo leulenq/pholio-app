@@ -8,3 +8,5 @@ export { SectionHelpHint } from './SectionHelpHint';
 export { SocialInput } from './SocialInput';
 export { IdentitySection } from './IdentitySection';
 export { RepresentationSection } from './RepresentationSection';
+export { default as HorizonFlare } from './HorizonFlare';
+

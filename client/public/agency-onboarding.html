@@ -1,0 +1,2299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pholio — Premium Agency Onboarding Prototypes</title>
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Icons via Lucide (CDN) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      /* Pholio Agency Design Tokens */
+      --ag-canvas: #FAF8F5;
+      --ag-surface: #FFFFFF;
+      --ag-surface-hover: #F5F2EE;
+      --ag-surface-active: #EDE9E3;
+      --ag-ink: #1A1815;
+      --ag-ink-deep: #141210;
+      --ag-text-body: #2D2A26;
+      --ag-text-secondary: #6B6560;
+      --ag-text-tertiary: #9C958E;
+      --ag-text-ghost: #C8C2BA;
+      --ag-gold: #C9A55A;
+      --ag-gold-hover: #B8956A;
+      --ag-gold-muted: #F4ECDC;
+      --ag-border: rgba(26, 24, 21, 0.08);
+      --ag-border-strong: rgba(26, 24, 21, 0.14);
+      
+      /* Semantic colors (desaturated, operational) */
+      --ag-success: #2D8A56;
+      --ag-success-bg: #EAF5EE;
+      --ag-danger: #C0392B;
+      --ag-danger-bg: #FDF2F0;
+      --ag-warning: #C2850E;
+      --ag-warning-bg: #FCF8F0;
+      --ag-info: #3B7DD8;
+      
+      /* Elevation */
+      --ag-shadow-sm: 0 1px 3px rgba(26, 24, 21, 0.06);
+      --ag-shadow-md: 0 4px 20px rgba(26, 24, 21, 0.08);
+      --ag-shadow-lg: 0 12px 40px rgba(26, 24, 21, 0.12);
+      --ag-shadow-gold: 0 0 20px rgba(201, 165, 90, 0.15);
+
+      /* Typography Fallbacks */
+      --font-serif: "Playfair Display", Georgia, Times New Roman, serif;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      
+      /* Transitions */
+      --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      outline: none;
+    }
+
+    body {
+      background-color: var(--ag-canvas);
+      color: var(--ag-text-body);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      transition: background-color var(--transition-normal);
+    }
+
+    /* --- Prototype Control Dock --- */
+    .prototype-dock {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(26, 24, 21, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 40px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+    
+    .prototype-dock-title {
+      color: #FAF8F5;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0 8px;
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .prototype-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition-fast);
+    }
+
+    .prototype-btn:hover {
+      color: #FFFFFF;
+    }
+
+    .prototype-btn.is-active {
+      background: var(--ag-gold);
+      color: var(--ag-ink-deep);
+      font-weight: 600;
+    }
+
+    /* --- Common Layout & UI Elements --- */
+    h1, h2, h3, .serif-text {
+      font-family: var(--font-serif);
+      color: var(--ag-ink);
+      font-weight: 600;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      line-height: 1.2;
+      margin-bottom: 24px;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      line-height: 1.3;
+      margin-bottom: 16px;
+    }
+
+    p {
+      color: var(--ag-text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .container-layout {
+      margin-top: 80px;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-family: var(--font-sans);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ag-text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .input-field {
+      width: 100%;
+      height: 44px;
+      background-color: var(--ag-surface);
+      border: 1px solid var(--ag-border-strong);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--ag-ink);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.02);
+      transition: var(--transition-fast);
+    }
+
+    .input-field:hover {
+      border-color: rgba(26, 24, 21, 0.22);
+    }
+
+    .input-field:focus {
+      border-color: var(--ag-gold);
+      box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15), inset 0 1px 2px rgba(26, 24, 21, 0.02);
+    }
+
+    .input-field::placeholder {
+      color: var(--ag-text-tertiary);
+    }
+
+    textarea.input-field {
+      height: 90px;
+      resize: none;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 20px;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: var(--transition-fast);
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background-color: var(--ag-gold);
+      color: var(--ag-ink-deep);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--ag-gold-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--ag-surface);
+      color: var(--ag-text-body);
+      border-color: var(--ag-border-strong);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--ag-surface-hover);
+      border-color: rgba(26, 24, 21, 0.22);
+    }
+
+    .btn-ghost {
+      background-color: transparent;
+      color: var(--ag-text-secondary);
+    }
+
+    .btn-ghost:hover {
+      background-color: var(--ag-surface-hover);
+      color: var(--ag-ink);
+    }
+
+    .btn-danger {
+      background-color: var(--ag-danger-bg);
+      color: var(--ag-danger);
+      border-color: rgba(192, 57, 43, 0.15);
+    }
+    
+    .btn-danger:hover {
+      background-color: #fce8e6;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Checkbox & Toggle Cards */
+    .selection-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .selection-card {
+      background: var(--ag-surface);
+      border: 1px solid var(--ag-border);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      position: relative;
+      transition: var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100px;
+    }
+
+    .selection-card:hover {
+      background: var(--ag-surface-hover);
+      border-color: rgba(26, 24, 21, 0.15);
+      transform: translateY(-1px);
+      box-shadow: var(--ag-shadow-sm);
+    }
+
+    .selection-card.is-selected {
+      background: var(--ag-surface);
+      border-color: var(--ag-gold);
+      box-shadow: var(--ag-shadow-sm), var(--ag-shadow-gold);
+    }
+
+    .selection-card-label {
+      font-weight: 600;
+      color: var(--ag-ink);
+      font-size: 0.875rem;
+    }
+
+    .selection-card-meta {
+      font-size: 0.75rem;
+      color: var(--ag-text-secondary);
+      margin-top: 4px;
+    }
+
+    .selection-card-check {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid var(--ag-border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #FFFFFF;
+      transition: var(--transition-fast);
+    }
+
+    .selection-card.is-selected .selection-card-check {
+      background: var(--ag-gold);
+      border-color: var(--ag-gold);
+    }
+
+    .selection-card.is-selected .selection-card-check svg {
+      opacity: 1;
+      stroke: var(--ag-ink-deep);
+    }
+
+    .selection-card-check svg {
+      opacity: 0;
+      transition: var(--transition-fast);
+    }
+
+    /* Slider styling */
+    .slider-container {
+      margin-bottom: 16px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .slider-title {
+      font-weight: 500;
+      color: var(--ag-ink);
+    }
+
+    .slider-value {
+      font-family: var(--font-sans);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--ag-gold-hover);
+    }
+
+    .slider-inputs {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .range-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: var(--ag-surface-active);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--ag-gold);
+      cursor: pointer;
+      border: 2px solid var(--ag-surface);
+      box-shadow: var(--ag-shadow-sm);
+      transition: var(--transition-fast);
+    }
+
+    .range-slider::-webkit-slider-thumb:hover {
+      background: var(--ag-gold-hover);
+      transform: scale(1.1);
+    }
+
+    /* Sub-tabs for board requirements */
+    .board-spec-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--ag-border);
+      padding-bottom: 8px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+
+    .board-spec-tab {
+      background: transparent;
+      border: none;
+      padding: 6px 12px;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      font-size: 0.8125rem;
+      color: var(--ag-text-secondary);
+      cursor: pointer;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: var(--transition-fast);
+    }
+
+    .board-spec-tab:hover {
+      background: var(--ag-surface-hover);
+      color: var(--ag-ink);
+    }
+
+    .board-spec-tab.is-active {
+      background: var(--ag-gold-muted);
+      color: var(--ag-ink-deep);
+      font-weight: 600;
+    }
+
+    /* Compliance Banner (Minors Branch) */
+    .compliance-banner {
+      background-color: var(--ag-warning-bg);
+      border: 1px solid rgba(194, 133, 14, 0.15);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      display: none;
+      animation: fadeIn var(--transition-normal);
+    }
+
+    .compliance-banner-title {
+      font-weight: 600;
+      color: var(--ag-warning);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .compliance-banner-desc {
+      font-size: 0.8125rem;
+      color: #8C5F07;
+      line-height: 1.5;
+    }
+
+    .compliance-checkbox {
+      margin-top: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .compliance-checkbox input {
+      margin-top: 3px;
+    }
+
+    .compliance-checkbox span {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--ag-ink);
+    }
+
+    /* Dynamic Seat Rows */
+    .seat-row {
+      display: grid;
+      grid-template-columns: 2fr 1.5fr 2fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+      animation: rowAppear var(--transition-fast);
+    }
+
+    @keyframes rowAppear {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Subdomain Preview helper */
+    .subdomain-input-wrapper {
+      display: flex;
+      align-items: center;
+      background: var(--ag-surface);
+      border: 1px solid var(--ag-border-strong);
+      border-radius: 8px;
+      padding: 0 14px;
+      height: 44px;
+      box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.02);
+      transition: var(--transition-fast);
+    }
+
+    .subdomain-input-wrapper:focus-within {
+      border-color: var(--ag-gold);
+      box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15), inset 0 1px 2px rgba(26, 24, 21, 0.02);
+    }
+
+    .subdomain-input-wrapper input {
+      border: none;
+      height: 100%;
+      flex: 1;
+      padding: 0;
+      background: transparent;
+      font-family: var(--font-sans);
+      color: var(--ag-ink);
+    }
+
+    .subdomain-suffix {
+      color: var(--ag-text-tertiary);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      user-select: none;
+    }
+
+    /* ---------------------------------------------------- */
+    /* DIRECTION A: "The Centered Ledger" (Centered Book Layout) */
+    /* ---------------------------------------------------- */
+    .dir-a-layout {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .dir-a-book {
+      background: var(--ag-surface);
+      border: 1px solid var(--ag-border);
+      box-shadow: var(--ag-shadow-lg);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .dir-a-steps-timeline {
+      display: flex;
+      border-bottom: 1px solid var(--ag-border);
+      padding: 0 24px;
+      background: var(--ag-surface-hover);
+      overflow-x: auto;
+    }
+
+    .dir-a-step-tab {
+      padding: 16px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ag-text-tertiary);
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: var(--transition-fast);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dir-a-step-tab.is-active {
+      color: var(--ag-gold-hover);
+      border-bottom-color: var(--ag-gold);
+    }
+
+    .dir-a-step-tab.is-complete {
+      color: var(--ag-ink);
+    }
+
+    .dir-a-body {
+      padding: 32px 40px;
+      flex: 1;
+      min-height: 420px;
+    }
+
+    .dir-a-footer {
+      border-top: 1px solid var(--ag-border);
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--ag-surface-hover);
+    }
+
+    /* ---------------------------------------------------- */
+    /* DIRECTION B: "The Split Console" (Side-by-Side Live Board) */
+    /* ---------------------------------------------------- */
+    .dir-b-layout {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 80px);
+      overflow: hidden;
+    }
+
+    /* Left Console: Pure Dark Operational View */
+    .dir-b-left {
+      flex: 1.1;
+      background-color: var(--ag-ink-deep);
+      color: #FAF8F5;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      overflow-y: auto;
+    }
+
+    /* Right Step Panel */
+    .dir-b-right {
+      flex: 0.9;
+      background-color: var(--ag-canvas);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      border-left: 1px solid var(--ag-border-strong);
+    }
+
+    .dir-b-form-wrapper {
+      padding: 40px;
+      max-width: 580px;
+      width: 100%;
+      margin: 0 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .dir-b-footer {
+      margin-top: 32px;
+      border-top: 1px solid var(--ag-border);
+      padding-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Live Preview Widgets in Left Console */
+    .console-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 32px;
+    }
+
+    .console-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ag-gold);
+    }
+
+    .console-badge {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ag-gold);
+      box-shadow: 0 0 8px var(--ag-gold);
+    }
+
+    .preview-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    /* Live Preview elements styled like "The Editorial Ledger" */
+    .preview-canvas-sheet {
+      background: var(--ag-canvas);
+      color: var(--ag-ink);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      color: var(--ag-text-body);
+    }
+
+    .preview-sheet-title {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      color: var(--ag-ink);
+      border-bottom: 1px solid var(--ag-border-strong);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .preview-agency-logo-placeholder {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--ag-ink);
+    }
+
+    .preview-sheet-meta {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--ag-text-secondary);
+      letter-spacing: 0.04em;
+    }
+
+    .preview-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--ag-border);
+      padding-bottom: 8px;
+    }
+
+    .preview-tab-pill {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--ag-surface-hover);
+      color: var(--ag-text-secondary);
+    }
+
+    .preview-tab-pill.is-active {
+      background: var(--ag-gold-muted);
+      color: var(--ag-ink-deep);
+    }
+
+    /* Roster Table Preview */
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+      text-align: left;
+    }
+
+    .preview-table th {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ag-text-secondary);
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--ag-border-strong);
+    }
+
+    .preview-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--ag-border);
+      color: var(--ag-text-body);
+      font-weight: 500;
+    }
+
+    .preview-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .preview-brief-requirements {
+      background: var(--ag-surface);
+      border: 1px solid var(--ag-border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+
+    .preview-brief-title {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--ag-ink);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-criteria-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      padding: 4px 0;
+      border-bottom: 1px dashed var(--ag-border);
+    }
+
+    .preview-criteria-row:last-child {
+      border-bottom: none;
+    }
+
+    .preview-criteria-label {
+      color: var(--ag-text-secondary);
+    }
+
+    .preview-criteria-val {
+      font-weight: 600;
+      color: var(--ag-ink);
+    }
+
+    /* ---------------------------------------------------- */
+    /* DIRECTION C: "The Continuous Sheet" (Unfolding Form) */
+    /* ---------------------------------------------------- */
+    .dir-c-layout {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 20px 100px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .dir-c-section {
+      background: var(--ag-surface);
+      border: 1px solid var(--ag-border);
+      border-radius: 16px;
+      padding: 32px 40px;
+      box-shadow: var(--ag-shadow-sm);
+      transition: all var(--transition-normal);
+      position: relative;
+    }
+
+    .dir-c-section.is-locked {
+      opacity: 0.35;
+      pointer-events: none;
+      background: #FDFDFD;
+    }
+
+    .dir-c-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .dir-c-section-num {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      color: var(--ag-text-tertiary);
+    }
+
+    .dir-c-section-done-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--ag-success);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateX(10px);
+      transition: var(--transition-normal);
+    }
+
+    .dir-c-section.is-completed .dir-c-section-done-indicator {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .dir-c-save-row {
+      margin-top: 24px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* --- Brand Accent Injector --- */
+    .color-preview-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--ag-surface);
+      box-shadow: 0 0 0 1px var(--ag-border-strong);
+      transition: var(--transition-fast);
+    }
+
+    .color-preview-swatch:hover {
+      transform: scale(1.1);
+    }
+
+    /* Modal dialog */
+    .scrim {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 24, 21, 0.4);
+      backdrop-filter: blur(8px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-normal);
+    }
+
+    .scrim.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .launch-modal {
+      background: var(--ag-surface);
+      border: 1px solid var(--ag-border);
+      box-shadow: var(--ag-shadow-lg);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 480px;
+      padding: 40px;
+      text-align: center;
+      transform: scale(0.9);
+      transition: transform var(--transition-normal);
+    }
+
+    .scrim.is-open .launch-modal {
+      transform: scale(1);
+    }
+
+    .launch-seal {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--ag-gold-muted);
+      color: var(--ag-gold-hover);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+
+    /* Utility animations */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- --- PROTOTYPE SELECTOR BAR --- -->
+  <nav class="prototype-dock">
+    <span class="prototype-dock-title">Layout Direction:</span>
+    <button class="prototype-btn is-active" data-dir="a" onclick="switchDirection('a')">
+      <i data-lucide="book-open" style="width: 14px; height: 14px;"></i>
+      A. Centered Ledger
+    </button>
+    <button class="prototype-btn" data-dir="b" onclick="switchDirection('b')">
+      <i data-lucide="layout-grid" style="width: 14px; height: 14px;"></i>
+      B. Split Console
+    </button>
+    <button class="prototype-btn" data-dir="c" onclick="switchDirection('c')">
+      <i data-lucide="scroll" style="width: 14px; height: 14px;"></i>
+      C. Continuous Sheet
+    </button>
+  </nav>
+
+  <!-- --- CENTRAL CONTAINER FOR STEPS --- -->
+  <div class="container-layout">
+
+    <!-- ---------------------------------------------------- -->
+    <!-- DIRECTION A: THE CENTERED LEDGER -->
+    <!-- ---------------------------------------------------- -->
+    <div id="layout-dir-a" class="dir-a-layout">
+      <div class="dir-a-book">
+        
+        <!-- Timeline header -->
+        <header class="dir-a-steps-timeline">
+          <div class="dir-a-step-tab is-active" data-step="1" onclick="navigateToStep(1)">1. Imprint</div>
+          <div class="dir-a-step-tab" data-step="2" onclick="navigateToStep(2)">2. Boards</div>
+          <div class="dir-a-step-tab" data-step="3" onclick="navigateToStep(3)">3. Casting</div>
+          <div class="dir-a-step-tab" data-step="4" onclick="navigateToStep(4)">4. Inbound</div>
+          <div class="dir-a-step-tab" data-step="5" onclick="navigateToStep(5)">5. Team</div>
+          <div class="dir-a-step-tab" data-step="6" onclick="navigateToStep(6)">6. Workspace</div>
+          <div class="dir-a-step-tab" data-step="7" onclick="navigateToStep(7)">7. Launch</div>
+        </header>
+
+        <!-- Dynamic form content -->
+        <main class="dir-a-body" id="dir-a-form-root">
+          <!-- Active Step UI will be injected here by JS -->
+        </main>
+
+        <!-- Footer -->
+        <footer class="dir-a-footer">
+          <button class="btn btn-ghost" id="dir-a-back-btn" onclick="prevStep()">
+            <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i>
+            Back
+          </button>
+          <div style="font-size: 0.75rem; color: var(--ag-text-tertiary); font-weight: 500;">
+            Pholio Agency Deployment Engine
+          </div>
+          <button class="btn btn-primary" id="dir-a-next-btn" onclick="nextStep()">
+            Continue
+            <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+          </button>
+        </footer>
+
+      </div>
+    </div>
+
+    <!-- ---------------------------------------------------- -->
+    <!-- DIRECTION B: THE SPLIT CONSOLE -->
+    <!-- ---------------------------------------------------- -->
+    <div id="layout-dir-b" class="dir-b-layout hidden">
+      
+      <!-- Left Live Preview Screen -->
+      <aside class="dir-b-left">
+        <header class="console-header">
+          <span class="preview-sheet-meta">PHOLIO DEPLOYMENT GRAPH</span>
+          <div class="console-indicator">
+            <span class="console-badge"></span>
+            Live Core Syncing
+          </div>
+        </header>
+
+        <!-- Live rendered "Editorial Ledger" preview -->
+        <div class="preview-canvas-sheet">
+          <header class="preview-sheet-title">
+            <span class="preview-agency-logo-placeholder" id="preview-logo-text">Agency Ledger</span>
+            <span class="preview-sheet-meta" id="preview-market-text">Unmapped Markets</span>
+          </header>
+
+          <div class="preview-tabs" id="preview-boards-tabs">
+            <span class="preview-tab-pill is-active">Women</span>
+            <span class="preview-tab-pill">Men</span>
+          </div>
+
+          <!-- Roster simulation table -->
+          <div style="flex: 1; margin-bottom: 20px;">
+            <p style="font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ag-text-secondary); margin-bottom: 10px;">
+              Roster Datagrid Preview
+            </p>
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th>Talent Name</th>
+                  <th>Representing</th>
+                  <th>Availability</th>
+                  <th>Match Score</th>
+                </tr>
+              </thead>
+              <tbody id="preview-roster-body">
+                <tr>
+                  <td>Sasha V.</td>
+                  <td>Women</td>
+                  <td>Available</td>
+                  <td>98%</td>
+                </tr>
+                <tr>
+                  <td>Leon M.</td>
+                  <td>Men</td>
+                  <td>Available</td>
+                  <td>92%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Match engine settings view -->
+          <div class="preview-brief-requirements">
+            <header class="preview-brief-title">
+              <i data-lucide="filter" style="width: 12px; height: 12px; color: var(--ag-gold);"></i>
+              Match Engine Gates: <span id="preview-active-brief-board">Women</span>
+            </header>
+            <div id="preview-match-specs">
+              <div class="preview-criteria-row">
+                <span class="preview-criteria-label">Genders</span>
+                <span class="preview-criteria-val">Female</span>
+              </div>
+              <div class="preview-criteria-row">
+                <span class="preview-criteria-label">Height Range</span>
+                <span class="preview-criteria-val">173 - 183 cm</span>
+              </div>
+              <div class="preview-criteria-row">
+                <span class="preview-criteria-label">Age Gating</span>
+                <span class="preview-criteria-val">16 - 25 yrs</span>
+              </div>
+              <div class="preview-criteria-row">
+                <span class="preview-criteria-label">Intake Scope</span>
+                <span class="preview-criteria-val">Digitals Required</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Setup Form -->
+      <main class="dir-b-right">
+        <div class="dir-b-form-wrapper">
+          <div id="dir-b-form-root">
+            <!-- Active Step UI will be injected here by JS -->
+          </div>
+
+          <footer class="dir-b-footer">
+            <button class="btn btn-ghost" id="dir-b-back-btn" onclick="prevStep()">
+              <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i>
+              Back
+            </button>
+            <div style="font-size: 0.75rem; color: var(--ag-text-tertiary); font-weight: 500;">
+              Operational Settings
+            </div>
+            <button class="btn btn-primary" id="dir-b-next-btn" onclick="nextStep()">
+              Continue
+              <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+            </button>
+          </footer>
+        </div>
+      </main>
+
+    </div>
+
+    <!-- ---------------------------------------------------- -->
+    <!-- DIRECTION C: THE CONTINUOUS SHEET -->
+    <!-- ---------------------------------------------------- -->
+    <div id="layout-dir-c" class="dir-c-layout hidden">
+      <!-- In Direction C, all sections are visible on the page. Completed sections lock, and the next unlocks. -->
+      
+      <!-- Section 1 -->
+      <section class="dir-c-section" id="c-section-1">
+        <header class="dir-c-section-header">
+          <span class="dir-c-section-num">01. Imprint</span>
+          <span class="dir-c-section-done-indicator"><i data-lucide="check" style="width: 14px; height: 14px;"></i> Saved</span>
+        </header>
+        <div class="dir-c-section-body" id="c-step-1-form">
+          <!-- Step 1 Form Injected Here -->
+        </div>
+        <div class="dir-c-save-row">
+          <button class="btn btn-primary" onclick="saveContinuousSection(1)">Save & Continue</button>
+        </div>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="dir-c-section is-locked" id="c-section-2">
+        <header class="dir-c-section-header">
+          <span class="dir-c-section-num">02. Boards</span>
+          <span class="dir-c-section-done-indicator"><i data-lucide="check" style="width: 14px; height: 14px;"></i> Saved</span>
+        </header>
+        <div class="dir-c-section-body" id="c-step-2-form">
+          <!-- Step 2 Form Injected Here -->
+        </div>
+        <div class="dir-c-save-row">
+          <button class="btn btn-primary" onclick="saveContinuousSection(2)">Save & Continue</button>
+        </div>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="dir-c-section is-locked" id="c-section-3">
+        <header class="dir-c-section-header">
+          <span class="dir-c-section-num">03. Casting Standards</span>
+          <span class="dir-c-section-done-indicator"><i data-lucide="check" style="width: 14px; height: 14px;"></i> Saved</span>
+        </header>
+        <div class="dir-c-section-body" id="c-step-3-form">
+          <!-- Step 3 Form Injected Here -->
+        </div>
+        <div class="dir-c-save-row">
+          <button class="btn btn-primary" onclick="saveContinuousSection(3)">Save & Continue</button>
+        </div>
+      </section>
+
+      <!-- Section 4 -->
+      <section class="dir-c-section is-locked" id="c-section-4">
+        <header class="dir-c-section-header">
+          <span class="dir-c-section-num">04. Inbound Funnel</span>
+          <span class="dir-c-section-done-indicator"><i data-lucide="check" style="width: 14px; height: 14px;"></i> Saved</span>
+        </header>
+        <div class="dir-c-section-body" id="c-step-4-form">
+          <!-- Step 4 Form Injected Here -->
+        </div>
+        <div class="dir-c-save-row">
+          <button class="btn btn-primary" onclick="saveContinuousSection(4)">Save & Continue</button>
+        </div>
+      </section>
+
+      <!-- Section 5 -->
+      <section class="dir-c-section is-locked" id="c-section-5">
+        <header class="dir-c-section-header">
+          <span class="dir-c-section-num">05. Roster Team</span>
+          <span class="dir-c-section-done-indicator"><i data-lucide="check" style="width: 14px; height: 14px;"></i> Saved</span>
+        </header>
+        <div class="dir-c-section-body" id="c-step-5-form">
+          <!-- Step 5 Form Injected Here -->
+        </div>
+        <div class="dir-c-save-row">
+          <button class="btn btn-primary" onclick="saveContinuousSection(5)">Save & Continue</button>
+        </div>
+      </section>
+
+      <!-- Section 6 -->
+      <section class="dir-c-section is-locked" id="c-section-6">
+        <header class="dir-c-section-header">
+          <span class="dir-c-section-num">06. Workspace Defaults</span>
+          <span class="dir-c-section-done-indicator"><i data-lucide="check" style="width: 14px; height: 14px;"></i> Saved</span>
+        </header>
+        <div class="dir-c-section-body" id="c-step-6-form">
+          <!-- Step 6 Form Injected Here -->
+        </div>
+        <div class="dir-c-save-row">
+          <button class="btn btn-primary" onclick="saveContinuousSection(6)">Save & Continue</button>
+        </div>
+      </section>
+
+      <!-- Section 7 -->
+      <section class="dir-c-section is-locked" id="c-section-7">
+        <header class="dir-c-section-header">
+          <span class="dir-c-section-num">07. Roster Setup Deployment</span>
+        </header>
+        <div class="dir-c-section-body" id="c-step-7-form">
+          <!-- Step 7 Form Injected Here -->
+        </div>
+        <div class="dir-c-save-row">
+          <button class="btn btn-primary" style="background: var(--ag-gold); color: var(--ag-ink-deep);" onclick="triggerLaunch()">
+            Confirm Roster Launch
+          </button>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <!-- --- CONGRATULATIONS LAUNCH MODAL --- -->
+  <div class="scrim" id="launch-scrim" onclick="closeModal()">
+    <div class="launch-modal" onclick="event.stopPropagation()">
+      <div class="launch-seal">
+        <i data-lucide="shield-check" style="width: 36px; height: 36px;"></i>
+      </div>
+      <h2 style="margin-bottom: 12px;">Workspace Sealed & Open</h2>
+      <p style="margin-bottom: 24px;">
+        Your operational ledger is configured and ready for production. 
+        Roster structures, matchmaking indices, and casting thresholds are live.
+      </p>
+      
+      <div style="background: var(--ag-canvas); border-radius: 8px; padding: 16px; text-align: left; margin-bottom: 24px; font-size: 0.8125rem; border: 1px solid var(--ag-border);">
+        <p style="font-weight: 600; color: var(--ag-ink); margin-bottom: 8px; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase;">
+          Operational Checklist Live
+        </p>
+        <ul style="list-style: none; display: flex; flex-direction: column; gap: 6px;">
+          <li style="display: flex; align-items: center; gap: 8px; color: var(--ag-success);">
+            <i data-lucide="check" style="width: 14px; height: 14px;"></i> <span id="modal-board-count">0</span> Boards Initialized
+          </li>
+          <li style="display: flex; align-items: center; gap: 8px; color: var(--ag-success);">
+            <i data-lucide="check" style="width: 14px; height: 14px;"></i> Matchmaker Weights Deployed
+          </li>
+          <li style="display: flex; align-items: center; gap: 8px; color: var(--ag-success);">
+            <i data-lucide="check" style="width: 14px; height: 14px;"></i> Inbound Funnel Open at <code style="font-size: 0.75rem; font-weight: 600;" id="modal-url">agency.pholio.app</code>
+          </li>
+        </ul>
+      </div>
+
+      <button class="btn btn-primary" style="width: 100%; height: 44px;" onclick="closeModal()">
+        Enter Command Center
+      </button>
+    </div>
+  </div>
+
+  <!-- --- JAVASCRIPT LOGIC --- -->
+  <script>
+    // --- Global State Model (Matches Sinks in Section 4) ---
+    const state = {
+      currentLayout: 'a', // 'a', 'b', 'c'
+      currentStep: 1, // 1 to 7
+
+      // Step 1: Agency Identity & Markets
+      agencyName: 'Select Models',
+      agencyType: 'boutique', // mother, boutique, full_service, management, scouting
+      subdomain: 'select',
+      homeMarkets: ['New York', 'Paris'],
+      placesInto: true,
+      placementMarkets: ['Tokyo', 'London'],
+      website: 'https://selectmodels.com',
+      instagram: 'selectmodelsnyc',
+      tiktok: 'selectmodels',
+      description: 'A boutique modeling agency specializing in editorial high-fashion and runway bookings.',
+
+      // Step 2: Boards & Divisions
+      selectedBoards: ['women', 'men', 'new_faces'], // Women, Men, New Faces, Curve, Runway, Kids
+      boardsMetadata: {
+        women: { name: "Women's Fashion", isOpen: true, isDev: false },
+        men: { name: "Men's Division", isOpen: true, isDev: false },
+        new_faces: { name: "New Faces", isOpen: true, isDev: true },
+        curve: { name: "Curve / Plus", isOpen: false, isDev: false },
+        kids: { name: "Kids & Teens", isOpen: false, isDev: false }
+      },
+
+      // Step 3: Casting Standards (Casting Specs)
+      activeBoardTab: 'women',
+      castingSpecs: {
+        women: {
+          genders: ['female'],
+          minAge: 16, maxAge: 25,
+          minHeight: 173, maxHeight: 183,
+          bustMin: 80, bustMax: 88,
+          waistMin: 58, waistMax: 65,
+          hipsMin: 86, hipsMax: 92,
+          experience: ['new_face', 'established'],
+          importance: { height: 4, age: 3, measurements: 5, experience: 2 }
+        },
+        men: {
+          genders: ['male'],
+          minAge: 18, maxAge: 28,
+          minHeight: 183, maxHeight: 191,
+          bustMin: 96, bustMax: 104,
+          waistMin: 76, waistMax: 84,
+          hipsMin: 94, hipsMax: 100,
+          experience: ['new_face', 'established'],
+          importance: { height: 4, age: 2, measurements: 4, experience: 3 }
+        },
+        new_faces: {
+          genders: ['female', 'male'],
+          minAge: 14, maxAge: 19,
+          minHeight: 170, maxHeight: 188,
+          bustMin: 78, bustMax: 100,
+          waistMin: 56, waistMax: 85,
+          hipsMin: 84, hipsMax: 105,
+          experience: ['fresh_face'],
+          importance: { height: 3, age: 5, measurements: 2, experience: 1 }
+        },
+        curve: {
+          genders: ['female'],
+          minAge: 16, maxAge: 32,
+          minHeight: 170, maxHeight: 182,
+          bustMin: 95, bustMax: 115,
+          waistMin: 74, waistMax: 90,
+          hipsMin: 100, hipsMax: 120,
+          experience: ['new_face', 'established'],
+          importance: { height: 3, age: 2, measurements: 5, experience: 2 }
+        },
+        kids: {
+          genders: ['female', 'male'],
+          minAge: 4, maxAge: 15,
+          minHeight: 100, maxHeight: 165,
+          bustMin: 50, bustMax: 80,
+          waistMin: 45, waistMax: 70,
+          hipsMin: 50, hipsMax: 85,
+          experience: ['fresh_face'],
+          importance: { height: 1, age: 5, measurements: 0, experience: 1 }
+        }
+      },
+
+      // Step 4: Inbound & Submissions
+      acceptingInbound: true,
+      requiredMaterials: ['digitals', 'measurements', 'social_handles'], // digitals, measurements, portfolio, reel, social_handles
+      minorsAcknowledgment: false, // Required if kids selected or minAge < 18 on active boards
+
+      // Step 5: Team Members (Dynamic list)
+      team: [
+        { email: 'founder@selectmodels.com', role: 'OWNER', bookerRole: 'head', boards: ['women', 'men'] },
+        { email: 'sara@selectmodels.com', role: 'MEMBER', bookerRole: 'booker', boards: ['women'] },
+        { email: 'tim@selectmodels.com', role: 'MEMBER', bookerRole: 'scout', boards: ['new_faces'] }
+      ],
+
+      // Step 6: Workspace & Brand Defaults
+      brandColor: '#C9A55A',
+      logoUploaded: false,
+      notifyNewApps: true,
+      defaultView: 'overview'
+    };
+
+    // Pre-fill constants for board types (contextual defaults)
+    const divisionPresets = {
+      women: { minAge: 16, maxAge: 25, minHeight: 173, maxHeight: 183 },
+      men: { minAge: 18, maxAge: 28, minHeight: 183, maxHeight: 191 },
+      new_faces: { minAge: 14, maxAge: 19, minHeight: 170, maxHeight: 188 },
+      curve: { minAge: 16, maxAge: 32, minHeight: 170, maxHeight: 182 },
+      kids: { minAge: 4, maxAge: 15, minHeight: 100, maxHeight: 165 }
+    };
+
+    // Initialize
+    document.addEventListener("DOMContentLoaded", () => {
+      renderActiveStep();
+      lucide.createIcons();
+    });
+
+    // --- Switch Onboarding Layout Direction ---
+    function switchDirection(dir) {
+      state.currentLayout = dir;
+      
+      // Update selector UI
+      document.querySelectorAll('.prototype-btn').forEach(btn => {
+        btn.classList.remove('is-active');
+        if(btn.dataset.dir === dir) btn.classList.add('is-active');
+      });
+
+      // Show/Hide relevant layouts
+      document.getElementById('layout-dir-a').classList.add('hidden');
+      document.getElementById('layout-dir-b').classList.add('hidden');
+      document.getElementById('layout-dir-c').classList.add('hidden');
+
+      if (dir === 'a') {
+        document.getElementById('layout-dir-a').classList.remove('hidden');
+        renderActiveStep();
+      } else if (dir === 'b') {
+        document.getElementById('layout-dir-b').classList.remove('hidden');
+        renderActiveStep();
+      } else if (dir === 'c') {
+        document.getElementById('layout-dir-c').classList.remove('hidden');
+        renderContinuousSheet();
+      }
+      
+      // Apply primary brand color (just in case)
+      updatePrimaryAccentColors();
+    }
+
+    // --- Switch Steps within Layout A & B ---
+    function navigateToStep(stepNum) {
+      state.currentStep = stepNum;
+      renderActiveStep();
+    }
+
+    function prevStep() {
+      if (state.currentStep > 1) {
+        state.currentStep--;
+        renderActiveStep();
+      }
+    }
+
+    function nextStep() {
+      // Form Validation Check on active step before continuing
+      if (!validateStep(state.currentStep)) return;
+
+      if (state.currentStep < 7) {
+        state.currentStep++;
+        renderActiveStep();
+      } else {
+        triggerLaunch();
+      }
+    }
+
+    // Validate inputs per step
+    function validateStep(step) {
+      if (step === 1) {
+        const nameInput = document.querySelector('[data-bind="agencyName"]');
+        if (nameInput && !nameInput.value.trim()) {
+          alert("Agency Name is required to initialize the ledger.");
+          return false;
+        }
+      }
+      if (step === 4 && isMinorsBranchRequired()) {
+        const checkbox = document.querySelector('#minor-consent-check');
+        if (checkbox && !checkbox.checked) {
+          alert("Minors compliance verification is required since representation includes underage talent.");
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // --- Helper: check if minors branch is active ---
+    function isMinorsBranchRequired() {
+      // True if Kids board selected or any active board permits sub-18
+      if (state.selectedBoards.includes('kids')) return true;
+      for (let board of state.selectedBoards) {
+        const spec = state.castingSpecs[board];
+        if (spec && spec.minAge < 18) return true;
+      }
+      return false;
+    }
+
+    // --- Render Form Content for Direction A & B ---
+    function renderActiveStep() {
+      // Update step indicator tabs in Direction A
+      document.querySelectorAll('.dir-a-step-tab').forEach(tab => {
+        const s = parseInt(tab.dataset.step);
+        tab.classList.remove('is-active', 'is-complete');
+        if (s === state.currentStep) tab.classList.add('is-active');
+        else if (s < state.currentStep) tab.classList.add('is-complete');
+      });
+
+      // Update button labels
+      const nextBtnA = document.getElementById('dir-a-next-btn');
+      const backBtnA = document.getElementById('dir-a-back-btn');
+      const nextBtnB = document.getElementById('dir-b-next-btn');
+      const backBtnB = document.getElementById('dir-b-back-btn');
+
+      if (state.currentStep === 7) {
+        if(nextBtnA) nextBtnA.innerHTML = 'Seal & Open Ledger <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>';
+        if(nextBtnB) nextBtnB.innerHTML = 'Seal & Open Ledger <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>';
+      } else {
+        if(nextBtnA) nextBtnA.innerHTML = 'Continue <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>';
+        if(nextBtnB) nextBtnB.innerHTML = 'Continue <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>';
+      }
+
+      if(backBtnA) backBtnA.disabled = (state.currentStep === 1);
+      if(backBtnB) backBtnB.disabled = (state.currentStep === 1);
+
+      // Render step HTML
+      const stepHtml = getStepHtml(state.currentStep);
+      
+      if (state.currentLayout === 'a') {
+        document.getElementById('dir-a-form-root').innerHTML = stepHtml;
+        bindEvents(state.currentStep, 'a');
+      } else if (state.currentLayout === 'b') {
+        document.getElementById('dir-b-form-root').innerHTML = stepHtml;
+        bindEvents(state.currentStep, 'b');
+        updateSplitConsolePreview();
+      }
+
+      lucide.createIcons();
+      updatePrimaryAccentColors();
+    }
+
+    // --- Render Continuous Sheet (Direction C) ---
+    function renderContinuousSheet() {
+      // In direction C, inject form templates directly into the sections
+      for (let s = 1; s <= 7; s++) {
+        const root = document.getElementById(`c-step-${s}-form`);
+        if (root) {
+          root.innerHTML = getStepHtml(s);
+          bindEvents(s, 'c');
+        }
+      }
+      lucide.createIcons();
+      updateContinuousGating();
+    }
+
+    function updateContinuousGating() {
+      // Gating state in Direction C based on current completion
+      for (let s = 1; s <= 7; s++) {
+        const sec = document.getElementById(`c-section-${s}`);
+        if (!sec) continue;
+
+        sec.classList.remove('is-locked', 'is-completed');
+        if (s < state.currentStep) {
+          sec.classList.add('is-completed');
+        } else if (s > state.currentStep) {
+          sec.classList.add('is-locked');
+        }
+      }
+    }
+
+    function saveContinuousSection(stepNum) {
+      if (!validateStep(stepNum)) return;
+      state.currentStep = stepNum + 1;
+      updateContinuousGating();
+      
+      // Smooth scroll to next section
+      const nextSec = document.getElementById(`c-section-${stepNum + 1}`);
+      if (nextSec) {
+        nextSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // --- HTML Templates for Onboarding Steps ---
+    function getStepHtml(step) {
+      switch (step) {
+        case 1:
+          return `
+            <h2>Establish the agency imprint</h2>
+            <p>Define the legal presence, home markets, and structural format of this node. This primes default match indices.</p>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Agency Legal Name</label>
+                <input type="text" class="input-field" data-bind="agencyName" value="${state.agencyName}" placeholder="e.g. Wilhelmina Models">
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Subdomain Access</label>
+                <div class="subdomain-input-wrapper">
+                  <input type="text" data-bind="subdomain" value="${state.subdomain}" placeholder="wilhelmina">
+                  <span class="subdomain-suffix">.pholio.app</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Agency Operational Type</label>
+                <select class="input-field" data-bind="agencyType">
+                  <option value="mother" ${state.agencyType === 'mother' ? 'selected' : ''}>Mother Agency (Dev & Placement Focus)</option>
+                  <option value="boutique" ${state.agencyType === 'boutique' ? 'selected' : ''}>Boutique (Editorial / Roster Specific)</option>
+                  <option value="full_service" ${state.agencyType === 'full_service' ? 'selected' : ''}>Full-Service (High Volume Multi-board)</option>
+                  <option value="management" ${state.agencyType === 'management' ? 'selected' : ''}>Talent Management (Individual Actors/Artists)</option>
+                  <option value="scouting" ${state.agencyType === 'scouting' ? 'selected' : ''}>Scouting / Development Network</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Home Market(s)</label>
+                <input type="text" class="input-field" id="markets-input" value="${state.homeMarkets.join(', ')}" placeholder="e.g. New York, London">
+                <small style="font-size:0.75rem; color: var(--ag-text-tertiary);">Comma separated list. Sets regional brief weights.</small>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="compliance-checkbox" style="margin-bottom: 16px;">
+                <input type="checkbox" id="places-into-check" ${state.placesInto ? 'checked' : ''}>
+                <span>This agency places talent into other international markets (Co-representation splits)</span>
+              </label>
+            </div>
+
+            <div class="form-group" id="placement-markets-wrapper" style="display: ${state.placesInto ? 'block' : 'none'};">
+              <label class="form-label">Placement Target Markets</label>
+              <input type="text" class="input-field" id="placement-input" value="${state.placementMarkets.join(', ')}" placeholder="e.g. Paris, Milan, Tokyo">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Website</label>
+                <input type="url" class="input-field" data-bind="website" value="${state.website}" placeholder="https://example.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Instagram Handle</label>
+                <input type="text" class="input-field" data-bind="instagram" value="${state.instagram}" placeholder="e.g. agency_ny">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Agency Profile (Editorial Bio)</label>
+              <textarea class="input-field" data-bind="description" placeholder="A brief narrative explaining the agency's voice, heritage, and focus...">${state.description}</textarea>
+            </div>
+          `;
+
+        case 2:
+          const renderCard = (key, label, desc) => {
+            const isSel = state.selectedBoards.includes(key);
+            const meta = state.boardsMetadata[key];
+            return `
+              <div class="selection-card ${isSel ? 'is-selected' : ''}" data-board-key="${key}" onclick="toggleBoardSelection('${key}')">
+                <div class="selection-card-check">
+                  <i data-lucide="check" style="width: 10px; height: 10px; stroke-width: 3;"></i>
+                </div>
+                <div>
+                  <span class="selection-card-label">${label}</span>
+                  <div class="selection-card-meta">${desc}</div>
+                </div>
+                <div class="selection-card-ops" style="display: ${isSel ? 'flex' : 'none'}; gap: 10px; font-size: 0.7rem; color: var(--ag-text-secondary); margin-top: 8px;" onclick="event.stopPropagation()">
+                  <label style="display:flex; align-items:center; gap:3px; cursor:pointer;">
+                    <input type="checkbox" id="open-board-${key}" ${meta.isOpen ? 'checked' : ''} onchange="updateBoardMetadata('${key}', 'isOpen', this.checked)"> Open Submissions
+                  </label>
+                  <label style="display:flex; align-items:center; gap:3px; cursor:pointer;">
+                    <input type="checkbox" id="dev-board-${key}" ${meta.isDev ? 'checked' : ''} onchange="updateBoardMetadata('${key}', 'isDev', this.checked)"> New Faces/Dev
+                  </label>
+                </div>
+              </div>
+            `;
+          };
+
+          return `
+            <h2>Initialize agency divisions</h2>
+            <p>Select the roster boards this office runs. This generates physical database tables, Kanban pipelines, and gates the matching algorithm.</p>
+            
+            <div class="selection-grid">
+              ${renderCard('women', "Women's Fashion", "Runway & high-fashion editorial")}
+              ${renderCard('men', "Men's Division", "High-fashion & print commerce")}
+              ${renderCard('new_faces', "New Faces / Development", "Emerging talent pipeline")}
+              ${renderCard('curve', "Curve / Plus Size", "Fashion curve & body diversity")}
+              ${renderCard('kids', "Kids & Teens", "Underage talent division (Minor rules apply)")}
+            </div>
+
+            <div style="background: var(--ag-surface-hover); border-radius: 8px; padding: 16px; border: 1px dashed var(--ag-border-strong);">
+              <p style="font-weight: 600; color: var(--ag-ink); margin-bottom: 4px; font-size:0.8125rem;">
+                <i data-lucide="info" style="width: 14px; height: 14px; display:inline-block; vertical-align:middle; margin-top:-2px; color: var(--ag-gold);"></i>
+                Division Architecture Note:
+              </p>
+              <p style="font-size: 0.8125rem; margin-bottom:0; color: var(--ag-text-secondary);">
+                Active roster displays, applicant inbox categorizations, and matching rules will run on the boards selected here. Boards marked as "New Faces/Dev" feed specialized scouting parameters.
+              </p>
+            </div>
+          `;
+
+        case 3:
+          if (state.selectedBoards.length === 0) {
+            return `
+              <h2>Deploy casting standards</h2>
+              <p style="color: var(--ag-danger);">No boards were selected in Step 2. Please return and select at least one division board.</p>
+            `;
+          }
+
+          // Tabs for boards
+          const tabsHtml = state.selectedBoards.map(key => {
+            const label = state.boardsMetadata[key]?.name || key;
+            const active = key === state.activeBoardTab ? 'is-active' : '';
+            return `<button class="board-spec-tab ${active}" onclick="switchCastingTab('${key}')">${label}</button>`;
+          }).join('');
+
+          const activeBoard = state.activeBoardTab;
+          const spec = state.castingSpecs[activeBoard] || {};
+          const isKidsBoard = activeBoard === 'kids';
+
+          return `
+            <h2>Establish casting standards</h2>
+            <p>Set physical preferences and criteria relevance weights for each board. The matcher runs on these ranges.</p>
+            
+            <div class="board-spec-tabs">
+              ${tabsHtml}
+            </div>
+
+            <div style="background: var(--ag-surface); border: 1px solid var(--ag-border-strong); border-radius: 12px; padding: 24px;">
+              <h3 style="margin-bottom: 8px;">Casting Specs: ${state.boardsMetadata[activeBoard]?.name}</h3>
+              <p style="font-size: 0.8125rem; margin-bottom: 24px;">These inputs pre-fill client casting briefs and default search relevance filters.</p>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Genders on Board</label>
+                  <div style="display:flex; gap: 16px; margin-top: 8px;">
+                    <label style="display:flex; align-items:center; gap:6px;">
+                      <input type="checkbox" name="gender-pref" value="female" ${spec.genders.includes('female') ? 'checked' : ''} onchange="updateCastingGenders('${activeBoard}', 'female', this.checked)"> Female
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px;">
+                      <input type="checkbox" name="gender-pref" value="male" ${spec.genders.includes('male') ? 'checked' : ''} onchange="updateCastingGenders('${activeBoard}', 'male', this.checked)"> Male
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px;">
+                      <input type="checkbox" name="gender-pref" value="nonbinary" ${spec.genders.includes('nonbinary') ? 'checked' : ''} onchange="updateCastingGenders('${activeBoard}', 'nonbinary', this.checked)"> Non-Binary
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Experience Levels</label>
+                  <div style="display:flex; gap: 16px; margin-top: 8px;">
+                    <label style="display:flex; align-items:center; gap:6px;">
+                      <input type="checkbox" name="exp-pref" value="fresh_face" ${spec.experience.includes('fresh_face') ? 'checked' : ''} onchange="updateCastingArray('${activeBoard}', 'experience', 'fresh_face', this.checked)"> New Faces Only
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px;">
+                      <input type="checkbox" name="exp-pref" value="established" ${spec.experience.includes('established') ? 'checked' : ''} onchange="updateCastingArray('${activeBoard}', 'experience', 'established', this.checked)"> Established
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Range Sliders (Age & Height) -->
+              <div class="form-row" style="margin-top: 16px;">
+                <div class="form-group slider-container">
+                  <div class="slider-header">
+                    <span class="slider-title">Ideal Age Window</span>
+                    <span class="slider-value" id="val-age-${activeBoard}">${spec.minAge} - ${spec.maxAge} yrs</span>
+                  </div>
+                  <div class="slider-inputs">
+                    <input type="range" class="range-slider" min="0" max="60" value="${spec.minAge}" oninput="updateCastingValue('${activeBoard}', 'minAge', parseInt(this.value)); document.getElementById('val-age-${activeBoard}').innerText = this.value + ' - ' + state.castingSpecs['${activeBoard}'].maxAge + ' yrs'">
+                    <input type="range" class="range-slider" min="10" max="80" value="${spec.maxAge}" oninput="updateCastingValue('${activeBoard}', 'maxAge', parseInt(this.value)); document.getElementById('val-age-${activeBoard}').innerText = state.castingSpecs['${activeBoard}'].minAge + ' - ' + this.value + ' yrs'">
+                  </div>
+                </div>
+
+                <div class="form-group slider-container">
+                  <div class="slider-header">
+                    <span class="slider-title">Ideal Height Range</span>
+                    <span class="slider-value" id="val-height-${activeBoard}">${spec.minHeight} - ${spec.maxHeight} cm (${Math.round(spec.minHeight/2.54)} - ${Math.round(spec.maxHeight/2.54)} in)</span>
+                  </div>
+                  <div class="slider-inputs">
+                    <input type="range" class="range-slider" min="90" max="210" value="${spec.minHeight}" oninput="updateCastingValue('${activeBoard}', 'minHeight', parseInt(this.value)); updateHeightLabel('${activeBoard}')">
+                    <input type="range" class="range-slider" min="100" max="220" value="${spec.maxHeight}" oninput="updateCastingValue('${activeBoard}', 'maxHeight', parseInt(this.value)); updateHeightLabel('${activeBoard}')">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Dimensions (Disabled for Kids board) -->
+              <div style="display: ${isKidsBoard ? 'none' : 'block'}; border-top: 1px solid var(--ag-border); padding-top: 24px; margin-top: 16px;">
+                <h4 style="font-size:0.8125rem; font-weight:600; margin-bottom:12px; color: var(--ag-ink);">Physical Blueprint Defaults (Editorial Standards)</h4>
+                <div class="form-row">
+                  <div class="form-group slider-container">
+                    <div class="slider-header"><span class="slider-title">Bust/Chest Window</span><span class="slider-value" id="val-bust-${activeBoard}">${spec.bustMin} - ${spec.bustMax} cm</span></div>
+                    <div class="slider-inputs">
+                      <input type="range" class="range-slider" min="70" max="130" value="${spec.bustMin}" oninput="updateCastingValue('${activeBoard}', 'bustMin', parseInt(this.value)); document.getElementById('val-bust-${activeBoard}').innerText = this.value + ' - ' + state.castingSpecs['${activeBoard}'].bustMax + ' cm'">
+                      <input type="range" class="range-slider" min="80" max="140" value="${spec.bustMax}" oninput="updateCastingValue('${activeBoard}', 'bustMax', parseInt(this.value)); document.getElementById('val-bust-${activeBoard}').innerText = state.castingSpecs['${activeBoard}'].bustMin + ' - ' + this.value + ' cm'">
+                    </div>
+                  </div>
+                  <div class="form-group slider-container">
+                    <div class="slider-header"><span class="slider-title">Waist Range</span><span class="slider-value" id="val-waist-${activeBoard}">${spec.waistMin} - ${spec.waistMax} cm</span></div>
+                    <div class="slider-inputs">
+                      <input type="range" class="range-slider" min="50" max="110" value="${spec.waistMin}" oninput="updateCastingValue('${activeBoard}', 'waistMin', parseInt(this.value)); document.getElementById('val-waist-${activeBoard}').innerText = this.value + ' - ' + state.castingSpecs['${activeBoard}'].waistMax + ' cm'">
+                      <input type="range" class="range-slider" min="60" max="120" value="${spec.waistMax}" oninput="updateCastingValue('${activeBoard}', 'waistMax', parseInt(this.value)); document.getElementById('val-waist-${activeBoard}').innerText = state.castingSpecs['${activeBoard}'].waistMin + ' - ' + this.value + ' cm'">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Match Scoring Weights -->
+              <div style="border-top: 1px solid var(--ag-border); padding-top: 24px; margin-top: 16px;">
+                <h4 style="font-size:0.8125rem; font-weight:600; margin-bottom:12px; color: var(--ag-ink);">Algorithm Match Relevance (Importance Sliders 0-5)</h4>
+                <div class="form-row">
+                  <div class="form-group slider-container">
+                    <div class="slider-header"><span class="slider-title">Height Importance</span><span class="slider-value" id="val-w-height-${activeBoard}">${spec.importance.height}/5</span></div>
+                    <input type="range" class="range-slider" min="0" max="5" value="${spec.importance.height}" oninput="updateCastingWeight('${activeBoard}', 'height', parseInt(this.value)); document.getElementById('val-w-height-${activeBoard}').innerText = this.value + '/5'">
+                  </div>
+                  <div class="form-group slider-container">
+                    <div class="slider-header"><span class="slider-title">Age Gating Sensitivity</span><span class="slider-value" id="val-w-age-${activeBoard}">${spec.importance.age}/5</span></div>
+                    <input type="range" class="range-slider" min="0" max="5" value="${spec.importance.age}" oninput="updateCastingWeight('${activeBoard}', 'age', parseInt(this.value)); document.getElementById('val-w-age-${activeBoard}').innerText = this.value + '/5'">
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          `;
+
+        case 4:
+          const hasMinors = isMinorsBranchRequired();
+          const renderCheckbox = (key, label, desc) => {
+            const checked = state.requiredMaterials.includes(key);
+            return `
+              <label style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px; cursor:pointer;">
+                <input type="checkbox" style="margin-top:4px;" value="${key}" ${checked ? 'checked' : ''} onchange="toggleInboundMaterial('${key}', this.checked)">
+                <div>
+                  <span style="font-weight:600; color: var(--ag-ink);">${label}</span>
+                  <p style="font-size:0.75rem; margin-bottom:0; color: var(--ag-text-secondary);">${desc}</p>
+                </div>
+              </label>
+            `;
+          };
+
+          return `
+            <h2>Setup the intake funnel</h2>
+            <p>Determine requirements for inbound talent applications. This sets submission form layouts and activates open-call funnels.</p>
+
+            <div class="form-group">
+              <label class="compliance-checkbox" style="margin-bottom: 24px;">
+                <input type="checkbox" id="accepting-inbound-check" ${state.acceptingInbound ? 'checked' : ''}>
+                <span>This agency is currently accepting open portfolio submissions (Enables public /apply URL)</span>
+              </label>
+            </div>
+
+            <div class="form-group" style="border-top: 1px solid var(--ag-border); padding-top:20px;">
+              <label class="form-label" style="margin-bottom: 12px;">Required Candidate Application Elements</label>
+              ${renderCheckbox('digitals', 'Digital Polas (Natural Light Headshot/Body)', 'Strictly plain backgrounds. Essential for editorial casting evaluation.')}
+              ${renderCheckbox('measurements', 'Verified Bodily Measurements', 'Height, bust, waist, hips, shoe size, eye color.')}
+              ${renderCheckbox('portfolio', 'Professional Portfolio Book', 'Existing test sheets, editorials, tear sheets.')}
+              ${renderCheckbox('reel', 'Video Introduction / Walk Reel', '15-second visual reel indicating motion, stance, and voice.')}
+              ${renderCheckbox('social_handles', 'Social Media Verification', 'Instagram/TikTok links for audience metrics matching.')}
+            </div>
+
+            <!-- Generate Open Call Link Widget -->
+            <div style="background: var(--ag-surface-hover); border: 1px solid var(--ag-border-strong); border-radius: 8px; padding: 16px; margin: 24px 0;">
+              <label class="form-label" style="color: var(--ag-gold-hover);">Generated Open Call Inbound Link</label>
+              <div style="display:flex; gap: 8px; margin-top: 8px;">
+                <input type="text" class="input-field" readonly value="https://app.pholio.studio/onboarding/${state.subdomain}/apply" style="background:#FFFFFF; font-family: monospace; font-size:0.8125rem;">
+                <button class="btn btn-secondary" onclick="alert('Link copied to clipboard')">Copy Link</button>
+              </div>
+            </div>
+
+            <!-- MINORS COMPLIANCE BRANCH -->
+            <div class="compliance-banner" id="minor-compliance-banner" style="display: ${hasMinors ? 'block' : 'none'};">
+              <div class="compliance-banner-title">
+                <i data-lucide="shield-alert" style="width: 16px; height: 16px;"></i>
+                Minor Representation Gating (COPPA & GDPR Compliance)
+              </div>
+              <p class="compliance-banner-desc">
+                Since your representation profile includes talent under 18 years of age, you are legally required to verify guardian consent. Pholio will enforce parent/guardian verification emails, suppress public index tracking of kids' measurements, and watermark polaroids.
+              </p>
+              <label class="compliance-checkbox">
+                <input type="checkbox" id="minor-consent-check" ${state.minorsAcknowledgment ? 'checked' : ''} onchange="state.minorsAcknowledgment = this.checked">
+                <span>We acknowledge and agree to comply with laws governing the collection of minor data.</span>
+              </label>
+            </div>
+          `;
+
+        case 5:
+          const teamRows = state.team.map((member, idx) => `
+            <div class="seat-row" id="team-row-${idx}">
+              <input type="email" class="input-field" value="${member.email}" onchange="updateTeamMember(${idx}, 'email', this.value)">
+              <select class="input-field" onchange="updateTeamMember(${idx}, 'role', this.value)">
+                <option value="OWNER" ${member.role === 'OWNER' ? 'selected' : ''}>Owner</option>
+                <option value="ADMIN" ${member.role === 'ADMIN' ? 'selected' : ''}>Admin</option>
+                <option value="MEMBER" ${member.role === 'MEMBER' ? 'selected' : ''}>Booker Seat</option>
+              </select>
+              <select class="input-field" onchange="updateTeamMember(${idx}, 'bookerRole', this.value)">
+                <option value="head" ${member.bookerRole === 'head' ? 'selected' : ''}>Head Booker</option>
+                <option value="booker" ${member.bookerRole === 'booker' ? 'selected' : ''}>Roster Booker</option>
+                <option value="scout" ${member.bookerRole === 'scout' ? 'selected' : ''}>Scout</option>
+                <option value="accounting" ${member.bookerRole === 'accounting' ? 'selected' : ''}>Finance/Accounting</option>
+              </select>
+              <button class="btn btn-secondary btn-danger" onclick="removeTeamMember(${idx})" style="padding:0; width:40px; height:40px;">
+                <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+              </button>
+            </div>
+          `).join('');
+
+          return `
+            <h2>Invite the booking team</h2>
+            <p>Create credentials for team members. Allocate active board ownership so inbox applications route to the correct desk.</p>
+            
+            <div style="margin-bottom: 24px;">
+              <div style="display: grid; grid-template-columns: 2fr 1.5fr 2fr auto; gap: 12px; margin-bottom: 6px;">
+                <span class="form-label" style="margin-bottom: 0;">Booker Email Address</span>
+                <span class="form-label" style="margin-bottom: 0;">RBAC Permission</span>
+                <span class="form-label" style="margin-bottom: 0;">Desk Assignment</span>
+                <span></span>
+              </div>
+              <div id="team-members-root">
+                ${teamRows}
+              </div>
+              <button class="btn btn-secondary" onclick="addTeamMember()" style="margin-top: 12px;">
+                <i data-lucide="plus" style="width:14px; height:14px;"></i> Add Booker Seat
+              </button>
+            </div>
+          `;
+
+        case 6:
+          return `
+            <h2>Define workspace aesthetics</h2>
+            <p>Set branding profiles and dashboard preferences. Brand selections inject custom styles across the ledger interface.</p>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Agency Logomark</label>
+                <div style="display:flex; gap:16px; align-items:center;">
+                  <div style="width: 80px; height: 80px; border-radius: 8px; border:1px solid var(--ag-border-strong); background: var(--ag-surface); display:flex; align-items:center; justify-content:center;">
+                    <i data-lucide="image" style="width:24px; height:24px; color: var(--ag-text-tertiary);"></i>
+                  </div>
+                  <div>
+                    <button class="btn btn-secondary" onclick="alert('Image upload simulated')">Upload SVG/PNG</button>
+                    <p style="font-size:0.75rem; margin-top:6px; margin-bottom:0; color:var(--ag-text-tertiary);">Use black or white marks, transparent backing.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Primary Brand Accent</label>
+                <div style="display:flex; gap:12px; align-items:center; margin-top:8px;">
+                  <input type="color" id="brand-color-picker" value="${state.brandColor}" style="width: 44px; height: 44px; border: none; border-radius: 6px; cursor: pointer; padding:0; background:none;">
+                  <code>${state.brandColor}</code>
+                  <div style="display:flex; gap:6px;">
+                    <div class="color-preview-swatch" style="background:#C9A55A" onclick="setBrandColor('#C9A55A')"></div>
+                    <div class="color-preview-swatch" style="background:#1A1815" onclick="setBrandColor('#1A1815')"></div>
+                    <div class="color-preview-swatch" style="background:#8C1D40" onclick="setBrandColor('#8C1D40')"></div>
+                    <div class="color-preview-swatch" style="background:#1E4B3E" onclick="setBrandColor('#1E4B3E')"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row" style="border-top:1px solid var(--ag-border); padding-top:20px;">
+              <div class="form-group">
+                <label class="form-label">Default Dashboard View</label>
+                <select class="input-field" data-bind="defaultView">
+                  <option value="overview" ${state.defaultView === 'overview' ? 'selected' : ''}>Overview Command Center (Ledger)</option>
+                  <option value="discover" ${state.defaultView === 'discover' ? 'selected' : ''}>Discover / Search Grid</option>
+                  <option value="roster" ${state.defaultView === 'roster' ? 'selected' : ''}>Casting Kanban Board</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Alert Notifications</label>
+                <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+                  <label style="display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="notify-new-apps-check" ${state.notifyNewApps ? 'checked' : ''} onchange="state.notifyNewApps = this.checked"> Notify on new open-call submissions
+                  </label>
+                </div>
+              </div>
+            </div>
+          `;
+
+        case 7:
+          const renderSummaryRow = (label, val) => `
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--ag-border); padding: 10px 0;">
+              <span style="color: var(--ag-text-secondary); font-weight:500;">${label}</span>
+              <span style="font-weight: 600; color: var(--ag-ink);">${val}</span>
+            </div>
+          `;
+
+          const boardsSummary = state.selectedBoards.map(key => state.boardsMetadata[key]?.name).join(', ') || 'No Boards';
+
+          return `
+            <h2>Confirm Ledger Deployment</h2>
+            <p>Review the operational structure before seal. You can customize active parameters in workspace settings later.</p>
+            
+            <div style="background:var(--ag-surface); border:1px solid var(--ag-border-strong); border-radius:12px; padding:24px; margin-bottom:24px;">
+              ${renderSummaryRow('Agency Node Name', state.agencyName)}
+              ${renderSummaryRow('URL Subdomain', `${state.subdomain}.pholio.app`)}
+              ${renderSummaryRow('Markets Mapping', state.homeMarkets.join(', '))}
+              ${renderSummaryRow('Initialized Division Boards', boardsSummary)}
+              ${renderSummaryRow('Inbound Submissions', state.acceptingInbound ? 'Enabled (Open Call Link Live)' : 'Disabled')}
+              ${renderSummaryRow('Team Coverage', `${state.team.length} Active Bookers`)}
+              ${renderSummaryRow('Workspace Primary Accent', `<span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${state.brandColor}; vertical-align:middle; margin-right:4px;"></span> ${state.brandColor}`)}
+            </div>
+
+            <div style="background: var(--ag-success-bg); border: 1px solid rgba(45, 138, 86, 0.15); border-radius: 8px; padding: 16px;">
+              <div style="font-weight: 600; color: var(--ag-success); display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <i data-lucide="shield-check" style="width:16px; height:16px;"></i> Ready for Command Center
+              </div>
+              <p style="font-size:0.8125rem; color: #1e5937; margin-bottom:0;">
+                All configurations match Pholio Roster Gating protocols. Confirming below will write settings to permanent database rows.
+              </p>
+            </div>
+          `;
+
+        default:
+          return '';
+      }
+    }
+
+    // --- Dynamic Height range unit helper ---
+    function updateHeightLabel(board) {
+      const minH = state.castingSpecs[board].minHeight;
+      const maxH = state.castingSpecs[board].maxHeight;
+      const minIn = Math.round(minH / 2.54);
+      const maxIn = Math.round(maxH / 2.54);
+      document.getElementById(`val-height-${board}`).innerText = `${minH} - ${maxH} cm (${minIn} - ${maxIn} in)`;
+    }
+
+    // --- State Binding & Event Routing ---
+    function bindEvents(step, layout) {
+      // 1. Double bind text fields
+      document.querySelectorAll('[data-bind]').forEach(input => {
+        const key = input.dataset.bind;
+        input.addEventListener('input', (e) => {
+          state[key] = e.target.value;
+          
+          // Split console specific preview updates
+          if (state.currentLayout === 'b') {
+            updateSplitConsolePreview();
+          }
+        });
+      });
+
+      // Step specific triggers
+      if (step === 1) {
+        // Placement check toggle
+        const placesCheck = document.getElementById('places-into-check');
+        if (placesCheck) {
+          placesCheck.addEventListener('change', (e) => {
+            state.placesInto = e.target.checked;
+            const wrap = document.getElementById('placement-markets-wrapper');
+            if (wrap) wrap.style.display = e.target.checked ? 'block' : 'none';
+          });
+        }
+
+        // Markets parse
+        const mInput = document.getElementById('markets-input');
+        if (mInput) {
+          mInput.addEventListener('change', (e) => {
+            state.homeMarkets = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+            if (state.currentLayout === 'b') updateSplitConsolePreview();
+          });
+        }
+
+        // Placement markets parse
+        const pInput = document.getElementById('placement-input');
+        if (pInput) {
+          pInput.addEventListener('change', (e) => {
+            state.placementMarkets = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+          });
+        }
+      }
+
+      if (step === 6) {
+        // Brand color picker
+        const cp = document.getElementById('brand-color-picker');
+        if (cp) {
+          cp.addEventListener('input', (e) => {
+            setBrandColor(e.target.value);
+          });
+        }
+      }
+    }
+
+    // --- Brand Accent Dynamic injection ---
+    function setBrandColor(color) {
+      state.brandColor = color;
+      updatePrimaryAccentColors();
+      
+      const cp = document.getElementById('brand-color-picker');
+      if (cp) cp.value = color;
+      
+      const code = cp?.nextElementSibling;
+      if (code) code.innerText = color.toUpperCase();
+    }
+
+    function updatePrimaryAccentColors() {
+      // Inject CSS variables to dynamically set custom brand color
+      document.documentElement.style.setProperty('--ag-gold', state.brandColor);
+      
+      // Calculate a slightly darker hover state
+      let hex = state.brandColor.replace('#', '');
+      let r = parseInt(hex.substring(0,2), 16);
+      let g = parseInt(hex.substring(2,4), 16);
+      let b = parseInt(hex.substring(4,6), 16);
+      
+      r = Math.max(0, Math.round(r * 0.9));
+      g = Math.max(0, Math.round(g * 0.9));
+      b = Math.max(0, Math.round(b * 0.9));
+      
+      let hoverColor = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+      document.documentElement.style.setProperty('--ag-gold-hover', hoverColor);
+    }
+
+    // --- Board selections (Step 2) ---
+    function toggleBoardSelection(key) {
+      if (state.selectedBoards.includes(key)) {
+        state.selectedBoards = state.selectedBoards.filter(k => k !== key);
+      } else {
+        state.selectedBoards.push(key);
+      }
+
+      // Automatically sync active subtab in step 3
+      if (!state.selectedBoards.includes(state.activeBoardTab)) {
+        state.activeBoardTab = state.selectedBoards[0] || 'women';
+      }
+
+      renderActiveStep();
+    }
+
+    function updateBoardMetadata(key, property, val) {
+      if (state.boardsMetadata[key]) {
+        state.boardsMetadata[key][property] = val;
+      }
+    }
+
+    // --- Casting spec adjustments (Step 3) ---
+    function switchCastingTab(key) {
+      state.activeBoardTab = key;
+      renderActiveStep();
+    }
+
+    function updateCastingValue(board, key, val) {
+      if (state.castingSpecs[board]) {
+        state.castingSpecs[board][key] = val;
+        
+        // Sync to split console preview if active
+        if (state.currentLayout === 'b') updateSplitConsolePreview();
+      }
+    }
+
+    function updateCastingWeight(board, key, val) {
+      if (state.castingSpecs[board] && state.castingSpecs[board].importance) {
+        state.castingSpecs[board].importance[key] = val;
+      }
+    }
+
+    function updateCastingGenders(board, gender, checked) {
+      const spec = state.castingSpecs[board];
+      if (!spec) return;
+      if (checked) {
+        if (!spec.genders.includes(gender)) spec.genders.push(gender);
+      } else {
+        spec.genders = spec.genders.filter(g => g !== gender);
+      }
+      if (state.currentLayout === 'b') updateSplitConsolePreview();
+    }
+
+    function updateCastingArray(board, prop, val, checked) {
+      const spec = state.castingSpecs[board];
+      if (!spec) return;
+      if (checked) {
+        if (!spec[prop].includes(val)) spec[prop].push(val);
+      } else {
+        spec[prop] = spec[prop].filter(v => v !== val);
+      }
+    }
+
+    // --- Inbound options (Step 4) ---
+    function toggleInboundMaterial(key, checked) {
+      if (checked) {
+        if (!state.requiredMaterials.includes(key)) state.requiredMaterials.push(key);
+      } else {
+        state.requiredMaterials = state.requiredMaterials.filter(k => k !== key);
+      }
+      if (state.currentLayout === 'b') updateSplitConsolePreview();
+    }
+
+    // --- Team roster seats (Step 5) ---
+    function addTeamMember() {
+      state.team.push({ email: '', role: 'MEMBER', bookerRole: 'booker', boards: [] });
+      renderActiveStep();
+    }
+
+    function removeTeamMember(idx) {
+      state.team.splice(idx, 1);
+      renderActiveStep();
+    }
+
+    function updateTeamMember(idx, key, val) {
+      if (state.team[idx]) {
+        state.team[idx][key] = val;
+      }
+    }
+
+    // --- Split Console live render engine ---
+    function updateSplitConsolePreview() {
+      // 1. Sync title and markets
+      const title = document.getElementById('preview-logo-text');
+      if (title) title.innerText = state.agencyName || 'Agency Ledger';
+      
+      const market = document.getElementById('preview-market-text');
+      if (market) market.innerText = state.homeMarkets.join(' · ') || 'Unmapped Markets';
+
+      // 2. Sync boards tabs
+      const tabsWrap = document.getElementById('preview-boards-tabs');
+      if (tabsWrap) {
+        tabsWrap.innerHTML = state.selectedBoards.map((key, idx) => {
+          const name = state.boardsMetadata[key]?.name || key;
+          const active = idx === 0 ? 'is-active' : '';
+          return `<span class="preview-tab-pill ${active}">${name}</span>`;
+        }).join('');
+      }
+
+      // 3. Sync Roster Table preview
+      const rosterWrap = document.getElementById('preview-roster-body');
+      if (rosterWrap) {
+        if (state.selectedBoards.length === 0) {
+          rosterWrap.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--ag-text-tertiary);">No Active Divisions mapped</td></tr>`;
+        } else {
+          // Mock data based on selected boards
+          rosterWrap.innerHTML = state.selectedBoards.slice(0, 3).map((board, idx) => {
+            const bName = state.boardsMetadata[board]?.name || board;
+            const names = ['Sasha V.', 'Leon M.', 'Carla K.'];
+            const scores = ['98%', '92%', '89%'];
+            return `
+              <tr>
+                <td>${names[idx] || 'Model'}</td>
+                <td>${bName}</td>
+                <td>Available</td>
+                <td>${scores[idx] || '—'}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      // 4. Sync Active board Brief Matcher preview
+      const activeBoard = state.selectedBoards[0] || 'women';
+      const spec = state.castingSpecs[activeBoard];
+      const briefTitle = document.getElementById('preview-active-brief-board');
+      
+      if (briefTitle) briefTitle.innerText = state.boardsMetadata[activeBoard]?.name || activeBoard;
+
+      const specsWrap = document.getElementById('preview-match-specs');
+      if (specsWrap && spec) {
+        const gendersStr = spec.genders.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(', ');
+        specsWrap.innerHTML = `
+          <div class="preview-criteria-row">
+            <span class="preview-criteria-label">Genders</span>
+            <span class="preview-criteria-val">${gendersStr || 'None'}</span>
+          </div>
+          <div class="preview-criteria-row">
+            <span class="preview-criteria-label">Height Range</span>
+            <span class="preview-criteria-val">${spec.minHeight} - ${spec.maxHeight} cm</span>
+          </div>
+          <div class="preview-criteria-row">
+            <span class="preview-criteria-label">Age Gating</span>
+            <span class="preview-criteria-val">${spec.minAge} - ${spec.maxAge} yrs</span>
+          </div>
+          <div class="preview-criteria-row">
+            <span class="preview-criteria-label">Intake Scope</span>
+            <span class="preview-criteria-val">${state.requiredMaterials.map(m => m.charAt(0).toUpperCase() + m.slice(1)).slice(0, 2).join(', ')}...</span>
+          </div>
+        `;
+      }
+    }
+
+    // --- Modal Control ---
+    function triggerLaunch() {
+      const modalCount = document.getElementById('modal-board-count');
+      if (modalCount) modalCount.innerText = state.selectedBoards.length;
+
+      const modalUrl = document.getElementById('modal-url');
+      if (modalUrl) modalUrl.innerText = `${state.subdomain}.pholio.app/apply`;
+
+      document.getElementById('launch-scrim').classList.add('is-open');
+    }
+
+    function closeModal() {
+      document.getElementById('launch-scrim').classList.remove('is-open');
+    }
+
+  </script>
+</body>
+</html>

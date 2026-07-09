@@ -10,6 +10,7 @@ const BUTTON_VARIANTS = new Set([
   'icon',
   'destructive',
   'toggle',
+  'ai',
 ]);
 
 function cx(...values) {
@@ -18,6 +19,32 @@ function cx(...values) {
 
 function normalizeVariant(variant) {
   return BUTTON_VARIANTS.has(variant) ? variant : 'secondary';
+}
+
+function renderButtonContent(children, variant) {
+  if (variant === 'ai') {
+    return (
+      <>
+        <svg 
+          viewBox="0 0 24 24" 
+          width="13" 
+          height="13" 
+          className="pholio-btn-ai-flare-icon" 
+          style={{ 
+            fill: 'var(--ph-btn-gold-warm)', 
+            marginRight: '6px',
+            display: 'inline-block', 
+            verticalAlign: 'middle',
+            transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
+          <path d="M 12 2 C 12 10, 8 12, 12 22 C 12 14, 16 12, 12 2 Z" />
+        </svg>
+        <span>{children}</span>
+      </>
+    );
+  }
+  return children;
 }
 
 /**
@@ -69,6 +96,8 @@ export default function PholioButton({
     onClick: handleClick,
   };
 
+  const content = renderButtonContent(children, resolvedVariant);
+
   if (as === 'a' || href) {
     return (
       <a
@@ -77,7 +106,7 @@ export default function PholioButton({
         tabIndex={isDisabled ? -1 : tabIndex}
         {...sharedProps}
       >
-        {children}
+        {content}
       </a>
     );
   }
@@ -90,7 +119,7 @@ export default function PholioButton({
         tabIndex={isDisabled ? -1 : tabIndex}
         {...sharedProps}
       >
-        {children}
+        {content}
       </Link>
     );
   }
@@ -103,7 +132,7 @@ export default function PholioButton({
       disabled={isDisabled}
       {...sharedProps}
     >
-      {children}
+      {content}
     </Component>
   );
 }

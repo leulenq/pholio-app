@@ -256,8 +256,8 @@ function getDemoProfile(slug) {
       id: "demo-elara-k",
       slug: "elara-k",
       user_id: "demo-user",
-      first_name: "Elara",
-      last_name: "Keats",
+      first_name: "Mara",
+      last_name: "Voss",
       city: "Los Angeles, CA",
       height_cm: 180,
       measurements: "32-25-35",
@@ -866,6 +866,11 @@ async function renderComposedView(req, res, data, isDemo) {
       const raw = normalizeQueryValue(req.query.treatment);
       return TREATMENTS.includes(raw) ? raw : null;
     })();
+    const BACK_ARCHS = ["uniform-grid", "feature-column", "feature-row", "mosaic", "filmstrip", "editorial-stagger", "restrained-duo", "high-density"];
+    let forceBackArchitecture = (() => {
+      const raw = normalizeQueryValue(req.query.backArchitecture);
+      return BACK_ARCHS.includes(raw) ? raw : null;
+    })();
     // "Another take" diversity: the dashboard passes the previous take's
     // structure/treatment/voice so the next take diverges materially.
     const avoid = (() => {
@@ -997,6 +1002,7 @@ async function renderComposedView(req, res, data, isDemo) {
         // Named-direction pin + deterministic board conditioning (P0-3).
         forceStructure,
         forceTreatment,
+        forceBackArchitecture,
         avoid,
         advice: boardAdvice(boardParam),
       },

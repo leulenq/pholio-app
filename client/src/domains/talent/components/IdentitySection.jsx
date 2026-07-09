@@ -1,6 +1,5 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
-import { Sparkles } from 'lucide-react';
 import { PholioInput, PholioTextarea, PholioToggle } from '../../../shared/components/ui/forms';
 import PholioButton, {
   PholioToggleButton,
@@ -9,6 +8,7 @@ import PholioButton, {
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
+import HorizonFlare from './HorizonFlare';
 import { computeAge, isMinorProfile } from '../../../shared/utils/talentAge';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
@@ -248,29 +248,19 @@ export const IdentitySection = ({
             <h3 className={styles.bioTitle}>
               About <em>you</em>
             </h3>
-            {hasBio ? (
-              <PholioButton
-                type="button"
-                variant="secondary"
-                onClick={onBioRefine}
-                disabled={isImproving}
-                className={styles.bioRefineBtn}
-              >
-                <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
-                {isImproving && improveMode === 'refine' ? 'Refining…' : 'Refine'}
-              </PholioButton>
-            ) : (
-              <PholioButton
-                type="button"
-                variant="primary"
-                onClick={onBioGenerate}
-                disabled={isImproving}
-                className={styles.bioRefineBtn}
-              >
-                <Sparkles size={11} className={isImproving ? styles.animateSpin : ''} />
-                {isImproving && improveMode === 'generate' ? 'Generating…' : 'Generate'}
-              </PholioButton>
-            )}
+            <HorizonFlare
+              evaluating={isImproving}
+              onClick={isImproving ? undefined : (hasBio ? onBioRefine : onBioGenerate)}
+              style={{ 
+                width: '120px', 
+                height: '40px', 
+                cursor: isImproving ? 'not-allowed' : 'pointer',
+                opacity: isImproving ? 0.7 : 1,
+                marginLeft: '16px'
+              }}
+              title={hasBio ? "Refine Biography" : "Generate Biography"}
+              aria-label={hasBio ? "Refine Biography" : "Generate Biography"}
+            />
           </div>
           <p className={styles.bioLede}>
             Tell agencies what makes you unique.

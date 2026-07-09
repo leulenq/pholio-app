@@ -1,0 +1,63 @@
+.horizon-flare-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  max-width: 120px;
+  height: 40px;
+  overflow: visible;
+  color: var(--ag-text-0);
+  transition: color var(--ag-duration) var(--ag-ease-spring);
+}
+
+.horizon-flare-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.horizon-flare-line {
+  transform-origin: center;
+  transition: stroke-width var(--ag-duration) var(--ag-ease-spring), filter var(--ag-duration) var(--ag-ease-spring);
+}
+
+.horizon-flare-core {
+  transform-origin: center;
+  transition: transform var(--ag-duration) var(--ag-ease-spring), color var(--ag-duration) var(--ag-ease-spring);
+}
+
+/* Hover state styling */
+.horizon-flare-container.is-hoverable:hover {
+  color: var(--ag-gold);
+}
+
+.horizon-flare-container.is-hoverable:hover .horizon-flare-line {
+  stroke-width: 2.2px;
+  filter: drop-shadow(0 0 3px var(--ag-gold));
+}
+
+.horizon-flare-container.is-hoverable:hover .horizon-flare-core {
+  transform: scaleY(1.15) scaleX(1.08);
+  color: var(--ag-gold);
+}
+
+/* Evaluating (processing) breathing shadow */
+.horizon-flare-container.is-evaluating {
+  color: var(--ag-gold);
+}
+
+@keyframes lineBreathingGlow {
+  0%, 100% { 
+    filter: drop-shadow(0 0 1px rgba(201, 165, 90, 0.2)); 
+    stroke-width: 1.5px; 
+  }
+  50% { 
+    filter: drop-shadow(0 0 6px rgba(201, 165, 90, 0.8)); 
+    stroke-width: 2.2px; 
+  }
+}
+
+.horizon-flare-container.is-evaluating .horizon-flare-line {
+  animation: lineBreathingGlow 1.2s infinite ease-in-out;
+}

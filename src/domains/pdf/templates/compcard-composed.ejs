@@ -158,6 +158,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="<%= fontsUrl %>">
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&display=swap" rel="stylesheet">
   <% } %>
   <style>
     @page { size: <%= PAGE_W_IN %>in <%= PAGE_H_IN %>in; margin: 0; }
@@ -313,6 +314,35 @@
       color: rgba(26,24,21,0.06);
       transform: rotate(-32deg);
     }
+    
+    /* Split layout overrides for Milan */
+    [data-structure="split"] .color-plane {
+      background: #11101E !important;
+    }
+    [data-structure="split"] .name-block {
+      top: 0.95in !important;
+      height: auto !important;
+    }
+    [data-structure="split"] .name-block span {
+      font-family: 'Bodoni Moda', serif !important;
+      font-weight: 400 !important;
+      letter-spacing: 0.15em !important;
+      color: #FAF7F2 !important;
+      text-transform: uppercase !important;
+    }
+    [data-structure="split"] .contact-line {
+      top: 1.6in !important;
+      height: auto !important;
+      justify-content: center !important;
+      width: 100% !important;
+      left: 0 !important;
+    }
+    [data-structure="split"] .contact-line span {
+      font-family: 'Inter', sans-serif !important;
+      color: #C9A55A !important;
+      letter-spacing: 0.22em !important;
+      font-size: 7.2pt !important;
+    }
   </style>
 </head>
 <body data-compcard-engine="composed" data-compcard-seed="<%= safePlan.seedUsed || 'auto' %>" data-compcard-tone="<%= safePlan.toneProfile || '' %>">
@@ -337,7 +367,7 @@
   <div class="comp-card-page" id="front" data-structure="<%= fp.structure %>">
     <% fpEls.forEach((e) => { %>
       <% if (e.type === 'colorPlane') { %>
-        <div class="abs" style="<%= rectStyle(e.rect, e.bleedEdges) %> background: <%= e.fill %>; z-index: <%= Math.round((e.z||0)*10) %>;"></div>
+        <div class="abs color-plane" style="<%= rectStyle(e.rect, e.bleedEdges) %> background: <%= e.fill %>; z-index: <%= Math.round((e.z||0)*10) %>;"></div>
       <% } else if (e.type === 'photo') { const src = heroSrc; %>
         <div class="abs hero" style="<%= rectStyle(e.rect, e.bleedEdges) %> z-index: <%= Math.round((e.z||0)*10) %>;">
           <% if (src) { %><img src="<%= src %>" alt="<%= fullName %>" style="object-position: <%= (heroCrop.objectPosition || '50% 50%') %>;"><% } else { %><div class="cell-empty"></div><% } %>
@@ -353,11 +383,11 @@
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; border: <%= (e.weight||0.01) %>in solid <%= e.color %>;"></div>
       <% } else if (e.type === 'name') { const nameSource = e.text || fullName; const lines = e.stacked && nameSource.includes(' ') ? [nameSource.split(/\s+/)[0], nameSource.split(/\s+/).slice(1).join(' ')] : [nameSource]; %>
         <% if (e.scrim) { %><%- fpScrim(e) %><% } %>
-        <div class="abs" data-fit-text style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : (e.align === 'center' ? 'align-items: center; text-align: center;' : 'align-items: flex-start;') %>">
+        <div class="abs name-block" data-fit-text style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : (e.align === 'center' ? 'align-items: center; text-align: center;' : 'align-items: flex-start;') %>">
           <% lines.forEach((ln) => { %><span style="font-family: '<%= e.font === 'body' ? bodyFont : displayFont %>', <%= e.font === 'body' ? 'sans-serif' : 'serif' %>; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= e.transform || nameCase %>; line-height: 1.05; white-space: nowrap;<%= (e.opacity != null && e.opacity < 1) ? ` opacity: ${e.opacity};` : '' %>"><%= ln %></span><% }); %>
         </div>
       <% } else if (e.type === 'contact') { %>
-        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg);' : '' %>">
+        <div class="abs contact-line" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg);' : '' %>">
           <span style="font-family: 'Inter', sans-serif; font-size: <%= e.sizePt %>pt; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap;"><%= e.text %></span>
         </div>
       <% } %>

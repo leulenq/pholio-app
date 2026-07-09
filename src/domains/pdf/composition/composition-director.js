@@ -690,6 +690,7 @@ function designComposition(input = {}) {
     salt: `back:${identity}`,
     cropEngine: engine || null,
     bleedAppetite: brief?.bleedAppetite || null,
+    forceArchitecture: overrides?.forceBackArchitecture || null,
   };
   let backLayout;
   try {

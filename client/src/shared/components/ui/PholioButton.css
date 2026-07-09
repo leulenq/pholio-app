@@ -173,6 +173,64 @@
   color: #9b742f;
 }
 
+.pholio-btn--ai {
+  min-height: 44px;
+  gap: 12px;
+  overflow: hidden;
+  padding: 10px 22px;
+  border: 1px solid var(--ph-btn-ink);
+  background: var(--ph-btn-ink);
+  color: var(--ph-btn-canvas);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pholio-btn--ai::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 0;
+  width: 46px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--ph-btn-gold),
+    transparent
+  );
+  opacity: 0.6;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition:
+    width 0.45s var(--ph-btn-ease),
+    opacity 0.3s var(--ph-btn-ease);
+}
+
+.pholio-btn--ai:hover:not(:disabled):not([aria-disabled='true'])::after,
+.pholio-btn--ai:focus-visible::after {
+  width: 100%;
+  opacity: 1;
+}
+
+.pholio-btn--ai:disabled::after,
+.pholio-btn--ai[aria-disabled='true']::after {
+  opacity: 0.3;
+}
+
+/* Evaluating/loading state matches Concept 02: the line breathes */
+.pholio-btn--ai.is-loading::after {
+  width: 100%;
+  animation: buttonHorizonBreathing 1.2s infinite ease-in-out;
+}
+
+@keyframes buttonHorizonBreathing {
+  0%, 100% { opacity: 0.4; filter: drop-shadow(0 0 1px rgba(201, 165, 90, 0.2)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 6px rgba(201, 165, 90, 0.8)); }
+}
+
 .pholio-btn--secondary {
   min-height: 44px;
   gap: 9px;
@@ -324,6 +382,20 @@
 /* The taxonomy is a hard design-system boundary. Feature CSS may add layout
    classes, but it cannot restyle a role into a one-off button variety. */
 .pholio-btn--primary {
+  min-height: 44px !important;
+  padding: 10px 22px !important;
+  border: 1px solid var(--ph-btn-ink) !important;
+  border-radius: var(--ph-btn-radius) !important;
+  background: var(--ph-btn-ink) !important;
+  color: var(--ph-btn-canvas) !important;
+  font-family: var(--ph-btn-sans) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+.pholio-btn--ai {
   min-height: 44px !important;
   padding: 10px 22px !important;
   border: 1px solid var(--ph-btn-ink) !important;

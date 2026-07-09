@@ -319,11 +319,7 @@ export default function OverviewPage() {
                     aria-label="Featured portfolio image"
                   >
                     <img src={imageUrl(photoSlots[0])} alt="Featured portfolio" className="ov-book-photo" />
-                    <div className="ov-book-featured-overlay" aria-hidden>
-                      <p className="ov-book-featured-caption">
-                        {firstName || 'Featured frame'}
-                      </p>
-                    </div>
+                    <div className="ov-book-featured-overlay" aria-hidden></div>
                   </Link>
                 ) : (
                   <Link

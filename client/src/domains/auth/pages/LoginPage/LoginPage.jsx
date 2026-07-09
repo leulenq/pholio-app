@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   signInWithPopup,
   GoogleAuthProvider,
@@ -19,6 +20,8 @@ import {
 import LegalNoticeLine from '../../../../shared/components/LegalNoticeLine';
 import styles from './LoginPage.module.css';
 
+const EASE = [0.16, 1, 0.3, 1];
+
 const GoogleIcon = () => (
   <img
     src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -29,11 +32,11 @@ const GoogleIcon = () => (
   />
 );
 
-const InstagramIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="2" y="2" width="20" height="20" rx="5.5" stroke="#fff" strokeWidth="2" />
-    <circle cx="12" cy="12" r="4.6" stroke="#fff" strokeWidth="2" />
-    <circle cx="17.4" cy="6.6" r="1.3" fill="#fff" />
+const InstagramIcon = () => (
+  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="2" y="2" width="20" height="20" rx="5.5" stroke="currentColor" strokeWidth="2" />
+    <circle cx="12" cy="12" r="4.6" stroke="currentColor" strokeWidth="2" />
+    <circle cx="17.4" cy="6.6" r="1.3" fill="currentColor" />
   </svg>
 );
 
@@ -224,15 +227,21 @@ export default function LoginPage() {
   const busy = isLoading || isGoogleLoading || isInstagramLoading;
 
   return (
-    <div className={styles.root}>
-      <div className={styles.grain} aria-hidden="true" />
+    <motion.div
+      className={styles.root}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: EASE }}
+    >
+      <header className={styles.heading}>
+        <h1 className={styles.title}>
+          Welcome back to <em className={styles.titleAccent}>your book.</em>
+        </h1>
+        <p className={styles.subtitle}>
+          Sign in to keep building your portfolio and track every submission.
+        </p>
+      </header>
 
-      {/* Heading */}
-      <div className={styles.heading}>
-        <h1 className={styles.title}>Welcome back.</h1>
-      </div>
-
-      {/* Success banner */}
       {resetSent && (
         <div className={`${styles.alert} ${styles.alertSuccess}`} role="status" aria-live="polite">
           <CheckCircle2 size={18} />
@@ -240,7 +249,6 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Error banner */}
       {error && (
         <div className={`${styles.alert} ${styles.alertError}`} role="alert" aria-live="assertive" id="login-error">
           <AlertCircle size={18} />
@@ -248,13 +256,84 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Social Login */}
+      <form
+        onSubmit={handleEmailSignIn}
+        className={styles.form}
+        noValidate
+        aria-describedby={error ? 'login-error' : undefined}
+      >
+        <div className={styles.formGroup}>
+          <label htmlFor="login-email" className={styles.label}>
+            Email
+          </label>
+          <input
+            id="login-email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={busy}
+            placeholder="you@studio.com"
+            required
+            className={styles.input}
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <div className={styles.labelRow}>
+            <label htmlFor="login-password" className={styles.label}>
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={busy}
+              className={styles.forgotLink}
+            >
+              Forgot?
+            </button>
+          </div>
+          <div className={styles.passwordWrapper}>
+            <input
+              id="login-password"
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={busy}
+              placeholder="Your password"
+              required
+              className={styles.inputPassword}
+            />
+            <button
+              type="button"
+              className={styles.passwordToggle}
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              disabled={busy}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" disabled={busy} className={styles.submitButton}>
+          {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Sign in'}
+        </button>
+      </form>
+
+      <div className={styles.divider} aria-hidden="true">
+        <span className={styles.dividerText}>Or continue with</span>
+      </div>
+
       <div className={styles.socialRow}>
         <button
           type="button"
           onClick={handleGoogleSignIn}
           disabled={busy}
-          className={styles.socialGoogle}
+          className={styles.socialBtn}
           aria-label="Sign in with Google"
         >
           {isGoogleLoading ? (
@@ -271,7 +350,7 @@ export default function LoginPage() {
           type="button"
           onClick={handleInstagramSignIn}
           disabled={busy}
-          className={styles.socialInstagram}
+          className={styles.socialBtn}
           aria-label="Sign in with Instagram"
         >
           {isInstagramLoading ? (
@@ -285,87 +364,8 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Divider */}
-      <div className={styles.divider}>
-        <div className={styles.dividerLine} />
-        <span className={styles.dividerText}>or</span>
-        <div className={styles.dividerLine} />
-      </div>
-
-      {/* Email Form */}
-      <form
-        onSubmit={handleEmailSignIn}
-        className={styles.form}
-        noValidate
-        aria-describedby={error ? 'login-error' : undefined}
-      >
-        {/* Email */}
-        <div className={styles.formGroup}>
-          <label htmlFor="login-email" className={styles.label}>
-            Email
-          </label>
-          <input
-            id="login-email"
-            type="email"
-            name="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={busy}
-            placeholder="you@example.com"
-            required
-            className={styles.input}
-          />
-        </div>
-
-        {/* Password */}
-        <div className={`${styles.formGroup} ${styles.passwordGroup}`}>
-          <label htmlFor="login-password" className={styles.label}>
-            Password
-          </label>
-          <div className={styles.passwordWrapper}>
-            <input
-              id="login-password"
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy}
-              placeholder="••••••••"
-              required
-              className={styles.inputPassword}
-            />
-            <button
-              type="button"
-              className={styles.passwordToggle}
-              onClick={() => setShowPassword((prev) => !prev)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              disabled={busy}
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={handleForgotPassword}
-            disabled={busy}
-            className={styles.forgotLink}
-          >
-            Forgot password?
-          </button>
-        </div>
-
-        {/* Submit */}
-        <button type="submit" disabled={busy} className={styles.submitButton}>
-          {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Sign in'}
-        </button>
-      </form>
-
-      {/* Quiet legal colophon — returning users never re-accept here */}
       <LegalNoticeLine className={styles.legalNotice} />
 
-      {/* Footer */}
       <div className={styles.footerRow}>
         <span>New here?</span>
         <Link to="/onboarding" className={styles.footerLink}>
@@ -376,6 +376,6 @@ export default function LoginPage() {
           Bring your agency
         </Link>
       </div>
-    </div>
+    </motion.div>
   );
 }

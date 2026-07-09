@@ -1,0 +1,64 @@
+/* Auth shell — editorial dossier (light canvas, centered form) */
+
+.root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ag-surface-0, #faf8f5);
+  color: var(--ag-text-0, #1a1815);
+  font-family: var(--ag-font-sans, 'Inter', system-ui, sans-serif);
+}
+
+.header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 28px 32px;
+  z-index: 2;
+}
+
+.logo {
+  font-family: var(--ag-font-serif, 'Playfair Display', Georgia, serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ag-gold, #c9a55a);
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo:hover {
+  color: var(--ag-gold-hover, #b8956a);
+}
+
+.logo:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
+  border-radius: 2px;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 96px 24px 48px;
+}
+
+.panel {
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 20px 20px;
+  }
+
+  .main {
+    padding: 88px 20px 40px;
+  }
+}

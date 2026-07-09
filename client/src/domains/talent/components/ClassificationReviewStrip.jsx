@@ -131,11 +131,10 @@ export function ClassificationReviewRows({ images = [], onConfirm, onEdit }) {
                 {state.suggestedShot && state.status !== 'pending' ? (
                   <PholioButton
                     type="button"
-                    variant="primary"
+                    variant="ai"
                     disabled={busyId === image.id}
                     onClick={() => acceptSuggestion(image)}
                   >
-                    <Check size={13} aria-hidden="true" />
                     <span>Keep</span>
                   </PholioButton>
                 ) : null}
