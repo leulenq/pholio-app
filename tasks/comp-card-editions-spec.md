@@ -1,7 +1,8 @@
-# Comp Card Editions — living design system spec (v8)
+# Comp Card Editions — living design system spec (v9)
 
 Date: 2026-07-09 · Status: PLAN ONLY — implementation deliberately not started;
-architecture revised after the v8 panel review (Round 6 below).
+architecture revised after the v8 panel review (Round 6) and the v9 working
+session + red team (Round 7).
 Supersedes: v6/v7 drafts (same file, earlier revisions) and extends
 tasks/comp-card-atelier-spec.md / docs/comp-card-frontpage-intelligence-proposal.md.
 
@@ -232,9 +233,166 @@ change to this spec:
     `ENGINE_VERSION composed-v6.0` and never re-resolve; legacy presets
     (no edition) render byte-identically on the old path.
 
+### Round 7 — Working session: the concrete machinery (v9)
+
+Panel verdicts 5–6 named per-edition scoring and tested micro-variety but
+did not define them. This round defines them, specifies the CardIR and the
+gallery rig, and closes with a red-team pass.
+
+#### 7.1 Scoring framework
+
+`score(candidate) = Σ editionObjectives + Σ universalSoft`, after hard
+vetoes. Vetoes are never traded against score:
+
+- **Hard vetoes (Booker's law + print)**: face obstruction; unverified
+  on-photo type; name below 14pt effective; hero below the edition's area
+  floor; text inside the 0.25in safe zone (non-bleeding); missing stats/
+  booking roles on the back.
+- **Universal soft (small weights, shared)**: edge alignment among text
+  elements; breathing (minimum gaps); *sloppy-tension penalty* — two
+  elements almost aligned (within 0.05in but not equal) score worse than
+  clearly aligned or clearly free.
+
+**Per-edition objectives** (each measurable from the program + forensics):
+
+| edition | objectives (targets) |
+|---|---|
+| house-classic | hero coverage 0.78–0.92 · name band height 8–12% of page · name aligned to hero edge or centered · element count ≤ 6 |
+| fresh-commercial | hero coverage 0.75–0.9 · title-case name discipline · accent restricted to micro-elements · brightness: paper + strip stats, no dark bands |
+| gallery-monograph | photo area 0.42–0.6 · bottom mat ≥ 1.4× top mat · left/right mat asymmetry ratio 1.2–2.2 · name ≤ 22pt with tracking ≥ 0.2em · one text cluster + folio only · whitespace fraction 0.35–0.5 |
+| editorial-masthead | name spans ≥ 0.86 page width · masthead band 12–20% of page height · seam tension: gap masthead↔hero ≤ 0.12in · hero coverage ≥ 0.6 |
+| swiss-modernist | grid adherence: every element edge within 0.02in of the module grid · rail utilization: spine/name spans ≥ 0.6 of rail height · 1–3 rules, all on grid lines |
+| cover-story | interlock depth: 0.12–0.4 of name glyph area behind the subject matte · name area ≥ 0.18 of page · face fully clear (veto) |
+| ink-noir | all type ≥ 7:1 on the field (veto below 4.5) · element count ≤ 5 · field tone within ΔL 0.15 of the hero's shadow tone · keyline present |
+| duet | cell area ratio 0.85–1.18 · shared top/baseline within 0.02in · aspect complementarity (one tight portrait, one full-length) |
+| studio-cutout | matte bbox inset ≥ 0.25in from plane edges (except intentional bleed) · name-rect subject overlap ≤ 0.05 · plane-tone contrast verified |
+
+The vision jury (Puppeteer rasterize + rank) receives the same per-edition
+objectives in its rubric — an edition-blind jury would re-centralize taste
+exactly like the old scorer.
+
+#### 7.2 Internal variation axes (tested spread)
+
+Per edition, the axes a take samples; the suite asserts that 12 seeds hit
+≥ 3 distinct quintiles on every axis (no silent clustering):
+
+- **house-classic** — hero treatment (full-bleed/bordered) · band position ·
+  align · choreography (classic/straddle/over/band/inset) · back
+  architecture (4) · stats side.
+- **fresh-commercial** — full-bleed vs bordered · accent micro-usage on/off ·
+  name weight · back (uniform/feature-row) · stats strip position.
+- **gallery-monograph** — bottom-mat depth 1.4–2.2in · asymmetry direction ·
+  keyline on/off · folio corner · lockup (initial-line/inline) · back
+  (duo/feature-column).
+- **editorial-masthead** — stacked vs single-line masthead · span 0.86–1.0 ·
+  hero crop tightness · folio on/off · back (feature-row/stagger/uniform).
+- **swiss-modernist** — rail side · rail width 1.1–1.6in · spine vs
+  horizontal name · module count (6/8/12) · rule count 1–3 · back
+  (uniform/filmstrip).
+- **cover-story** — interlock depth (shallow/deep) · stacked vs single ·
+  size within 56–110pt · baseline position vs figure · back pool (3).
+- **ink-noir** — field tone (house/hero-pulled) · mat vs full-bleed ·
+  keyline treatment · voice (3) · stats (column/reversed footline).
+- **duet** — hinge orientation (vertical 85% / horizontal 15%) · gutter
+  width · name across hinge vs beneath · cell ratio · back pool (3).
+- **studio-cutout** — plane tone (paper/palette-pulled) · figure scale ·
+  type anchor zone (4) · stacked vs inline.
+
+#### 7.3 Per-edition hero preference (red-team fix R1)
+
+Hero selection today is one deterministic ranking → every edition fronts
+the same photograph, which flattens perceived variety more than any layout
+choice. Change: the edition may draw its hero **among the top 3 images
+within the existing ±15-point clamp**, biased by an edition shot-type
+preference (monograph → editorial three-quarter/full; fresh-commercial →
+approachable headshot; duet → the best *pair*; cover-story/cutout → the
+best *matted* frame). Locks and overrides still win; the clamp never
+relaxes.
+
+#### 7.4 Voice-pool overlap budget (red-team fix R2)
+
+If one voice appears in most pools, editions sound alike. Budget: **a
+voice may appear in at most 3 edition pools; every edition keeps ≥ 2
+voices.** Assignment (with `clean-modern` added: Manrope display, Inter
+body, title case — the commercial register):
+
+| voice | editions |
+|---|---|
+| stark-grotesque | swiss, ink-noir, cover-story |
+| bold-grotesque | swiss, studio-cutout, cover-story |
+| editorial-serif (Cormorant) | house-classic, masthead, duet |
+| quiet-classic | house-classic, monograph, duet |
+| romantic-didone | monograph, masthead, ink-noir |
+| hairline-fashion | monograph, ink-noir |
+| modern-warm | duet, studio-cutout, fresh-commercial |
+| clean-modern (new) | fresh-commercial |
+
+Budget is a catalog test, so future editions can't silently re-crowd a
+favorite voice.
+
+#### 7.5 CardIR v1 (renderer contract)
+
+```
+CardIR := { pageW, pageH, bleed, pages: [Page, Page] }
+Page    := { role: 'front'|'back', background: hex, elements: Element[] }
+Element := common { rect(in), z, bleedEdges? } +
+  photo     { imageId, crop { fit, objectPosition }, isCutout?, matteSrc? }
+  plane     { fill }
+  band      { fill, opacity? }
+  rule      { axis: 'h'|'v'|'frame', weight, color }
+  text      { role: 'name'|'name-part'|'contact'|'stat'|'folio'|'index'
+              |'wordmark', content, font { family, weight, wdth?, opsz? },
+              sizePt, trackingEm, leading, case, color, align, orientation,
+              opacity?, numeric?: 'tabular' }
+  statBlock { style: 'column'|'strip'|'tabular'|'footline', lines[] }
+  scrim     { edge, direction, strength }
+```
+
+Rules: photos are never filtered; any element over a photo carries a
+**verification stamp** (`verify: { contrast, faceClear, occupancy }`)
+written by the composer — the renderer refuses unstamped on-photo type, so
+safety is auditable in the IR itself. Phase 1 keeps the back's role-based
+layout (cells + statBlock + chrome flags); full back-IR is phase 2.
+
+#### 7.6 Gallery rig (phase 0)
+
+`scripts/comp-card-gallery.js`: three synthetic fixture profiles
+(editorial woman / commercial man / teen for the kids pool), seeded
+forensics + seed-data images, `composeCompCard` across editions × 6 seeds,
+rendered through the real EJS template with vendored fonts (no network),
+emitted as `gallery/index.html` (grid of iframes at card aspect) plus an
+optional Puppeteer contact-sheet PNG. Committed as a repo artifact per
+review round; CI job regenerates and diffs plan JSON so unreviewed drift
+fails loudly.
+
+#### 7.7 Red team — remaining convergence paths and their answers
+
+- **R1 same hero every take** → per-edition hero preference (7.3).
+- **R2 voice-pool crowding** → overlap budget (7.4).
+- **R3 identical stats block on every back** → statsStyle variants change
+  the *setting*; the canonical stat ORDER never shuffles (booker:
+  scannability beats novelty). Accepted as intentionally stable.
+- **R4 avoid-history lost on reload** → the dashboard passes history, but
+  the server also persists the last take's composite signature per profile
+  (lightweight column on comp_card_presets or profile meta) so cycling
+  survives sessions. Phase 2.
+- **R5 crop feel identical (face-centered everywhere)** → inherent to
+  safety; variety must come from hero scale/mat/structure, not crop risk.
+  Accepted.
+- **R6 catalog favorite dominates first impressions** → distribution test:
+  over ~200 synthetic (talent, seed) pairs, no edition takes > 30% or
+  < 4% share of first draws.
+- **R7 edition-blind vision jury re-centralizes taste** → jury rubric is
+  edition-aware (7.1).
+- **R8 within-edition clustering** → quintile spread tests (7.2).
+
 ---
 
-## The catalog (v8 launch set — 9 editions)
+## The catalog (v9 launch set — 9 editions)
+
+(Voice pools follow the overlap budget in §7.4; the prototype catalog in
+`src/domains/pdf/composition/editions.js` predates Rounds 6–7 and is
+updated during phase 1, not authoritative.)
 
 | id | label | front structure | image hierarchy | type culture | paper | ornament | back program | needs |
 |----|-------|-----------------|-----------------|--------------|-------|----------|--------------|-------|
