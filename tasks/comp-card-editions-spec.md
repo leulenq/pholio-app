@@ -6,6 +6,43 @@ session + red team (Round 7).
 Supersedes: v6/v7 drafts (same file, earlier revisions) and extends
 tasks/comp-card-atelier-spec.md / docs/comp-card-frontpage-intelligence-proposal.md.
 
+## Approval summary (what signing off on this plan means)
+
+1. **Editions** become the top-level creative unit: 9 named art directions
+   (catalog below), each owning composition, image hierarchy, typography,
+   palette, ornament, back program, and suitability. Talent data *ranks*,
+   the seed *draws*, avoid-history (depth 2–3) guarantees cycling.
+2. **Variety is contract-tested**: pairwise distinctness matrix (≥3 of 6
+   axes), within-edition quintile spread, minimum consecutive-take
+   distance, first-draw distribution bounds (no edition >30% / <4%).
+3. **The global aesthetics scorer is replaced** by per-edition objectives
+   (§7.1) with non-tradable Booker's-law vetoes; the vision jury uses the
+   same rubric.
+4. **Per-edition hero preference** draws among the top 3 ranked images
+   within the existing clamp; the Diptych picks a pair.
+5. **Typography is edition property**: voice pools under an overlap budget
+   (§7.4, incl. new clean-modern voice; Cormorant replaces Playfair in
+   editorial-serif), variable width/optical axes, size-tracking curves,
+   tabular numerals, stacked-caps leading rules.
+6. **CardIR v1** (§7.5) with verification-stamped on-photo type; renderer
+   stays HTML/Puppeteer (alternatives evaluated and rejected, Round 5).
+7. **Gallery-first build order** (§7.6) and matte precompute at upload are
+   phase-0 prerequisites.
+8. **Product surface** (Round 8): two-gesture UX (New direction / Another
+   take of this), edition rail with real availability, no new monetization
+   gates at launch (flagged as an open business decision).
+9. **Rollout**: staged behind an env flag with the existing legacy
+   escape hatch; frozen saved cards render from their frozen plan_json
+   (already guaranteed by the freeze migration); presets gain a nullable
+   `edition` column; ENGINE_VERSION → composed-v6.0.
+10. **Never**: photo manipulation, AI imagery, fake small caps, ornament
+    that isn't information-bearing, stats over imagery, shuffled stat
+    order, or relaxation of face/contrast/crop verification.
+
+Open decisions for the owner: (a) monetization of the catalog (recommend:
+no new gates at launch, revisit with telemetry); (b) sign-off to begin
+phase 0.
+
 ## Problem
 
 The composed engine (v5) is sophisticated but converges. For one talent,
@@ -386,6 +423,53 @@ fails loudly.
   edition-aware (7.1).
 - **R8 within-edition clustering** → quintile spread tests (7.2).
 
+### Round 8 — Product surface, gating, rollout (final planning round)
+
+**Two-gesture UX.** The dashboard's single "Another take" gesture conflates
+two intents. It splits:
+
+- **"New direction"** (primary) — cycles to a different edition via the
+  resolver with avoid-history; the header line names what you got: *"The
+  Monograph — set in Hairline Fashion."* Editions are the unit of surprise.
+- **"Another take of this"** (secondary, appears once a direction exists) —
+  re-seeds *within* the pinned edition; internal axes (§7.2) carry the
+  variation. Editions are also the unit of refinement.
+
+The PM/CD dispute on the rail (nine chips = choice paralysis vs. the
+catalog as a browsable asset) resolved: the default flow never requires a
+choice (Pholio resolves an edition and says which); the **edition rail**
+is a horizontally scrollable row for the opinionated, with real
+availability states and honest unlock copy ("The Cutout needs a clean
+studio frame" / "The Cover Story unlocks with a studio frame" /
+"The Night Edition isn't offered for kids' cards"). Treatment chips
+render only for `treatmentsOpen` editions. Legacy direction chips map:
+full-bleed → house-classic pin, gallery-mat → gallery-monograph,
+studio-cutout → studio-cutout; split-field retires from the UI (the split
+structure remains internal to house-classic sampling; legacy presets
+naming it keep rendering on their frozen path).
+
+**Naming collision fixed** (CD): `editorial-masthead` is talent-labeled
+**"The Masthead"** (was "The Cover" — too close to "The Cover Story").
+
+**Gating.** Engineering and product agreed the variety itself is the
+acquisition hook; the booker warned against paywalling credibility (a
+talent whose only affordable card looks "free-tier" is worse for the
+brand than no gate). **Recommendation: no new monetization gates at
+launch** — the full catalog previews for everyone under the existing
+non-pro watermark rules; revisit with usage telemetry. Flagged as an open
+business decision for the owner, not locked by this spec.
+
+**Rollout/migration.**
+- `comp_card_presets` gains nullable `edition` (string 32); frozen cards
+  already render from frozen `plan_json` + `engine_version` (the
+  2026-07-05 freeze migration), so historical cards are untouched by
+  construction.
+- Staged rollout behind `COMP_CARD_EDITIONS` env flag with per-request
+  `?editions=0/1` override for QA; the existing `?front=legacy` escape
+  hatch stays. Default flips on after the phase-0 gallery review.
+- Server persists the last take's composite signature per profile (R4) in
+  phase 2; until then the client-supplied avoid-history governs cycling.
+
 ---
 
 ## The catalog (v9 launch set — 9 editions)
@@ -399,7 +483,7 @@ updated during phase 1, not authoritative.)
 | `house-classic` | The Standard | photo-dominant / matted | 1 hero | band 20–38pt, inline/contrast | auto whites | none | uniform-grid, feature-column/row, mosaic · stats column/strip | — |
 | `fresh-commercial` | The Commercial | photo-dominant (smile-forward hero) | 1 hero | 20–32pt title case | warm | none | uniform-grid, feature-row (bright, strip stats) | — |
 | `gallery-monograph` | The Monograph | matted, deep asymmetric mats (hero ≥42%) | 1 hero | 15–22pt, wide tracking, initial-line/inline | ivory | keyline, folio | restrained-duo, feature-column (airy, centered name) · stats footline | ≥3 imgs |
-| `editorial-masthead` | The Cover | masthead band above hero | 1 hero | 40–76pt masthead, stacked/contrast | auto | folio | feature-row, editorial-stagger · stats strip | — |
+| `editorial-masthead` | The Masthead | masthead band above hero | 1 hero | 40–76pt masthead, stacked/contrast | auto | folio | feature-row, editorial-stagger · stats strip | — |
 | `swiss-modernist` | The Grid | column-grid: hero + paper rail | 1 hero | 18–30pt or spine, flush-left | pure white | hairline rules, folio | uniform-grid, filmstrip (ruled, tabular stats) | — |
 | `cover-story` | The Cover Story | type-behind-figure interlock | 1 hero + matte layers | 56–110pt stacked behind subject | auto | none | feature-column, mosaic · stats column | alpha matte |
 | `ink-noir` | The Night Edition | dark gallery mat / photo-dominant-dark | 1 hero on night field | 22–40pt reversed | ink field (hero-pulled ≥7:1) | hairline gold keyline, reversed footline | feature-column, restrained-duo (reversed) · stats column | not kids |
