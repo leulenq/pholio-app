@@ -477,7 +477,7 @@ function synthesizeDesignLanguage(input = {}) {
     "name-metrics",
     glyphMeasured ? "measured" : "estimated",
     glyphMeasured
-      ? "glyph advances measured from vendored font files (opentype)"
+      ? "glyph advances shaped from vendored font files (harfbuzz)"
       : "no vendored font file — calibrated per-family estimate",
   );
 
