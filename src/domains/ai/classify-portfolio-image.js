@@ -160,13 +160,74 @@ function mergeClassification(heuristic, vlm) {
 }
 
 /**
+ * Persist the classification's signals block into `image_signals` (WS3.3),
+ * one row per image, insert-or-update on image_id. Best-effort: failures are
+ * logged and never break classification. Column names mirror the classifier's
+ * real output keys (top-level shot/style/image type + the `signals` block).
+ *
+ * @param {import('knex').Knex|null} db - optional knex instance (backfill/tests);
+ *   defaults to the shared client.
+ * @param {string} imageId
+ * @param {object} classification - merged result from classifyPortfolioImage
+ * @returns {Promise<boolean>} true when a row was written
+ */
+async function persistImageSignals(db, imageId, classification) {
+  if (!imageId || !classification) return false;
+  try {
+    const knex = db || require("../../shared/db/knex");
+    const hasTable = await knex.schema.hasTable("image_signals");
+    if (!hasTable) return false;
+
+    const signals = classification.signals || {};
+    const values = {
+      shot_type: classification.shot_type ?? null,
+      style_type: classification.style_type ?? null,
+      image_type: classification.image_type ?? null,
+      expression: signals.expression ?? null,
+      pose_yaw: signals.pose_yaw ?? null,
+      body_visibility: signals.body_visibility ?? null,
+      background: signals.background ?? null,
+      styling_register: signals.styling_register ?? null,
+      retouch_likelihood: signals.retouch_likelihood ?? null,
+      makeup_level: signals.makeup_level ?? null,
+      analyzed_at: classification.analyzed_at || new Date().toISOString(),
+      model: classification.model || null,
+    };
+
+    const { v4: uuidv4 } = require("uuid");
+    await knex("image_signals")
+      .insert({ id: uuidv4(), image_id: imageId, ...values })
+      .onConflict("image_id")
+      .merge({ ...values, updated_at: knex.fn.now() });
+    return true;
+  } catch (err) {
+    console.warn(
+      "[PITS] persistImageSignals failed:",
+      imageId,
+      err?.message || String(err),
+    );
+    return false;
+  }
+}
+
+/**
  * @param {object} input
  * @param {Buffer} input.imageBuffer
  * @param {object} [input.heuristicDraft]
  * @param {object} [input.imageIntel]
+ * @param {object} [input.imageRow]
+ * @param {import('knex').Knex} [input.db] - knex instance for signal persistence
  * @returns {Promise<object|null>}
  */
-async function classifyPortfolioImage({
+async function classifyPortfolioImage(input) {
+  const result = await classifyPortfolioImageCore(input || {});
+  if (result && input?.imageRow?.id) {
+    await persistImageSignals(input.db || null, input.imageRow.id, result);
+  }
+  return result;
+}
+
+async function classifyPortfolioImageCore({
   imageBuffer,
   heuristicDraft,
   imageIntel,
@@ -239,6 +300,7 @@ async function classifyPortfolioImage({
 
 module.exports = {
   classifyPortfolioImage,
+  persistImageSignals,
   buildPrompt,
   mergeClassification,
   summarizeForensics,
