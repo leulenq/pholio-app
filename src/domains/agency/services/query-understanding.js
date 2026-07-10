@@ -22,19 +22,92 @@ function getGroq() {
 }
 
 const DECOMPOSE_SYSTEM = `You decompose agency casting search queries into structured JSON.
-Return ONLY valid JSON with this shape:
-{
-  "residual_query": "remaining descriptive phrase",
-  "attributes": [{ "type": "visual|casting|vibe|demographic", "term": "string", "confidence": 0.0-1.0 }],
-  "constraints": [{ "field": "gender|heritage|hair_color|eye_color|min_height|archetype|city", "value": "string or number", "confidence": 0.0-1.0, "mode": "soft" }],
-  "channel_queries": {
-    "visual": "angular bone structure jawline etc",
-    "casting": "editorial presence bio-oriented terms",
-    "market": "editorial luxury market fit terms",
-    "lexical": "all searchable tokens lowercased"
-  }
-}
-Use mode "soft" for all constraints. Visual/casting language stays in attributes and channel_queries, not hard filters.`;
+Fields:
+- residual_query: remaining descriptive phrase after extraction.
+- attributes: visual/casting/vibe/demographic terms with confidence 0.0-1.0.
+- constraints: structured filters (gender, heritage, hair_color, eye_color, min_height, archetype, city) with confidence 0.0-1.0. Use mode "soft" for all constraints.
+- channel_queries: per-retrieval-channel rewrites — visual (bone structure, features), casting (presence, bio-oriented terms), market (market-fit terms), lexical (all searchable tokens lowercased).
+Visual/casting language stays in attributes and channel_queries, not hard filters.`;
+
+// Strict-mode schema (schema-constrained decoding, same pattern as
+// domains/pdf/composition/art-director.js): every property required,
+// additionalProperties:false on every object. Mirrors the EXISTING parse
+// shape — the v2 roles contract lands in a later PR.
+const UNDERSTANDING_SCHEMA = {
+  name: "discover_query_understanding",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      residual_query: {
+        type: "string",
+        description: "Remaining descriptive phrase after extraction",
+      },
+      attributes: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            type: {
+              type: "string",
+              enum: ["visual", "casting", "vibe", "demographic"],
+            },
+            term: { type: "string" },
+            confidence: { type: "number", description: "0.0-1.0" },
+          },
+          required: ["type", "term", "confidence"],
+        },
+      },
+      constraints: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            field: {
+              type: "string",
+              enum: [
+                "gender",
+                "heritage",
+                "hair_color",
+                "eye_color",
+                "min_height",
+                "archetype",
+                "city",
+              ],
+            },
+            value: { type: ["string", "number"] },
+            confidence: { type: "number", description: "0.0-1.0" },
+            mode: { type: "string", enum: ["soft"] },
+          },
+          required: ["field", "value", "confidence", "mode"],
+        },
+      },
+      channel_queries: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          visual: { type: "string" },
+          casting: { type: "string" },
+          market: { type: "string" },
+          lexical: { type: "string" },
+        },
+        required: ["visual", "casting", "market", "lexical"],
+      },
+    },
+    required: [
+      "residual_query",
+      "attributes",
+      "constraints",
+      "channel_queries",
+    ],
+  },
+};
+
+// Reasoning models (gpt-oss) spend completion tokens before the JSON body.
+const DECOMPOSE_MAX_TOKENS = 1600;
 
 async function groqDecomposeQuery(q) {
   const groq = getGroq();
@@ -50,7 +123,8 @@ async function groqDecomposeQuery(q) {
       },
     ],
     temperature: 0.1,
-    response_format: { type: "json_object" },
+    max_completion_tokens: DECOMPOSE_MAX_TOKENS,
+    response_format: { type: "json_schema", json_schema: UNDERSTANDING_SCHEMA },
   });
 
   const raw = completion.choices?.[0]?.message?.content;
@@ -136,5 +210,6 @@ module.exports = {
   understandQuery,
   groqDecomposeQuery,
   clearQueryCache,
+  UNDERSTANDING_SCHEMA,
   CACHE_TTL_MS,
 };
