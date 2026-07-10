@@ -23,3 +23,6 @@ netlify/function-built/
 
 # Scratch DBs from integration tests
 test-*.sqlite3
+
+# Comp-card gallery rig artifacts (regenerate with npm run gallery)
+gallery/

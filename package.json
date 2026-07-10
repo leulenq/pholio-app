@@ -26,6 +26,7 @@
     "postinstall": "node scripts/patch-express.js && npm run setup:hooks",
     "build": "echo 'Build complete'",
     "build:function": "node_modules/.bin/esbuild netlify/function/server.js --bundle --platform=node --target=node20 --outfile=netlify/function-built/server.js --external:bcrypt --external:sharp --external:@img --external:@unrs --external:fsevents --external:sqlite3 --external:better-sqlite3 --external:mysql --external:mysql2 --external:tedious --external:oracledb --external:pg-native --external:pg-query-stream --external:mssql --external:@sparticuz/chromium --external:puppeteer --external:mime --external:zod --external:validator --external:ejs --external:express-ejs-layouts",
+    "gallery": "node scripts/comp-card-gallery.js",
     "generate:favicons": "node scripts/generate-favicons.js",
     "setup:sender-avatar": "node scripts/setup-email-sender-avatar.js",
     "setup:env": "node scripts/setup-env.js",
