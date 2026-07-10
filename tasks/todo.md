@@ -1,3 +1,18 @@
+# Current Task — Implement pholio-app agency access/setup
+
+- [x] Inspect current agency auth, provisioning, API guards, migrations, app routes, and agency UI components.
+- [x] Add app-side schema and API support for agency access requests, setup steps, and import-job intake.
+- [x] Enforce setup gating across login redirects, SPA routing, and agency API guards.
+- [x] Add `/dashboard/agency/setup` page using the agency command-center design language.
+- [x] Add a handoff note for the separate `pholio-landing` agent; do not implement landing pages here.
+- [x] Run focused backend/client verification, commit, and create PR metadata.
+
+## Review
+
+Implemented the `pholio-app` side only: public intake API for the landing form, setup persistence, setup gating, a lightweight agency setup page, setup API routes, provisioning status semantics, focused setup-gate tests, and a handoff note for a separate `pholio-landing` agent.
+
+---
+
 # Current Task — Agency access system stress test
 
 - [x] Recreated `agency-access-flow-revisions` branch in the current Codex checkout.

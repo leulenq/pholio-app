@@ -128,8 +128,46 @@ function requireAgencyMembershipRole(...membershipRoles) {
     return next();
   };
 }
+function routeMatchesAllow(req, rule) {
+  const method = (req.method || "GET").toUpperCase();
+  if (rule.method && rule.method.toUpperCase() !== method) return false;
+
+  const original = (req.originalUrl || req.path || "").split("?")[0];
+  const normalized = original.startsWith("/api/agency")
+    ? original.slice("/api/agency".length) || "/"
+    : original;
+
+  if (rule.path && normalized === rule.path) return true;
+  if (rule.pathPrefix && normalized.startsWith(rule.pathPrefix)) return true;
+  return false;
+}
+
 function requireAgencyOnboardingComplete(options = {}) {
-  return (req, res, next) => next();
+  const allow = Array.isArray(options.allow) ? options.allow : [];
+  return (req, res, next) => {
+    if (!req.session || req.session.role !== "AGENCY") {
+      return next();
+    }
+
+    if (req.session.agencyOnboardingCompletedAt) {
+      return next();
+    }
+
+    if (allow.some((rule) => routeMatchesAllow(req, rule))) {
+      return next();
+    }
+
+    if (isApiRequest(req)) {
+      return res.status(403).json({
+        success: false,
+        error: "AGENCY_SETUP_REQUIRED",
+        message: "Complete agency setup before using the agency dashboard.",
+        redirect: "/dashboard/agency/setup",
+      });
+    }
+
+    return res.redirect("/dashboard/agency/setup");
+  };
 }
 
 async function loadAgencyPermissions(req, _res, next) {

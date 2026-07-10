@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
+router.use(require("./setup"));
 router.use(require("./roster"));
 router.use(require("./inbox"));
 router.use(require("./team-rbac"));

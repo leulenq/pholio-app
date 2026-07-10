@@ -500,6 +500,7 @@ const talentAiWriterLimiter = createTalentAiWriterRateLimit({
 app.use(["/login", "/signup"], authLimiter);
 app.use(["/onboarding/entry", "/casting/entry"], authLimiter);
 app.use("/api/public/open-call", authLimiter);
+app.use("/api/public/agency-access-requests", authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
 app.use(["/onboarding/scout", "/casting/scout"], uploadLimiter);

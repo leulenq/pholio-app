@@ -41,6 +41,7 @@ const AgencyInterviews = lazy(() => import('./domains/agency/pages/InterviewsPag
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
 const AgencyReminders = lazy(() => import('./domains/agency/pages/RemindersPage'));
 const AgencySigned = lazy(() => import('./domains/agency/pages/SignedPage'));
+const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
 const AuthEntrySplashPreview = lazy(() => import('./domains/auth/pages/AuthEntrySplashPreview'));
@@ -114,7 +115,8 @@ function App() {
           {/* Agency Dashboard Routes */}
           <Route path="/agency" element={<Navigate to="/dashboard/agency" replace />} />
           <Route element={<AgencySessionGate />}>
-            <Route path="/dashboard/agency/onboarding" element={<Navigate to="/dashboard/agency" replace />} />
+            <Route path="/dashboard/agency/onboarding" element={<Navigate to="/dashboard/agency/setup" replace />} />
+            <Route path="/dashboard/agency/setup" element={<AgencySetup />} />
             <Route element={<AgencyLayout />}>
               <Route path="/dashboard/agency" element={<AgencyOverview />} />
               <Route path="/dashboard/agency/overview" element={<Navigate to="/dashboard/agency" replace />} />

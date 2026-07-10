@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
@@ -24,11 +25,253 @@ const {
   isPubliclyExposable,
 } = require("../../shared/lib/profile-visibility");
 
+
+const AGENCY_ACCESS_STATUSES = Object.freeze({
+  SUBMITTED: "submitted",
+});
+
+const AGENCY_ACCESS_REQUIRED_FIELDS = [
+  "agencyName",
+  "websiteUrl",
+  "primaryMarketCity",
+  "agencyType",
+  "primaryBoards",
+  "rosterSizeRange",
+  "teamSizeRange",
+  "firstUseCases",
+  "contactName",
+  "contactEmail",
+  "contactRole",
+];
+
+function normalizeString(value, max = 512) {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim().replace(/\s+/g, " ");
+  if (!normalized) return null;
+  return normalized.slice(0, max);
+}
+
+function normalizeEmail(value) {
+  const email = normalizeString(value, 254);
+  return email ? email.toLowerCase() : null;
+}
+
+function normalizeArray(value, maxItems = 20, maxLength = 120) {
+  const source = Array.isArray(value) ? value : value ? [value] : [];
+  return source
+    .map((item) => normalizeString(item, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+function normalizeUrl(value) {
+  const raw = normalizeString(value, 512);
+  if (!raw) return null;
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(withProtocol);
+    if (!/^https?:$/.test(parsed.protocol)) return null;
+    return parsed.toString().slice(0, 512);
+  } catch (_error) {
+    return null;
+  }
+}
+
+function jsonForDb(value) {
+  const isPostgres =
+    knex.client.config.client === "pg" ||
+    knex.client.config.client === "postgresql";
+  return isPostgres ? value : JSON.stringify(value ?? null);
+}
+
+function hashIp(ip) {
+  const source = ip || "unknown";
+  return crypto
+    .createHash("sha256")
+    .update(`${process.env.SESSION_SECRET || "pholio"}:${source}`)
+    .digest("hex");
+}
+
+function validateAgencyAccessPayload(body = {}) {
+  const values = {
+    agencyName: normalizeString(body.agencyName || body.agency_name, 180),
+    websiteUrl: normalizeUrl(body.websiteUrl || body.website_url),
+    primaryMarketCity: normalizeString(
+      body.primaryMarketCity || body.primary_market_city,
+      120,
+    ),
+    primaryMarketCountry: normalizeString(
+      body.primaryMarketCountry || body.primary_market_country,
+      120,
+    ),
+    additionalLocations: normalizeArray(
+      body.additionalLocations || body.additional_locations,
+      12,
+      160,
+    ),
+    agencyType: normalizeString(body.agencyType || body.agency_type, 80),
+    primaryBoards: normalizeArray(
+      body.primaryBoards || body.primary_boards,
+      20,
+      80,
+    ),
+    rosterSizeRange: normalizeString(
+      body.rosterSizeRange || body.roster_size_range,
+      40,
+    ),
+    teamSizeRange: normalizeString(
+      body.teamSizeRange || body.team_size_range,
+      40,
+    ),
+    currentSystem: normalizeString(body.currentSystem || body.current_system, 120),
+    firstUseCases: normalizeArray(
+      body.firstUseCases || body.first_use_cases,
+      12,
+      120,
+    ),
+    migrationInterest: normalizeString(
+      body.migrationInterest || body.migration_interest,
+      20,
+    ),
+    contactName: normalizeString(body.contactName || body.contact_name, 160),
+    contactEmail: normalizeEmail(body.contactEmail || body.contact_email),
+    contactRole: normalizeString(body.contactRole || body.contact_role, 120),
+    contactPhone: normalizeString(body.contactPhone || body.contact_phone, 80),
+    timezone: normalizeString(body.timezone, 80),
+    heardFrom: normalizeString(body.heardFrom || body.heard_from, 160),
+    notes: normalizeString(body.notes, 500),
+  };
+
+  const errors = {};
+  for (const key of AGENCY_ACCESS_REQUIRED_FIELDS) {
+    const value = values[key];
+    if (Array.isArray(value) ? value.length === 0 : !value) {
+      errors[key] = "Required";
+    }
+  }
+
+  if (values.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.contactEmail)) {
+    errors.contactEmail = "Enter a valid work email.";
+  }
+
+  if (!values.websiteUrl) {
+    errors.websiteUrl = "Enter a valid agency website.";
+  }
+
+  return { values, errors };
+}
+
 function dashboardPathForRole(role) {
   if (role === "TALENT") return "/dashboard/talent";
   if (role === "AGENCY") return "/dashboard/agency";
   return "/";
 }
+
+
+// POST /api/public/agency-access-requests
+// Public intake endpoint for the pholio-landing agency request form. This route
+// stores only agency/request metadata — no roster files, talent data, contracts,
+// billing data, or minor-specific records are accepted here.
+router.post("/agency-access-requests", async (req, res) => {
+  try {
+    const { values, errors } = validateAgencyAccessPayload(req.body || {});
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: "VALIDATION_ERROR",
+        errors,
+      });
+    }
+
+    const existingRecent = await knex("agency_access_requests")
+      .where({ contact_email: values.contactEmail })
+      .whereIn("status", [
+        "submitted",
+        "triage",
+        "needs_info",
+        "qualification_call",
+        "approved_pending_provisioning",
+      ])
+      .orderBy("created_at", "desc")
+      .first();
+
+    if (existingRecent) {
+      return res.json({
+        success: true,
+        data: {
+          id: existingRecent.id,
+          status: existingRecent.status,
+          duplicate: true,
+          message:
+            "We already have an agency access request for this contact. Reply to your confirmation email with any updates.",
+        },
+      });
+    }
+
+    const { v4: uuidv4 } = require("uuid");
+    const requestId = uuidv4();
+    const eventId = uuidv4();
+    const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || null;
+    const userAgent = normalizeString(req.get("user-agent"), 512);
+
+    await knex.transaction(async (trx) => {
+      await trx("agency_access_requests").insert({
+        id: requestId,
+        agency_name: values.agencyName,
+        website_url: values.websiteUrl,
+        primary_market_city: values.primaryMarketCity,
+        primary_market_country: values.primaryMarketCountry,
+        additional_locations: jsonForDb(values.additionalLocations),
+        agency_type: values.agencyType,
+        primary_boards: jsonForDb(values.primaryBoards),
+        roster_size_range: values.rosterSizeRange,
+        team_size_range: values.teamSizeRange,
+        current_system: values.currentSystem,
+        first_use_cases: jsonForDb(values.firstUseCases),
+        migration_interest: values.migrationInterest,
+        contact_name: values.contactName,
+        contact_email: values.contactEmail,
+        contact_role: values.contactRole,
+        contact_phone: values.contactPhone,
+        timezone: values.timezone,
+        heard_from: values.heardFrom,
+        notes: values.notes,
+        status: AGENCY_ACCESS_STATUSES.SUBMITTED,
+        ip_hash: hashIp(ip),
+        user_agent: userAgent,
+        created_at: trx.fn.now(),
+        updated_at: trx.fn.now(),
+      });
+
+      await trx("agency_access_request_events").insert({
+        id: eventId,
+        request_id: requestId,
+        event_type: "submitted",
+        previous_status: null,
+        next_status: AGENCY_ACCESS_STATUSES.SUBMITTED,
+        source_ip: ip,
+        metadata: jsonForDb({ source: "pholio-landing" }),
+        created_at: trx.fn.now(),
+      });
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        id: requestId,
+        status: AGENCY_ACCESS_STATUSES.SUBMITTED,
+        message:
+          "Your request has been received. Pholio reviews agency access manually and will email next steps if there is a fit.",
+      },
+    });
+  } catch (error) {
+    console.error("[Public API] Error in /agency-access-requests:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to submit agency access request",
+    });
+  }
+});
 
 // GET /api/public/languages — canonical language list for profile forms
 router.get("/languages", async (req, res) => {
