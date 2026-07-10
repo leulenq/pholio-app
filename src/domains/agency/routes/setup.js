@@ -114,6 +114,25 @@ function mapSetupStep(row) {
   };
 }
 
+function setupStepData(state, key) {
+  return state.steps.find((step) => step.key === key)?.data || {};
+}
+
+function setupIncludesMinorData(state) {
+  const boardData = setupStepData(state, "boards");
+  const rosterData = setupStepData(state, "roster");
+  const openCallData = setupStepData(state, "open_call");
+
+  return Boolean(
+    state.agency.minorDataAcknowledgedAt ||
+      boardData.acceptsMinors ||
+      rosterData.includesMinors ||
+      openCallData.acceptsMinors ||
+      state.importJobs.some((job) => job.includesMinors) ||
+      state.openCallLinks.some((link) => link.acceptsMinors || link.guardianConsentRequired),
+  );
+}
+
 async function loadSetupState(agencyId) {
   const [agency, steps, boards, importJobs, openCallLinks, team] =
     await Promise.all([
@@ -459,6 +478,16 @@ router.patch(
       const agencyId = getSessionAgencyId(req);
       const actorUserId = getSessionActorUserId(req);
       const acknowledgesMinorData = boolValue(req.body?.acknowledgesMinorData || req.body?.acknowledges_minor_data);
+      const state = await loadSetupState(agencyId);
+      const includesMinorData = setupIncludesMinorData(state);
+
+      if (includesMinorData && !acknowledgesMinorData) {
+        return res.status(400).json({
+          success: false,
+          error: "MINOR_PRIVACY_ACK_REQUIRED",
+          message: "Acknowledge minor-data handling before completing agency setup.",
+        });
+      }
 
       await knex.transaction(async (trx) => {
         const agencyUpdate = { updated_at: trx.fn.now() };
@@ -468,6 +497,7 @@ router.patch(
         await trx("agencies").where({ id: agencyId }).update(agencyUpdate);
         await markSetupStep(trx, agencyId, "privacy", "complete", actorUserId, {
           acknowledgesMinorData,
+          includesMinorData,
         });
       });
 
@@ -494,6 +524,14 @@ router.post(
           error: "SETUP_INCOMPLETE",
           message: "Complete the required agency setup steps before opening the dashboard.",
           incomplete: incomplete.map((step) => step.key),
+        });
+      }
+
+      if (setupIncludesMinorData(state) && !state.agency.minorDataAcknowledgedAt) {
+        return res.status(400).json({
+          success: false,
+          error: "MINOR_PRIVACY_ACK_REQUIRED",
+          message: "Acknowledge minor-data handling before opening the dashboard.",
         });
       }
 

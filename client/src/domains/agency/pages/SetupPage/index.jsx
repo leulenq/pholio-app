@@ -13,6 +13,7 @@ import {
   saveSetupRoster,
   saveSetupTeam,
 } from '../../api/setup';
+import { postLogoutAndRedirectToMarketing } from '../../../../shared/lib/logout';
 import './SetupPage.css';
 
 const BOARD_PRESETS = ['Women', 'Men', 'New Faces', 'Commercial', 'Curve', 'E-comm', 'Fit', 'Kids/Teens'];
@@ -52,11 +53,11 @@ export default function AgencySetupPage() {
     queryFn: getAgencySetup,
   });
   const [profile, setProfile] = useState({});
-  const [boards, setBoards] = useState(BOARD_PRESETS.slice(0, 4));
-  const [rosterPath, setRosterPath] = useState('blank');
-  const [openCallEnabled, setOpenCallEnabled] = useState(true);
-  const [includesMinors, setIncludesMinors] = useState(false);
-  const [message, setMessage] = useState('');
+  const [boards, setBoards] = useState(null);
+  const [rosterPath, setRosterPath] = useState(null);
+  const [openCallEnabled, setOpenCallEnabled] = useState(null);
+  const [includesMinors, setIncludesMinors] = useState(null);
+  const [message, setMessage] = useState({ tone: 'status', text: '' });
 
   const refresh = (nextData) => {
     queryClient.setQueryData(['agency', 'setup'], nextData);
@@ -66,9 +67,9 @@ export default function AgencySetupPage() {
   const mutationOptions = {
     onSuccess: (nextData) => {
       refresh(nextData);
-      setMessage('Saved.');
+      setMessage({ tone: 'status', text: 'Setup step saved.' });
     },
-    onError: (err) => setMessage(err.message || 'Unable to save this step.'),
+    onError: (err) => setMessage({ tone: 'alert', text: err.message || 'Unable to save this step.' }),
   };
 
   const profileMutation = useMutation({ mutationFn: saveSetupProfile, ...mutationOptions });
@@ -84,12 +85,53 @@ export default function AgencySetupPage() {
     onSuccess: (result) => {
       window.location.assign(result?.redirect || '/dashboard/agency');
     },
-    onError: (err) => setMessage(err.message || 'Complete the required steps first.'),
+    onError: (err) => setMessage({ tone: 'alert', text: err.message || 'Complete the required steps first.' }),
   });
 
   const agency = data?.agency || {};
   const stepMap = useMemo(() => new Map((data?.steps || []).map((step) => [step.key, step])), [data]);
   const requiredComplete = Boolean(data?.requiredComplete);
+  const isSavingProfile = profileMutation.isPending;
+  const isSavingBoards = boardsMutation.isPending;
+  const isSavingTeam = teamMutation.isPending;
+  const isSavingRoster = rosterMutation.isPending || importMutation.isPending;
+  const isSavingOpenCall = openCallMutation.isPending;
+  const isSavingDefaults = defaultsMutation.isPending;
+  const isSavingPrivacy = privacyMutation.isPending;
+
+  const persistedControls = useMemo(() => {
+    const boardStepData = stepMap.get('boards')?.data || {};
+    const rosterStepData = stepMap.get('roster')?.data || {};
+    const latestImport = data?.importJobs?.[0];
+    const openCallStepData = stepMap.get('open_call')?.data || {};
+
+    return {
+      boards: data?.boards?.map((board) => board.name).filter(Boolean) || BOARD_PRESETS.slice(0, 4),
+      rosterPath: rosterStepData.path || (latestImport ? 'import' : 'blank'),
+      openCallEnabled: typeof openCallStepData.enabled === 'boolean' ? openCallStepData.enabled : true,
+      includesMinors: Boolean(
+        boardStepData.acceptsMinors ||
+          rosterStepData.includesMinors ||
+          latestImport?.includesMinors ||
+          openCallStepData.acceptsMinors ||
+          agency.minorDataAcknowledgedAt
+      ),
+    };
+  }, [agency.minorDataAcknowledgedAt, data, stepMap]);
+
+  const selectedBoards = boards ?? persistedControls.boards;
+  const selectedRosterPath = rosterPath ?? persistedControls.rosterPath;
+  const selectedOpenCallEnabled = openCallEnabled ?? persistedControls.openCallEnabled;
+  const selectedIncludesMinors = includesMinors ?? persistedControls.includesMinors;
+
+  async function handleLogout() {
+    setMessage({ tone: 'status', text: 'Signing out…' });
+    try {
+      await postLogoutAndRedirectToMarketing();
+    } catch (err) {
+      setMessage({ tone: 'alert', text: err?.message || 'Sign-out failed. Try again.' });
+    }
+  }
 
   if (isLoading) return <SetupSkeleton />;
 
@@ -123,9 +165,7 @@ export default function AgencySetupPage() {
             agency profile, boards, team access, roster path, open calls, and privacy controls.
           </p>
         </div>
-        <form action="/logout" method="post">
-          <button className="ag-setup-secondary" type="submit"><LogOut size={16} /> Sign out</button>
-        </form>
+        <button className="ag-setup-secondary" onClick={handleLogout} type="button"><LogOut size={16} /> Sign out</button>
       </header>
 
       <div className="ag-setup-layout">
@@ -152,10 +192,10 @@ export default function AgencySetupPage() {
                 <input value={mergedProfile.location} onChange={(e) => setProfile((v) => ({ ...v, location: e.target.value }))} placeholder="New York, London, Paris" />
               </SetupField>
               <SetupField label="Website">
-                <input value={mergedProfile.website} onChange={(e) => setProfile((v) => ({ ...v, website: e.target.value }))} />
+                <input type="url" autoComplete="url" value={mergedProfile.website} onChange={(e) => setProfile((v) => ({ ...v, website: e.target.value }))} />
               </SetupField>
               <SetupField label="Support / inbound email">
-                <input value={mergedProfile.supportEmail} onChange={(e) => setProfile((v) => ({ ...v, supportEmail: e.target.value }))} />
+                <input type="email" autoComplete="email" value={mergedProfile.supportEmail} onChange={(e) => setProfile((v) => ({ ...v, supportEmail: e.target.value }))} />
               </SetupField>
               <SetupField label="Agency type">
                 <input value={mergedProfile.agencyType} onChange={(e) => setProfile((v) => ({ ...v, agencyType: e.target.value }))} placeholder="Mother agency, market agency, management" />
@@ -164,7 +204,7 @@ export default function AgencySetupPage() {
             <SetupField label="Public agency note">
               <textarea value={mergedProfile.description} onChange={(e) => setProfile((v) => ({ ...v, description: e.target.value }))} rows={3} />
             </SetupField>
-            <button className="ag-setup-primary" onClick={() => profileMutation.mutate(mergedProfile)} type="button">Save profile</button>
+            <button className="ag-setup-primary" disabled={isSavingProfile} onClick={() => profileMutation.mutate(mergedProfile)} type="button">{isSavingProfile ? 'Saving profile…' : 'Save profile'}</button>
           </div>
 
           <div className="ag-setup-section">
@@ -176,18 +216,21 @@ export default function AgencySetupPage() {
             <div className="ag-setup-board-list">
               {BOARD_PRESETS.map((name) => (
                 <label key={name} className="ag-setup-choice">
-                  <input type="checkbox" checked={boards.includes(name)} onChange={(event) => {
-                    setBoards((current) => event.target.checked ? [...new Set([...current, name])] : current.filter((board) => board !== name));
+                  <input type="checkbox" checked={selectedBoards.includes(name)} onChange={(event) => {
+                    setBoards((current) => {
+                      const nextBoards = current ?? selectedBoards;
+                      return event.target.checked ? [...new Set([...nextBoards, name])] : nextBoards.filter((board) => board !== name);
+                    });
                   }} />
                   <span>{name}</span>
                 </label>
               ))}
             </div>
             <label className="ag-setup-choice ag-setup-choice--plain">
-              <input type="checkbox" checked={includesMinors} onChange={(e) => setIncludesMinors(e.target.checked)} />
+              <input type="checkbox" checked={selectedIncludesMinors} onChange={(e) => setIncludesMinors(e.target.checked)} />
               <span>This agency handles kids/teens or imported roster data may include minors.</span>
             </label>
-            <button className="ag-setup-primary" onClick={() => boardsMutation.mutate({ boards, acceptsMinors: includesMinors })} type="button">Save boards</button>
+            <button className="ag-setup-primary" disabled={isSavingBoards} onClick={() => boardsMutation.mutate({ boards: selectedBoards, acceptsMinors: selectedIncludesMinors })} type="button">{isSavingBoards ? 'Saving boards…' : 'Save boards'}</button>
           </div>
 
           <div className="ag-setup-section">
@@ -196,16 +239,16 @@ export default function AgencySetupPage() {
               <span>{statusText(stepMap.get('team')?.status)} · {statusText(stepMap.get('roster')?.status)}</span>
             </div>
             <div className="ag-setup-actions-row">
-              <button className="ag-setup-secondary" onClick={() => teamMutation.mutate({ skipped: true })} type="button">Invite team later</button>
-              <select value={rosterPath} onChange={(e) => setRosterPath(e.target.value)}>
+              <button className="ag-setup-secondary" disabled={isSavingTeam} onClick={() => teamMutation.mutate({ skipped: true })} type="button">{isSavingTeam ? 'Saving team…' : 'Invite team later'}</button>
+              <select value={selectedRosterPath} disabled={isSavingRoster} onChange={(e) => setRosterPath(e.target.value)}>
                 <option value="blank">Start with a blank roster</option>
                 <option value="manual">Add talent manually</option>
                 <option value="import">Request import support</option>
               </select>
-              <button className="ag-setup-secondary" onClick={() => {
-                if (rosterPath === 'import') importMutation.mutate({ sourceType: 'concierge', includesMinors });
-                else rosterMutation.mutate({ path: rosterPath });
-              }} type="button">Save roster path</button>
+              <button className="ag-setup-secondary" disabled={isSavingRoster} onClick={() => {
+                if (selectedRosterPath === 'import') importMutation.mutate({ sourceType: 'concierge', includesMinors: selectedIncludesMinors });
+                else rosterMutation.mutate({ path: selectedRosterPath });
+              }} type="button">{isSavingRoster ? 'Saving roster…' : 'Save roster path'}</button>
             </div>
           </div>
 
@@ -216,11 +259,11 @@ export default function AgencySetupPage() {
             </div>
             <div className="ag-setup-actions-row">
               <label className="ag-setup-choice ag-setup-choice--plain">
-                <input type="checkbox" checked={openCallEnabled} onChange={(e) => setOpenCallEnabled(e.target.checked)} />
+                <input type="checkbox" checked={selectedOpenCallEnabled} onChange={(e) => setOpenCallEnabled(e.target.checked)} />
                 <span>Prepare an agency open-call link after setup.</span>
               </label>
-              <button className="ag-setup-secondary" onClick={() => openCallMutation.mutate({ enabled: openCallEnabled, acceptsMinors: includesMinors })} type="button">Save open-call choice</button>
-              <button className="ag-setup-secondary" onClick={() => defaultsMutation.mutate({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, currency: 'USD', units: 'imperial_metric' })} type="button">Use operating defaults</button>
+              <button className="ag-setup-secondary" disabled={isSavingOpenCall} onClick={() => openCallMutation.mutate({ enabled: selectedOpenCallEnabled, acceptsMinors: selectedIncludesMinors })} type="button">{isSavingOpenCall ? 'Saving open call…' : 'Save open-call choice'}</button>
+              <button className="ag-setup-secondary" disabled={isSavingDefaults} onClick={() => defaultsMutation.mutate({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, currency: 'USD', units: 'imperial_metric' })} type="button">{isSavingDefaults ? 'Saving defaults…' : 'Use operating defaults'}</button>
             </div>
           </div>
 
@@ -230,14 +273,14 @@ export default function AgencySetupPage() {
               <span>{statusText(stepMap.get('privacy')?.status)}</span>
             </div>
             <p className="ag-setup-copy">Talent images, measurements, submissions, and minor records require controlled team access. Minor imports or kids/teens boards stay in review until consent and visibility handling is confirmed.</p>
-            <button className="ag-setup-primary" onClick={() => privacyMutation.mutate({ acknowledgesMinorData: includesMinors })} type="button"><Check size={16} /> Acknowledge privacy controls</button>
+            <button className="ag-setup-primary" disabled={isSavingPrivacy} onClick={() => privacyMutation.mutate({ acknowledgesMinorData: true })} type="button"><Check size={16} /> {isSavingPrivacy ? 'Saving privacy…' : 'Acknowledge privacy controls'}</button>
           </div>
         </section>
 
         <aside className="ag-setup-summary">
           <h2>Workspace ledger</h2>
           <p>{requiredComplete ? 'Required setup is complete. You can open the agency dashboard.' : 'Complete each required row to open the agency dashboard.'}</p>
-          {message ? <p className="ag-setup-message">{message}</p> : null}
+          {message.text ? <p className="ag-setup-message" role={message.tone} aria-live={message.tone === 'alert' ? 'assertive' : 'polite'}>{message.text}</p> : null}
           <button className="ag-setup-primary ag-setup-primary--wide" disabled={!requiredComplete || completeMutation.isPending} onClick={() => completeMutation.mutate()} type="button">
             Enter agency dashboard <ArrowRight size={16} />
           </button>

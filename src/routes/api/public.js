@@ -30,6 +30,9 @@ const AGENCY_ACCESS_STATUSES = Object.freeze({
   SUBMITTED: "submitted",
 });
 
+const AGENCY_ACCESS_RECEIVED_MESSAGE =
+  "Your request has been received. Pholio reviews agency access manually and will email next steps if there is a fit.";
+
 const AGENCY_ACCESS_REQUIRED_FIELDS = [
   "agencyName",
   "websiteUrl",
@@ -196,14 +199,10 @@ router.post("/agency-access-requests", async (req, res) => {
       .first();
 
     if (existingRecent) {
-      return res.json({
+      return res.status(202).json({
         success: true,
         data: {
-          id: existingRecent.id,
-          status: existingRecent.status,
-          duplicate: true,
-          message:
-            "We already have an agency access request for this contact. Reply to your confirmation email with any updates.",
+          message: AGENCY_ACCESS_RECEIVED_MESSAGE,
         },
       });
     }
@@ -249,8 +248,8 @@ router.post("/agency-access-requests", async (req, res) => {
         event_type: "submitted",
         previous_status: null,
         next_status: AGENCY_ACCESS_STATUSES.SUBMITTED,
-        source_ip: ip,
-        metadata: jsonForDb({ source: "pholio-landing" }),
+        source_ip: null,
+        metadata: jsonForDb({ source: "pholio-landing", ipHash: hashIp(ip) }),
         created_at: trx.fn.now(),
       });
     });
@@ -258,10 +257,7 @@ router.post("/agency-access-requests", async (req, res) => {
     return res.status(201).json({
       success: true,
       data: {
-        id: requestId,
-        status: AGENCY_ACCESS_STATUSES.SUBMITTED,
-        message:
-          "Your request has been received. Pholio reviews agency access manually and will email next steps if there is a fit.",
+        message: AGENCY_ACCESS_RECEIVED_MESSAGE,
       },
     });
   } catch (error) {

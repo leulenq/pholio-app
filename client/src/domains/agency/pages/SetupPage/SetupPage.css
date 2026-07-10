@@ -1,21 +1,28 @@
 :root {
-  --setup-canvas: #FAF8F5;
-  --setup-surface: #FFFFFF;
-  --setup-ink: #1A1815;
-  --setup-body: #2D2A26;
-  --setup-muted: #6B6560;
-  --setup-border: rgba(26, 24, 21, 0.12);
-  --setup-border-strong: rgba(26, 24, 21, 0.18);
-  --setup-gold: #C9A55A;
-  --setup-gold-hover: #B8956A;
+  --setup-canvas: var(--ag-surface-0, #FAF8F5);
+  --setup-surface: var(--ag-surface-1, #FFFFFF);
+  --setup-ink: var(--ag-text-0, #1A1815);
+  --setup-body: var(--ag-text-1, #2D2A26);
+  --setup-muted: var(--ag-text-2, #6B6560);
+  --setup-border: var(--ag-border, rgba(26, 24, 21, 0.12));
+  --setup-border-strong: var(--ag-border-strong, rgba(26, 24, 21, 0.18));
+  --setup-gold: var(--ag-gold, #C9A55A);
+  --setup-gold-hover: var(--ag-gold-hover, #B8956A);
 }
 
 .ag-setup-shell {
+  box-sizing: border-box;
   min-height: 100vh;
   background: var(--setup-canvas);
   color: var(--setup-body);
   padding: 48px clamp(24px, 5vw, 64px);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ag-setup-shell *,
+.ag-setup-shell *::before,
+.ag-setup-shell *::after {
+  box-sizing: border-box;
 }
 
 .ag-setup-masthead {
@@ -164,6 +171,7 @@
 .ag-setup-field input,
 .ag-setup-field textarea,
 .ag-setup-actions-row select {
+  width: 100%;
   min-height: 44px;
   border: 1px solid var(--setup-border);
   border-radius: 8px;
@@ -176,6 +184,7 @@
 
 .ag-setup-field textarea {
   resize: none;
+  min-height: 96px;
   line-height: 1.5;
 }
 
@@ -226,6 +235,10 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.ag-setup-actions-row select {
+  max-width: 100%;
 }
 
 .ag-setup-primary,
@@ -340,6 +353,16 @@
 
   .ag-setup-panel {
     padding: 20px;
+  }
+
+  .ag-setup-actions-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ag-setup-primary,
+  .ag-setup-secondary {
+    width: 100%;
   }
 }
 
