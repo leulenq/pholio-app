@@ -338,7 +338,45 @@ const parseJsonObject = (v) => {
 };
 
 /**
+ * Derive a coarse, casting-style age band from date_of_birth.
+ *
+ * Exact age never enters index text (WS2 / council review: `profiles.age`
+ * is deprecated and drifts; DOB is canonical but must not be exposed).
+ * Handles both "1995-03-15" and "1995-03-15T05:00:00.000Z" DOB formats.
+ *
+ * @param {string|Date|null} dateOfBirth
+ * @returns {string|null} coarse band, or null (unknown DOB or minor)
+ */
+function deriveAgeBand(dateOfBirth, referenceDate = new Date()) {
+  if (!dateOfBirth) return null;
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+
+  let age = referenceDate.getFullYear() - dob.getFullYear();
+  const monthDiff = referenceDate.getMonth() - dob.getMonth();
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && referenceDate.getDate() < dob.getDate())
+  ) {
+    age -= 1;
+  }
+
+  if (age < 18) return null; // minors are never discoverable
+  if (age <= 21) return "late teens to early twenties";
+  if (age <= 25) return "early to mid twenties";
+  if (age <= 29) return "late twenties";
+  if (age <= 39) return "thirties";
+  if (age <= 49) return "forties";
+  return "fifties plus";
+}
+
+/**
  * Flatten vision image_analysis JSON into embeddable prose.
+ *
+ * Compliance (WS2): never emit skinTone / measurementEstimates (or any
+ * ethnicity/heritage proxy) — protected traits and AI-estimated
+ * measurements must never reach index text or embeddings.
+ *
  * @param {Object|string|null} imageAnalysis
  * @returns {string}
  */
@@ -347,7 +385,6 @@ function flattenImageAnalysis(imageAnalysis) {
   if (!obj) return "";
 
   const parts = [];
-  if (obj.skinTone) parts.push(`Skin tone: ${obj.skinTone}`);
   if (obj.boneStructure) parts.push(`Bone structure: ${obj.boneStructure}`);
   if (obj.featureContrast)
     parts.push(`Feature contrast: ${obj.featureContrast}`);
@@ -377,15 +414,14 @@ function buildDiscoverIndexText(profile, extras = {}) {
     parts.push(`${profile.first_name || ""} ${profile.last_name || ""}`.trim());
   }
 
-  const ethnicity = parseJsonArray(profile.ethnicity);
-  if (ethnicity.length) {
-    parts.push(`Heritage: ${ethnicity.join(", ")}`);
-  }
-  if (profile.skin_tone) parts.push(`Skin tone: ${profile.skin_tone}`);
+  // Compliance (WS2): heritage/ethnicity and skin tone are protected traits
+  // and must never be emitted into any Discover index text or embedding.
+  // Exact age is also excluded — only a coarse DOB-derived band is indexed.
 
   if (profile.city) parts.push(`Based in ${profile.city}`);
   if (profile.gender) parts.push(`Gender: ${profile.gender}`);
-  if (profile.age) parts.push(`Age: ${profile.age}`);
+  const ageBand = deriveAgeBand(profile.date_of_birth);
+  if (ageBand) parts.push(`Age band: ${ageBand}`);
   if (profile.height_cm) parts.push(`Height: ${profile.height_cm} cm`);
   if (profile.body_type) parts.push(`Build: ${profile.body_type}`);
 
@@ -496,8 +532,7 @@ function buildCastingIndexText(profile) {
   if (profile.eye_color) parts.push(`Eyes: ${profile.eye_color}`);
   if (profile.gender) parts.push(`Gender: ${profile.gender}`);
 
-  const ethnicity = parseJsonArray(profile.ethnicity);
-  if (ethnicity.length) parts.push(`Heritage: ${ethnicity.join(", ")}`);
+  // Compliance (WS2): heritage/ethnicity is protected and never indexed.
 
   return parts.filter(Boolean).join(". ");
 }
@@ -579,10 +614,8 @@ function buildLexicalDocument(profile, extras = {}) {
   const tokens = [];
   if (profile.gender)
     tokens.push(`gender:${String(profile.gender).toLowerCase()}`);
-  const ethnicity = parseJsonArray(profile.ethnicity);
-  for (const h of ethnicity) {
-    tokens.push(`heritage:${String(h).toLowerCase()}`);
-  }
+  // Compliance (WS2): no heritage:/ethnicity/skin-tone tokens — protected
+  // traits must never be lexically searchable.
   if (profile.hair_color) {
     tokens.push(`hair:${String(profile.hair_color).toLowerCase()}`);
   }
@@ -755,6 +788,7 @@ module.exports = {
   buildVisualTextFromProfile,
   buildScoutText,
   flattenImageAnalysis,
+  deriveAgeBand,
   DENSE_CHANNEL_SOURCES,
   EMBEDDING_MODEL,
   EMBEDDING_DIMENSIONS,
