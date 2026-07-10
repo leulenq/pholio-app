@@ -1,3 +1,18 @@
+# Current Task — Agency access system stress test
+
+- [x] Recreated `agency-access-flow-revisions` branch in the current Codex checkout.
+- [x] Ran a fresh subagent stress test against the agency access plan.
+- [x] Applied repo-boundary correction: request form belongs in `pholio-landing`; authenticated setup belongs in `pholio-app`.
+- [x] Removed generic platform-funnel language and added agency-dashboard design contracts.
+- [x] Added blocking setup-gate, internal authorization, agency status, minors, board-model, open-call, import, and copy acceptance criteria.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Stress-tested and hardened `tasks/agency-access-system.md` so implementation cannot proceed without addressing setup bypasses, Pholio-internal provisioning authorization, minor-data controls, app/landing repo ownership, and agency-dashboard design alignment.
+
+---
+
 # Current Task — Agency access system research
 
 - [x] Inspect current agency/auth/onboarding routes and existing agency design context.

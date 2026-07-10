@@ -2,11 +2,11 @@
 
 **Status:** Product/system specification for implementation.
 **Date:** 2026-07-10
-**Scope:** Replace any agency path that implies open self-serve onboarding with a curated access-request, manual-review, approval, credentialing, and agency-specific post-login setup system.
+**Scope:** Replace any agency path that implies open self-serve onboarding with a curated access-request, manual-review, approval, credentialing, and agency-specific post-login setup system. The public request form belongs in the separate `pholio-landing` marketing repo; the authenticated agency setup workflow belongs in this `pholio-app` product repo.
 
 ## 1. Real frame
 
-Agency access is not talent onboarding. For Pholio, the credible industry frame is a **reviewed agency partnership request** followed by a **private agency implementation setup**. Agencies should never be sent to the public `/onboarding` casting flow. The current product already blocks automatic agency creation in login and the legacy partner form, but the user-facing model is incomplete: `/signup` still redirects unknown users to `/onboarding`, `/partners` renders a dead-end “manual provisioned” message, and agency onboarding after login is bypassed in the auth redirect path.
+Agency access is not talent onboarding and it is not an open self-serve signup. For Pholio, the credible industry frame is a **reviewed agency partnership request** on the public marketing site followed by a **private agency implementation setup** inside the app after approval. Agencies should never be sent to the public `/onboarding` casting flow. The current product already blocks automatic agency creation in login and the legacy partner form, but the user-facing model is incomplete: `/signup` still redirects unknown users to `/onboarding`, `/partners` renders a dead-end “manual provisioned” message, and agency onboarding after login is bypassed in the auth redirect path.
 
 The correct model:
 
@@ -18,34 +18,42 @@ The correct model:
 
 This keeps Pholio feeling curated and protects the agency side from fake agencies, low-quality rosters, scraping, and legal/privacy risk around talent data.
 
-## 2. Current Pholio alignment and gaps
+## 2. Current Pholio alignment, repo boundaries, and gaps
 
 | Area | Current behavior | Required change |
 | --- | --- | --- |
-| Anonymous signup | `GET /signup` redirects to `/onboarding`, which is talent-specific. | Keep `/signup` talent-only or route agency CTAs to `/agency/request-access`; never send agencies to `/onboarding`. |
+| Anonymous signup | `GET /signup` redirects to `/onboarding`, which is talent-specific. | Keep `/signup` talent-only. Agency CTAs should live in `pholio-landing` and point to a landing-owned request form; never send agencies to `/onboarding`. |
 | Agency self-creation | Login blocks auto-created `AGENCY` users and says agency accounts are provisioned by Pholio. | Keep this principle, but replace the dead end with a formal request-access path. |
-| Partner page | `/partners` renders a legacy agency signup page; `POST /partners` returns 403 manual-provisioning copy. | Retire as signup; make it request-access or redirect to request-access. |
+| Partner page | `/partners` renders a legacy agency signup page; `POST /partners` returns 403 manual-provisioning copy. | Retire as signup in `pholio-app`; redirect or link to the `pholio-landing` agency request page. Keep app-side APIs only if the landing form posts into this app. |
 | Post-login agency onboarding | `redirectForSession` contains a removed/bypassed agency onboarding block and `/dashboard/agency/onboarding` redirects to the dashboard. | Restore a dedicated agency setup gate, but under agency design language and agency data model, not the talent onboarding domain. |
 | Existing agency app | Agency dashboard already has roster, applicants, casting, boards, team, messages, reminders, analytics, and settings. | Setup should configure these operational primitives: boards, team roles, roster/imports, open-call links, inbox rules, and brand/profile details. |
 
-## 3. External research inputs
+## 3. Research inputs and stress-test corrections
 
 Research points that should shape implementation:
 
-- Enterprise/customer onboarding works best as staged implementation: pre-kickoff, kickoff/goal alignment, account setup/configuration, training/adoption, go-live confirmation, and handoff to ongoing success. Source: CheckFlow SaaS onboarding checklist (`https://checkflow.io/templates/customer-management/saas-customer-onboarding-checklist`).
-- Customer onboarding for enterprise SaaS is where the vendor turns the contract/request into outcomes and adoption, not just account creation. Source: Innovecs enterprise SaaS onboarding guide (`https://innovecs.com/blog/enterprise-saas-onborading-best-practices/`).
-- Access-request systems should include approval, least-privilege provisioning, auditability, and periodic review rather than open-ended permissions. Sources: Veza access request best practices (`https://veza.com/blog/access-requests-best-practices/`), SailPoint access request docs (`https://documentation.sailpoint.com/saas/user-help/requests/request_center.html`), Microsoft Entra access review docs (`https://learn.microsoft.com/en-us/entra/id-governance/create-access-review`).
-- Model/talent agency software competitors emphasize operational agency setup around rosters, packages/shortlists, bookings, invoices/statements, clients, calendars, and reports. Sources: AgencyPin (`https://agencypin.com/`), Mainboard (`https://www.mainboard.com/`), Mediaslide (`https://www.mediaslide.com/`), LiveDesk (`https://www.livedesk.agency/modelling-agency-software`).
+- Implementation should be staged: pre-review, qualification/kickoff, account provisioning, workspace configuration, team enablement, roster/import work, go-live confirmation, and handoff to ongoing support. Generic onboarding sources were used only for sequencing; Pholio copy and product shape must remain agency-native.
+- Access-request systems should include approval, least-privilege provisioning, auditability, and periodic review rather than open-ended permissions. Access-governance references were used only to validate review/provisioning controls.
+- Model/talent agency tools emphasize operational setup around rosters, packages/shortlists, bookings, invoices/statements, clients, calendars, and reports. Comparable category references reviewed: AgencyPin, Mainboard, Mediaslide, and LiveDesk.
 - Import/migration is expected in this category: Flowboard explicitly offers migration of model records, client contacts, booking history, and portfolio files plus onboarding sessions for admins/bookers. Source: Flowboard FAQ (`https://www.flowboardpro.com/`).
 - Industry reality: agencies organize talent by boards, bookers work boards, inbound talent should flow into an application/open-call inbox, and real operations include digitals, comp cards, castings/go-sees, options/holds, bookouts, vouchers, commission, and split-aware payments. Source: local industry reference `.agents/skills/industry/reference/standards.md` and `.agents/skills/industry/reference/lifecycle.md`.
 
-## 4. Part 1 — Agency request / application flow
+Stress-test corrections applied to this plan:
 
-### 4.1 Page purpose and positioning
+- **P0 — repo boundary:** the public agency request form must be specified for `pholio-landing`; this app repo owns the authenticated setup workflow and may own the intake API.
+- **P0 — no agency `/onboarding`:** agency setup must not reuse the talent casting/onboarding domain, dark onboarding design system, or talent state machine.
+- **P1 — no generic platform-funnel language:** keep the external page in partnership/access language and the internal flow in agency-operations language; avoid generic sales labels where possible.
+- **P1 — dashboard fit:** post-login setup should feel like a focused agency command-center checklist embedded in the agency system, not a marketing microsite or talent reveal.
+- **P1 — talent-system compatibility:** request/access changes must not alter talent `/onboarding`, `/apply`, agency open-call claims, or submission quota rules. Open-call links remain agency-to-talent inbound tools after the agency is approved.
+- **P2 — implementation scope:** if the full import system is too large for V1, ship an import-intake job and concierge review path rather than pretending complete automated migration is available.
 
-Route recommendation: **`/agency/request-access`** in the app product, with marketing CTAs from the separate landing repo pointing here. If `/partners` remains for compatibility, it should 301/302 to `/agency/request-access` or render the same request form.
+## 4. Part 1 — Public agency access request
 
-The page should communicate:
+### 4.1 Page purpose, repo ownership, and positioning
+
+**Repo ownership:** the public request form belongs in **`pholio-landing`**, not `pholio-app`. Recommended marketing route: **`/agency/request-access`** or **`/partners/request-access`** in the landing repo. The app repo may expose the receiving API, but it should not own the public marketing page. If `/partners` remains in `pholio-app` for compatibility, it should redirect to the landing-owned request page or render only a thin handoff.
+
+The landing page should communicate:
 
 - **Curated access:** “Pholio partners with selected agencies and management teams.”
 - **Operational value:** roster command center, inbound open calls, boards, casting packages, team workflows, and migration support.
@@ -53,9 +61,22 @@ The page should communicate:
 - **No instant account promise:** the CTA is “Request agency access,” not “Create account” or “Start onboarding.”
 - **Data-respect posture:** Pholio manages talent images, stats, submissions, and team access with privacy and permission controls.
 
-Avoid generic self-serve language: no “Sign up free,” no “Start trial,” no “Create agency account.”
+Avoid generic platform-funnel language: no “Sign up free,” no “Start trial,” no “Create agency account,” no “book a demo” as the primary CTA, and no dashboard screenshots that make access look instant. The page should feel like a controlled partnership request, not a sales funnel.
 
-### 4.2 Trust signals
+### 4.2 Frontend design contract for `pholio-landing`
+
+The public request page is a marketing-repo surface, but it should borrow the **agency command-center** visual language rather than the talent onboarding system:
+
+- Warm cream canvas, white paper form surfaces, thin ink/gold rules, and restrained gold actions.
+- Playfair Display for the page masthead and major editorial title moments; Inter for all form labels, help text, fields, and buttons.
+- Rectangular 8–12px controls and panels; no oversized rounded form cards.
+- Dense, composed form rhythm: fieldsets separated by hairline rules and measured spacing, not repeated icon-card grids.
+- Motion should be minimal and purposeful: field focus, validation, section reveal, and submit confirmation only; 150–200ms with reduced-motion fallback.
+- No hero eyebrow, no pill chips, no status badges, no gradient text, no glass panels, no decorative AI ornaments, no “New/Beta/Live/AI-powered” badges.
+
+The page may use a more editorial landing composition than the authenticated dashboard, but it should still feel like an agency director is requesting entry to a private operating system, not like a talent is entering a cinematic screen test.
+
+### 4.3 Trust signals
 
 Use restrained, premium proof rather than badge clutter:
 
@@ -67,9 +88,9 @@ Use restrained, premium proof rather than badge clutter:
 
 Do not use “AI-powered,” “beta,” “live,” or decorative status badges because those are banned UI patterns in this repo.
 
-### 4.3 Form structure
+### 4.4 Form structure
 
-Recommendation: **single page with three sections** rather than a long wizard. The agency request should feel selective but not like procurement. Keep it to **10 required fields + 6 optional fields**, with progressive disclosure for import/system details.
+Recommendation for `pholio-landing`: **single editorial page with an embedded three-section form** rather than a long wizard. The request should feel selective but not like procurement. Keep it to **10 required fields + 6 optional fields**, with progressive disclosure for import/system details.
 
 Section 1 — Agency identity:
 
@@ -104,9 +125,9 @@ Section 3 — Fit, needs, and migration:
 | How did you hear about Pholio? | Optional | Select/text | Growth attribution. |
 | Anything we should know before review? | Optional | Textarea, max 500 chars, `resize: none` | Context without turning the request into an essay. |
 
-Do **not** collect sensitive talent data, roster files, client lists, full contracts, tax IDs, payment details, or minor-related data in the public request form. Those belong after approval in authenticated setup with explicit data-handling terms.
+Do **not** collect sensitive talent data, roster files, client lists, full contracts, tax IDs, payment details, uploaded logos, or minor-related data in the public landing request form. Those belong after approval in authenticated setup with explicit data-handling terms.
 
-### 4.4 Required vs later
+### 4.5 Required vs later
 
 Collect upfront:
 
@@ -123,7 +144,7 @@ Collect later after approval:
 - Roster/import files, client contacts, booking history, commission settings.
 - Open-call link configuration and public agency profile details.
 
-### 4.5 Submission confirmation
+### 4.6 Submission confirmation
 
 After submission, render a calm confirmation state:
 
@@ -133,7 +154,7 @@ After submission, render a calm confirmation state:
 - Provide a way to update the request by replying to the confirmation email, not by resubmitting.
 - Send an internal notification to Pholio ops and a confirmation email to the requester.
 
-### 4.6 Internal review workflow
+### 4.7 Internal review workflow
 
 Recommended states for `agency_access_requests`:
 
@@ -174,26 +195,39 @@ Decline copy should be concise and non-accusatory: “Pholio is currently onboar
 
 ### 5.1 Setup route and gating
 
-Route recommendation: **`/dashboard/agency/setup`**.
+Route recommendation in `pholio-app`: **`/dashboard/agency/setup`**.
 
 Gating rules:
 
 - Only approved/provisioned agency users can log in.
-- If agency `setup_completed_at` / `onboarding_completed_at` is null, redirect agency users to `/dashboard/agency/setup` instead of the normal dashboard.
+- If agency `setup_completed_at` / existing `onboarding_completed_at` is null, redirect agency users to `/dashboard/agency/setup` instead of the normal dashboard. This check belongs in `AgencySessionGate` or a dedicated setup guard, not the talent onboarding middleware.
 - Allow limited access to logout, support, billing/legal pages, and password reset.
 - Once setup is completed, `/dashboard/agency/setup` remains accessible from settings as “Implementation checklist,” but no longer blocks dashboard access.
 
-Do not use `/onboarding` for agencies. The `/onboarding/*` domain remains talent/casting onboarding only.
+Do not use `/onboarding` for agencies. The `/onboarding/*` domain remains talent/casting onboarding only, and the setup UI must not import the dark cinematic onboarding design system.
 
-### 5.2 Setup principles
+### 5.2 Setup principles and agency-dashboard design language
 
 - Make the agency operational quickly; do not demand complete migration before first value.
 - Use agency language: **boards, bookers, roster, open call, submissions, digitals, comp cards, packages, castings, clients, options/holds, commissions**.
 - Split required setup from optional implementation depth.
 - Treat import as a guided implementation track, not an upload box that promises impossible automatic cleanup.
 - Make owner/admin aware of privacy and minor-data handling before inviting the team or importing roster data.
+- Match the current agency dashboard design system: warm cream canvas, white paper panels, Playfair mastheads, Inter operational text, rectangular controls, thin rules, restrained gold, dense scan-friendly layouts, and 150–200ms state motion. No glass cards, badges, hero chips, generic card grids, gradient text, over-rounded surfaces, or decorative AI ornament.
 
-### 5.3 Recommended setup sequence
+### 5.3 Product UI contract for `pholio-app`
+
+The authenticated setup should be implemented inside the agency dashboard system:
+
+- Route: `/dashboard/agency/setup`; avoid `/onboarding`, `/dashboard/agency/onboarding`, and any shared talent onboarding components.
+- Layout: a focused setup workspace using the agency shell vocabulary where possible: masthead, left progress rail or ledger-style checklist, main working panel, and a right-side implementation summary.
+- Controls: reuse agency button/input/table treatments or create agency-scoped primitives; do not import talent `PholioButton` variants if they visually conflict.
+- State: use plain text step states such as `Not started`, `In review`, `Ready`, `Complete`; avoid colored pill badges.
+- Empty states: teach the operational task: “No boards configured yet — add the boards your bookers work from.” Avoid generic “Nothing here.”
+- Loading: skeleton rows/panels in place; no center-stage spinner once the shell has loaded.
+- Save model: each step can save independently, with a final “Enter agency dashboard” after required steps are complete. This prevents import/migration from blocking first value.
+
+### 5.4 Recommended setup sequence
 
 Step 1 — Confirm agency profile
 
@@ -308,7 +342,7 @@ Primary CTA: “Enter agency dashboard.”
 
 Secondary CTA: “Book implementation session” if import/migration or large roster was selected.
 
-### 5.4 Import/migration recommendation
+### 5.5 Import/migration recommendation
 
 Yes, import should be part of agency onboarding, but as a **two-tier system**:
 
@@ -334,6 +368,157 @@ Later — System-specific migration:
 - Board-specific package templates.
 
 Do not overpromise automated migration from every competitor in V1. The credible premium posture is “guided import with Pholio implementation support,” not “drag any agency database here and magic happens.”
+
+
+### 5.6 Blocking implementation contracts from stress test
+
+These are acceptance criteria before implementation is considered safe.
+
+#### Setup gate enforcement
+
+Agency setup must be enforced in three layers, because any one layer can be bypassed by direct links, stale sessions, or API calls:
+
+1. **Login/session redirect:** `redirectForSession(session)` returns `/dashboard/agency/setup` when `session.role === 'AGENCY' && !session.agencyOnboardingCompletedAt`, unless the destination is already an allowed setup/logout/support/legal path.
+2. **`next` protection:** `next` may not override setup. If an incomplete agency signs in with `?next=/dashboard/agency/roster`, store that path as `return_to_after_setup` and redirect to setup first. Only use the stored return path after setup completion.
+3. **SPA guard:** `AgencySessionGate` or a dedicated setup guard redirects incomplete agency sessions to `/dashboard/agency/setup` and blocks other `/dashboard/agency/*` routes until required setup is complete.
+4. **API guard:** `requireAgencyOnboardingComplete` must stop incomplete agencies from calling normal `/api/agency/*` routes, except a tight setup allowlist. Existing agency `/onboarding/complete` allowlist language should be retired in favor of setup routes.
+
+#### Internal ops authorization
+
+Do not add public `/api/admin/agency-access-requests` endpoints until Pholio-internal authorization exists. V1 options:
+
+- Preferred: Firebase custom claim or server-side `internal_admins` table for Pholio ops users.
+- Acceptable short-term: CLI/script provisioning behind deployment credentials, with no public HTTP admin route.
+- Not acceptable: hidden routes, relying on `AGENCY` role, or trusting request origin alone.
+
+Every status transition and provisioning action must write an immutable audit event with actor ID/email, request ID, previous status, next status, provisioned agency ID, provisioned owner user ID, timestamp, source IP, and review notes diff where applicable.
+
+#### Agency status semantics
+
+Provisioning must not create a fully active agency by default.
+
+```text
+agencies.status:
+  PENDING_SETUP
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+```
+
+Approval/provisioning sets `status = 'PENDING_SETUP'`, stamps `onboarding_started_at` if the existing column is reused, and leaves `onboarding_completed_at` null. `POST /api/agency/setup/complete` sets `status = 'ACTIVE'` and stamps completion only after required setup acknowledgements pass. Product copy should say **setup**, even if the persisted legacy column remains `onboarding_completed_at`.
+
+#### Minor-data branch
+
+If a requested board includes kids/teens or imported roster data includes minors, setup must branch before team expansion, import commit, or open-call activation:
+
+- Require `minor_data_acknowledged_at` at agency level.
+- Require board-level `accepts_minors` and `guardian_consent_required` flags.
+- Block public open-call links for minor-accepting boards until guardian-consent copy and visibility rules are configured.
+- Route any import with `includes_minors = true` to `needs_review` and prevent commit until Pholio confirms consent/visibility handling.
+- Restrict minor measurements, full-length/swim images, contact details, financials, and import files to elevated roles.
+- Require a future implementation to preserve guardian consent, work-permit, and visibility state before minors can be reviewed by non-owner team members.
+
+#### Existing primitives, not parallel setup data
+
+Agency setup is an orchestrated checklist over the live agency primitives. It should call/write the same profile, roster-board, team, open-call, and import tables used by the dashboard. `agency_setup_steps` tracks checklist completion, acknowledgements, and deferred/skipped choices only; it must not duplicate operational data.
+
+#### Roster boards vs casting boards
+
+V1 must distinguish standing roster boards/divisions from client/job-specific casting boards:
+
+- `agency_roster_boards` / divisions: standing house structure such as Women, Men, New Faces, Curve, Commercial, E-comm, Fit, Kids/Teens, Actors/Performers, Creators, or market/office boards.
+- `casting_boards` / casting packages: client/job-specific pipelines with requirements, shortlists, scoring, dates, and applications.
+
+Setup Step 2 configures standing roster boards and inbound routing. Casting boards remain the operational casting module. If V1 reuses the existing `boards` table as a compromise, the implementation must document which casting-specific columns are ignored for roster boards and how the model will be split later.
+
+#### Inbound lifecycle mapping
+
+Agency-facing copy should avoid a generic “accept” action. The existing status vocabulary should map to agency language:
+
+| Industry label | Stored status |
+| --- | --- |
+| Received / in review | `submitted` or `in_review` |
+| Kept on file | `kept_on_file` |
+| Request more | `requested_more` |
+| Meeting / go-see | `meeting_requested` |
+| Development offer | `development` |
+| Signed / represented | `represented` |
+| Declined | `declined` |
+
+#### Open-call routing fields
+
+If Step 5 promises board-specific open-call routing, the open-call link model needs more than a label:
+
+```text
+agency_open_call_links
+  default_roster_board_id
+  receiving_board_ids_json
+  instructions_by_board_json
+  accepts_minors
+  guardian_consent_required
+  notification_recipient_membership_ids_json
+```
+
+If that is too large for V1, the setup UI should say V1 creates a general agency open-call link; board-specific routing is captured as setup intent and implemented in V1.1.
+
+#### Measurement/versioned stats import
+
+Roster imports that include stats must preserve unit provenance and freshness. Add or plan a measurement table such as:
+
+```text
+agency_roster_measurements
+  profile_or_roster_talent_id
+  source_import_job_id
+  measured_at
+  confirmed_at
+  height_cm
+  bust_cm
+  bust_in
+  chest_cm
+  chest_in
+  waist_cm
+  waist_in
+  hips_cm
+  hips_in
+  inseam_cm
+  inseam_in
+  shoe_us
+  shoe_uk
+  shoe_eu
+  dress_size_region
+  suit_size_region
+  hair
+  eyes
+  created_at
+```
+
+Setup/import should show “stats current as of” and flag stats older than 3 months before they are used in digitals/open-call review.
+
+#### Representation relationships
+
+Imports must preserve multi-agency reality where provided. Do not flatten talent to one agency. Capture:
+
+- Mother agency relationship.
+- Placement/market agency relationship.
+- Market/territory.
+- Division/board.
+- Exclusive/non-exclusive.
+- Active/ended.
+- Development/new-face stage where applicable.
+
+#### Lightweight setup shell
+
+`/dashboard/agency/setup` should use a lightweight agency setup shell, not the full operational `AgencyLayout`. It may share agency tokens, typography, form controls, and navigation vocabulary, but it should not fetch overview KPIs, messages, notifications, roster, applicants, casting, or analytics data until setup is complete.
+
+#### Agency-facing copy rules
+
+Internal docs may use implementation language, but the UI should speak like an agency working tool:
+
+- Use “Agency setup” or “Workspace setup,” not “implementation checklist.”
+- Use “Open agency dashboard,” not “go live.”
+- Use “team members,” not “users,” except in technical/internal docs.
+- Use “owners/admins” only for permissions.
+- Prefer “submissions,” “casting board,” “shortlist,” “meeting/go-see,” “development,” and “represented” over generic pipeline labels where possible.
 
 ## 6. Data model sketch
 
@@ -402,12 +587,12 @@ Existing `agencies.onboarding_completed_at` can be reused as `setup_completed_at
 
 ## 7. Routes and product surfaces
 
-Public/anonymous:
+Public/anonymous (`pholio-landing` owns the page; `pholio-app` may own the receiving API):
 
-- `GET /agency/request-access` — React standalone or server-rendered request page.
-- `POST /api/public/agency-access-requests` — creates request, rate-limited, spam-protected.
-- `GET /partners` — redirect/render alias to request-access.
-- `POST /partners` — retire legacy signup behavior and route to request API if server-rendered compatibility remains.
+- Landing route `GET /agency/request-access` or `GET /partners/request-access` — public editorial request page in the marketing repo.
+- App API `POST /api/public/agency-access-requests` — creates request, rate-limited, spam-protected, safe CORS from the landing domain.
+- App route `GET /partners` — redirect or thin handoff to the landing request page.
+- App route `POST /partners` — retire legacy signup behavior and route to the request API only if server-rendered compatibility remains.
 
 Internal/admin:
 
@@ -461,21 +646,30 @@ Import:
 - Minor-data review count.
 - Imported talent records successfully mapped to boards.
 
-## 9. V1 implementation recommendation
+Activation:
+
+- Time to first submission reviewed.
+- Time to first kept-on-file, request-more, or meeting/go-see decision.
+- Time to first roster talent added or imported.
+- Time to first open-call submission received.
+- Time to first casting package/board created.
+- Time to first non-owner team member action.
+
+## 9. V1 implementation recommendation after stress test
 
 Must ship in V1:
 
-1. Request-access page and API with the field set above.
+1. `pholio-landing` request-access page plus `pholio-app` receiving API with the field set above.
 2. Internal review states and manual provisioning link from request to agency/user/membership.
 3. Normal `/login` credential path for approved agencies.
-4. Agency setup gate at `/dashboard/agency/setup`.
+4. `pholio-app` agency setup gate at `/dashboard/agency/setup`, wired through the agency session/dashboard system.
 5. Setup steps: profile, boards, team, roster path, open-call choice, operating defaults, review/go-live.
 6. Basic CSV roster import job with validation preview or, if implementation time is short, a “request concierge import” path that captures source and blocks no one.
-7. Clear copy that agencies are reviewed and not self-serve.
+7. Clear copy that agencies are reviewed, manually provisioned, and not self-serve.
 
 Safe to defer:
 
-- Full admin UI polish; ops can start with an authenticated internal list and scripts.
+- Full internal review UI polish; ops can start with an authenticated internal list and scripts.
 - Deep competitor-specific migrations.
 - Booking history/import, invoices/statements, and commission-history migration.
 - SSO/SAML.
@@ -490,7 +684,7 @@ Request page title:
 
 Support copy:
 
-> Pholio partners with selected agencies and management teams. Tell us about your agency, your boards, and how you want to use Pholio. We review each request before opening access.
+> Pholio partners with selected agencies and management teams. Tell us about your agency, your boards, and the workflows you want to bring into Pholio. Every request is reviewed before access is opened.
 
 CTA:
 
@@ -512,4 +706,4 @@ Setup intro after first login:
 
 ## 11. Industry sign-off
 
-This design reads as credible because it treats agencies like operational partners, not talent signing themselves up. It uses the real agency primitives — boards, bookers, roster, open calls, digitals, comp cards, castings, team permissions, imports, and commission/accounting defaults — while keeping public request friction low. It also avoids collecting sensitive roster/talent data before approval, which is the correct privacy posture for a platform that may handle minors, measurements, and image rights.
+This design reads as credible because it treats agencies like operational partners, not talent signing themselves up and not buyers entering a generic funnel. It uses the real agency primitives — boards, bookers, roster, open calls, digitals, comp cards, castings, team permissions, imports, and commission/accounting defaults — while keeping public request friction low. It also avoids collecting sensitive roster/talent data before approval, which is the correct privacy posture for a platform that may handle minors, measurements, and image rights.
