@@ -68,10 +68,12 @@ const EDITIONS = Object.freeze([
     id: "house-classic",
     label: "The Standard",
     tone: "The industry card — one strong frame, a clean name band, a working back.",
-    structures: { "photo-dominant": 3, matted: 1.2 },
+    // v10: house-classic is the photo-dominant edition, full stop — its
+    // matted mode shaded into gallery-monograph territory (red team P1-4).
+    structures: { "photo-dominant": 1 },
     treatmentsOpen: true, // name choreography (straddle/over/band/inset) may sample
     lockups: ["inline", "contrast"],
-    voices: ["quiet-classic", "editorial-serif", "stark-grotesque"],
+    voices: ["editorial-serif", "quiet-classic"],
     palette: "auto",
     scale: { minPt: 20, maxPt: 38, trackingBias: 0, stackBias: 0.3 },
     ornaments: [],
@@ -81,6 +83,27 @@ const EDITIONS = Object.freeze([
     },
     needs: {},
     toneWeight: (t) => 1 + 0.3 * t.warmth,
+  },
+  {
+    id: "the-strip",
+    label: "The Strip",
+    tone: "The working commercial card — a full hero over a three-frame strip.",
+    // Rebuilt from the failed fresh-commercial concept (red team P0): the
+    // real premium commercial format — hero + front filmstrip — instead of
+    // house-classic with title case. Warmth is styling, not the identity.
+    structures: { "filmstrip-foot": 1 },
+    treatmentsOpen: false,
+    lockups: ["inline", "contrast"],
+    voices: ["clean-modern", "modern-warm"],
+    palette: "paper-warm",
+    scale: { minPt: 20, maxPt: 32, trackingBias: 0, stackBias: 0.2 },
+    ornaments: [],
+    back: {
+      pool: ["uniform-grid", "feature-row"],
+      style: { nameAlign: "left", statsStyle: "strip", dividers: false, cellIndexes: false },
+    },
+    needs: { minImages: 4 }, // hero + three strip frames
+    toneWeight: (t) => 0.9 + 0.5 * t.warmth,
   },
   {
     id: "gallery-monograph",
@@ -105,12 +128,12 @@ const EDITIONS = Object.freeze([
   },
   {
     id: "editorial-masthead",
-    label: "The Cover",
+    label: "The Masthead",
     tone: "Magazine logic — the name set as a masthead, the photograph under it.",
     structures: { masthead: 1 },
     treatmentsOpen: false,
     lockups: ["stacked", "contrast", "inline"],
-    voices: ["romantic-didone", "editorial-serif", "bold-grotesque"],
+    voices: ["romantic-didone", "editorial-serif"],
     palette: "auto",
     scale: { minPt: 40, maxPt: 76, trackingBias: -0.4, stackBias: 0.6 },
     ornaments: ["folio"],
@@ -146,7 +169,7 @@ const EDITIONS = Object.freeze([
     structures: { "cover-story": 1 },
     treatmentsOpen: false,
     lockups: ["stacked", "inline"],
-    voices: ["bold-grotesque", "romantic-didone", "stark-grotesque"],
+    voices: ["stark-grotesque", "bold-grotesque"],
     palette: "auto",
     scale: { minPt: 56, maxPt: 110, trackingBias: -0.6, stackBias: 1 },
     ornaments: [],
@@ -210,7 +233,7 @@ const EDITIONS = Object.freeze([
     structures: { cutout: 1 },
     treatmentsOpen: false,
     lockups: ["inline", "stacked"],
-    voices: ["bold-grotesque", "modern-warm", "stark-grotesque"],
+    voices: ["bold-grotesque", "modern-warm"],
     palette: "auto",
     scale: { minPt: 24, maxPt: 44, trackingBias: -0.2, stackBias: 0.5 },
     ornaments: [],
@@ -258,6 +281,23 @@ function clamp01(n) {
 // ── suitability ─────────────────────────────────────────────────────────────
 
 /**
+ * Kids draw pool (v10): kids is a GATING PROFILE, not an edition — the
+ * catalog restricts to warm, safe programs and the existing guardian-
+ * contact + tone clamps do the rest. (Red team P0: without this, kids
+ * inherited the full adult catalog minus noir.)
+ */
+const KIDS_POOL = Object.freeze(["house-classic", "the-strip", "duet", "studio-cutout"]);
+
+/**
+ * Photo-affinity gate threshold (v10): below this, the hero's measured
+ * pixels cannot honestly carry the edition (e.g. a bright warm location
+ * hero on a night card) — a CAPABILITY, exactly like the matte gate, so
+ * it removes the candidate instead of merely down-weighting it. Above
+ * the threshold, affinity multiplies the ranking weight as before.
+ */
+const AFFINITY_GATE = 0.6;
+
+/**
  * Hard gates only — an unsuitable edition is one the engine cannot honor
  * honestly (not one the talent's tone merely disfavors).
  *
@@ -270,6 +310,7 @@ function isSuitable(edition, ctx = {}) {
   if (needs.alphaMatte && !ctx.hasAlphaMatte) return false;
   if (needs.notKids && ctx.kids) return false;
   if (needs.pairableSupport && !ctx.hasPairableSupport) return false;
+  if (ctx.kids && !KIDS_POOL.includes(edition.id)) return false;
   return true;
 }
 
@@ -336,16 +377,7 @@ function resolveEdition(input = {}) {
     // pinned but unsuitable — fall through to the draw; the caller logs it
   }
 
-  const avoid = new Set(
-    (Array.isArray(avoidEditions) ? avoidEditions : [avoidEditions])
-      .filter(Boolean)
-      .map(String),
-  );
-  // Cycling guarantee: exclude the previous take's edition unless it is the
-  // only suitable one left.
-  let candidates = suitable.filter((e) => !avoid.has(e.id));
-  if (!candidates.length) candidates = suitable;
-  if (!candidates.length) {
+  if (!suitable.length) {
     // catalog invariant: house-classic has no needs — unreachable, but the
     // engine must never throw over a catalog bug
     return {
@@ -365,12 +397,34 @@ function resolveEdition(input = {}) {
     heroLuma: Number.isFinite(Number(heroLuma)) ? Number(heroLuma) : NaN,
     heroQuiet: Number.isFinite(Number(heroQuiet)) ? Number(heroQuiet) : 0,
   };
-  // Ranking floor: tone + photo affinity bias the draw; they never eliminate.
-  const weights = candidates.map((e) => {
-    const t = e.toneWeight ? e.toneWeight(tone) : 1;
-    const p = e.photoAffinity ? e.photoAffinity(affinityCtx) : 1;
-    return Math.max(0.35, t * p);
-  });
+  const affinityOf = (e) => (e.photoAffinity ? e.photoAffinity(affinityCtx) : 1);
+
+  // Photo-affinity GATE (v10): pixels that measurably cannot carry an
+  // edition remove it — a capability, like the matte gate — unless that
+  // would empty the pool entirely.
+  let pool = suitable.filter((e) => affinityOf(e) >= AFFINITY_GATE);
+  if (!pool.length) pool = suitable;
+
+  // Cycling contract (v10): avoidEditions is ordered MOST-RECENT-FIRST.
+  // Effective avoid depth is clamped to pool−1 so avoidance can never
+  // empty the pool; the immediate predecessor is ALWAYS excluded when the
+  // pool has ≥ 2 members (red team P0: the old fallback readmitted the
+  // just-served edition, making "New direction" a coin flip on small pools).
+  const avoidList = (Array.isArray(avoidEditions) ? avoidEditions : [avoidEditions])
+    .filter(Boolean)
+    .map(String);
+  const effectiveAvoid = new Set(avoidList.slice(0, Math.max(0, pool.length - 1)));
+  let candidates = pool.filter((e) => !effectiveAvoid.has(e.id));
+  if (!candidates.length && avoidList.length && pool.length > 1) {
+    candidates = pool.filter((e) => e.id !== avoidList[0]);
+  }
+  if (!candidates.length) candidates = pool;
+
+  // Ranking: tone biases the draw among survivors; affinity multiplies
+  // above the gate. The 0.35 floor keeps ranking from eliminating.
+  const weights = candidates.map((e) =>
+    Math.max(0.35, (e.toneWeight ? e.toneWeight(tone) : 1) * affinityOf(e)),
+  );
   const rng = createMulberry32(
     seedToUint32(`${seed ?? "auto"}:edition:${identity}`),
   );
@@ -386,7 +440,7 @@ function resolveEdition(input = {}) {
   }
   return {
     edition: pick,
-    because: `seeded draw over ${candidates.length} suitable edition(s)${avoid.size ? ` (avoiding ${[...avoid].join(", ")})` : ""}, tone- and photo-weighted`,
+    because: `seeded draw over ${candidates.length} candidate(s) of ${suitable.length} suitable${effectiveAvoid.size ? ` (avoiding ${[...effectiveAvoid].join(", ")})` : ""}, affinity-gated, tone-weighted`,
     available,
   };
 }
@@ -500,4 +554,6 @@ module.exports = {
   INK_FIELD_INK,
   HERO_AREA_FLOOR,
   HERO_AREA_FLOOR_DEEP_MAT,
+  KIDS_POOL,
+  AFFINITY_GATE,
 };

@@ -156,6 +156,15 @@ const VOICES = Object.freeze({
     weights: { name: [400], accentWeight: 400 },
     affinity: { formality: 0.95, warmth: 0.35, energy: 0.2, density: 0.3 },
   },
+  "clean-modern": {
+    label: "Clean Modern",
+    display: "Manrope",
+    body: "Inter",
+    nameCase: "title",
+    tracking: { min: 0.0, max: 0.05 },
+    weights: { name: [600, 700], accentWeight: 600 },
+    affinity: { formality: 0.35, warmth: 0.65, energy: 0.5, density: 0.5 },
+  },
 });
 
 // ── PRNG (selector-compatible, attribution: comp-card-selector.js) ─────────
