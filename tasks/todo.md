@@ -1,3 +1,17 @@
+# Current Task — Agency access system research
+
+- [x] Inspect current agency/auth/onboarding routes and existing agency design context.
+- [x] Review industry skill references for agency credibility and terminology.
+- [x] Research external access-request, SaaS onboarding, model-agency software, and migration patterns.
+- [x] Write the Pholio agency access/request + post-login setup system specification.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Drafted `tasks/agency-access-system.md` with the recommended reviewed-access request system, internal review workflow, post-login agency setup sequence, and import/migration model.
+
+---
+
 # Claude Configuration Audit & Build Plan — 2026-07-04
 
 ## Audit findings
