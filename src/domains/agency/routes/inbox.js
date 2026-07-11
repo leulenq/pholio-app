@@ -26,6 +26,9 @@ const {
   recordDiscoveryImpressions,
   recordProfileEvent,
 } = require("../../talent/services/intel/capture");
+const {
+  createDiscoverRateLimit,
+} = require("../../../shared/middleware/discover-rate-limit");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const { recalculateBoardScores } = require("./recalculate-board-scores");
 const {
@@ -3364,10 +3367,14 @@ router.get(
   },
 );
 
+// Shared across Discover search + invite: one per-user quota for the surface.
+const discoverLimiter = createDiscoverRateLimit();
+
 // GET /api/agency/discover - Get discoverable talent (for React frontend)
 // Supports optional ?q= parameter for multi-vector semantic search via pgvector.
 router.get(
   "/api/agency/discover",
+  discoverLimiter,
   requireRole("AGENCY"),
   async (req, res, next) => {
     try {
@@ -3471,6 +3478,7 @@ router.get(
 // POST /api/agency/discover/:profileId/invite - Invite talent to apply
 router.post(
   "/api/agency/discover/:profileId/invite",
+  discoverLimiter,
   requireRole("AGENCY"),
   async (req, res, next) => {
     try {

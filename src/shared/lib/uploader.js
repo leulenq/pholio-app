@@ -214,6 +214,7 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
     const thumbKey = `${prefix}/thumbnails/${uuid}_400w.webp`;
 
     const processedBuffer = await sharp(imageBuffer)
+      .rotate() // auto-orient from EXIF before any resize (webp drops the tag)
       .resize({ width: maxWidth, withoutEnlargement: true })
       .webp({ quality: quality })
       .toBuffer();
@@ -249,6 +250,7 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
     }
 
     const thumbBuffer = await sharp(imageBuffer)
+      .rotate() // auto-orient from EXIF before any resize (webp drops the tag)
       .resize({ width: thumbWidth, withoutEnlargement: true })
       .webp({ quality: thumbQuality })
       .toBuffer();
@@ -371,6 +373,7 @@ async function processAgencyLogo(
   const processedBuffer = isSvg
     ? imageBuffer
     : await sharp(imageBuffer)
+        .rotate() // auto-orient from EXIF metadata when present
         .resize({
           width: maxWidth,
           height: maxHeight,

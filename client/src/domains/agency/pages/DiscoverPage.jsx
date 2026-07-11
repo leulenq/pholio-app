@@ -41,16 +41,9 @@ const realBio = (b) => {
   return t;
 };
 
-// Stable deterministic score for browse mode (no semantic query / no embeddings).
-// Keeps cards ranked and scored consistently without real AI scores.
-const baseScore = (id) => {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return 78 + (h % 20); // 78–97
-};
-
 function mapTalent(p) {
-  const resonance = resolveMatchScore(p) ?? baseScore(p.id);
+  // Null when there is no real match signal (browse mode) — the card omits the numeral.
+  const resonance = resolveMatchScore(p);
   return {
     id: p.id,
     first: p.first_name || '',
