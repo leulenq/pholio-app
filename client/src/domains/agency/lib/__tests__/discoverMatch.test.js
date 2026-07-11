@@ -66,8 +66,8 @@ describe('discoverMatch — constraint-truth annotations', () => {
 
 describe('discoverMatch — authoritative brief amendments', () => {
   const brief = 'editorial women, 5\'9" and up, NYC';
-  const applied = { field: 'height_cm', op: 'min', value: { a: 175 }, span: [16, 20] };
-  // span [16,20] covers 5'9"
+  // span [17,28] covers the full constraint phrase: 5'9" and up
+  const applied = { field: 'height_cm', op: 'min', value: { a: 175 }, span: [17, 28] };
 
   test('value edit splices the new phrase in place of the span', () => {
     const next = amendBriefValue(brief, applied, '178');

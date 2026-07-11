@@ -4,12 +4,13 @@ import BriefUnderstanding from '../BriefUnderstanding';
 
 const brief = 'editorial women, 5\'10" and up, available soon';
 
-// span [16,21] covers 5'10" ; availability has no span (null → no underline)
+// span [17,29] covers the constraint phrase 5'10" and up ; availability has no
+// span (null → no underline — the honest literal gap)
 const understanding = {
   roles: [{ label: 'role 1', count: 1, soft_query: 'clean editorial energy' }],
   applied: [
     { field: 'gender_presentation', op: null, value: ['female'], span: null, needs_confirmation: false, tier: 'client_gate' },
-    { field: 'height_cm', op: 'min', value: { a: 178, b: null }, span: [16, 21], needs_confirmation: false, tier: 'client_gate' },
+    { field: 'height_cm', op: 'min', value: { a: 178, b: null }, span: [17, 29], needs_confirmation: false, tier: 'client_gate' },
     { field: 'availability', op: null, value: [{ kind: 'window', from: null, to: null }], span: null, needs_confirmation: true, tier: 'operational' },
   ],
   set_aside: [{ text: 'scandinavian', reason: 'not_used_for_filtering' }],
@@ -30,9 +31,10 @@ describe('BriefUnderstanding', () => {
       <BriefUnderstanding brief={brief} understanding={understanding} loading={false} onAmend={() => {}} />,
     );
     const marks = container.querySelectorAll('.bu-brief-mark');
-    // exactly one applied entry carries a span (height) → one underline
+    // exactly one applied entry carries a span (height) → one underline over
+    // the full constraint phrase; everything else is a literal gap
     expect(marks.length).toBe(1);
-    expect(marks[0].textContent).toBe('5\'10"');
+    expect(marks[0].textContent).toBe('5\'10" and up');
   });
 
   test('renders a hard chip per applied constraint with its label', () => {

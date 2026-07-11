@@ -11,11 +11,12 @@ import './HorizonFlare.css';
  * @param {string} className - Additional CSS class names.
  * @param {object} style - Inline styles.
  */
-export default function HorizonFlare({ 
-  evaluating = false, 
-  hoverable = true, 
-  className = '', 
+export default function HorizonFlare({
+  evaluating = false,
+  hoverable = true,
+  className = '',
   style = {},
+  onClick,
   ...props
 }) {
   const gradientId = useId();
@@ -23,11 +24,26 @@ export default function HorizonFlare({
   // Canonical Framer Motion Spring config (stiffness: 55, damping: 16)
   const springConfig = { stiffness: 55, damping: 16 };
 
+  // When given an onClick, this is an interactive control and must be
+  // reachable by the accessibility tree and keyboard, not presentation.
+  const interactive = typeof onClick === 'function';
+  const handleKeyDown = interactive
+    ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick(event);
+        }
+      }
+    : undefined;
+
   return (
-    <div 
+    <div
       className={`horizon-flare-container ${hoverable ? 'is-hoverable' : ''} ${evaluating ? 'is-evaluating' : ''} ${className}`}
       style={style}
-      role="presentation"
+      role={interactive ? 'button' : 'presentation'}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
       {...props}
     >
       <svg 

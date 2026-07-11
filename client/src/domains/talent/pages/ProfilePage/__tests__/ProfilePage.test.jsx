@@ -40,19 +40,25 @@ vi.mock('lucide-react', () => {
 });
 
 // Mock framer-motion to render static markup
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }) => <span {...props}>{children}</span>,
-    button: ({ children, ...props }) => <button {...props}>{children}</button>,
-    header: ({ children, ...props }) => <header {...props}>{children}</header>,
-    nav: ({ children, ...props }) => <nav {...props}>{children}</nav>,
-    aside: ({ children, ...props }) => <aside {...props}>{children}</aside>,
-    main: ({ children, ...props }) => <main {...props}>{children}</main>,
-  },
-  AnimatePresence: ({ children }) => <>{children}</>,
-  useReducedMotion: () => false,
-}));
+vi.mock('framer-motion', () => {
+  // Generic passthrough: any motion.<tag> renders the plain tag, so new
+  // motion elements (li, svg line/path, ...) never break this mock.
+  const tagCache = new Map();
+  const passthroughFor = (tag) => {
+    if (!tagCache.has(tag)) {
+      const Tag = tag;
+      const Passthrough = ({ children, ...props }) => <Tag {...props}>{children}</Tag>;
+      Passthrough.displayName = `motion.${tag}`;
+      tagCache.set(tag, Passthrough);
+    }
+    return tagCache.get(tag);
+  };
+  return {
+    motion: new Proxy({}, { get: (_target, tag) => passthroughFor(String(tag)) }),
+    AnimatePresence: ({ children }) => <>{children}</>,
+    useReducedMotion: () => false,
+  };
+});
 
 // Mock talentApi
 vi.mock('../../../api/talent', () => ({
@@ -63,6 +69,11 @@ vi.mock('../../../api/talent', () => ({
     generateBio: vi.fn(),
     refineBio: vi.fn(),
     listCompCardPresets: vi.fn().mockResolvedValue({ presets: [] }),
+    getAvailability: vi.fn().mockResolvedValue({ availability_status: 'available' }),
+    updateAvailability: vi.fn().mockResolvedValue({ availability_status: 'available' }),
+    getBookouts: vi.fn().mockResolvedValue({ bookouts: [] }),
+    createBookout: vi.fn().mockResolvedValue({}),
+    deleteBookout: vi.fn().mockResolvedValue({}),
   },
 }));
 
