@@ -58,7 +58,7 @@ async function request(endpoint, options = {}) {
       }
 
       throw new ApiError(
-        (data && data.error) || (data && data.message) || 'Authentication required',
+        (data && data.error?.message) || (data && data.error) || (data && data.message) || 'Authentication required',
         response.status,
         data
       );
@@ -73,7 +73,7 @@ async function request(endpoint, options = {}) {
 
     if (!response.ok) {
       throw new ApiError(
-        (data && data.error) || (data && data.message) || response.statusText || 'API Error',
+        (data && data.error?.message) || (data && data.error) || (data && data.message) || response.statusText || 'API Error',
         response.status,
         data
       );

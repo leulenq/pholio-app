@@ -27,8 +27,9 @@ async function request(endpoint, options = {}) {
   }
 
   if (!response.ok) {
+    const errorMsg = data?.error?.message || data?.message || (typeof data?.error === 'string' ? data.error : null) || response.statusText || 'Agency setup request failed';
     throw new ApiError(
-      data?.message || data?.error || response.statusText || 'Agency setup request failed',
+      errorMsg,
       response.status,
       data
     );

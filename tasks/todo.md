@@ -2664,3 +2664,64 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 ## Review
 
 - The PR now carries the DOCX as text, so binary-file restrictions should no longer hide the artifact from review.
+# Agency Workspace Commissioning — 2026-07-11
+
+## Plan
+
+- [x] Audit the orphaned agency onboarding route, current form flow, agency design system, talent `/apply`, and talent onboarding references.
+- [x] Restore first-login routing for incomplete agency workspaces without changing completed-agency entry behavior.
+- [x] Rebuild setup as five focused commissioning chapters with a persistent editorial progress narrative.
+- [x] Replace the submit/checklist ending with a dedicated “agency workspace ready” reveal.
+- [x] Preserve real API behavior for profile, branding, provisioned team access, first-view selection, and completion.
+- [x] Verify focused lint, production build, and rendered desktop/mobile behavior.
+
+## Design decision
+
+- Apply the agency system’s “two systems, one material” rule: Playfair identity moments, Inter controls, rectangular 8–12px controls, ink/cream/white layering, rare gold, and 150–200ms state motion. Borrow only the talent flows’ one-subject-per-chapter pacing and terminal reveal—not their pill controls, dark screen-test styling, or spring choreography.
+- Treat setup as commissioning a manually approved private workspace. The first-value moment is the assembled agency identity resolving into a ready operational workspace.
+
+## Review
+
+- Restored `/dashboard/agency/onboarding` as a standalone route inside the authenticated agency gate and routed only incomplete agency sessions into it; completed agencies continue directly to the dashboard.
+- Replaced the beige setup document with five focused chapters: The house, Identity, The team, Working rhythm, and Commission. The persistent ink rail, Playfair mastheads, cream working stage, rectangular controls, rare gold, and 180–200ms transitions follow the agency “Editorial Ledger” system.
+- Added a live agency workspace proof, real provisioned-login role mapping (Booker/Scout/Administrator/View only), inactive-member filtering, inline URL validation, query/error states, focused-heading announcements, and a hard session refresh after the ready reveal.
+- Removed false setup promises: notification preferences are not surfaced because no delivery path consumes them, and the selected first working view is described and used only for the post-commissioning entry where it is actually honored.
+- The final API completion now resolves into a dedicated dark “Your agency workspace is ready” reveal before entering the selected workspace view.
+- Verification: focused ESLint passes; `npm run build` passes (3,675 modules, existing large-chunk warning); `git diff --check` passes for every touched file. Rendered browser QA covered all five chapters plus the final reveal at 1440×900 and the first chapter at 390×844, with no horizontal overflow at mobile width.
+# Agency Onboarding Brand Audit & Redesign — 2026-07-11
+
+## Audit findings
+
+- [x] P0 — Replace the approximated title-case `Pholio.` mark with the exact shared uppercase Noto Serif Display wordmark and gold sweep used elsewhere in-product.
+- [x] P1 — Remove the full-height dark stepper rail; it reads as generic SaaS onboarding navigation rather than authored Pholio framing.
+- [x] P1 — Remove the fake dashboard/navigation preview, circular member avatars, checkmark review list, and boxed upload-card composition.
+- [x] P1 — Replace repeated form/admin layouts with chapter-specific editorial compositions and more decisive negative space.
+- [x] P1 — Strengthen cinematic pacing with a fixed brand masthead, thin narrative progress spine, scene transitions, and a reserved action dock.
+- [x] P2 — Reduce filler copy and repeated explanation; keep only copy that directs the commissioning decision.
+
+## Plan
+
+- [x] Rebuild the shell and progress framing around the canonical shared Pholio wordmark.
+- [x] Distill each chapter into one visual idea while preserving the existing APIs and validation.
+- [x] Rework the final review and ready reveal as a true co-branded commissioning moment.
+- [x] Verify banned-pattern compliance and focused lint/build; rendered browser QA was attempted but blocked by the local-run approval limit.
+
+## Audit baseline
+
+- Accessibility: 3/4
+- Performance: 3/4
+- Responsive: 4/4
+- Theming: 3/4
+- Anti-patterns: 1/4
+- **Total: 14/20 — technically sound, visually generic.**
+
+## Review
+
+- Replaced both hand-typed `Pholio.` approximations with the exact shared `PholioBillingWordmark` treatment: uppercase Noto Serif Display, 400 weight, 0.2em tracking, fixed Pholio gold, and canonical sweep.
+- Removed the fixed dark SaaS sidebar and introduced a full-width ink masthead, two-pixel progress light, slim narrative spine, chapter-specific paper stage, and stable bottom action dock.
+- Reduced the flow from five chapters to four consequential chapters by removing the trivial first-view preference: Agency, Brand, Team, and Commission.
+- Removed the fake dashboard nav preview, circular member avatars, repeated Lucide intro blocks, checkmark review list, success facts strip, and repeated explanatory filler.
+- Replaced invented luxury metaphors with credible agency language: agency identity, agency owner, booker, team access, brand mark, and commission.
+- Branding now resolves into a full-stage real Pholio/agency lockup using the uploaded mark and selected agency accent; Commission resolves the same identity into a co-branded handoff.
+- The final reveal now contains only the canonical Pholio mark, the agency mark, one ready statement, and the workspace entry action.
+- Verification: Impeccable detector reports zero anti-pattern hits; focused ESLint passes; production build passes (3,675 modules, existing large-chunk warning); scoped `git diff --check` passes. Browser QA could not be rerun because local-server approval was blocked by the environment usage limit; the prior version had been verified at 1440×900 and 390×844, and the new CSS retains explicit desktop/tablet/mobile structures.
