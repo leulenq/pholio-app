@@ -1,7 +1,7 @@
 {
-  "name": "negation-no-visible-piercings",
-  "category": "negation",
-  "brief": "commercial talent, no visible piercings",
+  "name": "boards-ecomm-experience",
+  "category": "mixed",
+  "brief": "e-comm experience, clean catalog look",
   "now": "2026-07-01",
   "llm": {
     "roles": [
@@ -10,11 +10,10 @@
         "count": 1,
         "hard": {
           "boards": [
-            "commercial"
-          ],
-          "visible_piercings": false
+            "ecomm"
+          ]
         },
-        "soft_query": ""
+        "soft_query": "clean catalog look"
       }
     ],
     "set_aside": [],
@@ -23,10 +22,7 @@
   "expect": {
     "roles_length": 1,
     "boards": [
-      "commercial"
-    ],
-    "dropped_fields_contain": [
-      "visible_piercings"
+      "ecomm"
     ],
     "needs_confirmation": []
   }

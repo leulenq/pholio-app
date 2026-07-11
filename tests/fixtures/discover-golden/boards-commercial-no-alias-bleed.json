@@ -1,7 +1,7 @@
 {
-  "name": "negation-no-visible-piercings",
-  "category": "negation",
-  "brief": "commercial talent, no visible piercings",
+  "name": "boards-commercial-no-alias-bleed",
+  "category": "mixed",
+  "brief": "commercial talent for a print campaign",
   "now": "2026-07-01",
   "llm": {
     "roles": [
@@ -11,8 +11,7 @@
         "hard": {
           "boards": [
             "commercial"
-          ],
-          "visible_piercings": false
+          ]
         },
         "soft_query": ""
       }
@@ -24,9 +23,6 @@
     "roles_length": 1,
     "boards": [
       "commercial"
-    ],
-    "dropped_fields_contain": [
-      "visible_piercings"
     ],
     "needs_confirmation": []
   }

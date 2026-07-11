@@ -13,7 +13,7 @@
             "op": "exact",
             "a": 15,
             "b": null,
-            "span": "18 years old, can play 15",
+            "span": "can play 15",
             "confidence": 0.85
           }
         },
@@ -25,6 +25,7 @@
   },
   "expect": {
     "roles_length": 1,
+    "playing_age_value": 15,
     "needs_confirmation": []
   }
 }
