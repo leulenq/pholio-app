@@ -1,5 +1,6 @@
 const path = require("path");
 const express = require("express");
+const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../../../config");
 const knex = require("../../../shared/db/knex");
@@ -122,6 +123,98 @@ router.post("/api/auth/password-reset", async (req, res, next) => {
     return res.json({ success: true });
   } catch (error) {
     console.error("[Password Reset] SMTP reset email failed:", error.message);
+    return next(error);
+  }
+});
+
+// Dev-only email/password login. Verifies the seeded bcrypt password_hash
+// (see seeds/seed.js) and creates a session without Firebase, so the /login
+// page works locally with credentials like agency@example.com / password123.
+// Gated behind AUTH_PASSTHROUGH_ENABLED=1 and never active in production.
+function isDevLoginEnabled() {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.AUTH_PASSTHROUGH_ENABLED === "1"
+  );
+}
+
+// POST /api/dev/login
+router.post("/api/dev/login", async (req, res, next) => {
+  if (!isDevLoginEnabled()) {
+    return res.status(404).json({ success: false, error: "Not found" });
+  }
+
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const password = String(req.body?.password || "");
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Email and password are required.",
+      });
+    }
+
+    const user = await knex("users")
+      .whereRaw("LOWER(email) = ?", [email])
+      .first();
+    if (!user || !user.password_hash) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid email or password." });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatches) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid email or password." });
+    }
+
+    if (user.role === "AGENCY") {
+      const agencyContext = await resolveAgencyContextForMemberUser(user.id);
+      if (!agencyContext || !agencyContext.agency) {
+        return res.status(403).json({
+          success: false,
+          error: "No agency workspace is linked to this account.",
+        });
+      }
+
+      req.session.userId = agencyContext.agency.id;
+      req.session.memberUserId = user.id;
+      req.session.agencyId = agencyContext.agency.id;
+      req.session.agencyMembershipId = agencyContext.membership?.id || null;
+      req.session.agencyMembershipRole =
+        agencyContext.membership?.membership_role || null;
+      req.session.agencyOnboardingCompletedAt =
+        agencyContext.agency.onboarding_completed_at || null;
+      req.session.role = "AGENCY";
+    } else {
+      req.session.userId = user.id;
+      req.session.role = user.role;
+      delete req.session.memberUserId;
+      delete req.session.agencyId;
+      delete req.session.agencyMembershipId;
+      delete req.session.agencyMembershipRole;
+      delete req.session.agencyOnboardingCompletedAt;
+    }
+
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => (err ? reject(err) : resolve()));
+    });
+
+    const nextPath = safeNext(req.body?.next);
+    const sessionRedirect = redirectForSession(req.session);
+    let redirectUrl = nextPath || sessionRedirect;
+    if (
+      req.session.role === "AGENCY" &&
+      !req.session.agencyOnboardingCompletedAt
+    ) {
+      redirectUrl = sessionRedirect;
+    }
+
+    console.log(`[DevLogin] Signed in as ${email} (${req.session.role})`);
+    return res.json({ success: true, redirect: redirectUrl });
+  } catch (error) {
     return next(error);
   }
 });
