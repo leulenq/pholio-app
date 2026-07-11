@@ -23,6 +23,7 @@ const { rerankCandidates } = require("./discover-rerank");
 const {
   AUDIENCE,
   buildAgencyDiscoveryDTO,
+  loadTalentRepresentationsForProfiles,
 } = require("../../../shared/lib/audience-dto");
 const {
   selectColumnsForAudience,
@@ -296,6 +297,13 @@ async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) 
   // profile columns). The DTO itself still gates adults-only / minor.
   const socialByProfile = await loadSocialAccountsForProfiles(profileIds);
 
+  // Representation status (WS6.1 / LB-5) — batch-loaded per result page so
+  // deriveRepresentationStatus sees the talent_representations rows instead of
+  // only the legacy fallback fields. Safe no-op when the table is absent.
+  const repsByProfile = await loadTalentRepresentationsForProfiles(profileIds, {
+    db: knex,
+  });
+
   const shaped = [];
   for (const profile of profiles) {
     // Deny-by-default gate: minors (no named-agency guardian auth) and profiles
@@ -308,6 +316,7 @@ async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) 
     const dto = buildAgencyDiscoveryDTO(profile, {
       images: imagesByProfile[profile.id] || [],
       social: socialByProfile.get(profile.id) || [],
+      representations: repsByProfile.get(profile.id) || [],
     });
 
     const app = applicationMap.get(profile.id);

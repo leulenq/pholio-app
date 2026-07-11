@@ -104,6 +104,8 @@ async function createSchema() {
     t.integer("playing_age_max").nullable();
     t.string("date_of_birth", 40).nullable();
     t.timestamp("guardian_consent_at").nullable();
+    t.boolean("seeking_representation").nullable();
+    t.string("current_agency", 200).nullable();
     t.text("bio_curated").nullable();
     t.boolean("is_discoverable").defaultTo(false);
     t.string("profile_status", 50).nullable();
@@ -176,7 +178,8 @@ async function seed() {
   };
   const rows = [
     { key: "Exact", first_name: "Ada", modeling_categories: '["editorial"]', height_cm: 178 },
-    { key: "NearFail", first_name: "Bea", modeling_categories: '["editorial"]', height_cm: 176 },
+    // Represented via the legacy current_agency fallback (PR6 derivation).
+    { key: "NearFail", first_name: "Bea", modeling_categories: '["editorial"]', height_cm: 176, current_agency: "Elsewhere Mgmt" },
     { key: "NearUnknown", first_name: "Cyd", modeling_categories: '["editorial"]', height_cm: 175 },
     { key: "Outside", first_name: "Dot", modeling_categories: '["commercial"]', height_cm: 174 },
     { key: "Male", first_name: "Eli", gender: "Male", modeling_categories: '["editorial"]', height_cm: 188 },
@@ -346,5 +349,30 @@ describe("honest zero (most-narrowing chip)", () => {
     });
     expect(res.profiles).toHaveLength(0);
     expect(res.discover_v2.honest_zero.removable_chip).toBe("height_cm");
+  });
+});
+
+describe("representation_status (PR6 reconcile)", () => {
+  test("unrepresented constraint excludes legacy-represented talent (client gate)", async () => {
+    const brief = "unrepresented female new faces";
+    CONTRACTS[brief] = contract({
+      gender_presentation: ["female"],
+      representation_status: ["unrepresented"],
+    });
+    const res = await launchModeSearch({
+      knex,
+      briefText: brief,
+      agencyUserId: AGENCY_ID,
+    });
+    const names = res.profiles.map((p) => p.first_name);
+    // Bea has legacy current_agency → derived "represented" → client-gate fail,
+    // never auto-shown. Everyone else derives "unrepresented" → pass.
+    expect(names).not.toContain("Bea");
+    expect(names).toEqual(expect.arrayContaining(["Ada", "Cyd", "Dot"]));
+    const exact = res.discover_v2.groups.find((g) => g.kind === "exact");
+    expect(exact.results.map((r) => r.first_name)).not.toContain("Bea");
+    // DTO representation_status agrees with the constraint truth shown.
+    const ada = res.profiles.find((p) => p.first_name === "Ada");
+    expect(ada.representation_status).toBe("unrepresented");
   });
 });

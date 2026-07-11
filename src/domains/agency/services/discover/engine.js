@@ -79,6 +79,37 @@ async function loadEligiblePool(knex, hard) {
   return query;
 }
 
+/**
+ * Derived representation status per profile (LB-5). Consumes the PR6 DTO API:
+ * batch loader + deriveRepresentationStatus. Returns null on failure so the
+ * evaluator falls back to 'unknown' instead of guessing.
+ * @returns {Promise<Map<string,string>|null>}
+ */
+async function loadRepresentationStatusMap(knex, pool) {
+  try {
+    // eslint-disable-next-line global-require
+    const {
+      loadTalentRepresentationsForProfiles,
+      deriveRepresentationStatus,
+    } = require("../../../../shared/lib/audience-dto");
+    const repsByProfile = await loadTalentRepresentationsForProfiles(
+      pool.map((p) => p.id),
+      { db: knex },
+    );
+    const map = new Map();
+    for (const profile of pool) {
+      const { representation_status } = deriveRepresentationStatus(
+        profile,
+        repsByProfile.get(profile.id) || [],
+      );
+      map.set(profile.id, representation_status);
+    }
+    return map;
+  } catch {
+    return null; // best-effort → constraint evaluates as 'unknown'
+  }
+}
+
 /** Batch-load bookout rows keyed by profile id (best-effort). */
 async function loadBookoutsByProfile(knex, ids) {
   const map = new Map();
@@ -276,6 +307,16 @@ async function launchModeSearch(args) {
   const ids = pool.map((p) => p.id);
   const bookoutsByProfile = await loadBookoutsByProfile(knex, ids);
 
+  // Representation status (LB-5) — only derived when the brief constrains it;
+  // PR6's DTO API is the single source of truth for the derivation.
+  let repStatusById = null;
+  if (
+    Array.isArray(hard.representation_status) &&
+    hard.representation_status.length
+  ) {
+    repStatusById = await loadRepresentationStatusMap(knex, pool);
+  }
+
   // ── soft scoring (single channel) ─────────────────────────────────────────
   let embedMs = 0;
   let queryVec = null;
@@ -298,7 +339,7 @@ async function launchModeSearch(args) {
     const evals = evaluateProfile(profile, hard, {
       now,
       bookouts: bookoutsByProfile.get(profile.id) || [],
-      representationStatus: undefined,
+      representationStatus: repStatusById ? repStatusById.get(profile.id) : undefined,
     });
     const passes = evals.filter((e) => e.status === "pass").length;
     let softScore = null;
