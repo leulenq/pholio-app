@@ -1,0 +1,32 @@
+{
+  "name": "unknown-board-dropped",
+  "category": "validation",
+  "brief": "swimwear board editorial",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "boards": [
+            "editorial",
+            "swimwear_special"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "boards": [
+      "editorial"
+    ],
+    "dropped_contains": [
+      "swimwear_special"
+    ]
+  }
+}

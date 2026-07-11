@@ -1,0 +1,31 @@
+{
+  "name": "height-metric-meters",
+  "category": "unit-variant",
+  "brief": "minimum height 1.75m",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "height_cm": {
+            "op": "min",
+            "a": 175,
+            "b": null,
+            "span": "1.75m",
+            "confidence": 0.9
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "height_value": 175,
+    "needs_confirmation": []
+  }
+}

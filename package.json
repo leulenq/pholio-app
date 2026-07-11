@@ -40,6 +40,7 @@
     "@aws-sdk/client-s3": "^3.1008.0",
     "@sparticuz/chromium": "^131.0.0",
     "bcrypt": "5.1.1",
+    "chrono-node": "^2.9.0",
     "connect-session-knex": "3.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

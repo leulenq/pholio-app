@@ -1,0 +1,54 @@
+{
+  "name": "multi-role-women-and-man",
+  "category": "multi-role",
+  "brief": "2 women 22-30 and 1 man in his 40s",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "women",
+        "count": 2,
+        "hard": {
+          "gender_presentation": [
+            "female"
+          ],
+          "playing_age": {
+            "op": "between",
+            "a": 22,
+            "b": 30,
+            "span": "22-30",
+            "confidence": 0.9
+          }
+        },
+        "soft_query": ""
+      },
+      {
+        "label": "man",
+        "count": 1,
+        "hard": {
+          "gender_presentation": [
+            "male"
+          ],
+          "playing_age": {
+            "op": "between",
+            "a": 40,
+            "b": 49,
+            "span": "40s",
+            "confidence": 0.8
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 2,
+    "multi_role": true,
+    "counts": [
+      2,
+      1
+    ]
+  }
+}

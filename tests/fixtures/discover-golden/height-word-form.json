@@ -1,0 +1,31 @@
+{
+  "name": "height-word-form",
+  "category": "unit-variant",
+  "brief": "five nine or taller",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "height_cm": {
+            "op": "min",
+            "a": 175,
+            "b": null,
+            "span": "five nine",
+            "confidence": 0.8
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "height_value": 175,
+    "needs_confirmation": []
+  }
+}

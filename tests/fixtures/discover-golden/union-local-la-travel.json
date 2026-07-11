@@ -1,0 +1,34 @@
+{
+  "name": "union-local-la-travel",
+  "category": "mixed",
+  "brief": "non-union commercial, local to LA, travel ok",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "union": "non_union",
+          "boards": [
+            "commercial"
+          ],
+          "location": {
+            "market": "los-angeles",
+            "local_only": true,
+            "travel_ok": true,
+            "span": "local to LA"
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "union": "non_union",
+    "needs_confirmation": []
+  }
+}
