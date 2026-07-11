@@ -2,7 +2,7 @@
  * Tests for the P1 perception modules (text-metrics / matte / faces).
  *
  * Design constraint: this suite MUST pass with NO network access and whether
- * or not the heavy optional deps (opentype.js / @imgly/background-removal-node
+ * or not the heavy optional deps (harfbuzzjs / @imgly/background-removal-node
  * / @vladmandic/human) are installed. Strategy per module:
  *   - the fail-soft path (garbage/missing input → null/[]/estimate, never a
  *     throw) is exercised UNCONDITIONALLY;
@@ -35,14 +35,15 @@ function depInstalled(name) {
   }
 }
 
-const opentypeInstalled = depInstalled("opentype.js");
+const harfbuzzInstalled = depInstalled("harfbuzzjs");
 const imglyInstalled = depInstalled("@imgly/background-removal-node");
 const humanInstalled = depInstalled("@vladmandic/human");
 
-// A real font file to measure, if one exists on this machine. Names are fit by
-// passing bundled TTFs in production; here we probe common system locations so
-// the real-measurement test runs on dev macs and skips cleanly on bare CI.
+// A real font file to measure. The vendored comp-card fonts are checked in,
+// so they are the primary candidates; system locations remain as fallbacks
+// so the real-measurement test still runs on machines without the repo fonts.
 const FONT_CANDIDATES = [
+  require("path").join(__dirname, "..", "..", "..", "..", "public", "fonts", "compcard", "inter-400.ttf"),
   "/System/Library/Fonts/Supplemental/Arial.ttf",
   "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
   "/System/Library/Fonts/Geneva.ttf",
@@ -120,8 +121,8 @@ describe("text-metrics.measureLine fail-soft (unconditional)", () => {
   });
 });
 
-const maybeMeasure = opentypeInstalled && fontPath ? describe : describe.skip;
-maybeMeasure("text-metrics.measureLine real path (opentype + system font)", () => {
+const maybeMeasure = harfbuzzInstalled && fontPath ? describe : describe.skip;
+maybeMeasure("text-metrics.measureLine real path (harfbuzz + real font)", () => {
   test("measures positive width that scales with size", () => {
     const a = textMetrics.measureLine({ fontPath, text: "AVA MERCER", sizePt: 24 });
     expect(a).not.toBeNull();

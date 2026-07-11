@@ -256,8 +256,8 @@ function getDemoProfile(slug) {
       id: "demo-elara-k",
       slug: "elara-k",
       user_id: "demo-user",
-      first_name: "Mara",
-      last_name: "Voss",
+      first_name: "Elara",
+      last_name: "Keats",
       city: "Los Angeles, CA",
       height_cm: 180,
       measurements: "32-25-35",
@@ -1118,6 +1118,20 @@ async function renderComposedView(req, res, data, isDemo) {
     // deterministic and CDN-independent. Null falls back to Google Fonts.
     const { fontFaceCss } = require("../composition/perception/font-files");
     const fontsCss = fontFaceCss([plan.typography.display, plan.typography.body]);
+    // Fail loudly on metric/render skew: a family the engine measured but
+    // cannot serve from the vendored set renders via the CDN fallback with
+    // potentially DIFFERENT metrics than the ones geometry was solved
+    // against (silent undersizing — audit 0.3). Vendored fonts are
+    // authoritative; a miss here is a vendoring bug to fix, not a fallback
+    // to rely on.
+    for (const family of [plan.typography.display, plan.typography.body]) {
+      if (family && (!fontsCss || !fontsCss.includes(`font-family:'${family}'`))) {
+        console.error(
+          `[compcard] VENDORED-FONT MISS: '${family}' is not in the vendored set — ` +
+            "render will use the CDN fallback with unverified metrics",
+        );
+      }
+    }
     // Render to a string first so any template error can still fall back to
     // the classic path (nothing has been written to the response yet).
     const html = await new Promise((resolve, reject) => {
