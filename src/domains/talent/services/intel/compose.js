@@ -17,6 +17,7 @@ const { marketLabel } = require("./market-resolve");
 const attention = require("./attention");
 const pipeline = require("./pipeline");
 const materials = require("./materials");
+const { buildSearchDemandNudges } = require("./searchability");
 
 const MOMENTUM_WEIGHTS = { t1: 8, t2: 5, t3: 3, t4: 1 };
 const DELTA_MIN_PRIOR_EVENTS = 10;
@@ -144,6 +145,10 @@ async function buildIntel(profile, { days }) {
           periodDays: days,
         }),
       },
+      // Search-demand nudges are aggregate market data (like markets/sources),
+      // withheld for minors along with the rest of the attention streams
+      // (spec §4 — minors get materials + submission states only).
+      demand: null,
       trajectory: null,
     };
   }
@@ -215,6 +220,10 @@ async function buildIntel(profile, { days }) {
     now,
   });
 
+  // ---- Search-demand nudges (WS9.3) — mines discover_query_log; tolerant of
+  // a missing/empty table (returns []).
+  const demandNudges = await buildSearchDemandNudges(profile);
+
   return {
     meta: { ...meta, smallSample, deltasSuppressed },
     pulse: {
@@ -255,6 +264,7 @@ async function buildIntel(profile, { days }) {
         periodDays: days,
       }),
     },
+    demand: { nudges: demandNudges },
     trajectory,
   };
 }

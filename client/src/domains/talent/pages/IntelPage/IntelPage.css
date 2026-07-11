@@ -76,6 +76,26 @@
   border-bottom-color: #b08d45;
 }
 
+/* ---------- search signal (Discover WS9.3) ---------- */
+
+.intel2-demand-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.intel2-demand-row { margin: 0; }
+
+.intel2-demand-text {
+  font-family: 'Noto Serif Display', serif;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin: 0;
+  color: #1a1815;
+}
+
 /* ---------- loading / error ---------- */
 
 .intel2-loading {

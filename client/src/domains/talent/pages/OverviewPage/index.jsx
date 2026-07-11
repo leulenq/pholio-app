@@ -27,6 +27,7 @@ import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessI
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import { bucketCounts } from '../../utils/applicationStatus';
+import { StatsCurrencyPrompt } from '../../components/StatsCurrencyPrompt';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import {
   isMinorProfile,
@@ -288,6 +289,8 @@ export default function OverviewPage() {
             </div>
           </motion.div>
         </header>
+
+        {!minorGated && <StatsCurrencyPrompt profile={profile} />}
 
         <div className="ov-hairline" aria-hidden />
 

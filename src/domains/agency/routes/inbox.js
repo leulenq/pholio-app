@@ -23,6 +23,11 @@ const {
 const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
 const { searchDiscoverableTalent } = require("../services/discover-search");
 const {
+  writeQueryLog,
+  writeImpressionEvents,
+  writeInviteEvent,
+} = require("../services/discover/query-log");
+const {
   recordDiscoveryImpressions,
   recordProfileEvent,
 } = require("../../talent/services/intel/capture");
@@ -3383,6 +3388,32 @@ router.get(
         agencyId,
         ...req.query,
       });
+
+      // WS6.5 — launch-mode query logging. Best-effort: a log failure never
+      // fails the search. Returns query_log_id so outcome events (impression /
+      // invite) can be attributed back to this query.
+      let queryLogId = null;
+      if (result && result._launch) {
+        const L = result._launch;
+        queryLogId = await writeQueryLog(knex, {
+          agencyUserId: agencyId,
+          rawBrief: req.query.q || "",
+          contract: L.contract,
+          disagreements: {
+            dropped: L.dropped,
+            needs_confirmation: L.needs_confirmation_fields,
+          },
+          engine: L.engine,
+          resultProfileIds: L.result_profile_ids,
+          groupCounts: L.group_counts,
+          timings: L.timings,
+        });
+        result.query_log_id = queryLogId;
+        if (result.meta) result.meta.query_log_id = queryLogId;
+        if (result.discover_v2) result.discover_v2.query_log_id = queryLogId;
+        delete result._launch;
+      }
+
       // Intel Capture v2 — discovery demand ("the market is searching for
       // someone like you"). Aggregate only: no agency identity on the event.
       const shownIds = (result?.profiles || [])
@@ -3395,6 +3426,10 @@ router.get(
         recordDiscoveryImpressions(shownIds, {
           filters: filterKeys.length ? filterKeys : null,
         });
+        // Attribute impressions to the logged query (launch engine only).
+        if (queryLogId) {
+          writeImpressionEvents(knex, queryLogId, shownIds).catch(() => {});
+        }
       }
       return res.json(result);
     } catch (error) {
@@ -3544,6 +3579,13 @@ router.post(
       } catch (emailError) {
         console.error("[Discover Invite] Email send error:", emailError);
         // Don't fail the request if email fails
+      }
+
+      // WS6.5 — attribute this invite back to the originating search when the
+      // client passes the query_log_id. Best-effort; never fails the invite.
+      const queryLogId = req.body && req.body.query_log_id;
+      if (queryLogId) {
+        writeInviteEvent(knex, queryLogId, profileId).catch(() => {});
       }
 
       return res.json({

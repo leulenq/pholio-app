@@ -14,6 +14,7 @@ import MarketBoard from './MarketBoard';
 import PipelineFlow from './PipelineFlow';
 import BookRanked from './BookRanked';
 import AgencyLens from './AgencyLens';
+import SearchDemand from './SearchDemand';
 import Trajectory from './Trajectory';
 import './IntelPage.css';
 
@@ -152,6 +153,12 @@ export default function IntelPage() {
           <ZoneSection id="intel2-lens" title="The Agency Lens">
             <AgencyLens lens={data.lens} />
           </ZoneSection>
+
+          {Array.isArray(data.demand?.nudges) && data.demand.nudges.length > 0 && (
+            <ZoneSection id="intel2-demand" title="The Search Signal">
+              <SearchDemand demand={data.demand} />
+            </ZoneSection>
+          )}
 
           <ZoneSection id="intel2-trajectory" title="Trajectory">
             {isLocked(data.trajectory, meta) ? (

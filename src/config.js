@@ -69,6 +69,21 @@ if (DEPRECATED_GROQ_TEXT_MODELS.includes(groqTextModel)) {
   );
 }
 
+// Discover engine selector. DISCOVER_ENGINE takes precedence when set to a
+// recognized value; DISCOVER_HYBRID=true remains a legacy alias for 'hybrid'.
+const DISCOVER_ENGINES = ["launch", "hybrid", "browse"];
+function resolveDiscoverEngine() {
+  const raw = (process.env.DISCOVER_ENGINE || "").trim().toLowerCase();
+  if (DISCOVER_ENGINES.includes(raw)) return raw;
+  if (
+    process.env.DISCOVER_HYBRID === "true" ||
+    process.env.DISCOVER_HYBRID === "1"
+  ) {
+    return "hybrid";
+  }
+  return "hybrid";
+}
+
 module.exports = {
   port: Number(process.env.PORT || 3000),
   nodeEnv,
@@ -145,6 +160,15 @@ module.exports = {
   },
   // Hybrid Discover retrieval (multi-channel + RRF + Groq rerank)
   discover: {
+    // Engine selector (WS5). Values: 'launch' | 'hybrid' | 'browse'.
+    // Precedence: DISCOVER_ENGINE wins when set to a valid value; otherwise the
+    // legacy DISCOVER_HYBRID=true is honored as an alias for 'hybrid'. Default
+    // 'hybrid' during rollout — flip to 'launch' once WS8 exit criteria are green.
+    engine: resolveDiscoverEngine(),
+    // Launch mode activates only below this eligible-pool size; above it the
+    // engine logs and falls through to hybrid (filter-first at scale).
+    corpusThreshold:
+      parseInt(process.env.DISCOVER_CORPUS_THRESHOLD, 10) || 2500,
     hybrid:
       process.env.DISCOVER_HYBRID === "true" ||
       process.env.DISCOVER_HYBRID === "1",

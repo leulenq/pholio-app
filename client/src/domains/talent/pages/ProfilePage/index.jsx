@@ -31,6 +31,7 @@ import { normalizePhoneInput } from '../../../../shared/lib/phone-format';
 import { IdentitySection } from './IdentitySection';
 import { DisciplineSection } from './DisciplineSection';
 import { MeasurementsSection } from './MeasurementsSection';
+import { AvailabilitySection } from './AvailabilitySection';
 import { SocialSection } from './SocialSection';
 import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import PholioButton, {
@@ -1007,6 +1008,7 @@ export default function ProfilePage() {
               setUnitSystem={setUnitSystem}
               measurementsLocked={measurementsLocked}
             />
+            <AvailabilitySection measurementsLocked={measurementsLocked} />
               </div>
             </article>
 

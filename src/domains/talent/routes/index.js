@@ -26,6 +26,7 @@ const socialOauthRouter = require("./social-oauth");
 const phylloRouter = require("./phyllo-routes");
 const representationsRouter = require("./representations");
 const fieldVisibilityRouter = require("./field-visibility");
+const availabilityRouter = require("./availability");
 
 router.use(requireTalentLegalAcceptance());
 
@@ -41,6 +42,7 @@ router.use("/api/talent/messages", messagesRouter);
 router.use("/api/talent/agencies", agenciesRouter);
 router.use("/api/talent", settingsRouter);
 router.use("/api/talent", fieldVisibilityRouter);
+router.use("/api/talent", availabilityRouter);
 router.use("/api/talent", pdfRouter);
 router.use("/api/talent", dashboardRouter);
 router.use("/api/talent/bio", bioRouter); // Bio refinement routes

@@ -22,6 +22,8 @@
 
 "use strict";
 
+const crypto = require("crypto");
+
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIMENSIONS = 512;
 
@@ -60,6 +62,77 @@ async function embed(text) {
 
   const data = await response.json();
   return data.data[0].embedding;
+}
+
+/**
+ * Normalized text hash used as the discover_embed_cache key. Mirrors the
+ * parse-cache normalization (trim → collapse whitespace → lowercase) so the
+ * same soft-query text hashes identically across processes.
+ */
+function hashEmbedText(text) {
+  const normalized = String(text || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  return crypto.createHash("sha256").update(normalized).digest("hex");
+}
+
+/**
+ * Get-or-compute a soft-query embedding through the Postgres-backed
+ * `discover_embed_cache` (WS6.3) — per-process Maps are empty on every cold
+ * serverless invocation. Best-effort and dual-dialect: a missing cache table or
+ * a DB error never blocks the embedding (it just recomputes).
+ *
+ * `embedFn` is injectable so callers can pass the module's (mock-aware) `embed`
+ * reference and so unit tests can supply a stub without hitting the network.
+ *
+ * @param {import('knex').Knex|null} knex
+ * @param {string} text
+ * @param {{ embedFn?: (t:string)=>Promise<number[]> }} [opts]
+ * @returns {Promise<number[]|null>}
+ */
+async function cachedEmbed(knex, text, opts = {}) {
+  const embedFn = opts.embedFn || embed;
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return null;
+
+  const textHash = hashEmbedText(trimmed);
+
+  if (knex) {
+    try {
+      const row = await knex("discover_embed_cache")
+        .where({ text_hash: textHash })
+        .first();
+      if (row && row.embedding != null) {
+        const vec =
+          typeof row.embedding === "string"
+            ? JSON.parse(row.embedding)
+            : row.embedding;
+        if (Array.isArray(vec) && vec.length) return vec;
+      }
+    } catch {
+      // missing table / DB down — cache is best-effort
+    }
+  }
+
+  const vec = await embedFn(trimmed);
+
+  if (knex && Array.isArray(vec) && vec.length) {
+    try {
+      await knex("discover_embed_cache")
+        .insert({
+          text_hash: textHash,
+          embedding: JSON.stringify(vec),
+          created_at: knex.fn.now(),
+        })
+        .onConflict("text_hash")
+        .merge();
+    } catch {
+      // best-effort
+    }
+  }
+
+  return vec;
 }
 
 // ─── pgvector helpers ────────────────────────────────────────────────────────
@@ -767,6 +840,8 @@ async function reindexDiscoverProfile(knex, profileId, extras = {}) {
 
 module.exports = {
   embed,
+  cachedEmbed,
+  hashEmbedText,
   toVectorLiteral,
   isPostgresKnex,
   cosineDistance,

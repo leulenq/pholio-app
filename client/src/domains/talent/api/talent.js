@@ -34,6 +34,15 @@ export const talentApi = {
       agency_id: agencyId,
       ...(guardianEmail ? { guardian_email: guardianEmail } : {}),
     }),
+  // Availability + bookouts (Discover WS9 talent-side surfaces)
+  getAvailability: () => apiClient.get('/availability'),
+  updateAvailability: (status) => apiClient.put('/availability', { status }),
+  getBookouts: () => apiClient.get('/bookouts'),
+  createBookout: (data) => apiClient.post('/bookouts', data),
+  deleteBookout: (id) => apiClient.delete(`/bookouts/${encodeURIComponent(id)}`),
+  // Stats-currency one-tap nudge — touches measurements_updated_at only.
+  confirmMeasurementsCurrent: () => apiClient.post('/measurements/still-accurate', {}),
+
   refineBio: (body) => apiClient.post('/bio/refine', body),
   generateBio: (body = {}) => apiClient.post('/bio/generate', body),
   formatTrainingSummary: (body) => apiClient.post('/training-summary/format', body),

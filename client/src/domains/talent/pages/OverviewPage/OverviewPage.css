@@ -203,6 +203,35 @@
 }
 
 /* ═══════════════════════════════════════════════
+   STATS-CURRENCY PROMPT (Discover WS9.2)
+═══════════════════════════════════════════════ */
+.ov-stats-currency {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 18px 24px;
+  border-radius: var(--ov-radius);
+  border: 1px solid var(--ov-border);
+  background: rgba(255, 255, 255, 0.025);
+  margin-bottom: 32px;
+}
+
+.ov-stats-currency-copy {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ov-text-soft);
+}
+
+.ov-stats-currency-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════
    12-COLUMN GRID
 ═══════════════════════════════════════════════ */
 .ov-grid {

@@ -2579,3 +2579,83 @@
 .measurementsLockedLink:hover {
   text-decoration: underline;
 }
+
+/* ─── Availability — status control + bookouts (Discover WS9) ─── */
+.availabilityStatus {
+  margin-bottom: 24px;
+}
+
+.bookoutsBlock {
+  display: grid;
+  gap: 12px;
+}
+
+.bookoutsHeading {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--pf-text, #1a1a1a);
+}
+
+.bookoutsEmpty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+}
+
+.bookoutList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bookoutRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--pf-radius-sm, 8px);
+  background: var(--pf-cream-warm, #f5f0e8);
+  border: 1px solid var(--pf-hair, rgba(26, 26, 26, 0.08));
+}
+
+.bookoutRowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bookoutRowDates {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pf-text, #1a1a1a);
+}
+
+.bookoutRowNote {
+  font-size: 12px;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  overflow-wrap: anywhere;
+}
+
+.bookoutForm {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.bookoutFormDates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .bookoutFormDates {
+    grid-template-columns: 1fr;
+  }
+}

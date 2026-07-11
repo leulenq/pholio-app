@@ -78,6 +78,28 @@ function isDiscoverHybridEnabled() {
     process.env.DISCOVER_HYBRID === "1"
   );
 }
+
+const config = require("../../../config");
+
+/**
+ * Resolve the active Discover engine at call time (env is authoritative so
+ * tests/rollout can flip it without a process restart). DISCOVER_ENGINE wins
+ * when set to a valid value; DISCOVER_HYBRID=true is the legacy 'hybrid' alias.
+ */
+function resolveDiscoverEngine() {
+  const raw = (process.env.DISCOVER_ENGINE || "").trim().toLowerCase();
+  if (raw === "launch" || raw === "hybrid" || raw === "browse") return raw;
+  if (isDiscoverHybridEnabled()) return "hybrid";
+  return config.discover.engine || "hybrid";
+}
+
+function discoverCorpusThreshold() {
+  return (
+    parseInt(process.env.DISCOVER_CORPUS_THRESHOLD, 10) ||
+    config.discover.corpusThreshold ||
+    2500
+  );
+}
 const TEXT_WEIGHT = parseFloat(process.env.DISCOVER_FUSION_TEXT_WEIGHT) || 0.6;
 const IMAGE_WEIGHT =
   parseFloat(process.env.DISCOVER_FUSION_IMAGE_WEIGHT) || 0.4;
@@ -180,17 +202,16 @@ function applyDiscoverFilters(query, filters, knex) {
   }
 
   if (filters.heritage) {
+    // Compliance follow-up (WS5 / spec §0.3): skin tone must NOT be a search
+    // signal in ANY engine. The skin_tone match was removed here — the column
+    // stays, but query-time matching on it does not.
     const term = String(filters.heritage).toLowerCase();
     query.andWhere((qb) => {
       qb.whereRaw("LOWER(COALESCE(profiles.ethnicity, '')) LIKE ?", [
         `%${term}%`,
-      ])
-        .orWhereRaw("LOWER(COALESCE(profiles.skin_tone, '')) LIKE ?", [
-          `%${term}%`,
-        ])
-        .orWhereRaw("LOWER(COALESCE(profiles.bio_curated, '')) LIKE ?", [
-          `%${term}%`,
-        ]);
+      ]).orWhereRaw("LOWER(COALESCE(profiles.bio_curated, '')) LIKE ?", [
+        `%${term}%`,
+      ]);
     });
   }
 
@@ -466,13 +487,14 @@ function buildSemanticWhereClause(filters) {
     bindings.push(String(filters.gender).toLowerCase());
   }
   if (filters.heritage) {
+    // Compliance follow-up (WS5 / spec §0.3): skin tone is never a search
+    // signal — the skin_tone clause was removed from this matcher too.
     const term = String(filters.heritage).toLowerCase();
     clauses.push(
       `(LOWER(COALESCE(profiles.ethnicity, '')) LIKE ?
-        OR LOWER(COALESCE(profiles.skin_tone, '')) LIKE ?
         OR LOWER(COALESCE(profiles.bio_curated, '')) LIKE ?)`,
     );
-    bindings.push(`%${term}%`, `%${term}%`, `%${term}%`);
+    bindings.push(`%${term}%`, `%${term}%`);
   }
   if (filters.eye_color) {
     clauses.push("profiles.eye_color = ?");
@@ -803,11 +825,36 @@ async function searchDiscoverableTalent(knex, options) {
     hair_color = "",
     archetype = "",
     experience_level = "",
+    include_outside_spec = "",
   } = options;
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const offset = (pageNum - 1) * limitNum;
+
+  // ── Launch-mode engine (WS5): score-everything, grouped results. Only for
+  // engine=launch AND while the eligible pool is under the corpus threshold;
+  // above it we log and fall through to the (unchanged) hybrid/browse paths.
+  if (resolveDiscoverEngine() === "launch") {
+    // eslint-disable-next-line global-require
+    const { launchModeSearch, countEligiblePool } = require("./discover/engine");
+    const threshold = discoverCorpusThreshold();
+    const eligibleCount = await countEligiblePool(knex);
+    if (eligibleCount < threshold) {
+      return launchModeSearch({
+        knex,
+        briefText: q,
+        limit: limitNum,
+        includeOutsideSpec:
+          include_outside_spec === "true" || include_outside_spec === "1",
+        agencyUserId: agencyId,
+        now: new Date(),
+      });
+    }
+    console.warn(
+      `[Discover] eligible pool ${eligibleCount} >= corpus threshold ${threshold}; launch mode → hybrid fallthrough`,
+    );
+  }
 
   const queryParams = {
     city,
@@ -875,6 +922,11 @@ module.exports = {
   parseIntentToFilters,
   hybridSearch,
   isDiscoverHybridEnabled,
+  resolveDiscoverEngine,
+  discoverCorpusThreshold,
+  // Shared by the launch engine (discover/engine.js) — DTO enrichment + invites.
+  attachImagesAndInvites,
+  fetchApplicationMap,
   TEXT_WEIGHT,
   IMAGE_WEIGHT,
   MAX_DISTANCE,
