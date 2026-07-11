@@ -1,3 +1,47 @@
+# Current Task — Implement pholio-app agency access/setup
+
+- [x] Inspect current agency auth, provisioning, API guards, migrations, app routes, and agency UI components.
+- [x] Add app-side schema and API support for agency access requests, setup steps, and import-job intake.
+- [x] Enforce setup gating across login redirects, SPA routing, and agency API guards.
+- [x] Add `/dashboard/agency/setup` page using the agency command-center design language.
+- [x] Add a handoff note for the separate `pholio-landing` agent; do not implement landing pages here.
+- [x] Run focused backend/client verification, commit, and create PR metadata.
+
+## Review
+
+Implemented the `pholio-app` side only: public intake API for the landing form, setup persistence, setup gating, a lightweight agency setup page, setup API routes, provisioning status semantics, focused setup-gate tests, and a handoff note for a separate `pholio-landing` agent.
+
+---
+
+# Current Task — Agency access system stress test
+
+- [x] Recreated `agency-access-flow-revisions` branch in the current Codex checkout.
+- [x] Ran a fresh subagent stress test against the agency access plan.
+- [x] Applied repo-boundary correction: request form belongs in `pholio-landing`; authenticated setup belongs in `pholio-app`.
+- [x] Removed generic platform-funnel language and added agency-dashboard design contracts.
+- [x] Added blocking setup-gate, internal authorization, agency status, minors, board-model, open-call, import, and copy acceptance criteria.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Stress-tested and hardened `tasks/agency-access-system.md` so implementation cannot proceed without addressing setup bypasses, Pholio-internal provisioning authorization, minor-data controls, app/landing repo ownership, and agency-dashboard design alignment.
+
+---
+
+# Current Task — Agency access system research
+
+- [x] Inspect current agency/auth/onboarding routes and existing agency design context.
+- [x] Review industry skill references for agency credibility and terminology.
+- [x] Research external access-request, SaaS onboarding, model-agency software, and migration patterns.
+- [x] Write the Pholio agency access/request + post-login setup system specification.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Drafted `tasks/agency-access-system.md` with the recommended reviewed-access request system, internal review workflow, post-login agency setup sequence, and import/migration model.
+
+---
+
 # Claude Configuration Audit & Build Plan — 2026-07-04
 
 ## Audit findings
