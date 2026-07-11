@@ -1,3 +1,78 @@
+# Production Consolidation — 2026-07-11
+
+## Scope
+
+- [x] Fetched/pruned GitHub refs and listed all 35 remote branches.
+- [x] Created isolated worktree:
+  `/private/tmp/pholio-prod-consolidation` on
+  `consolidation-2026-07-11`.
+- [x] Included current production candidates:
+  - `origin/claude/discover-talent-search-redesign-wbivg7`
+  - `origin/claude/pholio-comp-card-system-nofxfm`
+  - `origin/codex/redefine-agency-access-and-onboarding-flow`
+  - `origin/devin/1783740533-dev-seeded-agency-login`
+  - `origin/devin/1783451377-agency-onboarding-design`
+- [x] Preserved dirty artifacts in the original checkout:
+  `PERSISTENCE_REPORT.md`, `test.sqlite3`, and `scratch_test_db.js`.
+- [x] Run production readiness checks across merged domains.
+
+## Branch Decisions
+
+- Included Discover search because it is the newest active branch, merges
+  cleanly, removes sensitive vision-derived fields, and adds focused migration,
+  parsing, DTO, rate-limit, and search tests.
+- Included Comp Card Editions because it merges cleanly and adds renderer
+  parity, matte precompute, gallery gates, and PDF composition tests.
+- Included Agency Access because PR #30 is an open implementation branch and
+  the app-side setup gate is required before agency launch.
+- Included dev seeded login because PR #31 is explicitly disabled in production
+  (`NODE_ENV !== "production"` and `AUTH_PASSTHROUGH_ENABLED === "1"`) and it
+  preserves the new agency setup redirect for incomplete agency sessions.
+- Included the agency onboarding data-model design doc from PR #29 because it
+  is docs-only and aligns with the included agency access flow.
+- Held `origin/claude/logo-icon-12euah`: merge conflicts with current favicon
+  and apple-touch-icon deletions plus `PRODUCT.md`; needs intentional brand
+  asset reconciliation.
+- Held `origin/devin/1783329493-talent-settings-editorial-redesign`: PR #25 is
+  dirty against current `main` and overlaps the already refactored Settings
+  surface.
+- Held `origin/claude/intel-page-completion-p9c8mh`: branch contains stale
+  IntelPage structure under `instruments/` while current `main` already has the
+  merged Intel implementation.
+- Held open superseded settings PR branches (`#15`, `#16`, `#19`) and closed
+  stale settings branches because newer Settings/Intel work is already merged.
+- Held PR #22 (`status-document-for-codex`) because the richer report artifact
+  was already merged via PR #23.
+- Held draft PR #24 (`cursor/setup-dev-environment-001a`) because it is
+  cloud-agent setup documentation, not a production app change.
+- Held old/stale local and remote branches whose heads are already contained in
+  `main` or predate the current architecture.
+
+## Review
+
+- `npm install` and `npm install --prefix client --legacy-peer-deps` completed
+  in the isolated worktree. Root install required network access after the
+  sandbox blocked `registry.npmjs.org`.
+- Focused non-screenshot test matrix passed: 24 suites, 369 passing tests, 8
+  skipped tests. Covered agency setup gating, Discover contract/parsing,
+  representation disclosure, audience DTOs, Discover migrations/rate limits,
+  roster measured-in-person endpoints, comp-card editions, shaping parity, and
+  matte precompute.
+- `src/domains/pdf/__tests__/scrim-render.test.js` still times out in this Mac
+  runtime because Puppeteer screenshot capture hangs even in a minimal smoke
+  script. Static/template and non-screenshot PDF tests pass; rerun this raster
+  gate in CI or a browser-stable machine before final release approval.
+- `npm run migrate:status` reports 167 completed migrations and no pending
+  migration files in the local integration database.
+- `npm run client:build` passes. Vite reports the existing large-chunk warning.
+- Focused client ESLint passes on the merged app/setup/discover/login files;
+  ESLint reports the existing `.eslintignore` deprecation warning.
+- `npm run build:function` passes after externalizing `harfbuzzjs` in the
+  serverless bundle script.
+- Root `npm install` reports 49 audit findings (2 low, 20 moderate, 19 high, 8
+  critical). This appears to be existing dependency audit debt, but it should be
+  reviewed before a public production launch.
+
 # Current Task — Implement pholio-app agency access/setup
 
 - [x] Inspect current agency auth, provisioning, API guards, migrations, app routes, and agency UI components.

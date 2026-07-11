@@ -92,7 +92,7 @@ describeMaybe("composed-front scrim rasterization", () => {
   async function renderAndSample(html) {
     const page = await browser.newPage();
     await page.setViewport({ width: 396, height: 612 });
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "load" });
     const shot = await page.screenshot({ type: "png" });
     await page.close();
     const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
