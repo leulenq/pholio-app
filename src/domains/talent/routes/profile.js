@@ -21,6 +21,7 @@ const {
   checkEssentialsComplete,
 } = require("../../onboarding/validation/essentials-check");
 const { computeProfileStatus } = require("../services/profile-status");
+const { marketFromGeo } = require("../services/intel/market-resolve");
 const {
   captureSubmissionReadiness,
   notifyIfSubmissionReadinessLost,
@@ -754,6 +755,14 @@ router.put(
 
     mapField("city");
     mapField("city_secondary");
+    // Discover market (WS3.5): whenever the primary city changes, re-derive
+    // the canonical industry-market slug on the same write. Unrecognised
+    // cities clear the market (NULL) rather than leaving a stale slug.
+    if (Object.hasOwn(updateData, "city")) {
+      updateData.market = updateData.city
+        ? marketFromGeo({ city: updateData.city })
+        : null;
+    }
     mapField("phone");
     mapNumberField("height_cm");
     mapNumberField("weight_kg");
