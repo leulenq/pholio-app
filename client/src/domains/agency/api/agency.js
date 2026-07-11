@@ -234,10 +234,17 @@ export async function archiveApplication(applicationId) {
 }
 
 /**
- * Get discoverable talent
+ * Get discoverable talent.
+ * @param {object} params - { q, limit, include_outside_spec } (launch mode) or
+ *   legacy filter params. Empty values are dropped so the URL stays clean.
  */
 export async function getDiscoverableTalent(params = {}) {
-  const queryString = new URLSearchParams(params).toString();
+  const clean = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue;
+    clean[k] = v;
+  }
+  const queryString = new URLSearchParams(clean).toString();
   return apiClient.get(`/discover${queryString ? '?' + queryString : ''}`);
 }
 
@@ -278,10 +285,15 @@ export async function fetchRosterProfile(profileId) {
 }
 
 /**
- * Invite talent to apply
+ * Invite talent to apply. Pass the originating search's queryLogId so the
+ * backend can attribute the invite back to the query (WS6.5 telemetry); it is
+ * best-effort server-side and never blocks the invite.
  */
-export async function inviteTalent(profileId) {
-  return apiClient.post(`/discover/${profileId}/invite`);
+export async function inviteTalent(profileId, queryLogId = null) {
+  return apiClient.post(
+    `/discover/${profileId}/invite`,
+    queryLogId ? { query_log_id: queryLogId } : {},
+  );
 }
 
 /**
