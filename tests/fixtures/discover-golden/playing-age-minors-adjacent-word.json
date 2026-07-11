@@ -1,0 +1,32 @@
+{
+  "name": "playing-age-minors-adjacent-word",
+  "category": "adversarial-wrong-value",
+  "brief": "nineteen years old, reads as a teenager",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "playing_age": {
+            "op": "between",
+            "a": 14,
+            "b": 17,
+            "span": "nineteen years old, reads as a teenager",
+            "confidence": 0.55
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": [
+      "playing_age"
+    ]
+  }
+}

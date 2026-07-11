@@ -1,0 +1,31 @@
+{
+  "name": "set-aside-fair-skinned",
+  "category": "set-aside",
+  "brief": "fair skinned, commercial",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "boards": [
+            "commercial"
+          ]
+        },
+        "soft_query": "fair skinned commercial"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "set_aside_contains": [
+      "fair skinned"
+    ],
+    "soft_query_excludes": [
+      "fair"
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "locality-travel-not-local",
+  "category": "mixed",
+  "brief": "based anywhere, must travel for an editorial shoot in Milan",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "location": {
+            "market": "milan",
+            "local_only": false,
+            "travel_ok": true,
+            "span": "Milan"
+          },
+          "boards": [
+            "editorial"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

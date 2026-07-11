@@ -1,0 +1,29 @@
+{
+  "name": "locality-local-no-travel",
+  "category": "mixed",
+  "brief": "local to Chicago only, no travel",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "location": {
+            "market": "chicago",
+            "local_only": true,
+            "travel_ok": false,
+            "span": "local to Chicago"
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

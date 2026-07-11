@@ -1,0 +1,35 @@
+{
+  "name": "empty-pool-height-impossible",
+  "category": "empty-pool",
+  "brief": "at least 6'11\", runway",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "height_cm": {
+            "op": "min",
+            "a": 211,
+            "b": null,
+            "span": "6'11\"",
+            "confidence": 0.9
+          },
+          "boards": [
+            "runway"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "height_value": 211,
+    "needs_confirmation": [],
+    "engine_honest_zero": true
+  }
+}

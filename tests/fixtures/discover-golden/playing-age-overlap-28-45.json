@@ -1,0 +1,30 @@
+{
+  "name": "playing-age-overlap-28-45",
+  "category": "hard-only",
+  "brief": "playing age 28 to 45",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "playing_age": {
+            "op": "between",
+            "a": 28,
+            "b": 45,
+            "span": "28 to 45",
+            "confidence": 0.9
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

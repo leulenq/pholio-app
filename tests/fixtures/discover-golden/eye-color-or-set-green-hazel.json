@@ -1,0 +1,31 @@
+{
+  "name": "eye-color-or-set-green-hazel",
+  "category": "mixed",
+  "brief": "green or hazel eyes",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "eye_color": [
+            "green",
+            "hazel"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "eye_color": [
+      "green",
+      "hazel"
+    ],
+    "needs_confirmation": []
+  }
+}

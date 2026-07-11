@@ -1,0 +1,28 @@
+{
+  "name": "union-must-be-union",
+  "category": "mixed",
+  "brief": "must be SAG-AFTRA, commercial",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "union": "union",
+          "boards": [
+            "commercial"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "union": "union",
+    "needs_confirmation": []
+  }
+}

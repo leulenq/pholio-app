@@ -1,0 +1,35 @@
+{
+  "name": "height-transposed-adversarial",
+  "category": "adversarial-wrong-value",
+  "brief": "at least 5'9\" for runway",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "height_cm": {
+            "op": "min",
+            "a": 195,
+            "b": null,
+            "span": "5'9\"",
+            "confidence": 0.9
+          },
+          "boards": [
+            "runway"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": [
+      "height_cm"
+    ]
+  }
+}

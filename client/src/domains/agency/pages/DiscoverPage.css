@@ -1106,3 +1106,178 @@ body.is-agency .dc-bar-input:focus {
   .dc-ledger { flex-wrap: wrap; gap: 18px 0; }
   .dc-stat { padding: 0 22px; }
 }
+
+/* ============================================================
+   WS7 — brief mode · provenance · grouped results · browse pool
+   ============================================================ */
+
+/* Search input is now a textarea (brief mode). Enforce resize:none and match
+   the frozen serif treatment. */
+.dc-page .dc-bar-input,
+body.is-agency .dc-bar-input {
+  resize: none !important;
+  overflow: hidden;
+  white-space: nowrap;
+  height: auto;
+  min-height: 1.2em;
+}
+.dc-page .dc-bar-input--brief,
+body.is-agency .dc-bar-input--brief {
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 180px;
+  line-height: 1.5;
+}
+.dc-bar-shell--brief {
+  height: auto;
+  min-height: 72px;
+  align-items: flex-start;
+  padding: 18px 0;
+}
+.dc-bar-shell--brief .dc-bar-field { height: auto; align-items: flex-start; }
+
+/* mode toggle — bare icon, no box */
+.dc-bar-mode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: rgba(201, 165, 90, 0.4);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.dc-bar-mode:hover,
+.dc-bar-mode--on { color: rgba(201, 165, 90, 0.85); }
+
+/* recent searches — above the canned briefs */
+.dc-intel-recent {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0 6px;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.12);
+  margin-bottom: 4px;
+}
+.dc-intel-recent-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.5);
+  margin-bottom: 4px;
+}
+.dc-intel-recent-row {
+  padding: 8px 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  color: rgba(250, 248, 245, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s ease;
+}
+.dc-intel-recent-row:hover { color: rgba(250, 248, 245, 0.92); }
+
+/* ── grouped results ── */
+.dc-curated-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.dc-curated-header .dc-curated-head { margin-bottom: 0; }
+
+.dc-pool-line {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(250, 248, 245, 0.4);
+}
+
+.dc-group { margin-top: 8px; }
+.dc-group + .dc-group { margin-top: 44px; }
+
+/* repeated near-match heading — existing curated-head treatment */
+.dc-group-head {
+  margin: 0 0 20px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 205, 134, 0.6);
+}
+
+.dc-curated-header + .dc-group { margin-top: 28px; }
+
+/* ── always-visible card facts (key stat · age · why-line · truth) ── */
+.dc-card-facts {
+  min-height: 40px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dc-card-facts-head {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.9);
+}
+.dc-card-facts-why {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(250, 248, 245, 0.55);
+}
+.dc-card-facts-note {
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: rgba(232, 205, 134, 0.72);
+}
+
+/* ── show more / outside-spec affordances ── */
+.dc-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+.dc-more-btn,
+.dc-outside-btn {
+  padding: 11px 26px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid rgba(201, 165, 90, 0.3);
+  color: rgba(201, 165, 90, 0.8);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.dc-more-btn:hover:not(:disabled),
+.dc-outside-btn:hover:not(:disabled) {
+  background: rgba(201, 165, 90, 0.09);
+  border-color: rgba(201, 165, 90, 0.55);
+  color: #C9A55A;
+}
+.dc-more-btn:disabled,
+.dc-outside-btn:disabled { opacity: 0.5; cursor: default; }
+
+.dc-outside-btn {
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(250, 248, 245, 0.55);
+}
+.dc-outside-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(250, 248, 245, 0.9);
+  background: rgba(255, 255, 255, 0.04);
+}

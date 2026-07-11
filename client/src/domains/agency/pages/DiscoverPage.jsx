@@ -4,20 +4,29 @@
  * AI-powered semantic talent discovery. Agency-branded dark surface.
  *
  *   1. Threshold — dark hero with a natural-language search bar + example intents
- *   2. Ledger    — editorial serif stats (shell vocabulary, night mode)
- *   3. Grid      — masonry portraits, resonance rings when AI-ranked
- *   4. Panel     — right-edge TalentPanel drawer
+ *   2. Brief     — server-only provenance + editable chips (launch mode)
+ *   3. Grid      — grouped masonry portraits, tier-band rings when AI-ranked
+ *   4. Detail    — full-frame modal
+ *
+ * The visual design (dark surface, card grid, MatchScore ring, detail modal) is
+ * frozen; this file adds search-bar behaviour + informational content only.
+ *
+ * Response handling is dual-shape (WS5.6): launch mode returns `discover_v2`
+ * (grouped, provenance, honest-zero); hybrid mode returns the legacy flat
+ * `{ profiles, meta }`. Everything below feature-detects on `data.discover_v2`.
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, Sparkles } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { X, ArrowRight, Sparkles, AlignLeft } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/agency';
 import { predictCompletion, suggestRefinements } from '../lib/intentParser';
-import { resolveMatchScore } from '../lib/discoverMatch';
+import { resolveMatchScore, tierBandToScore, constraintAnnotations, amendBriefRemove } from '../lib/discoverMatch';
 import MatchScore from '../components/ui/MatchScore';
+import BriefUnderstanding from '../components/BriefUnderstanding';
 import { DiscoverDetail } from './DiscoverDetail';
 import Grainient from './Grainient';
 import './DiscoverPage.css';
@@ -41,9 +50,31 @@ const realBio = (b) => {
   return t;
 };
 
-function mapTalent(p) {
-  // Null when there is no real match signal (browse mode) — the card omits the numeral.
-  const resonance = resolveMatchScore(p);
+const RECENT_KEY = 'pholio.discover.recent';
+const PAGE_SIZE = 30;
+
+function loadRecent() {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter((s) => typeof s === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function pushRecent(text) {
+  const t = (text || '').trim();
+  if (!t) return loadRecent();
+  const next = [t, ...loadRecent().filter((s) => s.toLowerCase() !== t.toLowerCase())].slice(0, 10);
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  return next;
+}
+
+function mapTalent(p, invitedIds) {
+  // tier_band is the only ranking signal launch mode exposes; legacy shapes fall
+  // back to the raw match score. Null → the card omits the ring numeral.
+  const tierBand = p.tier_band || null;
+  const resonance = tierBand ? tierBandToScore(tierBand) : resolveMatchScore(p);
   return {
     id: p.id,
     first: p.first_name || '',
@@ -58,9 +89,16 @@ function mapTalent(p) {
     photo: firstPhoto(p.images),
     bio: realBio(p.bio_curated),
     resonance,
+    // discover_v2 launch-mode content (undefined in legacy shape)
+    keyStat: p.key_stat || null,
+    ageBand: p.age_band || null,
+    whyFacts: p.why_facts || null,
+    constraintTruth: p.constraint_truth || null,
+    annotations: constraintAnnotations(p.constraint_truth),
+    tierBand,
     matchBreakdown: p.match_breakdown || null,
     matchRationale: p.match_rationale || null,
-    isInvited: p.is_invited || false,
+    isInvited: p.is_invited || (invitedIds && invitedIds.has(p.id)) || false,
   };
 }
 
@@ -79,6 +117,16 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
     talent.height && { label: 'Height', value: talent.height },
     talent.gender && { label: 'Gender', value: talent.gender },
   ].filter(Boolean);
+
+  // Always-visible factual face (spec §8.4): key stat + age band, the server
+  // why_facts template (verbatim), and any constraint-truth annotation. Reserved
+  // fixed height so absent data never reflows the grid.
+  const headline = [
+    talent.keyStat ? talent.keyStat.value : null,
+    talent.ageBand,
+  ].filter(Boolean).join(' · ');
+  const hasFacts = !!(talent.keyStat || talent.ageBand || talent.whyFacts || talent.annotations.length);
+
   return (
     <motion.article
       className="dc-card"
@@ -101,6 +149,16 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
           <span className="dc-card-arch">{talent.archetype}</span>
           {talent.city && <><span className="dc-dot" /><span className="dc-card-loc">{talent.city}</span></>}
         </div>
+
+        {hasFacts && (
+          <div className="dc-card-facts">
+            {headline && <div className="dc-card-facts-head">{headline}</div>}
+            {talent.whyFacts && <div className="dc-card-facts-why">{talent.whyFacts}</div>}
+            {talent.annotations.length > 0 && (
+              <div className="dc-card-facts-note">{talent.annotations.join(' · ')}</div>
+            )}
+          </div>
+        )}
 
         <div className="dc-card-reveal">
           <div className="dc-card-reveal-inner">
@@ -139,14 +197,24 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DiscoverPage() {
-  const [query, setQuery] = useState('');
-  const [submitted, setSubmitted] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlQ = searchParams.get('q') || '';
+  const urlOutside = searchParams.get('outside') === '1';
+
+  // submitted + includeOutside are derived from the URL — that IS the source of
+  // truth, so back / forward / refresh restore for free (spec §8.7).
+  const submitted = urlQ;
+  const includeOutside = urlOutside;
+  const [query, setQuery] = useState(urlQ);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [briefMode, setBriefMode] = useState(urlQ.includes('\n'));
   const [isFocused, setIsFocused] = useState(false);
   const [promptIdx, setPromptIdx] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [recent, setRecent] = useState(loadRecent);
+  const [invitedIds, setInvitedIds] = useState(() => new Set());
   const inputRef = useRef(null);
-  const queryClient = useQueryClient();
 
   const completion = useMemo(() => predictCompletion(query), [query]);
   const suggestions = useMemo(() => suggestRefinements(query), [query]);
@@ -160,9 +228,31 @@ export default function DiscoverPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Restore the input text + reset paging when the URL query changes (a submit,
+  // or back / forward / refresh). React's "store previous value" pattern —
+  // https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  const [prevUrlQ, setPrevUrlQ] = useState(urlQ);
+  if (prevUrlQ !== urlQ) {
+    setPrevUrlQ(urlQ);
+    setQuery(urlQ);
+    setLimit(PAGE_SIZE);
+  }
+
+  // Auto-grow the brief-mode textarea.
+  useEffect(() => {
+    if (briefMode && inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+    }
+  }, [briefMode, query]);
+
   const { data, isFetching } = useQuery({
-    queryKey: ['discover', submitted],
-    queryFn: () => getDiscoverableTalent({ q: submitted || '', limit: 30 }),
+    queryKey: ['discover', submitted, includeOutside, limit],
+    queryFn: () => getDiscoverableTalent({
+      q: submitted || '',
+      limit,
+      ...(includeOutside ? { include_outside_spec: 'true' } : {}),
+    }),
     staleTime: 30000,
     keepPreviousData: true,
   });
@@ -173,40 +263,86 @@ export default function DiscoverPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const semanticActive = data?.meta?.semantic_search === true;
+  // ── dual-shape response handling ──
+  const v2 = data?.discover_v2 || null;
+  const isLaunch = !!v2;
+  const queryLogId = data?.query_log_id || data?.meta?.query_log_id || v2?.query_log_id || null;
+  const pool = v2?.pool || data?.meta?.pool || null;
+  const honestZero = v2?.honest_zero || null;
+  const understanding = v2?.understanding || null;
+  const semanticActive = data?.meta?.semantic_search === true || isLaunch;
 
   // Panel opens on any focus — suggestions are always ready.
-  const intelOpen = isFocused;
+  const intelOpen = isFocused && !briefMode;
 
-  // Rank highest match first when semantic scores exist; otherwise preserve API order.
-  const talents = useMemo(() => {
-    const mapped = (data?.profiles || []).map(mapTalent);
-    if (semanticActive) {
-      return mapped.sort((a, b) => (b.resonance ?? 0) - (a.resonance ?? 0));
+  // Build render groups. Launch: server groups[] in order. Legacy: one flat group.
+  const groups = useMemo(() => {
+    if (v2) {
+      return (v2.groups || []).map((g) => ({
+        key: `${g.kind}:${g.missed || ''}`,
+        kind: g.kind,
+        heading: g.heading,
+        talents: (g.results || []).map((p) => mapTalent(p, invitedIds)),
+      }));
     }
-    return mapped;
-  }, [data, semanticActive]);
+    const mapped = (data?.profiles || []).map((p) => mapTalent(p, invitedIds));
+    if (semanticActive) mapped.sort((a, b) => (b.resonance ?? 0) - (a.resonance ?? 0));
+    return mapped.length ? [{ key: 'flat', kind: 'flat', heading: null, talents: mapped }] : [];
+  }, [v2, data, semanticActive, invitedIds]);
 
+  // Flat list across groups — detail nav + invite state.
+  const talents = useMemo(() => groups.flatMap((g) => g.talents), [groups]);
+
+  const hasOutsideGroup = groups.some((g) => g.kind === 'outside_spec');
   const agencyName = agency?.agency_name?.trim() || null;
 
   const invite = useMutation({
-    mutationFn: (id) => inviteTalent(id),
-    onSuccess: (data, id) => {
+    mutationFn: (id) => inviteTalent(id, queryLogId),
+    onSuccess: (_res, id) => {
       toast.success('Invitation sent');
-      queryClient.setQueryData(['discover', submitted], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          profiles: old.profiles.map((p) => p.id === id ? { ...p, is_invited: true } : p)
-        };
-      });
+      setInvitedIds((prev) => new Set(prev).add(id));
     },
     onError: () => toast.error('Could not send invite'),
   });
 
-  const runSearch = (text) => { setQuery(text); setSubmitted(text.trim()); };
-  const onSubmit = (e) => { e.preventDefault(); setSubmitted(query.trim()); };
-  const clear = () => { setQuery(''); setSubmitted(''); };
+  // ── search dispatch (also drives the URL + recent history) ──
+  const applyUrl = (text, outside) => {
+    const next = {};
+    if (text) next.q = text;
+    if (outside) next.outside = '1';
+    setSearchParams(next, { replace: false });
+  };
+
+  const runSearch = (text) => {
+    const t = (text || '').trim();
+    setQuery(t);
+    setLimit(PAGE_SIZE);
+    if (t) setRecent(pushRecent(t));
+    applyUrl(t, false); // URL change drives submitted / includeOutside
+  };
+
+  const onSubmit = (e) => { e?.preventDefault(); runSearch(query); };
+  const clear = () => {
+    setQuery(''); setLimit(PAGE_SIZE);
+    setSearchParams({}, { replace: false });
+  };
+
+  const showOutsideSpec = () => applyUrl(submitted, true);
+
+  const loadMore = () => setLimit((l) => l + PAGE_SIZE);
+
+  // Chip edits are authoritative — re-run the search with the amended brief.
+  const onAmendBrief = (newBrief) => runSearch(newBrief);
+  const onRemoveHonestChip = () => {
+    // The honest-zero removable chip reuses chip removal: find its applied entry
+    // and amend the brief the same way the chip × does. Fall back to clearing.
+    const applied = (understanding?.applied || []).find((a) => a.field === honestZero?.removable_chip);
+    if (applied) {
+      runSearch(amendBriefRemove(submitted, applied));
+    } else {
+      clear();
+    }
+  };
 
   // Accept the ghosted prediction with Tab (anywhere) or → (at line end).
   const acceptCompletion = () => {
@@ -215,6 +351,8 @@ export default function DiscoverPage() {
     requestAnimationFrame(() => inputRef.current?.focus());
   };
   const onKeyDown = (e) => {
+    if (!briefMode && (e.key === 'Enter')) { e.preventDefault(); onSubmit(e); return; }
+    if (briefMode && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(e); return; }
     if (!completion) return;
     const el = e.target;
     const atEnd = el.selectionStart === el.selectionEnd && el.selectionStart === query.length;
@@ -225,6 +363,9 @@ export default function DiscoverPage() {
   };
 
   const applySuggestion = (item) => runSearch(item.value);
+
+  const showBrief = isLaunch && !!submitted;
+  const showBriefLoading = !!submitted && isFetching && !data;
 
   return (
     <div className="dc-page">
@@ -251,23 +392,20 @@ export default function DiscoverPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-
-
           <h1 className="dc-headline">
             Describe who you're
             <br />
             <em>looking for.</em>
           </h1>
 
-
-
           <form className={`dc-bar${isFocused ? ' dc-bar--on' : ''}`} onSubmit={onSubmit}>
-            <div className="dc-bar-shell">
+            <div className={`dc-bar-shell${briefMode ? ' dc-bar-shell--brief' : ''}`}>
               <div className="dc-bar-field">
-                <input
+                <textarea
                   ref={inputRef}
-                  className="dc-bar-input"
+                  className={`dc-bar-input${briefMode ? ' dc-bar-input--brief' : ''}`}
                   value={query}
+                  rows={1}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={onKeyDown}
                   onFocus={() => setIsFocused(true)}
@@ -277,11 +415,13 @@ export default function DiscoverPage() {
                   aria-label="Describe the talent you're looking for"
                 />
                 {query ? (
-                  // Mirror the typed text and ghost the prediction inline behind the caret.
-                  <div className="dc-ghost" aria-hidden="true">
-                    <span className="dc-ghost-typed">{query}</span>
-                    {completion && <span className="dc-ghost-rest">{completion}</span>}
-                  </div>
+                  // Ghost the prediction inline (single-line typing aid only).
+                  !briefMode && !query.includes('\n') && (
+                    <div className="dc-ghost" aria-hidden="true">
+                      <span className="dc-ghost-typed">{query}</span>
+                      {completion && <span className="dc-ghost-rest">{completion}</span>}
+                    </div>
+                  )
                 ) : (
                   <span
                     key={promptIdx}
@@ -292,6 +432,15 @@ export default function DiscoverPage() {
                   </span>
                 )}
               </div>
+              <button
+                type="button"
+                className={`dc-bar-mode${briefMode ? ' dc-bar-mode--on' : ''}`}
+                onClick={() => { setBriefMode((v) => !v); requestAnimationFrame(() => inputRef.current?.focus()); }}
+                aria-label={briefMode ? 'Single-line search' : 'Paste a full brief'}
+                title={briefMode ? 'Single-line search' : 'Paste a full brief'}
+              >
+                <AlignLeft size={15} strokeWidth={2} />
+              </button>
               <AnimatePresence>
                 {query && (
                   <motion.button
@@ -313,7 +462,7 @@ export default function DiscoverPage() {
               </button>
             </div>
 
-            {/* ── Intent intelligence — reads the brief, predicts, refines ── */}
+            {/* ── Intent intelligence — recent searches, then canned briefs ── */}
             <AnimatePresence>
               {intelOpen && (
                 <motion.div
@@ -324,6 +473,21 @@ export default function DiscoverPage() {
                   transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
                   onMouseDown={(e) => e.preventDefault()}
                 >
+                  {recent.length > 0 && (
+                    <div className="dc-intel-recent">
+                      <span className="dc-intel-recent-label">Recent</span>
+                      {recent.slice(0, 6).map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          className="dc-intel-recent-row"
+                          onClick={() => runSearch(r)}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="dc-intel-list">
                     {suggestions.map((item, i) => (
                       <button
@@ -344,49 +508,105 @@ export default function DiscoverPage() {
               )}
             </AnimatePresence>
           </form>
+
+          {/* ── Brief understanding — provenance + editable chips (launch) ── */}
+          {(showBrief || showBriefLoading) && (
+            <BriefUnderstanding
+              brief={submitted}
+              understanding={understanding}
+              loading={showBriefLoading}
+              onAmend={onAmendBrief}
+            />
+          )}
         </motion.div>
       </section>
 
       {/* ── Curated / Results ── */}
       <section className="dc-curated">
+        {/* Section header + browse pool line */}
         {talents.length > 0 && (
-          <motion.p
-            className="dc-curated-head"
+          <motion.div
+            className="dc-curated-header"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            {submitted
-              ? <>Closest matches to <em>“{submitted}”</em></>
-              : agencyName
-                ? <>Featured for <em>{agencyName}</em></>
-                : <>Featured talent</>}
-          </motion.p>
+            <p className="dc-curated-head">
+              {submitted
+                ? <>Closest matches to <em>“{submitted}”</em></>
+                : <>Newest talent{agencyName ? <> · for <em>{agencyName}</em></> : null}</>}
+            </p>
+            {!submitted && pool && (
+              <p className="dc-pool-line">
+                Showing {pool.shown ?? talents.length} of {pool.eligible} discoverable talent
+              </p>
+            )}
+          </motion.div>
         )}
 
         {talents.length === 0 ? (
           <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Sparkles size={26} className="dc-empty-gem" />
-            <p className="dc-empty-text">
-              {isFetching ? 'Searching the network…'
-                : submitted ? 'No talent resonated with that description.'
-                  : 'No discoverable talent yet.'}
-            </p>
-            {submitted && <button className="dc-empty-reset" onClick={clear}>Clear search</button>}
+            {honestZero ? (
+              <>
+                <p className="dc-empty-text">{honestZero.reason}</p>
+                {honestZero.removable_chip ? (
+                  <button className="dc-empty-reset" onClick={onRemoveHonestChip}>
+                    Loosen “{honestZero.removable_chip.replace(/_cm$/, '').replace(/_/g, ' ')}”
+                  </button>
+                ) : (
+                  <button className="dc-empty-reset" onClick={clear}>Clear search</button>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="dc-empty-text">
+                  {isFetching ? 'Searching the network…'
+                    : submitted ? 'No talent resonated with that description.'
+                      : 'No discoverable talent yet.'}
+                </p>
+                {submitted && <button className="dc-empty-reset" onClick={clear}>Clear search</button>}
+              </>
+            )}
           </motion.div>
         ) : (
-          <div className="dc-grid">
-            {talents.map((t, i) => (
-              <TalentCard
-                key={t.id}
-                talent={t}
-                index={i}
-                onOpen={setSelected}
-                onInvite={(tl) => invite.mutate(tl.id)}
-                inviting={invite.isPending && invite.variables === t.id}
-              />
+          <>
+            {groups.map((g) => (
+              <div className="dc-group" key={g.key}>
+                {g.heading && <p className="dc-group-head">{g.heading}</p>}
+                <div className="dc-grid">
+                  {g.talents.map((t, i) => (
+                    <TalentCard
+                      key={t.id}
+                      talent={t}
+                      index={i}
+                      onOpen={setSelected}
+                      onInvite={(tl) => invite.mutate(tl.id)}
+                      inviting={invite.isPending && invite.variables === t.id}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
-          </div>
+
+            {/* Browse: show more (widen the pool page) */}
+            {!submitted && pool && talents.length < pool.eligible && (
+              <div className="dc-more">
+                <button className="dc-more-btn" onClick={loadMore} disabled={isFetching}>
+                  {isFetching ? 'Loading…' : 'Show more'}
+                </button>
+              </div>
+            )}
+
+            {/* Query: reveal nearest outside-spec (explicit action only) */}
+            {isLaunch && submitted && !includeOutside && !hasOutsideGroup && (
+              <div className="dc-more">
+                <button className="dc-outside-btn" onClick={showOutsideSpec} disabled={isFetching}>
+                  Show nearest (outside spec)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
 

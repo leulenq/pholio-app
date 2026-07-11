@@ -1,0 +1,30 @@
+{
+  "name": "playing-age-minors-adjacent-18-play-15",
+  "category": "adversarial-semantic",
+  "brief": "18 years old, can play 15",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "playing_age": {
+            "op": "exact",
+            "a": 15,
+            "b": null,
+            "span": "18 years old, can play 15",
+            "confidence": 0.85
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "region-shoe-us",
+  "category": "region-size",
+  "brief": "shoe size US 8",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "shoe": {
+            "size": 8,
+            "region": "US",
+            "span": "US 8",
+            "confidence": 0.9
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

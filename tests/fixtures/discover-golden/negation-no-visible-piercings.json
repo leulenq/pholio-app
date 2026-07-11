@@ -1,0 +1,32 @@
+{
+  "name": "negation-no-visible-piercings",
+  "category": "negation",
+  "brief": "commercial talent, no visible piercings",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "boards": [
+            "commercial"
+          ],
+          "visible_piercings": false
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "boards": [
+      "commercial"
+    ],
+    "dropped_contains": [
+      "visible_piercings"
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "empty-pool-shoe-impossible",
+  "category": "empty-pool",
+  "brief": "shoe size 16",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "shoe": {
+            "size": 16,
+            "region": "US",
+            "span": "size 16",
+            "confidence": 0.8
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": [],
+    "engine_honest_zero": true
+  }
+}

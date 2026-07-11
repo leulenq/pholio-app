@@ -1,0 +1,44 @@
+{
+  "name": "waist-inches-misparse-adversarial",
+  "category": "adversarial-wrong-value",
+  "brief": "waist 24 inches, fit model",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "boards": [
+            "fit"
+          ],
+          "measurements": {
+            "bust_cm": null,
+            "chest_cm": null,
+            "waist_cm": {
+              "op": "exact",
+              "a": 24,
+              "b": null,
+              "span": "24 inches",
+              "confidence": 0.8
+            },
+            "hips_cm": null,
+            "inseam_cm": null,
+            "dress_size": null,
+            "suit_size": null,
+            "exact": true
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": [
+      "measurements.waist_cm"
+    ]
+  }
+}

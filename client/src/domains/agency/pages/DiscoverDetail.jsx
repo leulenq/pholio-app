@@ -125,6 +125,11 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
               </div>
             )}
 
+            {/* constraint-truth annotations — carried from the card (spec §6) */}
+            {Array.isArray(talent.annotations) && talent.annotations.length > 0 && (
+              <p className="dd-truth">{talent.annotations.join(' · ')}</p>
+            )}
+
             {/* bio */}
             {talent.bio && <p className="dd-bio">{talent.bio}</p>}
           </div>

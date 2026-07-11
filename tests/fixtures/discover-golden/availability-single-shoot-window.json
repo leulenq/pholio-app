@@ -1,0 +1,31 @@
+{
+  "name": "availability-single-shoot-window",
+  "category": "hard-only",
+  "brief": "must be free July 20-22",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "availability": [
+            {
+              "kind": "shoot",
+              "from": "2026-07-20",
+              "to": "2026-07-22",
+              "span": "July 20-22"
+            }
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

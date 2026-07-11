@@ -1,0 +1,38 @@
+{
+  "name": "region-suit-size-us",
+  "category": "region-size",
+  "brief": "suit size 42 US",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "measurements": {
+            "bust_cm": null,
+            "chest_cm": null,
+            "waist_cm": null,
+            "hips_cm": null,
+            "inseam_cm": null,
+            "dress_size": null,
+            "suit_size": {
+              "value": "42",
+              "region": "US",
+              "span": "42 US",
+              "confidence": 0.85
+            },
+            "exact": null
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "height-approx-around-59",
+  "category": "unit-variant",
+  "brief": "around 5'9\", editorial",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "height_cm": {
+            "op": "approx",
+            "a": 175,
+            "b": null,
+            "span": "5'9\"",
+            "confidence": 0.85
+          },
+          "boards": [
+            "editorial"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "height_value": 175,
+    "needs_confirmation": []
+  }
+}

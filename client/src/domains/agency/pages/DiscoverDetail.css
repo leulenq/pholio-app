@@ -173,6 +173,15 @@
   color: rgba(250, 248, 245, 0.92);
 }
 
+/* ── Constraint-truth annotation (near / outside-spec) ── */
+.dd-truth {
+  margin: 0 0 20px;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: rgba(232, 205, 134, 0.72);
+}
+
 /* ── Bio ── */
 .dd-bio {
   flex: 1;

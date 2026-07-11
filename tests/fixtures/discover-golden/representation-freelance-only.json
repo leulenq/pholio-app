@@ -1,0 +1,29 @@
+{
+  "name": "representation-freelance-only",
+  "category": "hard-only",
+  "brief": "freelance talent only",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "representation_status": [
+            "unrepresented"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "representation_status": [
+      "unrepresented"
+    ],
+    "needs_confirmation": []
+  }
+}

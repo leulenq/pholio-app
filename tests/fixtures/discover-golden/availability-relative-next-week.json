@@ -1,0 +1,31 @@
+{
+  "name": "availability-relative-next-week",
+  "category": "mixed",
+  "brief": "available next week",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "availability": [
+            {
+              "kind": "window",
+              "from": null,
+              "to": null,
+              "span": "next week"
+            }
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

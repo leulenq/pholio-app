@@ -1,0 +1,31 @@
+{
+  "name": "boards-or-set-editorial-commercial",
+  "category": "mixed",
+  "brief": "editorial or commercial talent",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "boards": [
+            "editorial",
+            "commercial"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "boards": [
+      "editorial",
+      "commercial"
+    ],
+    "needs_confirmation": []
+  }
+}
