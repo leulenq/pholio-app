@@ -15,9 +15,14 @@
  * auto-leak it, because a new column is absent from every allowlist until a
  * human adds it on purpose.
  *
- * Pure functions only. No DB calls. Each takes an already-loaded
- * profile/image/user object and returns a shaped plain object. Never throws on a
- * sparse/null input.
+ * Pure functions only. No DB calls, with one scoped exception:
+ * `loadTalentRepresentationsForProfiles` (WS6.1 / LB-5), a batch loader kept
+ * here (rather than a new `shared/lib` module) so PRs that touch
+ * `talent_representations` derivation stay confined to this file. It mirrors
+ * `social-accounts.js#loadSocialAccountsForProfiles` and is the only function
+ * below that queries the DB — every DTO builder remains pure, taking an
+ * already-loaded profile/image/representations object and returning a shaped
+ * plain object. Never throws on a sparse/null input.
  *
  * Age is ALWAYS derived from DOB via talent-age.js. A stored `profiles.age`
  * column must never be read.
@@ -37,6 +42,9 @@ const {
   normalizeStringList,
 } = require("./submission-profile");
 const { PROFILE_AI_COLUMNS } = require("./data-export");
+// Only DB-touching import in this otherwise-pure module. See
+// `loadTalentRepresentationsForProfiles` below for the scoped exception.
+const knexDb = require("../db/knex");
 
 // ---------------------------------------------------------------------------
 // Audience identifiers
@@ -99,6 +107,16 @@ const PUBLIC_IMAGE_FIELDS = Object.freeze([
  *
  * NOTE: `division` is derived client-side (profileDivision.js), not a stored
  * column. A caller that needs it computes and merges it after the DTO.
+ *
+ * NOTE (WS6.2 / WS6.4): `tattoos` and `piercings` are ADULT-ONLY — the raw
+ * columns are in this allowlist so `pickAllowed` copies them, but
+ * `buildAgencyDiscoveryDTO` nulls them out for a minor as a defense-in-depth
+ * mirror of the `social` gate (minors are already excluded from generic
+ * Discover pre-DTO by `isAgencyDiscoverable`, but a builder call must never
+ * assume that gate ran). `measured_in_person_at` is the only agency-set
+ * timestamp allowed to render "measured in person" (see
+ * `measured_by_agency_id`, set via the roster endpoint) — self-reported
+ * `measurements_updated_at` above only ever renders "last updated".
  */
 const AGENCY_DISCOVERY_FIELDS = Object.freeze([
   "id",
@@ -122,10 +140,14 @@ const AGENCY_DISCOVERY_FIELDS = Object.freeze([
   "dress_size",
   "suit_size",
   "measurements_updated_at",
+  "measured_in_person_at",
   "hair_color",
   "hair_length",
   "hair_type",
   "eye_color",
+  // Adult-only (nulled for minors in buildAgencyDiscoveryDTO — see NOTE above).
+  "tattoos",
+  "piercings",
   // Professional metadata.
   "discipline",
   "experience_level",
@@ -317,6 +339,167 @@ function shapeSocialAccounts(social) {
     .map((row) => pickAllowed(row, SOCIAL_ACCOUNT_FIELDS));
 }
 
+// ---------------------------------------------------------------------------
+// Representation status (WS6.1 / LB-5)
+// ---------------------------------------------------------------------------
+//
+// `talent_representations` (migration 20260629234500) already existed and
+// never reached Discover — the launch agency could not distinguish
+// "unrepresented, ours to develop" from "exclusive with another mother
+// agent" (council review LB-5). The functions below derive a
+// `representation_status` for the agency-discovery DTO from batch-loaded
+// representation rows, with a legacy fallback onto the free-text
+// `profiles.current_agency` column for profiles that predate (or bypass) the
+// structured table.
+
+// `talent_representations.status` check constraint is `active` | `ended`.
+// Treat a row with a missing/unrecognized status defensively as active
+// rather than silently dropping it from consideration.
+function isActiveRepresentationRow(row) {
+  return Boolean(row) && (row.status == null || row.status === "active");
+}
+
+function isDisclosedRepresentationRow(row) {
+  return (
+    row &&
+    (row.disclose_agency_name === true || row.disclose_agency_name === 1)
+  );
+}
+
+function isExclusiveRepresentationRow(row) {
+  return row && (row.is_exclusive === true || row.is_exclusive === 1);
+}
+
+/**
+ * Pure derivation of the agency-facing representation status. Never touches
+ * the DB — callers batch-load `representations` via
+ * `loadTalentRepresentationsForProfiles` and pass the rows in.
+ *
+ * Precedence: exclusive-elsewhere > represented > legacy-fallback > seeking >
+ * unrepresented. Naming the agency (`represented_by`) requires the talent's
+ * `disclose_agency_name` opt-in on the specific row (default false /
+ * "undisclosed" — LB-5's required default).
+ *
+ * @param {object|null|undefined} profile
+ * @param {Array<object>|null|undefined} representations - rows shaped like
+ *   `talent_representations` (+ joined `agency_name`), any status.
+ * @returns {{ representation_status: string, represented_by: string|null }}
+ */
+function deriveRepresentationStatus(profile, representations) {
+  const src = asObject(profile);
+  const reps = Array.isArray(representations) ? representations : [];
+  const activeReps = reps.filter(isActiveRepresentationRow);
+
+  if (activeReps.some(isExclusiveRepresentationRow)) {
+    return { representation_status: "exclusive_elsewhere", represented_by: null };
+  }
+
+  if (activeReps.length > 0) {
+    const disclosed = activeReps.find(isDisclosedRepresentationRow);
+    const name = disclosed
+      ? disclosed.external_agency_name || disclosed.agency_name || null
+      : null;
+    return {
+      representation_status: "represented",
+      represented_by: name || "undisclosed",
+    };
+  }
+
+  // Legacy fallback: no talent_representations rows at all for this profile
+  // (not merely none active) but the legacy free-text column is populated.
+  // There is no live write-path syncing `current_agency` edits into
+  // talent_representations after the one-time backfill migration, so this
+  // keeps older/not-yet-migrated profiles honest without a second data model.
+  if (reps.length === 0 && String(src.current_agency || "").trim()) {
+    return { representation_status: "represented", represented_by: "undisclosed" };
+  }
+
+  if (src.seeking_representation) {
+    return { representation_status: "seeking", represented_by: null };
+  }
+
+  return { representation_status: "unrepresented", represented_by: null };
+}
+
+// Column-existence cache for deploy-before-migrate safety, mirroring
+// content-moderation.js's `ensureModerationColumnChecked`. Keyed by `db`
+// instance (a WeakMap, not a single flag) so tests that spin up multiple
+// ephemeral knex connections — or a future multi-tenant db pool — never
+// share a stale answer across connections.
+const _discloseColumnCacheByDb = new WeakMap();
+
+/**
+ * Warm (and memoize per-db) whether
+ * `talent_representations.disclose_agency_name` exists yet, so
+ * `loadTalentRepresentationsForProfiles` degrades to "undisclosed" instead of
+ * erroring during a deploy-before-migrate window.
+ *
+ * @param {import('knex').Knex} [db]
+ * @returns {Promise<boolean>}
+ */
+async function ensureRepresentationDiscloseColumnChecked(db = knexDb) {
+  if (!_discloseColumnCacheByDb.has(db)) {
+    const hasTable = await db.schema.hasTable("talent_representations");
+    const hasColumn = hasTable
+      ? await db.schema.hasColumn(
+          "talent_representations",
+          "disclose_agency_name",
+        )
+      : false;
+    _discloseColumnCacheByDb.set(db, hasColumn);
+  }
+  return _discloseColumnCacheByDb.get(db);
+}
+
+/**
+ * Batch-load `talent_representations` (+ joined `agencies.name`) for many
+ * profiles in a single query — mirrors
+ * `social-accounts.js#loadSocialAccountsForProfiles` so Discover result pages
+ * never N+1 per profile. Returns ALL rows regardless of status; callers
+ * (namely `deriveRepresentationStatus`) decide what "active" means.
+ *
+ * Safe no-op (empty Map) if the table doesn't exist yet.
+ *
+ * @param {Array<string>} profileIds
+ * @param {{ db?: import('knex').Knex }} [opts]
+ * @returns {Promise<Map<string, Array<Record<string, unknown>>>>} profile_id -> rows
+ */
+async function loadTalentRepresentationsForProfiles(profileIds, opts = {}) {
+  const db = opts.db || knexDb;
+  const ids = [...new Set((profileIds || []).filter(Boolean))];
+  const byProfile = new Map();
+  if (ids.length === 0) return byProfile;
+
+  const hasTable = await db.schema.hasTable("talent_representations");
+  if (!hasTable) return byProfile;
+
+  const hasDiscloseColumn = await ensureRepresentationDiscloseColumnChecked(db);
+  const columns = [
+    "tr.profile_id",
+    "tr.agency_id",
+    "tr.external_agency_name",
+    "tr.relationship_type",
+    "tr.is_exclusive",
+    "tr.status",
+    "a.name as agency_name",
+  ];
+  if (hasDiscloseColumn) columns.push("tr.disclose_agency_name");
+
+  const rows = await db("talent_representations as tr")
+    .leftJoin("agencies as a", "a.id", "tr.agency_id")
+    .whereIn("tr.profile_id", ids)
+    .select(columns);
+
+  for (const row of rows) {
+    const shaped = hasDiscloseColumn
+      ? row
+      : { ...row, disclose_agency_name: false };
+    if (!byProfile.has(row.profile_id)) byProfile.set(row.profile_id, []);
+    byProfile.get(row.profile_id).push(shaped);
+  }
+  return byProfile;
+}
+
 function displayName(source) {
   const src = asObject(source);
   const name = [src.first_name, src.last_name]
@@ -389,7 +572,11 @@ function buildPublicCardDTO(profile, opts = {}) {
 /**
  * Agency Discover DTO.
  * @param {object|null|undefined} profile
- * @param {{ images?: object[], owner?: object|null }} [opts]
+ * @param {{ images?: object[], owner?: object|null, social?: object[]|null,
+ *   representations?: object[]|null }} [opts]
+ *   `representations` is batch-loaded per result set via
+ *   `loadTalentRepresentationsForProfiles` and passed in per-profile — this
+ *   builder stays a pure function and never queries the DB itself.
  */
 function buildAgencyDiscoveryDTO(profile, opts = {}) {
   const src = asObject(profile);
@@ -403,6 +590,17 @@ function buildAgencyDiscoveryDTO(profile, opts = {}) {
 
   // Adult-only social accounts (joined table, passed via opts.social).
   dto.social = minor ? [] : shapeSocialAccounts(opts.social);
+
+  // Adult-only visible-when-dressed data (WS6.2) — mirror the social gate
+  // above; never surfaced for a minor even if the raw columns are non-null.
+  if (minor) {
+    dto.tattoos = null;
+    dto.piercings = null;
+  }
+
+  const repStatus = deriveRepresentationStatus(src, opts.representations);
+  dto.representation_status = repStatus.representation_status;
+  dto.represented_by = repStatus.represented_by;
 
   const images = Array.isArray(opts.images) ? opts.images : [];
   dto.images = images.map(buildPublicImageDTO).filter(Boolean);
@@ -471,6 +669,10 @@ module.exports = {
   PROFILE_AI_COLUMNS,
   // Age policy.
   deriveAudienceAge,
+  // Representation status (WS6.1 / LB-5).
+  deriveRepresentationStatus,
+  loadTalentRepresentationsForProfiles,
+  ensureRepresentationDiscloseColumnChecked,
   // DTO builders.
   buildPublicImageDTO,
   buildPublicCardDTO,
