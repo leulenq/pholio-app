@@ -15,11 +15,33 @@
   # esbuild resolves directory requires (e.g. require('./router'), require('./util/nullUndefinedCheck'))
   # at bundle time, eliminating the entire class of nft trace bugs.
   node_bundler = "esbuild"
-  included_files = ["views/**", "public/**", "migrations/**", "src/domains/pdf/templates/**"]
 
 [functions."server"]
   timeout = 26
   memory = 3008
+  # Keep Lambda below AWS package limits. The full publish directory is still
+  # deployed as static files; the function only needs runtime templates and
+  # small static assets it reads directly.
+  included_files = [
+    "views/**",
+    "migrations/**",
+    "src/domains/pdf/templates/**",
+    "public/agency-logos/**",
+    "public/assets/**",
+    "public/brand/**",
+    "public/fonts/**",
+    "public/images/**",
+    "public/scripts/**",
+    "public/styles/**",
+    "public/apple-touch-icon.png",
+    "public/apple-touch-icon.svg",
+    "public/favicon.ico",
+    "public/favicon-16x16.png",
+    "public/favicon-32x32.png",
+    "public/favicon.svg",
+    "public/pholio-02-wordmark-primary.JPG",
+    "public/dashboard-app/index.html",
+  ]
   # Native binaries + packages with directory requires or ESM/CJS conflicts.
   # Knex optional dialects (mysql, tedious, oracledb) are not installed but referenced in knex source.
   external_node_modules = [
@@ -35,6 +57,7 @@
 
 [functions."cleanup-application-drafts"]
   schedule = "@daily"
+  included_files = ["migrations/**"]
   external_node_modules = [
     "better-sqlite3", "sqlite3",
     "mysql", "mysql2", "tedious", "oracledb", "mssql",
