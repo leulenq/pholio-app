@@ -3,6 +3,10 @@ const puppeteer = require("puppeteer");
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
 const { toFeetInches } = require("../talent/services/stats");
+const {
+  applyImageVisibility,
+  AUDIENCE,
+} = require("../../shared/lib/profile-visibility");
 const compCardDimensions = require("../../../shared/comp-card-dimensions.json");
 
 const {
@@ -29,9 +33,14 @@ async function loadProfile(slug) {
   try {
     const profile = await knex("profiles").where({ slug }).first();
     if (!profile) return null;
-    const images = await knex("images")
+    const imagesQuery = knex("images")
       .leftJoin("image_rights", "image_rights.image_id", "images.id")
-      .where({ "images.profile_id": profile.id })
+      .where({ "images.profile_id": profile.id });
+    // Comp cards and digitals sheets are outward-facing documents: images
+    // pending moderation review (or rejected/hidden) must never render on
+    // them, and the hero pick below must draw from the same filtered set.
+    applyImageVisibility(imagesQuery, AUDIENCE.PUBLIC, { table: "images" });
+    const images = await imagesQuery
       .select(
         "images.*",
         "image_rights.rights_status as rights_status",

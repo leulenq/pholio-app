@@ -23,6 +23,7 @@
     "backfill:image-signals": "node scripts/backfill-image-signals.js",
     "backfill:profile-market": "node scripts/backfill-profile-market.js",
     "analyze:classification-feedback": "node scripts/analyze-classification-feedback.js",
+    "moderation:queue": "node scripts/moderation-queue.js",
     "eval:discover:layer1": "jest tests/eval/discover-layer1.test.js --runInBand --forceExit",
     "eval:discover:layer2": "node scripts/eval-discover-layer2.js",
     "eval:discover:ablation": "node scripts/ablate-discover-channels.js",

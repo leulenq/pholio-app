@@ -37,8 +37,8 @@ const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
 const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const {
   MODERATION_STATUS,
-  MODERATION_QUEUE_STATUS,
   analyzeImageBuffer,
+  enqueueImageForReview,
 } = require("../../../shared/lib/content-moderation");
 const {
   screenImageForCsam,
@@ -534,6 +534,10 @@ function toPublicImagePayload(image, metadataOverride, extra = {}) {
     has_original: !!(image.original_path || image.original_public_url),
     metadata,
     classification_status: classificationStatusFromMetadata(metadata),
+    // Owner-visible moderation state (WS10): `review` renders as a plain-text
+    // "Under review" state in the talent UI; agencies/public never receive
+    // these rows at all (query-level filter in profile-visibility.js).
+    moderation_status: image.moderation_status ?? null,
     ...structuredFieldsFromImageRow(image),
     ...extra,
   };
@@ -1048,20 +1052,19 @@ router.post(
             }
 
             // Images flagged for review are not visible to agencies/public
-            // until a moderator approves them — enqueue for human review.
+            // until a moderator approves them — enqueue for human review
+            // (WS10: `review` must always be a visible, actionable queue
+            // state, never silent limbo).
             if (isReview && hasModerationQueue) {
               const queueFlags = {
                 ...(moderation.flags || {}),
                 ...(csamScreen.flags || {}),
                 ...(csamScreen.shouldEscalate ? { csam_escalation: true } : {}),
               };
-              await trx("moderation_queue").insert({
-                id: uuidv4(),
-                image_id: imageId,
-                profile_id: profile.id,
-                status: MODERATION_QUEUE_STATUS.PENDING,
-                flags: JSON.stringify(queueFlags),
-                created_at: trx.fn.now(),
+              await enqueueImageForReview(trx, {
+                imageId,
+                profileId: profile.id,
+                flags: queueFlags,
               });
             }
 
@@ -2603,9 +2606,19 @@ router.get(
       return res.json({ success: true, images: [] });
     }
 
+    // Owner poll surface also carries the moderation state so the media UI
+    // can show a plain-text "Under review" state (WS10). hasColumn-guarded
+    // for the deploy-before-migrate window.
+    const hasModerationColumn = await knex.schema.hasColumn(
+      "images",
+      "moderation_status",
+    );
+    const columns = ["id", "metadata", "shot_type", "image_type", "style_type"];
+    if (hasModerationColumn) columns.push("moderation_status");
+
     const images = await knex("images")
       .where({ profile_id: profile.id })
-      .select("id", "metadata", "shot_type", "image_type", "style_type");
+      .select(columns);
 
     return res.json({
       success: true,
@@ -2614,6 +2627,9 @@ router.get(
         return {
           id: img.id,
           classification_status: classificationStatusFromMetadata(metadata),
+          moderation_status: hasModerationColumn
+            ? (img.moderation_status ?? null)
+            : null,
           shot_type: img.shot_type,
           image_type: img.image_type,
           style_type: img.style_type,

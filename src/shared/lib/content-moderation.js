@@ -9,11 +9,29 @@
  *
  * Design principle: FAIL TOWARD REVIEW. The heuristic must never auto-approve
  * something it is unsure about, and any analysis failure escalates to `review`
- * rather than silently approving. This is intentionally NOT a substitute for a
- * real CSAM/NSFW vendor (e.g. Hive, AWS Rekognition, PhotoDNA) — it is the real
- * architecture those vendors will later plug into via getModerationProvider().
+ * rather than silently approving.
+ *
+ * WS10 launch posture (manual review queue): a `review` verdict is never a
+ * silent state — it always pairs with a pending `moderation_queue` row (the
+ * upload routes and applyModerationResult both enqueue via
+ * enqueueImageForReview), actioned either through the moderator API
+ * (`/api/moderation/queue`) or the ops CLI (`scripts/moderation-queue.js`).
+ *
+ * Providers (MODERATION_PROVIDER / config.moderation.provider):
+ *   - `heuristic` (default): the sharp-based analysis described above.
+ *   - `hive` (+ HIVE_API_KEY): Hive visual moderation (./moderation/hive.js)
+ *     runs as an ESCALATION-ONLY second pass after the heuristic approves — it
+ *     can flag to `review`, never auto-reject, and it never loosens a heuristic
+ *     flag. Heuristic-flagged images keep their exact heuristic reason string,
+ *     so the CSAM escalation heuristics keyed on those reasons
+ *     (csam-moderation.js, tasks/csam-escalation-runbook.md) fire exactly as
+ *     before. Any Hive failure (missing key, timeout, API error) logs and
+ *     falls back to the heuristic result — an upload never fails because the
+ *     vendor is down.
  */
+const crypto = require("crypto");
 const { getSharp } = require("./lazy-sharp");
+const { analyzeBufferWithHive } = require("./moderation/hive");
 
 const MODERATION_STATUS = Object.freeze({
   PENDING: "pending",
@@ -142,12 +160,13 @@ async function computeSkinToneRatio(buffer) {
  * @returns {Promise<{status: string, reason: string|null, flags: object, provider: string}>}
  */
 async function analyzeImageBuffer(buffer) {
-  const provider = getModerationProvider();
+  const configuredProvider = getModerationProvider();
+  const provider = configuredProvider;
   const flags = { provider };
 
-  // Future providers plug in here. Anything we don't recognize falls back to
-  // the heuristic so we never accidentally bypass moderation entirely.
-  // (No remote providers are wired yet — Phase 1 is heuristic-only.)
+  // Provider dispatch: `hive` layers on top of the heuristic below (see module
+  // header). Anything we don't recognize falls back to the heuristic so we
+  // never accidentally bypass moderation entirely.
 
   if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
     return {
@@ -218,30 +237,93 @@ async function analyzeImageBuffer(buffer) {
     const reasons = [];
     if (highSkin) reasons.push("high_skin_ratio");
     if (extremeAspect) reasons.push("extreme_aspect_ratio");
+    // Heuristic flags win outright — Hive is escalation-only and must never
+    // loosen this verdict, and the reason string stays byte-identical so
+    // csam-moderation.js's reason matching is unaffected by provider choice.
     return {
       status: MODERATION_STATUS.REVIEW,
       reason: reasons.join(","),
       flags: { ...flags, highSkin, extremeAspect },
-      provider,
+      provider: "heuristic",
     };
+  }
+
+  // Heuristic approved. When Hive is configured, give the vendor a chance to
+  // escalate to the manual review queue (never to reject). On any Hive
+  // failure the heuristic approval stands — the upload must not fail and must
+  // not silently vanish.
+  if (configuredProvider === "hive") {
+    const hive = await analyzeBufferWithHive(buffer);
+    if (hive) {
+      return {
+        status:
+          hive.status === MODERATION_STATUS.REVIEW
+            ? MODERATION_STATUS.REVIEW
+            : MODERATION_STATUS.APPROVED,
+        reason: hive.reason || null,
+        flags: { ...flags, ...hive.flags, provider: "hive" },
+        provider: "hive",
+      };
+    }
+    console.warn(
+      "[moderation] hive provider unavailable — using heuristic verdict for this upload",
+    );
+    flags.hiveFallback = true;
   }
 
   return {
     status: MODERATION_STATUS.APPROVED,
     reason: null,
-    flags,
-    provider,
+    flags: { ...flags, provider: "heuristic" },
+    provider: "heuristic",
   };
 }
 
 /**
- * Persist a moderation result onto the images row.
+ * Ensure a pending `moderation_queue` row exists for a flagged image, so a
+ * `review` verdict is always visible and actionable (WS10) rather than a
+ * silent DB state. Idempotent: an existing pending row for the image is
+ * reused, not duplicated. Safe no-op when the queue table hasn't been
+ * migrated yet.
+ *
+ * @param {import('knex').Knex|import('knex').Knex.Transaction} db
+ * @param {{imageId: string, profileId?: string|null, flags?: object|null}} params
+ * @returns {Promise<string|null>} the queue row id, or null when unavailable
+ */
+async function enqueueImageForReview(db, { imageId, profileId = null, flags = null } = {}) {
+  if (!imageId) return null;
+  const hasQueue = await db.schema.hasTable("moderation_queue");
+  if (!hasQueue) return null;
+
+  const existing = await db("moderation_queue")
+    .where({ image_id: imageId, status: MODERATION_QUEUE_STATUS.PENDING })
+    .first();
+  if (existing) return existing.id;
+
+  const id = crypto.randomUUID();
+  await db("moderation_queue").insert({
+    id,
+    image_id: imageId,
+    profile_id: profileId,
+    status: MODERATION_QUEUE_STATUS.PENDING,
+    flags: JSON.stringify(flags && typeof flags === "object" ? flags : {}),
+    created_at: db.fn.now(),
+  });
+  return id;
+}
+
+/**
+ * Persist a moderation result onto the images row. A `review` status also
+ * guarantees a pending moderation_queue row (visible manual review queue) so
+ * no caller can leave a flagged image in silent limbo.
+ *
  * @param {import('knex').Knex} knex
  * @param {string} imageId
- * @param {{status: string, reason?: string|null}} result
+ * @param {{status: string, reason?: string|null, flags?: object}} result
+ * @param {{profileId?: string|null}} [opts]
  * @returns {Promise<string>} the applied status
  */
-async function applyModerationResult(knex, imageId, result) {
+async function applyModerationResult(knex, imageId, result, opts = {}) {
   const status = result?.status || MODERATION_STATUS.REVIEW;
   await knex("images")
     .where({ id: imageId })
@@ -250,6 +332,23 @@ async function applyModerationResult(knex, imageId, result) {
       moderation_reason: result?.reason || null,
       moderated_at: knex.fn.now(),
     });
+
+  if (status === MODERATION_STATUS.REVIEW) {
+    let profileId = opts.profileId ?? null;
+    if (!profileId) {
+      const row = await knex("images")
+        .where({ id: imageId })
+        .select("profile_id")
+        .first();
+      profileId = row?.profile_id || null;
+    }
+    await enqueueImageForReview(knex, {
+      imageId,
+      profileId,
+      flags: result?.flags || null,
+    });
+  }
+
   return status;
 }
 
@@ -302,6 +401,7 @@ module.exports = {
   getModerationProvider,
   analyzeImageBuffer,
   applyModerationResult,
+  enqueueImageForReview,
   isImageVisibleToViewer,
   applyViewerVisibilityFilter,
   ensureModerationColumnChecked,

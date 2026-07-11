@@ -158,6 +158,21 @@ module.exports = {
   openai: {
     apiKey: process.env.OPENAI_API_KEY,
   },
+  // Content moderation (WS10 — manual review queue at launch).
+  // provider: 'heuristic' (default) or 'hive'. With provider=hive and no
+  // HIVE_API_KEY the pipeline logs once and degrades to the heuristic.
+  // Hive flags to the review queue only — it never auto-rejects at launch.
+  moderation: {
+    provider:
+      (process.env.MODERATION_PROVIDER || "heuristic").toLowerCase().trim() ||
+      "heuristic",
+    hiveApiKey: process.env.HIVE_API_KEY,
+    // Monitored class score (general_nsfw / general_suggestive) at/above this
+    // → review queue. Conservative default: 0.5 errs toward human review.
+    hiveThreshold:
+      parseFloat(process.env.MODERATION_HIVE_FLAG_THRESHOLD) || 0.5,
+    hiveTimeoutMs: parseInt(process.env.MODERATION_HIVE_TIMEOUT_MS, 10) || 8000,
+  },
   // Hybrid Discover retrieval (multi-channel + RRF + Groq rerank)
   discover: {
     // Engine selector (WS5). Values: 'launch' | 'hybrid' | 'browse'.
