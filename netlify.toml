@@ -28,6 +28,7 @@
     "mysql", "mysql2", "tedious", "oracledb", "mssql",
     "fsevents", "pg-native", "pg-query-stream",
     "firebase-admin",
+    "harfbuzzjs",
     # EJS uses dynamic requires; must ship from node_modules, not esbuild bundle.
     "ejs", "express-ejs-layouts"
   ]
