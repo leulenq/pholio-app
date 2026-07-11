@@ -720,6 +720,41 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
           // editions seam: { def, operators } when the flag is on, else
           // null — the front program handles its absence defensively
           edition: plan.editionProgram || null,
+          // multi-image structures (diptych, filmstrip-foot): the non-hero
+          // pool with the fields the builders rank on, plus a crop
+          // resolver so support frames get focal-safe crops. Fail-soft:
+          // absent pool/engine ⇒ those structures refuse and fall back.
+          supportPool: (Array.isArray(poolAnalysis?.pool) ? poolAnalysis.pool : [])
+            .filter((p) => p.id !== plan.front?.imageId)
+            .map((p) => ({
+              id: p.id,
+              aspect: Number(p.aspect) || null,
+              rawShotType: p.rawShotType || "",
+              role: p.role ?? null,
+              qualityScore: p.qualityScore || 0,
+            })),
+          cropResolver: (() => {
+            let engine = null;
+            try {
+              // eslint-disable-next-line global-require
+              engine = require("./crop-engine");
+            } catch {
+              return null;
+            }
+            const byId = new Map(
+              (Array.isArray(poolAnalysis?.pool) ? poolAnalysis.pool : []).map((p) => [p.id, p]),
+            );
+            return (imageId, aspect) => {
+              const image = byId.get(imageId);
+              if (!image || !engine || typeof engine.resolveCrop !== "function") return null;
+              try {
+                const crop = engine.resolveCrop(image, { aspect, role: image.role ?? null, kind: "cell" });
+                return crop && crop.fit ? crop : null;
+              } catch {
+                return null;
+              }
+            };
+          })(),
         },
         {
           seed: opts.seed,
