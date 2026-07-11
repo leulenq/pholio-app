@@ -1,232 +1,243 @@
-# Discover Redesign — Natural-Language Talent Search
+# Discover Redesign — Natural-Language Talent Search (v2)
 
-**Status:** Design (no implementation yet)
-**Scope:** Agency dashboard Discover ("Scout") tab, search backend, and the talent-side data changes required to make search precise.
-**Inputs:** Industry knowledge base (`.claude/skills/industry/reference/`), external research on casting-brief language and search architecture (July 2026), and a full audit of the current implementation.
-
----
-
-## 1. Diagnosis — why the current Discover doesn't feel right
-
-The audit's most important finding: **Pholio is not greenfield here.** Behind `DISCOVER_HYBRID=true` there is already a real pipeline — Groq query decomposition (`src/domains/agency/services/query-understanding.js`), five-leg retrieval with pgvector channel embeddings + Postgres FTS fused by RRF (`discover-retrieval.js`), and a Groq listwise rerank (`discover-rerank.js`). The problem is not that search is dumb keyword matching. The problem is four specific design flaws:
-
-1. **Hard constraints are treated as soft boosts.** Parsed constraints flow into `structuredBoostForProfile()` (`discover-retrieval.js:227-289`) as *ranking boosts*, not SQL `WHERE` clauses. A 5'6" profile can still surface for "must be 5'9"+" — it just ranks a bit lower. For a booker, one impossible result destroys trust in all of them. This is the single biggest fix.
-2. **Final ordering is 70% LLM listwise rerank** (`0.7*rerank + 0.3*rrf`, `discover-rerank.js:185`). Current evidence is decisive that LLM listwise reranking *degrades* strong first-stage retrieval, is non-deterministic (same brief, different order on refresh — reads as "random"), and adds a full Groq round trip of latency. It also silently drops candidates below score 40, which can starve results.
-3. **Query understanding has no typed contract.** The parse shape (`{residual_query, attributes[], constraints[], channel_queries}`) has no numeric ranges, no unit normalization (5'9" vs 175cm vs 1.75m), no negation fields ("no visible tattoos"), no confidence, and no whitelist validation — the documented LLM failure modes (negation ~28% degradation, ranges ~19%) are exactly the ones bookers rely on.
-4. **The data model can't answer real booker questions.** No availability state (industry runs on options/holds/bookouts — we have only `availability_schedule` strings), city is a raw string ("Brooklyn" won't match "local to NYC"), tattoos/piercings exist on owner fields but aren't in the agency discovery DTO despite "no visible tattoos" being one of the most common hard gates, and photo analysis runs once per profile (hero image only), not per image.
-
-Secondary issues: a latent bug where hybrid eligibility still filters on the deprecated `profiles.age` column (`discover-retrieval.js:57-61`) instead of DOB-derived cutoffs; no empty-result handling (blank grid); no rate limit on `/api/agency/discover` even though each query fans out to ~7 external calls; facet chips are read-only; and the current dark cinematic UI + `MatchScore` resonance ring contradicts the agency "Editorial Ledger" design system and skirts the banned corner-chip/badge patterns.
+**Status:** Design, revised after adversarial council review (no implementation yet)
+**Council record:** `tasks/discover-search-council-review.md` — v1 was judged **not launch-ready**; v2 incorporates every required change.
+**Launch reality (governs all sizing):** 1 agency, ~100–200 new talent/week → a few hundred searchable profiles at launch, low thousands in year one.
+**Owner constraint:** the existing Discover frontend design (dark cinematic surface, card grid, MatchScore ring, detail modal) is intentional and **stays**. Scope for UI change: the search bar and the informational content layered on the existing surfaces.
 
 ---
 
-## 2. How agencies actually describe talent (research findings)
+## 0. Phase 0 — pre-launch blockers (independent of the redesign)
 
-Casting language splits cleanly into two registers, and the whole system design follows from keeping them architecturally separate:
+These are live defects that must ship before or with anything else:
 
-### Hard constraints (deterministic, exclusionary)
-| Canonical field | Real phrasings |
-|---|---|
-| Playable age range | "aged 22–30", "18 to play younger", "mid-30s to 50s" — searched against **playable range, never actual DOB** (Casting Networks hides adult DOB entirely) |
-| Height | "must be 5'9"+", "6'0"–6'3"", "175cm minimum" — hard cutoffs, mixed units |
-| Measurements / sample size | "size 6 fit model, exact measurements", "chest 38–40, suit 40R" — fit/showroom work is booked on *exact* stats |
-| Location / locality | "local to NYC", "must work as a local" (= no travel/lodging cost), "based in Paris or willing to travel" |
-| Availability window | "fittings through June 26, shooting July 9", "available next two weeks" |
-| Body modifications | "no visible tattoos", "must cover tattoos", "visible tattoos required" |
-| Union / experience | "SAG-eligible", "non-union", "e-comm experience", "no experience necessary / real people" |
-| Board / division | "editorial", "commercial print", "curve, size 14–18", "petite 5'2"–5'5"", "fit model", "runway" |
-| Gender / stats track | "female", "male", "non-binary or androgynous talent" |
-
-### Soft aesthetic language (semantic, boosting — never excluding)
-- **Style genre:** editorial/high-fashion ("striking, unconventional") vs commercial ("relatable, warm, everyday"); e-comm, catalog, swim, athletic.
-- **Face:** "fresh face", "clean-cut", "classic beauty", "character face", "strong bone structure", "quirky — gap tooth or freckles a plus".
-- **Body:** "athletic build", "toned", "curvy", "editorial-thin".
-- **Vibe:** "girl/boy next door", "edgy", "androgynous", "moody", "warm and approachable", "high-energy".
-
-### Sensitive attributes (compliance rules baked into design)
-- **Ethnicity is never a hard filter and never a ranking boost.** The current exclusion in `discover-retrieval.js:244-249` is correct — keep it. NYC/NY human-rights law bars limiting by protected class without a bona-fide occupational reason. When a brief contains ethnicity/appearance terms, the parser must *recognize and set them aside visibly* (a chip that says "not used for filtering") rather than silently ignoring them — silence reads as a broken parser.
-- **Actual age/DOB never reaches search.** Filter on `playing_age_min/max` and the coarse `age_band`; both already exist.
-- **No inference of identity from photos.** "Ethnically ambiguous" etc. are valid free-text signals in talent-authored bios, not classifications the system should generate.
-- **Measurements are job-fit data, not body judgment** — hard gates apply per-brief, never as a general profile score.
-
-Fifteen realistic test queries collected in research (from "Female, 22–30, editorial, 5'9"+, NYC local, available for a fitting next week" to multi-sentence "real people" briefs) become the seed of the golden eval set (§7).
+1. **Model migration (app-wide).** `llama-3.3-70b-versatile` — the default for Discover parse/rerank, bios, and chat (`config.js:125`) — is decommissioned by Groq on **2026-08-16**, and it does not support strict structured outputs at all. Migrate to `openai/gpt-oss-120b` with `json_schema, strict:true`; the working pattern + passing tests already exist in `src/domains/pdf/composition/art-director.js`.
+2. **EXIF auto-orient.** Add `.rotate()` as the first Sharp op in every derivative (`src/shared/lib/uploader.js:216-254`). Without it, phone portrait uploads render sideways in the grid, in comp cards, and into the vision model.
+3. **Strip AI skin-tone and AI measurement estimates from everything search-facing.** `MASTER_VISION_PROMPT` extracts them and `flattenImageAnalysis()` embeds skin-tone into the discover index (`embeddings.js:350,384`) — a live violation of our own compliance posture. Estimated measurements may only prefill talent-editable fields; never a discovery signal.
+4. **Remove the fabricated browse score.** `mapTalent`'s `?? baseScore(p.id)` fallback (`DiscoverPage.jsx:44-53`) renders a UUID-hash as a 78–97 "match" number in browse mode. Delete the fallback; the JSX already null-guards.
+5. **Real image moderation.** `MODERATION_PROVIDER=heuristic` (skin-pixel ratio) is inadequate for open signup; wire a real NSFW/CSAM provider or gate signup behind manual review at launch volume.
+6. **Fix both deprecated `profiles.age` reads:** the hybrid prefilter (`discover-retrieval.js:57-61`) and the index text builder (`embeddings.js:388`).
 
 ---
 
-## 3. Target architecture
+## 1. Diagnosis (v1, confirmed accurate by council)
 
-**Verdict from the architecture research, applied to our stack:** at Pholio's corpus size (thousands, maybe low tens of thousands of discoverable profiles) there is no retrieval-scaling problem — a full-corpus exact vector scan is single-digit milliseconds. No external vector DB, no Meilisearch/Typesense, no new language or service. Everything stays in Neon Postgres + Groq + the existing OpenAI embeddings, which we already run. The engineering problem collapses to (a) parsing hard constraints correctly and (b) semantic quality on the soft residual.
+Behind `DISCOVER_HYBRID=true` there is already a real pipeline — Groq query decomposition, five-leg pgvector + FTS retrieval fused by RRF, Groq listwise rerank. Its confirmed flaws:
 
-### Pipeline (target state)
+1. **Hard constraints are soft boosts** (`structuredBoostForProfile`, `discover-retrieval.js:227-289`) — a 5'6" profile can surface for "must be 5'9"+".
+2. **Final ordering is 70% LLM listwise rerank** (`discover-rerank.js:185`) — non-deterministic, latency-heavy, degrades strong retrieval, silently drops candidates scoring <40.
+3. **No typed parse contract** — no ranges, units, negations, confidence, or validation.
+4. **The data model can't answer real booker questions** — no availability state, raw city strings, tattoos hidden from discovery, representation status invisible, credentials unfalsifiable.
+
+And from the council: the browse score is fabricated (§0.4), the vision pipeline leaks skin-tone into the index (§0.3), photos can render sideways (§0.2), and the platform-wide LLM is scheduled to die (§0.1).
+
+---
+
+## 2. How agencies describe talent (unchanged from v1, plus council additions)
+
+Hard constraints: playable age (never actual DOB), height gates, exact fit measurements, locality ("work as a local"), availability windows, tattoo visibility, union status, board/division, gender/stats track — **plus, per council: representation status** ("freelance / unrepresented only") **and credential asks** ("has tearsheets", "shows walked", "fit experience").
+
+Soft aesthetic language: editorial vs commercial registers, face/body/vibe descriptors ("character face", "girl next door", "athletic build", "edgy").
+
+Compliance posture (unchanged, council-endorsed): ethnicity is never a filter or boost; recognized terms are visibly **set aside** ("not used for filtering"), never silently dropped; actual age/DOB never reaches search — playing-age ranges only; no identity inference from photos; measurements are per-brief job-fit data, never a general body score. Minors are denied from Discover entirely pre-DTO (`isAgencyDiscoverable`, `audience-dto.js:405`) — now stated explicitly: nothing in this redesign changes that gate, and bookouts/availability inherit the same consent rules.
+
+---
+
+## 3. Architecture (revised: sized for hundreds, not tens of thousands)
+
+Stack verdict stands: **no external vector DB, no search cluster, no new service** — Neon Postgres + Groq + existing OpenAI embeddings. But the retrieval shape inverts at launch scale.
+
+### The corpus-threshold rule
+Below an explicit threshold (eligible pool < ~2,500), run **launch mode: score everything, exclude almost nothing.** Above it, graduate to the filter-first design. The threshold is a config value checked at query time, not a rewrite.
+
+### Launch-mode pipeline
 
 ```
 brief text
   │
   ▼
-1. PARSE — Groq (llama-3.3-70b) with strict:true structured outputs, cached 5 min
-   → { hard: {…typed filters…}, soft_query: "…", set_aside: […], confidence }
-   → regex/lexicon fallback (existing intent-parser.js) when Groq is down
+1. PARSE — Groq gpt-oss-120b, json_schema strict:true, few-shot on units/dates/negation
+   → roles[] contract (§4); regex/lexicon fallback when Groq is down
   │
   ▼
-2. VALIDATE + NORMALIZE (deterministic post-processor, no LLM)
-   → whitelist every field/enum against schema; drop + log unknowns
-   → units → cm (regex backstop for 5'9" / 175cm / 1.75m), shoe + region, dates
+2. DETERMINISTIC VALUE EXTRACTION (no LLM numbers reach filters)
+   → the LLM proposes each constraint's SOURCE SPAN + semantics; a deterministic
+     layer (unit parser for heights/measurements, chrono-node-class date parser)
+     re-parses the span and produces the value that actually filters
+   → LLM/deterministic disagreement ⇒ constraint flagged as low-confidence,
+     rendered as an editable chip, NOT applied silently
+   → whitelist validation: unknown fields/enum values dropped + logged
   │
   ▼
-3. HARD FILTER — SQL WHERE on the eligibility set
-   (is_discoverable, profile_status='active', + parsed hard constraints)
-   → if 0 rows: relax least-confident/softest constraint, annotate the relaxation
+3. ELIGIBILITY ONLY — is_discoverable, active, adult, minimal binary gates
+   (gender/stats-track when explicit). Everything else stays scoreable.
   │
   ▼
-4. SOFT RETRIEVAL over the filtered pool
-   → pgvector cosine on soft_query (channel embeddings, existing tables)
-   → Postgres FTS leg (existing search_vector)
-   → structured soft boosts (existing structuredBoostForProfile, minus anything
-     that graduated to a hard filter)
-   → RRF fusion (existing)
+4. SCORE THE WHOLE POOL (hundreds of rows — trivial)
+   → per-profile constraint-satisfaction vector (which hard constraints pass/fail)
+   → dense similarity of soft_query vs discover embedding (single channel at
+     launch; multi-channel only if the pre-launch ablation earns it)
+   → rank: exact-match group first (all client gates satisfied), then by
+     (# constraints satisfied, soft similarity)
   │
   ▼
-5. ORDER by fused score — no LLM rerank in the hot path
+5. PRESENT with constraint truth attached
+   → exact matches; then segregated "Near matches — misses: <constraint>" sections
+   → client-gate misses (§6 tiers) appear ONLY behind explicit
+     "show nearest (outside spec)" action — never auto-shown
   │
   ▼
-6. EXPLAIN (async, after results render) — grounded match rationale generated
-   from the profile's actual matched fields + parsed brief, streamed per card
+6. EXPLAIN — factual template line from matched fields (no LLM), always;
+   optional labeled interpretive line ("Pholio's read: …"), streamed after render
 ```
 
-### What changes vs today, and why
+### What this fixes vs v1
+- **The relaxation ladder is gone as control flow.** At 300 profiles most briefs match 0–5 exactly; "matches 5 of 6 — misses availability" is a *ranking presentation*, not a filter mutation. Nothing auto-relaxes (§6).
+- **RRF ceremony removed at launch scale** — over a tiny corpus RRF ordering is near-flat; single dense score + constraint satisfaction discriminates better. The multi-channel ablation runs **before launch**; channels return only if the golden set proves them.
+- **LLM listwise rerank stays dead** in the hot path (unchanged from v1). If eval later shows ordering problems at scale, the option is a cross-encoder (Cohere Rerank), still not an LLM.
+- **MatchScore ring feeding:** post-rerank the raw number is a rank artifact; the API returns coarse tier-band values (the small fixed set the ring already tiers into), never precise-looking integers.
 
-| Component | Today | Target | Rationale |
-|---|---|---|---|
-| Parse output | untyped attributes/constraints | strict JSON schema: numeric ranges (`height_cm: {gte,lte}`), booleans for negations (`visible_tattoos: false`), ISO dates, enums, per-constraint `confidence`, `soft_query` residual | negation + range extraction are the LLM's weak spots; typed fields + few-shot unit examples + `strict:true` constrained decoding (Groq supports it) close the gap |
-| Parse validation | none | deterministic whitelist + unit normalizer | LLMs hallucinate filter fields/values; a 20-line post-processor is the cheapest reliability win in the system |
-| Hard constraints | soft boosts | SQL `WHERE` | the precision guarantee — an impossible result must be *impossible* |
-| Rerank | Groq listwise, 70% of final score, drops <40 | removed from hot path; RRF-fused ordering; optionally add a cross-encoder (Cohere Rerank 3.5, ~600ms, ~$2/1k queries) later, gated on eval evidence | LLM listwise rerank measurably degrades strong retrieval, is non-deterministic, and is the current latency long pole |
-| Explanation | rerank's one-line rationale | separate async grounded generation, streamed after render | keeps hot path <1s; grounding in matched fields prevents hallucinated justifications |
-| Empty results | blank grid | progressive relaxation ladder with explicit annotation ("No exact matches at 5'11"+; showing 5'10"+") | briefs over-constrain constantly; blank = dead end, relaxed + honest = premium |
-| Age eligibility | `profiles.age` column (bug) | DOB-derived cutoffs everywhere (`ageFilterDobCutoffs` already exists); search filters use `playing_age_min/max` | correctness + compliance |
-| Rate limiting | none on discover | per-agency limiter (reuse `ai-writer-rate-limit.js` pattern) | each query fans out to multiple paid API calls |
-| Caching | 5-min parse cache | keep; add query-embedding cache keyed by `soft_query`; profile embeddings already persisted | warm repeat searches make zero external calls — matters on Netlify cold starts (26s function ceiling) |
+### Serverless reality (replaces v1's caching claims)
+Per-process `Map` caches are empty on every cold Netlify invocation — at one agency's sparse usage, most searches are cold. So: parse results and query embeddings cache to **Postgres** (normalized-query-hash keyed); profile embeddings are already persisted. Latency is stated honestly: **warm p50 ≤ 1.2s; cold p95 target ≤ 4s** (Netlify cold start + Neon wake + cold API calls realistically 5–9s unmitigated — mitigate by raising Neon auto-suspend at launch volume and trimming the fan-out to parse + 1 embed call). Both numbers are exit criteria; neither is hidden behind the other.
 
-**Latency/cost budget:** parse 200–400ms (Groq) + filter/retrieve 50–150ms (Postgres) ≈ **0.6–1.0s to results**, explanations streaming after. Sub-1¢ per search. Well inside the 26s Netlify ceiling with headroom removed from the pipeline rather than added.
-
-### Channel simplification (eval-gated)
-Today the parse generates four channel queries (visual/casting/market/lexical) and retrieval runs up to 5 legs. At this corpus size the channels may be ceremony. Keep them through Phase 1 (they're built and paid for), but add an eval ablation: if a single composite `soft_query` embedding + FTS matches multi-channel quality on the golden set, collapse to two legs and cut per-query embedding calls.
-
-### Deliberately deferred (with triggers to revisit)
-- **Image/multimodal embeddings ("looks like this reference photo")** — our photo-analysis metadata already converts most visual signal to text that the text embeddings capture. Add CLIP/SigLIP or Cohere embed-v4 multimodal only for an explicit reverse-image feature, and only if the golden set shows text recall failing on look-language. (embed-v4 is the clean path since it shares text+image space.)
-- **Cross-encoder reranker** — add only if eval shows top-10 ordering problems.
-- **Dedicated search engine** (Meilisearch/Typesense) — only for instant search-as-you-type UX or >~50k profiles.
-- **HNSW tuning** — exact scan is 100% recall and fast at this size; the existing HNSW indexes are fine to keep but not a bottleneck either way.
+### Observability + feedback (moved from Phase 3 to Phase 1)
+- **`discover_query_log`**: every search stores raw brief, parsed contract, deterministic-extraction disagreements, result set, and timings.
+- **Outcome capture**: clicks, detail-opens, invites, shortlists joined back to the query. With one agency, this is the only relevance signal that will ever exist for tuning — it starts on day one.
 
 ---
 
-## 4. Query-understanding contract (the core new artifact)
+## 4. Query-understanding contract (revised: strict-legal, role-aware, operator-complete)
+
+Top level is **roles**, because real briefs bundle them ("2 women 22–30 and 1 man 40s"):
 
 ```jsonc
 {
-  "hard": {
-    "gender_presentation": ["female"],            // enum, maps to gender/stats_track
-    "height_cm": { "gte": 175, "lte": null },     // always cm after normalization
-    "playing_age": { "gte": 22, "lte": 30 },      // NEVER actual age/DOB
-    "measurements": { "waist_cm": {...}, "dress_size": "6", "exact": true },
-    "shoe": { "size": 9, "region": "US" },
-    "location": { "market": "nyc", "local_only": true, "travel_ok": null },
-    "available": { "from": "2026-07-14", "to": "2026-07-18" },
-    "visible_tattoos": false,                     // typed negation
-    "boards": ["editorial"],                      // division/category enum
-    "union": "non_union",
-    "experience": { "min_level": null, "keywords": ["e-comm"] }
-  },
-  "soft_query": "fresh-faced, warm approachable girl-next-door energy, clean commercial look",
-  "set_aside": [                                   // recognized but not filtered
-    { "text": "open ethnicity", "reason": "not_used_for_filtering" }
+  "roles": [
+    {
+      "label": "string",
+      "count": 1,                       // integer ≥ 1
+      "hard": { /* all keys always present; unused = null */ },
+      "soft_query": "string"
+    }
   ],
-  "confidence": { "height_cm": 0.98, "location": 0.7 },
-  "unparsed_remainder": ""
+  "set_aside": [ { "text": "...", "reason": "not_used_for_filtering" } ],
+  "unparsed_remainder": "string"
+}
+```
+
+Single-role briefs are `roles.length === 1`. Multi-role briefs render one result group per role; if v1 implementation punts on multi-role execution, the parser still **detects** them and tells the booker "this brief describes 2 roles — searching the first; run the second separately," never a silent merge.
+
+`hard` (every key present, nullable; `additionalProperties:false`; strict-mode legal — schema compile is a CI check):
+
+```jsonc
+{
+  "gender_presentation": ["female"] | null,          // enum set = OR semantics
+  "height_cm":   { "op": "min|max|between|approx", "a": 175, "b": null,
+                   "span": "5'9\" and up", "confidence": 0.97 },
+  "playing_age": { "a": 22, "b": 30, "span": "...", "confidence": ... },
+                                                     // matched by RANGE OVERLAP
+                                                     // vs playing_age_min/max
+  "measurements": { "waist_cm": {...}, "dress_size": {"value":"6","region":"US"},
+                    "exact": true } | null,          // sizes always region-tagged
+  "shoe": { "size": 9, "region": "US" } | null,
+  "location": { "market": "nyc", "local_only": true, "travel_ok": null } | null,
+  "availability": [ { "kind": "fitting|shoot|window", "from": "...", "to": "..." } ] | null,
+                                                     // multi-window: "fittings
+                                                     // through Jun 26, shoot Jul 9"
+  "visible_tattoos": false | null,
+  "boards": ["editorial"] | null,                    // enum set = OR
+  "hair_color": ["blonde","red"] | null,             // enum set = OR
+  "eye_color": [...] | null,
+  "union": "union|non_union|either" | null,
+  "representation_status": ["unrepresented","seeking"] | null,   // NEW — LB-5
+  "credentials": { "tearsheets": true, "runway_shows": null,
+                   "fit_experience": null, "span": "...", ... } | null   // NEW — LB-6
 }
 ```
 
 Rules:
-- Every `hard` key must exist in the field whitelist; every enum value must be a known value. Violations are dropped and logged (these logs become parser training examples).
-- Constraints with confidence below threshold are applied but rendered as **editable chips** the booker can correct in one click — expose, don't obscure.
-- Structured negations → SQL `NOT`; aesthetic negations ("not too editorial") → score down-weights, never exclusion.
-- Few-shot examples must cover: `5'9"`, `five nine`, `175cm`, `1.75m`, "at least/under/between", "18 to play younger", shoe regions, "local to X", relative dates ("next week").
+- **Numbers and dates that filter must come from deterministic re-parse of `span`** (§3 step 2). Confidence is a fixed field per constraint object, never a sparse map.
+- Every constraint carries an `op` qualifier where precision matters: "5'9" or taller" (`min`) ≠ "around 5'9"" (`approx`, ±3cm, made explicit) ≠ "exactly" (`between` tight).
+- Structured negations → typed booleans; aesthetic negations → soft down-weights.
+- **Credential constraints are honesty gates:** when the pool has no falsifiable data for a credential ask, the answer is an honest zero with the reason ("no talent currently list published editorial work"), never a semantic look-alike ranked as a match.
+- Few-shot set covers: `5'9"`, `five nine`, `175cm`, `1.75m`, "at least/under/around/between", "18 to play younger", region-tagged sizes, "local to X", relative and multi-window dates, multi-role detection.
 
 ---
 
-## 5. Data model changes
+## 5. Data model changes (revised)
 
-New/changed fields (all Knex migrations, dual SQLite/PG path as usual):
+1. **`representation_status`** (LB-5) — derived from `talent_representations` (already migrated: mother/placement, `is_exclusive`, market) + `seeking_representation`, exposed in `AGENCY_DISCOVERY_FIELDS` as `unrepresented / seeking / represented — <named or undisclosed> / exclusive elsewhere`, and hard-filterable. **Phase 1.**
+2. **Per-image analysis at launch, not Phase 3** — `classify-portfolio-image.js` already computes per-image `signals` (body_visibility, expression, styling_register, makeup_level, editorial/commercial read) on every upload and discards them. Persist per `image_id`, aggregate to the profile (max body visibility, expression set, style genres present), include in the index text. Cost ≈ zero (calls already happen); unlocks body/range/digitals queries.
+3. **Multimodal-ready, not multimodal** — nullable per-image `embedding vector(512)` column + the standardized `processed.webp` derivative as canonical encoder input, provisioned now so the upgrade (Cohere embed-v4 @512d, shared text+image space) is an add, not a rebuild. Trigger: golden-set look-recall failure or a reverse-image feature request.
+4. **`profiles.market`** — canonical market slug derived from city (existing `geolocation.js`), so "local to NYC" matches Brooklyn. Keep `city` for display.
+5. **Availability v1** — `availability_status` (`available/limited/unavailable`) + `bookouts` table (industry term), talent-declared, minor-consent-gated. Search treats missing availability as *unknown, rank-down + labeled* — never as unavailable and never silently satisfied.
+6. **Tattoos/piercings** into the discovery DTO (adults), reframed as "visible when dressed".
+7. **Stats recency honesty** — `measurements_updated_at` surfaces as **"last updated <month>"** (self-reported), plus a new agency-side **"measured in person"** flag settable after a go-see — the only state allowed to render as "confirmed".
+8. **`published_work` minimal credential signal** (self-reported, labeled as such) to make credential asks falsifiable over time. Fast-follow, not launch-gating (the honesty gate in §4 covers launch).
+9. **`discover_query_log` + outcome capture tables** (§3). **Phase 1.**
+10. **`saved_briefs`** parent table for the existing unused `brief_embeddings` — Phase 3, unchanged.
+11. Correction from v1: weight **is** collected (`weight_kg/lbs`) and intentionally excluded from the discovery DTO; that exclusion stands.
 
-1. **`profiles.market`** (enum/slug: `nyc`, `la`, `miami`, `london`, `paris`, `milan`, `tokyo`, …, `other`) — derived from `city` via the existing `shared/lib/geolocation.js` at write time, backfilled. "Local to NYC" must match Brooklyn/Hoboken. Keep `city` for display.
-2. **Availability v1** — `profiles.availability_status` (enum using real industry states: `available`, `limited`, `unavailable`) + a `bookouts` table (`profile_id, starts_on, ends_on, note`) so "available July 9–14" is answerable. This is talent-declared (the industry term is **bookout**). Full options/holds calendaring is out of scope for search v1 but the enum names must not paint us into a corner (see lifecycle reference).
-3. **Expose `tattoos`/`piercings` to agency discovery** — add to `AGENCY_DISCOVERY_FIELDS` in `audience-dto.js` (adult profiles only), with the talent-side field reframed as structured "visible when dressed?" rather than freeform, since the brief language is "no *visible* tattoos".
-4. **`profiles.measurements_updated_at`** already exists — start *using* it: search boosts stats confirmed ≤90 days, results can state "stats confirmed June 2026" (digitals/stats currency is a real industry norm).
-5. **Per-image analysis** (Phase 3) — move `image_analysis` from one-per-profile to per-image rows so range ("shows both commercial smile and editorial neutral") becomes searchable; `images.shot_type` classification already exists to build on.
-6. **Fix**: remove the `profiles.age` read in `discover-retrieval.js:57-61`; the column is deprecated.
-7. **`saved_briefs`** (Phase 3) — the unused `brief_embeddings` table was built for exactly this; add the parent table (`agency_id, title, brief_text, parsed_json, created_by`) for saved searches + new-match alerts.
-
-Nothing about ethnicity/heritage/skin-tone changes: excluded from discovery DTO and ranking, present only in talent-authored `bio_curated` prose. That posture is correct.
-
----
-
-## 6. What changes in the talent dashboard
-
-Search quality is capped by profile data quality, so the talent side gets four targeted changes — all framed in industry terms, all fitting the existing "Portfolio Stage" design system:
-
-1. **Availability control ("Bookouts")** — a small, honest surface in Profile/Settings: current status (`Available` / `Limited` / `Unavailable`) + date-range bookouts. This is the vocabulary talent already knows from agencies. Without it, "available next week" is unanswerable and Discover quietly loses its most operational filter.
-2. **Stats currency loop** — measurements older than ~90 days trigger a gentle "confirm your stats" prompt (one-tap "still accurate" or edit). Recency then feeds search ranking and result display. Industry expectation is current stats; this also keeps `measurements_updated_at` truthful.
-3. **Searchability-driven completeness nudges** — hair/eye color and shoe size are skippable at onboarding, weight is never collected, tattoos/piercings live in a rarely-visited section. Instead of generic "profile 80% complete", use the demand signal we already capture (`recordDiscoveryImpressions` → `profile_events` → Intel page): *"Agencies ran 14 searches this week filtering by eye color — yours is blank."* This closes the two-sided loop with data we already log, and it's the difference between nagging and intelligence.
-4. **Structured look/board self-declaration stays talent-authored** — booking lanes (`BookingLanesControl`) and `specialties` already exist; extend option vocabulary with the researched taxonomy (e-comm, fit, curve, petite, parts, athletic…) rather than inventing new freeform fields. Identity-adjacent attributes remain ask-don't-infer.
-
-Minor-safety posture is already right (height-only until guardian consent, `age_band` coarsening, measurement locks) — the redesign changes none of it, and availability/bookouts must respect the same consent gating.
+Ethnicity/heritage/skin-tone posture unchanged — excluded from DTO, filters, boosts, and (per Phase 0.3) now genuinely excluded from the embedded index too.
 
 ---
 
-## 7. Evaluation (before any pipeline swap)
+## 6. Constraint tiers and honesty rules (replaces v1's relaxation ladder)
 
-There's already an eval script (`scripts/eval-discover-quality.js`) and backfill tooling — extend rather than replace:
+Every hard-constraint field carries a static policy — set in schema, not decided per-query by model confidence:
 
-- **Golden set: 40–60 real briefs**, seeded from the research queries + real agency usage, stratified across: hard-only, soft-only, mixed, negation, unit variants, empty-result, and set-aside (ethnicity-term) cases.
-- **Layer 1 — constraint correctness (deterministic, target 100%):** assert no returned profile violates any hard constraint. This is the regression safety net for the parse and runs in CI.
-- **Layer 2 — soft relevance:** LLM-as-judge, *binary* relevant/not-relevant per result (binary beats 1–5 scales), spot-validated against human labels before trusting. Track precision@10 on every parse-prompt or embedding change.
-- **Ablations to run:** multi-channel vs single-embedding retrieval; with/without FTS leg; with/without cross-encoder rerank. Each deferred component has a number that decides it.
+| Tier | Fields | Behavior on miss |
+|---|---|---|
+| **Client gates** | height, exact measurements/sample size, playing age, board, gender/stats-track, visible tattoos (when stated), representation status, credentials | Never auto-shown as matches. Honest zero ("0 exact matches — 3 talent are within 2cm") + explicit **"show nearest (outside spec)"** action; outside-spec cards carry a permanent plain-text annotation. |
+| **Operational** | locality, availability, union, travel | May appear below exact matches, always in a segregated section with its own repeated heading ("Near matches — availability unconfirmed") **and** a per-card annotation that travels into the detail modal. |
 
----
-
-## 8. Discover tab experience
-
-Direction: **the brief is the interface.** One surface where a booker types (or pastes) anything from three words to a full client brief, watches Pholio read it correctly, and can correct it in one click. Precision is the aesthetic.
-
-Reconcile with the Editorial Ledger system (`client/src/domains/agency/DESIGN.md`) — the current dark cinematic hero, Grainient background, and animated `MatchScore` resonance ring all depart from it and the ring flirts with banned pattern #7 (score chip on cards):
-
-1. **Search surface** — a calm, paper-white command bar on the cream canvas. Keep the cycling example prompts (good teaching device) and ghost-text completion. Add an expandable **brief mode** (multi-line paste for full casting briefs) — textarea with `resize: none`.
-2. **"Reading your brief" becomes editable** — parsed constraints render as flat, rectangular, *editable* chips grouped hard vs soft: hard chips show the normalized value ("Height ≥ 5'9" / 175cm") and can be adjusted or removed; low-confidence chips are visually marked as interpretations; set-aside terms render with a quiet "not used for filtering" note. This turns query understanding from a black box into a contract the booker co-signs.
-3. **Results** — photography-first grid per the ledger system: flat cards, plain-text metadata (name, board, market, height), no rings, no badges, no corner chips. Match strength as a plain-text word ("Strong match") if at all; the *grounded why-line* ("5'10", NYC-based, editorial book; bio and photo read align with 'clean androgynous'") is the premium element, streamed in after results land. Hover reveals actions.
-4. **Actions in place** — today Discover only offers Invite/View; surface the machinery that already exists: **shortlist to a casting board**, tag, schedule, message — so Discover feeds the pipeline instead of dead-ending at an invite.
-5. **Empty/relaxed states** — never a blank grid. "No exact matches at 5'11"+ available July 9–14 — showing 5'10"+ (2) and matches with unconfirmed availability (6)", each relaxation shown as a struck-through or amended chip.
-6. **Saved briefs (Phase 3)** — a brief becomes a first-class object: named, re-runnable, alerting when new talent matches. This is what makes Discover a workflow, not a toy, and `brief_embeddings` was already built for it.
-7. **Motion** — per agency CLAUDE.md: motion supports state and scanning (chip settle, staggered result entrance, streamed why-lines), not cinema.
+Model confidence never decides what relaxes — it decides which chips render as "interpretation, please check". Playing-age and any legal-adjacent gate are `never` at the policy level. This is both safer (booker's client gate can't be quietly dropped) and more premium (the system visibly respects the brief) than auto-relaxation.
 
 ---
 
-## 9. Phased roadmap
+## 7. Evaluation (revised)
 
-**Phase 1 — Correctness core (backend, invisible)**
-New parse contract + strict structured outputs + validation/normalization layer; hard constraints → SQL WHERE; empty-result relaxation ladder; remove LLM rerank from hot path; fix `profiles.age` bug; rate-limit the endpoint; golden set + layer-1 eval in CI. *Exit criteria: 100% constraint correctness on golden set; p50 < 1.2s.*
-
-**Phase 2 — Experience + data**
-Discover UI rebuild on the Editorial Ledger system (editable chips, grounded streamed explanations, in-place pipeline actions, relaxed-state messaging); `market` normalization + backfill; tattoos/piercings in discovery DTO; availability v1 (status + bookouts) on both dashboards; stats-currency loop; searchability nudges via Intel.
-
-**Phase 3 — Depth (each gated on eval or usage evidence)**
-Saved briefs + new-match alerts; cross-encoder rerank if ordering metrics demand it; per-image analysis; reverse-image "looks like" via multimodal embeddings; channel consolidation per ablation results.
-
-**Explicitly not doing:** external vector DB / search cluster / new service or language (no benefit at this scale, real ops cost); LLM listwise rerank in the hot path; ethnicity or actual-age filtering in any form; photo-inferred identity attributes.
+- Golden set 40–60 briefs, now also stratified for: **wrong-value adversarial cases** (unit misparses, truncated ranges — Layer-1 must assert the filter matches the *intended* constraint, not just that results obey the *parsed* one), multi-role briefs, credential asks against a pool with no credentials, set-aside terms, region-tagged sizes.
+- Layer 1 (deterministic, CI, target 100%): no result violates any applied constraint AND deterministic re-parse agrees with applied values.
+- Layer 2: LLM-as-judge binary relevance, human-spot-validated; precision@10 tracked per prompt/embedding change.
+- Pre-launch ablations: multi-channel vs single embedding; FTS leg on/off. Channels must earn their per-query calls before launch, not after.
+- Post-launch: `discover_query_log` mining + invite-outcome joins are the standing eval feed.
 
 ---
 
-## 10. Open decisions for review
+## 8. Search-bar & informational experience (rewritten under the frontend freeze)
 
-1. **Availability v1 scope** — status + bookouts (proposed) vs. waiting for full options/holds calendaring. Proposal: ship the small version; the enum names are forward-compatible with the lifecycle model.
-2. **Embedding provider** — stay on OpenAI `text-embedding-3-small` @512d (cheapest change: none) vs. move to Cohere embed-v4 now to pre-position for multimodal Phase 3. Proposal: stay, re-decide at Phase 3 with eval data.
-3. **Match-strength display** — plain-text tier ("Strong / Good match") vs. no score at all, why-line only. Needs a design pass; the ring is out either way.
-4. **Legacy surfaces** — confirm the EJS discover path (`public/scripts/dashboard/discover.js`) and `src/routes/scout.js` uploader are dead, and schedule their removal with this work.
+The existing Discover visual design — dark cinematic surface, masonry grid, MatchScore ring, detail modal — is intentional and stays. Everything below is search-bar behavior and informational content on the existing surfaces.
+
+1. **Search bar + brief mode.** Keep the bar, cycling example prompts, and ghost-text as a *typing aid only*. Add an expandable multi-line brief mode (`resize: none`). The client lexicon (`intentParser.js`) never renders constraint chips — pre-parse, the chip rack shows a loading skeleton; chips appear only from the server contract. (The client lexicon has no hard/soft distinction; showing its guesses as constraints is the black box we're removing.)
+2. **Provenance highlighting — the honesty mechanism.** The raw brief stays visible after parse; the exact substrings that produced each constraint are underlined, with the extracted value on hover/tap. A truncated parse ("July 9" underlined, "–14" not) is visible as a literal gap — no proofreading of paraphrases required.
+3. **Editable chips — specified interaction.** Hard constraints only in the always-visible rack (one line); soft + set-aside terms behind a "Reading your brief — N terms" disclosure. Inline click-to-edit: numeric chip → inline number input with unit suffix (Enter commits, Esc reverts); date chip → inline native date inputs; × removes. No popovers. **Chip edits are authoritative**: an edit patches both the applied contract and the visible brief text (spliced via the provenance span, marked "(edited)"), so the text a booker copies to Slack always matches what actually ran. Low-confidence and deterministic-disagreement chips render in an "interpretation — check me" state.
+4. **Result cards (content only).** Always-visible face gains: board-derived key stat (curve → dress size; fit → waist/hips; runway/fashion → height), age band, and the why-line with reserved fixed height (skeleton shimmer until streamed; no masonry reflow). Why-line is two-tier and never blended: **Tier 1 always** — factual template from matched fields, zero LLM ("5'10" · NYC · editorial · stats updated Jun"); **Tier 2 optional, labeled** — "Pholio's read: clean, androgynous energy". Card image prefers a digitals-tagged shot over retouched book shots. Representation status appears as plain text where set ("Seeking representation"). MatchScore ring receives tier-band values only (§3).
+5. **Sectioned truth instead of banners.** Exact matches first; near-match groups under repeated section headings + per-card annotations (§6). Genuine zero: name the most-narrowing chip and offer one-click removal of *that chip* — not "Clear search".
+6. **Browse-first landing.** The no-query state is the scouting surface: labeled ("Newest talent", by board), shows the true pool size ("30 of 214 discoverable"), and has load-more. The brief bar refines the pool; it is not the only door.
+7. **Cheap workflow wins now (not Phase 3):** query state in the URL (back/refresh restore); the existing `dc-intel` focus panel shows the booker's last 5–10 real searches (localStorage) ahead of canned suggestions. Saved briefs with alerts remain Phase 3 (needs backend); side-by-side compare is an **explicit deferral** (keyboard modal nav is the interim).
+8. **Actions in place** (unchanged): shortlist to casting board, tag, schedule, message from results — feeding the existing pipeline machinery.
+
+---
+
+## 9. Roadmap (revised)
+
+**Phase 0 — blockers (§0):** gpt-oss-120b migration (before 2026-08-16), EXIF `.rotate()`, skin-tone/measurement-estimate strip, fabricated-score removal, moderation provider, both `age` reads. *Several are one-liners; none are optional.*
+
+**Phase 1 — correctness core:** roles contract + strict schema (CI-validated) + deterministic value extraction; launch-mode score-everything pipeline with constraint tiers (§6); representation_status in DTO + contract; credential honesty gate; per-image signals persisted + indexed; `discover_query_log` + outcome capture; Postgres-backed caches; rate limit on the endpoint; golden set incl. adversarial cases. *Exit: Layer-1 100% (incl. intended-vs-parsed); warm p50 ≤1.2s; cold p95 ≤4s; pre-launch channel ablation decided.*
+
+**Phase 2 — experience + data:** provenance highlighting + editable chips per §8 spec; two-tier why-lines; sectioned near-matches; browse-first landing polish (counts, load-more); URL state + recent searches; board-derived card stats; market normalization + backfill; availability v1 (status + bookouts) both dashboards; tattoos in DTO; "last updated"/"measured in person" stats states; talent-side searchability nudges via Intel; `published_work` signal.
+
+**Phase 3 — depth (eval- or usage-gated):** saved briefs + new-match alerts; multi-role *execution* (grouped result panels); cross-encoder rerank if ordering metrics demand; multimodal image embeddings per §5.3 trigger; graduate to filter-first architecture past the corpus threshold; side-by-side compare.
+
+**Explicitly not doing:** external vector DB / search cluster / new service; LLM listwise rerank in the hot path; auto-relaxation of any constraint; ethnicity or actual-age filtering; photo-inferred identity attributes; CLIP-class image embeddings at launch; precise-integer match scores over rank-fusion output.
+
+---
+
+## 10. Open decisions
+
+1. **Corpus threshold value** for launch-mode vs filter-first (proposed: 2,500 eligible profiles).
+2. **Cold-start mitigation depth**: raise Neon auto-suspend only, or also add a scheduled function warm-ping (cheap at one agency, mild cost at scale).
+3. **Multi-role v1 execution**: detect-and-split messaging only (proposed) vs grouped result panels at launch.
+4. **Moderation provider** selection (Hive vs Rekognition vs manual-review queue at launch volume).
+5. **Representation disclosure granularity**: does "represented — <named agency>" require talent opt-in to name the agency, or default to "undisclosed"? (Privacy lean: opt-in naming.)
