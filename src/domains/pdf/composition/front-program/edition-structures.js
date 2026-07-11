@@ -1375,7 +1375,10 @@ function buildPhotoDominantEdition(rng, b) {
   }));
   if (!block) return null;
   const pad = lerp(0.3, 0.42, rng());
-  const bottom = clamp(block.h + (b.contactLine ? 0.24 : 0) + pad, 0.72, 1.7);
+  // the band SIZES TO the lockup — clamping it below the block height
+  // would push the name past the trim (display-scale editions falling
+  // back land here with big lockups; the hero floor still holds easily)
+  const bottom = Math.max(0.72, block.h + (b.contactLine ? 0.24 : 0) + pad);
   const heroRect = rect(0, 0, PAGE_W, PAGE_H - bottom);
   const alignLeft = rng() < 0.55;
   const nameX = alignLeft ? SAFE : (PAGE_W - block.w) / 2;
