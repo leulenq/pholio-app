@@ -1,0 +1,37 @@
+{
+  "name": "hair-or-set-blue-eyes",
+  "category": "mixed",
+  "brief": "blonde or red hair, blue eyes",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "hair_color": [
+            "blonde",
+            "red"
+          ],
+          "eye_color": [
+            "blue"
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "hair_color": [
+      "blonde",
+      "red"
+    ],
+    "eye_color": [
+      "blue"
+    ],
+    "set_aside": []
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "negation-no-visible-tattoos",
+  "category": "negation",
+  "brief": "commercial talent, no visible tattoos",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "boards": [
+            "commercial"
+          ],
+          "visible_tattoos": false
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "visible_tattoos": false,
+    "needs_confirmation": []
+  }
+}

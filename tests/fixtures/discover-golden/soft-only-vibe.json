@@ -1,0 +1,23 @@
+{
+  "name": "soft-only-vibe",
+  "category": "soft-only",
+  "brief": "ethereal, editorial, strong bone structure",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {},
+        "soft_query": "ethereal editorial strong bone structure"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "all_hard_null": true,
+    "needs_confirmation": []
+  }
+}

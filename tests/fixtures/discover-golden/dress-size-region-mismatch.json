@@ -1,0 +1,40 @@
+{
+  "name": "dress-size-region-mismatch",
+  "category": "adversarial-wrong-value",
+  "brief": "dress size US 6",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "measurements": {
+            "bust_cm": null,
+            "chest_cm": null,
+            "waist_cm": null,
+            "hips_cm": null,
+            "inseam_cm": null,
+            "dress_size": {
+              "value": "6",
+              "region": "UK",
+              "span": "US 6",
+              "confidence": 0.9
+            },
+            "suit_size": null,
+            "exact": null
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": [
+      "measurements.dress_size"
+    ]
+  }
+}
