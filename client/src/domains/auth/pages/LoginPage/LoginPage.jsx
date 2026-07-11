@@ -22,6 +22,12 @@ import styles from './LoginPage.module.css';
 
 const EASE = [0.16, 1, 0.3, 1];
 
+// Dev-only: when Firebase is not configured locally, sign in through the
+// backend /api/dev/login endpoint using the seeded bcrypt password.
+const DEV_PASSTHROUGH =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_AUTH_PASSTHROUGH_ENABLED === '1';
+
 const GoogleIcon = () => (
   <img
     src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -121,6 +127,12 @@ export default function LoginPage() {
 
     setIsLoading(true);
     setError(null);
+
+    if (DEV_PASSTHROUGH) {
+      await devEmailSignIn();
+      return;
+    }
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
@@ -167,6 +179,39 @@ export default function LoginPage() {
         msg = err.message;
       }
       setError(msg);
+      setIsLoading(false);
+    }
+  };
+
+  const devEmailSignIn = async () => {
+    try {
+      // Only forward an explicit redirect target; otherwise let the backend
+      // pick the role-based destination (from defaults to the talent dashboard).
+      const explicitNext = location.state?.from?.pathname
+        || searchParams.get('redirect')
+        || searchParams.get('next')
+        || null;
+      const response = await fetch('/api/dev/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ email, password, next: explicitNext || undefined }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Invalid email or password.');
+      }
+
+      notifyAuthChange({ authenticated: true });
+      markAuthEntryTransition();
+      window.location.href = data.redirect || from;
+    } catch (err) {
+      setError(err.message || 'Failed to sign in.');
       setIsLoading(false);
     }
   };

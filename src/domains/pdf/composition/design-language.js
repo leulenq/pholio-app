@@ -152,15 +152,30 @@ function contrastRatio(hexA, hexB) {
  * paper ≥ 4.5:1. Brand gold fallback when the photo yields nothing usable.
  */
 function deriveAccent(heroForensics, paper, warmth) {
-  const fallback = warmth > 0.15 ? BRAND_GOLD_WARM : BRAND_GOLD_NEUTRAL;
+  // The brand-gold fallback passes the SAME contrast gate as derived
+  // accents (audit P0: raw #C9A55A is ~2.2–2.3:1 on the papers, shipped on
+  // 5.4–7pt labels). Darken along the same loop until ≥ 4.5:1.
+  const gateFallback = () => {
+    const raw = warmth > 0.15 ? BRAND_GOLD_WARM : BRAND_GOLD_NEUTRAL;
+    if (contrastRatio(raw, paper) >= 4.5) return raw;
+    const rgb = hexToRgb(raw);
+    if (!rgb) return raw;
+    const hsl = rgbToHsl(rgb);
+    for (let i = 0; i < 40; i++) {
+      const hex = rgbToHex(hslToRgb(hsl));
+      if (contrastRatio(hex, paper) >= 4.5) return hex;
+      hsl.l = Math.max(0.1, hsl.l - 0.02);
+    }
+    return rgbToHex(hslToRgb(hsl));
+  };
   const palette = Array.isArray(heroForensics?.palette) ? heroForensics.palette : [];
   const candidate = palette.find(
     (c) => c && typeof c.hex === "string" && c.sat >= 0.06 && c.luma > 0.08 && c.luma < 0.85,
   );
-  if (!candidate) return { accent: fallback, source: "brand-gold-fallback" };
+  if (!candidate) return { accent: gateFallback(), source: "brand-gold-fallback" };
 
   const rgb = hexToRgb(candidate.hex);
-  if (!rgb) return { accent: fallback, source: "brand-gold-fallback" };
+  if (!rgb) return { accent: gateFallback(), source: "brand-gold-fallback" };
   const hsl = rgbToHsl(rgb);
   hsl.s = Math.min(hsl.s, 0.38);
 
@@ -176,7 +191,7 @@ function deriveAccent(heroForensics, paper, warmth) {
   if (contrastRatio(final, paper) >= 4.5) {
     return { accent: final, source: `hero-palette ${candidate.hex}` };
   }
-  return { accent: fallback, source: "brand-gold-fallback (derivation muddy)" };
+  return { accent: gateFallback(), source: "brand-gold-fallback (derivation muddy)" };
 }
 
 // ── tone vector ─────────────────────────────────────────────────────────────
@@ -462,7 +477,7 @@ function synthesizeDesignLanguage(input = {}) {
     "name-metrics",
     glyphMeasured ? "measured" : "estimated",
     glyphMeasured
-      ? "glyph advances measured from vendored font files (opentype)"
+      ? "glyph advances shaped from vendored font files (harfbuzz)"
       : "no vendored font file — calibrated per-family estimate",
   );
 

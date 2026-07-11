@@ -2,11 +2,18 @@
  * analyzeProfileImage.js — Groq Vision Image Analysis Service
  *
  * Analyzes a talent's headshot using Groq Vision and returns structured
- * casting-grade assessments: skin tone, bone structure, feature contrast,
- * look type, photo quality, and market signals.
+ * casting-grade assessments: bone structure, feature contrast, look type,
+ * photo quality, and market signals.
+ *
+ * Compliance (Discover WS2): the vision pipeline must NEVER extract or
+ * persist AI-estimated skin tone or body measurements. Skin tone /
+ * ethnicity must never become a discovery signal, and AI measurement
+ * estimation is a bias / pseudo-precision hazard. Do not re-add
+ * `skinTone` or `measurementEstimates` to the prompt, the persisted
+ * image_analysis JSONB, or anything search-facing.
  *
  * Public API:
- *   runImageAnalysis(knex, imageUrl, profileId) → analysis result or null
+ *   masterVisionAnalysis(knex, imageBuffer, profileId) → castingAnalysis or null
  *
  * Writes to profiles table:
  *   - image_analysis (JSONB)
@@ -44,25 +51,16 @@ function getGroq() {
 
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
-const MASTER_VISION_PROMPT = `You are a senior casting director at a premier international modeling agency reviewing a new talent submission. You are also providing physical measurement estimates for their profile.
+const MASTER_VISION_PROMPT = `You are a senior casting director at a premier international modeling agency reviewing a new talent submission.
 
-Analyze this photograph and return a single JSON object with two sections: measurement estimates and casting assessment.
+Analyze this photograph and return a single JSON object containing a casting assessment.
+
+Do NOT estimate, describe, or mention skin tone, complexion, ethnicity, heritage, or body measurements anywhere in your output.
 
 Return exactly this structure, no other text:
 
 {
-  "measurementEstimates": {
-    "height_cm": <number or null>,
-    "bust_cm": <number or null>,
-    "waist_cm": <number or null>,
-    "hips_cm": <number or null>,
-    "weight_kg": <number or null>,
-    "build_type": "Petite | Slim | Athletic | Average | Curvy | Plus",
-    "confidence": "Low | Medium | High",
-    "visible_features": ["list what was visible to derive these estimates"]
-  },
   "castingAnalysis": {
-    "skinTone": "specific description of skin tone and undertones as visible in this image",
     "boneStructure": "specific description of facial structure and how it photographs",
     "featureContrast": "assessment of visual contrast between features",
     "lookType": "primary market category this talent signals and why",
@@ -86,7 +84,7 @@ const TEXT_MODEL = "llama-3.3-70b-versatile";
  * @param {import('knex').Knex} knex - Knex instance
  * @param {Buffer} imageBuffer - Raw image buffer (must be < 20MB)
  * @param {string} profileId - Profile UUID
- * @returns {Promise<Object|null>} Parsed measurementEstimates object, or null on failure
+ * @returns {Promise<Object|null>} Sanitized castingAnalysis object, or null on failure
  */
 async function masterVisionAnalysis(knex, imageBuffer, profileId) {
   const groq = getGroq();
@@ -111,7 +109,7 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
   }
 
   try {
-    // Single vision call — returns both measurements and casting analysis
+    // Single vision call — returns the casting analysis
     const visionResponse = await groq.chat.completions.create({
       model: VISION_MODEL,
       messages: [
@@ -135,10 +133,12 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
     content = content.replace(/```json\n?|\n?```/g, "").trim();
 
     const parsed = JSON.parse(content);
-    const { measurementEstimates = {}, castingAnalysis = {} } = parsed;
+    const castingAnalysis = stripSensitiveVisionFields(
+      parsed.castingAnalysis || {},
+    );
 
     // Validate minimum expected fields
-    if (!castingAnalysis.skinTone && !castingAnalysis.boneStructure) {
+    if (!castingAnalysis.boneStructure && !castingAnalysis.lookType) {
       console.warn(
         `[MasterVision] Empty casting analysis for profile ${profileId} — discarding.`,
       );
@@ -167,7 +167,6 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
     }
 
     console.log(`[MasterVision] ✓ Profile ${profileId} analyzed:`, {
-      skinTone: castingAnalysis.skinTone,
       boneStructure: castingAnalysis.boneStructure,
       lookType: castingAnalysis.lookType,
       descriptor: descriptor ? "Generated" : "Failed",
@@ -182,8 +181,9 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
       );
     }
 
-    // Return measurement estimates for onboarding prefill
-    return measurementEstimates;
+    // Return the sanitized casting analysis (no consumer prefills
+    // measurements from this pipeline — see WS2 compliance note above).
+    return castingAnalysis;
   } catch (error) {
     console.error(
       `[MasterVision] Failed for profile ${profileId}:`,
@@ -249,6 +249,34 @@ async function generateLookDescriptor(castingAnalysis, profileId) {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/**
+ * Sensitive vision fields that must never persist or reach anything
+ * search-facing (WS2 compliance). Kept as a list so the backfill script
+ * (scripts/strip-vision-sensitive-fields.js) can share the same contract.
+ */
+const SENSITIVE_VISION_KEYS = [
+  "skinTone",
+  "skin_tone",
+  "measurementEstimates",
+  "measurement_estimates",
+];
+
+/**
+ * Defensively remove banned keys from a parsed castingAnalysis object.
+ * The prompt no longer requests them, but vision models occasionally emit
+ * schema fields they were trained on — never trust model output here.
+ *
+ * @param {Object} castingAnalysis
+ * @returns {Object} same object with sensitive keys deleted
+ */
+function stripSensitiveVisionFields(castingAnalysis) {
+  if (!castingAnalysis || typeof castingAnalysis !== "object") return {};
+  for (const key of SENSITIVE_VISION_KEYS) {
+    delete castingAnalysis[key];
+  }
+  return castingAnalysis;
+}
+
 async function clearAnalysis(knex, profileId) {
   try {
     await knex("profiles").where({ id: profileId }).update({
@@ -260,4 +288,8 @@ async function clearAnalysis(knex, profileId) {
   }
 }
 
-module.exports = { masterVisionAnalysis };
+module.exports = {
+  masterVisionAnalysis,
+  stripSensitiveVisionFields,
+  SENSITIVE_VISION_KEYS,
+};

@@ -1,0 +1,30 @@
+{
+  "name": "representation-unrepresented-newface",
+  "category": "hard-only",
+  "brief": "unrepresented new faces only",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "representation_status": [
+            "unrepresented"
+          ],
+          "experience_level": "new_face"
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "representation_status": [
+      "unrepresented"
+    ],
+    "experience_level": "new_face"
+  }
+}

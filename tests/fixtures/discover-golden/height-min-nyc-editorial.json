@@ -1,0 +1,46 @@
+{
+  "name": "height-min-nyc-editorial",
+  "category": "hard-only",
+  "brief": "Editorial women 5'9\" and up, based in NYC",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "editorial woman",
+        "count": 1,
+        "hard": {
+          "gender_presentation": [
+            "female"
+          ],
+          "height_cm": {
+            "op": "min",
+            "a": 175,
+            "b": null,
+            "span": "5'9\"",
+            "confidence": 0.96
+          },
+          "boards": [
+            "editorial"
+          ],
+          "location": {
+            "market": "new-york",
+            "local_only": false,
+            "travel_ok": null,
+            "span": "NYC"
+          }
+        },
+        "soft_query": "editorial"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "multi_role": false,
+    "credential_gate": false,
+    "height_value": 175,
+    "needs_confirmation": [],
+    "set_aside": []
+  }
+}

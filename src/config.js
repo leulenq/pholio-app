@@ -59,6 +59,16 @@ function resolveSessionSecret() {
   return "pholio-dev-secret-do-not-use-in-production";
 }
 
+// Known-deprecated Groq text models (provider shutdown scheduled). Matching
+// only warns at startup — GROQ_TEXT_MODEL remains the rollback lever.
+const DEPRECATED_GROQ_TEXT_MODELS = ["llama-3.3-70b-versatile"];
+const groqTextModel = process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-120b";
+if (DEPRECATED_GROQ_TEXT_MODELS.includes(groqTextModel)) {
+  console.warn(
+    `[config] Groq text model "${groqTextModel}" is deprecated and scheduled for provider shutdown — move to "openai/gpt-oss-120b" (or unset GROQ_TEXT_MODEL).`,
+  );
+}
+
 module.exports = {
   port: Number(process.env.PORT || 3000),
   nodeEnv,
@@ -121,8 +131,9 @@ module.exports = {
   // Groq AI configuration
   groq: {
     apiKey: process.env.GROQ_API_KEY,
-    // Text/JSON: query understanding, rerank, chat (replaces deprecated llama-4-maverick)
-    textModel: process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile",
+    // Text/JSON: query understanding, rerank, chat. GROQ_TEXT_MODEL is the
+    // rollback lever (deprecated defaults trigger a startup warning below).
+    textModel: groqTextModel,
     // Vision: Scout headshot analysis (same model as analyzeProfileImage.js)
     visionModel:
       process.env.GROQ_VISION_MODEL ||

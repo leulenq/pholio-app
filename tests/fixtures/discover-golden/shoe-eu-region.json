@@ -1,0 +1,29 @@
+{
+  "name": "shoe-eu-region",
+  "category": "region-size",
+  "brief": "shoe size EU 40",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "shoe": {
+            "size": 40,
+            "region": "EU",
+            "span": "EU 40",
+            "confidence": 0.9
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": []
+  }
+}

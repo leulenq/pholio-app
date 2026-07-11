@@ -1,0 +1,32 @@
+{
+  "name": "playing-age-play-younger",
+  "category": "adversarial-semantic",
+  "brief": "18 to play younger",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "playing_age": {
+            "op": "between",
+            "a": 16,
+            "b": 19,
+            "span": "18 to play younger",
+            "confidence": 0.6
+          }
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": [
+      "playing_age"
+    ]
+  }
+}

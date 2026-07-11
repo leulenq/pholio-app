@@ -78,7 +78,8 @@ async function provisionAgencyForUser({
       description,
       logo_path: logoPath,
       brand_color: brandColor,
-      status: "ACTIVE",
+      status: "PENDING_SETUP",
+      onboarding_started_at: trx.fn.now(),
       created_at: trx.fn.now(),
       updated_at: trx.fn.now(),
     });

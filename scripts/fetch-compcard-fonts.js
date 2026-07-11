@@ -5,7 +5,7 @@
  * Downloads every family/weight in the composition engine's font library
  * (src/domains/pdf/composition/font-library.js) from the Google Fonts CSS2
  * API into public/fonts/compcard/, so that:
- *   1. the perception engine can MEASURE real glyph advances (opentype.js),
+ *   1. the perception engine can MEASURE real shaped advances (harfbuzzjs),
  *   2. the PDF/preview renderer can @font-face locally instead of depending
  *      on the fonts CDN at draw time.
  *

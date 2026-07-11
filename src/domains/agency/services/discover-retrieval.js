@@ -11,6 +11,7 @@ const {
   cosineDistance,
   loadEmbeddingCacheMap,
 } = require("../../ai/embeddings");
+const { ageFilterDobCutoffs } = require("./discover-age");
 
 const RETRIEVAL_TOP_K =
   parseInt(process.env.DISCOVER_RETRIEVAL_TOP_K, 10) || 80;
@@ -54,11 +55,19 @@ async function loadEligibleProfileIds(knex, explicitFilters) {
   if (explicitFilters.max_height != null) {
     query.where("profiles.height_cm", "<=", explicitFilters.max_height);
   }
-  if (explicitFilters.min_age != null) {
-    query.where("profiles.age", ">=", explicitFilters.min_age);
-  }
-  if (explicitFilters.max_age != null) {
-    query.where("profiles.age", "<=", explicitFilters.max_age);
+  if (explicitFilters.min_age != null || explicitFilters.max_age != null) {
+    // Age is derived from DOB (audit P0-7) — never read the deprecated
+    // profiles.age column. NULL DOBs fail closed.
+    const { maxDobExclusive, minDobInclusive } = ageFilterDobCutoffs(
+      explicitFilters.min_age != null ? explicitFilters.min_age : null,
+      explicitFilters.max_age != null ? explicitFilters.max_age : null,
+    );
+    if (maxDobExclusive) {
+      query.where("profiles.date_of_birth", "<", maxDobExclusive);
+    }
+    if (minDobInclusive) {
+      query.where("profiles.date_of_birth", ">=", minDobInclusive);
+    }
   }
   if (explicitFilters.gender) {
     query.whereRaw("LOWER(profiles.gender) = ?", [

@@ -1,12 +1,12 @@
 const path = require("path");
 const express = require("express");
+const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../../../config");
 const knex = require("../../../shared/db/knex");
 const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   loginSchema,
-  agencySignupSchema,
 } = require("../../../shared/lib/validation");
 const { addMessage } = require("../../../shared/middleware/context");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
@@ -51,12 +51,10 @@ function redirectForSession(session) {
     return "/";
   }
 
-  // Agency onboarding has been removed/bypassed
-  /*
-  if (session.role === "AGENCY" && !session.agencyOnboardingCompletedAt) {
-    return "/dashboard/agency/onboarding";
+  const agencySetupRedirect = agencySetupRedirectForSession(session);
+  if (agencySetupRedirect) {
+    return agencySetupRedirect;
   }
-  */
 
   return redirectForRole(session.role);
 }
@@ -66,6 +64,37 @@ function safeNext(input) {
   if (!input.startsWith("/")) return null;
   if (input.startsWith("//")) return null;
   return input;
+}
+
+function isAgencySetupComplete(session) {
+  return Boolean(session?.agencyOnboardingCompletedAt);
+}
+
+function agencySetupRedirectForSession(session) {
+  if (session?.role === "AGENCY" && !isAgencySetupComplete(session)) {
+    return "/dashboard/agency/setup";
+  }
+  return null;
+}
+
+function isAllowedAgencySetupNext(pathname) {
+  if (!pathname) return false;
+  return (
+    pathname === "/dashboard/agency/setup" ||
+    pathname.startsWith("/dashboard/agency/setup?") ||
+    pathname === "/logout" ||
+    pathname === "/login" ||
+    pathname.startsWith("/reply")
+  );
+}
+
+function agencyRequestAccessUrl() {
+  const marketingBase =
+    process.env.MARKETING_SITE_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://www.pholio.studio"
+      : "http://localhost:3001");
+  return `${marketingBase.replace(/\/$/, "")}/agency/request-access`;
 }
 
 
@@ -94,6 +123,98 @@ router.post("/api/auth/password-reset", async (req, res, next) => {
     return res.json({ success: true });
   } catch (error) {
     console.error("[Password Reset] SMTP reset email failed:", error.message);
+    return next(error);
+  }
+});
+
+// Dev-only email/password login. Verifies the seeded bcrypt password_hash
+// (see seeds/seed.js) and creates a session without Firebase, so the /login
+// page works locally with credentials like agency@example.com / password123.
+// Gated behind AUTH_PASSTHROUGH_ENABLED=1 and never active in production.
+function isDevLoginEnabled() {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.AUTH_PASSTHROUGH_ENABLED === "1"
+  );
+}
+
+// POST /api/dev/login
+router.post("/api/dev/login", async (req, res, next) => {
+  if (!isDevLoginEnabled()) {
+    return res.status(404).json({ success: false, error: "Not found" });
+  }
+
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const password = String(req.body?.password || "");
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Email and password are required.",
+      });
+    }
+
+    const user = await knex("users")
+      .whereRaw("LOWER(email) = ?", [email])
+      .first();
+    if (!user || !user.password_hash) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid email or password." });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatches) {
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid email or password." });
+    }
+
+    if (user.role === "AGENCY") {
+      const agencyContext = await resolveAgencyContextForMemberUser(user.id);
+      if (!agencyContext || !agencyContext.agency) {
+        return res.status(403).json({
+          success: false,
+          error: "No agency workspace is linked to this account.",
+        });
+      }
+
+      req.session.userId = agencyContext.agency.id;
+      req.session.memberUserId = user.id;
+      req.session.agencyId = agencyContext.agency.id;
+      req.session.agencyMembershipId = agencyContext.membership?.id || null;
+      req.session.agencyMembershipRole =
+        agencyContext.membership?.membership_role || null;
+      req.session.agencyOnboardingCompletedAt =
+        agencyContext.agency.onboarding_completed_at || null;
+      req.session.role = "AGENCY";
+    } else {
+      req.session.userId = user.id;
+      req.session.role = user.role;
+      delete req.session.memberUserId;
+      delete req.session.agencyId;
+      delete req.session.agencyMembershipId;
+      delete req.session.agencyMembershipRole;
+      delete req.session.agencyOnboardingCompletedAt;
+    }
+
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => (err ? reject(err) : resolve()));
+    });
+
+    const nextPath = safeNext(req.body?.next);
+    const sessionRedirect = redirectForSession(req.session);
+    let redirectUrl = nextPath || sessionRedirect;
+    if (
+      req.session.role === "AGENCY" &&
+      !req.session.agencyOnboardingCompletedAt
+    ) {
+      redirectUrl = sessionRedirect;
+    }
+
+    console.log(`[DevLogin] Signed in as ${email} (${req.session.role})`);
+    return res.json({ success: true, redirect: redirectUrl });
+  } catch (error) {
     return next(error);
   }
 });
@@ -752,7 +873,23 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     });
 
     const sessionRedirect = redirectForSession(req.session);
-    const redirectUrl = nextPath || sessionRedirect;
+    let redirectUrl = nextPath || sessionRedirect;
+    if (req.session.role === "AGENCY" && !req.session.agencyOnboardingCompletedAt) {
+      if (nextPath && !isAllowedAgencySetupNext(nextPath)) {
+        req.session.agencySetupReturnTo = nextPath;
+        try {
+          await knex("agencies")
+            .where({ id: req.session.agencyId })
+            .update({ setup_return_to: nextPath, updated_at: knex.fn.now() });
+        } catch (returnToError) {
+          console.warn(
+            "[Login] Failed to persist agency setup return path:",
+            returnToError.message,
+          );
+        }
+      }
+      redirectUrl = sessionRedirect;
+    }
     console.log("[Login] Redirecting to:", redirectUrl);
 
     // If request is JSON or Accept header requests JSON, return JSON response with redirect URL
@@ -851,42 +988,32 @@ router.get("/signup", (req, res) => {
   return res.redirect("/onboarding" + queryString);
 });
 
-// GET /partners - Agency signup page
-router.get("/partners", (req, res, next) => {
-  try {
-    if (req.session && req.session.userId) {
-      if (req.session.role === "AGENCY") {
-        return res.redirect("/dashboard/agency");
-      }
-      return res.redirect("/");
+// GET /partners - Compatibility handoff to the landing-owned agency request page
+router.get("/partners", (req, res) => {
+  if (req.session && req.session.userId) {
+    if (req.session.role === "AGENCY") {
+      return res.redirect(redirectForSession(req.session));
     }
-    res.locals.currentPage = "partners";
-    return res.render("auth/partners", {
-      title: "Partner with Pholio",
-      values: {},
-      errors: {},
-      layout: "layout",
-      currentPage: "partners",
-    });
-  } catch (error) {
-    return next(error);
+    return res.redirect("/");
   }
+  return res.redirect(agencyRequestAccessUrl());
 });
 
-// POST /partners - Agency signup (Firebase user should be created client-side first)
-router.post("/partners", async (req, res, next) => {
-  const parsed = agencySignupSchema.safeParse(req.body);
-  const values = parsed.success ? parsed.data : req.body || {};
-  const emailError =
-    "Agency accounts are provisioned manually by Pholio. Contact support to request access.";
-  res.locals.currentPage = "partners";
-  return res.status(403).render("auth/partners", {
-    title: "Partner with Pholio",
-    values,
-    errors: { email: [emailError] },
-    layout: "layout",
-    currentPage: "partners",
-  });
+// POST /partners - Retired app-side agency signup; the public request form lives in pholio-landing.
+router.post("/partners", async (req, res) => {
+  const isJson =
+    (req.headers["content-type"] || "").includes("application/json") ||
+    (req.headers.accept || "").includes("application/json");
+  const redirect = agencyRequestAccessUrl();
+  if (isJson) {
+    return res.status(410).json({
+      success: false,
+      error: "AGENCY_ACCESS_REQUEST_MOVED",
+      message: "Agency access requests are reviewed through the Pholio request page.",
+      redirect,
+    });
+  }
+  return res.redirect(303, redirect);
 });
 
 // POST /signup - Redirect to /onboarding (legacy route, kept for backward compatibility)

@@ -1,3 +1,122 @@
+# Production Consolidation — 2026-07-11
+
+## Scope
+
+- [x] Fetched/pruned GitHub refs and listed all 35 remote branches.
+- [x] Created isolated worktree:
+  `/private/tmp/pholio-prod-consolidation` on
+  `consolidation-2026-07-11`.
+- [x] Included current production candidates:
+  - `origin/claude/discover-talent-search-redesign-wbivg7`
+  - `origin/claude/pholio-comp-card-system-nofxfm`
+  - `origin/codex/redefine-agency-access-and-onboarding-flow`
+  - `origin/devin/1783740533-dev-seeded-agency-login`
+  - `origin/devin/1783451377-agency-onboarding-design`
+- [x] Preserved dirty artifacts in the original checkout:
+  `PERSISTENCE_REPORT.md`, `test.sqlite3`, and `scratch_test_db.js`.
+- [x] Run production readiness checks across merged domains.
+
+## Branch Decisions
+
+- Included Discover search because it is the newest active branch, merges
+  cleanly, removes sensitive vision-derived fields, and adds focused migration,
+  parsing, DTO, rate-limit, and search tests.
+- Included Comp Card Editions because it merges cleanly and adds renderer
+  parity, matte precompute, gallery gates, and PDF composition tests.
+- Included Agency Access because PR #30 is an open implementation branch and
+  the app-side setup gate is required before agency launch.
+- Included dev seeded login because PR #31 is explicitly disabled in production
+  (`NODE_ENV !== "production"` and `AUTH_PASSTHROUGH_ENABLED === "1"`) and it
+  preserves the new agency setup redirect for incomplete agency sessions.
+- Included the agency onboarding data-model design doc from PR #29 because it
+  is docs-only and aligns with the included agency access flow.
+- Held `origin/claude/logo-icon-12euah`: merge conflicts with current favicon
+  and apple-touch-icon deletions plus `PRODUCT.md`; needs intentional brand
+  asset reconciliation.
+- Held `origin/devin/1783329493-talent-settings-editorial-redesign`: PR #25 is
+  dirty against current `main` and overlaps the already refactored Settings
+  surface.
+- Held `origin/claude/intel-page-completion-p9c8mh`: branch contains stale
+  IntelPage structure under `instruments/` while current `main` already has the
+  merged Intel implementation.
+- Held open superseded settings PR branches (`#15`, `#16`, `#19`) and closed
+  stale settings branches because newer Settings/Intel work is already merged.
+- Held PR #22 (`status-document-for-codex`) because the richer report artifact
+  was already merged via PR #23.
+- Held draft PR #24 (`cursor/setup-dev-environment-001a`) because it is
+  cloud-agent setup documentation, not a production app change.
+- Held old/stale local and remote branches whose heads are already contained in
+  `main` or predate the current architecture.
+
+## Review
+
+- `npm install` and `npm install --prefix client --legacy-peer-deps` completed
+  in the isolated worktree. Root install required network access after the
+  sandbox blocked `registry.npmjs.org`.
+- Focused non-screenshot test matrix passed: 24 suites, 369 passing tests, 8
+  skipped tests. Covered agency setup gating, Discover contract/parsing,
+  representation disclosure, audience DTOs, Discover migrations/rate limits,
+  roster measured-in-person endpoints, comp-card editions, shaping parity, and
+  matte precompute.
+- `src/domains/pdf/__tests__/scrim-render.test.js` still times out in this Mac
+  runtime because Puppeteer screenshot capture hangs even in a minimal smoke
+  script. Static/template and non-screenshot PDF tests pass; rerun this raster
+  gate in CI or a browser-stable machine before final release approval.
+- `npm run migrate:status` reports 167 completed migrations and no pending
+  migration files in the local integration database.
+- `npm run client:build` passes. Vite reports the existing large-chunk warning.
+- Focused client ESLint passes on the merged app/setup/discover/login files;
+  ESLint reports the existing `.eslintignore` deprecation warning.
+- `npm run build:function` passes after externalizing `harfbuzzjs` in the
+  serverless bundle script.
+- Root `npm install` reports 49 audit findings (2 low, 20 moderate, 19 high, 8
+  critical). This appears to be existing dependency audit debt, but it should be
+  reviewed before a public production launch.
+
+# Current Task — Implement pholio-app agency access/setup
+
+- [x] Inspect current agency auth, provisioning, API guards, migrations, app routes, and agency UI components.
+- [x] Add app-side schema and API support for agency access requests, setup steps, and import-job intake.
+- [x] Enforce setup gating across login redirects, SPA routing, and agency API guards.
+- [x] Add `/dashboard/agency/setup` page using the agency command-center design language.
+- [x] Add a handoff note for the separate `pholio-landing` agent; do not implement landing pages here.
+- [x] Run focused backend/client verification, commit, and create PR metadata.
+
+## Review
+
+Implemented the `pholio-app` side only: public intake API for the landing form, setup persistence, setup gating, a lightweight agency setup page, setup API routes, provisioning status semantics, focused setup-gate tests, and a handoff note for a separate `pholio-landing` agent.
+
+---
+
+# Current Task — Agency access system stress test
+
+- [x] Recreated `agency-access-flow-revisions` branch in the current Codex checkout.
+- [x] Ran a fresh subagent stress test against the agency access plan.
+- [x] Applied repo-boundary correction: request form belongs in `pholio-landing`; authenticated setup belongs in `pholio-app`.
+- [x] Removed generic platform-funnel language and added agency-dashboard design contracts.
+- [x] Added blocking setup-gate, internal authorization, agency status, minors, board-model, open-call, import, and copy acceptance criteria.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Stress-tested and hardened `tasks/agency-access-system.md` so implementation cannot proceed without addressing setup bypasses, Pholio-internal provisioning authorization, minor-data controls, app/landing repo ownership, and agency-dashboard design alignment.
+
+---
+
+# Current Task — Agency access system research
+
+- [x] Inspect current agency/auth/onboarding routes and existing agency design context.
+- [x] Review industry skill references for agency credibility and terminology.
+- [x] Research external access-request, SaaS onboarding, model-agency software, and migration patterns.
+- [x] Write the Pholio agency access/request + post-login setup system specification.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Drafted `tasks/agency-access-system.md` with the recommended reviewed-access request system, internal review workflow, post-login agency setup sequence, and import/migration model.
+
+---
+
 # Claude Configuration Audit & Build Plan — 2026-07-04
 
 ## Audit findings

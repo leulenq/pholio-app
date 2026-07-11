@@ -1,0 +1,33 @@
+{
+  "name": "availability-truncated-adversarial",
+  "category": "adversarial-wrong-value",
+  "brief": "available July 9-14",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "availability": [
+            {
+              "kind": "shoot",
+              "from": "2026-07-09",
+              "to": "2026-07-09",
+              "span": "July 9-14"
+            }
+          ]
+        },
+        "soft_query": ""
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "needs_confirmation": [
+      "availability[0]"
+    ]
+  }
+}

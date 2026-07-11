@@ -1,0 +1,36 @@
+{
+  "name": "set-aside-ethnicity-skin",
+  "category": "set-aside",
+  "brief": "Latina women, editorial, olive skin",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "gender_presentation": [
+            "female"
+          ],
+          "boards": [
+            "editorial"
+          ]
+        },
+        "soft_query": "latina editorial olive skin"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "set_aside_contains": [
+      "latina",
+      "olive skin"
+    ],
+    "soft_query_excludes": [
+      "latina",
+      "olive"
+    ]
+  }
+}

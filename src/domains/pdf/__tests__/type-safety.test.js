@@ -70,18 +70,34 @@ describe("evaluateNameBand — the three gates", () => {
     expect(v.because).toMatch(/focal|unverifiable/);
   });
 
-  test("unrescuable contrast fails even when clear of the subject", () => {
-    // mid-luma busy top band, no subject there
+  test("a high-spread mid-luma band is refused", () => {
+    // Alternating 0.2/0.75 gamma cells: the corner-backdrop deviation mask
+    // reads the churn as figure (occupancy > max), so the band is refused
+    // before contrast is even consulted — the gates are layered defenses.
     const f = studio({ topLuma: 0.45 });
     for (let c = 0; c < 6; c++) {
       f.luma.grid[0][c] = c % 2 ? 0.2 : 0.75;
       f.luma.grid[1][c] = c % 2 ? 0.25 : 0.7;
-      f.detail.grid[0][c] = 0.4; // busy but below subject threshold
+      f.detail.grid[0][c] = 0.4; // busy but below the detail subject threshold
       f.detail.grid[1][c] = 0.4;
     }
     f.quiet.top.score = 0.6;
     const v = evaluateNameBand({ forensics: f, edge: "top" });
     expect(v.ok).toBe(false);
+  });
+
+  test("REGRESSION: a flat mid-gray band (gamma 0.5) is never contrast-'safe'", () => {
+    // gamma 0.5 is linear Y≈0.214: white ink 3.98:1, dark ink 2.40:1 —
+    // neither clears 4.5:1 unaided. The pre-fix gamma-as-linear math judged
+    // dark ink 5.0:1 here and would have shipped it scrimless.
+    const f = studio({ topLuma: 0.5 });
+    const v = evaluateNameBand({ forensics: f, edge: "top" });
+    if (v.ok) {
+      expect(v.contrast.verdict).not.toBe("safe");
+      expect(v.contrast.scrim).not.toBeNull();
+    } else {
+      expect(v.because).toBeTruthy();
+    }
   });
 });
 

@@ -7,14 +7,10 @@ const {
 
 const AGENCY_ONBOARDING_ALLOW = [
   { method: "GET", path: "/me" },
-  { method: "PUT", path: "/profile" },
-  { method: "POST", path: "/branding" },
-  { method: "PUT", path: "/settings" },
-  { method: "GET", path: "/team" },
-  { method: "POST", path: "/team" },
-  { method: "PATCH", pathPrefix: "/team/" },
-  { method: "DELETE", pathPrefix: "/team/" },
-  { method: "POST", path: "/onboarding/complete" },
+  { method: "GET", path: "/setup" },
+  { method: "PATCH", pathPrefix: "/setup/" },
+  { method: "POST", path: "/setup/complete" },
+  { method: "POST", path: "/import-jobs" },
 ];
 
 function mountAgencyApiGuard(router) {
