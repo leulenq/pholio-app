@@ -239,5 +239,5 @@ The existing Discover visual design — dark cinematic surface, masonry grid, Ma
 1. **Corpus threshold value** for launch-mode vs filter-first (proposed: 2,500 eligible profiles).
 2. **Cold-start mitigation depth**: raise Neon auto-suspend only, or also add a scheduled function warm-ping (cheap at one agency, mild cost at scale).
 3. **Multi-role v1 execution**: detect-and-split messaging only (proposed) vs grouped result panels at launch.
-4. **Moderation provider** selection (Hive vs Rekognition vs manual-review queue at launch volume).
+4. **Moderation provider** — DECIDED: manual review queue at launch + Hive adapter env-gated for later; Rekognition rejected (no AWS in this stack). See implementation plan WS10.
 5. **Representation disclosure granularity**: does "represented — <named agency>" require talent opt-in to name the agency, or default to "undisclosed"? (Privacy lean: opt-in naming.)

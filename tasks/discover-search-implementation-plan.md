@@ -170,7 +170,7 @@ New module layout under `src/domains/agency/services/discover/`:
 4. Booking-lane vocabulary extension (e-comm, fit, curve, petite, parts, athletic) in `BookingLanesControl` options + whitelist sync.
 
 ## WS10 — Moderation (PR 12, before open signup)
-Decision required (Hive vs Rekognition). Interim shipping posture: new uploads with heuristic score above threshold → manual review queue (admin surface or flagged list) rather than silent pass. Provider adapter drops into the existing pluggable `content-moderation.js` seam.
+**DECIDED (2026-07-11): manual review queue at launch + Hive adapter behind env config; Rekognition rejected.** Rationale: at ~30 uploads/day human review of flagged items is feasible and highest-precision; the trust risk is silent heuristic failure, fixed by making "flagged" a visible, actionable queue. Hive over Rekognition because it is a single REST call via native fetch (matching the repo's SDK-free OpenAI pattern), has finer NSFW granularity, and avoids introducing AWS credentials into a Cloudflare R2 + Neon + Netlify stack. Flagged uploads → `pending_review` (owner-visible "Under review", excluded from public/agency/comp-card surfaces); ops CLI for list/approve/reject; Hive activates via `MODERATION_PROVIDER=hive` + `HIVE_API_KEY`, flags to queue (never auto-rejects), degrades to heuristic on failure. CSAM escalation unchanged per `tasks/csam-escalation-runbook.md`.
 
 ---
 
