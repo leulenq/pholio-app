@@ -28,7 +28,17 @@
  *     engineOverrides,              // director overrides (tone, gridId, …)
  *     mode,                         // 'draft' | 'master' (guardrail report)
  *     adviceTimeoutMs,              // forwarded to the advisor
+ *     editionsEnabled: boolean,     // phase-2 editions path (DEFAULT FALSE —
+ *                                   // legacy behavior until the route flips)
+ *     edition,                      // force an edition id (pin)
+ *     avoidEditions: string[],      // cycling FIFO, most-recent-first
+ *     avoidHeroId,                  // previous take's hero (re-curation avoids)
  *   }
+ *
+ *   With editions enabled the plan additionally carries:
+ *     plan.edition        = { id, label, tone, field, register }
+ *     plan.editionProgram = { def (catalog entry), operators { field, register } }
+ *     plan.takeSignature  = { edition, structure, heroId, field, register, voice }
  */
 
 "use strict";
@@ -36,6 +46,8 @@
 const { buildStatsBlock } = require("./stats-formatter");
 const { analyzeImagePool } = require("./photo-intelligence");
 const { designComposition } = require("./composition-director");
+const { computeToneVector } = require("./design-language");
+const { resolveEdition, resolveOperators } = require("./editions");
 const { getDesignBrief, validateBrief } = require("./art-director");
 const crypto = require("crypto");
 const { evaluateCompCardGuardrails } = require("../guardrails");
@@ -314,6 +326,107 @@ function buildComposedGuardrailReport({
 }
 
 /**
+ * Resolve the edition + compositional operators for one take (phase-2
+ * editions engine). Runs ONLY when `options.editionsEnabled === true` — the
+ * default is DISABLED, so every existing route/test keeps today's legacy
+ * behavior byte-for-byte until the route flips the flag.
+ *
+ * Capability signals are derived from what the orchestrator already has:
+ * pool size, kids category, matte presence (alpha source), a pairable
+ * portrait support besides the ranked hero, and the ranked hero's measured
+ * luma/quiet forensics.
+ *
+ * @returns {{ edition, operators, because, available, heroForensics }}
+ */
+function resolveEditionProgram({
+  profileRow,
+  archetype,
+  castingAnalysis,
+  statsBlock,
+  poolAnalysis,
+  opts,
+}) {
+  const pool = Array.isArray(poolAnalysis?.pool) ? poolAnalysis.pool : [];
+  const poolSize = pool.length;
+  const kids = statsBlock?.category === "kids";
+  const identity =
+    profileRow?.slug ||
+    profileRow?.id ||
+    `${profileRow?.first_name || ""}-${profileRow?.last_name || ""}`;
+
+  // Alpha-matte availability: any precomputed matte with a real alpha
+  // source (legacy cached mattes predate the `source` field = alpha;
+  // 'studio' sharp-only estimates cannot honestly gate cutout/cover-story).
+  const matteEntries =
+    opts.matteById instanceof Map
+      ? [...opts.matteById.values()]
+      : opts.matteById && typeof opts.matteById === "object"
+        ? Object.values(opts.matteById)
+        : [];
+  const hasAlphaMatte = matteEntries.some(
+    (m) => m && (m.source == null || m.source === "alpha"),
+  );
+
+  // Pairable support (duet's capability gate): a portrait-ish frame in the
+  // pool besides the ranked hero.
+  const topId =
+    Array.isArray(poolAnalysis?.heroRanking) && poolAnalysis.heroRanking.length
+      ? poolAnalysis.heroRanking[0]
+      : (pool[0] && pool[0].id) ?? null;
+  const hasPairableSupport = pool.some(
+    (p) => p.id !== topId && Number(p.aspect) > 0 && Number(p.aspect) < 1,
+  );
+
+  // Photo-affinity signals from the ranked hero's forensics.
+  const heroForensics =
+    opts.forensicsById instanceof Map
+      ? opts.forensicsById.get(topId) || null
+      : opts.forensicsById && topId != null
+        ? opts.forensicsById[topId] || null
+        : null;
+  const heroLuma = Number.isFinite(Number(heroForensics?.luma?.mean))
+    ? Number(heroForensics.luma.mean)
+    : null;
+  const quiet = heroForensics?.quiet || {};
+  const quietScores = ["top", "bottom", "left", "right"]
+    .map((edge) => Number(quiet?.[edge]?.score))
+    .filter(Number.isFinite);
+  const heroQuiet = quietScores.length ? Math.max(...quietScores) : null;
+
+  // Deterministic pre-tone (no seeded jitter) ranks the suitable editions.
+  const toneVector = computeToneVector({ archetype, castingAnalysis, statsBlock, poolSize });
+
+  const resolution = resolveEdition({
+    seed: opts.seed,
+    identity,
+    force: opts.edition || null,
+    avoidEditions: Array.isArray(opts.avoidEditions) ? opts.avoidEditions : [],
+    toneVector,
+    poolSize,
+    hasAlphaMatte,
+    kids,
+    hasPairableSupport,
+    heroLuma,
+    heroQuiet,
+  });
+  const operators = resolveOperators({
+    edition: resolution.edition,
+    seed: opts.seed,
+    identity,
+    heroForensics,
+    kids,
+    avoid: opts.avoid || null,
+  });
+  return {
+    edition: resolution.edition,
+    operators,
+    because: resolution.because,
+    available: resolution.available,
+    heroForensics,
+  };
+}
+
+/**
  * Compose an intelligent comp card for one talent. Deterministic for a given
  * (profile, images, seed) when advice is disabled/unavailable; the advisor —
  * when it runs — can only bias choices the director validates and clamps.
@@ -353,6 +466,21 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
     profile: profileRow,
     castingAnalysis,
   });
+
+  // 3b. Edition + operators — resolved ONCE per take (phase 2). Strictly
+  // flag-gated: absent/false ⇒ the entire editions path is skipped and the
+  // output is byte-identical to the legacy engine (regression-tested).
+  const editionProgram =
+    opts.editionsEnabled === true
+      ? resolveEditionProgram({
+          profileRow,
+          archetype,
+          castingAnalysis,
+          statsBlock,
+          poolAnalysis,
+          opts,
+        })
+      : null;
 
   // 4. Art-director design brief — Groq strict-schema planning layer
   // (typography voice, tone axes, treatment, stat placement, bleed
@@ -449,7 +577,35 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
     // take-to-take diversity: the previous take's voice is excluded
     avoidVoice: (opts.avoid && opts.avoid.voice) || null,
     overrides: buildOverrides(opts),
+    // Editions threading (only present when the flag is on — a legacy call
+    // passes nothing and the director's legacy path stays byte-identical)
+    ...(editionProgram
+      ? {
+          edition: editionProgram.edition,
+          operators: editionProgram.operators,
+          avoidHeroId: opts.avoidHeroId ?? null,
+        }
+      : {}),
   });
+
+  if (editionProgram) {
+    plan.edition = {
+      id: editionProgram.edition.id,
+      label: editionProgram.edition.label,
+      tone: editionProgram.edition.tone,
+      field: editionProgram.operators.field,
+      register: editionProgram.operators.register,
+    };
+    plan.editionProgram = {
+      def: editionProgram.edition,
+      operators: editionProgram.operators,
+    };
+    plan.decisions.push({
+      aspect: "edition",
+      choice: editionProgram.edition.id,
+      because: `${editionProgram.because}; ${editionProgram.operators.because}`,
+    });
+  }
 
   // 6. Extended guardrails on the actually-selected images.
   const guardrailReport = buildComposedGuardrailReport({
@@ -561,6 +717,9 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
           contactLine: plan.back?.contact?.line || null,
           language: plan.language,
           brief,
+          // editions seam: { def, operators } when the flag is on, else
+          // null — the front program handles its absence defensively
+          edition: plan.editionProgram || null,
         },
         {
           seed: opts.seed,
@@ -629,6 +788,22 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
       console.warn(`[composition] front program failed (${error.message}) — legacy front`);
       plan.frontProgram = null;
     }
+  }
+
+  // Composite take signature — the tuple the avoid-history FIFO cycles over
+  // (client keeps the FIFO; the route persists the last signature per
+  // profile). Assembled AFTER the front program so `structure` reflects the
+  // sampled front when the program engine ran (null on the legacy front —
+  // the front program fills its meta).
+  if (editionProgram) {
+    plan.takeSignature = {
+      edition: editionProgram.edition.id,
+      structure: plan.frontProgramMeta?.structure ?? null,
+      heroId: plan.front?.imageId ?? null,
+      field: editionProgram.operators.field,
+      register: editionProgram.operators.register,
+      voice: plan.language?.voiceId ?? null,
+    };
   }
 
   // Rendered-name-integrity tripwire (audit P0-1): with measured glyph

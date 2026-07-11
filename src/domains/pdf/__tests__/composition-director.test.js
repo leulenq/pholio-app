@@ -407,3 +407,127 @@ describe("helpers", () => {
     expect(nearestToneLabel({ formality: 0.9, energy: 0.1, warmth: 0.1 }, { category: "kids" })).toBe("kids-bright");
   });
 });
+
+// ── editions threading (phase 2.2/2.3) ─────────────────────────────────────
+
+describe("designComposition — editions threading", () => {
+  const { getEdition } = require("../composition/editions");
+
+  function clampTiedInput(seed, extra = {}) {
+    // bring tq and fb within the ±15 clamp of hs (90) so the hero draw has
+    // a real candidate set: hs 90 / tq 80 / fb 78
+    const pool = makePool();
+    pool.find((p) => p.id === "tq").heroScore = 80;
+    pool.find((p) => p.id === "fb").heroScore = 78;
+    return baseInput({
+      seed,
+      pool,
+      poolAnalysis: { pool, coverage: {}, heroRanking: pool.map((p) => p.id), warnings: [] },
+      ...extra,
+    });
+  }
+
+  test("hero re-curation: seeded spread across ≥ 2 heroes over 12 seeds on a clamp-tied pool", () => {
+    const edition = getEdition("gallery-monograph");
+    const heroes = new Set();
+    for (let i = 0; i < 12; i++) {
+      const plan = designComposition({
+        ...clampTiedInput(`hero-${i}`),
+        edition,
+        operators: { field: "paper", register: "quiet" },
+      });
+      heroes.add(plan.front.imageId);
+      // never outside the clamp: ls (45) and ed (55) are > 15 below 90
+      expect(["hs", "tq", "fb"]).toContain(plan.front.imageId);
+    }
+    expect(heroes.size).toBeGreaterThanOrEqual(2);
+  });
+
+  test("hero re-curation is deterministic and biased by the edition's shot-type preference", () => {
+    const edition = getEdition("gallery-monograph"); // prefers three_quarter/full_length
+    const a = designComposition({ ...clampTiedInput("det"), edition, operators: { field: "paper", register: "quiet" } });
+    const b = designComposition({ ...clampTiedInput("det"), edition, operators: { field: "paper", register: "quiet" } });
+    expect(a).toEqual(b);
+    // preference bias: the figure shots (tq/fb) win more often than the headshot
+    let figure = 0;
+    for (let i = 0; i < 24; i++) {
+      const plan = designComposition({
+        ...clampTiedInput(`bias-${i}`),
+        edition,
+        operators: { field: "paper", register: "quiet" },
+      });
+      if (plan.front.imageId === "tq" || plan.front.imageId === "fb") figure += 1;
+    }
+    expect(figure).toBeGreaterThan(12);
+  });
+
+  test("avoidHeroId is guaranteed when ≥ 2 clamp-eligible candidates exist", () => {
+    const edition = getEdition("house-classic");
+    for (let i = 0; i < 20; i++) {
+      const plan = designComposition({
+        ...clampTiedInput(`avoid-${i}`),
+        edition,
+        operators: { field: "paper", register: "standard" },
+        avoidHeroId: "hs",
+      });
+      expect(plan.front.imageId).not.toBe("hs");
+    }
+  });
+
+  test("a single clamp-eligible hero is served even when avoided (avoidance never empties)", () => {
+    const edition = getEdition("house-classic");
+    const plan = designComposition({
+      ...baseInput({ seed: "solo" }), // default pool: only hs (90) is within 15
+      edition,
+      operators: { field: "paper", register: "standard" },
+      avoidHeroId: "hs",
+    });
+    expect(plan.front.imageId).toBe("hs");
+  });
+
+  test("explicit locks/overrides beat the re-curation draw unconditionally", () => {
+    const edition = getEdition("gallery-monograph");
+    const plan = designComposition({
+      ...clampTiedInput("lock"),
+      edition,
+      operators: { field: "paper", register: "quiet" },
+      avoidHeroId: "ls",
+      overrides: { heroImageId: "ls" }, // low score AND avoided — still wins
+    });
+    expect(plan.front.imageId).toBe("ls");
+  });
+
+  test("edition scale narrows the name-solve clamps (monograph caps at 22pt)", () => {
+    const edition = getEdition("gallery-monograph");
+    for (let i = 0; i < 8; i++) {
+      const plan = designComposition({
+        ...baseInput({ seed: `scale-${i}` }),
+        edition,
+        operators: { field: "paper", register: "quiet" },
+      });
+      expect(plan.language.scale).toEqual({ minPt: 15, maxPt: 22, register: "quiet" });
+      expect(parseFloat(plan.typography.nameSize)).toBeLessThanOrEqual(22);
+    }
+  });
+
+  test("dark field threads a verified night palette into plan.palette", () => {
+    const edition = getEdition("ink-noir");
+    const plan = designComposition({
+      ...baseInput({ seed: "noir", forensicsById: { hs: darkTopForensics() } }),
+      edition,
+      operators: { field: "dark", register: "standard" },
+    });
+    expect(plan.palette.dark).toBe(true);
+    expect(plan.palette.muted).toBe(plan.language.palette.muted);
+    const { contrastRatio } = require("../composition/design-language");
+    expect(contrastRatio(plan.palette.text, plan.palette.background)).toBeGreaterThanOrEqual(7);
+    expect(edition.voices).toContain(plan.typography.voiceId);
+  });
+
+  test("no edition ⇒ legacy plan shape (no edition keys anywhere)", () => {
+    const plan = designComposition(baseInput({ seed: "legacy-shape" }));
+    expect(plan.language.scale).toBeUndefined();
+    expect(plan.language.field).toBeUndefined();
+    expect(plan.palette.dark).toBeUndefined();
+  });
+});

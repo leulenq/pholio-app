@@ -19,6 +19,10 @@
  * - `resolveEdition(input)` — suitability-gated, tone- and photo-affinity
  *   weighted, seeded draw; `avoidEditions` guarantees take-to-take cycling;
  *   `force` pins.
+ * - `resolveOperators(input)` — the two cross-cutting compositional
+ *   operators per take: `field` (paper|warm|plane|dark, gated per edition
+ *   allowlist + capabilities) and `register` (quiet|standard|display,
+ *   honest subranges of the edition's scale bounds).
  * - Suitability gates are honest capabilities (pool size, alpha matte,
  *   pairable aspects, kids) — never taste. Taste enters only as weights,
  *   floored at 0.35, so nothing suitable is ever eliminated.
@@ -56,6 +60,12 @@ const HERO_AREA_FLOOR_DEEP_MAT = 0.42;
  * - scale: name point bounds + tracking bias (−1 tight … +1 wide) +
  *   stacking appetite.
  * - palette: palette program id resolved by resolveEditionPalette.
+ * - fields: FIELD OPERATOR allowlist (paper | warm | plane | dark), listed
+ *   in preference order — the cross-cutting paper axis resolveOperators
+ *   draws from (dark gated on notKids + hero-luma affinity; plane gated on
+ *   a derivable plane tone).
+ * - heroPreference: rawShotType bias for the per-take hero re-curation
+ *   draw (absent = no bias; duet's pair draw is the front program's job).
  * - voices: font-library voice-id pool (cast stays tone+seed within it).
  * - ornaments: earned decoration grammar (most editions carry none).
  * - back: architecture pool + chrome style consumed by the back program
@@ -75,6 +85,7 @@ const EDITIONS = Object.freeze([
     lockups: ["inline", "contrast"],
     voices: ["editorial-serif", "quiet-classic"],
     palette: "auto",
+    fields: ["paper", "warm"],
     scale: { minPt: 20, maxPt: 38, trackingBias: 0, stackBias: 0.3 },
     ornaments: [],
     back: {
@@ -96,6 +107,8 @@ const EDITIONS = Object.freeze([
     lockups: ["inline", "contrast"],
     voices: ["clean-modern", "modern-warm"],
     palette: "paper-warm",
+    fields: ["warm", "paper"],
+    heroPreference: ["headshot", "portrait", "beauty"],
     scale: { minPt: 20, maxPt: 32, trackingBias: 0, stackBias: 0.2 },
     ornaments: [],
     back: {
@@ -114,6 +127,8 @@ const EDITIONS = Object.freeze([
     lockups: ["initial-line", "inline"],
     voices: ["hairline-fashion", "quiet-classic", "romantic-didone"],
     palette: "paper-ivory",
+    fields: ["paper", "warm", "dark"],
+    heroPreference: ["three_quarter", "full_length", "full_body"],
     scale: { minPt: 15, maxPt: 22, trackingBias: 0.8, stackBias: 0.15 },
     ornaments: ["keyline", "folio"],
     matDepth: 1.5, // deep-mat multiplier consumed by the matted builder
@@ -135,6 +150,7 @@ const EDITIONS = Object.freeze([
     lockups: ["stacked", "contrast", "inline"],
     voices: ["romantic-didone", "editorial-serif"],
     palette: "auto",
+    fields: ["paper", "warm"],
     scale: { minPt: 40, maxPt: 76, trackingBias: -0.4, stackBias: 0.6 },
     ornaments: ["folio"],
     back: {
@@ -153,6 +169,7 @@ const EDITIONS = Object.freeze([
     lockups: ["spine", "inline"],
     voices: ["stark-grotesque", "bold-grotesque"],
     palette: "paper-white",
+    fields: ["paper", "dark"],
     scale: { minPt: 18, maxPt: 30, trackingBias: 0.3, stackBias: 0.2 },
     ornaments: ["rules", "folio"],
     back: {
@@ -171,6 +188,7 @@ const EDITIONS = Object.freeze([
     lockups: ["stacked", "inline"],
     voices: ["stark-grotesque", "bold-grotesque"],
     palette: "auto",
+    fields: ["paper", "plane"],
     scale: { minPt: 56, maxPt: 110, trackingBias: -0.6, stackBias: 1 },
     ornaments: [],
     back: {
@@ -189,6 +207,7 @@ const EDITIONS = Object.freeze([
     lockups: ["inline", "contrast"],
     voices: ["hairline-fashion", "romantic-didone", "stark-grotesque"],
     palette: "ink-field",
+    fields: ["dark"],
     scale: { minPt: 22, maxPt: 40, trackingBias: 0.4, stackBias: 0.3 },
     ornaments: [],
     back: {
@@ -217,6 +236,7 @@ const EDITIONS = Object.freeze([
     lockups: ["inline", "contrast"],
     voices: ["editorial-serif", "modern-warm", "quiet-classic"],
     palette: "auto",
+    fields: ["paper", "warm"],
     scale: { minPt: 18, maxPt: 30, trackingBias: 0.1, stackBias: 0.2 },
     ornaments: ["hinge-rule"],
     back: {
@@ -235,6 +255,7 @@ const EDITIONS = Object.freeze([
     lockups: ["inline", "stacked"],
     voices: ["bold-grotesque", "modern-warm"],
     palette: "auto",
+    fields: ["plane", "paper"],
     scale: { minPt: 24, maxPt: 44, trackingBias: -0.2, stackBias: 0.5 },
     ornaments: [],
     back: {
@@ -445,6 +466,172 @@ function resolveEdition(input = {}) {
   };
 }
 
+// ── compositional operators (field × register) ─────────────────────────────
+
+/**
+ * Dark-field capability, mirroring ink-noir's photoAffinity: the hero's
+ * measured pixels must be able to carry a night field. Bright heroes
+ * (mean luma ≥ 0.62 ⇒ affinity 0.55 < AFFINITY_GATE) cannot.
+ */
+function darkFieldAffinity(heroLuma) {
+  if (!Number.isFinite(heroLuma)) return 0.85;
+  if (heroLuma <= 0.38) return 1.5;
+  if (heroLuma >= 0.62) return 0.55;
+  return 0.9;
+}
+
+/**
+ * A plane field needs a derivable plane tone: at least one usable hero
+ * palette entry to pull the flat plane color from (same usable-color window
+ * as accent derivation). No forensics ⇒ no honest plane.
+ */
+function hasDerivablePlaneTone(heroForensics) {
+  const palette = Array.isArray(heroForensics?.palette) ? heroForensics.palette : [];
+  return palette.some(
+    (c) =>
+      c &&
+      typeof c.hex === "string" &&
+      /^#?[0-9a-f]{6}$/i.test(c.hex.trim()) &&
+      Number(c.luma) > 0.05 &&
+      Number(c.luma) < 0.92,
+  );
+}
+
+/** Register subranges honestly available inside an edition's scale bounds. */
+const REGISTER_QUIET_MAX_MIN_PT = 22; // quiet exists only if the edition can set small
+const REGISTER_DISPLAY_MIN_MAX_PT = 56; // display exists only if the edition can set big
+
+function allowedRegisters(edition) {
+  const scale = edition?.scale || {};
+  const registers = ["standard"];
+  if (Number(scale.minPt) <= REGISTER_QUIET_MAX_MIN_PT) registers.push("quiet");
+  if (Number(scale.maxPt) >= REGISTER_DISPLAY_MIN_MAX_PT) registers.push("display");
+  return registers;
+}
+
+function normalizeAvoidList(value) {
+  return (Array.isArray(value) ? value : value != null ? [value] : [])
+    .filter(Boolean)
+    .map(String);
+}
+
+/**
+ * Resolve the two cross-cutting compositional operators for a take.
+ *
+ * field ∈ paper | warm | plane | dark — drawn from the edition's `fields`
+ * allowlist (preference-ordered), with capability gates exactly like the
+ * edition resolver's: `dark` requires notKids AND hero-luma affinity ≥ the
+ * gate (a bright warm hero never carries a dark field, whatever the
+ * edition); `plane` requires a derivable plane tone from the hero's
+ * palette. When the gates empty the allowlist the field falls back to
+ * `paper` — the one field every photograph can carry.
+ *
+ * register ∈ quiet | standard | display — the honest subranges within the
+ * edition's scale bounds (quiet iff minPt ≤ 22, display iff maxPt ≥ 56,
+ * standard always).
+ *
+ * `avoid` supports the composite-tuple FIFO: { field | fields, register |
+ * registers } — most-recent-first lists; avoidance never empties a pool
+ * (it is ignored when it would).
+ *
+ * Deterministic for identical inputs (seeded draw).
+ *
+ * @param {object} input — { edition, seed, identity, heroForensics, kids,
+ *   avoid }
+ * @returns {{ field: string, register: string, because: string }}
+ */
+function resolveOperators(input = {}) {
+  const {
+    edition = null,
+    seed,
+    identity = "",
+    heroForensics = null,
+    kids = false,
+    avoid = null,
+  } = input;
+
+  if (!edition) {
+    return { field: "paper", register: "standard", because: "no edition — neutral operators" };
+  }
+
+  const notes = [];
+  const heroLuma = Number(heroForensics?.luma?.mean);
+
+  // field candidates: allowlist → capability gates → avoid → seeded draw
+  const allowlist = Array.isArray(edition.fields) && edition.fields.length
+    ? edition.fields
+    : ["paper"];
+  let fieldPool = allowlist.filter((f) => {
+    if (f === "dark") {
+      if (kids) {
+        notes.push("dark gated: kids");
+        return false;
+      }
+      if (darkFieldAffinity(heroLuma) < AFFINITY_GATE) {
+        notes.push(`dark gated: hero luma ${heroLuma.toFixed(2)} cannot carry a night field`);
+        return false;
+      }
+      return true;
+    }
+    if (f === "plane") {
+      if (!hasDerivablePlaneTone(heroForensics)) {
+        notes.push("plane gated: no derivable plane tone");
+        return false;
+      }
+      return true;
+    }
+    return true;
+  });
+  if (!fieldPool.length) {
+    fieldPool = ["paper"];
+    notes.push("all fields gated — paper fallback");
+  }
+  const avoidFields = normalizeAvoidList(avoid?.fields ?? avoid?.field);
+  if (avoidFields.length && fieldPool.length > 1) {
+    const kept = fieldPool.filter(
+      (f) => !avoidFields.slice(0, fieldPool.length - 1).includes(f),
+    );
+    if (kept.length) fieldPool = kept;
+  }
+
+  const rng = createMulberry32(
+    seedToUint32(`${seed ?? "auto"}:operators:${edition.id}:${identity}`),
+  );
+  // Preference-ordered allowlist: earlier entries carry mild primacy.
+  const drawWeighted = (pool, weightOf) => {
+    const weights = pool.map(weightOf);
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = rng() * total;
+    let pick = pool[0];
+    for (let i = 0; i < pool.length; i++) {
+      r -= weights[i];
+      if (r <= 0) {
+        pick = pool[i];
+        break;
+      }
+    }
+    return pick;
+  };
+  const field = drawWeighted(fieldPool, (f) => 1 / (1 + 0.5 * Math.max(0, allowlist.indexOf(f))));
+
+  // register candidates: honest subranges → avoid → seeded draw
+  let registerPool = allowedRegisters(edition);
+  const avoidRegisters = normalizeAvoidList(avoid?.registers ?? avoid?.register);
+  if (avoidRegisters.length && registerPool.length > 1) {
+    const kept = registerPool.filter(
+      (rgs) => !avoidRegisters.slice(0, registerPool.length - 1).includes(rgs),
+    );
+    if (kept.length) registerPool = kept;
+  }
+  const register = drawWeighted(registerPool, () => 1);
+
+  return {
+    field,
+    register,
+    because: `field '${field}' of [${fieldPool.join(", ")}], register '${register}' of [${registerPool.join(", ")}] — seeded draw${notes.length ? ` (${notes.join("; ")})` : ""}`,
+  };
+}
+
 // ── palette programs ────────────────────────────────────────────────────────
 
 function hexToRgb(hex) {
@@ -547,6 +734,9 @@ module.exports = {
   isEditionId,
   isSuitable,
   resolveEdition,
+  resolveOperators,
+  allowedRegisters,
+  hasDerivablePlaneTone,
   resolveEditionPalette,
   deriveInkFieldPaper,
   contrastRatio,
@@ -556,4 +746,6 @@ module.exports = {
   HERO_AREA_FLOOR_DEEP_MAT,
   KIDS_POOL,
   AFFINITY_GATE,
+  REGISTER_QUIET_MAX_MIN_PT,
+  REGISTER_DISPLAY_MIN_MAX_PT,
 };

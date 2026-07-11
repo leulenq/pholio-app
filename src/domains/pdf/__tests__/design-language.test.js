@@ -178,3 +178,106 @@ describe("synthesizeDesignLanguage", () => {
     expect(forced.statsPlacement.justification).toMatch(/override/);
   });
 });
+
+// ── editions threading (phase 2.3) ──────────────────────────────────────────
+
+describe("synthesizeDesignLanguage — editions threading", () => {
+  const { getEdition } = require("../composition/editions");
+  const { contrastRatio: editionContrast } = require("../composition/editions");
+
+  const edInput = (edition, operators, overrides = {}) => ({
+    profile: { slug: "ana", first_name: "Ana", last_name: "Petrova" },
+    archetype: { label: "Editorial", scores: { runway: 70, editorial: 75 } },
+    castingAnalysis: { lookType: "editorial" },
+    statsBlock: { category: "women", isFitness: false },
+    poolAnalysis: { pool: [{}, {}, {}, {}] },
+    heroForensics: {
+      warmth: 0.3,
+      luma: { mean: 0.25 },
+      palette: [{ hex: "#7A4A2E", population: 0.4, sat: 0.45, luma: 0.34 }],
+      quiet: { bottom: { score: 0.2 } },
+    },
+    seed: "ed-1",
+    edition,
+    operators,
+    ...overrides,
+  });
+
+  test("voice cast is restricted to the edition's voice pool", () => {
+    const swiss = getEdition("swiss-modernist");
+    for (let i = 0; i < 15; i++) {
+      const lang = synthesizeDesignLanguage(
+        edInput(swiss, { field: "paper", register: "standard" }, { seed: `v-${i}` }),
+      );
+      expect(swiss.voices).toContain(lang.voiceId);
+    }
+  });
+
+  test("language.scale exposes the edition bounds narrowed by the register", () => {
+    const monograph = getEdition("gallery-monograph"); // 15–22pt
+    const quiet = synthesizeDesignLanguage(edInput(monograph, { field: "paper", register: "quiet" }));
+    expect(quiet.scale).toEqual({ minPt: 15, maxPt: 22, register: "quiet" });
+
+    const masthead = getEdition("editorial-masthead"); // 40–76pt
+    const display = synthesizeDesignLanguage(edInput(masthead, { field: "paper", register: "display" }));
+    expect(display.scale).toEqual({ minPt: 56, maxPt: 76, register: "display" });
+
+    const standard = synthesizeDesignLanguage(edInput(masthead, { field: "paper", register: "standard" }));
+    expect(standard.scale).toEqual({ minPt: 40, maxPt: 76, register: "standard" });
+  });
+
+  test("dark field maps to the verified ink-field program regardless of the edition's palette id", () => {
+    const monograph = getEdition("gallery-monograph"); // own palette: paper-ivory
+    const lang = synthesizeDesignLanguage(edInput(monograph, { field: "dark", register: "quiet" }));
+    expect(lang.palette.dark).toBe(true);
+    expect(editionContrast(lang.palette.ink, lang.palette.paper)).toBeGreaterThanOrEqual(7);
+    expect(lang.palette.muted).toBeTruthy();
+    expect(lang.field).toBe("dark");
+  });
+
+  test("warm and paper fields map to the corresponding paper programs with re-gated accents", () => {
+    const swiss = getEdition("swiss-modernist");
+    const warm = synthesizeDesignLanguage(edInput(swiss, { field: "warm", register: "standard" }));
+    expect(warm.palette.paper).toBe("#FAF8F5");
+    expect(contrastRatio(warm.palette.accent, warm.palette.paper)).toBeGreaterThanOrEqual(4.5);
+
+    const paper = synthesizeDesignLanguage(edInput(swiss, { field: "paper", register: "standard" }));
+    expect(paper.palette.paper).toBe("#FFFFFF"); // swiss declares paper-white
+    expect(contrastRatio(paper.palette.accent, paper.palette.paper)).toBeGreaterThanOrEqual(4.5);
+
+    const monograph = getEdition("gallery-monograph");
+    const ivory = synthesizeDesignLanguage(edInput(monograph, { field: "paper", register: "quiet" }));
+    expect(ivory.palette.paper).toBe("#FFFEFA"); // non-white editions get ivory
+  });
+
+  test("plane field keeps the design-language default palette plus the flag", () => {
+    const cutout = getEdition("studio-cutout");
+    const plane = synthesizeDesignLanguage(edInput(cutout, { field: "plane", register: "standard" }));
+    const legacy = synthesizeDesignLanguage({ ...edInput(null, null), edition: null, operators: null });
+    expect(plane.palette.plane).toBe(true);
+    const { plane: _flag, ...rest } = plane.palette;
+    expect(rest).toEqual(legacy.palette); // same paper/ink/accent/rule as the default
+  });
+
+  test("tracking bias is applied inside the voice's own bounds", () => {
+    const monograph = getEdition("gallery-monograph"); // trackingBias +0.8 (wide)
+    for (let i = 0; i < 12; i++) {
+      const lang = synthesizeDesignLanguage(
+        edInput(monograph, { field: "paper", register: "quiet" }, { seed: `t-${i}` }),
+      );
+      const { VOICES } = require("../composition/font-library");
+      const voice = VOICES[lang.voiceId];
+      expect(lang.name.trackingEm).toBeGreaterThanOrEqual(voice.tracking.min);
+      expect(lang.name.trackingEm).toBeLessThanOrEqual(voice.tracking.max);
+    }
+  });
+
+  test("no edition ⇒ no edition keys on the language (legacy shape)", () => {
+    const lang = synthesizeDesignLanguage(edInput(null, null));
+    expect(lang.scale).toBeUndefined();
+    expect(lang.field).toBeUndefined();
+    expect(lang.edition).toBeUndefined();
+    expect(lang.palette.muted).toBeUndefined();
+    expect(lang.palette.dark).toBeUndefined();
+  });
+});

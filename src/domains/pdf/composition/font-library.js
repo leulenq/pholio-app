@@ -208,11 +208,14 @@ function getVoice(id) {
  *
  * @param {object} tone — { formality, energy, warmth, density } 0..1
  * @param {object} [options] — { seed, salt, requested (voice id, wins when
- *   valid), kids (boolean — restricts the candidate set) }
+ *   valid), kids (boolean — restricts the candidate set), pool (voice-id
+ *   allowlist, e.g. an edition's voice pool — restricts the cast; kids
+ *   vetoes still apply on top; the pool is IGNORED when honoring it would
+ *   empty the candidate set), avoid (previous take's voice id) }
  * @returns {{ voiceId, voice, because }}
  */
 function resolveVoice(tone = {}, options = {}) {
-  const { seed, salt = "voice", requested = null, kids = false, avoid = null } = options;
+  const { seed, salt = "voice", requested = null, kids = false, avoid = null, pool = null } = options;
 
   if (requested && isVoice(requested)) {
     if (!kids || !["hairline-fashion", "romantic-didone"].includes(requested)) {
@@ -229,9 +232,25 @@ function resolveVoice(tone = {}, options = {}) {
     };
   }
 
+  // Edition voice pool: restricts the cast AFTER the kids veto (safety
+  // composes with taste). A pool that would empty the set — e.g. every
+  // pooled voice kids-vetoed — is ignored rather than obeyed.
+  const kidsEligible = Object.entries(VOICES).filter(
+    ([id]) => !kids || !["hairline-fashion", "romantic-didone"].includes(id),
+  );
+  const poolIds = Array.isArray(pool) ? pool.filter((id) => isVoice(id)) : null;
+  let entries = kidsEligible;
+  let pooled = false;
+  if (poolIds && poolIds.length) {
+    const restricted = kidsEligible.filter(([id]) => poolIds.includes(id));
+    if (restricted.length) {
+      entries = restricted;
+      pooled = true;
+    }
+  }
+
   const axes = ["formality", "warmth", "energy", "density"];
-  const candidates = Object.entries(VOICES)
-    .filter(([id]) => !kids || !["hairline-fashion", "romantic-didone"].includes(id))
+  const candidates = entries
     // take-to-take diversity: the previous take's voice is excluded so a
     // fresh take always speaks in a different register (unless it is the
     // only voice left standing)
@@ -266,7 +285,7 @@ function resolveVoice(tone = {}, options = {}) {
   return {
     voiceId: pick.id,
     voice: pick.voice,
-    because: `tone-affinity cast (distance ${pick.dist.toFixed(3)}, ${nearest.length} candidates)`,
+    because: `tone-affinity cast (distance ${pick.dist.toFixed(3)}, ${nearest.length} candidates${pooled ? `, edition pool [${poolIds.join(", ")}]` : ""})`,
   };
 }
 
