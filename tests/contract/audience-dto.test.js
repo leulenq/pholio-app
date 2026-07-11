@@ -337,6 +337,9 @@ const DISCOVERY_ALLOWED = new Set([
   "is_minor",
   "social",
   "images",
+  // Derived representation status (WS6.1 / LB-5) — not raw profile columns.
+  "representation_status",
+  "represented_by",
 ]);
 const IMAGE_ALLOWED = new Set([...PUBLIC_IMAGE_FIELDS, "url"]);
 const CONFIRMED_JOB_ALLOWED = new Set([...CONFIRMED_JOB_FIELDS, "display_name"]);

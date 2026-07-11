@@ -235,6 +235,8 @@ async function createSchema() {
       t.string("suit_size", 20).nullable();
       t.string("stats_track", 20).nullable();
       t.timestamp("measurements_updated_at").nullable();
+      // WS6.4 — agency-set-only in-person measurement confirmation.
+      t.timestamp("measured_in_person_at").nullable();
       t.integer("age").nullable();
       // Age is DERIVED from DOB (audit P0-7) — the stored `age` column above is
       // legacy and no longer read by discover-search.
@@ -254,6 +256,9 @@ async function createSchema() {
       t.string("hair_type", 50).nullable();
       t.string("eye_color", 50).nullable();
       t.text("ethnicity").nullable();
+      // WS6.2 — adult-only, minor-gated in buildAgencyDiscoveryDTO.
+      t.text("tattoos").nullable();
+      t.text("piercings").nullable();
       t.text("specialties").nullable();
       t.text("specializations").nullable();
       t.text("languages").nullable();
@@ -286,6 +291,21 @@ async function createSchema() {
     if (!(await knex.schema.hasColumn("profiles", "ethnicity"))) {
       await knex.schema.alterTable("profiles", (t) => {
         t.text("ethnicity").nullable();
+      });
+    }
+    if (!(await knex.schema.hasColumn("profiles", "measured_in_person_at"))) {
+      await knex.schema.alterTable("profiles", (t) => {
+        t.timestamp("measured_in_person_at").nullable();
+      });
+    }
+    if (!(await knex.schema.hasColumn("profiles", "tattoos"))) {
+      await knex.schema.alterTable("profiles", (t) => {
+        t.text("tattoos").nullable();
+      });
+    }
+    if (!(await knex.schema.hasColumn("profiles", "piercings"))) {
+      await knex.schema.alterTable("profiles", (t) => {
+        t.text("piercings").nullable();
       });
     }
   }
