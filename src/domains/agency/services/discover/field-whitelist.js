@@ -209,12 +209,21 @@ const PROTECTED_CLASS_TERMS = [
 // color, not heritage — do not set aside "black hair" or "blonde".
 const PROTECTED_TERM_SAFE_CONTEXT = /\b(hair|eyes?|eyed|brows?|lashes)\b/;
 
+// Sub-constraints are addressed as dotted paths ("measurements.waist_cm",
+// "measurements.dress_size") — they inherit the tier/relaxability of their
+// root field so grouping never sees a null tier.
+function rootField(field) {
+  return typeof field === "string" ? field.split(".")[0] : field;
+}
+
 function tierFor(field) {
-  return HARD_FIELDS[field] ? HARD_FIELDS[field].tier : null;
+  const root = rootField(field);
+  return HARD_FIELDS[root] ? HARD_FIELDS[root].tier : null;
 }
 
 function relaxabilityFor(field) {
-  return HARD_FIELDS[field] ? HARD_FIELDS[field].relaxable : null;
+  const root = rootField(field);
+  return HARD_FIELDS[root] ? HARD_FIELDS[root].relaxable : null;
 }
 
 function enumFor(field) {
