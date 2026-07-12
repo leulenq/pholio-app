@@ -71,6 +71,12 @@ export default function AgencySessionGate() {
     return <Navigate to={data.redirect || '/login'} replace />;
   }
 
+  const isSetupRoute = location.pathname === '/dashboard/agency/setup';
+  if (!data.agencyOnboardingCompletedAt && !isSetupRoute) {
+    const next = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/dashboard/agency/setup?returnTo=${encodeURIComponent(next)}`} replace />;
+  }
+
   return (
     <AgencyPermissionsProvider session={data}>
       {entrySplash}

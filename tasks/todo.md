@@ -1,3 +1,122 @@
+# Production Consolidation — 2026-07-11
+
+## Scope
+
+- [x] Fetched/pruned GitHub refs and listed all 35 remote branches.
+- [x] Created isolated worktree:
+  `/private/tmp/pholio-prod-consolidation` on
+  `consolidation-2026-07-11`.
+- [x] Included current production candidates:
+  - `origin/claude/discover-talent-search-redesign-wbivg7`
+  - `origin/claude/pholio-comp-card-system-nofxfm`
+  - `origin/codex/redefine-agency-access-and-onboarding-flow`
+  - `origin/devin/1783740533-dev-seeded-agency-login`
+  - `origin/devin/1783451377-agency-onboarding-design`
+- [x] Preserved dirty artifacts in the original checkout:
+  `PERSISTENCE_REPORT.md`, `test.sqlite3`, and `scratch_test_db.js`.
+- [x] Run production readiness checks across merged domains.
+
+## Branch Decisions
+
+- Included Discover search because it is the newest active branch, merges
+  cleanly, removes sensitive vision-derived fields, and adds focused migration,
+  parsing, DTO, rate-limit, and search tests.
+- Included Comp Card Editions because it merges cleanly and adds renderer
+  parity, matte precompute, gallery gates, and PDF composition tests.
+- Included Agency Access because PR #30 is an open implementation branch and
+  the app-side setup gate is required before agency launch.
+- Included dev seeded login because PR #31 is explicitly disabled in production
+  (`NODE_ENV !== "production"` and `AUTH_PASSTHROUGH_ENABLED === "1"`) and it
+  preserves the new agency setup redirect for incomplete agency sessions.
+- Included the agency onboarding data-model design doc from PR #29 because it
+  is docs-only and aligns with the included agency access flow.
+- Held `origin/claude/logo-icon-12euah`: merge conflicts with current favicon
+  and apple-touch-icon deletions plus `PRODUCT.md`; needs intentional brand
+  asset reconciliation.
+- Held `origin/devin/1783329493-talent-settings-editorial-redesign`: PR #25 is
+  dirty against current `main` and overlaps the already refactored Settings
+  surface.
+- Held `origin/claude/intel-page-completion-p9c8mh`: branch contains stale
+  IntelPage structure under `instruments/` while current `main` already has the
+  merged Intel implementation.
+- Held open superseded settings PR branches (`#15`, `#16`, `#19`) and closed
+  stale settings branches because newer Settings/Intel work is already merged.
+- Held PR #22 (`status-document-for-codex`) because the richer report artifact
+  was already merged via PR #23.
+- Held draft PR #24 (`cursor/setup-dev-environment-001a`) because it is
+  cloud-agent setup documentation, not a production app change.
+- Held old/stale local and remote branches whose heads are already contained in
+  `main` or predate the current architecture.
+
+## Review
+
+- `npm install` and `npm install --prefix client --legacy-peer-deps` completed
+  in the isolated worktree. Root install required network access after the
+  sandbox blocked `registry.npmjs.org`.
+- Focused non-screenshot test matrix passed: 24 suites, 369 passing tests, 8
+  skipped tests. Covered agency setup gating, Discover contract/parsing,
+  representation disclosure, audience DTOs, Discover migrations/rate limits,
+  roster measured-in-person endpoints, comp-card editions, shaping parity, and
+  matte precompute.
+- `src/domains/pdf/__tests__/scrim-render.test.js` still times out in this Mac
+  runtime because Puppeteer screenshot capture hangs even in a minimal smoke
+  script. Static/template and non-screenshot PDF tests pass; rerun this raster
+  gate in CI or a browser-stable machine before final release approval.
+- `npm run migrate:status` reports 167 completed migrations and no pending
+  migration files in the local integration database.
+- `npm run client:build` passes. Vite reports the existing large-chunk warning.
+- Focused client ESLint passes on the merged app/setup/discover/login files;
+  ESLint reports the existing `.eslintignore` deprecation warning.
+- `npm run build:function` passes after externalizing `harfbuzzjs` in the
+  serverless bundle script.
+- Root `npm install` reports 49 audit findings (2 low, 20 moderate, 19 high, 8
+  critical). This appears to be existing dependency audit debt, but it should be
+  reviewed before a public production launch.
+
+# Current Task — Implement pholio-app agency access/setup
+
+- [x] Inspect current agency auth, provisioning, API guards, migrations, app routes, and agency UI components.
+- [x] Add app-side schema and API support for agency access requests, setup steps, and import-job intake.
+- [x] Enforce setup gating across login redirects, SPA routing, and agency API guards.
+- [x] Add `/dashboard/agency/setup` page using the agency command-center design language.
+- [x] Add a handoff note for the separate `pholio-landing` agent; do not implement landing pages here.
+- [x] Run focused backend/client verification, commit, and create PR metadata.
+
+## Review
+
+Implemented the `pholio-app` side only: public intake API for the landing form, setup persistence, setup gating, a lightweight agency setup page, setup API routes, provisioning status semantics, focused setup-gate tests, and a handoff note for a separate `pholio-landing` agent.
+
+---
+
+# Current Task — Agency access system stress test
+
+- [x] Recreated `agency-access-flow-revisions` branch in the current Codex checkout.
+- [x] Ran a fresh subagent stress test against the agency access plan.
+- [x] Applied repo-boundary correction: request form belongs in `pholio-landing`; authenticated setup belongs in `pholio-app`.
+- [x] Removed generic platform-funnel language and added agency-dashboard design contracts.
+- [x] Added blocking setup-gate, internal authorization, agency status, minors, board-model, open-call, import, and copy acceptance criteria.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Stress-tested and hardened `tasks/agency-access-system.md` so implementation cannot proceed without addressing setup bypasses, Pholio-internal provisioning authorization, minor-data controls, app/landing repo ownership, and agency-dashboard design alignment.
+
+---
+
+# Current Task — Agency access system research
+
+- [x] Inspect current agency/auth/onboarding routes and existing agency design context.
+- [x] Review industry skill references for agency credibility and terminology.
+- [x] Research external access-request, SaaS onboarding, model-agency software, and migration patterns.
+- [x] Write the Pholio agency access/request + post-login setup system specification.
+- [x] Run verification checks, commit changes, and create PR metadata.
+
+## Review
+
+Drafted `tasks/agency-access-system.md` with the recommended reviewed-access request system, internal review workflow, post-login agency setup sequence, and import/migration model.
+
+---
+
 # Claude Configuration Audit & Build Plan — 2026-07-04
 
 ## Audit findings
@@ -2545,3 +2664,64 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 ## Review
 
 - The PR now carries the DOCX as text, so binary-file restrictions should no longer hide the artifact from review.
+# Agency Workspace Commissioning — 2026-07-11
+
+## Plan
+
+- [x] Audit the orphaned agency onboarding route, current form flow, agency design system, talent `/apply`, and talent onboarding references.
+- [x] Restore first-login routing for incomplete agency workspaces without changing completed-agency entry behavior.
+- [x] Rebuild setup as five focused commissioning chapters with a persistent editorial progress narrative.
+- [x] Replace the submit/checklist ending with a dedicated “agency workspace ready” reveal.
+- [x] Preserve real API behavior for profile, branding, provisioned team access, first-view selection, and completion.
+- [x] Verify focused lint, production build, and rendered desktop/mobile behavior.
+
+## Design decision
+
+- Apply the agency system’s “two systems, one material” rule: Playfair identity moments, Inter controls, rectangular 8–12px controls, ink/cream/white layering, rare gold, and 150–200ms state motion. Borrow only the talent flows’ one-subject-per-chapter pacing and terminal reveal—not their pill controls, dark screen-test styling, or spring choreography.
+- Treat setup as commissioning a manually approved private workspace. The first-value moment is the assembled agency identity resolving into a ready operational workspace.
+
+## Review
+
+- Restored `/dashboard/agency/onboarding` as a standalone route inside the authenticated agency gate and routed only incomplete agency sessions into it; completed agencies continue directly to the dashboard.
+- Replaced the beige setup document with five focused chapters: The house, Identity, The team, Working rhythm, and Commission. The persistent ink rail, Playfair mastheads, cream working stage, rectangular controls, rare gold, and 180–200ms transitions follow the agency “Editorial Ledger” system.
+- Added a live agency workspace proof, real provisioned-login role mapping (Booker/Scout/Administrator/View only), inactive-member filtering, inline URL validation, query/error states, focused-heading announcements, and a hard session refresh after the ready reveal.
+- Removed false setup promises: notification preferences are not surfaced because no delivery path consumes them, and the selected first working view is described and used only for the post-commissioning entry where it is actually honored.
+- The final API completion now resolves into a dedicated dark “Your agency workspace is ready” reveal before entering the selected workspace view.
+- Verification: focused ESLint passes; `npm run build` passes (3,675 modules, existing large-chunk warning); `git diff --check` passes for every touched file. Rendered browser QA covered all five chapters plus the final reveal at 1440×900 and the first chapter at 390×844, with no horizontal overflow at mobile width.
+# Agency Onboarding Brand Audit & Redesign — 2026-07-11
+
+## Audit findings
+
+- [x] P0 — Replace the approximated title-case `Pholio.` mark with the exact shared uppercase Noto Serif Display wordmark and gold sweep used elsewhere in-product.
+- [x] P1 — Remove the full-height dark stepper rail; it reads as generic SaaS onboarding navigation rather than authored Pholio framing.
+- [x] P1 — Remove the fake dashboard/navigation preview, circular member avatars, checkmark review list, and boxed upload-card composition.
+- [x] P1 — Replace repeated form/admin layouts with chapter-specific editorial compositions and more decisive negative space.
+- [x] P1 — Strengthen cinematic pacing with a fixed brand masthead, thin narrative progress spine, scene transitions, and a reserved action dock.
+- [x] P2 — Reduce filler copy and repeated explanation; keep only copy that directs the commissioning decision.
+
+## Plan
+
+- [x] Rebuild the shell and progress framing around the canonical shared Pholio wordmark.
+- [x] Distill each chapter into one visual idea while preserving the existing APIs and validation.
+- [x] Rework the final review and ready reveal as a true co-branded commissioning moment.
+- [x] Verify banned-pattern compliance and focused lint/build; rendered browser QA was attempted but blocked by the local-run approval limit.
+
+## Audit baseline
+
+- Accessibility: 3/4
+- Performance: 3/4
+- Responsive: 4/4
+- Theming: 3/4
+- Anti-patterns: 1/4
+- **Total: 14/20 — technically sound, visually generic.**
+
+## Review
+
+- Replaced both hand-typed `Pholio.` approximations with the exact shared `PholioBillingWordmark` treatment: uppercase Noto Serif Display, 400 weight, 0.2em tracking, fixed Pholio gold, and canonical sweep.
+- Removed the fixed dark SaaS sidebar and introduced a full-width ink masthead, two-pixel progress light, slim narrative spine, chapter-specific paper stage, and stable bottom action dock.
+- Reduced the flow from five chapters to four consequential chapters by removing the trivial first-view preference: Agency, Brand, Team, and Commission.
+- Removed the fake dashboard nav preview, circular member avatars, repeated Lucide intro blocks, checkmark review list, success facts strip, and repeated explanatory filler.
+- Replaced invented luxury metaphors with credible agency language: agency identity, agency owner, booker, team access, brand mark, and commission.
+- Branding now resolves into a full-stage real Pholio/agency lockup using the uploaded mark and selected agency accent; Commission resolves the same identity into a co-branded handoff.
+- The final reveal now contains only the canonical Pholio mark, the agency mark, one ready statement, and the workspace entry action.
+- Verification: Impeccable detector reports zero anti-pattern hits; focused ESLint passes; production build passes (3,675 modules, existing large-chunk warning); scoped `git diff --check` passes. Browser QA could not be rerun because local-server approval was blocked by the environment usage limit; the prior version had been verified at 1440×900 and 390×844, and the new CSS retains explicit desktop/tablet/mobile structures.

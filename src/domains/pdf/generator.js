@@ -407,18 +407,33 @@ async function renderCompCard(slug, theme = null, opts = null) {
                 // surface loudly (telemetry tripwire), never to ship silently.
                 try {
                   const parsed = JSON.parse(fitReport);
+                  if (parsed && parsed.floorHits > 0) {
+                    // Booker's law gate: the fit guard had to clamp the name
+                    // at the 14pt floor — the composer shipped geometry it
+                    // could not honor. Fail the take; the route's engine
+                    // fallback produces a verified card instead of this one
+                    // shipping with an unreadable or floor-clamped name.
+                    throw Object.assign(
+                      new Error(
+                        `rendered name hit the 14pt floor (${parsed.floorHits} span(s)) — take rejected`,
+                      ),
+                      { code: "COMPCARD_NAME_FLOOR" },
+                    );
+                  }
                   if (parsed && (parsed.minScale < 0.8 || parsed.ghostsRemoved > 0)) {
                     console.error(
                       "[renderCompCard] RENDERED-NAME-INTEGRITY: fit guard made a non-trivial repair",
                       parsed,
                     );
                   }
-                } catch {
+                } catch (gateErr) {
+                  if (gateErr && gateErr.code === "COMPCARD_NAME_FLOOR") throw gateErr;
                   /* report parse is best-effort */
                 }
               }
             }
           } catch (fitErr) {
+            if (fitErr && fitErr.code === "COMPCARD_NAME_FLOOR") throw fitErr;
             console.warn(
               "[renderCompCard] name-fit guard did not report:",
               fitErr.message,

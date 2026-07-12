@@ -1,5 +1,18 @@
 # Lessons Learned
 
+## 2026-07-11 — Pholio cinematic work cannot be a luxury SaaS template
+
+- Never hand-type or approximate the Pholio wordmark. Reuse the canonical shared mark: uppercase Noto Serif Display, fixed platform gold, wide tracking, and the established sweep where the shared component provides it.
+- An ink sidebar, cream form pane, serif headline, and gold button do not by themselves make a surface Pholio. Full-height steppers, fake dashboard previews, avatar ledgers, checklist reviews, and success-metric strips remain generic onboarding grammar even when recolored.
+- Borrow talent `/apply` and onboarding at the level of pacing: one subject per scene, chapter-specific composition, stable action dock, meaningful image/identity material, and an earned terminal reveal. Do not copy talent-specific controls or decoration into the agency system.
+- Use real agency language (`agency owner`, `booker`, `board/division`, `team access`) instead of stacking invented luxury metaphors such as house, room, door, and steward.
+
+## 2026-07-11 — Parallel agents need strict integration ownership
+
+- When the user requests parallel agents, assign each agent a disjoint file or read-only review lane, prohibit agent commits, and keep shared integration files with the lead agent.
+- The lead agent owns all cross-lane review, verification, task documentation, and commit grouping; agents report findings rather than landing overlapping changes.
+- Visual, JSX, and routing audits make good parallel read-only lanes for a frontend redesign because they surface independent classes of defects without filesystem collisions.
+
 ## 2026-07-02 — Trace apparent field lines to section boundaries
 
 - A horizontal line near the bottom of a field may belong to the next section, not the field itself.

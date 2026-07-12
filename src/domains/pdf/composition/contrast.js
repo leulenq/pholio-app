@@ -9,28 +9,54 @@
  *
  * Model: the forensics luma grid gives mean/extremes of the band under the
  * type. Treating band mean luma as a flat backdrop, WCAG contrast for white
- * ink is (1.05)/(Lband + 0.05) and for near-black ink (Lband + 0.05)/(0.055).
+ * ink is (1.05)/(Yband + 0.05) and for near-black ink (Yband + 0.05)/(0.11).
  * Targets: ≥ 4.5 for confident placement; a scrim multiplies the effective
  * backdrop toward its own tone, so the required scrim strength is solved
  * from the contrast deficit. Bands that are both mid-luma AND busy (high
  * detail / luma spread) can't be rescued tastefully → 'relocate'.
+ *
+ * COLOR SPACE (critical): the forensics luma grid stores GAMMA-encoded sRGB
+ * gray (built from sharp().greyscale(), values 0..1). WCAG relative-luminance
+ * contrast is defined on LINEAR luminance Y, so every band gray g must pass
+ * through the sRGB transfer (srgbToLinear) before any ratio math — feeding
+ * gamma gray straight into the ratio formula roughly DOUBLES dark-ink verdicts
+ * (gamma 0.5 judged 5.0:1 vs the true 2.4:1). CSS, by contrast, composites a
+ * semi-opaque scrim in gamma space, so scrim blends are solved in gamma space
+ * and only the resulting effective backdrop is linearized for the ratio. This
+ * matches the convention in front-program/synthesize.js.
  */
 
 const TARGET_CONTRAST = 4.5;
 const SCRIM_MIN = 0.2;
 const SCRIM_MAX = 0.62;
-const INK_DARK_LUMA = 0.06; // ≈ #1A1815 relative luminance
+// Conservative LINEAR relative-luminance floor for the darkest usable ink.
+// Pure #1A1815 sits near Y=0.009; we hold 0.06 so the dark-ink gate never
+// flatters itself. Compared in linear space against linearized backdrop Y.
+const INK_DARK_LUMA = 0.06;
 
 function clamp(n, lo, hi) {
   return Math.min(hi, Math.max(lo, n));
 }
 
-function contrastWhiteOver(luma) {
-  return 1.05 / (luma + 0.05);
+// sRGB transfer (gamma → linear) and its inverse (linear → gamma). Grid gray
+// is gamma-encoded; ratio math needs linear Y, scrim compositing needs gamma.
+function srgbToLinear(g) {
+  const c = clamp(g, 0, 1);
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+function linearToSrgb(y) {
+  const c = clamp(y, 0, 1);
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
 }
 
+// White (#FFFFFF, Y=1) over a band whose GAMMA gray is `luma`.
+function contrastWhiteOver(luma) {
+  return 1.05 / (srgbToLinear(luma) + 0.05);
+}
+
+// Near-black ink over a band whose GAMMA gray is `luma`.
 function contrastDarkOver(luma) {
-  return (luma + 0.05) / (INK_DARK_LUMA + 0.05);
+  return (srgbToLinear(luma) + 0.05) / (INK_DARK_LUMA + 0.05);
 }
 
 /**
@@ -135,14 +161,18 @@ function resolveTextContrast({ forensics, edge = "bottom", depth } = {}) {
   }
 
   // Scrim: blend the worst-case backdrop toward the scrim tone until the
-  // target holds. effL = L·(1−s) + Ltone·s ⇒ solve s for the target.
+  // target holds. CSS composites the semi-opaque veil in GAMMA space, so the
+  // blend effG = worstG·(1−s) + toneG·s is solved in gamma space; the target,
+  // however, is a LINEAR-luminance threshold, so we convert it back to gamma
+  // (linearToSrgb) before solving for s.
   const direction = ink === "light" ? "darken" : "lighten";
-  const tone = direction === "darken" ? 0.02 : 0.97;
-  const worst = direction === "darken" ? stats.max : stats.min;
-  const needed =
+  const tone = direction === "darken" ? 0.02 : 0.97; // scrim tone (gamma space)
+  const worst = direction === "darken" ? stats.max : stats.min; // gamma gray
+  const neededLin =
     direction === "darken"
-      ? 1.05 / TARGET_CONTRAST - 0.05 // max effective backdrop for white ink
-      : TARGET_CONTRAST * (INK_DARK_LUMA + 0.05) - 0.05; // min for dark ink
+      ? 1.05 / TARGET_CONTRAST - 0.05 // max effective backdrop Y for white ink
+      : TARGET_CONTRAST * (INK_DARK_LUMA + 0.05) - 0.05; // min Y for dark ink
+  const needed = linearToSrgb(neededLin); // threshold re-expressed in gamma
   let strength;
   if (direction === "darken") {
     strength = worst <= needed ? 0 : (worst - needed) / (worst - tone);
@@ -228,7 +258,13 @@ module.exports = {
   resolveTextContrast,
   bandStats,
   cornerStats,
+  // exported for known-answer contrast tests; they take GAMMA grid gray and
+  // linearize internally per the sRGB transfer.
+  contrastWhiteOver,
+  contrastDarkOver,
+  srgbToLinear,
   TARGET_CONTRAST,
   SCRIM_MIN,
   SCRIM_MAX,
+  INK_DARK_LUMA,
 };

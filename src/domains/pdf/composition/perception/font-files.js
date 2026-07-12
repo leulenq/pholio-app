@@ -3,10 +3,11 @@
  *
  * Bridges the curated font library (font-library.js) to the static TTFs
  * vendored under public/fonts/compcard/ (scripts/fetch-compcard-fonts.js),
- * so callers get REAL glyph advances for the exact string they will render
- * instead of the calibrated per-family estimates.
+ * so callers get REAL shaped advances (HarfBuzz, via text-metrics.js — the
+ * same shaping engine Chromium renders with) for the exact string they will
+ * render instead of the calibrated per-family estimates.
  *
- * Everything is fail-soft: missing files, a missing opentype.js, or a parse
+ * Everything is fail-soft: missing files, a missing harfbuzzjs, or a parse
  * failure return null and callers fall back to the estimate path — the
  * engine keeps composing, just less precisely (audit P0-1).
  */

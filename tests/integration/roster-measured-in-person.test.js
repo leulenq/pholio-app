@@ -19,10 +19,11 @@ const request = require("supertest");
 const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
 
+const config = require("../../src/config");
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = config.sessionSecret;
 
 const AGENCY_A_ID = uuidv4();
 const AGENCY_B_ID = uuidv4();
@@ -158,6 +159,9 @@ async function agencySession(agencyId) {
     },
     userId: agencyId,
     agencyId,
+    memberUserId: agencyId,
+    agencyMembershipRole: "OWNER",
+    agencyOnboardingCompletedAt: new Date().toISOString(),
     role: "AGENCY",
   };
 

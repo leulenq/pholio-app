@@ -25,6 +25,7 @@ const {
 } = require("../../../shared/lib/validation");
 const { runImageClassification } = require("../services/run-image-classification");
 const { enqueuePitsJob } = require("../services/pits-queue");
+const { enqueueMattePrecompute } = require("../services/matte-precompute");
 const {
   logClassificationFeedback,
 } = require("../services/image-classification-policy");
@@ -1206,7 +1207,13 @@ router.post(
         enqueuePitsJob(profile.id, () => runImageClassification(knex, imageId))
           .catch((err) =>
             console.warn("[PITS] classification failed:", imageId, err.message),
-          );
+          )
+          // Comp-card matte precompute (editions 1.3): once classification has
+          // landed the studio/plain background signal, compute and cache the
+          // subject matte so matte-gated comp-card looks are available at
+          // generation time. Fire-and-forget on a serialized global queue —
+          // never blocks the upload response; never rejects.
+          .then(() => enqueueMattePrecompute(knex, imageId));
       }
 
       // Sensitive image AI (measurements / casting analysis) now lives here in
@@ -2153,6 +2160,10 @@ router.post(
         forensics: initialMetadata.forensics ?? currentMeta.forensics,
         ai: initialMetadata.ai,
       };
+      // Pixels changed: any cached comp-card subject matte is stale. Drop it
+      // so the post-replace precompute (or the PDF route's lazy path) can
+      // recompute against the new bytes instead of serving the old mask.
+      delete mergedMeta.matte;
 
       const updatePatch = {
         path: stored.path,
@@ -2212,7 +2223,10 @@ router.post(
           imageId,
           err.message,
         ),
-      );
+      )
+      // Recompute the comp-card subject matte for the replaced pixels once
+      // classification lands (fire-and-forget; never rejects).
+      .then(() => enqueueMattePrecompute(knex, imageId));
 
     // Replacing the pixels of the current primary is a "primary changed" moment:
     // re-run sensitive image AI (consent-gated) on the fresh bytes.

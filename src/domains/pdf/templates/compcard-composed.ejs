@@ -314,35 +314,11 @@
       color: rgba(26,24,21,0.06);
       transform: rotate(-32deg);
     }
-    
-    /* Split layout overrides for Milan */
-    [data-structure="split"] .color-plane {
-      background: #11101E !important;
-    }
-    [data-structure="split"] .name-block {
-      top: 0.95in !important;
-      height: auto !important;
-    }
-    [data-structure="split"] .name-block span {
-      font-family: 'Bodoni Moda', serif !important;
-      font-weight: 400 !important;
-      letter-spacing: 0.15em !important;
-      color: #FAF7F2 !important;
-      text-transform: uppercase !important;
-    }
-    [data-structure="split"] .contact-line {
-      top: 1.6in !important;
-      height: auto !important;
-      justify-content: center !important;
-      width: 100% !important;
-      left: 0 !important;
-    }
-    [data-structure="split"] .contact-line span {
-      font-family: 'Inter', sans-serif !important;
-      color: #C9A55A !important;
-      letter-spacing: 0.22em !important;
-      font-size: 7.2pt !important;
-    }
+
+    /* (Removed: the hardcoded split-layout override block. It forced an
+       unverified gold #C9A55A on 7.2pt contact type (≈2.2:1 on paper) and
+       repositioned engine-solved geometry with !important — micro-type
+       colors must flow from verified palette roles only.) */
   </style>
 </head>
 <body data-compcard-engine="composed" data-compcard-seed="<%= safePlan.seedUsed || 'auto' %>" data-compcard-tone="<%= safePlan.toneProfile || '' %>">
@@ -359,7 +335,11 @@
       const col = e.scrim.direction === 'lighten' ? '250,249,246' : '10,9,8';
       const edge = e.scrim.edge === 'top' ? 'to bottom' : 'to top';
       const pos = e.scrim.edge === 'top' ? 'top:0;' : 'bottom:0;';
-      return `<div class="abs" style="left:0;right:0;${pos}height:1.7in;pointer-events:none;background:linear-gradient(${edge}, rgba(${col},${a}), rgba(${col},0));"></div>`;
+      // z-index must sit ABOVE the photo plane (z 10) and BELOW on-photo
+      // type (z 30+). Without it the scrim paints at level 0 UNDER the
+      // z-positioned photo and contributes zero pixels — the solved
+      // contrast never materializes (audit P0-2, proven by pixel test).
+      return `<div class="abs" data-scrim style="left:0;right:0;${pos}height:1.7in;pointer-events:none;z-index:12;background:linear-gradient(${edge}, rgba(${col},${a}), rgba(${col},0));"></div>`;
     };
   %>
   <%/* ───────────── PAGE 1 — FRONT ───────────── */%>
@@ -504,7 +484,13 @@
     // on <body data-name-fit> for the generator/tests to assert on.
     (function () {
       function fitAll() {
-        var report = { checked: 0, adjusted: 0, ghostsRemoved: 0, minScale: 1 };
+        var report = { checked: 0, adjusted: 0, ghostsRemoved: 0, minScale: 1, floorHits: 0 };
+        // Booker's law: the name never renders below 14pt effective. 1pt =
+        // 4/3 CSS px, so the rescale floor is 14 * 4/3 ≈ 18.67px. Hitting
+        // the floor is reported as floorHits — the generator treats it as a
+        // failed take (the composer shipped unverifiable geometry), never a
+        // silent 6pt name.
+        var FLOOR_PX = 14 * (4 / 3);
         document.querySelectorAll('[data-fit-text]').forEach(function (box) {
           var boxRect = box.getBoundingClientRect();
           if (!boxRect.width || !boxRect.height) return;
@@ -517,7 +503,16 @@
             );
             if (scale < 0.995) {
               var size = parseFloat(getComputedStyle(span).fontSize);
-              span.style.fontSize = Math.max(size * scale * 0.995, 8) + 'px';
+              var target = size * scale * 0.995;
+              // Only the display name is floor-gated; micro-type (contact,
+              // stats) has its own solved sizes and never reaches here at
+              // display scale. Identify name spans by their box role.
+              var isName = box.classList.contains('name') || box.classList.contains('name-block') || box.classList.contains('back-name');
+              if (isName && size >= FLOOR_PX && target < FLOOR_PX) {
+                target = FLOOR_PX;
+                report.floorHits += 1;
+              }
+              span.style.fontSize = Math.max(target, 8) + 'px';
               report.adjusted += 1;
               if (scale < report.minScale) report.minScale = Math.round(scale * 1000) / 1000;
             }
