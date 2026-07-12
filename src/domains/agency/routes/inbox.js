@@ -114,6 +114,24 @@ function serializeAgencyMember(row) {
   };
 }
 
+// Talent-controlled availability → plain roster display label. Pholio has no
+// money/booking workflow, so roster availability is read straight from the
+// talent-set `profiles.availability_status` ('available' | 'limited' |
+// 'unavailable', added in 20260710090400_profile_availability_and_bookouts).
+// A null/unknown value defaults to "Available" — never invent booking state.
+function availabilityDisplayStatus(availabilityStatus) {
+  switch ((availabilityStatus || "").toLowerCase()) {
+    case "limited":
+      return "On booking";
+    case "unavailable":
+      return "Booked out";
+    case "available":
+      return "Available";
+    default:
+      return "Available";
+  }
+}
+
 const router = express.Router();
 mountAgencyApiGuard(router);
 
@@ -959,14 +977,8 @@ router.get(
         }).length,
       };
 
-      const commissions = await knex("commissions")
-        .where({ agency_id: req.session.userId })
-        .sum({ total: "amount_cents" })
-        .first();
-
       return res.json({
         stats,
-        commissionsTotal: ((commissions?.total || 0) / 100).toFixed(2),
       });
     } catch (error) {
       console.error("[API/Agency/Stats] Error:", error);
@@ -2871,19 +2883,6 @@ router.get(
         .whereIn("profile_id", profileIds)
         .orderBy(["profile_id", "sort", "created_at"]);
 
-      // Get latest commissions for each profile to determine lastBooking and status
-      const commissions = await knex("commissions")
-        .whereIn("profile_id", profileIds)
-        .where({ agency_id: agencyId })
-        .select("profile_id")
-        .max("created_at as last_booking_date")
-        .groupBy("profile_id");
-
-      const commissionMap = {};
-      commissions.forEach((c) => {
-        commissionMap[c.profile_id] = c.last_booking_date;
-      });
-
       // Get tags
       const applicationIds = applications.map((a) => a.id);
       const tags = await knex("application_tags")
@@ -2914,15 +2913,11 @@ router.get(
           archetype = "editorial";
         }
 
-        const lastBooking = commissionMap[p.id] || null;
-        let status = "available";
-        if (lastBooking) {
-          const daysSince = Math.floor(
-            (Date.now() - new Date(lastBooking).getTime()) / 86400000,
-          );
-          if (daysSince < 7) status = "booking";
-          else if (daysSince > 180) status = "inactive";
-        }
+        // Availability is talent-controlled (profiles.availability_status:
+        // 'available' | 'limited' | 'unavailable'), not derived from any
+        // booking/money history. Map to a plain display label; a null value
+        // defaults to "Available" (never invent booking state).
+        const status = availabilityDisplayStatus(p.availability_status);
 
         return {
           id: p.id,
@@ -2938,7 +2933,6 @@ router.get(
           bust: p.bust_cm || p.bust || 0,
           waist: p.waist_cm || p.waist || 0,
           hips: p.hips_cm || p.hips || 0,
-          lastBooking: lastBooking,
           dateAdded: app.accepted_at || app.updated_at,
           tags: tagsByApp[app.id] || [],
           img: coverImage ? coverImage.url : null,
@@ -2994,30 +2988,12 @@ router.get(
       });
       const images = await imageQuery.orderBy(["sort", "created_at"]);
 
-      // Booking stats from commissions table
-      const commissionStats = await knex("commissions")
-        .where({ profile_id: profileId, agency_id: agencyId })
-        .select(
-          knex.raw("COUNT(*) as total_bookings"),
-          knex.raw("SUM(amount_cents) as total_cents"),
-          knex.raw("MAX(created_at) as last_booking_date"),
-        )
-        .first();
-
       // Roster = represented talent, so the richer (minor-safe) submission
       // snapshot is warranted — but NEVER a raw row spread (audit P0-3).
+      // No booking/commission figures: Pholio has no money workflow.
       const social = await loadSocialAccountsForProfile(profileId);
       return res.json({
         profile: buildAgencySubmissionDTO(profile, { images, social }),
-        bookings: {
-          total_bookings: commissionStats?.total_bookings
-            ? Number(commissionStats.total_bookings)
-            : null,
-          commission_earned: commissionStats?.total_cents
-            ? (Number(commissionStats.total_cents) / 100).toFixed(2)
-            : null,
-          last_booking_date: commissionStats?.last_booking_date || null,
-        },
         application: {
           id: application.id,
           status: application.status,

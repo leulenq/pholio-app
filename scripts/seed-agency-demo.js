@@ -348,7 +348,6 @@ async function seedAgencyDemo(knex) {
   await knex("interviews").where({ agency_id: aid }).del();
   await knex("reminders").where({ agency_id: aid }).del();
   await knex("filter_presets").where({ agency_id: aid }).del();
-  await knex("commissions").where({ agency_id: aid }).del();
   await knex("application_tags").where({ agency_id: aid }).del();
   if (await knex.schema.hasTable("notifications")) {
     await knex("notifications").where({ user_id: agency.id }).del();
@@ -988,25 +987,6 @@ async function seedAgencyDemo(knex) {
     })),
   );
 
-  // ---- commissions (roster booking history) ----
-  const commissionRows = [];
-  accepted.forEach((app, i) => {
-    const bookingCount = i < 3 ? ri(2, 4) : i < 7 ? 1 : 0;
-    for (let b = 0; b < bookingCount; b++) {
-      const daysBack =
-        i < 3 ? ri(1, 5) : i < 5 ? ri(14, 60) : i < 7 ? ri(90, 150) : ri(200, 400);
-      commissionRows.push({
-        id: randomUUID(),
-        agency_id: aid,
-        profile_id: app.profile_id,
-        percent: 20,
-        amount_cents: ri(80000, 250000),
-        created_at: daysAgo(daysBack),
-      });
-    }
-  });
-  if (commissionRows.length) await knex("commissions").insert(commissionRows);
-
   // ---- bell notifications ----
   const hasNotifications = await knex.schema.hasTable("notifications");
   if (hasNotifications) {
@@ -1076,7 +1056,7 @@ async function seedAgencyDemo(knex) {
     `  interviews: ${interviews.length}  ·  reminders: ${reminderPlan.length}  ·  messages: ${messages.length}`,
   );
   console.log(
-    `  tags: ${tagRows.length}  ·  notes: ${noteRows.length}  ·  commissions: ${commissionRows.length}`,
+    `  tags: ${tagRows.length}  ·  notes: ${noteRows.length}`,
   );
   console.log(
     "  statuses: 14 submitted (4 stale 15d+, ~6 today), 6 shortlisted, 6 booked, 5 declined, 9 accepted (4 idle)",

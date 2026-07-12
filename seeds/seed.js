@@ -332,7 +332,6 @@ exports.seed = async function seed(knex) {
   await knex("agencies")
     .del()
     .catch(() => {});
-  await knex("commissions").del();
   await knex("images").del();
   await knex("profiles").del();
   await knex("users").del();
