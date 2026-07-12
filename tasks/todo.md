@@ -2738,3 +2738,17 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 - Branding now resolves into a full-stage real Pholio/agency lockup using the uploaded mark and selected agency accent; Commission resolves the same identity into a co-branded handoff.
 - The final reveal now contains only the canonical Pholio mark, the agency mark, one ready statement, and the workspace entry action.
 - Verification: Impeccable detector reports zero anti-pattern hits; focused ESLint passes; production build passes (3,675 modules, existing large-chunk warning); scoped `git diff --check` passes. Browser QA could not be rerun because local-server approval was blocked by the environment usage limit; the prior version had been verified at 1440×900 and 390×844, and the new CSS retains explicit desktop/tablet/mobile structures.
+
+---
+
+# Dedicated agency dashboard review: security, legal/compliance, and talent alignment — 2026-07-12
+
+- [x] Review scoped dashboard docs and industry references.
+- [x] Inspect agency and talent dashboard frontend surfaces, API clients, and route protections.
+- [x] Inspect backend auth, agency routes, upload/media, notes/decisions, and privacy-sensitive data handling.
+- [x] Produce concrete audit findings by lens with launch risks and recommendations.
+- [x] Commit audit artifacts and create PR.
+
+## Review
+
+Completed on 2026-07-12. Findings are documented in `docs/audits/2026-07-12-agency-security-compliance-alignment-audit.md`.
