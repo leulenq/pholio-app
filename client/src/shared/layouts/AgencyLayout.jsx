@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, MessageSquare, Settings, Menu } from 'lucide-react';
-import { getAgencyProfile, getMessageThreads } from '../../domains/agency/api/agency';
+import { getAgencyProfile, getMessageThreads, getAgencyNotifications } from '../../domains/agency/api/agency';
 import { useAgencyTeam } from '../../domains/agency/hooks/useAgencyTeam';
 import { useAgencyOverview } from '../../domains/agency/hooks/useAgencyOverview';
 import { useRailCollapsed } from '../../domains/agency/hooks/useRailCollapsed';
@@ -36,6 +36,13 @@ export default function AgencyLayout() {
   const { data: team = [] } = useAgencyTeam();
   const { data: overview } = useAgencyOverview();
   const { data: threads = [] } = useQuery({ queryKey: ['agency', 'messages', 'threads'], queryFn: getMessageThreads, refetchInterval: 30000 });
+  const {
+    data: notificationsData,
+    isLoading: notificationsLoading,
+    isError: notificationsError,
+  } = useQuery({ queryKey: ['agency', 'notifications'], queryFn: getAgencyNotifications, refetchInterval: 60000 });
+  const notifications = notificationsData?.notifications ?? [];
+  const unreadNotifications = notificationsData?.unreadCount ?? 0;
 
   // Focus-return on close: remember which trigger opened the panel.
   const openPanelRef = useRef(null);
@@ -164,7 +171,14 @@ export default function AgencyLayout() {
                   onClick={() => setOpenPanel((p) => (p === 'notifications' ? null : 'notifications'))}>
                   <Bell size={17} />
                 </button>
-                <NotificationsDropdown isOpen={openPanel === 'notifications'} onClose={closePanel} notifications={[]} onAllRead={() => {}} isLoading={false} isError={false} />
+                <NotificationsDropdown
+                  isOpen={openPanel === 'notifications'}
+                  onClose={closePanel}
+                  notifications={notifications}
+                  unreadCount={unreadNotifications}
+                  isLoading={notificationsLoading}
+                  isError={notificationsError}
+                />
               </div>
               <Link to="/dashboard/agency/settings" className="ag-topbar-icon" aria-label="Settings"><Settings size={17} /></Link>
             </div>

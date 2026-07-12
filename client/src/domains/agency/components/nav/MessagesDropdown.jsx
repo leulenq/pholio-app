@@ -53,7 +53,14 @@ export default function MessagesDropdown({
   const anyUnread = threads.some(isUnread);
 
   const markAllRead = () => {
-    // TODO: call PATCH /api/agency/messages/read-all then invalidate ['agency','messages','threads'] query
+    // NOTE: there is no bulk "mark all messages read" backend endpoint today.
+    // src/domains/agency/routes/messages.js only exposes:
+    //   GET  /api/agency/messages/threads       (thread.id here is an application id)
+    //   POST /api/agency/messages/:messageId/read (marks a single message row read)
+    // A bulk read-all would need a new endpoint (e.g. POST /api/agency/messages/read-all)
+    // that marks every unread message read across the agency's threads, plus a
+    // corresponding helper in client/src/domains/agency/api/agency.js. Until that
+    // exists, this only clears local/optimistic UI state — it does not persist.
     setReadIds(new Set(threads.map(t => t.id)));
     onAllRead?.(); // clears the nav badge in the parent
   };
