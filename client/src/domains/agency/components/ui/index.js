@@ -2,3 +2,16 @@ export { AgencyCard, AgencyCardHeader, AgencyCardTitle, AgencyCardContent, Agenc
 export { AgencyStatCard } from './AgencyStatCard';
 export { AgencyButton } from './AgencyButton';
 export { AgencyEmptyState } from './AgencyEmptyState';
+
+// Canonical component kit primitives
+export { AgencyModal } from './AgencyModal';
+export {
+  AgencySkeleton,
+  SkeletonRow,
+  SkeletonCard,
+  SkeletonFigure,
+  SkeletonStrip,
+} from './AgencySkeleton';
+export { AgencyRow } from './AgencyRow';
+export { StatusText, STATUS_MAP, getStatusMeta } from './StatusText';
+export { FilterChips } from './FilterChips';
