@@ -29,7 +29,6 @@ const OpenCallArrivalPage = lazy(() => import('./domains/onboarding/pages/OpenCa
 const AgencyOverview = lazy(() => import('./domains/agency/pages/OverviewPage'));
 const AgencyApplicants = lazy(() => import('./domains/agency/pages/ApplicantsPage'));
 const AgencyDiscover = lazy(() => import('./domains/agency/pages/DiscoverPage'));
-const AgencyBoards = lazy(() => import('./domains/agency/pages/BoardsPage'));
 const AgencyAnalytics = lazy(() => import('./domains/agency/pages/AnalyticsPage'));
 const AgencySettings = lazy(() => import('./domains/agency/pages/SettingsPage'));
 const AgencyCasting = lazy(() => import('./domains/agency/pages/CastingPage'));
@@ -40,7 +39,6 @@ const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'))
 const AgencyInterviews = lazy(() => import('./domains/agency/pages/InterviewsPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
 const AgencyReminders = lazy(() => import('./domains/agency/pages/RemindersPage'));
-const AgencySigned = lazy(() => import('./domains/agency/pages/SignedPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
@@ -125,9 +123,7 @@ function App() {
               <Route path="/dashboard/agency/casting" element={<AgencyCasting />} />
               <Route path="/dashboard/agency/casting/:boardId" element={<AgencyCastingDetail />} />
               <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
-              <Route path="/dashboard/agency/boards" element={<AgencyBoards />} />
               <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
-              <Route path="/dashboard/agency/signed" element={<AgencySigned />} />
               <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
               <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
               <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
