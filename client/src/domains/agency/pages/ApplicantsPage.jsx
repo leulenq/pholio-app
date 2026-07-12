@@ -149,7 +149,7 @@ function BoardSelector({ boards, total, selectedId, onSelect }) {
         aria-selected={selectedId == null}
         onClick={() => onSelect(null)}
       >
-        <span className="ap-board-chip-name">All Applicants</span>
+        <span className="ap-board-chip-name">All Submissions</span>
         <span className="ap-board-chip-count">{total}</span>
       </button>
       {boards.map((b) => (
@@ -299,11 +299,11 @@ function ApplicationsPage() {
     <div className="ap">
       <header className="ap-header">
         <div>
-          <h1 className="ap-title">Applications</h1>
+          <h1 className="ap-title">Submissions</h1>
           <p className="ap-sub">
-            {activeBoard 
-              ? `${activeBoard.name} · ${total} applicant${total === 1 ? '' : 's'}`
-              : `${total} total applicant${total === 1 ? '' : 's'}`}
+            {activeBoard
+              ? `${activeBoard.name} · ${total} submission${total === 1 ? '' : 's'}`
+              : `${total} total submission${total === 1 ? '' : 's'}`}
           </p>
         </div>
         <div className="ap-controls">
@@ -347,15 +347,15 @@ function ApplicationsPage() {
           <div className="ap-list">
             <div className="ap-row ap-row--head">
               <span aria-hidden="true" />
-              <span>Applicant</span>
+              <span>Talent</span>
               <span>Applied</span>
               <span className="ap-c">Match</span>
               <span>Status</span>
               <span aria-hidden="true" />
             </div>
-            {isLoading && <div className="ap-empty">Loading applicants…</div>}
+            {isLoading && <div className="ap-empty">Loading submissions…</div>}
             {!isLoading && filtered.length === 0 && (
-              <div className="ap-empty">{activeBoard ? 'No candidates on this board yet.' : 'No applicants in this view.'}</div>
+              <div className="ap-empty">{activeBoard ? 'No candidates on this board yet.' : 'No submissions in this view.'}</div>
             )}
             {filtered.map((a) => (
               <ApplicantRow

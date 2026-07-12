@@ -136,8 +136,8 @@ function CastingDetailPage() {
 
   return (
     <div className="cas cd">
-      <button className="cn-back" onClick={() => navigate('/dashboard/agency/casting')}>
-        <ArrowLeft size={15} /> Casting
+      <button className="cn-back" onClick={() => navigate('/dashboard/agency/signing')}>
+        <ArrowLeft size={15} /> Signing
       </button>
 
       <header className="cas-header">

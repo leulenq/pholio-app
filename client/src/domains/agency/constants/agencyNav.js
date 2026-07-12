@@ -1,6 +1,6 @@
 import {
   LayoutGrid, Activity, Inbox, Clapperboard, CalendarClock,
-  Contact, Telescope, Building2, BarChart3,
+  Contact, Telescope, Building2,
 } from 'lucide-react';
 
 /** Collapse toggle sits after this group label in the rail. */
@@ -23,8 +23,8 @@ export const AGENCY_NAV_GROUPS = [
   {
     label: 'Pipeline',
     items: [
-      { label: 'Casting',      to: '/dashboard/agency/casting',    icon: Clapperboard,  countKey: 'casting',    permission: 'boards.view'            },
-      { label: 'Applications', to: '/dashboard/agency/applicants', icon: Inbox,         countKey: 'applicants', permission: 'applications.view_list' },
+      { label: 'Signing',      to: '/dashboard/agency/signing',     icon: Clapperboard,  countKey: 'casting',    permission: 'boards.view'            },
+      { label: 'Submissions',  to: '/dashboard/agency/submissions', icon: Inbox,         countKey: 'applicants', permission: 'applications.view_list' },
       { label: 'Interviews',   to: '/dashboard/agency/interviews', icon: CalendarClock,                              permission: 'interviews.view'        },
       { label: 'Scout',        to: '/dashboard/agency/discover',   icon: Telescope,                                  permission: 'discover.search'        },
     ],
@@ -40,7 +40,6 @@ export const AGENCY_NAV_GROUPS = [
     items: [
       { label: 'Team',      to: '/dashboard/agency/team',      icon: Building2, countKey: 'team', permission: 'team.view'              },
       { label: 'Activity',  to: '/dashboard/agency/activity',  icon: Activity,                           permission: 'org.view_activity'      },
-      { label: 'Analytics', to: '/dashboard/agency/analytics', icon: BarChart3,                           permission: 'org.view_analytics'     },
     ],
   },
 ];
