@@ -340,16 +340,33 @@ function resolveCrop(poolImage, slot) {
 
   // Subject presence: heavy horizontal cropping cuts the talent out of
   // their own photograph regardless of role — a half-missing face is worse
-  // than any layout compromise.
-  if (widthLoss > 0.55) {
+  // than any layout compromise. Face-led shots (headshot / three-quarter)
+  // are held to a STRICTER bar: a face is ruined long before a full-length
+  // is, so >42% width loss is unsafe for them (triggers crop-healing —
+  // swap a better-fitting frame into the cell, or mat on the field —
+  // instead of shipping a sliced face). Full-length / editorial shots keep
+  // the looser 0.55 bar (their width has more survivable margin).
+  const isFaceLed = cropRole === "headshot" || cropRole === "three_quarter";
+  const widthUnsafe = isFaceLed ? 0.42 : 0.55;
+  if (widthLoss > widthUnsafe) {
     level = "unsafe";
     notes.push(
-      `crop loses ${Math.round(widthLoss * 100)}% of image width (>55%); subject presence cannot survive`,
+      `crop loses ${Math.round(widthLoss * 100)}% of image width (>${Math.round(widthUnsafe * 100)}%${isFaceLed ? ", face-led" : ""}); subject presence cannot survive`,
     );
-  } else if (widthLoss > 0.38) {
+  } else if (widthLoss > 0.32) {
     if (level === "safe") level = "caution";
     notes.push(
       `crop loses ${Math.round(widthLoss * 100)}% of image width; subject presence at risk`,
+    );
+  }
+
+  // Symmetric guard for heavy VERTICAL loss on a face-led shot: a headshot
+  // dropped into a very WIDE cell slices the crown or chin. The full-body
+  // guard above handles figures; this catches face shots the same way.
+  if (isFaceLed && heightLoss > 0.5) {
+    level = "unsafe";
+    notes.push(
+      `face-led crop loses ${Math.round(heightLoss * 100)}% of image height (>50%); head cannot be kept`,
     );
   }
 
