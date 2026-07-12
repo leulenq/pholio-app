@@ -14,7 +14,7 @@ const {
   CURRENT_PRIVACY_VERSION,
 } = require("../../src/shared/lib/legal-acceptance");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 const ADULT_DOB = "1995-03-15";
 const MINOR_DOB = "2012-03-15"; // clearly under 18

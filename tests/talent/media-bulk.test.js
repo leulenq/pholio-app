@@ -6,7 +6,7 @@ const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { recordLegalAcceptance } = require("../../src/shared/lib/legal-acceptance");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("talent media bulk operations and classification status", () => {
   const adultUserId = uuidv4();

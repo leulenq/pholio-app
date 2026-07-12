@@ -191,11 +191,12 @@ describe("Profile Persistence Test Suite", () => {
     // To bypass signature validation, we can sign it using the app's secret if we know it.
     // The default secret in test env is usually 'test-secret'.
     const signature = require("cookie-signature");
+    const SESSION_SECRET = require("../src/config").sessionSecret;
     const signedId =
       "s:" +
       signature.sign(
         sessionId,
-        process.env.SESSION_SECRET || "pholio-secret",
+        SESSION_SECRET,
       );
 
     authCookie = [
