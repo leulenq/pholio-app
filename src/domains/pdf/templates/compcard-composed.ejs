@@ -441,6 +441,19 @@
       // contrast never materializes (audit P0-2, proven by pixel test).
       return `<div class="abs" data-scrim style="left:0;right:0;${pos}height:1.7in;pointer-events:none;z-index:12;background:linear-gradient(${edge}, rgba(${col},${a}), rgba(${col},0));"></div>`;
     };
+    // Variable-axis CSS (Phase 4): a name element may carry axes { wdth?,
+    // opsz? } resolved by the engine and measured against the vendored
+    // variable master. Emitting font-variation-settings makes Chromium
+    // render (and bake into the PDF) the exact instance the widths were
+    // solved at. Null/absent axes → empty string → the static face, so
+    // legacy programs are unaffected. wght rides the existing font-weight.
+    const fvs = (axes) => {
+      if (!axes || typeof axes !== 'object') return '';
+      const parts = [];
+      if (Number.isFinite(Number(axes.wdth))) parts.push(`"wdth" ${Number(axes.wdth)}`);
+      if (Number.isFinite(Number(axes.opsz))) parts.push(`"opsz" ${Number(axes.opsz)}`);
+      return parts.length ? ` font-variation-settings: ${parts.join(', ')};` : '';
+    };
   %>
   <%/* ───────────── PAGE 1 — FRONT ───────────── */%>
   <% if (fp) { %>
@@ -485,7 +498,7 @@
       <% } else if (e.type === 'name') { const nameSource = e.text || fullName; const lines = e.stacked && nameSource.includes(' ') ? [nameSource.split(/\s+/)[0], nameSource.split(/\s+/).slice(1).join(' ')] : [nameSource]; const nameLeading = (e.leading != null) ? e.leading : 1.05; %>
         <% if (e.scrim) { %><%- fpScrim(e) %><% } %>
         <div class="abs name-block" data-fit-text style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : (e.align === 'center' ? 'align-items: center; text-align: center;' : 'align-items: flex-start;') %>">
-          <% lines.forEach((ln) => { %><span style="font-family: '<%= e.font === 'body' ? bodyFont : displayFont %>', <%= e.font === 'body' ? 'sans-serif' : 'serif' %>; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= e.transform || nameCase %>; line-height: <%= nameLeading %>; white-space: nowrap;<%= (e.opacity != null && e.opacity < 1) ? ` opacity: ${e.opacity};` : '' %>"><%= ln %></span><% }); %>
+          <% lines.forEach((ln) => { %><span style="font-family: '<%= e.font === 'body' ? bodyFont : displayFont %>', <%= e.font === 'body' ? 'sans-serif' : 'serif' %>; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= e.transform || nameCase %>; line-height: <%= nameLeading %>; white-space: nowrap;<%- fvs(e.axes) %><%= (e.opacity != null && e.opacity < 1) ? ` opacity: ${e.opacity};` : '' %>"><%= ln %></span><% }); %>
         </div>
       <% } else if (e.type === 'contact') { %>
         <div class="abs contact-line" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg);' : '' %>">
