@@ -15,15 +15,64 @@ import NextMoves from '../components/overview/NextMoves';
 import TalentStrip from '../components/overview/TalentStrip';
 import TeamModule from '../components/overview/TeamModule';
 import { TalentPanel } from '../components/TalentPanel';
+import { SkeletonRow, SkeletonCard, SkeletonStrip } from '../components/ui/AgencySkeleton';
+import { EmptyErrorState } from '../../../shared/components/states';
 import './OverviewPage.css';
+
+// First-load placeholder — mirrors the real layout (masthead/ledger, top
+// matches strip, boards table, bottom 3-column modules) instead of a
+// centered spinner, so the page never looks empty while it is loading.
+function OverviewSkeleton() {
+  return (
+    <div className="ov-skeleton">
+      <div className="ov-skeleton-mast">
+        <SkeletonRow count={1} />
+      </div>
+      <div className="ov-skeleton-ledger">
+        <SkeletonStrip count={4} />
+      </div>
+      <div className="ov-skeleton-strip">
+        <SkeletonCard count={6} />
+      </div>
+      <div className="ov-skeleton-table">
+        <SkeletonRow count={5} />
+      </div>
+      <div className="ov-grid-3">
+        <SkeletonRow count={4} compact />
+        <SkeletonRow count={4} compact />
+        <SkeletonRow count={4} compact />
+      </div>
+    </div>
+  );
+}
 
 export default function OverviewPage() {
   const [selected, setSelected] = useState(null);
-  const { data: overview } = useAgencyOverview();
+  const { data: overview, isLoading, isError, refetch } = useAgencyOverview();
   const { data: applicants = [] } = useRecentApplicants(24);
   const { data: boards = [] } = useBoards();
   const { data: activity = [] } = useAgencyActivity(7);
   const { data: profile } = useQuery({ queryKey: ['agency-profile'], queryFn: getAgencyProfile, staleTime: 5 * 60 * 1000 });
+
+  if (isLoading) {
+    return (
+      <motion.div className="ov-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <OverviewSkeleton />
+      </motion.div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <motion.div className="ov-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <EmptyErrorState
+          title="Could not load your overview"
+          body="Today's briefing, boards, and activity did not load. Try again to refresh."
+          retry={{ label: 'Try again', onClick: () => refetch() }}
+        />
+      </motion.div>
+    );
+  }
 
   const kpis = selectKpis(overview);
   const stages = selectPipeline(overview);

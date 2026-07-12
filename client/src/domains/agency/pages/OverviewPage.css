@@ -1,6 +1,27 @@
 .ov-page { padding: 10px var(--ag-pad-x, 40px) 48px; position: relative; z-index: 1; }
 
 /* ============================================================
+   FIRST-LOAD SKELETON — mirrors the real layout (masthead line,
+   ledger strip, top-matches strip, boards table, bottom 3-column
+   modules) so the page reads as "loading", not as an empty state.
+   ============================================================ */
+.ov-skeleton-mast { padding: 22px 2px 20px; border-bottom: 1px solid var(--ag-rule); margin-bottom: 22px; }
+.ov-skeleton-mast .ag-sk-row { height: auto; padding: 0; border-bottom: none; }
+.ov-skeleton-mast .ag-sk-avatar { display: none; }
+.ov-skeleton-mast .ag-sk-line--60 { width: 220px; height: 22px; }
+.ov-skeleton-mast .ag-sk-line--40 { display: none; }
+.ov-skeleton-mast .ag-sk-line--status { width: 90px; }
+
+.ov-skeleton-ledger { padding: 10px 2px 26px; border-bottom: 1px solid var(--ag-rule); margin-bottom: 28px; }
+
+.ov-skeleton-strip { display: flex; gap: 14px; overflow: hidden; margin-bottom: 28px; }
+.ov-skeleton-strip .ag-sk-card { flex: 0 0 134px; }
+.ov-skeleton-strip .ag-sk-figure { height: 170px; aspect-ratio: auto; }
+
+.ov-skeleton-table { margin-bottom: 28px; }
+.ov-skeleton-table .ag-sk-row { height: 46px; }
+
+/* ============================================================
    TODAY'S BRIEF — editorial command surface (no box, no fill).
    Broadsheet on the cream canvas: a gold masthead rule, serif
    greeting with an italic-gold name, a dominant lead priority
