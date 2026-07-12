@@ -420,3 +420,8 @@
 ## 2026-07-06 — Binary artifacts may be invisible in review surfaces
 
 - If a requested `.docx` or other binary artifact is not visible because the review surface rejects binary files, replace the committed binary with a text-safe payload (`.b64`) plus a dependency-free rebuild script. Keep the generated binary out of the diff unless the platform explicitly supports binary artifacts.
+
+## 2026-07-12 — Continue from the live target branch
+
+- Before extending another agent's branch, fetch that exact remote immediately before implementation and treat its latest head as authoritative. If it advances concurrently, restart integration from the new head and replay only genuinely missing work; do not merge duplicate implementations or unrelated branch history.
+- Route agents by task risk: Luna for mechanical inventories or single-file cleanup, Terra for compatibility analysis, and GPT-5.6 Sol for orchestration, final review, verification, and commits. Agents must have disjoint ownership and must not commit.
