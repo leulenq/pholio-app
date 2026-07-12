@@ -16,7 +16,11 @@ const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { FORBIDDEN_KEYS } = require("../contract/audience-dto.test");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+// Sign forged session cookies with the SAME secret the app validates against
+// (config.sessionSecret). The old hardcoded "pholio-secret" fallback did not
+// match the app's actual default, so every forged cookie was rejected and the
+// suite saw 401s instead of the intended RBAC 403s.
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 const TEST_DB_PATH = path.resolve(__dirname, "../../test-agency-rbac.sqlite3");
 
 // Recursively collect every object key that appears anywhere in a payload.
