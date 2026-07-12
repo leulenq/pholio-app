@@ -67,6 +67,10 @@ function normalizePresetInput(input = {}) {
     structure: toSafeToken(input.structure, 32),
     // Name-treatment pin (classic/statement/choreography variant).
     treatment: toSafeToken(input.treatment, 16),
+    // Edition pin (editions plan 2.9): the named art direction this card was
+    // saved under. Validated against the catalog by the render/apply flow;
+    // null = no edition (legacy path).
+    edition: toSafeToken(input.edition, 32),
   };
 }
 
@@ -87,6 +91,7 @@ function mapPresetRow(row) {
     market: row.market || null,
     structure: row.structure || null,
     treatment: row.treatment || null,
+    edition: row.edition || null,
     // A frozen design exists when the plan was captured at save time.
     frozen: Boolean(row.plan_json),
     engineVersion: row.engine_version || null,
@@ -112,6 +117,7 @@ function snapshotFromPresetRow(row) {
     market: row?.market || null,
     structure: row?.structure || null,
     treatment: row?.treatment || null,
+    edition: row?.edition || null,
   };
 }
 
@@ -131,6 +137,7 @@ function toPresetQuery(row) {
     lockGridIds: hasAnyGridLock ? serializedGridIds : undefined,
     structure: row.structure || undefined,
     treatment: row.treatment || undefined,
+    edition: row.edition || undefined,
     // Frozen presets render from the stored plan — the preset id is the
     // authoritative query; the parameters above remain as the fallback.
     preset: row.plan_json ? row.id : undefined,
@@ -152,6 +159,7 @@ function toPresetPayload(row) {
     market: row.market || null,
     structure: row.structure || null,
     treatment: row.treatment || null,
+    edition: row.edition || null,
   };
 }
 
@@ -169,6 +177,7 @@ function buildPresetInsert(profileId, normalizedInput) {
     market: normalizedInput.market,
     structure: normalizedInput.structure,
     treatment: normalizedInput.treatment,
+    edition: normalizedInput.edition,
     created_at: new Date(),
     updated_at: new Date(),
   };

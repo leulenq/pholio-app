@@ -885,7 +885,12 @@ async function composeCompCard({ profile, images, archetype, options } = {}) {
 
 // Composition engine version, stamped onto frozen saved cards (P1-6). Bump
 // when a change would redesign existing seeds (geometry, scoring, grammar).
-const ENGINE_VERSION = "composed-v5.0";
+// v6.0: the Editions system (catalog, operators, per-edition front/back
+// programs). Gated behind COMP_CARD_EDITIONS — with the flag off, the
+// legacy path is byte-identical to v5.0 (proven by frozen-baseline tests),
+// so existing frozen cards are unaffected; the bump marks the grammar
+// change for cards authored with editions on.
+const ENGINE_VERSION = "composed-v6.0";
 
 module.exports = {
   composeCompCard,
