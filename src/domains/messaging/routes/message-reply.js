@@ -13,6 +13,10 @@ const router = express.Router();
 
 async function loadReplyContext(req, res, next) {
   try {
+    // SEC-0.8: validateReplyToken resolves the row via findByRawToken(), i.e. by
+    // hashing the raw token from the URL and matching the stored token_hash. All
+    // three consumers below (GET thread, POST message, POST session) go through
+    // this middleware, so none of them ever touch a plaintext token column.
     const ctx = await validateReplyToken(req.params.token);
     if (!ctx) {
       return res.status(404).json({
@@ -158,9 +162,30 @@ router.post(
 );
 
 // POST /api/reply/:token/session — optional full-app session bootstrap
+//
+// SECURITY (SEC-0.8): this is the largest escalation reachable from a magic link —
+// it mints a FULL authenticated talent session from possession of the token alone.
+// The token reaching here has already passed loadReplyContext -> validateReplyToken,
+// which enforces (a) a valid hash match and (b) a non-expired token (now a 3-day
+// TTL, down from 7), and confirms the token still belongs to the same talent user.
+// We intentionally make no further behavioral change here to avoid breaking the
+// talent reply UX, but we log every bootstrap so the escalation is auditable.
+//
+// RESIDUAL RISK for orchestrator review: anyone who obtains a live raw token (via a
+// forwarded/leaked email or URL interception) can bootstrap a full session within
+// the TTL. The token is bearer-style and not bound to a device/IP, and this POST is
+// not additionally throttled or CSRF-scoped beyond session validity. Consider, in a
+// follow-up: step-up confirmation before session bootstrap, single-use/step-down
+// scoping for this endpoint specifically, and device/IP binding. Not changed here to
+// keep this change focused on hashing correctness.
 router.post("/api/reply/:token/session", loadReplyContext, async (req, res) => {
   try {
-    const { talentUserId } = req.replyContext;
+    const { talentUserId, applicationId } = req.replyContext;
+
+    console.warn(
+      "[Message Reply][SECURITY] Full session bootstrap via magic link",
+      { applicationId, talentUserId },
+    );
 
     req.session.userId = talentUserId;
     req.session.role = "TALENT";
