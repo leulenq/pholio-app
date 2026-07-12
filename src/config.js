@@ -211,10 +211,16 @@ module.exports = {
     endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     region: "auto",
   },
-  // Agency RBAC — set AGENCY_RBAC_ENFORCE=false to log-only during rollout
+  // Agency RBAC — set AGENCY_RBAC_ENFORCE=false to log-only during rollout.
+  // KILLSWITCH: enforcement can NEVER be disabled in production. The
+  // AGENCY_RBAC_ENFORCE=false / =0 escape hatch is honored only outside
+  // production so a misconfigured prod env var can't silently open the
+  // agency RBAC surface.
   agencyRbacEnforce:
-    process.env.AGENCY_RBAC_ENFORCE !== "false" &&
-    process.env.AGENCY_RBAC_ENFORCE !== "0",
+    nodeEnv === "production"
+      ? true
+      : process.env.AGENCY_RBAC_ENFORCE !== "false" &&
+        process.env.AGENCY_RBAC_ENFORCE !== "0",
   appUrl:
     process.env.APP_URL ||
     process.env.BASE_URL ||
