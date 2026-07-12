@@ -179,6 +179,14 @@ async function createSchema() {
     t.string("handle", 255).nullable();
     t.string("url", 500).nullable();
     t.boolean("is_oauth_connected").defaultTo(false);
+    // Columns the production discover-preview query selects (migrations
+    // 20260629160000 / 20260629170000). Without them the guarded inbox.js
+    // preview handler 500s on SQLite with "no such column: follower_count".
+    t.integer("follower_count").nullable();
+    t.decimal("engagement_rate").nullable();
+    t.timestamp("metrics_updated_at").nullable();
+    t.timestamp("created_at").defaultTo(knex.fn.now());
+    t.timestamp("updated_at").defaultTo(knex.fn.now());
   });
 
   await knex.schema.createTable("applications", (t) => {
