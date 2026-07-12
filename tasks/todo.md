@@ -2752,3 +2752,24 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 ## Review
 
 Completed on 2026-07-12. Findings are documented in `docs/audits/2026-07-12-agency-security-compliance-alignment-audit.md`.
+
+---
+
+# Agency dashboard audit — INF-0.3 dependency triage
+
+- [x] Continue from Claude's latest `origin/claude/agency-dashboard-audit-0c2g52` implementation without replacing completed dashboard work.
+- [x] Trace the eight root critical findings to `concurrently`, the legacy `to-ico` chain, and transitive `protobufjs`.
+- [x] Remove unused root `tmux` and `gsap` dependencies.
+- [x] Remove `to-ico` while preserving PNG generation and distribution of the checked-in ICO fallback.
+- [x] Override `shell-quote` to patched 1.8.4 without upgrading `concurrently` to Node-22-only v10.
+- [x] Refresh root and client `protobufjs` to 7.6.5 within existing dependency ranges.
+- [x] Standardize the client on materially used Recharts; remove unused Chart.js packages and their orphan component.
+- [x] Verify both audits report zero critical findings, fresh lockfile installs succeed, client tests/build pass, and root tests load the upgraded graph.
+
+## Review
+
+- Root audit: 49 findings / 8 critical before; 36 findings / 0 critical after.
+- Client audit: 13 findings / 1 critical before; 11 findings / 0 critical after. The official npm registry was used because the configured client mirror does not implement the audit endpoint.
+- Client Vitest passes: 5 files, 36 tests. Production build passes with the existing large-chunk warning.
+- Full root Jest executes against the upgraded dependency graph: 127 of 137 suites and 1,892 tests pass. Remaining failures are the existing seed/date/RBAC/CSRF/foreign-key test-isolation baseline and are not missing or incompatible upgraded dependencies.
+- Full client lint retains its existing unrelated 68-error baseline. No linted application source was added by INF-0.3; the only source change removes an unreferenced component.
