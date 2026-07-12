@@ -13,7 +13,7 @@ const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { FORBIDDEN_KEYS } = require("../contract/audience-dto.test");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 // Helper to recursively scan all keys in a payload
 function collectAllKeys(node, acc = new Set()) {

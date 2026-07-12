@@ -11,10 +11,12 @@ const { v4: uuidv4 } = require("uuid");
 const app = require("../../src/app");
 const knex = require("../../src/shared/db/knex");
 
+const SESSION_SECRET = require("../../src/config").sessionSecret;
+
 function signedCookie(sessionId) {
   const value = `s:${signature.sign(
     sessionId,
-    process.env.SESSION_SECRET || "pholio-secret",
+    SESSION_SECRET,
   )}`;
   return [`connect.sid=${encodeURIComponent(value)}; Path=/; HttpOnly`];
 }

@@ -13,7 +13,7 @@ const {
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("moderation queue API", () => {
   const MODERATOR_ID = uuidv4();

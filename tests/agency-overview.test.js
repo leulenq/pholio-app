@@ -17,7 +17,7 @@ const knex = require("../src/shared/db/knex");
 const app = require("../src/app");
 const queries = require("../src/domains/agency/queries/overview.queries");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../src/config").sessionSecret;
 const TEST_DB_PATH = path.resolve(__dirname, "../test-agency-overview.sqlite3");
 
 // ─── Schema setup ─────────────────────────────────────────────────────────────

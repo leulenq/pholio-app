@@ -20,7 +20,7 @@ const {
   buildSubmissionPackageFingerprint,
 } = require("../../src/domains/talent/services/submission-disclosure-consent");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 function bindAdultSubmissionConsent(payload) {
   const submissionPackage = payload.submissionPackage || {};
