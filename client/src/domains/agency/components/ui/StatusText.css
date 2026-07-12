@@ -1,0 +1,11 @@
+/* StatusText — plain semantic status text. Never a badge/pill/dot. */
+
+.ag-status-text {
+  font-family: var(--ag-font-body);
+  font-size: var(--ag-text-body);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: normal;
+  white-space: nowrap;
+  /* color is set inline from the single-source STATUS_MAP token */
+}
