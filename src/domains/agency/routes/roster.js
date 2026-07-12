@@ -9,19 +9,14 @@ const {
 } = require("../../../shared/lib/email");
 const { getSessionAgencyId } = require("../services/context");
 const { v4: uuidv4 } = require("uuid");
-const {
-  ensureModerationColumnChecked,
-} = require("../../../shared/lib/content-moderation");
-const {
-  AUDIENCE,
-  buildAgencyDiscoveryDTO,
-} = require("../../../shared/lib/audience-dto");
-const {
-  applyImageVisibility,
-  isAgencyDiscoverable,
-} = require("../../../shared/lib/profile-visibility");
+const { mountAgencyApiGuard } = require("./agency-api-guard");
 
 const router = express.Router();
+// Route the router's /api/agency/* endpoints (the measured-in-person writes)
+// through the standard agency guard chain: role + onboarding-complete +
+// permission enforcement. Non /api/agency paths on this router (page-form
+// /agency/* and /dashboard/agency/* handlers) are unaffected by this mount.
+mountAgencyApiGuard(router);
 
 // POST /agency/claim - Claim a talent for commission tracking
 router.post("/agency/claim", requireRole("AGENCY"), async (req, res, next) => {
@@ -193,53 +188,10 @@ router.post(
   },
 );
 
-// GET /api/agency/discover/:profileId/preview - Get profile preview data
-router.get(
-  "/api/agency/discover/:profileId/preview",
-  requireRole("AGENCY"),
-  async (req, res, next) => {
-    try {
-      const { profileId } = req.params;
-
-      const profile = await knex("profiles")
-        .where({ id: profileId, is_discoverable: true })
-        .first();
-
-      if (!profile) {
-        return res
-          .status(404)
-          .json({ error: "Profile not found or not discoverable" });
-      }
-
-      // Generic discovery preview — fail closed on minors (no named-agency
-      // guardian auth here) and agency-excluded profiles (audit P0-3).
-      const agencyId = getSessionAgencyId(req.session);
-      if (!isAgencyDiscoverable(profile, { agencyId })) {
-        return res
-          .status(404)
-          .json({ error: "Profile not found or not discoverable" });
-      }
-
-      // Warm the moderation-column cache so the visibility filter is a safe
-      // no-op when the column doesn't exist yet (deploy-before-migrate).
-      await ensureModerationColumnChecked(knex);
-      const imageQuery = knex("images").where({ profile_id: profileId });
-      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
-        table: "images",
-      });
-      const images = await imageQuery.orderBy(["sort", "created_at"]).limit(5);
-
-      // Static-allowlist DTO — never spread the raw discoverable profile row.
-      return res.json({
-        success: true,
-        profile: buildAgencyDiscoveryDTO(profile, { images, social: null }),
-      });
-    } catch (error) {
-      console.error("[Discover Preview] Error:", error);
-      return res.status(500).json({ error: "Failed to load profile preview" });
-    }
-  },
-);
+// NOTE: The GET /api/agency/discover/:profileId/preview handler that used to
+// live here has been removed. It shadowed (and was mounted before) the
+// canonical, guarded copy in inbox.js. inbox.js is the single source of truth
+// for that endpoint (audit SEC-0.5 / P0-6 duplicate-route removal).
 
 // POST /api/agency/roster/:profileId/measured - Confirm in-person measurement
 // DELETE /api/agency/roster/:profileId/measured - Clear the confirmation

@@ -302,9 +302,41 @@ function enforceAgencyRoutePermissions() {
       return next();
     }
 
-    const required = resolveRoutePermission(req.method, path);
+    // KILLSWITCH (defense in depth): production ALWAYS enforces regardless of
+    // config/env — mirrors config.agencyRbacEnforce, but recomputed here so a
+    // stale/overridden config value can never open the surface in prod.
+    const enforce =
+      config.agencyRbacEnforce || process.env.NODE_ENV === "production";
+
+    const method = (req.method || "GET").toUpperCase();
+    const required = resolveRoutePermission(method, path);
+
     if (!required) {
-      return next();
+      // Unmapped route. Fail CLOSED for unsafe methods (a write with no
+      // permission mapping is a coverage gap, not an intentional allow), but
+      // allow safe reads during the transition so a missed GET mapping does
+      // not take down a read surface. Every case is logged for cleanup.
+      const isSafeMethod = method === "GET" || method === "HEAD";
+      if (isSafeMethod) {
+        console.warn("[RBAC] Unmapped agency route (allowing safe method):", {
+          path,
+          method,
+        });
+        return next();
+      }
+
+      console.warn(
+        "[RBAC] Unmapped agency write route (fail closed):",
+        { path, method, presetRole: req.session.agencyMembershipRole },
+      );
+      if (!enforce) {
+        return next();
+      }
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to perform this action.",
+        reason: "unmapped_route",
+      });
     }
 
     if (!req.agencyPermissions) {
@@ -317,10 +349,10 @@ function enforceAgencyRoutePermissions() {
       return next();
     }
 
-    if (!config.agencyRbacEnforce) {
+    if (!enforce) {
       console.warn("[RBAC] Permission violation (enforce off):", {
         path,
-        method: req.method,
+        method,
         required,
         presetRole: req.session.agencyMembershipRole,
         memberUserId: req.session.memberUserId,

@@ -9,8 +9,15 @@ const {
   getSessionActorUserId,
   getSessionAgencyId,
 } = require("../services/context");
+const { mountAgencyApiGuard } = require("./agency-api-guard");
 
 const router = express.Router();
+// Guard the agency setup API. mountAgencyApiGuard's onboarding gate is
+// configured (AGENCY_ONBOARDING_ALLOW) to permit exactly these setup routes
+// BEFORE onboarding completes, so setup keeps working during onboarding while
+// still enforcing role + permission checks. The per-route
+// requireAgencyMembershipRole("OWNER","ADMIN") checks below are preserved.
+mountAgencyApiGuard(router);
 
 const REQUIRED_STEPS = [
   "profile",

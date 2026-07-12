@@ -58,6 +58,11 @@ const ALL_PERMISSIONS = [
   "roster.view_profile",
   "roster.manage_status",
   "roster.message",
+  "open_call.view",
+  "open_call.manage",
+  "matching.rank",
+  "matching.decide",
+  "matching.view_fairness",
   "notes.view",
   "notes.create",
   "notes.edit",
@@ -120,6 +125,9 @@ const VIEWER_PERMISSIONS = [
   "notifications.mark_all_read",
   "filters.view",
   "overview.view",
+  // Read-only visibility into open-call funnels and fairness monitoring.
+  "open_call.view",
+  "matching.view_fairness",
 ];
 
 const SCOUT_EXTRA = [
@@ -138,6 +146,8 @@ const SCOUT_EXTRA = [
   "reminders.complete",
   "reminders.snooze",
   "filters.create",
+  // Scouts can run decision-support ranking on a board's applicants.
+  "matching.rank",
 ];
 
 const AGENT_EXTRA = [
@@ -163,6 +173,9 @@ const AGENT_EXTRA = [
   "interviews.complete",
   "interviews.cancel",
   "reminders.delete",
+  // Agents manage open-call scouting links and record booker decisions.
+  "open_call.manage",
+  "matching.decide",
 ];
 
 const ADMIN_EXTRA = [

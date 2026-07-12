@@ -10,6 +10,13 @@ const {
   markAllNotificationsRead,
 } = require("../../../shared/services/notifications");
 const { getSessionActorUserId } = require("../services/context");
+const { mountAgencyApiGuard } = require("./agency-api-guard");
+
+// Run the agency notifications API through the standard guard chain
+// (role + onboarding-complete + permission enforcement). Defense in depth:
+// these paths already flow through other guarded routers' catch-all guard,
+// but self-guarding keeps enforcement independent of router mount order.
+mountAgencyApiGuard(router);
 
 function resolveNotificationUserId(req) {
   return getSessionActorUserId(req.session) || req.session?.userId || null;
