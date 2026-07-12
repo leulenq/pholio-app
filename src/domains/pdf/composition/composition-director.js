@@ -352,6 +352,11 @@ function designComposition(input = {}) {
     representation = null, // agency name when represented (route supplies)
     overrides = null,
     cropEngine,
+    // Editions threading (opt-in — composition/index.js resolves these once
+    // per take; absent ⇒ legacy behavior, byte-identical, regression-tested)
+    edition = null, // resolved edition def (editions.js catalog entry)
+    operators = null, // { field, register } from resolveOperators
+    avoidHeroId = null, // previous take's hero — the re-curation draw avoids it
   } = input;
 
   const decisions = [];
@@ -394,6 +399,55 @@ function designComposition(input = {}) {
       ? poolAnalysis.heroRanking[0]
       : topHero?.id || null;
   let heroBecause = "top of deterministic heroRanking";
+
+  // ── Edition hero re-curation (plan 2.2a) ────────────────────────────────
+  // One deterministic ranking fronts the same photograph on every take —
+  // the single strongest convergence lever. With an edition active, the
+  // hero is a seeded draw across ALL images within ADVICE_HERO_CLAMP_POINTS
+  // of the top score, biased by the edition's shot-type preference, and
+  // GUARANTEED to differ from the previous take's hero when ≥ 2 clamp-
+  // eligible candidates exist. Explicit locks/overrides (below) still win
+  // unconditionally; the clamp never relaxes.
+  if (edition && pool.length) {
+    const eligible = pool.filter(
+      (p) => Number(p.heroScore) >= topScore - ADVICE_HERO_CLAMP_POINTS,
+    );
+    if (eligible.length) {
+      let heroCandidates = eligible;
+      if (avoidHeroId != null && eligible.length >= 2) {
+        heroCandidates = eligible.filter((p) => p.id !== avoidHeroId);
+      }
+      const preference = Array.isArray(edition.heroPreference) ? edition.heroPreference : [];
+      const prefers = (p) =>
+        preference.length > 0 &&
+        preference.includes(String(p.rawShotType || p.shot_type || p.role || ""));
+      const heroRng = createMulberry32(
+        seedToUint32(`${seedUsed}:hero:${edition.id}:${identity}`),
+      );
+      const weights = heroCandidates.map((p) => {
+        const closeness =
+          1 +
+          Math.max(
+            0,
+            (Number(p.heroScore) - (topScore - ADVICE_HERO_CLAMP_POINTS)) /
+              ADVICE_HERO_CLAMP_POINTS,
+          );
+        return closeness * (prefers(p) ? 2.5 : 1);
+      });
+      const total = weights.reduce((a, b) => a + b, 0);
+      let r = heroRng() * total;
+      let pick = heroCandidates[0];
+      for (let i = 0; i < heroCandidates.length; i++) {
+        r -= weights[i];
+        if (r <= 0) {
+          pick = heroCandidates[i];
+          break;
+        }
+      }
+      heroId = pick.id;
+      heroBecause = `edition '${edition.id}' hero draw over ${heroCandidates.length} clamp-eligible candidate(s)${preference.length ? ` (prefers ${preference.join("/")})` : ""}${avoidHeroId != null && eligible.length >= 2 ? `, avoiding '${avoidHeroId}'` : ""}`;
+    }
+  }
 
   // Brief and legacy advice share the same hero clamp: a suggestion may
   // only win if it scores within ADVICE_HERO_CLAMP_POINTS of the top image.
@@ -456,6 +510,8 @@ function designComposition(input = {}) {
     overrides,
     direction: input.direction || null,
     avoidVoice: input.avoidVoice || null,
+    edition,
+    operators,
   });
   language.decisions.forEach((d) => decisions.push(d));
   language.warnings.forEach(warn);
@@ -613,15 +669,21 @@ function designComposition(input = {}) {
       glyphEm: glyph,
       clamp: false,
     });
+  // Name-solve clamps: the legacy 17–34pt window, or — with an edition
+  // active — the edition's scale bounds narrowed by the register operator
+  // (language.scale, synthesized in design-language). The 12pt absolute
+  // floor is Booker's-law territory and never moves.
+  const namePtMin = language.scale ? language.scale.minPt : 17;
+  const namePtMax = language.scale ? language.scale.maxPt : 34;
   let nameTrackingEm = language.name.trackingEm;
   let nameLines = null;
   let rawPt = sizeFor(language.name.text, nameTrackingEm);
-  if (rawPt < 17) {
+  if (rawPt < namePtMin) {
     nameTrackingEm = Math.round(Math.max(0.02, nameTrackingEm * 0.45) * 1000) / 1000;
     rawPt = sizeFor(language.name.text, nameTrackingEm);
     decide("name-fit", `tracking relaxed to ${nameTrackingEm}em`, "long name — tracking gives way before size");
   }
-  if (rawPt < 17) {
+  if (rawPt < namePtMin) {
     const parts = language.name.text.split(/\s+/);
     if (parts.length > 1) {
       const firstLine = parts[0];
@@ -633,8 +695,14 @@ function designComposition(input = {}) {
     }
   }
   const nameSizePt =
-    Math.round(Math.min(34, Math.max(12, rawPt * 0.95)) * 10) / 10;
-  decide("name-size", `${nameSizePt}pt`, "solved from band width, span target, tracking");
+    Math.round(Math.min(namePtMax, Math.max(12, rawPt * 0.95)) * 10) / 10;
+  decide(
+    "name-size",
+    `${nameSizePt}pt`,
+    language.scale
+      ? `solved from band width, span target, tracking — clamped ${namePtMin}–${namePtMax}pt (${language.scale.register})`
+      : "solved from band width, span target, tracking",
+  );
 
   // ── Back partition — curated story, not leftovers ───────────────────────
   const marketSignals = (() => {
@@ -691,6 +759,10 @@ function designComposition(input = {}) {
     cropEngine: engine || null,
     bleedAppetite: brief?.bleedAppetite || null,
     forceArchitecture: overrides?.forceBackArchitecture || null,
+    // Editions threading (plan 2.7): the back program restricts its
+    // architecture pool + emits chrome/objectives from the edition. Absent
+    // ⇒ legacy back, byte-identical.
+    edition: edition ? { def: edition, operators } : null,
   };
   let backLayout;
   try {
@@ -843,9 +915,14 @@ function designComposition(input = {}) {
     palette: {
       background: language.palette.paper,
       text: language.palette.ink,
-      muted: language.palette.ink === "#111111" ? "#5C5C5C" : "#6B6560",
+      // Edition palette programs carry a verified muted role; the legacy
+      // path derives it from the ink as before.
+      muted:
+        language.palette.muted ||
+        (language.palette.ink === "#111111" ? "#5C5C5C" : "#6B6560"),
       accent: language.palette.accent,
       rule: language.palette.rule,
+      ...(language.palette.dark ? { dark: true } : {}),
     },
     typography: {
       display: language.fonts.display,

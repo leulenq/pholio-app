@@ -847,6 +847,35 @@ async function renderComposedView(req, res, data, isDemo) {
     const wantsMeta = normalizeQueryValue(req.query.meta) === "1";
     const wantsDirections = normalizeQueryValue(req.query.directions) === "1";
 
+    // ── Editions (plan 2.9) — env flag + QA overrides ─────────────────────
+    // The editions engine activates when COMP_CARD_EDITIONS === '1' OR the
+    // request carries ?editions=1; ?editions=0 force-disables regardless.
+    // Default OFF until the flag flips (Gate 3) — legacy behavior is
+    // byte-identical.
+    const { listEditions, isEditionId } = require("../composition/editions");
+    let editionsEnabled = (() => {
+      const q = normalizeQueryValue(req.query.editions);
+      if (q === "0") return false;
+      if (q === "1") return true;
+      return process.env.COMP_CARD_EDITIONS === "1";
+    })();
+    // Repeatable/comma-separated query tokens → ordered list (most-recent
+    // first for avoidEdition); Express gives a string or an array.
+    const parseTokenList = (value) =>
+      (Array.isArray(value) ? value : value != null ? [value] : [])
+        .flatMap((v) => String(v).split(","))
+        .map((v) => v.trim())
+        .filter(Boolean);
+    let editionPin = null;
+    let avoidEditions = [];
+    let avoidHeroId = null;
+    if (editionsEnabled) {
+      const rawEdition = normalizeQueryValue(req.query.edition);
+      if (isEditionId(rawEdition)) editionPin = rawEdition;
+      avoidEditions = parseTokenList(req.query.avoidEdition).filter(isEditionId);
+      avoidHeroId = toSafeMetadataToken(normalizeQueryValue(req.query.avoidHero), null, 64);
+    }
+
     // ── Named creative directions (audit P0-3) ────────────────────────────
     // ?structure pins the front field structure to one of the catalog
     // directions; ?board conditions the design language through the bounded
@@ -912,6 +941,13 @@ async function renderComposedView(req, res, data, isDemo) {
           forceTreatment = presetRow.treatment;
         }
         if (!boardParam && presetRow.board) boardParam = presetRow.board;
+        // A preset saved under an edition pins it on render (the same
+        // faithful-render principle as the frozen plan). Editions are forced
+        // on for that render regardless of the global flag.
+        if (isEditionId(presetRow.edition)) {
+          editionsEnabled = true;
+          if (!editionPin) editionPin = presetRow.edition;
+        }
         if (presetRow.plan_json) {
           try {
             const parsed = typeof presetRow.plan_json === "string"
@@ -950,12 +986,18 @@ async function renderComposedView(req, res, data, isDemo) {
       }
     }
 
-    const { plan, statsBlock, guardrailReport } = await composeCompCard({
+    const { plan, statsBlock, guardrailReport, poolAnalysis } = await composeCompCard({
       profile,
       images: images || [],
       archetype,
       options: {
         seed,
+        // Editions engine (plan 2.9) — strictly flag-gated. When disabled the
+        // compose output is byte-identical to the legacy engine.
+        editionsEnabled,
+        edition: editionPin,
+        avoidEditions,
+        avoidHeroId,
         locks: { heroId: locks.heroId, gridIds: locks.gridIds },
         unitsPreference,
         mode: generationMode,
@@ -1040,7 +1082,7 @@ async function renderComposedView(req, res, data, isDemo) {
       const hasMatte = Object.values(matteById).some(
         (m) => m && (m.source || "alpha") === "alpha",
       );
-      res.json({
+      const payload = {
         engine: "composed",
         seed: toSafeMetadataToken(seed, "auto", 96),
         current: plan.frontProgramMeta?.structure || null,
@@ -1050,7 +1092,38 @@ async function renderComposedView(req, res, data, isDemo) {
           label: d.label,
           description: d.description,
         })),
-      });
+      };
+      // Editions catalog with real availability (plan 2.9). Additive; present
+      // only when the editions engine is active so a flag-off directions
+      // payload is unchanged.
+      if (editionsEnabled) {
+        const pool = Array.isArray(poolAnalysis?.pool) ? poolAnalysis.pool : [];
+        const kids = statsBlock?.category === "kids";
+        // Alpha-matte availability mirrors composition/index.js: a real alpha
+        // source (legacy cached mattes predate `source` = alpha).
+        const hasAlphaMatte = Object.values(matteById).some(
+          (m) => m && (m.source == null || m.source === "alpha"),
+        );
+        const topId =
+          Array.isArray(poolAnalysis?.heroRanking) && poolAnalysis.heroRanking.length
+            ? poolAnalysis.heroRanking[0]
+            : (pool[0] && pool[0].id) ?? null;
+        const hasPairableSupport = pool.some(
+          (p) => p.id !== topId && Number(p.aspect) > 0 && Number(p.aspect) < 1,
+        );
+        payload.editions = listEditions({
+          poolSize: pool.length,
+          hasAlphaMatte,
+          kids,
+          hasPairableSupport,
+        }).map((e) => ({
+          id: e.id,
+          label: e.label,
+          tone: e.tone,
+          available: e.available,
+        }));
+      }
+      res.json(payload);
       return true;
     }
 
@@ -1062,6 +1135,20 @@ async function renderComposedView(req, res, data, isDemo) {
       res.json({
         engine: "composed",
         seed: toSafeMetadataToken(seed, "auto", 96),
+        // Editions (plan 2.9): the resolved edition + composite take signature,
+        // present ONLY when the engine is active — a flag-off meta payload
+        // carries no edition keys at all.
+        ...(plan.edition
+          ? {
+              edition: {
+                id: plan.edition.id,
+                label: plan.edition.label,
+                field: plan.edition.field,
+                register: plan.edition.register,
+              },
+              takeSignature: plan.takeSignature || null,
+            }
+          : {}),
         toneProfile: plan.toneProfile,
         voice: plan.typography.voiceId,
         display: plan.typography.display,
@@ -1149,6 +1236,10 @@ async function renderComposedView(req, res, data, isDemo) {
           printBleed,
           fontsCss,
           frontProgram: plan.frontProgram || null,
+          // Cutout source for cover-story/cutout figure layers. No pre-matted
+          // cutout image exists in the pipeline yet, so this is null and the
+          // figure layer degrades to the base photo (never breaks).
+          cutoutSrc: null,
         },
         (err, output) => (err ? reject(err) : resolve(output)),
       );
@@ -1157,6 +1248,14 @@ async function renderComposedView(req, res, data, isDemo) {
     res.set("Content-Type", "text/html; charset=utf-8");
     res.set("X-CompCard-Engine", "composed");
     res.set("X-CompCard-Seed", toSafeMetadataToken(seed, "auto", 96));
+    // Editions (plan 2.9): expose the resolved edition on response headers.
+    // Present only when the engine is active — a flag-off render carries no
+    // edition headers.
+    if (plan.edition) {
+      res.set("X-CompCard-Edition", plan.edition.id);
+      res.set("X-CompCard-Edition-Field", plan.edition.field);
+      res.set("X-CompCard-Edition-Register", plan.edition.register);
+    }
     const bleedOffset = printBleed ? 0.125 : 0;
     const markHeader = (rect) =>
       rect
@@ -2456,6 +2555,7 @@ async function freezePresetPlan(slug, presetRow) {
   try {
     const { composeCompCard, ENGINE_VERSION } = require("../composition");
     const { isDirectionStructure, boardAdvice } = require("../composition/directions");
+    const { isEditionId } = require("../composition/editions");
     const data = await loadProfile(slug);
     if (!data || !data.profile) return;
     const { profile, images } = data;
@@ -2498,6 +2598,11 @@ async function freezePresetPlan(slug, presetRow) {
         forceTreatment: ["classic", "statement", "straddle", "over", "band", "inset"].includes(presetRow.treatment)
           ? presetRow.treatment
           : null,
+        // A preset saved under an edition freezes with that edition pinned
+        // (editions forced on for the freeze regardless of the global flag).
+        ...(isEditionId(presetRow.edition)
+          ? { editionsEnabled: true, edition: presetRow.edition }
+          : {}),
         advice: boardAdvice(presetRow.board),
         briefStore: {
           load: async () => {
@@ -2513,6 +2618,11 @@ async function freezePresetPlan(slug, presetRow) {
         },
       },
     });
+    // Never persist plan.editionProgram — its `def` carries the catalog
+    // entry's functions (toneWeight/photoAffinity). plan.edition and
+    // plan.takeSignature are the frozen contract; the program def is
+    // re-derivable from the edition id. Strip it before serializing.
+    if (plan && plan.editionProgram) delete plan.editionProgram;
     await knex("comp_card_presets")
       .where({ id: presetRow.id })
       .update({
@@ -2673,6 +2783,7 @@ router.put(
               market: normalized.market,
               structure: normalized.structure,
               treatment: normalized.treatment,
+              edition: normalized.edition,
               updated_at: trx.fn.now(),
             });
           updated = await trx("comp_card_presets")

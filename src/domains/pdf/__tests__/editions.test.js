@@ -20,12 +20,16 @@ const {
   listEditions,
   isSuitable,
   resolveEdition,
+  resolveOperators,
+  allowedRegisters,
   resolveEditionPalette,
   getEdition,
   contrastRatio,
   KIDS_POOL,
   AFFINITY_GATE,
   INK_FIELD_INK,
+  REGISTER_QUIET_MAX_MIN_PT,
+  REGISTER_DISPLAY_MIN_MAX_PT,
 } = require("../composition/editions");
 const { isVoice } = require("../composition/font-library");
 
@@ -209,5 +213,206 @@ describe("palette programs", () => {
 
   test("auto palettes return null (design-language default preserved)", () => {
     expect(resolveEditionPalette(getEdition("house-classic"), {})).toBeNull();
+  });
+});
+
+// ── compositional operators (plan 2.2) ──────────────────────────────────────
+
+const darkHeroForensics = { luma: { mean: 0.25 }, palette: [{ hex: "#3B2E52", sat: 0.4, luma: 0.2 }] };
+const brightHeroForensics = { luma: { mean: 0.75 }, palette: [{ hex: "#E8C9A0", sat: 0.3, luma: 0.7 }] };
+
+describe("catalog field allowlists (operator axis)", () => {
+  const EXPECTED_FIELDS = {
+    "house-classic": ["paper", "warm"],
+    "the-strip": ["warm", "paper"],
+    "gallery-monograph": ["paper", "warm", "dark"],
+    "editorial-masthead": ["paper", "warm"],
+    "swiss-modernist": ["paper", "dark"],
+    "cover-story": ["paper", "plane"],
+    "ink-noir": ["dark"],
+    duet: ["paper", "warm"],
+    "studio-cutout": ["plane", "paper"],
+  };
+
+  test("every edition carries the contract's fields allowlist", () => {
+    for (const e of EDITIONS) {
+      expect({ id: e.id, fields: e.fields }).toEqual({ id: e.id, fields: EXPECTED_FIELDS[e.id] });
+      for (const f of e.fields) expect(["paper", "warm", "plane", "dark"]).toContain(f);
+    }
+  });
+
+  test("hero re-curation preferences: monograph prefers the figure, the-strip the headshot", () => {
+    expect(getEdition("gallery-monograph").heroPreference).toEqual(
+      expect.arrayContaining(["three_quarter", "full_length"]),
+    );
+    expect(getEdition("the-strip").heroPreference).toEqual(
+      expect.arrayContaining(["headshot"]),
+    );
+    expect(getEdition("house-classic").heroPreference).toBeUndefined();
+  });
+});
+
+describe("resolveOperators — field gates", () => {
+  test("deterministic for identical inputs", () => {
+    const input = {
+      edition: getEdition("gallery-monograph"),
+      seed: "op-1",
+      identity: "t",
+      heroForensics: darkHeroForensics,
+    };
+    expect(resolveOperators(input)).toEqual(resolveOperators(input));
+  });
+
+  test("fields drawn only from the edition allowlist", () => {
+    for (const edition of EDITIONS) {
+      for (let i = 0; i < 20; i++) {
+        const { field } = resolveOperators({
+          edition,
+          seed: `f${i}`,
+          identity: "t",
+          heroForensics: darkHeroForensics, // every gate satisfiable
+        });
+        expect([...edition.fields, "paper"]).toContain(field);
+      }
+    }
+  });
+
+  test("dark is gated on kids — a kid never gets a dark field, whatever the edition", () => {
+    for (let i = 0; i < 40; i++) {
+      const { field } = resolveOperators({
+        edition: getEdition("gallery-monograph"),
+        seed: `k${i}`,
+        identity: "kid",
+        heroForensics: darkHeroForensics,
+        kids: true,
+      });
+      expect(field).not.toBe("dark");
+    }
+    // noir's only field is dark — kids-gated it falls back to paper
+    const noir = resolveOperators({
+      edition: getEdition("ink-noir"),
+      seed: "k",
+      identity: "kid",
+      heroForensics: darkHeroForensics,
+      kids: true,
+    });
+    expect(noir.field).toBe("paper");
+    expect(noir.because).toMatch(/kids/);
+  });
+
+  test("dark is gated on hero luma — a bright hero never carries a night field", () => {
+    for (let i = 0; i < 40; i++) {
+      const { field } = resolveOperators({
+        edition: getEdition("gallery-monograph"),
+        seed: `b${i}`,
+        identity: "sunny",
+        heroForensics: brightHeroForensics, // mean 0.75 ⇒ affinity 0.55 < gate
+      });
+      expect(field).not.toBe("dark");
+    }
+    // a dark hero keeps the dark Monograph reachable
+    const seen = new Set();
+    for (let i = 0; i < 60; i++) {
+      seen.add(
+        resolveOperators({
+          edition: getEdition("gallery-monograph"),
+          seed: `d${i}`,
+          identity: "moody",
+          heroForensics: darkHeroForensics,
+        }).field,
+      );
+    }
+    expect(seen.has("dark")).toBe(true);
+  });
+
+  test("plane requires a derivable plane tone (no forensics ⇒ no plane)", () => {
+    for (let i = 0; i < 40; i++) {
+      const { field } = resolveOperators({
+        edition: getEdition("studio-cutout"),
+        seed: `p${i}`,
+        identity: "t",
+        heroForensics: null,
+      });
+      expect(field).not.toBe("plane");
+    }
+    const seen = new Set();
+    for (let i = 0; i < 60; i++) {
+      seen.add(
+        resolveOperators({
+          edition: getEdition("studio-cutout"),
+          seed: `q${i}`,
+          identity: "t",
+          heroForensics: brightHeroForensics,
+        }).field,
+      );
+    }
+    expect(seen.has("plane")).toBe(true);
+  });
+
+  test("avoid.field is honored when the gated pool keeps ≥ 2 members", () => {
+    for (let i = 0; i < 40; i++) {
+      const { field } = resolveOperators({
+        edition: getEdition("house-classic"), // fields [paper, warm]
+        seed: `a${i}`,
+        identity: "t",
+        avoid: { field: "paper" },
+      });
+      expect(field).toBe("warm");
+    }
+    // avoidance never empties a pool: noir has only dark
+    const pinnedDark = resolveOperators({
+      edition: getEdition("ink-noir"),
+      seed: "a",
+      identity: "t",
+      heroForensics: darkHeroForensics,
+      avoid: { field: "dark" },
+    });
+    expect(pinnedDark.field).toBe("dark");
+  });
+});
+
+describe("resolveOperators — register subranges", () => {
+  test("allowedRegisters reflects the documented thresholds", () => {
+    expect(REGISTER_QUIET_MAX_MIN_PT).toBe(22);
+    expect(REGISTER_DISPLAY_MIN_MAX_PT).toBe(56);
+    expect(allowedRegisters(getEdition("gallery-monograph")).sort()).toEqual(["quiet", "standard"]); // 15–22
+    expect(allowedRegisters(getEdition("cover-story")).sort()).toEqual(["display", "standard"]); // 56–110
+    expect(allowedRegisters(getEdition("editorial-masthead")).sort()).toEqual(["display", "standard"]); // 40–76
+    expect(allowedRegisters(getEdition("house-classic")).sort()).toEqual(["quiet", "standard"]); // 20–38
+  });
+
+  test("registers drawn only from the edition's honest subranges", () => {
+    for (const edition of EDITIONS) {
+      const allowed = allowedRegisters(edition);
+      for (let i = 0; i < 25; i++) {
+        const { register } = resolveOperators({
+          edition,
+          seed: `r${i}`,
+          identity: "t",
+          heroForensics: darkHeroForensics,
+        });
+        expect(allowed).toContain(register);
+      }
+    }
+  });
+
+  test("avoid.register is honored when ≥ 2 registers remain", () => {
+    for (let i = 0; i < 40; i++) {
+      const { register } = resolveOperators({
+        edition: getEdition("gallery-monograph"), // {standard, quiet}
+        seed: `ar${i}`,
+        identity: "t",
+        avoid: { register: "standard" },
+      });
+      expect(register).toBe("quiet");
+    }
+  });
+
+  test("no edition ⇒ neutral operators", () => {
+    expect(resolveOperators({ seed: "x", identity: "t" })).toEqual({
+      field: "paper",
+      register: "standard",
+      because: "no edition — neutral operators",
+    });
   });
 });

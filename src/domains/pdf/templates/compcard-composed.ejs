@@ -146,6 +146,46 @@
 
     // Booking block: representation or BOOKINGS framing (industry standard).
     const booking = back.booking || null;
+
+    // ── Editions (plan 2.8/2.9) — ADDITIVE, inert for legacy programs ──────
+    // An edition render carries plan.edition and/or a back-style/nameplate
+    // object. When none is present the block below emits nothing and the
+    // document is byte-identical to the pre-editions template.
+    const edition = (safePlan.edition && safePlan.edition.id) ? safePlan.edition : null;
+    const backStyle = (layout && layout.style && typeof layout.style === 'object') ? layout.style : null;
+    const backNameplate = (layout && layout.nameplate && typeof layout.nameplate === 'object') ? layout.nameplate : null;
+    const editionActive = Boolean(edition || backStyle || backNameplate);
+
+    // Dark-paper detection (linear luminance). For a light paper this yields
+    // false, so watermark/empty-cell overrides never fire on legacy renders.
+    const hexLuminance = (hex) => {
+      const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+      if (!m) return 1;
+      const n = parseInt(m[1], 16);
+      const chan = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      return 0.2126 * chan((n >> 16) & 255) + 0.7152 * chan((n >> 8) & 255) + 0.0722 * chan(n & 255);
+    };
+    const paperIsDark = (palette.dark === true) || hexLuminance(bg) < 0.35;
+
+    // Cutout source for cover-story / cutout figure layers. The route passes
+    // one when a matted cutout image exists; otherwise null → the figure
+    // layer degrades to the base photo src (visual degradation, never break).
+    const cutoutHeroSrc = (typeof cutoutSrc !== 'undefined' && cutoutSrc) ? cutoutSrc : null;
+
+    // Back stats presentation: style.statsStyle overrides the orientation
+    // default when present; absent ⇒ today's column/strip pick (byte-safe).
+    const statsColumnDefault = statsColumn ? 'column' : 'strip';
+    const statsStyle = backStyle && backStyle.statsStyle && backStyle.statsStyle !== 'auto'
+      ? backStyle.statsStyle
+      : statsColumnDefault;
+    const backDividers = Boolean(backStyle && backStyle.dividers);
+    const backCellIndexes = Boolean(backStyle && backStyle.cellIndexes);
+    const backRunningHead = Boolean(backNameplate && backNameplate.scale === 'running-head');
+    // Back-name horizontal alignment: nameplate.align when a nameplate is
+    // present, else the front name's alignment (byte-identical for legacy).
+    const backJustify = (backNameplate && backNameplate.align)
+      ? (backNameplate.align === 'center' ? 'center' : backNameplate.align === 'right' ? 'flex-end' : 'flex-start')
+      : ((front.name && front.name.align) === 'center' ? 'center' : 'flex-start');
   %>
   <%
     // Vendored fonts: the same TTFs the composition engine measured with,
@@ -320,6 +360,66 @@
        repositioned engine-solved geometry with !important — micro-type
        colors must flow from verified palette roles only.) */
   </style>
+<% if (editionActive) { -%>
+  <%/* Editions-only CSS. Gated on editionActive so a legacy program render
+       is byte-identical to the pre-editions template. Carries: tabular
+       numerals on all stat values (front + back), the footline/tabular
+       stat chrome, cell dividers + index numerals, the running-head
+       nameplate scale, and dark-paper watermark/empty-cell overrides. */%>
+  <style>
+    .stat-value, .stat-line-front { font-variant-numeric: tabular-nums; }
+
+    /* footline — one foot row: tracked labels, tabular values */
+    .stats--footline {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: baseline;
+      column-gap: 0.2in;
+      border-top: 0.5pt solid <%= rule %>;
+      padding-top: 0.08in;
+    }
+    .stats--footline .stat {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 0.05in;
+    }
+
+    /* tabular — ruled rows: label left, value right, hairline row rules */
+    .stats--tabular { flex-direction: column; }
+    .stats--tabular .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.14in;
+      padding: 0.028in 0;
+      border-bottom: 0.5pt solid <%= rule %>;
+    }
+    .stats--tabular .stat-row .stat-value { font-variant-numeric: tabular-nums; }
+
+    /* per-cell hairline dividers + foot-left index numerals */
+    .cell-divider { background: <%= rule %>; pointer-events: none; z-index: 5; }
+    .cell-index {
+      font-family: 'Inter', sans-serif;
+      font-size: 5.4pt;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: <%= muted %>;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    /* running-head nameplate: the back name echoes the FRONT display family
+       (already set on .back-name) at a small, tracked scale */
+    .back-name--running-head { letter-spacing: 0.24em; }
+
+    <% if (paperIsDark) { %>
+    /* dark paper: the watermark + empty cells derive from light ink at low
+       alpha (the light-paper rgba values would vanish on a night field) */
+    .non-pro-mark { color: rgba(244,241,236,0.08); }
+    .cell-empty { background: <%= muted %>; opacity: 0.22; }
+    <% } %>
+  </style>
+<% } -%>
 </head>
 <body data-compcard-engine="composed" data-compcard-seed="<%= safePlan.seedUsed || 'auto' %>" data-compcard-tone="<%= safePlan.toneProfile || '' %>">
 
@@ -341,6 +441,19 @@
       // contrast never materializes (audit P0-2, proven by pixel test).
       return `<div class="abs" data-scrim style="left:0;right:0;${pos}height:1.7in;pointer-events:none;z-index:12;background:linear-gradient(${edge}, rgba(${col},${a}), rgba(${col},0));"></div>`;
     };
+    // Variable-axis CSS (Phase 4): a name element may carry axes { wdth?,
+    // opsz? } resolved by the engine and measured against the vendored
+    // variable master. Emitting font-variation-settings makes Chromium
+    // render (and bake into the PDF) the exact instance the widths were
+    // solved at. Null/absent axes → empty string → the static face, so
+    // legacy programs are unaffected. wght rides the existing font-weight.
+    const fvs = (axes) => {
+      if (!axes || typeof axes !== 'object') return '';
+      const parts = [];
+      if (Number.isFinite(Number(axes.wdth))) parts.push(`"wdth" ${Number(axes.wdth)}`);
+      if (Number.isFinite(Number(axes.opsz))) parts.push(`"opsz" ${Number(axes.opsz)}`);
+      return parts.length ? ` font-variation-settings: ${parts.join(', ')};` : '';
+    };
   %>
   <%/* ───────────── PAGE 1 — FRONT ───────────── */%>
   <% if (fp) { %>
@@ -348,9 +461,21 @@
     <% fpEls.forEach((e) => { %>
       <% if (e.type === 'colorPlane') { %>
         <div class="abs color-plane" style="<%= rectStyle(e.rect, e.bleedEdges) %> background: <%= e.fill %>; z-index: <%= Math.round((e.z||0)*10) %>;"></div>
-      <% } else if (e.type === 'photo') { const src = heroSrc; %>
+      <% } else if (e.type === 'photo') {
+           // imageId → that image; a 'figure' cutout layer → the cutout src
+           // when the route supplied one, else the base photo (degrade); a
+           // plain hero element → heroSrc, exactly as before.
+           const isFigure = e.layer === 'figure';
+           const src = e.imageId != null
+             ? imgSrc(e.imageId)
+             : (isFigure ? (cutoutHeroSrc || heroSrc) : heroSrc);
+           // per-element crop wins; an imageId photo defaults centered; a
+           // hero/figure element inherits the solved hero crop (byte-safe). */
+           const objPos = (e.crop && e.crop.objectPosition)
+             ? e.crop.objectPosition
+             : (e.imageId != null ? '50% 50%' : (heroCrop.objectPosition || '50% 50%')); %>
         <div class="abs hero" style="<%= rectStyle(e.rect, e.bleedEdges) %> z-index: <%= Math.round((e.z||0)*10) %>;">
-          <% if (src) { %><img src="<%= src %>" alt="<%= fullName %>" style="object-position: <%= (heroCrop.objectPosition || '50% 50%') %>;"><% } else { %><div class="cell-empty"></div><% } %>
+          <% if (src) { %><img src="<%= src %>" alt="<%= fullName %>" style="object-position: <%= objPos %>;"><% } else { %><div class="cell-empty"></div><% } %>
         </div>
         <% if (e.scrimForName) { %><%- fpScrim(e.scrimForName) %><% } %>
       <% } else if (e.type === 'ghost') { %>
@@ -361,10 +486,19 @@
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; background: <%= e.fill %>;"></div>
       <% } else if (e.type === 'rule' && e.variant === 'frame') { %>
         <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; border: <%= (e.weight||0.01) %>in solid <%= e.color %>;"></div>
-      <% } else if (e.type === 'name') { const nameSource = e.text || fullName; const lines = e.stacked && nameSource.includes(' ') ? [nameSource.split(/\s+/)[0], nameSource.split(/\s+/).slice(1).join(' ')] : [nameSource]; %>
+      <% } else if (e.type === 'rule' && (e.variant === 'hairline' || e.variant === 'hinge')) { %>
+        <%/* hairline / hinge: the rect IS the line box — a filled div (the
+             thin dimension already lives in the rect); weight is informational */%>
+        <div class="abs" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; background: <%= e.color %>;"></div>
+      <% } else if (e.type === 'folio') { %>
+        <%/* folio — the one earned ornament: a small tracked imprint line */%>
+        <div class="abs" data-folio style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; justify-content: <%= e.align === 'right' ? 'flex-end' : (e.align === 'center' ? 'center' : 'flex-start') %>; overflow:hidden;">
+          <span style="font-family: 'Inter', sans-serif; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || 600 %>; letter-spacing: <%= e.trackingEm != null ? e.trackingEm : 0.2 %>em; text-transform: <%= e.transform || 'uppercase' %>; color: <%= e.color %>; white-space: nowrap;"><%= e.text %></span>
+        </div>
+      <% } else if (e.type === 'name') { const nameSource = e.text || fullName; const lines = e.stacked && nameSource.includes(' ') ? [nameSource.split(/\s+/)[0], nameSource.split(/\s+/).slice(1).join(' ')] : [nameSource]; const nameLeading = (e.leading != null) ? e.leading : 1.05; %>
         <% if (e.scrim) { %><%- fpScrim(e) %><% } %>
         <div class="abs name-block" data-fit-text style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; flex-direction: column; justify-content: center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg); align-items: center;' : (e.align === 'center' ? 'align-items: center; text-align: center;' : 'align-items: flex-start;') %>">
-          <% lines.forEach((ln) => { %><span style="font-family: '<%= e.font === 'body' ? bodyFont : displayFont %>', <%= e.font === 'body' ? 'sans-serif' : 'serif' %>; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= e.transform || nameCase %>; line-height: 1.05; white-space: nowrap;<%= (e.opacity != null && e.opacity < 1) ? ` opacity: ${e.opacity};` : '' %>"><%= ln %></span><% }); %>
+          <% lines.forEach((ln) => { %><span style="font-family: '<%= e.font === 'body' ? bodyFont : displayFont %>', <%= e.font === 'body' ? 'sans-serif' : 'serif' %>; font-size: <%= e.sizePt %>pt; font-weight: <%= e.weight || nameWeight %>; letter-spacing: <%= e.trackingEm %>em; text-transform: <%= e.transform || nameCase %>; line-height: <%= nameLeading %>; white-space: nowrap;<%- fvs(e.axes) %><%= (e.opacity != null && e.opacity < 1) ? ` opacity: ${e.opacity};` : '' %>"><%= ln %></span><% }); %>
         </div>
       <% } else if (e.type === 'contact') { %>
         <div class="abs contact-line" style="<%= rectStyle(e.rect) %> z-index: <%= Math.round((e.z||0)*10) %>; display:flex; align-items:center; color: <%= e.color %>; <%= e.orientation === 'vertical' ? 'writing-mode: vertical-rl; transform: rotate(180deg);' : '' %>">
@@ -421,8 +555,8 @@
 
   <%/* ───────────── PAGE 2 — BACK ───────────── */%>
   <div class="comp-card-page" id="back">
-    <div class="abs back-name name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>" data-fit-text
-         style="<%= rectStyle(layout.nameBlock) %> font-size: calc(<%= nameSize %> * 0.42); justify-content: <%= (front.name && front.name.align) === 'center' ? 'center' : 'flex-start' %>;">
+    <div class="abs back-name<%= backRunningHead ? ' back-name--running-head' : '' %> name--<%= (front.name && front.name.align) === 'center' ? 'center' : 'left' %>" data-fit-text
+         style="<%= rectStyle(layout.nameBlock) %> font-size: calc(<%= nameSize %> * <%= backRunningHead ? '0.3' : '0.42' %>); justify-content: <%= backJustify %>;">
       <span><%= fullName %></span>
     </div>
 
@@ -436,9 +570,35 @@
         <% } %>
       </div>
     <% }); %>
+<% if (backDividers) { cells.forEach((cell) => { -%>
+      <div class="abs cell-divider" style="left:<%= cell.x + cell.w + BLEED %>in; top:<%= cell.y + BLEED %>in; width:0.007in; height:<%= cell.h %>in;"></div>
+      <div class="abs cell-divider" style="left:<%= cell.x + BLEED %>in; top:<%= cell.y + cell.h + BLEED %>in; width:<%= cell.w %>in; height:0.007in;"></div>
+<% }); } -%>
+<% if (backCellIndexes) { cells.forEach((cell, i) => { -%>
+      <div class="abs cell-index" style="left:<%= cell.x + BLEED + 0.05 %>in; top:<%= cell.y + cell.h + BLEED - 0.17 %>in;"><%= String(i + 1).padStart(2, '0') %></div>
+<% }); } -%>
 
     <% if (statsRect && statsLines.length) { %>
-      <div class="abs stats <%= statsColumn ? 'stats--column' : 'stats--strip' %>"
+<% if (editionActive && statsStyle === 'footline') { -%>
+      <div class="abs stats stats--footline" style="<%= rectStyle(statsRect) %>">
+        <% statsLines.forEach((line) => { %>
+          <div class="stat">
+            <span class="stat-label"><%= line.label %></span>
+            <span class="stat-value"><%= line.value %></span>
+          </div>
+        <% }); %>
+      </div>
+<% } else if (editionActive && statsStyle === 'tabular') { -%>
+      <div class="abs stats stats--tabular" style="<%= rectStyle(statsRect) %>">
+        <% statsLines.forEach((line) => { %>
+          <div class="stat-row">
+            <span class="stat-label"><%= line.label %></span>
+            <span class="stat-value"><%= line.value %></span>
+          </div>
+        <% }); %>
+      </div>
+<% } else { -%>
+      <div class="abs stats <%= editionActive ? (statsStyle === 'column' ? 'stats--column' : 'stats--strip') : (statsColumn ? 'stats--column' : 'stats--strip') %>"
            style="<%= rectStyle(statsRect) %>">
         <% statsLines.forEach((line) => { %>
           <div class="stat">
@@ -447,6 +607,7 @@
           </div>
         <% }); %>
       </div>
+<% } -%>
     <% } %>
 
     <% if (booking && (booking.primary || booking.line)) { %>

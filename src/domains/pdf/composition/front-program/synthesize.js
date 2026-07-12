@@ -34,6 +34,22 @@ const {
 } = require("../type-safety");
 const { resolveTextContrast } = require("../contrast");
 const { visibleCropWindow, cropForensics, cropMatteGrid } = require("../crop-space");
+// Reversed-type print rules (editions plan 2.5) — applied on BOTH paths:
+// dark bands/planes obey stroke-class minimums; veils and photo-riding
+// micro text verify per-cell or the construction is refused.
+const {
+  reversedTypeOk,
+  gammaLuma,
+  cellsUnderRect,
+  worstCompositeInkRatio,
+  solveVeilAlpha,
+} = require("./print-rules");
+// Edition path (editions plan 2.4/2.6): a take carrying ctx.edition samples
+// its field structure from the edition catalog instead of this file's
+// legacy grammar. Without an edition these modules are never entered and
+// the legacy sampler is bit-for-bit unchanged.
+const { sampleEditionProgram } = require("./edition-structures");
+const { scoreEditionProgram } = require("./edition-scoring");
 
 // ── PRNG (selector-compatible) ──────────────────────────────────────────────
 
@@ -309,6 +325,16 @@ function matteNegativeSpace(matteGrid, heroRect, { minWIn, minHIn, coverageMax =
  * accent elements by search. Returns an element-tree program.
  */
 function sampleProgram(seed, ctx) {
+  // Editions seam (plan 2.4): a take carrying an edition samples from the
+  // edition's structure catalog in edition-structures.js. Absent an
+  // edition this function's legacy behavior is EXACTLY unchanged.
+  if (ctx && ctx.edition && ctx.edition.def) {
+    return sampleEditionProgram(seed, ctx, {
+      makeRng,
+      matteNegativeSpace,
+      derivePlaneTone,
+    });
+  }
   const { heroAspect, heroForensics, palette, nameText, nameMetrics, intent } = ctx;
   const rng = makeRng(seed, "front-program");
   const elements = [];
@@ -496,7 +522,11 @@ function sampleProgram(seed, ctx) {
 
     // worst-cell fill pick: every visible forensic cell under `r` (page
     // coords) must clear `minRatio` — a band mean hides dark torsos.
-    const pickFill = (r, candidates, { alsoPaper = false, minRatio = 2.0 } = {}) => {
+    // Print rule 2.5: the floor is 3.0:1 and NEVER relaxes — the old
+    // forced-treatment carve-outs (minRatio 1.0 when pinned) are dead; a
+    // pinned treatment that cannot verify is refused, not indulged.
+    const pickFill = (r, candidates, { alsoPaper = false, minRatio = 3.0 } = {}) => {
+      minRatio = Math.max(3.0, minRatio);
       if (!Array.isArray(grid) || !grid.length) return null;
       const rows = grid.length;
       const cols = grid[0].length;
@@ -587,7 +617,7 @@ function sampleProgram(seed, ctx) {
             { hex: "#FFFFFF", why: "paper-white, set translucent", opacity: 0.92 },
             { hex: ink, why: "ink, set translucent", opacity: 0.88 },
             { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
-          ], { alsoPaper: true, minRatio: ctx.forceTreatment ? 1.0 : 2.0 });
+          ], { alsoPaper: true, minRatio: 3.0 });
           if (fill) {
             const lPt = clamp((heroRect.w * 0.5 * 72) / (Math.max(1, lastText.length) * (lAdv + lTrack)), 13, Math.min(fPt * 0.4, 24));
             const lH = (lPt / 72) * 1.05;
@@ -640,7 +670,7 @@ function sampleProgram(seed, ctx) {
           { hex: "#FFFFFF", why: "reversed on the photograph", opacity: 1 },
           { hex: ink, why: "ink on the photograph", opacity: 1 },
           { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
-        ], { minRatio: ctx.forceTreatment ? 1.0 : 2.1 }) : null;
+        ], { minRatio: 3.0 }) : null;
         if (fill) {
             elements.push({
               type: "name", role: "split-first", variant: "over", text: firstText, rect: fRect,
@@ -664,23 +694,41 @@ function sampleProgram(seed, ctx) {
         // the full name (the reference "frosted strip" register) — a strong
         // overlay whose contrast is guaranteed by its own fill, elegant
         // because the photograph reads through it.
-        const bandLuma = (() => {
-          if (!Array.isArray(grid) || !grid.length) return 0.5;
-          const rows = grid.length;
-          let sum = 0; let n = 0;
-          for (let rr = Math.floor(rows * 0.62); rr < rows; rr++) for (const v of grid[rr]) { sum += v; n += 1; }
-          return n ? sum / n : 0.5;
-        })();
-        const frost = bandLuma < 0.55; // dark zone → light veil; light → dark veil
-        const bandFill = frost ? "rgba(250,249,246,0.82)" : "rgba(12,11,10,0.55)";
-        const bandInk = frost ? ink : "#FFFFFF";
+        // Print rule 2.5: the veil is verified PER-CELL over the band's OWN
+        // rows with the veil composited (alpha-blend over the worst cell,
+        // then ratio) — the old fixed bottom-38% mean hid busy mid-frames.
+        // The alpha steps up until the worst cell clears 4.5:1 or the
+        // variant is refused; reversed type on the dark veil obeys the
+        // stroke-class minimum.
         const nPt = clamp((PAGE_W * 0.76 * 72) / (chars * (advance + 0.14)), 16, 30);
         const nH = (nPt / 72) * 1.1;
         const bH = nH + 0.24;
         const bRect = rect(heroRect.x, heroBottom - lerp(0.35, 0.8, rng()) - bH, heroRect.w, bH);
         const nW = chars * (advance + 0.14) * (nPt / 72);
         const nRect = rect(heroRect.x + (heroRect.w - nW) / 2, bRect.y + (bH - nH) / 2, nW, nH);
-        if (clearsFace(bRect) && nW <= heroRect.w - 0.3) {
+        const bandCells = cellsUnderRect(grid, bRect, heroRect);
+        const bandLuma = bandCells.length
+          ? bandCells.reduce((s, v) => s + v, 0) / bandCells.length
+          : 0.5;
+        const frost = bandLuma < 0.55; // dark zone → light veil; light → dark veil
+        const bandInk = frost ? ink : "#FFFFFF";
+        const reversedOk = frost || reversedTypeOk({
+          family: ctx.typography?.display,
+          weight: nameMetrics?.last?.weight || nameMetrics?.weight || 500,
+          sizePt: nPt,
+        });
+        const veilAlpha = reversedOk && bandCells.length
+          ? solveVeilAlpha({
+              cells: bandCells,
+              veilGamma: gammaLuma(frost ? "#FAF9F6" : "#0C0B0A"),
+              inkHex: frost ? ink : "#FFFFFF",
+              startAlpha: frost ? 0.82 : 0.55,
+            })
+          : null;
+        if (veilAlpha != null && clearsFace(bRect) && nW <= heroRect.w - 0.3) {
+          const bandFill = frost
+            ? `rgba(250,249,246,${veilAlpha})`
+            : `rgba(12,11,10,${veilAlpha})`;
           elements.push({ type: "band", rect: bRect, fill: bandFill, z: 3.4 });
           elements.push({
             type: "name", role: "split-first", variant: "band", text: nameText, rect: nRect,
@@ -715,7 +763,7 @@ function sampleProgram(seed, ctx) {
             { hex: accent, why: "accent pulled from the photograph", opacity: 1 },
             { hex: "#FFFFFF", why: "paper-white reverse", opacity: 1 },
             { hex: ink, why: "ink on a light band", opacity: 1 },
-          ], { minRatio: ctx.forceTreatment ? 1.0 : 2.1 });
+          ], { minRatio: 3.0 });
           if (fill) {
             const panelRect = rect(px, heroBottom, pw, pH);
             const inkOnAccent = contrastRatio(hexLuminance(ink), hexLuminance(accent));
@@ -856,15 +904,42 @@ function sampleProgram(seed, ctx) {
     0.3 + 0.4 * intent.energy + (namePlacement.scrim ? 0.3 : 0); // marginal contrast → prefer the solid band
   if (!namePlacement.split && namePlacement.onPhoto && nameOrientation === "horizontal" && rng() < knockoutOdds) {
     const bandFill = rng() < 0.7 ? ink : accent;
-    const bandRect = rect(
-      heroRect.x,
-      namePlacement.rect.y - 0.1,
-      heroRect.w,
-      namePlacement.rect.h + 0.2,
-    );
-    knockout = { fill: bandFill, rect: bandRect };
-    elements.push({ type: "band", rect: bandRect, fill: bandFill, z: 3.5 });
-    decide("knockout", `band ${bandFill}`, "energy-gated reversed-name band");
+    // Print rule 2.5: the knockout reverses the name on a solid band — the
+    // stroke-class minimum applies (hairline/didone voices need ≥24pt) or
+    // the construction is refused and the verified plain/scrim placement
+    // stands. Never relaxed.
+    if (reversedTypeOk({
+      family: ctx.typography?.display,
+      weight: ctx.nameMetrics?.weight || 500,
+      sizePt: namePt,
+    })) {
+      const bandRect = rect(
+        heroRect.x,
+        namePlacement.rect.y - 0.1,
+        heroRect.w,
+        namePlacement.rect.h + 0.2,
+      );
+      knockout = { fill: bandFill, rect: bandRect };
+      elements.push({ type: "band", rect: bandRect, fill: bandFill, z: 3.5 });
+      decide("knockout", `band ${bandFill}`, "energy-gated reversed-name band");
+    }
+  }
+  // Print rule 2.5: a name reversed on the palette-pulled color block must
+  // meet its stroke-class minimum — a hairline/didone name below 24pt moves
+  // to a light surface: the plane reverts to paper and the type returns to
+  // ink. The rule is never traded for the block's drama.
+  if (
+    planeTone && !namePlacement.split && !namePlacement.onPhoto &&
+    !reversedTypeOk({
+      family: ctx.typography?.display,
+      weight: ctx.nameMetrics?.weight || 500,
+      sizePt: namePt,
+    })
+  ) {
+    const planeEl = elements.find((e) => e.type === "colorPlane" && e.fill === planeTone.hex);
+    if (planeEl) planeEl.fill = paper;
+    planeTone = null;
+    decide("print", "color block reverted to paper", "reversed-type minimum unmet at the solved name size");
   }
   if (!namePlacement.split) {
     const nameColor = knockout
@@ -949,16 +1024,23 @@ function sampleProgram(seed, ctx) {
       }
       bottomLuma = cnt ? sum / cnt : 0.5;
     }
-    contactOnPhoto = { ink: bottomLuma < 0.5 ? "rgba(255,255,255,0.82)" : "rgba(20,18,16,0.72)" };
+    contactOnPhoto = {
+      ink: bottomLuma < 0.5 ? "rgba(255,255,255,0.82)" : "rgba(20,18,16,0.72)",
+      preferLight: bottomLuma < 0.5,
+    };
     decide("photo-bleed", "full-bleed bottom", "name on photo — no orphaned paper strip");
   }
 
   // ── Contact / stat micro-line — placed by search, restraint-gated ─────────
   if (ctx.contactLine) {
-    const cpt = 7;
+    // Print rule 2.5: on the palette-pulled color block the contact sets
+    // reversed — 400–500-weight micro type must be ≥10pt there. On paper
+    // the legacy 7pt stands (bit-identical geometry).
+    const cpt = planeTone ? 10 : 7;
+    const cs = cpt / 7;
     const cbox = nameOrientation === "vertical" && paperRects.some((p) => p.h > 3)
-      ? { w: 0.16, h: clamp(ctx.contactLine.length * 0.045, 1, 3.5) }
-      : { w: clamp(ctx.contactLine.length * 0.052, 1, PAGE_W - 1), h: 0.16 };
+      ? { w: 0.16 * cs, h: clamp(ctx.contactLine.length * 0.045 * cs, 1, 3.5) }
+      : { w: clamp(ctx.contactLine.length * 0.052 * cs, 1, PAGE_W - 1), h: 0.16 * cs };
     // Prefer a lockup directly beneath an on-paper horizontal name (the
     // reference register); fall back to independent negative-space search.
     let cp = null;
@@ -981,8 +1063,24 @@ function sampleProgram(seed, ctx) {
     // photo's bottom margin, ink chosen from the measured band.
     let contactColor = planeTone ? planeTone.mutedInk : (palette?.muted || "#6B6560");
     if (!cp && contactOnPhoto && nameOrientation === "horizontal") {
-      cp = { rect: rect(SAFE, PAGE_H - 0.36, cbox.w, cbox.h), onPhoto: true };
-      contactColor = contactOnPhoto.ink;
+      // Print rule 2.5: photo-riding contact ink is verified PER-CELL
+      // (composited translucent ink vs the cell, ≥4.5:1) over the rect it
+      // actually covers, or the contact is DROPPED from the front — the
+      // gallery rig caught a live 2.82:1 mean-verified case.
+      const cRect = rect(SAFE, PAGE_H - 0.36, cbox.w, cbox.h);
+      const cCells = cellsUnderRect(effForensics?.luma?.grid, cRect, heroRect);
+      const lightInk = { css: "rgba(255,255,255,0.82)", inkGamma: 1, alpha: 0.82 };
+      const darkInk = { css: "rgba(20,18,16,0.72)", inkGamma: gammaLuma("#141210"), alpha: 0.72 };
+      const inkOrder = contactOnPhoto.preferLight ? [lightInk, darkInk] : [darkInk, lightInk];
+      const okInk = cCells.length
+        ? inkOrder.find((i) => worstCompositeInkRatio(cCells, i) >= 4.5) || null
+        : null;
+      if (okInk) {
+        cp = { rect: cRect, onPhoto: true };
+        contactColor = okInk.css;
+      } else {
+        decide("contact", "dropped", "bottom-bleed cells unverifiable ≥4.5:1 per-cell");
+      }
     }
     if (cp) {
       elements.push({
@@ -1011,6 +1109,12 @@ function sampleProgram(seed, ctx) {
  * Higher is better. Deterministic.
  */
 function scoreProgram(program, ctx) {
+  // Editions (plan 2.6): a take carrying an edition is scored against the
+  // edition's own objectives (spec §7.1) plus the shared universal soft
+  // objectives. Without an edition, today's scorer runs unchanged.
+  if (ctx && ctx.edition && ctx.edition.def) {
+    return scoreEditionProgram(program, ctx);
+  }
   const els = program.elements;
   const textEls = els.filter((e) => ["name", "contact", "statLine"].includes(e.type));
   let score = 50;
@@ -1077,7 +1181,15 @@ function structuralSignature(program) {
       if (e.type === "photo") return `photo:${[...(e.bleedEdges || [])].sort().join("") || "inset"}`;
       return e.type;
     });
-  return `${program.structure}|${parts.join(",")}`;
+  const base = `${program.structure}|${parts.join(",")}`;
+  // Editions extend the signature with lockup + field so the avoid/variety
+  // machinery distinguishes takes that share a structure but not a name
+  // construction or paper field. Legacy programs carry neither — their
+  // signatures are unchanged.
+  const ext = [];
+  if (program.lockup) ext.push(`lk:${program.lockup}`);
+  if (program.field) ext.push(`fd:${program.field}`);
+  return ext.length ? `${base}|${ext.join("|")}` : base;
 }
 
 /**

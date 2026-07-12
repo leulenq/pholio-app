@@ -37,8 +37,15 @@ const {
   resolveVoice,
   advanceEm,
   resolveWeight,
+  hasVariableAxis,
+  resolveNameAxes,
 } = require("./font-library");
 const { nameAdvanceEm } = require("./perception/font-files");
+const {
+  resolveEditionPalette,
+  REGISTER_QUIET_MAX_MIN_PT,
+  REGISTER_DISPLAY_MIN_MAX_PT,
+} = require("./editions");
 
 const TYPE_RATIOS = [1.2, 1.25, 1.333, 1.414, 1.5, 1.618];
 const PAPERS = { pure: "#FFFFFF", ivory: "#FFFEFA", warm: "#FAF8F5" };
@@ -313,7 +320,20 @@ function solveNameSizePt({ text, bandWidthIn, targetSpan, trackingEm, glyphEm, c
 
 /**
  * @param {object} input — { profile, archetype, castingAnalysis, statsBlock,
- *   poolAnalysis, heroForensics, seed, salt, advice, overrides }
+ *   poolAnalysis, heroForensics, seed, salt, advice, overrides, edition,
+ *   operators }
+ *
+ * EDITIONS THREADING (opt-in): when `edition` (a resolved catalog def from
+ * editions.js) is present, the language is set inside that edition's
+ * program — voice cast restricted to `edition.voices`, tracking biased by
+ * `edition.scale.trackingBias` inside the voice's own bounds, the palette
+ * mapped from the `operators.field` axis (dark → verified ink-field
+ * program; warm/paper → the corresponding paper program with a re-gated
+ * accent; plane → default palette kept + `field: 'plane'` flag for the
+ * front program), and `language.scale = { minPt, maxPt, register }`
+ * exposed for the director's name-solve clamps. Without an edition the
+ * output is byte-identical to the legacy synthesizer (regression-tested).
+ *
  * @returns {object} DesignLanguage (spec §C)
  */
 function synthesizeDesignLanguage(input = {}) {
@@ -333,6 +353,8 @@ function synthesizeDesignLanguage(input = {}) {
     // each direction carries its own typographic identity (same seed, same
     // talent, different register per direction)
     avoidVoice = null, // the previous take's voice — excluded from the cast
+    edition = null, // resolved edition def (editions.js catalog entry)
+    operators = null, // { field, register } from resolveOperators
   } = input;
 
   const decisions = [];
@@ -419,11 +441,14 @@ function synthesizeDesignLanguage(input = {}) {
   // the tone vector's affinity distance with a seeded tie-break.
   const kids = statsBlock?.category === "kids";
   const { voiceId, voice, because: voiceBecause } = resolveVoice(tone, {
-    seed: `${seed ?? "auto"}:${salt}:${identity}${direction ? `:dir-${direction}` : ""}`,
+    seed: `${seed ?? "auto"}:${salt}:${identity}${direction ? `:dir-${direction}` : ""}${edition ? `:ed-${edition.id}` : ""}`,
     salt: "voice",
     requested: brief?.typographyVoice || null,
     kids,
     avoid: avoidVoice,
+    // edition voice pool: the cast stays tone+seed WITHIN the pool (kids
+    // vetoes apply on top; an emptied pool is ignored inside resolveVoice)
+    pool: edition && Array.isArray(edition.voices) ? edition.voices : null,
   });
   decide("typography-voice", voiceId, voiceBecause);
   const display = voice.display;
@@ -434,11 +459,26 @@ function synthesizeDesignLanguage(input = {}) {
   const text = `${first} ${last}`.trim() || "Untitled Talent";
 
   // Tracking inside the voice's own bounds, positioned by formality + seed.
-  const trackingPos = clamp01(0.35 * tone.formality + 0.65 * rng());
+  // An active edition applies its tracking bias (−1 tight … +1 wide) INSIDE
+  // those bounds — culture, not noise; the position never leaves [0,1].
+  const editionTrackingBias =
+    edition && Number.isFinite(Number(edition.scale?.trackingBias))
+      ? Number(edition.scale.trackingBias)
+      : 0;
+  const trackingPos = clamp01(
+    0.35 * tone.formality + 0.65 * rng() + 0.35 * editionTrackingBias,
+  );
   const trackingEm =
     Math.round(
       (voice.tracking.min + (voice.tracking.max - voice.tracking.min) * trackingPos) * 1000,
     ) / 1000;
+  if (edition && editionTrackingBias !== 0) {
+    decide(
+      "edition-tracking",
+      `bias ${editionTrackingBias} inside voice bounds`,
+      `edition '${edition.id}' tracking culture`,
+    );
+  }
   // Span capped at 0.85: glyph-advance estimates carry error and a clipped
   // name is a ruined card — leave real breathing room in the band.
   const targetSpan = Math.round((0.5 + 0.35 * (0.35 * tone.density + 0.65 * rng())) * 100) / 100;
@@ -454,14 +494,47 @@ function synthesizeDesignLanguage(input = {}) {
   const rotation = tone.formality >= 0.6 && rng() < 0.08 ? -90 : 0;
   if (rotation !== 0) decide("name-rotation", "-90 (vertical spine)", "rare editorial treatment, formality-gated");
 
+  // Variable-axis name treatment (Phase 4). On the edition path, map the
+  // edition's register + name length onto the display family's width/optical
+  // axes: a spine-lockup edition pulls the rail EXTENDED, a large-display
+  // edition CONDENSES long names to earn their size, and optical size tracks
+  // the display register so didone/soft-serif cuts read as true display cuts.
+  // The chosen axis position is carried on the name treatment and threaded to
+  // BOTH measurement (here) and the renderer's font-variation-settings, so the
+  // shaped width matches the rendered width by construction. Families without
+  // a design axis (or the legacy no-edition path) get null — byte-identical to
+  // the static measurement.
+  let nameAxes = null;
+  if (edition && hasVariableAxis(display)) {
+    const reg = (operators && operators.register) || "standard";
+    const sMin = Number(edition.scale?.minPt) || NAME_PT_MIN;
+    const sMax = Number(edition.scale?.maxPt) || NAME_PT_MAX;
+    const opszSizePt =
+      reg === "display" ? sMax : reg === "quiet" ? sMin : Math.round(sMin + (sMax - sMin) * 0.66);
+    const editionLockups = Array.isArray(edition.lockups) ? edition.lockups : [];
+    let widthMode = "normal";
+    if (editionLockups.includes("spine")) widthMode = "extended";
+    else if (reg === "display" || sMax >= 56) widthMode = "condense";
+    nameAxes = resolveNameAxes(display, { widthMode, nameLength: text.length, opszSizePt });
+    if (nameAxes) {
+      decide(
+        "name-axes",
+        Object.entries(nameAxes).map(([k, v]) => `${k} ${v}`).join(", "),
+        `${display} variable ${widthMode} cut (register ${reg}, ${text.length} chars)`,
+      );
+    }
+  }
+
   // Real glyph metrics (audit P0-1): measure the exact string the renderer
   // will draw, in the cast voice's family/weight/case, from the vendored
-  // font files. Falls back to the library's calibrated estimate.
+  // font files (at the resolved axis position when set). Falls back to the
+  // library's calibrated estimate.
   const { advanceEm: glyphEm, measured: glyphMeasured } = nameAdvanceEm({
     family: display,
     weight: weightClass,
     text,
     nameCase,
+    axes: nameAxes,
   });
   // Stacked (two-line) treatments size from the longest segment, whose
   // per-glyph average differs from the full string's (spaces are narrow) —
@@ -472,6 +545,7 @@ function synthesizeDesignLanguage(input = {}) {
     weight: weightClass,
     text: longestPart,
     nameCase,
+    axes: nameAxes,
   });
   decide(
     "name-metrics",
@@ -481,7 +555,21 @@ function synthesizeDesignLanguage(input = {}) {
       : "no vendored font file — calibrated per-family estimate",
   );
 
-  const name = { text, case: nameCase, weightClass, trackingEm, targetSpan, rotation, glyphEm, glyphEmLongest, glyphMeasured };
+  const name = {
+    text,
+    case: nameCase,
+    weightClass,
+    trackingEm,
+    targetSpan,
+    rotation,
+    glyphEm,
+    glyphEmLongest,
+    glyphMeasured,
+    // Edition path carries the variable-axis position (null when the family
+    // has none); the legacy path omits the key entirely so plans stay
+    // byte-identical to the pre-Phase-4 synthesizer.
+    ...(edition ? { axes: nameAxes } : {}),
+  };
   decide(
     "name-treatment",
     `${display} ${nameCase} w${weightClass} tracking ${trackingEm}em span ${targetSpan}`,
@@ -502,6 +590,87 @@ function synthesizeDesignLanguage(input = {}) {
   decide("palette", `${paper} / ${ink} / ${accent}`, `accent: ${source}`);
   if (source.includes("fallback") && heroForensics) {
     warnings.push("hero palette yielded no usable accent; brand gold used");
+  }
+
+  // 4b. Edition field program — the operators' field axis maps to a palette
+  // program. `dark` runs the verified ink-field program (hero-pulled night
+  // paper, reversed ink, gold accent) REGARDLESS of the edition's own
+  // palette id — a dark Monograph exists. `warm`/`paper` run the matching
+  // paper program with the accent re-gated against the new paper. `plane`
+  // keeps the design-language default and flags the front program to pull
+  // the plane tone itself.
+  let palette = { paper, ink, accent, rule };
+  const field = edition ? (operators && operators.field) || "paper" : null;
+  if (edition && field === "dark") {
+    const inkField = resolveEditionPalette({ palette: "ink-field" }, { heroForensics });
+    palette = {
+      paper: inkField.paper,
+      ink: inkField.ink,
+      muted: inkField.muted,
+      rule: inkField.rule,
+      accent: inkField.accent,
+      dark: true,
+    };
+    decide("edition-field", "dark", `ink-field program — ${inkField.source}`);
+  } else if (edition && field === "warm") {
+    const program = resolveEditionPalette({ palette: "paper-warm" }, {});
+    const warmAccent = deriveAccent(heroForensics, program.paper, tone.warmth);
+    palette = {
+      paper: program.paper,
+      ink: program.ink,
+      muted: program.muted,
+      rule: program.rule,
+      accent: warmAccent.accent,
+      dark: false,
+    };
+    decide("edition-field", "warm", `paper-warm program; accent ${warmAccent.source}`);
+  } else if (edition && field === "paper") {
+    // The neutral paper field: the edition's own light paper program when it
+    // declares one, ivory otherwise — always distinct from the warm field.
+    const programId = edition.palette === "paper-white" ? "paper-white" : "paper-ivory";
+    const program = resolveEditionPalette({ palette: programId }, {});
+    const paperAccent = deriveAccent(heroForensics, program.paper, tone.warmth);
+    palette = {
+      paper: program.paper,
+      ink: program.ink,
+      muted: program.muted,
+      rule: program.rule,
+      accent: paperAccent.accent,
+      dark: false,
+    };
+    decide("edition-field", "paper", `${programId} program; accent ${paperAccent.source}`);
+  } else if (edition && field === "plane") {
+    palette = { ...palette, plane: true };
+    decide(
+      "edition-field",
+      "plane",
+      "design-language palette kept; plane tone derived by the front program",
+    );
+  }
+
+  // 4c. Edition scale — the name-solve clamps the director consumes. The
+  // register operator narrows the edition's honest bounds: quiet caps the
+  // top at 22pt, display floors the bottom at 56pt, standard keeps the
+  // edition's full range.
+  let scale = null;
+  if (edition && edition.scale) {
+    const minPt = Number(edition.scale.minPt) || NAME_PT_MIN;
+    const maxPt = Number(edition.scale.maxPt) || NAME_PT_MAX;
+    const register = (operators && operators.register) || "standard";
+    let lo = minPt;
+    let hi = maxPt;
+    if (register === "quiet") hi = Math.min(hi, REGISTER_QUIET_MAX_MIN_PT);
+    if (register === "display") lo = Math.max(lo, REGISTER_DISPLAY_MIN_MAX_PT);
+    if (lo > hi) {
+      lo = minPt;
+      hi = maxPt;
+    }
+    scale = { minPt: lo, maxPt: hi, register };
+    decide(
+      "edition-scale",
+      `${lo}–${hi}pt (${register})`,
+      `edition '${edition.id}' bounds × register operator`,
+    );
   }
 
   // 5. Stats placement. The researched rule stands; an art-director brief
@@ -539,12 +708,15 @@ function synthesizeDesignLanguage(input = {}) {
     name,
     voiceId,
     fonts: { display, body: voice.body },
-    palette: { paper, ink, accent, rule },
+    palette,
     pacing:
       Math.round(
         (0.8 + 0.8 * clamp01(0.55 * tone.formality + 0.45 * (1 - tone.density))) * 100,
       ) / 100,
     statsPlacement: { page: "back", frontLine, justification },
+    // Edition-only keys: absent on the legacy path so legacy plans stay
+    // byte-identical (regression contract).
+    ...(edition ? { edition: edition.id, field, scale } : {}),
     decisions,
     warnings,
   };

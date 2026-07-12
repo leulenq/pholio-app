@@ -1,0 +1,2075 @@
+{
+ "studio": {
+  "legacy-0": {
+   "program": {
+    "structure": "photo-dominant",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.56
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.666,
+       "y": 7.731,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.35,
+       "y": 7.6,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.084,
+      "z": 0.5,
+      "clip": false
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "photo-dominant",
+      "why": "field roll 0.147, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.084",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "photo-dominant|ghost,photo:leftrighttop,name:solo:horizontal:one:pap",
+   "score": 86.694,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "photo-dominant",
+     "why": "field roll 0.147, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.084",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-1": {
+   "program": {
+    "structure": "matted",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0.899,
+       "y": 0.586,
+       "w": 4.3,
+       "h": 6.211
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": []
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.338,
+       "y": 7.008,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.358,
+       "y": 7.696,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "matted",
+      "why": "field roll 0.69, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     }
+    ]
+   },
+   "signature": "matted|photo:inset,contact,name:solo:horizontal:one:pap",
+   "score": 85.197,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "matted",
+     "why": "field roll 0.69, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 4,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-2": {
+   "program": {
+    "structure": "matted",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0.735,
+       "y": 0.562,
+       "w": 4.361,
+       "h": 6.266
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": []
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.694,
+       "y": 7.489,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.35,
+       "y": 7.28,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.093,
+      "z": 0.5,
+      "clip": false
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.825,
+       "y": 6.988,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "matted",
+      "why": "field roll 0.493, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.093",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "matted|ghost,photo:inset,contact,name:solo:horizontal:one:pap",
+   "score": 85.848,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "matted",
+     "why": "field roll 0.493, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.093",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-7": {
+   "program": {
+    "structure": "split",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 6.268,
+       "w": 5.5,
+       "h": 2.232
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 6.268
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.297,
+       "y": 6.647,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.177,
+       "y": 6.438,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.09,
+      "z": 0.5,
+      "clip": false
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.317,
+       "y": 7.335,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "split",
+      "why": "field roll 0.857, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.09",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "split|colorPlane,ghost,photo:leftrighttop,contact,name:solo:horizontal:one:pap",
+   "score": 93.576,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "split",
+     "why": "field roll 0.857, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.09",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-12": {
+   "program": {
+    "structure": "split",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 6.454,
+       "w": 5.5,
+       "h": 2.046
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 6.454
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.445,
+       "y": 6.618,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.465,
+       "y": 7.306,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "split",
+      "why": "field roll 0.756, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     }
+    ]
+   },
+   "signature": "split|colorPlane,photo:leftrighttop,contact,name:solo:horizontal:one:pap",
+   "score": 90.251,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "split",
+     "why": "field roll 0.756, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-20": {
+   "program": {
+    "structure": "split",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 7.115,
+       "w": 5.5,
+       "h": 1.385
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.115
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.491,
+       "y": 7.282,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.35,
+       "y": 7.155,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.074,
+      "z": 0.5,
+      "clip": false
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.511,
+       "y": 7.97,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "split",
+      "why": "field roll 0.771, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.074",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "split|colorPlane,ghost,photo:leftrighttop,contact,name:solo:horizontal:one:pap",
+   "score": 95.76,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "split",
+     "why": "field roll 0.771, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.074",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  }
+ },
+ "location": {
+  "legacy-0": {
+   "program": {
+    "structure": "photo-dominant",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.56
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.666,
+       "y": 7.731,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.35,
+       "y": 7.6,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.084,
+      "z": 0.5,
+      "clip": false
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "photo-dominant",
+      "why": "field roll 0.147, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.084",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "photo-dominant|ghost,photo:leftrighttop,name:solo:horizontal:one:pap",
+   "score": 86.694,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "photo-dominant",
+     "why": "field roll 0.147, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.084",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-3": {
+   "program": {
+    "structure": "photo-dominant",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.637
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.693,
+       "y": 7.779,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "photo-dominant",
+      "why": "field roll 0.152, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     }
+    ]
+   },
+   "signature": "photo-dominant|photo:leftrighttop,name:solo:horizontal:one:pap",
+   "score": 82.679,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "photo-dominant",
+     "why": "field roll 0.152, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 2,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-8": {
+   "program": {
+    "structure": "matted",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0.373,
+       "y": 0.755,
+       "w": 4.8,
+       "h": 6.054
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": []
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.682,
+       "y": 7.018,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.35,
+       "y": 6.809,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.053,
+      "z": 0.5,
+      "clip": false
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.702,
+       "y": 7.706,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "matted",
+      "why": "field roll 0.448, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.053",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "matted|ghost,photo:inset,contact,name:solo:horizontal:one:pap",
+   "score": 90.698,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "matted",
+     "why": "field roll 0.448, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.053",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 2,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-14": {
+   "program": {
+    "structure": "photo-dominant",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.562
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.651,
+       "y": 7.763,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.35,
+       "y": 7.602,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.087,
+      "z": 0.5,
+      "clip": false
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "photo-dominant",
+      "why": "field roll 0.302, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.087",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "photo-dominant|ghost,photo:leftrighttop,name:solo:horizontal:one:pap",
+   "score": 86.66,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "photo-dominant",
+     "why": "field roll 0.302, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.087",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 4,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  },
+  "legacy-25": {
+   "program": {
+    "structure": "photo-dominant",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.588
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.419,
+       "y": 7.737,
+       "w": 3.969,
+       "h": 0.626
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.084,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.299,
+       "y": 7.628,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.073,
+      "z": 0.5,
+      "clip": false
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "photo-dominant",
+      "why": "field roll 0.203, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.084pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.073",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "photo-dominant|ghost,photo:leftrighttop,name:solo:horizontal:one:pap",
+   "score": 86.506,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "photo-dominant",
+     "why": "field roll 0.203, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.084pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.073",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 2,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.43000000000000005
+   }
+  }
+ },
+ "matte": {
+  "legacy-0": {
+   "program": {
+    "structure": "cutout",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 8.5
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0.384,
+       "y": 0.35,
+       "w": 4.731,
+       "h": 6.877
+      },
+      "z": 1,
+      "isCutout": true,
+      "bleedEdges": []
+     },
+     {
+      "type": "band",
+      "rect": {
+       "x": 0.384,
+       "y": 0.61,
+       "w": 4.731,
+       "h": 0.828
+      },
+      "fill": "#1A1815",
+      "z": 3.5
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.759,
+       "y": 0.71,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": true,
+      "color": "#FFFFFF",
+      "scrim": null,
+      "z": 4
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 2.077,
+       "y": 7.887,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "cutout",
+      "why": "field roll 0.735, energy 0.5"
+     },
+     {
+      "k": "knockout",
+      "v": "band #1A1815",
+      "why": "energy-gated reversed-name band"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt knockout",
+      "why": "in matte negative space"
+     }
+    ]
+   },
+   "signature": "cutout|colorPlane,photo:inset,contact,band,name:solo:horizontal:one:img",
+   "score": 87.031,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "cutout",
+     "why": "field roll 0.735, energy 0.5"
+    },
+    {
+     "k": "knockout",
+     "v": "band #1A1815",
+     "why": "energy-gated reversed-name band"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt knockout",
+     "why": "in matte negative space"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 4,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.8
+   }
+  },
+  "legacy-2": {
+   "program": {
+    "structure": "cutout",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 8.5
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0.262,
+       "y": 0.363,
+       "w": 4.975,
+       "h": 7.148
+      },
+      "z": 1,
+      "isCutout": true,
+      "bleedEdges": []
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.759,
+       "y": 0.747,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": true,
+      "color": "#FFFFFF",
+      "scrim": null,
+      "z": 4
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 1.993,
+       "y": 7.988,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "cutout",
+      "why": "field roll 0.493, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "in matte negative space"
+     }
+    ]
+   },
+   "signature": "cutout|colorPlane,photo:inset,contact,name:solo:horizontal:one:img",
+   "score": 83.676,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "cutout",
+     "why": "field roll 0.493, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "in matte negative space"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.8
+   }
+  },
+  "legacy-9": {
+   "program": {
+    "structure": "cutout",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 8.5
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0.244,
+       "y": 0.176,
+       "w": 5.012,
+       "h": 7.286
+      },
+      "z": 1,
+      "isCutout": true,
+      "bleedEdges": []
+     },
+     {
+      "type": "band",
+      "rect": {
+       "x": 0.244,
+       "y": 0.472,
+       "w": 5.012,
+       "h": 0.828
+      },
+      "fill": "#1A1815",
+      "z": 3.5
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.759,
+       "y": 0.572,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": true,
+      "color": "#FFFFFF",
+      "scrim": null,
+      "z": 4
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 1.541,
+       "y": 7.985,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "cutout",
+      "why": "field roll 0.534, energy 0.5"
+     },
+     {
+      "k": "knockout",
+      "v": "band #1A1815",
+      "why": "energy-gated reversed-name band"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt knockout",
+      "why": "in matte negative space"
+     }
+    ]
+   },
+   "signature": "cutout|colorPlane,photo:inset,contact,band,name:solo:horizontal:one:img",
+   "score": 89.063,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "cutout",
+     "why": "field roll 0.534, energy 0.5"
+    },
+    {
+     "k": "knockout",
+     "v": "band #1A1815",
+     "why": "energy-gated reversed-name band"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt knockout",
+     "why": "in matte negative space"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 1,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.8
+   }
+  },
+  "legacy-16": {
+   "program": {
+    "structure": "split",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 7.099,
+       "w": 5.5,
+       "h": 1.401
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.099
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.352,
+       "y": 7.254,
+       "w": 3.982,
+       "h": 0.628
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 36.2,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.232,
+       "y": 7.139,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.083,
+      "z": 0.5,
+      "clip": false
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.372,
+       "y": 7.942,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "split",
+      "why": "field roll 0.946, energy 0.5"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 36.2pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.083",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "split|colorPlane,ghost,photo:leftrighttop,contact,name:solo:horizontal:one:pap",
+   "score": 95.631,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "split",
+     "why": "field roll 0.946, energy 0.5"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 36.2pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.083",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.6,
+    "energy": 0.5,
+    "warmth": 0.45,
+    "density": 0.45,
+    "risk": 0.8
+   }
+  }
+ },
+ "split_metrics": {
+  "legacy-1": {
+   "program": {
+    "structure": "matted",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0.899,
+       "y": 0.586,
+       "w": 4.3,
+       "h": 6.211
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": []
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.301,
+       "y": 7.001,
+       "w": 4.411,
+       "h": 0.696
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 40.1,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.321,
+       "y": 7.757,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "matted",
+      "why": "field roll 0.69, energy 0.9"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 40.1pt",
+      "why": "on paper"
+     }
+    ]
+   },
+   "signature": "matted|photo:inset,contact,name:solo:horizontal:one:pap",
+   "score": 85.307,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "matted",
+     "why": "field roll 0.69, energy 0.9"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 40.1pt",
+     "why": "on paper"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 4,
+   "intent": {
+    "formality": 0.3,
+    "energy": 0.9,
+    "warmth": 0.5,
+    "density": 0.5,
+    "risk": 0.6499999999999999
+   }
+  },
+  "legacy-3": {
+   "program": {
+    "structure": "photo-dominant",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.648
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.374,
+       "y": 7.763,
+       "w": 4.094,
+       "h": 0.646
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 37.218,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "photo-dominant",
+      "why": "field roll 0.474, energy 0.9"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 37.218pt",
+      "why": "on paper"
+     }
+    ]
+   },
+   "signature": "photo-dominant|photo:leftrighttop,name:solo:horizontal:one:pap",
+   "score": 82.493,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "photo-dominant",
+     "why": "field roll 0.474, energy 0.9"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 37.218pt",
+     "why": "on paper"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 3,
+   "intent": {
+    "formality": 0.3,
+    "energy": 0.9,
+    "warmth": 0.5,
+    "density": 0.5,
+    "risk": 0.6499999999999999
+   }
+  },
+  "legacy-7": {
+   "program": {
+    "structure": "split",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 6.268,
+       "w": 5.5,
+       "h": 2.232
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 6.268
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.277,
+       "y": 6.603,
+       "w": 4.411,
+       "h": 0.696
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 40.1,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "ghost",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.157,
+       "y": 6.394,
+       "w": 5,
+       "h": 0.746
+      },
+      "sizePt": 51.136,
+      "color": "#B8956A",
+      "opacity": 0.09,
+      "z": 0.5,
+      "clip": false
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.297,
+       "y": 7.359,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "split",
+      "why": "field roll 0.857, energy 0.9"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 40.1pt",
+      "why": "on paper"
+     },
+     {
+      "k": "ghost",
+      "v": "51.136pt @0.09",
+      "why": "complete-word echo, paper-plane ownership"
+     }
+    ]
+   },
+   "signature": "split|colorPlane,ghost,photo:leftrighttop,contact,name:solo:horizontal:one:pap",
+   "score": 93.724,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "split",
+     "why": "field roll 0.857, energy 0.9"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 40.1pt",
+     "why": "on paper"
+    },
+    {
+     "k": "ghost",
+     "v": "51.136pt @0.09",
+     "why": "complete-word echo, paper-plane ownership"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 0,
+   "intent": {
+    "formality": 0.3,
+    "energy": 0.9,
+    "warmth": 0.5,
+    "density": 0.5,
+    "risk": 0.6499999999999999
+   }
+  },
+  "legacy-12": {
+   "program": {
+    "structure": "split",
+    "elements": [
+     {
+      "type": "colorPlane",
+      "rect": {
+       "x": 0,
+       "y": 7.036,
+       "w": 5.5,
+       "h": 1.464
+      },
+      "fill": "#FAF8F5",
+      "z": 0
+     },
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.036
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.436,
+       "y": 7.214,
+       "w": 4.411,
+       "h": 0.696
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 40.1,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     },
+     {
+      "type": "contact",
+      "text": "Paris · @anapetrova",
+      "rect": {
+       "x": 0.456,
+       "y": 7.97,
+       "w": 1,
+       "h": 0.16
+      },
+      "orientation": "horizontal",
+      "sizePt": 7,
+      "color": "#6B6560",
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "split",
+      "why": "field roll 0.779, energy 0.9"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 40.1pt",
+      "why": "on paper"
+     }
+    ]
+   },
+   "signature": "split|colorPlane,photo:leftrighttop,contact,name:solo:horizontal:one:pap",
+   "score": 91.667,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "split",
+     "why": "field roll 0.779, energy 0.9"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 40.1pt",
+     "why": "on paper"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 2,
+   "intent": {
+    "formality": 0.3,
+    "energy": 0.9,
+    "warmth": 0.5,
+    "density": 0.5,
+    "risk": 0.6499999999999999
+   }
+  },
+  "legacy-30": {
+   "program": {
+    "structure": "photo-dominant",
+    "elements": [
+     {
+      "type": "photo",
+      "rect": {
+       "x": 0,
+       "y": 0,
+       "w": 5.5,
+       "h": 7.592
+      },
+      "z": 1,
+      "isCutout": false,
+      "bleedEdges": [
+       "left",
+       "top",
+       "right"
+      ]
+     },
+     {
+      "type": "name",
+      "text": "Ana Petrova",
+      "rect": {
+       "x": 0.478,
+       "y": 7.7,
+       "w": 4.338,
+       "h": 0.685
+      },
+      "orientation": "horizontal",
+      "stacked": false,
+      "sizePt": 39.439,
+      "trackingEm": 0.12,
+      "onPhoto": false,
+      "color": "#1A1815",
+      "scrim": null,
+      "z": 3
+     }
+    ],
+    "decisions": [
+     {
+      "k": "structure",
+      "v": "photo-dominant",
+      "why": "field roll 0.522, energy 0.9"
+     },
+     {
+      "k": "name",
+      "v": "horizontal 39.439pt",
+      "why": "on paper"
+     }
+    ]
+   },
+   "signature": "photo-dominant|photo:leftrighttop,name:solo:horizontal:one:pap",
+   "score": 82.688,
+   "decisions": [
+    {
+     "k": "structure",
+     "v": "photo-dominant",
+     "why": "field roll 0.522, energy 0.9"
+    },
+    {
+     "k": "name",
+     "v": "horizontal 39.439pt",
+     "why": "on paper"
+    }
+   ],
+   "candidates": 5,
+   "pickIndex": 2,
+   "intent": {
+    "formality": 0.3,
+    "energy": 0.9,
+    "warmth": 0.5,
+    "density": 0.5,
+    "risk": 0.6499999999999999
+   }
+  }
+ }
+}
