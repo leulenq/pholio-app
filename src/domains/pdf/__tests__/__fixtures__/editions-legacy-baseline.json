@@ -1,2613 +1,2617 @@
 {
- "director": {
-  "legacy-1": {
-   "engine": "composed",
-   "seedUsed": "legacy-1",
-   "language": {
-    "toneVector": {
-     "formality": 1,
-     "energy": 0.44094740643631664,
-     "warmth": 0.5161706293236464,
-     "density": 0.5266767913242802
-    },
-    "typeScale": {
-     "ratio": 1.618,
-     "basePt": 7.8,
-     "statValue": 7.8,
-     "statLabel": 6.4,
-     "contact": 7
-    },
-    "name": {
-     "text": "Ana Petrova",
-     "case": "upper",
-     "weightClass": 500,
-     "trackingEm": 0.155,
-     "targetSpan": 0.68,
-     "rotation": 0,
-     "glyphEm": 0.6080909090909091,
-     "glyphEmLongest": 0.6397142857142857,
-     "glyphMeasured": true
-    },
-    "voiceId": "editorial-serif",
-    "fonts": {
-     "display": "Playfair Display",
-     "body": "Inter"
-    },
-    "palette": {
-     "paper": "#FAF8F5",
-     "ink": "#111111",
-     "accent": "#744C34",
-     "rule": "#D9D9D9"
-    },
-    "pacing": 1.41,
-    "statsPlacement": {
-     "page": "back",
-     "frontLine": false,
-     "justification": "back by default — fronts stay image-led (industry two-sided convention)"
-    },
-    "decisions": [
-     {
-      "aspect": "tone-vector",
-      "choice": "formality 1.00 energy 0.44 warmth 0.52 density 0.53",
-      "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-     },
-     {
-      "aspect": "type-scale",
-      "choice": "ratio 1.618",
-      "because": "formality-biased register on the classic scale ratios"
-     },
-     {
-      "aspect": "typography-voice",
-      "choice": "editorial-serif",
-      "because": "tone-affinity cast (distance 0.330, 3 candidates)"
-     },
-     {
-      "aspect": "name-metrics",
-      "choice": "measured",
-      "because": "glyph advances shaped from vendored font files (harfbuzz)"
-     },
-     {
-      "aspect": "name-treatment",
-      "choice": "Playfair Display upper w500 tracking 0.155em span 0.68",
-      "because": "voice 'editorial-serif' bounds + tone/seed position"
-     },
-     {
-      "aspect": "palette",
-      "choice": "#FAF8F5 / #111111 / #744C34",
-      "because": "accent: hero-palette #7A4A2E"
-     },
-     {
-      "aspect": "stats-placement",
-      "choice": "back",
-      "because": "back by default — fronts stay image-led (industry two-sided convention)"
-     }
-    ],
-    "warnings": []
-   },
-   "toneProfile": "high-fashion",
-   "palette": {
-    "background": "#FAF8F5",
-    "text": "#111111",
-    "muted": "#5C5C5C",
-    "accent": "#744C34",
-    "rule": "#D9D9D9"
-   },
-   "typography": {
-    "display": "Playfair Display",
-    "body": "Inter",
-    "voiceId": "editorial-serif",
-    "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap",
-    "nameSize": "22.5pt",
-    "nameTracking": "0.155em",
-    "nameCase": "uppercase",
-    "nameWeight": 500,
-    "statSize": "7.8pt",
-    "statLabelSize": "6.4pt",
-    "contactSize": "7pt"
-   },
-   "front": {
-    "imageId": "hs",
-    "crop": {
-     "fit": "cover",
-     "objectPosition": "50% 18%",
-     "safety": {
-      "level": "safe",
-      "notes": [
-       "focal point from role heuristic (headshot)"
-      ]
-     },
-     "coverageLoss": 0
-    },
-    "geometry": {
-     "hero": {
-      "x": 0.716,
-      "y": 1.084,
-      "w": 4.25,
-      "h": 5.313,
-      "bleedEdges": []
-     },
-     "nameBand": {
-      "x": 0.716,
-      "y": 0.32,
-      "w": 4.068,
-      "h": 0.577,
-      "onImage": false,
-      "inkOn": "dark"
-     },
-     "contactBand": {
-      "x": 0.25,
-      "y": 8.05,
-      "w": 3.9,
-      "h": 0.2
-     },
-     "statLine": {
-      "x": 0.25,
-      "y": 7.79,
-      "w": 5,
-      "h": 0.16
-     },
-     "wordmark": {
-      "x": 4.3,
-      "y": 8.07,
-      "w": 0.95,
-      "h": 0.18
-     },
-     "margins": {
-      "top": 1.084,
-      "right": 0.534,
-      "bottom": 0.78,
-      "left": 0.716
-     },
-     "decisions": [
-      {
-       "aspect": "front-coverage",
-       "choice": 0.796,
-       "because": "floated hero with paper margins"
-      },
-      {
-       "aspect": "name-band",
-       "choice": "top (on paper)",
-       "because": "no sufficiently quiet hero band selected"
-      }
-     ]
-    },
-    "treatment": "bordered",
-    "scrim": null,
-    "typeSafety": {
-     "onImage": false,
-     "verified": true,
-     "because": "name set on paper"
-    },
-    "name": {
-     "placement": "top",
-     "align": "left",
-     "rotation": 0,
-     "lines": null
-    },
-    "statLine": null,
-    "statLineText": null,
-    "showContactBlock": false
-   },
-   "back": {
-    "layout": {
-     "cells": [
-      {
-       "x": 0.452,
-       "y": 0.98,
-       "w": 2.223,
-       "h": 2.686,
-       "imageId": "ed",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 0%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (editorial)"
-         ]
+  "director": {
+    "legacy-1": {
+      "engine": "composed",
+      "seedUsed": "legacy-1",
+      "language": {
+        "toneVector": {
+          "formality": 1,
+          "energy": 0.44094740643631664,
+          "warmth": 0.5161706293236464,
+          "density": 0.5266767913242802
         },
-        "coverageLoss": 0.094
-       },
-       "bleedEdges": []
-      },
-      {
-       "x": 0.452,
-       "y": 3.817,
-       "w": 2.223,
-       "h": 3.711,
-       "imageId": "fb",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (full_body)"
-         ]
+        "typeScale": {
+          "ratio": 1.618,
+          "basePt": 7.8,
+          "statValue": 7.8,
+          "statLabel": 6.4,
+          "contact": 7
         },
-        "coverageLoss": 0.082
-       },
-       "bleedEdges": []
-      },
-      {
-       "x": 2.826,
-       "y": 1.027,
-       "w": 2.223,
-       "h": 3.671,
-       "imageId": "tq",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (full_body)"
-         ]
+        "name": {
+          "text": "Ana Petrova",
+          "case": "upper",
+          "weightClass": 500,
+          "trackingEm": 0.155,
+          "targetSpan": 0.68,
+          "rotation": 0,
+          "glyphEm": 0.6080909090909091,
+          "glyphEmLongest": 0.6397142857142857,
+          "glyphMeasured": true
         },
-        "coverageLoss": 0.135
-       },
-       "bleedEdges": []
-      },
-      {
-       "x": 2.826,
-       "y": 4.848,
-       "w": 2.223,
-       "h": 2.68,
-       "imageId": "ls",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 35%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (lifestyle)"
-         ]
+        "voiceId": "editorial-serif",
+        "fonts": {
+          "display": "Playfair Display",
+          "body": "Inter"
         },
-        "coverageLoss": 0.362
-       },
-       "bleedEdges": []
-      }
-     ],
-     "statsBlock": {
-      "x": 0.452,
-      "y": 0.98,
-      "w": 0,
-      "h": 0,
-      "orientation": "column"
-     },
-     "nameBlock": {
-      "x": 0.452,
-      "y": 0.362,
-      "w": 4.596,
-      "h": 0.467
-     },
-     "contactBlock": {
-      "x": 0.452,
-      "y": 7.679,
-      "w": 3.396,
-      "h": 0.46
-     },
-     "wordmark": {
-      "x": 3.948,
-      "y": 7.839,
-      "w": 1.1,
-      "h": 0.3
-     },
-     "gutter": 0.151,
-     "coverageRatio": 0.942,
-     "architecture": "editorial-stagger",
-     "decisions": [
-      {
-       "aspect": "stats-side",
-       "choice": "none",
-       "because": "no stats"
-      },
-      {
-       "aspect": "photo-count",
-       "choice": "4/4",
-       "because": "density 0.527 → 4 of 4 frames (standard 4, floor 3)"
-      },
-      {
-       "aspect": "architecture",
-       "choice": "editorial-stagger",
-       "because": "6 eligible for 4 image(s), density 0.527"
-      }
-     ],
-     "warnings": []
-    },
-    "slots": [
-     {
-      "imageId": "ed",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 0%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (editorial)"
-        ]
-       },
-       "coverageLoss": 0.094
-      },
-      "aspect": 0.828,
-      "area": "c0"
-     },
-     {
-      "imageId": "fb",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 50%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (full_body)"
-        ]
-       },
-       "coverageLoss": 0.082
-      },
-      "aspect": 0.599,
-      "area": "c1"
-     },
-     {
-      "imageId": "tq",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 50%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (full_body)"
-        ]
-       },
-       "coverageLoss": 0.135
-      },
-      "aspect": 0.606,
-      "area": "c2"
-     },
-     {
-      "imageId": "ls",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 35%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (lifestyle)"
-        ]
-       },
-       "coverageLoss": 0.362
-      },
-      "aspect": 0.829,
-      "area": "c3"
-     }
-    ],
-    "statsPlacement": "side-column",
-    "contact": {
-     "line": "Paris  ·  @anapetrova"
-    },
-    "booking": {
-     "mode": "direct",
-     "label": "Direct Bookings",
-     "primary": "@anapetrova",
-     "line": "Paris"
-    }
-   },
-   "wordmark": {
-    "href": null,
-    "displayUrl": null,
-    "corner": "bottom-right",
-    "align": "right",
-    "tone": "gold-deep",
-    "front": {
-     "x": 4.3,
-     "y": 8.07,
-     "w": 0.95,
-     "h": 0.18
-    },
-    "back": {
-     "x": 3.948,
-     "y": 7.839,
-     "w": 1.1,
-     "h": 0.3
-    }
-   },
-   "decisions": [
-    {
-     "aspect": "hero",
-     "choice": "hs",
-     "because": "top of deterministic heroRanking"
-    },
-    {
-     "aspect": "tone-vector",
-     "choice": "formality 1.00 energy 0.44 warmth 0.52 density 0.53",
-     "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-    },
-    {
-     "aspect": "type-scale",
-     "choice": "ratio 1.618",
-     "because": "formality-biased register on the classic scale ratios"
-    },
-    {
-     "aspect": "typography-voice",
-     "choice": "editorial-serif",
-     "because": "tone-affinity cast (distance 0.330, 3 candidates)"
-    },
-    {
-     "aspect": "name-metrics",
-     "choice": "measured",
-     "because": "glyph advances shaped from vendored font files (harfbuzz)"
-    },
-    {
-     "aspect": "name-treatment",
-     "choice": "Playfair Display upper w500 tracking 0.155em span 0.68",
-     "because": "voice 'editorial-serif' bounds + tone/seed position"
-    },
-    {
-     "aspect": "palette",
-     "choice": "#FAF8F5 / #111111 / #744C34",
-     "because": "accent: hero-palette #7A4A2E"
-    },
-    {
-     "aspect": "stats-placement",
-     "choice": "back",
-     "because": "back by default — fronts stay image-led (industry two-sided convention)"
-    },
-    {
-     "aspect": "front-coverage",
-     "choice": 0.796,
-     "because": "floated hero with paper margins"
-    },
-    {
-     "aspect": "name-band",
-     "choice": "top (on paper)",
-     "because": "no sufficiently quiet hero band selected"
-    },
-    {
-     "aspect": "wordmark-placement",
-     "choice": "bottom-right",
-     "because": "quietest non-interfering corner (paper)"
-    },
-    {
-     "aspect": "name-size",
-     "choice": "22.5pt",
-     "because": "solved from band width, span target, tracking"
-    },
-    {
-     "aspect": "back-story",
-     "choice": "4 image(s) curated",
-     "because": "fb: mandatory full-length, new register for the story (score 134) | ed: new register for the story, matches market signals (score 106) | ls: new register for the story (score 94) | tq: second of its register (score 62)"
-    },
-    {
-     "aspect": "back-architecture",
-     "choice": "editorial-stagger",
-     "because": "back program grammar"
-    },
-    {
-     "aspect": "stats-side",
-     "choice": "none",
-     "because": "no stats"
-    },
-    {
-     "aspect": "photo-count",
-     "choice": "4/4",
-     "because": "density 0.527 → 4 of 4 frames (standard 4, floor 3)"
-    },
-    {
-     "aspect": "architecture",
-     "choice": "editorial-stagger",
-     "because": "6 eligible for 4 image(s), density 0.527"
-    },
-    {
-     "aspect": "booking",
-     "choice": "Direct Bookings",
-     "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
-    }
-   ],
-   "warnings": []
-  },
-  "legacy-2": {
-   "engine": "composed",
-   "seedUsed": "legacy-2",
-   "language": {
-    "toneVector": {
-     "formality": 1,
-     "energy": 0.42166589514818037,
-     "warmth": 0.4763330963209272,
-     "density": 0.5431050687795506
-    },
-    "typeScale": {
-     "ratio": 1.618,
-     "basePt": 7.8,
-     "statValue": 7.8,
-     "statLabel": 6.4,
-     "contact": 7
-    },
-    "name": {
-     "text": "Ana Petrova",
-     "case": "upper",
-     "weightClass": 400,
-     "trackingEm": 0.244,
-     "targetSpan": 0.59,
-     "rotation": 0,
-     "glyphEm": 0.6681818181818181,
-     "glyphEmLongest": 0.6832142857142857,
-     "glyphMeasured": true
-    },
-    "voiceId": "romantic-didone",
-    "fonts": {
-     "display": "Bodoni Moda",
-     "body": "Inter"
-    },
-    "palette": {
-     "paper": "#FAF8F5",
-     "ink": "#111111",
-     "accent": "#744C34",
-     "rule": "#D9D9D9"
-    },
-    "pacing": 1.4,
-    "statsPlacement": {
-     "page": "back",
-     "frontLine": false,
-     "justification": "back by default — fronts stay image-led (industry two-sided convention)"
-    },
-    "decisions": [
-     {
-      "aspect": "tone-vector",
-      "choice": "formality 1.00 energy 0.42 warmth 0.48 density 0.54",
-      "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-     },
-     {
-      "aspect": "type-scale",
-      "choice": "ratio 1.618",
-      "because": "formality-biased register on the classic scale ratios"
-     },
-     {
-      "aspect": "typography-voice",
-      "choice": "romantic-didone",
-      "because": "tone-affinity cast (distance 0.284, 3 candidates)"
-     },
-     {
-      "aspect": "name-metrics",
-      "choice": "measured",
-      "because": "glyph advances shaped from vendored font files (harfbuzz)"
-     },
-     {
-      "aspect": "name-treatment",
-      "choice": "Bodoni Moda upper w400 tracking 0.244em span 0.59",
-      "because": "voice 'romantic-didone' bounds + tone/seed position"
-     },
-     {
-      "aspect": "palette",
-      "choice": "#FAF8F5 / #111111 / #744C34",
-      "because": "accent: hero-palette #7A4A2E"
-     },
-     {
-      "aspect": "stats-placement",
-      "choice": "back",
-      "because": "back by default — fronts stay image-led (industry two-sided convention)"
-     }
-    ],
-    "warnings": []
-   },
-   "toneProfile": "high-fashion",
-   "palette": {
-    "background": "#FAF8F5",
-    "text": "#111111",
-    "muted": "#5C5C5C",
-    "accent": "#744C34",
-    "rule": "#D9D9D9"
-   },
-   "typography": {
-    "display": "Bodoni Moda",
-    "body": "Inter",
-    "voiceId": "romantic-didone",
-    "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bodoni+Moda:wght@400;500;600;700&display=swap",
-    "nameSize": "18.1pt",
-    "nameTracking": "0.11em",
-    "nameCase": "uppercase",
-    "nameWeight": 400,
-    "statSize": "7.8pt",
-    "statLabelSize": "6.4pt",
-    "contactSize": "7pt"
-   },
-   "front": {
-    "imageId": "hs",
-    "crop": {
-     "fit": "cover",
-     "objectPosition": "50% 18%",
-     "safety": {
-      "level": "safe",
-      "notes": [
-       "focal point from role heuristic (headshot)"
-      ]
-     },
-     "coverageLoss": 0
-    },
-    "geometry": {
-     "hero": {
-      "x": 0.53,
-      "y": 0.371,
-      "w": 4.187,
-      "h": 5.234,
-      "bleedEdges": []
-     },
-     "nameBand": {
-      "x": 0.71,
-      "y": 0.531,
-      "w": 3.827,
-      "h": 0.78,
-      "onImage": true,
-      "inkOn": "light"
-     },
-     "contactBand": {
-      "x": 0.25,
-      "y": 8.05,
-      "w": 3.9,
-      "h": 0.2
-     },
-     "statLine": {
-      "x": 0.25,
-      "y": 7.79,
-      "w": 5,
-      "h": 0.16
-     },
-     "wordmark": {
-      "x": 4.3,
-      "y": 8.07,
-      "w": 0.95,
-      "h": 0.18
-     },
-     "margins": {
-      "top": 0.371,
-      "right": 0.783,
-      "bottom": 0.777,
-      "left": 0.53
-     },
-     "decisions": [
-      {
-       "aspect": "front-coverage",
-       "choice": 0.852,
-       "because": "floated hero with paper margins"
-      },
-      {
-       "aspect": "name-band",
-       "choice": "top (on image)",
-       "because": "hero band is quiet (0.95)"
-      }
-     ]
-    },
-    "treatment": "bordered",
-    "scrim": null,
-    "typeSafety": {
-     "onImage": true,
-     "verified": true,
-     "because": "top band verified: clear of face and body, quiet 0.95, contrast safe unaided"
-    },
-    "name": {
-     "placement": "top",
-     "align": "left",
-     "rotation": 0,
-     "lines": null
-    },
-    "statLine": null,
-    "statLineText": null,
-    "showContactBlock": false
-   },
-   "back": {
-    "layout": {
-     "cells": [
-      {
-       "x": 0.45,
-       "y": 0.975,
-       "w": 2.225,
-       "h": 3.202,
-       "imageId": "fb",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 35%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "focal point from role heuristic (full_body)",
-          "full-body crop loses 21% of image height (>18%); risk of cropping at knees/ankles",
-          "vertical position biased upward to keep head in frame"
-         ]
+        "palette": {
+          "paper": "#FAF8F5",
+          "ink": "#111111",
+          "accent": "#744C34",
+          "rule": "#D9D9D9"
         },
-        "coverageLoss": 0.208
-       },
-       "bleedEdges": []
-      },
-      {
-       "x": 2.825,
-       "y": 0.975,
-       "w": 2.675,
-       "h": 3.202,
-       "imageId": "tq",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (full_body)"
-         ]
+        "pacing": 1.41,
+        "statsPlacement": {
+          "page": "back",
+          "frontLine": false,
+          "justification": "back by default — fronts stay image-led (industry two-sided convention)"
         },
-        "coverageLoss": 0.007
-       },
-       "bleedEdges": [
-        "right"
-       ]
+        "decisions": [
+          {
+            "aspect": "tone-vector",
+            "choice": "formality 1.00 energy 0.44 warmth 0.52 density 0.53",
+            "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+          },
+          {
+            "aspect": "type-scale",
+            "choice": "ratio 1.618",
+            "because": "formality-biased register on the classic scale ratios"
+          },
+          {
+            "aspect": "typography-voice",
+            "choice": "editorial-serif",
+            "because": "tone-affinity cast (distance 0.330, 3 candidates)"
+          },
+          {
+            "aspect": "name-metrics",
+            "choice": "measured",
+            "because": "glyph advances shaped from vendored font files (harfbuzz)"
+          },
+          {
+            "aspect": "name-treatment",
+            "choice": "Playfair Display upper w500 tracking 0.155em span 0.68",
+            "because": "voice 'editorial-serif' bounds + tone/seed position"
+          },
+          {
+            "aspect": "palette",
+            "choice": "#FAF8F5 / #111111 / #744C34",
+            "because": "accent: hero-palette #7A4A2E"
+          },
+          {
+            "aspect": "stats-placement",
+            "choice": "back",
+            "because": "back by default — fronts stay image-led (industry two-sided convention)"
+          }
+        ],
+        "warnings": []
       },
-      {
-       "x": 0.45,
-       "y": 4.328,
-       "w": 2.225,
-       "h": 3.202,
-       "imageId": "ed",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 35%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (editorial)"
-         ]
+      "toneProfile": "high-fashion",
+      "palette": {
+        "background": "#FAF8F5",
+        "text": "#111111",
+        "muted": "#5C5C5C",
+        "accent": "#744C34",
+        "rule": "#D9D9D9"
+      },
+      "typography": {
+        "display": "Playfair Display",
+        "body": "Inter",
+        "voiceId": "editorial-serif",
+        "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap",
+        "nameSize": "22.5pt",
+        "nameTracking": "0.155em",
+        "nameCase": "uppercase",
+        "nameWeight": 500,
+        "statSize": "7.8pt",
+        "statLabelSize": "6.4pt",
+        "contactSize": "7pt"
+      },
+      "front": {
+        "imageId": "hs",
+        "crop": {
+          "fit": "cover",
+          "objectPosition": "50% 18%",
+          "safety": {
+            "level": "safe",
+            "notes": [
+              "focal point from role heuristic (headshot)"
+            ]
+          },
+          "coverageLoss": 0
         },
-        "coverageLoss": 0.073
-       },
-       "bleedEdges": []
-      },
-      {
-       "x": 2.825,
-       "y": 4.328,
-       "w": 2.225,
-       "h": 3.202,
-       "imageId": "ls",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 35%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "focal point from role heuristic (lifestyle)",
-          "crop loses 47% of image width; subject presence at risk"
-         ]
+        "geometry": {
+          "hero": {
+            "x": 0.716,
+            "y": 1.084,
+            "w": 4.25,
+            "h": 5.313,
+            "bleedEdges": []
+          },
+          "nameBand": {
+            "x": 0.716,
+            "y": 0.32,
+            "w": 4.068,
+            "h": 0.577,
+            "onImage": false,
+            "inkOn": "dark"
+          },
+          "contactBand": {
+            "x": 0.25,
+            "y": 8.05,
+            "w": 3.9,
+            "h": 0.2
+          },
+          "statLine": {
+            "x": 0.25,
+            "y": 7.79,
+            "w": 5,
+            "h": 0.16
+          },
+          "wordmark": {
+            "x": 4.3,
+            "y": 8.07,
+            "w": 0.95,
+            "h": 0.18
+          },
+          "margins": {
+            "top": 1.084,
+            "right": 0.534,
+            "bottom": 0.78,
+            "left": 0.716
+          },
+          "decisions": [
+            {
+              "aspect": "front-coverage",
+              "choice": 0.796,
+              "because": "floated hero with paper margins"
+            },
+            {
+              "aspect": "name-band",
+              "choice": "top (on paper)",
+              "because": "no sufficiently quiet hero band selected"
+            }
+          ]
         },
-        "coverageLoss": 0.465
-       },
-       "bleedEdges": []
-      }
-     ],
-     "statsBlock": {
-      "x": 0.45,
-      "y": 0.975,
-      "w": 0,
-      "h": 0,
-      "orientation": "column"
-     },
-     "nameBlock": {
-      "x": 0.45,
-      "y": 0.36,
-      "w": 4.6,
-      "h": 0.465
-     },
-     "contactBlock": {
-      "x": 0.45,
-      "y": 7.68,
-      "w": 3.4,
-      "h": 0.46
-     },
-     "wordmark": {
-      "x": 3.95,
-      "y": 7.84,
-      "w": 1.1,
-      "h": 0.3
-     },
-     "gutter": 0.15,
-     "coverageRatio": 0.993,
-     "architecture": "uniform-grid",
-     "decisions": [
-      {
-       "aspect": "stats-side",
-       "choice": "none",
-       "because": "no stats"
-      },
-      {
-       "aspect": "photo-count",
-       "choice": "4/4",
-       "because": "density 0.543 → 4 of 4 frames (standard 4, floor 3)"
-      },
-      {
-       "aspect": "architecture",
-       "choice": "uniform-grid",
-       "because": "6 eligible for 4 image(s), density 0.543"
-      }
-     ],
-     "warnings": []
-    },
-    "slots": [
-     {
-      "imageId": "fb",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 35%",
-       "safety": {
-        "level": "caution",
-        "notes": [
-         "focal point from role heuristic (full_body)",
-         "full-body crop loses 21% of image height (>18%); risk of cropping at knees/ankles",
-         "vertical position biased upward to keep head in frame"
-        ]
-       },
-       "coverageLoss": 0.208
-      },
-      "aspect": 0.695,
-      "area": "c0"
-     },
-     {
-      "imageId": "tq",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 50%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (full_body)"
-        ]
-       },
-       "coverageLoss": 0.007
-      },
-      "aspect": 0.835,
-      "area": "c1"
-     },
-     {
-      "imageId": "ed",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 35%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (editorial)"
-        ]
-       },
-       "coverageLoss": 0.073
-      },
-      "aspect": 0.695,
-      "area": "c2"
-     },
-     {
-      "imageId": "ls",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 35%",
-       "safety": {
-        "level": "caution",
-        "notes": [
-         "focal point from role heuristic (lifestyle)",
-         "crop loses 47% of image width; subject presence at risk"
-        ]
-       },
-       "coverageLoss": 0.465
-      },
-      "aspect": 0.695,
-      "area": "c3"
-     }
-    ],
-    "statsPlacement": "side-column",
-    "contact": {
-     "line": "Paris  ·  @anapetrova"
-    },
-    "booking": {
-     "mode": "direct",
-     "label": "Direct Bookings",
-     "primary": "@anapetrova",
-     "line": "Paris"
-    }
-   },
-   "wordmark": {
-    "href": null,
-    "displayUrl": null,
-    "corner": "bottom-right",
-    "align": "right",
-    "tone": "gold-deep",
-    "front": {
-     "x": 4.3,
-     "y": 8.07,
-     "w": 0.95,
-     "h": 0.18
-    },
-    "back": {
-     "x": 3.95,
-     "y": 7.84,
-     "w": 1.1,
-     "h": 0.3
-    }
-   },
-   "decisions": [
-    {
-     "aspect": "hero",
-     "choice": "hs",
-     "because": "top of deterministic heroRanking"
-    },
-    {
-     "aspect": "tone-vector",
-     "choice": "formality 1.00 energy 0.42 warmth 0.48 density 0.54",
-     "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-    },
-    {
-     "aspect": "type-scale",
-     "choice": "ratio 1.618",
-     "because": "formality-biased register on the classic scale ratios"
-    },
-    {
-     "aspect": "typography-voice",
-     "choice": "romantic-didone",
-     "because": "tone-affinity cast (distance 0.284, 3 candidates)"
-    },
-    {
-     "aspect": "name-metrics",
-     "choice": "measured",
-     "because": "glyph advances shaped from vendored font files (harfbuzz)"
-    },
-    {
-     "aspect": "name-treatment",
-     "choice": "Bodoni Moda upper w400 tracking 0.244em span 0.59",
-     "because": "voice 'romantic-didone' bounds + tone/seed position"
-    },
-    {
-     "aspect": "palette",
-     "choice": "#FAF8F5 / #111111 / #744C34",
-     "because": "accent: hero-palette #7A4A2E"
-    },
-    {
-     "aspect": "stats-placement",
-     "choice": "back",
-     "because": "back by default — fronts stay image-led (industry two-sided convention)"
-    },
-    {
-     "aspect": "front-coverage",
-     "choice": 0.852,
-     "because": "floated hero with paper margins"
-    },
-    {
-     "aspect": "name-band",
-     "choice": "top (on image)",
-     "because": "hero band is quiet (0.95)"
-    },
-    {
-     "aspect": "name-contrast",
-     "choice": "safe",
-     "because": "top band verified: clear of face and body, quiet 0.95, contrast safe unaided"
-    },
-    {
-     "aspect": "wordmark-placement",
-     "choice": "bottom-right",
-     "because": "quietest non-interfering corner (paper)"
-    },
-    {
-     "aspect": "name-fit",
-     "choice": "tracking relaxed to 0.11em",
-     "because": "long name — tracking gives way before size"
-    },
-    {
-     "aspect": "name-size",
-     "choice": "18.1pt",
-     "because": "solved from band width, span target, tracking"
-    },
-    {
-     "aspect": "back-story",
-     "choice": "4 image(s) curated",
-     "because": "fb: mandatory full-length, new register for the story (score 134) | ed: new register for the story, matches market signals (score 106) | ls: new register for the story (score 94) | tq: second of its register (score 62)"
-    },
-    {
-     "aspect": "back-architecture",
-     "choice": "uniform-grid",
-     "because": "back program grammar"
-    },
-    {
-     "aspect": "stats-side",
-     "choice": "none",
-     "because": "no stats"
-    },
-    {
-     "aspect": "photo-count",
-     "choice": "4/4",
-     "because": "density 0.543 → 4 of 4 frames (standard 4, floor 3)"
-    },
-    {
-     "aspect": "architecture",
-     "choice": "uniform-grid",
-     "because": "6 eligible for 4 image(s), density 0.543"
-    },
-    {
-     "aspect": "booking",
-     "choice": "Direct Bookings",
-     "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
-    }
-   ],
-   "warnings": []
-  },
-  "legacy-3": {
-   "engine": "composed",
-   "seedUsed": "legacy-3",
-   "language": {
-    "toneVector": {
-     "formality": 0.999835737561807,
-     "energy": 0.47569624357856805,
-     "warmth": 0.5571153391154483,
-     "density": 0.5016621507005766
-    },
-    "typeScale": {
-     "ratio": 1.618,
-     "basePt": 7.8,
-     "statValue": 7.8,
-     "statLabel": 6.4,
-     "contact": 7
-    },
-    "name": {
-     "text": "Ana Petrova",
-     "case": "upper",
-     "weightClass": 500,
-     "trackingEm": 0.276,
-     "targetSpan": 0.72,
-     "rotation": 0,
-     "glyphEm": 0.6443636363636364,
-     "glyphEmLongest": 0.6798571428571429,
-     "glyphMeasured": true
-    },
-    "voiceId": "stark-grotesque",
-    "fonts": {
-     "display": "Archivo",
-     "body": "Inter"
-    },
-    "palette": {
-     "paper": "#FAF8F5",
-     "ink": "#111111",
-     "accent": "#744C34",
-     "rule": "#D9D9D9"
-    },
-    "pacing": 1.42,
-    "statsPlacement": {
-     "page": "back",
-     "frontLine": false,
-     "justification": "back by default — fronts stay image-led (industry two-sided convention)"
-    },
-    "decisions": [
-     {
-      "aspect": "tone-vector",
-      "choice": "formality 1.00 energy 0.48 warmth 0.56 density 0.50",
-      "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-     },
-     {
-      "aspect": "type-scale",
-      "choice": "ratio 1.618",
-      "because": "formality-biased register on the classic scale ratios"
-     },
-     {
-      "aspect": "typography-voice",
-      "choice": "stark-grotesque",
-      "because": "tone-affinity cast (distance 0.375, 3 candidates)"
-     },
-     {
-      "aspect": "name-metrics",
-      "choice": "measured",
-      "because": "glyph advances shaped from vendored font files (harfbuzz)"
-     },
-     {
-      "aspect": "name-treatment",
-      "choice": "Archivo upper w500 tracking 0.276em span 0.72",
-      "because": "voice 'stark-grotesque' bounds + tone/seed position"
-     },
-     {
-      "aspect": "palette",
-      "choice": "#FAF8F5 / #111111 / #744C34",
-      "because": "accent: hero-palette #7A4A2E"
-     },
-     {
-      "aspect": "stats-placement",
-      "choice": "back",
-      "because": "back by default — fronts stay image-led (industry two-sided convention)"
-     }
-    ],
-    "warnings": []
-   },
-   "toneProfile": "high-fashion",
-   "palette": {
-    "background": "#FAF8F5",
-    "text": "#111111",
-    "muted": "#5C5C5C",
-    "accent": "#744C34",
-    "rule": "#D9D9D9"
-   },
-   "typography": {
-    "display": "Archivo",
-    "body": "Inter",
-    "voiceId": "stark-grotesque",
-    "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Archivo:wght@400;500;600;700;800&display=swap",
-    "nameSize": "21.2pt",
-    "nameTracking": "0.276em",
-    "nameCase": "uppercase",
-    "nameWeight": 500,
-    "statSize": "7.8pt",
-    "statLabelSize": "6.4pt",
-    "contactSize": "7pt"
-   },
-   "front": {
-    "imageId": "hs",
-    "crop": {
-     "fit": "cover",
-     "objectPosition": "50% 0%",
-     "safety": {
-      "level": "safe",
-      "notes": [
-       "focal point from role heuristic (headshot)"
-      ]
-     },
-     "coverageLoss": 0
-    },
-    "geometry": {
-     "hero": {
-      "x": 0.574,
-      "y": 1.087,
-      "w": 4.389,
-      "h": 5.486,
-      "bleedEdges": []
-     },
-     "nameBand": {
-      "x": 0.574,
-      "y": 0.297,
-      "w": 4.352,
-      "h": 0.718,
-      "onImage": false,
-      "inkOn": "dark"
-     },
-     "contactBand": {
-      "x": 0.25,
-      "y": 8.05,
-      "w": 3.9,
-      "h": 0.2
-     },
-     "statLine": {
-      "x": 0.25,
-      "y": 7.79,
-      "w": 5,
-      "h": 0.16
-     },
-     "wordmark": {
-      "x": 4.3,
-      "y": 8.07,
-      "w": 0.95,
-      "h": 0.18
-     },
-     "margins": {
-      "top": 1.087,
-      "right": 0.537,
-      "bottom": 0.783,
-      "left": 0.574
-     },
-     "decisions": [
-      {
-       "aspect": "front-coverage",
-       "choice": 0.851,
-       "because": "floated hero with paper margins"
-      },
-      {
-       "aspect": "name-band",
-       "choice": "top (on paper)",
-       "because": "no sufficiently quiet hero band selected"
-      }
-     ]
-    },
-    "treatment": "bordered",
-    "scrim": null,
-    "typeSafety": {
-     "onImage": false,
-     "verified": true,
-     "because": "name set on paper"
-    },
-    "name": {
-     "placement": "top",
-     "align": "left",
-     "rotation": 0,
-     "lines": null
-    },
-    "statLine": null,
-    "statLineText": null,
-    "showContactBlock": false
-   },
-   "back": {
-    "layout": {
-     "cells": [
-      {
-       "x": 0.455,
-       "y": 3.958,
-       "w": 4.59,
-       "h": 3.565,
-       "imageId": "ls",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 35%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (lifestyle)"
-         ]
+        "treatment": "bordered",
+        "scrim": null,
+        "typeSafety": {
+          "onImage": false,
+          "verified": true,
+          "because": "name set on paper"
         },
-        "coverageLoss": 0.01
-       },
-       "bleedEdges": []
-      },
-      {
-       "x": 0.455,
-       "y": 0.986,
-       "w": 1.428,
-       "h": 2.819,
-       "imageId": "fb",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (full_body)"
-         ]
+        "name": {
+          "placement": "top",
+          "align": "left",
+          "rotation": 0,
+          "lines": null
         },
-        "coverageLoss": 0.079
-       },
-       "bleedEdges": []
+        "statLine": null,
+        "statLineText": null,
+        "showContactBlock": false
       },
-      {
-       "x": 2.036,
-       "y": 0.986,
-       "w": 1.428,
-       "h": 2.819,
-       "imageId": "tq",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (full_body)"
-         ]
+      "back": {
+        "layout": {
+          "cells": [
+            {
+              "x": 0.452,
+              "y": 0.98,
+              "w": 2.223,
+              "h": 2.686,
+              "imageId": "ed",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 0%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (editorial)"
+                  ]
+                },
+                "coverageLoss": 0.094
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 0.452,
+              "y": 3.817,
+              "w": 2.223,
+              "h": 3.711,
+              "imageId": "fb",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (full_body)"
+                  ]
+                },
+                "coverageLoss": 0.082
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 2.826,
+              "y": 1.027,
+              "w": 2.223,
+              "h": 3.671,
+              "imageId": "tq",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (full_body)"
+                  ]
+                },
+                "coverageLoss": 0.135
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 2.826,
+              "y": 4.848,
+              "w": 2.223,
+              "h": 2.68,
+              "imageId": "ls",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 35%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "focal point from role heuristic (lifestyle)",
+                    "crop loses 36% of image width; subject presence at risk"
+                  ]
+                },
+                "coverageLoss": 0.362
+              },
+              "bleedEdges": []
+            }
+          ],
+          "statsBlock": {
+            "x": 0.452,
+            "y": 0.98,
+            "w": 0,
+            "h": 0,
+            "orientation": "column"
+          },
+          "nameBlock": {
+            "x": 0.452,
+            "y": 0.362,
+            "w": 4.596,
+            "h": 0.467
+          },
+          "contactBlock": {
+            "x": 0.452,
+            "y": 7.679,
+            "w": 3.396,
+            "h": 0.46
+          },
+          "wordmark": {
+            "x": 3.948,
+            "y": 7.839,
+            "w": 1.1,
+            "h": 0.3
+          },
+          "gutter": 0.151,
+          "coverageRatio": 0.942,
+          "architecture": "editorial-stagger",
+          "decisions": [
+            {
+              "aspect": "stats-side",
+              "choice": "none",
+              "because": "no stats"
+            },
+            {
+              "aspect": "photo-count",
+              "choice": "4/4",
+              "because": "density 0.527 → 4 of 4 frames (standard 4, floor 3)"
+            },
+            {
+              "aspect": "architecture",
+              "choice": "editorial-stagger",
+              "because": "6 eligible for 4 image(s), density 0.527"
+            }
+          ],
+          "warnings": []
         },
-        "coverageLoss": 0.276
-       },
-       "bleedEdges": []
-      },
-      {
-       "x": 3.617,
-       "y": 0.986,
-       "w": 1.428,
-       "h": 2.819,
-       "imageId": "ed",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 35%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (editorial)"
-         ]
+        "slots": [
+          {
+            "imageId": "ed",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 0%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (editorial)"
+                ]
+              },
+              "coverageLoss": 0.094
+            },
+            "aspect": 0.828,
+            "area": "c0"
+          },
+          {
+            "imageId": "fb",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 50%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (full_body)"
+                ]
+              },
+              "coverageLoss": 0.082
+            },
+            "aspect": 0.599,
+            "area": "c1"
+          },
+          {
+            "imageId": "tq",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 50%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (full_body)"
+                ]
+              },
+              "coverageLoss": 0.135
+            },
+            "aspect": 0.606,
+            "area": "c2"
+          },
+          {
+            "imageId": "ls",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 35%",
+              "safety": {
+                "level": "caution",
+                "notes": [
+                  "focal point from role heuristic (lifestyle)",
+                  "crop loses 36% of image width; subject presence at risk"
+                ]
+              },
+              "coverageLoss": 0.362
+            },
+            "aspect": 0.829,
+            "area": "c3"
+          }
+        ],
+        "statsPlacement": "side-column",
+        "contact": {
+          "line": "Paris  ·  @anapetrova"
         },
-        "coverageLoss": 0.325
-       },
-       "bleedEdges": []
-      }
-     ],
-     "statsBlock": {
-      "x": 0.455,
-      "y": 0.986,
-      "w": 0,
-      "h": 0,
-      "orientation": "column"
-     },
-     "nameBlock": {
-      "x": 0.455,
-      "y": 0.364,
-      "w": 4.59,
-      "h": 0.469
-     },
-     "contactBlock": {
-      "x": 0.455,
-      "y": 7.676,
-      "w": 3.39,
-      "h": 0.46
-     },
-     "wordmark": {
-      "x": 3.945,
-      "y": 7.836,
-      "w": 1.1,
-      "h": 0.3
-     },
-     "gutter": 0.153,
-     "coverageRatio": 0.948,
-     "architecture": "feature-row",
-     "decisions": [
-      {
-       "aspect": "stats-side",
-       "choice": "none",
-       "because": "no stats"
-      },
-      {
-       "aspect": "photo-count",
-       "choice": "4/4",
-       "because": "density 0.502 → 4 of 4 frames (standard 4, floor 3)"
-      },
-      {
-       "aspect": "architecture",
-       "choice": "feature-row",
-       "because": "6 eligible for 4 image(s), density 0.502"
-      }
-     ],
-     "warnings": []
-    },
-    "slots": [
-     {
-      "imageId": "ls",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 35%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (lifestyle)"
-        ]
-       },
-       "coverageLoss": 0.01
-      },
-      "aspect": 1.288,
-      "area": "c0"
-     },
-     {
-      "imageId": "fb",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 50%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (full_body)"
-        ]
-       },
-       "coverageLoss": 0.079
-      },
-      "aspect": 0.507,
-      "area": "c1"
-     },
-     {
-      "imageId": "tq",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 50%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (full_body)"
-        ]
-       },
-       "coverageLoss": 0.276
-      },
-      "aspect": 0.507,
-      "area": "c2"
-     },
-     {
-      "imageId": "ed",
-      "crop": {
-       "fit": "cover",
-       "objectPosition": "50% 35%",
-       "safety": {
-        "level": "safe",
-        "notes": [
-         "focal point from role heuristic (editorial)"
-        ]
-       },
-       "coverageLoss": 0.325
-      },
-      "aspect": 0.507,
-      "area": "c3"
-     }
-    ],
-    "statsPlacement": "side-column",
-    "contact": {
-     "line": "Paris  ·  @anapetrova"
-    },
-    "booking": {
-     "mode": "direct",
-     "label": "Direct Bookings",
-     "primary": "@anapetrova",
-     "line": "Paris"
-    }
-   },
-   "wordmark": {
-    "href": null,
-    "displayUrl": null,
-    "corner": "bottom-right",
-    "align": "right",
-    "tone": "gold-deep",
-    "front": {
-     "x": 4.3,
-     "y": 8.07,
-     "w": 0.95,
-     "h": 0.18
-    },
-    "back": {
-     "x": 3.945,
-     "y": 7.836,
-     "w": 1.1,
-     "h": 0.3
-    }
-   },
-   "decisions": [
-    {
-     "aspect": "hero",
-     "choice": "hs",
-     "because": "top of deterministic heroRanking"
-    },
-    {
-     "aspect": "tone-vector",
-     "choice": "formality 1.00 energy 0.48 warmth 0.56 density 0.50",
-     "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-    },
-    {
-     "aspect": "type-scale",
-     "choice": "ratio 1.618",
-     "because": "formality-biased register on the classic scale ratios"
-    },
-    {
-     "aspect": "typography-voice",
-     "choice": "stark-grotesque",
-     "because": "tone-affinity cast (distance 0.375, 3 candidates)"
-    },
-    {
-     "aspect": "name-metrics",
-     "choice": "measured",
-     "because": "glyph advances shaped from vendored font files (harfbuzz)"
-    },
-    {
-     "aspect": "name-treatment",
-     "choice": "Archivo upper w500 tracking 0.276em span 0.72",
-     "because": "voice 'stark-grotesque' bounds + tone/seed position"
-    },
-    {
-     "aspect": "palette",
-     "choice": "#FAF8F5 / #111111 / #744C34",
-     "because": "accent: hero-palette #7A4A2E"
-    },
-    {
-     "aspect": "stats-placement",
-     "choice": "back",
-     "because": "back by default — fronts stay image-led (industry two-sided convention)"
-    },
-    {
-     "aspect": "front-coverage",
-     "choice": 0.851,
-     "because": "floated hero with paper margins"
-    },
-    {
-     "aspect": "name-band",
-     "choice": "top (on paper)",
-     "because": "no sufficiently quiet hero band selected"
-    },
-    {
-     "aspect": "wordmark-placement",
-     "choice": "bottom-right",
-     "because": "quietest non-interfering corner (paper)"
-    },
-    {
-     "aspect": "name-size",
-     "choice": "21.2pt",
-     "because": "solved from band width, span target, tracking"
-    },
-    {
-     "aspect": "back-story",
-     "choice": "4 image(s) curated",
-     "because": "fb: mandatory full-length, new register for the story (score 134) | ed: new register for the story, matches market signals (score 106) | ls: new register for the story (score 94) | tq: second of its register (score 62)"
-    },
-    {
-     "aspect": "back-architecture",
-     "choice": "feature-row",
-     "because": "back program grammar"
-    },
-    {
-     "aspect": "stats-side",
-     "choice": "none",
-     "because": "no stats"
-    },
-    {
-     "aspect": "photo-count",
-     "choice": "4/4",
-     "because": "density 0.502 → 4 of 4 frames (standard 4, floor 3)"
-    },
-    {
-     "aspect": "architecture",
-     "choice": "feature-row",
-     "because": "6 eligible for 4 image(s), density 0.502"
-    },
-    {
-     "aspect": "booking",
-     "choice": "Direct Bookings",
-     "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
-    }
-   ],
-   "warnings": []
-  }
- },
- "compose": {
-  "legacy-compose-a": {
-   "plan": {
-    "engine": "composed",
-    "seedUsed": "legacy-compose-a",
-    "language": {
-     "toneVector": {
-      "formality": 0.9877378031797707,
-      "energy": 0.37343769537284965,
-      "warmth": 0.3878591392543167,
-      "density": 0.47295133425761016
-     },
-     "typeScale": {
-      "ratio": 1.618,
-      "basePt": 7.7,
-      "statValue": 7.7,
-      "statLabel": 6.3,
-      "contact": 6.9
-     },
-     "name": {
-      "text": "Ava Stone",
-      "case": "upper",
-      "weightClass": 400,
-      "trackingEm": 0.195,
-      "targetSpan": 0.71,
-      "rotation": 0,
-      "glyphEm": 0.6275555555555555,
-      "glyphEmLongest": 0.6763,
-      "glyphMeasured": true
-     },
-     "voiceId": "romantic-didone",
-     "fonts": {
-      "display": "Bodoni Moda",
-      "body": "Inter"
-     },
-     "palette": {
-      "paper": "#FFFFFF",
-      "ink": "#111111",
-      "accent": "#8D6C43",
-      "rule": "#D9D9D9"
-     },
-     "pacing": 1.42,
-     "statsPlacement": {
-      "page": "back",
-      "frontLine": false,
-      "justification": "back by default — fronts stay image-led (industry two-sided convention)"
-     },
-     "decisions": [
-      {
-       "aspect": "tone-vector",
-       "choice": "formality 0.99 energy 0.37 warmth 0.39 density 0.47",
-       "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-      },
-      {
-       "aspect": "type-scale",
-       "choice": "ratio 1.618",
-       "because": "formality-biased register on the classic scale ratios"
-      },
-      {
-       "aspect": "typography-voice",
-       "choice": "romantic-didone",
-       "because": "tone-affinity cast (distance 0.269, 3 candidates)"
-      },
-      {
-       "aspect": "name-metrics",
-       "choice": "measured",
-       "because": "glyph advances shaped from vendored font files (harfbuzz)"
-      },
-      {
-       "aspect": "name-treatment",
-       "choice": "Bodoni Moda upper w400 tracking 0.195em span 0.71",
-       "because": "voice 'romantic-didone' bounds + tone/seed position"
-      },
-      {
-       "aspect": "palette",
-       "choice": "#FFFFFF / #111111 / #8D6C43",
-       "because": "accent: brand-gold-fallback"
-      },
-      {
-       "aspect": "stats-placement",
-       "choice": "back",
-       "because": "back by default — fronts stay image-led (industry two-sided convention)"
-      }
-     ],
-     "warnings": []
-    },
-    "toneProfile": "high-fashion",
-    "palette": {
-     "background": "#FFFFFF",
-     "text": "#111111",
-     "muted": "#5C5C5C",
-     "accent": "#8D6C43",
-     "rule": "#D9D9D9"
-    },
-    "typography": {
-     "display": "Bodoni Moda",
-     "body": "Inter",
-     "voiceId": "romantic-didone",
-     "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bodoni+Moda:wght@400;500;600;700&display=swap",
-     "nameSize": "27pt",
-     "nameTracking": "0.195em",
-     "nameCase": "uppercase",
-     "nameWeight": 400,
-     "statSize": "7.7pt",
-     "statLabelSize": "6.3pt",
-     "contactSize": "6.9pt"
-    },
-    "front": {
-     "imageId": "img-1",
-     "crop": {
-      "fit": "cover",
-      "objectPosition": "50% 18%",
-      "safety": {
-       "level": "safe",
-       "notes": [
-        "focal point from role heuristic (headshot)"
-       ]
-      },
-      "coverageLoss": 0
-     },
-     "geometry": {
-      "hero": {
-       "x": 0.696,
-       "y": 0.376,
-       "w": 4.267,
-       "h": 5.334,
-       "bleedEdges": []
-      },
-      "nameBand": {
-       "x": 0.696,
-       "y": 5.905,
-       "w": 4.108,
-       "h": 0.7,
-       "onImage": false,
-       "inkOn": "dark"
-      },
-      "contactBand": {
-       "x": 0.25,
-       "y": 8.05,
-       "w": 3.9,
-       "h": 0.2
-      },
-      "statLine": {
-       "x": 0.25,
-       "y": 7.79,
-       "w": 5,
-       "h": 0.16
+        "booking": {
+          "mode": "direct",
+          "label": "Direct Bookings",
+          "primary": "@anapetrova",
+          "line": "Paris"
+        }
       },
       "wordmark": {
-       "x": 4.3,
-       "y": 8.07,
-       "w": 0.95,
-       "h": 0.18
-      },
-      "margins": {
-       "top": 0.376,
-       "right": 0.537,
-       "bottom": 1.157,
-       "left": 0.696
+        "href": null,
+        "displayUrl": null,
+        "corner": "bottom-right",
+        "align": "right",
+        "tone": "gold-deep",
+        "front": {
+          "x": 4.3,
+          "y": 8.07,
+          "w": 0.95,
+          "h": 0.18
+        },
+        "back": {
+          "x": 3.948,
+          "y": 7.839,
+          "w": 1.1,
+          "h": 0.3
+        }
       },
       "decisions": [
-       {
-        "aspect": "front-coverage",
-        "choice": 0.867,
-        "because": "floated hero with paper margins"
-       },
-       {
-        "aspect": "name-band",
-        "choice": "bottom (on paper)",
-        "because": "no sufficiently quiet hero band selected"
-       }
-      ]
-     },
-     "treatment": "bordered",
-     "scrim": null,
-     "typeSafety": {
-      "onImage": false,
-      "verified": true,
-      "because": "name set on paper"
-     },
-     "name": {
-      "placement": "bottom",
-      "align": "center",
-      "rotation": 0,
-      "lines": null
-     },
-     "statLine": null,
-     "statLineText": null,
-     "showContactBlock": false
-    },
-    "back": {
-     "layout": {
-      "cells": [
-       {
-        "x": 1.949,
-        "y": 0.986,
-        "w": 1.472,
-        "h": 3.803,
-        "imageId": "img-3",
-        "crop": {
-         "fit": "cover",
-         "objectPosition": "50% 50%",
-         "safety": {
-          "level": "caution",
-          "notes": [
-           "focal point from role heuristic (full_body)",
-           "crop loses 46% of image width; subject presence at risk"
-          ]
-         },
-         "coverageLoss": 0.458
+        {
+          "aspect": "hero",
+          "choice": "hs",
+          "because": "top of deterministic heroRanking"
         },
-        "bleedEdges": []
-       },
-       {
-        "x": 1.949,
-        "y": 4.942,
-        "w": 1.472,
-        "h": 2.581,
-        "imageId": "img-4",
-        "crop": {
-         "fit": "contain",
-         "objectPosition": "50% 50%",
-         "safety": {
-          "level": "caution",
-          "notes": [
-           "matted (contain) to preserve subject presence"
-          ]
-         },
-         "coverageLoss": 0
+        {
+          "aspect": "tone-vector",
+          "choice": "formality 1.00 energy 0.44 warmth 0.52 density 0.53",
+          "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
         },
-        "bleedEdges": []
-       },
-       {
-        "x": 3.574,
-        "y": 1.166,
-        "w": 1.472,
-        "h": 2.827,
-        "imageId": "img-2",
-        "crop": {
-         "fit": "cover",
-         "objectPosition": "50% 50%",
-         "safety": {
-          "level": "safe",
-          "notes": [
-           "focal point from role heuristic (full_body)"
-          ]
-         },
-         "coverageLoss": 0.04
+        {
+          "aspect": "type-scale",
+          "choice": "ratio 1.618",
+          "because": "formality-biased register on the classic scale ratios"
         },
-        "bleedEdges": []
-       },
-       {
-        "x": 3.574,
-        "y": 4.147,
-        "w": 1.926,
-        "h": 3.376,
-        "imageId": "img-5",
-        "crop": {
-         "fit": "cover",
-         "objectPosition": "50% 35%",
-         "safety": {
-          "level": "caution",
-          "notes": [
-           "focal point from role heuristic (lifestyle)",
-           "crop loses 45% of image width; subject presence at risk"
-          ]
-         },
-         "coverageLoss": 0.455
+        {
+          "aspect": "typography-voice",
+          "choice": "editorial-serif",
+          "because": "tone-affinity cast (distance 0.330, 3 candidates)"
         },
-        "bleedEdges": [
-         "right"
-        ]
-       }
-      ],
-      "statsBlock": {
-       "x": 0.455,
-       "y": 0.986,
-       "w": 1.341,
-       "h": 6.537,
-       "orientation": "column"
-      },
-      "nameBlock": {
-       "x": 0.455,
-       "y": 0.364,
-       "w": 4.59,
-       "h": 0.469
-      },
-      "contactBlock": {
-       "x": 0.455,
-       "y": 7.676,
-       "w": 3.39,
-       "h": 0.46
-      },
-      "wordmark": {
-       "x": 3.945,
-       "y": 7.836,
-       "w": 1.1,
-       "h": 0.3
-      },
-      "gutter": 0.153,
-      "coverageRatio": 0.991,
-      "architecture": "editorial-stagger",
-      "decisions": [
-       {
-        "aspect": "stats-side",
-        "choice": "left",
-        "because": "seeded, formality-biased"
-       },
-       {
-        "aspect": "photo-count",
-        "choice": "4/4",
-        "because": "density 0.473 → 4 of 4 frames (standard 4, floor 3)"
-       },
-       {
-        "aspect": "architecture",
-        "choice": "editorial-stagger",
-        "because": "6 eligible for 4 image(s), density 0.473"
-       }
+        {
+          "aspect": "name-metrics",
+          "choice": "measured",
+          "because": "glyph advances shaped from vendored font files (harfbuzz)"
+        },
+        {
+          "aspect": "name-treatment",
+          "choice": "Playfair Display upper w500 tracking 0.155em span 0.68",
+          "because": "voice 'editorial-serif' bounds + tone/seed position"
+        },
+        {
+          "aspect": "palette",
+          "choice": "#FAF8F5 / #111111 / #744C34",
+          "because": "accent: hero-palette #7A4A2E"
+        },
+        {
+          "aspect": "stats-placement",
+          "choice": "back",
+          "because": "back by default — fronts stay image-led (industry two-sided convention)"
+        },
+        {
+          "aspect": "front-coverage",
+          "choice": 0.796,
+          "because": "floated hero with paper margins"
+        },
+        {
+          "aspect": "name-band",
+          "choice": "top (on paper)",
+          "because": "no sufficiently quiet hero band selected"
+        },
+        {
+          "aspect": "wordmark-placement",
+          "choice": "bottom-right",
+          "because": "quietest non-interfering corner (paper)"
+        },
+        {
+          "aspect": "name-size",
+          "choice": "22.5pt",
+          "because": "solved from band width, span target, tracking"
+        },
+        {
+          "aspect": "back-story",
+          "choice": "4 image(s) curated",
+          "because": "fb: mandatory full-length, new register for the story (score 134) | ed: new register for the story, matches market signals (score 106) | ls: new register for the story (score 94) | tq: second of its register (score 62)"
+        },
+        {
+          "aspect": "back-architecture",
+          "choice": "editorial-stagger",
+          "because": "back program grammar"
+        },
+        {
+          "aspect": "stats-side",
+          "choice": "none",
+          "because": "no stats"
+        },
+        {
+          "aspect": "photo-count",
+          "choice": "4/4",
+          "because": "density 0.527 → 4 of 4 frames (standard 4, floor 3)"
+        },
+        {
+          "aspect": "architecture",
+          "choice": "editorial-stagger",
+          "because": "6 eligible for 4 image(s), density 0.527"
+        },
+        {
+          "aspect": "booking",
+          "choice": "Direct Bookings",
+          "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
+        }
       ],
       "warnings": []
-     },
-     "slots": [
-      {
-       "imageId": "img-3",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "focal point from role heuristic (full_body)",
-          "crop loses 46% of image width; subject presence at risk"
-         ]
+    },
+    "legacy-2": {
+      "engine": "composed",
+      "seedUsed": "legacy-2",
+      "language": {
+        "toneVector": {
+          "formality": 1,
+          "energy": 0.42166589514818037,
+          "warmth": 0.4763330963209272,
+          "density": 0.5431050687795506
         },
-        "coverageLoss": 0.458
-       },
-       "aspect": 0.387,
-       "area": "c0"
-      },
-      {
-       "imageId": "img-4",
-       "crop": {
-        "fit": "contain",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "matted (contain) to preserve subject presence"
-         ]
+        "typeScale": {
+          "ratio": 1.618,
+          "basePt": 7.8,
+          "statValue": 7.8,
+          "statLabel": 6.4,
+          "contact": 7
         },
-        "coverageLoss": 0
-       },
-       "aspect": 0.57,
-       "area": "c1"
-      },
-      {
-       "imageId": "img-2",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "safe",
-         "notes": [
-          "focal point from role heuristic (full_body)"
-         ]
+        "name": {
+          "text": "Ana Petrova",
+          "case": "upper",
+          "weightClass": 400,
+          "trackingEm": 0.244,
+          "targetSpan": 0.59,
+          "rotation": 0,
+          "glyphEm": 0.6681818181818181,
+          "glyphEmLongest": 0.6832142857142857,
+          "glyphMeasured": true
         },
-        "coverageLoss": 0.04
-       },
-       "aspect": 0.521,
-       "area": "c2"
-      },
-      {
-       "imageId": "img-5",
-       "crop": {
-        "fit": "cover",
-        "objectPosition": "50% 35%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "focal point from role heuristic (lifestyle)",
-          "crop loses 45% of image width; subject presence at risk"
-         ]
+        "voiceId": "romantic-didone",
+        "fonts": {
+          "display": "Bodoni Moda",
+          "body": "Inter"
         },
-        "coverageLoss": 0.455
-       },
-       "aspect": 0.57,
-       "area": "c3"
-      }
-     ],
-     "statsPlacement": "side-column",
-     "contact": {
-      "line": "New York  ·  @avastone"
-     },
-     "booking": {
-      "mode": "direct",
-      "label": "Direct Bookings",
-      "primary": "@avastone",
-      "line": "New York"
-     }
-    },
-    "wordmark": {
-     "href": null,
-     "displayUrl": null,
-     "corner": "bottom-right",
-     "align": "right",
-     "tone": "gold-deep",
-     "front": {
-      "x": 4.3,
-      "y": 8.07,
-      "w": 0.95,
-      "h": 0.18
-     },
-     "back": {
-      "x": 3.945,
-      "y": 7.836,
-      "w": 1.1,
-      "h": 0.3
-     }
-    },
-    "decisions": [
-     {
-      "aspect": "hero",
-      "choice": "img-1",
-      "because": "top of deterministic heroRanking"
-     },
-     {
-      "aspect": "tone-vector",
-      "choice": "formality 0.99 energy 0.37 warmth 0.39 density 0.47",
-      "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-     },
-     {
-      "aspect": "type-scale",
-      "choice": "ratio 1.618",
-      "because": "formality-biased register on the classic scale ratios"
-     },
-     {
-      "aspect": "typography-voice",
-      "choice": "romantic-didone",
-      "because": "tone-affinity cast (distance 0.269, 3 candidates)"
-     },
-     {
-      "aspect": "name-metrics",
-      "choice": "measured",
-      "because": "glyph advances shaped from vendored font files (harfbuzz)"
-     },
-     {
-      "aspect": "name-treatment",
-      "choice": "Bodoni Moda upper w400 tracking 0.195em span 0.71",
-      "because": "voice 'romantic-didone' bounds + tone/seed position"
-     },
-     {
-      "aspect": "palette",
-      "choice": "#FFFFFF / #111111 / #8D6C43",
-      "because": "accent: brand-gold-fallback"
-     },
-     {
-      "aspect": "stats-placement",
-      "choice": "back",
-      "because": "back by default — fronts stay image-led (industry two-sided convention)"
-     },
-     {
-      "aspect": "front-coverage",
-      "choice": 0.867,
-      "because": "floated hero with paper margins"
-     },
-     {
-      "aspect": "name-band",
-      "choice": "bottom (on paper)",
-      "because": "no sufficiently quiet hero band selected"
-     },
-     {
-      "aspect": "wordmark-placement",
-      "choice": "bottom-right",
-      "because": "quietest non-interfering corner (paper)"
-     },
-     {
-      "aspect": "name-size",
-      "choice": "27pt",
-      "because": "solved from band width, span target, tracking"
-     },
-     {
-      "aspect": "back-story",
-      "choice": "4 image(s) curated",
-      "because": "img-2: mandatory full-length, new register for the story (score 134) | img-4: new register for the story, matches market signals (score 96) | img-5: new register for the story (score 94) | img-3: second of its register (score 62)"
-     },
-     {
-      "aspect": "back-architecture",
-      "choice": "editorial-stagger",
-      "because": "back program grammar"
-     },
-     {
-      "aspect": "stats-side",
-      "choice": "left",
-      "because": "seeded, formality-biased"
-     },
-     {
-      "aspect": "photo-count",
-      "choice": "4/4",
-      "because": "density 0.473 → 4 of 4 frames (standard 4, floor 3)"
-     },
-     {
-      "aspect": "architecture",
-      "choice": "editorial-stagger",
-      "because": "6 eligible for 4 image(s), density 0.473"
-     },
-     {
-      "aspect": "crop-healing",
-      "choice": "img-4 matted",
-      "because": "no safe cover crop or reassignment exists for a 0.57-aspect cell — image matted on paper instead"
-     },
-     {
-      "aspect": "booking",
-      "choice": "Direct Bookings",
-      "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
-     }
-    ],
-    "warnings": []
-   },
-   "statsBlockCategory": "women",
-   "guardrailStatus": "warn"
-  },
-  "legacy-compose-b": {
-   "plan": {
-    "engine": "composed",
-    "seedUsed": "legacy-compose-b",
-    "language": {
-     "toneVector": {
-      "formality": 0.9690748950187117,
-      "energy": 0.46823615371715277,
-      "warmth": 0.43963329108711335,
-      "density": 0.48804402801580726
-     },
-     "typeScale": {
-      "ratio": 1.618,
-      "basePt": 7.7,
-      "statValue": 7.7,
-      "statLabel": 6.3,
-      "contact": 7
-     },
-     "name": {
-      "text": "Ava Stone",
-      "case": "upper",
-      "weightClass": 500,
-      "trackingEm": 0.247,
-      "targetSpan": 0.67,
-      "rotation": 0,
-      "glyphEm": 0.6333888888888889,
-      "glyphEmLongest": 0.6829,
-      "glyphMeasured": true
-     },
-     "voiceId": "romantic-didone",
-     "fonts": {
-      "display": "Bodoni Moda",
-      "body": "Inter"
-     },
-     "palette": {
-      "paper": "#FFFFFF",
-      "ink": "#111111",
-      "accent": "#8D6C43",
-      "rule": "#D9D9D9"
-     },
-     "pacing": 1.41,
-     "statsPlacement": {
-      "page": "back",
-      "frontLine": false,
-      "justification": "back by default — fronts stay image-led (industry two-sided convention)"
-     },
-     "decisions": [
-      {
-       "aspect": "tone-vector",
-       "choice": "formality 0.97 energy 0.47 warmth 0.44 density 0.49",
-       "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+        "palette": {
+          "paper": "#FAF8F5",
+          "ink": "#111111",
+          "accent": "#744C34",
+          "rule": "#D9D9D9"
+        },
+        "pacing": 1.4,
+        "statsPlacement": {
+          "page": "back",
+          "frontLine": false,
+          "justification": "back by default — fronts stay image-led (industry two-sided convention)"
+        },
+        "decisions": [
+          {
+            "aspect": "tone-vector",
+            "choice": "formality 1.00 energy 0.42 warmth 0.48 density 0.54",
+            "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+          },
+          {
+            "aspect": "type-scale",
+            "choice": "ratio 1.618",
+            "because": "formality-biased register on the classic scale ratios"
+          },
+          {
+            "aspect": "typography-voice",
+            "choice": "romantic-didone",
+            "because": "tone-affinity cast (distance 0.284, 3 candidates)"
+          },
+          {
+            "aspect": "name-metrics",
+            "choice": "measured",
+            "because": "glyph advances shaped from vendored font files (harfbuzz)"
+          },
+          {
+            "aspect": "name-treatment",
+            "choice": "Bodoni Moda upper w400 tracking 0.244em span 0.59",
+            "because": "voice 'romantic-didone' bounds + tone/seed position"
+          },
+          {
+            "aspect": "palette",
+            "choice": "#FAF8F5 / #111111 / #744C34",
+            "because": "accent: hero-palette #7A4A2E"
+          },
+          {
+            "aspect": "stats-placement",
+            "choice": "back",
+            "because": "back by default — fronts stay image-led (industry two-sided convention)"
+          }
+        ],
+        "warnings": []
       },
-      {
-       "aspect": "type-scale",
-       "choice": "ratio 1.618",
-       "because": "formality-biased register on the classic scale ratios"
+      "toneProfile": "high-fashion",
+      "palette": {
+        "background": "#FAF8F5",
+        "text": "#111111",
+        "muted": "#5C5C5C",
+        "accent": "#744C34",
+        "rule": "#D9D9D9"
       },
-      {
-       "aspect": "typography-voice",
-       "choice": "romantic-didone",
-       "because": "tone-affinity cast (distance 0.277, 3 candidates)"
+      "typography": {
+        "display": "Bodoni Moda",
+        "body": "Inter",
+        "voiceId": "romantic-didone",
+        "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bodoni+Moda:wght@400;500;600;700&display=swap",
+        "nameSize": "18.1pt",
+        "nameTracking": "0.11em",
+        "nameCase": "uppercase",
+        "nameWeight": 400,
+        "statSize": "7.8pt",
+        "statLabelSize": "6.4pt",
+        "contactSize": "7pt"
       },
-      {
-       "aspect": "name-metrics",
-       "choice": "measured",
-       "because": "glyph advances shaped from vendored font files (harfbuzz)"
+      "front": {
+        "imageId": "hs",
+        "crop": {
+          "fit": "cover",
+          "objectPosition": "50% 18%",
+          "safety": {
+            "level": "safe",
+            "notes": [
+              "focal point from role heuristic (headshot)"
+            ]
+          },
+          "coverageLoss": 0
+        },
+        "geometry": {
+          "hero": {
+            "x": 0.53,
+            "y": 0.371,
+            "w": 4.187,
+            "h": 5.234,
+            "bleedEdges": []
+          },
+          "nameBand": {
+            "x": 0.71,
+            "y": 0.531,
+            "w": 3.827,
+            "h": 0.78,
+            "onImage": true,
+            "inkOn": "light"
+          },
+          "contactBand": {
+            "x": 0.25,
+            "y": 8.05,
+            "w": 3.9,
+            "h": 0.2
+          },
+          "statLine": {
+            "x": 0.25,
+            "y": 7.79,
+            "w": 5,
+            "h": 0.16
+          },
+          "wordmark": {
+            "x": 4.3,
+            "y": 8.07,
+            "w": 0.95,
+            "h": 0.18
+          },
+          "margins": {
+            "top": 0.371,
+            "right": 0.783,
+            "bottom": 0.777,
+            "left": 0.53
+          },
+          "decisions": [
+            {
+              "aspect": "front-coverage",
+              "choice": 0.852,
+              "because": "floated hero with paper margins"
+            },
+            {
+              "aspect": "name-band",
+              "choice": "top (on image)",
+              "because": "hero band is quiet (0.95)"
+            }
+          ]
+        },
+        "treatment": "bordered",
+        "scrim": null,
+        "typeSafety": {
+          "onImage": true,
+          "verified": true,
+          "because": "top band verified: clear of face and body, quiet 0.95, contrast safe unaided"
+        },
+        "name": {
+          "placement": "top",
+          "align": "left",
+          "rotation": 0,
+          "lines": null
+        },
+        "statLine": null,
+        "statLineText": null,
+        "showContactBlock": false
       },
-      {
-       "aspect": "name-treatment",
-       "choice": "Bodoni Moda upper w500 tracking 0.247em span 0.67",
-       "because": "voice 'romantic-didone' bounds + tone/seed position"
-      },
-      {
-       "aspect": "palette",
-       "choice": "#FFFFFF / #111111 / #8D6C43",
-       "because": "accent: brand-gold-fallback"
-      },
-      {
-       "aspect": "stats-placement",
-       "choice": "back",
-       "because": "back by default — fronts stay image-led (industry two-sided convention)"
-      }
-     ],
-     "warnings": []
-    },
-    "toneProfile": "high-fashion",
-    "palette": {
-     "background": "#FFFFFF",
-     "text": "#111111",
-     "muted": "#5C5C5C",
-     "accent": "#8D6C43",
-     "rule": "#D9D9D9"
-    },
-    "typography": {
-     "display": "Bodoni Moda",
-     "body": "Inter",
-     "voiceId": "romantic-didone",
-     "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bodoni+Moda:wght@400;500;600;700&display=swap",
-     "nameSize": "24pt",
-     "nameTracking": "0.247em",
-     "nameCase": "uppercase",
-     "nameWeight": 500,
-     "statSize": "7.7pt",
-     "statLabelSize": "6.3pt",
-     "contactSize": "7pt"
-    },
-    "front": {
-     "imageId": "img-1",
-     "crop": {
-      "fit": "cover",
-      "objectPosition": "50% 18%",
-      "safety": {
-       "level": "safe",
-       "notes": [
-        "focal point from role heuristic (headshot)"
-       ]
-      },
-      "coverageLoss": 0
-     },
-     "geometry": {
-      "hero": {
-       "x": 0.672,
-       "y": 1.084,
-       "w": 4.294,
-       "h": 5.368,
-       "bleedEdges": []
-      },
-      "nameBand": {
-       "x": 0.672,
-       "y": 0.442,
-       "w": 4.156,
-       "h": 0.59,
-       "onImage": false,
-       "inkOn": "dark"
-      },
-      "contactBand": {
-       "x": 0.25,
-       "y": 8.05,
-       "w": 3.9,
-       "h": 0.2
-      },
-      "statLine": {
-       "x": 0.25,
-       "y": 7.79,
-       "w": 5,
-       "h": 0.16
+      "back": {
+        "layout": {
+          "cells": [
+            {
+              "x": 0.45,
+              "y": 0.975,
+              "w": 2.225,
+              "h": 3.202,
+              "imageId": "fb",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 35%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "focal point from role heuristic (full_body)",
+                    "full-body crop loses 21% of image height (>18%); risk of cropping at knees/ankles",
+                    "vertical position biased upward to keep head in frame"
+                  ]
+                },
+                "coverageLoss": 0.208
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 2.825,
+              "y": 0.975,
+              "w": 2.675,
+              "h": 3.202,
+              "imageId": "tq",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (full_body)"
+                  ]
+                },
+                "coverageLoss": 0.007
+              },
+              "bleedEdges": [
+                "right"
+              ]
+            },
+            {
+              "x": 0.45,
+              "y": 4.328,
+              "w": 2.225,
+              "h": 3.202,
+              "imageId": "ed",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 35%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (editorial)"
+                  ]
+                },
+                "coverageLoss": 0.073
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 2.825,
+              "y": 4.328,
+              "w": 2.225,
+              "h": 3.202,
+              "imageId": "ls",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 35%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "focal point from role heuristic (lifestyle)",
+                    "crop loses 47% of image width; subject presence at risk"
+                  ]
+                },
+                "coverageLoss": 0.465
+              },
+              "bleedEdges": []
+            }
+          ],
+          "statsBlock": {
+            "x": 0.45,
+            "y": 0.975,
+            "w": 0,
+            "h": 0,
+            "orientation": "column"
+          },
+          "nameBlock": {
+            "x": 0.45,
+            "y": 0.36,
+            "w": 4.6,
+            "h": 0.465
+          },
+          "contactBlock": {
+            "x": 0.45,
+            "y": 7.68,
+            "w": 3.4,
+            "h": 0.46
+          },
+          "wordmark": {
+            "x": 3.95,
+            "y": 7.84,
+            "w": 1.1,
+            "h": 0.3
+          },
+          "gutter": 0.15,
+          "coverageRatio": 0.993,
+          "architecture": "uniform-grid",
+          "decisions": [
+            {
+              "aspect": "stats-side",
+              "choice": "none",
+              "because": "no stats"
+            },
+            {
+              "aspect": "photo-count",
+              "choice": "4/4",
+              "because": "density 0.543 → 4 of 4 frames (standard 4, floor 3)"
+            },
+            {
+              "aspect": "architecture",
+              "choice": "uniform-grid",
+              "because": "6 eligible for 4 image(s), density 0.543"
+            }
+          ],
+          "warnings": []
+        },
+        "slots": [
+          {
+            "imageId": "fb",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 35%",
+              "safety": {
+                "level": "caution",
+                "notes": [
+                  "focal point from role heuristic (full_body)",
+                  "full-body crop loses 21% of image height (>18%); risk of cropping at knees/ankles",
+                  "vertical position biased upward to keep head in frame"
+                ]
+              },
+              "coverageLoss": 0.208
+            },
+            "aspect": 0.695,
+            "area": "c0"
+          },
+          {
+            "imageId": "tq",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 50%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (full_body)"
+                ]
+              },
+              "coverageLoss": 0.007
+            },
+            "aspect": 0.835,
+            "area": "c1"
+          },
+          {
+            "imageId": "ed",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 35%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (editorial)"
+                ]
+              },
+              "coverageLoss": 0.073
+            },
+            "aspect": 0.695,
+            "area": "c2"
+          },
+          {
+            "imageId": "ls",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 35%",
+              "safety": {
+                "level": "caution",
+                "notes": [
+                  "focal point from role heuristic (lifestyle)",
+                  "crop loses 47% of image width; subject presence at risk"
+                ]
+              },
+              "coverageLoss": 0.465
+            },
+            "aspect": 0.695,
+            "area": "c3"
+          }
+        ],
+        "statsPlacement": "side-column",
+        "contact": {
+          "line": "Paris  ·  @anapetrova"
+        },
+        "booking": {
+          "mode": "direct",
+          "label": "Direct Bookings",
+          "primary": "@anapetrova",
+          "line": "Paris"
+        }
       },
       "wordmark": {
-       "x": 4.3,
-       "y": 8.07,
-       "w": 0.95,
-       "h": 0.18
-      },
-      "margins": {
-       "top": 1.084,
-       "right": 0.534,
-       "bottom": 0.78,
-       "left": 0.672
+        "href": null,
+        "displayUrl": null,
+        "corner": "bottom-right",
+        "align": "right",
+        "tone": "gold-deep",
+        "front": {
+          "x": 4.3,
+          "y": 8.07,
+          "w": 0.95,
+          "h": 0.18
+        },
+        "back": {
+          "x": 3.95,
+          "y": 7.84,
+          "w": 1.1,
+          "h": 0.3
+        }
       },
       "decisions": [
-       {
-        "aspect": "front-coverage",
-        "choice": 0.789,
-        "because": "treatment 'floated' requested by brief"
-       },
-       {
-        "aspect": "name-band",
-        "choice": "top (on paper)",
-        "because": "no sufficiently quiet hero band selected"
-       }
-      ]
-     },
-     "treatment": "bordered",
-     "scrim": null,
-     "typeSafety": {
-      "onImage": false,
-      "verified": true,
-      "because": "name set on paper"
-     },
-     "name": {
-      "placement": "top",
-      "align": "center",
-      "rotation": 0,
-      "lines": null
-     },
-     "statLine": null,
-     "statLineText": null,
-     "showContactBlock": false
-    },
-    "back": {
-     "layout": {
-      "cells": [
-       {
-        "x": 0.452,
-        "y": 2.018,
-        "w": 1.036,
-        "h": 5.51,
-        "imageId": "img-2",
-        "crop": {
-         "fit": "contain",
-         "objectPosition": "50% 50%",
-         "safety": {
-          "level": "caution",
-          "notes": [
-           "matted (contain) to preserve subject presence"
-          ]
-         },
-         "coverageLoss": 0
+        {
+          "aspect": "hero",
+          "choice": "hs",
+          "because": "top of deterministic heroRanking"
         },
-        "bleedEdges": []
-       },
-       {
-        "x": 1.639,
-        "y": 2.018,
-        "w": 1.036,
-        "h": 5.51,
-        "imageId": "img-3",
-        "crop": {
-         "fit": "contain",
-         "objectPosition": "50% 50%",
-         "safety": {
-          "level": "caution",
-          "notes": [
-           "matted (contain) to preserve subject presence"
-          ]
-         },
-         "coverageLoss": 0
+        {
+          "aspect": "tone-vector",
+          "choice": "formality 1.00 energy 0.42 warmth 0.48 density 0.54",
+          "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
         },
-        "bleedEdges": []
-       },
-       {
-        "x": 2.826,
-        "y": 2.018,
-        "w": 1.036,
-        "h": 5.51,
-        "imageId": "img-5",
-        "crop": {
-         "fit": "contain",
-         "objectPosition": "50% 50%",
-         "safety": {
-          "level": "caution",
-          "notes": [
-           "matted (contain) to preserve subject presence"
-          ]
-         },
-         "coverageLoss": 0
+        {
+          "aspect": "type-scale",
+          "choice": "ratio 1.618",
+          "because": "formality-biased register on the classic scale ratios"
         },
-        "bleedEdges": []
-       },
-       {
-        "x": 4.012,
-        "y": 2.018,
-        "w": 1.036,
-        "h": 5.51,
-        "imageId": "img-4",
-        "crop": {
-         "fit": "contain",
-         "objectPosition": "50% 50%",
-         "safety": {
-          "level": "caution",
-          "notes": [
-           "matted (contain) to preserve subject presence"
-          ]
-         },
-         "coverageLoss": 0
+        {
+          "aspect": "typography-voice",
+          "choice": "romantic-didone",
+          "because": "tone-affinity cast (distance 0.284, 3 candidates)"
         },
-        "bleedEdges": []
-       }
-      ],
-      "statsBlock": {
-       "x": 0.452,
-       "y": 0.98,
-       "w": 4.596,
-       "h": 0.887,
-       "orientation": "strip"
-      },
-      "nameBlock": {
-       "x": 0.452,
-       "y": 0.362,
-       "w": 4.596,
-       "h": 0.467
-      },
-      "contactBlock": {
-       "x": 0.452,
-       "y": 7.679,
-       "w": 3.396,
-       "h": 0.46
-      },
-      "wordmark": {
-       "x": 3.948,
-       "y": 7.839,
-       "w": 1.1,
-       "h": 0.3
-      },
-      "gutter": 0.151,
-      "coverageRatio": 0.902,
-      "architecture": "filmstrip",
-      "decisions": [
-       {
-        "aspect": "stats-side",
-        "choice": "top",
-        "because": "seeded, formality-biased"
-       },
-       {
-        "aspect": "photo-count",
-        "choice": "4/4",
-        "because": "density 0.488 → 4 of 4 frames (standard 4, floor 3)"
-       },
-       {
-        "aspect": "architecture",
-        "choice": "filmstrip",
-        "because": "6 eligible for 4 image(s), density 0.488"
-       }
+        {
+          "aspect": "name-metrics",
+          "choice": "measured",
+          "because": "glyph advances shaped from vendored font files (harfbuzz)"
+        },
+        {
+          "aspect": "name-treatment",
+          "choice": "Bodoni Moda upper w400 tracking 0.244em span 0.59",
+          "because": "voice 'romantic-didone' bounds + tone/seed position"
+        },
+        {
+          "aspect": "palette",
+          "choice": "#FAF8F5 / #111111 / #744C34",
+          "because": "accent: hero-palette #7A4A2E"
+        },
+        {
+          "aspect": "stats-placement",
+          "choice": "back",
+          "because": "back by default — fronts stay image-led (industry two-sided convention)"
+        },
+        {
+          "aspect": "front-coverage",
+          "choice": 0.852,
+          "because": "floated hero with paper margins"
+        },
+        {
+          "aspect": "name-band",
+          "choice": "top (on image)",
+          "because": "hero band is quiet (0.95)"
+        },
+        {
+          "aspect": "name-contrast",
+          "choice": "safe",
+          "because": "top band verified: clear of face and body, quiet 0.95, contrast safe unaided"
+        },
+        {
+          "aspect": "wordmark-placement",
+          "choice": "bottom-right",
+          "because": "quietest non-interfering corner (paper)"
+        },
+        {
+          "aspect": "name-fit",
+          "choice": "tracking relaxed to 0.11em",
+          "because": "long name — tracking gives way before size"
+        },
+        {
+          "aspect": "name-size",
+          "choice": "18.1pt",
+          "because": "solved from band width, span target, tracking"
+        },
+        {
+          "aspect": "back-story",
+          "choice": "4 image(s) curated",
+          "because": "fb: mandatory full-length, new register for the story (score 134) | ed: new register for the story, matches market signals (score 106) | ls: new register for the story (score 94) | tq: second of its register (score 62)"
+        },
+        {
+          "aspect": "back-architecture",
+          "choice": "uniform-grid",
+          "because": "back program grammar"
+        },
+        {
+          "aspect": "stats-side",
+          "choice": "none",
+          "because": "no stats"
+        },
+        {
+          "aspect": "photo-count",
+          "choice": "4/4",
+          "because": "density 0.543 → 4 of 4 frames (standard 4, floor 3)"
+        },
+        {
+          "aspect": "architecture",
+          "choice": "uniform-grid",
+          "because": "6 eligible for 4 image(s), density 0.543"
+        },
+        {
+          "aspect": "booking",
+          "choice": "Direct Bookings",
+          "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
+        }
       ],
       "warnings": []
-     },
-     "slots": [
-      {
-       "imageId": "img-2",
-       "crop": {
-        "fit": "contain",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "matted (contain) to preserve subject presence"
-         ]
-        },
-        "coverageLoss": 0
-       },
-       "aspect": 0.188,
-       "area": "c0"
-      },
-      {
-       "imageId": "img-3",
-       "crop": {
-        "fit": "contain",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "matted (contain) to preserve subject presence"
-         ]
-        },
-        "coverageLoss": 0
-       },
-       "aspect": 0.188,
-       "area": "c1"
-      },
-      {
-       "imageId": "img-5",
-       "crop": {
-        "fit": "contain",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "matted (contain) to preserve subject presence"
-         ]
-        },
-        "coverageLoss": 0
-       },
-       "aspect": 0.188,
-       "area": "c2"
-      },
-      {
-       "imageId": "img-4",
-       "crop": {
-        "fit": "contain",
-        "objectPosition": "50% 50%",
-        "safety": {
-         "level": "caution",
-         "notes": [
-          "matted (contain) to preserve subject presence"
-         ]
-        },
-        "coverageLoss": 0
-       },
-       "aspect": 0.188,
-       "area": "c3"
-      }
-     ],
-     "statsPlacement": "bottom-strip",
-     "contact": {
-      "line": "New York  ·  @avastone"
-     },
-     "booking": {
-      "mode": "direct",
-      "label": "Direct Bookings",
-      "primary": "@avastone",
-      "line": "New York"
-     }
     },
-    "wordmark": {
-     "href": null,
-     "displayUrl": null,
-     "corner": "bottom-right",
-     "align": "right",
-     "tone": "gold-deep",
-     "front": {
-      "x": 4.3,
-      "y": 8.07,
-      "w": 0.95,
-      "h": 0.18
-     },
-     "back": {
-      "x": 3.948,
-      "y": 7.839,
-      "w": 1.1,
-      "h": 0.3
-     }
+    "legacy-3": {
+      "engine": "composed",
+      "seedUsed": "legacy-3",
+      "language": {
+        "toneVector": {
+          "formality": 0.999835737561807,
+          "energy": 0.47569624357856805,
+          "warmth": 0.5571153391154483,
+          "density": 0.5016621507005766
+        },
+        "typeScale": {
+          "ratio": 1.618,
+          "basePt": 7.8,
+          "statValue": 7.8,
+          "statLabel": 6.4,
+          "contact": 7
+        },
+        "name": {
+          "text": "Ana Petrova",
+          "case": "upper",
+          "weightClass": 500,
+          "trackingEm": 0.276,
+          "targetSpan": 0.72,
+          "rotation": 0,
+          "glyphEm": 0.6443636363636364,
+          "glyphEmLongest": 0.6798571428571429,
+          "glyphMeasured": true
+        },
+        "voiceId": "stark-grotesque",
+        "fonts": {
+          "display": "Archivo",
+          "body": "Inter"
+        },
+        "palette": {
+          "paper": "#FAF8F5",
+          "ink": "#111111",
+          "accent": "#744C34",
+          "rule": "#D9D9D9"
+        },
+        "pacing": 1.42,
+        "statsPlacement": {
+          "page": "back",
+          "frontLine": false,
+          "justification": "back by default — fronts stay image-led (industry two-sided convention)"
+        },
+        "decisions": [
+          {
+            "aspect": "tone-vector",
+            "choice": "formality 1.00 energy 0.48 warmth 0.56 density 0.50",
+            "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+          },
+          {
+            "aspect": "type-scale",
+            "choice": "ratio 1.618",
+            "because": "formality-biased register on the classic scale ratios"
+          },
+          {
+            "aspect": "typography-voice",
+            "choice": "stark-grotesque",
+            "because": "tone-affinity cast (distance 0.375, 3 candidates)"
+          },
+          {
+            "aspect": "name-metrics",
+            "choice": "measured",
+            "because": "glyph advances shaped from vendored font files (harfbuzz)"
+          },
+          {
+            "aspect": "name-treatment",
+            "choice": "Archivo upper w500 tracking 0.276em span 0.72",
+            "because": "voice 'stark-grotesque' bounds + tone/seed position"
+          },
+          {
+            "aspect": "palette",
+            "choice": "#FAF8F5 / #111111 / #744C34",
+            "because": "accent: hero-palette #7A4A2E"
+          },
+          {
+            "aspect": "stats-placement",
+            "choice": "back",
+            "because": "back by default — fronts stay image-led (industry two-sided convention)"
+          }
+        ],
+        "warnings": []
+      },
+      "toneProfile": "high-fashion",
+      "palette": {
+        "background": "#FAF8F5",
+        "text": "#111111",
+        "muted": "#5C5C5C",
+        "accent": "#744C34",
+        "rule": "#D9D9D9"
+      },
+      "typography": {
+        "display": "Archivo",
+        "body": "Inter",
+        "voiceId": "stark-grotesque",
+        "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Archivo:wght@400;500;600;700;800&display=swap",
+        "nameSize": "21.2pt",
+        "nameTracking": "0.276em",
+        "nameCase": "uppercase",
+        "nameWeight": 500,
+        "statSize": "7.8pt",
+        "statLabelSize": "6.4pt",
+        "contactSize": "7pt"
+      },
+      "front": {
+        "imageId": "hs",
+        "crop": {
+          "fit": "cover",
+          "objectPosition": "50% 0%",
+          "safety": {
+            "level": "safe",
+            "notes": [
+              "focal point from role heuristic (headshot)"
+            ]
+          },
+          "coverageLoss": 0
+        },
+        "geometry": {
+          "hero": {
+            "x": 0.574,
+            "y": 1.087,
+            "w": 4.389,
+            "h": 5.486,
+            "bleedEdges": []
+          },
+          "nameBand": {
+            "x": 0.574,
+            "y": 0.297,
+            "w": 4.352,
+            "h": 0.718,
+            "onImage": false,
+            "inkOn": "dark"
+          },
+          "contactBand": {
+            "x": 0.25,
+            "y": 8.05,
+            "w": 3.9,
+            "h": 0.2
+          },
+          "statLine": {
+            "x": 0.25,
+            "y": 7.79,
+            "w": 5,
+            "h": 0.16
+          },
+          "wordmark": {
+            "x": 4.3,
+            "y": 8.07,
+            "w": 0.95,
+            "h": 0.18
+          },
+          "margins": {
+            "top": 1.087,
+            "right": 0.537,
+            "bottom": 0.783,
+            "left": 0.574
+          },
+          "decisions": [
+            {
+              "aspect": "front-coverage",
+              "choice": 0.851,
+              "because": "floated hero with paper margins"
+            },
+            {
+              "aspect": "name-band",
+              "choice": "top (on paper)",
+              "because": "no sufficiently quiet hero band selected"
+            }
+          ]
+        },
+        "treatment": "bordered",
+        "scrim": null,
+        "typeSafety": {
+          "onImage": false,
+          "verified": true,
+          "because": "name set on paper"
+        },
+        "name": {
+          "placement": "top",
+          "align": "left",
+          "rotation": 0,
+          "lines": null
+        },
+        "statLine": null,
+        "statLineText": null,
+        "showContactBlock": false
+      },
+      "back": {
+        "layout": {
+          "cells": [
+            {
+              "x": 0.455,
+              "y": 3.958,
+              "w": 4.59,
+              "h": 3.565,
+              "imageId": "ls",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 35%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (lifestyle)"
+                  ]
+                },
+                "coverageLoss": 0.01
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 0.455,
+              "y": 0.986,
+              "w": 1.428,
+              "h": 2.819,
+              "imageId": "fb",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (full_body)"
+                  ]
+                },
+                "coverageLoss": 0.079
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 2.036,
+              "y": 0.986,
+              "w": 1.428,
+              "h": 2.819,
+              "imageId": "tq",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (full_body)"
+                  ]
+                },
+                "coverageLoss": 0.276
+              },
+              "bleedEdges": []
+            },
+            {
+              "x": 3.617,
+              "y": 0.986,
+              "w": 1.428,
+              "h": 2.819,
+              "imageId": "ed",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 35%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "focal point from role heuristic (editorial)",
+                    "crop loses 32% of image width; subject presence at risk"
+                  ]
+                },
+                "coverageLoss": 0.325
+              },
+              "bleedEdges": []
+            }
+          ],
+          "statsBlock": {
+            "x": 0.455,
+            "y": 0.986,
+            "w": 0,
+            "h": 0,
+            "orientation": "column"
+          },
+          "nameBlock": {
+            "x": 0.455,
+            "y": 0.364,
+            "w": 4.59,
+            "h": 0.469
+          },
+          "contactBlock": {
+            "x": 0.455,
+            "y": 7.676,
+            "w": 3.39,
+            "h": 0.46
+          },
+          "wordmark": {
+            "x": 3.945,
+            "y": 7.836,
+            "w": 1.1,
+            "h": 0.3
+          },
+          "gutter": 0.153,
+          "coverageRatio": 0.948,
+          "architecture": "feature-row",
+          "decisions": [
+            {
+              "aspect": "stats-side",
+              "choice": "none",
+              "because": "no stats"
+            },
+            {
+              "aspect": "photo-count",
+              "choice": "4/4",
+              "because": "density 0.502 → 4 of 4 frames (standard 4, floor 3)"
+            },
+            {
+              "aspect": "architecture",
+              "choice": "feature-row",
+              "because": "6 eligible for 4 image(s), density 0.502"
+            }
+          ],
+          "warnings": []
+        },
+        "slots": [
+          {
+            "imageId": "ls",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 35%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (lifestyle)"
+                ]
+              },
+              "coverageLoss": 0.01
+            },
+            "aspect": 1.288,
+            "area": "c0"
+          },
+          {
+            "imageId": "fb",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 50%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (full_body)"
+                ]
+              },
+              "coverageLoss": 0.079
+            },
+            "aspect": 0.507,
+            "area": "c1"
+          },
+          {
+            "imageId": "tq",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 50%",
+              "safety": {
+                "level": "safe",
+                "notes": [
+                  "focal point from role heuristic (full_body)"
+                ]
+              },
+              "coverageLoss": 0.276
+            },
+            "aspect": 0.507,
+            "area": "c2"
+          },
+          {
+            "imageId": "ed",
+            "crop": {
+              "fit": "cover",
+              "objectPosition": "50% 35%",
+              "safety": {
+                "level": "caution",
+                "notes": [
+                  "focal point from role heuristic (editorial)",
+                  "crop loses 32% of image width; subject presence at risk"
+                ]
+              },
+              "coverageLoss": 0.325
+            },
+            "aspect": 0.507,
+            "area": "c3"
+          }
+        ],
+        "statsPlacement": "side-column",
+        "contact": {
+          "line": "Paris  ·  @anapetrova"
+        },
+        "booking": {
+          "mode": "direct",
+          "label": "Direct Bookings",
+          "primary": "@anapetrova",
+          "line": "Paris"
+        }
+      },
+      "wordmark": {
+        "href": null,
+        "displayUrl": null,
+        "corner": "bottom-right",
+        "align": "right",
+        "tone": "gold-deep",
+        "front": {
+          "x": 4.3,
+          "y": 8.07,
+          "w": 0.95,
+          "h": 0.18
+        },
+        "back": {
+          "x": 3.945,
+          "y": 7.836,
+          "w": 1.1,
+          "h": 0.3
+        }
+      },
+      "decisions": [
+        {
+          "aspect": "hero",
+          "choice": "hs",
+          "because": "top of deterministic heroRanking"
+        },
+        {
+          "aspect": "tone-vector",
+          "choice": "formality 1.00 energy 0.48 warmth 0.56 density 0.50",
+          "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+        },
+        {
+          "aspect": "type-scale",
+          "choice": "ratio 1.618",
+          "because": "formality-biased register on the classic scale ratios"
+        },
+        {
+          "aspect": "typography-voice",
+          "choice": "stark-grotesque",
+          "because": "tone-affinity cast (distance 0.375, 3 candidates)"
+        },
+        {
+          "aspect": "name-metrics",
+          "choice": "measured",
+          "because": "glyph advances shaped from vendored font files (harfbuzz)"
+        },
+        {
+          "aspect": "name-treatment",
+          "choice": "Archivo upper w500 tracking 0.276em span 0.72",
+          "because": "voice 'stark-grotesque' bounds + tone/seed position"
+        },
+        {
+          "aspect": "palette",
+          "choice": "#FAF8F5 / #111111 / #744C34",
+          "because": "accent: hero-palette #7A4A2E"
+        },
+        {
+          "aspect": "stats-placement",
+          "choice": "back",
+          "because": "back by default — fronts stay image-led (industry two-sided convention)"
+        },
+        {
+          "aspect": "front-coverage",
+          "choice": 0.851,
+          "because": "floated hero with paper margins"
+        },
+        {
+          "aspect": "name-band",
+          "choice": "top (on paper)",
+          "because": "no sufficiently quiet hero band selected"
+        },
+        {
+          "aspect": "wordmark-placement",
+          "choice": "bottom-right",
+          "because": "quietest non-interfering corner (paper)"
+        },
+        {
+          "aspect": "name-size",
+          "choice": "21.2pt",
+          "because": "solved from band width, span target, tracking"
+        },
+        {
+          "aspect": "back-story",
+          "choice": "4 image(s) curated",
+          "because": "fb: mandatory full-length, new register for the story (score 134) | ed: new register for the story, matches market signals (score 106) | ls: new register for the story (score 94) | tq: second of its register (score 62)"
+        },
+        {
+          "aspect": "back-architecture",
+          "choice": "feature-row",
+          "because": "back program grammar"
+        },
+        {
+          "aspect": "stats-side",
+          "choice": "none",
+          "because": "no stats"
+        },
+        {
+          "aspect": "photo-count",
+          "choice": "4/4",
+          "because": "density 0.502 → 4 of 4 frames (standard 4, floor 3)"
+        },
+        {
+          "aspect": "architecture",
+          "choice": "feature-row",
+          "because": "6 eligible for 4 image(s), density 0.502"
+        },
+        {
+          "aspect": "booking",
+          "choice": "Direct Bookings",
+          "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "compose": {
+    "legacy-compose-a": {
+      "plan": {
+        "engine": "composed",
+        "seedUsed": "legacy-compose-a",
+        "language": {
+          "toneVector": {
+            "formality": 0.9877378031797707,
+            "energy": 0.37343769537284965,
+            "warmth": 0.3878591392543167,
+            "density": 0.47295133425761016
+          },
+          "typeScale": {
+            "ratio": 1.618,
+            "basePt": 7.7,
+            "statValue": 7.7,
+            "statLabel": 6.3,
+            "contact": 6.9
+          },
+          "name": {
+            "text": "Ava Stone",
+            "case": "upper",
+            "weightClass": 400,
+            "trackingEm": 0.195,
+            "targetSpan": 0.71,
+            "rotation": 0,
+            "glyphEm": 0.6275555555555555,
+            "glyphEmLongest": 0.6763,
+            "glyphMeasured": true
+          },
+          "voiceId": "romantic-didone",
+          "fonts": {
+            "display": "Bodoni Moda",
+            "body": "Inter"
+          },
+          "palette": {
+            "paper": "#FFFFFF",
+            "ink": "#111111",
+            "accent": "#8D6C43",
+            "rule": "#D9D9D9"
+          },
+          "pacing": 1.42,
+          "statsPlacement": {
+            "page": "back",
+            "frontLine": false,
+            "justification": "back by default — fronts stay image-led (industry two-sided convention)"
+          },
+          "decisions": [
+            {
+              "aspect": "tone-vector",
+              "choice": "formality 0.99 energy 0.37 warmth 0.39 density 0.47",
+              "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+            },
+            {
+              "aspect": "type-scale",
+              "choice": "ratio 1.618",
+              "because": "formality-biased register on the classic scale ratios"
+            },
+            {
+              "aspect": "typography-voice",
+              "choice": "romantic-didone",
+              "because": "tone-affinity cast (distance 0.269, 3 candidates)"
+            },
+            {
+              "aspect": "name-metrics",
+              "choice": "measured",
+              "because": "glyph advances shaped from vendored font files (harfbuzz)"
+            },
+            {
+              "aspect": "name-treatment",
+              "choice": "Bodoni Moda upper w400 tracking 0.195em span 0.71",
+              "because": "voice 'romantic-didone' bounds + tone/seed position"
+            },
+            {
+              "aspect": "palette",
+              "choice": "#FFFFFF / #111111 / #8D6C43",
+              "because": "accent: brand-gold-fallback"
+            },
+            {
+              "aspect": "stats-placement",
+              "choice": "back",
+              "because": "back by default — fronts stay image-led (industry two-sided convention)"
+            }
+          ],
+          "warnings": []
+        },
+        "toneProfile": "high-fashion",
+        "palette": {
+          "background": "#FFFFFF",
+          "text": "#111111",
+          "muted": "#5C5C5C",
+          "accent": "#8D6C43",
+          "rule": "#D9D9D9"
+        },
+        "typography": {
+          "display": "Bodoni Moda",
+          "body": "Inter",
+          "voiceId": "romantic-didone",
+          "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bodoni+Moda:wght@400;500;600;700&display=swap",
+          "nameSize": "27pt",
+          "nameTracking": "0.195em",
+          "nameCase": "uppercase",
+          "nameWeight": 400,
+          "statSize": "7.7pt",
+          "statLabelSize": "6.3pt",
+          "contactSize": "6.9pt"
+        },
+        "front": {
+          "imageId": "img-1",
+          "crop": {
+            "fit": "cover",
+            "objectPosition": "50% 18%",
+            "safety": {
+              "level": "safe",
+              "notes": [
+                "focal point from role heuristic (headshot)"
+              ]
+            },
+            "coverageLoss": 0
+          },
+          "geometry": {
+            "hero": {
+              "x": 0.696,
+              "y": 0.376,
+              "w": 4.267,
+              "h": 5.334,
+              "bleedEdges": []
+            },
+            "nameBand": {
+              "x": 0.696,
+              "y": 5.905,
+              "w": 4.108,
+              "h": 0.7,
+              "onImage": false,
+              "inkOn": "dark"
+            },
+            "contactBand": {
+              "x": 0.25,
+              "y": 8.05,
+              "w": 3.9,
+              "h": 0.2
+            },
+            "statLine": {
+              "x": 0.25,
+              "y": 7.79,
+              "w": 5,
+              "h": 0.16
+            },
+            "wordmark": {
+              "x": 4.3,
+              "y": 8.07,
+              "w": 0.95,
+              "h": 0.18
+            },
+            "margins": {
+              "top": 0.376,
+              "right": 0.537,
+              "bottom": 1.157,
+              "left": 0.696
+            },
+            "decisions": [
+              {
+                "aspect": "front-coverage",
+                "choice": 0.867,
+                "because": "floated hero with paper margins"
+              },
+              {
+                "aspect": "name-band",
+                "choice": "bottom (on paper)",
+                "because": "no sufficiently quiet hero band selected"
+              }
+            ]
+          },
+          "treatment": "bordered",
+          "scrim": null,
+          "typeSafety": {
+            "onImage": false,
+            "verified": true,
+            "because": "name set on paper"
+          },
+          "name": {
+            "placement": "bottom",
+            "align": "center",
+            "rotation": 0,
+            "lines": null
+          },
+          "statLine": null,
+          "statLineText": null,
+          "showContactBlock": false
+        },
+        "back": {
+          "layout": {
+            "cells": [
+              {
+                "x": 1.949,
+                "y": 0.986,
+                "w": 1.472,
+                "h": 3.803,
+                "imageId": "img-3",
+                "crop": {
+                  "fit": "cover",
+                  "objectPosition": "50% 50%",
+                  "safety": {
+                    "level": "caution",
+                    "notes": [
+                      "focal point from role heuristic (full_body)",
+                      "crop loses 46% of image width; subject presence at risk"
+                    ]
+                  },
+                  "coverageLoss": 0.458
+                },
+                "bleedEdges": []
+              },
+              {
+                "x": 1.949,
+                "y": 4.942,
+                "w": 1.472,
+                "h": 2.581,
+                "imageId": "img-4",
+                "crop": {
+                  "fit": "contain",
+                  "objectPosition": "50% 50%",
+                  "safety": {
+                    "level": "caution",
+                    "notes": [
+                      "matted (contain) to preserve subject presence"
+                    ]
+                  },
+                  "coverageLoss": 0
+                },
+                "bleedEdges": []
+              },
+              {
+                "x": 3.574,
+                "y": 1.166,
+                "w": 1.472,
+                "h": 2.827,
+                "imageId": "img-2",
+                "crop": {
+                  "fit": "cover",
+                  "objectPosition": "50% 50%",
+                  "safety": {
+                    "level": "safe",
+                    "notes": [
+                      "focal point from role heuristic (full_body)"
+                    ]
+                  },
+                  "coverageLoss": 0.04
+                },
+                "bleedEdges": []
+              },
+              {
+                "x": 3.574,
+                "y": 4.147,
+                "w": 1.926,
+                "h": 3.376,
+                "imageId": "img-5",
+                "crop": {
+                  "fit": "cover",
+                  "objectPosition": "50% 35%",
+                  "safety": {
+                    "level": "caution",
+                    "notes": [
+                      "focal point from role heuristic (lifestyle)",
+                      "crop loses 45% of image width; subject presence at risk"
+                    ]
+                  },
+                  "coverageLoss": 0.455
+                },
+                "bleedEdges": [
+                  "right"
+                ]
+              }
+            ],
+            "statsBlock": {
+              "x": 0.455,
+              "y": 0.986,
+              "w": 1.341,
+              "h": 6.537,
+              "orientation": "column"
+            },
+            "nameBlock": {
+              "x": 0.455,
+              "y": 0.364,
+              "w": 4.59,
+              "h": 0.469
+            },
+            "contactBlock": {
+              "x": 0.455,
+              "y": 7.676,
+              "w": 3.39,
+              "h": 0.46
+            },
+            "wordmark": {
+              "x": 3.945,
+              "y": 7.836,
+              "w": 1.1,
+              "h": 0.3
+            },
+            "gutter": 0.153,
+            "coverageRatio": 0.991,
+            "architecture": "editorial-stagger",
+            "decisions": [
+              {
+                "aspect": "stats-side",
+                "choice": "left",
+                "because": "seeded, formality-biased"
+              },
+              {
+                "aspect": "photo-count",
+                "choice": "4/4",
+                "because": "density 0.473 → 4 of 4 frames (standard 4, floor 3)"
+              },
+              {
+                "aspect": "architecture",
+                "choice": "editorial-stagger",
+                "because": "6 eligible for 4 image(s), density 0.473"
+              }
+            ],
+            "warnings": []
+          },
+          "slots": [
+            {
+              "imageId": "img-3",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "focal point from role heuristic (full_body)",
+                    "crop loses 46% of image width; subject presence at risk"
+                  ]
+                },
+                "coverageLoss": 0.458
+              },
+              "aspect": 0.387,
+              "area": "c0"
+            },
+            {
+              "imageId": "img-4",
+              "crop": {
+                "fit": "contain",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "matted (contain) to preserve subject presence"
+                  ]
+                },
+                "coverageLoss": 0
+              },
+              "aspect": 0.57,
+              "area": "c1"
+            },
+            {
+              "imageId": "img-2",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "safe",
+                  "notes": [
+                    "focal point from role heuristic (full_body)"
+                  ]
+                },
+                "coverageLoss": 0.04
+              },
+              "aspect": 0.521,
+              "area": "c2"
+            },
+            {
+              "imageId": "img-5",
+              "crop": {
+                "fit": "cover",
+                "objectPosition": "50% 35%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "focal point from role heuristic (lifestyle)",
+                    "crop loses 45% of image width; subject presence at risk"
+                  ]
+                },
+                "coverageLoss": 0.455
+              },
+              "aspect": 0.57,
+              "area": "c3"
+            }
+          ],
+          "statsPlacement": "side-column",
+          "contact": {
+            "line": "New York  ·  @avastone"
+          },
+          "booking": {
+            "mode": "direct",
+            "label": "Direct Bookings",
+            "primary": "@avastone",
+            "line": "New York"
+          }
+        },
+        "wordmark": {
+          "href": null,
+          "displayUrl": null,
+          "corner": "bottom-right",
+          "align": "right",
+          "tone": "gold-deep",
+          "front": {
+            "x": 4.3,
+            "y": 8.07,
+            "w": 0.95,
+            "h": 0.18
+          },
+          "back": {
+            "x": 3.945,
+            "y": 7.836,
+            "w": 1.1,
+            "h": 0.3
+          }
+        },
+        "decisions": [
+          {
+            "aspect": "hero",
+            "choice": "img-1",
+            "because": "top of deterministic heroRanking"
+          },
+          {
+            "aspect": "tone-vector",
+            "choice": "formality 0.99 energy 0.37 warmth 0.39 density 0.47",
+            "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+          },
+          {
+            "aspect": "type-scale",
+            "choice": "ratio 1.618",
+            "because": "formality-biased register on the classic scale ratios"
+          },
+          {
+            "aspect": "typography-voice",
+            "choice": "romantic-didone",
+            "because": "tone-affinity cast (distance 0.269, 3 candidates)"
+          },
+          {
+            "aspect": "name-metrics",
+            "choice": "measured",
+            "because": "glyph advances shaped from vendored font files (harfbuzz)"
+          },
+          {
+            "aspect": "name-treatment",
+            "choice": "Bodoni Moda upper w400 tracking 0.195em span 0.71",
+            "because": "voice 'romantic-didone' bounds + tone/seed position"
+          },
+          {
+            "aspect": "palette",
+            "choice": "#FFFFFF / #111111 / #8D6C43",
+            "because": "accent: brand-gold-fallback"
+          },
+          {
+            "aspect": "stats-placement",
+            "choice": "back",
+            "because": "back by default — fronts stay image-led (industry two-sided convention)"
+          },
+          {
+            "aspect": "front-coverage",
+            "choice": 0.867,
+            "because": "floated hero with paper margins"
+          },
+          {
+            "aspect": "name-band",
+            "choice": "bottom (on paper)",
+            "because": "no sufficiently quiet hero band selected"
+          },
+          {
+            "aspect": "wordmark-placement",
+            "choice": "bottom-right",
+            "because": "quietest non-interfering corner (paper)"
+          },
+          {
+            "aspect": "name-size",
+            "choice": "27pt",
+            "because": "solved from band width, span target, tracking"
+          },
+          {
+            "aspect": "back-story",
+            "choice": "4 image(s) curated",
+            "because": "img-2: mandatory full-length, new register for the story (score 134) | img-4: new register for the story, matches market signals (score 96) | img-5: new register for the story (score 94) | img-3: second of its register (score 62)"
+          },
+          {
+            "aspect": "back-architecture",
+            "choice": "editorial-stagger",
+            "because": "back program grammar"
+          },
+          {
+            "aspect": "stats-side",
+            "choice": "left",
+            "because": "seeded, formality-biased"
+          },
+          {
+            "aspect": "photo-count",
+            "choice": "4/4",
+            "because": "density 0.473 → 4 of 4 frames (standard 4, floor 3)"
+          },
+          {
+            "aspect": "architecture",
+            "choice": "editorial-stagger",
+            "because": "6 eligible for 4 image(s), density 0.473"
+          },
+          {
+            "aspect": "crop-healing",
+            "choice": "img-4 matted",
+            "because": "no safe cover crop or reassignment exists for a 0.57-aspect cell — image matted on paper instead"
+          },
+          {
+            "aspect": "booking",
+            "choice": "Direct Bookings",
+            "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
+          }
+        ],
+        "warnings": []
+      },
+      "guardrailStatus": "warn",
+      "statsBlockCategory": "women"
     },
-    "decisions": [
-     {
-      "aspect": "hero",
-      "choice": "img-1",
-      "because": "top of deterministic heroRanking"
-     },
-     {
-      "aspect": "tone-vector",
-      "choice": "formality 0.97 energy 0.47 warmth 0.44 density 0.49",
-      "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
-     },
-     {
-      "aspect": "type-scale",
-      "choice": "ratio 1.618",
-      "because": "formality-biased register on the classic scale ratios"
-     },
-     {
-      "aspect": "typography-voice",
-      "choice": "romantic-didone",
-      "because": "tone-affinity cast (distance 0.277, 3 candidates)"
-     },
-     {
-      "aspect": "name-metrics",
-      "choice": "measured",
-      "because": "glyph advances shaped from vendored font files (harfbuzz)"
-     },
-     {
-      "aspect": "name-treatment",
-      "choice": "Bodoni Moda upper w500 tracking 0.247em span 0.67",
-      "because": "voice 'romantic-didone' bounds + tone/seed position"
-     },
-     {
-      "aspect": "palette",
-      "choice": "#FFFFFF / #111111 / #8D6C43",
-      "because": "accent: brand-gold-fallback"
-     },
-     {
-      "aspect": "stats-placement",
-      "choice": "back",
-      "because": "back by default — fronts stay image-led (industry two-sided convention)"
-     },
-     {
-      "aspect": "front-coverage",
-      "choice": 1,
-      "because": "full bleed (density-biased draw)"
-     },
-     {
-      "aspect": "name-band",
-      "choice": "bottom (on image)",
-      "because": "quiet top 0 vs bottom 0 — full bleed forces on-image"
-     },
-     {
-      "aspect": "type-safety",
-      "choice": "bottom band rejected",
-      "because": "image not measured — on-image type refused (unverifiable)"
-     },
-     {
-      "aspect": "type-safety",
-      "choice": "top band rejected",
-      "because": "image not measured — on-image type refused (unverifiable)"
-     },
-     {
-      "aspect": "front-coverage",
-      "choice": 0.789,
-      "because": "treatment 'floated' requested by brief"
-     },
-     {
-      "aspect": "name-band",
-      "choice": "top (on paper)",
-      "because": "no sufficiently quiet hero band selected"
-     },
-     {
-      "aspect": "type-safety",
-      "choice": "treatment demoted to floated",
-      "because": "no on-image band passes contrast + protected-subject verification — name belongs on paper"
-     },
-     {
-      "aspect": "wordmark-placement",
-      "choice": "bottom-right",
-      "because": "quietest non-interfering corner (paper)"
-     },
-     {
-      "aspect": "name-size",
-      "choice": "24pt",
-      "because": "solved from band width, span target, tracking"
-     },
-     {
-      "aspect": "back-story",
-      "choice": "4 image(s) curated",
-      "because": "img-2: mandatory full-length, new register for the story (score 134) | img-4: new register for the story, matches market signals (score 96) | img-5: new register for the story (score 94) | img-3: second of its register (score 62)"
-     },
-     {
-      "aspect": "back-architecture",
-      "choice": "filmstrip",
-      "because": "back program grammar"
-     },
-     {
-      "aspect": "stats-side",
-      "choice": "top",
-      "because": "seeded, formality-biased"
-     },
-     {
-      "aspect": "photo-count",
-      "choice": "4/4",
-      "because": "density 0.488 → 4 of 4 frames (standard 4, floor 3)"
-     },
-     {
-      "aspect": "architecture",
-      "choice": "filmstrip",
-      "because": "6 eligible for 4 image(s), density 0.488"
-     },
-     {
-      "aspect": "crop-healing",
-      "choice": "img-2 matted",
-      "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
-     },
-     {
-      "aspect": "crop-healing",
-      "choice": "img-3 matted",
-      "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
-     },
-     {
-      "aspect": "crop-healing",
-      "choice": "img-5 matted",
-      "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
-     },
-     {
-      "aspect": "crop-healing",
-      "choice": "img-4 matted",
-      "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
-     },
-     {
-      "aspect": "booking",
-      "choice": "Direct Bookings",
-      "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
-     }
-    ],
-    "warnings": []
-   },
-   "statsBlockCategory": "women",
-   "guardrailStatus": "warn"
+    "legacy-compose-b": {
+      "plan": {
+        "engine": "composed",
+        "seedUsed": "legacy-compose-b",
+        "language": {
+          "toneVector": {
+            "formality": 0.9690748950187117,
+            "energy": 0.46823615371715277,
+            "warmth": 0.43963329108711335,
+            "density": 0.48804402801580726
+          },
+          "typeScale": {
+            "ratio": 1.618,
+            "basePt": 7.7,
+            "statValue": 7.7,
+            "statLabel": 6.3,
+            "contact": 7
+          },
+          "name": {
+            "text": "Ava Stone",
+            "case": "upper",
+            "weightClass": 500,
+            "trackingEm": 0.247,
+            "targetSpan": 0.67,
+            "rotation": 0,
+            "glyphEm": 0.6333888888888889,
+            "glyphEmLongest": 0.6829,
+            "glyphMeasured": true
+          },
+          "voiceId": "romantic-didone",
+          "fonts": {
+            "display": "Bodoni Moda",
+            "body": "Inter"
+          },
+          "palette": {
+            "paper": "#FFFFFF",
+            "ink": "#111111",
+            "accent": "#8D6C43",
+            "rule": "#D9D9D9"
+          },
+          "pacing": 1.41,
+          "statsPlacement": {
+            "page": "back",
+            "frontLine": false,
+            "justification": "back by default — fronts stay image-led (industry two-sided convention)"
+          },
+          "decisions": [
+            {
+              "aspect": "tone-vector",
+              "choice": "formality 0.97 energy 0.47 warmth 0.44 density 0.49",
+              "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+            },
+            {
+              "aspect": "type-scale",
+              "choice": "ratio 1.618",
+              "because": "formality-biased register on the classic scale ratios"
+            },
+            {
+              "aspect": "typography-voice",
+              "choice": "romantic-didone",
+              "because": "tone-affinity cast (distance 0.277, 3 candidates)"
+            },
+            {
+              "aspect": "name-metrics",
+              "choice": "measured",
+              "because": "glyph advances shaped from vendored font files (harfbuzz)"
+            },
+            {
+              "aspect": "name-treatment",
+              "choice": "Bodoni Moda upper w500 tracking 0.247em span 0.67",
+              "because": "voice 'romantic-didone' bounds + tone/seed position"
+            },
+            {
+              "aspect": "palette",
+              "choice": "#FFFFFF / #111111 / #8D6C43",
+              "because": "accent: brand-gold-fallback"
+            },
+            {
+              "aspect": "stats-placement",
+              "choice": "back",
+              "because": "back by default — fronts stay image-led (industry two-sided convention)"
+            }
+          ],
+          "warnings": []
+        },
+        "toneProfile": "high-fashion",
+        "palette": {
+          "background": "#FFFFFF",
+          "text": "#111111",
+          "muted": "#5C5C5C",
+          "accent": "#8D6C43",
+          "rule": "#D9D9D9"
+        },
+        "typography": {
+          "display": "Bodoni Moda",
+          "body": "Inter",
+          "voiceId": "romantic-didone",
+          "fontsUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bodoni+Moda:wght@400;500;600;700&display=swap",
+          "nameSize": "24pt",
+          "nameTracking": "0.247em",
+          "nameCase": "uppercase",
+          "nameWeight": 500,
+          "statSize": "7.7pt",
+          "statLabelSize": "6.3pt",
+          "contactSize": "7pt"
+        },
+        "front": {
+          "imageId": "img-1",
+          "crop": {
+            "fit": "cover",
+            "objectPosition": "50% 18%",
+            "safety": {
+              "level": "safe",
+              "notes": [
+                "focal point from role heuristic (headshot)"
+              ]
+            },
+            "coverageLoss": 0
+          },
+          "geometry": {
+            "hero": {
+              "x": 0.672,
+              "y": 1.084,
+              "w": 4.294,
+              "h": 5.368,
+              "bleedEdges": []
+            },
+            "nameBand": {
+              "x": 0.672,
+              "y": 0.442,
+              "w": 4.156,
+              "h": 0.59,
+              "onImage": false,
+              "inkOn": "dark"
+            },
+            "contactBand": {
+              "x": 0.25,
+              "y": 8.05,
+              "w": 3.9,
+              "h": 0.2
+            },
+            "statLine": {
+              "x": 0.25,
+              "y": 7.79,
+              "w": 5,
+              "h": 0.16
+            },
+            "wordmark": {
+              "x": 4.3,
+              "y": 8.07,
+              "w": 0.95,
+              "h": 0.18
+            },
+            "margins": {
+              "top": 1.084,
+              "right": 0.534,
+              "bottom": 0.78,
+              "left": 0.672
+            },
+            "decisions": [
+              {
+                "aspect": "front-coverage",
+                "choice": 0.789,
+                "because": "treatment 'floated' requested by brief"
+              },
+              {
+                "aspect": "name-band",
+                "choice": "top (on paper)",
+                "because": "no sufficiently quiet hero band selected"
+              }
+            ]
+          },
+          "treatment": "bordered",
+          "scrim": null,
+          "typeSafety": {
+            "onImage": false,
+            "verified": true,
+            "because": "name set on paper"
+          },
+          "name": {
+            "placement": "top",
+            "align": "center",
+            "rotation": 0,
+            "lines": null
+          },
+          "statLine": null,
+          "statLineText": null,
+          "showContactBlock": false
+        },
+        "back": {
+          "layout": {
+            "cells": [
+              {
+                "x": 0.452,
+                "y": 2.018,
+                "w": 1.036,
+                "h": 5.51,
+                "imageId": "img-2",
+                "crop": {
+                  "fit": "contain",
+                  "objectPosition": "50% 50%",
+                  "safety": {
+                    "level": "caution",
+                    "notes": [
+                      "matted (contain) to preserve subject presence"
+                    ]
+                  },
+                  "coverageLoss": 0
+                },
+                "bleedEdges": []
+              },
+              {
+                "x": 1.639,
+                "y": 2.018,
+                "w": 1.036,
+                "h": 5.51,
+                "imageId": "img-3",
+                "crop": {
+                  "fit": "contain",
+                  "objectPosition": "50% 50%",
+                  "safety": {
+                    "level": "caution",
+                    "notes": [
+                      "matted (contain) to preserve subject presence"
+                    ]
+                  },
+                  "coverageLoss": 0
+                },
+                "bleedEdges": []
+              },
+              {
+                "x": 2.826,
+                "y": 2.018,
+                "w": 1.036,
+                "h": 5.51,
+                "imageId": "img-5",
+                "crop": {
+                  "fit": "contain",
+                  "objectPosition": "50% 50%",
+                  "safety": {
+                    "level": "caution",
+                    "notes": [
+                      "matted (contain) to preserve subject presence"
+                    ]
+                  },
+                  "coverageLoss": 0
+                },
+                "bleedEdges": []
+              },
+              {
+                "x": 4.012,
+                "y": 2.018,
+                "w": 1.036,
+                "h": 5.51,
+                "imageId": "img-4",
+                "crop": {
+                  "fit": "contain",
+                  "objectPosition": "50% 50%",
+                  "safety": {
+                    "level": "caution",
+                    "notes": [
+                      "matted (contain) to preserve subject presence"
+                    ]
+                  },
+                  "coverageLoss": 0
+                },
+                "bleedEdges": []
+              }
+            ],
+            "statsBlock": {
+              "x": 0.452,
+              "y": 0.98,
+              "w": 4.596,
+              "h": 0.887,
+              "orientation": "strip"
+            },
+            "nameBlock": {
+              "x": 0.452,
+              "y": 0.362,
+              "w": 4.596,
+              "h": 0.467
+            },
+            "contactBlock": {
+              "x": 0.452,
+              "y": 7.679,
+              "w": 3.396,
+              "h": 0.46
+            },
+            "wordmark": {
+              "x": 3.948,
+              "y": 7.839,
+              "w": 1.1,
+              "h": 0.3
+            },
+            "gutter": 0.151,
+            "coverageRatio": 0.902,
+            "architecture": "filmstrip",
+            "decisions": [
+              {
+                "aspect": "stats-side",
+                "choice": "top",
+                "because": "seeded, formality-biased"
+              },
+              {
+                "aspect": "photo-count",
+                "choice": "4/4",
+                "because": "density 0.488 → 4 of 4 frames (standard 4, floor 3)"
+              },
+              {
+                "aspect": "architecture",
+                "choice": "filmstrip",
+                "because": "6 eligible for 4 image(s), density 0.488"
+              }
+            ],
+            "warnings": []
+          },
+          "slots": [
+            {
+              "imageId": "img-2",
+              "crop": {
+                "fit": "contain",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "matted (contain) to preserve subject presence"
+                  ]
+                },
+                "coverageLoss": 0
+              },
+              "aspect": 0.188,
+              "area": "c0"
+            },
+            {
+              "imageId": "img-3",
+              "crop": {
+                "fit": "contain",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "matted (contain) to preserve subject presence"
+                  ]
+                },
+                "coverageLoss": 0
+              },
+              "aspect": 0.188,
+              "area": "c1"
+            },
+            {
+              "imageId": "img-5",
+              "crop": {
+                "fit": "contain",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "matted (contain) to preserve subject presence"
+                  ]
+                },
+                "coverageLoss": 0
+              },
+              "aspect": 0.188,
+              "area": "c2"
+            },
+            {
+              "imageId": "img-4",
+              "crop": {
+                "fit": "contain",
+                "objectPosition": "50% 50%",
+                "safety": {
+                  "level": "caution",
+                  "notes": [
+                    "matted (contain) to preserve subject presence"
+                  ]
+                },
+                "coverageLoss": 0
+              },
+              "aspect": 0.188,
+              "area": "c3"
+            }
+          ],
+          "statsPlacement": "bottom-strip",
+          "contact": {
+            "line": "New York  ·  @avastone"
+          },
+          "booking": {
+            "mode": "direct",
+            "label": "Direct Bookings",
+            "primary": "@avastone",
+            "line": "New York"
+          }
+        },
+        "wordmark": {
+          "href": null,
+          "displayUrl": null,
+          "corner": "bottom-right",
+          "align": "right",
+          "tone": "gold-deep",
+          "front": {
+            "x": 4.3,
+            "y": 8.07,
+            "w": 0.95,
+            "h": 0.18
+          },
+          "back": {
+            "x": 3.948,
+            "y": 7.839,
+            "w": 1.1,
+            "h": 0.3
+          }
+        },
+        "decisions": [
+          {
+            "aspect": "hero",
+            "choice": "img-1",
+            "because": "top of deterministic heroRanking"
+          },
+          {
+            "aspect": "tone-vector",
+            "choice": "formality 0.97 energy 0.47 warmth 0.44 density 0.49",
+            "because": "computed from archetype scores, casting analysis, category; seeded jitter ±0.05"
+          },
+          {
+            "aspect": "type-scale",
+            "choice": "ratio 1.618",
+            "because": "formality-biased register on the classic scale ratios"
+          },
+          {
+            "aspect": "typography-voice",
+            "choice": "romantic-didone",
+            "because": "tone-affinity cast (distance 0.277, 3 candidates)"
+          },
+          {
+            "aspect": "name-metrics",
+            "choice": "measured",
+            "because": "glyph advances shaped from vendored font files (harfbuzz)"
+          },
+          {
+            "aspect": "name-treatment",
+            "choice": "Bodoni Moda upper w500 tracking 0.247em span 0.67",
+            "because": "voice 'romantic-didone' bounds + tone/seed position"
+          },
+          {
+            "aspect": "palette",
+            "choice": "#FFFFFF / #111111 / #8D6C43",
+            "because": "accent: brand-gold-fallback"
+          },
+          {
+            "aspect": "stats-placement",
+            "choice": "back",
+            "because": "back by default — fronts stay image-led (industry two-sided convention)"
+          },
+          {
+            "aspect": "front-coverage",
+            "choice": 1,
+            "because": "full bleed (density-biased draw)"
+          },
+          {
+            "aspect": "name-band",
+            "choice": "bottom (on image)",
+            "because": "quiet top 0 vs bottom 0 — full bleed forces on-image"
+          },
+          {
+            "aspect": "type-safety",
+            "choice": "bottom band rejected",
+            "because": "image not measured — on-image type refused (unverifiable)"
+          },
+          {
+            "aspect": "type-safety",
+            "choice": "top band rejected",
+            "because": "image not measured — on-image type refused (unverifiable)"
+          },
+          {
+            "aspect": "front-coverage",
+            "choice": 0.789,
+            "because": "treatment 'floated' requested by brief"
+          },
+          {
+            "aspect": "name-band",
+            "choice": "top (on paper)",
+            "because": "no sufficiently quiet hero band selected"
+          },
+          {
+            "aspect": "type-safety",
+            "choice": "treatment demoted to floated",
+            "because": "no on-image band passes contrast + protected-subject verification — name belongs on paper"
+          },
+          {
+            "aspect": "wordmark-placement",
+            "choice": "bottom-right",
+            "because": "quietest non-interfering corner (paper)"
+          },
+          {
+            "aspect": "name-size",
+            "choice": "24pt",
+            "because": "solved from band width, span target, tracking"
+          },
+          {
+            "aspect": "back-story",
+            "choice": "4 image(s) curated",
+            "because": "img-2: mandatory full-length, new register for the story (score 134) | img-4: new register for the story, matches market signals (score 96) | img-5: new register for the story (score 94) | img-3: second of its register (score 62)"
+          },
+          {
+            "aspect": "back-architecture",
+            "choice": "filmstrip",
+            "because": "back program grammar"
+          },
+          {
+            "aspect": "stats-side",
+            "choice": "top",
+            "because": "seeded, formality-biased"
+          },
+          {
+            "aspect": "photo-count",
+            "choice": "4/4",
+            "because": "density 0.488 → 4 of 4 frames (standard 4, floor 3)"
+          },
+          {
+            "aspect": "architecture",
+            "choice": "filmstrip",
+            "because": "6 eligible for 4 image(s), density 0.488"
+          },
+          {
+            "aspect": "crop-healing",
+            "choice": "img-2 matted",
+            "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
+          },
+          {
+            "aspect": "crop-healing",
+            "choice": "img-3 matted",
+            "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
+          },
+          {
+            "aspect": "crop-healing",
+            "choice": "img-5 matted",
+            "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
+          },
+          {
+            "aspect": "crop-healing",
+            "choice": "img-4 matted",
+            "because": "no safe cover crop or reassignment exists for a 0.188-aspect cell — image matted on paper instead"
+          },
+          {
+            "aspect": "booking",
+            "choice": "Direct Bookings",
+            "because": "direct-booking treatment with the same hierarchy — never a lesser fallback"
+          }
+        ],
+        "warnings": []
+      },
+      "guardrailStatus": "warn",
+      "statsBlockCategory": "women"
+    }
   }
- }
 }

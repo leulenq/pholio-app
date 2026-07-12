@@ -302,7 +302,11 @@ function paperContact(b, x, y, { align = "left", blockW = 0 } = {}) {
 
 /** Folio — the one earned ornament: a small foot-anchored imprint line. */
 function folioElement(b, { x, y, align = "left", color } = {}) {
-  const text = b.ctx.folioText || "№ 01";
+  // "No." (ASCII), not "№" (U+2116): the numero sign is absent from the
+  // vendored display faces (Archivo/Bodoni/Playfair/…), so it rendered as
+  // fallback tofu that the fit-guard then mangled ("N^O 0'l"). ASCII reads
+  // the same editorial register and is present in every family.
+  const text = b.ctx.folioText || "No. 01";
   const sizePt = b.dark ? Math.max(8, reversedMinPt({ family: b.bodyFamily, weight: 600 })) : 7;
   const w = clamp(text.length * 0.06 * (sizePt / 7), 0.3, 1.6);
   const h = (sizePt / 72) * 1.5;
