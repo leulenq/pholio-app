@@ -2,7 +2,8 @@ const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const knex = require("../../../shared/db/knex");
 
-const TOKEN_TTL_DAYS = 7;
+// SEC-0.8: shortened from 7 days to reduce the replay window on magic links.
+const TOKEN_TTL_DAYS = 3;
 
 function getAppBaseUrl() {
   return (
@@ -21,6 +22,13 @@ function buildReplyUrl(token) {
 
 function generateTokenValue() {
   return crypto.randomBytes(32).toString("base64url");
+}
+
+// SEC-0.8: sha256 hex digest of the raw token. Only this hash is persisted; the
+// raw token lives solely inside the emailed reply URL. Mirrors the guardian
+// consent idiom (see domains/talent/services/guardian-consent.js hashToken).
+function hashToken(raw) {
+  return crypto.createHash("sha256").update(String(raw)).digest("hex");
 }
 
 function addDays(date, days) {
@@ -55,6 +63,17 @@ async function resolveTalentUserIdForApplication(applicationId) {
 
 async function createOrRefreshReplyToken({ applicationId, talentUserId }) {
   const expiresAt = addDays(new Date(), TOKEN_TTL_DAYS);
+
+  // SEC-0.8: always mint a fresh raw token and store ONLY its hash. Because the
+  // raw value is never persisted, a refresh cannot recover a previously-issued
+  // token to re-embed in a new email — so each issue/refresh ROTATES the token:
+  // the most recently emailed link is the valid one. Within its TTL that link
+  // stays REUSABLE (talent may reply multiple times); rotation is per issuance,
+  // not per use, so the flow is not strictly single-use. We keep the one-row-per-
+  // application upsert semantics of the original design.
+  const rawToken = generateTokenValue();
+  const tokenHash = hashToken(rawToken);
+
   const existing = await knex("message_reply_tokens")
     .where({ application_id: applicationId })
     .first();
@@ -62,32 +81,28 @@ async function createOrRefreshReplyToken({ applicationId, talentUserId }) {
   if (existing) {
     await knex("message_reply_tokens").where({ id: existing.id }).update({
       talent_user_id: talentUserId,
+      token_hash: tokenHash,
       expires_at: expiresAt,
       updated_at: knex.fn.now(),
     });
-
-    return {
-      token: existing.token,
-      expiresAt,
-      replyUrl: buildReplyUrl(existing.token),
-    };
+  } else {
+    await knex("message_reply_tokens").insert({
+      id: uuidv4(),
+      application_id: applicationId,
+      talent_user_id: talentUserId,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+      created_at: knex.fn.now(),
+      updated_at: knex.fn.now(),
+    });
   }
 
-  const token = generateTokenValue();
-  await knex("message_reply_tokens").insert({
-    id: uuidv4(),
-    application_id: applicationId,
-    talent_user_id: talentUserId,
-    token,
-    expires_at: expiresAt,
-    created_at: knex.fn.now(),
-    updated_at: knex.fn.now(),
-  });
-
+  // Return the RAW token to the caller so it can be placed in the emailed URL.
+  // The raw token is never written to the database — only tokenHash is.
   return {
-    token,
+    token: rawToken,
     expiresAt,
-    replyUrl: buildReplyUrl(token),
+    replyUrl: buildReplyUrl(rawToken),
   };
 }
 
@@ -103,14 +118,24 @@ async function issueReplyTokenForApplication(applicationId) {
   });
 }
 
-async function validateReplyToken(token) {
-  if (!token || typeof token !== "string") {
+// SEC-0.8: look up a token row by hashing the raw token supplied by the caller
+// (from the magic-link URL) and matching against the stored token_hash. The raw
+// token is never compared against a plaintext column because none exists anymore.
+async function findByRawToken(raw) {
+  if (!raw || typeof raw !== "string") {
     return null;
   }
-
-  const row = await knex("message_reply_tokens")
-    .where({ token: token.trim() })
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return knex("message_reply_tokens")
+    .where({ token_hash: hashToken(trimmed) })
     .first();
+}
+
+async function validateReplyToken(token) {
+  const row = await findByRawToken(token);
 
   if (!row) {
     return null;
@@ -127,7 +152,6 @@ async function validateReplyToken(token) {
 
   return {
     tokenId: row.id,
-    token: row.token,
     applicationId: row.application_id,
     talentUserId: row.talent_user_id,
     agencyId: ctx.agency_id,
@@ -149,6 +173,8 @@ async function touchReplyToken(tokenId) {
 module.exports = {
   TOKEN_TTL_DAYS,
   buildReplyUrl,
+  hashToken,
+  findByRawToken,
   createOrRefreshReplyToken,
   issueReplyTokenForApplication,
   validateReplyToken,
