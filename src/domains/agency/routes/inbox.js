@@ -2300,12 +2300,22 @@ router.get(
       let tagsMap = {};
 
       if (applicationIds.length > 0) {
+        // Dialect-safe aggregation: string_agg is PostgreSQL-only and throws
+        // "no such function: string_agg" on SQLite (dev/test). SQLite uses
+        // group_concat; ORDER BY inside the aggregate isn't portable across
+        // SQLite versions, so ordering is dropped there — acceptable for a
+        // flat CSV export field.
+        const isPg = knex.client.config.client === "pg";
+        const notesAgg = isPg
+          ? "string_agg(note, ' | ' ORDER BY created_at) as notes"
+          : "group_concat(note, ' | ') as notes";
+        const tagsAgg = isPg
+          ? "string_agg(tag, ', ' ORDER BY created_at) as tags"
+          : "group_concat(tag, ', ') as tags";
         // Fetch aggregated notes
         const notes = await knex("application_notes")
           .select("application_id")
-          .select(
-            knex.raw("string_agg(note, ' | ' ORDER BY created_at) as notes"),
-          )
+          .select(knex.raw(notesAgg))
           .whereIn("application_id", applicationIds)
           .groupBy("application_id");
 
@@ -2316,7 +2326,7 @@ router.get(
         // Fetch tags
         const tags = await knex("application_tags")
           .select("application_id")
-          .select(knex.raw("string_agg(tag, ', ' ORDER BY created_at) as tags"))
+          .select(knex.raw(tagsAgg))
           .whereIn("application_id", applicationIds)
           .groupBy("application_id");
 
