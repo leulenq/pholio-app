@@ -159,10 +159,10 @@ export default function AgencyLayout() {
               <TeamPresence members={team} />
               <span style={{ width: 1, height: 16, background: '#e0d8c7' }} aria-hidden="true" />
               <div ref={messagesRef} style={{ position: 'relative' }}>
-                <button ref={messagesBtnRef} className="ag-topbar-icon" aria-label="Messages" aria-expanded={openPanel === 'messages'}
+                <button ref={messagesBtnRef} className="ag-topbar-icon" aria-label={unreadMessages > 0 ? `Messages (${unreadMessages} unread)` : 'Messages'} aria-expanded={openPanel === 'messages'}
                   onClick={() => setOpenPanel((p) => (p === 'messages' ? null : 'messages'))}>
                   <MessageSquare size={17} />
-                  {unreadMessages > 0 && <span className="ag-icon-badge">{unreadMessages}</span>}
+                  {unreadMessages > 0 && <span className="ag-icon-unread" aria-hidden="true" />}
                 </button>
                 <MessagesDropdown isOpen={openPanel === 'messages'} onClose={closePanel} threads={threads} onAllRead={() => {}} isLoading={false} isError={false} />
               </div>
