@@ -61,7 +61,6 @@ const GENERIC_EXPORT_KEYS = [
   "comp_card_presets",
   "notifications",
   "onboarding_analytics",
-  "commissions",
 ];
 
 // Drift guard: every inventory entry must be accounted for exactly once.

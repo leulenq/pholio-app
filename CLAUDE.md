@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Pholio is a full-stack talent portfolio and agency management platform. Talent users create portfolios with images, generate PDF comp cards, and apply to agencies. Agency users manage talent rosters, review applications, and track commissions.
+Pholio is a full-stack talent portfolio and agency management platform. Talent users create portfolios with images, generate PDF comp cards, and apply to agencies. Vetted agency users manage talent rosters, review submissions, and run casting/signing workflows. Pholio does not charge agencies and has no money/commission workflow.
 
 ## 🚧 Repo Boundaries (CRITICAL)
 
@@ -226,7 +226,7 @@ Still used for cross-cutting HTTP handlers wired from `src/app.js`, including `a
 - Naming: `YYYYMMDDhhmmss_description.js`
 - `knexfile.js` auto-detects SQLite vs PostgreSQL via `DB_CLIENT` or `DATABASE_URL`
 - Two user roles: `TALENT` and `AGENCY`; UUIDs for all primary keys
-- Key tables: `users`, `profiles`, `images`, `applications`, `subscriptions`, `commissions`, `sessions`, `analytics`, `activities`
+- Key tables: `users`, `profiles`, `images`, `applications`, `subscriptions`, `sessions`, `analytics`, `activities`
 - Known quirk: `date_of_birth` saved as full ISO timestamp by PostgreSQL; frontend must handle both `"1995-03-15"` and `"1995-03-15T05:00:00.000Z"` formats
 
 ### Auth Flow

@@ -416,14 +416,6 @@ const TALENT_DATA_INVENTORY = [
     cascade: "fk",
     exportMode: "full",
   },
-  {
-    key: "commissions",
-    table: "commissions",
-    scope: "profile",
-    column: "profile_id",
-    cascade: "fk",
-    exportMode: "full",
-  },
 ];
 
 /** Inventory entries with no DB-level cascade — deletion must clean these up explicitly. */
