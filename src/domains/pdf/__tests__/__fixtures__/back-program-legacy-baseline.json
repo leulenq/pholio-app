@@ -1,0 +1,1526 @@
+{
+ "n3-auto": {
+  "cells": [
+   {
+    "x": 1.638,
+    "y": 0.785,
+    "w": 1.711,
+    "h": 3.388,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 3.439,
+    "y": 0.785,
+    "w": 2.061,
+    "h": 3.388,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": [
+     "right"
+    ]
+   },
+   {
+    "x": 1.638,
+    "y": 4.263,
+    "w": 1.711,
+    "h": 3.388,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 0.785,
+   "w": 1.198,
+   "h": 6.865,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 0.77,
+  "architecture": "uniform-grid",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "left",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "3/3",
+    "because": "density 0.5 → 3 of 3 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "filmstrip",
+    "because": "5 eligible for 3 image(s), density 0.5"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "uniform-grid",
+    "because": "filmstrip had no portrait cell — seeded alternate keeps the variety"
+   }
+  ],
+  "warnings": []
+ },
+ "n4-auto": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 1.817,
+    "w": 1.132,
+    "h": 5.833,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 1.572,
+    "y": 1.817,
+    "w": 1.132,
+    "h": 5.833,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.795,
+    "y": 1.817,
+    "w": 1.132,
+    "h": 5.833,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 4.017,
+    "y": 1.817,
+    "w": 1.132,
+    "h": 5.833,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 0.785,
+   "w": 4.8,
+   "h": 0.942,
+   "orientation": "strip"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 0.943,
+  "architecture": "filmstrip",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "top",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "4/4",
+    "because": "density 0.5 → 4 of 4 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "filmstrip",
+    "because": "6 eligible for 4 image(s), density 0.5"
+   }
+  ],
+  "warnings": []
+ },
+ "n5-dense": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 0.85,
+    "w": 1.974,
+    "h": 6.77,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.444,
+    "y": 0.85,
+    "w": 1.23,
+    "h": 1.602,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.444,
+    "y": 2.573,
+    "w": 1.23,
+    "h": 1.602,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.444,
+    "y": 4.295,
+    "w": 1.23,
+    "h": 1.602,
+    "imageId": "e",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.444,
+    "y": 6.017,
+    "w": 1.23,
+    "h": 1.602,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 3.794,
+   "y": 0.85,
+   "w": 1.356,
+   "h": 6.77,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.43
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.12,
+  "coverageRatio": 0.944,
+  "architecture": "feature-column",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "right",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "5/5",
+    "because": "density 0.9 → 5 of 5 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "mosaic",
+    "because": "6 eligible for 5 image(s), density 0.9"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "feature-column",
+    "because": "mosaic had no portrait cell — seeded alternate keeps the variety"
+   }
+  ],
+  "warnings": []
+ },
+ "n6-dense": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 2.148,
+    "w": 2.325,
+    "h": 1.714,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.825,
+    "y": 2.148,
+    "w": 2.325,
+    "h": 1.714,
+    "imageId": "e",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.35,
+    "y": 4.012,
+    "w": 2.325,
+    "h": 1.714,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.825,
+    "y": 4.012,
+    "w": 2.325,
+    "h": 1.714,
+    "imageId": "f",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.35,
+    "y": 5.876,
+    "w": 2.325,
+    "h": 1.714,
+    "imageId": "b",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.825,
+    "y": 5.876,
+    "w": 2.325,
+    "h": 1.714,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 0.915,
+   "w": 4.8,
+   "h": 1.083,
+   "orientation": "strip"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.465
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.15,
+  "coverageRatio": 0.915,
+  "architecture": "uniform-grid",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "top",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "6/6",
+    "because": "density 0.95 → 6 of 6 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "uniform-grid",
+    "because": "3 eligible for 6 image(s), density 0.95"
+   }
+  ],
+  "warnings": [
+   "no true full-length image on the back"
+  ]
+ },
+ "n2-minimal": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 0.753,
+    "w": 2.919,
+    "h": 3.419,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.896,
+    "y": 4.247,
+    "w": 2.919,
+    "h": 3.419,
+    "imageId": "b",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 3.89,
+   "y": 0.753,
+   "w": 1.26,
+   "h": 6.912,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.378
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.075,
+  "coverageRatio": 0.833,
+  "architecture": "restrained-duo",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "right",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "2/2",
+    "because": "density 0.1 → 2 of 2 frames (standard 4, floor 2)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "restrained-duo",
+    "because": "1 eligible for 2 image(s), density 0.1"
+   }
+  ],
+  "warnings": [
+   "no true full-length image on the back"
+  ]
+ },
+ "n4-skip": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 0.785,
+    "w": 1.54,
+    "h": 6.865,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 1.98,
+    "y": 0.785,
+    "w": 1.54,
+    "h": 6.865,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 3.61,
+    "y": 0.785,
+    "w": 1.89,
+    "h": 6.865,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": [
+     "right"
+    ]
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 0.785,
+   "w": 0,
+   "h": 0,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 1.035,
+  "architecture": "filmstrip",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "none",
+    "because": "no stats"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "3/4",
+    "because": "density 0.5 → 3 of 4 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "filmstrip",
+    "because": "5 eligible for 3 image(s), density 0.5"
+   }
+  ],
+  "warnings": []
+ },
+ "n4-right": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 0.785,
+    "w": 3.528,
+    "h": 4.123,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.35,
+    "y": 4.998,
+    "w": 1.116,
+    "h": 2.652,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 1.556,
+    "y": 4.998,
+    "w": 1.116,
+    "h": 2.652,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.762,
+    "y": 4.998,
+    "w": 1.116,
+    "h": 2.652,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 3.968,
+   "y": 0.785,
+   "w": 1.182,
+   "h": 6.865,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 0.967,
+  "architecture": "feature-row",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "right",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "4/4",
+    "because": "density 0.4 → 4 of 4 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "feature-row",
+    "because": "6 eligible for 4 image(s), density 0.4"
+   }
+  ],
+  "warnings": []
+ },
+ "n4-bottom": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 3.536,
+    "w": 4.8,
+    "h": 2.842,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.35,
+    "y": 0.785,
+    "w": 1.54,
+    "h": 2.661,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 1.98,
+    "y": 0.785,
+    "w": 1.54,
+    "h": 2.661,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 3.61,
+    "y": 0.785,
+    "w": 1.54,
+    "h": 2.661,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 6.468,
+   "w": 4.8,
+   "h": 1.182,
+   "orientation": "strip"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 0.966,
+  "architecture": "feature-row",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "bottom",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "4/4",
+    "because": "density 0.6 → 4 of 4 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "filmstrip",
+    "because": "6 eligible for 4 image(s), density 0.6"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "feature-row",
+    "because": "filmstrip had no portrait cell — seeded alternate keeps the variety"
+   }
+  ],
+  "warnings": []
+ },
+ "n5-expressive": {
+  "cells": [
+   {
+    "x": 1.732,
+    "y": 0.818,
+    "w": 1.657,
+    "h": 3.585,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 1.732,
+    "y": 4.508,
+    "w": 1.657,
+    "h": 3.127,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 3.494,
+    "y": 1.231,
+    "w": 2.006,
+    "h": 2.51,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": [
+     "right"
+    ]
+   },
+   {
+    "x": 3.494,
+    "y": 3.845,
+    "w": 2.006,
+    "h": 3.79,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": [
+     "right"
+    ]
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 0.818,
+   "w": 1.277,
+   "h": 6.817,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.413
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.105,
+  "coverageRatio": 1.02,
+  "architecture": "editorial-stagger",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "left",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "4/5",
+    "because": "density 0.7 → 4 of 5 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "editorial-stagger",
+    "because": "6 eligible for 4 image(s), density 0.7"
+   }
+  ],
+  "warnings": []
+ },
+ "n4-nobleed": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 0.785,
+    "w": 2.47,
+    "h": 3.343,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.35,
+    "y": 4.218,
+    "w": 2.47,
+    "h": 2.128,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.91,
+    "y": 0.785,
+    "w": 2.24,
+    "h": 2.157,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.91,
+    "y": 3.032,
+    "w": 2.24,
+    "h": 3.314,
+    "imageId": "fl",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 6.436,
+   "w": 4.8,
+   "h": 1.214,
+   "orientation": "strip"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 0.965,
+  "architecture": "mosaic",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "bottom",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "4/4",
+    "because": "density 0.5 → 4 of 4 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "mosaic",
+    "because": "6 eligible for 4 image(s), density 0.5"
+   }
+  ],
+  "warnings": []
+ },
+ "n3-nofull": {
+  "cells": [
+   {
+    "x": 1.887,
+    "y": 0.785,
+    "w": 3.263,
+    "h": 3.898,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 1.887,
+    "y": 4.773,
+    "w": 1.587,
+    "h": 2.877,
+    "imageId": "b",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 3.564,
+    "y": 4.773,
+    "w": 1.587,
+    "h": 2.877,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 0.35,
+   "y": 0.785,
+   "w": 1.447,
+   "h": 6.865,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 0.975,
+  "architecture": "feature-row",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "left",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "3/3",
+    "because": "density 0.3 → 3 of 3 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "feature-row",
+    "because": "5 eligible for 3 image(s), density 0.3"
+   }
+  ],
+  "warnings": [
+   "no true full-length image on the back"
+  ]
+ },
+ "n6-formal": {
+  "cells": [
+   {
+    "x": 0.35,
+    "y": 0.785,
+    "w": 1.602,
+    "h": 1.793,
+    "imageId": "c",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.35,
+    "y": 2.668,
+    "w": 1.602,
+    "h": 2.405,
+    "imageId": "e",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 0.35,
+    "y": 5.164,
+    "w": 1.602,
+    "h": 2.486,
+    "imageId": "a",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.042,
+    "y": 1.175,
+    "w": 1.602,
+    "h": 3.762,
+    "imageId": "d",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   },
+   {
+    "x": 2.042,
+    "y": 5.027,
+    "w": 1.602,
+    "h": 2.623,
+    "imageId": "b",
+    "crop": {
+     "fit": "cover",
+     "objectPosition": "50% 50%",
+     "safety": {
+      "level": "caution",
+      "notes": [
+       "naive center crop"
+      ]
+     },
+     "coverageLoss": 0
+    },
+    "bleedEdges": []
+   }
+  ],
+  "statsBlock": {
+   "x": 3.734,
+   "y": 0.785,
+   "w": 1.416,
+   "h": 6.865,
+   "orientation": "column"
+  },
+  "nameBlock": {
+   "x": 0.35,
+   "y": 0.3,
+   "w": 4.8,
+   "h": 0.395
+  },
+  "contactBlock": {
+   "x": 0.35,
+   "y": 7.74,
+   "w": 3.6,
+   "h": 0.46
+  },
+  "wordmark": {
+   "x": 4.05,
+   "y": 7.9,
+   "w": 1.1,
+   "h": 0.3
+  },
+  "gutter": 0.09,
+  "coverageRatio": 0.926,
+  "architecture": "editorial-stagger",
+  "decisions": [
+   {
+    "aspect": "stats-side",
+    "choice": "right",
+    "because": "seeded, formality-biased"
+   },
+   {
+    "aspect": "photo-count",
+    "choice": "5/6",
+    "because": "density 0.5 → 5 of 6 frames (standard 4, floor 3)"
+   },
+   {
+    "aspect": "architecture",
+    "choice": "editorial-stagger",
+    "because": "6 eligible for 5 image(s), density 0.5"
+   }
+  ],
+  "warnings": [
+   "no true full-length image on the back"
+  ]
+ }
+}

@@ -759,6 +759,10 @@ function designComposition(input = {}) {
     cropEngine: engine || null,
     bleedAppetite: brief?.bleedAppetite || null,
     forceArchitecture: overrides?.forceBackArchitecture || null,
+    // Editions threading (plan 2.7): the back program restricts its
+    // architecture pool + emits chrome/objectives from the edition. Absent
+    // ⇒ legacy back, byte-identical.
+    edition: edition ? { def: edition, operators } : null,
   };
   let backLayout;
   try {

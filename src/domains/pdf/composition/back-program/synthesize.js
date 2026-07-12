@@ -268,13 +268,47 @@ function assign(cells, images, cropRef) {
   return out.filter(Boolean);
 }
 
+// ── Swiss module snap (editions only) ────────────────────────────────────────
+// Snap a set of rects to a `moduleCount × moduleCount` grid over `area`, so
+// every edge lands on a grid line (≤ 0.02in error by construction). The x/y
+// boundary maps are built order-preservingly with a minimum inter-boundary
+// step of MIN_CELL, so snapping never collapses a cell below the minimum and
+// never introduces an overlap the inputs did not already have.
+function moduleSnapMaps(rects, area, moduleCount) {
+  const mc = Math.max(2, Math.round(moduleCount) || 8);
+  const mx = area.w / mc;
+  const my = area.h / mc;
+  // Snap each distinct boundary to its NEAREST grid line (clamped to the area
+  // so nothing escapes the region), then enforce a monotonic non-decreasing
+  // order so no two cells' boundaries invert — that guarantees the snap never
+  // introduces an overlap or an out-of-area edge. A gutter that collapses to a
+  // shared line just means two cells touch (no overlap).
+  const build = (vals, start, m) => {
+    const sorted = [...new Set(vals.map((v) => r3(v)))].sort((a, b) => a - b);
+    const map = new Map();
+    let prev = -Infinity;
+    for (const v of sorted) {
+      const u = Math.max(0, Math.min(mc, Math.round((v - start) / m)));
+      let snapped = r3(start + u * m);
+      if (snapped < prev) snapped = prev; // preserve order (merge, never invert)
+      map.set(v, snapped);
+      prev = snapped;
+    }
+    return map;
+  };
+  const xs = rects.flatMap((c) => [c.x, c.x + c.w]);
+  const ys = rects.flatMap((c) => [c.y, c.y + c.h]);
+  return { xmap: build(xs, area.x, mx), ymap: build(ys, area.y, my), mx, my };
+}
+
 // ── the back-program solver ──────────────────────────────────────────────────
 
 /**
  * @param {object} input — { region, images:[{id,aspect,role,rawShotType}],
  *   stats:{side,skip,measureIn}, pacing, tone, seed, salt, cropEngine,
- *   bleedAppetite }
- * @returns {object} BackLayout (same contract as solveBackPartition)
+ *   bleedAppetite, edition?:{def,operators}, frontEcho?:{matAsymmetry,moduleCount} }
+ * @returns {object} BackLayout (same contract as solveBackPartition; when an
+ *   edition is present, additionally carries `style` + `nameplate`)
  */
 function solveBackProgram(input = {}) {
   const { region, images = [], stats = {}, pacing = 1, tone = {}, seed, salt = "back", cropEngine, bleedAppetite } = input;
@@ -289,7 +323,44 @@ function solveBackProgram(input = {}) {
   const cropRef = resolveCropEngine(cropEngine);
   const usable = images.filter((i) => i && i.id);
   const n0 = usable.length;
-  const pacingT = (clamp(pacing, 0.8, 1.6) - 0.8) / 0.8;
+
+  // ── Edition chrome + objectives (flag-gated) ────────────────────────────
+  // input.edition = { def (catalog entry), operators { field, register } }.
+  // ABSENT ⇒ every branch below is skipped and the output is byte-identical
+  // to the pre-editions solver (regression-locked). `style` is emitted only
+  // when an edition is present; the canonical stats line ORDER is never
+  // touched by any of this — only the SETTING (side/orientation) varies.
+  const edition = input.edition && typeof input.edition === "object" ? input.edition : null;
+  const edDef = edition && edition.def && typeof edition.def === "object" ? edition.def : null;
+  const edField = edition && edition.operators ? edition.operators.field || null : null;
+  const frontEcho = input.frontEcho && typeof input.frontEcho === "object" ? input.frontEcho : null;
+  const backStyleDef = (edDef && edDef.back && edDef.back.style) || null;
+  let style = null;
+  if (edDef) {
+    style = {
+      nameAlign: (backStyleDef && backStyleDef.nameAlign) || "left",
+      statsStyle: (backStyleDef && backStyleDef.statsStyle) || "auto",
+      dividers: Boolean(backStyleDef && backStyleDef.dividers),
+      cellIndexes: Boolean(backStyleDef && backStyleDef.cellIndexes),
+      airy: Boolean(backStyleDef && backStyleDef.airy),
+      // A dark FIELD operator reverses the whole page even when the edition's
+      // own back style does not declare it (noir + any dark-field edition).
+      reversed: Boolean(backStyleDef && backStyleDef.reversed) || edField === "dark",
+      field: edField,
+    };
+    decide(
+      "edition-back",
+      edDef.id,
+      `chrome ${style.statsStyle}${style.airy ? ", airy" : ""}${style.reversed ? ", reversed" : ""}${style.dividers ? ", dividers" : ""}`,
+    );
+  }
+  const airy = Boolean(style && style.airy);
+
+  // Monograph "air as material": gutters + margins scale up (~1.3× pacing).
+  // Legacy path (airy false) leaves pacingT byte-identical.
+  const pacingBase = clamp(pacing, 0.8, 1.6);
+  const effPacing = airy ? clamp(pacingBase * 1.3, 0.8, 1.6) : pacingBase;
+  const pacingT = (effPacing - 0.8) / 0.8;
   const gutter = r3(lerp(0.06, 0.18, pacingT));
 
   // chrome: name strip top, contact/booking strip bottom
@@ -298,20 +369,61 @@ function solveBackProgram(input = {}) {
   const nameBlock = rect(region.x, region.y, region.w, nameH);
   const wordmark = rect(region.x + region.w - 1.1, region.y + region.h - 0.3, 1.1, 0.3);
   const contactBlock = rect(region.x, region.y + region.h - footH, region.w - 1.2, footH);
-  const content = rect(region.x, region.y + nameH + gutter, region.w, region.h - nameH - footH - 2 * gutter);
+  let content = rect(region.x, region.y + nameH + gutter, region.w, region.h - nameH - footH - 2 * gutter);
+
+  // Monograph air: inset the content region (margins scale up). When the
+  // front's mat asymmetry is known (frontEcho.matAsymmetry), echo its
+  // direction — the heavier margin lands on the same side, so front and back
+  // read as one art-directed spread.
+  if (airy) {
+    const airPad = 0.22;
+    let padL = airPad;
+    let padR = airPad;
+    const echo =
+      frontEcho && (frontEcho.matAsymmetry === "left" || frontEcho.matAsymmetry === "right")
+        ? frontEcho.matAsymmetry
+        : null;
+    if (echo === "left") padL += 0.16;
+    else if (echo === "right") padR += 0.16;
+    const padY = airPad * 0.5;
+    content = rect(content.x + padL, content.y + padY, content.w - padL - padR, content.h - 2 * padY);
+    decide(
+      "airy-margins",
+      `L${r3(padL)}/R${r3(padR)}`,
+      echo ? `monograph air — mat-asymmetry echo ${echo}` : "monograph air",
+    );
+  }
 
   // stats strategy (skip when no stats)
   let side = stats.side && stats.side !== "auto" ? stats.side : null;
+  const statsStyle = style ? style.statsStyle : "auto";
   if (!side && !stats.skip) {
-    const draw = rng();
-    // formal → column; relaxed → band; high density → narrower column
-    side = draw < clamp(0.4 + 0.3 * formality, 0, 0.85) ? (rng() < 0.6 ? "right" : "left") : (rng() < 0.5 ? "bottom" : "top");
+    if (style && statsStyle !== "auto") {
+      // Edition chrome dictates the SETTING (never the canonical line order).
+      // footline → a single stats row at the foot; strip → a band;
+      // column/tabular → a side column (tabular flagged in style for ruled
+      // rendering). The full-width footline reclaims the freed side column.
+      if (statsStyle === "footline") side = "footline";
+      else if (statsStyle === "strip") side = rng() < 0.5 ? "bottom" : "top";
+      else side = rng() < 0.6 ? "right" : "left";
+    } else {
+      const draw = rng();
+      // formal → column; relaxed → band; high density → narrower column
+      side = draw < clamp(0.4 + 0.3 * formality, 0, 0.85) ? (rng() < 0.6 ? "right" : "left") : (rng() < 0.5 ? "bottom" : "top");
+    }
   }
   let statsBlock, photoArea;
   if (stats.skip) {
     statsBlock = { x: content.x, y: content.y, w: 0, h: 0, orientation: "column" };
     photoArea = { ...content };
     side = "none";
+  } else if (side === "footline") {
+    // A single measure-disciplined stats ROW at the foot; photos reclaim the
+    // full width above it (no side column). Never over an image.
+    const rowH = clamp(stats.measureIn || 0.34, 0.28, 0.44);
+    statsBlock = rect(content.x, content.y + content.h - rowH, content.w, rowH);
+    statsBlock.orientation = "footline";
+    photoArea = rect(content.x, content.y, content.w, content.h - rowH - gutter);
   } else if (side === "bottom" || side === "top") {
     const bandH = clamp(stats.measureIn || lerp(0.85, 1.25, rng()), 0.8, 1.3);
     if (side === "bottom") {
@@ -331,7 +443,15 @@ function solveBackProgram(input = {}) {
       ? rect(content.x, content.y, content.w - colW - gutter, content.h)
       : rect(content.x + colW + gutter, content.y, content.w - colW - gutter, content.h);
   }
-  decide("stats-side", side, stats.skip ? "no stats" : "seeded, formality-biased");
+  decide(
+    "stats-side",
+    side,
+    stats.skip
+      ? "no stats"
+      : style && statsStyle !== "auto"
+        ? `edition chrome '${statsStyle}'`
+        : "seeded, formality-biased",
+  );
 
   // Desired photo count is density-driven, but anchored to the industry
   // convention: a standard comp-card back shows ~4 frames (the "3–5" range).
@@ -363,6 +483,28 @@ function solveBackProgram(input = {}) {
   const n = desired;
   let eligible = Object.entries(ARCHITECTURES).filter(([, a]) => n >= a.min && n <= a.max).map(([k]) => k);
   if (!eligible.length) eligible = ["uniform-grid"];
+  // Edition architecture pool: restrict the feasible eligibility set to the
+  // edition's declared back pool and renormalize the draw over it. An
+  // infeasible pool (none of its families fit the desired count) falls back
+  // to today's full eligibility — logged, never a throw.
+  if (edDef && edDef.back && Array.isArray(edDef.back.pool) && edDef.back.pool.length) {
+    const poolList = edDef.back.pool;
+    const restricted = eligible.filter((id) => poolList.includes(id));
+    if (restricted.length) {
+      eligible = restricted;
+      decide(
+        "edition-pool",
+        restricted.join("/"),
+        `edition '${edDef.id}' back pool — ${restricted.length} feasible of ${poolList.length} for ${n} image(s)`,
+      );
+    } else {
+      decide(
+        "edition-pool",
+        "full-eligibility fallback",
+        `edition '${edDef.id}' pool [${poolList.join("/")}] infeasible for ${n} image(s)`,
+      );
+    }
+  }
   // density bias: high density favors packed families; low favors duo/feature
   const weighted = [];
   for (const id of eligible) {
@@ -373,6 +515,8 @@ function solveBackProgram(input = {}) {
     if (id === "feature-column" || id === "feature-row") w += 1 * (1 - 0.5 * density);
     if (id === "mosaic") w += 0.6;
     if (id === "filmstrip") w += 0.8 * (1 - formality);
+    // The Strip: a full hero over a support ROW — feature-row is its identity.
+    if (edDef && edDef.id === "the-strip" && id === "feature-row") w += 2.5;
     for (let k = 0; k < Math.max(1, Math.round(w * 2)); k++) weighted.push(id);
   }
   const archId = input.forceArchitecture && ARCHITECTURES[input.forceArchitecture]
@@ -458,6 +602,81 @@ function solveBackProgram(input = {}) {
   const prioritized = [...usable].sort((a, b) => (isFullLength(b) ? 1 : 0) - (isFullLength(a) ? 1 : 0));
   const assignedCells = assign(leaves, prioritized.slice(0, leaves.length), cropRef);
 
+  // ── Airy whitespace objective (Monograph) ──────────────────────────────
+  // "Air as material": cap coverage so the whitespace fraction lands in the
+  // 0.35–0.5 target. Cells contract about their own centers, which preserves
+  // every cell's ASPECT — the full-length stays portrait and MIN_CELL holds.
+  if (airy) {
+    const areaSize = photoArea.w * photoArea.h;
+    const cov = areaSize > 0
+      ? assignedCells.reduce((s, c) => s + Math.min(c.w, photoArea.w) * c.h, 0) / areaSize
+      : 0;
+    const COVERAGE_CAP = 0.62; // whitespace ≈ 0.38 (within 0.35–0.5)
+    if (cov > COVERAGE_CAP) {
+      const f = Math.sqrt(COVERAGE_CAP / cov);
+      for (const c of assignedCells) {
+        const cx = c.x + c.w / 2;
+        const cy = c.y + c.h / 2;
+        const nw = Math.max(MIN_CELL, c.w * f);
+        const nh = Math.max(MIN_CELL, c.h * f);
+        c.x = r3(cx - nw / 2);
+        c.y = r3(cy - nh / 2);
+        c.w = r3(nw);
+        c.h = r3(nh);
+      }
+      decide("airy-coverage", `${r3(cov)}→≤${COVERAGE_CAP}`, "whitespace target 0.35–0.5 — cells contracted about centers");
+    }
+  }
+
+  // ── Swiss module-grid snap (Swiss) ─────────────────────────────────────
+  // The module grid is laid over the PHOTO AREA (moduleCount from frontEcho,
+  // else a seeded 6/8/12). Cells snap fully to it — within the photo area by
+  // construction, so they never cross into the stats column. The stats
+  // block's ROW edges (top/baseline) snap to the same y-rhythm, so the
+  // tabular stats read on the cells' grid lines. The grid is published on
+  // `style.grid` so the template renders its dividers on the same lines.
+  if (style && style.dividers) {
+    const seededModule = [6, 8, 12][Math.floor(rng() * 3) % 3];
+    const moduleCount =
+      frontEcho && [6, 8, 12].includes(Number(frontEcho.moduleCount))
+        ? Number(frontEcho.moduleCount)
+        : seededModule;
+    style.moduleCount = moduleCount;
+    style.grid = { x: r3(photoArea.x), y: r3(photoArea.y), w: r3(photoArea.w), h: r3(photoArea.h), moduleCount };
+    const { xmap, ymap, my } = moduleSnapMaps(assignedCells, photoArea, moduleCount);
+    for (const c of assignedCells) {
+      const x0 = xmap.get(r3(c.x));
+      const x1 = xmap.get(r3(c.x + c.w));
+      const y0 = ymap.get(r3(c.y));
+      const y1 = ymap.get(r3(c.y + c.h));
+      if (x0 == null || x1 == null || y0 == null || y1 == null) continue;
+      const nw = r3(x1 - x0);
+      const nh = r3(y1 - y0);
+      if (nw < MIN_CELL - 0.05 || nh < MIN_CELL - 0.05) continue;
+      // Full-length protection is inviolable: reject a snap that would widen
+      // the figure's cell out of portrait (aspect > 0.85).
+      const isFl = isFullLength({
+        id: c.imageId,
+        rawShotType: (usable.find((u) => u.id === c.imageId) || {}).rawShotType,
+        role: (usable.find((u) => u.id === c.imageId) || {}).role,
+      });
+      if (isFl && nw / nh > 0.85) continue;
+      c.x = x0; c.y = y0; c.w = nw; c.h = nh;
+    }
+    // Snap the stats block's rows to the same y-grid (its column x/width is a
+    // type measure, left intact — never pushed into the photo area).
+    if (statsBlock.w > 0 && statsBlock.h > 0) {
+      const snapY = (v) => r3(photoArea.y + Math.round((v - photoArea.y) / my) * my);
+      const sy0 = snapY(statsBlock.y);
+      const sy1 = snapY(statsBlock.y + statsBlock.h);
+      if (sy1 - sy0 >= my - 1e-6) {
+        statsBlock.y = sy0;
+        statsBlock.h = r3(sy1 - sy0);
+      }
+    }
+    decide("swiss-grid", `module ${moduleCount}`, "cells + stats rows snapped to the photo-area module grid (≤0.02in)");
+  }
+
   // Bleeds (left/right page edges only), density-gated, applied AFTER
   // assignment and NEVER to the full-length cell — widening would defeat its
   // portrait protection.
@@ -482,6 +701,17 @@ function solveBackProgram(input = {}) {
     statsBlock: { x: r3(statsBlock.x), y: r3(statsBlock.y), w: r3(statsBlock.w), h: r3(statsBlock.h), orientation: statsBlock.orientation },
     nameBlock, contactBlock, wordmark,
     gutter, coverageRatio, architecture: chosenArch, decisions, warnings,
+    // Editions only — the template renders these; a no-edition call omits
+    // them entirely (legacy output is byte-identical).
+    ...(style
+      ? {
+          style,
+          // The nameplate: the front's name designed once per take, repeated
+          // on the back as a running head. `text` is filled by the director;
+          // the template renders it at running-head scale.
+          nameplate: { text: null, scale: "running-head", align: style.nameAlign },
+        }
+      : {}),
   };
 }
 
