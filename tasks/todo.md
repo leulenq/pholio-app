@@ -1,3 +1,16 @@
+# Talent production-readiness audit — 2026-07-12
+
+- [x] Map talent routes, pages, APIs, data models, and scoped design docs.
+- [x] Audit workflows across product, UX, industry realism, accessibility, mobile, auth, media, and edge states.
+- [x] Write a durable production-readiness audit report with evidence and prioritized findings.
+- [x] Run verification checks, commit the report, and create PR.
+
+## Review
+
+Drafted `docs/audits/talent-production-readiness-audit.md` with prioritized launch-readiness findings.
+
+---
+
 # Production Consolidation — 2026-07-11
 
 ## Scope
