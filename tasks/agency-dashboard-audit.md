@@ -1,6 +1,6 @@
 # Agency Dashboard — Production-Readiness Audit
 
-**Date:** 2026-07-12
+**Date:** 2026-07-12 · **Revision:** v1.1 (post-verification pass — the §4.3 RBAC finding was corrected against the actual rule table; scope of exposure narrowed and made precise)
 **Scope:** Everything agency-facing: `client/src/domains/agency/**`, `src/domains/agency/**`, the shell (`AgencyLayout`, `AgencySessionGate`, router), the agency-relevant data model (`migrations/`), and the industry fit of the whole surface.
 **Method:** Full code survey (every page, route, and migration), graded against (a) how a working agency actually operates — boards, submissions, options/holds, minors compliance — and (b) the repo's own design system (`client/src/domains/agency/DESIGN.md`) and product register.
 **Audience:** A developer or agent who will implement directly from this document. Every finding cites files. Severity: **P0** = launch blocker / trust or security break, **P1** = real workflow gap a working agency hits in week one, **P2** = polish, debt, maturity.
@@ -88,17 +88,18 @@ The `commissions` table is written by **nothing** in `src/` (repo-wide confirmed
 1. Remove commission/booking-money fields from `GET /api/agency/stats`, `GET /api/agency/roster`, `GET /api/agency/roster/:profileId`, and the export.
 2. Re-derive roster availability from real signals: `talent_commitments` (`kind: booked/option/hold/bookout` overlapping today) and the talent-set `profiles.availability_status`. Display statuses stay industry-correct: **Available / On option / On booking / Booked out / Inactive** — plain text per the design system, never a badge pill.
 3. Remove "Commission YTD" / "Day Rate" / "Booking Rate" concepts from the roster workspace design entirely (they only exist in mock code today).
-4. Drop the `commissions` table in a migration once no reader remains; delete `POST /agency/claim` (`roster.js:27`), whose purpose was commission claiming.
+4. Drop the `commissions` table in a migration once no reader remains; delete `POST /agency/claim` (`roster.js:27`), whose purpose was commission claiming. Note: `scripts/seed-agency-demo.js:991-1008` and `seeds/seed.js:335` also touch the table (dev tooling only — the only writers anywhere) and must be updated in the same change.
 5. Purge stale product copy: `CLAUDE.md` ("track commissions"), `client/src/domains/agency/CLAUDE.md` ("commissions"), `PRODUCT.md` ("track commissions") — replace with the real model (vetted access, roster/casting operations).
 
 ### 4.3 Authorization and enforcement
 
-**P0-6 · Viewer-role privilege escalation on unmapped routes.**
-`enforceAgencyRoutePermissions()` **fails open**: any route with no entry in `lib/route-permissions.js` passes every team role (`require-auth.js:305-308`). Concretely today: a read-only VIEWER can `GET /api/agency/export` (full applicant PII CSV — names, emails, measurements) even though `org.export_data` exists in the catalog and is deliberately excluded from `VIEWER_PERMISSIONS`; a VIEWER can `POST /api/agency/team` (add members), `PATCH/DELETE /api/agency/team/:id`, `POST /api/agency/branding`, `PUT /api/agency/settings`, `POST /api/agency/onboarding/complete`.
-**Fix:** (a) Map every existing endpoint in `ROUTE_PERMISSION_RULES` — at minimum `export → org.export_data`, `team list/add/patch/delete → team.view / team.invite / team.assign_role / team.deactivate`, `branding+settings → org.manage_settings`, `analytics/stats → org.view_analytics`. (b) Flip the middleware default for **write** methods to fail-closed: unmapped `POST/PUT/PATCH/DELETE` under `/api/agency/*` → 403 + log, unmapped `GET` → allow + warn (transition period), then fully fail-closed. Add a CI test asserting every registered agency route resolves to a permission key.
+**P0-6 · Fail-open permission enforcement leaves newer endpoint families ungoverned.**
+*(Corrected after a verification pass: the rule table in `lib/route-permissions.js` is more complete than first surveyed — export, team, branding, settings, analytics, and stats are all correctly mapped, so a VIEWER **cannot** export the PII CSV or add team members on guarded routers. The real gaps are narrower but still real.)*
+`enforceAgencyRoutePermissions()` **fails open**: any route with no entry in the rule table passes every team role (`require-auth.js:305-308`, `resolveRoutePermission` returns `null` → `next()`). Grep-verified unmapped families on **guarded** routers: all of **open-call link management** (`routes/open-call.js` — a VIEWER can create, pause, and irreversibly revoke open-call links; the UI itself warns "This can't be undone") and all of **matching** (`routes/matching.js` — a VIEWER can run `POST /boards/:id/rank`, record booker decisions via `/candidates/:profileId/decision` which trains the agency preference model, and read fairness audits). `setup.js` writes are protected by a separate `requireAgencyMembershipRole("OWNER","ADMIN")` check, so setup is safe by different means.
+**Fix:** (a) Add rules for the open-call and matching families (new keys, e.g. `open_call.view/manage`, `matching.rank/decide/view_fairness`, added to the catalog + presets). (b) Flip the middleware default for **write** methods to fail-closed: unmapped `POST/PUT/PATCH/DELETE` under `/api/agency/*` → 403 + log, unmapped `GET` → allow + warn (transition period), then fully fail-closed. (c) Add a CI test asserting every registered agency route resolves to a permission key, so a new route file can never ship ungoverned again.
 
 **P0-7 · Three route files bypass the guard chain entirely.**
-`roster.js`, `setup.js`, `notifications.js` never call `mountAgencyApiGuard` — they skip onboarding gating and RBAC (only `requireRole("AGENCY")`). Worse, `GET /api/agency/discover/:profileId/preview` is registered in **both** `roster.js:197` (unguarded router, mounted first — wins) and `inbox.js:3444` (guarded) — any guard added to the guarded copy silently never runs.
+`roster.js`, `setup.js`, `notifications.js` never call `mountAgencyApiGuard` — they skip onboarding gating and RBAC (only `requireRole("AGENCY")`). This makes parts of the rule table dead letter: notifications rules **exist** in `route-permissions.js` (lines 403-413) but never execute because the router never runs the enforcement middleware. Likewise any team role can hit `roster.js`'s measured-in-person writes, `/agency/claim`, and the Discover invite handler. Worse, `GET /api/agency/discover/:profileId/preview` is registered in **both** `roster.js:197` (unguarded router, mounted first — wins) and `inbox.js:3444` (guarded) — any guard added to the guarded copy silently never runs.
 **Fix:** Apply `mountAgencyApiGuard` in all three files (keep setup's allow-list working via `AGENCY_ONBOARDING_ALLOW`); delete the duplicate preview route from `roster.js`; delete the legacy dual-response handlers (`POST /dashboard/agency/applications/:id/:action`, `roster.js:105`) that duplicate the JSON API.
 
 **P0-8 · RBAC has a global killswitch that fails open.**
@@ -108,7 +109,7 @@ The `commissions` table is written by **nothing** in `src/` (repo-wide confirmed
 ### 4.4 Access model completeness
 
 **P0-9 · The front door has no inside handle.**
-The owner-confirmed access model (request → legitimacy review → manual grant) is fully modeled in the schema — `agency_access_requests` (status, reviewer, qualification-call/approve/decline timestamps, provisioning links) and `agency_access_request_events` — and provisioning is transactional (`services/provisioning.js`). But there is **no surface for Pholio staff to review, approve, decline, or provision a request**. Launch means real requests arriving; today each one requires hand-run SQL.
+The owner-confirmed access model (request → legitimacy review → manual grant) is fully modeled in the schema — `agency_access_requests` (status, reviewer, qualification-call/approve/decline timestamps, provisioning links) and `agency_access_request_events` — provisioning is transactional (`services/provisioning.js`), and the public intake half already exists (`POST /api/public/agency-access-requests`, `src/routes/api/public.js:178`, fed by the landing-site form; the legacy `/partners` signup has been correctly retired to a redirect, `auth.js:991-1003`). But there is **no surface for Pholio staff to review, approve, decline, or provision a request**. Launch means real requests arriving; today each one requires hand-run SQL.
 **Fix:** Build a minimal internal admin console (§10.6). It does not need to be pretty; it needs to exist, be role-locked to platform staff (a new `PLATFORM_ADMIN` guard — do **not** overload the agency RBAC), write `agency_access_request_events` on every transition, and call `provisionAgencyForUser` on approve.
 
 ### 4.5 Stability & correctness
@@ -129,7 +130,7 @@ The industry model, mapped to Pholio, money excluded by product decision. A work
 |---|---|---|---|---|
 | 1 | **Inbound triage** | Submissions (digitals + stats) arrive; a booker sweeps daily: decline most, **keep on file**, request more, invite to a go-see/meeting, offer development | ApplicantsPage + inbox API: real statuses incl. `kept_on_file`, `requested_more`, `meeting_requested`, `development`; bulk ops; activity log | **Present.** Gap: `kept_on_file` has no UI tab (§6.3); "Applications" label is off-register (§6.14) |
 | 2 | **Roster & boards** | Talent grouped by board (Women / Men / New Faces / Development / Curve…); per-talent record: book, digitals, stats (dual-unit, dated), representation, notes | Backend roster is derived from `applications.status`; boards exist (`kind='division'`); the roster **UI is fake** (P0-1); no persisted membership, no board grouping on the page, no manual talent | **Broken at the UI; structurally partial** (§8.1, §9.1) |
-| 3 | **Availability & the calendar** | The board's day runs on **options (1st/2nd), holds, confirmed bookings, bookouts**. "Who is free the week of the 14th?" is the most-asked question in the building | `talent_commitments` table models exactly this (option tier, dates, market, non-financial client ref) — **zero agency routes or UI touch it** | **Absent above the schema.** Biggest genuinely-new build (§10.1) |
+| 3 | **Availability & the calendar** | The board's day runs on **options (1st/2nd), holds, confirmed bookings, bookouts**. "Who is free the week of the 14th?" is the most-asked question in the building | `talent_commitments` table models exactly this (option tier, dates, market, non-financial client ref); the matching engine already reads it for availability posture (`src/domains/matching/index.js:105-107`), but there is **no agency-facing CRUD, calendar, or conflict flow** | **Absent above the schema.** Biggest genuinely-new build (§10.1) |
 | 4 | **Casting & packages** | A client brief comes in (dates, market, usage, look); booker assembles a **package** of talent and sends it out; shortlist → go-see → confirm | `boards.kind='casting'` + `casting_briefs` (shoot dates, market, usage, look target) exist; stages `Applied→Shortlisted→Offered→Represented→Passed` are actually a **signing** pipeline wearing a "Casting" label; no package-out-to-client exists | **Mislabeled + missing the outbound half** (§6.2, §10.2) |
 | 5 | **Scouting** | Open calls, street/social scouting, placement leads; "new face" development tracking | Discover (excellent), open-call links (real), development status exists in pipeline | **Present and strong** |
 | 6 | **Compliance & trust** | Minors (consent, permits, restricted visibility), image rights, data protection | Guardian-consent chain, minor field-nulling, fail-closed previews, permits table, field-visibility matrix | **Present** — best-in-audit area |
@@ -202,7 +203,7 @@ Move `ReminderList`/`DueReminders` to React Query with shared keys so completing
 ## 7. Backend & security audit
 
 ### 7.1 Authorization (P0-6/7/8 above)
-Summarized in §4.3. One addition: `inbox.js`'s team routes exist in parallel with `team-rbac.js`'s permission routes — after mapping permissions, consolidate team endpoints into one file so the RBAC story lives in one place.
+Summarized in §4.3 (with the verification-pass correction: the core rule table is solid; the exposure is the unguarded routers, the unmapped open-call/matching families, the fail-open default, and the killswitch). One addition: `inbox.js`'s team routes exist in parallel with `team-rbac.js`'s permission routes — consolidate team endpoints into one file so the RBAC story lives in one place.
 
 ### 7.2 Scale and data access (P1)
 - **No pagination:** `GET /api/agency/applications` (`inbox.js:702`), `/roster` (`:2842`), `/reminders`, `/interviews`, `/messages/threads` return every row. A mid-size agency (300 roster, 5k submissions/yr) makes these multi-MB responses rendered into unvirtualized `.map()` lists. **Fix:** cursor or offset pagination (mirror `activity.js`'s `limit≤100 + offset + total`), then either paginate the UI or virtualize (`@tanstack/react-virtual` fits the stack).
@@ -259,7 +260,7 @@ talent_records
 Strictly agency-private (never in Discover, never public). This unblocks "Add Talent" (P0-1's dead button) and makes the import pipeline (`agency_import_jobs`) have somewhere to land rows. Minor records must follow the same visibility discipline as platform minors.
 
 ### 8.3 Agency-side commitments access — P1 (schema exists; add routes)
-`talent_commitments` already models option/hold/booked/bookout with tier, dates, market, and a deliberately **non-financial** `client_ref` — it matches the no-money decision perfectly. Needed: agency CRUD routes (guarded, `roster.manage_status`-class permission), conflict detection (overlapping option tiers on the same dates → surface the confirm-or-release decision), and the calendar UI (§10.1). Add `created_by_user_id` and an updated-audit trail to the table.
+`talent_commitments` already models option/hold/booked/bookout with tier, dates, market, and a deliberately **non-financial** `client_ref` — it matches the no-money decision perfectly, and the matching engine already consumes it read-only for availability evaluation (`src/domains/matching/index.js:105-107`), so Fit Briefs will get smarter for free once agencies can write commitments. Needed: agency CRUD routes (guarded, `roster.manage_status`-class permission), conflict detection (overlapping option tiers on the same dates → surface the confirm-or-release decision), and the calendar UI (§10.1). Add `created_by_user_id` and an updated-audit trail to the table.
 
 ### 8.4 Casting packages (new table) — P2 (fast-follow)
 For §10.2's outbound half:
@@ -412,7 +413,7 @@ Sequenced so nothing lands on sand. Sizes: S ≤ 1 day, M ≤ 3 days, L ≤ 1–
 | 0.2 | Dead-code purge (Appendix A) + delete `/boards`, `/signed` routes + `PlaceholderPage.css` | S | §6, P0-4 |
 | 0.3 | Wire notifications bell end-to-end; fix MessagesDropdown mark-all-read TODO | S | P0-3 |
 | 0.4 | Strip money: API fields, roster status re-derivation, copy purge, drop `commissions`, delete `/agency/claim` | M | P0-5 |
-| 0.5 | RBAC: map all routes, fail-closed writes, guard `roster/setup/notifications` routers, de-duplicate preview route, remove killswitch, route-coverage test | M | P0-6/7/8 |
+| 0.5 | RBAC: map open-call + matching + roster-write routes, fail-closed writes, guard `roster/setup/notifications` routers, de-duplicate preview route, remove killswitch, route-coverage test | M | P0-6/7/8 |
 | 0.6 | `string_agg` dialect branch; Overview error/loading states; ApplicantsPage error state | S | P0-10/11 |
 | 0.7 | Cut Analytics from nav; add "On file" tab; "Applications"→"Submissions" label sweep | S | P0-2, §6.3, §6.14 |
 | 0.8 | Design-ban fixes: gradient numerals, side-stripes, icon count bubble | S | §12.1 |
@@ -458,7 +459,7 @@ Pages/routes: `pages/BoardsPage.jsx`+`.css` (+ route), `pages/SignedPage.jsx`+`.
 
 Hooks/API: `hooks/useStats.js`; dead exports in `api/agency.js` — `getAgencyStats`, `getUpcomingInterviews`, `getPipelineCounts` (keep `fetchRoster`, `getAgencyAnalytics`, `getAgencyNotifications` — they get consumers in Phases 0–1).
 
-Backend: duplicate preview route + legacy handlers in `roster.js` (per P0-7), legacy `GET /api/agency/overview/stats` (`inbox.js:3299`).
+Backend: duplicate preview route + legacy handlers in `roster.js` (per P0-7), legacy `GET /api/agency/overview/stats` (`inbox.js:3299`), the retired `POST /partners` handler + `views/auth/partners.ejs` "Join as an Agency or Scout" template (`auth.js:1002-…` — superseded by the landing-site request form and the vetted-access model; keep the `GET /partners` redirect).
 
 Nav plumbing: the unused `counts`/`countKey` wiring in `RailNav.jsx`/`agencyNav.js` (computed, never rendered — the ban on count bubbles is honored; remove the dead plumbing).
 
