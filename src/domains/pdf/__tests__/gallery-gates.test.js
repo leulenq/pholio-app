@@ -279,12 +279,16 @@ describeBrowser(
     });
 
     test("PERCEPTUAL DISTANCE GATE: consecutive-seed fronts exceed the anti-collapse floor", () => {
+      // The floor is mode-aware: it BINDS under editions (the anti-collapse
+      // gate, 0.12) and is record-only for the legacy baseline (0), which
+      // knowingly near-collapses. Use the floor the rig actually applied.
+      const floor = result.metrics.activePerceptualFloor;
       const failures = [];
       for (const [fixtureKey, data] of Object.entries(result.metrics.perceptual)) {
         expect(data.matrix).toHaveLength(6);
         for (const c of data.consecutive) {
-          if (c.pixelmatch < GATES.perceptual.minConsecutiveDistance) {
-            failures.push(`${fixtureKey} ${c.pair}: ${c.pixelmatch} < ${GATES.perceptual.minConsecutiveDistance}`);
+          if (c.pixelmatch < floor) {
+            failures.push(`${fixtureKey} ${c.pair}: ${c.pixelmatch} < ${floor}`);
           }
         }
         // the matrix is symmetric with a zero diagonal (sanity)

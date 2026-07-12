@@ -122,15 +122,30 @@ const GATES = {
     // most consecutive pairs measure 0.17–0.65, but the engine already
     // near-collapses on typical pools (commercial-man seed-5→6 renders the
     // same structure+voice+hero+treatment → 0.0368; seed-4→5 → 0.035).
-    // Identical renders measure exactly 0.0. The floor is set at 0.02:
-    // it catches full collapse today; phase 2 raises it into the real
-    // anti-collapse gate once operators guarantee take-to-take change.
+    // Identical renders measure exactly 0.0. Two floors:
+    // - legacy (editions off): 0.02 — the pre-editions engine knowingly
+    //   near-collapses (editorial-woman seed4→5 measures 0.005), so the
+    //   legacy baseline is RECORDED, not gated for variety; 0.02 only trips
+    //   on true byte-collapse.
+    // - editions on: 0.12 — the real anti-collapse gate. With the catalog,
+    //   operators, and avoid-history, consecutive "New direction" taps must
+    //   be materially different; observed min across fixtures is 0.14–0.62.
     minConsecutiveDistance: 0.02,
+    minConsecutiveDistanceEditions: 0.12,
     // Plan-level pre-filter: distinct (structure|treatment|voice) tuples
     // required across 6 seeds per fixture (cheap, browserless).
     minPlanTuples: 2,
   },
 };
+
+// The perceptual gate BINDS only with editions active (the anti-collapse
+// gate). The legacy path knowingly near-collapses, so its distances are
+// recorded for comparison but never fail the run (floor 0 = record-only).
+// Contrast binds in both modes — it is a safety gate, not a variety gate.
+const PERCEPTUAL_FLOOR =
+  process.env.COMP_CARD_EDITIONS === "1"
+    ? GATES.perceptual.minConsecutiveDistanceEditions
+    : 0;
 
 // ---------------------------------------------------------------------------
 // Deterministic PRNG (seeded per fixture-image id) — CI-stable bytes.
@@ -523,7 +538,25 @@ async function buildFixtures(outDir, { quiet = false } = {}) {
 // ---------------------------------------------------------------------------
 // Composition + template render (REAL engine, REAL template)
 // ---------------------------------------------------------------------------
-async function composeCell(fixture, seed) {
+// Editions mode is driven by the same flag the route uses, so the rig can
+// render the pre-editions baseline (flag off) and the editions system (flag
+// on) with the identical fixtures. When on, avoid-history (edition + hero,
+// most-recent-first, depth 3) is threaded across the seed sequence exactly
+// as the "New direction" gesture will — this is what the perceptual-distance
+// gate measures.
+const EDITIONS_ON = process.env.COMP_CARD_EDITIONS === "1";
+
+async function composeCell(fixture, seed, history = null) {
+  const editionOpts =
+    EDITIONS_ON && history
+      ? {
+          editionsEnabled: true,
+          avoidEditions: history.editions.slice(0, 3),
+          avoidHeroId: history.heroes[0] || null,
+        }
+      : EDITIONS_ON
+        ? { editionsEnabled: true }
+        : {};
   return composeCompCard({
     profile: fixture.profile,
     images: fixture.rows,
@@ -536,6 +569,7 @@ async function composeCell(fixture, seed) {
       matteById: fixture.matteById,
       unitsPreference: "dual",
       mode: "draft",
+      ...editionOpts,
     },
   });
 }
@@ -937,8 +971,17 @@ async function runGallery({
   const plans = {};
   for (const fixture of fixtures) {
     const cells = [];
+    // Avoid-history FIFO (edition ids + hero ids, most-recent-first) so the
+    // seed sequence mimics repeated "New direction" taps, not independent
+    // draws — the realistic test of whether the catalog cycles.
+    const history = { editions: [], heroes: [] };
     for (const seed of seedList) {
-      const composed = await composeCell(fixture, seed);
+      const composed = await composeCell(fixture, seed, history);
+      const sig = composed.plan.takeSignature || null;
+      if (sig) {
+        if (sig.edition) history.editions.unshift(sig.edition);
+        if (sig.heroId) history.heroes.unshift(sig.heroId);
+      }
       const summary = cellSummary(composed.plan);
       const fontsCss = fontsCssForCard(outDir, [
         composed.plan.typography.display,
@@ -967,6 +1010,8 @@ async function runGallery({
   const metrics = {
     engineVersion: ENGINE_VERSION,
     seeds: seedList,
+    editionsMode: EDITIONS_ON,
+    activePerceptualFloor: PERCEPTUAL_FLOOR,
     gates: GATES,
     perceptual: {},
     contrast: {},
@@ -1066,8 +1111,8 @@ if (require.main === module) {
       }
       for (const [fixtureKey, data] of Object.entries(metrics.perceptual || {})) {
         for (const c of data.consecutive || []) {
-          if (c.pixelmatch < GATES.perceptual.minConsecutiveDistance) {
-            failures.push(`${fixtureKey} ${c.pair}: distance ${c.pixelmatch} < ${GATES.perceptual.minConsecutiveDistance}`);
+          if (c.pixelmatch < PERCEPTUAL_FLOOR) {
+            failures.push(`${fixtureKey} ${c.pair}: distance ${c.pixelmatch} < ${PERCEPTUAL_FLOOR}`);
           }
         }
       }
