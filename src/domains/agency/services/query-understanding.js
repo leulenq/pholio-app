@@ -7,6 +7,7 @@
 const Groq = require("groq-sdk");
 const config = require("../../../config");
 const { decomposeQueryFallback } = require("../lib/intent-parser");
+const { sanitizeUntrustedText } = require("./discover/validate-contract");
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const queryCache = new Map();
@@ -113,13 +114,18 @@ async function groqDecomposeQuery(q) {
   const groq = getGroq();
   if (!groq) return null;
 
+  // Sanitize the user-supplied query before interpolation so injection control
+  // phrases / forged delimiters can't hijack the decomposition prompt. The raw
+  // `q` is still used for structured defaults in normalizeUnderstanding().
+  const safeQ = sanitizeUntrustedText(q, 500);
+
   const completion = await groq.chat.completions.create({
     model: config.groq.textModel,
     messages: [
       { role: "system", content: DECOMPOSE_SYSTEM },
       {
         role: "user",
-        content: `Decompose this casting search query: "${q}"`,
+        content: `Decompose this casting search query: "${safeQ}"`,
       },
     ],
     temperature: 0.1,
