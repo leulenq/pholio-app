@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Bookmark, Check, Download, Plus, RefreshCw, RotateCw, Trash2 } from 'lucide-react';
+import { Bookmark, Check, Download, Plus, RefreshCw, RotateCw, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TransferFailureNotice } from '../../../shared/components/states';
 import PholioButton, {
@@ -19,7 +19,7 @@ import './CompCard.css';
 // Build the `/pdf/view` preview URL for a saved preset. A frozen preset
 // (design captured at save time) renders by id — the stored plan is
 // authoritative and never silently redesigns. Older presets fall back to
-// their stored query (seed + locks + direction).
+// their stored query (seed + locks + direction + edition).
 function presetPreviewUrl(slug, preset) {
   if (!slug) return null;
   if (preset?.frozen) return `/pdf/view/${slug}?preset=${encodeURIComponent(preset.id)}`;
@@ -31,6 +31,13 @@ function presetPreviewUrl(slug, preset) {
   if (q.lockHeroId) params.set('lockHeroId', q.lockHeroId);
   if (q.lockGridIds) params.set('lockGridIds', q.lockGridIds);
   if (q.structure) params.set('structure', q.structure);
+  // Editions: a preset saved under an edition renders that edition (the
+  // server pins it from the preset row too, but thread it so the parameter
+  // preview matches the frozen design).
+  if (q.edition || preset?.edition) {
+    params.set('edition', q.edition || preset.edition);
+    params.set('editions', '1');
+  }
   return `/pdf/view/${slug}?${params.toString()}`;
 }
 
@@ -68,9 +75,12 @@ function presetTag(preset) {
 // One PDF "page" at 96dpi: 5.5in × 8.5in. The /pdf/view doc stacks two pages.
 const PAGE_W = 528;
 
-// The composition engine designs each card itself — the only direction a
-// talent gives is "show me another take" (a fresh seed). Voice names mirror
-// the engine's typography library.
+// The back page fills up to four cells from the talent's photos — the server
+// clamps `lockGridIds` to four, so the picker does too.
+const BACK_GRID_MAX = 4;
+
+// Voice names mirror the engine's typography library — the register the
+// current edition is "set in".
 const VOICE_LABELS = {
   'stark-grotesque': 'Stark Grotesque',
   'editorial-serif': 'Editorial Serif',
@@ -79,7 +89,30 @@ const VOICE_LABELS = {
   'modern-warm': 'Modern Warm',
   'bold-grotesque': 'Bold Grotesque',
   'hairline-fashion': 'Hairline Fashion',
+  'clean-modern': 'Clean Modern',
 };
+
+// Honest unlock copy for editions the talent's photos can't yet support.
+// Keyed by edition id and derived from the server's real suitability gates
+// (composition/editions.js `needs`) — never an invented reason. The server's
+// `available` flag decides *whether* to show this; the map only phrases *why*.
+const EDITION_UNLOCK_COPY = {
+  'the-strip': 'Needs four photos for the filmstrip',
+  'gallery-monograph': 'Needs three photos for the gallery',
+  'cover-story': 'Unlocks with a clean studio frame',
+  'studio-cutout': 'Unlocks with a clean studio frame',
+  duet: 'Needs a full-length frame for the diptych',
+  'ink-noir': 'A dark register set for adult portfolios',
+};
+
+const COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
+
+function unlockCopy(id, minor) {
+  return (
+    EDITION_UNLOCK_COPY[id] ||
+    (minor ? 'Set for adult portfolios' : 'Not available for this card yet')
+  );
+}
 
 // Engine warnings → talent-facing refinement notes. Internal telemetry
 // (matting, fallbacks) stays internal.
@@ -142,9 +175,22 @@ function nextSeed() {
   return `take:${Date.now().toString(36)}-${Math.floor(Math.random() * 0xffffffff).toString(36)}`;
 }
 
+// ── Local persistence (per-slug): the last-served seed and the recent-takes
+// strip survive reloads so a returning talent doesn't re-open the identical
+// first card forever. Fail-quiet in private-mode / no-storage environments.
+const seedKey = (slug) => `pholio:cc:seed:${slug}`;
+const takesKey = (slug) => `pholio:cc:takes:${slug}`;
+function readLS(key) {
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+function writeLS(key, value) {
+  try { window.localStorage.setItem(key, value); } catch { /* storage blocked — non-critical */ }
+}
+
 export default function CompCard({ images = [], profile }) {
   const slug = profile?.slug;
-  const minorGated = isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
+  const minor = isMinorProfile(profile);
+  const minorGated = minor && !minorPublicExposureAllowed(profile);
 
   const [seed, setSeed] = React.useState('profile:preview');
   const [side, setSide] = React.useState('front');
@@ -153,17 +199,25 @@ export default function CompCard({ images = [], profile }) {
   const [downloadError, setDownloadError] = React.useState(null);
   const [meta, setMeta] = React.useState(null);
 
-  // ── Art direction ──
-  // structure: a named direction pinned by the talent (null = Pholio's
-  // choice); lockHeroId: the front photo locked by the talent (null = the
-  // engine casts the strongest frame).
-  const [directions, setDirections] = React.useState([]);
+  // ── Art direction (Editions) ──
+  // edition: the named art direction pinned by the talent (null = Pholio's
+  // choice, the resolver draws). structure/treatment: legacy front-field pins
+  // carried only by older saved presets; the new UI drives editions instead.
+  // lockHeroId: the front frame; lockGridIds: the back-page cells.
+  const [editions, setEditions] = React.useState([]);
+  const [edition, setEdition] = React.useState(null);
   const [structure, setStructure] = React.useState(null);
-  // treatment: how the name is choreographed — null lets the engine decide,
-  // 'classic' keeps the quiet register, 'statement' asks for one of the
-  // verified editorial lockups (split/over/band/straddle).
   const [treatment, setTreatment] = React.useState(null);
   const [lockHeroId, setLockHeroId] = React.useState(null);
+  const [lockGridIds, setLockGridIds] = React.useState([]);
+
+  // Avoid-history: a most-recent-first FIFO (depth 3) of prior takes' edition
+  // + hero ids. "New direction" pushes the current take on and steers the
+  // resolver away from it — the unit of surprise.
+  const [avoidHistory, setAvoidHistory] = React.useState([]);
+  // Recent takes: the last ~8 takes (seed + edition), each revisitable.
+  const [recentTakes, setRecentTakes] = React.useState([]);
+  const lastTakeSeedRef = React.useRef(null);
 
   // ── Saved-cards library (comp_card_presets) ──
   const [presets, setPresets] = React.useState([]);
@@ -177,16 +231,33 @@ export default function CompCard({ images = [], profile }) {
 
   const cardRef = React.useRef(null);
 
-  React.useEffect(() => { if (slug) setSeed(`profile:${slug}`); }, [slug]);
+  // First render uses the last-served seed (per slug) instead of a static
+  // default — returning users don't see the identical first card forever.
+  // Recent takes are restored from the same store.
+  React.useEffect(() => {
+    if (!slug) return;
+    setSeed(readLS(seedKey(slug)) || `profile:${slug}`);
+    lastTakeSeedRef.current = null;
+    const rawTakes = readLS(takesKey(slug));
+    if (rawTakes) {
+      try {
+        const arr = JSON.parse(rawTakes);
+        setRecentTakes(Array.isArray(arr) ? arr.slice(0, 8) : []);
+      } catch { setRecentTakes([]); }
+    } else {
+      setRecentTakes([]);
+    }
+  }, [slug]);
 
-  // Named creative directions this profile can be composed in (engine
-  // catalog; e.g. the cutout direction only unlocks with a subject matte).
+  // Editions catalog for this profile — with real availability (e.g. the
+  // cutout unlocks only with a subject matte, the diptych with a full-length
+  // support frame). Opt into the editions engine with `editions=1`.
   React.useEffect(() => {
     if (!slug || minorGated) return undefined;
     const controller = new AbortController();
-    fetch(`/pdf/view/${slug}?directions=1`, { credentials: 'include', signal: controller.signal })
+    fetch(`/pdf/view/${slug}?directions=1&editions=1`, { credentials: 'include', signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (Array.isArray(data?.directions)) setDirections(data.directions); })
+      .then((data) => { if (Array.isArray(data?.editions)) setEditions(data.editions); })
       .catch(() => {});
     return () => controller.abort();
   }, [slug, minorGated]);
@@ -212,9 +283,11 @@ export default function CompCard({ images = [], profile }) {
     setLibBusyId(preset.id);
     setActivePresetId(preset.id);
     setSeed(preset.seed || `profile:${slug}`);
+    setEdition(preset.edition || null);
     setStructure(preset.structure || null);
     setTreatment(preset.treatment || null);
     setLockHeroId(preset.lockHeroId || null);
+    setLockGridIds(Array.isArray(preset.lockGridIds) ? preset.lockGridIds.filter(Boolean).slice(0, BACK_GRID_MAX) : []);
     setSide('front');
     try {
       await talentApi.setDefaultCompCardPreset(slug, preset.id);
@@ -237,9 +310,11 @@ export default function CompCard({ images = [], profile }) {
         seed,
         board: saveBoard || undefined,
         market: saveMarket || undefined,
+        edition: edition || undefined,
         structure: structure || undefined,
         treatment: treatment || undefined,
         lockHeroId: lockHeroId || undefined,
+        lockGridIds: lockGridIds.length ? lockGridIds : undefined,
       });
       setSaveName('');
       setSaveBoard('');
@@ -283,33 +358,36 @@ export default function CompCard({ images = [], profile }) {
     return () => ro.disconnect();
   }, []);
 
-  // The composer preview: a frozen saved card renders by preset id (its
-  // stored design is authoritative); otherwise the live parameters — seed,
-  // pinned direction, locked front photo, and the board the design should
-  // respond to.
   const activePreset = React.useMemo(
     () => presets.find((p) => p.id === activePresetId) || null,
     [presets, activePresetId],
   );
-  // "Another take" must feel like a NEW art direction: the previous take's
-  // structure/treatment/voice ride along as avoid-hints (only for axes the
-  // talent hasn't pinned), and the engine steers away from them.
-  const [avoidHints, setAvoidHints] = React.useState(null);
+
+  // The composer preview. A frozen saved card renders by preset id (its
+  // stored design is authoritative). Otherwise the live parameters — seed,
+  // pinned edition (or Pholio's-choice draw with avoid-history), locked front
+  // photo, chosen back-page cells, and the board the design responds to. The
+  // dashboard opts into the editions engine with `editions=1` on every URL.
   const previewUrl = React.useMemo(() => {
     if (!slug) return null;
     if (activePreset?.frozen) return `/pdf/view/${slug}?preset=${encodeURIComponent(activePreset.id)}`;
-    const params = new URLSearchParams({ seed });
+    const params = new URLSearchParams({ seed, editions: '1' });
+    if (edition) params.set('edition', edition);
     if (structure) params.set('structure', structure);
     if (treatment) params.set('treatment', treatment);
     if (lockHeroId) params.set('lockHeroId', lockHeroId);
+    if (lockGridIds.length) params.set('lockGridIds', lockGridIds.join(','));
     if (saveBoard) params.set('board', saveBoard);
-    if (avoidHints) {
-      if (!structure && avoidHints.structure) params.set('avoidStructure', avoidHints.structure);
-      if (!treatment && avoidHints.treatment) params.set('avoidTreatment', avoidHints.treatment);
-      if (avoidHints.voice) params.set('avoidVoice', avoidHints.voice);
+    // Only steer away from history while drawing a fresh direction (unpinned):
+    // once an edition is pinned the avoid list is moot.
+    if (!edition && avoidHistory.length) {
+      const avoidEds = avoidHistory.map((h) => h.edition).filter(Boolean);
+      if (avoidEds.length) params.set('avoidEdition', avoidEds.join(','));
+      const avoidHero = avoidHistory.find((h) => h.heroId)?.heroId;
+      if (avoidHero) params.set('avoidHero', avoidHero);
     }
     return `/pdf/view/${slug}?${params.toString()}`;
-  }, [slug, activePreset, seed, structure, treatment, lockHeroId, saveBoard, avoidHints]);
+  }, [slug, activePreset, seed, edition, structure, treatment, lockHeroId, lockGridIds, saveBoard, avoidHistory]);
   React.useEffect(() => { setFrontReady(false); }, [previewUrl]);
 
   // Design summary + refinement notes from the engine (deterministic meta).
@@ -323,12 +401,25 @@ export default function CompCard({ images = [], profile }) {
     return () => controller.abort();
   }, [previewUrl]);
 
+  // Persist the last-served seed and record the take once the engine resolves
+  // it. Keyed on seed so tweaking hero/back-grid within a take doesn't spawn a
+  // duplicate history entry; restoring an older take re-promotes it.
+  React.useEffect(() => {
+    if (!meta || !meta.edition || !slug || activePreset?.frozen) return;
+    if (lastTakeSeedRef.current === seed) return;
+    lastTakeSeedRef.current = seed;
+    writeLS(seedKey(slug), seed);
+    setRecentTakes((prev) => {
+      const entry = { seed, edition: meta.edition.id, label: meta.edition.label };
+      const next = [entry, ...prev.filter((t) => t.seed !== seed)].slice(0, 8);
+      writeLS(takesKey(slug), JSON.stringify(next));
+      return next;
+    });
+  }, [meta, seed, slug, activePreset]);
+
   const hasImages = (images || []).length > 0;
   const guardrailFail = meta?.guardrails?.status === 'fail';
   const blocked = minorGated || !slug || !hasImages || guardrailFail;
-  // Accurate blocking status: rights vs placement vs crops each get their
-  // own label and coaching note — "Needs photos" only when photos are the
-  // actual blocker.
   const blocking = guardrailFail ? blockingInfo(meta) : null;
   const suggestions = React.useMemo(() => {
     const notes = friendlySuggestions(meta);
@@ -350,22 +441,108 @@ export default function CompCard({ images = [], profile }) {
   const flipped = side === 'back';
   const flip = () => setSide((s) => (s === 'front' ? 'back' : 'front'));
 
+  // ── The two gestures ──
+  // "New direction": push the current take to avoid-history, clear the pin,
+  // and re-seed — the resolver draws a genuinely different edition.
+  function handleNewDirection() {
+    const curEd = meta?.edition?.id || edition || null;
+    const curHero = meta?.takeSignature?.heroId || lockHeroId || null;
+    if (curEd || curHero) {
+      setAvoidHistory((h) => [{ edition: curEd, heroId: curHero }, ...h].slice(0, 3));
+    }
+    setEdition(null);
+    setStructure(null);
+    setTreatment(null);
+    setSeed(nextSeed());
+    setActivePresetId(null);
+  }
+
+  // "Another take of this": re-seed WITHIN the established edition — pin it and
+  // let internal variation (hero, field, register, lockup) carry the change.
+  function handleAnotherTake() {
+    const curEd = edition || meta?.edition?.id;
+    if (!curEd) return;
+    setEdition(curEd);
+    setStructure(null);
+    setTreatment(null);
+    setSeed(nextSeed());
+    setActivePresetId(null);
+  }
+
+  // Pin (or unpin → Pholio's choice) an edition from the rail. Keeps the seed
+  // so it's the *same* take re-cast in the chosen direction.
+  function selectEdition(id) {
+    setEdition(id);
+    setStructure(null);
+    setTreatment(null);
+    setActivePresetId(null);
+    if (id === null) setAvoidHistory([]);
+  }
+
+  // Restore an exact earlier take (seed + edition) — "take #3 was best."
+  function restoreTake(take) {
+    if (!take) return;
+    setSeed(take.seed);
+    setEdition(take.edition || null);
+    setStructure(null);
+    setTreatment(null);
+    setActivePresetId(null);
+    setSide('front');
+  }
+
+  // Toggle a photo into/out of the back-page cells (capped at BACK_GRID_MAX).
+  function toggleGridId(id) {
+    setLockGridIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= BACK_GRID_MAX) return prev;
+      return [...prev, id];
+    });
+    setActivePresetId(null);
+  }
+
+  const activeEditionId = edition || meta?.edition?.id || null;
+  const activeEditionEntry = React.useMemo(
+    () => editions.find((e) => e.id === activeEditionId) || null,
+    [editions, activeEditionId],
+  );
+  const editionLabel = meta?.edition?.label || activeEditionEntry?.label || null;
+  const editionTone = activeEditionEntry?.tone || null;
+  const availableCount = React.useMemo(
+    () => editions.filter((e) => e.available).length,
+    [editions],
+  );
+
+  const gridImages = React.useMemo(
+    () => (images || []).filter((img) => img && img.id && !img.video_url),
+    [images],
+  );
+
   async function handleDownload() {
     if (!slug || downloading) return;
     setDownloading(true);
     setDownloadError(null);
     try {
-      // the download must carry the exact design being previewed: frozen
-      // preset id, or the live seed + pinned direction + hero lock + board
+      // The download must carry the exact design being previewed: frozen
+      // preset id, or the live seed + edition + hero/back-grid locks + board.
+      // Editions params match the preview so the PDF matches the screen.
       const dl = new URLSearchParams({ download: '1' });
       if (activePreset?.frozen) {
         dl.set('preset', activePreset.id);
       } else {
         dl.set('seed', seed);
+        dl.set('editions', '1');
+        if (edition) dl.set('edition', edition);
         if (structure) dl.set('structure', structure);
         if (treatment) dl.set('treatment', treatment);
         if (lockHeroId) dl.set('lockHeroId', lockHeroId);
+        if (lockGridIds.length) dl.set('lockGridIds', lockGridIds.join(','));
         if (saveBoard) dl.set('board', saveBoard);
+        if (!edition && avoidHistory.length) {
+          const avoidEds = avoidHistory.map((h) => h.edition).filter(Boolean);
+          if (avoidEds.length) dl.set('avoidEdition', avoidEds.join(','));
+          const avoidHero = avoidHistory.find((h) => h.heroId)?.heroId;
+          if (avoidHero) dl.set('avoidHero', avoidHero);
+        }
       }
       const res = await fetch(`/pdf/${slug}?${dl.toString()}`, { credentials: 'include' });
       if (!res.ok) {
@@ -487,74 +664,106 @@ export default function CompCard({ images = [], profile }) {
 
         {/* ── Atelier panel ── */}
         <div className="cc-panel">
-          <section className="cc-stage-block">
-            <header className="cc-stage-head">
-              <h3 className="cc-stage-title">Art direction</h3>
-              <PholioButton type="button" variant="secondary"
-                onClick={() => {
-                  setAvoidHints(meta ? { structure: meta.structure, treatment: meta.treatment, voice: meta.voice } : null);
-                  setSeed(nextSeed());
-                  setActivePresetId(null);
-                }}
-                disabled={!previewUrl} title="Compose a genuinely different take">
-                <RefreshCw size={13} aria-hidden="true" /> Another take
+          <section className="cc-stage-block cc-direction">
+            {/* The name moment: the edition set in its voice. Serif for the
+                edition (the quiet moment); Inter for the voice line. */}
+            <h3 className="cc-editionname">
+              {editionLabel ? (
+                <>
+                  <span className="cc-editionname__label">{editionLabel}</span>
+                  {voiceLabel && (
+                    <span className="cc-editionname__voice"> — set in {voiceLabel}</span>
+                  )}
+                </>
+              ) : (
+                <span className="cc-editionname__label cc-editionname__label--pending">Your direction</span>
+              )}
+            </h3>
+
+            <div className="cc-gestures">
+              <PholioButton
+                type="button"
+                variant="primary"
+                className="cc-gesture cc-gesture--new"
+                onClick={handleNewDirection}
+                disabled={!previewUrl}
+                title="Draw a genuinely different edition"
+              >
+                <Sparkles size={14} aria-hidden="true" /> New direction
               </PholioButton>
-            </header>
-            {directions.length > 0 && (
-              <div className="cc-directions" role="group" aria-label="Name treatment" style={{ marginBottom: 2 }}>
-                {[
-                  { id: null, label: 'Pholio’s choice', hint: 'The engine chooses how your name is set' },
-                  { id: 'classic', label: 'Classic', hint: 'The quiet register — name on paper, photography leads' },
-                  { id: 'statement', label: 'Statement', hint: 'An editorial lockup — display type layered with the photograph, always legibility-verified' },
-                ].map((t) => (
-                  <PholioToggleButton
-                    key={t.id || 'auto'}
-                    type="button"
-                    active={treatment === t.id}
-                    aria-pressed={treatment === t.id}
-                    className={`cc-directions__chip ${treatment === t.id ? 'is-active' : ''}`}
-                    onClick={() => { setTreatment(t.id); setActivePresetId(null); }}
-                    title={t.hint}
-                  >
-                    {t.label}
-                  </PholioToggleButton>
-                ))}
-              </div>
-            )}
-            {directions.length > 0 && (
-              <div className="cc-directions" role="group" aria-label="Creative direction">
-                <PholioToggleButton
+              {activeEditionId && (
+                <PholioButton
                   type="button"
-                  active={!structure}
-                  aria-pressed={!structure}
-                  className={`cc-directions__chip ${!structure ? 'is-active' : ''}`}
-                  onClick={() => { setStructure(null); setActivePresetId(null); }}
-                  title="Let the engine choose the strongest direction for your photos"
+                  variant="secondary"
+                  className="cc-gesture"
+                  onClick={handleAnotherTake}
+                  disabled={!previewUrl}
+                  title="Another version within this edition"
                 >
-                  Pholio’s choice
-                </PholioToggleButton>
-                {directions.map((d) => (
+                  <RefreshCw size={13} aria-hidden="true" /> Another take of this
+                </PholioButton>
+              )}
+            </div>
+
+            {editions.length > 0 && (
+              <>
+                <div className="cc-rail" role="group" aria-label="Editions">
                   <PholioToggleButton
-                    key={d.id}
                     type="button"
-                    active={structure === d.structure}
-                    aria-pressed={structure === d.structure}
-                    className={`cc-directions__chip ${structure === d.structure ? 'is-active' : ''}`}
-                    onClick={() => { setStructure(d.structure); setActivePresetId(null); }}
-                    title={d.description}
+                    active={!edition}
+                    aria-pressed={!edition}
+                    className={`cc-rail__chip ${!edition ? 'is-active' : ''}`}
+                    onClick={() => selectEdition(null)}
+                    title="Let Pholio choose the direction that suits your photos"
                   >
-                    {d.label}
+                    Pholio’s choice
                   </PholioToggleButton>
-                ))}
-              </div>
+                  {editions.map((e) => {
+                    const isSelected = edition === e.id;
+                    const isCurrent = !edition && meta?.edition?.id === e.id;
+                    if (!e.available) {
+                      return (
+                        <span
+                          key={e.id}
+                          className="cc-rail__chip cc-rail__chip--locked"
+                          role="button"
+                          aria-disabled="true"
+                          title={unlockCopy(e.id, minor)}
+                        >
+                          {e.label}
+                        </span>
+                      );
+                    }
+                    return (
+                      <PholioToggleButton
+                        key={e.id}
+                        type="button"
+                        active={isSelected}
+                        aria-pressed={isSelected}
+                        className={`cc-rail__chip ${isSelected ? 'is-active' : ''} ${isCurrent ? 'is-current' : ''}`}
+                        onClick={() => selectEdition(isSelected ? null : e.id)}
+                        title={e.tone}
+                      >
+                        {e.label}
+                      </PholioToggleButton>
+                    );
+                  })}
+                </div>
+                {editionTone && <p className="cc-stage-note">{editionTone}</p>}
+                {availableCount > 0 && availableCount <= 2 && (
+                  <p className="cc-stage-note cc-stage-note--quiet">
+                    {COUNT_WORDS[availableCount] || availableCount} direction{availableCount === 1 ? '' : 's'} suit this card.
+                  </p>
+                )}
+              </>
             )}
-            <p className="cc-stage-note">
-              {meta?.direction?.label && voiceLabel
-                ? <>A <span className="cc-em">{meta.direction.label.toLowerCase()}</span> composition set in the <span className="cc-em">{voiceLabel}</span> voice. Each direction is a real layout language — “Another take” explores within it.</>
-                : voiceLabel
-                  ? <>Set in the <span className="cc-em">{voiceLabel}</span> voice, composed from your strongest frames. Every take is designed around your photographs, statistics, and market.</>
-                  : 'Composed from your strongest frames — typography, layout, and crops are designed around your photographs, statistics, and market.'}
-            </p>
+
+            {!editionLabel && !editions.length && (
+              <p className="cc-stage-note">
+                Composed from your strongest frames — typography, layout, and crops are designed around your photographs, statistics, and market.
+              </p>
+            )}
+
             {meta?.booking?.label && (
               <p className="cc-stage-note cc-stage-note--quiet">
                 {meta.booking.mode === 'represented' ? 'Carries your representation.' : `Carries your ${meta.booking.label.toLowerCase()} details.`}
@@ -562,42 +771,6 @@ export default function CompCard({ images = [], profile }) {
               </p>
             )}
           </section>
-
-          {!minorGated && hasImages && slug && directions.length > 0 && !activePreset?.frozen && (
-            <section className="cc-stage-block">
-              <header className="cc-stage-head">
-                <h3 className="cc-stage-title">Side by side</h3>
-              </header>
-              <p className="cc-stage-note cc-stage-note--quiet">
-                The same take, re-composed in each direction — tap one to move the card there.
-              </p>
-              <div className="cc-takes" role="group" aria-label="Direction previews">
-                {directions.map((d) => {
-                  const params = new URLSearchParams({ seed, structure: d.structure });
-                  if (treatment) params.set('treatment', treatment);
-                  if (lockHeroId) params.set('lockHeroId', lockHeroId);
-                  if (saveBoard) params.set('board', saveBoard);
-                  const takeUrl = `/pdf/view/${slug}?${params.toString()}`;
-                  const active = structure === d.structure;
-                  return (
-                    <button
-                      key={d.id}
-                      type="button"
-                      className={`cc-takes__thumb ${active ? 'is-active' : ''}`}
-                      aria-pressed={active}
-                      onClick={() => { setStructure(active ? null : d.structure); setActivePresetId(null); }}
-                      title={d.description}
-                    >
-                      <span className="cc-takes__frame" aria-hidden="true">
-                        <iframe src={takeUrl} title={`${d.label} preview`} scrolling="no" tabIndex={-1} loading="lazy" />
-                      </span>
-                      <span className="cc-takes__label">{d.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
 
           {!minorGated && hasImages && (
             <section className="cc-stage-block">
@@ -618,7 +791,7 @@ export default function CompCard({ images = [], profile }) {
                 >
                   Pholio’s pick
                 </PholioToggleButton>
-                {(images || []).filter((img) => img && img.id && !img.video_url).slice(0, 12).map((img) => {
+                {gridImages.slice(0, 12).map((img) => {
                   const src = imageUrl(img);
                   const active = lockHeroId === img.id;
                   return (
@@ -631,6 +804,81 @@ export default function CompCard({ images = [], profile }) {
                       title={active ? 'Unlock — let Pholio cast the front' : 'Build the front around this frame'}
                     >
                       {src ? <img src={src} alt="" loading="lazy" /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {!minorGated && hasImages && (
+            <section className="cc-stage-block">
+              <header className="cc-stage-head">
+                <h3 className="cc-stage-title">Back page photos</h3>
+                {lockGridIds.length > 0 && (
+                  <span className="cc-lib__count">{lockGridIds.length} of {BACK_GRID_MAX}</span>
+                )}
+              </header>
+              <p className="cc-stage-note cc-stage-note--quiet">
+                Choose up to four photos for the back page, or leave the selection to Pholio.
+              </p>
+              <div className="cc-grid__strip" role="group" aria-label="Back page photos">
+                <PholioToggleButton
+                  type="button"
+                  active={lockGridIds.length === 0}
+                  aria-pressed={lockGridIds.length === 0}
+                  className={`cc-hero__auto ${lockGridIds.length === 0 ? 'is-active' : ''}`}
+                  onClick={() => { setLockGridIds([]); setActivePresetId(null); }}
+                  title="Let Pholio choose the back-page frames"
+                >
+                  Pholio’s pick
+                </PholioToggleButton>
+                {gridImages.slice(0, 12).map((img) => {
+                  const src = imageUrl(img);
+                  const selected = lockGridIds.includes(img.id);
+                  const atMax = lockGridIds.length >= BACK_GRID_MAX;
+                  return (
+                    <button
+                      key={img.id}
+                      type="button"
+                      className={`cc-grid__thumb ${selected ? 'is-active' : ''}`}
+                      aria-pressed={selected}
+                      disabled={!selected && atMax}
+                      onClick={() => toggleGridId(img.id)}
+                      title={selected ? 'Remove from the back page' : atMax ? 'Back page is full — remove one first' : 'Add to the back page'}
+                    >
+                      {src ? <img src={src} alt="" loading="lazy" /> : null}
+                      {selected && (
+                        <span className="cc-grid__mark" aria-hidden="true"><Check size={11} /></span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {!minorGated && recentTakes.length > 1 && (
+            <section className="cc-stage-block">
+              <header className="cc-stage-head">
+                <h3 className="cc-stage-title">Recent takes</h3>
+              </header>
+              <p className="cc-stage-note cc-stage-note--quiet">
+                Jump back to a take you liked.
+              </p>
+              <div className="cc-recents" role="group" aria-label="Recent takes">
+                {recentTakes.map((take) => {
+                  const active = take.seed === seed;
+                  return (
+                    <button
+                      key={take.seed}
+                      type="button"
+                      className={`cc-recent ${active ? 'is-active' : ''}`}
+                      aria-pressed={active}
+                      onClick={() => restoreTake(take)}
+                      title={active ? 'Showing now' : `Restore ${take.label}`}
+                    >
+                      {take.label}
                     </button>
                   );
                 })}

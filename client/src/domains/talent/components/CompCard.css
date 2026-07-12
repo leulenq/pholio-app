@@ -103,39 +103,62 @@
 .cc-stage-note--quiet { color: var(--mw-text-faint); font-size: 12px; }
 .cc-em { color: var(--mw-gold-warm, var(--mw-gold)); font-style: italic; font-family: var(--mw-serif); font-size: 13.5px; }
 
-/* ── Creative directions — named art directions, not reshuffles ── */
-.cc-directions { display: flex; flex-wrap: wrap; gap: 8px; }
-.cc-directions__chip { flex: 0 0 auto; }
+/* ── Direction (Editions) — the name moment + the two gestures + the rail ── */
+.cc-direction { gap: 16px; }
 
-/* ── Side-by-side direction takes — real previews, one tap to move ── */
-.cc-takes { display: flex; flex-wrap: wrap; gap: 10px; }
-.cc-takes__thumb {
-  flex: 0 0 88px;
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+/* The name moment: the edition set in its voice. Serif carries the edition
+   (a quiet editorial moment); Inter carries the voice line. */
+.cc-editionname {
+  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline;
+  column-gap: 2px; row-gap: 2px;
 }
-.cc-takes__frame {
-  position: relative; display: block; width: 88px; height: 136px;
-  border: 1px solid var(--mw-hair); border-radius: 8px; overflow: hidden;
-  background: var(--mw-paper, #fff);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+.cc-editionname__label {
+  font-family: var(--mw-serif); font-weight: 400; font-size: 22px;
+  letter-spacing: -0.01em; line-height: 1.2; color: var(--mw-text);
 }
-.cc-takes__frame iframe {
-  width: 528px; height: 816px; border: 0; display: block; background: #fff;
-  transform-origin: top left; pointer-events: none;
-  transform: scale(calc(88 / 528));
+.cc-editionname__label--pending { color: var(--mw-text-faint); }
+.cc-editionname__voice {
+  font-family: var(--mw-sans); font-weight: 400; font-size: 13px;
+  letter-spacing: 0.01em; color: var(--mw-text-soft);
 }
-.cc-takes__thumb:hover .cc-takes__frame { transform: translateY(-1px); border-color: var(--mw-gold); }
-.cc-takes__thumb.is-active .cc-takes__frame { border-color: var(--mw-gold); box-shadow: 0 0 0 2px var(--mw-gold); }
-.cc-takes__thumb:focus-visible .cc-takes__frame { outline: 2px solid var(--mw-gold); outline-offset: 2px; }
-.cc-takes__label {
-  font-family: var(--mw-sans); font-size: 11px; letter-spacing: 0.04em;
-  color: var(--mw-text-soft);
+
+/* The two gestures. "New direction" is the primary (ink-fill PholioButton,
+   gold-underline sweep — the talent primary vocabulary); "Another take of
+   this" is the secondary, shown once an edition is established. */
+.cc-gestures { display: flex; flex-wrap: wrap; gap: 10px; }
+.cc-gesture { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; }
+
+/* Edition rail — a horizontally-scrollable row of edition chips using the
+   existing chip vocabulary; gold marks the pinned selection only. */
+.cc-rail {
+  display: flex; flex-wrap: nowrap; gap: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  padding-bottom: 6px; margin-bottom: -2px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
 }
-.cc-takes__thumb.is-active .cc-takes__label { color: var(--mw-gold); }
-@media (prefers-reduced-motion: reduce) {
-  .cc-takes__frame, .cc-takes__thumb:hover .cc-takes__frame { transition: none; transform: none; }
+.cc-rail::-webkit-scrollbar { height: 5px; }
+.cc-rail::-webkit-scrollbar-thumb { background: var(--mw-hair-strong); border-radius: 999px; }
+.cc-rail__chip { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
+
+/* The edition Pholio is showing right now, while in Pholio's-choice mode:
+   a quiet gold underline, not the full gold selection state. */
+.cc-rail__chip.is-current:not(.is-active) {
+  box-shadow: inset 0 -2px 0 var(--mw-gold);
 }
+
+/* Unavailable editions — clearly disabled, honest unlock copy on hover/title.
+   Not a button (nothing to press); communicates the gate, never a fake tier. */
+.cc-rail__chip--locked {
+  display: inline-flex; align-items: center;
+  padding: 7px 14px; border-radius: 999px;
+  border: 1px dashed var(--mw-hair-strong);
+  font-family: var(--mw-sans); font-size: 12.5px; letter-spacing: 0.01em;
+  color: var(--mw-text-faint); background: transparent;
+  cursor: not-allowed; user-select: none;
+}
+.cc-rail__chip--locked:hover { border-color: var(--mw-hair-strong); color: var(--mw-text-soft); }
 
 /* ── Front photo casting strip ── */
 .cc-hero__strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -158,6 +181,53 @@
 .cc-hero__thumb:focus-visible { outline: 2px solid var(--mw-gold); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   .cc-hero__thumb, .cc-hero__thumb:hover { transition: none; transform: none; }
+}
+
+/* ── Back-page photo picker — selection within engine-verified bounds ── */
+.cc-grid__strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cc-grid__thumb {
+  position: relative; flex: 0 0 auto;
+  width: 44px; height: 58px;
+  padding: 0; border: 1px solid var(--mw-hair);
+  border-radius: 8px; overflow: hidden;
+  background: var(--mw-paper, #fff);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cc-grid__thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cc-grid__thumb:hover { transform: translateY(-1px) scale(1.03); border-color: var(--mw-gold); }
+.cc-grid__thumb.is-active { border-color: var(--mw-gold); box-shadow: 0 0 0 2px var(--mw-gold); }
+.cc-grid__thumb:focus-visible { outline: 2px solid var(--mw-gold); outline-offset: 2px; }
+.cc-grid__thumb:disabled { opacity: 0.4; cursor: not-allowed; }
+.cc-grid__thumb:disabled:hover { transform: none; border-color: var(--mw-hair); }
+.cc-grid__mark {
+  position: absolute; top: 3px; right: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--mw-gold); color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-grid__thumb, .cc-grid__thumb:hover { transition: none; transform: none; }
+}
+
+/* ── Recent takes — quiet, secondary, static labels (no live previews) ── */
+.cc-recents { display: flex; flex-wrap: wrap; gap: 8px; }
+.cc-recent {
+  flex: 0 0 auto;
+  font-family: var(--mw-sans); font-size: 12px; letter-spacing: 0.01em;
+  color: var(--mw-text-soft);
+  background: transparent; border: 1px solid var(--mw-hair-strong);
+  border-radius: 999px; padding: 6px 13px; cursor: pointer;
+  transition: border-color 0.2s var(--mw-ease), color 0.2s var(--mw-ease), background 0.2s var(--mw-ease);
+}
+.cc-recent:hover { border-color: var(--mw-gold); color: var(--mw-text); }
+.cc-recent:focus-visible { outline: 2px solid var(--mw-gold); outline-offset: 2px; }
+.cc-recent.is-active {
+  border-color: var(--mw-gold); color: var(--mw-gold);
+  background: var(--mw-cream-warm);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-recent { transition: none; }
 }
 
 /* Refinement notes — plain editorial list, gold rule per entry. */
