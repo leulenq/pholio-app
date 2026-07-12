@@ -41,7 +41,9 @@ const path = require("path");
 const PT_PER_IN = 72; // 1pt = 1/72in
 const DEFAULT_ADVANCE_EM = 0.55; // neutral per-glyph advance for estimateLine
 const DEFAULT_CAP_RATIO = 0.7; // cap-height / em fallback when font absent
-const METRICS_VERSION = 2; // v2: HarfBuzz shaping (v1 was opentype.js)
+// v2: HarfBuzz shaping (v1 was opentype.js). v3: per-axis variable-font
+// instances (harfbuzz setVariations) — exact advances at a wdth/opsz position.
+const METRICS_VERSION = 3;
 
 const WASM_PAGE = 65536;
 const SHAPE_CACHE_MAX = 512; // per-font shaped-width memo bound
@@ -114,6 +116,7 @@ function getHb() {
 // Heap views are NOT cached — memory.grow() detaches old ArrayBuffers.
 const heapU8 = (ex) => new Uint8Array(ex.memory.buffer);
 const heapI32 = (ex) => new Int32Array(ex.memory.buffer);
+const heapF32 = (ex) => new Float32Array(ex.memory.buffer);
 
 // ── Font handles ──────────────────────────────────────────────────────────
 
@@ -169,8 +172,10 @@ function createHandle(buffer) {
       hbFont: true,
       unitsPerEm: upem,
       capRatio: readCapRatio(ex, fontPtr, upem),
+      facePtr, // kept alive by fontPtr; needed to spin per-axis sub-fonts
       fontPtr,
       shapeCache: new Map(), // text → total shaped advance in em
+      axisCache: new Map(), // axisKey → instanced (variation) handle
     };
   } catch {
     try {
@@ -212,6 +217,84 @@ function loadFont(fontPath) {
   }
   fontCache.set(fontPath, handle);
   return handle;
+}
+
+// ── Variable-font axis instances ───────────────────────────────────────────
+
+/**
+ * Normalize a caller's axis request ({ wght, wdth, opsz, … }) into a sorted
+ * list of finite { tag, value } pairs. Non-finite/empty entries are dropped,
+ * so `{}` / null / all-NaN yields [] and callers stay on the base (default)
+ * instance — the legacy path is byte-identical when no axes are requested.
+ */
+function normalizeAxes(axes) {
+  if (!axes || typeof axes !== "object") return [];
+  return Object.keys(axes)
+    .filter((tag) => typeof tag === "string" && tag.length === 4 && Number.isFinite(Number(axes[tag])))
+    .sort()
+    .map((tag) => ({ tag, value: Number(axes[tag]) }));
+}
+
+function axisKey(pairs) {
+  return pairs.map((p) => `${p.tag}=${p.value}`).join(";");
+}
+
+/**
+ * Resolve (and cache) a variation instance of a font handle at the given axis
+ * pairs. Returns a handle-shaped object with its OWN shapeCache so instanced
+ * advances never contaminate the base font's memo. An empty axis list returns
+ * the base handle unchanged. Applying an axis a face does not carry is a no-op
+ * in HarfBuzz, so this is null-safe for statics and partial requests.
+ * @returns {object|null}
+ */
+function instanceForAxes(handle, axes) {
+  if (!handle || !handle.hbFont) return handle || null;
+  const pairs = normalizeAxes(axes);
+  if (!pairs.length) return handle;
+  const key = axisKey(pairs);
+  const cached = handle.axisCache.get(key);
+  if (cached !== undefined) return cached;
+  const hb = getHb();
+  if (!hb || !handle.facePtr) return handle;
+  const { ex } = hb;
+  let instPtr = 0;
+  let varsPtr = 0;
+  try {
+    // A fresh top-level font from the face — NOT a sub-font. HarfBuzz
+    // sub-fonts forward glyph-advance queries to their parent, so variations
+    // set on a sub-font do not change advances; a face-level font applies the
+    // variation coordinates to the outlines and advances as the renderer does.
+    instPtr = ex.hb_font_create(handle.facePtr);
+    if (!instPtr) throw new Error("font_create");
+    varsPtr = ex.malloc(pairs.length * 8); // hb_variation_t = { u32 tag; f32 value }
+    for (let i = 0; i < pairs.length; i += 1) {
+      const off = varsPtr + i * 8;
+      heapI32(ex)[off >> 2] = hbTag(pairs[i].tag);
+      heapF32(ex)[(off + 4) >> 2] = pairs[i].value;
+    }
+    ex.hb_font_set_variations(instPtr, varsPtr, pairs.length);
+    ex.free(varsPtr);
+    varsPtr = 0;
+    const inst = {
+      hbFont: true,
+      unitsPerEm: handle.unitsPerEm,
+      capRatio: handle.capRatio,
+      fontPtr: instPtr,
+      shapeCache: new Map(),
+      instanced: key,
+    };
+    handle.axisCache.set(key, inst);
+    return inst;
+  } catch {
+    try {
+      if (varsPtr) ex.free(varsPtr);
+      if (instPtr) ex.hb_font_destroy(instPtr);
+    } catch {
+      /* best-effort */
+    }
+    handle.axisCache.set(key, null);
+    return null;
+  }
 }
 
 // ── Shaping ───────────────────────────────────────────────────────────────
@@ -273,13 +356,17 @@ function totalAdvanceEm(handle, text) {
  * caller's `chars × advanceEm` math reproduces the shaped total exactly).
  * @param {object} font — a font handle (from loadFont/parseFontBuffer)
  * @param {string} text
+ * @param {object} [axes] — variable-font axis position ({ wght, wdth, opsz, … });
+ *   measured against a cached instance of the face. Omit for the default cut.
  * @returns {number|null}
  */
-function advanceEmFor(font, text) {
+function advanceEmFor(font, text, axes) {
   if (!font || !font.hbFont) return null;
   const str = typeof text === "string" ? text : "";
   if (!str.length) return 0;
-  const totalEm = totalAdvanceEm(font, str);
+  const target = instanceForAxes(font, axes);
+  if (!target) return null;
+  const totalEm = totalAdvanceEm(target, str);
   if (!Number.isFinite(totalEm)) return null;
   return totalEm / str.length;
 }
@@ -292,15 +379,21 @@ function advanceEmFor(font, text) {
  * @param {string} args.text
  * @param {number} args.sizePt — font size in points
  * @param {number} [args.trackingEm=0] — letter-spacing in em
+ * @param {object} [args.axes] — variable-font axis position ({ wght, wdth,
+ *   opsz, … }). When set, the line is shaped against a cached instance of the
+ *   face at that position (exact for what Chromium renders with the matching
+ *   font-variation-settings). Omit for the default cut — byte-identical to v2.
  * @returns {{ widthIn:number, heightIn:number, version:number }|null}
  *   null when harfbuzz/font is unavailable or input is invalid — the signal
  *   for a caller to fall back to estimateLine.
  */
-function measureLine({ fontPath, fontBuffer, text, sizePt, trackingEm = 0 } = {}) {
+function measureLine({ fontPath, fontBuffer, text, sizePt, trackingEm = 0, axes } = {}) {
   if (typeof text !== "string" || !Number.isFinite(sizePt) || sizePt <= 0) {
     return null;
   }
-  const font = fontBuffer ? parseFontBuffer(fontBuffer) : loadFont(fontPath);
+  const base = fontBuffer ? parseFontBuffer(fontBuffer) : loadFont(fontPath);
+  if (!base) return null;
+  const font = instanceForAxes(base, axes);
   if (!font) return null;
   const totalEm = totalAdvanceEm(font, text);
   if (!Number.isFinite(totalEm)) return null;
@@ -346,5 +439,7 @@ module.exports = {
   measureLine,
   estimateLine,
   advanceEmFor,
+  instanceForAxes,
+  normalizeAxes,
   METRICS_VERSION,
 };

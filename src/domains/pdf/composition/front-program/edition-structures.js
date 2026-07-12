@@ -180,6 +180,22 @@ function verifiedPhotoInk(grid, r, frame, preferLight) {
   return null;
 }
 
+/**
+ * Stamp the card's variable-axis position onto name elements so the renderer
+ * can apply the matching font-variation-settings (the exact axis measurement
+ * was solved into the point size). Additive + null-safe: with no axes the
+ * elements are returned untouched, so non-axis editions stay byte-identical.
+ */
+function stampAxes(elements, axes) {
+  if (!axes || typeof axes !== "object") return elements;
+  for (const el of elements) {
+    if (el && typeof el.type === "string" && (el.type === "name" || el.type.startsWith("split"))) {
+      el.axes = axes;
+    }
+  }
+  return elements;
+}
+
 /** Contact line box (legacy geometry, size-scaled for reversed floors). */
 function contactBox(contactLine, cpt) {
   const perChar = 0.052 * (cpt / 7);
@@ -227,6 +243,10 @@ function prepare(ctx, rng) {
     displayFamily: ctx.typography?.display || null,
     bodyFamily: ctx.typography?.body || "Inter",
     weight: ctx.nameMetrics?.weight || ctx.language?.name?.weightClass || 500,
+    // Variable-font axis position for the name (Phase 4). Card-wide (one name
+    // treatment per card) and null-safe: null when the family has no axis or
+    // on the legacy path, in which case name elements are left untouched.
+    axes: ctx.language?.name?.axes || null,
     contactLine: ctx.contactLine || null,
     intent: ctx.intent || { formality: 0.5, energy: 0.45, warmth: 0.5, density: 0.45, risk: 0.35 },
     supportPool: Array.isArray(ctx.supportPool) ? ctx.supportPool.filter((s) => s && s.id) : [],
@@ -337,7 +357,7 @@ function buildMasthead(rng, b) {
   if ((heroRect.w * heroRect.h) / (PAGE_W * PAGE_H) < Math.max(HERO_AREA_FLOOR, 0.6)) return null;
 
   const blockX = (PAGE_W - block.w) / 2;
-  elements.push(...block.place(blockX, bandTop, { color: b.ink, align: "center", z: 3 }));
+  elements.push(...stampAxes(block.place(blockX, bandTop, { color: b.ink, align: "center", z: 3 }), b.axes));
   elements.push({ type: "photo", rect: heroRect, z: 1, bleedEdges: bleedEdgesOf(heroRect) });
   decisions.push({ k: "structure", v: "masthead", why: `nameplate span ${r3(block.w / innerW)}, seam ${gap}in` });
 
@@ -433,6 +453,7 @@ function buildColumnGrid(rng, b) {
     if (!block) return null;
     nameEls = block.place(railX0, snap(railTop + module), { color: b.ink, z: 3 });
   }
+  stampAxes(nameEls, b.axes);
   elements.push(...nameEls);
   for (const e of nameEls) occupied.push(e.rect);
 

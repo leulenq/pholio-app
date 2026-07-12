@@ -27,7 +27,7 @@
 const fs = require("fs");
 
 const { FAMILIES } = require("../composition/font-library");
-const { fontPathFor, nameAdvanceEm } = require("../composition/perception/font-files");
+const { fontPathFor, variableFontPathFor, nameAdvanceEm } = require("../composition/perception/font-files");
 const textMetrics = require("../composition/perception/text-metrics");
 
 const UPPER = "TAYA WAVERLY AVAT."; // kern-torture: TA / AY / YA / WA / AV / VA / AVA / T.
@@ -182,6 +182,62 @@ describeBrowser("SKIPPED unless SHAPING_PARITY_BROWSER=1: live Puppeteer parity 
           if (drift >= TOLERANCE) {
             throw new Error(
               `${family} w${weight} "${text}": hb=${hbEm.toFixed(4)}em chrome=${chromeEm.toFixed(4)}em drift=${(drift * 100).toFixed(3)}%`,
+            );
+          }
+        }
+      }
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+// ── Variable-axis instance parity (Phase 4) ────────────────────────────────
+// A variable instance measured with harfbuzz setVariations must match what
+// Chromium renders with the matching font-variation-settings. Same browser
+// gate as above (SHAPING_PARITY_BROWSER=1). The spike (Phase 4) confirmed
+// Chromium honors the axes and bakes the instance into the PDF export, so this
+// parity is what guarantees the solved point size fits the rendered glyphs.
+const VARIABLE_CASES = [
+  { family: "Archivo", axis: "wdth", positions: [62, 100, 125], text: "WAVERLY", weight: 500 },
+  { family: "Fraunces", axis: "opsz", positions: [9, 40, 144], text: "Waverly", weight: 500 },
+  { family: "Bodoni Moda", axis: "opsz", positions: [6, 20, 96], text: "WAVERLY", weight: 500 },
+];
+
+describeBrowser("SKIPPED unless SHAPING_PARITY_BROWSER=1: variable-instance parity", () => {
+  jest.setTimeout(300000);
+
+  test("harfbuzz-instanced width matches Chromium font-variation-settings within 0.5%", async () => {
+    // eslint-disable-next-line global-require
+    const puppeteer = require("puppeteer");
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    try {
+      const page = await browser.newPage();
+      for (const c of VARIABLE_CASES) {
+        const fontPath = variableFontPathFor(c.family);
+        expect(fontPath).toBeTruthy();
+        const b64 = fs.readFileSync(fontPath).toString("base64");
+        for (const pos of c.positions) {
+          const axes = { [c.axis]: pos, wght: c.weight };
+          const hbEm = textMetrics.measureLine({ fontPath, text: c.text, sizePt: 72, axes }).widthIn;
+          await page.setContent(
+            `<style>
+               @font-face { font-family:'V'; src:url(data:font/ttf;base64,${b64}) format('truetype'); font-weight:100 900; }
+               #x { font-family:'V'; font-size:100px; font-weight:${c.weight}; letter-spacing:0;
+                    white-space:pre; display:inline-block;
+                    font-variation-settings:'${c.axis}' ${pos},'wght' ${c.weight}; }
+             </style><span id="x">${c.text}</span>`,
+          );
+          await page.evaluate(() => document.fonts.ready);
+          const px = await page.evaluate(() => document.getElementById("x").getBoundingClientRect().width);
+          const chromeEm = px / 100;
+          const drift = Math.abs(hbEm - chromeEm) / chromeEm;
+          if (drift >= TOLERANCE) {
+            throw new Error(
+              `${c.family} ${c.axis}=${pos} "${c.text}": hb=${hbEm.toFixed(4)}em chrome=${chromeEm.toFixed(4)}em drift=${(drift * 100).toFixed(3)}%`,
             );
           }
         }

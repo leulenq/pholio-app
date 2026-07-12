@@ -37,6 +37,8 @@ const {
   resolveVoice,
   advanceEm,
   resolveWeight,
+  hasVariableAxis,
+  resolveNameAxes,
 } = require("./font-library");
 const { nameAdvanceEm } = require("./perception/font-files");
 const {
@@ -492,14 +494,47 @@ function synthesizeDesignLanguage(input = {}) {
   const rotation = tone.formality >= 0.6 && rng() < 0.08 ? -90 : 0;
   if (rotation !== 0) decide("name-rotation", "-90 (vertical spine)", "rare editorial treatment, formality-gated");
 
+  // Variable-axis name treatment (Phase 4). On the edition path, map the
+  // edition's register + name length onto the display family's width/optical
+  // axes: a spine-lockup edition pulls the rail EXTENDED, a large-display
+  // edition CONDENSES long names to earn their size, and optical size tracks
+  // the display register so didone/soft-serif cuts read as true display cuts.
+  // The chosen axis position is carried on the name treatment and threaded to
+  // BOTH measurement (here) and the renderer's font-variation-settings, so the
+  // shaped width matches the rendered width by construction. Families without
+  // a design axis (or the legacy no-edition path) get null — byte-identical to
+  // the static measurement.
+  let nameAxes = null;
+  if (edition && hasVariableAxis(display)) {
+    const reg = (operators && operators.register) || "standard";
+    const sMin = Number(edition.scale?.minPt) || NAME_PT_MIN;
+    const sMax = Number(edition.scale?.maxPt) || NAME_PT_MAX;
+    const opszSizePt =
+      reg === "display" ? sMax : reg === "quiet" ? sMin : Math.round(sMin + (sMax - sMin) * 0.66);
+    const editionLockups = Array.isArray(edition.lockups) ? edition.lockups : [];
+    let widthMode = "normal";
+    if (editionLockups.includes("spine")) widthMode = "extended";
+    else if (reg === "display" || sMax >= 56) widthMode = "condense";
+    nameAxes = resolveNameAxes(display, { widthMode, nameLength: text.length, opszSizePt });
+    if (nameAxes) {
+      decide(
+        "name-axes",
+        Object.entries(nameAxes).map(([k, v]) => `${k} ${v}`).join(", "),
+        `${display} variable ${widthMode} cut (register ${reg}, ${text.length} chars)`,
+      );
+    }
+  }
+
   // Real glyph metrics (audit P0-1): measure the exact string the renderer
   // will draw, in the cast voice's family/weight/case, from the vendored
-  // font files. Falls back to the library's calibrated estimate.
+  // font files (at the resolved axis position when set). Falls back to the
+  // library's calibrated estimate.
   const { advanceEm: glyphEm, measured: glyphMeasured } = nameAdvanceEm({
     family: display,
     weight: weightClass,
     text,
     nameCase,
+    axes: nameAxes,
   });
   // Stacked (two-line) treatments size from the longest segment, whose
   // per-glyph average differs from the full string's (spaces are narrow) —
@@ -510,6 +545,7 @@ function synthesizeDesignLanguage(input = {}) {
     weight: weightClass,
     text: longestPart,
     nameCase,
+    axes: nameAxes,
   });
   decide(
     "name-metrics",
@@ -519,7 +555,21 @@ function synthesizeDesignLanguage(input = {}) {
       : "no vendored font file — calibrated per-family estimate",
   );
 
-  const name = { text, case: nameCase, weightClass, trackingEm, targetSpan, rotation, glyphEm, glyphEmLongest, glyphMeasured };
+  const name = {
+    text,
+    case: nameCase,
+    weightClass,
+    trackingEm,
+    targetSpan,
+    rotation,
+    glyphEm,
+    glyphEmLongest,
+    glyphMeasured,
+    // Edition path carries the variable-axis position (null when the family
+    // has none); the legacy path omits the key entirely so plans stay
+    // byte-identical to the pre-Phase-4 synthesizer.
+    ...(edition ? { axes: nameAxes } : {}),
+  };
   decide(
     "name-treatment",
     `${display} ${nameCase} w${weightClass} tracking ${trackingEm}em span ${targetSpan}`,
