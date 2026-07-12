@@ -164,15 +164,15 @@ export default function CastingPage() {
     <div className="cas">
       <header className="cas-header">
         <div>
-          <h1 className="cas-title">Casting</h1>
+          <h1 className="cas-title">Signing</h1>
           <p className="cas-sub">
             {boards.length
               ? `${boards.length} board${boards.length === 1 ? '' : 's'} · ${stats.pipeline} talent in pipeline`
-              : 'Your casting boards live here'}
+              : 'Your signing boards live here'}
           </p>
         </div>
         <button className="cas-new" onClick={openModal}>
-          <Plus size={16} /> New Casting
+          <Plus size={16} /> New Board
         </button>
       </header>
 
