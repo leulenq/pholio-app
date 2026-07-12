@@ -27,6 +27,7 @@ async function createSchema() {
       t.string('id', 36).primary()
       t.string('email').notNullable().unique()
       t.string('role').notNullable()
+      t.string('account_status').notNullable().defaultTo('active')
       t.timestamp('created_at').defaultTo(knex.fn.now())
     })
   }
