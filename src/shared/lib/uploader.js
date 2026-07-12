@@ -133,7 +133,14 @@ const upload = multer({
   limits: { fileSize: config.maxUploadBytes },
 });
 
-/** Agency workspace logos — PNG or SVG to preserve transparency in the rail lockup. */
+/**
+ * Agency workspace logos — PNG (raster) or SVG (vector) are accepted at the
+ * upload boundary, but SVG is never persisted as-is (see processAgencyLogo):
+ * it is rasterized to PNG via sharp so no inline <script>/event-handler/
+ * external-reference payload can reach storage or a browser. This filter is
+ * a cheap client-declared MIME/extension pre-check only — the authoritative
+ * check is the magic-byte sniff below, run against the real buffer.
+ */
 const AGENCY_LOGO_MIMES = new Set(["image/png", "image/svg+xml"]);
 const AGENCY_LOGO_EXTS = new Set([".png", ".svg"]);
 
@@ -142,6 +149,40 @@ const agencyLogoFileFilter = (req, file, cb) => {
   const ok = AGENCY_LOGO_MIMES.has(file.mimetype) && AGENCY_LOGO_EXTS.has(ext);
   cb(ok ? null : new Error("Agency logo must be a PNG or SVG file"), ok);
 };
+
+/**
+ * Sniff the actual bytes of an agency-logo upload instead of trusting the
+ * client-declared MIME type / filename extension (SEC-0.6). Returns "png",
+ * "svg", or null when the buffer matches neither signature.
+ */
+function detectAgencyLogoKind(buffer) {
+  if (!buffer || buffer.length < 8) return null;
+
+  // PNG signature: 89 50 4E 47 0D 0A 1A 0A
+  const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (PNG_SIGNATURE.every((byte, i) => buffer[i] === byte)) {
+    return "png";
+  }
+
+  // SVG is XML text, not a fixed binary magic number — sniff the leading
+  // bytes (past an optional UTF-8 BOM / whitespace) for an XML declaration
+  // or an <svg> root tag.
+  const head = buffer
+    .slice(0, 1024)
+    .toString("utf8")
+    .replace(/^\uFEFF/, "")
+    .trimStart()
+    .toLowerCase();
+  if (
+    head.startsWith("<?xml") ||
+    head.startsWith("<svg") ||
+    head.startsWith("<!doctype svg")
+  ) {
+    return "svg";
+  }
+
+  return null;
+}
 
 const uploadAgencyLogo = multer({
   storage,
@@ -338,20 +379,22 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
 }
 
 /**
- * Process agency logo — PNG (raster) or SVG (vector), preserving transparency.
+ * Process agency logo. Accepts PNG or SVG at the upload boundary, but SVG is
+ * always rasterized to PNG here (SEC-0.6) — sharp/libvips renders the vector
+ * to a flat bitmap, so any embedded <script>, event-handler attribute
+ * (onload=...), or external xlink:href reference in the source markup is
+ * dropped rather than persisted and later served back to a browser as
+ * stored XSS. Only PNG bytes ever reach storage for this path.
+ *
+ * The client-declared mimetype/extension are never trusted to pick the
+ * branch below — resolveImageBuffer() is read first and the real bytes are
+ * sniffed via detectAgencyLogoKind() so a relabeled file can't bypass the
+ * allowlist.
  */
 async function processAgencyLogo(
   file,
   { agencyId, maxWidth = 400, maxHeight = 400 } = {},
 ) {
-  const ext = path.extname(file.originalname).toLowerCase();
-  const isSvg = file.mimetype === "image/svg+xml" || ext === ".svg";
-  const isPng = file.mimetype === "image/png" || ext === ".png";
-
-  if (!isSvg && !isPng) {
-    throw new Error("Agency logo must be a PNG or SVG file");
-  }
-
   const id = agencyId || "unknown";
   const type = "agencies";
   const isR2Key = !!file.key;
@@ -360,18 +403,35 @@ async function processAgencyLogo(
     ? path.basename(file.key, path.extname(file.key))
     : uuidv4();
   const prefix = getR2Prefix(id, type);
-  const logoExt = isSvg ? ".svg" : ".png";
-  const logoKey = `${prefix}/logos/${uuid}${logoExt}`;
-  const contentType = isSvg ? "image/svg+xml" : "image/png";
 
   const imageBuffer = await resolveImageBuffer(file, isR2Key);
   if (!imageBuffer?.length) {
     throw new Error("Empty image buffer");
   }
 
-  const sharp = isSvg ? null : requireSharp();
+  const detectedKind = detectAgencyLogoKind(imageBuffer);
+  if (!detectedKind) {
+    throw new Error("Agency logo must be a PNG or SVG file");
+  }
+  const isSvg = detectedKind === "svg";
+
+  // Every stored logo is PNG: raster uploads pass through sharp untouched
+  // in format, and SVGs are rasterized to PNG (never persisted as SVG).
+  const logoExt = ".png";
+  const logoKey = `${prefix}/logos/${uuid}${logoExt}`;
+  const contentType = "image/png";
+
+  const sharp = requireSharp();
   const processedBuffer = isSvg
-    ? imageBuffer
+    ? await sharp(imageBuffer, { density: 300 })
+        .resize({
+          width: maxWidth,
+          height: maxHeight,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .png({ compressionLevel: 9, adaptiveFiltering: true })
+        .toBuffer()
     : await sharp(imageBuffer)
         .rotate() // auto-orient from EXIF metadata when present
         .resize({
