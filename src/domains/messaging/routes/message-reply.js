@@ -187,6 +187,13 @@ router.post("/api/reply/:token/session", loadReplyContext, async (req, res) => {
       { applicationId, talentUserId },
     );
 
+    // Regenerate the session id before establishing the authenticated session
+    // (SEC-0.7: session-fixation gap) — consistent with the /login handlers.
+    // The pre-bootstrap session carries no state we need to preserve here.
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+
     req.session.userId = talentUserId;
     req.session.role = "TALENT";
 

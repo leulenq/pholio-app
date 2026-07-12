@@ -268,6 +268,14 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
   const termsAccepted = req.body?.terms_accepted === true;
   const privacyAccepted = req.body?.privacy_accepted === true;
 
+  // Declared at handler scope because several exit paths need it — notably the
+  // existing-user "AGENCY login not assigned to an organization" branch, which
+  // previously referenced an isJsonRequest that was only declared inside the
+  // new-user block and threw a ReferenceError (masking the intended 403).
+  const isJsonRequest =
+    (req.headers["content-type"] || "").includes("application/json") ||
+    (req.headers.accept || "").includes("application/json");
+
   // Check if request is JSON
   if (
     req.headers["content-type"] &&
