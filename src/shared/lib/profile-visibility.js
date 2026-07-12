@@ -252,6 +252,12 @@ function selectColumnsForAudience(audience, opts = {}) {
 }
 
 module.exports = {
+  // Audience enum — re-exported so callers can pull the visibility API and
+  // its audiences from one module (it is imported above from audience-dto,
+  // the canonical definition). Without this re-export, the natural
+  // `const { AUDIENCE } = require("./profile-visibility")` resolves to
+  // undefined and `AUDIENCE.PUBLIC` throws.
+  AUDIENCE,
   // Knex helpers.
   applyImageVisibility,
   VISIBLE_IMAGE_STATUSES,
