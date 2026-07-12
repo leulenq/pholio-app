@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CI: true
+
+jobs:
+  client-build:
+    name: Client build (required)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client --legacy-peer-deps
+
+      - name: Build client
+        run: npm run --prefix client build
+
+  client-test:
+    name: Client tests (required)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install client dependencies
+        run: npm ci --prefix client --legacy-peer-deps
+
+      - name: Run client tests
+        run: npm run --prefix client test
+
+  server-test:
+    name: Server tests (informational)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      # TODO: make required once the pre-existing SQLite FK-quirk suites are fixed
+      # (see tasks/agency-dashboard-implementation-plan.md INF-0.1). Roughly 7 server
+      # jest suites currently fail on a SQLite foreign-key constraint quirk unrelated
+      # to the changes being tested, so this job is non-blocking for now.
+      - name: Run server tests
+        continue-on-error: true
+        run: npm test
+
+  client-lint:
+    name: Client lint (informational)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install client dependencies
+        run: npm ci --prefix client --legacy-peer-deps
+
+      # TODO: make required once the ~83 pre-existing eslint errors in client/ are
+      # fixed (see tasks/agency-dashboard-implementation-plan.md INF-0.1). This job
+      # is non-blocking for now so it doesn't block merges on unrelated pre-existing
+      # lint debt.
+      - name: Run client lint
+        continue-on-error: true
+        run: npm run --prefix client lint
