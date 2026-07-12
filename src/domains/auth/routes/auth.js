@@ -170,6 +170,14 @@ router.post("/api/dev/login", async (req, res, next) => {
         .json({ success: false, error: "Invalid email or password." });
     }
 
+    // Regenerate the session id before establishing the authenticated session
+    // (SEC-0.7: session-fixation gap). Must happen before any identity fields
+    // are assigned — regenerate() replaces req.session with a brand-new,
+    // empty session, so fields have to be (re-)assigned after this point.
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+
     if (user.role === "AGENCY") {
       const agencyContext = await resolveAgencyContextForMemberUser(user.id);
       if (!agencyContext || !agencyContext.agency) {
@@ -821,6 +829,21 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       email: user.email,
       role: user.role,
     });
+
+    // Regenerate the session id before establishing the authenticated session
+    // (SEC-0.7: session-fixation gap). Must happen before any identity fields
+    // are assigned — regenerate() replaces req.session with a brand-new,
+    // empty session, so fields have to be (re-)assigned after this point.
+    // The auto-create branch above may have stashed onboarding prefill data
+    // on the pre-auth session (req.session.onboardingData); carry it forward
+    // across the regenerate so onboarding prefill still works.
+    const preAuthOnboardingData = req.session.onboardingData;
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+    if (preAuthOnboardingData) {
+      req.session.onboardingData = preAuthOnboardingData;
+    }
 
     if (user.role === "AGENCY") {
       const agencyContext = await resolveAgencyContextForMemberUser(user.id);
