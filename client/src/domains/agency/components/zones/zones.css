@@ -204,7 +204,7 @@
 }
 
 .note-entry {
-  border-left: 2px solid #EDE9E4;
+  border-left: 1px solid #EDE9E4;
   padding: 4px 0 4px 12px;
 }
 
@@ -404,9 +404,9 @@
 
 /* Application status card */
 .app-status-card {
-  border-left: 3px solid #C9A55A;
+  border: 1px solid #E4D9C2;
   background: #FAF8F5;
-  border-radius: 0 10px 10px 0;
+  border-radius: 10px;
   padding: 14px 16px;
   margin-bottom: 24px;
 }

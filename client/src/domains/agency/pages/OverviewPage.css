@@ -52,9 +52,7 @@
   font-family: 'Noto Serif Display', 'Playfair Display', serif;
   font-size: 92px; line-height: 0.82; letter-spacing: -0.035em;
   font-variant-numeric: lining-nums;
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  background-image: linear-gradient(172deg, #E7C97F 0%, #C9A55A 54%, #A07E3C 100%);
-  filter: drop-shadow(0 2px 1px rgba(160, 126, 60, 0.18));
+  color: var(--ag-gold);
 }
 .ov-brief-lead--urgent .ov-brief-figure {
   background-image: linear-gradient(172deg, #D77E66 0%, #C0563F 56%, #99402C 100%);
@@ -201,10 +199,10 @@
 
 /* ---------- NEXT MOVES ---------- */
 .ov-moves { display: flex; flex-direction: column; gap: 9px; }
-.ov-move { display: block; padding: 12px 14px; border: 1px solid #e7ddca; border-left: 2px solid var(--ag-gold); border-radius: 4px; background: rgba(255,255,255,.5); text-decoration: none; transition: background .15s, border-color .15s; }
+.ov-move { display: block; padding: 12px 14px; border: 1px solid #e7ddca; border-radius: 4px; background: rgba(255,255,255,.5); text-decoration: none; transition: background .15s, border-color .15s; }
 .ov-move:hover { background: rgba(201,165,90,.08); }
-.ov-move--urgent { border-left-color: #c0563f; }
-.ov-move--positive { border-left-color: #7d9b82; }
+.ov-move--urgent { border-color: #c0563f; }
+.ov-move--positive { border-color: #7d9b82; }
 .ov-move-text { display: block; font-size: 11.5px; line-height: 1.4; color: #4a443c; }
 .ov-move-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
 

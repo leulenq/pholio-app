@@ -23,10 +23,7 @@
   font-feature-settings: 'lnum' 1;
   -webkit-font-smoothing: antialiased;
 
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  background-image: linear-gradient(160deg, #403a30 0%, #1f1c16 100%);
+  color: #2a251d;
 
   flex: none;
   user-select: none;
