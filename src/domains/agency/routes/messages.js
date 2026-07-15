@@ -18,6 +18,9 @@ const {
 const { getSessionActorUserId } = require("../services/context");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const logActivity = require("./agency-log-activity");
+const {
+  applyMinorSubmissionFilter,
+} = require("../services/minor-submission-access");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
@@ -42,7 +45,7 @@ router.get(
         .as("latest_msgs");
 
       // Get threads with latest message info
-      const threads = await knex("messages as m")
+      const threads = await applyMinorSubmissionFilter(knex("messages as m")
         .join("applications as a", "m.application_id", "a.id")
         .join("profiles as p", "a.profile_id", "p.id")
         .leftJoin("board_applications as ba", "ba.application_id", "a.id")
@@ -61,10 +64,13 @@ router.get(
           "m.created_at as timestamp",
           "p.id as profile_id",
         ])
-        .orderBy("m.created_at", "desc");
+        .orderBy("m.created_at", "desc"), {
+          alias: "a",
+          allowMinor: req.allowMinorSubmissions,
+        });
 
       // Get unread counts for each application
-      const unreadCounts = await knex("messages")
+      const unreadCounts = await applyMinorSubmissionFilter(knex("messages")
         .join("applications", "messages.application_id", "applications.id")
         .where("applications.agency_id", agencyId)
         .whereNot("applications.status", "withdrawn")
@@ -72,7 +78,10 @@ router.get(
         .where("messages.sender_type", "TALENT")
         .groupBy("messages.application_id")
         .select("messages.application_id")
-        .count("* as count");
+        .count("* as count"), {
+          alias: "applications",
+          allowMinor: req.allowMinorSubmissions,
+        });
 
       const unreadMap = {};
       unreadCounts.forEach((row) => {
@@ -340,7 +349,42 @@ router.post(
   },
 );
 
-// POST /api/agency/messages/:messageId/read - Mark message as read
+// POST /api/agency/messages/read-all - Mark every visible talent message as read
+router.post(
+  "/api/agency/messages/read-all",
+  requireRole("AGENCY"),
+  async (req, res) => {
+    try {
+      const agencyId = req.session.userId;
+      const visibleApplicationIds = knex("applications")
+        .select("id")
+        .where({ agency_id: agencyId })
+        .whereNot("status", "withdrawn");
+      applyMinorSubmissionFilter(visibleApplicationIds, {
+        alias: "applications",
+        allowMinor: req.allowMinorSubmissions,
+      });
+
+      const updated = await knex("messages")
+        .whereIn("application_id", visibleApplicationIds)
+        .where({ is_read: false, sender_type: "TALENT" })
+        .update({
+          is_read: true,
+          read_at: knex.fn.now(),
+        });
+
+      return res.json({
+        success: true,
+        data: { updated: Number(updated) || 0 },
+      });
+    } catch (error) {
+      console.error("[Messages API] Error marking all messages as read:", error);
+      return res.status(500).json({ error: "Failed to mark messages as read" });
+    }
+  },
+);
+
+// POST /api/agency/messages/:messageId/read - Mark one talent message as read
 router.post(
   "/api/agency/messages/:messageId/read",
   requireRole("AGENCY"),
@@ -350,12 +394,17 @@ router.post(
       const agencyId = req.session.userId;
 
       // Get message and verify access
-      const message = await knex("messages")
+      const message = await applyMinorSubmissionFilter(knex("messages")
         .where({ "messages.id": messageId })
+        .where({ "messages.sender_type": "TALENT" })
         .join("applications", "messages.application_id", "applications.id")
         .where({ "applications.agency_id": agencyId })
+        .whereNot("applications.status", "withdrawn")
         .select("messages.*")
-        .first();
+        .first(), {
+          alias: "applications",
+          allowMinor: req.allowMinorSubmissions,
+        });
 
       if (!message) {
         return res.status(404).json({ error: "Message not found" });
@@ -386,13 +435,17 @@ router.get(
     try {
       const agencyId = req.session.userId;
 
-      const result = await knex("messages")
+      const result = await applyMinorSubmissionFilter(knex("messages")
         .join("applications", "messages.application_id", "applications.id")
         .where({ "applications.agency_id": agencyId })
+        .whereNot("applications.status", "withdrawn")
         .where({ "messages.is_read": false })
-        .where("messages.sender_type", "!=", "AGENCY") // Only count messages FROM talent
+        .where("messages.sender_type", "TALENT")
         .count("* as count")
-        .first();
+        .first(), {
+          alias: "applications",
+          allowMinor: req.allowMinorSubmissions,
+        });
 
       return res.json({
         success: true,

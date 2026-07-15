@@ -58,6 +58,7 @@ const GENERIC_EXPORT_KEYS = [
   "talent_image_embeddings",
   "talent_text_embeddings",
   "message_reply_tokens",
+  "message_reply_session_tokens",
   "comp_card_presets",
   "notifications",
   "onboarding_analytics",

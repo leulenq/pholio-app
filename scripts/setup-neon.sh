@@ -59,8 +59,7 @@ NODE_ENV=development
 # Server Configuration
 PORT=3000
 
-# Business Logic
-COMMISSION_RATE=0.25
+# Uploads
 MAX_UPLOAD_MB=8
 
 # PDF Generation

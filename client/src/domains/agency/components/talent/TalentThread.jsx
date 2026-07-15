@@ -121,12 +121,17 @@ function Notes({ applicationId }) {
         placeholder="Log a decision or internal note…"
         icon={Plus}
       />
+      <p className="tt-note-guidance">
+        Internal only. Record work-relevant facts and decisions; do not include protected-class commentary.
+      </p>
       <div className="tt-log">
         {notes.length === 0 && <Empty icon={PenLine}>No notes yet. Track decisions here.</Empty>}
         {notes.map((n, i) => (
           <div key={n.id || i} className="tt-note">
             <div className="tt-note-text">{n.note || n.text}</div>
-            <div className="tt-meta">{n.created_by || 'You'} · {fmtDate(n.created_at)}</div>
+            <div className="tt-meta">
+              {n.created_by || 'Former team member'} · {fmtDate(n.created_at)}{n.edited ? ' · edited' : ''}
+            </div>
           </div>
         ))}
       </div>

@@ -28,7 +28,6 @@ import { resolveMatchScore, tierBandToScore, constraintAnnotations, amendBriefRe
 import MatchScore from '../components/ui/MatchScore';
 import BriefUnderstanding from '../components/BriefUnderstanding';
 import { DiscoverDetail } from './DiscoverDetail';
-import Grainient from './Grainient';
 import './DiscoverPage.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -130,10 +129,19 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
   return (
     <motion.article
       className="dc-card"
+      tabIndex={0}
+      aria-label={`Open ${talent.name}'s profile`}
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.4), duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
       onClick={() => onOpen(talent)}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen(talent);
+        }
+      }}
     >
       {talent.photo
         ? <img src={talent.photo} alt={talent.name} className="dc-card-img" loading="lazy" />
@@ -369,20 +377,7 @@ export default function DiscoverPage() {
 
   return (
     <div className="dc-page">
-      {/* Background — kept */}
-      <div className="dc-bg" aria-hidden="true">
-        <Grainient
-          color1="#C9A55A" color2="#3D2000" color3="#6B4A10"
-          timeSpeed={0.8} colorBalance={0.4} warpStrength={1.2}
-          warpFrequency={3.5} warpSpeed={2.2} warpAmplitude={70}
-          blendAngle={-20} blendSoftness={0.45} rotationAmount={280}
-          noiseScale={2.2} grainAmount={0} grainScale={0}
-          grainAnimated={false} contrast={1.5} gamma={0.55}
-          saturation={0.85} centerX={0.3} centerY={0.15} zoom={1}
-        />
-        <div className="dc-bg-veil" />
-      </div>
-      <div className="dc-neural" aria-hidden="true" />
+      <div className="dc-bg" aria-hidden="true" />
 
       {/* ── Threshold ── */}
       <section className="dc-threshold">

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../api/talent';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useFlash } from '../../../shared/hooks/useFlash';
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/talentNotifications';
 
 export function useProfile() {
   const { profile, images, isLoading: isAuthLoading } = useAuth();
@@ -11,7 +11,7 @@ export function useProfile() {
 
   const updateProfileMutation = useMutation({
     mutationFn: (data) => talentApi.updateProfile(data),
-    onSuccess: (response) => {
+    onSuccess: () => {
       // Invalidate and refetch auth/profile data
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });

@@ -11,6 +11,7 @@ const LEGACY_ROLE_ALIASES = {
 
 const ALL_PERMISSIONS = [
   "org.view",
+  "account.accept_legal",
   "org.edit_profile",
   "org.edit_branding",
   "org.edit_settings",
@@ -32,6 +33,7 @@ const ALL_PERMISSIONS = [
   "discover.invite",
   "talent.claim",
   "talent.download_comp_card",
+  "talent.view_minor_submissions",
   "applications.view_list",
   "applications.view_detail",
   "applications.view_timeline",
@@ -57,7 +59,11 @@ const ALL_PERMISSIONS = [
   "roster.view",
   "roster.view_profile",
   "roster.manage_status",
+  "roster.add_talent",
+  "roster.import",
   "roster.message",
+  "calendar.view",
+  "calendar.manage",
   "open_call.view",
   "open_call.manage",
   "matching.rank",
@@ -100,6 +106,7 @@ const ALL_PERMISSIONS = [
 
 const VIEWER_PERMISSIONS = [
   "org.view",
+  "account.accept_legal",
   "org.view_analytics",
   "org.view_activity",
   "team.view",
@@ -113,6 +120,7 @@ const VIEWER_PERMISSIONS = [
   "boards.view_pipeline",
   "roster.view",
   "roster.view_profile",
+  "calendar.view",
   "notes.view",
   "tags.view",
   "messages.view_threads",
@@ -164,7 +172,9 @@ const AGENT_EXTRA = [
   "boards.edit_requirements",
   "boards.recalculate_scores",
   "roster.manage_status",
+  "roster.add_talent",
   "roster.message",
+  "calendar.manage",
   "notes.edit",
   "notes.delete",
   "tags.remove",
@@ -184,6 +194,7 @@ const ADMIN_EXTRA = [
   "org.edit_settings",
   "org.complete_onboarding",
   "org.export_data",
+  "roster.import",
   "team.invite",
   "team.assign_role",
   "team.deactivate",
@@ -191,6 +202,7 @@ const ADMIN_EXTRA = [
   "team.revoke_permission",
   "team.view_audit",
   "talent.claim",
+  "talent.view_minor_submissions",
   "boards.delete",
   "boards.edit_weights",
   "filters.edit",
@@ -231,6 +243,7 @@ const DANGEROUS_PERMISSIONS = new Set([
   "boards.delete",
   "team.assign_role",
   "team.grant_permission",
+  "talent.view_minor_submissions",
 ]);
 
 function normalizePresetRole(role) {

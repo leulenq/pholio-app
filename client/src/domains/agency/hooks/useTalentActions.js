@@ -24,9 +24,9 @@ export function useTalentActions(applicationId) {
     onError: (e) => toast.error(e?.message || 'Something went wrong'),
   });
 
-  const accept = useMutation({ mutationFn: () => acceptApplication(applicationId), ...opts('Talent accepted') });
+  const accept = useMutation({ mutationFn: () => acceptApplication(applicationId), ...opts('Talent joined the roster') });
   const shortlist = useMutation({ mutationFn: () => shortlistApplication(applicationId), ...opts('Added to shortlist') });
-  const decline = useMutation({ mutationFn: () => declineApplication(applicationId), ...opts('Application declined') });
+  const decline = useMutation({ mutationFn: () => declineApplication(applicationId), ...opts('Not moving forward') });
   const keepOnFile = useMutation({ mutationFn: () => keepOnFileApplication(applicationId), ...opts('Kept on file') });
   const requestMore = useMutation({ mutationFn: () => requestMoreApplication(applicationId), ...opts('Requested more materials') });
   const requestMeeting = useMutation({ mutationFn: () => requestMeetingApplication(applicationId), ...opts('Meeting requested') });

@@ -2,14 +2,10 @@ import { normalizeScore, resolveTier } from '../../lib/matchTier';
 import './MatchScore.css';
 
 /**
- * MatchScore — editorial serif numeral, gradient fill.
+ * MatchScore — plain inline match score for agency scanning.
  *
  * tone="light"   (default): numeral only, for cards and rows on cream/white
- * tone="overlay": numeral inside a dark semi-transparent mount, for photo contexts
- * tone="dark":   same as overlay — numeral shifts to cream fill on dark panels
- *
- * On overlay/dark, the outer wrapper (.match-score-mount) receives className
- * for layout positioning. On light, className applies to the numeral directly.
+ * Scores are never rendered as a badge, chip, or gradient-text ornament.
  */
 export default function MatchScore({
   score = 0,
@@ -19,28 +15,6 @@ export default function MatchScore({
 }) {
   const normalized = normalizeScore(score);
   const strength = resolveTier(normalized);
-
-  const numeral = (
-    <span
-      className={[
-        'match-score',
-        `match-score--${tone}`,
-        `match-score--${size}`,
-        `match-score--${strength}`,
-      ].filter(Boolean).join(' ')}
-      aria-label={`${normalized} match score`}
-    >
-      {normalized}
-    </span>
-  );
-
-  if (tone === 'overlay' || tone === 'dark') {
-    return (
-      <span className={['match-score-mount', className].filter(Boolean).join(' ')}>
-        {numeral}
-      </span>
-    );
-  }
 
   return (
     <span

@@ -104,7 +104,7 @@
 }
 
 .st-thread-item.active {
-  background: rgba(var(--ag-gold-rgb), 0.10);
+  background: rgba(var(--ag-gold-rgb), 0.08);
 }
 
 .st-thread-item.unread {

@@ -60,7 +60,7 @@ export default function Breadcrumbs() {
           </Link>
         </li>
 
-        {breadcrumbs.map((crumb, index) => (
+        {breadcrumbs.map((crumb) => (
           <li key={crumb.path} className="flex items-center gap-2">
             <ChevronRight className="h-4 w-4 text-gray-400" />
             {crumb.isLast ? (

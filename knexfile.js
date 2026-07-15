@@ -1,5 +1,7 @@
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+if (process.env.PHOLIO_SAFE_TEST_RUNNER !== "1") {
+  require("dotenv").config({ path: path.join(__dirname, ".env") });
+}
 
 function normalizePostgresSslMode(connectionString) {
   try {
@@ -35,7 +37,10 @@ const shared = {
 const sqlite = {
   client: 'sqlite3',
   connection: {
-    filename: process.env.DATABASE_URL?.replace('sqlite://', '') || './dev.sqlite3'
+    filename:
+      process.env.DATABASE_URL?.replace('sqlite://', '') ||
+      process.env.PHOLIO_SAFE_DEFAULT_DATABASE ||
+      './dev.sqlite3'
   },
   useNullAsDefault: true,
   ...shared
@@ -127,14 +132,13 @@ if (client === 'pg') {
 
   // Log the cleaning process for debugging (in both development and production for troubleshooting)
   if (cleanedUrl !== originalUrl) {
-    console.log('[DATABASE_URL] Cleaned URL from:', originalUrl.substring(0, 80) + (originalUrl.length > 80 ? '...' : ''));
-    console.log('[DATABASE_URL] Cleaned URL to:', cleanedUrl.substring(0, 80) + (cleanedUrl.length > 80 ? '...' : ''));
+    console.log('[DATABASE_URL] Normalized connection-string formatting (credentials redacted)');
   }
 
   // Validate that cleaned URL looks like a PostgreSQL connection string
   if (!cleanedUrl.startsWith('postgresql://') && !cleanedUrl.startsWith('postgres://')) {
     throw new Error(
-      `Invalid DATABASE_URL format. Expected postgresql:// or postgres://, got: ${process.env.DATABASE_URL.substring(0, 50)}...\n\n` +
+      'Invalid DATABASE_URL format. Expected postgresql:// or postgres://.\n\n' +
       '❌ ERROR: Your DATABASE_URL contains invalid content.\n\n' +
       'Common mistakes:\n' +
       '1. Copied the entire psql command instead of just the connection string\n' +
@@ -148,7 +152,7 @@ if (client === 'pg') {
       '5. Copy ONLY the connection string, NOT the psql command\n' +
       '6. It should look like: postgresql://user:pass@host/dbname?sslmode=verify-full\n' +
       '7. Do NOT include: psql, quotes, or any other text\n\n' +
-      `What you provided: ${process.env.DATABASE_URL.substring(0, 80)}...\n\n` +
+      'The configured value is intentionally not echoed because it may contain credentials.\n\n' +
       'Example of CORRECT format:\n' +
       'postgresql://username:password@ep-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=verify-full'
     );
@@ -214,9 +218,6 @@ if (client === 'pg') {
     }
 
     if (containsPlaceholder) {
-      const originalUrl = process.env.DATABASE_URL;
-      const originalPreview = originalUrl ? originalUrl.substring(0, 80) + (originalUrl.length > 80 ? '...' : '') : 'not set';
-
       throw new Error(
         'DATABASE_URL contains a placeholder value instead of your actual Neon connection string.\n\n' +
         '❌ ERROR: You used a placeholder like "host.neon.tech" instead of your real database hostname.\n\n' +
@@ -228,7 +229,7 @@ if (client === 'pg') {
         '5. Paste the REAL connection string in Netlify environment variables\n' +
         '6. Make sure it includes ?sslmode=verify-full at the end\n' +
         '7. Make sure the hostname starts with "ep-" (this is required for Neon databases)\n\n' +
-        `What you provided: ${originalPreview}\n\n` +
+        'The configured value is intentionally not echoed because it may contain credentials.\n\n' +
         'Your real Neon connection string should look like:\n' +
         'postgresql://username:password@ep-xxx-xxx-xxx.us-east-2.aws.neon.tech/neondb?sslmode=verify-full\n\n' +
         'Common mistakes:\n' +

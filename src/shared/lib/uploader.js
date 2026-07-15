@@ -185,7 +185,10 @@ function detectAgencyLogoKind(buffer) {
 }
 
 const uploadAgencyLogo = multer({
-  storage,
+  // Always buffer logo uploads until their real bytes are sniffed and Sharp
+  // has produced a raster PNG. Using multer-s3 here would persist an untrusted
+  // raw SVG before validation, even if the final public logo were safe.
+  storage: multer.memoryStorage(),
   fileFilter: agencyLogoFileFilter,
   limits: { fileSize: config.maxUploadBytes },
 });

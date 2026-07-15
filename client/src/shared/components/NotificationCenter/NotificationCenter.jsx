@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../../../domains/talent/api/talent';
 import NotificationPanel from './NotificationPanel';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from './talentNotifications';
 import './NotificationCenter.css';
-
-export const TALENT_NOTIFICATIONS_QUERY_KEY = ['talent', 'notifications'];
 
 export default function NotificationCenter({ onClose, panelClassName = '' }) {
   const navigate = useNavigate();
@@ -68,17 +67,4 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
       onFooterClick={handleFooter}
     />
   );
-}
-
-/** Hook for shell badge count — shares cache with NotificationCenter */
-export function useNotificationUnreadCount() {
-  const { data } = useQuery({
-    queryKey: TALENT_NOTIFICATIONS_QUERY_KEY,
-    queryFn: () => talentApi.getNotifications(),
-    refetchInterval: 30000,
-    refetchOnWindowFocus: true,
-    staleTime: 15000,
-    select: (payload) => payload?.unreadCount ?? 0,
-  });
-  return data ?? 0;
 }

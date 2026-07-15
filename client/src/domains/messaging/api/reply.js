@@ -2,6 +2,8 @@
  * Magic-link reply API (token auth, no login required)
  */
 
+import { sameOriginMutationHeaders } from '../../../shared/lib/same-origin-request';
+
 const BASE = '/api/reply';
 
 export class ReplyApiError extends Error {
@@ -23,6 +25,7 @@ async function request(token, endpoint, options = {}) {
       Accept: 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
+      ...sameOriginMutationHeaders(options.method),
     },
   };
 
@@ -31,12 +34,17 @@ async function request(token, endpoint, options = {}) {
   try {
     data = await response.json();
   } catch {
-    data = null;
+    // Leave data null when the response has no JSON body.
   }
 
   if (!response.ok) {
+    const message =
+      (typeof data?.error === 'string' ? data.error : data?.error?.message) ||
+      data?.message ||
+      response.statusText ||
+      'Request failed';
     throw new ReplyApiError(
-      data?.error || data?.message || response.statusText || 'Request failed',
+      message,
       response.status,
       data,
     );
@@ -56,6 +64,10 @@ export function sendReplyMessage(token, message) {
   });
 }
 
-export function bootstrapReplySession(token) {
-  return request(token, '/session', { method: 'POST' });
+export function issueReplySessionToken(replyToken) {
+  return request(replyToken, '/session-token', { method: 'POST' });
+}
+
+export function bootstrapReplySession(sessionToken) {
+  return request(sessionToken, '/session', { method: 'POST' });
 }

@@ -131,7 +131,7 @@ export default function InterviewScheduleModal({ open, onClose }) {
                 <label className="iv-flabel">Talent <span className="iv-req">*</span></label>
                 {applicants.length === 0 ? (
                   <p className="iv-picker-empty">
-                    No applicants yet. Talent you accept on the Applicants page can be interviewed here.
+                    No submissions yet. Talent you move forward from Submissions can be interviewed here.
                   </p>
                 ) : selected ? (
                   <div className="iv-picker-chosen">

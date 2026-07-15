@@ -3,7 +3,7 @@ import { useCallback, useRef } from 'react';
 import { talentApi } from '../api/talent';
 import { useFlash } from '../../../shared/hooks/useFlash';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/talentNotifications';
 
 export function useMedia() {
   const queryClient = useQueryClient();

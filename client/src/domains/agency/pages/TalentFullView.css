@@ -32,7 +32,6 @@
 }
 
 .tfv-identity { padding-top: 4px; }
-.tfv-eyebrow { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--ag-gold); margin-bottom: 12px; }
 .tfv-name { font-family: 'Noto Serif Display', 'Playfair Display', serif; font-size: 44px; font-weight: 500; color: #16130D; line-height: 1.04; margin: 0; }
 .tfv-id-row { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
 .tfv-match { align-self: center; }

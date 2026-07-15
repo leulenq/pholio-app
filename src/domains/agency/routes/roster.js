@@ -7,9 +7,18 @@ const {
   sendApplicationStatusEmail,
   sendAgencyInviteEmail,
 } = require("../../../shared/lib/email");
-const { getSessionAgencyId } = require("../services/context");
+const {
+  getSessionActorUserId,
+  getSessionAgencyId,
+} = require("../services/context");
+const {
+  syncRosterMembershipForApplication,
+} = require("../services/roster-memberships");
 const { v4: uuidv4 } = require("uuid");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
+const {
+  getApplicationAccessDecision,
+} = require("../services/minor-submission-access");
 
 const router = express.Router();
 // Route the router's /api/agency/* endpoints (the measured-in-person writes)
@@ -28,6 +37,20 @@ router.post(
     try {
       const agencyId = getSessionAgencyId(req.session);
       const { applicationId, action } = req.params;
+
+      const access = await getApplicationAccessDecision(knex, {
+        agencyId,
+        applicationId,
+        allowMinor:
+          req.session.agencyMembershipRole === "OWNER" ||
+          req.session.agencyMembershipRole === "ADMIN",
+      });
+      if (!access.allowed && access.reason !== "not_found") {
+        return res.status(403).json({
+          error: "MINOR_SUBMISSION_ACCESS_DENIED",
+          reason: access.reason,
+        });
+      }
 
       if (!["accept", "archive", "decline"].includes(action)) {
         if (req.headers.accept?.includes("application/json")) {
@@ -49,18 +72,20 @@ router.post(
         return res.redirect("/dashboard/agency/applicants");
       }
 
+      const nextStatus =
+        action === "accept"
+          ? "accepted"
+          : action === "decline"
+            ? "declined"
+            : "archived";
+      const acceptedAt = action === "accept" ? new Date() : null;
       const updateData = {
-        status:
-          action === "accept"
-            ? "accepted"
-            : action === "decline"
-              ? "declined"
-              : "archived",
+        status: nextStatus,
         updated_at: knex.fn.now(),
       };
 
       if (action === "accept") {
-        updateData.accepted_at = knex.fn.now();
+        updateData.accepted_at = acceptedAt;
         updateData.declined_at = null;
       } else if (action === "decline") {
         updateData.declined_at = knex.fn.now();
@@ -70,9 +95,18 @@ router.post(
         updateData.accepted_at = null;
       }
 
-      await knex("applications")
-        .where({ id: applicationId })
-        .update(updateData);
+      await knex.transaction(async (trx) => {
+        await trx("applications").where({ id: applicationId }).update({
+          ...updateData,
+          updated_at: trx.fn.now(),
+        });
+        await syncRosterMembershipForApplication(
+          trx,
+          { ...application, accepted_at: acceptedAt },
+          nextStatus,
+          { actorUserId: getSessionActorUserId(req.session) },
+        );
+      });
 
       try {
         const profile = await knex("profiles")
@@ -142,6 +176,19 @@ async function requireRosterProfile(req, res) {
 
   if (!application) {
     res.status(403).json({ error: "Talent is not on your roster" });
+    return null;
+  }
+
+  const access = await getApplicationAccessDecision(knex, {
+    agencyId,
+    applicationId: application.id,
+    allowMinor: req.allowMinorSubmissions,
+  });
+  if (!access.allowed) {
+    res.status(403).json({
+      error: "MINOR_SUBMISSION_ACCESS_DENIED",
+      reason: access.reason,
+    });
     return null;
   }
 

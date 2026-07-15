@@ -24,11 +24,22 @@ const PholioMultiSelect = ({
   const searchInputRef = useRef(null);
   const selectId = id || 'pholio-multiselect';
 
+  const openSelect = () => {
+    setActiveIndex(options.length ? 0 : -1);
+    setIsOpen(true);
+  };
+
+  const closeSelect = () => {
+    setIsOpen(false);
+    setActiveIndex(-1);
+    setSearchQuery('');
+  };
+
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
+        closeSelect();
       }
     };
     document.addEventListener('pointerdown', handleClickOutside);
@@ -72,19 +83,6 @@ const PholioMultiSelect = ({
     );
   }, [options, searchable, searchQuery]);
 
-  // Sync activeIndex when opening or when filtered options list changes
-  useEffect(() => {
-    if (isOpen && filteredOptions.length > 0) {
-      setActiveIndex(0);
-    } else {
-      setActiveIndex(-1);
-    }
-  }, [isOpen, filteredOptions]);
-
-  useEffect(() => {
-    if (!isOpen) setSearchQuery('');
-  }, [isOpen]);
-
   useEffect(() => {
     if (isOpen && searchable) {
       const t = setTimeout(() => searchInputRef.current?.focus(), 0);
@@ -96,7 +94,7 @@ const PholioMultiSelect = ({
     if (disabled) return;
     if (e.key === 'Escape') {
       e.preventDefault();
-      setIsOpen(false);
+      closeSelect();
       return;
     }
     if (e.key === 'Enter' || e.key === ' ') {
@@ -106,14 +104,14 @@ const PholioMultiSelect = ({
           handleSelect(filteredOptions[activeIndex].value);
         }
       } else {
-        setIsOpen(true);
+        openSelect();
       }
       return;
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (!isOpen) {
-        setIsOpen(true);
+        openSelect();
       } else if (filteredOptions.length > 0) {
         setActiveIndex((prev) => (prev + 1) % filteredOptions.length);
       }
@@ -122,7 +120,7 @@ const PholioMultiSelect = ({
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (!isOpen) {
-        setIsOpen(true);
+        openSelect();
       } else if (filteredOptions.length > 0) {
         setActiveIndex((prev) => (prev - 1 + filteredOptions.length) % filteredOptions.length);
       }
@@ -147,7 +145,7 @@ const PholioMultiSelect = ({
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
-      setIsOpen(false);
+      closeSelect();
       return;
     }
     if (e.key === 'ArrowDown') {
@@ -198,7 +196,8 @@ const PholioMultiSelect = ({
             if (!disabled) {
               e.preventDefault();
               e.stopPropagation();
-              setIsOpen(!isOpen);
+              if (isOpen) closeSelect();
+              else openSelect();
             }
           }}
           tabIndex={0}
@@ -214,7 +213,7 @@ const PholioMultiSelect = ({
             const nextFocus = e.relatedTarget;
             if (containerRef.current?.contains(nextFocus)) return;
             blurTimeoutRef.current = setTimeout(() => {
-              setIsOpen(false);
+              closeSelect();
             }, 120);
           }}
         >
@@ -260,7 +259,18 @@ const PholioMultiSelect = ({
                   type="search"
                   className="pholio-multiselect-search-input"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    const nextQuery = e.target.value;
+                    const normalizedQuery = nextQuery.trim().toLowerCase();
+                    const hasMatches = options.some(
+                      (option) =>
+                        !normalizedQuery ||
+                        String(option.label ?? '').toLowerCase().includes(normalizedQuery) ||
+                        String(option.value ?? '').toLowerCase().includes(normalizedQuery),
+                    );
+                    setSearchQuery(nextQuery);
+                    setActiveIndex(hasMatches ? 0 : -1);
+                  }}
                   placeholder={searchPlaceholder}
                   aria-label={searchPlaceholder}
                   aria-controls={`${selectId}-listbox`}

@@ -1,13 +1,5 @@
-import { createContext, useContext, useMemo } from 'react';
-
-const AgencyPermissionsContext = createContext({
-  permissions: [],
-  presetRole: null,
-  membershipId: null,
-  can: () => false,
-  canAny: () => false,
-  canAll: () => false,
-});
+import { useMemo } from 'react';
+import { AgencyPermissionsContext } from './agency-permissions-context';
 
 export function AgencyPermissionsProvider({ session, children }) {
   const value = useMemo(() => {
@@ -30,9 +22,3 @@ export function AgencyPermissionsProvider({ session, children }) {
     </AgencyPermissionsContext.Provider>
   );
 }
-
-export function useAgencyPermissions() {
-  return useContext(AgencyPermissionsContext);
-}
-
-export default AgencyPermissionsContext;

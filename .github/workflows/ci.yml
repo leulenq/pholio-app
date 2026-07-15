@@ -77,7 +77,7 @@ jobs:
         run: npm test
 
   client-lint:
-    name: Client lint (informational)
+    name: Client lint (required)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -92,10 +92,5 @@ jobs:
       - name: Install client dependencies
         run: npm ci --prefix client --legacy-peer-deps
 
-      # TODO: make required once the ~83 pre-existing eslint errors in client/ are
-      # fixed (see tasks/agency-dashboard-implementation-plan.md INF-0.1). This job
-      # is non-blocking for now so it doesn't block merges on unrelated pre-existing
-      # lint debt.
       - name: Run client lint
-        continue-on-error: true
         run: npm run --prefix client lint

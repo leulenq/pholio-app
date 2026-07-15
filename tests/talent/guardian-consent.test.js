@@ -18,6 +18,7 @@ const {
   createConsentRequest,
   inspectConsentToken,
   confirmConsentToken,
+  revokeConsentToken,
   verifyConsentToken,
   getConsentStatus,
   getAgencyConsentStatus,
@@ -32,7 +33,8 @@ const GUARDIAN_EMAIL = "guardian.test@example.com";
 
 let originalSendGuardianConsentEmail;
 
-beforeAll(() => {
+beforeAll(async () => {
+  await knex.migrate.latest();
   originalSendGuardianConsentEmail = emailModule.sendGuardianConsentEmail;
   emailModule.sendGuardianConsentEmail = jest.fn().mockResolvedValue({
     messageId: "test-message-id",
@@ -393,6 +395,129 @@ describe("guardian consent service", () => {
       await knex("agencies")
         .whereIn("id", [firstAgencyId, secondAgencyId])
         .del();
+    }
+  });
+
+  test("guardian withdrawal revokes the exact grant and redacts bound submissions", async () => {
+    const fixture = await makeProfile();
+    const agencyId = uuidv4();
+    const applicationId = uuidv4();
+    await knex("agencies").insert({
+      id: agencyId,
+      name: "Revocation House",
+      slug: `revocation-${agencyId}`,
+      status: "ACTIVE",
+    });
+
+    try {
+      const { rawToken } = await createConsentRequest(
+        knex,
+        fixture.profileId,
+        {
+          guardianEmail: GUARDIAN_EMAIL,
+          agencyId,
+          agencyName: "Revocation House",
+        },
+      );
+      await confirmConsentToken(knex, rawToken);
+      const grant = await knex("minor_agency_consents")
+        .where({ profile_id: fixture.profileId, agency_id: agencyId })
+        .first();
+
+      await knex("applications").insert({
+        id: applicationId,
+        profile_id: fixture.profileId,
+        agency_id: agencyId,
+        status: "pending",
+        minor_at_submission: true,
+        guardian_consent_grant_id: grant.id,
+        guardian_consent_expires_at: grant.authorization_expires_at,
+      });
+      const noteId = uuidv4();
+      await knex("application_notes").insert({
+        id: noteId,
+        application_id: applicationId,
+        note: "Sensitive private note",
+      });
+      await knex("application_note_audit_events").insert({
+        id: uuidv4(),
+        note_id: noteId,
+        application_id: applicationId,
+        agency_id: agencyId,
+        event_type: "created",
+        before_note: null,
+        after_note: "Sensitive private note",
+      });
+      await knex("messages").insert({
+        id: uuidv4(),
+        application_id: applicationId,
+        sender_id: fixture.userId,
+        sender_type: "TALENT",
+        message: "Sensitive message",
+      });
+      await knex("talent_submission_packages").insert({
+        id: uuidv4(),
+        application_id: applicationId,
+        user_id: fixture.userId,
+        profile_id: fixture.profileId,
+        label: "Minor submission",
+        payload: JSON.stringify({ profile: { measurements: [80, 60, 86] } }),
+        guardian_consent_grant_id: grant.id,
+        guardian_consent_expires_at: grant.authorization_expires_at,
+      });
+
+      const revoked = await revokeConsentToken(knex, rawToken);
+      expect(revoked).toMatchObject({
+        ok: true,
+        scope: "agency",
+        grantId: grant.id,
+        applicationIds: [applicationId],
+      });
+      const [application, storedGrant, packageRow] = await Promise.all([
+        knex("applications").where({ id: applicationId }).first(),
+        knex("minor_agency_consents").where({ id: grant.id }).first(),
+        knex("talent_submission_packages")
+          .where({ application_id: applicationId })
+          .first(),
+      ]);
+      expect(application.status).toBe("withdrawn");
+      expect(application.minor_access_revoked_at).toBeTruthy();
+      expect(storedGrant.revoked_at).toBeTruthy();
+      expect(packageRow.redacted_at).toBeTruthy();
+      const redactedPayload =
+        typeof packageRow.payload === "string"
+          ? JSON.parse(packageRow.payload)
+          : packageRow.payload;
+      expect(redactedPayload).toMatchObject({
+        redacted: true,
+        reason: "guardian_revoked",
+      });
+      const messageCount = await knex("messages")
+          .where({ application_id: applicationId })
+          .count({ count: "*" })
+          .first();
+      expect(Number(messageCount.count)).toBe(0);
+      const noteCount = await knex("application_notes")
+          .where({ application_id: applicationId })
+          .count({ count: "*" })
+          .first();
+      expect(Number(noteCount.count)).toBe(0);
+      const noteAudit = await knex("application_note_audit_events")
+        .where({ application_id: applicationId })
+        .first("before_note", "after_note");
+      expect(noteAudit).toMatchObject({ before_note: null, after_note: null });
+
+      await expect(revokeConsentToken(knex, rawToken)).resolves.toMatchObject({
+        ok: true,
+        alreadyRevoked: true,
+      });
+    } finally {
+      await knex("talent_submission_packages")
+        .where({ application_id: applicationId })
+        .delete();
+      await knex("applications").where({ id: applicationId }).delete();
+      await cleanupProfile(fixture);
+      await knex("agencies").where({ id: agencyId }).delete();
     }
   });
 

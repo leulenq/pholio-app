@@ -75,7 +75,7 @@ export default function ReminderList() {
       <AgencyEmptyState
         icon={Bell}
         title="No reminders"
-        description="Create reminders from the Applicants page to stay on top of follow-ups."
+        description="Create reminders from Submissions to stay on top of follow-ups."
       />
     );
   }

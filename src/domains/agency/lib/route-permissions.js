@@ -5,6 +5,18 @@
  */
 
 const ROUTE_PERMISSION_RULES = [
+  // Every active human member accepts the current agency workspace policies.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/legal-status$/,
+    permission: "account.accept_legal",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/legal-acceptance$/,
+    permission: "account.accept_legal",
+  },
+
   // Organization
   { method: "GET", pattern: /^\/api\/agency\/me$/, permission: "org.view" },
   {
@@ -173,6 +185,44 @@ const ROUTE_PERMISSION_RULES = [
     method: "GET",
     pattern: /^\/api\/agency\/roster\/[^/]+$/,
     permission: "roster.view_profile",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/talent-records$/,
+    permission: "roster.add_talent",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/roster-memberships\/[^/]+$/,
+    permission: "roster.manage_status",
+  },
+
+  // Booking Desk calendar. Talent-declared bookouts are included by the read
+  // endpoint but remain immutable through these agency routes.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/commitments$/,
+    permission: "calendar.view",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/commitments$/,
+    permission: "calendar.manage",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
+    permission: "calendar.manage",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/commitments\/[^/]+\/confirm$/,
+    permission: "calendar.manage",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
+    permission: "calendar.manage",
   },
 
   // Applications — bulk before parameterized
@@ -393,6 +443,11 @@ const ROUTE_PERMISSION_RULES = [
     method: "POST",
     pattern: /^\/api\/agency\/applications\/[^/]+\/messages$/,
     permission: "messages.send",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/messages\/read-all$/,
+    permission: "messages.mark_read",
   },
   {
     method: "POST",

@@ -27,6 +27,23 @@ const SNAPSHOT_FIELDS = [
   "nationality",
 ];
 
+// Database columns required to build the agency-submission DTO. Query readers
+// use this list instead of profiles.* so account/compliance/AI columns never
+// enter an agency request handler in the first place.
+const SUBMISSION_PROFILE_SOURCE_FIELDS = Object.freeze([
+  ...SNAPSHOT_FIELDS,
+  "user_id",
+  "date_of_birth",
+  "guardian_consent_at",
+  "languages",
+  "bio_curated",
+  "bio_raw",
+  "phone",
+  "weight_kg",
+  "weight_lbs",
+  "weight_unit",
+]);
+
 // Shaped, allowlisted subset of a `social_accounts` row. Mirrors
 // audience-dto.SOCIAL_ACCOUNT_FIELDS exactly (platform/handle/url/verified —
 // never raw OAuth tokens or follower/engagement metrics). Duplicated as a
@@ -105,6 +122,7 @@ function buildSubmissionProfileSnapshot(profile, options = {}) {
 }
 
 module.exports = {
+  SUBMISSION_PROFILE_SOURCE_FIELDS,
   buildSubmissionProfileSnapshot,
   normalizeStringList,
   shapeSocialForSnapshot,
