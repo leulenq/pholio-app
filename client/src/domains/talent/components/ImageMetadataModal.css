@@ -151,6 +151,74 @@
   display: block;
 }
 
+/* Focal picker: the stage becomes a tap target; a gold ring marks the point
+   the comp-card crop keeps centered. */
+.imd-image-stage--focal {
+  cursor: crosshair;
+  touch-action: none;
+}
+.imd-image-stage--focal .imd-preview-image {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.imd-focal-marker {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  border: 2px solid var(--mw-gold, #c9a55a);
+  box-shadow: 0 0 0 1px rgba(10, 9, 8, 0.55), 0 0 12px rgba(201, 165, 90, 0.45);
+  pointer-events: none;
+  transition: left 0.08s ease-out, top 0.08s ease-out;
+}
+.imd-image-stage--focal.is-dragging .imd-focal-marker { transition: none; }
+.imd-focal-marker::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: var(--mw-gold, #c9a55a);
+}
+@media (prefers-reduced-motion: reduce) {
+  .imd-focal-marker { transition: none; }
+}
+.imd-focal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.imd-focal-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--mw-sans, Inter), sans-serif;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.62);
+}
+.imd-focal-hint svg { color: var(--mw-gold, #c9a55a); flex: 0 0 auto; }
+.imd-focal-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font-family: var(--mw-sans, Inter), sans-serif;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.imd-focal-reset:hover { border-color: var(--mw-gold, #c9a55a); color: #fff; background: rgba(201, 165, 90, 0.1); }
+.imd-focal-reset:focus-visible { outline: 2px solid var(--mw-gold, #c9a55a); outline-offset: 2px; }
+
 .imd-status-stack {
   position: absolute;
   left: 24px;

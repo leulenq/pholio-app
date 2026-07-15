@@ -203,6 +203,41 @@ describe("resolveCrop", () => {
       expect(FULL_BODY_UNSAFE_LOSS).toBeCloseTo(0.3);
     });
   });
+
+  describe("face-led horizontal crop guard (sliced-face fix)", () => {
+    // A face-led shot forced into a much narrower cell slices the face; it
+    // must go unsafe earlier than a full-length so the healer swaps a
+    // better-fitting frame in (the sliced-back-image bug).
+    const headshot = (aspect) => poolImage({ role: "headshot", shot_type: "headshot", aspect });
+    const fullLength = (aspect) => poolImage({ role: "full_body", shot_type: "full_length", aspect });
+
+    test("headshot losing >42% width is unsafe", () => {
+      // aspect 0.8 into a 0.4 cell → widthLoss = 1 - 0.4/0.8 = 50%
+      const crop = resolveCrop(headshot(0.8), { aspect: 0.4, kind: "cell" });
+      expect(crop.safety.level).toBe("unsafe");
+      expect(crop.safety.notes.join(" ")).toMatch(/face-led/);
+    });
+
+    test("headshot in a compatible cell stays safe", () => {
+      // aspect 0.8 into 0.72 cell → widthLoss = 10%
+      const crop = resolveCrop(headshot(0.8), { aspect: 0.72, kind: "cell" });
+      expect(crop.safety.level).toBe("safe");
+    });
+
+    test("full-length keeps the looser 55% bar at the same width loss", () => {
+      // 50% width loss: unsafe for a face, still acceptable for a figure
+      const crop = resolveCrop(fullLength(0.8), { aspect: 0.4, kind: "cell" });
+      expect(crop.safety.level).not.toBe("unsafe");
+    });
+
+    test("three-quarter is held to the face-led bar too", () => {
+      const crop = resolveCrop(
+        poolImage({ role: "three_quarter", shot_type: "three_quarter", aspect: 0.8 }),
+        { aspect: 0.4, kind: "cell" },
+      );
+      expect(crop.safety.level).toBe("unsafe");
+    });
+  });
 });
 
 describe("assignImagesToSlots", () => {

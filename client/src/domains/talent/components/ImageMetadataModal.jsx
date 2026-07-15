@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { AlignLeft, Calendar, Camera, Crop, EyeOff, Image as ImageIcon, Save, Shield, Tags, X } from 'lucide-react';
+import { AlignLeft, Calendar, Camera, Crop, EyeOff, Focus, Image as ImageIcon, RotateCcw, Save, Shield, Tags, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { talentApi } from '../api/talent';
 import {
@@ -57,6 +57,12 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
   const [loading, setLoading] = useState(false);
   const initialMetadata = readMetadata(image.metadata);
   const initialCredits = initialMetadata.credits || {};
+  const initialFocal =
+    initialMetadata.focal &&
+    Number.isFinite(Number(initialMetadata.focal.x)) &&
+    Number.isFinite(Number(initialMetadata.focal.y))
+      ? { x: Number(initialMetadata.focal.x), y: Number(initialMetadata.focal.y) }
+      : null;
   const [formData, setFormData] = useState({
     metadata: {
       role: initialMetadata.role || null,
@@ -67,7 +73,8 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
         stylist: (initialCredits.stylist || '').replace(/^@/, ''),
       },
       caption: initialMetadata.caption || '',
-      visibility: initialMetadata.visibility || 'public'
+      visibility: initialMetadata.visibility || 'public',
+      focal: initialFocal,
     },
     image_type: image.image_type ?? '',
     shot_type: image.shot_type ?? '',
@@ -104,6 +111,55 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
       }
     }));
   };
+
+  // ── Focal picker ──────────────────────────────────────────────────────────
+  // The talent taps the point their comp cards should keep centered; it is
+  // stored as metadata.focal { x, y } in 0–1 of the IMAGE, and the crop
+  // engine reads it first (before any role heuristic), so a face never gets
+  // sliced by an automatic crop again. The preview is object-fit: contain,
+  // so clicks map through the letterboxed content rect, not the element box.
+  const focal = formData.metadata.focal;
+  const stageRef = useRef(null);
+  const imgRef = useRef(null);
+  const [contentRect, setContentRect] = useState(null); // px, relative to stage
+  const [dragging, setDragging] = useState(false);
+
+  const measureContent = useCallback(() => {
+    const stage = stageRef.current;
+    const img = imgRef.current;
+    if (!stage || !img || !img.naturalWidth || !img.naturalHeight) return;
+    const box = stage.getBoundingClientRect();
+    const scale = Math.min(box.width / img.naturalWidth, box.height / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    setContentRect({ left: (box.width - w) / 2, top: (box.height - h) / 2, width: w, height: h });
+  }, []);
+
+  useEffect(() => {
+    measureContent();
+    const stage = stageRef.current;
+    if (!stage || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measureContent);
+    ro.observe(stage);
+    return () => ro.disconnect();
+  }, [measureContent, previewUrl]);
+
+  const setFocalFromPointer = useCallback((clientX, clientY) => {
+    const stage = stageRef.current;
+    if (!stage || !contentRect) return;
+    const box = stage.getBoundingClientRect();
+    const px = clientX - box.left - contentRect.left;
+    const py = clientY - box.top - contentRect.top;
+    const x = Math.max(0, Math.min(1, px / contentRect.width));
+    const y = Math.max(0, Math.min(1, py / contentRect.height));
+    setFormData((prev) => ({
+      ...prev,
+      metadata: { ...prev.metadata, focal: { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 } },
+    }));
+  }, [contentRect]);
+
+  const clearFocal = () =>
+    setFormData((prev) => ({ ...prev, metadata: { ...prev.metadata, focal: null } }));
 
   const handleSave = async () => {
     setLoading(true);
@@ -175,12 +231,56 @@ export default function ImageMetadataModal({ image, onClose, onUpdate, onOpenEdi
               <X size={18} />
             </PholioIconButton>
           </div>
-          <div className="imd-image-stage">
-            <img src={previewUrl} alt={formData.metadata.caption || 'Selected portfolio frame'} className="imd-preview-image" />
+          <div
+            className={`imd-image-stage imd-image-stage--focal${dragging ? ' is-dragging' : ''}`}
+            ref={stageRef}
+            role="application"
+            aria-label="Focal point picker — set where your comp card stays centered"
+            onPointerDown={(e) => {
+              if (e.button != null && e.button !== 0) return;
+              e.currentTarget.setPointerCapture?.(e.pointerId);
+              setDragging(true);
+              setFocalFromPointer(e.clientX, e.clientY);
+            }}
+            onPointerMove={(e) => { if (dragging) setFocalFromPointer(e.clientX, e.clientY); }}
+            onPointerUp={(e) => { setDragging(false); e.currentTarget.releasePointerCapture?.(e.pointerId); }}
+            onPointerCancel={() => setDragging(false)}
+          >
+            <img
+              ref={imgRef}
+              src={previewUrl}
+              alt={formData.metadata.caption || 'Selected portfolio frame'}
+              className="imd-preview-image"
+              draggable={false}
+              onLoad={measureContent}
+            />
+            {focal && contentRect && (
+              <span
+                className="imd-focal-marker"
+                aria-hidden="true"
+                style={{
+                  left: `${contentRect.left + focal.x * contentRect.width}px`,
+                  top: `${contentRect.top + focal.y * contentRect.height}px`,
+                }}
+              />
+            )}
             <div className="imd-status-stack">
               {isPrivate && <span className="imd-pill imd-pill--ink"><EyeOff size={12} />Private</span>}
               {selectedRole && <span className="imd-pill imd-pill--gold">{selectedRole.label}</span>}
             </div>
+          </div>
+          <div className="imd-focal-row">
+            <p className="imd-focal-hint">
+              <Focus size={13} aria-hidden="true" />
+              {focal
+                ? 'Tap or drag to move the point your comp card keeps centered.'
+                : 'Tap the photo to set the point your comp card keeps centered.'}
+            </p>
+            {focal && (
+              <button type="button" className="imd-focal-reset" onClick={clearFocal}>
+                <RotateCcw size={12} aria-hidden="true" /> Automatic
+              </button>
+            )}
           </div>
           <PholioButton type="button" variant="secondary" tone="dark" fullWidth onClick={() => onOpenEditor(image)}>
             <Crop size={15} />

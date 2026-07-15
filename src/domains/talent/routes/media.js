@@ -379,6 +379,28 @@ function sanitizeIncomingMetadataPatch(metadata) {
     }
   }
 
+  // focal { x, y } in 0–1: the talent-set point the comp-card crop keeps
+  // centered (the crop engine reads metadata.focal first, before any role
+  // heuristic). null clears it back to automatic. Anything malformed is
+  // dropped rather than stored.
+  if (Object.hasOwn(metadata, "focal")) {
+    const focal = metadata.focal;
+    if (focal === null) {
+      out.focal = null;
+    } else if (
+      focal &&
+      typeof focal === "object" &&
+      Number.isFinite(Number(focal.x)) &&
+      Number.isFinite(Number(focal.y))
+    ) {
+      const clamp01 = (n) => Math.max(0, Math.min(1, Number(n)));
+      out.focal = {
+        x: Math.round(clamp01(focal.x) * 1000) / 1000,
+        y: Math.round(clamp01(focal.y) * 1000) / 1000,
+      };
+    }
+  }
+
   return out;
 }
 
