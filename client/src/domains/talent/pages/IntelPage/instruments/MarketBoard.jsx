@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { Delta, Calibrating } from './parts';
 import { SPRING, TIER_RAMP, nf, pct } from './metrics';
 import './MarketBoard.css';
@@ -130,7 +131,7 @@ function MarketNote({ rows }) {
 
 function MarketLedger({ markets }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const rows = markets?.rows || [];
 
@@ -236,7 +237,7 @@ function SourceRow({ row, index, inView, reduce }) {
 
 function SourceNarrative({ sources }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const rows = sources?.rows || [];
 

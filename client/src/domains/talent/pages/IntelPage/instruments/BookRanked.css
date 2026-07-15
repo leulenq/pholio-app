@@ -60,16 +60,13 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
+/* The lead frame is marked with a gold ring, not a larger tile — a uniform
+   grid packs cleanly and the ring + rank carry the prominence. */
 .book-frame--lead {
-  grid-column: span 2;
-  grid-row: span 2;
+  box-shadow: 0 0 0 2px #c9a55a, 0 6px 20px rgba(201, 165, 90, 0.18);
 }
-
-@media (max-width: 720px) {
-  .book-frame--lead {
-    grid-column: span 1;
-    grid-row: span 1;
-  }
+.book-frame--lead:hover {
+  box-shadow: 0 0 0 2px #c9a55a, 0 10px 28px rgba(201, 165, 90, 0.24);
 }
 
 .book-frame__photo {
@@ -176,7 +173,7 @@
 }
 
 .book-frame__flag--most-skipped {
-  color: #94a3b8;
+  color: #7e8795;
   border-bottom-color: #e2e8f0;
 }
 

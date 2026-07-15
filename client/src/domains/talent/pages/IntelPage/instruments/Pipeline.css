@@ -36,34 +36,33 @@
   overflow: visible;
 }
 .pipe-band { transition: opacity 0.2s ease; }
-.pipe-band--ink { fill: #1a1815; }
+.pipe-band--ink { fill: #4a3d2c; }
 .pipe-band--gold { fill: #c9a55a; }
-.pipe-band--gold-soft { fill: #dcc38f; }
-.pipe-band--grey { fill: #d8d3ca; }
+.pipe-band--gold-soft { fill: #d8c090; }
+.pipe-band--grey { fill: #cfc9bf; }
 .pipe-band__label {
   fill: #ffffff;
   font: 600 12px/1 'Inter', sans-serif;
   letter-spacing: 0.01em;
   pointer-events: none;
 }
-.pipe-band--grey + .pipe-band__label,
-.pipe-band--gold-soft ~ .pipe-band__label { fill: #1a1815; }
 .pipe-band__val {
   fill: #ffffff;
   font: 700 15px/1 'Noto Serif Display', Georgia, serif;
   pointer-events: none;
 }
-.pipe-link {
-  fill: none;
-  stroke: #c9a55a;
-  stroke-width: 1.5;
-}
+
+/* Flow ribbons — thickness carries the count. */
+.pipe-flow { stroke: none; }
+.pipe-flow--ink { fill: rgba(74, 61, 44, 0.16); }
+.pipe-flow--gold { fill: rgba(201, 165, 90, 0.34); }
+.pipe-flow--gold-soft { fill: rgba(201, 165, 90, 0.2); }
+.pipe-flow--grey { fill: rgba(120, 112, 100, 0.16); }
 
 .pipe-diagnosis {
-  background: #faf9f7;
-  border: 1px solid #e2e8f0;
-  border-left: 3px solid #c9a55a;
-  border-radius: 8px;
+  background: rgba(201, 165, 90, 0.06);
+  border: 1px solid rgba(201, 165, 90, 0.28);
+  border-radius: 10px;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;

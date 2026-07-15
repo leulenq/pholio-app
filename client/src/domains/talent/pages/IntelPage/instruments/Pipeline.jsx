@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { ArrowUpRight } from 'lucide-react';
 import { Calibrating } from './parts';
 import { SPRING, nf } from './metrics';
@@ -65,7 +66,7 @@ function stageBands(items, total, x, colW) {
 
 function FlowDiagram({ flow }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
 
   const model = useMemo(() => {
@@ -141,15 +142,48 @@ function FlowDiagram({ flow }) {
       </motion.g>
     ));
 
-  // Connector ribbons between columns (soft curved links entered→mid→outcomes).
-  const connector = (from, to) => {
-    const x1 = from.x + from.w;
-    const x2 = to.x;
-    const y1 = from.y + from.h / 2;
-    const y2 = to.y + to.h / 2;
+  // A filled ribbon between two columns: thickness carries the count, so the
+  // flow reads as streams settling into outcomes rather than lines between bars.
+  const ribbon = (x1, y1, w1, x2, y2, w2) => {
     const mx = (x1 + x2) / 2;
-    return `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
+    return (
+      `M ${x1} ${y1 - w1 / 2} ` +
+      `C ${mx} ${y1 - w1 / 2} ${mx} ${y2 - w2 / 2} ${x2} ${y2 - w2 / 2} ` +
+      `L ${x2} ${y2 + w2 / 2} ` +
+      `C ${mx} ${y2 + w2 / 2} ${mx} ${y1 + w1 / 2} ${x1} ${y1 + w1 / 2} Z`
+    );
   };
+
+  const entered0 = model.entered[0];
+  const midRightX = model.x1 + model.colW;
+
+  // Stage 1 — the submission pool splits into the mid column, stacked to fill
+  // the entered band so the widths partition it.
+  const stage1 = [];
+  if (entered0) {
+    let off = entered0.y;
+    for (const m of model.mid) {
+      const w = m.h;
+      const y1 = off + w / 2;
+      off += w;
+      stage1.push({ key: m.key, tone: m.tone, d: ribbon(entered0.x + entered0.w, y1, w, m.x, m.y + m.h / 2, m.h) });
+    }
+  }
+
+  // Stage 2 — everything settles into outcomes; stack the outcome ribbons over
+  // the pool's full height at the mid column's right edge.
+  const stage2 = [];
+  if (entered0 && model.outcomes.length) {
+    const totalOut = model.outcomes.reduce((s, o) => s + o.h, 0) || 1;
+    const scale = entered0.h / totalOut;
+    let off = entered0.y;
+    for (const o of model.outcomes) {
+      const w = o.h * scale;
+      const y1 = off + w / 2;
+      off += w;
+      stage2.push({ key: o.key, tone: o.tone, d: ribbon(midRightX, y1, w, o.x, o.y + o.h / 2, o.h) });
+    }
+  }
 
   return (
     <svg
@@ -160,34 +194,27 @@ function FlowDiagram({ flow }) {
       role="img"
       aria-label="Submission flow"
     >
-      {/* connectors: entered → advanced/reviewed, mid → outcomes (visual only) */}
-      <g className="pipe-links">
-        {model.entered.map((e) =>
-          model.mid.map((m) => (
-            <motion.path
-              key={`l1-${m.key}`}
-              d={connector(e, m)}
-              className="pipe-link"
-              initial={reduce ? false : { opacity: 0 }}
-              animate={inView ? { opacity: 0.5 } : undefined}
-              transition={{ delay: reduce ? 0 : 0.2 }}
-            />
-          )),
-        )}
-        {model.mid
-          .filter((m) => m.key === 'advanced')
-          .map((m) =>
-            model.outcomes.map((o) => (
-              <motion.path
-                key={`l2-${o.key}`}
-                d={connector(m, o)}
-                className="pipe-link"
-                initial={reduce ? false : { opacity: 0 }}
-                animate={inView ? { opacity: 0.4 } : undefined}
-                transition={{ delay: reduce ? 0 : 0.35 }}
-              />
-            )),
-          )}
+      <g className="pipe-flows">
+        {stage1.map((s) => (
+          <motion.path
+            key={`l1-${s.key}`}
+            d={s.d}
+            className={`pipe-flow pipe-flow--${s.tone}`}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={inView ? { opacity: 1 } : undefined}
+            transition={{ duration: 0.5, delay: reduce ? 0 : 0.2 }}
+          />
+        ))}
+        {stage2.map((s) => (
+          <motion.path
+            key={`l2-${s.key}`}
+            d={s.d}
+            className={`pipe-flow pipe-flow--${s.tone}`}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={inView ? { opacity: 1 } : undefined}
+            transition={{ duration: 0.5, delay: reduce ? 0 : 0.35 }}
+          />
+        ))}
       </g>
       {renderCol(model.entered, 0.1)}
       {renderCol(model.mid, 0.25)}
@@ -199,7 +226,7 @@ function FlowDiagram({ flow }) {
 /** Stage Clock — your median review latency against the platform-typical band. */
 function StageClock({ clock }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
+  const inView = useReveal();
   const reduce = useReducedMotion();
 
   const mine = clock?.medianReviewDays;

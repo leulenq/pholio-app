@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { Calibrating } from './parts';
 import './Trajectory.css';
 
@@ -43,7 +44,7 @@ function smoothPath(points) {
 
 export default function Trajectory({ trajectory }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-8% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);

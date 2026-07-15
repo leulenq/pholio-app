@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { Link } from 'react-router-dom';
 import { Calibrating } from './parts';
 import { SPRING } from './metrics';
@@ -91,7 +92,7 @@ function leadCopy(book) {
 
 export default function BookRanked({ book }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const images = book?.images || [];
   const calibrating = !!book?.calibrating;

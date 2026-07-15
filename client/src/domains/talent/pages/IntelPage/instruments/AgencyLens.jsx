@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { Check, Circle, ArrowRight } from 'lucide-react';
 import { SPRING } from './metrics';
 import './AgencyLens.css';
@@ -92,7 +93,7 @@ function CurrencyRing({ ring, index, inView, reduce }) {
 
 function CurrencyRings({ rings }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const list = rings || [];
 
@@ -134,7 +135,7 @@ function RangeRow({ item, index, inView, reduce }) {
 
 function RangeRead({ range }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const rows = range || [];
 
@@ -174,7 +175,7 @@ function MoveCard({ move, index, inView, reduce }) {
 
 function NextMoves({ nextMoves }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const moves = (nextMoves || []).slice(0, 3);
 

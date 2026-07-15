@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { Clock } from 'lucide-react';
 import { Calibrating } from './parts';
 import { SPRING, nf } from './metrics';
@@ -124,7 +125,7 @@ const SVG_H = GRID_H + BOTTOM_GUTTER;
 
 export default function RhythmField({ rhythm }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
 
   const total = Number(rhythm?.total) || 0;

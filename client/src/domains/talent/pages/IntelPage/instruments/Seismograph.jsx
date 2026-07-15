@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { Calibrating } from './parts';
 import { nf } from './metrics';
 
@@ -73,7 +74,7 @@ function linePath(points) {
 
 export default function Seismograph({ seismograph }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-8% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const [hover, setHover] = useState(null); // day index under cursor
   const svgRef = useRef(null);

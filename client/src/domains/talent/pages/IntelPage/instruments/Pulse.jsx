@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { ArrowUpRight, Clock } from 'lucide-react';
 import { CountUp, Calibrating } from './parts';
 import { SPRING, TIER_RAMP, TIER_META, nf, pct } from './metrics';
@@ -63,7 +64,7 @@ function Headline({ headline, periodLabel }) {
  */
 function SignalSpectrum({ spectrum }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-10% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const rows = spectrum || [];
   const total = rows.reduce((a, r) => a + (r.count || 0), 0);

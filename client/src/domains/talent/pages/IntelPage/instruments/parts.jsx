@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useReveal } from './useReveal';
 import { SPRING, nf } from './metrics';
 
 /**
@@ -15,9 +16,9 @@ import { SPRING, nf } from './metrics';
  */
 
 /** A section shell: editorial title, optional lede, and a draw-on entrance. */
-export function Zone({ index, title, lede, aside, children, wide = false, id }) {
+export function Zone({ title, lede, aside, children, wide = false, id }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-12% 0px' });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   return (
     <motion.section
@@ -30,7 +31,6 @@ export function Zone({ index, title, lede, aside, children, wide = false, id }) 
     >
       <header className="intel-zone__head">
         <div>
-          <p className="intel-zone__index">{String(index).padStart(2, '0')}</p>
           <h2 className="intel-zone__title">{title}</h2>
           {lede ? <p className="intel-zone__lede">{lede}</p> : null}
         </div>
@@ -45,7 +45,7 @@ export function Zone({ index, title, lede, aside, children, wide = false, id }) 
 export function CountUp({ value, className, format = nf, duration = 900 }) {
   const [display, setDisplay] = useState(0);
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
+  const inView = useReveal();
   const reduce = useReducedMotion();
   const target = Number(value) || 0;
 
@@ -107,10 +107,13 @@ export function Calibrating({ title, listening, icon }) {
 export function StudioLock({ title, blurb }) {
   return (
     <div className="intel-lock">
-      <p className="intel-lock__title">{title}</p>
-      <p className="intel-lock__blurb">{blurb}</p>
+      <div className="intel-lock__copy">
+        <p className="intel-lock__title">{title}</p>
+        <p className="intel-lock__blurb">{blurb}</p>
+      </div>
       <a className="intel-lock__cta" href="/dashboard/talent/settings/subscription">
         Unlock with Studio+
+        <span aria-hidden>→</span>
       </a>
     </div>
   );
