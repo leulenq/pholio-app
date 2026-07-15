@@ -78,7 +78,7 @@ const CreditsEditor = ({
   const credits = parseCredits(value);
 
   const addCredit = () => {
-    const newCredit = { id: Date.now(), role: '', production: '', year: '', type: 'Film' };
+    const newCredit = { id: `credit-${credits.length}`, role: '', production: '', year: '', type: 'Film' };
     onChange?.([...credits, newCredit]);
   };
 

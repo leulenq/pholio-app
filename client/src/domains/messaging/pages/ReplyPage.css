@@ -73,14 +73,24 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
   font-size: 0.8125rem;
   color: var(--ag-gold, #b8956a);
   text-decoration: none;
+  cursor: pointer;
   transition: opacity 0.2s ease;
 }
 
 .reply-page__dashboard-link:hover {
   opacity: 0.8;
+}
+
+.reply-page__dashboard-link:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .reply-page__link-btn {

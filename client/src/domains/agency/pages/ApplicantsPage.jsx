@@ -9,8 +9,11 @@ import {
 } from '../api/agency';
 import { TalentPanel } from '../components/TalentPanel';
 import MatchScore from '../components/ui/MatchScore';
+import { SkeletonRow, SkeletonStrip } from '../components/ui';
 import { TypeSpec, StageMark } from '../components/status';
+import { useCardButton } from '../hooks/useCardButton';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
+import { EmptyErrorState } from '../../../shared/components/states';
 import './ApplicantsPage.css';
 
 const timeAgo = (ts) => {
@@ -29,9 +32,9 @@ const TABS = [
   { key: 'all', label: 'All', match: () => true },
   { key: 'submitted', label: 'New', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
+  { key: 'kept_on_file', label: 'On file', match: (s) => s === 'kept_on_file' },
   { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
-  { key: 'represented', label: 'Represented', match: (s) => s === 'represented' || s === 'booked' },
-  { key: 'accepted', label: 'Signed', match: (s) => s === 'accepted' },
+  { key: 'represented', label: 'Represented', match: (s) => ['represented', 'booked', 'accepted'].includes(s) },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
 ];
 
@@ -100,8 +103,9 @@ function mapCandidate(c) {
 function ApplicantRow({ a, onOpen, onShortlist, onAccept, onDecline, busy }) {
   const decided = a.status === 'accepted' || a.status === 'booked' || a.status === 'declined';
   const shortlisted = a.status === 'shortlisted';
+  const cardButtonProps = useCardButton(() => onOpen(a), { disabled: busy });
   return (
-    <div className="ap-row" onClick={() => onOpen(a)} role="button" tabIndex={0}>
+    <div className="ap-row" onClick={() => onOpen(a)} {...cardButtonProps}>
       <span className="ap-pic">
         <span className="ap-pic-img" style={{ backgroundImage: a.photo ? `url(${a.photo})` : 'none' }} />
       </span>
@@ -149,7 +153,7 @@ function BoardSelector({ boards, total, selectedId, onSelect }) {
         aria-selected={selectedId == null}
         onClick={() => onSelect(null)}
       >
-        <span className="ap-board-chip-name">All Submissions</span>
+        <span className="ap-board-chip-name">All submissions</span>
         <span className="ap-board-chip-count">{total}</span>
       </button>
       {boards.map((b) => (
@@ -223,11 +227,12 @@ function ApplicationsPage() {
   const [selected, setSelected] = useState(null);
   const [boardId, setBoardId] = useState(null);
 
-  const { data: boards = [] } = useQuery({
+  const boardsQuery = useQuery({
     queryKey: ['agency-boards'],
     queryFn: getBoards,
     staleTime: 60000,
   });
+  const { data: boards = [] } = boardsQuery;
 
   const allQuery = useQuery({
     queryKey: ['applicants'],
@@ -242,7 +247,9 @@ function ApplicationsPage() {
     enabled: boardId != null,
   });
 
-  const isLoading = boardId == null ? allQuery.isLoading : boardQuery.isLoading;
+  const activeApplicantsQuery = boardId == null ? allQuery : boardQuery;
+  const isLoading = boardsQuery.isLoading || activeApplicantsQuery.isLoading;
+  const isError = boardsQuery.isError || activeApplicantsQuery.isError;
 
   const applicants = useMemo(() => {
     if (boardId != null) return (boardQuery.data?.candidates || []).map(mapCandidate);
@@ -259,7 +266,7 @@ function ApplicationsPage() {
     qc.invalidateQueries({ queryKey: ['agency'] });
   };
   const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
-  const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Signed'); }, onError: () => toast.error('Action failed') });
+  const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Represented'); }, onError: () => toast.error('Action failed') });
   const decline = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
   const inFlight = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables) || null;
 
@@ -284,16 +291,53 @@ function ApplicationsPage() {
   const newCount = counts.submitted || 0;
 
   // Pass rate = how selectively the agency has decided so far.
-  const decided = (counts.accepted || 0) + (counts.booked || 0) + (counts.declined || 0);
-  const passRate = decided ? Math.round(((counts.declined || 0) / decided) * 100) : null;
+  const representedCount = applicants.filter((a) => ['represented', 'booked', 'accepted'].includes(a.status)).length;
+  const passedCount = applicants.filter((a) => a.status === 'declined').length;
+  const decided = representedCount + passedCount;
+  const passRate = decided ? Math.round((passedCount / decided) * 100) : null;
 
   const ledger = [
     { label: 'New', value: newCount, tone: newCount ? 'gold' : 'mute' },
     { label: 'Shortlisted', value: counts.shortlisted || 0, tone: 'ink' },
     { label: 'New Faces', value: counts.development || 0, tone: 'ink' },
-    { label: 'Signed', value: counts.accepted || 0, tone: 'ink' },
+    { label: 'Represented', value: representedCount, tone: 'ink' },
     { label: 'Pass Rate', value: passRate == null ? '—' : passRate, suffix: passRate == null ? '' : '%', tone: 'mute' },
   ];
+
+  const hasActiveFilter = tab !== 'all' || Boolean(q.trim());
+  const isGenuineEmpty = applicants.length === 0;
+  const hasNoResults = !isGenuineEmpty && filtered.length === 0;
+  const resetFilters = () => {
+    setTab('all');
+    setQ('');
+  };
+  const retrySubmissions = () => {
+    boardsQuery.refetch();
+    activeApplicantsQuery.refetch();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="ap ap-loading" role="status" aria-live="polite" aria-busy="true">
+        <header className="ap-header"><h1 className="ap-title">Submissions</h1></header>
+        <SkeletonStrip count={5} />
+        <SkeletonRow count={6} />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="ap">
+        <header className="ap-header"><h1 className="ap-title">Submissions</h1></header>
+        <EmptyErrorState
+          title="Submissions unavailable"
+          body="We could not load the current intake. Try again to resume review."
+          retry={{ label: 'Try again', onClick: retrySubmissions }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="ap">
@@ -345,19 +389,30 @@ function ApplicationsPage() {
           </div>
 
           <div className="ap-list">
-            <div className="ap-row ap-row--head">
-              <span aria-hidden="true" />
-              <span>Talent</span>
-              <span>Applied</span>
-              <span className="ap-c">Match</span>
-              <span>Status</span>
-              <span aria-hidden="true" />
-            </div>
-            {isLoading && <div className="ap-empty">Loading submissions…</div>}
-            {!isLoading && filtered.length === 0 && (
-              <div className="ap-empty">{activeBoard ? 'No candidates on this board yet.' : 'No submissions in this view.'}</div>
+            {!isGenuineEmpty && (
+              <div className="ap-row ap-row--head">
+                <span aria-hidden="true" />
+                <span>Talent</span>
+                <span>Submitted</span>
+                <span className="ap-c">Match</span>
+                <span>Status</span>
+                <span aria-hidden="true" />
+              </div>
             )}
-            {filtered.map((a) => (
+            {isGenuineEmpty && (
+              <div className="ap-empty" role="status">
+                <p className="ap-empty-title">No submissions yet</p>
+                <p>Inbound digitals from open calls and direct invitations will appear here for review.</p>
+              </div>
+            )}
+            {hasNoResults && (
+              <div className="ap-empty" role="status">
+                <p className="ap-empty-title">No submissions match this view</p>
+                <p>{hasActiveFilter ? 'Adjust the search or stage filter to see talent already in the pipeline.' : 'Try another view to continue review.'}</p>
+                {hasActiveFilter && <button className="ap-empty-action" onClick={resetFilters}>Clear filters</button>}
+              </div>
+            )}
+            {!isGenuineEmpty && !hasNoResults && filtered.map((a) => (
               <ApplicantRow
                 key={a.applicationId}
                 a={a}

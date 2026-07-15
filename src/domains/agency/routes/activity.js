@@ -7,6 +7,9 @@ const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { getSessionAgencyId } = require("../services/context");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
+const {
+  applyMinorSubmissionFilter,
+} = require("../services/minor-submission-access");
 
 mountAgencyApiGuard(router);
 
@@ -50,12 +53,20 @@ router.get("/api/agency/activity", requireRole("AGENCY"), async (req, res) => {
       .offset(offset);
 
     if (type) query = query.where("aa.activity_type", type);
+    query = applyMinorSubmissionFilter(query, {
+      alias: "a",
+      allowMinor: req.allowMinorSubmissions,
+    });
 
     let countQuery = knex("application_activities as aa")
       .join("applications as a", "aa.application_id", "a.id")
       .where("aa.agency_id", agencyId)
       .count("aa.id as total");
     if (type) countQuery = countQuery.where("aa.activity_type", type);
+    countQuery = applyMinorSubmissionFilter(countQuery, {
+      alias: "a",
+      allowMinor: req.allowMinorSubmissions,
+    });
 
     const [rows, [{ total }]] = await Promise.all([query, countQuery]);
 

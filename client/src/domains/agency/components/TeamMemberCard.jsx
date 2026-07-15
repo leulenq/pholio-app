@@ -16,6 +16,7 @@ export default function TeamMemberCard({ member, isYou = false, canManage = fals
   const role = normalizeRole(member.membership_role || member.preset_role);
   const isOwner = role === 'OWNER';
   const inactive = member.status === 'INACTIVE';
+  const pending = member.status === 'INVITED';
   const hue = hueOf(member);
 
   const assignableRoles = ASSIGNABLE_ROLES.filter((r) => {
@@ -24,7 +25,7 @@ export default function TeamMemberCard({ member, isYou = false, canManage = fals
   }).filter((r) => r.value !== role);
 
   const canCustomizeAccess = can('team.grant_permission');
-  const manageable = canManage && !isOwner && !isYou && !inactive;
+  const manageable = canManage && !isOwner && !isYou && !inactive && !pending;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['agency', 'team'] });
 
@@ -104,11 +105,9 @@ export default function TeamMemberCard({ member, isYou = false, canManage = fals
       <div className="tm-id">
         <div className="tm-name-row">
           <h3 className="tm-name">{member.full_name}</h3>
-          {isYou && <span className="tm-you">You</span>}
+          {isYou && <span className="tm-you">(you)</span>}
         </div>
-        <span className={`tm-role tm-role--${role.toLowerCase()}`}>
-          {formatRole(role)}
-        </span>
+        <span className="tm-role">{formatRole(role)}</span>
       </div>
 
       <div className="tm-foot">
@@ -117,18 +116,22 @@ export default function TeamMemberCard({ member, isYou = false, canManage = fals
             <Mail size={12} /> {member.email}
           </a>
         )}
-        {inactive ? (
+        {pending ? (
+          <span className="tm-tenure">Invitation pending</span>
+        ) : inactive ? (
           <span className="tm-tenure tm-tenure--inactive">Former member</span>
         ) : (
           tenureLabel(member) && <span className="tm-tenure">{tenureLabel(member)}</span>
         )}
       </div>
 
-      <TeamPermissionsModal
-        open={permModalOpen}
-        member={member}
-        onClose={() => setPermModalOpen(false)}
-      />
+      {!pending && (
+        <TeamPermissionsModal
+          open={permModalOpen}
+          member={member}
+          onClose={() => setPermModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

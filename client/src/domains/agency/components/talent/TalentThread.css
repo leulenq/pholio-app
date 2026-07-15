@@ -158,9 +158,10 @@
 
 /* ---------- NOTES ---------- */
 .tt-log { display: flex; flex-direction: column; margin-top: 16px; }
+.tt-note-guidance { margin: 8px 0 0; font-size: 11px; line-height: 1.45; color: var(--ag-text-3, #8a8073); }
 .tt-note {
   background: rgba(255, 255, 255, 0.6);
-  border: 1px solid #ece4d4;
+  border: 1px solid color-mix(in srgb, var(--ag-gold, #C9A55A) 32%, #ece4d4);
   border-radius: 2px;
   padding: 12px 14px;
   margin-bottom: 10px;

@@ -61,7 +61,7 @@ function CastingCallPage() {
   const [searchParams] = useSearchParams();
   const plan = searchParams.get('plan');
   const [currentView, setCurrentView] = useState('entry');
-  const [photoData, setPhotoData] = useState(null);
+  const [, setPhotoData] = useState(null);
   const [profileData, setProfileData] = useState({});
   const [currentEntryProgress, setCurrentEntryProgress] = useState(0);
   const [signupMethod, setSignupMethod] = useState(null); // 'google' | 'instagram' | 'manual'
@@ -164,7 +164,7 @@ function CastingCallPage() {
   // Step 1: Entry Complete → greet beat (when we know a name) → birthdate.
   // "Good to meet you, {name}." is one of the House's three name uses.
   const [greetName, setGreetName] = useState(null);
-  const handleEntryComplete = ({ hasOAuthData, method, name, email, picture, manualData }) => {
+  const handleEntryComplete = ({ method, name, email, picture, manualData }) => {
     if (method) {
       setSignupMethod(method);
       setOauthUserData({

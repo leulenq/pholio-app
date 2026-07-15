@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Video, Phone, MapPin, Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/talentNotifications';
 import PholioButton from '../../../shared/components/ui/PholioButton';
 import { talentApi } from '../api/talent';
 import './ApplicationInterviews.css';

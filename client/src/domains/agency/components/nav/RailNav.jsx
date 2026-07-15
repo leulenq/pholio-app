@@ -4,7 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { AGENCY_NAV_GROUPS, AGENCY_NAV_COLLAPSE_AFTER } from '../../constants/agencyNav';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
 
-export default function RailNav({ counts = {}, collapsed, onToggleCollapse }) {
+export default function RailNav({ collapsed, onToggleCollapse }) {
   const { can } = useAgencyPermissions();
 
   const groups = AGENCY_NAV_GROUPS.map((group) => {
@@ -25,7 +25,6 @@ export default function RailNav({ counts = {}, collapsed, onToggleCollapse }) {
             {group.label ? <div className="ag-nav-group-label">{group.label}</div> : null}
             {group.items.map((item) => {
               const Icon = item.icon;
-              const count = item.countKey ? counts[item.countKey] : undefined;
               return (
                 <NavLink
                   key={item.to}

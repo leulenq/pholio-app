@@ -25,14 +25,10 @@ export default function TeamPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const myRole = useMemo(
-    () => normalizeRole(team.find((m) => m.userId === profile?.id)?.membership_role),
-    [team, profile],
-  );
   const canManage = useCanManageTeam();
 
-  const { leadership, members, former } = useMemo(() => {
-    const active = team.filter((m) => m.status !== 'INACTIVE');
+  const { leadership, members, pending, former } = useMemo(() => {
+    const active = team.filter((m) => m.status !== 'INACTIVE' && m.status !== 'INVITED');
     const sortRole = (a, b) =>
       (ROLE_RANK[normalizeRole(a.membership_role)] ?? 5) -
       (ROLE_RANK[normalizeRole(b.membership_role)] ?? 5);
@@ -45,6 +41,7 @@ export default function TeamPage() {
         const r = normalizeRole(m.membership_role);
         return r !== 'OWNER' && r !== 'ADMIN';
       }).sort(sortRole),
+      pending: team.filter((m) => m.status === 'INVITED'),
       former: team.filter((m) => m.status === 'INACTIVE'),
     };
   }, [team]);
@@ -57,7 +54,7 @@ export default function TeamPage() {
 
   const renderCard = (m) => (
     <TeamMemberCard
-      key={m.membershipId || m.userId}
+      key={m.membershipId || m.invitationId || m.userId}
       member={m}
       isYou={m.userId === profile?.id}
       canManage={canManage}
@@ -111,7 +108,7 @@ export default function TeamPage() {
           body="The team roster did not load. Try again to refresh."
           retry={{ label: 'Try again', onClick: () => refetch() }}
         />
-      ) : activeCount === 0 ? (
+      ) : activeCount === 0 && pending.length === 0 ? (
         <div className="tm-empty">
           <Users size={26} />
           <p className="tm-empty-title">No teammates yet</p>
@@ -128,7 +125,6 @@ export default function TeamPage() {
             <section className="tm-group">
               <div className="tm-group-head">
                 <h2 className="tm-group-title">Leadership</h2>
-                <span className="tm-group-count">{leadership.length}</span>
               </div>
               <div className="tm-grid">{leadership.map(renderCard)}</div>
             </section>
@@ -138,9 +134,17 @@ export default function TeamPage() {
             <section className="tm-group">
               <div className="tm-group-head">
                 <h2 className="tm-group-title">Team</h2>
-                <span className="tm-group-count">{members.length}</span>
               </div>
               <div className="tm-grid">{members.map(renderCard)}</div>
+            </section>
+          )}
+
+          {pending.length > 0 && (
+            <section className="tm-group">
+              <div className="tm-group-head">
+                <h2 className="tm-group-title">Invitations</h2>
+              </div>
+              <div className="tm-grid">{pending.map(renderCard)}</div>
             </section>
           )}
 

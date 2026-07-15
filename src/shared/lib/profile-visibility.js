@@ -32,6 +32,9 @@ const {
   OWNER_FIELDS,
   CONFIRMED_JOB_FIELDS,
 } = require("./audience-dto");
+const {
+  SUBMISSION_PROFILE_SOURCE_FIELDS,
+} = require("./submission-profile");
 
 // ---------------------------------------------------------------------------
 // Image-status visibility (real `images` columns)
@@ -207,6 +210,13 @@ const AGENCY_DISCOVERY_SELECT = uniqueColumns(
   ["is_discoverable"],
 );
 
+/** Named-agency submission query: the immutable submission snapshot source. */
+const AGENCY_SUBMISSION_SELECT = uniqueColumns(
+  SUBMISSION_PROFILE_SOURCE_FIELDS,
+  AGE_GATING_COLUMNS,
+  ["is_discoverable"],
+);
+
 /** Owner editor query: the owner allowlist (already includes DOB/consent). */
 const OWNER_PROFILE_SELECT = uniqueColumns(OWNER_FIELDS, AGE_GATING_COLUMNS);
 
@@ -219,6 +229,7 @@ const CONFIRMED_JOB_SELECT = uniqueColumns(
 const AUDIENCE_SELECT = Object.freeze({
   [AUDIENCE.PUBLIC]: PUBLIC_PROFILE_SELECT,
   [AUDIENCE.AGENCY_DISCOVERY]: AGENCY_DISCOVERY_SELECT,
+  [AUDIENCE.AGENCY_SUBMISSION]: AGENCY_SUBMISSION_SELECT,
   [AUDIENCE.OWNER]: OWNER_PROFILE_SELECT,
   [AUDIENCE.CONFIRMED_JOB]: CONFIRMED_JOB_SELECT,
 });
@@ -269,6 +280,7 @@ module.exports = {
   AGE_GATING_COLUMNS,
   PUBLIC_PROFILE_SELECT,
   AGENCY_DISCOVERY_SELECT,
+  AGENCY_SUBMISSION_SELECT,
   OWNER_PROFILE_SELECT,
   CONFIRMED_JOB_SELECT,
   AUDIENCE_SELECT,

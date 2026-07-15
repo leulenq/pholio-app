@@ -33,6 +33,8 @@
       background: var(--gold); color: #fff; border: 0; border-radius: 10px; padding: 15px 24px;
       width: 100%; cursor: pointer; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
     button:hover { background: #B8945A; transform: translateY(-1px); }
+    .revoke { margin-top: 20px; background: #fff; color: #8a3324; border: 1px solid rgba(138,51,36,0.35); }
+    .revoke:hover { background: #fff8f6; }
     .fine { font-family: system-ui, sans-serif; font-size: 13px; color: rgba(26,26,26,0.5);
       margin: 16px 0 0; text-align: center; }
     .center { text-align: center; }
@@ -131,6 +133,17 @@
               details on Pholio.
             </p>
           <% } %>
+          <form method="POST" action="/guardian-consent/revoke">
+            <input type="hidden" name="token" value="<%= token %>" />
+            <button class="revoke" type="submit">Withdraw this consent</button>
+          </form>
+          <p>Withdrawal immediately removes this submission from the agency workspace. Copies already downloaded by the agency cannot be recalled.</p>
+        </div>
+
+      <% } else if (mode === 'revoked') { %>
+        <div class="center">
+          <h1>Consent withdrawn</h1>
+          <p>The authorization is no longer active. Associated minor submissions have been removed from agency access in Pholio.</p>
           <p>You can safely close this window.</p>
         </div>
 

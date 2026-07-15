@@ -64,23 +64,6 @@ function CastingVerifyEmail({ email, onComplete, previewActive = false }) {
     return () => clearInterval(id);
   }, [previewActive, finishVerified]);
 
-  const checkNow = useCallback(async () => {
-    setError('');
-    setNote('');
-    const user = auth.currentUser;
-    if (!user) {
-      setNote('Open the link in your inbox, then come back.');
-      return;
-    }
-    try {
-      await user.reload();
-      if (user.emailVerified) finishVerified();
-      else setNote('Not yet — the link in your inbox does it.');
-    } catch {
-      setError('Could not check just now. Try again in a moment.');
-    }
-  }, [finishVerified]);
-
   const resend = useCallback(async () => {
     if (cooling) return;
     setError('');

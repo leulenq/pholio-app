@@ -16,32 +16,6 @@ exports.up = async function up(knex) {
   await knex.schema.dropTableIfExists("commissions");
 };
 
-/**
- * Recreate the table with its original columns (see
- * migrations/20250101000000_create_tables.js) so the migration is reversible.
- *
- * @param {import("knex").Knex} knex
- */
-exports.down = async function down(knex) {
-  const exists = await knex.schema.hasTable("commissions");
-  if (exists) return;
-
-  await knex.schema.createTable("commissions", (table) => {
-    table.uuid("id").primary();
-    table
-      .uuid("agency_id")
-      .notNullable()
-      .references("id")
-      .inTable("agencies")
-      .onDelete("CASCADE");
-    table
-      .uuid("profile_id")
-      .notNullable()
-      .references("id")
-      .inTable("profiles")
-      .onDelete("CASCADE");
-    table.decimal("percent").notNullable();
-    table.integer("amount_cents").notNullable();
-    table.timestamp("created_at").defaultTo(knex.fn.now());
-  });
-};
+// Intentionally irreversible. Rolling back must not recreate a money-shaped
+// table that the product has explicitly removed.
+exports.down = async function down() {};

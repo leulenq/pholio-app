@@ -389,8 +389,19 @@ const TALENT_DATA_INVENTORY = [
     column: "talent_user_id",
     cascade: "fk",
     exportMode: "redact",
-    redactColumns: ["token"],
+    redactColumns: ["token", "token_hash"],
     notes: "Magic-link bearer token — never exported.",
+  },
+  {
+    key: "message_reply_session_tokens",
+    table: "message_reply_session_tokens",
+    scope: "user",
+    column: "talent_user_id",
+    cascade: "fk",
+    exportMode: "redact",
+    redactColumns: ["token_hash"],
+    notes:
+      "Short-lived one-time dashboard bootstrap credential — hash is never exported.",
   },
   {
     key: "comp_card_presets",

@@ -204,8 +204,9 @@
 }
 
 .note-entry {
-  border-left: 1px solid #EDE9E4;
-  padding: 4px 0 4px 12px;
+  border: 1px solid #EDE9E4;
+  border-radius: 4px;
+  padding: 8px 10px;
 }
 
 .note-meta {
@@ -404,7 +405,7 @@
 
 /* Application status card */
 .app-status-card {
-  border: 1px solid #E4D9C2;
+  border: 1px solid color-mix(in srgb, var(--ag-gold) 38%, #EDE9E4);
   background: #FAF8F5;
   border-radius: 10px;
   padding: 14px 16px;

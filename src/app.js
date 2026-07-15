@@ -14,6 +14,9 @@ const {
 } = require("./domains/auth/services/firebase-admin");
 const { errorHandler } = require("./shared/middleware/error-handler");
 const {
+  sameOriginMutationGuard,
+} = require("./shared/middleware/same-origin-mutation");
+const {
   createTalentAiWriterRateLimit,
 } = require("./shared/middleware/ai-writer-rate-limit");
 const cookieParser = require("cookie-parser");
@@ -43,6 +46,7 @@ const publicRoutes = require("./routes/api/public");
 const portfolioRoutes = require("./routes/portfolio");
 const moderationRoutes = require("./domains/moderation/routes/reports");
 const guardianConsentRoutes = require("./domains/talent/routes/guardian-consent");
+const internalAgencyRequestRoutes = require("./domains/internal/routes/agency-requests");
 
 const app = express();
 
@@ -321,6 +325,9 @@ app.use(express.json());
 const sessionStoreConfig = {
   knex,
   tablename: "sessions",
+  // Test suites own their schema lifecycle. Disabling the store's background
+  // create avoids racing migrations and teardown on short-lived SQLite files.
+  createtable: process.env.NODE_ENV !== "test",
 };
 
 // In serverless environments, disable automatic cleanup to prevent connection errors
@@ -531,10 +538,20 @@ app.use((req, res, next) => {
 // Authenticated dashboard APIs return account-scoped data and must never be
 // stored by browser/shared caches. Scoped to the authenticated API mounts
 // only — public/static asset routes are untouched.
-app.use(["/api/talent", "/api/agency"], (req, res, next) => {
+app.use(["/api/talent", "/api/agency", "/api/internal"], (req, res, next) => {
   res.set("Cache-Control", "private, no-store");
   next();
 });
+
+// Cookie-authenticated dashboard writes and token-authenticated reply writes
+// must come from the Pholio app. The required custom header forces a CORS
+// preflight for cross-site JavaScript; Origin/Referer validation also blocks
+// forged form submissions that can carry the shared session cookie.
+app.use(
+  sameOriginMutationGuard({
+    enabled: config.csrfProtectionEnabled,
+  }),
+);
 
 // Migration endpoint (protected by secret token)
 // Call this once after deployment to set up database tables
@@ -659,6 +676,7 @@ app.use("/", chatRoutes);
 app.use("/", scoutRoutes);
 
 // API Routes
+app.use("/", internalAgencyRequestRoutes);
 app.use("/api", apiRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api", moderationRoutes);
@@ -759,6 +777,8 @@ app.get(
     "/reply/*",
     "/opencall",
     "/opencall/*",
+    "/internal",
+    "/internal/*",
   ],
   (req, res) => {
     // Development: Redirect to Vite dev server

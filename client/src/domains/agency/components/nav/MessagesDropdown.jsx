@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mail } from 'lucide-react';
+import { markAllMessagesAsRead } from '../../api/agency';
 import './MessagesDropdown.css';
 
 /** Returns initials from a full name, e.g. "Maya Torres" → "MT" */
@@ -32,15 +34,18 @@ export default function MessagesDropdown({
   isOpen,
   onClose,
   threads,
-  onAllRead,
+  unreadCount = 0,
   isLoading = false,
   isError = false,
 }) {
-  // readIds tracks which thread ids have been locally marked as read within this mount.
-  // Note: resets on panel close/reopen (unmount) — acceptable for mock phase.
-  // The nav badge count is cleared via onAllRead() which updates parent state.
-  const [readIds, setReadIds] = useState(new Set());
   const firstItemRef = useRef(null);
+  const queryClient = useQueryClient();
+  const markAllMutation = useMutation({
+    mutationFn: markAllMessagesAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agency', 'messages', 'threads'] });
+    },
+  });
 
   // Move focus into panel when it opens
   useEffect(() => {
@@ -49,32 +54,24 @@ export default function MessagesDropdown({
 
   if (!isOpen) return null;
 
-  const isUnread = (t) => t.unread && !readIds.has(t.id);
-  const anyUnread = threads.some(isUnread);
-
-  const markAllRead = () => {
-    // NOTE: there is no bulk "mark all messages read" backend endpoint today.
-    // src/domains/agency/routes/messages.js only exposes:
-    //   GET  /api/agency/messages/threads       (thread.id here is an application id)
-    //   POST /api/agency/messages/:messageId/read (marks a single message row read)
-    // A bulk read-all would need a new endpoint (e.g. POST /api/agency/messages/read-all)
-    // that marks every unread message read across the agency's threads, plus a
-    // corresponding helper in client/src/domains/agency/api/agency.js. Until that
-    // exists, this only clears local/optimistic UI state — it does not persist.
-    setReadIds(new Set(threads.map(t => t.id)));
-    onAllRead?.(); // clears the nav badge in the parent
-  };
-
   return (
     <div className="nav-panel md-panel" aria-label="Messages">
       {/* Header */}
       <div className="md-header">
-        <p className="md-title">Messages</p>
-        {anyUnread && (
-          <button className="md-mark-read" onClick={markAllRead}>
-            Mark all read
+        <div className="md-heading">
+          <p className="md-title">Messages</p>
+          {unreadCount > 0 ? <span className="md-header-count">{unreadCount} unread</span> : null}
+        </div>
+        {unreadCount > 0 ? (
+          <button
+            type="button"
+            className="md-mark-all"
+            disabled={markAllMutation.isPending}
+            onClick={() => markAllMutation.mutate()}
+          >
+            {markAllMutation.isPending ? 'Marking…' : 'Mark all read'}
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* List */}
@@ -105,7 +102,7 @@ export default function MessagesDropdown({
         )}
 
         {!isLoading && !isError && threads.map((thread, idx) => {
-          const unread = isUnread(thread);
+          const unread = thread.unread;
           return (
             <Link
               key={thread.id}
@@ -114,8 +111,6 @@ export default function MessagesDropdown({
               onClick={onClose}
               ref={idx === 0 ? firstItemRef : null}
             >
-              {unread && <span className="md-unread-dot" aria-hidden="true" />}
-
               {thread.senderAvatar ? (
                 <img
                   src={thread.senderAvatar}

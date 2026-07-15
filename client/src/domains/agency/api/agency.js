@@ -3,6 +3,8 @@
  * Handles all API calls for agency dashboard
  */
 
+import { sameOriginMutationHeaders } from '../../../shared/lib/same-origin-request';
+
 const BASE_URL = '/api/agency';
 
 /**
@@ -38,6 +40,7 @@ async function request(endpoint, options = {}) {
     headers: {
       ...defaultHeaders,
       ...options.headers,
+      ...sameOriginMutationHeaders(options.method),
     },
   };
 
@@ -119,25 +122,12 @@ export async function getAgencyOverview() {
   return apiClient.get('/overview');
 }
 
-/**
- * Get agency dashboard stats
- */
-export async function getAgencyStats() {
-  return apiClient.get('/stats');
+export async function getAgencyLegalStatus() {
+  return apiClient.get('/legal-status');
 }
 
-/**
- * Get agency analytics (timeline, match scores, board breakdown, acceptance rate)
- */
-export async function getAgencyAnalytics() {
-  return apiClient.get('/analytics');
-}
-
-/**
- * Get upcoming interviews
- */
-export async function getUpcomingInterviews() {
-  return apiClient.get('/interviews?upcoming=true');
+export async function acceptAgencyLegalPolicies(acceptance) {
+  return apiClient.post('/legal-acceptance', acceptance);
 }
 
 /**
@@ -160,13 +150,6 @@ export async function getApplicants(params = {}) {
 
   const queryString = new URLSearchParams(processedParams).toString();
   return apiClient.get(`/applications${queryString ? '?' + queryString : ''}`);
-}
-
-/**
- * Get pipeline counts
- */
-export async function getPipelineCounts() {
-  return apiClient.get('/pipeline-counts');
 }
 
 /**
@@ -273,8 +256,11 @@ export async function getApplicationDetails(applicationId) {
 /**
  * Get full agency roster
  */
-export async function fetchRoster() {
-  return apiClient.get('/roster');
+export async function fetchRoster(params = {}) {
+  const queryString = new URLSearchParams(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+  ).toString();
+  return apiClient.get(`/roster${queryString ? `?${queryString}` : ''}`);
 }
 
 /**
@@ -282,6 +268,34 @@ export async function fetchRoster() {
  */
 export async function fetchRosterProfile(profileId) {
   return apiClient.get(`/roster/${profileId}`);
+}
+
+export async function createTalentRecord(data) {
+  return apiClient.post('/talent-records', data);
+}
+
+export async function updateRosterMembership(membershipId, data) {
+  return apiClient.patch(`/roster-memberships/${membershipId}`, data);
+}
+
+export async function getCommitments({ start, end }) {
+  return apiClient.get(`/commitments?${new URLSearchParams({ start, end })}`);
+}
+
+export async function createCommitment(data) {
+  return apiClient.post('/commitments', data);
+}
+
+export async function updateCommitment(id, data) {
+  return apiClient.patch(`/commitments/${id}`, data);
+}
+
+export async function confirmCommitment(id, releaseConflictIds = []) {
+  return apiClient.post(`/commitments/${id}/confirm`, { releaseConflictIds });
+}
+
+export async function releaseCommitment(id) {
+  return apiClient.delete(`/commitments/${id}`);
 }
 
 /**
@@ -614,6 +628,13 @@ export async function markMessageAsRead(messageId) {
 }
 
 /**
+ * Mark every visible talent message as read
+ */
+export async function markAllMessagesAsRead() {
+  return apiClient.post('/messages/read-all');
+}
+
+/**
  * Get message threads (inbox)
  */
 export async function getMessageThreads() {
@@ -776,15 +797,15 @@ export async function deleteReminder(reminderId) {
 
 export async function getAgencyNotifications(options = {}) {
   const limit = options.limit ? `?limit=${options.limit}` : '';
-  return request(`/notifications${limit}`);
+  return apiClient.get(`/notifications${limit}`);
 }
 
 export async function markAgencyNotificationRead(id) {
-  return request(`/notifications/${id}/read`, { method: 'PATCH', body: {} });
+  return apiClient.patch(`/notifications/${id}/read`, {});
 }
 
 export async function markAllAgencyNotificationsRead() {
-  return request('/notifications/read-all', { method: 'POST', body: {} });
+  return apiClient.post('/notifications/read-all', {});
 }
 
 /**
@@ -804,13 +825,11 @@ export async function updateOpenCallLink(linkId, payload) {
 }
 
 export default {
-  getAgencyStats,
   getAgencyOverview,
-  getAgencyAnalytics,
-  getUpcomingInterviews,
+  getAgencyLegalStatus,
+  acceptAgencyLegalPolicies,
   getRecentApplicants,
   getApplicants,
-  getPipelineCounts,
   getApplication,
   acceptApplication,
   declineApplication,

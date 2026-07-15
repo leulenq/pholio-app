@@ -77,7 +77,6 @@ function CastingCard({ board, onReview }) {
           <span className="cas-status">{meta.label}</span>
           <h3 className="cas-name">{board.name}</h3>
           {board.client && <span className="cas-client">{board.client}</span>}
-          {board.submitted > 0 && <span className="cas-flag">{board.submitted} new</span>}
         </div>
         <p className="cas-brief">
           {board.description || 'No brief yet — add one to guide your reviewers.'}
@@ -99,10 +98,10 @@ function CastingCard({ board, onReview }) {
       </div>
 
       <div className="cas-metric">
-        <span className="cas-metric-label">Applicants</span>
+        <span className="cas-metric-label">Talent</span>
         <span className="cas-metric-num">{board.applicants}</span>
-        <span className="cas-metric-sub">{board.booked ? `${board.booked} booked` : 'None booked'}</span>
-        <div className="cas-bar" title={`${rate}% booked`}>
+        <span className="cas-metric-sub">{board.booked ? `${board.booked} represented` : 'None represented'}</span>
+        <div className="cas-bar" title={`${rate}% represented`}>
           <i style={{ width: `${rate}%` }} />
         </div>
       </div>
@@ -157,7 +156,7 @@ export default function CastingPage() {
     { label: 'Open Boards', value: stats.open, tone: 'ink' },
     { label: 'In Pipeline', value: stats.pipeline, tone: 'ink' },
     { label: 'Awaiting Review', value: stats.incoming, tone: stats.incoming ? 'gold' : 'mute' },
-    { label: 'Booked', value: stats.booked, tone: 'ink' },
+    { label: 'Represented', value: stats.booked, tone: 'ink' },
   ];
 
   return (
@@ -172,7 +171,7 @@ export default function CastingPage() {
           </p>
         </div>
         <button className="cas-new" onClick={openModal}>
-          <Plus size={16} /> New Board
+          <Plus size={16} /> New board
         </button>
       </header>
 
@@ -180,7 +179,7 @@ export default function CastingPage() {
         className="cas-ledger"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
       >
         {ledger.map((s) => (
           <div key={s.label} className={`cas-stat cas-stat--${s.tone}`}>
@@ -203,13 +202,13 @@ export default function CastingPage() {
       </div>
 
       {isLoading ? (
-        <div className="cas-loading">Loading casting boards…</div>
+        <div className="cas-loading">Loading signing boards…</div>
       ) : filtered.length === 0 ? (
         <div className="cas-empty">
           <Briefcase size={26} />
-          <p className="cas-empty-title">{boards.length ? 'No boards in this view' : 'No casting boards yet'}</p>
+          <p className="cas-empty-title">{boards.length ? 'No boards in this view' : 'No signing boards yet'}</p>
           <p className="cas-empty-sub">
-            {boards.length ? 'Adjust the filter to see more.' : 'Open your first casting board to start reviewing talent.'}
+            {boards.length ? 'Adjust the filter to see more.' : 'Open your first signing board to start reviewing talent.'}
           </p>
         </div>
       ) : (
@@ -218,7 +217,7 @@ export default function CastingPage() {
             <CastingCard
               key={board.id}
               board={board}
-              onReview={(id) => navigate(`/dashboard/agency/casting/${id}`)}
+              onReview={(id) => navigate(`/dashboard/agency/signing/${id}`)}
             />
           ))}
         </div>

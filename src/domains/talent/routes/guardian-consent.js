@@ -22,6 +22,7 @@ const {
   createConsentRequest,
   inspectConsentToken,
   confirmConsentToken,
+  revokeConsentToken,
   persistProfileDateOfBirthIfNeeded,
   loadProfilePrimaryPhotoUrl,
   GuardianConsentEmailError,
@@ -276,6 +277,24 @@ router.post(
   }),
 );
 
+router.post(
+  "/api/talent/guardian-consent/revoke",
+  asyncHandler(async (req, res) => {
+    const token = String(req.body?.token || req.query?.token || "").trim();
+    const result = await revokeConsentToken(knex, token);
+    if (!result.ok) {
+      return apiResponse.error(res, "This consent link is not valid.", 400, {
+        code: result.reason || "invalid",
+      });
+    }
+    return apiResponse.success(res, {
+      status: "revoked",
+      scope: result.scope,
+      already_revoked: Boolean(result.alreadyRevoked),
+    });
+  }),
+);
+
 /**
  * GET /guardian-consent?token=
  * Public, guardian-facing page. SAFE / READ-ONLY (audit P0-4): it inspects the
@@ -373,6 +392,35 @@ router.post(
         agencyName: agency?.name || null,
         expiresAt: null,
       },
+      error: null,
+    });
+  }),
+);
+
+router.post(
+  "/guardian-consent/revoke",
+  express.urlencoded({ extended: false }),
+  asyncHandler(async (req, res) => {
+    const token = String(req.body?.token || "").trim();
+    const result = await revokeConsentToken(knex, token);
+    if (!result.ok) {
+      return res.status(400).render("guardian-consent", {
+        title: "Guardian Consent · Pholio",
+        layout: false,
+        mode: "error",
+        reason: result.reason || "invalid",
+        token,
+        disclosure: null,
+        error: null,
+      });
+    }
+    return res.status(200).render("guardian-consent", {
+      title: "Guardian Consent · Pholio",
+      layout: false,
+      mode: "revoked",
+      reason: null,
+      token,
+      disclosure: { scope: result.scope },
       error: null,
     });
   }),

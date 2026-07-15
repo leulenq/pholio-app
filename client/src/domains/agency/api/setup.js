@@ -1,4 +1,5 @@
 import { ApiError } from './agency';
+import { sameOriginMutationHeaders } from '../../../shared/lib/same-origin-request';
 
 const BASE_URL = '/api/agency';
 
@@ -10,6 +11,7 @@ async function request(endpoint, options = {}) {
       Accept: 'application/json',
       'Content-Type': 'application/json',
       ...(options.headers || {}),
+      ...sameOriginMutationHeaders(options.method),
     },
   });
 

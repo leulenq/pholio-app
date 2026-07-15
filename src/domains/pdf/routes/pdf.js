@@ -1,8 +1,11 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
-const multer = require("multer");
 const { getSharp } = require("../../../shared/lib/lazy-sharp");
+const {
+  uploadAgencyLogo,
+  processAgencyLogo,
+} = require("../../../shared/lib/uploader");
 const {
   renderCompCard,
   renderDigitalsSheet,
@@ -196,56 +199,6 @@ function renderMinorPdfBlocked(res) {
     "Guardian consent is required before this comp card can be shared publicly.",
   );
 }
-
-// Multer configuration for agency logo uploads
-const agencyLogoStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const userId = req.session.userId;
-    const logoDir = path.join(
-      __dirname,
-      "..",
-      "..",
-      "public",
-      "uploads",
-      "agency-logos",
-      userId,
-    );
-    try {
-      fs.mkdirSync(logoDir, { recursive: true });
-    } catch (err) {
-      if (err.code !== "EEXIST") {
-        return cb(err);
-      }
-    }
-    cb(null, logoDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || "logo.png").toLowerCase();
-    cb(null, `logo${ext}`);
-  },
-});
-
-const agencyLogoUpload = multer({
-  storage: agencyLogoStorage,
-  fileFilter: (req, file, cb) => {
-    const allowedExt = [".jpg", ".jpeg", ".png", ".svg", ".webp"];
-    const allowedMime = [
-      "image/jpeg",
-      "image/png",
-      "image/svg+xml",
-      "image/webp",
-    ];
-    const ext = path.extname((file.originalname || "").toLowerCase());
-    const ok = allowedExt.includes(ext) || allowedMime.includes(file.mimetype);
-    cb(
-      ok
-        ? null
-        : new Error("Unsupported file type — only JPG/PNG/SVG/WEBP allowed"),
-      ok,
-    );
-  },
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit for logos
-});
 
 // Demo profile data for elara-k (fallback when database is empty)
 function getDemoProfile(slug) {
@@ -3393,7 +3346,7 @@ router.post(
 router.post(
   "/api/pdf/agency-logo/:slug",
   requireRole("TALENT"),
-  agencyLogoUpload.single("logo"),
+  uploadAgencyLogo.single("logo"),
   async (req, res, next) => {
     try {
       const { slug } = req.params;
@@ -3414,51 +3367,14 @@ router.post(
         return res.status(400).json({ error: "Logo file required" });
       }
 
-      const userId = req.session.userId;
-      const logoDir = path.join(
-        __dirname,
-        "..",
-        "..",
-        "public",
-        "uploads",
-        "agency-logos",
-        userId,
-      );
-      const logoPath = path.join(logoDir, req.file.filename);
-
       // Process and optimize logo
       try {
-        const fileExt = path.extname(req.file.filename).toLowerCase();
-        const isSvg = fileExt === ".svg";
-
-        let logoUrl;
-
-        if (isSvg) {
-          // For SVG, keep as-is (no processing with Sharp)
-          logoUrl = `/uploads/agency-logos/${userId}/logo.svg`;
-        } else {
-          // For raster images, convert to WebP and optimize
-          const optimizedPath = logoPath.replace(/\.[^.]+$/, ".webp");
-          const sharp = getSharp();
-          if (sharp) {
-            await sharp(logoPath)
-              .resize({
-                width: 400,
-                height: 200,
-                fit: "inside",
-                withoutEnlargement: true,
-              })
-              .webp({ quality: 90 })
-              .toFile(optimizedPath);
-          }
-
-          // Delete original if it's not webp
-          if (!logoPath.endsWith(".webp")) {
-            fs.unlinkSync(logoPath);
-          }
-
-          logoUrl = `/uploads/agency-logos/${userId}/logo.webp`;
-        }
+        const processedLogo = await processAgencyLogo(req.file, {
+          agencyId: req.session.userId,
+          maxWidth: 400,
+          maxHeight: 200,
+        });
+        const logoUrl = processedLogo.publicUrl;
 
         // Update customizations with logo path
         let customizations = null;
@@ -3493,15 +3409,7 @@ router.post(
         });
       } catch (processError) {
         console.error("Error processing logo:", processError);
-        // Clean up uploaded file
-        if (fs.existsSync(logoPath)) {
-          try {
-            fs.unlinkSync(logoPath);
-          } catch (unlinkError) {
-            console.error("Error deleting logo file:", unlinkError);
-          }
-        }
-        return res.status(500).json({ error: "Error processing logo" });
+        return res.status(400).json({ error: "Invalid logo image" });
       }
     } catch (error) {
       // Log database connection errors for debugging

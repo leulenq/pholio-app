@@ -12,7 +12,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { getMessageThreads, getMessages, sendMessage, markMessageAsRead } from '../api/agency';
 import './MessagesPage.css';
 
@@ -59,18 +59,19 @@ export default function MessagesPage() {
     queryFn: getMessageThreads,
     refetchInterval: 30000,
   });
+  const resolvedThreadId = activeThreadId || threads[0]?.id || null;
 
   // 2. Fetch Messages for active thread
   const { data: messages = [], isLoading: isMessagesLoading } = useQuery({
-    queryKey: ['agency', 'messages', 'thread', activeThreadId],
-    queryFn: () => getMessages(activeThreadId),
-    enabled: !!activeThreadId,
+    queryKey: ['agency', 'messages', 'thread', resolvedThreadId],
+    queryFn: () => getMessages(resolvedThreadId),
+    enabled: !!resolvedThreadId,
     refetchInterval: 10000,
   });
 
   // 3. Mark as read when thread becomes active or new messages arrive
   useEffect(() => {
-    if (activeThreadId && messages.length > 0) {
+    if (resolvedThreadId && messages.length > 0) {
       const unread = messages.filter(m => !m.is_read && m.sender_type === 'TALENT');
       if (unread.length > 0) {
         // Mark all as read
@@ -79,14 +80,14 @@ export default function MessagesPage() {
         });
       }
     }
-  }, [activeThreadId, messages, queryClient]);
+  }, [resolvedThreadId, messages, queryClient]);
 
   // 4. Send Message Mutation
   const sendMutation = useMutation({
-    mutationFn: (text) => sendMessage(activeThreadId, text),
+    mutationFn: (text) => sendMessage(resolvedThreadId, text),
     onSuccess: () => {
       setMessageInput('');
-      queryClient.invalidateQueries(['agency', 'messages', 'thread', activeThreadId]);
+      queryClient.invalidateQueries(['agency', 'messages', 'thread', resolvedThreadId]);
       queryClient.invalidateQueries(['agency', 'messages', 'threads']);
     }
   });
@@ -107,14 +108,7 @@ export default function MessagesPage() {
     t.applicationLabel.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const activeThread = threads.find(t => t.id === activeThreadId);
-
-  // Set first thread as active initially if none selected
-  useEffect(() => {
-    if (!activeThreadId && threads.length > 0) {
-      setActiveThreadId(threads[0].id);
-    }
-  }, [threads, activeThreadId]);
+  const activeThread = threads.find(t => t.id === resolvedThreadId);
 
   return (
     <div className="st-messages-page">
@@ -151,7 +145,7 @@ export default function MessagesPage() {
               filteredThreads.map(thread => (
                 <button
                   key={thread.id}
-                  className={`st-thread-item ${activeThreadId === thread.id ? 'active' : ''} ${thread.unread ? 'unread' : ''}`}
+                  className={`st-thread-item ${resolvedThreadId === thread.id ? 'active' : ''} ${thread.unread ? 'unread' : ''}`}
                   onClick={() => setActiveThreadId(thread.id)}
                 >
                   <div className="st-thread-avatar">

@@ -18,20 +18,29 @@ export const STATUS_MAP = {
   on_booking: { label: 'On booking', color: 'var(--ag-info)' },
   booked_out: { label: 'Booked out', color: 'var(--ag-danger)' },
   inactive: { label: 'Inactive', color: 'var(--ag-text-2)' },
+  limited: { label: 'Limited', color: 'var(--ag-warning)' },
+  unknown: { label: 'Unknown', color: 'var(--ag-text-2)' },
 
   // ── Pipeline / signing set ──
   submitted: { label: 'Submitted', color: 'var(--ag-text-2)' },
+  pending: { label: 'Submitted', color: 'var(--ag-text-2)' },
   under_review: { label: 'Under review', color: 'var(--ag-info)' },
   shortlisted: { label: 'Shortlisted', color: 'var(--ag-info)' },
   kept_on_file: { label: 'On file', color: 'var(--ag-text-2)' },
   development: { label: 'New Face — Development', color: 'var(--ag-success)' },
   represented: { label: 'Represented', color: 'var(--ag-success)' },
   passed: { label: 'Passed', color: 'var(--ag-text-2)' },
+  requested_more: { label: 'More digitals requested', color: 'var(--ag-info)' },
+  meeting_requested: { label: 'Meeting requested', color: 'var(--ag-info)' },
+  withdrawn: { label: 'Withdrawn', color: 'var(--ag-text-2)' },
 
   // ── Common aliases from the backend enum ──
   on_hold: { label: 'On hold', color: 'var(--ag-warning)' },
   hold: { label: 'On hold', color: 'var(--ag-warning)' },
   signed: { label: 'Represented', color: 'var(--ag-success)' },
+  accepted: { label: 'Represented', color: 'var(--ag-success)' },
+  booked: { label: 'Represented', color: 'var(--ag-success)' },
+  declined: { label: 'Not moving forward', color: 'var(--ag-text-2)' },
 };
 
 /**

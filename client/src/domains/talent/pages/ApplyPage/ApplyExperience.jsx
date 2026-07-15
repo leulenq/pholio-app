@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../../shared/components/NotificationCenter/NotificationCenter';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../../shared/components/NotificationCenter/talentNotifications';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import PholioButton, {
   PholioIconButton,

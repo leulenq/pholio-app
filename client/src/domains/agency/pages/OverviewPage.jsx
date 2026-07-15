@@ -92,7 +92,7 @@ export default function OverviewPage() {
         title="Top matches today"
         talents={topMatches}
         onSelect={setSelected}
-        viewAllTo="/dashboard/agency/applicants"
+        viewAllTo="/dashboard/agency/submissions"
       />
       <BoardsTable boards={boards} stages={stages} />
 

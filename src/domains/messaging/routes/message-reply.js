@@ -7,6 +7,8 @@ const {
 const {
   validateReplyToken,
   touchReplyToken,
+  issueReplySessionToken,
+  consumeReplySessionToken,
 } = require("../services/message-reply-tokens");
 
 const router = express.Router();
@@ -161,26 +163,52 @@ router.post(
   },
 );
 
-// POST /api/reply/:token/session — optional full-app session bootstrap
-//
-// SECURITY (SEC-0.8): this is the largest escalation reachable from a magic link —
-// it mints a FULL authenticated talent session from possession of the token alone.
-// The token reaching here has already passed loadReplyContext -> validateReplyToken,
-// which enforces (a) a valid hash match and (b) a non-expired token (now a 3-day
-// TTL, down from 7), and confirms the token still belongs to the same talent user.
-// We intentionally make no further behavioral change here to avoid breaking the
-// talent reply UX, but we log every bootstrap so the escalation is auditable.
-//
-// RESIDUAL RISK for orchestrator review: anyone who obtains a live raw token (via a
-// forwarded/leaked email or URL interception) can bootstrap a full session within
-// the TTL. The token is bearer-style and not bound to a device/IP, and this POST is
-// not additionally throttled or CSRF-scoped beyond session validity. Consider, in a
-// follow-up: step-up confirmation before session bootstrap, single-use/step-down
-// scoping for this endpoint specifically, and device/IP binding. Not changed here to
-// keep this change focused on hashing correctness.
-router.post("/api/reply/:token/session", loadReplyContext, async (req, res) => {
+// POST /api/reply/:token/session-token — exchange the emailed reply bearer for a
+// fresh, ten-minute, one-time dashboard bootstrap credential. Only one can be
+// issued per emailed-token rotation, so replaying the long-lived reply bearer
+// cannot mint repeated authenticated sessions.
+router.post(
+  "/api/reply/:token/session-token",
+  loadReplyContext,
+  async (req, res) => {
+    try {
+      const sessionToken = await issueReplySessionToken(req.replyContext);
+      await touchReplyToken(req.replyContext.tokenId);
+      return res.status(201).json({ success: true, data: sessionToken });
+    } catch (error) {
+      if (error.code === "REPLY_SESSION_TOKEN_ALREADY_ISSUED") {
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: error.code,
+            message:
+              "Dashboard access was already started from this link. Request a new message link if you still need access.",
+          },
+        });
+      }
+      console.error("[Message Reply] Session token issue error:", error);
+      return res.status(500).json({ error: "Failed to start dashboard access" });
+    }
+  },
+);
+
+// POST /api/reply/:token/session — optional full-app session bootstrap. Here
+// :token is the short-lived bootstrap credential, never the emailed reply bearer.
+router.post("/api/reply/:token/session", async (req, res) => {
   try {
-    const { talentUserId, applicationId } = req.replyContext;
+    const bootstrapContext = await consumeReplySessionToken(req.params.token);
+    if (!bootstrapContext) {
+      return res.status(410).json({
+        success: false,
+        error: {
+          code: "REPLY_SESSION_TOKEN_INVALID_OR_USED",
+          message:
+            "This dashboard access token is invalid, expired, or has already been used.",
+        },
+      });
+    }
+
+    const { talentUserId, applicationId } = bootstrapContext;
 
     console.warn(
       "[Message Reply][SECURITY] Full session bootstrap via magic link",

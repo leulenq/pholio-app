@@ -144,13 +144,6 @@
   padding: 0 24px 10px;
   z-index: 3;
 }
-.tp-eyebrow {
-  font-size: 9.5px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ag-gold, #C9A55A);
-  margin-bottom: 9px;
-}
 .tp-name {
   font-family: 'Noto Serif Display', 'Playfair Display', serif;
   font-size: 31px;

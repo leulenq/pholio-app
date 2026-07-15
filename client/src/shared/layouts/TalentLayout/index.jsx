@@ -6,9 +6,8 @@ import { useFlash } from '../../hooks/useFlash';
 import { getTalentHeaderTone } from '../../utils/talentHeaderTone';
 import { TALENT_NAV_SECTIONS } from '../../constants/talentNav';
 import { postLogoutAndRedirectToMarketing } from '../../lib/logout';
-import NotificationCenter, {
-  useNotificationUnreadCount,
-} from '../../components/NotificationCenter/NotificationCenter';
+import NotificationCenter from '../../components/NotificationCenter/NotificationCenter';
+import { useNotificationUnreadCount } from '../../components/NotificationCenter/useNotificationUnreadCount';
 import PholioButton, {
   PholioIconButton,
 } from '../../components/ui/PholioButton';

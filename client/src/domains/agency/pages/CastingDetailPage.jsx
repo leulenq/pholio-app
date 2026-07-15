@@ -11,6 +11,8 @@ import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import MatchScore from '../components/ui/MatchScore';
 import FitBriefsPanel from '../components/FitBriefs/FitBriefsPanel';
+import { StatusText } from '../components/ui';
+import { useCardButton } from '../hooks/useCardButton';
 import './CastingPage.css';
 
 const isNew = (s) => s === 'submitted' || s === 'pending' || !s;
@@ -18,9 +20,9 @@ const TABS = [
   { key: 'all', label: 'All', match: () => true },
   { key: 'new', label: 'New', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
+  { key: 'kept_on_file', label: 'On file', match: (s) => s === 'kept_on_file' },
   { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
-  { key: 'booked', label: 'Booked', match: (s) => s === 'booked' },
-  { key: 'accepted', label: 'Signed', match: (s) => s === 'accepted' },
+  { key: 'represented', label: 'Represented', match: (s) => ['represented', 'booked', 'accepted'].includes(s) },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
 ];
 
@@ -45,29 +47,28 @@ function toTalent(c) {
   };
 }
 
-function CandidateCard({ c, index, onOpen, onShortlist, onAccept, onDecline, busy }) {
+function CandidateCard({ c, onOpen, onShortlist, onAccept, onDecline, busy }) {
   const status = c.backendStatus || 'submitted';
   const decided = status === 'accepted' || status === 'booked' || status === 'declined';
   const shortlisted = status === 'shortlisted';
+  const cardButtonProps = useCardButton(() => onOpen(c), { disabled: busy });
   return (
     <motion.div
       className="cd-card"
       onClick={() => onOpen(c)}
-      role="button"
-      tabIndex={0}
+      {...cardButtonProps}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 55, damping: 16, delay: Math.min(index * 0.04, 0.3) }}
+      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
     >
       <div className="cd-photo" style={{ backgroundImage: c.avatar ? `url(${c.avatar})` : 'none' }}>
-        {isNew(status) && <span className="cd-new">New</span>}
         <div className="cd-hover" onClick={(e) => e.stopPropagation()}>
           {!decided && (
             <>
               {!shortlisted && (
                 <button className="cd-act" title="Shortlist" disabled={busy} onClick={() => onShortlist(c)}><Star size={15} /></button>
               )}
-              <button className="cd-act cd-act--accept" title="Book" disabled={busy} onClick={() => onAccept(c)}><Check size={15} /></button>
+              <button className="cd-act cd-act--accept" title="Represent" disabled={busy} onClick={() => onAccept(c)}><Check size={15} /></button>
               <button className="cd-act cd-act--decline" title="Pass" disabled={busy} onClick={() => onDecline(c)}><X size={15} /></button>
             </>
           )}
@@ -79,7 +80,7 @@ function CandidateCard({ c, index, onOpen, onShortlist, onAccept, onDecline, bus
           {c.score != null && <MatchScore score={c.score} size="sm" />}
         </div>
         <span className="cd-meta">{c.archetype || 'editorial'}{c.location ? ` · ${c.location}` : ''}</span>
-        <div className="cd-statusrow">{status}</div>
+        <StatusText status={status} className="cd-statusrow" />
       </div>
     </motion.div>
   );
@@ -108,7 +109,7 @@ function CastingDetailPage() {
     qc.invalidateQueries({ queryKey: ['agency-boards'] });
   };
   const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
-  const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Booked'); }, onError: () => toast.error('Action failed') });
+  const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Represented'); }, onError: () => toast.error('Action failed') });
   const decline = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
   const busyId = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables) || null;
 
@@ -124,14 +125,14 @@ function CastingDetailPage() {
   }, [candidates, tab]);
 
   const target = board?.target_slots || 0;
-  const booked = board?.booked_count ?? counts.booked ?? 0;
+  const represented = board?.booked_count ?? counts.represented ?? 0;
   const closes = closeText(board?.closes_at);
 
   const ledger = [
     { label: 'In Pipeline', value: candidates.length, tone: 'ink' },
     { label: 'Awaiting Review', value: counts.new || 0, tone: (counts.new || 0) ? 'gold' : 'mute' },
     { label: 'Shortlisted', value: counts.shortlisted || 0, tone: 'ink' },
-    { label: target ? 'Slots Filled' : 'Booked', value: target ? `${booked}/${target}` : booked, tone: 'ink' },
+    { label: target ? 'Slots Filled' : 'Represented', value: target ? `${represented}/${target}` : represented, tone: 'ink' },
   ];
 
   return (
@@ -161,7 +162,7 @@ function CastingDetailPage() {
         className="cas-ledger"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
       >
         {ledger.map((s) => (
           <div key={s.label} className={`cas-stat cas-stat--${s.tone}`}>
@@ -205,17 +206,16 @@ function CastingDetailPage() {
           {!isLoading && !isError && filtered.length === 0 && (
             <div className="cas-empty">
               <p className="cas-empty-title">No talent in this view</p>
-              <p className="cas-empty-sub">Add applicants to this board, or switch the filter.</p>
+              <p className="cas-empty-sub">Add submissions to this board, or switch the filter.</p>
             </div>
           )}
 
           {filtered.length > 0 && (
             <div className="cd-grid">
-              {filtered.map((c, i) => (
+              {filtered.map((c) => (
                 <CandidateCard
                   key={c.applicationId ?? c.id}
                   c={c}
-                  index={i}
                   busy={busyId === (c.applicationId ?? c.id)}
                   onOpen={(cand) => setSelected(toTalent(cand))}
                   onShortlist={(cand) => shortlist.mutate(cand.applicationId ?? cand.id)}

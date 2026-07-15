@@ -1,18 +1,17 @@
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { addAgencyTeamMember } from '../api/agency';
 import { ASSIGNABLE_ROLES } from './team-presence';
 import { useAgencyPermissions } from '../hooks/useAgencyPermissions';
+import { AgencyModal } from './ui';
 
 const DEFAULT_ROLE = 'SCOUT';
 
 export default function TeamAddModal({ open, onClose }) {
   const qc = useQueryClient();
   const { presetRole } = useAgencyPermissions();
+  const emailRef = useRef(null);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState(DEFAULT_ROLE);
 
@@ -23,23 +22,15 @@ export default function TeamAddModal({ open, onClose }) {
 
   const handleClose = () => { setEmail(''); setRole(DEFAULT_ROLE); onClose(); };
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') handleClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
   const add = useMutation({
     mutationFn: () => addAgencyTeamMember({ email: email.trim().toLowerCase(), membership_role: role }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agency', 'team'] });
-      toast.success('Team member added');
+      toast.success('Invitation sent');
       handleClose();
     },
     onError: (e) => {
-      const msg = e?.data?.message || e?.message || 'Could not add the member';
+      const msg = e?.data?.message || e?.message || 'Could not send the invitation';
       toast.error(msg);
     },
   });
@@ -52,43 +43,38 @@ export default function TeamAddModal({ open, onClose }) {
 
   const RoleHint = roleOptions.find((r) => r.value === role)?.hint;
 
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="tm-overlay"
-          onClick={handleClose}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-        >
-          <motion.form
-            className="tm-modal"
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={submit}
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 230, damping: 24 }}
-          >
-            <div className="tm-modal-head">
-              <div>
-                <h2 className="tm-modal-title">Add a member</h2>
-              </div>
-              <button type="button" className="tm-modal-close" onClick={handleClose} aria-label="Close"><X size={17} /></button>
-            </div>
-
-            <div className="tm-modal-body">
+  return (
+    <AgencyModal
+      open={open}
+      onClose={handleClose}
+      title="Invite a teammate"
+      initialFocusRef={emailRef}
+      className="tm-invite-modal"
+      footer={(
+        <>
+          <button type="button" className="tm-modal-cancel" onClick={handleClose}>Cancel</button>
+          <button type="submit" form="team-invite-form" className="tm-modal-submit" disabled={add.isPending}>
+            {add.isPending ? 'Sending…' : 'Send invitation'}
+          </button>
+        </>
+      )}
+    >
+      <form id="team-invite-form" onSubmit={submit}>
+        <div className="tm-modal-body">
               <div className="tm-field">
-                <label className="tm-flabel">Agency email <span className="tm-req">*</span></label>
+                <label className="tm-flabel" htmlFor="team-invite-email">Work email <span className="tm-req">*</span></label>
                 <input
+                  ref={emailRef}
+                  id="team-invite-email"
                   className="tm-finput"
                   type="email"
                   placeholder="name@agency.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  autoFocus
+                  autoComplete="email"
+                  required
                 />
-                <p className="tm-hint">They must already have a Pholio agency login. Email invites are coming soon.</p>
+                <p className="tm-hint">The link expires in seven days and only works for this email address.</p>
               </div>
 
               <div className="tm-field">
@@ -107,18 +93,8 @@ export default function TeamAddModal({ open, onClose }) {
                 </div>
                 {RoleHint && <p className="tm-hint">{RoleHint}</p>}
               </div>
-            </div>
-
-            <div className="tm-modal-actions">
-              <button type="button" className="tm-modal-cancel" onClick={handleClose}>Cancel</button>
-              <button type="submit" className="tm-modal-submit" disabled={add.isPending}>
-                {add.isPending ? 'Adding…' : 'Add to team'}
-              </button>
-            </div>
-          </motion.form>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body,
+        </div>
+      </form>
+    </AgencyModal>
   );
 }

@@ -23,7 +23,7 @@ export default function BoardsTable({ boards, stages = [] }) {
     <section className="ov-module">
       <div className="ov-module-head">
         <h2 className="ov-module-title">Boards{rows.length ? <span className="ov-module-count">{rows.length}</span> : null}</h2>
-        <Link to="/dashboard/agency/casting" className="ov-module-link">Manage all</Link>
+        <Link to="/dashboard/agency/signing" className="ov-module-link">Manage all</Link>
       </div>
 
       {funnelTotal > 0 && (
@@ -40,14 +40,14 @@ export default function BoardsTable({ boards, stages = [] }) {
       )}
 
       {rows.length === 0 ? (
-        <div className="ov-empty">No active boards yet — create one to start casting across your roster.</div>
+        <div className="ov-empty">No active signing boards yet.</div>
       ) : (
         <div className="ov-table" role="table">
           <div className="ov-tr ov-tr--head" role="row">
             <span role="columnheader">Board</span>
             <span role="columnheader">Closes</span>
             <span role="columnheader" className="ov-td-r">In review</span>
-            <span role="columnheader" className="ov-td-r">Booked</span>
+            <span role="columnheader" className="ov-td-r">Represented</span>
             <span role="columnheader" className="ov-td-r">Total</span>
             <span role="columnheader">Pipeline</span>
             <span role="columnheader" aria-label="Open" />
@@ -60,7 +60,7 @@ export default function BoardsTable({ boards, stages = [] }) {
             const c = closesLabel(b.closes_at);
             const soon = c && /(today|tomorrow|^[123]d$)/.test(c);
             return (
-              <Link key={b.id} to="/dashboard/agency/casting" className="ov-tr" role="row">
+              <Link key={b.id} to="/dashboard/agency/signing" className="ov-tr" role="row">
                 <span className="ov-td-board">
                   {b.preview && b.preview.length > 0 && (
                     <span className="ov-stack">

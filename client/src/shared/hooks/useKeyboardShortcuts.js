@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 const INPUT_TAGS = ['INPUT', 'TEXTAREA', 'SELECT'];
 
-export default function useKeyboardShortcuts(shortcuts, deps = []) {
+export default function useKeyboardShortcuts(shortcuts) {
   useEffect(() => {
     function handler(e) {
       // Suppress in text inputs
@@ -17,5 +17,5 @@ export default function useKeyboardShortcuts(shortcuts, deps = []) {
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, deps);
+  }, [shortcuts]);
 }

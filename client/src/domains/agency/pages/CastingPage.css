@@ -7,7 +7,6 @@
 
 /* ---------- HEADER ---------- */
 .cas-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 8px 0 24px; flex-wrap: wrap; }
-.cas-eyebrow { display: block; font-size: 9.5px; letter-spacing: .26em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; margin-bottom: 9px; }
 .cas-title { font-family: 'Playfair Display', serif; font-size: 34px; color: #16130D; line-height: 1.02; margin: 0; letter-spacing: -.01em; }
 .cas-sub { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #9b9082; margin: 11px 0 0; }
 
@@ -49,19 +48,11 @@
 .cas-card {
   position: relative; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 34px;
   background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.64));
-  border: 1px solid #ece4d4; border-radius: 16px; padding: 22px 28px 22px 32px; cursor: pointer;
+  border: 1px solid #ece4d4; border-radius: 16px; padding: 22px 28px; cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 6px 18px rgba(20,18,14,.04);
   transition: transform .24s cubic-bezier(0.4,0,0.2,1), box-shadow .24s, border-color .24s;
   overflow: hidden;
 }
-/* status spine — grows to full height on hover */
-.cas-card::before {
-  content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, #d8cfbb, rgba(216,207,187,.25));
-  transition: background .24s, top .24s, bottom .24s;
-}
-.cas-card[data-tone="active"]::before { background: linear-gradient(180deg, #7d9b82, rgba(125,155,130,.22)); }
-.cas-card[data-tone="review"]::before { background: linear-gradient(180deg, var(--ag-gold), rgba(201,165,90,.22)); }
 /* warm gold wash on hover */
 .cas-card::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
@@ -69,18 +60,16 @@
   transition: opacity .24s;
 }
 .cas-card:hover { transform: translateY(-3px); box-shadow: 0 22px 48px rgba(20,18,14,.12); border-color: #e4dcc9; }
-.cas-card:hover::before { top: 0; bottom: 0; background: linear-gradient(180deg, var(--ag-gold), rgba(201,165,90,.45)); }
 .cas-card:hover::after { opacity: 1; }
 
 .cas-card-id { min-width: 0; position: relative; }
 .cas-card-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.cas-status { display: inline-flex; align-items: center; gap: 7px; font-size: 8.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #9b9082; }
-.cas-status::before { content: ''; width: 6px; height: 6px; border-radius: 2px; background: currentColor; }
+.cas-status { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; color: #9b9082; }
 .cas-card[data-tone="active"] .cas-status { color: #6f8a74; }
 .cas-card[data-tone="review"] .cas-status { color: var(--ag-gold); }
 .cas-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 500; color: #16130D; margin: 0; line-height: 1.08; letter-spacing: -.01em; }
-.cas-client { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #8a8073; background: rgba(20,17,11,.045); border: 1px solid #e7ddca; border-radius: 4px; padding: 4px 9px; }
-.cas-flag { font-size: 8px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ag-gold); background: rgba(201,165,90,.08); border: 1px solid rgba(201,165,90,.32); border-radius: 3px; padding: 3px 7px; }
+.cas-client { font-size: 10px; font-weight: 600; color: #8a8073; }
+.cas-flag { font-size: 10px; font-weight: 600; color: var(--ag-gold); }
 
 .cas-brief {
   font-size: 12.5px; line-height: 1.5; color: #8a8073; margin: 10px 0 0; max-width: 56ch;
@@ -184,7 +173,7 @@
 }
 .cn-input::placeholder { color: #b3a89a; }
 .cn-input:focus { border-color: var(--ag-gold); box-shadow: 0 0 0 3px rgba(201,165,90,.1); }
-.cn-textarea { resize: vertical; line-height: 1.5; min-height: 96px; }
+.cn-textarea { resize: none; line-height: 1.5; min-height: 96px; }
 
 .cn-types { display: flex; flex-wrap: wrap; gap: 7px; }
 .cn-type {

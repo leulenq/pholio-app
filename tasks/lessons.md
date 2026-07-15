@@ -425,3 +425,8 @@
 
 - Before extending another agent's branch, fetch that exact remote immediately before implementation and treat its latest head as authoritative. If it advances concurrently, restart integration from the new head and replay only genuinely missing work; do not merge duplicate implementations or unrelated branch history.
 - Route agents by task risk: Luna for mechanical inventories or single-file cleanup, Terra for compatibility analysis, and GPT-5.6 Sol for orchestration, final review, verification, and commits. Agents must have disjoint ownership and must not commit.
+
+## 2026-07-14 — Make isolated-worktree UI changes visible before reporting them
+
+- When implementation lives in an isolated worktree but the user is viewing a dev server from the original checkout, a correct diff can still look like “no change.” Restart the live backend and Vite processes from the implementation worktree, then verify the exact user-facing route in the browser before reporting progress.
+- Before continuing a named implementation branch, fetch and rebase onto the exact remote tip first. A branch-name match is not evidence that the checkout contains the latest branch work.

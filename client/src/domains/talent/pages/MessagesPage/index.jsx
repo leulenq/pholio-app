@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ExternalLink, MessageSquare } from 'lucide-react';
 import { talentApi } from '../../api/talent';
 import ApplicationMessages from '../../components/ApplicationMessages';
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../../shared/components/NotificationCenter/NotificationCenter';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../../shared/components/NotificationCenter/talentNotifications';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import './MessagesPage.css';
 

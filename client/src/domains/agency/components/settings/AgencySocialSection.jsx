@@ -118,7 +118,7 @@ function AgencySocialInput({ value, onChange, onBlur, placeholder, base, prefix,
 }
 
 function PlatformCard({ platformKey, values, onChange, disabled }) {
-  const [isManual, setIsManual] = useState(false);
+  const [isManual, setIsManual] = useState(true);
   const p = PLATFORMS[platformKey];
   const Icon = p.icon;
   const value = values[p.id];
@@ -128,7 +128,7 @@ function PlatformCard({ platformKey, values, onChange, disabled }) {
   const handleChange = (next) => onChange(p.id, next);
   const handleRemove = () => {
     onChange(p.id, null);
-    setIsManual(false);
+    setIsManual(true);
   };
 
   const displayHandle = value
@@ -169,16 +169,7 @@ function PlatformCard({ platformKey, values, onChange, disabled }) {
             <span>Remove</span>
           </button>
         ) : (
-          p.isOAuth && !showInput && (
-            <button
-              type="button"
-              className="st-platform-connect"
-              onClick={() => toast.info(`${p.name} OAuth connection coming soon. Please use manual entry.`)}
-              disabled={disabled}
-            >
-              {p.actionText}
-            </button>
-          )
+          null
         )}
       </div>
 
@@ -229,5 +220,3 @@ export default function AgencySocialSection({ values, onChange, disabled = false
     </div>
   );
 }
-
-export const AGENCY_SOCIAL_FIELDS = Object.values(PLATFORMS).map((p) => p.id);

@@ -21,8 +21,6 @@ export const SidebarProfile = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Task 6.1: 8px stroke
-  const strokeWidth = 8;
   const radius = 64; // 140/2 - roughly, adjusted in CSS for avatar size
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (progress / 100) * circumference;

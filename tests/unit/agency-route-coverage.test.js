@@ -109,6 +109,7 @@ describe("agency route permission coverage", () => {
       ["PATCH", "/api/agency/setup/profile", "org.complete_onboarding"],
       ["POST", "/api/agency/setup/complete", "org.complete_onboarding"],
       ["POST", "/api/agency/import-jobs", "org.complete_onboarding"],
+      ["POST", "/api/agency/messages/read-all", "messages.mark_read"],
     ];
 
     for (const [method, url, expected] of expectations) {

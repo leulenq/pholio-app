@@ -518,12 +518,12 @@ function buildNewMessageEmailHtml({
 function buildApplicationStatusEmailHtml({ talentName, agencyName, status }) {
   const messages = {
     accepted: {
-      headline: "Your application was accepted",
-      body: `Congratulations! <strong style="color:${BRAND.text};">${escapeHtml(agencyName)}</strong> has accepted your application.`,
+      headline: "The agency wants to move forward",
+      body: `<strong style="color:${BRAND.text};">${escapeHtml(agencyName)}</strong> would like to move forward with representation and will follow up with next steps.`,
     },
     declined: {
       headline: "Application update",
-      body: `<strong style="color:${BRAND.text};">${escapeHtml(agencyName)}</strong> has declined your application at this time. Keep building — the right fit is out there.`,
+      body: `<strong style="color:${BRAND.text};">${escapeHtml(agencyName)}</strong> is not moving forward with representation at this time. Keep building — the right fit is out there.`,
     },
   };
 

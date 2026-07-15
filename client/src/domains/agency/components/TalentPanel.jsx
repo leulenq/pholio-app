@@ -6,7 +6,6 @@ import { TalentActionBar } from './talent/TalentActionBar';
 import { TalentThread } from './talent/TalentThread';
 import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
-import { RosterZone } from './zones/RosterZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
 import MatchScore from './ui/MatchScore';
@@ -27,10 +26,10 @@ const getInitials = (name) => {
  * Callers must wrap conditional renders in <AnimatePresence> for exit animations.
  *
  * @param {Object} talent - { id, profileId, applicationId, name, photo, type, status, location }
- * @param {'discover'|'applicants'|'roster'|'overview'} context
+ * @param {'discover'|'applicants'|'overview'} context
  * @param {Function} onClose
  */
-export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
+export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
   const navigate = useNavigate();
   const [carouselIdx, setCarouselIdx] = useState(0);
   const [carouselImages, setCarouselImages] = useState(null);
@@ -72,15 +71,6 @@ export const TalentPanel = ({ talent, context = 'roster', onClose }) => {
           <ApplicantsZone
             applicationId={talent.applicationId}
             onProfileHydrated={handleProfileHydrated}
-          />
-        );
-      case 'roster':
-        return (
-          <RosterZone
-            profileId={talent.profileId}
-            applicationId={talent.applicationId}
-            onProfileHydrated={handleProfileHydrated}
-            insight={talent.insight}
           />
         );
       case 'overview':

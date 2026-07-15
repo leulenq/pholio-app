@@ -921,6 +921,8 @@ router.post(
         }
 
         let guardianConsentRequestId = null;
+        let guardianConsentGrantId = null;
+        let guardianConsentExpiresAt = null;
         let agencyGuardQuery = trx("agencies")
           .where({ id: agencyId })
           .select("id", "status");
@@ -948,6 +950,8 @@ router.post(
             throw error;
           }
           guardianConsentRequestId = guardianGrant.consent_request_id;
+          guardianConsentGrantId = guardianGrant.id;
+          guardianConsentExpiresAt = guardianGrant.authorization_expires_at;
         }
 
         const draft = await trx("application_drafts")
@@ -1008,7 +1012,15 @@ router.post(
         if (reapplying) {
           const revived = await trx("applications")
             .where({ id: existing.id, status: "withdrawn" })
-            .update({ status: "pending", updated_at: trx.fn.now() });
+            .update({
+              status: "pending",
+              minor_at_submission: minorSubmission,
+              guardian_consent_grant_id: guardianConsentGrantId,
+              guardian_consent_expires_at: guardianConsentExpiresAt,
+              minor_access_revoked_at: null,
+              minor_access_revocation_reason: null,
+              updated_at: trx.fn.now(),
+            });
           if (revived !== 1) {
             const error = new Error("Application already submitted");
             error.code = "APPLICATION_ALREADY_SUBMITTED";
@@ -1031,6 +1043,9 @@ router.post(
             profile_id: profile.id,
             agency_id: agencyId,
             status: "pending",
+            minor_at_submission: minorSubmission,
+            guardian_consent_grant_id: guardianConsentGrantId,
+            guardian_consent_expires_at: guardianConsentExpiresAt,
           });
         }
 
@@ -1049,6 +1064,7 @@ router.post(
           packageFingerprint,
           disclosureSnapshot,
           guardianConsentRequestId,
+          guardianConsentGrantId,
           ipAddress: clientMeta.ipAddress,
           userAgent: clientMeta.userAgent,
         });
@@ -1138,6 +1154,8 @@ router.post(
             label: `Application to ${agencyId}`,
             created_at: new Date(),
             retention_expires_at: submissionRetentionExpiry().toISOString(),
+            guardian_consent_grant_id: guardianConsentGrantId,
+            guardian_consent_expires_at: guardianConsentExpiresAt,
             payload: {
               packageSchemaVersion: 2,
               applicationId,

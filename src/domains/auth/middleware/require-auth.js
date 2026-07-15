@@ -8,6 +8,9 @@ const {
 const {
   resolveRoutePermission,
 } = require("../../agency/lib/route-permissions");
+const {
+  hasCurrentAgencyLegalAcceptance,
+} = require("../../agency/services/legal-acceptance");
 
 function ensureSignedIn(req) {
   return Boolean(req.session && req.session.userId);
@@ -167,6 +170,52 @@ function requireAgencyOnboardingComplete(options = {}) {
     }
 
     return res.redirect("/dashboard/agency/setup");
+  };
+}
+
+function requireAgencyLegalAcceptance() {
+  return async (req, res, next) => {
+    if (!req.session || req.session.role !== "AGENCY") {
+      return next();
+    }
+
+    if (!config.agencyLegalEnforce && process.env.NODE_ENV !== "production") {
+      return next();
+    }
+
+    const normalizedPath = (req.originalUrl || req.path || "")
+      .split("?")[0]
+      .replace(/^\/api\/agency/, "") || "/";
+    const legalExempt =
+      (req.method === "GET" && normalizedPath === "/legal-status") ||
+      (req.method === "POST" && normalizedPath === "/legal-acceptance");
+    if (legalExempt) {
+      return next();
+    }
+
+    try {
+      if (await hasCurrentAgencyLegalAcceptance(req.session)) {
+        return next();
+      }
+      return res.status(403).json({
+        success: false,
+        error: "AGENCY_LEGAL_ACCEPTANCE_REQUIRED",
+        message:
+          "Accept the current agency workspace policies before continuing.",
+      });
+    } catch (error) {
+      if (
+        error.code === "ACTIVE_AGENCY_MEMBERSHIP_REQUIRED" ||
+        error.code === "AGENCY_POLICY_MANIFEST_UNAVAILABLE"
+      ) {
+        return res.status(error.status || 403).json({
+          success: false,
+          error: error.code,
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
   };
 }
 
@@ -375,6 +424,7 @@ module.exports = {
   requireRole,
   requireAgencyMembershipRole,
   requireAgencyOnboardingComplete,
+  requireAgencyLegalAcceptance,
   loadAgencyPermissions,
   requireAgencyPermission,
   enforceAgencyRoutePermissions,

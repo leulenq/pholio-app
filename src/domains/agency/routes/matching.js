@@ -23,6 +23,10 @@ const {
   learnAgencyPreferences,
   auditFairness,
 } = require("../../matching/preference-learner");
+const {
+  applyMinorSubmissionFilter,
+  getApplicationAccessDecision,
+} = require("../services/minor-submission-access");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
@@ -63,11 +67,14 @@ router.post(
         .first();
       if (!board) return res.status(404).json({ error: "Board not found" });
 
-      const rows = await knex("board_applications as ba")
+      const rows = await applyMinorSubmissionFilter(knex("board_applications as ba")
         .join("applications as a", "a.id", "ba.application_id")
         .join("profiles as p", "p.id", "a.profile_id")
         .where({ "ba.board_id": boardId, "a.agency_id": agencyId })
-        .select("p.*");
+        .select("p.*"), {
+          alias: "a",
+          allowMinor: req.allowMinorSubmissions,
+        });
 
       if (!rows.length) {
         return res.json({
@@ -114,6 +121,27 @@ router.post(
       const agencyId = req.session.userId;
       const owned = await ownedBoardScope(boardId, agencyId);
       if (!owned) return res.status(404).json({ error: "Board not found" });
+
+      const application = await knex("board_applications as ba")
+        .join("applications as a", "a.id", "ba.application_id")
+        .where({
+          "ba.board_id": boardId,
+          "a.profile_id": profileId,
+          "a.agency_id": agencyId,
+        })
+        .first("a.id");
+      if (!application) return res.status(404).json({ error: "Candidate not found" });
+      const access = await getApplicationAccessDecision(knex, {
+        agencyId,
+        applicationId: application.id,
+        allowMinor: req.allowMinorSubmissions,
+      });
+      if (!access.allowed) {
+        return res.status(403).json({
+          error: "MINOR_SUBMISSION_ACCESS_DENIED",
+          reason: access.reason,
+        });
+      }
 
       const decision = String(req.body?.decision || "").toLowerCase();
       const allowed = ["advance", "shortlist", "pass", "book", "release"];

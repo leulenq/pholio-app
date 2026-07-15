@@ -94,11 +94,15 @@ exports.up = async function up(knex) {
   // Backfill from qualifying applications. `applications` has UNIQUE(profile_id,
   // agency_id), so there is at most one qualifying row per (agency, profile) —
   // no duplicate active memberships are produced.
+  const applicationColumns = await knex("applications").columnInfo();
+  const backfillColumns = ["id", "agency_id", "profile_id"];
+  if (applicationColumns.accepted_at) backfillColumns.push("accepted_at");
+  if (applicationColumns.created_at) backfillColumns.push("created_at");
   const rows = await knex("applications")
     .whereIn("status", ROSTER_STATUSES)
     .whereNotNull("profile_id")
     .whereNotNull("agency_id")
-    .select("id", "agency_id", "profile_id", "accepted_at", "created_at");
+    .select(backfillColumns);
 
   const memberships = rows.map((app) => ({
     id: uuidv4(),

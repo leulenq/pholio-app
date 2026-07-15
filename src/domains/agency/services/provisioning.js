@@ -15,7 +15,7 @@ async function provisionAgencyForUser({
     throw new Error("userId and agencyName are required");
   }
 
-  return db.transaction(async (trx) => {
+  const provision = async (trx) => {
     const user = await trx("users").where({ id: userId }).first();
     if (!user) {
       throw new Error("User not found");
@@ -96,7 +96,12 @@ async function provisionAgencyForUser({
     });
 
     return trx("agencies").where({ id: agencyId }).first();
-  });
+  };
+
+  // Approval and invitation workflows already own a transaction. Reusing it
+  // keeps the request state, owner membership, and agency organization atomic
+  // instead of opening an unrelated connection (or an avoidable savepoint).
+  return db?.isTransaction ? provision(db) : db.transaction(provision);
 }
 
 module.exports = {

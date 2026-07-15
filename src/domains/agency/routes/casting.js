@@ -2,6 +2,9 @@ const express = require("express");
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
+const {
+  applyMinorSubmissionFilter,
+} = require("../services/minor-submission-access");
 const { recalculateBoardScores } = require("./recalculate-board-scores");
 const {
   CASTING_PIPELINE_STAGES,
@@ -184,7 +187,7 @@ router.get(
         return res.status(404).json({ error: "Board not found" });
       }
 
-      const applicationRows = await knex("board_applications as ba")
+      const applicationRows = await applyMinorSubmissionFilter(knex("board_applications as ba")
         .join("applications as a", "a.id", "ba.application_id")
         .join("profiles as p", "p.id", "a.profile_id")
         .where({
@@ -210,7 +213,10 @@ router.get(
         .orderBy([
           { column: "ba.match_score", order: "desc", nulls: "last" },
           { column: "a.created_at", order: "desc" },
-        ]);
+        ]), {
+          alias: "a",
+          allowMinor: req.allowMinorSubmissions,
+        });
 
       const profileIds = applicationRows.map((row) => row.profile_id);
       const images = profileIds.length

@@ -1,6 +1,6 @@
-import { useAgencyPermissions } from '../context/AgencyPermissionsProvider';
+import { useAgencyPermissionsContext } from '../context/agency-permissions-context';
 
-export { useAgencyPermissions };
+export const useAgencyPermissions = useAgencyPermissionsContext;
 
 export function useCanManageTeam() {
   const { canAny } = useAgencyPermissions();

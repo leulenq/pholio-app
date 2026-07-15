@@ -181,9 +181,16 @@ async function attachLocals(req, res, next) {
     }
   }
 
-  res.locals.messages = req.session?.messages || [];
-  if (req.session) {
-    req.session.messages = [];
+  const flashMessages = Array.isArray(req.session?.messages)
+    ? req.session.messages
+    : [];
+  res.locals.messages = flashMessages;
+  // Do not dirty every anonymous/API session by assigning an empty array.
+  // express-session persists any mutation on response completion; the old
+  // assignment turned every request into a PostgreSQL session-store write and
+  // could exhaust the small Neon development pool under a burst of API calls.
+  if (req.session && Object.prototype.hasOwnProperty.call(req.session, "messages")) {
+    delete req.session.messages;
   }
 
   // Add Firebase config to res.locals for client-side use

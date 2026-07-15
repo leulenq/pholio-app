@@ -6,7 +6,7 @@ import './styles/agency-tokens.css' /* 1. Agency design tokens */
 import './styles/agency-dark-overrides.css' /* 2. Dark theme overrides for agency */
 import './index.css'            /* 3. Global + component styles */
 import App from './App'
-import { FlashProvider } from './shared/hooks/useFlash'
+import FlashProvider from './shared/hooks/FlashProvider'
 import PholioToaster from './shared/components/toast/PholioToaster'
 
 const queryClient = new QueryClient();

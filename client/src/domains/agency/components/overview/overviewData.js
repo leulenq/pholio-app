@@ -74,14 +74,7 @@ export function buildNextMoves(pulse, talentMix = []) {
     moves.push({
       id: 'closing', tone: 'urgent',
       text: `${pulse.closingWeek} board${pulse.closingWeek === 1 ? '' : 's'} close this week — finalize submissions`,
-      cta: { label: 'Review casting', to: '/dashboard/agency/casting' },
-    });
-  }
-  if (pulse.idleTalent > 0) {
-    moves.push({
-      id: 'idle', tone: 'default',
-      text: `${pulse.idleTalent} signed talent not submitted in 30 days`,
-      cta: { label: 'Activate roster', to: '/dashboard/agency/roster' },
+      cta: { label: 'Review signing board', to: '/dashboard/agency/signing' },
     });
   }
   const thin = [...talentMix].sort((a, b) => a.pct - b.pct)[0];
@@ -140,7 +133,7 @@ export function buildDocket(kpis, pulse, boards = [], incoming = []) {
       sub: oldest ? `Oldest waiting ${oldest} day${oldest === 1 ? '' : 's'}` : null,
       avgMatch: pulse.avgMatchScore,
       faces,
-      to: '/dashboard/agency/applicants',
+      to: '/dashboard/agency/submissions',
       cta: 'Review applications',
       tone: (oldest || 0) >= 14 ? 'urgent' : 'default',
     });
@@ -160,7 +153,7 @@ export function buildDocket(kpis, pulse, boards = [], incoming = []) {
       statement: `board${pulse.closingWeek === 1 ? '' : 's'} close this week`,
       sub: named ? `${named}${more}` : null,
       avgMatch: null,
-      to: '/dashboard/agency/casting',
+      to: '/dashboard/agency/signing',
       cta: 'Open casting',
       tone: todayCount > 0 ? 'urgent' : 'default',
     });
@@ -175,26 +168,12 @@ export function buildDocket(kpis, pulse, boards = [], incoming = []) {
       sub: strong ? `${strong} scoring 85 or higher` : null,
       avgMatch: null,
       faces,
-      to: '/dashboard/agency/applicants',
+      to: '/dashboard/agency/submissions',
       cta: 'Triage inbox',
       tone: 'positive',
     });
   }
 
-  if (pulse.idleTalent > 0) {
-    rows.push({
-      key: 'idle',
-      figure: pulse.idleTalent,
-      statement: `talent idle on the bench`,
-      sub: kpis.rosterSize
-        ? `Of ${kpis.rosterSize} on roster · no submissions in 30 days`
-        : 'No submissions in 30 days',
-      avgMatch: null,
-      to: '/dashboard/agency/roster',
-      cta: 'Activate roster',
-      tone: 'default',
-    });
-  }
 
   rows.sort((a, b) => {
     const urgency = (a.tone === 'urgent' ? 0 : 1) - (b.tone === 'urgent' ? 0 : 1);
