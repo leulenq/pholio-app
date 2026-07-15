@@ -294,8 +294,8 @@ export default function Pipeline({ pipeline }) {
           </div>
         ) : null}
         <Calibrating
-          title="Your pipeline is ready."
-          listening="The moment you submit to an agency, this tracks it end to end — reviewed, advanced, and how it settles. Kept on file counts as a yes here."
+          title="Nothing in the pipeline yet."
+          listening="Submit to an agency and every step shows here — reviewed, advanced, and how it settles."
         />
       </div>
     );
@@ -351,8 +351,8 @@ export default function Pipeline({ pipeline }) {
               On file at <strong>{kept.agencies}</strong> {kept.agencies === 1 ? 'agency' : 'agencies'}.
             </p>
             <p className="pipe-kept__line">
-              Kept on file is the most common real outcome — and a soft yes.
-              Boards reopen; files get pulled.
+              The most common yes in this business. Boards reopen, and files get
+              pulled.
             </p>
           </div>
         ) : null}

@@ -21,8 +21,8 @@ function Headline({ headline, periodLabel }) {
   if (meaningful === 0) {
     return (
       <p className="pulse-headline pulse-headline--quiet">
-        No buying-power signal yet {periodLabel}. This is where it lands the
-        moment a booker reviews your materials or your card gets pulled.
+        No agency signal yet {periodLabel}. The moment a booker reviews your
+        book or pulls your card, it shows here.
       </p>
     );
   }
@@ -72,14 +72,20 @@ function SignalSpectrum({ spectrum }) {
   if (total === 0) {
     return (
       <Calibrating
-        title="The Signal Spectrum is live."
-        listening="It fills the moment attention arrives — and shifts toward the top tiers as your materials start pulling bookers."
+        title="Your signal, once it starts moving."
+        listening="The mix of attention — a booker's review, a card pull, a real visit — builds here as it comes in."
       />
     );
   }
 
   return (
     <div className="spectrum" ref={ref}>
+      <div className="spectrum__cap">
+        <span className="spectrum__cap-label">Attention mix</span>
+        <span className="spectrum__cap-total">
+          <CountUp value={total} /> signals
+        </span>
+      </div>
       <div className="spectrum__band" role="img" aria-label="Attention composition by signal tier">
         {rows.map((row, i) => {
           const share = row.count / total;
@@ -124,8 +130,8 @@ function SignalSpectrum({ spectrum }) {
 
 const VERDICT_COPY = {
   current: { word: 'Current', tone: 'good', line: 'Your materials are agency-ready.' },
-  aging: { word: 'Aging', tone: 'warn', line: 'Some materials are approaching their window.' },
-  stale: { word: 'Stale', tone: 'bad', line: 'A booker would ask you to refresh before submitting.' },
+  aging: { word: 'Aging', tone: 'warn', line: 'A few of your materials are getting old.' },
+  stale: { word: 'Stale', tone: 'bad', line: 'Refresh these before your next submission.' },
 };
 
 function MaterialsVerdict({ materials }) {
@@ -144,8 +150,8 @@ function InMotionTicker({ rows }) {
     return (
       <div className="pulse-motion pulse-motion--empty">
         <Clock size={15} strokeWidth={1.6} aria-hidden />
-        <p>Nothing advancing right now. When a house shortlists you or requests
-          more, the most urgent move surfaces here.</p>
+        <p>Nothing advancing right now. A shortlist or a request for more will
+          surface here.</p>
       </div>
     );
   }

@@ -36,14 +36,23 @@
 }
 .intel-masthead__title {
   margin: 0;
-  font: 400 2.5rem/1.1 'Noto Serif Display', Georgia, serif;
-  letter-spacing: -0.02em;
+  font: 400 3.25rem/1.02 'Noto Serif Display', Georgia, serif;
+  letter-spacing: -0.035em;
   color: var(--ink);
 }
+.intel-masthead__title::after {
+  content: '';
+  display: block;
+  width: 46px;
+  height: 3px;
+  margin-top: 14px;
+  border-radius: 3px;
+  background: var(--gold);
+}
 .intel-masthead__sub {
-  margin: 8px 0 0;
-  max-width: 56ch;
-  font: 400 0.98rem/1.55 'Inter', sans-serif;
+  margin: 16px 0 0;
+  max-width: 52ch;
+  font: 400 1.05rem/1.5 'Inter', sans-serif;
   color: var(--slate);
 }
 
@@ -92,23 +101,28 @@
 }
 .intel-zone__head {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 22px;
+  gap: 24px;
+  margin-bottom: 26px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
 }
 .intel-zone__title {
   margin: 0;
-  font: 400 1.75rem/1.15 'Noto Serif Display', Georgia, serif;
-  letter-spacing: -0.015em;
+  font: 400 2.05rem/1.1 'Noto Serif Display', Georgia, serif;
+  letter-spacing: -0.028em;
   color: var(--ink);
+  text-wrap: balance;
 }
 .intel-zone__lede {
-  margin: 8px 0 0;
-  max-width: 72ch;
-  font: 400 0.95rem/1.5 'Inter', sans-serif;
+  margin: 10px 0 0;
+  max-width: 60ch;
+  font: 400 1.02rem/1.45 'Inter', sans-serif;
   color: var(--slate);
+  text-wrap: pretty;
 }
+.intel-zone__aside { flex-shrink: 0; align-self: center; }
 .intel-zone__body { position: relative; }
 
 .intel-subhead {
@@ -264,18 +278,19 @@
 .intel-delta--flat { color: var(--light); }
 
 /* ===== Zone 1 — Pulse ==================================================== */
-.pulse { display: flex; flex-direction: column; gap: 26px; }
+.pulse { display: flex; flex-direction: column; gap: 30px; }
 .pulse-headline {
   margin: 0;
-  font: 400 1.9rem/1.3 'Noto Serif Display', Georgia, serif;
-  letter-spacing: -0.01em;
+  font: 400 2.15rem/1.28 'Noto Serif Display', Georgia, serif;
+  letter-spacing: -0.02em;
   color: var(--ink);
-  max-width: 30ch;
+  max-width: 26ch;
+  text-wrap: balance;
 }
 .pulse-headline--quiet {
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   color: var(--slate);
-  max-width: 46ch;
+  max-width: 44ch;
 }
 .pulse-headline__num { color: var(--gold-ink); font-weight: 600; }
 
@@ -290,12 +305,29 @@
 }
 
 /* Signal Spectrum */
-.spectrum { display: flex; flex-direction: column; gap: 16px; }
+.spectrum { display: flex; flex-direction: column; gap: 14px; }
+.spectrum__cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.spectrum__cap-label {
+  font: 500 0.7rem/1 'Inter', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--slate);
+}
+.spectrum__cap-total {
+  font: 400 1.15rem/1 'Noto Serif Display', Georgia, serif;
+  color: var(--ink);
+}
+.spectrum__cap-total span { color: var(--gold-ink); }
 .spectrum__band {
   display: flex;
   width: 100%;
-  height: 60px;
-  border-radius: 10px;
+  height: 68px;
+  border-radius: 12px;
   overflow: hidden;
   gap: 2px;
   background: var(--well);

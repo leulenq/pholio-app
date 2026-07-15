@@ -112,8 +112,8 @@ export default function Seismograph({ seismograph }) {
   if (days.length === 0 || totalSignal === 0) {
     return (
       <Calibrating
-        title="The Seismograph is live."
-        listening="It marks its first strike the moment your card is pulled — and layers in reviews and advances above the field as your submissions move."
+        title="Quiet for now."
+        listening="Your first card pull or agency review marks the field here."
       />
     );
   }

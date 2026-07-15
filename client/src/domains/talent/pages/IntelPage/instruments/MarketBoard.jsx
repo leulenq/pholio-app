@@ -123,8 +123,8 @@ function MarketNote({ rows }) {
   if (!top || !(top.share >= 0.3)) return null;
   return (
     <p className="market-note">
-      {top.label} keeps returning — a market showing sustained interest is worth
-      a conversation with your agent about a stay.
+      {top.label} keeps coming back — worth raising a {top.label} stay with your
+      agent.
     </p>
   );
 }
@@ -138,8 +138,8 @@ function MarketLedger({ markets }) {
   if (markets?.calibrating) {
     return (
       <Calibrating
-        title="The Market Board is calibrating."
-        listening="Once enough located attention lands, this ranks the markets pulling your materials — NYC, Paris, Milan, your home region — the way bookers think."
+        title="Markets, once they're clear."
+        listening="As located visits add up, the markets pulling your book rank here — New York, Paris, Milan, home."
       />
     );
   }
@@ -159,7 +159,7 @@ function MarketLedger({ markets }) {
         <span>Market</span>
         <span>Trend</span>
         <span>Share</span>
-        <span>Δ</span>
+        <span>Change</span>
         <span>Viewers</span>
       </div>
       <div className="market-ledger__rows">
@@ -244,7 +244,7 @@ function SourceNarrative({ sources }) {
   if (rows.length === 0) {
     return (
       <div className="market-sources" ref={ref}>
-        <p className="market-sources__title">Where attention is arriving from</p>
+        <p className="market-sources__title">Where they're coming from</p>
         <p className="market-empty">No source detail yet this period.</p>
       </div>
     );
@@ -252,7 +252,7 @@ function SourceNarrative({ sources }) {
 
   return (
     <div className="market-sources" ref={ref}>
-      <p className="market-sources__title">Where attention is arriving from</p>
+      <p className="market-sources__title">Where they're coming from</p>
       <ol className="market-sources__list">
         {rows.map((row, i) => (
           <SourceRow key={row.source} row={row} index={i} inView={inView} reduce={reduce} />

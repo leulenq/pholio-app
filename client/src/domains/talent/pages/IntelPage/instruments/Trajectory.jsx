@@ -83,7 +83,7 @@ export default function Trajectory({ trajectory }) {
     return (
       <Calibrating
         title="Your trajectory starts here."
-        listening="As reviews, advances and card pulls accrue over the coming weeks, this traces whether you're trending — with the causes annotated."
+        listening="Momentum builds as reviews, advances, and card pulls add up over the coming weeks."
       />
     );
   }
@@ -176,8 +176,8 @@ export default function Trajectory({ trajectory }) {
 
       {bandCalibrating ? (
         <p className="traj-band-note">
-          Benchmark band calibrating — it appears once there are enough comparable
-          talent in your division and market to compare honestly. We won't fake it.
+          A benchmark band appears once there are enough comparable talent in
+          your market to compare fairly.
         </p>
       ) : null}
 

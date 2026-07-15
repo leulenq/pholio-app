@@ -4,79 +4,80 @@
   gap: 40px;
 }
 
-/* ---------- Currency rings ---------- */
+/* ---------- Materials currency — linear runway bars ---------- */
 
-.lens-rings {
+.lens-bars {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
-.lens-rings__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 28px;
-}
-
-.lens-ring {
-  position: relative;
-  width: 132px;
-  height: 132px;
-  flex: none;
-}
-
-.lens-ring__svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.lens-ring__track {
-  fill: none;
-  stroke: #f1f0ee;
-}
-
-.lens-ring__fill {
-  fill: none;
-  stroke-linecap: round;
-}
-
-.lens-ring__center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0 14px;
-}
-
-.lens-ring__label {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #1a1815;
-  line-height: 1.25;
-}
-
-.lens-ring__age {
-  margin-top: 4px;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
-.lens-ring--stale .lens-ring__age,
-.lens-ring--missing .lens-ring__age {
-  color: #94a3b8;
-}
-
-.lens-rings__legend {
+.lens-bars__title {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 0.78rem;
-  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b6472;
+}
+
+.lens-bars__rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 22px 32px;
+}
+
+.lens-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lens-bar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lens-bar__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1815;
+}
+
+.lens-bar__age {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.lens-bar__track {
+  position: relative;
+  height: 8px;
+  border-radius: 9999px;
+  background: #ece9e4;
+  overflow: hidden;
+}
+
+.lens-bar__track.is-spent {
+  box-shadow: inset 0 0 0 1px rgba(155, 123, 98, 0.18);
+}
+
+.lens-bar__fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 9999px;
+  transform-origin: left center;
+}
+
+.lens-bar__window {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  color: #7e8795;
 }
 
 /* ---------- Lower grid: range read + next moves ---------- */
@@ -289,17 +290,6 @@
   .lens-lower {
     grid-template-columns: 1fr;
     gap: 32px;
-  }
-}
-
-@media (max-width: 480px) {
-  .lens-rings__row {
-    gap: 20px;
-  }
-
-  .lens-ring {
-    width: 112px;
-    height: 112px;
   }
 }
 

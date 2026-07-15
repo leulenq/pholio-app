@@ -135,8 +135,8 @@ export default function RhythmField({ rhythm }) {
     return (
       <Calibrating
         icon={<Clock size={20} strokeWidth={1.5} />}
-        title="The Rhythm Field is listening."
-        listening="It maps the days and hours your audience shows up once a couple of dozen visits land — so you know exactly when to post and follow up."
+        title="Not enough yet to see a pattern."
+        listening="Once a couple of dozen visits land, this shows the days and hours your audience shows up."
       />
     );
   }

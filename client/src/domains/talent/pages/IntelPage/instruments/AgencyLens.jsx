@@ -9,104 +9,93 @@ import './AgencyLens.css';
  * Zone 6 — The Agency Lens. The talent's profile read through a booker's
  * eyes: what's current, what a booker scans for, and the ranked moves that
  * would change the read fastest. This is the improvement engine — the most
- * actionable zone on the page. No completeness bars, no generic tips: a
- * depleting ring for currency, a plain range check, and a short ranked list
- * of moves that replace them.
+ * actionable zone on the page.
+ *
+ * Materials currency is drawn as horizontal runway bars, not radial gauges:
+ * a linear scale reads "how much life is left" at a glance and lets the three
+ * materials be compared against each other on one axis, which three separate
+ * rings (each on its own window) cannot.
  */
-
-const RING_SIZE = 132;
-const RING_STROKE = 9;
-const RING_R = (RING_SIZE - RING_STROKE) / 2;
-const RING_C = 2 * Math.PI * RING_R;
 
 const STATE_COLOR = {
   current: '#C9A55A',
   aging: '#C08A3E',
-  stale: '#B8B2A8',
-  missing: '#D8D3CA',
+  stale: '#9B7B62',
+  missing: '#C4BEB4',
 };
 
 function ageLine(ring) {
   if (ring.state === 'missing') {
-    if (ring.key === 'digitals') return 'No digitals yet';
-    if (ring.key === 'measurements') return 'No measurements on file';
-    return 'No comp card yet';
+    if (ring.key === 'digitals') return 'Not on file';
+    if (ring.key === 'measurements') return 'Not confirmed';
+    return 'Not generated';
   }
-  if (ring.key === 'card' && ring.state === 'stale') {
-    return 'Book changed since';
-  }
+  if (ring.key === 'card' && ring.state === 'stale') return 'Book changed since';
   const days = Number(ring.ageDays) || 0;
   if (ring.windowDays && days >= 14) {
     const weeks = Math.round(days / 7);
-    return `${weeks} week${weeks === 1 ? '' : 's'} old`;
+    return `${weeks} wk${weeks === 1 ? '' : 's'} old`;
   }
-  if (days <= 0) return 'Generated today';
+  if (days <= 0) return 'Current';
   return `${days} day${days === 1 ? '' : 's'} old`;
 }
 
-function CurrencyRing({ ring, index, inView, reduce }) {
+function windowLine(ring) {
+  if (ring.key === 'digitals') return '12-week window';
+  if (ring.key === 'measurements') return '90-day window';
+  return 'Set by your latest frames';
+}
+
+function CurrencyBar({ ring, index, inView, reduce }) {
   const remaining = Math.max(0, Math.min(1, Number(ring.remaining) || 0));
   const color = STATE_COLOR[ring.state] || STATE_COLOR.missing;
-  const dashTarget = RING_C * (1 - remaining);
+  const spent = ring.state === 'aging' || ring.state === 'stale' || ring.state === 'missing';
 
   return (
     <motion.div
-      className={`lens-ring lens-ring--${ring.state}`}
-      initial={reduce ? false : { opacity: 0, y: 12 }}
+      className={`lens-bar lens-bar--${ring.state}`}
+      initial={reduce ? false : { opacity: 0, y: 8 }}
       animate={inView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ ...SPRING, delay: reduce ? 0 : index * 0.08 }}
+      transition={{ ...SPRING, delay: reduce ? 0 : index * 0.07 }}
     >
-      <svg
-        className="lens-ring__svg"
-        viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-        role="img"
-        aria-label={`${ring.label}: ${ageLine(ring)}`}
-      >
-        <circle
-          className="lens-ring__track"
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_R}
-          strokeWidth={RING_STROKE}
-        />
-        <motion.circle
-          className="lens-ring__fill"
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_R}
-          strokeWidth={RING_STROKE}
-          stroke={color}
-          strokeDasharray={RING_C}
-          transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-          initial={reduce ? false : { strokeDashoffset: RING_C }}
-          animate={inView ? { strokeDashoffset: dashTarget } : undefined}
-          transition={{ ...SPRING, delay: reduce ? 0 : index * 0.08 + 0.1 }}
-        />
-      </svg>
-      <div className="lens-ring__center">
-        <span className="lens-ring__label">{ring.label}</span>
-        <span className="lens-ring__age">{ageLine(ring)}</span>
+      <div className="lens-bar__head">
+        <span className="lens-bar__label">{ring.label}</span>
+        <span className="lens-bar__age" style={{ color }}>
+          {ageLine(ring)}
+        </span>
       </div>
+      <div
+        className={`lens-bar__track${spent ? ' is-spent' : ''}`}
+        role="img"
+        aria-label={`${ring.label}: ${ageLine(ring)}, ${windowLine(ring)}`}
+      >
+        <motion.span
+          className="lens-bar__fill"
+          style={{ background: color }}
+          initial={reduce ? false : { transform: 'scaleX(0)' }}
+          animate={inView ? { transform: `scaleX(${Math.max(remaining, spent ? 0.06 : remaining)})` } : undefined}
+          transition={{ ...SPRING, delay: reduce ? 0 : index * 0.07 + 0.1 }}
+        />
+      </div>
+      <span className="lens-bar__window">{windowLine(ring)}</span>
     </motion.div>
   );
 }
 
-function CurrencyRings({ rings }) {
+function CurrencyBars({ rings }) {
   const ref = useRef(null);
   const inView = useReveal();
   const reduce = useReducedMotion();
   const list = rings || [];
 
   return (
-    <div className="lens-rings" ref={ref}>
-      <div className="lens-rings__row">
+    <div className="lens-bars" ref={ref}>
+      <p className="lens-bars__title">How current your materials are</p>
+      <div className="lens-bars__rows">
         {list.map((ring, i) => (
-          <CurrencyRing key={ring.key} ring={ring} index={i} inView={inView} reduce={reduce} />
+          <CurrencyBar key={ring.key} ring={ring} index={i} inView={inView} reduce={reduce} />
         ))}
       </div>
-      <p className="lens-rings__legend">
-        Digitals ≤ 12 weeks · Stats ≤ 90 days · Card current with your latest frames.
-      </p>
     </div>
   );
 }
@@ -215,7 +204,7 @@ function NextMoves({ nextMoves }) {
 export default function AgencyLens({ lens }) {
   return (
     <div className="lens">
-      <CurrencyRings rings={lens?.rings} />
+      <CurrencyBars rings={lens?.rings} />
       <div className="lens-lower">
         <RangeRead range={lens?.range} />
         <NextMoves nextMoves={lens?.nextMoves} />

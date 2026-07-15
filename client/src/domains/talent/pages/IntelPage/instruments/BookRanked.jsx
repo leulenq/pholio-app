@@ -85,9 +85,9 @@ function BookGrid({ images, ranked, inView, reduce }) {
 function leadCopy(book) {
   const top = (book.images || []).find((img) => img.rank === 1 && (img.opens || 0) > 0);
   if (top) {
-    return 'Your strongest frame is pulling the most attention — consider leading your book and card with it.';
+    return 'Your strongest frame is pulling the most — lead your book and card with it.';
   }
-  return 'These are the frames doing the work. The one that holds a first-time visitor longest belongs on the front of your comp card.';
+  return 'The frames holding attention. The one that keeps a first-time visitor longest belongs on your card front.';
 }
 
 export default function BookRanked({ book }) {
@@ -115,8 +115,8 @@ export default function BookRanked({ book }) {
     <div className="book" ref={ref}>
       {calibrating ? (
         <Calibrating
-          title="The Book is calibrating."
-          listening="Once your frames start being viewed and opened, this ranks them by the attention they hold — and tells you which belongs on your card front."
+          title="Your book, once it's being viewed."
+          listening="As your frames get opened, they rank by the attention they hold — and you'll see which belongs on your card front."
         />
       ) : (
         <p className="book-lede">{leadCopy(book)}</p>

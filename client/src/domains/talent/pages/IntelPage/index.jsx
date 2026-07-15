@@ -88,8 +88,7 @@ export default function IntelPage() {
         <div className="intel-masthead__lede">
           <h1 className="intel-masthead__title">Intel</h1>
           <p className="intel-masthead__sub">
-            Your book, read the way a booker reads it — what's getting requested,
-            what's working, and the one thing to fix next.
+            Who's looking, what's landing, and where to focus next.
           </p>
         </div>
         {!isLoading && !isError && !minor ? (
@@ -113,22 +112,21 @@ export default function IntelPage() {
         <div className="intel-zones">
           {minor ? (
             <div className="intel-minor-note">
-              Attention and location detail is withheld on this profile. Intel
-              shows your materials readiness and submission states only.
+              Location and viewer detail stays off for this profile. You'll see
+              materials readiness and where your submissions stand.
             </div>
           ) : null}
 
           {/* Zone 1 — The Pulse */}
-          <Zone index={1} title="The Pulse">
+          <Zone title="The Pulse" lede="This period, at a glance.">
             <Pulse pulse={intel.pulse} periodLabel={periodLabel(activeDays)} minor={minor} />
           </Zone>
 
           {/* Zone 2 — The Seismograph + Rhythm Field */}
           {!minor ? (
             <Zone
-              index={2}
               title="The Seismograph"
-              lede="Attention over time — qualified visits as a field, card pulls as strikes, agency events above."
+              lede="Your attention over time, and the moments agencies acted on it."
             >
               <Seismograph seismograph={intel.seismograph} />
               <div className="intel-subhead">The Rhythm Field</div>
@@ -137,7 +135,7 @@ export default function IntelPage() {
               ) : isFree ? (
                 <StudioLock
                   title="When your audience shows up"
-                  blurb="The Rhythm Field maps the days and hours your attention arrives, so you know exactly when to share and follow up. Included with Studio+."
+                  blurb="The days and hours your attention lands, so you know when to post and follow up."
                 />
               ) : null}
             </Zone>
@@ -145,32 +143,32 @@ export default function IntelPage() {
 
           {/* Zone 3 — The Market Board */}
           {!minor ? (
-            <Zone index={3} title="The Market Board" lede="Where your attention comes from — read as markets, the way the industry thinks.">
+            <Zone title="The Market Board" lede="Which markets are pulling your book.">
               {intel.markets ? (
                 <MarketBoard markets={intel.markets} sources={intel.sources} />
               ) : (
                 <StudioLock
-                  title="The markets pulling your materials"
-                  blurb="See which markets — NYC, Paris, Milan, your home region — keep returning to your book, and what that says about where you could place. Included with Studio+."
+                  title="The markets pulling your book"
+                  blurb="Which markets keep coming back — New York, Paris, Milan, home — and what that says about where you could place."
                 />
               )}
             </Zone>
           ) : null}
 
           {/* Zone 4 — The Pipeline */}
-          <Zone index={4} title="The Pipeline" lede="The submission funnel you actually live — and where it's being won or lost.">
+          <Zone title="The Pipeline" lede="Where your submissions stand, and where they stall.">
             <Pipeline pipeline={intel.pipeline} />
           </Zone>
 
           {/* Zone 5 — The Book, Ranked */}
           {!minor ? (
-            <Zone index={5} title="The Book, Ranked" lede="Your photography is the chart — the frames doing the work, ranked by the attention they hold.">
+            <Zone title="The Book, Ranked" lede="The frames holding attention — and the one for your card front.">
               {intel.book ? (
                 <BookRanked book={intel.book} />
               ) : (
                 <StudioLock
-                  title="Which frames carry your book"
-                  blurb="Rank your frames by the attention they hold, find the one that belongs on your card front, and see what's getting skipped. Included with Studio+."
+                  title="The frames holding attention"
+                  blurb="Your book ranked by the attention each frame holds, and the one that belongs on your card front."
                 />
               )}
             </Zone>
@@ -179,31 +177,29 @@ export default function IntelPage() {
           {/* Zone 6 — The Agency Lens */}
           <Zone
             id="intel-lens"
-            index={6}
             title="The Agency Lens"
-            lede="Your profile read through a booker's eyes — and the ranked moves that lift your signal."
+            lede="How current your materials are, and what to refresh first."
           >
             <AgencyLens lens={intel.lens} />
           </Zone>
 
           {/* Zone 7 — Trajectory */}
           {!minor ? (
-            <Zone index={7} title="Trajectory" lede="Are you trending? Momentum over 90 days, drawn from your strongest signals.">
+            <Zone title="Trajectory" lede="Your momentum over the last 90 days.">
               {intel.trajectory ? (
                 <Trajectory trajectory={intel.trajectory} />
               ) : (
                 <StudioLock
                   title="Your momentum over time"
-                  blurb="Track whether you're trending across 90 days, with the causes annotated — and a benchmark band as your market fills in. Included with Studio+."
+                  blurb="Whether you're trending across 90 days, with a benchmark as your market fills in."
                 />
               )}
             </Zone>
           ) : null}
 
           <p className="intel-foot">
-            Agency attention appears in aggregate only — Intel never shows you
-            which named house viewed you. Named agencies surface only when they
-            act: a review, a request, a message.
+            Agency attention is shown in aggregate. A house is named only when it
+            acts — a review, a request, a message.
           </p>
         </div>
       ) : null}
