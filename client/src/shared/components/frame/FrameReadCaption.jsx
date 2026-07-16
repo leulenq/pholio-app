@@ -106,5 +106,3 @@ export default function FrameReadCaption({
     </>
   );
 }
-
-export { reviewStateLabel } from './reviewStateLabel';

@@ -8,6 +8,9 @@ const {
 const {
   resolveRoutePermission,
 } = require("../../agency/lib/route-permissions");
+const {
+  hasCurrentAgencyLegalAcceptance,
+} = require("../../agency/services/legal-acceptance");
 
 function ensureSignedIn(req) {
   return Boolean(req.session && req.session.userId);
@@ -170,6 +173,52 @@ function requireAgencyOnboardingComplete(options = {}) {
   };
 }
 
+function requireAgencyLegalAcceptance() {
+  return async (req, res, next) => {
+    if (!req.session || req.session.role !== "AGENCY") {
+      return next();
+    }
+
+    if (!config.agencyLegalEnforce && process.env.NODE_ENV !== "production") {
+      return next();
+    }
+
+    const normalizedPath = (req.originalUrl || req.path || "")
+      .split("?")[0]
+      .replace(/^\/api\/agency/, "") || "/";
+    const legalExempt =
+      (req.method === "GET" && normalizedPath === "/legal-status") ||
+      (req.method === "POST" && normalizedPath === "/legal-acceptance");
+    if (legalExempt) {
+      return next();
+    }
+
+    try {
+      if (await hasCurrentAgencyLegalAcceptance(req.session)) {
+        return next();
+      }
+      return res.status(403).json({
+        success: false,
+        error: "AGENCY_LEGAL_ACCEPTANCE_REQUIRED",
+        message:
+          "Accept the current agency workspace policies before continuing.",
+      });
+    } catch (error) {
+      if (
+        error.code === "ACTIVE_AGENCY_MEMBERSHIP_REQUIRED" ||
+        error.code === "AGENCY_POLICY_MANIFEST_UNAVAILABLE"
+      ) {
+        return res.status(error.status || 403).json({
+          success: false,
+          error: error.code,
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
+  };
+}
+
 async function loadAgencyPermissions(req, _res, next) {
   if (!req.session || req.session.role !== "AGENCY") {
     return next();
@@ -302,9 +351,41 @@ function enforceAgencyRoutePermissions() {
       return next();
     }
 
-    const required = resolveRoutePermission(req.method, path);
+    // KILLSWITCH (defense in depth): production ALWAYS enforces regardless of
+    // config/env — mirrors config.agencyRbacEnforce, but recomputed here so a
+    // stale/overridden config value can never open the surface in prod.
+    const enforce =
+      config.agencyRbacEnforce || process.env.NODE_ENV === "production";
+
+    const method = (req.method || "GET").toUpperCase();
+    const required = resolveRoutePermission(method, path);
+
     if (!required) {
-      return next();
+      // Unmapped route. Fail CLOSED for unsafe methods (a write with no
+      // permission mapping is a coverage gap, not an intentional allow), but
+      // allow safe reads during the transition so a missed GET mapping does
+      // not take down a read surface. Every case is logged for cleanup.
+      const isSafeMethod = method === "GET" || method === "HEAD";
+      if (isSafeMethod) {
+        console.warn("[RBAC] Unmapped agency route (allowing safe method):", {
+          path,
+          method,
+        });
+        return next();
+      }
+
+      console.warn(
+        "[RBAC] Unmapped agency write route (fail closed):",
+        { path, method, presetRole: req.session.agencyMembershipRole },
+      );
+      if (!enforce) {
+        return next();
+      }
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You do not have permission to perform this action.",
+        reason: "unmapped_route",
+      });
     }
 
     if (!req.agencyPermissions) {
@@ -317,10 +398,10 @@ function enforceAgencyRoutePermissions() {
       return next();
     }
 
-    if (!config.agencyRbacEnforce) {
+    if (!enforce) {
       console.warn("[RBAC] Permission violation (enforce off):", {
         path,
-        method: req.method,
+        method,
         required,
         presetRole: req.session.agencyMembershipRole,
         memberUserId: req.session.memberUserId,
@@ -343,6 +424,7 @@ module.exports = {
   requireRole,
   requireAgencyMembershipRole,
   requireAgencyOnboardingComplete,
+  requireAgencyLegalAcceptance,
   loadAgencyPermissions,
   requireAgencyPermission,
   enforceAgencyRoutePermissions,

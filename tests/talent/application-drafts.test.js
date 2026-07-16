@@ -2,6 +2,8 @@
  * Server-backed application drafts: normalization, resume, and concurrency.
  */
 
+process.env.MINOR_SUBMISSION_ENFORCE = "1";
+
 const request = require("supertest");
 const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
@@ -20,7 +22,7 @@ const {
   buildSubmissionPackageFingerprint,
 } = require("../../src/domains/talent/services/submission-disclosure-consent");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 function bindAdultSubmissionConsent(payload) {
   const submissionPackage = payload.submissionPackage || {};
@@ -1272,6 +1274,8 @@ describe("application drafts", () => {
         request(app)
           .post("/api/talent/applications")
           .set("Accept", "application/json")
+          .set("Origin", "http://localhost:3000")
+          .set("X-Pholio-Request", "same-origin")
           .send(payload),
       );
       expect(blocked.status).toBe(403);
@@ -1508,6 +1512,8 @@ describe("application drafts", () => {
         request(app)
           .post("/api/talent/applications")
           .set("Accept", "application/json")
+          .set("Origin", "http://localhost:3000")
+          .set("X-Pholio-Request", "same-origin")
           .send(payload),
       );
       expect(blocked.status).toBe(403);
@@ -1560,6 +1566,8 @@ describe("application drafts", () => {
         request(app)
           .post("/api/talent/applications")
           .set("Accept", "application/json")
+          .set("Origin", "http://localhost:3000")
+          .set("X-Pholio-Request", "same-origin")
           .send(payload),
       );
       expect(blocked.status).toBe(400);
@@ -1595,12 +1603,17 @@ describe("application drafts", () => {
         consent_request_id: consentRequestId,
         guardian_email: "minor-guardian@example.com",
         verified_at: new Date().toISOString(),
+        authorization_expires_at: new Date(
+          Date.now() + 365 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
       });
 
       const submitted = await auth(
         request(app)
           .post("/api/talent/applications")
           .set("Accept", "application/json")
+          .set("Origin", "http://localhost:3000")
+          .set("X-Pholio-Request", "same-origin")
           .send(payload),
       );
       expect(submitted.status).toBe(200);

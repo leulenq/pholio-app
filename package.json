@@ -27,7 +27,7 @@
     "eval:discover:layer1": "jest tests/eval/discover-layer1.test.js --runInBand --forceExit",
     "eval:discover:layer2": "node scripts/eval-discover-layer2.js",
     "eval:discover:ablation": "node scripts/ablate-discover-channels.js",
-    "test": "jest --runInBand --forceExit",
+    "test": "node scripts/run-jest.js --runInBand --forceExit",
     "test:db": "node scripts/test-neon-connection.js",
     "setup:hooks": "sh scripts/setup-git-hooks.sh",
     "postinstall": "node scripts/patch-express.js && npm run setup:hooks",
@@ -60,7 +60,6 @@
     "firebase": "^12.9.0",
     "firebase-admin": "^13.7.0",
     "groq-sdk": "^0.37.0",
-    "gsap": "^3.14.2",
     "harfbuzzjs": "^1.4.0",
     "helmet": "^8.1.0",
     "knex": "^3.1.0",
@@ -75,7 +74,6 @@
     "sharp": "^0.34.5",
     "stripe": "^20.4.0",
     "three": "^0.183.2",
-    "tmux": "^1.0.0",
     "uuid": "^9.0.1",
     "validator": "^13.12.0",
     "zod": "^3.25.76"
@@ -92,8 +90,10 @@
     "jest": "^30.4.2",
     "nodemon": "^3.1.14",
     "supertest": "^7.2.2",
-    "to-ico": "^1.1.5",
     "tough-cookie": "^6.0.0",
     "wait-on": "^9.0.10"
+  },
+  "overrides": {
+    "shell-quote": "1.8.4"
   }
 }

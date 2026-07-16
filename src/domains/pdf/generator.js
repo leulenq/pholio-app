@@ -3,10 +3,12 @@ const puppeteer = require("puppeteer");
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
 const { toFeetInches } = require("../talent/services/stats");
-const {
-  applyImageVisibility,
-  AUDIENCE,
-} = require("../../shared/lib/profile-visibility");
+const { applyImageVisibility } = require("../../shared/lib/profile-visibility");
+// AUDIENCE is defined and exported by audience-dto (profile-visibility only
+// consumes it internally and does not re-export it). Importing it from
+// profile-visibility yielded `undefined`, so `AUDIENCE.PUBLIC` at the image-
+// visibility call threw a TypeError and 500'd every PDF generation.
+const { AUDIENCE } = require("../../shared/lib/audience-dto");
 const compCardDimensions = require("../../../shared/comp-card-dimensions.json");
 
 const {

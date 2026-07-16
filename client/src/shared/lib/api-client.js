@@ -3,6 +3,8 @@
  * Handles base URL, headers, and error handling
  */
 
+import { sameOriginMutationHeaders } from './same-origin-request';
+
 // Base URL handling - Vite proxy forwards /api requests
 const BASE_URL = '/api/talent';
 
@@ -64,6 +66,7 @@ async function request(endpoint, options = {}) {
     headers: {
       ...defaultHeaders,
       ...options.headers,
+      ...sameOriginMutationHeaders(options.method),
     },
   };
 
@@ -84,7 +87,7 @@ async function request(endpoint, options = {}) {
     let data;
     try {
       data = await response.json();
-    } catch (err) {
+    } catch {
       // If response is not JSON
       data = null;
     }

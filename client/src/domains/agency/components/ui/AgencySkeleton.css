@@ -1,0 +1,136 @@
+/* AgencySkeleton — opacity-pulse shimmer (no moving gradient sweep). */
+
+.ag-sk {
+  display: block;
+  background: var(--ag-surface-4);
+  border-radius: var(--ag-radius-sm);
+  animation: ag-sk-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ag-sk-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* ── Row ── */
+.ag-sk-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.ag-sk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--ag-border);
+}
+
+.ag-sk-row--compact {
+  height: 44px;
+}
+
+.ag-sk-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ag-radius-sm);
+}
+
+.ag-sk-row--compact .ag-sk-avatar {
+  width: 28px;
+  height: 28px;
+}
+
+.ag-sk-row-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ag-sk-line {
+  height: 10px;
+  border-radius: var(--ag-radius-sm);
+}
+
+.ag-sk-line--40 {
+  width: 40%;
+}
+.ag-sk-line--45 {
+  width: 45%;
+}
+.ag-sk-line--60 {
+  width: 60%;
+}
+.ag-sk-line--70 {
+  width: 70%;
+}
+.ag-sk-line--status {
+  width: 68px;
+  flex-shrink: 0;
+}
+
+/* ── Card ── */
+.ag-sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ag-sk-figure {
+  width: 100%;
+  aspect-ratio: var(--ag-card-ratio);
+  border-radius: var(--ag-radius-md);
+}
+
+.ag-sk-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Strip (ledger) ── */
+.ag-sk-strip {
+  display: flex;
+  align-items: stretch;
+}
+
+.ag-sk-strip-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  padding: 4px 20px;
+  border-left: 1px solid var(--ag-border);
+}
+
+.ag-sk-strip-cell:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.ag-sk-strip-figure {
+  width: 48px;
+  height: 22px;
+}
+
+.ag-sk-strip-label {
+  width: 72px;
+  height: 8px;
+}
+
+/* Reduced motion: static tint, no pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .ag-sk {
+    animation: none;
+    opacity: 0.7;
+  }
+}

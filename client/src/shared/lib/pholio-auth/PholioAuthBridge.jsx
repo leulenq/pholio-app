@@ -1,9 +1,8 @@
 import { useCallback, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { notifyAuthChange, subscribeAuthChanges } from './broadcast';
-import { fetchPublicSession, syncFirebaseSession } from './session-api';
-import { purgeApplyDraftStorage } from '../../../domains/talent/pages/ApplyPage/applicationDraftStorage';
+import { syncFirebaseSession } from './session-api';
 
 /**
  * Keeps Express session aligned with Firebase auth and broadcasts changes
@@ -48,15 +47,4 @@ export default function PholioAuthBridge() {
   }, [refreshFromFirebase]);
 
   return null;
-}
-
-export async function logoutPholioSession() {
-  await signOut(auth).catch(() => {});
-  await fetch('/api/logout', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  }).catch(() => {});
-  purgeApplyDraftStorage();
-  notifyAuthChange({ authenticated: false });
 }

@@ -264,13 +264,6 @@ describe("buildTalentDataExport", () => {
             event_type: "completed",
           },
         ],
-        commissions: [
-          {
-            id: "commission-1",
-            profile_id: "profile-1",
-            percent: 20.0,
-          },
-        ],
       },
       {
         tables: [
@@ -347,9 +340,6 @@ describe("buildTalentDataExport", () => {
     ]);
     expect(result.onboarding_analytics).toEqual([
       expect.objectContaining({ id: "analytics-1", step: "reveal" }),
-    ]);
-    expect(result.commissions).toEqual([
-      expect.objectContaining({ id: "commission-1", percent: 20.0 }),
     ]);
   });
 

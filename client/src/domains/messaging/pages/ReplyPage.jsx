@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import {
   bootstrapReplySession,
   getReplyThread,
+  issueReplySessionToken,
   sendReplyMessage,
 } from '../api/reply';
 import './ReplyPage.css';
@@ -23,7 +24,6 @@ function formatTime(isoString) {
 export default function ReplyPage() {
   const { token } = useParams();
   const [draft, setDraft] = useState('');
-  const [sessionReady, setSessionReady] = useState(false);
   const messagesEndRef = useRef(null);
   const queryClient = useQueryClient();
 
@@ -34,14 +34,18 @@ export default function ReplyPage() {
     retry: false,
   });
 
-  useEffect(() => {
-    if (!token) return;
-    bootstrapReplySession(token)
-      .then(() => setSessionReady(true))
-      .catch(() => {
-        /* optional — magic link works without full session */
-      });
-  }, [token]);
+  const openDashboard = useMutation({
+    mutationFn: async () => {
+      const issued = await issueReplySessionToken(token);
+      return bootstrapReplySession(issued.token);
+    },
+    onSuccess: ({ redirectTo }) => {
+      window.location.assign(redirectTo);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Could not open the dashboard');
+    },
+  });
 
   const send = useMutation({
     mutationFn: (text) => sendReplyMessage(token, text),
@@ -112,12 +116,15 @@ export default function ReplyPage() {
           <h1>Message from {agencyName}</h1>
           <p>Replying as {talentName || 'you'} — no password needed</p>
         </div>
-        {sessionReady && (
-          <Link to="/dashboard/talent/applications" className="reply-page__dashboard-link">
-            Open dashboard
-            <ExternalLink size={14} aria-hidden />
-          </Link>
-        )}
+        <button
+          type="button"
+          className="reply-page__dashboard-link"
+          onClick={() => openDashboard.mutate()}
+          disabled={openDashboard.isPending}
+        >
+          {openDashboard.isPending ? 'Opening…' : 'Open dashboard'}
+          {!openDashboard.isPending && <ExternalLink size={14} aria-hidden />}
+        </button>
       </motion.header>
 
       <main className="reply-page__main">

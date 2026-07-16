@@ -37,6 +37,10 @@ const {
   createVerifiedLocationIntel,
 } = require("../../../shared/lib/geolocation");
 const { sendPasswordResetViaSmtp } = require("../services/email-verification");
+const {
+  acceptTeamInvitation,
+  loadTeamInvitation,
+} = require("../../agency/services/team-invitations");
 
 const router = express.Router();
 
@@ -170,6 +174,14 @@ router.post("/api/dev/login", async (req, res, next) => {
         .json({ success: false, error: "Invalid email or password." });
     }
 
+    // Regenerate the session id before establishing the authenticated session
+    // (SEC-0.7: session-fixation gap). Must happen before any identity fields
+    // are assigned — regenerate() replaces req.session with a brand-new,
+    // empty session, so fields have to be (re-)assigned after this point.
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+
     if (user.role === "AGENCY") {
       const agencyContext = await resolveAgencyContextForMemberUser(user.id);
       if (!agencyContext || !agencyContext.agency) {
@@ -259,6 +271,18 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
   let nextPath = null;
   const termsAccepted = req.body?.terms_accepted === true;
   const privacyAccepted = req.body?.privacy_accepted === true;
+  const inviteToken =
+    typeof req.body?.invite_token === "string"
+      ? req.body.invite_token.trim()
+      : "";
+
+  // Declared at handler scope because several exit paths need it — notably the
+  // existing-user "AGENCY login not assigned to an organization" branch, which
+  // previously referenced an isJsonRequest that was only declared inside the
+  // new-user block and threw a ReferenceError (masking the intended 403).
+  const isJsonRequest =
+    (req.headers["content-type"] || "").includes("application/json") ||
+    (req.headers.accept || "").includes("application/json");
 
   // Check if request is JSON
   if (
@@ -396,6 +420,27 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     }
 
     console.log("[Login] Firebase token verified for:", { firebaseUid, email });
+
+    let pendingTeamInvitation = null;
+    let teamInvitationAccepted = false;
+    if (inviteToken) {
+      if (!email || !emailVerified) {
+        return res.status(403).json({
+          success: false,
+          error: "Verify the invited email address before joining the agency workspace.",
+        });
+      }
+      pendingTeamInvitation = await loadTeamInvitation(inviteToken);
+      if (
+        !pendingTeamInvitation ||
+        pendingTeamInvitation.email !== email.toLowerCase().trim()
+      ) {
+        return res.status(403).json({
+          success: false,
+          error: "This invitation is invalid, expired, used, or belongs to another email address.",
+        });
+      }
+    }
 
     // Look up user in database by Firebase UID
     let user = await knex("users").where({ firebase_uid: firebaseUid }).first();
@@ -566,10 +611,12 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
         (req.headers.accept || "").includes("application/json");
 
       try {
-        const role = determineRole(null, req.path || req.url);
+        const role = pendingTeamInvitation
+          ? "AGENCY"
+          : determineRole(null, req.path || req.url);
         console.log("[Login] Creating new user with role:", role);
 
-        if (role === "AGENCY") {
+        if (role === "AGENCY" && !pendingTeamInvitation) {
           const msg =
             "Agency accounts are provisioned by Pholio. Contact support if you need access.";
           return isJsonRequest
@@ -616,6 +663,17 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             first_name: safeFirstName,
             last_name: safeLastName,
           });
+
+          if (role === "AGENCY") {
+            await acceptTeamInvitation({
+              db: trx,
+              rawToken: inviteToken,
+              userId,
+              email: safeEmail,
+              emailVerified,
+            });
+            teamInvitationAccepted = true;
+          }
 
           // Create a profile row for TALENT users so the dashboard loads immediately
           if (role === "TALENT") {
@@ -751,6 +809,32 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       }
     }
 
+    if (pendingTeamInvitation && !teamInvitationAccepted) {
+      if (user.role !== "AGENCY") {
+        return res.status(409).json({
+          success: false,
+          error: "This email is already used by a talent account. Use a separate work email.",
+        });
+      }
+      try {
+        await knex.transaction(async (trx) => {
+          await acceptTeamInvitation({
+            db: trx,
+            rawToken: inviteToken,
+            userId: user.id,
+            email,
+            emailVerified,
+          });
+        });
+        teamInvitationAccepted = true;
+      } catch (invitationError) {
+        return res.status(403).json({
+          success: false,
+          error: invitationError.message,
+        });
+      }
+    }
+
     // Ensure TALENT users always have a profile row and onboarding_completed_at stamp.
     // This covers: new auto-created users, accounts from outside the onboarding flow,
     // and (critically) existing users whose profiles pre-date this fix.
@@ -821,6 +905,21 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       email: user.email,
       role: user.role,
     });
+
+    // Regenerate the session id before establishing the authenticated session
+    // (SEC-0.7: session-fixation gap). Must happen before any identity fields
+    // are assigned — regenerate() replaces req.session with a brand-new,
+    // empty session, so fields have to be (re-)assigned after this point.
+    // The auto-create branch above may have stashed onboarding prefill data
+    // on the pre-auth session (req.session.onboardingData); carry it forward
+    // across the regenerate so onboarding prefill still works.
+    const preAuthOnboardingData = req.session.onboardingData;
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+    if (preAuthOnboardingData) {
+      req.session.onboardingData = preAuthOnboardingData;
+    }
 
     if (user.role === "AGENCY") {
       const agencyContext = await resolveAgencyContextForMemberUser(user.id);

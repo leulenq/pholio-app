@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Generate PNG + ICO favicons from the 02 wordmark primary brand asset.
+ * Generate PNG favicons from the 02 wordmark primary brand asset and
+ * distribute the existing ICO fallback when present.
  * Run: node scripts/generate-favicons.js
  */
 const fs = require("fs");
@@ -28,20 +29,6 @@ async function main() {
   await sharp(SOURCE).resize(16, 16).png().toFile(png16);
   await sharp(SOURCE).resize(32, 32).png().toFile(png32);
   await sharp(SOURCE).resize(180, 180).png().toFile(png180);
-
-  let toIco;
-  try {
-    toIco = require("to-ico");
-  } catch {
-    console.warn(
-      "Install to-ico for favicon.ico: npm install --save-dev to-ico",
-    );
-    process.exit(0);
-  }
-
-  const ico = await toIco([fs.readFileSync(png16), fs.readFileSync(png32)]);
-  const icoPath = path.join(ROOT, "client/public/favicon.ico");
-  fs.writeFileSync(icoPath, ico);
 
   const names = [
     "favicon.ico",

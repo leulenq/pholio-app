@@ -14,6 +14,8 @@ const app = require("../../src/app");
 const knex = require("../../src/shared/db/knex");
 const { v4: uuidv4 } = require("uuid");
 
+const SESSION_SECRET = require("../../src/config").sessionSecret;
+
 jest.mock("../../src/domains/auth/middleware/require-auth", () => {
   const actual = jest.requireActual(
     "../../src/domains/auth/middleware/require-auth",
@@ -85,7 +87,7 @@ describe("Profile save remediation contract", () => {
     const signature = require("cookie-signature");
     const signed =
       "s:" +
-      signature.sign(sessionId, process.env.SESSION_SECRET || "pholio-secret");
+      signature.sign(sessionId, SESSION_SECRET);
     authCookie = [`connect.sid=${encodeURIComponent(signed)}; Path=/; HttpOnly`];
   });
 

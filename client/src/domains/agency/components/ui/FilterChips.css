@@ -1,0 +1,67 @@
+/* FilterChips — rectangular hairline chips; active = gold border + gold-ghost fill. */
+
+.ag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ag-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  height: 32px;
+  padding: 0 12px;
+  font-family: var(--ag-font-body);
+  font-size: var(--ag-text-body);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ag-text-1);
+  background: var(--ag-surface-1);
+  border: 1px solid var(--ag-border);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--ag-duration-fast) var(--ag-ease),
+    border-color var(--ag-duration-fast) var(--ag-ease),
+    color var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-chip:hover {
+  background: var(--ag-surface-2);
+  border-color: var(--ag-border-strong);
+}
+
+.ag-chip:focus-visible {
+  outline: none;
+  border-color: var(--ag-gold);
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
+}
+
+.ag-chip--active {
+  color: var(--ag-text-0);
+  background: var(--ag-gold-ghost);
+  border-color: var(--ag-gold);
+}
+
+.ag-chip--active:hover {
+  background: var(--ag-gold-muted);
+  border-color: var(--ag-gold);
+}
+
+.ag-chip-count {
+  font-weight: 500;
+  color: var(--ag-text-2);
+}
+
+.ag-chip--active .ag-chip-count {
+  color: var(--ag-gold-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-chip {
+    transition-duration: 0.01ms;
+  }
+}

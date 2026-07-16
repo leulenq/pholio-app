@@ -9,7 +9,7 @@ const { v4: uuidv4 } = require("uuid");
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("talent legal acceptance enforcement", () => {
   const TALENT_ID = uuidv4();

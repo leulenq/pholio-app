@@ -2738,3 +2738,97 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 - Branding now resolves into a full-stage real Pholio/agency lockup using the uploaded mark and selected agency accent; Commission resolves the same identity into a co-branded handoff.
 - The final reveal now contains only the canonical Pholio mark, the agency mark, one ready statement, and the workspace entry action.
 - Verification: Impeccable detector reports zero anti-pattern hits; focused ESLint passes; production build passes (3,675 modules, existing large-chunk warning); scoped `git diff --check` passes. Browser QA could not be rerun because local-server approval was blocked by the environment usage limit; the prior version had been verified at 1440×900 and 390×844, and the new CSS retains explicit desktop/tablet/mobile structures.
+
+---
+
+# Dedicated agency dashboard review: security, legal/compliance, and talent alignment — 2026-07-12
+
+- [x] Review scoped dashboard docs and industry references.
+- [x] Inspect agency and talent dashboard frontend surfaces, API clients, and route protections.
+- [x] Inspect backend auth, agency routes, upload/media, notes/decisions, and privacy-sensitive data handling.
+- [x] Produce concrete audit findings by lens with launch risks and recommendations.
+- [x] Commit audit artifacts and create PR.
+
+## Review
+
+Completed on 2026-07-12. Findings are documented in `docs/audits/2026-07-12-agency-security-compliance-alignment-audit.md`.
+
+---
+
+# Agency dashboard audit — INF-0.3 dependency triage
+
+- [x] Continue from Claude's latest `origin/claude/agency-dashboard-audit-0c2g52` implementation without replacing completed dashboard work.
+- [x] Trace the eight root critical findings to `concurrently`, the legacy `to-ico` chain, and transitive `protobufjs`.
+- [x] Remove unused root `tmux` and `gsap` dependencies.
+- [x] Remove `to-ico` while preserving PNG generation and distribution of the checked-in ICO fallback.
+- [x] Override `shell-quote` to patched 1.8.4 without upgrading `concurrently` to Node-22-only v10.
+- [x] Refresh root and client `protobufjs` to 7.6.5 within existing dependency ranges.
+- [x] Standardize the client on materially used Recharts; remove unused Chart.js packages and their orphan component.
+- [x] Verify both audits report zero critical findings, fresh lockfile installs succeed, client tests/build pass, and root tests load the upgraded graph.
+
+## Review
+
+- Root audit: 49 findings / 8 critical before; 36 findings / 0 critical after.
+- Client audit: 13 findings / 1 critical before; 11 findings / 0 critical after. The official npm registry was used because the configured client mirror does not implement the audit endpoint.
+- Client Vitest passes: 5 files, 36 tests. Production build passes with the existing large-chunk warning.
+- Full root Jest executes against the upgraded dependency graph: 127 of 137 suites and 1,892 tests pass. Remaining failures are the existing seed/date/RBAC/CSRF/foreign-key test-isolation baseline and are not missing or incompatible upgraded dependencies.
+- Full client lint retains its existing unrelated 68-error baseline. No linted application source was added by INF-0.3; the only source change removes an unreferenced component.
+
+---
+
+# Agency dashboard audit — Phase 0 continuation
+
+## Plan
+
+- [x] Reconcile the completed roster-export hardening onto this implementation branch and verify SQLite/PostgreSQL dialect handling plus notes redaction.
+- [x] Add a same-origin mutation guard for unsafe talent, agency, and magic-link reply API requests without widening the protected route scope.
+- [x] Wire the canonical talent, agency, setup, and reply clients to send the required non-simple same-origin header.
+- [x] Add focused server and client regression coverage for allowed same-origin mutations and rejected cross-site/headerless mutations.
+- [x] Wire persistent agency notification and message read state, including an agency-scoped mark-all-read endpoint.
+- [x] Canonicalize Submissions/Signing routes, lifecycle terminology, loading/error/empty states, keyboard row activation, reduced motion, and shell skip navigation.
+- [x] Replace talent-facing “application accepted/declined” notifications, email copy, and status detail with representation / not-moving-forward language.
+- [x] Remove the fabricated Analytics and Roster surfaces, scripted intelligence, money-shaped representation UI, and dead API exports rather than ship mock data.
+- [x] Remove the audited count-bubble, gradient-text, colored-side-stripe, and match-score badge treatments from touched shipped surfaces.
+- [x] Run targeted tests, client lint/build, the inherited dependency-audit checks, the Impeccable detector, and scoped diff checks; record the evidence below.
+
+## Design and product constraints
+
+- Security work follows the implementation plan's launch-gate order before later roster/calendar UI expansion.
+- Preserve the agency Editorial Ledger system: dense, composed, real-data-first, with no money surfaces or banned status/chip treatments introduced by this tranche.
+
+## Review
+
+- Export is owner/admin-only, excludes internal notes by default, supports an explicit privileged notes export, escapes spreadsheet formulas, works across SQLite/PostgreSQL aggregation differences, and writes an audit event.
+- Unsafe agency, talent, and magic-link reply mutations now require both a trusted Origin/Referer and `X-Pholio-Request: same-origin`; production cannot disable the guard. Invalid/null Origin never falls back to Referer.
+- Messages and notifications now load real unread state. “Mark all read” persists and message writes are constrained to inbound talent messages on the current agency's visible, non-withdrawn threads.
+- Navigation now uses Submissions and Signing with legacy redirects. Analytics redirects to Overview. The mock Roster route also redirects to Overview and is absent from navigation until the real roster data model/API rebuild lands.
+- Deleted 4,830 lines of fabricated/dead UI, including Analytics, the static roster and workspace, scripted roster intelligence, commission/day-rate presentation, and the representation terms panel.
+- Targeted server/security verification: 6 suites, 27 tests passed (same-origin middleware/full-app/config, export, message read isolation, route-permission coverage). The shared Pholio email contract also passes: 1 suite, 4 tests.
+- Client verification: focused ESLint passed; 7 Vitest files / 49 tests passed; production build passed with 3,684 modules and the existing large-chunk warning.
+- Dependency audit state remains the verified INF-0.3 baseline (root and client: 0 critical); this tranche does not modify dependency manifests or lockfiles.
+- Impeccable detector found no errors or newly introduced banned patterns. Its warnings are the intentional agency-system Inter body face plus existing layout-property transitions; `git diff --check` passes.
+- The legacy `tests/notifications.test.js` suite still requires a seeded TALENT user and exits before assertions in an unseeded isolated worktree; that baseline prerequisite is unrelated to this change and was not counted as passing verification.
+
+---
+
+# Agency dashboard — final implementation continuation (2026-07-14)
+
+## Plan
+
+- [x] Rebase the implementation worktree onto the exact latest `origin/claude/agency-dashboard-audit-0c2g52` tip and run the live app from that worktree.
+- [x] Fix anonymous session write amplification that exhausted the PostgreSQL pool and remove credential-bearing database URL previews from startup logs.
+- [x] Complete the launch security gate: same-origin mutations, fail-closed RBAC coverage, SVG rasterization, session rotation, reply bootstrap tokens, prompt-injection containment, and per-member legal acceptance.
+- [x] Replace the fabricated roster with persisted roster memberships, private off-platform talent records, real paginated APIs, and a keyboard-operable roster surface.
+- [x] Add hashed, expiring, single-use team email invitations with verified-email acceptance and a real pending UI state.
+- [x] Finish minor consent revocation enforcement, the internal access-review console, and the non-financial Booking Desk.
+- [x] Run fresh full migration, server/client test, lint, build, banned-pattern, and live-browser verification; document final evidence.
+
+## Review
+
+- Rebased onto the exact `origin/claude/agency-dashboard-audit-0c2g52` tip and ran the live app from the implementation worktree, eliminating the stale-runtime mismatch that hid the dashboard changes.
+- Shipped the launch gate and Phase 1/Booking Desk scope: fail-closed agency authorization, same-origin mutations, upload/token/session hardening, per-member legal acceptance, minor grant revocation across the audited endpoint matrix, real roster memberships/private records, internal access review, note provenance, team invitations, notifications/read state, audience-specific profile selects, and a non-financial conflict-aware Booking Desk.
+- Repaired live PostgreSQL profile-schema drift with an idempotent migration; the canonical 41-column agency Discover select now executes successfully against Neon.
+- Fresh SQLite verification applied all 181 migrations with none pending. The focused agency/security matrix passed 73/73 tests; guardian consent passed 22/22 after a dialect-safe expiry fix.
+- Client verification passed: ESLint 0 errors/0 warnings, Vitest 11 files/57 tests, production build 3,645 modules. Root and client dependency audits report 0 critical vulnerabilities. `git diff --check` and the shipped-agency banned-pattern scan pass.
+- Live browser verification passed for Overview, the real Roster empty state/filter surface, and Booking Desk. The server log has no recurrence of the Knex pool-timeout or missing-`specializations` error after the session-write and schema repairs.
+- Repository-wide Jest remains informational because legacy suites have pre-existing shared-SQLite lifecycle and stale route/fixture failures. The runner now refuses PostgreSQL and gives fallback suites an isolated temporary SQLite database, preventing local `.env` credentials from reaching destructive tests. CI client lint is now required; the server job remains non-blocking until that legacy baseline is retired.

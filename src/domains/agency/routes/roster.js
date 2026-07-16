@@ -7,97 +7,25 @@ const {
   sendApplicationStatusEmail,
   sendAgencyInviteEmail,
 } = require("../../../shared/lib/email");
-const { getSessionAgencyId } = require("../services/context");
+const {
+  getSessionActorUserId,
+  getSessionAgencyId,
+} = require("../services/context");
+const {
+  syncRosterMembershipForApplication,
+} = require("../services/roster-memberships");
 const { v4: uuidv4 } = require("uuid");
+const { mountAgencyApiGuard } = require("./agency-api-guard");
 const {
-  ensureModerationColumnChecked,
-} = require("../../../shared/lib/content-moderation");
-const {
-  AUDIENCE,
-  buildAgencyDiscoveryDTO,
-} = require("../../../shared/lib/audience-dto");
-const {
-  applyImageVisibility,
-  isAgencyDiscoverable,
-} = require("../../../shared/lib/profile-visibility");
+  getApplicationAccessDecision,
+} = require("../services/minor-submission-access");
 
 const router = express.Router();
-
-// POST /agency/claim - Claim a talent for commission tracking
-router.post("/agency/claim", requireRole("AGENCY"), async (req, res, next) => {
-  try {
-    const agencyId = getSessionAgencyId(req.session);
-    const { slug } = req.body;
-
-    if (!slug) {
-      if (req.headers.accept?.includes("application/json")) {
-        return res.status(400).json({ error: "Talent slug is required" });
-      }
-      addMessage(req, "error", "Invalid talent selection");
-      return res.redirect("/dashboard/agency");
-    }
-
-    const profile = await knex("profiles").where({ slug }).first();
-
-    if (!profile) {
-      if (req.headers.accept?.includes("application/json")) {
-        return res.status(404).json({ error: "Talent not found" });
-      }
-      addMessage(req, "error", "Talent profile not found");
-      return res.redirect("/dashboard/agency");
-    }
-
-    if (profile.partner_agency_id && profile.partner_agency_id !== agencyId) {
-      if (req.headers.accept?.includes("application/json")) {
-        return res
-          .status(409)
-          .json({ error: "Talent already claimed by another agency" });
-      }
-      addMessage(
-        req,
-        "error",
-        "This talent has already been claimed by another agency",
-      );
-      return res.redirect("/dashboard/agency");
-    }
-
-    await knex("profiles").where({ id: profile.id }).update({
-      partner_agency_id: agencyId,
-      partner_claimed_at: knex.fn.now(),
-      updated_at: knex.fn.now(),
-    });
-
-    const talentName = `${profile.first_name} ${profile.last_name}`;
-
-    if (req.headers.accept?.includes("application/json")) {
-      return res.json({
-        success: true,
-        talent: talentName,
-        message:
-          profile.partner_agency_id === agencyId
-            ? "Claim refreshed successfully"
-            : "Talent claimed successfully",
-      });
-    }
-
-    addMessage(
-      req,
-      "success",
-      profile.partner_agency_id === agencyId
-        ? `Claim for ${talentName} has been refreshed`
-        : `You've successfully claimed ${talentName}`,
-    );
-
-    return res.redirect("/dashboard/agency");
-  } catch (error) {
-    console.error("Agency claim error:", error);
-    if (req.headers.accept?.includes("application/json")) {
-      return res.status(500).json({ error: "Failed to claim talent" });
-    }
-    addMessage(req, "error", "An error occurred. Please try again.");
-    return res.redirect("/dashboard/agency");
-  }
-});
+// Route the router's /api/agency/* endpoints (the measured-in-person writes)
+// through the standard agency guard chain: role + onboarding-complete +
+// permission enforcement. Non /api/agency paths on this router (page-form
+// /agency/* and /dashboard/agency/* handlers) are unaffected by this mount.
+mountAgencyApiGuard(router);
 
 // POST /dashboard/agency/applications/:applicationId/accept
 // POST /dashboard/agency/applications/:applicationId/decline
@@ -109,6 +37,20 @@ router.post(
     try {
       const agencyId = getSessionAgencyId(req.session);
       const { applicationId, action } = req.params;
+
+      const access = await getApplicationAccessDecision(knex, {
+        agencyId,
+        applicationId,
+        allowMinor:
+          req.session.agencyMembershipRole === "OWNER" ||
+          req.session.agencyMembershipRole === "ADMIN",
+      });
+      if (!access.allowed && access.reason !== "not_found") {
+        return res.status(403).json({
+          error: "MINOR_SUBMISSION_ACCESS_DENIED",
+          reason: access.reason,
+        });
+      }
 
       if (!["accept", "archive", "decline"].includes(action)) {
         if (req.headers.accept?.includes("application/json")) {
@@ -130,18 +72,20 @@ router.post(
         return res.redirect("/dashboard/agency/applicants");
       }
 
+      const nextStatus =
+        action === "accept"
+          ? "accepted"
+          : action === "decline"
+            ? "declined"
+            : "archived";
+      const acceptedAt = action === "accept" ? new Date() : null;
       const updateData = {
-        status:
-          action === "accept"
-            ? "accepted"
-            : action === "decline"
-              ? "declined"
-              : "archived",
+        status: nextStatus,
         updated_at: knex.fn.now(),
       };
 
       if (action === "accept") {
-        updateData.accepted_at = knex.fn.now();
+        updateData.accepted_at = acceptedAt;
         updateData.declined_at = null;
       } else if (action === "decline") {
         updateData.declined_at = knex.fn.now();
@@ -151,9 +95,18 @@ router.post(
         updateData.accepted_at = null;
       }
 
-      await knex("applications")
-        .where({ id: applicationId })
-        .update(updateData);
+      await knex.transaction(async (trx) => {
+        await trx("applications").where({ id: applicationId }).update({
+          ...updateData,
+          updated_at: trx.fn.now(),
+        });
+        await syncRosterMembershipForApplication(
+          trx,
+          { ...application, accepted_at: acceptedAt },
+          nextStatus,
+          { actorUserId: getSessionActorUserId(req.session) },
+        );
+      });
 
       try {
         const profile = await knex("profiles")
@@ -193,53 +146,10 @@ router.post(
   },
 );
 
-// GET /api/agency/discover/:profileId/preview - Get profile preview data
-router.get(
-  "/api/agency/discover/:profileId/preview",
-  requireRole("AGENCY"),
-  async (req, res, next) => {
-    try {
-      const { profileId } = req.params;
-
-      const profile = await knex("profiles")
-        .where({ id: profileId, is_discoverable: true })
-        .first();
-
-      if (!profile) {
-        return res
-          .status(404)
-          .json({ error: "Profile not found or not discoverable" });
-      }
-
-      // Generic discovery preview — fail closed on minors (no named-agency
-      // guardian auth here) and agency-excluded profiles (audit P0-3).
-      const agencyId = getSessionAgencyId(req.session);
-      if (!isAgencyDiscoverable(profile, { agencyId })) {
-        return res
-          .status(404)
-          .json({ error: "Profile not found or not discoverable" });
-      }
-
-      // Warm the moderation-column cache so the visibility filter is a safe
-      // no-op when the column doesn't exist yet (deploy-before-migrate).
-      await ensureModerationColumnChecked(knex);
-      const imageQuery = knex("images").where({ profile_id: profileId });
-      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
-        table: "images",
-      });
-      const images = await imageQuery.orderBy(["sort", "created_at"]).limit(5);
-
-      // Static-allowlist DTO — never spread the raw discoverable profile row.
-      return res.json({
-        success: true,
-        profile: buildAgencyDiscoveryDTO(profile, { images, social: null }),
-      });
-    } catch (error) {
-      console.error("[Discover Preview] Error:", error);
-      return res.status(500).json({ error: "Failed to load profile preview" });
-    }
-  },
-);
+// NOTE: The GET /api/agency/discover/:profileId/preview handler that used to
+// live here has been removed. It shadowed (and was mounted before) the
+// canonical, guarded copy in inbox.js. inbox.js is the single source of truth
+// for that endpoint (audit SEC-0.5 / P0-6 duplicate-route removal).
 
 // POST /api/agency/roster/:profileId/measured - Confirm in-person measurement
 // DELETE /api/agency/roster/:profileId/measured - Clear the confirmation
@@ -266,6 +176,19 @@ async function requireRosterProfile(req, res) {
 
   if (!application) {
     res.status(403).json({ error: "Talent is not on your roster" });
+    return null;
+  }
+
+  const access = await getApplicationAccessDecision(knex, {
+    agencyId,
+    applicationId: application.id,
+    allowMinor: req.allowMinorSubmissions,
+  });
+  if (!access.allowed) {
+    res.status(403).json({
+      error: "MINOR_SUBMISSION_ACCESS_DENIED",
+      reason: access.reason,
+    });
     return null;
   }
 

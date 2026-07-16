@@ -43,12 +43,6 @@
 .tm-group { display: flex; flex-direction: column; gap: 16px; }
 .tm-group-head { display: flex; align-items: center; gap: 11px; }
 .tm-group-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 500; color: #16130D; margin: 0; letter-spacing: -.01em; }
-.tm-group-count {
-  font-size: 10px; font-weight: 700; color: #9b9082;
-  background: rgba(20,17,11,.045); border: 1px solid #e7ddca; border-radius: 999px;
-  min-width: 22px; text-align: center; padding: 2px 7px;
-}
-
 .tm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 16px; }
 .tm-grid--muted { opacity: .68; }
 
@@ -76,12 +70,9 @@
 .tm-id { display: flex; flex-direction: column; gap: 8px; }
 .tm-name-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .tm-name { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 500; color: #16130D; margin: 0; line-height: 1.1; letter-spacing: -.01em; }
-.tm-you { font-size: 8.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ag-gold); background: rgba(201,165,90,.1); border: 1px solid rgba(201,165,90,.32); border-radius: 4px; padding: 2px 7px; }
+.tm-you { font-size: 11px; font-weight: 500; color: #8a8073; }
 
-.tm-role { width: fit-content; font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; border-radius: 5px; padding: 4px 9px; }
-.tm-role--owner { color: #9a7b3c; background: rgba(201,165,90,.14); border: 1px solid rgba(201,165,90,.34); }
-.tm-role--admin { color: #6b6256; background: rgba(20,17,11,.04); border: 1px solid #e2dac9; }
-.tm-role--member { color: #9b9082; background: transparent; border: 1px solid #ece4d4; }
+.tm-role { width: fit-content; font-size: 11px; font-weight: 600; color: #8a8073; }
 
 .tm-foot { display: flex; flex-direction: column; gap: 7px; margin-top: 2px; padding-top: 12px; border-top: 1px solid #f1ebe0; }
 .tm-email { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #8a8073; text-decoration: none; max-width: 100%;
@@ -144,16 +135,8 @@
 .tm-role-card-title { display: block; font-size: 12.5px; font-weight: 700; color: #16130D; }
 .tm-role-card-text { display: block; font-size: 12px; color: #8a8073; margin-top: 2px; line-height: 1.45; }
 
-/* ============================================================
-   ADD-MEMBER MODAL
-   ============================================================ */
-.tm-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(20,18,14,.42); backdrop-filter: blur(3px); }
-.tm-modal { width: 100%; max-width: 480px; max-height: calc(100vh - 48px); overflow-y: auto; background: var(--ag-surface-0, #FAF8F5); border: 1px solid #ece4d4; border-radius: 18px; box-shadow: 0 30px 80px rgba(20,18,14,.32); padding: 24px 26px; }
-.tm-modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
-.tm-eyebrow { display: block; font-size: 9.5px; letter-spacing: .26em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
-.tm-modal-title { font-family: 'Playfair Display', serif; font-size: 24px; color: #16130D; margin: 7px 0 0; line-height: 1.05; }
-.tm-modal-close { width: 34px; height: 34px; flex: none; border: 1px solid #e7ddca; border-radius: 8px; background: rgba(255,255,255,.6); color: #6b6256; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .15s, color .15s, background .15s; }
-.tm-modal-close:hover { border-color: var(--ag-gold); color: #16130D; background: #fff; }
+/* ---------- INVITATION FORM ---------- */
+.tm-invite-modal { max-width: 480px; }
 .tm-modal-body { display: flex; flex-direction: column; gap: 18px; }
 .tm-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .tm-flabel { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #8a8073; }
@@ -168,7 +151,6 @@
 .tm-seg-btn:hover { border-color: var(--ag-gold); }
 .tm-seg-btn--on { background: #16130D; border-color: #16130D; color: #FAF8F5; }
 
-.tm-modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--ag-rule, #e2dac9); }
 .tm-modal-cancel { background: none; border: 1px solid #e2dac9; border-radius: 8px; padding: 11px 20px; font-size: 13px; font-weight: 600; color: #6b6256; cursor: pointer; transition: border-color .18s, color .18s; }
 .tm-modal-cancel:hover { border-color: #c0563f; color: #c0563f; }
 .tm-modal-submit { background: #16130D; color: #FAF8F5; border: 1px solid #16130D; border-radius: 8px; padding: 11px 22px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }

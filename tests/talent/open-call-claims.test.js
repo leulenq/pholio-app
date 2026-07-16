@@ -29,7 +29,7 @@ const {
   OPEN_CALL_EXEMPT_MONTHLY_CAP,
 } = require("../../src/domains/talent/services/open-call-claims");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("agency open call claims", () => {
   const userId = uuidv4();

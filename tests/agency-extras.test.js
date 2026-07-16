@@ -13,7 +13,7 @@ const { v4: uuidv4 } = require('uuid')
 const knex = require('../src/shared/db/knex')
 const app  = require('../src/app')
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'pholio-secret'
+const SESSION_SECRET = require('../src/config').sessionSecret
 const TEST_DB_PATH   = path.resolve(__dirname, '../test-agency-extras.sqlite3')
 
 const AGENCY_ID  = uuidv4()
@@ -27,6 +27,7 @@ async function createSchema() {
       t.string('id', 36).primary()
       t.string('email').notNullable().unique()
       t.string('role').notNullable()
+      t.string('account_status').notNullable().defaultTo('active')
       t.timestamp('created_at').defaultTo(knex.fn.now())
     })
   }

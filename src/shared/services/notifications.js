@@ -262,8 +262,8 @@ function applicationStatusCopy(status, agencyName) {
       body: `${agency} wants to develop you as a new face before full representation.`,
     },
     accepted: {
-      title: "Application accepted",
-      body: `${agency} accepted your application.`,
+      title: "Representation update",
+      body: `${agency} would like to move forward with representation.`,
     },
     booked: {
       title: "Booking confirmed",

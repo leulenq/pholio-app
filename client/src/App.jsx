@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import PholioAuthBridge from './shared/lib/pholio-auth/PholioAuthBridge';
 import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
@@ -29,24 +29,23 @@ const OpenCallArrivalPage = lazy(() => import('./domains/onboarding/pages/OpenCa
 const AgencyOverview = lazy(() => import('./domains/agency/pages/OverviewPage'));
 const AgencyApplicants = lazy(() => import('./domains/agency/pages/ApplicantsPage'));
 const AgencyDiscover = lazy(() => import('./domains/agency/pages/DiscoverPage'));
-const AgencyBoards = lazy(() => import('./domains/agency/pages/BoardsPage'));
-const AgencyAnalytics = lazy(() => import('./domains/agency/pages/AnalyticsPage'));
 const AgencySettings = lazy(() => import('./domains/agency/pages/SettingsPage'));
 const AgencyCasting = lazy(() => import('./domains/agency/pages/CastingPage'));
 const AgencyCastingDetail = lazy(() => import('./domains/agency/pages/CastingDetailPage'));
-const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
 const AgencyMessages = lazy(() => import('./domains/agency/pages/MessagesPage'));
 const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'));
 const AgencyInterviews = lazy(() => import('./domains/agency/pages/InterviewsPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
 const AgencyReminders = lazy(() => import('./domains/agency/pages/RemindersPage'));
-const AgencySigned = lazy(() => import('./domains/agency/pages/SignedPage'));
+const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
+const AgencyCalendar = lazy(() => import('./domains/agency/pages/BookingDeskPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
 const AuthEntrySplashPreview = lazy(() => import('./domains/auth/pages/AuthEntrySplashPreview'));
 const ModerationQueuePage = lazy(() => import('./domains/moderation/pages/ModerationQueuePage'));
 const MockConsentPage = lazy(() => import('./domains/talent/pages/ProfilePage/MockConsentPage'));
+const InternalAgencyRequests = lazy(() => import('./domains/internal/pages/AgencyRequestsPage'));
 
 function RouteFallback() {
   return (
@@ -54,6 +53,14 @@ function RouteFallback() {
       <LoadingSpinner size="lg" />
     </div>
   );
+}
+
+function LegacyAgencySigningRedirect() {
+  const { boardId } = useParams();
+  const target = boardId
+    ? `/dashboard/agency/signing/${encodeURIComponent(boardId)}`
+    : '/dashboard/agency/signing';
+  return <Navigate to={target} replace />;
 }
 
 function App() {
@@ -95,6 +102,10 @@ function App() {
           {/* Agency open call arrival — standalone, pre-auth */}
           <Route path="/opencall/:code" element={<OpenCallArrivalPage />} />
 
+          {/* Platform staff review — API authorization is independent of product roles. */}
+          <Route path="/internal" element={<Navigate to="/internal/agency-requests" replace />} />
+          <Route path="/internal/agency-requests" element={<InternalAgencyRequests />} />
+
           {/* Standalone full-screen submission studio (no dashboard chrome) */}
           <Route path="/dashboard/talent/applications/apply" element={<ApplyPage />} />
 
@@ -120,17 +131,19 @@ function App() {
             <Route element={<AgencyLayout />}>
               <Route path="/dashboard/agency" element={<AgencyOverview />} />
               <Route path="/dashboard/agency/overview" element={<Navigate to="/dashboard/agency" replace />} />
-              <Route path="/dashboard/agency/inbox" element={<Navigate to="/dashboard/agency/applicants" replace />} />
-              <Route path="/dashboard/agency/applicants" element={<AgencyApplicants />} />
-              <Route path="/dashboard/agency/casting" element={<AgencyCasting />} />
-              <Route path="/dashboard/agency/casting/:boardId" element={<AgencyCastingDetail />} />
+              <Route path="/dashboard/agency/submissions" element={<AgencyApplicants />} />
+              <Route path="/dashboard/agency/inbox" element={<Navigate to="/dashboard/agency/submissions" replace />} />
+              <Route path="/dashboard/agency/applicants" element={<Navigate to="/dashboard/agency/submissions" replace />} />
+              <Route path="/dashboard/agency/signing" element={<AgencyCasting />} />
+              <Route path="/dashboard/agency/signing/:boardId" element={<AgencyCastingDetail />} />
+              <Route path="/dashboard/agency/casting" element={<LegacyAgencySigningRedirect />} />
+              <Route path="/dashboard/agency/casting/:boardId" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
-              <Route path="/dashboard/agency/boards" element={<AgencyBoards />} />
               <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
-              <Route path="/dashboard/agency/signed" element={<AgencySigned />} />
+              <Route path="/dashboard/agency/calendar" element={<AgencyCalendar />} />
               <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
               <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
-              <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
+              <Route path="/dashboard/agency/analytics" element={<Navigate to="/dashboard/agency" replace />} />
               <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
               <Route path="/dashboard/agency/team" element={<AgencyTeam />} />
               <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />

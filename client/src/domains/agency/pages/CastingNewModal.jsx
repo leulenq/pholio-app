@@ -39,9 +39,9 @@ export default function CastingNewModal({ open, onClose }) {
     }),
     onSuccess: (board) => {
       qc.invalidateQueries({ queryKey: ['agency-boards'] });
-      toast.success('Casting board created');
+      toast.success('Signing board created');
       onClose();
-      if (board?.id) navigate(`/dashboard/agency/casting/${board.id}`);
+      if (board?.id) navigate(`/dashboard/agency/signing/${board.id}`);
     },
     onError: () => toast.error('Could not create the board'),
   });
@@ -74,7 +74,7 @@ export default function CastingNewModal({ open, onClose }) {
           >
             <div className="cn-modal-head">
               <div>
-                <h2 className="cn-modal-title">Open a casting</h2>
+                <h2 className="cn-modal-title">Open a signing board</h2>
               </div>
               <button type="button" className="cn-close" onClick={onClose} aria-label="Close"><X size={17} /></button>
             </div>
@@ -106,7 +106,7 @@ export default function CastingNewModal({ open, onClose }) {
                   value={form.description}
                   onChange={set('description')}
                   style={{ resize: 'none' }}
-                  placeholder="What you're casting for — the look, the energy, the references."
+                  placeholder="Describe the board focus, the look, and what reviewers should prioritize."
                 />
               </div>
 

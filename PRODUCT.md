@@ -9,13 +9,13 @@ product
 Two distinct authenticated audiences, each in their own task and their own visual system:
 
 - **Talent** — models, actors, and creatives building a professional presence. They are in a *creation and pride* mindset: uploading images, curating a portfolio, generating comp-card PDFs, tracking profile strength, and applying to agencies. The interface should make them feel their work is being staged, not stored.
-- **Agencies** — bookers, scouts, and agency owners managing a roster. They are in an *operations and judgement* mindset: reviewing applications, triaging an inbox, running casting boards (Kanban), tracking commissions and interviews. They need density, scan-ability, and authority — many talent, many signals, fast decisions.
+- **Agencies** — bookers, scouts, and agency owners managing a roster. They are in an *operations and judgement* mindset: reviewing submissions, triaging an inbox, running casting boards (Kanban), scheduling interviews, and signing talent. Pholio does not charge agencies and has no money/commission workflow. They need density, scan-ability, and authority — many talent, many signals, fast decisions.
 
 Both surfaces are used at a desk, in good light, often for extended working sessions. The platform also has a separate Next.js marketing site (`pholio-landing` repo) which is the brand gold-standard but is out of scope for these app design systems.
 
 ## Product Purpose
 
-Pholio is a full-stack talent portfolio and agency management platform. Talent create portfolios and comp cards and apply to agencies; agencies manage rosters, review applications, and track commissions. Success looks like: a talent who feels their portfolio is *premium* enough to represent them professionally, and an agency that can run its entire roster workflow without the tool getting in the way. The product earns trust by feeling like a high-end studio asset, not a generic SaaS CRM.
+Pholio is a full-stack talent portfolio and agency management platform. Talent create portfolios and comp cards and apply to agencies; vetted agencies manage rosters, review submissions, and run casting/signing workflows. Pholio does not charge agencies and has no money/commission workflow. Success looks like: a talent who feels their portfolio is *premium* enough to represent them professionally, and an agency that can run its entire roster workflow without the tool getting in the way. The product earns trust by feeling like a high-end studio asset, not a generic SaaS CRM.
 
 ## Brand Personality
 

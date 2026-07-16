@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/NotificationCenter';
+import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/talentNotifications';
 import ReportDialog from '../../../shared/components/ReportDialog';
 import { talentApi } from '../api/talent';
 import WritingAssistToolbar from '../../../shared/components/writing/WritingAssistToolbar';

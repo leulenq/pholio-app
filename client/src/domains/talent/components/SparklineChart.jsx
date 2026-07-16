@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 /**
  * Mini Sparkline Chart for metric cards
  */
 export default function SparklineChart({ data, color = '#C9A55A' }) {
+  const reactId = useId();
   // Simple check for data
   if (!data || data.length === 0) return null;
 
   // Format data for Recharts
   // Create a safe ID for the gradient (IDs shouldn't contain #)
-  const safeId = `gradient-${color.replace('#', '')}-${Math.random().toString(36).substr(2, 9)}`;
+  const safeId = `gradient-${color.replace('#', '')}-${reactId.replace(/:/g, '')}`;
   const chartData = data.map((val, idx) => ({ value: val, idx }));
 
   return (

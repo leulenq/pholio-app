@@ -29,7 +29,7 @@ export const PERMISSION_GROUPS = [
   },
   {
     id: 'applications',
-    label: 'Applicants & pipeline',
+    label: 'Submissions & pipeline',
     permissions: [
       { key: 'applications.update_status', label: 'Update status / shortlist' },
       { key: 'applications.accept', label: 'Accept / sign talent' },
@@ -43,7 +43,7 @@ export const PERMISSION_GROUPS = [
   },
   {
     id: 'boards',
-    label: 'Casting boards',
+    label: 'Signing boards',
     permissions: [
       { key: 'boards.create', label: 'Create boards' },
       { key: 'boards.edit', label: 'Edit boards' },
@@ -58,6 +58,15 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { key: 'discover.invite', label: 'Invite talent to apply' },
       { key: 'talent.download_comp_card', label: 'Download comp card' },
+    ],
+  },
+  {
+    id: 'calendar',
+    label: 'Roster & Booking Desk',
+    permissions: [
+      { key: 'roster.manage_status', label: 'Manage roster status' },
+      { key: 'roster.add_talent', label: 'Add talent to roster' },
+      { key: 'calendar.manage', label: 'Manage options, holds, and bookings' },
     ],
   },
   {

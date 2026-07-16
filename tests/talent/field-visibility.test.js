@@ -12,7 +12,7 @@ const {
   isFieldGroupVisible,
 } = require("../../src/shared/lib/field-visibility");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 async function createTalent({ dateOfBirth, guardianConsentAt = null }) {
   const userId = uuidv4();

@@ -50,6 +50,7 @@ export default function LoginPage() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const forceLogin = searchParams.get('force') === '1';
+  const inviteToken = searchParams.get('invite') || '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -226,6 +227,7 @@ export default function LoginPage() {
         },
         body: JSON.stringify({
           firebase_token: idToken,
+          invite_token: inviteToken || undefined,
         }),
       });
 

@@ -5,6 +5,18 @@
  */
 
 const ROUTE_PERMISSION_RULES = [
+  // Every active human member accepts the current agency workspace policies.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/legal-status$/,
+    permission: "account.accept_legal",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/legal-acceptance$/,
+    permission: "account.accept_legal",
+  },
+
   // Organization
   { method: "GET", pattern: /^\/api\/agency\/me$/, permission: "org.view" },
   {
@@ -31,6 +43,30 @@ const ROUTE_PERMISSION_RULES = [
     method: "GET",
     pattern: /^\/api\/agency\/export$/,
     permission: "org.export_data",
+  },
+
+  // Setup / onboarding (setup.js additionally enforces OWNER/ADMIN membership).
+  // Writes require org.complete_onboarding (held by OWNER/ADMIN); the read is
+  // org.view so any active agency member can inspect setup state.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/setup$/,
+    permission: "org.view",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/setup\/[^/]+$/,
+    permission: "org.complete_onboarding",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/setup\/complete$/,
+    permission: "org.complete_onboarding",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/import-jobs$/,
+    permission: "org.complete_onboarding",
   },
   {
     method: "GET",
@@ -131,10 +167,62 @@ const ROUTE_PERMISSION_RULES = [
     pattern: /^\/api\/agency\/roster$/,
     permission: "roster.view",
   },
+  // Measured-in-person confirmation is the only write path for the
+  // measured_in_person_at / measured_by_agency_id state (roster.js). Keep the
+  // measured rules ABOVE the generic /roster/:id GET so they win by specificity
+  // for their unsafe methods.
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/roster\/[^/]+\/measured$/,
+    permission: "roster.manage_status",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/agency\/roster\/[^/]+\/measured$/,
+    permission: "roster.manage_status",
+  },
   {
     method: "GET",
     pattern: /^\/api\/agency\/roster\/[^/]+$/,
     permission: "roster.view_profile",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/talent-records$/,
+    permission: "roster.add_talent",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/roster-memberships\/[^/]+$/,
+    permission: "roster.manage_status",
+  },
+
+  // Booking Desk calendar. Talent-declared bookouts are included by the read
+  // endpoint but remain immutable through these agency routes.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/commitments$/,
+    permission: "calendar.view",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/commitments$/,
+    permission: "calendar.manage",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
+    permission: "calendar.manage",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/commitments\/[^/]+\/confirm$/,
+    permission: "calendar.manage",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
+    permission: "calendar.manage",
   },
 
   // Applications — bulk before parameterized
@@ -301,6 +389,40 @@ const ROUTE_PERMISSION_RULES = [
     permission: "boards.assign_application",
   },
 
+  // Matching (decision-support ranking / booker decisions / fairness monitor)
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/boards\/[^/]+\/rank$/,
+    permission: "matching.rank",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/boards\/[^/]+\/candidates\/[^/]+\/decision$/,
+    permission: "matching.decide",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/boards\/[^/]+\/fairness$/,
+    permission: "matching.view_fairness",
+  },
+
+  // Open call links
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/open-call\/links$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/open-call\/links$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/open-call\/links\/[^/]+$/,
+    permission: "open_call.manage",
+  },
+
   // Messages
   {
     method: "GET",
@@ -321,6 +443,11 @@ const ROUTE_PERMISSION_RULES = [
     method: "POST",
     pattern: /^\/api\/agency\/applications\/[^/]+\/messages$/,
     permission: "messages.send",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/messages\/read-all$/,
+    permission: "messages.mark_read",
   },
   {
     method: "POST",

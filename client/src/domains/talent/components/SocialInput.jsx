@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { PholioInput } from '../../../shared/components/ui/forms';
 import PholioButton from '../../../shared/components/ui/PholioButton';
 import {
-  looksLikeUrl,
   normalizeSocialFieldValue,
   normalizeUrl,
 } from '../../../shared/lib/normalize-social-field';
@@ -103,5 +102,3 @@ export const SocialInput = ({
     </div>
   );
 };
-
-export { looksLikeUrl, normalizeUrl };

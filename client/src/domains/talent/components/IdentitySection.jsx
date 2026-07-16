@@ -22,7 +22,6 @@ export const IdentitySection = ({
   errors,
   bioValue = '',
   isImproving,
-  improveMode,
   previousBio,
   bioOptions = { length: 'standard', person: 'third' },
   onBioOptionsChange,

@@ -19,21 +19,22 @@ const PholioCustomSelect = ({
   const blurTimeoutRef = useRef(null);
   const selectId = id || 'pholio-select';
 
-  // Sync activeIndex with selected value or first item when opening
-  useEffect(() => {
-    if (isOpen) {
-      const selectedIdx = options.findIndex(opt => opt.value === value);
-      setActiveIndex(selectedIdx >= 0 ? selectedIdx : 0);
-    } else {
-      setActiveIndex(-1);
-    }
-  }, [isOpen, value, options]);
+  const openSelect = () => {
+    const selectedIdx = options.findIndex((option) => option.value === value);
+    setActiveIndex(selectedIdx >= 0 ? selectedIdx : (options.length ? 0 : -1));
+    setIsOpen(true);
+  };
+
+  const closeSelect = () => {
+    setIsOpen(false);
+    setActiveIndex(-1);
+  };
 
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
+        closeSelect();
       }
     };
     document.addEventListener('pointerdown', handleClickOutside);
@@ -48,14 +49,14 @@ const PholioCustomSelect = ({
 
   const handleSelect = (optionValue) => {
     onChange?.(optionValue);
-    setIsOpen(false);
+    closeSelect();
   };
 
   const handleKeyDown = (e) => {
     if (disabled) return;
     if (e.key === 'Escape') {
       e.preventDefault();
-      setIsOpen(false);
+      closeSelect();
       return;
     }
     if (e.key === 'Enter' || e.key === ' ') {
@@ -65,14 +66,14 @@ const PholioCustomSelect = ({
           handleSelect(options[activeIndex].value);
         }
       } else {
-        setIsOpen(true);
+        openSelect();
       }
       return;
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (!isOpen) {
-        setIsOpen(true);
+        openSelect();
       } else {
         setActiveIndex((prev) => (prev + 1) % options.length);
       }
@@ -81,7 +82,7 @@ const PholioCustomSelect = ({
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (!isOpen) {
-        setIsOpen(true);
+        openSelect();
       } else {
         setActiveIndex((prev) => (prev - 1 + options.length) % options.length);
       }
@@ -116,7 +117,8 @@ const PholioCustomSelect = ({
             if (!disabled) {
               e.preventDefault();
               e.stopPropagation();
-              setIsOpen(!isOpen);
+              if (isOpen) closeSelect();
+              else openSelect();
             }
           }}
           tabIndex={0}
@@ -132,7 +134,7 @@ const PholioCustomSelect = ({
             const nextFocus = e.relatedTarget;
             if (containerRef.current?.contains(nextFocus)) return;
             blurTimeoutRef.current = setTimeout(() => {
-              setIsOpen(false);
+              closeSelect();
             }, 120);
           }}
         >

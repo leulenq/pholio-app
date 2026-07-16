@@ -76,13 +76,13 @@ export function statusConfig(status) {
       detail: 'The agency has taken you on for development before full representation.',
     },
     accepted: {
-      label: 'Accepted',
-      short: 'Accepted',
+      label: 'Representation',
+      short: 'Moving forward',
       tone: 'accepted',
       group: 'signed',
       icon: Check,
-      next: 'The agency wants to sign you — expect direct follow-up.',
-      detail: 'The agency has accepted your submission.',
+      next: 'The agency wants to move forward with representation — expect direct follow-up.',
+      detail: 'The agency will contact you about representation and next steps.',
     },
     booked: {
       label: 'Represented',

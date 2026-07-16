@@ -1,8 +1,11 @@
 const express = require("express");
 const router = express.Router();
 
+router.use(require("./legal"));
 router.use(require("./setup"));
 router.use(require("./roster"));
+router.use(require("./roster-data"));
+router.use(require("./commitments"));
 router.use(require("./inbox"));
 router.use(require("./team-rbac"));
 router.use(require("./casting"));

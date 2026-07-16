@@ -1,0 +1,141 @@
+/* AgencyModal — the one modal primitive. Full-screen scrim + centered panel. */
+
+.ag-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ag-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 18, 16, 0.4);
+  /* backdrop-filter is permitted HERE ONLY — a functional full-screen scrim. */
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: ag-modal-scrim-in var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  background: var(--ag-surface-1);
+  border-radius: var(--ag-radius-lg);
+  box-shadow: var(--ag-shadow-lg);
+  animation: ag-modal-in var(--ag-duration) var(--ag-ease);
+}
+
+.ag-modal:focus {
+  outline: none;
+}
+
+.ag-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px var(--ag-card-pad) 12px;
+}
+
+.ag-modal-title {
+  margin: 0;
+  font-family: var(--ag-font-body);
+  font-size: var(--ag-text-section);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ag-text-0);
+}
+
+.ag-modal-title:focus {
+  outline: none;
+}
+
+.ag-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin: -4px -4px 0 0;
+  color: var(--ag-text-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--ag-radius-md);
+  cursor: pointer;
+  transition:
+    background-color var(--ag-duration-fast) var(--ag-ease),
+    color var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-modal-close:hover {
+  background: var(--ag-surface-2);
+  color: var(--ag-text-0);
+}
+
+.ag-modal-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
+}
+
+.ag-modal-body {
+  padding: 4px var(--ag-card-pad) var(--ag-card-pad);
+  overflow-y: auto;
+  color: var(--ag-text-1);
+  font-family: var(--ag-font-body);
+  font-size: var(--ag-text-body);
+  line-height: 1.6;
+}
+
+.ag-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px var(--ag-card-pad);
+  border-top: 1px solid var(--ag-border);
+}
+
+@keyframes ag-modal-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ag-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ag-modal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Reduced motion: crossfade only, no rise. */
+@media (prefers-reduced-motion: reduce) {
+  .ag-modal-scrim {
+    animation: ag-modal-fade var(--ag-duration-fast) var(--ag-ease);
+  }
+  .ag-modal {
+    animation: ag-modal-fade var(--ag-duration-fast) var(--ag-ease);
+    transform: none;
+  }
+}

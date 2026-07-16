@@ -4,7 +4,7 @@ Scope: `client/src/domains/agency/**` and agency-facing dashboard routes under `
 
 ## Product role
 
-The agency dashboard is a dense operational command center for bookers, scouts, and agency owners. They manage rosters, review submissions, triage inboxes, run casting boards, track interviews, reminders, commissions, and roster health. The interface must feel like a premium agency working tool, not a generic SaaS CRM.
+The agency dashboard is a dense operational command center for bookers, scouts, and agency owners. They manage rosters, review submissions, triage inboxes, run casting boards, track interviews, reminders, and roster health. Pholio does not charge agencies and has no money/commission workflow. The interface must feel like a premium agency working tool, not a generic SaaS CRM.
 
 ## Required design context
 

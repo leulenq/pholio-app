@@ -5,13 +5,13 @@ import "./CosmicBackground.css";
 
 const CosmicBackground = React.memo(() => {
   const [init, setInit] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
 
   useEffect(() => {
     // Check for prefers-reduced-motion
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mediaQuery.matches);
-
     const handleChange = (e) => setReducedMotion(e.matches);
     mediaQuery.addEventListener("change", handleChange);
 

@@ -43,6 +43,13 @@ const rootUploads = process.env.UPLOAD_DIR
 
 const nodeEnv = process.env.NODE_ENV || "development";
 
+function resolveCsrfProtectionEnabled() {
+  if (nodeEnv === "production") return true;
+  if (process.env.CSRF_ENFORCE === "1") return true;
+  if (process.env.CSRF_ENFORCE === "0") return false;
+  return nodeEnv !== "test";
+}
+
 // Fail closed in production: a missing SESSION_SECRET must crash startup
 // rather than silently signing sessions with a hardcoded, publicly-known
 // fallback. In dev/test, fall back to a clearly-labeled dev-only secret.
@@ -87,6 +94,7 @@ function resolveDiscoverEngine() {
 module.exports = {
   port: Number(process.env.PORT || 3000),
   nodeEnv,
+  csrfProtectionEnabled: resolveCsrfProtectionEnabled(),
   sessionSecret: resolveSessionSecret(),
   dbClient: (process.env.DB_CLIENT || "sqlite3").toLowerCase(),
   databaseUrl: process.env.DATABASE_URL || "sqlite://./dev.sqlite3",
@@ -211,10 +219,34 @@ module.exports = {
     endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     region: "auto",
   },
-  // Agency RBAC — set AGENCY_RBAC_ENFORCE=false to log-only during rollout
+  // Agency RBAC — set AGENCY_RBAC_ENFORCE=false to log-only during rollout.
+  // KILLSWITCH: enforcement can NEVER be disabled in production. The
+  // AGENCY_RBAC_ENFORCE=false / =0 escape hatch is honored only outside
+  // production so a misconfigured prod env var can't silently open the
+  // agency RBAC surface.
   agencyRbacEnforce:
-    process.env.AGENCY_RBAC_ENFORCE !== "false" &&
-    process.env.AGENCY_RBAC_ENFORCE !== "0",
+    nodeEnv === "production"
+      ? true
+      : process.env.AGENCY_RBAC_ENFORCE !== "false" &&
+        process.env.AGENCY_RBAC_ENFORCE !== "0",
+  // Agency policy acceptance is a launch gate. Production cannot disable it;
+  // tests opt in so hand-built schemas that predate the acceptance table keep
+  // their narrow focus.
+  agencyLegalEnforce:
+    nodeEnv === "production"
+      ? true
+      : nodeEnv === "test"
+        ? process.env.AGENCY_LEGAL_ENFORCE === "1"
+        : process.env.AGENCY_LEGAL_ENFORCE !== "false" &&
+          process.env.AGENCY_LEGAL_ENFORCE !== "0",
+  // Minor-submission enforcement is always on outside tests. Focused tests
+  // using hand-built pre-migration schemas opt in explicitly.
+  minorSubmissionEnforce:
+    nodeEnv === "production"
+      ? true
+      : nodeEnv === "test"
+        ? process.env.MINOR_SUBMISSION_ENFORCE === "1"
+        : true,
   appUrl:
     process.env.APP_URL ||
     process.env.BASE_URL ||

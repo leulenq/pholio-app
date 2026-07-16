@@ -34,6 +34,78 @@ const {
 } = require("./field-whitelist");
 const { reconcile } = require("./extract-values");
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Prompt-injection input hardening (SEC-0.9)
+//
+// Talent-authored free text (look_descriptor, castingNotes, bio) and the
+// agency's own query flow into Groq prompts on the Discover feature, so both are
+// an untrusted-input surface. Two jobs, shared from this module so there is a
+// single source of truth:
+//   1. FENCE tokens wrap untrusted candidate data in the reranker prompt so the
+//      model can tell DATA from instructions (see discover-rerank.js).
+//   2. sanitizeUntrustedText() neutralizes obvious injection control phrases and
+//      any attempt to FORGE the fence tokens, before interpolation.
+// This is a conservative denylist: it redacts high-signal injection sequences to
+// "[filtered]" without scrubbing legitimate casting vocabulary.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FENCE_BEGIN = "<<<BEGIN_TALENT_DATA>>>";
+const FENCE_END = "<<<END_TALENT_DATA>>>";
+
+const INJECTION_PATTERNS = [
+  // Chat-turn / role-label forging at the start of a line.
+  /^[ \t>*-]*(system|assistant|user|developer|tool)\s*:/gim,
+  // "ignore/disregard/forget/override the previous/above ... instructions".
+  /\b(ignore|disregard|forget|override|bypass|drop)\b[^\n]{0,48}\b(previous|prior|above|earlier|all|these|any|the|your|preceding)\b[^\n]{0,48}\b(instruction|instructions|prompt|prompts|context|rule|rules|direction|directions|system)\b/gi,
+  // Role re-assignment / persona hijack.
+  /\byou\s+are\s+now\b/gi,
+  /\bpretend\s+(that\s+)?(you|to\s+be)\b/gi,
+  /\bnew\s+(instructions?|task|rules?|system\s+prompt|persona)\b/gi,
+  // Direct scoring / ranking manipulation.
+  /\b(score|rank|rate|grade)\s+(me|this|him|her|them|myself|us)\b[^\n]{0,24}\b(100|highest|first|top|max(?:imum)?|best)\b/gi,
+  /\b(give|assign|set)\b[^\n]{0,24}\b(score|rank|rating|grade)\b[^\n]{0,24}\b(100|highest|top|max(?:imum)?)\b/gi,
+  // Prompt-exfiltration attempts.
+  /\b(reveal|print|repeat|show|output|display)\b[^\n]{0,24}\b(system\s+prompt|instructions?|prompt)\b/gi,
+  // Markdown code fences (a classic delimiter-injection vehicle).
+  /`{3,}/g,
+];
+
+/**
+ * Neutralize untrusted free text before it is interpolated into an LLM prompt.
+ * Conservative: redacts injection control phrases + forged delimiters, collapses
+ * whitespace, and caps length. Legitimate casting words are left intact.
+ *
+ * @param {*} input
+ * @param {number} [maxLen=800]
+ * @returns {string}
+ */
+function sanitizeUntrustedText(input, maxLen = 800) {
+  if (input == null) return "";
+  let text = String(input);
+
+  // Strip control chars (keep tab/newline for the line-anchored patterns below).
+  text = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ");
+
+  // Prevent fence forgery: kill our own delimiter tokens and lookalikes first.
+  text = text.split(FENCE_BEGIN).join(" [filtered] ");
+  text = text.split(FENCE_END).join(" [filtered] ");
+  text = text.replace(/<{2,}\/?[A-Za-z0-9_ ]*>{2,}/g, " [filtered] ");
+  text = text.replace(
+    /\b(BEGIN|END)[_ ]?(TALENT|CANDIDATE)[_ ]?DATA\b/gi,
+    "[filtered]",
+  );
+  text = text.replace(/#{2,}\s*candidate[^\n]*/gi, "[filtered]");
+
+  // Neutralize injection control phrases.
+  for (const re of INJECTION_PATTERNS) text = text.replace(re, "[filtered]");
+
+  // Collapse whitespace (also flattens multi-line injection formatting).
+  text = text.replace(/\s+/g, " ").trim();
+
+  if (text.length > maxLen) text = text.slice(0, maxLen).trim();
+  return text;
+}
+
 const ENUM_ARRAY_FIELDS = [
   "gender_presentation",
   "boards",
@@ -357,4 +429,10 @@ function enforceProtected(role, setAside) {
   return { softQuery };
 }
 
-module.exports = { validateContract, enforceProtected };
+module.exports = {
+  validateContract,
+  enforceProtected,
+  sanitizeUntrustedText,
+  FENCE_BEGIN,
+  FENCE_END,
+};

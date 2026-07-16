@@ -8,8 +8,9 @@ import {
   resolveEntryDisplayName,
 } from '../../auth/lib/entry-identity';
 import { useAuthEntryTransition } from '../../auth/hooks/useAuthEntryTransition';
-import { getAgencyProfile } from '../api/agency';
+import { getAgencyLegalStatus, getAgencyProfile } from '../api/agency';
 import { AgencyPermissionsProvider } from '../context/AgencyPermissionsProvider';
+import AgencyLegalAcceptanceGate from './AgencyLegalAcceptanceGate';
 
 async function getSession() {
   const response = await fetch('/api/session', {
@@ -33,13 +34,26 @@ export default function AgencySessionGate() {
     staleTime: 0,
     refetchOnMount: 'always',
   });
-  const { data: agencyProfile } = useQuery({
+  const isAgencySession = data?.authenticated && data?.role === 'AGENCY';
+  const legalStatusQuery = useQuery({
+    queryKey: ['agency', 'legal-status'],
+    queryFn: getAgencyLegalStatus,
+    retry: false,
+    enabled: Boolean(isAgencySession),
+  });
+  const legalAccepted = legalStatusQuery.data?.needsAcceptance === false;
+  const agencyProfileQuery = useQuery({
     queryKey: ['agency-profile'],
     queryFn: getAgencyProfile,
     retry: false,
     staleTime: 5 * 60 * 1000,
+    enabled: Boolean(isAgencySession && legalAccepted),
   });
-  const { showEntrySplash, isEntrySplashExiting, entryStartedAt } = useAuthEntryTransition(!isLoading);
+  const agencyProfile = agencyProfileQuery.data;
+  const legalStatusSettled = !isAgencySession || !legalStatusQuery.isLoading;
+  const profileSettled = !legalAccepted || !agencyProfileQuery.isLoading;
+  const entryDataReady = !isLoading && legalStatusSettled && profileSettled;
+  const { showEntrySplash, isEntrySplashExiting, entryStartedAt } = useAuthEntryTransition(entryDataReady);
 
   const entrySplash = showEntrySplash ? (
     <AuthEntrySplash
@@ -79,8 +93,10 @@ export default function AgencySessionGate() {
 
   return (
     <AgencyPermissionsProvider session={data}>
-      {entrySplash}
-      <Outlet />
+      <AgencyLegalAcceptanceGate statusQuery={legalStatusQuery}>
+        {entrySplash}
+        <Outlet />
+      </AgencyLegalAcceptanceGate>
     </AgencyPermissionsProvider>
   );
 }

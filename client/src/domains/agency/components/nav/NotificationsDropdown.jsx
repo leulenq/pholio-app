@@ -48,7 +48,7 @@ export default function NotificationsDropdown({
 
   const handleFooter = useCallback(() => {
     onClose?.();
-    navigate('/dashboard/agency/inbox');
+    navigate('/dashboard/agency/submissions');
   }, [navigate, onClose]);
 
   if (!isOpen) return null;

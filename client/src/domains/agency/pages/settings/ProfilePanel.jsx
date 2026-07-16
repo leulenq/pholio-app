@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { AgencyButton } from '../../components/ui/AgencyButton';
-import AgencySocialSection, { AGENCY_SOCIAL_FIELDS } from '../../components/settings/AgencySocialSection';
+import AgencySocialSection from '../../components/settings/AgencySocialSection';
+import { AGENCY_SOCIAL_FIELDS } from '../../components/settings/agency-social-fields';
 import { updateAgencyProfile } from '../../api/agency';
 import { normalizeAgencySocialFields } from '../../../../shared/lib/normalize-social-field';
 

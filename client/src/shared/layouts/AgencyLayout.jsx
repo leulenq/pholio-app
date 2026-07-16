@@ -2,7 +2,8 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, MessageSquare, Settings, Menu } from 'lucide-react';
-import { getAgencyProfile, getMessageThreads } from '../../domains/agency/api/agency';
+import { MotionConfig } from 'framer-motion';
+import { getAgencyProfile, getMessageThreads, getAgencyNotifications } from '../../domains/agency/api/agency';
 import { useAgencyTeam } from '../../domains/agency/hooks/useAgencyTeam';
 import { useAgencyOverview } from '../../domains/agency/hooks/useAgencyOverview';
 import { useRailCollapsed } from '../../domains/agency/hooks/useRailCollapsed';
@@ -35,7 +36,18 @@ export default function AgencyLayout() {
   const { data: profile } = useQuery({ queryKey: ['agency-profile'], queryFn: getAgencyProfile, staleTime: 5 * 60 * 1000 });
   const { data: team = [] } = useAgencyTeam();
   const { data: overview } = useAgencyOverview();
-  const { data: threads = [] } = useQuery({ queryKey: ['agency', 'messages', 'threads'], queryFn: getMessageThreads, refetchInterval: 30000 });
+  const {
+    data: threads = [],
+    isLoading: messagesLoading,
+    isError: messagesError,
+  } = useQuery({ queryKey: ['agency', 'messages', 'threads'], queryFn: getMessageThreads, refetchInterval: 30000 });
+  const {
+    data: notificationsData,
+    isLoading: notificationsLoading,
+    isError: notificationsError,
+  } = useQuery({ queryKey: ['agency', 'notifications'], queryFn: getAgencyNotifications, refetchInterval: 60000 });
+  const notifications = notificationsData?.notifications ?? [];
+  const unreadNotifications = notificationsData?.unreadCount ?? 0;
 
   // Focus-return on close: remember which trigger opened the panel.
   const openPanelRef = useRef(null);
@@ -105,7 +117,6 @@ export default function AgencyLayout() {
   const profileWithMeta = { ...profile, member_count: team.length || undefined };
   const unreadMessages = threads.filter((t) => t.unread).length;
   const isDiscover = location.pathname.startsWith('/dashboard/agency/discover');
-  const isRoster = location.pathname === '/dashboard/agency/roster';
   const season = 'SS26';
   // Cross-board context (agencies run many boards) — not anchored to one location/board.
   const activeBoards = kpis.activeCastings;
@@ -125,14 +136,15 @@ export default function AgencyLayout() {
   ].filter(Boolean).join(' ');
 
   return (
+    <MotionConfig reducedMotion="user">
     <div ref={shellRef} className={shellClass}>
+      <a className="ag-skip-link" href="#agency-main">Skip to workspace</a>
       {drawerOpen && <div className="ag-rail-overlay" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
       <aside className="ag-rail">
         <div className="ag-grain" />
         <CoBrandLockup profile={profileWithMeta} collapsed={collapsed} />
         <RailNav
-          counts={{ applicants: kpis.pendingReview, casting: kpis.activeCastings, team: team.length || undefined }}
           collapsed={collapsed}
           onToggleCollapse={toggle}
         />
@@ -140,7 +152,7 @@ export default function AgencyLayout() {
       </aside>
 
       <div className="ag-body">
-        <main className={`ag-main${isDiscover ? ' ag-main--discover' : ''}${isRoster ? ' ag-main--roster' : ''}`}>
+        <main id="agency-main" tabIndex={-1} className={`ag-main${isDiscover ? ' ag-main--discover' : ''}`}>
           <header className="ag-masthead">
             <div className="ag-masthead-left">
               <button className="ag-hamburger" aria-label="Open navigation" onClick={() => setDrawerOpen(true)}>
@@ -150,21 +162,34 @@ export default function AgencyLayout() {
             </div>
             <div className="ag-masthead-actions">
               <TeamPresence members={team} />
-              <span style={{ width: 1, height: 16, background: '#e0d8c7' }} aria-hidden="true" />
+              <span className="ag-masthead-divider" aria-hidden="true" />
               <div ref={messagesRef} style={{ position: 'relative' }}>
-                <button ref={messagesBtnRef} className="ag-topbar-icon" aria-label="Messages" aria-expanded={openPanel === 'messages'}
+                <button ref={messagesBtnRef} className={`ag-topbar-icon${unreadMessages > 0 ? ' ag-topbar-icon--unread' : ''}`} aria-label={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'} aria-expanded={openPanel === 'messages'}
                   onClick={() => setOpenPanel((p) => (p === 'messages' ? null : 'messages'))}>
                   <MessageSquare size={17} />
-                  {unreadMessages > 0 && <span className="ag-icon-badge">{unreadMessages}</span>}
                 </button>
-                <MessagesDropdown isOpen={openPanel === 'messages'} onClose={closePanel} threads={threads} onAllRead={() => {}} isLoading={false} isError={false} />
+                <MessagesDropdown
+                  isOpen={openPanel === 'messages'}
+                  onClose={closePanel}
+                  threads={threads}
+                  unreadCount={unreadMessages}
+                  isLoading={messagesLoading}
+                  isError={messagesError}
+                />
               </div>
               <div ref={notificationsRef} style={{ position: 'relative' }}>
-                <button ref={notificationsBtnRef} className="ag-topbar-icon" aria-label="Notifications" aria-expanded={openPanel === 'notifications'}
+                <button ref={notificationsBtnRef} className={`ag-topbar-icon${unreadNotifications > 0 ? ' ag-topbar-icon--unread' : ''}`} aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} unread` : 'Notifications'} aria-expanded={openPanel === 'notifications'}
                   onClick={() => setOpenPanel((p) => (p === 'notifications' ? null : 'notifications'))}>
                   <Bell size={17} />
                 </button>
-                <NotificationsDropdown isOpen={openPanel === 'notifications'} onClose={closePanel} notifications={[]} onAllRead={() => {}} isLoading={false} isError={false} />
+                <NotificationsDropdown
+                  isOpen={openPanel === 'notifications'}
+                  onClose={closePanel}
+                  notifications={notifications}
+                  unreadCount={unreadNotifications}
+                  isLoading={notificationsLoading}
+                  isError={notificationsError}
+                />
               </div>
               <Link to="/dashboard/agency/settings" className="ag-topbar-icon" aria-label="Settings"><Settings size={17} /></Link>
             </div>
@@ -173,5 +198,6 @@ export default function AgencyLayout() {
         </main>
       </div>
     </div>
+    </MotionConfig>
   );
 }

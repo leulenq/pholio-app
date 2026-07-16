@@ -76,7 +76,7 @@ export const ApplicantsZone = ({ applicationId, onProfileHydrated }) => {
     <div>
       {application && (
         <div className="app-status-card">
-          <div className="app-status-card-label">Application Status</div>
+          <div className="app-status-card-label">Submission status</div>
           <span className="app-status-text">{application.status}</span>
           <div className="app-status-card-date">Applied {formatDate(application.created_at)}</div>
         </div>

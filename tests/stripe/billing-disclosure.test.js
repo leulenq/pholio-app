@@ -28,7 +28,7 @@ const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { createCheckoutSession } = require("../../src/shared/lib/stripe");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("POST /stripe/create-checkout-session billing disclosure", () => {
   const TALENT_ID = uuidv4();

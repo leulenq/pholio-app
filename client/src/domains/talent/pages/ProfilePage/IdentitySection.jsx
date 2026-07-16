@@ -5,7 +5,6 @@ import CityAutocompleteField from '../../../../shared/components/ui/forms/CityAu
 import CountrySelectField from '../../../../shared/components/ui/forms/CountrySelectField';
 import { Section } from '../../components/Section';
 import { IdentitySection as PersonalDetailsFields } from '../../components/profile-index';
-import styles from './ProfilePage.module.css';
 
 const ETHNICITY_OPTIONS = [
   { value: 'Black/African Descent', label: 'Black / African Descent' },

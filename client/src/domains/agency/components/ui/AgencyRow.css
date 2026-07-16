@@ -1,0 +1,170 @@
+/* AgencyRow — 56px list row (44px compact). Tone-shift hover, gold inset ring. */
+
+.ag-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px; /* canonical row height per the component kit */
+  padding: 0 12px;
+  background: var(--ag-surface-1);
+  border-bottom: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-md);
+  font-family: var(--ag-font-body);
+  color: var(--ag-text-1);
+  transition: background-color var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-row--compact {
+  height: var(--ag-row-h-compact, 44px);
+  gap: 10px;
+}
+
+.ag-row--interactive {
+  cursor: pointer;
+}
+
+/* Hover = surface-hover tint. No translateY lift (talent vocabulary). */
+.ag-row--interactive:hover {
+  background: var(--ag-surface-2);
+}
+
+.ag-row--interactive:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(201, 165, 90, 0.35);
+}
+
+/* Selected = 2px gold FULL inset ring (never a side-stripe). */
+.ag-row--selected {
+  background: var(--ag-gold-ghost);
+  box-shadow: inset 0 0 0 2px var(--ag-gold);
+}
+
+.ag-row--selected.ag-row--interactive:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ag-gold);
+}
+
+.ag-row--disabled {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ── Checkbox slot ── */
+.ag-row-check {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ag-row-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ag-gold);
+  cursor: pointer;
+}
+
+/* ── Photo ── */
+.ag-row-photo {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: var(--ag-radius-sm);
+  background: var(--ag-surface-4);
+}
+
+.ag-row--compact .ag-row-photo {
+  width: 28px;
+  height: 28px;
+}
+
+.ag-row-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ag-row-photo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ag-text-3);
+}
+
+/* ── Main (name + meta) ── */
+.ag-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ag-row-name {
+  font-size: var(--ag-text-body);
+  font-weight: 600;
+  color: var(--ag-text-0);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-row-meta {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--ag-text-2);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-row--compact .ag-row-main {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* ── Trailing ── */
+.ag-row-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ag-row-status-text {
+  font-size: var(--ag-text-body);
+  font-weight: 500;
+  color: var(--ag-text-2);
+  white-space: nowrap;
+}
+
+.ag-row-chevron {
+  color: var(--ag-text-3);
+  transition: transform var(--ag-duration-fast) var(--ag-ease);
+}
+
+.ag-row--interactive:hover .ag-row-chevron {
+  transform: translateX(2px);
+  color: var(--ag-text-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-row,
+  .ag-row-chevron {
+    transition-duration: 0.01ms;
+  }
+  .ag-row--interactive:hover .ag-row-chevron {
+    transform: none;
+  }
+}

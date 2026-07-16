@@ -59,6 +59,7 @@ beforeAll(async () => {
 }, 120000);
 
 beforeEach(async () => {
+  await knex("message_reply_session_tokens").del();
   await knex("message_reply_tokens").del();
   await knex("messages").del();
   await knex("application_activities").del();
@@ -192,14 +193,33 @@ describe("message reply API", () => {
     expect(messages[1].message).toBe("Thanks! I'm available this week.");
   });
 
-  test("POST /api/reply/:token/session bootstraps talent session", async () => {
+  test("uses a fresh hashed one-time token to bootstrap a talent session", async () => {
     const { token } = await createOrRefreshReplyToken({
       applicationId: APP_ID,
       talentUserId: TALENT_ID,
     });
 
     const agent = request.agent(app);
-    const res = await agent.post(`/api/reply/${token}/session`);
+    const issue = await agent.post(`/api/reply/${token}/session-token`);
+
+    expect(issue.status).toBe(201);
+    expect(issue.body.data.token).toMatch(/^[A-Za-z0-9_-]{32,}$/);
+
+    const stored = await knex("message_reply_session_tokens").first();
+    expect(stored.token_hash).toHaveLength(64);
+    expect(stored.token_hash).not.toBe(issue.body.data.token);
+    expect(stored.consumed_at).toBeNull();
+
+    // The emailed, three-day reply bearer is not valid at the higher-privilege
+    // session endpoint; only the newly issued ten-minute credential is accepted.
+    const replyBearerAttempt = await agent.post(
+      `/api/reply/${token}/session`,
+    );
+    expect(replyBearerAttempt.status).toBe(410);
+
+    const res = await agent.post(
+      `/api/reply/${issue.body.data.token}/session`,
+    );
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -208,6 +228,47 @@ describe("message reply API", () => {
     const cookie = res.headers["set-cookie"];
     expect(cookie).toBeDefined();
     expect(cookie.some((c) => c.includes("connect.sid"))).toBe(true);
+
+    const consumed = await knex("message_reply_session_tokens")
+      .where({ id: stored.id })
+      .first();
+    expect(consumed.consumed_at).toBeTruthy();
+
+    const replay = await agent.post(
+      `/api/reply/${issue.body.data.token}/session`,
+    );
+    expect(replay.status).toBe(410);
+    expect(replay.body.error.code).toBe(
+      "REPLY_SESSION_TOKEN_INVALID_OR_USED",
+    );
+
+    const reissue = await agent.post(`/api/reply/${token}/session-token`);
+    expect(reissue.status).toBe(409);
+    expect(reissue.body.error.code).toBe(
+      "REPLY_SESSION_TOKEN_ALREADY_ISSUED",
+    );
+  });
+
+  test("rejects an expired session bootstrap token", async () => {
+    const { token } = await createOrRefreshReplyToken({
+      applicationId: APP_ID,
+      talentUserId: TALENT_ID,
+    });
+
+    const issue = await request(app).post(
+      `/api/reply/${token}/session-token`,
+    );
+    await knex("message_reply_session_tokens").update({
+      expires_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    const response = await request(app).post(
+      `/api/reply/${issue.body.data.token}/session`,
+    );
+    expect(response.status).toBe(410);
+    expect(response.body.error.code).toBe(
+      "REPLY_SESSION_TOKEN_INVALID_OR_USED",
+    );
   });
 
   test("rejects invalid or expired tokens", async () => {

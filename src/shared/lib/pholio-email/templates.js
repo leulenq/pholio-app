@@ -93,11 +93,11 @@ function buildApplicationStatusEmailHtml({ talentName, agencyName, status } = {}
   const agency = agencyName || "the agency";
   const accepted = status === "accepted";
   return renderEmail({
-    previewText: accepted ? `${agency} accepted your submission.` : `${agency} sent an update on your submission.`,
+    previewText: accepted ? `${agency} wants to move forward with representation.` : `${agency} sent an update on your submission.`,
     blocks: [
-      heading(accepted ? "Your submission was accepted." : "A decision on your submission."),
+      heading(accepted ? "The agency wants to move forward." : "A decision on your submission."),
       goldRule(),
-      paragraph(accepted ? `${greet(talentName)} ${strong(agency)} accepted your submission. Keep your book and measurements current; the agency can follow up from here.` : `${greet(talentName)} ${strong(agency)} is not moving forward this time. That is a normal part of representation submissions — keep your digitals current and your package ready for the next review.`),
+      paragraph(accepted ? `${greet(talentName)} ${strong(agency)} would like to move forward with representation and will follow up with next steps. Keep your book and measurements current in the meantime.` : `${greet(talentName)} ${strong(agency)} is not moving forward this time. That is a normal part of representation submissions — keep your digitals current and your package ready for the next review.`),
       button("View submissions", `${appUrl()}/dashboard/talent/applications`),
       signoff(),
     ],

@@ -48,20 +48,22 @@
   margin: 0;
 }
 
-.md-mark-read {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
+.md-heading { display: flex; align-items: baseline; gap: 8px; }
+.md-header-count { color: var(--ag-text-2); font: 500 11px/1.2 'Inter', sans-serif; }
+
+.md-mark-all {
+  appearance: none;
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
   color: var(--ag-gold);
-  background: none;
-  border: none;
+  font: 600 11px/1.2 'Inter', sans-serif;
   cursor: pointer;
-  padding: 0;
-  transition: opacity 0.15s ease;
 }
 
-.md-mark-read:hover {
-  opacity: 0.75;
-}
+.md-mark-all:hover { color: var(--ag-gold-hover); }
+.md-mark-all:focus-visible { outline: 2px solid var(--ag-gold); outline-offset: 3px; }
+.md-mark-all:disabled { cursor: wait; opacity: 0.55; }
 
 /* ── List ── */
 .md-list {
@@ -75,7 +77,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 12px 10px 20px;
+  padding: 10px 12px;
   position: relative;
   border-bottom: 1px solid var(--ag-border);
   cursor: pointer;
@@ -91,18 +93,6 @@
 .md-thread:hover,
 .md-thread--unread {
   background: var(--ag-surface-3);
-}
-
-.md-unread-dot {
-  position: absolute;
-  left: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ag-gold);
-  flex-shrink: 0;
 }
 
 /* ── Avatar ── */

@@ -24,6 +24,7 @@ const {
 
 const CONSENT_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const CONSENT_TOKEN_TTL_DAYS = 7;
+const AGENCY_AUTHORIZATION_TTL_DAYS = 365;
 
 // Quota guard: a single profile may only mint a bounded number of guardian
 // consent requests within a rolling window. This contains abuse where a talent
@@ -338,35 +339,56 @@ async function confirmConsentToken(knex, rawToken) {
     granted = true;
 
     if (request.agency_id) {
-      // Named-agency authorization ONLY. Distinct grant per agency.
-      const existing = await trx("minor_agency_consents")
+      // Grants are append-only. Re-authorizing an agency creates a fresh grant
+      // and never resurrects submissions bound to a revoked/expired grant.
+      const authorizationExpiresAt = new Date(verifiedAt);
+      authorizationExpiresAt.setUTCDate(
+        authorizationExpiresAt.getUTCDate() + AGENCY_AUTHORIZATION_TTL_DAYS,
+      );
+      const supersededGrants = await trx("minor_agency_consents")
         .where({
           profile_id: request.profile_id,
           agency_id: request.agency_id,
         })
-        .first("id");
-      if (existing) {
-        await trx("minor_agency_consents")
-          .where({ id: existing.id })
-          .update({
-            consent_request_id: request.id,
-            guardian_email: request.guardian_email,
-            verified_at: verifiedAt,
-            revoked_at: null,
-            updated_at: trx.fn.now(),
-          });
-      } else {
-        await trx("minor_agency_consents").insert({
-          id: uuidv4(),
-          profile_id: request.profile_id,
-          agency_id: request.agency_id,
-          consent_request_id: request.id,
-          guardian_email: request.guardian_email,
-          verified_at: verifiedAt,
-          created_at: verifiedAt,
-          updated_at: verifiedAt,
+        .whereNull("revoked_at")
+        .select("id");
+      await trx("minor_agency_consents")
+        .whereIn(
+          "id",
+          supersededGrants.map((grant) => grant.id),
+        )
+        .update({
+          revoked_at: verifiedAt,
+          revocation_reason: "superseded_by_new_authorization",
+          updated_at: trx.fn.now(),
         });
+      if (supersededGrants.length) {
+        const { purgeApplicationDisclosure } = require("../../agency/services/minor-submission-access");
+        const supersededApplications = await trx("applications")
+          .whereIn(
+            "guardian_consent_grant_id",
+            supersededGrants.map((grant) => grant.id),
+          )
+          .whereNull("minor_access_revoked_at")
+          .select("id");
+        for (const application of supersededApplications) {
+          await purgeApplicationDisclosure(trx, application.id, {
+            reason: "superseded_by_new_authorization",
+            revokedAt: verifiedAt,
+          });
+        }
       }
+      await trx("minor_agency_consents").insert({
+        id: uuidv4(),
+        profile_id: request.profile_id,
+        agency_id: request.agency_id,
+        consent_request_id: request.id,
+        guardian_email: request.guardian_email,
+        verified_at: verifiedAt,
+        authorization_expires_at: authorizationExpiresAt.toISOString(),
+        created_at: verifiedAt,
+        updated_at: verifiedAt,
+      });
     } else {
       // Account-level authorization ONLY (no agency_id on the request).
       // NOTE(schema-wave): guardian_consent_at currently collapses three
@@ -408,9 +430,49 @@ async function verifyConsentToken(knex, rawToken) {
   return confirmConsentToken(knex, rawToken);
 }
 
+/**
+ * Withdraw consent using the same high-entropy guardian link that granted it.
+ * Agency-scoped withdrawal revokes the exact append-only grant and immediately
+ * redacts every submission bound to it. Account-level withdrawal also revokes
+ * every named-agency grant for the profile.
+ */
+async function revokeConsentToken(knex, rawToken) {
+  const token = String(rawToken || "").trim();
+  if (!token) return { ok: false, reason: "invalid" };
+  const request = await knex("guardian_consent_requests")
+    .where({ token_hash: hashToken(token), status: "verified" })
+    .first();
+  if (!request) return { ok: false, reason: "invalid" };
+
+  const {
+    revokeGrantAndPurge,
+  } = require("../../agency/services/minor-submission-access");
+  if (request.agency_id) {
+    const grant = await knex("minor_agency_consents")
+      .where({ consent_request_id: request.id })
+      .first("id");
+    if (!grant) return { ok: false, reason: "grant_not_found" };
+    const result = await revokeGrantAndPurge(knex, grant.id, {
+      reason: "guardian_revoked",
+    });
+    return { ...result, scope: "agency" };
+  }
+
+  const {
+    revokeProfileGrantsAndPurge,
+  } = require("../../agency/services/minor-submission-access");
+  const revoked = await revokeProfileGrantsAndPurge(knex, request.profile_id, {
+    reason: "account_guardian_consent_revoked",
+  });
+  return {
+    ...revoked,
+    scope: "account",
+  };
+}
+
 async function getAgencyConsentGrant(knex, profileId, agencyId) {
   if (!profileId || !agencyId) return false;
-  return knex("minor_agency_consents as consent")
+  const grant = await knex("minor_agency_consents as consent")
     .innerJoin(
       "guardian_consent_requests as request",
       "request.id",
@@ -424,12 +486,16 @@ async function getAgencyConsentGrant(knex, profileId, agencyId) {
       "request.status": "verified",
     })
     .whereNull("consent.revoked_at")
+    .orderBy("consent.verified_at", "desc")
     .first(
       "consent.id",
       "consent.consent_request_id",
       "consent.guardian_email",
       "consent.verified_at",
+      "consent.authorization_expires_at",
     );
+  const expiresAt = new Date(grant?.authorization_expires_at).getTime();
+  return Number.isFinite(expiresAt) && expiresAt > Date.now() ? grant : null;
 }
 
 async function hasAgencyConsent(knex, profileId, agencyId) {
@@ -449,11 +515,12 @@ async function getAgencyConsentStatus(knex, profile, agencyId) {
     const verified = await knex("minor_agency_consents")
       .where({ profile_id: profile.id, agency_id: agencyId })
       .whereNull("revoked_at")
-      .first("guardian_email", "verified_at");
+      .orderBy("verified_at", "desc")
+      .first("guardian_email", "verified_at", "authorization_expires_at");
     return {
       status: "verified",
       guardianEmail: verified?.guardian_email || profile.guardian_email || null,
-      expiresAt: null,
+      expiresAt: verified?.authorization_expires_at || null,
       verifiedAt: verified?.verified_at || null,
     };
   }
@@ -526,10 +593,12 @@ async function getConsentStatus(knex, profile) {
 module.exports = {
   CONSENT_TOKEN_TTL_MS,
   CONSENT_TOKEN_TTL_DAYS,
+  AGENCY_AUTHORIZATION_TTL_DAYS,
   hashToken,
   createConsentRequest,
   inspectConsentToken,
   confirmConsentToken,
+  revokeConsentToken,
   verifyConsentToken,
   getConsentStatus,
   buildConsentUrl,

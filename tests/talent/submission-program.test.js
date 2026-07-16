@@ -15,7 +15,7 @@ const {
 } = require("../../src/shared/lib/submission-program");
 const { recordLegalAcceptance } = require("../../src/shared/lib/legal-acceptance");
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
+const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("submission program acknowledgment", () => {
   const TALENT_ID = uuidv4();

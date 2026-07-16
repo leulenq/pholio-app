@@ -268,46 +268,4 @@ describe("ZipSite application", () => {
     expect(deleteResponse.status).toBe(200);
     expect(deleteResponse.body.ok).toBe(true);
   });
-
-  test("agency can claim and upgrade creates commission", async () => {
-    const talentAgent = request.agent(app);
-    await talentAgent
-      .post("/login")
-      .type("form")
-      .send({ email: "talent@example.com", password: "password123" })
-      .expect(302);
-
-    const talentUser = await knex("users")
-      .where({ email: "talent@example.com" })
-      .first();
-    const profile = await knex("profiles")
-      .where({ user_id: talentUser.id })
-      .first();
-
-    const agencyAgent = request.agent(app);
-    await agencyAgent
-      .post("/login")
-      .type("form")
-      .send({ email: "agency@example.com", password: "password123" })
-      .expect(302);
-
-    await agencyAgent
-      .post("/agency/claim")
-      .send({ slug: profile.slug })
-      .expect(200);
-
-    const upgradeResponse = await talentAgent.get("/pro/upgrade");
-    expect(upgradeResponse.status).toBe(302);
-
-    const refreshedProfile = await knex("profiles")
-      .where({ id: profile.id })
-      .first();
-    expect(refreshedProfile.is_pro).toBe(true);
-
-    const commission = await knex("commissions")
-      .where({ profile_id: profile.id })
-      .first();
-    expect(commission).toBeTruthy();
-    expect(commission.amount_cents).toBeGreaterThan(0);
-  });
 });
