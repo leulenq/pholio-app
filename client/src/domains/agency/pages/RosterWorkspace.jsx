@@ -9,23 +9,16 @@ import {
   Copy, ExternalLink, FileText, Archive, Layers,
   Instagram,
 } from 'lucide-react';
+import { TypeSpec, AvailabilityCell } from '../components/status';
 import './RosterWorkspace.css';
 
 // ── Constants ──────────────────────────────────────────────────
 
 const STATUS_COLORS = {
-  available: '#16A34A',
-  booking:   '#C9A55A',
-  hold:      '#3B82F6',
-  inactive:  '#9CA3AF',
-};
-
-const TYPE_CFG = {
-  editorial:  { color: '#7C3AED', bg: 'rgba(124,58,237,0.08)',  border: 'rgba(124,58,237,0.18)' },
-  commercial: { color: '#047857', bg: 'rgba(4,120,87,0.08)',    border: 'rgba(4,120,87,0.18)'   },
-  runway:     { color: '#9A7030', bg: 'rgba(201,165,90,0.10)',  border: 'rgba(201,165,90,0.22)' },
-  fitness:    { color: '#1D4ED8', bg: 'rgba(29,78,216,0.08)',   border: 'rgba(29,78,216,0.18)'  },
-  plus:       { color: '#B91C1C', bg: 'rgba(185,28,28,0.08)',   border: 'rgba(185,28,28,0.18)'  },
+  available: 'var(--ss-live)',
+  booking:   'var(--ss-motion)',
+  hold:      'var(--ss-select)',
+  inactive:  'var(--ss-off)',
 };
 
 const INTEL_CFG = {
@@ -126,16 +119,6 @@ function fmtCurrency(n) {
 }
 
 // ── Sub-components ─────────────────────────────────────────────
-
-function TypeChip({ type }) {
-  if (!type) return null;
-  const c = TYPE_CFG[type.toLowerCase()] || TYPE_CFG.editorial;
-  return (
-    <span className="rws-type-chip" style={{ color: c.color, background: c.bg, borderColor: c.border }}>
-      {type.charAt(0).toUpperCase() + type.slice(1)}
-    </span>
-  );
-}
 
 function ProfileCompletionBar({ talent }) {
   const fields  = [talent.email, talent.phone, talent.location, talent.height, talent.bust, talent.waist, talent.hips, talent.notes, talent.img, talent.tags?.length];
@@ -253,7 +236,8 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
 
         <div className="rws-nav-identity">
           <span className="rws-nav-name">{t.name}</span>
-          <TypeChip type={t.type} />
+          <TypeSpec type={t.type} />
+          {t.status && <AvailabilityCell status={t.status} sm />}
           {insight && (
             <span
               className="rws-nav-signal"

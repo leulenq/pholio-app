@@ -76,19 +76,6 @@
 }
 
 /* Type chip — sharp-cornered, never pill-shaped (type/category labels) */
-.rws-type-chip {
-  font-family: var(--ag-font-body);
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  padding: 3px 7px;
-  border-radius: 4px;
-  border: 1px solid;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 /* Intelligence signal badge */
 .rws-nav-signal {
   font-family: var(--ag-font-body);

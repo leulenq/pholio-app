@@ -9,6 +9,7 @@ import {
 } from '../api/agency';
 import { TalentPanel } from '../components/TalentPanel';
 import MatchScore from '../components/ui/MatchScore';
+import { TypeSpec, StageMark } from '../components/status';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import './ApplicantsPage.css';
 
@@ -99,22 +100,21 @@ function mapCandidate(c) {
 function ApplicantRow({ a, onOpen, onShortlist, onAccept, onDecline, busy }) {
   const decided = a.status === 'accepted' || a.status === 'booked' || a.status === 'declined';
   const shortlisted = a.status === 'shortlisted';
-  const fresh = isNew(a.status);
   return (
     <div className="ap-row" onClick={() => onOpen(a)} role="button" tabIndex={0}>
       <span className="ap-pic">
         <span className="ap-pic-img" style={{ backgroundImage: a.photo ? `url(${a.photo})` : 'none' }} />
       </span>
       <div className="ap-id">
-        <span className="ap-name">
-          {a.name}
-          {fresh && <span className="ap-new">New</span>}
+        <span className="ap-name">{a.name}</span>
+        <span className="ap-meta">
+          <TypeSpec type={a.type} />
+          {a.city && <span className="ap-meta-city">{a.city}</span>}
         </span>
-        <span className="ap-meta">{a.archetype}{a.city ? ` · ${a.city}` : ''}</span>
       </div>
       <span className="ap-applied">{timeAgo(a.appliedAt)}</span>
       {a.match != null && <MatchScore score={a.match} size="sm" className="ap-score" />}
-      <span className="ap-status">{a.status}</span>
+      <span className="ap-status"><StageMark status={a.status} /></span>
       <div className="ap-actions" onClick={(e) => e.stopPropagation()}>
         {!decided && (
           <>

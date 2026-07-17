@@ -29,17 +29,6 @@
   object-fit: cover;
 }
 
-.ag-talent-card__status {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
 .ag-talent-card__quick-actions {
   position: absolute;
   top: 8px;
@@ -100,6 +89,10 @@
 
 .ag-talent-card__stat {
   font-size: 12px;
+}
+
+.ag-talent-card__avail {
+  margin-left: auto;
 }
 
 .ag-talent-card__tags {

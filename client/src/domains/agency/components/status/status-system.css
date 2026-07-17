@@ -1,0 +1,150 @@
+/* ============================================================
+   Status System — four classes, four forms.
+   Division → Board Plate · Type → Spec Line ·
+   Stage → Track / Ladder · State → Availability Cell.
+   Each instance is coloured via a `--c` custom property.
+   No rounded pills anywhere; sharp editorial geometry.
+   ============================================================ */
+
+/* ---------- Division → Board Plate ---------- */
+.ss-plate {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--ag-border-strong);
+  border-radius: 0;
+  background: var(--ag-surface-1);
+  box-shadow: var(--ag-shadow-sm);
+  transition: transform var(--ag-duration) var(--ag-ease-spring), box-shadow var(--ag-duration) var(--ag-ease);
+  vertical-align: middle;
+}
+.ss-plate:hover { transform: translateY(-2px); box-shadow: var(--ag-shadow-md); }
+.ss-plate__code {
+  background: var(--c);
+  color: var(--ag-surface-1);
+  font-family: var(--ag-font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+.ss-plate__name {
+  padding: 8px 15px;
+  font-family: var(--ag-font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ag-text-0);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+}
+.ss-plate__count {
+  font-family: var(--ag-font-body);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ag-text-3);
+  letter-spacing: 0.02em;
+}
+/* compact — code cell only, for avatars / dense lists */
+.ss-plate--compact { box-shadow: none; }
+.ss-plate--compact .ss-plate__code { padding: 4px 8px; font-size: 11px; }
+
+/* ---------- Type → Spec Line ---------- */
+.ss-spec { display: inline-flex; flex-direction: column; gap: 5px; vertical-align: middle; }
+.ss-spec__label {
+  font-family: var(--ag-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 74%, var(--ag-text-0));
+  line-height: 1.1;
+}
+.ss-spec__rule {
+  height: 1.5px;
+  width: 100%;
+  background: var(--c);
+  transform-origin: left;
+  transition: transform 0.25s var(--ag-ease);
+}
+.ss-spec:hover .ss-spec__rule { transform: scaleX(1.12); }
+
+/* ---------- Stage → Track ---------- */
+.ss-track { display: inline-flex; align-items: center; vertical-align: middle; }
+.ss-track__node { position: relative; display: inline-flex; flex-direction: column; align-items: center; }
+.ss-track__dot {
+  width: 9px; height: 9px; border-radius: 0;
+  background: var(--ag-surface-4);
+  box-shadow: inset 0 0 0 1px var(--ag-border-strong);
+  transition: all 0.25s var(--ag-ease);
+}
+.ss-track__node--done .ss-track__dot { background: var(--c); box-shadow: none; }
+.ss-track__node--cur .ss-track__dot {
+  width: 13px; height: 13px; background: var(--c); transform: rotate(45deg);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 16%, transparent);
+}
+.ss-track__node--off .ss-track__dot { background: var(--ag-surface-4); box-shadow: inset 0 0 0 1px var(--ss-pass); }
+.ss-track__seg { width: 42px; height: 1px; background: var(--ag-border-strong); margin-bottom: 22px; }
+.ss-track__seg--done { background: var(--c); }
+.ss-track__label {
+  font-family: var(--ag-font-mono); font-size: 9.5px; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--ag-text-3); white-space: nowrap; position: absolute; top: 18px;
+}
+.ss-track__node--cur .ss-track__label { color: color-mix(in srgb, var(--c) 70%, var(--ag-text-0)); font-weight: 600; }
+.ss-track--labelled { padding-bottom: 20px; }
+
+/* Stage → compact Mark (for table rows) */
+.ss-mark { display: inline-flex; align-items: center; gap: 9px; min-width: 0; vertical-align: middle; }
+.ss-mark__track { display: inline-flex; align-items: center; flex: none; }
+.ss-mark__dot {
+  width: 7px; height: 7px; border-radius: 0;
+  background: var(--ag-surface-4); box-shadow: inset 0 0 0 1px var(--ag-border-strong);
+  transition: all 0.2s var(--ag-ease);
+}
+.ss-mark__dot--done { background: var(--c); box-shadow: none; }
+.ss-mark__dot--cur { width: 9px; height: 9px; background: var(--c); transform: rotate(45deg); }
+.ss-mark__dot--off { background: var(--ag-surface-4); box-shadow: inset 0 0 0 1px var(--ss-pass); }
+.ss-mark__seg { width: 13px; height: 1px; background: var(--ag-border-strong); }
+.ss-mark__seg--done { background: var(--c); }
+.ss-mark__label {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--c) 70%, var(--ag-text-0));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Stage → Ladder (board standing) */
+.ss-ladder { display: inline-flex; align-items: stretch; border: 1px solid var(--ag-border-strong); border-radius: 0; overflow: hidden; vertical-align: middle; }
+.ss-ladder__rung {
+  display: flex; align-items: center; gap: 8px; padding: 7px 14px;
+  font-family: var(--ag-font-body); font-size: 12px; font-weight: 600; color: var(--ag-text-3);
+  background: var(--ag-surface-1); border-right: 1px solid var(--ag-border);
+}
+.ss-ladder__rung:last-child { border-right: 0; }
+.ss-ladder__num {
+  font-family: var(--ag-font-mono); font-size: 10px; width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--ag-border-strong); color: var(--ag-text-3);
+}
+.ss-ladder__rung--past { color: color-mix(in srgb, var(--c) 76%, var(--ag-text-0)); background: color-mix(in srgb, var(--c) 12%, var(--ag-surface-1)); }
+.ss-ladder__rung--past .ss-ladder__num { border-color: color-mix(in srgb, var(--c) 40%, transparent); color: color-mix(in srgb, var(--c) 76%, var(--ag-text-0)); }
+.ss-ladder__rung--on { color: var(--ag-surface-1); background: var(--c); }
+.ss-ladder__rung--on .ss-ladder__num { border-color: transparent; background: color-mix(in srgb, #000 22%, transparent); color: var(--ag-surface-1); }
+
+/* ---------- State → Availability Cell ---------- */
+.ss-cell {
+  display: inline-flex; align-items: center; border-radius: 0;
+  font-family: var(--ag-font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+  padding: 5px 12px; white-space: nowrap; vertical-align: middle;
+  background: color-mix(in srgb, var(--c) 13%, var(--ag-surface-1));
+  color: color-mix(in srgb, var(--c) 80%, var(--ag-text-0));
+  border: 1px solid color-mix(in srgb, var(--c) 26%, transparent);
+  transition: transform var(--ag-duration-fast) var(--ag-ease);
+}
+.ss-cell--solid { background: var(--c); color: var(--ag-surface-1); border-color: var(--c); }
+.ss-cell--sm { font-size: 11px; padding: 3px 9px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-plate, .ss-spec__rule, .ss-track__dot, .ss-mark__dot, .ss-cell { transition: none; }
+}

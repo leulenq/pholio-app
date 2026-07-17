@@ -1,20 +1,7 @@
 import { ClipboardList, MessageCircle, Bookmark } from 'lucide-react';
 import MatchScore from './ui/MatchScore';
+import { TypeSpec, AvailabilityCell } from './status';
 import './TalentCard.css';
-
-const STATUS_COLORS = {
-  available: 'var(--ag-status-available)',
-  on_booking: 'var(--ag-status-on-booking)',
-  on_hold: 'var(--ag-status-on-hold)',
-  inactive: 'var(--ag-status-inactive)',
-};
-
-const STATUS_LABELS = {
-  available: 'Available',
-  on_booking: 'On Booking',
-  on_hold: 'On Hold',
-  inactive: 'Inactive',
-};
 
 export default function TalentCard({
   profile,
@@ -34,13 +21,6 @@ export default function TalentCard({
           alt={name}
           className="ag-talent-card__image"
         />
-        {status && (
-          <span
-            className="ag-talent-card__status"
-            style={{ background: STATUS_COLORS[status] }}
-            title={STATUS_LABELS[status]}
-          />
-        )}
         {showQuickActions && (
           <div className="ag-talent-card__quick-actions">
             <button className="ag-talent-card__qbtn" title="Bookmark" onClick={e => e.stopPropagation()}>
@@ -61,8 +41,13 @@ export default function TalentCard({
           {matchScore != null && <MatchScore score={matchScore} size="sm" />}
         </div>
         <div className="ag-talent-card__row2">
-          {type && <span className="ag-talent-card__type">{type}</span>}
+          {type && <TypeSpec type={type} />}
           {height_cm && <span className="ag-talent-card__stat">{height_cm}cm</span>}
+          {status && (
+            <span className="ag-talent-card__avail">
+              <AvailabilityCell status={status} sm />
+            </span>
+          )}
         </div>
         {tags.length > 0 && (
           <div className="ag-talent-card__tags">

@@ -55,7 +55,7 @@ body.is-agency .ap-search input::placeholder { color: #b3a89a; }
 .ap-list { display: flex; flex-direction: column; }
 .ap-row {
   display: grid;
-  grid-template-columns: 64px 1fr 104px 84px 132px 140px;
+  grid-template-columns: 64px 1fr 88px 84px 158px 140px;
   align-items: center; gap: 16px;
   padding: 13px 12px;
   border-bottom: 1px solid #ece4d4;
@@ -84,8 +84,8 @@ body.is-agency .ap-search input::placeholder { color: #b3a89a; }
 
 .ap-id { min-width: 0; }
 .ap-name { display: flex; align-items: center; gap: 9px; font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 500; color: #16130D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ap-new { display: inline-flex; align-items: center; font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ag-gold); flex: none; padding: 2px 6px; border: 1px solid rgba(201,165,90,.35); border-radius: 3px; }
-.ap-meta { display: block; font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: #9b9082; margin-top: 4px; }
+.ap-meta { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.ap-meta-city { font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: #9b9082; }
 .ap-applied { font-size: 11px; color: #6b6256; }
 
 /* match score — typography lives in MatchScore; this is grid placement only */
