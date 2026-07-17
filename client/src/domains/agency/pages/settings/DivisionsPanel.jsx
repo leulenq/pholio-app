@@ -1,4 +1,5 @@
 import { Layers, Sparkles } from 'lucide-react';
+import { BoardPlate } from '../../components/status';
 
 // The career-stage board ladder every fashion house runs talent through.
 const LADDER = [
@@ -48,7 +49,7 @@ export default function DivisionsPanel() {
           <p className="st-fieldset-sub">The boards your house signs across. Editing arrives with the Divisions module.</p>
         </div>
         <div className="st-chips">
-          {DIVISIONS.map((d) => <span className="st-chip" key={d}>{d}</span>)}
+          {DIVISIONS.map((d) => <BoardPlate division={d} key={d} />)}
         </div>
       </div>
 
