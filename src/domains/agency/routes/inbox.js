@@ -3170,6 +3170,222 @@ router.get(
           ? Math.round((acceptedCount / processedCount) * 100)
           : 0;
 
+      // ── The Season Report (T10) — funnel, velocity, roster growth ──
+      // Canonical pipeline stages come from casting-stage-helpers.js, the
+      // same mapping the Kanban board (casting.js) uses, so "funnel" here
+      // reflects the exact stages agencies see in Casting.
+      const { CASTING_PIPELINE_STAGES } = require("./casting-stage-helpers");
+
+      // ?range=30|90|365 (default 90). Bounds funnel + velocity only —
+      // `timeline` above is a fixed 30-day window per the existing contract.
+      const ALLOWED_ANALYTICS_RANGES = [30, 90, 365];
+      const requestedRange = parseInt(req.query.range, 10);
+      const rangeDays = ALLOWED_ANALYTICS_RANGES.includes(requestedRange)
+        ? requestedRange
+        : 90;
+      const rangeStart = new Date(now);
+      rangeStart.setDate(rangeStart.getDate() - rangeDays);
+
+      // ---- funnel: current stage distribution for apps created in range ----
+      // conversionFromPrevious is a bucket-size ratio (stage count / previous
+      // stage count), not a cohort/flow conversion — we only have current
+      // status snapshots for most applications, not full transition history,
+      // so a true per-application cohort funnel would be fabricated. "Passed"
+      // is an exit lane, not a forward step, so it never carries a conversion.
+      const FUNNEL_FORWARD_STAGES = [
+        "Applied",
+        "Shortlisted",
+        "Offered",
+        "Represented",
+      ];
+      const funnelWindowApplications = allApplications.filter(
+        (a) => new Date(a.created_at) >= rangeStart,
+      );
+      const funnelCounts = {};
+      CASTING_PIPELINE_STAGES.forEach((stage) => {
+        funnelCounts[stage] = 0;
+      });
+      funnelWindowApplications.forEach((a) => {
+        const stage = mapApplicationStatusToCastingStage(a.status);
+        funnelCounts[stage] = (funnelCounts[stage] || 0) + 1;
+      });
+
+      const funnelStages = CASTING_PIPELINE_STAGES.map((stage) => {
+        const forwardIndex = FUNNEL_FORWARD_STAGES.indexOf(stage);
+        let conversionFromPrevious = null;
+        if (forwardIndex > 0) {
+          const previousCount =
+            funnelCounts[FUNNEL_FORWARD_STAGES[forwardIndex - 1]] || 0;
+          conversionFromPrevious =
+            previousCount > 0
+              ? Math.round((funnelCounts[stage] / previousCount) * 100)
+              : null;
+        }
+        return {
+          stage,
+          count: funnelCounts[stage] || 0,
+          conversionFromPrevious,
+        };
+      });
+
+      // ---- velocity: stage-transition speed from application_activities ----
+      // Every status_change activity carries { old_status, new_status } in
+      // metadata (see agency-log-activity.js call sites) — that's the real
+      // event vocabulary recording stage changes. We replay each
+      // application's status_change activities in order, map old/new_status
+      // through the same casting-stage mapping, and time how long the app
+      // sat in the prior stage before crossing into the next one. Only the
+      // three canonical forward transitions are measured; a status jump that
+      // skips a stage (e.g. Applied straight to Represented) is not forced
+      // into an adjacent bucket, since that would fabricate a transition
+      // that never happened. Transitions with zero observed samples return
+      // null rather than a guessed number.
+      const STAGE_TRANSITIONS = [
+        ["Applied", "Shortlisted"],
+        ["Shortlisted", "Offered"],
+        ["Offered", "Represented"],
+      ];
+
+      function parseActivityMetadata(raw) {
+        if (!raw) return {};
+        if (typeof raw === "object") return raw;
+        try {
+          return JSON.parse(raw);
+        } catch (_) {
+          return {};
+        }
+      }
+
+      function median(values) {
+        if (!values.length) return null;
+        const sorted = [...values].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 !== 0
+          ? sorted[mid]
+          : (sorted[mid - 1] + sorted[mid]) / 2;
+      }
+
+      function average(values) {
+        if (!values.length) return null;
+        return values.reduce((sum, v) => sum + v, 0) / values.length;
+      }
+
+      // Bounded to this agency's own applications/activities — small volume,
+      // so date math happens in JS after the fetch (matches this handler's
+      // existing style) rather than per-client SQL date predicates.
+      const applicationsWithId = await knex("applications")
+        .where({ agency_id: agencyId })
+        .select("id", "created_at");
+      const applicationCreatedAt = new Map(
+        applicationsWithId.map((a) => [a.id, new Date(a.created_at)]),
+      );
+
+      const statusChangeActivities = await knex("application_activities")
+        .where({ agency_id: agencyId, activity_type: "status_change" })
+        .select("application_id", "created_at", "metadata")
+        .orderBy("created_at", "asc");
+
+      const activitiesByApplication = new Map();
+      statusChangeActivities.forEach((activity) => {
+        if (!activitiesByApplication.has(activity.application_id)) {
+          activitiesByApplication.set(activity.application_id, []);
+        }
+        activitiesByApplication.get(activity.application_id).push(activity);
+      });
+
+      const transitionDurations = {};
+      STAGE_TRANSITIONS.forEach(([from, to]) => {
+        transitionDurations[`${from}->${to}`] = [];
+      });
+
+      for (const [applicationId, activities] of activitiesByApplication) {
+        const createdAt = applicationCreatedAt.get(applicationId);
+        if (!createdAt) continue; // app out of scope/deleted — skip, don't guess
+
+        let currentStage = "Applied";
+        let currentStageEnteredAt = createdAt;
+
+        for (const activity of activities) {
+          const metadata = parseActivityMetadata(activity.metadata);
+          if (!metadata.new_status) continue; // no real signal — skip, don't guess
+
+          const newStage = mapApplicationStatusToCastingStage(
+            metadata.new_status,
+          );
+          const activityAt = new Date(activity.created_at);
+
+          if (newStage !== currentStage) {
+            const key = `${currentStage}->${newStage}`;
+            if (transitionDurations[key] && activityAt >= rangeStart) {
+              const days =
+                (activityAt.getTime() - currentStageEnteredAt.getTime()) /
+                86400000;
+              transitionDurations[key].push(days);
+            }
+            currentStage = newStage;
+            currentStageEnteredAt = activityAt;
+          }
+        }
+      }
+
+      const velocity = STAGE_TRANSITIONS.map(([from, to]) => {
+        const durations = transitionDurations[`${from}->${to}`];
+        return {
+          from,
+          to,
+          medianDays:
+            durations.length > 0
+              ? Math.round(median(durations) * 10) / 10
+              : null,
+          averageDays:
+            durations.length > 0
+              ? Math.round(average(durations) * 10) / 10
+              : null,
+          sampleSize: durations.length,
+        };
+      });
+
+      // ---- rosterGrowth: cumulative signed-roster size by month (12mo) ----
+      // Roster membership = applications in accepted/booked/represented
+      // status (the exact definition GET /api/agency/roster uses). Join
+      // date mirrors that same route's `dateAdded` field (accepted_at,
+      // falling back to updated_at then created_at). This is a snapshot of
+      // CURRENT roster members grouped by when they joined — it cannot
+      // reconstruct historical roster size for talent who has since left
+      // representation, since we don't retain point-in-time roster
+      // membership, only current status. That's a real data-model gap, not
+      // fabrication: the counts shown are always real join dates of real,
+      // currently-represented talent.
+      const rosterApplications = await knex("applications")
+        .where({ agency_id: agencyId })
+        .whereIn("status", ["accepted", "booked", "represented"])
+        .select("accepted_at", "updated_at", "created_at");
+
+      const rosterJoinDates = rosterApplications.map(
+        (a) => new Date(a.accepted_at || a.updated_at || a.created_at),
+      );
+
+      const rosterGrowth = [];
+      for (let i = 11; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(
+          now.getFullYear(),
+          now.getMonth() - i + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        );
+        const count = rosterJoinDates.filter((d) => d <= monthEnd).length;
+        rosterGrowth.push({
+          month: `${monthDate.getFullYear()}-${String(
+            monthDate.getMonth() + 1,
+          ).padStart(2, "0")}`,
+          count,
+        });
+      }
+
       return res.json({
         success: true,
         analytics: {
@@ -3187,6 +3403,12 @@ router.get(
           },
           timeline,
           acceptanceRate,
+          range: rangeDays,
+          funnel: {
+            stages: funnelStages,
+          },
+          velocity,
+          rosterGrowth,
         },
       });
     } catch (error) {
