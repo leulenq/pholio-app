@@ -619,9 +619,12 @@ function generateReport(input, saved, reloaded, discrepancies) {
   );
   console.log("\n");
 
-  // Write report to file
+  // Write report to file — outside the repo, so test runs never dirty the
+  // working tree with regenerated-artifact churn.
   const fs = require("fs");
-  const reportPath = "./PERSISTENCE_REPORT.md";
+  const os = require("os");
+  const path = require("path");
+  const reportPath = path.join(os.tmpdir(), "PERSISTENCE_REPORT.md");
 
   let markdown = `# Profile Persistence Test Report\n\n`;
   markdown += `**Test Date:** ${new Date().toISOString()}\n\n`;

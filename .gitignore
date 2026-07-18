@@ -28,3 +28,4 @@ test-*.sqlite3
 gallery/
 dev.sqlite3-journal
 *.sqlite3-journal
+PERSISTENCE_REPORT.md
