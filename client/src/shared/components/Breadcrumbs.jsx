@@ -14,7 +14,6 @@ const routeNames = {
   '/dashboard/agency/overview': 'Overview',
   '/dashboard/agency/inbox': 'Submissions',
   '/dashboard/agency/discover': 'Scout',
-  '/dashboard/agency/boards': 'Castings',
   '/dashboard/agency/interviews': 'Interviews',
   '/dashboard/agency/reminders': 'Reminders',
   '/dashboard/agency/analytics': 'Insights',
@@ -60,7 +59,7 @@ export default function Breadcrumbs() {
           </Link>
         </li>
 
-        {breadcrumbs.map((crumb, index) => (
+        {breadcrumbs.map((crumb) => (
           <li key={crumb.path} className="flex items-center gap-2">
             <ChevronRight className="h-4 w-4 text-gray-400" />
             {crumb.isLast ? (

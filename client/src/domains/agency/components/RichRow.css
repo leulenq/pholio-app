@@ -5,8 +5,7 @@
   height: var(--ag-row-h, 76px);
   padding: 0 16px;
   cursor: pointer;
-  transition: background var(--ag-duration-fast) var(--ag-ease);
-  border-left: 3px solid transparent;
+  transition: background var(--ag-duration-fast) var(--ag-ease), box-shadow var(--ag-duration-fast) var(--ag-ease);
   position: relative;
 }
 
@@ -19,8 +18,8 @@
 }
 
 .ag-rich-row.is-selected {
-  border-left-color: var(--ag-gold);
   background: var(--ag-gold-ghost, rgba(201, 165, 90, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(201, 165, 90, 0.35);
 }
 
 .ag-rich-row__check {

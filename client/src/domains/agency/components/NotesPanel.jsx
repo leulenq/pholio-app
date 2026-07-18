@@ -193,7 +193,7 @@ export default function NotesPanel({ applicationId }) {
                     <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => startEditing(note)}
-                        className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className="p-1.5 text-gray-600 hover:text-[#2D2A26] hover:bg-[rgba(59,125,216,0.06)] rounded transition-colors"
                         title="Edit note"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -204,7 +204,7 @@ export default function NotesPanel({ applicationId }) {
                             deleteMutation.mutate(note.id);
                           }
                         }}
-                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="p-1.5 text-gray-600 hover:text-[#2D2A26] hover:bg-[rgba(192,57,43,0.06)] rounded transition-colors"
                         title="Delete note"
                       >
                         <Trash2 className="w-4 h-4" />

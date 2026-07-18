@@ -47,12 +47,11 @@
 .iv-lane-head { display: flex; align-items: center; gap: 11px; }
 .iv-lane-title { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 500; color: #16130D; margin: 0; letter-spacing: -.01em; }
 .iv-lane-count {
-  font-size: 10px; font-weight: 700; color: #9b9082;
-  background: rgba(20,17,11,.045); border: 1px solid #e7ddca; border-radius: 999px;
-  min-width: 22px; text-align: center; padding: 2px 7px;
+  font-size: 10px; font-weight: 600; color: #9b9082;
+  background: none; border: none; padding: 0;
 }
 .iv-lane[data-tone="action"] .iv-lane-title { color: var(--ag-gold); }
-.iv-lane[data-tone="action"] .iv-lane-count { color: var(--ag-gold); background: rgba(201,165,90,.1); border-color: rgba(201,165,90,.3); }
+.iv-lane[data-tone="action"] .iv-lane-count { color: var(--ag-gold); }
 
 .iv-lane-head--toggle { background: none; border: none; cursor: pointer; padding: 0; width: fit-content; }
 .iv-lane-chev { color: #b3a89a; transition: transform .2s; }

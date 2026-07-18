@@ -130,9 +130,8 @@
 
 .due-reminder-item {
   padding: var(--agency-spacing-md);
-  background: var(--agency-bg-elevated);
-  border: 1px solid var(--agency-border);
-  border-left: 3px solid var(--agency-danger);
+  background: rgba(192, 57, 43, 0.04);
+  border: 1px solid rgba(192, 57, 43, 0.22);
   border-radius: var(--agency-radius-sm);
   margin-bottom: var(--agency-spacing-sm);
   transition: all var(--agency-transition-fast);

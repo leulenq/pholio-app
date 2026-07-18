@@ -180,10 +180,12 @@
 
 /* ---------- NEXT MOVES ---------- */
 .ov-moves { display: flex; flex-direction: column; gap: 9px; }
-.ov-move { display: block; padding: 12px 14px; border: 1px solid #e7ddca; border-left: 2px solid var(--ag-gold); border-radius: 4px; background: rgba(255,255,255,.5); text-decoration: none; transition: background .15s, border-color .15s; }
-.ov-move:hover { background: rgba(201,165,90,.08); }
-.ov-move--urgent { border-left-color: #c0563f; }
-.ov-move--positive { border-left-color: #7d9b82; }
+.ov-move { display: block; padding: 12px 14px; border: 1px solid rgba(201,165,90,.28); border-radius: 4px; background: rgba(201,165,90,.07); text-decoration: none; transition: background .15s, border-color .15s; }
+.ov-move:hover { background: rgba(201,165,90,.13); }
+.ov-move--urgent { border-color: rgba(192,57,43,.22); background: rgba(192,57,43,.05); }
+.ov-move--urgent:hover { background: rgba(192,57,43,.1); }
+.ov-move--positive { border-color: rgba(45,138,86,.22); background: rgba(45,138,86,.05); }
+.ov-move--positive:hover { background: rgba(45,138,86,.1); }
 .ov-move-text { display: block; font-size: 11.5px; line-height: 1.4; color: #4a443c; }
 .ov-move-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
 

@@ -198,10 +198,9 @@ function BriefRail({ brief }) {
             transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
           >
             <h2 className="ap-brief-role">{brief.title}</h2>
-            <div className="ap-brief-pills">
-              <span className="ap-brief-pill">{brief.status}</span>
-              {brief.pipeline != null && <span className="ap-brief-pill ap-brief-pill--mute">{brief.pipeline} in pipeline</span>}
-            </div>
+            <p className="ap-brief-meta">
+              {brief.status}{brief.pipeline != null ? ` · ${brief.pipeline} in pipeline` : ''}
+            </p>
             {brief.sections.map((s) => (
               <div key={s.label} className="ap-brief-sec">
                 <h4 className="ap-brief-sec-label">{s.label}</h4>

@@ -60,7 +60,6 @@ function CandidateCard({ c, index, onOpen, onShortlist, onAccept, onDecline, bus
       transition={{ type: 'spring', stiffness: 55, damping: 16, delay: Math.min(index * 0.04, 0.3) }}
     >
       <div className="cd-photo" style={{ backgroundImage: c.avatar ? `url(${c.avatar})` : 'none' }}>
-        {isNew(status) && <span className="cd-new">New</span>}
         <div className="cd-hover" onClick={(e) => e.stopPropagation()}>
           {!decided && (
             <>
@@ -79,7 +78,7 @@ function CandidateCard({ c, index, onOpen, onShortlist, onAccept, onDecline, bus
           {c.score != null && <MatchScore score={c.score} size="sm" />}
         </div>
         <span className="cd-meta">{c.archetype || 'editorial'}{c.location ? ` · ${c.location}` : ''}</span>
-        <div className="cd-statusrow">{status}</div>
+        <div className="cd-statusrow">{isNew(status) ? 'New' : status}</div>
       </div>
     </motion.div>
   );
@@ -146,7 +145,7 @@ function CastingDetailPage() {
           <div className="cd-headmeta">
             {board?.client_name && <span className="cas-client">{board.client_name}</span>}
             {board && (
-              <span className={`cd-statuspill cd-statuspill--${board.is_active === false ? 'closed' : 'open'}`}>
+              <span className={board.is_active === false ? 'cd-statustext cd-statustext--closed' : 'cd-statustext'}>
                 {board.is_active === false ? 'Closed' : 'Open'}
               </span>
             )}

@@ -44,9 +44,8 @@
 .tm-group-head { display: flex; align-items: center; gap: 11px; }
 .tm-group-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 500; color: #16130D; margin: 0; letter-spacing: -.01em; }
 .tm-group-count {
-  font-size: 10px; font-weight: 700; color: #9b9082;
-  background: rgba(20,17,11,.045); border: 1px solid #e7ddca; border-radius: 999px;
-  min-width: 22px; text-align: center; padding: 2px 7px;
+  font-size: 10px; font-weight: 600; color: #9b9082;
+  background: none; border: none; padding: 0;
 }
 
 .tm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 16px; }
