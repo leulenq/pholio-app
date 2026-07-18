@@ -146,4 +146,17 @@ Suggested PR slicing: **PR1** = T2+T3 (small, high-visibility compliance). **PR2
 
 ## Review log
 
-*(append results, deviations, and lessons here as phases complete)*
+**Phase 0 — landed** (`f3351f9` ban purge + routes, `3b59e9c` truth purge + shell). Detector reached zero non-sanctioned findings; all fabricated data (mock roster, fake financials, static analytics, hardcoded season, decorative bell) removed or wired to real endpoints; /boards and /signed deleted with redirects.
+
+**Upstream merge (`d8833e5`)** absorbed a parallel implementation stream (~46 commits): IA rename (Applications→Submissions, Casting→Signing), agency component kit (AgencyModal/Row/Skeleton/StatusText/FilterChips), roster on real data + roster_memberships tables, Booking Desk page, notifications wiring, money features stripped, RBAC hardening, CI workflow. Consequences for this plan:
+- T7 (Roster book) — superseded: upstream rebuilt Roster on `fetchRoster` + React Query; RosterWorkspace deleted.
+- T9 (Casting Kanban) — cut by the upstream launch scope (Kanban components deleted). Not resurrected; revisit only on explicit request.
+- T10 (Analytics) — deferred by upstream scope (page removed from nav; backend funnel/velocity aggregates exist for a future rebuild).
+- Both formerly sanctioned gradients (Overview lead figure, MatchScore) were removed/rebuilt upstream — left as shipped.
+- Merge regressions re-fixed in `6212585` (hardcoded SS26 returned; cd-statuspill JSX restored without its CSS, rendering unstyled).
+
+**Phase 1 — landed** (`e4dba22` tokens + fonts, `eb7ed61` re-skins). Single token source (shell :root folded in); D1 resolved with evidence — `--ag-surface-0 #FAF8F5` is consumed by talent/auth/moderation so it stays; `--ag-canvas #F7F3EC` documented as the agency shell cream. Fonts load once via index.html links (JetBrains Mono included); both CSS @imports removed. Messages/Activity/Reminders rebuilt in the editorial system on the new kit; Messages auto-mark-read bug fixed; legacy `--agency-*` alias family deleted after a zero-consumer grep (four runtime branding hooks + cross-domain font aliases kept).
+
+**Phase 2** — T8 (Submissions triage desk: ledger-as-tabs, keyboard triage, context band, incremental rendering) in progress as PR5. T7/T9/T10 status above.
+
+**Lessons:** (1) Backgrounded shell commands keep the session cwd — two concurrent npm installs collided; serialize installs and use explicit `cd` inside the command. (2) A merge that "prefers" one side can silently orphan CSS from the other — after any large merge, grep for restored class names whose rules were deleted (`cd-statuspill` rendered unstyled). (3) Parallel agents + strict file ownership works, but reserve global resources (package.json, token files, index.css) for the orchestrator.
