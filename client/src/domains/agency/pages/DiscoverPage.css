@@ -571,7 +571,7 @@ body.is-agency .dc-bar-input:focus {
 .dc-card-featured {
   flex: none;
   align-self: baseline;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -663,7 +663,7 @@ body.is-agency .dc-bar-input:focus {
 }
 
 .dc-stat-label {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -729,7 +729,7 @@ body.is-agency .dc-bar-input:focus {
 
 .dc-ring-num {
   position: absolute;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.75);
   letter-spacing: 0;
@@ -927,7 +927,7 @@ body.is-agency .dc-bar-input:focus {
 }
 
 .dc-panel-stat-l {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1107,7 +1107,7 @@ body.is-agency .dc-bar-input:focus {
   gap: 8px; margin-top: 26px;
 }
 .dc-suggest-label {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
   color: rgba(201, 165, 90, 0.5); margin-right: 4px;
 }
 .dc-suggest-pill {
@@ -1152,7 +1152,7 @@ body.is-agency .dc-bar-input:focus {
   color: rgba(250, 248, 245, 0.92);
 }
 .dc-stat-label {
-  display: block; margin-top: 10px; font-size: 9px; font-weight: 600; letter-spacing: 0.18em;
+  display: block; margin-top: 10px; font-size: 10px; font-weight: 600; letter-spacing: 0.18em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.4);
 }
 .dc-stat--gold .dc-stat-num { color: #C9A55A; }

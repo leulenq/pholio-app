@@ -128,9 +128,9 @@
   margin-right: 8px;
   font-weight: 300;
 }
-.ov-module-link { font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-gold); text-decoration: none; }
+.ov-module-link { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-gold); text-decoration: none; }
 .ov-module-link:hover { text-decoration: underline; }
-.ov-empty { font-size: 11px; color: #9b9082; padding: 16px 0; }
+.ov-empty { font-size: 11px; color: var(--ag-text-2); padding: 16px 0; }
 
 /* ---------- BOARDS — aggregate funnel + table ---------- */
 .ov-funnel { margin: 2px 0 20px; }
@@ -145,7 +145,7 @@
   align-items: center; gap: 14px; padding: 13px 12px;
   border-bottom: 1px solid #ece4d4; text-decoration: none; transition: background .15s;
 }
-.ov-tr--head { padding: 0 12px 9px; border-bottom: 1px solid var(--ag-rule); font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase; color: #9b9082; }
+.ov-tr--head { padding: 0 12px 9px; border-bottom: 1px solid var(--ag-rule); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ag-text-2); }
 .ov-tr:not(.ov-tr--head):hover { background: rgba(201,165,90,.06); }
 .ov-td-r { text-align: right; justify-self: end; }
 .ov-td-board { display: flex; align-items: center; gap: 11px; min-width: 0; }
@@ -156,7 +156,7 @@
 .ov-td-closes { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6b6256; }
 .ov-td-closes.is-soon { color: #c0563f; font-weight: 700; }
 .ov-td-num { font-family: 'Playfair Display', serif; font-size: 17px; color: #16130D; }
-.ov-td-muted { color: #9b9082; }
+.ov-td-muted { color: var(--ag-text-2); }
 .ov-stage-mix { display: flex; width: 100%; height: 7px; gap: 2px; overflow: hidden; border-radius: 3px; background: #ece4d4; }
 .ov-stage-mix i { display: block; min-width: 2px; height: 100%; }
 .ov-stage-mix i.is-empty { width: 100%; min-width: 100%; background: #ece4d4; }
@@ -186,7 +186,7 @@
 .ov-act-body { min-width: 0; }
 .ov-act-text { display: block; font-size: 11.5px; line-height: 1.4; color: #4a443c; }
 .ov-act-text strong { color: #16130D; font-weight: 600; }
-.ov-act-meta { display: block; font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; color: #9b9082; margin-top: 3px; }
+.ov-act-meta { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ag-text-2); margin-top: 3px; }
 
 /* ---------- NEXT MOVES ---------- */
 .ov-moves { display: flex; flex-direction: column; gap: 9px; }
@@ -195,7 +195,7 @@
 .ov-move--urgent { border-color: #c0563f; background: rgba(192, 86, 63, 0.04); }
 .ov-move--positive { border-color: #7d9b82; background: rgba(125, 155, 130, 0.04); }
 .ov-move-text { display: block; font-size: 11.5px; line-height: 1.4; color: #4a443c; }
-.ov-move-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
+.ov-move-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
 
 /* ---------- TALENT STRIP (media) ---------- */
 .ov-strip {
@@ -235,7 +235,7 @@
 }
 .ov-strip-score { position: absolute; top: 8px; right: 8px; }
 .ov-strip-name { display: block; font-size: 12.5px; font-weight: 600; color: #16130D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 9px; }
-.ov-strip-meta { display: block; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: #9b9082; margin-top: 3px; }
+.ov-strip-meta { display: block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ag-text-2); margin-top: 3px; }
 
 /* ---------- ACTIVITY AVATARS ---------- */
 .ov-act-av { position: relative; width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; flex: none; background-color: #e7e2d8; box-shadow: 0 1px 4px rgba(0,0,0,.16); }
@@ -249,6 +249,6 @@
 .ov-team-avatar--photo.is-owner { border-color: var(--ag-gold); }
 .ov-team-info { display: flex; flex-direction: column; min-width: 0; }
 .ov-team-name { font-size: 12.5px; font-weight: 600; color: #16130D; }
-.ov-team-role { font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: #9b9082; margin-top: 2px; }
-.ov-team-add { display: inline-block; margin-top: 13px; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); text-decoration: none; font-weight: 600; }
+.ov-team-role { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ag-text-2); margin-top: 2px; }
+.ov-team-add { display: inline-block; margin-top: 13px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); text-decoration: none; font-weight: 600; }
 .ov-team-add:hover { text-decoration: underline; }

@@ -166,7 +166,7 @@
   outline-offset: -2px;
   border-radius: 2px;
 }
-.ag-rail-meta { margin-top: 12px; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-ink-faint); white-space: nowrap; overflow: hidden; }
+.ag-rail-meta { margin-top: 12px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-ink-faint); white-space: nowrap; overflow: hidden; }
 
 /* fade collapsible nav/member labels (smoother than display:none) */
 .ag-nav-group-label, .ag-nav-item span,
@@ -216,7 +216,7 @@
 .ag-nav-group + .ag-nav-group { margin-top: 22px; }
 .ag-nav-group--home + .ag-nav-group { margin-top: 18px; }
 .ag-nav-group--home .ag-nav-item { font-size: 14px; font-weight: 500; }
-.ag-nav-group-label { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--ag-ink-faint); padding: 0 0 9px; white-space: nowrap; }
+.ag-nav-group-label { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ag-ink-faint); padding: 0 0 9px; white-space: nowrap; }
 .ag-nav-item { display: flex; align-items: center; gap: 12px; padding: 9px 0; font-size: 14px; color: #9a9082; text-decoration: none; position: relative; white-space: nowrap; transition: color .18s; }
 .ag-nav-item:hover { color: var(--ag-cream); }
 .ag-nav-icon { width: 18px; height: 18px; flex: none; opacity: .55; transition: opacity .18s; }
@@ -229,7 +229,7 @@
 .ag-member { display: flex; align-items: center; gap: 12px; background: none; border: none; width: 100%; cursor: pointer; padding: 0; text-align: left; overflow: hidden; }
 .ag-member-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ag-ink); background: #2a2417; color: var(--ag-cream); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600; flex: none; }
 .ag-member-name { font-size: 12.5px; font-weight: 600; color: var(--ag-cream); white-space: nowrap; }
-.ag-member-role { font-size: 9.5px; color: var(--ag-ink-faint); letter-spacing: .04em; white-space: nowrap; }
+.ag-member-role { font-size: 10px; color: var(--ag-ink-faint); letter-spacing: .04em; white-space: nowrap; }
 .ag-member-chev {
   margin-left: auto;
   color: var(--ag-ink-faint);
@@ -273,14 +273,14 @@
 
 /* ---------- MASTHEAD ---------- */
 .ag-masthead { display: flex; justify-content: space-between; align-items: center; padding: 22px var(--ag-pad-x) 16px; }
-.ag-masthead-status { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: #9b9082; }
+.ag-masthead-status { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ag-text-2); }
 .ag-masthead-actions { display: flex; gap: 8px; align-items: center; }
 .ag-masthead-divider { width: 1px; height: 16px; background: var(--ag-rule); }
 .ag-presence { display: flex; align-items: center; }
-.ag-presence-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ag-canvas); background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #9b9082; }
+.ag-presence-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ag-canvas); background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--ag-text-2); }
 .ag-presence-avatar--photo { padding: 0; color: transparent; }
 .ag-presence-avatar + .ag-presence-avatar, .ag-presence-more { margin-left: -8px; }
-.ag-presence-more { width: 26px; height: 26px; border-radius: 50%; background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #9b9082; border: 1.5px solid var(--ag-canvas); }
+.ag-presence-more { width: 26px; height: 26px; border-radius: 50%; background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--ag-text-2); border: 1.5px solid var(--ag-canvas); }
 
 /* masthead left (hamburger + status) */
 .ag-masthead-left { display: flex; align-items: center; gap: 14px; min-width: 0; }

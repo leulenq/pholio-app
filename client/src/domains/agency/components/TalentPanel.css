@@ -207,7 +207,7 @@
 .tp-band-k {
   display: block;
   font-family: var(--ag-font-mono, monospace);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(239, 233, 223, 0.5);
@@ -256,7 +256,7 @@
 }
 .tp-pipe-st {
   font-family: var(--ag-font-mono, monospace);
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   white-space: nowrap;

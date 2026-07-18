@@ -46,13 +46,13 @@
 }
 .tact-menu--right { left: auto; right: 0; }
 .tact-menu-head {
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #9b9082;
+  color: var(--ag-text-2);
   padding: 7px 10px 9px;
 }
-.tact-menu-empty { font-size: 12px; color: #9b9082; padding: 8px 10px; }
+.tact-menu-empty { font-size: 12px; color: var(--ag-text-2); padding: 8px 10px; }
 .tact-menu-item {
   display: block;
   width: 100%;
@@ -71,3 +71,8 @@
 .tact-menu-item--icon { display: flex; align-items: center; gap: 9px; }
 .tact-menu-item--icon svg { color: var(--ag-gold-hover, #B8956A); flex: none; }
 .tact-menu-item:disabled svg { color: #cabfad; }
+
+.tact-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--agency-shadow-focus);
+}

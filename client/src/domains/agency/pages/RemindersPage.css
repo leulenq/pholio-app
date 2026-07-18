@@ -24,7 +24,7 @@
 .rm-stat { flex: 0 0 auto; padding: 0 32px; border-left: 1px solid var(--ag-border-strong); }
 .rm-stat:first-child { border-left: none; padding-left: 0; }
 .rm-stat-num { font-family: var(--ag-font-display); font-size: 36px; color: var(--ag-text-0); line-height: 1; display: block; }
-.rm-stat-label { font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--ag-text-3); margin-top: 10px; display: block; }
+.rm-stat-label { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ag-text-3); margin-top: 10px; display: block; }
 .rm-stat--danger .rm-stat-num { color: var(--ag-danger); }
 .rm-stat--mute .rm-stat-num { color: var(--ag-text-4); }
 

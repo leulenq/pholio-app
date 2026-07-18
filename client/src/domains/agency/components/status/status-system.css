@@ -89,7 +89,7 @@
 .ss-track__seg { width: 42px; height: 1px; background: var(--ag-border-strong); margin-bottom: 22px; }
 .ss-track__seg--done { background: var(--c); }
 .ss-track__label {
-  font-family: var(--ag-font-mono); font-size: 9.5px; letter-spacing: 0.03em; text-transform: uppercase;
+  font-family: var(--ag-font-mono); font-size: 10px; letter-spacing: 0.03em; text-transform: uppercase;
   color: var(--ag-text-3); white-space: nowrap; position: absolute; top: 18px;
 }
 .ss-track__node--cur .ss-track__label { color: color-mix(in srgb, var(--c) 70%, var(--ag-text-0)); font-weight: 600; }

@@ -84,7 +84,7 @@
 }
 
 .bu-chip-key {
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -106,7 +106,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   font-style: italic;
   letter-spacing: 0.04em;
@@ -201,7 +201,7 @@
 .bu-soft-key,
 .bu-aside-term {
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;

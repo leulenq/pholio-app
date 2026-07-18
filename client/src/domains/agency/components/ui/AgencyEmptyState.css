@@ -3,7 +3,7 @@
 .agency-empty-state {
   text-align: center;
   padding: var(--ag-page-y);
-  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .agency-empty-state--compact {
@@ -74,7 +74,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -99,5 +99,11 @@
 
   .agency-empty-description {
     font-size: 0.875rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agency-empty-state {
+    animation: none;
   }
 }

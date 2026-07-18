@@ -106,7 +106,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
 
   const boardPicker = applicationId && can('boards.assign_application') && (
     <div className="tact-board" ref={boardRef}>
-      <button className="tact-btn tact-btn--icon" title="Add to board" onClick={() => setBoardOpen((o) => !o)}>
+      <button className="tact-btn tact-btn--icon" title="Add to board" aria-label="Add to board" onClick={() => setBoardOpen((o) => !o)}>
         <LayoutGrid size={15} />
       </button>
       {boardOpen && (
@@ -168,7 +168,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
 
         {secondary.length > 0 && (
           <div className="tact-board" ref={moreRef}>
-            <button className="tact-btn tact-btn--icon" title="More actions" onClick={() => setMoreOpen((o) => !o)}>
+            <button className="tact-btn tact-btn--icon" title="More actions" aria-label="More actions" onClick={() => setMoreOpen((o) => !o)}>
               <MoreHorizontal size={16} />
             </button>
             {moreOpen && (

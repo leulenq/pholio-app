@@ -49,7 +49,7 @@
   color: #b3a89a;
   text-align: center;
 }
-.tt-empty-text { font-size: 12px; color: #9b9082; }
+.tt-empty-text { font-size: 12px; color: var(--ag-text-2); }
 
 /* ---------- CONVERSATION ---------- */
 .tt-stream {
@@ -63,7 +63,7 @@
 .tt-day { display: flex; align-items: center; gap: 12px; margin: 4px 0 2px; }
 .tt-day::before, .tt-day::after { content: ''; flex: 1; height: 1px; background: #ece4d4; }
 .tt-day span {
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #b3a89a;
@@ -91,10 +91,10 @@
   box-shadow: 0 3px 12px rgba(20, 17, 11, 0.2);
 }
 .tt-meta {
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9b9082;
+  color: var(--ag-text-2);
   margin-top: 5px;
 }
 
@@ -181,10 +181,10 @@
   border-bottom: 1px solid rgba(26, 26, 26, 0.08);
 }
 .tt-form-label {
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #9b9082;
+  color: var(--ag-text-2);
 }
 .tt-followrow { display: flex; gap: 9px; }
 .tt-field {
