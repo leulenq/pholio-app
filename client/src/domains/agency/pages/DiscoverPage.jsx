@@ -131,11 +131,12 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
         : <div className="dc-card-img dc-card-img--empty"><span>{talent.name.charAt(0)}</span></div>}
       <div className="dc-card-shade" />
 
-      {talent.resonance != null && <MatchScore score={talent.resonance} size="sm" tone="overlay" className="dc-card-score" />}
-
       <div className="dc-card-body">
         <div className="dc-card-namerow">
           <h3 className="dc-card-name">{talent.name}</h3>
+          {talent.resonance != null && (
+            <MatchScore score={talent.resonance} size="xs" className="dc-card-score" />
+          )}
         </div>
         <div className="dc-card-line">
           <span className="dc-card-arch">{talent.archetype}</span>

@@ -560,12 +560,11 @@ body.is-agency .dc-bar-input:focus {
   min-width: 0;
 }
 
-/* layout only — mount handles visual design */
+/* layout only — mount handles visual design; sits in-flow beside the name
+   (corner overlays on photos are a banned pattern) */
 .dc-card-score {
-  position: absolute;
-  top: 11px;
-  right: 11px;
-  z-index: 4;
+  flex: none;
+  margin-left: auto;
 }
 
 .dc-card-featured {

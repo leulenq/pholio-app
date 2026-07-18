@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import MatchScore from '../ui/MatchScore';
 
 const DRAG_THRESHOLD = 6;
 
@@ -101,12 +100,13 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
             <button key={t.id} type="button" className="ov-strip-card" onClick={() => onSelect(t)}>
               <span className="ov-strip-photo">
                 <span className="ov-strip-img" style={{ backgroundImage: t.photo ? `url(${t.photo})` : 'none' }} />
-                {t.match != null && (
-                  <MatchScore score={t.match} size="sm" tone="overlay" className="ov-strip-score" />
-                )}
               </span>
               <span className="ov-strip-name">{t.name}</span>
-              <span className="ov-strip-meta">{t.typeLabel}{t.city ? ` · ${t.city}` : ''}</span>
+              <span className="ov-strip-meta">
+                {t.typeLabel}
+                {t.city ? ` · ${t.city}` : ''}
+                {t.match != null ? ` · ${t.match} match` : ''}
+              </span>
             </button>
           ))}
         </div>

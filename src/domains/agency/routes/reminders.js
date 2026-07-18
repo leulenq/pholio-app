@@ -103,8 +103,8 @@ router.get(
       let query = knex("reminders")
         .where({ "reminders.agency_id": agencyId })
         .leftJoin("applications", "reminders.application_id", "applications.id")
-        .leftJoin("users as talent", "applications.talent_id", "talent.id")
-        .leftJoin("profiles", "talent.id", "profiles.user_id")
+        .leftJoin("profiles", "applications.profile_id", "profiles.id")
+        .leftJoin("users as talent", "profiles.user_id", "talent.id")
         .select(
           "reminders.*",
           knex.raw(

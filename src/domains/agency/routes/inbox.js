@@ -808,16 +808,19 @@ router.get(
       // agency>` replaces the previous LEFT JOIN + `whereNull("applications.id")`
       // path, which leaked every discoverable profile (non-applicants included) to
       // any agency. Withdrawn submissions are excluded.
+      // NOTE: knex silently drops .select() arguments that follow an array
+      // argument, so the audience columns must be spread into one flat list
+      // or the application_* aliases never reach the SQL.
       let query = knex("profiles")
-        .select(
-          selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
+        .select([
+          ...selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
             table: "profiles",
           }),
           "applications.status as application_status",
           "applications.id as application_id",
           "applications.match_score as match_score",
           "applications.created_at as application_created_at",
-        )
+        ])
         .innerJoin("applications", (join) => {
           join
             .on("applications.profile_id", "=", "profiles.id")

@@ -22,6 +22,10 @@ export default function PholioAuthBridge() {
   }, []);
 
   useEffect(() => {
+    // Without a Firebase client config (e.g. dev seeded-login environments)
+    // `auth` is null; the Express session is the sole source of truth then.
+    if (!auth) return undefined;
+
     const unsubscribeFirebase = onAuthStateChanged(auth, (user) => {
       refreshFromFirebase(user);
     });

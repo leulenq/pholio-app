@@ -233,7 +233,6 @@
   .ov-strip-img,
   .ov-strip-img::after { transition: none; }
 }
-.ov-strip-score { position: absolute; top: 8px; right: 8px; }
 .ov-strip-name { display: block; font-size: 12.5px; font-weight: 600; color: #16130D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 9px; }
 .ov-strip-meta { display: block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ag-text-2); margin-top: 3px; }
 

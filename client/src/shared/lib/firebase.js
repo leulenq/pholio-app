@@ -24,10 +24,22 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || import.meta.env.FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Without a config (e.g. local dev using the seeded /api/dev/login flow),
+// getAuth() throws auth/invalid-api-key at module scope and unmounts the
+// entire SPA. Initialize lazily-safe instead: export auth = null and let
+// Firebase-dependent actions surface their own errors at the point of use.
+let app = null;
+let auth = null;
 
-// Initialize Firebase Authentication
-export const auth = getAuth(app);
+if (firebaseConfig.apiKey) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+} else {
+  console.warn(
+    '[Firebase] No VITE_FIREBASE_* configuration found — Firebase auth is disabled. ' +
+      'Session-based flows (including the dev seeded login) still work.'
+  );
+}
 
+export { auth };
 export default app;
