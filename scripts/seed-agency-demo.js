@@ -4,6 +4,9 @@
 "use strict";
 
 const { randomUUID } = require("crypto");
+const {
+  syncRosterMembershipForApplication,
+} = require("../src/domains/agency/services/roster-memberships");
 
 const AGENCY_EMAIL = "agency@example.com";
 const DEMO_DOMAIN = "@seed.pholio.studio";
@@ -368,6 +371,9 @@ async function seedAgencyDemo(knex) {
   await knex("reminders").where({ agency_id: aid }).del();
   await knex("filter_presets").where({ agency_id: aid }).del();
   await knex("application_tags").where({ agency_id: aid }).del();
+  if (await knex.schema.hasTable("roster_memberships")) {
+    await knex("roster_memberships").where({ agency_id: aid }).del();
+  }
   if (await knex.schema.hasTable("notifications")) {
     await knex("notifications").where({ user_id: agency.id }).del();
   }
@@ -569,6 +575,13 @@ async function seedAgencyDemo(knex) {
       accepted_at: i < 3 ? daysAgo(ri(2, 12)) : daysAgo(ri(40, 300)),
     });
   await knex("applications").insert(apps);
+
+  // Signed talent must exist on the Roster too: production signs go through
+  // syncRosterMembershipForApplication, so the seed uses the same service
+  // instead of leaving represented/accepted applications roster-less.
+  for (const app of apps) {
+    await syncRosterMembershipForApplication(knex, app, app.status);
+  }
 
   // ---- board_applications: link review/booked + 5 accepted to boards ----
   const boardRows = BOARDS.map((b, i) => ({

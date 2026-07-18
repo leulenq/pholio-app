@@ -16,9 +16,11 @@ export function normalizeStatusKey(value) {
 export function cmToImperial(cm) {
   const numeric = Number(cm);
   if (!Number.isFinite(numeric) || numeric <= 0) return null;
-  const inches = numeric / 2.54;
-  const feet = Math.floor(inches / 12);
-  return `${feet}′ ${Math.round(inches - feet * 12)}″`;
+  // Round total inches first, then split — flooring feet before rounding the
+  // remainder produces impossible values like 5′ 12″ for 182 cm.
+  const totalInches = Math.round(numeric / 2.54);
+  const feet = Math.floor(totalInches / 12);
+  return `${feet}′ ${totalInches - feet * 12}″`;
 }
 
 export function heightLine(cm) {
