@@ -7,8 +7,8 @@
   gap: 0.5rem;
   font-family: var(--font-body);
   font-weight: 600;
-  border-radius: var(--agency-radius-sm);
-  transition: all var(--agency-transition-fast);
+  border-radius: var(--ag-radius-sm);
+  transition: all var(--ag-duration-fast) var(--ag-ease);
   cursor: pointer;
   border: none;
   font-size: 0.9375rem;
@@ -36,13 +36,13 @@
 .agency-btn--primary:hover:not(:disabled) {
   background: var(--agency-primary-hover);
   transform: translateY(-1px);
-  box-shadow: var(--agency-shadow-button);
+  box-shadow: var(--ag-shadow-gold);
 }
 
 .agency-btn--secondary {
   background: white;
   color: var(--agency-primary);
-  border: 1px solid var(--agency-border);
+  border: 1px solid var(--ag-border);
 }
 
 .agency-btn--secondary:hover:not(:disabled) {
@@ -52,16 +52,16 @@
 
 .agency-btn--ghost {
   background: transparent;
-  color: var(--agency-text-secondary);
+  color: var(--ag-text-2);
 }
 
 .agency-btn--ghost:hover:not(:disabled) {
-  background: var(--agency-bg-elevated);
-  color: var(--agency-text-primary);
+  background: var(--ag-surface-3);
+  color: var(--ag-text-0);
 }
 
 .agency-btn--danger {
-  background: var(--agency-danger);
+  background: var(--ag-danger);
   color: white;
 }
 
@@ -72,7 +72,7 @@
 }
 
 .agency-btn--success {
-  background: var(--agency-success);
+  background: var(--ag-success);
   color: white;
 }
 
@@ -83,12 +83,12 @@
 }
 
 .agency-btn--gold {
-  background: linear-gradient(135deg, var(--agency-gold), var(--agency-gold-hover));
+  background: linear-gradient(135deg, var(--ag-gold), var(--ag-gold-hover));
   color: white;
 }
 
 .agency-btn--gold:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--agency-gold-hover), #9a7533);
+  background: linear-gradient(135deg, var(--ag-gold-hover), #9a7533);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(201, 165, 90, 0.3);
 }

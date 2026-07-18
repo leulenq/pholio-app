@@ -14,9 +14,12 @@
       html { background-color: #050505; }
     </style>
     <!-- Task 7.2: Import Display Font -->
+    <!-- T4 token unification: single load point for Inter / Noto Serif Display / Playfair Display.
+         Union of weights previously requested by AgencyLayout.css (@import, now removed) and
+         client/src/index.css's @import (left in place — see DESIGN.md/orchestrator notes for that duplication). -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+Display:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>

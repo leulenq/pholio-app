@@ -2,20 +2,7 @@
    PHOLIO AGENCY — Command Center Shell
    Visual source: docs/superpowers/specs/assets/2026-06-02-agency-command-center-mockup.html
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+Display:wght@400;500&family=Playfair+Display:wght@400;500;600;700&display=swap');
-
-:root {
-  --ag-rail-w: 260px;
-  --ag-rail-w-collapsed: 78px;
-  --ag-ink: #14110B;
-  --ag-ink-line: #221e16;
-  --ag-ink-faint: #6e6452;
-  --ag-cream: #EFE9DC;
-  --ag-pholio-gold: #C9A55A;
-  --ag-canvas: #F7F3EC;
-  --ag-rule: #ddd5c6;
-  --ag-pad-x: 40px;
-}
+/* Shell layout + ink/cream tokens now live in client/src/styles/agency-tokens.css (Shell section). */
 
 /* Agency workspace accent — scoped to shell; does not affect Pholio platform identity */
 .ag-shell {

@@ -93,6 +93,17 @@
   --td-presence-pad-x: 52px;
   --td-ink-deep: #141210;
 
+  /* ---- Shell (Command Center rail/canvas — folded in from AgencyLayout.css) ---- */
+  --ag-rail-w: 260px;
+  --ag-rail-w-collapsed: 78px;
+  --ag-ink: #14110B;
+  --ag-ink-line: #221e16;
+  --ag-ink-faint: #6e6452;
+  --ag-cream: #EFE9DC;
+  --ag-canvas: #F7F3EC;
+  --ag-rule: #ddd5c6;
+  --ag-pad-x: 40px;
+
   /* ---- Radius ---- */
   --ag-radius-sm: 4px;
   --ag-radius-md: 8px;
@@ -181,6 +192,7 @@
   /* ============================================================
      Legacy aliases — maps old --agency-* tokens to new --ag-*
      Used by sub-pages (Boards, Discover, Analytics, etc.)
+     TODO(orchestrator): delete once zero consumers remain — do not add new usages.
      ============================================================ */
   /* Agency workspace accent — defaults match Pholio gold; overridden on .ag-shell when branded */
   --agency-primary: #C9A55A;
