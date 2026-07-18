@@ -50,7 +50,8 @@ export default function MessagesDropdown({
   if (!isOpen) return null;
 
   const isUnread = (t) => t.unread && !readIds.has(t.id);
-  const anyUnread = threads.some(isUnread);
+  const unreadTotal = threads.filter(isUnread).length;
+  const anyUnread = unreadTotal > 0;
 
   const markAllRead = () => {
     // TODO: call PATCH /api/agency/messages/read-all then invalidate ['agency','messages','threads'] query
@@ -62,7 +63,14 @@ export default function MessagesDropdown({
     <div className="nav-panel md-panel" aria-label="Messages">
       {/* Header */}
       <div className="md-header">
-        <p className="md-title">Messages</p>
+        <div className="md-header-title-wrap">
+          <p className="md-title">Messages</p>
+          {anyUnread && (
+            <span className="md-unread-count" aria-label={`${unreadTotal} unread`}>
+              {unreadTotal} unread
+            </span>
+          )}
+        </div>
         {anyUnread && (
           <button className="md-mark-read" onClick={markAllRead}>
             Mark all read

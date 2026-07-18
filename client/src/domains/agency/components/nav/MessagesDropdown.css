@@ -40,12 +40,27 @@
   flex-shrink: 0;
 }
 
+.md-header-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
 .md-title {
   font-family: 'Playfair Display', serif;
   font-size: 15px;
   font-weight: 600;
   color: var(--ag-text-0);
   margin: 0;
+}
+
+.md-unread-count {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ag-text-2);
+  white-space: nowrap;
 }
 
 .md-mark-read {

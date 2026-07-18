@@ -1,26 +1,22 @@
-import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   ChevronLeft, MessageSquare, MoreHorizontal,
-  MapPin, Mail, Phone, Sparkles, Clock, Award,
-  TrendingUp, Camera, Calendar, Check, X,
-  Copy, ExternalLink, FileText, Archive, Layers,
-  Instagram,
+  MapPin, Mail, Phone, Sparkles, Clock, Camera, Calendar,
+  Copy, ExternalLink, FileText, Instagram, Globe,
 } from 'lucide-react';
-import { TypeSpec, AvailabilityCell } from '../components/status';
+import { TypeSpec, AvailabilityCell, getState } from '../components/status';
+import { fetchRosterProfile } from '../api/agency';
 import './RosterWorkspace.css';
 
 // ── Constants ──────────────────────────────────────────────────
 
-const STATUS_COLORS = {
-  available: 'var(--ss-live)',
-  booking:   'var(--ss-motion)',
-  hold:      'var(--ss-select)',
-  inactive:  'var(--ss-off)',
-};
-
+// Insight styling — only used when a real insight is supplied. RosterPage no
+// longer synthesises insights, so `insight` is null today and the panel below
+// renders nothing; the config stays so a future real signal source lights it up.
 const INTEL_CFG = {
   attention: {
     accent: 'var(--ag-danger)',
@@ -51,61 +47,22 @@ const INTEL_CFG = {
   },
 };
 
-const ALL_BOARDS = ['FW26 Runway', 'Commercial Spring', 'Beauty Editorial', 'Lifestyle Campaign', 'High Fashion FW'];
-const BRANDS     = ['Vogue Italia', "Harper's Bazaar", 'Dior', 'Valentino', 'Net-a-Porter', 'Gucci', 'Bottega Veneta', 'Loewe'];
-const ACTIVITY_ICON = {
-  booking: <Award size={12} />,
-  message: <MessageSquare size={12} />,
-  board:   <Layers size={12} />,
-  join:    <TrendingUp size={12} />,
-};
-
-// ── Mock data ──────────────────────────────────────────────────
-
-function getMockStats(id) {
-  const s = parseInt(id) || 1;
-  return {
-    total:       (s * 7 + 3) % 18 + 3,
-    commission:  ((s * 3847 + 1000) % 35000) + 8000,
-    dayRate:     ((s * 892) % 4000) + 1500,
-    bookingRate: Math.round(((s * 17) % 40) + 45),
-  };
-}
-
-function getMockActivity(talent) {
-  const s   = parseInt(talent.id) || 1;
-  const ago = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
-  return [
-    { type: 'booking', label: `Booked — ${BRANDS[s % BRANDS.length]}`,              date: talent.lastBooking || ago(14) },
-    { type: 'message', label: 'Availability confirmed for upcoming window',          date: ago((s * 3) % 12 + 3) },
-    { type: 'board',   label: `Submitted to "${ALL_BOARDS[s % ALL_BOARDS.length]}"`, date: ago((s * 5) % 25 + 6) },
-    { type: 'join',    label: 'Joined agency roster',                                date: talent.dateAdded },
-  ].filter(a => a.date);
-}
-
-function getPortfolioImages(img) {
-  const base = img?.split('?')[0];
-  if (!base) return [];
-  return [
-    `${base}?w=320&h=440&fit=crop&auto=format&q=78`,
-    `${base}?w=320&h=420&fit=crop&crop=top&auto=format&q=78`,
-    `${base}?w=320&h=460&fit=crop&crop=faces&auto=format&q=78`,
-    `${base}?w=320&h=400&fit=crop&crop=center&auto=format&q=78`,
-    `${base}?w=320&h=480&fit=crop&auto=format&q=78`,
-    `${base}?w=320&h=440&fit=crop&crop=entropy&auto=format&q=78`,
-  ];
-}
+const SOCIAL_ICON = { instagram: Instagram };
 
 // ── Helpers ────────────────────────────────────────────────────
 
 function fmtDate(date) {
   if (!date) return '—';
-  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function fmtRelDate(date) {
   if (!date) return '—';
-  const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '—';
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7)  return `${days}d ago`;
@@ -114,17 +71,23 @@ function fmtRelDate(date) {
   return `${Math.floor(days / 365)}y ago`;
 }
 
-function fmtCurrency(n) {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+function fmtCurrency(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function imageSrc(img) {
+  return img?.public_url || img?.path || null;
 }
 
 // ── Sub-components ─────────────────────────────────────────────
 
 function ProfileCompletionBar({ talent }) {
-  const fields  = [talent.email, talent.phone, talent.location, talent.height, talent.bust, talent.waist, talent.hips, talent.notes, talent.img, talent.tags?.length];
-  const filled  = fields.filter(Boolean).length;
-  const pct     = Math.round((filled / fields.length) * 100);
-  const color   = pct >= 80 ? 'var(--ag-success)' : pct >= 50 ? 'var(--ag-gold)' : 'var(--ag-danger)';
+  const fields = [talent.email, talent.phone, talent.location, talent.height, talent.bust, talent.waist, talent.hips, talent.notes, talent.img, talent.tags?.length];
+  const filled = fields.filter(Boolean).length;
+  const pct    = Math.round((filled / fields.length) * 100);
+  const color  = pct >= 80 ? 'var(--ag-success)' : pct >= 50 ? 'var(--ag-gold)' : 'var(--ag-danger)';
   return (
     <div className="rws-completion">
       <div className="rws-completion-head">
@@ -138,33 +101,7 @@ function ProfileCompletionBar({ talent }) {
   );
 }
 
-function BoardPopover({ currentBoards, onClose, onToggle }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose(); }
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [onClose]);
-
-  return (
-    <div className="rws-popover" ref={ref}>
-      <div className="rws-popover-head">Manage Boards</div>
-      {ALL_BOARDS.map(board => {
-        const active = currentBoards.includes(board);
-        return (
-          <button key={board} className={`rws-popover-item${active ? ' rws-popover-item--active' : ''}`} onClick={() => onToggle(board)}>
-            <span className={`rws-popover-check${active ? ' rws-popover-check--on' : ''}`}>
-              {active && <Check size={10} />}
-            </span>
-            {board}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function MoreDropdown({ talent, onArchive, onClose }) {
+function MoreDropdown({ talent, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
     function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose(); }
@@ -174,15 +111,15 @@ function MoreDropdown({ talent, onArchive, onClose }) {
 
   return (
     <div className="rws-more-menu" ref={ref}>
-      <button className="rws-more-item" onClick={() => { navigator.clipboard.writeText(talent.email || ''); toast.success('Email copied'); onClose(); }}>
+      <button
+        className="rws-more-item"
+        disabled={!talent.email}
+        onClick={() => { navigator.clipboard.writeText(talent.email || ''); toast.success('Email copied'); onClose(); }}
+      >
         <Copy size={13} />Copy email
       </button>
       <button className="rws-more-item" onClick={() => { window.open(`/talent/${talent.id}`, '_blank'); onClose(); }}>
         <ExternalLink size={13} />View portfolio
-      </button>
-      <div className="rws-more-divider" />
-      <button className="rws-more-item rws-more-item--danger" onClick={onArchive}>
-        <Archive size={13} />Archive talent
       </button>
     </div>
   );
@@ -192,30 +129,30 @@ function MoreDropdown({ talent, onArchive, onClose }) {
 
 export default function RosterWorkspace({ talent: t, insight, onBack }) {
   const navigate = useNavigate();
-  const stats    = useMemo(() => getMockStats(t.id), [t.id]);
-  const activity = useMemo(() => getMockActivity(t), [t]);
-  const photos   = useMemo(() => getPortfolioImages(t.img), [t.img]);
-  const cfg      = insight ? INTEL_CFG[insight.type] : null;
+  const cfg = insight ? INTEL_CFG[insight.type] : null;
 
-  const [boards, setBoards]           = useState(t.boards || []);
-  const [showBoardPicker, setShowBoardPicker] = useState(false);
-  const [showMore, setShowMore]       = useState(false);
-  const moreBtnRef                    = useRef(null);
+  const [showMore, setShowMore] = useState(false);
+  const moreBtnRef = useRef(null);
 
-  const toggleBoard = useCallback((board) => {
-    setBoards(prev => prev.includes(board) ? prev.filter(b => b !== board) : [...prev, board]);
-  }, []);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['roster-profile', t.id],
+    queryFn: () => fetchRosterProfile(t.id),
+    staleTime: 30000,
+    enabled: !!t.id,
+  });
 
-  function handleArchive() {
-    setShowMore(false);
-    toast.success(`${t.name.split(' ')[0]} archived from roster`);
-    onBack();
-  }
+  const profile  = data?.profile || null;
+  const bookings = data?.bookings || null;
+  const photos   = useMemo(() => (profile?.images || []).map(imageSrc).filter(Boolean), [profile]);
+  const socials  = useMemo(() => (profile?.social || []).filter((s) => s && s.handle), [profile]);
+  const bio      = profile?.bio_curated || t.notes || null;
 
   const displayTags = useMemo(
-    () => (t.tags || []).filter(tag => tag.toLowerCase() !== (t.type || '').toLowerCase()),
+    () => (t.tags || []).filter((tag) => tag.toLowerCase() !== (t.type || '').toLowerCase()),
     [t.tags, t.type]
   );
+
+  const hasBookingData = bookings && (bookings.total_bookings != null || bookings.commission_earned != null || bookings.last_booking_date != null);
 
   return (
     <motion.div
@@ -238,12 +175,9 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
           <span className="rws-nav-name">{t.name}</span>
           <TypeSpec type={t.type} />
           {t.status && <AvailabilityCell status={t.status} sm />}
-          {insight && (
-            <span
-              className="rws-nav-signal"
-              style={{ color: INTEL_CFG[insight.type]?.accent, borderColor: INTEL_CFG[insight.type]?.accent }}
-            >
-              {INTEL_CFG[insight.type]?.label}
+          {cfg && insight && (
+            <span className="rws-nav-signal" style={{ color: cfg.accent, borderColor: cfg.accent }}>
+              {cfg.label}
             </span>
           )}
         </div>
@@ -263,7 +197,7 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
             <button
               className={`rws-btn rws-btn--icon${showMore ? ' rws-btn--active' : ''}`}
               title="More actions"
-              onClick={() => setShowMore(v => !v)}
+              onClick={() => setShowMore((v) => !v)}
             >
               <MoreHorizontal size={15} />
             </button>
@@ -276,7 +210,7 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
                   exit={{ opacity: 0, y: 4, scale: 0.97 }}
                   transition={{ duration: 0.13 }}
                 >
-                  <MoreDropdown talent={t} onArchive={handleArchive} onClose={() => setShowMore(false)} />
+                  <MoreDropdown talent={t} onClose={() => setShowMore(false)} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -290,9 +224,11 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
         {/* ─── Col 1: Photo + contact ─────────────────────── */}
         <div className="rws-col rws-col--photo">
           <div className="rws-photo-card">
-            <img src={t.img} alt={t.name} className="rws-photo" />
+            {t.img
+              ? <img src={t.img} alt={t.name} className="rws-photo" />
+              : <div className="rws-photo rws-photo--fallback"><Camera size={26} /></div>}
             <div className="rws-photo-shade" />
-            <div className="rws-photo-status-bar" style={{ background: STATUS_COLORS[t.status] }} />
+            <div className="rws-photo-status-bar" style={{ background: getState(t.status).c }} />
           </div>
 
           <div className="rws-contact">
@@ -308,24 +244,37 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
                 <span>{t.phone}</span>
               </a>
             )}
-            <div className="rws-contact-row">
-              <MapPin size={12} className="rws-contact-icon" />
-              <span>{t.location}</span>
-            </div>
+            {t.location && (
+              <div className="rws-contact-row">
+                <MapPin size={12} className="rws-contact-icon" />
+                <span>{t.location}</span>
+              </div>
+            )}
             {t.dateAdded && (
               <div className="rws-contact-row">
                 <Clock size={12} className="rws-contact-icon" />
                 <span>Joined {fmtDate(t.dateAdded)}</span>
               </div>
             )}
-            <div className="rws-contact-social">
-              <Instagram size={10} className="rws-contact-social-icon" />
-              <span>@{t.name.toLowerCase().replace(/\s+/g, '_')}</span>
-            </div>
+            {socials.map((s) => {
+              const Icon = SOCIAL_ICON[String(s.platform || '').toLowerCase()] || Globe;
+              const label = s.handle?.startsWith('@') ? s.handle : `@${s.handle}`;
+              return s.url ? (
+                <a key={`${s.platform}-${s.handle}`} href={s.url} target="_blank" rel="noreferrer" className="rws-contact-social">
+                  <Icon size={10} className="rws-contact-social-icon" />
+                  <span>{label}</span>
+                </a>
+              ) : (
+                <div key={`${s.platform}-${s.handle}`} className="rws-contact-social">
+                  <Icon size={10} className="rws-contact-social-icon" />
+                  <span>{label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* ─── Col 2: Identity + portfolio + notes + boards ─── */}
+        {/* ─── Col 2: Identity + portfolio + bio ─── */}
         <div className="rws-col rws-col--center">
 
           {/* Identity */}
@@ -333,7 +282,6 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
             <p className="rws-panel-section-title">Profile</p>
             <div className="rws-panel-name-row">
               <h2 className="rws-panel-name">{t.name}</h2>
-              {t.studioPlus && <span className="rws-studio-plus">Studio+</span>}
               <a
                 href={`/talent/${t.id}`}
                 target="_blank"
@@ -351,12 +299,12 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
                 { label: 'Bust',   value: t.bust,   unit: 'cm' },
                 { label: 'Waist',  value: t.waist,  unit: 'cm' },
                 { label: 'Hips',   value: t.hips,   unit: 'cm' },
-              ].map(m => (
+              ].map((m) => (
                 <div key={m.label} className="rws-measure">
                   <span className="rws-measure-label">{m.label}</span>
                   <span className="rws-measure-value">
-                    {m.value ?? '—'}
-                    {m.value && <span className="rws-measure-unit">{m.unit}</span>}
+                    {m.value || '—'}
+                    {m.value ? <span className="rws-measure-unit">{m.unit}</span> : null}
                   </span>
                 </div>
               ))}
@@ -364,7 +312,7 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
 
             {displayTags.length > 0 && (
               <div className="rws-tags">
-                {displayTags.map(tag => <span key={tag} className="rws-tag">{tag}</span>)}
+                {displayTags.map((tag) => <span key={tag} className="rws-tag">{tag}</span>)}
               </div>
             )}
           </div>
@@ -373,95 +321,58 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
           <div className="rws-panel rws-panel--portfolio">
             <div className="rws-panel-head">
               <p className="rws-panel-section-title">Portfolio</p>
-              <span className="rws-panel-head-meta"><Camera size={10} />{photos.length} images</span>
+              {!isLoading && photos.length > 0 && (
+                <span className="rws-panel-head-meta"><Camera size={10} />{photos.length} images</span>
+              )}
             </div>
-            <div className="rws-portfolio">
-              {photos.map((src, i) => (
-                <motion.img
-                  key={i}
-                  src={src}
-                  alt=""
-                  className="rws-portfolio-img"
-                  loading="lazy"
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.05, duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-                  whileHover={{ scale: 1.03 }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          {t.notes && (
-            <div className="rws-panel rws-panel--notes">
-              <p className="rws-panel-section-title">Agency Notes</p>
-              <p className="rws-notes">{t.notes}</p>
-            </div>
-          )}
-
-          {/* Casting Boards */}
-          <div className="rws-panel rws-panel--boards">
-            <div className="rws-panel-head">
-              <p className="rws-panel-section-title">Casting Boards</p>
-              <div className="rws-btn-wrap">
-                <button
-                  className="rws-boards-manage-btn"
-                  onClick={() => setShowBoardPicker(v => !v)}
-                >
-                  <Layers size={10} />Manage
-                </button>
-                <AnimatePresence>
-                  {showBoardPicker && (
-                    <motion.div
-                      className="rws-popover-wrap"
-                      initial={{ opacity: 0, y: 4, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 4, scale: 0.97 }}
-                      transition={{ duration: 0.13 }}
-                    >
-                      <BoardPopover
-                        currentBoards={boards}
-                        onClose={() => setShowBoardPicker(false)}
-                        onToggle={toggleBoard}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+            {isLoading ? (
+              <div className="rws-portfolio">
+                {Array.from({ length: 5 }).map((_, i) => <div key={i} className="rws-portfolio-skel" />)}
               </div>
-            </div>
-            {boards.length > 0 ? (
-              <div className="rws-boards-list">
-                {boards.map(board => (
-                  <div key={board} className="rws-board-chip">
-                    <span>{board}</span>
-                    <button className="rws-board-remove" onClick={() => toggleBoard(board)}>
-                      <X size={9} />
-                    </button>
-                  </div>
+            ) : photos.length > 0 ? (
+              <div className="rws-portfolio">
+                {photos.map((src, i) => (
+                  <motion.img
+                    key={src}
+                    src={src}
+                    alt=""
+                    className="rws-portfolio-img"
+                    loading="lazy"
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.05, duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+                    whileHover={{ scale: 1.03 }}
+                  />
                 ))}
               </div>
             ) : (
-              <p className="rws-boards-empty">Not assigned to any active boards.</p>
+              <p className="rws-boards-empty">No portfolio images yet.</p>
             )}
           </div>
+
+          {/* Bio */}
+          {bio && (
+            <div className="rws-panel rws-panel--notes">
+              <p className="rws-panel-section-title">Bio</p>
+              <p className="rws-notes">{bio}</p>
+            </div>
+          )}
         </div>
 
-        {/* ─── Col 3: Intelligence + metrics + activity ────── */}
+        {/* ─── Col 3: Intelligence (if any) + booking metrics ────── */}
         <div className="rws-col rws-col--intel">
 
-          {/* Intelligence */}
-          <div
-            className={`rws-intel${cfg ? ' rws-intel--signal' : ''}`}
-            style={cfg ? { '--intel-accent': cfg.accent, '--intel-bg': cfg.bg, '--intel-border': cfg.border } : {}}
-          >
-            <div className="rws-intel-head">
-              <Sparkles size={11} className="rws-intel-spark" />
-              <span className="rws-intel-label">Talent Intelligence</span>
-            </div>
-            {cfg && insight ? (
+          {/* Intelligence — only rendered when a real insight is supplied */}
+          {cfg && insight && (
+            <div
+              className="rws-intel rws-intel--signal"
+              style={{ '--intel-accent': cfg.accent, '--intel-bg': cfg.bg, '--intel-border': cfg.border }}
+            >
+              <div className="rws-intel-head">
+                <Sparkles size={11} className="rws-intel-spark" />
+                <span className="rws-intel-label">Talent Intelligence</span>
+              </div>
               <div className="rws-intel-body">
-                <div className="rws-intel-bar" />
                 <span className="rws-intel-type">{cfg.label}</span>
                 <p className="rws-intel-signal-text">{insight.text}</p>
                 <div className="rws-intel-action-block">
@@ -472,64 +383,40 @@ export default function RosterWorkspace({ talent: t, insight, onBack }) {
                   {cfg.cta} →
                 </button>
               </div>
-            ) : (
-              <div className="rws-intel-empty">
-                <span className="rws-intel-empty-title">No active signals</span>
-                <p className="rws-intel-empty-text">
-                  No outstanding signals for {t.name.split(' ')[0]} right now. The system monitors for booking gaps, profile gaps, and market opportunities.
-                </p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Booking metrics */}
+          {/* Booking metrics — real commission data from the roster profile API */}
           <div className="rws-panel">
             <p className="rws-panel-section-title">Booking Overview</p>
-            <div className="rws-metrics">
-              <div className="rws-metric">
-                <span className="rws-metric-value">{fmtRelDate(t.lastBooking)}</span>
-                <span className="rws-metric-label">Last Booking</span>
-              </div>
-              <div className="rws-metric">
-                <span className="rws-metric-value rws-metric-value--num">{stats.total}</span>
-                <span className="rws-metric-label">Total Bookings</span>
-              </div>
-              <div className="rws-metric">
-                <span className="rws-metric-value rws-metric-value--currency">{fmtCurrency(stats.commission)}</span>
-                <span className="rws-metric-label">Commission YTD</span>
-              </div>
-              <div className="rws-metric">
-                <span className="rws-metric-value rws-metric-value--currency">{fmtCurrency(stats.dayRate)}</span>
-                <span className="rws-metric-label">Day Rate</span>
-              </div>
-              <div className="rws-metric rws-metric--wide">
-                <span className="rws-metric-value rws-metric-value--num">{stats.bookingRate}%</span>
-                <span className="rws-metric-label">Booking Rate (submissions → booked)</span>
-              </div>
-            </div>
-            <ProfileCompletionBar talent={t} />
-          </div>
-
-          {/* Activity */}
-          <div className="rws-panel rws-panel--activity">
-            <p className="rws-panel-section-title">Recent Activity</p>
-            <div className="rws-timeline">
-              {activity.map((item, i) => (
-                <motion.div
-                  key={i}
-                  className={`rws-timeline-item rws-timeline-item--${item.type}`}
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 + i * 0.07, duration: 0.25 }}
-                >
-                  <span className="rws-timeline-icon">{ACTIVITY_ICON[item.type]}</span>
-                  <div className="rws-timeline-body">
-                    <span className="rws-timeline-label">{item.label}</span>
-                    <span className="rws-timeline-date">{fmtDate(item.date)}</span>
+            {isError ? (
+              <button className="rws-retry" onClick={() => refetch()}>Booking data failed to load — retry</button>
+            ) : (
+              <>
+                <div className="rws-metrics">
+                  <div className="rws-metric">
+                    <span className="rws-metric-value">{fmtRelDate(bookings?.last_booking_date || t.lastBooking)}</span>
+                    <span className="rws-metric-label">Last Booking</span>
                   </div>
-                </motion.div>
-              ))}
-            </div>
+                  <div className="rws-metric">
+                    <span className="rws-metric-value rws-metric-value--num">
+                      {bookings?.total_bookings != null ? bookings.total_bookings : '—'}
+                    </span>
+                    <span className="rws-metric-label">Total Bookings</span>
+                  </div>
+                  <div className="rws-metric rws-metric--wide">
+                    <span className="rws-metric-value rws-metric-value--currency">
+                      {bookings?.commission_earned != null ? fmtCurrency(bookings.commission_earned) : '—'}
+                    </span>
+                    <span className="rws-metric-label">Commission Earned</span>
+                  </div>
+                </div>
+                {!isLoading && !hasBookingData && (
+                  <p className="rws-boards-empty">No bookings recorded for this talent yet.</p>
+                )}
+              </>
+            )}
+            <ProfileCompletionBar talent={t} />
           </div>
 
         </div>

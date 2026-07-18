@@ -259,7 +259,9 @@
 /* masthead icon buttons (carried forward) */
 .ag-topbar-icon { width: 34px; height: 34px; border: none; border-radius: 50%; background: transparent; color: #6b6256; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; text-decoration: none; transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); }
 .ag-topbar-icon:hover { background: rgba(0,0,0,0.04); color: var(--ag-ink); }
-.ag-icon-badge { position: absolute; top: 0; right: 0; background: var(--ag-gold); color: #16130D; font-size: 8.5px; font-weight: 700; border-radius: 9px; padding: 0 5px; box-shadow: 0 0 0 2px var(--ag-canvas); }
+/* Unread state: gold icon tint, no count bubble — count lives as plain text inside the opened dropdown. */
+.ag-topbar-icon--unread { color: var(--ag-pholio-gold); }
+.ag-topbar-icon--unread:hover { color: var(--ag-pholio-gold); }
 
 /* ---------- RIGHT COLUMN ---------- */
 .ag-rightcol { width: 280px; flex: none; border-left: 1px solid #e6ddcd; background: rgba(255,255,255,.5); padding: 22px 22px 28px; overflow-y: auto; position: relative; }
@@ -291,4 +293,4 @@
 .ag-shell--discover .ag-rightcol { background: rgba(1,1,0,.25); border-left-color: rgba(201,165,90,.10); }
 .ag-shell--discover .ag-topbar-icon { color: rgba(255,255,255,.6); }
 .ag-shell--discover .ag-topbar-icon:hover { background: rgba(255,255,255,.1); color: #fff; }
-.ag-shell--discover .ag-icon-badge { box-shadow: 0 0 0 2px #010100; }
+.ag-shell--discover .ag-topbar-icon--unread { color: var(--ag-pholio-gold); }

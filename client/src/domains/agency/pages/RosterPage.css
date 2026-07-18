@@ -55,17 +55,6 @@
   margin-right: 40px;
 }
 
-.ro-hero-eyebrow {
-  display: block;
-  font-family: 'Inter', sans-serif;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: #C9A55A;
-  margin-bottom: 8px;
-}
-
 .ro-hero-title {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 42px;
@@ -117,36 +106,6 @@
 .ro-hero-stat--gold     .ro-hero-stat-num { color: #C9A55A; }
 .ro-hero-stat--neutral  .ro-hero-stat-num { color: #16130D; }
 .ro-hero-stat--mute     .ro-hero-stat-num { color: #cfc3b5; }
-
-/* Add button */
-.ro-hero-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  background: #16130D;
-  color: #FAF8F5;
-  border: 1px solid #16130D;
-  border-radius: 6px;
-  padding: 11px 18px;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-left: 28px;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 6px 16px rgba(20, 18, 14, 0.14);
-}
-
-.ro-hero-add-btn:hover {
-  background: #C9A55A;
-  border-color: #C9A55A;
-  color: #16130D;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(184, 149, 106, 0.28);
-}
 
 /* ── Command Bar ── */
 .ro-command-bar {
@@ -461,6 +420,42 @@
   color: var(--ro-text-3);
 }
 
+/* Empty-roster CTA (AgencyEmptyState action) */
+.ro-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 18px;
+  background: var(--ag-gold);
+  color: var(--ag-black);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s var(--ro-ease);
+}
+
+.ro-empty-cta:hover { background: var(--ag-gold-hover); }
+
+/* ── Loading Skeleton ── */
+.ro-skel-card {
+  aspect-ratio: 3/4;
+  border-radius: 12px;
+  background: linear-gradient(100deg, rgba(0,0,0,0.04) 30%, rgba(0,0,0,0.07) 50%, rgba(0,0,0,0.04) 70%);
+  background-size: 200% 100%;
+  animation: ro-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes ro-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ro-skel-card { animation: none; }
+}
+
 /* ============================================================
    GRID VIEW — editorial portrait cards
    ============================================================ */
@@ -491,11 +486,6 @@
   border-color: rgba(201, 165, 90, 0.3);
 }
 
-.ro-card--selected {
-  border-color: rgba(201, 165, 90, 0.7);
-  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.14), 0 4px 16px rgba(0,0,0,0.12);
-}
-
 /* Photo fills 100% */
 .ro-card-photo {
   position: absolute;
@@ -508,6 +498,21 @@
 }
 
 .ro-card:hover .ro-card-photo { transform: scale(1.06); }
+
+/* Initials fallback when a talent has no cover image */
+.ro-card-photo--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ag-surface-4, #EDE9E3);
+  color: var(--ro-text-3);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 34px;
+  letter-spacing: 0.04em;
+  transition: none;
+}
+
+.ro-card:hover .ro-card-photo--fallback { transform: none; }
 
 /* Bottom gradient */
 .ro-card-shade {
@@ -533,18 +538,6 @@
   z-index: 4;
 }
 
-/* Insight left bar — colored by signal type */
-.ro-card-insight-bar {
-  position: absolute;
-  top: 42px;
-  bottom: 5px;
-  left: 0;
-  width: 3px;
-  background: var(--insight-color, transparent);
-  border-radius: 0 2px 2px 0;
-  z-index: 4;
-}
-
 /* Type pill — top right */
 .ro-card-type-pos {
   position: absolute;
@@ -552,19 +545,6 @@
   right: 10px;
   z-index: 3;
 }
-
-/* Checkbox — top left */
-.ro-card-check {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 5;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.ro-card:hover .ro-card-check,
-.ro-card--selected .ro-card-check { opacity: 1; }
 
 /* Identity overlay — bottom */
 .ro-card-identity {
@@ -609,22 +589,6 @@
   font-size: 10px;
   color: rgba(255,255,255,0.5);
   font-variant-numeric: tabular-nums;
-}
-
-/* Insight tag chip on card */
-.ro-card-insight-tag {
-  font-family: 'Inter', sans-serif;
-  font-size: 8.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--insight-color, #C9A55A);
-  background: rgba(0,0,0,0.55);
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 3px 7px;
-  border-radius: 3px;
-  align-self: flex-start;
-  margin-top: 3px;
 }
 
 /* ============================================================
@@ -699,35 +663,10 @@ div.ro-th { cursor: default; pointer-events: none; }
   margin-bottom: 1px;
 }
 
-/* Status-colored left accent bar */
-.ro-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-  opacity: 0;
-  transition: opacity 0.14s;
-}
-
-.ro-row:hover::before,
-.ro-row--active::before { opacity: 1; }
-
-/* Color by status */
-.ro-row[data-status="available"]::before  { background: #16A34A; }
-.ro-row[data-status="booking"]::before    { background: #C9A55A; }
-.ro-row[data-status="hold"]::before       { background: #3B82F6; }
-.ro-row[data-status="inactive"]::before   { background: #9CA3AF; }
-
 .ro-row:hover {
   background: var(--ro-surface);
   box-shadow: var(--ro-shadow);
 }
-
-.ro-row--selected { background: rgba(201, 165, 90, 0.05); }
-.ro-row--selected::before { opacity: 1; }
 
 .ro-row--active {
   background: var(--ro-surface);
@@ -735,48 +674,6 @@ div.ro-th { cursor: default; pointer-events: none; }
 }
 
 /* ── Row cells ── */
-.ro-col-check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Checkbox */
-.ro-checkbox {
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid rgba(0,0,0,0.18);
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.15s, background 0.15s;
-  flex-shrink: 0;
-  color: white;
-}
-
-.ro-row:hover .ro-checkbox,
-.ro-table-header .ro-checkbox {
-  border-color: rgba(201, 165, 90, 0.5);
-}
-
-.ro-checkbox--checked {
-  background: var(--ro-gold);
-  border-color: var(--ro-gold);
-}
-
-/* Dark checkbox variant (for cards over photo) */
-.ro-checkbox--dark {
-  border-color: rgba(255,255,255,0.6);
-  background: rgba(0,0,0,0.4);
-}
-
-.ro-checkbox--dark.ro-checkbox--checked {
-  background: var(--ro-gold);
-  border-color: var(--ro-gold);
-}
-
 .ro-col-avatar { display: flex; align-items: center; }
 
 /* Avatar with status ring */
@@ -797,6 +694,18 @@ div.ro-th { cursor: default; pointer-events: none; }
   transition: transform 0.2s;
 }
 
+/* Initials fallback avatar (no cover image) */
+.ro-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ag-surface-4, #EDE9E3);
+  color: var(--ro-text-2);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .ro-row:hover .ro-avatar { transform: scale(1.05); }
 
 .ro-avatar-status-ring {
@@ -807,7 +716,7 @@ div.ro-th { cursor: default; pointer-events: none; }
   height: 13px;
   border-radius: 50%;
   border: 2.5px solid var(--ro-canvas);
-  background: currentColor;
+  background: var(--ss-off);
 }
 
 .ro-col-name {
@@ -831,17 +740,6 @@ div.ro-th { cursor: default; pointer-events: none; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Insight pip on rows */
-.ro-insight-pip {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  cursor: help;
-  opacity: 0.85;
 }
 
 .ro-location {
@@ -899,8 +797,8 @@ div.ro-th { cursor: default; pointer-events: none; }
   color: var(--ro-text-2);
 }
 
-.ro-age--warn     { color: #B45309; }
-.ro-age--critical { color: #B91C1C; }
+.ro-age--warn     { color: var(--ag-warning, #C2850E); }
+.ro-age--critical { color: var(--ag-danger, #C0392B); }
 
 .ro-col-tags {
   display: flex;
@@ -1005,95 +903,6 @@ div.ro-th { cursor: default; pointer-events: none; }
 }
 
 /* ============================================================
-   BULK ACTION BAR
-   ============================================================ */
-
-.ro-bulk-bar {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  background: #16130D;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.24), 0 2px 8px rgba(0,0,0,0.12);
-  z-index: 60;
-  white-space: nowrap;
-}
-
-.ro-bulk-count {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 0 6px;
-}
-
-.ro-bulk-count-num {
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ro-gold);
-}
-
-.ro-bulk-count-label {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  color: rgba(255,255,255,0.45);
-}
-
-.ro-bulk-divider {
-  width: 1px;
-  height: 20px;
-  background: rgba(255,255,255,0.1);
-  margin: 0 4px;
-}
-
-.ro-bulk-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.ro-bulk-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 10px;
-  background: none;
-  border: none;
-  border-radius: 7px;
-  font-family: 'Inter', sans-serif;
-  font-size: 12.5px;
-  color: rgba(255,255,255,0.7);
-  cursor: pointer;
-  transition: background 0.14s, color 0.14s;
-}
-
-.ro-bulk-btn:hover { background: rgba(255,255,255,0.08); color: white; }
-.ro-bulk-btn--danger:hover { background: rgba(220,38,38,0.2); color: #FCA5A5; }
-
-.ro-bulk-clear {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.08);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: rgba(255,255,255,0.45);
-  margin-left: 4px;
-  transition: background 0.14s, color 0.14s;
-}
-
-.ro-bulk-clear:hover { background: rgba(255,255,255,0.14); color: white; }
-
-/* ============================================================
    RESPONSIVE
    ============================================================ */
 
@@ -1123,7 +932,6 @@ div.ro-th { cursor: default; pointer-events: none; }
     gap: 16px;
   }
   .ro-hero-stats { order: 3; width: 100%; }
-  .ro-hero-add-btn { margin-left: auto; }
 }
 
 @media (max-width: 640px) {
