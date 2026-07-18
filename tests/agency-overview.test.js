@@ -411,10 +411,14 @@ describe("query functions — data correctness", () => {
     await knex("applications").where("agency_id", AGENCY_USER_ID).delete();
     await knex("boards").where("agency_id", AGENCY_USER_ID).delete();
 
-    const now = new Date();
-    const fiveDaysAgo = new Date(now - 5 * 86400000);
-    const twentyDaysAgo = new Date(now - 20 * 86400000);
-    const fourWeeksAgo = new Date(now - 28 * 86400000);
+    // Insert ISO strings, never Date instances: Jest's sandboxed node realm
+    // breaks the sqlite3 driver's `instanceof Date` check, silently storing
+    // "[object Object]" and turning every date computation into NaN.
+    const nowDate = new Date();
+    const now = nowDate.toISOString();
+    const fiveDaysAgo = new Date(nowDate - 5 * 86400000).toISOString();
+    const twentyDaysAgo = new Date(nowDate - 20 * 86400000).toISOString();
+    const fourWeeksAgo = new Date(nowDate - 28 * 86400000).toISOString();
 
     // 3 submitted applications (2 recent, 1 overdue at 20 days)
     await knex("applications").insert([
@@ -480,9 +484,9 @@ describe("query functions — data correctness", () => {
 
     // 2 active boards (1 closing today)
     const todayStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate()),
     );
-    const todayMid = new Date(todayStart.getTime() + 43200000); // noon UTC today
+    const todayMid = new Date(todayStart.getTime() + 43200000).toISOString(); // noon UTC today
     await knex("boards").insert([
       {
         id: uuidv4(),

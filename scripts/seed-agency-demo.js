@@ -73,9 +73,12 @@ const TEAM = [
 
 const now = Date.now();
 const DAY = 86400000;
-const daysAgo = (d) => new Date(now - d * DAY);
-const hoursAgo = (h) => new Date(now - h * 3600000);
-const daysAhead = (d) => new Date(now + d * DAY);
+// ISO strings, not Date instances: the sqlite3 driver stores Date objects as
+// epoch-ms numbers, which silently never match the ISO-string comparisons the
+// app's queries use (e.g. boards closing today). PostgreSQL accepts ISO too.
+const daysAgo = (d) => new Date(now - d * DAY).toISOString();
+const hoursAgo = (h) => new Date(now - h * 3600000).toISOString();
+const daysAhead = (d) => new Date(now + d * DAY).toISOString();
 const ri = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
