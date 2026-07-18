@@ -26,3 +26,5 @@ test-*.sqlite3
 
 # Comp-card gallery rig artifacts (regenerate with npm run gallery)
 gallery/
+dev.sqlite3-journal
+*.sqlite3-journal
