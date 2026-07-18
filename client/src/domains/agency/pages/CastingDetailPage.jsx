@@ -147,7 +147,7 @@ function CastingDetailPage() {
           <div className="cd-headmeta">
             {board?.client_name && <span className="cas-client">{board.client_name}</span>}
             {board && (
-              <span className={`cd-statuspill cd-statuspill--${board.is_active === false ? 'closed' : 'open'}`}>
+              <span className={board.is_active === false ? 'cd-statustext cd-statustext--closed' : 'cd-statustext'}>
                 {board.is_active === false ? 'Closed' : 'Open'}
               </span>
             )}

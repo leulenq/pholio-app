@@ -17,6 +17,12 @@ import NotificationsDropdown from '../../domains/agency/components/nav/Notificat
 import { applyAgencyBrandTheme } from '../../domains/agency/lib/agency-branding';
 import './AgencyLayout.css';
 
+/** Fashion-calendar season from the current date: Jan–Jun -> SS{yy}, Jul–Dec -> FW{yy}. */
+function computeSeasonLabel(date = new Date()) {
+  const yy = String(date.getFullYear()).slice(-2);
+  return date.getMonth() <= 5 ? `SS${yy}` : `FW${yy}`;
+}
+
 function nowLabel() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -117,7 +123,7 @@ export default function AgencyLayout() {
   const profileWithMeta = { ...profile, member_count: team.length || undefined };
   const unreadMessages = threads.filter((t) => t.unread).length;
   const isDiscover = location.pathname.startsWith('/dashboard/agency/discover');
-  const season = 'SS26';
+  const season = computeSeasonLabel();
   // Cross-board context (agencies run many boards) — not anchored to one location/board.
   const activeBoards = kpis.activeCastings;
   const pipelineTotal = (overview?.pipeline || []).reduce((s, r) => s + (r.count || 0), 0);
