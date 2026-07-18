@@ -14,7 +14,6 @@ const routeNames = {
   '/dashboard/agency/overview': 'Overview',
   '/dashboard/agency/inbox': 'Submissions',
   '/dashboard/agency/discover': 'Scout',
-  '/dashboard/agency/boards': 'Castings',
   '/dashboard/agency/interviews': 'Interviews',
   '/dashboard/agency/reminders': 'Reminders',
   '/dashboard/agency/analytics': 'Insights',

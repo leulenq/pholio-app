@@ -213,9 +213,8 @@
    CASTING DETAIL — board review
    ============================================================ */
 .cd-headmeta { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
-.cd-statuspill { font-size: 8.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; border-radius: 4px; padding: 4px 9px; }
-.cd-statuspill--open { color: #6f8a74; background: rgba(125,155,130,.1); border: 1px solid rgba(125,155,130,.25); }
-.cd-statuspill--closed { color: #9b9082; background: rgba(20,17,11,.045); border: 1px solid #e7ddca; }
+.cd-statustext { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #6b6256; }
+.cd-statustext--closed { color: #C0392B; }
 .cd-brief { font-size: 13.5px; line-height: 1.6; color: #6b6256; margin: 16px 0 24px; max-width: 70ch; }
 .cd-filters { margin-top: 4px; }
 
@@ -245,10 +244,6 @@
 }
 .cd-match-badge {
   position: absolute !important; bottom: 10px; right: 12px; z-index: 2;
-}
-.cd-new {
-  position: absolute; top: 10px; left: 10px; font-size: 8px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-  color: #16130D; background: var(--ag-gold); border-radius: 3px; padding: 3px 7px;
 }
 .cd-hover {
   position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; gap: 8px; padding: 14px;
