@@ -1,185 +1,314 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, Clock, CheckCircle, RotateCcw, Trash2, AlertCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { Bell, Check, RotateCcw, Trash2, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { getReminders, completeReminder, snoozeReminder, deleteReminder } from '../api/agency';
 import { AgencyEmptyState } from './ui/AgencyEmptyState';
+import { AgencySkeleton } from './ui/AgencySkeleton';
 import { EmptyErrorState, ActionFailureNotice } from '../../../shared/components/states';
 
+const LANES = [
+  { key: 'overdue', label: 'Overdue', tone: 'danger' },
+  { key: 'dueToday', label: 'Due Today', tone: 'ink' },
+  { key: 'upcoming', label: 'Upcoming', tone: 'ink' },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const startOfDay = (value) => {
+  const d = new Date(value);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/** A reminder that's been snoozed is effectively due on `snoozed_until`. */
+function effectiveDue(reminder) {
+  if (reminder.status === 'snoozed' && reminder.snoozed_until) return reminder.snoozed_until;
+  return reminder.reminder_date || reminder.due_at || reminder.remind_at || null;
+}
+
+function reminderTitle(reminder) {
+  return reminder.title || reminder.note || 'Reminder';
+}
+
+function reminderNote(reminder) {
+  return reminder.notes || reminder.description || '';
+}
+
+function isCompleted(reminder) {
+  return reminder.status === 'completed' || reminder.completed === true;
+}
+
+function formatDue(dateStr) {
+  if (!dateStr) return 'No date';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return 'No date';
+  const diffDays = Math.round((startOfDay(d) - startOfDay(new Date())) / DAY_MS);
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  if (diffDays === -1) return 'Yesterday';
+  if (diffDays < -1) return `${Math.abs(diffDays)}d overdue`;
+  if (diffDays > 1 && diffDays < 7) return `In ${diffDays}d`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+const byDue = (asc) => (a, b) => {
+  const ta = Date.parse(effectiveDue(a)) || 0;
+  const tb = Date.parse(effectiveDue(b)) || 0;
+  return asc ? ta - tb : tb - ta;
+};
+
+/**
+ * ReminderList — the reminders ledger.
+ *
+ * Fetches every agency reminder and buckets it into Overdue / Due Today /
+ * Upcoming / Completed lanes (Interviews' lane vocabulary). Cancelled
+ * (soft-deleted) reminders are dropped. Completed collapses by default.
+ */
 export default function ReminderList() {
-  const [reminders, setReminders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
+  const qc = useQueryClient();
+  const [completedOpen, setCompletedOpen] = useState(false);
   const [actionError, setActionError] = useState(null);
 
-  const fetchReminders = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const data = await getReminders();
-      setReminders(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('[ReminderList] Error:', err);
-      setLoadError(err);
-      setReminders([]);
-    } finally {
-      setLoading(false);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['agency-reminders'],
+    queryFn: () => getReminders(),
+    staleTime: 30000,
+  });
+
+  const reminders = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+
+  const buckets = useMemo(() => {
+    const today = startOfDay(new Date());
+    const acc = { overdue: [], dueToday: [], upcoming: [], completed: [] };
+    for (const r of reminders) {
+      if (r.status === 'cancelled') continue; // soft-deleted
+      if (isCompleted(r)) {
+        acc.completed.push(r);
+        continue;
+      }
+      const due = effectiveDue(r);
+      if (!due) {
+        acc.upcoming.push(r);
+        continue;
+      }
+      const dueDay = startOfDay(due);
+      if (dueDay < today) acc.overdue.push(r);
+      else if (dueDay.getTime() === today.getTime()) acc.dueToday.push(r);
+      else acc.upcoming.push(r);
     }
-  }, []);
+    acc.overdue.sort(byDue(true));
+    acc.dueToday.sort(byDue(true));
+    acc.upcoming.sort(byDue(true));
+    acc.completed.sort(byDue(false));
+    return acc;
+  }, [reminders]);
 
-  useEffect(() => {
-    fetchReminders();
-  }, [fetchReminders]);
+  const refresh = () => qc.invalidateQueries({ queryKey: ['agency-reminders'] });
 
-  const runAction = async (label, fn) => {
-    setActionError(null);
-    try {
-      await fn();
-      await fetchReminders();
-    } catch (err) {
-      console.error(`${label} failed:`, err);
-      setActionError({ label, message: err?.message || `Could not ${label.toLowerCase()}.` });
-      toast.error(err?.message || `Failed to ${label.toLowerCase()}`);
-    }
-  };
+  const complete = useMutation({
+    mutationFn: (id) => completeReminder(id),
+    onSuccess: () => { toast.success('Reminder completed'); refresh(); },
+    onError: (err) => {
+      setActionError({ label: 'Complete reminder', message: err?.message || 'Could not complete reminder.' });
+      toast.error(err?.message || 'Could not complete reminder');
+    },
+  });
 
-  const handleComplete = (id) => runAction('Complete reminder', () => completeReminder(id));
-  const handleSnooze = (id) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return runAction('Snooze reminder', () => snoozeReminder(id, tomorrow.toISOString()));
-  };
-  const handleDelete = (id) => runAction('Delete reminder', () => deleteReminder(id));
+  const snooze = useMutation({
+    mutationFn: (id) => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return snoozeReminder(id, tomorrow.toISOString());
+    },
+    onSuccess: () => { toast.success('Reminder snoozed a day'); refresh(); },
+    onError: (err) => {
+      setActionError({ label: 'Snooze reminder', message: err?.message || 'Could not snooze reminder.' });
+      toast.error(err?.message || 'Could not snooze reminder');
+    },
+  });
 
-  if (loading) {
+  const remove = useMutation({
+    mutationFn: (id) => deleteReminder(id),
+    onSuccess: () => { toast.success('Reminder deleted'); refresh(); },
+    onError: (err) => {
+      setActionError({ label: 'Delete reminder', message: err?.message || 'Could not delete reminder.' });
+      toast.error(err?.message || 'Could not delete reminder');
+    },
+  });
+
+  const busy = complete.isPending || snooze.isPending || remove.isPending;
+  const hasAny = reminders.some((r) => r.status !== 'cancelled');
+  const activeCount = buckets.overdue.length + buckets.dueToday.length + buckets.upcoming.length;
+
+  if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 40, justifyContent: 'center', color: 'var(--agency-text-tertiary)' }}>
-        <div style={{ width: 18, height: 18, border: '2px solid var(--agency-border)', borderLeftColor: 'var(--agency-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        Loading reminders...
+      <div className="rm-loading-state">
+        <AgencySkeleton variant="strip" count={4} />
+        <AgencySkeleton variant="row" count={4} />
       </div>
     );
   }
 
-  if (loadError) {
+  if (isError) {
     return (
       <EmptyErrorState
         variant="compact"
         title="Could not load reminders"
         body="Your reminders did not load. Try again to refresh follow-ups."
-        retry={{ label: 'Try again', onClick: fetchReminders }}
+        retry={{ label: 'Try again', onClick: () => refetch() }}
       />
     );
   }
 
-  if (reminders.length === 0) {
+  if (!hasAny) {
     return (
       <AgencyEmptyState
         icon={Bell}
         title="No reminders"
-        description="Create reminders from Submissions to stay on top of follow-ups."
+        description="No reminders — set follow-ups from a talent's page to stay on top of outreach."
       />
     );
   }
 
-  const isOverdue = (dateStr) => {
-    if (!dateStr) return false;
-    return new Date(dateStr) < new Date();
-  };
+  const ledger = [
+    { key: 'overdue', label: 'Overdue', value: buckets.overdue.length, tone: buckets.overdue.length ? 'danger' : 'mute' },
+    { key: 'dueToday', label: 'Due Today', value: buckets.dueToday.length, tone: 'ink' },
+    { key: 'upcoming', label: 'Upcoming', value: buckets.upcoming.length, tone: 'ink' },
+    { key: 'completed', label: 'Completed', value: buckets.completed.length, tone: 'mute' },
+  ];
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'No date';
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = d - now;
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const renderRow = (reminder, i) => {
+    const due = effectiveDue(reminder);
+    const completedRow = isCompleted(reminder);
+    const overdue = !completedRow && !!due && startOfDay(due) < startOfDay(new Date());
+    const title = reminderTitle(reminder);
+    const note = reminderNote(reminder);
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays === -1) return 'Yesterday';
-    if (diffDays < -1) return `${Math.abs(diffDays)} days ago`;
-    if (diffDays < 7) return `In ${diffDays} days`;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return (
+      <motion.div
+        key={reminder.id}
+        className="rm-row"
+        data-overdue={overdue ? 'true' : undefined}
+        data-completed={completedRow ? 'true' : undefined}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1], delay: Math.min(i * 0.03, 0.24) }}
+      >
+        <div className="rm-row-body">
+          <span className="rm-row-title">{title}</span>
+          {(reminder.talent_name || note) && (
+            <span className="rm-row-meta">
+              {reminder.talent_name && <span className="rm-row-meta-item">{reminder.talent_name}</span>}
+              {note && (
+                <>
+                  {reminder.talent_name && <span className="rm-dot">·</span>}
+                  <span className="rm-row-meta-item">{note}</span>
+                </>
+              )}
+            </span>
+          )}
+        </div>
+
+        <span className="rm-row-due">{formatDue(due)}</span>
+
+        {!completedRow && (
+          <div className="rm-row-actions">
+            <button
+              type="button"
+              className="rm-act"
+              onClick={() => complete.mutate(reminder.id)}
+              disabled={busy}
+              aria-label={`Mark "${title}" complete`}
+            >
+              <Check size={14} />
+            </button>
+            <button
+              type="button"
+              className="rm-act"
+              onClick={() => snooze.mutate(reminder.id)}
+              disabled={busy}
+              aria-label={`Snooze "${title}" one day`}
+            >
+              <RotateCcw size={14} />
+            </button>
+            <button
+              type="button"
+              className="rm-act rm-act--danger"
+              onClick={() => remove.mutate(reminder.id)}
+              disabled={busy}
+              aria-label={`Delete "${title}"`}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )}
+      </motion.div>
+    );
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="rm-list">
       {actionError && (
         <ActionFailureNotice
           title={`${actionError.label} unavailable`}
           body={actionError.message}
-          retry={{ label: 'Try again', onClick: () => setActionError(null) }}
+          retry={{ label: 'Dismiss', onClick: () => setActionError(null) }}
         />
       )}
-      {reminders.map((reminder) => {
-        const overdue = isOverdue(reminder.due_at || reminder.remind_at);
-        const completed = reminder.completed || reminder.status === 'completed';
 
-        return (
-          <div
-            key={reminder.id}
-            style={{
-              background: 'var(--agency-bg-surface)',
-              border: `1px solid ${overdue && !completed ? 'var(--agency-danger)' : 'var(--agency-border)'}`,
-              borderRadius: 'var(--agency-radius-md)',
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              opacity: completed ? 0.5 : 1,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <div style={{
-              width: 36, height: 36, borderRadius: 8,
-              background: overdue && !completed ? 'rgba(220, 38, 38, 0.1)' : 'var(--agency-primary-light)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, color: overdue && !completed ? 'var(--agency-danger)' : 'var(--agency-primary)'
-            }}>
-              {completed ? <CheckCircle size={18} /> : overdue ? <AlertCircle size={18} /> : <Bell size={18} />}
-            </div>
+      <div className="rm-ledger">
+        {ledger.map((s) => (
+          <div key={s.key} className={`rm-stat rm-stat--${s.tone}`}>
+            <span className="rm-stat-num">{s.value}</span>
+            <span className="rm-stat-label">{s.label}</span>
+          </div>
+        ))}
+      </div>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontWeight: 500, fontSize: 14, color: 'var(--agency-text-primary)',
-                textDecoration: completed ? 'line-through' : 'none',
-                marginBottom: 2
-              }}>
-                {reminder.note || reminder.title || 'Reminder'}
+      <div className="rm-lanes">
+        {LANES.map((lane) => {
+          const items = buckets[lane.key];
+          if (items.length === 0) return null;
+          return (
+            <section className="rm-lane" key={lane.key} data-tone={lane.tone}>
+              <div className="rm-lane-head">
+                <h2 className="rm-lane-title">{lane.label}</h2>
+                <span className="rm-lane-count">{items.length}</span>
               </div>
-              <div style={{ fontSize: 12, color: overdue && !completed ? 'var(--agency-danger)' : 'var(--agency-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Clock size={12} />
-                {formatDate(reminder.due_at || reminder.remind_at)}
-                {reminder.talent_name && ` • ${reminder.talent_name}`}
+              <div className="rm-lane-rows">
+                {items.map((r, i) => renderRow(r, i))}
               </div>
-            </div>
+            </section>
+          );
+        })}
 
-            {!completed && (
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  onClick={() => handleComplete(reminder.id)}
-                  title="Complete"
-                  style={{ width: 30, height: 30, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--agency-success)' }}
-                >
-                  <CheckCircle size={16} />
-                </button>
-                <button
-                  onClick={() => handleSnooze(reminder.id)}
-                  title="Snooze 1 day"
-                  style={{ width: 30, height: 30, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--agency-text-tertiary)' }}
-                >
-                  <RotateCcw size={14} />
-                </button>
-                <button
-                  onClick={() => handleDelete(reminder.id)}
-                  title="Delete"
-                  style={{ width: 30, height: 30, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--agency-text-tertiary)' }}
-                >
-                  <Trash2 size={14} />
-                </button>
+        {activeCount === 0 && buckets.completed.length > 0 && (
+          <p className="rm-caughtup">All caught up.</p>
+        )}
+
+        {buckets.completed.length > 0 && (
+          <section className="rm-lane rm-lane--completed" data-tone="completed">
+            <button
+              type="button"
+              className="rm-lane-head rm-lane-head--toggle"
+              onClick={() => setCompletedOpen((v) => !v)}
+              aria-expanded={completedOpen}
+            >
+              <h2 className="rm-lane-title">Completed</h2>
+              <span className="rm-lane-count">{buckets.completed.length}</span>
+              <ChevronRight size={15} className={`rm-lane-chev${completedOpen ? ' rm-lane-chev--open' : ''}`} />
+            </button>
+            {completedOpen && (
+              <div className="rm-lane-rows rm-lane-rows--muted">
+                {buckets.completed.map((r, i) => renderRow(r, i))}
               </div>
             )}
-          </div>
-        );
-      })}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

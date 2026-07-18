@@ -190,53 +190,16 @@
   --ag-kanban-card-gap: 8px;
 
   /* ============================================================
-     Legacy aliases — maps old --agency-* tokens to new --ag-*
-     Used by sub-pages (Boards, Discover, Analytics, etc.)
-     TODO(orchestrator): delete once zero consumers remain — do not add new usages.
+     Agency branding hooks — runtime variables overridden on
+     .ag-shell by applyAgencyBrandTheme. NOT legacy; keep.
+     (The old --agency-* alias family is deleted — use --ag-*.)
      ============================================================ */
-  /* Agency workspace accent — defaults match Pholio gold; overridden on .ag-shell when branded */
   --agency-primary: #C9A55A;
   --agency-primary-hover: #B8956A;
   --agency-primary-light: rgba(201, 165, 90, 0.08);
-  --agency-gold: var(--ag-gold);
-  --agency-gold-hover: var(--ag-gold-hover);
-
-  --agency-success: var(--ag-success);
-  --agency-danger: var(--ag-danger);
-  --agency-warning: var(--ag-warning);
-  --agency-info: var(--ag-info);
-
-  --agency-bg-canvas: var(--ag-surface-0);
-  --agency-bg-surface: var(--ag-surface-1);
-  --agency-bg-elevated: var(--ag-surface-3);
-  --agency-border: var(--ag-border);
-  --agency-border-hover: var(--ag-border-hover);
-
-  --agency-text-primary: var(--ag-text-0);
-  --agency-text-secondary: var(--ag-text-2);
-  --agency-text-tertiary: var(--ag-text-3);
-
-  --agency-shadow-sm: var(--ag-shadow-sm);
-  --agency-shadow-md: var(--ag-shadow-md);
-  --agency-shadow-lg: var(--ag-shadow-lg);
   --agency-shadow-focus: 0 0 0 3px rgba(201, 165, 90, 0.15);
 
-  --agency-transition-fast: var(--ag-duration-fast) var(--ag-ease);
-  --agency-transition-normal: var(--ag-duration) var(--ag-ease);
-
-  --agency-spacing-xs: 0.5rem;
-  --agency-spacing-sm: 0.75rem;
-  --agency-spacing-md: 1rem;
-  --agency-spacing-lg: 1.5rem;
-  --agency-spacing-xl: 2rem;
-  --agency-spacing-2xl: 2.5rem;
-  --agency-spacing-3xl: 3rem;
-
-  --agency-radius-sm: var(--ag-radius-sm);
-  --agency-radius-md: var(--ag-radius-md);
-  --agency-radius-lg: var(--ag-radius-lg);
-  --agency-radius-xl: var(--ag-radius-xl);
-
+  /* Cross-domain font aliases (talent + onboarding consume these; keep) */
   --font-display: var(--ag-font-display);
   --font-body: var(--ag-font-body);
 

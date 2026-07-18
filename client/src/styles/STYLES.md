@@ -49,7 +49,7 @@ Loaded first (before index.css) so every subsequent rule can reference `--ag-*`.
 | Spacing | `--ag-page-x/y`, `--ag-card-pad`, `--ag-gap` | Page and card gutters |
 | Z-index | `--ag-z-base/dropdown/panel/modal/toast` | 1 / 20 / 40 / 100 / 200 |
 | Kanban | `--ag-kanban-col-min`, `--ag-kanban-card-gap` | |
-| Legacy aliases | `--agency-*` | All forward to `--ag-*`; kept for older sub-page CSS |
+| Branding hooks | `--agency-primary/-hover/-light`, `--agency-shadow-focus` | Runtime agency-brand accent, overridden on `.ag-shell`; the old `--agency-*` alias family is deleted — use `--ag-*` |
 | Error primitives | `--ph-error-*` | Shared across agency and talent error states; bridge between the two token systems |
 
 ---
