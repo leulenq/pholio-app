@@ -15,7 +15,8 @@ export default function MemberAccountChip({ profile, role }) {
   const last = profile?.last_name || '';
   const name = [first, last].filter(Boolean).join(' ') || profile?.email?.split('@')[0] || 'Member';
   const roleLabel = formatRole(role || profile?.membership_role);
-  const avatar = profile?.images?.[0]?.path ? `/${profile.images[0].path}` : null;
+  const avatar = profile?.avatar_url
+    || (profile?.images?.[0]?.path ? `/${profile.images[0].path}` : null);
   const ini = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'ME';
 
   useEffect(() => {
@@ -26,8 +27,14 @@ export default function MemberAccountChip({ profile, role }) {
   }, [open]);
 
   return (
-    <div className="ag-rail-footer" ref={ref}>
-      <button className="ag-member" onClick={() => setOpen((o) => !o)} aria-haspopup="true" aria-expanded={open}>
+    <div className={`ag-rail-footer${open ? ' ag-rail-footer--menu-open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className="ag-member"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
         {avatar
           ? <img className="ag-member-avatar" src={avatar} alt="" />
           : <span className="ag-member-avatar">{ini}</span>}
@@ -35,9 +42,9 @@ export default function MemberAccountChip({ profile, role }) {
           <span className="ag-member-name" style={{ display: 'block' }}>{name}</span>
           <span className="ag-member-role">{roleLabel}</span>
         </span>
-        <ChevronDown size={14} className="ag-member-chev" />
+        <ChevronDown size={14} className={`ag-member-chev${open ? ' ag-member-chev--open' : ''}`} aria-hidden="true" />
       </button>
-      <UserDropdown isOpen={open} onClose={() => setOpen(false)} profile={profile} />
+      <UserDropdown isOpen={open} onClose={() => setOpen(false)} />
     </div>
   );
 }

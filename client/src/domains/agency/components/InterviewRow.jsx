@@ -89,9 +89,9 @@ export default function InterviewRow({ interview, index = 0 }) {
     <motion.div
       className="iv-row"
       data-tone={state.tone}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 55, damping: 16, delay: Math.min(index * 0.035, 0.3) }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1], delay: Math.min(index * 0.035, 0.3) }}
     >
       <span className="iv-mono">{monogram(interview.talent_name)}</span>
 

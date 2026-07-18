@@ -24,9 +24,13 @@
 .tact-btn--danger { color: #c0563f; }
 .tact-btn--danger:hover { border-color: #c0563f; }
 
-/* board picker */
+/* compact (panel) row — primary decision grows, rest stay tight */
+.tact-row--compact { flex-wrap: wrap; gap: 8px; }
+.tact-btn--grow { flex: 1 1 auto; }
+
+/* dropdown menu (board picker + "More" overflow) */
 .tact-board { position: relative; }
-.tact-board-menu {
+.tact-menu {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -36,20 +40,20 @@
   overflow-y: auto;
   background: #fff;
   border: 1px solid #e4ddcd;
-  border-top: 2px solid var(--ag-gold, #C9A55A);
   border-radius: 5px;
   box-shadow: 0 14px 40px rgba(20, 18, 14, 0.18);
   padding: 6px;
 }
-.tact-board-head {
+.tact-menu--right { left: auto; right: 0; }
+.tact-menu-head {
   font-size: 8.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #9b9082;
   padding: 7px 10px 9px;
 }
-.tact-board-empty { font-size: 12px; color: #9b9082; padding: 8px 10px; }
-.tact-board-item {
+.tact-menu-empty { font-size: 12px; color: #9b9082; padding: 8px 10px; }
+.tact-menu-item {
   display: block;
   width: 100%;
   text-align: left;
@@ -62,4 +66,8 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.tact-board-item:hover { background: rgba(201, 165, 90, 0.1); }
+.tact-menu-item:hover:not(:disabled) { background: rgba(201, 165, 90, 0.1); }
+.tact-menu-item:disabled { color: #b3a89a; cursor: default; }
+.tact-menu-item--icon { display: flex; align-items: center; gap: 9px; }
+.tact-menu-item--icon svg { color: var(--ag-gold-hover, #B8956A); flex: none; }
+.tact-menu-item:disabled svg { color: #cabfad; }

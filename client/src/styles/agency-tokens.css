@@ -166,6 +166,14 @@
   --ag-score-mid: var(--ag-success);
   --ag-score-low: var(--ag-text-3);
 
+  /* ── Match strength spectrum ── */
+  --ag-match-exc: #E11D48; --ag-match-exc-tone: #FF476C;
+  --ag-match-str: #006EE6; --ag-match-str-tone: #3CCBFF;
+  --ag-match-fair: #D94800; --ag-match-fair-tone: #FF7A2F;
+  --ag-match-low: #344054; --ag-match-low-tone: #C2CFDF;
+  --ag-match-chip: rgba(16, 13, 9, 0.78);
+  --ag-match-chip-border: rgba(255, 255, 255, 0.18);
+
   /* ── Kanban ── */
   --ag-kanban-col-min: 220px;
   --ag-kanban-card-gap: 8px;

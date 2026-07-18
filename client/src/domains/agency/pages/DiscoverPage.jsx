@@ -18,16 +18,17 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, Sparkles, AlignLeft } from 'lucide-react';
+import { X, ArrowRight, ArrowUp, Sparkles, AlignLeft } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/agency';
-import { predictCompletion, suggestRefinements } from '../lib/intentParser';
+import { predictCompletion } from '../lib/intentParser';
 import { resolveMatchScore, tierBandToScore, constraintAnnotations, amendBriefRemove } from '../lib/discoverMatch';
 import MatchScore from '../components/ui/MatchScore';
 import BriefUnderstanding from '../components/BriefUnderstanding';
 import { DiscoverDetail } from './DiscoverDetail';
+import Grainient from './Grainient';
 import './DiscoverPage.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,25 +50,7 @@ const realBio = (b) => {
   return t;
 };
 
-const RECENT_KEY = 'pholio.discover.recent';
 const PAGE_SIZE = 30;
-
-function loadRecent() {
-  try {
-    const raw = localStorage.getItem(RECENT_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.filter((s) => typeof s === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-function pushRecent(text) {
-  const t = (text || '').trim();
-  if (!t) return loadRecent();
-  const next = [t, ...loadRecent().filter((s) => s.toLowerCase() !== t.toLowerCase())].slice(0, 10);
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-  return next;
-}
 
 function mapTalent(p, invitedIds) {
   // tier_band is the only ranking signal launch mode exposes; legacy shapes fall
@@ -148,10 +131,11 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
         : <div className="dc-card-img dc-card-img--empty"><span>{talent.name.charAt(0)}</span></div>}
       <div className="dc-card-shade" />
 
+      {talent.resonance != null && <MatchScore score={talent.resonance} size="sm" tone="overlay" className="dc-card-score" />}
+
       <div className="dc-card-body">
         <div className="dc-card-namerow">
           <h3 className="dc-card-name">{talent.name}</h3>
-          {talent.resonance != null && <MatchScore score={talent.resonance} size="sm" tone="overlay" className="dc-card-score" />}
         </div>
         <div className="dc-card-line">
           <span className="dc-card-arch">{talent.archetype}</span>
@@ -220,12 +204,10 @@ export default function DiscoverPage() {
   const [promptIdx, setPromptIdx] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
   const [selected, setSelected] = useState(null);
-  const [recent, setRecent] = useState(loadRecent);
   const [invitedIds, setInvitedIds] = useState(() => new Set());
   const inputRef = useRef(null);
 
   const completion = useMemo(() => predictCompletion(query), [query]);
-  const suggestions = useMemo(() => suggestRefinements(query), [query]);
 
   // Cycle the placeholder prompts.
   useEffect(() => {
@@ -280,9 +262,6 @@ export default function DiscoverPage() {
   const understanding = v2?.understanding || null;
   const semanticActive = data?.meta?.semantic_search === true || isLaunch;
 
-  // Panel opens on any focus — suggestions are always ready.
-  const intelOpen = isFocused && !briefMode;
-
   // Build render groups. Launch: server groups[] in order. Legacy: one flat group.
   const groups = useMemo(() => {
     if (v2) {
@@ -325,7 +304,6 @@ export default function DiscoverPage() {
     const t = (text || '').trim();
     setQuery(t);
     setLimit(PAGE_SIZE);
-    if (t) setRecent(pushRecent(t));
     applyUrl(t, false); // URL change drives submitted / includeOutside
   };
 
@@ -370,14 +348,35 @@ export default function DiscoverPage() {
     }
   };
 
-  const applySuggestion = (item) => runSearch(item.value);
-
   const showBrief = isLaunch && !!submitted;
   const showBriefLoading = !!submitted && isFetching && !data;
 
   return (
-    <div className="dc-page">
-      <div className="dc-bg" aria-hidden="true" />
+    <div className={`dc-page${isFocused ? ' dc-page--searching' : ''}`}>
+      {/* Background — kept */}
+      <div className="dc-bg" aria-hidden="true">
+        <Grainient
+          color1="#C9A55A" color2="#3D2000" color3="#6B4A10"
+          timeSpeed={0.8} colorBalance={0.4} warpStrength={1.2}
+          warpFrequency={3.5} warpSpeed={2.2} warpAmplitude={70}
+          blendAngle={-20} blendSoftness={0.45} rotationAmount={280}
+          noiseScale={2.2} grainAmount={0} grainScale={0}
+          grainAnimated={false} contrast={1.5} gamma={0.55}
+          saturation={0.85} centerX={0.3} centerY={0.15} zoom={1}
+        />
+        <div className="dc-bg-veil" />
+      </div>
+      <div className="dc-neural" aria-hidden="true" />
+
+      {/* Search aurora — lives in the page's background stack (not inside the
+          bar) so it screen-blends against the Grainient itself rather than
+          being isolated inside the bar's stacking context. */}
+      <div className="dc-search-aurora" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
 
       {/* ── Threshold ── */}
       <section className="dc-threshold">
@@ -395,6 +394,19 @@ export default function DiscoverPage() {
 
           <form className={`dc-bar${isFocused ? ' dc-bar--on' : ''}`} onSubmit={onSubmit}>
             <div className={`dc-bar-shell${briefMode ? ' dc-bar-shell--brief' : ''}`}>
+              <svg className="dc-bar-spark" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 2c.4 4.8 2.2 6.6 7 7-4.8.4-6.6 2.2-7 7-.4-4.8-2.2-6.6-7-7 4.8-.4 6.6-2.2 7-7z"
+                  fill="url(#dcSparkGrad)"
+                />
+                <defs>
+                  <linearGradient id="dcSparkGrad" x1="5" y1="2" x2="19" y2="16">
+                    <stop stopColor="#F0D491" />
+                    <stop offset="0.55" stopColor="#D9B46A" />
+                    <stop offset="1" stopColor="#9B72CB" />
+                  </linearGradient>
+                </defs>
+              </svg>
               <div className="dc-bar-field">
                 <textarea
                   ref={inputRef}
@@ -453,55 +465,10 @@ export default function DiscoverPage() {
                 )}
               </AnimatePresence>
               <button type="submit" className="dc-bar-go" aria-label="Search">
-                <ArrowRight size={16} strokeWidth={2.2} />
+                <ArrowUp size={18} strokeWidth={2.4} />
               </button>
             </div>
 
-            {/* ── Intent intelligence — recent searches, then canned briefs ── */}
-            <AnimatePresence>
-              {intelOpen && (
-                <motion.div
-                  className="dc-intel"
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  {recent.length > 0 && (
-                    <div className="dc-intel-recent">
-                      <span className="dc-intel-recent-label">Recent</span>
-                      {recent.slice(0, 6).map((r) => (
-                        <button
-                          key={r}
-                          type="button"
-                          className="dc-intel-recent-row"
-                          onClick={() => runSearch(r)}
-                        >
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="dc-intel-list">
-                    {suggestions.map((item, i) => (
-                      <button
-                        key={item.value}
-                        type="button"
-                        className="dc-intel-row"
-                        onClick={() => applySuggestion(item)}
-                      >
-                        <span className="dc-intel-row-idx">
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        <span className="dc-intel-row-text">{item.label}</span>
-                        <ArrowRight size={13} className="dc-intel-row-arrow" strokeWidth={1.75} />
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </form>
 
           {/* ── Brief understanding — provenance + editable chips (launch) ── */}

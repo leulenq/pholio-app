@@ -1,16 +1,24 @@
 import React, { useMemo, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   createTalentRecord,
   fetchRoster,
-  fetchRosterProfile,
   getBoards,
-  updateRosterMembership,
 } from '../api/agency';
 import { AgencyButton, AgencyModal, SkeletonRow, StatusText } from '../components/ui';
+import RosterDetailDrawer from '../components/RosterDetailDrawer';
 import { EmptyErrorState } from '../../../shared/components/states';
+import {
+  STAGE_LABELS,
+  normalizeStatusKey,
+  cmToImperial,
+  measurementSummary,
+  measurementAge,
+  measurementFreshness,
+} from './rosterFormat';
 import './RosterPage.css';
 
 const PAGE_SIZE = 30;
@@ -30,36 +38,15 @@ const EMPTY_FORM = Object.freeze({
   stage: 'main',
 });
 
-function normalizeStatusKey(value) {
-  return String(value || 'unknown').trim().toLowerCase().replaceAll(' ', '_');
-}
-
-function cmToImperial(cm) {
-  const numeric = Number(cm);
-  if (!Number.isFinite(numeric) || numeric <= 0) return null;
-  const inches = numeric / 2.54;
-  const feet = Math.floor(inches / 12);
-  return `${feet}′ ${Math.round(inches - feet * 12)}″`;
-}
-
-function measurementSummary(item) {
-  const values = item.measurements || {};
-  const ordered = [values.chest_cm || values.bust_cm, values.waist_cm, values.hips_cm]
-    .map(Number)
-    .filter((value) => Number.isFinite(value) && value > 0);
-  if (!ordered.length) return 'Measurements incomplete';
-  return `${ordered.join(' / ')} cm · ${ordered.map((value) => Math.round(value / 2.54)).join(' / ')} in`;
-}
-
-function measurementAge(timestamp) {
-  if (!timestamp) return 'Date not recorded';
-  const ageDays = Math.floor((Date.now() - new Date(timestamp).getTime()) / 86400000);
-  if (!Number.isFinite(ageDays) || ageDays < 0) return 'Recently updated';
-  if (ageDays < 31) return `Updated ${Math.max(1, ageDays)}d ago`;
-  return `Updated ${Math.floor(ageDays / 30)}mo ago`;
-}
-
 function RosterRow({ item, selected, onSelect }) {
+  const division = item.board?.name || 'Unassigned';
+  const stage = STAGE_LABELS[item.stage] || STAGE_LABELS.main;
+  const freshness = measurementFreshness(item.measurementsUpdatedAt);
+  const height = item.heightCm
+    ? `${item.heightCm} cm · ${cmToImperial(item.heightCm)}`
+    : 'Height missing';
+  const measurements = measurementSummary(item);
+
   return (
     <button
       type="button"
@@ -75,19 +62,29 @@ function RosterRow({ item, selected, onSelect }) {
             {item.name.slice(0, 2).toUpperCase()}
           </span>
         )}
-        <span>
+        <span className="ag-roster-person-text">
           <strong>{item.name}</strong>
           <span>{item.location || 'Market not recorded'}</span>
         </span>
       </span>
-      <span>{item.board?.name || 'Unassigned'}</span>
-      <span>{item.stage === 'new_face' ? 'New Face' : item.stage === 'development' ? 'Development' : 'Main'}</span>
-      <StatusText status={normalizeStatusKey(item.availability)} />
-      <span className="ag-roster-measurements">
-        {item.heightCm ? `${item.heightCm} cm · ${cmToImperial(item.heightCm)}` : 'Height not recorded'}
-        <small>{measurementSummary(item)}</small>
+      <span className="ag-roster-cell">
+        <span className={`ag-roster-tag${item.board?.name ? '' : ' is-empty'}`} title={division}>{division}</span>
       </span>
-      <span>{measurementAge(item.measurementsUpdatedAt)}</span>
+      <span className="ag-roster-cell">
+        <span className={`ag-roster-stagetag ag-roster-stagetag--${item.stage || 'main'}`}>{stage}</span>
+      </span>
+      <span className="ag-roster-cell">
+        <StatusText className="ag-roster-avail" status={normalizeStatusKey(item.availability)} label={item.availability} />
+      </span>
+      <span className="ag-roster-cell">
+        <span className="ag-roster-measure" title={`${height}. ${measurements}`}>
+          <span className={item.heightCm ? 'ag-roster-measure-height' : 'ag-roster-measure-height is-missing'}>{height}</span>
+          <small>{measurements}</small>
+        </span>
+      </span>
+      <span className={`ag-roster-fresh ag-roster-fresh--${freshness.tone}`} title={measurementAge(item.measurementsUpdatedAt)}>
+        {freshness.label}
+      </span>
     </button>
   );
 }
@@ -185,93 +182,6 @@ function TalentRecordForm({ boards, onClose, onCreated }) {
   );
 }
 
-function RosterDetail({ item, boards, onClose, onChanged }) {
-  const detailQuery = useQuery({
-    queryKey: ['agency', 'roster-detail', item.id],
-    queryFn: () => fetchRosterProfile(item.id),
-  });
-  const mutation = useMutation({
-    mutationFn: (updates) => updateRosterMembership(item.id, updates),
-    onSuccess: () => {
-      onChanged();
-      toast.success('Roster updated');
-    },
-  });
-  const detail = detailQuery.data;
-
-  return (
-    <aside className="ag-roster-detail" aria-label={`${item.name} roster details`}>
-      <div className="ag-roster-detail-head">
-        <div>
-          <h2>{item.name}</h2>
-          <p>{item.source === 'agency_private' ? 'Private agency record' : 'Pholio profile'}</p>
-        </div>
-        <button type="button" onClick={onClose} aria-label="Close roster details"><X size={18} /></button>
-      </div>
-      {detailQuery.isLoading ? <SkeletonRow lines={5} /> : null}
-      {detailQuery.isError ? (
-        <EmptyErrorState title="Details could not be loaded" actionLabel="Try again" onAction={() => detailQuery.refetch()} />
-      ) : null}
-      {detail ? (
-        <div className="ag-roster-detail-body">
-          <section>
-            <h3>Division and stage</h3>
-            <label>
-              Division
-              <select
-                value={detail.membership?.board_id || ''}
-                onChange={(event) => mutation.mutate({ boardId: event.target.value || null })}
-                disabled={mutation.isPending}
-              >
-                <option value="">Unassigned</option>
-                {boards.map((board) => <option value={board.id} key={board.id}>{board.name}</option>)}
-              </select>
-            </label>
-            <label>
-              Stage
-              <select
-                value={detail.membership?.stage || 'main'}
-                onChange={(event) => mutation.mutate({ stage: event.target.value })}
-                disabled={mutation.isPending}
-              >
-                <option value="main">Main</option>
-                <option value="development">Development</option>
-                <option value="new_face">New Face</option>
-              </select>
-            </label>
-          </section>
-          <section>
-            <h3>Measurements</h3>
-            <p>{item.heightCm ? `${item.heightCm} cm · ${cmToImperial(item.heightCm)}` : 'Height not recorded'}</p>
-            <p>{measurementSummary(item)}</p>
-            <p>{measurementAge(item.measurementsUpdatedAt)}</p>
-          </section>
-          {Array.isArray(detail.commitments) && detail.commitments.length ? (
-            <section>
-              <h3>Current and recent commitments</h3>
-              <ul>
-                {detail.commitments.slice(0, 6).map((commitment) => (
-                  <li key={commitment.id}>
-                    <strong>{commitment.kind === 'bookout' ? 'Booked out' : commitment.kind}</strong>
-                    <span>{commitment.start_date || 'Date pending'} — {commitment.end_date || 'Date pending'}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          <AgencyButton
-            variant="secondary"
-            onClick={() => mutation.mutate({ status: 'inactive' })}
-            loading={mutation.isPending}
-          >
-            Move to inactive
-          </AgencyButton>
-        </div>
-      ) : null}
-    </aside>
-  );
-}
-
 export default function RosterPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -357,37 +267,44 @@ export default function RosterPage() {
         </label>
       </section>
 
-      <div className={`ag-roster-workspace${selected ? ' has-detail' : ''}`}>
-        <section className="ag-roster-list" aria-busy={rosterQuery.isFetching}>
-          <div className="ag-roster-columns" aria-hidden="true">
-            <span>Talent</span><span>Division</span><span>Stage</span><span>Availability</span><span>Measurements</span><span>Updated</span>
-          </div>
-          {rosterQuery.isLoading ? Array.from({ length: 6 }, (_, index) => <SkeletonRow key={index} lines={2} />) : null}
-          {rosterQuery.isError ? (
-            <EmptyErrorState title="Roster could not be loaded" actionLabel="Try again" onAction={() => rosterQuery.refetch()} />
-          ) : null}
-          {!rosterQuery.isLoading && !rosterQuery.isError && items.length === 0 ? (
-            <div className="ag-roster-empty">
-              <h2>{search || boardId || stage ? 'No talent match these filters' : 'Your roster is ready for its first talent'}</h2>
-              <p>{search || boardId || stage ? 'Adjust the search or division filters.' : 'Add an existing agency talent record or sign someone from Submissions.'}</p>
-              {!search && !boardId && !stage ? <AgencyButton onClick={() => setAddOpen(true)}>Add talent</AgencyButton> : null}
-            </div>
-          ) : null}
-          {items.map((item) => (
-            <RosterRow key={item.id} item={item} selected={selected?.id === item.id} onSelect={setSelected} />
-          ))}
-          {pagination && pagination.totalPages > 1 ? (
-            <nav className="ag-roster-pagination" aria-label="Roster pages">
-              <button type="button" onClick={() => setPage((value) => value - 1)} disabled={page <= 1} aria-label="Previous page"><ChevronLeft size={16} /></button>
-              <span>Page {page} of {pagination.totalPages}</span>
-              <button type="button" onClick={() => setPage((value) => value + 1)} disabled={!pagination.hasNextPage} aria-label="Next page"><ChevronRight size={16} /></button>
-            </nav>
-          ) : null}
-        </section>
-        {selected ? (
-          <RosterDetail item={selected} boards={boards} onClose={() => setSelected(null)} onChanged={() => { refresh(); setSelected(null); }} />
+      <section className="ag-roster-list" aria-busy={rosterQuery.isFetching}>
+        <div className="ag-roster-columns" aria-hidden="true">
+          <span>Talent</span><span>Division</span><span>Stage</span><span>Availability</span><span>Measurements</span><span>Updated</span>
+        </div>
+        {rosterQuery.isLoading ? Array.from({ length: 6 }, (_, index) => <SkeletonRow key={index} lines={2} />) : null}
+        {rosterQuery.isError ? (
+          <EmptyErrorState title="Roster could not be loaded" actionLabel="Try again" onAction={() => rosterQuery.refetch()} />
         ) : null}
-      </div>
+        {!rosterQuery.isLoading && !rosterQuery.isError && items.length === 0 ? (
+          <div className="ag-roster-empty">
+            <h2>{search || boardId || stage ? 'No talent match these filters' : 'Your roster is ready for its first talent'}</h2>
+            <p>{search || boardId || stage ? 'Adjust the search or division filters.' : 'Add an existing agency talent record or sign someone from Submissions.'}</p>
+            {!search && !boardId && !stage ? <AgencyButton onClick={() => setAddOpen(true)}>Add talent</AgencyButton> : null}
+          </div>
+        ) : null}
+        {items.map((item) => (
+          <RosterRow key={item.id} item={item} selected={selected?.id === item.id} onSelect={setSelected} />
+        ))}
+        {pagination && pagination.totalPages > 1 ? (
+          <nav className="ag-roster-pagination" aria-label="Roster pages">
+            <button type="button" onClick={() => setPage((value) => value - 1)} disabled={page <= 1} aria-label="Previous page"><ChevronLeft size={16} /></button>
+            <span>Page {page} of {pagination.totalPages}</span>
+            <button type="button" onClick={() => setPage((value) => value + 1)} disabled={!pagination.hasNextPage} aria-label="Next page"><ChevronRight size={16} /></button>
+          </nav>
+        ) : null}
+      </section>
+
+      <AnimatePresence>
+        {selected ? (
+          <RosterDetailDrawer
+            key={selected.id}
+            item={selected}
+            boards={boards}
+            onClose={() => setSelected(null)}
+            onChanged={refresh}
+          />
+        ) : null}
+      </AnimatePresence>
 
       <AgencyModal open={addOpen} onClose={() => setAddOpen(false)} title="Add talent to roster">
         <TalentRecordForm

@@ -30,18 +30,20 @@
 .cas-stat--mute .cas-stat-num { color: #b3a89a; }
 
 /* ---------- FILTERS ---------- */
-.cas-filters { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+.cas-filters { display: flex; align-items: stretch; margin-bottom: 22px; border-bottom: 1px solid var(--ag-border); flex-wrap: wrap; }
 .cas-chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,.55); border: 1px solid #e7ddca; border-radius: 999px;
-  padding: 7px 15px; cursor: pointer; white-space: nowrap;
+  position: relative; border: 0; border-left: 1px solid var(--ag-border); background: transparent;
+  padding: 12px 20px 14px; cursor: pointer; white-space: nowrap;
   font-size: 12px; font-weight: 600; color: #6b6256;
-  transition: border-color .18s, background .18s, color .18s, box-shadow .18s;
+  transition: background .18s, color .18s;
 }
-.cas-chip:hover { border-color: var(--ag-gold); }
-.cas-chip--on { background: #16130D; border-color: #16130D; color: #FAF8F5; box-shadow: 0 6px 16px rgba(20,18,14,.16); }
-.cas-chip-count { font-size: 10px; font-weight: 700; color: #b3a89a; }
-.cas-chip--on .cas-chip-count { color: var(--ag-gold); }
+.cas-chip:first-child { border-left: 0; padding-left: 0; }
+.cas-chip::after { content: ''; position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: transparent; }
+.cas-chip:first-child::after { left: 0; }
+.cas-chip:hover { background: var(--ag-surface-2); color: var(--ag-text-0); }
+.cas-chip--on { color: var(--ag-text-0); }
+.cas-chip--on::after { background: var(--ag-gold); }
+.cas-chip:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px rgba(201,165,90,.45); }
 
 /* ---------- CASTING LIST ---------- */
 .cas-list { display: flex; flex-direction: column; gap: 12px; }
@@ -50,16 +52,16 @@
   background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.64));
   border: 1px solid #ece4d4; border-radius: 16px; padding: 22px 28px; cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 6px 18px rgba(20,18,14,.04);
-  transition: transform .24s cubic-bezier(0.4,0,0.2,1), box-shadow .24s, border-color .24s;
+  transition: background .24s, box-shadow .24s, border-color .24s;
   overflow: hidden;
 }
 /* warm gold wash on hover */
 .cas-card::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  background: radial-gradient(130% 90% at 100% 0%, rgba(201,165,90,.07), transparent 58%);
+  background: radial-gradient(130% 90% at 100% 0%, rgba(201,165,90,.16), transparent 62%);
   transition: opacity .24s;
 }
-.cas-card:hover { transform: translateY(-3px); box-shadow: 0 22px 48px rgba(20,18,14,.12); border-color: #e4dcc9; }
+.cas-card:hover { box-shadow: 0 8px 20px rgba(201,165,90,.18); border-color: rgba(201,165,90,.52); }
 .cas-card:hover::after { opacity: 1; }
 
 .cas-card-id { min-width: 0; position: relative; }

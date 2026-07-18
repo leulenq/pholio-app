@@ -1,12 +1,11 @@
 /**
  * Casting Call Routes — talent onboarding API
  *
- * Flow: entry → birthdate → gender → scout → measurements → profile → done
- * (birthdate before gender: COPPA age-gate precedes further personal data)
+ * Flow: pre-auth adult DOB evidence → entry → gender → scout → measurements → profile → done
  *
  * Endpoints:
- * - POST /onboarding/entry        - Auth (OAuth or manual) + profile bootstrap
- * - POST /onboarding/birthdate    - DOB (13+ floor), advances to gender
+ * - POST /onboarding/entry        - Adult DOB evidence + auth + profile bootstrap
+ * - POST /onboarding/birthdate    - Legacy adult-resume DOB confirmation only
  * - POST /onboarding/gender       - Gender, advances to scout
  * - POST /onboarding/scout        - Digitals upload (shot_type: headshot|full_body)
  * - POST /onboarding/scout/confirm- Confirm primary, advances to measurements
@@ -41,7 +40,6 @@ const {
 } = require("../services/state-machine");
 const {
   parseDateOfBirthParts,
-  computeAge,
   canCollectSensitiveProfileFields,
 } = require("../../../shared/lib/talent-age");
 const {
@@ -76,6 +74,153 @@ function invalidOnboardingSequence(res, state, message) {
     current_step: state.current_step,
     completed_steps: state.completed_steps || [],
   });
+}
+
+const LAUNCH_TIME_ZONE = "America/New_York";
+
+function launchCalendarParts(date = new Date()) {
+  const values = {};
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: LAUNCH_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date).forEach(({ type, value }) => {
+    if (type !== "literal") values[type] = Number(value);
+  });
+  return { year: values.year, month: values.month, day: values.day };
+}
+
+function computeLaunchAge(dob, referenceDate = new Date()) {
+  const birth = parseDateOfBirthParts(dob);
+  if (!birth) return null;
+  const today = launchCalendarParts(referenceDate);
+  let age = today.year - birth.year;
+  if (today.month < birth.month || (today.month === birth.month && today.day < birth.day)) {
+    age -= 1;
+  }
+  return age >= 0 && age < 130 ? age : null;
+}
+
+function canonicalDateOfBirth(value, { requireDateOnly = false } = {}) {
+  if (value == null || !String(value).trim()) return null;
+  const raw = value instanceof Date ? value.toISOString() : String(value).trim();
+  if (requireDateOnly && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+
+  const parts = parseDateOfBirthParts(raw);
+  if (!parts) return null;
+
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  if (
+    date.getUTCFullYear() !== parts.year ||
+    date.getUTCMonth() !== parts.month - 1 ||
+    date.getUTCDate() !== parts.day
+  ) {
+    return null;
+  }
+
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+function adultEligibilityResult(dateOfBirth, { requireDateOnly = false } = {}) {
+  if (dateOfBirth == null || !String(dateOfBirth).trim()) {
+    return {
+      ok: false,
+      status: 400,
+      error: "DOB_REQUIRED",
+      message: "Date of birth is required before account creation.",
+    };
+  }
+
+  const dob = canonicalDateOfBirth(dateOfBirth, { requireDateOnly });
+  if (!dob) {
+    return {
+      ok: false,
+      status: 400,
+      error: "DOB_INVALID",
+      message: "Please provide a valid date in YYYY-MM-DD format.",
+    };
+  }
+
+  const birth = parseDateOfBirthParts(dob);
+  const today = launchCalendarParts();
+  if (
+    birth.year > today.year ||
+    (birth.year === today.year && birth.month > today.month) ||
+    (birth.year === today.year && birth.month === today.month && birth.day > today.day)
+  ) {
+    return {
+      ok: false,
+      status: 400,
+      error: "DOB_FUTURE",
+      message: "Date of birth cannot be in the future.",
+    };
+  }
+
+  const age = computeLaunchAge(dob);
+  if (age === null) {
+    return {
+      ok: false,
+      status: 400,
+      error: "DOB_INVALID",
+      message: "Please provide a valid date in YYYY-MM-DD format.",
+    };
+  }
+  if (age < 18) {
+    return {
+      ok: false,
+      status: 403,
+      error: "ADULT_ELIGIBILITY_REQUIRED",
+      message:
+        "Pholio’s current launch is for adults 18 and over. We aren’t able to create an account right now.",
+    };
+  }
+
+  return { ok: true, dob, age };
+}
+
+function rejectEligibility(res, result) {
+  return res.status(result.status).json({
+    error: result.error,
+    message: result.message,
+  });
+}
+
+async function requireAdultLaunchEligibility(req, res, next) {
+  // This router is mounted at `/`. Only enforce on casting/onboarding traffic,
+  // and never against agency (or other non-talent) sessions — those have no
+  // talent profile/DOB and must fall through to their own domain routers.
+  const path = req.path || "";
+  if (!path.startsWith("/onboarding") && !path.startsWith("/casting")) {
+    return next();
+  }
+  if (!req.session?.userId) return next();
+  if (req.session.role && req.session.role !== "TALENT") return next();
+
+  try {
+    const profile = await knex("profiles")
+      .where({ user_id: req.session.userId })
+      .first();
+    if (!profile) {
+      return rejectEligibility(res, adultEligibilityResult(null));
+    }
+
+    const eligibility = adultEligibilityResult(profile.date_of_birth);
+    if (!eligibility.ok) return rejectEligibility(res, eligibility);
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function onlyCastingPaths(middleware) {
+  return function castingPathGate(req, res, next) {
+    const path = req.path || "";
+    if (!path.startsWith("/onboarding") && !path.startsWith("/casting")) {
+      return next();
+    }
+    return middleware(req, res, next);
+  };
 }
 
 // Intake lane shortcut (canonical labels). The dashboard's full modeling
@@ -124,6 +269,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
     const {
       firebase_token,
       name,
+      date_of_birth,
       terms_accepted,
       privacy_accepted,
     } = req.body;
@@ -135,7 +281,8 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       isNewUser = false,
       isNewProfile = false,
       hasOAuthData = false,
-      authMethod = "google";
+      authMethod = "google",
+      eligibility;
 
     // Firebase OAuth (Google/Instagram) is the only supported entry path.
     if (firebase_token) {
@@ -204,6 +351,44 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           message:
             "This account is registered as an agency. Sign in from the agency dashboard instead of talent onboarding.",
         });
+      }
+
+      // Read existing DOB evidence before any write. This permits a proven adult
+      // to resume, while all new or age-unknown entries fail closed before user,
+      // profile, image, analytics, session, or verification-email writes.
+      profile = user
+        ? await knex("profiles").where({ user_id: user.id }).first()
+        : null;
+      const establishedDob = profile?.date_of_birth
+        ? adultEligibilityResult(profile.date_of_birth)
+        : null;
+      const submittedDob = date_of_birth != null
+        ? adultEligibilityResult(date_of_birth, { requireDateOnly: true })
+        : null;
+
+      if (profile?.date_of_birth && !establishedDob.ok) {
+        return rejectEligibility(res, establishedDob);
+      }
+      if (submittedDob && !submittedDob.ok) {
+        return rejectEligibility(res, submittedDob);
+      }
+      if (
+        establishedDob?.ok &&
+        submittedDob?.ok &&
+        establishedDob.dob !== submittedDob.dob
+      ) {
+        return res.status(409).json({
+          error: "DOB_IMMUTABLE",
+          message: "Your established date of birth cannot be changed during onboarding.",
+        });
+      }
+
+      eligibility = establishedDob?.ok ? establishedDob : submittedDob;
+      if (!eligibility?.ok) {
+        return rejectEligibility(
+          res,
+          adultEligibilityResult(date_of_birth, { requireDateOnly: true }),
+        );
       }
 
       // Use normalized Google/OAuth data (extracting given_name/family_name)
@@ -334,6 +519,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           height_cm: 0,
           bio_raw: "",
           bio_curated: "",
+          date_of_birth: eligibility.dob,
           ...initial,
           visibility_mode: "private_intake",
           services_locked: true,
@@ -391,6 +577,16 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         }
       }
 
+      // Legacy adult accounts without a recorded DOB must provide the same
+      // eligibility evidence as a new account. Persist it once; an established
+      // DOB is never overwritten by entry or a back-button/replay request.
+      if (!profile.date_of_birth) {
+        await knex("profiles")
+          .where({ id: profile.id })
+          .update({ date_of_birth: eligibility.dob, updated_at: knex.fn.now() });
+        profile = { ...profile, date_of_birth: eligibility.dob };
+      }
+
       hasOAuthData = true;
 
       await SignalCollector.collectEntrySignals(profile.id, {
@@ -426,12 +622,13 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       });
     });
 
-    // Transition state to the first intake step. Birthdate runs before gender
-    // (COPPA hygiene) — the age screen gates before any further personal data.
+    // The DOB screen is now pre-authentication. Mark the eligibility beat
+    // complete server-side and continue at gender without reopening a mutable
+    // birthdate step.
     const state = getState(profile);
 
     if (state.current_step === "entry" || state.completed_steps.length === 0) {
-      const updatePayload = transitionTo(
+      const entryPayload = transitionTo(
         state,
         "birthdate",
         {
@@ -442,7 +639,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         knex,
       );
 
-      if (!updatePayload) {
+      if (!entryPayload) {
         return invalidOnboardingSequence(
           res,
           state,
@@ -450,6 +647,37 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         );
       }
 
+      const birthdateState = getState({
+        onboarding_state_json: entryPayload.onboarding_state_json,
+      });
+      const updatePayload = transitionTo(
+        birthdateState,
+        "gender",
+        { date_of_birth: eligibility.dob, age: eligibility.age },
+        knex,
+      );
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          birthdateState,
+          "Cannot advance onboarding after age eligibility is confirmed.",
+        );
+      }
+      await knex("profiles").where({ id: profile.id }).update(updatePayload);
+    } else if (state.current_step === "birthdate") {
+      const updatePayload = transitionTo(
+        state,
+        "gender",
+        { date_of_birth: eligibility.dob, age: eligibility.age },
+        knex,
+      );
+      if (!updatePayload) {
+        return invalidOnboardingSequence(
+          res,
+          state,
+          "Cannot advance onboarding after age eligibility is confirmed.",
+        );
+      }
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
     }
 
@@ -488,7 +716,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       profile_id: profile.id,
       is_new_user: isNewUser,
       has_oauth_data: hasOAuthData,
-      next_step: "birthdate",
+      next_step: "gender",
       message: "Authentication successful. Ready to start casting call.",
     });
   } catch (error) {
@@ -503,7 +731,16 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
 // banned TALENT could keep uploading photos and writing profile data through the
 // onboarding endpoints (which are mounted before the app-level requireActiveAccount
 // so new signups aren't blocked). Unauthenticated requests pass through untouched.
-router.use(requireActiveAccount());
+//
+// Path filtering is required: this router is mounted at `/`, so an unfiltered
+// router.use(mw) would also run for /api/agency/* and other non-casting traffic.
+// Do not use router.use(["/onboarding", "/casting"], mw) — Express path-mounting
+// strips the prefix and breaks chaining to sibling casting routes.
+router.use(onlyCastingPaths(requireActiveAccount()));
+// Entry is the sole bootstrap endpoint. Every subsequent onboarding route is
+// closed to age-unknown and under-18 sessions, including legacy sessions that
+// predate this adults-only pilot.
+router.use(requireAdultLaunchEligibility);
 
 /**
  * POST /onboarding/email-verified
@@ -613,7 +850,8 @@ router.post(
  * POST /onboarding/gender
  * Persist the talent's gender and advance the state machine to "scout".
  *
- * New order runs birthdate before gender, so gender advances gender → scout.
+ * Adult DOB eligibility is complete before entry, so gender advances directly
+ * to scout for the current launch.
  * This is the server counterpart to the client gender step. Without it the
  * server stays parked at "gender" while the client moves on, and the later
  * scout → measurements transition is rejected as out of sequence. Gender is
@@ -660,10 +898,8 @@ router.post(
         updated_at: knex.fn.now(),
       };
 
-      // New order is birthdate → gender → scout. A legacy in-flight profile
-      // parked at "gender" under the OLD order has no DOB yet — send it to
-      // birthdate instead of scout, or scout would 403 on DOB_REQUIRED with no
-      // way back.
+      // Existing legacy rows without DOB are kept on the legacy resume route;
+      // current adults reach gender only after pre-auth eligibility evidence.
       const genderNextStep = profile.date_of_birth ? "scout" : "birthdate";
 
       if (state.current_step === "gender") {
@@ -703,11 +939,9 @@ router.post(
  * POST /onboarding/birthdate
  * Persist the talent's date of birth and advance the state machine to "gender".
  *
- * Birthdate now runs before gender (COPPA hygiene: age-gate before collecting
- * more personal data). Validates: YYYY-MM-DD format, not in the future, minimum
- * age 13 (COPPA floor). Idempotent: date_of_birth is always saved; the step only
- * advances when the profile is actually on the birthdate step, so re-submits stay
- * safe.
+ * The adult-only launch collects DOB before authentication. This legacy route is
+ * retained for safe resume only: it accepts only the established adult DOB and
+ * never lets a replay or back-button request change it.
  */
 router.post(
   ["/onboarding/birthdate", "/casting/birthdate"],
@@ -715,41 +949,6 @@ router.post(
   async (req, res, next) => {
     try {
       const { date_of_birth } = req.body;
-
-      if (!date_of_birth || !String(date_of_birth).trim()) {
-        return res.status(400).json({
-          error: "DOB_REQUIRED",
-          message: "Date of birth is required.",
-        });
-      }
-
-      const dobStr = String(date_of_birth).trim();
-
-      const parts = parseDateOfBirthParts(dobStr);
-      if (!parts) {
-        return res.status(400).json({
-          error: "DOB_INVALID",
-          message: "Please provide a valid date in YYYY-MM-DD format.",
-        });
-      }
-
-      // Must not be in the future
-      const dobDate = new Date(`${dobStr}T00:00:00.000Z`);
-      if (dobDate > new Date()) {
-        return res.status(400).json({
-          error: "DOB_FUTURE",
-          message: "Date of birth cannot be in the future.",
-        });
-      }
-
-      // COPPA minimum age: 13
-      const age = computeAge(dobStr);
-      if (age === null || age < 13) {
-        return res.status(400).json({
-          error: "DOB_TOO_YOUNG",
-          message: "You must be at least 13 years old to create an account.",
-        });
-      }
 
       const profile = await knex("profiles")
         .where({ user_id: req.session.userId })
@@ -762,14 +961,35 @@ router.post(
         });
       }
 
+      const establishedDob = profile.date_of_birth
+        ? adultEligibilityResult(profile.date_of_birth)
+        : null;
+      const submittedDob = adultEligibilityResult(date_of_birth, {
+        requireDateOnly: true,
+      });
+      if (profile.date_of_birth && !establishedDob.ok) {
+        return rejectEligibility(res, establishedDob);
+      }
+      if (!submittedDob.ok) {
+        return rejectEligibility(res, submittedDob);
+      }
+      if (establishedDob?.ok && establishedDob.dob !== submittedDob.dob) {
+        return res.status(409).json({
+          error: "DOB_IMMUTABLE",
+          message: "Your established date of birth cannot be changed during onboarding.",
+        });
+      }
+
+      const dobStr = establishedDob?.dob || submittedDob.dob;
+      const age = establishedDob?.age ?? submittedDob.age;
+
       const state = getState(profile);
 
-      // Only advance the state machine when on the birthdate step.
-      // Otherwise just persist the value idempotently.
-      let updatePayload = {
-        date_of_birth: dobStr,
-        updated_at: knex.fn.now(),
-      };
+      // Established DOBs are immutable. Legacy profiles with no DOB may record
+      // the validated adult value once, but retries never rewrite it.
+      let updatePayload = profile.date_of_birth
+        ? { updated_at: knex.fn.now() }
+        : { date_of_birth: dobStr, updated_at: knex.fn.now() };
 
       // A legacy in-flight profile parked at "birthdate" under the OLD order
       // (gender → birthdate) already answered gender — skip straight to scout
@@ -792,7 +1012,9 @@ router.post(
           );
         }
 
-        updatePayload = { ...transition, date_of_birth: dobStr };
+        updatePayload = profile.date_of_birth
+          ? transition
+          : { ...transition, date_of_birth: dobStr };
       }
 
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
@@ -880,10 +1102,8 @@ router.post(
         await processImage(req.file, profile.id);
 
       // Content moderation + CSAM screening (audit finding H2). The onboarding
-      // scout path is where 13+ minors upload photos and previously ran NO
-      // screening — inconsistent with the dashboard media path and a safety /
-      // legal (CSAM reporting) gap. Fails toward review; never auto-approves
-      // uncertain content.
+      // The scout path handles adult pilot uploads. It still fails toward review
+      // for moderation/CSAM safety and never auto-approves uncertain content.
       let moderation;
       try {
         moderation = await analyzeImageBuffer(processedBuffer);

@@ -6,7 +6,7 @@ import { useAgencyOverview, useRecentApplicants } from '../hooks/useAgencyOvervi
 import { useBoards, useAgencyActivity } from '../hooks/useOverviewModules';
 import {
   selectKpis, selectPipeline, selectPulse, selectTalentMix,
-  buildNextMoves, mapApplicant, buildDocket,
+  buildNextMoves, mapApplicant,
 } from '../components/overview/overviewData';
 import TodayDocket from '../components/overview/TodayDocket';
 import BoardsTable from '../components/overview/BoardsTable';
@@ -81,13 +81,25 @@ export default function OverviewPage() {
   const nextMoves = buildNextMoves(pulse, talentMix);
   const incoming = applicants.map(mapApplicant);
   const topMatches = [...incoming].sort((a, b) => (b.match || 0) - (a.match || 0)).slice(0, 20);
-  const firstName = profile?.first_name || 'there';
+  const firstName = profile?.first_name || null;
+  const agencyName = profile?.agency_name || null;
 
-  const docket = buildDocket(kpis, pulse, boards, incoming);
+  // The day's ledger — three editorial figures the booker acts on.
+  const deskStats = [
+    { key: 'review', label: 'Awaiting review', value: kpis.pendingReview, to: '/dashboard/agency/submissions' },
+    { key: 'closing', label: 'Boards closing', value: pulse.closingWeek, to: '/dashboard/agency/signing' },
+    { key: 'new', label: 'New submissions', value: pulse.newToday, to: '/dashboard/agency/submissions' },
+  ];
+  const deskAllClear = deskStats.every((s) => !s.value);
 
   return (
     <motion.div className="ov-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <TodayDocket firstName={firstName} rows={docket.rows} allClear={docket.allClear} />
+      <TodayDocket
+        firstName={firstName}
+        agencyName={agencyName}
+        stats={deskStats}
+        allClear={deskAllClear}
+      />
       <TalentStrip
         title="Top matches today"
         talents={topMatches}

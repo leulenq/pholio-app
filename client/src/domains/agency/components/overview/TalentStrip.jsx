@@ -85,7 +85,12 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
   return (
     <section className="ov-module">
       <div className="ov-module-head">
-        <h2 className="ov-module-title">{title}{talents.length ? <span className="ov-module-count">{talents.length}</span> : null}</h2>
+        <h2 className="ov-module-title">
+          {title}
+          {talents.length ? (
+            <span className="ov-module-count">{String(talents.length).padStart(2, '0')}</span>
+          ) : null}
+        </h2>
         {viewAllTo && <Link to={viewAllTo} className="ov-module-link">View all</Link>}
       </div>
       {talents.length === 0 ? (

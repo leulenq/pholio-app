@@ -25,13 +25,26 @@ export default function TeamModule() {
   return (
     <section className="ov-module">
       <div className="ov-module-head">
-        <h2 className="ov-module-title">Team{team.length ? <span className="ov-module-count">{team.length}</span> : null}</h2>
+        <h2 className="ov-module-title">
+          Team
+          {team.length ? (
+            <span className="ov-module-count">{String(team.length).padStart(2, '0')}</span>
+          ) : null}
+        </h2>
         <Link to="/dashboard/agency/team" className="ov-module-link">Manage</Link>
       </div>
       <div className="ov-team">
         {team.map((m) => (
           <div key={m.membershipId || m.userId} className="ov-team-member">
-            <span className={`ov-team-avatar${m.membership_role === 'OWNER' ? ' is-owner' : ''}`}>{initials(m)}</span>
+            {m.avatar_url ? (
+              <img
+                className={`ov-team-avatar ov-team-avatar--photo${m.membership_role === 'OWNER' ? ' is-owner' : ''}`}
+                src={m.avatar_url}
+                alt=""
+              />
+            ) : (
+              <span className={`ov-team-avatar${m.membership_role === 'OWNER' ? ' is-owner' : ''}`}>{initials(m)}</span>
+            )}
             <span className="ov-team-info">
               <span className="ov-team-name">{displayName(m)}</span>
               <span className="ov-team-role">{roleLabel(m.membership_role)}</span>

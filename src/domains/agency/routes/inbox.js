@@ -160,6 +160,7 @@ function serializeAgencyMember(row) {
     last_name: row.last_name,
     full_name:
       [row.first_name, row.last_name].filter(Boolean).join(" ") || row.email,
+    avatar_url: row.avatar_url || null,
     membership_role: normalizePresetRole(row.membership_role),
     preset_role: normalizePresetRole(row.membership_role),
     status: row.membership_status,
@@ -204,11 +205,33 @@ router.get(
             { alias: "a", allowMinor: req.allowMinorSubmissions },
           )
         : [];
+      const pipelineRows = allBoardIds.length
+        ? await applyMinorSubmissionFilter(
+            knex("board_applications as ba")
+              .join("applications as a", "a.id", "ba.application_id")
+              .whereIn("ba.board_id", allBoardIds)
+              .groupBy("ba.board_id", "a.status")
+              .select(
+                "ba.board_id",
+                "a.status",
+                knex.raw("COUNT(*) as count"),
+              ),
+            { alias: "a", allowMinor: req.allowMinorSubmissions },
+          )
+        : [];
       const previewByBoard = {};
       previewRows.forEach((r) => {
         if (!previewByBoard[r.board_id]) previewByBoard[r.board_id] = [];
         if (previewByBoard[r.board_id].length < 4)
           previewByBoard[r.board_id].push(r.url);
+      });
+      const pipelineByBoard = {};
+      pipelineRows.forEach((row) => {
+        if (!pipelineByBoard[row.board_id]) pipelineByBoard[row.board_id] = [];
+        pipelineByBoard[row.board_id].push({
+          status: row.status,
+          count: parseInt(row.count, 10) || 0,
+        });
       });
 
       // Get application counts for each board
@@ -239,6 +262,7 @@ router.get(
             submitted_count: parseInt(submittedCount?.count || 0),
             represented_count: parseInt(representedCount?.count || 0),
             booked_count: parseInt(representedCount?.count || 0),
+            pipeline_counts: pipelineByBoard[board.id] || [],
             preview: previewByBoard[board.id] || [],
           };
         }),
@@ -1736,6 +1760,7 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        avatar_url: user.avatar_url || null,
         agency_name: agency.name,
         agency_logo_path: agency.logo_path,
         agency_brand_color: agency.brand_color,
@@ -2029,6 +2054,7 @@ router.get("/api/agency/team", requireRole("AGENCY"), async (req, res) => {
         "u.email",
         "u.first_name",
         "u.last_name",
+        "u.avatar_url",
       )
       .orderBy([
         { column: "am.membership_role", order: "asc" },

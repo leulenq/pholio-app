@@ -206,13 +206,17 @@ function applyDiscoverFilters(query, filters, knex) {
     // Compliance follow-up (WS5 / spec §0.3): skin tone must NOT be a search
     // signal in ANY engine. The skin_tone match was removed here — the column
     // stays, but query-time matching on it does not.
+    // ethnicity is jsonb on Postgres; COALESCE(..., '') casts '' → jsonb and
+    // throws "invalid input syntax for type json". Cast to text first.
     const term = String(filters.heritage).toLowerCase();
+    const ethnicityExpr = isPostgresKnex(knex)
+      ? "LOWER(COALESCE(profiles.ethnicity::text, '')) LIKE ?"
+      : "LOWER(COALESCE(profiles.ethnicity, '')) LIKE ?";
     query.andWhere((qb) => {
-      qb.whereRaw("LOWER(COALESCE(profiles.ethnicity, '')) LIKE ?", [
-        `%${term}%`,
-      ]).orWhereRaw("LOWER(COALESCE(profiles.bio_curated, '')) LIKE ?", [
-        `%${term}%`,
-      ]);
+      qb.whereRaw(ethnicityExpr, [`%${term}%`]).orWhereRaw(
+        "LOWER(COALESCE(profiles.bio_curated, '')) LIKE ?",
+        [`%${term}%`],
+      );
     });
   }
 
@@ -498,9 +502,10 @@ function buildSemanticWhereClause(filters) {
   if (filters.heritage) {
     // Compliance follow-up (WS5 / spec §0.3): skin tone is never a search
     // signal — the skin_tone clause was removed from this matcher too.
+    // Semantic SQL is Postgres-only; ethnicity is jsonb — cast before LIKE.
     const term = String(filters.heritage).toLowerCase();
     clauses.push(
-      `(LOWER(COALESCE(profiles.ethnicity, '')) LIKE ?
+      `(LOWER(COALESCE(profiles.ethnicity::text, '')) LIKE ?
         OR LOWER(COALESCE(profiles.bio_curated, '')) LIKE ?)`,
     );
     bindings.push(`%${term}%`, `%${term}%`);

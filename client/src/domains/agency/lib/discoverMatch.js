@@ -140,14 +140,15 @@ export function facetsFromMeta(meta) {
 
 // ════════════════════════════════════════════════════════════════════════════
 // discover_v2 launch-mode presentation helpers
-// The MatchScore ring consumes coarse tier bands, never raw scores (spec §3).
+// MatchScore consumes coarse tier bands, never raw scores (spec §3).
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
- * Coarse tier band → representative numeral for the MatchScore ring.
- * The ring tiers via resolveTier (high ≥90, mid ≥75, low <75); these midpoints
- * are the ONLY inputs it receives in launch mode — no per-profile score is ever
- * fabricated. Returns null for an absent/unknown band (ring is then omitted).
+ * Coarse server tier band → representative numeral for MatchScore.
+ * MatchScore re-tiers via resolveTier (exceptional ≥90, strong ≥80, fair ≥70,
+ * low <70), so these midpoints land: high→exceptional, mid→strong, low→low.
+ * They are the ONLY inputs it receives in launch mode — no per-profile score is
+ * ever fabricated. Returns null for an absent/unknown band (score is omitted).
  */
 export function tierBandToScore(band) {
   if (band === 'high') return 92;

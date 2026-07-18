@@ -1,30 +1,47 @@
-/* MatchScore — plain inline operational text. Never a badge or gradient. */
+/* MatchScore — match strength as a status chip ("ink chip").
+   A constant dark chip carries contrast on any ground; the number's color
+   carries strength. Ported from the approved "Ink Chip (build C)" design. */
 
 .match-score {
-  display: inline-block;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   flex: none;
-  color: var(--ag-text-1);
+  padding: 5px 10px 6px;
+  border-radius: 9px;
+  background: var(--ag-match-chip);
+  border: 1px solid var(--ag-match-chip-border);
+  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.26);
   font-family: var(--ag-font-body);
-  font-style: normal;
-  font-weight: 600;
-  font-variant-numeric: lining-nums;
-  font-feature-settings: 'lnum' 1;
-  line-height: 1;
-  letter-spacing: -0.02em;
   user-select: none;
 }
 
-.match-score--xs { font-size: 14px; letter-spacing: -0.015em; }
-.match-score--sm { font-size: 18px; }
-.match-score--md { font-size: 24px; letter-spacing: -0.025em; }
-.match-score--lg { font-size: 34px; letter-spacing: -0.03em; }
+.match-score__label {
+  font-size: 7px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.56);
+}
 
-.match-score--high { color: var(--ag-gold); font-weight: 700; }
-.match-score--mid { color: var(--ag-text-1); font-weight: 600; }
-.match-score--low { color: var(--ag-text-2); font-weight: 500; }
+.match-score__num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
 
-.match-score--overlay.match-score--mid,
-.match-score--dark.match-score--mid { color: var(--ag-surface-1); }
+/* size scale — number only; chip padding stays constant */
+.match-score--xs .match-score__num { font-size: 16px; }
+.match-score--sm .match-score__num { font-size: 18px; }
+.match-score--md .match-score__num { font-size: 20px; }
+.match-score--lg .match-score__num { font-size: 24px; }
 
-.match-score--overlay.match-score--low,
-.match-score--dark.match-score--low { color: var(--ag-text-3); }
+/* strength tint on the number */
+.match-score--exceptional .match-score__num { color: var(--ag-match-exc-tone); }
+.match-score--strong      .match-score__num { color: var(--ag-match-str-tone); }
+.match-score--fair        .match-score__num { color: var(--ag-match-fair-tone); }
+.match-score--low         .match-score__num { color: var(--ag-match-low-tone); }

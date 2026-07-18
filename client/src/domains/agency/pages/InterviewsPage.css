@@ -49,8 +49,7 @@
   font-size: 10px; font-weight: 600; color: #9b9082;
   background: none; border: none; padding: 0;
 }
-.iv-lane[data-tone="action"] .iv-lane-title { color: var(--ag-gold); }
-.iv-lane[data-tone="action"] .iv-lane-count { color: var(--ag-gold); }
+.iv-lane[data-tone="action"] .iv-lane-title { color: var(--ag-danger); font-weight: 700; }
 
 .iv-lane-head--toggle { background: none; border: none; cursor: pointer; padding: 0; width: fit-content; }
 .iv-lane-chev { color: #b3a89a; transition: transform .2s; }
@@ -67,22 +66,9 @@
   background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.66));
   border: 1px solid #ece4d4; border-radius: 14px; padding: 16px 20px 16px 24px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 5px 16px rgba(20,18,14,.035);
-  transition: transform .22s cubic-bezier(0.4,0,0.2,1), box-shadow .22s, border-color .22s;
+  transition: background .22s, box-shadow .22s, border-color .22s;
 }
-.iv-row:hover { transform: translateY(-2px); box-shadow: 0 16px 38px rgba(20,18,14,.1); border-color: #e4dcc9; }
-
-/* status spine */
-.iv-row::before {
-  content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, #d8cfbb, rgba(216,207,187,.25));
-  transition: background .22s, top .22s, bottom .22s;
-}
-.iv-row:hover::before { top: 0; bottom: 0; }
-.iv-row[data-tone="action"]::before { background: linear-gradient(180deg, var(--ag-gold), rgba(201,165,90,.3)); }
-.iv-row[data-tone="scheduled"]::before { background: linear-gradient(180deg, #7d9b82, rgba(125,155,130,.25)); }
-.iv-row[data-tone="awaiting"]::before { background: linear-gradient(180deg, #c9bfa9, rgba(201,191,169,.2)); }
-.iv-row[data-tone="completed"]::before,
-.iv-row[data-tone="cancelled"]::before { background: linear-gradient(180deg, #d3cabb, rgba(211,202,187,.18)); }
+.iv-row:hover { background: #fffaf0; box-shadow: 0 8px 20px rgba(201,165,90,.18); border-color: rgba(201,165,90,.52); }
 
 /* monogram */
 .iv-mono {
@@ -91,7 +77,7 @@
   font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: .02em;
   color: #6b6256; background: #f1ebe0; border: 1px solid #e7ddca;
 }
-.iv-row[data-tone="action"] .iv-mono { color: var(--ag-gold); background: rgba(201,165,90,.1); border-color: rgba(201,165,90,.28); }
+.iv-row[data-tone="action"] .iv-mono { color: var(--ag-danger); background: var(--ag-danger-dim); border-color: rgba(192,57,43,.3); }
 .iv-row[data-tone="scheduled"] .iv-mono { color: #5f7d66; background: rgba(125,155,130,.12); border-color: rgba(125,155,130,.28); }
 
 .iv-id { min-width: 0; }
@@ -99,7 +85,7 @@
 .iv-name { font-size: 15px; font-weight: 600; color: #16130D; line-height: 1.2; }
 .iv-reason {
   font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--ag-gold); background: rgba(201,165,90,.08); border: 1px solid rgba(201,165,90,.32);
+  color: var(--ag-danger); background: var(--ag-danger-dim); border: 1px solid rgba(192,57,43,.32);
   border-radius: 4px; padding: 3px 8px;
 }
 .iv-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; font-size: 11.5px; color: #8a8073; }

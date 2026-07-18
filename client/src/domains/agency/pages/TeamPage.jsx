@@ -48,8 +48,6 @@ export default function TeamPage() {
 
   const activeCount = leadership.length + members.length;
   const agencyName = profile?.agency_name || 'Your agency';
-  const logoPath = profile?.agency_logo_path || profile?.logo_path;
-  const logo = logoPath ? `/${logoPath}` : null;
   const since = foundingYear(team);
 
   const renderCard = (m) => (
@@ -74,9 +72,7 @@ export default function TeamPage() {
         <div className="tm-cobrand">
           <span className="tm-cobrand-pholio">PHOLIO</span>
           <span className="tm-cobrand-div" aria-hidden="true" />
-          {logo
-            ? <img className="tm-cobrand-logo" src={logo} alt={agencyName} />
-            : <span className="tm-cobrand-name">{agencyName}</span>}
+          <span className="tm-cobrand-name">{agencyName}</span>
         </div>
         <div className="tm-masthead-row">
           <div>

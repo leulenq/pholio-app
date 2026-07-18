@@ -10,17 +10,6 @@ function timeAgo(ts) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-// activity_type → accent tone for the marker
-const TONE = {
-  status_change: 'gold',
-  submitted: 'gold',
-  booked: 'positive',
-  accepted: 'positive',
-  development: 'positive',
-  declined: 'muted',
-  note_added: 'muted',
-};
-
 export default function ActivityFeed({ items }) {
   return (
     <section className="ov-module">
@@ -32,12 +21,8 @@ export default function ActivityFeed({ items }) {
           {items.map((a) => (
             <div key={a.id} className="ov-act-row">
               {a.talentImage ? (
-                <span className="ov-act-av" style={{ backgroundImage: `url(${a.talentImage})` }}>
-                  <span className={`ov-act-pip ov-act-pip--${TONE[a.activity_type] || 'muted'}`} aria-hidden="true" />
-                </span>
-              ) : (
-                <span className={`ov-act-dot ov-act-dot--${TONE[a.activity_type] || 'muted'}`} aria-hidden="true" />
-              )}
+                <span className="ov-act-av" style={{ backgroundImage: `url(${a.talentImage})` }} />
+              ) : null}
               <div className="ov-act-body">
                 <span className="ov-act-text">
                   {a.talentName && <strong>{a.talentName}</strong>} {a.description}

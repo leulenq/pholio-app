@@ -60,8 +60,7 @@
 .ag-roster-toolbar select,
 .ag-roster-search,
 .ag-roster-form input,
-.ag-roster-form select,
-.ag-roster-detail select {
+.ag-roster-form select {
   min-height: 40px;
   border: 1px solid var(--ag-border-strong);
   border-radius: 8px;
@@ -94,20 +93,11 @@
 .ag-roster-toolbar select:focus-visible,
 .ag-roster-search:focus-within,
 .ag-roster-form input:focus-visible,
-.ag-roster-form select:focus-visible,
-.ag-roster-detail select:focus-visible {
+.ag-roster-form select:focus-visible {
   border-color: var(--ag-gold);
   outline: 3px solid color-mix(in srgb, var(--ag-gold) 18%, transparent);
   outline-offset: 1px;
 }
-
-.ag-roster-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 24px;
-}
-
-.ag-roster-workspace.has-detail { grid-template-columns: minmax(650px, 1fr) 330px; }
 
 .ag-roster-list {
   min-width: 0;
@@ -117,7 +107,7 @@
 .ag-roster-columns,
 .ag-roster-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.6fr) minmax(110px, .8fr) 95px 105px minmax(190px, 1.2fr) 110px;
+  grid-template-columns: minmax(210px, 1.5fr) minmax(130px, 1fr) 116px 116px minmax(200px, 1.1fr) 96px;
   align-items: center;
   gap: 14px;
 }
@@ -128,6 +118,8 @@
   color: var(--ag-text-2);
   font-size: .6875rem;
   font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
 
 .ag-roster-row {
@@ -142,8 +134,15 @@
   transition: background .18s cubic-bezier(.4, 0, .2, 1);
 }
 
-.ag-roster-row:hover,
-.ag-roster-row.is-selected { background: var(--ag-surface-hover); }
+.ag-roster-row:hover { background: var(--ag-surface-2); }
+
+.ag-roster-row.is-selected {
+  position: relative;
+  z-index: 1;
+  background: var(--ag-gold-muted);
+  outline: 2px solid var(--ag-gold);
+  outline-offset: -2px;
+}
 
 .ag-roster-row:focus-visible {
   position: relative;
@@ -159,65 +158,132 @@
   min-width: 0;
 }
 
-.ag-roster-person > span:last-child { min-width: 0; }
-.ag-roster-person strong,
-.ag-roster-person span { display: block; }
-.ag-roster-person strong { overflow: hidden; color: var(--ag-text-0); text-overflow: ellipsis; white-space: nowrap; }
-.ag-roster-person span span { margin-top: 3px; color: var(--ag-text-2); font-size: .75rem; }
+.ag-roster-person-text { min-width: 0; }
+.ag-roster-person-text strong,
+.ag-roster-person-text span { display: block; }
+.ag-roster-person-text strong { overflow: hidden; color: var(--ag-text-0); font-size: .875rem; text-overflow: ellipsis; white-space: nowrap; }
+.ag-roster-person-text span { margin-top: 3px; color: var(--ag-text-2); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .ag-roster-photo {
   width: 44px;
   height: 56px;
   flex: none;
-  border-radius: 5px;
+  border-radius: 4px;
   object-fit: cover;
-  background: var(--ag-surface-active);
+  background: var(--ag-surface-4);
 }
 
 .ag-roster-photo--empty {
   display: grid !important;
   place-items: center;
   color: var(--ag-text-2);
+  background: var(--ag-surface-4);
   font-size: .75rem;
   font-weight: 700;
 }
 
-.ag-roster-row > span { font-size: .8125rem; }
-.ag-roster-measurements small { display: block; margin-top: 4px; color: var(--ag-text-2); font-size: .6875rem; }
+.ag-roster-cell { min-width: 0; }
 
-.ag-roster-detail {
-  position: sticky;
-  top: 20px;
-  align-self: start;
-  max-height: calc(100vh - 40px);
-  overflow: auto;
+/* Division — sharp-cornered tonal taxonomy tag (never a round pill). */
+.ag-roster-tag {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 5px 10px;
+  border: 1px solid var(--ag-border-strong);
+  border-radius: 5px;
+  background: var(--ag-surface-2);
+  color: var(--ag-text-1);
+  font: 500 .75rem/1.2 Inter, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ag-roster-tag.is-empty {
+  border-style: dashed;
+  border-color: var(--ag-rule);
+  background: transparent;
+  color: var(--ag-text-2);
+}
+
+/* Stage — sharp uppercase tracked micro-tag, tonal tiers (Main → New Face). */
+.ag-roster-stagetag {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font: 700 .625rem/1.2 Inter, sans-serif;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ag-roster-stagetag--main {
+  border-color: var(--ag-rule);
+  background: rgba(26, 24, 21, .045);
+  color: var(--ag-text-2);
+}
+
+.ag-roster-stagetag--development {
+  border-color: var(--ag-border-strong);
+  background: var(--ag-surface-4);
+  color: var(--ag-text-0);
+}
+
+.ag-roster-stagetag--new_face {
+  border-color: color-mix(in srgb, var(--ag-gold) 40%, transparent);
+  background: var(--ag-gold-muted);
+  color: var(--ag-gold-hover);
+}
+
+/* Availability — plain semantic text, given a little more weight for presence. */
+.ag-roster-avail { font-weight: 600; }
+
+/* Measurements — mono spec data seated in a sharp tonal block. */
+.ag-roster-measure {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  padding: 6px 11px;
   border: 1px solid var(--ag-rule);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--ag-surface-1);
 }
 
-.ag-roster-detail-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 22px;
-  border-bottom: 1px solid var(--ag-rule);
+.ag-roster-measure-height {
+  overflow: hidden;
+  color: var(--ag-text-0);
+  font: 500 .8125rem/1.25 var(--ag-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ag-roster-detail-head h2 { margin: 0; color: var(--ag-text-0); font: 600 1.5rem/1.1 'Playfair Display', Georgia, serif; }
-.ag-roster-detail-head p { margin: 6px 0 0; color: var(--ag-text-2); font-size: .75rem; }
-.ag-roster-detail-head button { align-self: start; border: 0; background: transparent; color: var(--ag-text-2); cursor: pointer; }
-.ag-roster-detail-head button:focus-visible { outline: 2px solid var(--ag-gold); outline-offset: 3px; }
+.ag-roster-measure-height.is-missing { color: var(--ag-text-2); }
 
-.ag-roster-detail-body { display: grid; gap: 22px; padding: 22px; }
-.ag-roster-detail-body section { display: grid; gap: 10px; }
-.ag-roster-detail-body h3 { margin: 0; color: var(--ag-text-0); font: 600 .875rem/1.3 Inter, sans-serif; }
-.ag-roster-detail-body p { margin: 0; color: var(--ag-text-2); font-size: .8125rem; }
-.ag-roster-detail-body label { display: grid; gap: 6px; color: var(--ag-text-2); font-size: .6875rem; font-weight: 600; }
-.ag-roster-detail-body select { width: 100%; padding: 0 10px; }
-.ag-roster-detail-body ul { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.ag-roster-detail-body li { display: flex; justify-content: space-between; gap: 12px; color: var(--ag-text-1); font-size: .75rem; }
-.ag-roster-detail-body li span { color: var(--ag-text-2); }
+.ag-roster-measure small {
+  overflow: hidden;
+  color: var(--ag-text-2);
+  font: 500 .625rem/1.2 var(--ag-font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Freshness — plain text in a semantic color (tone, not a badge or dot). */
+.ag-roster-fresh {
+  font-size: .75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ag-roster-fresh--current { color: var(--ag-success); }
+.ag-roster-fresh--due { color: var(--ag-warning); }
+.ag-roster-fresh--stale { color: var(--ag-danger); }
+.ag-roster-fresh--muted { color: var(--ag-text-2); }
 
 .ag-roster-empty { display: grid; justify-items: start; gap: 10px; padding: 48px 16px; }
 .ag-roster-empty h2 { margin: 0; color: var(--ag-text-0); font: 600 1.35rem/1.2 'Playfair Display', Georgia, serif; }
@@ -229,7 +295,7 @@
 .ag-roster-pagination span { color: var(--ag-text-2); font-size: .75rem; }
 
 .ag-roster-form { display: grid; gap: 22px; }
-.ag-roster-private-note { margin: 0; padding: 14px; border: 1px solid var(--ag-rule); border-radius: 8px; background: var(--ag-surface-hover); color: var(--ag-text-1); font-size: .8125rem; line-height: 1.5; }
+.ag-roster-private-note { margin: 0; padding: 14px; border: 1px solid var(--ag-rule); border-radius: 8px; background: var(--ag-surface-2); color: var(--ag-text-1); font-size: .8125rem; line-height: 1.5; }
 .ag-roster-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .ag-roster-form label { display: grid; gap: 7px; color: var(--ag-text-1); font-size: .75rem; font-weight: 600; }
 .ag-roster-form input,
@@ -238,8 +304,6 @@
 .ag-roster-form-error { margin: 0; color: var(--ag-danger); font-size: .8125rem; }
 
 @media (max-width: 1180px) {
-  .ag-roster-workspace.has-detail { grid-template-columns: 1fr; }
-  .ag-roster-detail { position: static; max-height: none; }
   .ag-roster-columns,
   .ag-roster-row { grid-template-columns: minmax(220px, 1.5fr) 120px 100px minmax(180px, 1fr); }
   .ag-roster-columns > :nth-child(3),

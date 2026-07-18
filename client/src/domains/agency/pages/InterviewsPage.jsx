@@ -93,9 +93,9 @@ export default function InterviewsPage() {
       {hasAny && (
         <motion.div
           className="iv-ledger"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
         >
           {ledger.map((s) => (
             <div key={s.label} className={`iv-stat iv-stat--${s.tone}`}>
@@ -138,7 +138,7 @@ export default function InterviewsPage() {
               <section className="iv-lane" key={lane.key} data-tone={lane.tone}>
                 <div className="iv-lane-head">
                   <h2 className="iv-lane-title">{lane.label}</h2>
-                  <span className="iv-lane-count">{items.length}</span>
+                  {lane.key !== 'action' && <span className="iv-lane-count">{items.length}</span>}
                 </div>
                 <div className="iv-lane-rows">
                   {items.map((iv, i) => <InterviewRow key={iv.id} interview={iv} index={i} />)}

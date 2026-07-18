@@ -1,6 +1,6 @@
 /* ============================================================
    PHOLIO AGENCY — DiscoverPage "The Signal"
-   Calm editorial discovery surface · warm ink + restrained gold
+   Dark AI universe · editorial luxury · warm black + gold
    ============================================================ */
 
 
@@ -34,7 +34,7 @@
   bottom: 0;
   left: var(--ag-rail-w);
   z-index: 0;
-  background: #141210;
+  background: #010100;
   pointer-events: none;
 }
 
@@ -42,8 +42,33 @@
   left: var(--ag-rail-w-collapsed);
 }
 
+.dc-bg-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 1, 0, 0.52);
+  pointer-events: none;
+}
+
+/* ── Neural dot grid substrate ── */
+.dc-neural {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--ag-rail-w);
+  z-index: 1;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(201, 165, 90, 0.055) 1px, transparent 1px);
+  background-size: 38px 38px;
+}
+
+.ag-shell--discover.ag-shell--collapsed .dc-neural {
+  left: var(--ag-rail-w-collapsed);
+}
+
 @media (max-width: 1024px) {
-  .ag-shell--discover .dc-bg {
+  .ag-shell--discover .dc-bg,
+  .ag-shell--discover .dc-neural {
     left: 0;
   }
 }
@@ -85,10 +110,19 @@
 }
 
 /* ============================================================
-   SEARCH BAR — underline only, no container, no decoration.
-   The input IS the bar. Typography and the gold hairline do
-   all the work; everything else is removed.
+   SEARCH BAR — "Aurora Field"
+   A dark pill sitting inside a living gold aurora that bleeds out
+   into the page's Grainient field rather than ending at an edge.
+   Gold leads; violet + ember are the supporting mix. Focus lifts
+   the field and assembles the ring.
+   Scope: the search bar only — the page around it is unchanged.
    ============================================================ */
+@property --dc-ring-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 .dc-bar {
   position: relative;
   max-width: 680px;
@@ -96,28 +130,163 @@
   z-index: 5;
 }
 
-/* the gold hairline — the only structural element */
-.dc-bar::after {
-  content: '';
+/* ── the aurora ──
+   Lives in the PAGE's background stack, not inside the bar. `.dc-page` is
+   position:relative with no z-index, so it is not a stacking context — which
+   means this element blends against its siblings, including `.dc-bg` (the
+   Grainient). Sat inside `.dc-bar` it was isolated and `screen` was a no-op.
+   z-index 2 keeps it above `.dc-neural` (1) and under `.dc-threshold` (3).
+   Screen only ever lightens, so the headline over it stays legible. */
+.dc-search-aurora {
   position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 1px;
-  background: rgba(201, 165, 90, 0.28);
-  transition: background 0.4s ease, box-shadow 0.4s ease;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: min(72vh, 680px);
+  z-index: 2;
+  filter: blur(64px);
+  opacity: 0.62;
   pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+  animation: dcAuroraSwell 11s ease-in-out infinite;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.dc-bar--on::after {
-  background: rgba(201, 165, 90, 0.68);
-  box-shadow: 0 2px 22px -6px rgba(201, 165, 90, 0.38);
+.dc-page--searching .dc-search-aurora { opacity: 1; }
+
+@media (max-width: 1024px) {
+  .dc-search-aurora { left: 0; }
 }
 
+/* the whole field slowly breathes + turns, echoing the Grainient's warp */
+@keyframes dcAuroraSwell {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50%      { transform: scale(1.09) rotate(5deg); }
+}
+
+.dc-search-aurora span {
+  position: absolute;
+  border-radius: 50%;
+  display: block;
+  will-change: transform;
+}
+/* Gold leads: the two largest blobs are gold and flank the bar, so the field
+   reads gold first. Violet + ember are the supporting mix, kept smaller and
+   pushed to the middle where they blend rather than compete. Vertical
+   placement centres the field on the bar, which sits below the headline. */
+.dc-search-aurora span:nth-child(1) {
+  width: 48%; height: 46%; left: 8%; top: 48%;
+  background: radial-gradient(closest-side, #e6c680, transparent);
+  animation: dcAuroraA 9s ease-in-out infinite;
+}
+.dc-search-aurora span:nth-child(2) {
+  width: 44%; height: 44%; right: 8%; top: 50%;
+  background: radial-gradient(closest-side, #c9a55a, transparent);
+  animation: dcAuroraB 11s ease-in-out infinite;
+}
+.dc-search-aurora span:nth-child(3) {
+  width: 24%; height: 28%; left: 36%; top: 62%;
+  background: radial-gradient(closest-side, #9b72cb, transparent);
+  animation: dcAuroraC 13s ease-in-out infinite;
+}
+.dc-search-aurora span:nth-child(4) {
+  width: 22%; height: 26%; right: 32%; top: 60%;
+  background: radial-gradient(closest-side, #d96570, transparent);
+  animation: dcAuroraD 15s ease-in-out infinite;
+}
+/* Three-phase wanders on coprime-ish durations — the blobs never resync, so
+   the field keeps recombining instead of looping visibly. */
+@keyframes dcAuroraA {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(26%, 16%) scale(1.18); }
+  66%      { transform: translate(-14%, 10%) scale(0.9); }
+}
+@keyframes dcAuroraB {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(-22%, 18%) scale(0.88); }
+  66%      { transform: translate(12%, -14%) scale(1.2); }
+}
+@keyframes dcAuroraC {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(20%, -20%) scale(1.22); }
+  66%      { transform: translate(-18%, -6%) scale(0.92); }
+}
+@keyframes dcAuroraD {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(-24%, -14%) scale(1.16); }
+  66%      { transform: translate(16%, 12%) scale(0.9); }
+}
+
+/* ── the pill ── */
 .dc-bar-shell {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  height: 72px;
+  height: 66px;
   gap: 12px;
-  background: transparent;
+  padding: 0 8px 0 20px;
+  border-radius: 999px;
+  background: #0a0806;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.9);
+  transition: border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dc-bar--on .dc-bar-shell { border-color: transparent; }
+
+/* Ring — assembles on focus and travels continuously around the pill. Gold
+   holds ~200° of the 360° sweep (0–95 and 250–360) so it reads gold; violet +
+   ember occupy the short middle arc. The literal `0deg` fallback keeps the
+   gradient valid if @property is unsupported (it just won't travel). */
+.dc-bar-shell::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  --dc-ring-angle: 0deg;
+  background: conic-gradient(
+    from var(--dc-ring-angle),
+    #f0d491 0deg,
+    #d9b46a 95deg,
+    #9b72cb 165deg,
+    #d96570 215deg,
+    #c9a55a 250deg,
+    #f0d491 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  animation: dcRingTravel 12s linear infinite;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.dc-bar--on .dc-bar-shell::before {
+  opacity: 1;
+  animation-duration: 5s; /* quickens on focus — the bar is "thinking" */
+}
+@keyframes dcRingTravel {
+  to { --dc-ring-angle: 360deg; }
+}
+
+/* the sparkle mark */
+.dc-bar-spark {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-search-aurora,
+  .dc-search-aurora span,
+  .dc-bar-shell::before { animation: none; }
+  .dc-search-aurora,
+  .dc-bar-shell,
+  .dc-bar-shell::before,
+  .dc-bar-go { transition-duration: 0.01ms; }
 }
 
 .dc-bar-field {
@@ -141,12 +310,12 @@ body.is-agency .dc-bar-input {
   box-shadow: none !important;
   border-radius: 0 !important;
   padding: 0 !important;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-style: italic;
-  font-size: 1.2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-size: 1.05rem;
   line-height: 1;
-  color: rgba(250, 248, 245, 0.92);
-  caret-color: #C9A55A;
+  color: #f4f1ea;
+  caret-color: #e6c680;
 }
 .dc-page .dc-bar-input:focus,
 body.is-agency .dc-bar-input:focus {
@@ -155,18 +324,19 @@ body.is-agency .dc-bar-input:focus {
   outline: none !important;
   box-shadow: none !important;
 }
-.dc-bar-input::selection { background: rgba(201, 165, 90, 0.2); }
+.dc-bar-input::selection { background: rgba(230, 198, 128, 0.3); }
 
-/* cycling placeholder */
+/* cycling placeholder — must mirror .dc-bar-input metrics */
 .dc-bar-ph {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-style: italic;
-  font-size: 1.2rem;
-  color: rgba(201, 165, 90, 0.32);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-size: 1.05rem;
+  /* 0.5 keeps the placeholder at ~4.6:1 on #0a0806; lower fails WCAG AA */
+  color: rgba(244, 241, 234, 0.5);
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
@@ -187,16 +357,17 @@ body.is-agency .dc-bar-input:focus {
   height: 24px;
   background: transparent;
   border: none;
-  color: rgba(250, 248, 245, 0.3);
+  color: rgba(244, 241, 234, 0.32);
   cursor: pointer;
   transition: color 0.2s ease;
 }
-.dc-bar-clear:hover { color: rgba(250, 248, 245, 0.75); }
+.dc-bar-clear:hover { color: rgba(244, 241, 234, 0.8); }
 
 /* ============================================================
    INLINE PREDICTION (ghost completion)
-   A transparent mirror of the typed text offsets the gold ghost
-   suffix so it sits exactly where the next character would land.
+   A transparent mirror of the typed text offsets the ghost suffix
+   so it sits exactly where the next character would land.
+   Font metrics MUST stay identical to .dc-bar-input.
    ============================================================ */
 .dc-ghost {
   position: absolute;
@@ -207,84 +378,13 @@ body.is-agency .dc-bar-input:focus {
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-style: italic;
-  font-size: 1.2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-style: normal;
+  font-size: 1.05rem;
   line-height: 1;
 }
 .dc-ghost-typed { color: transparent; }
-.dc-ghost-rest { color: rgba(201, 165, 90, 0.35); }
-
-/* ============================================================
-   CASTING SUGGESTIONS — an extension of the bar, not a dropdown.
-   No border-box, no shadow-box. Just the briefs, below the hairline.
-   ============================================================ */
-.dc-intel {
-  position: absolute;
-  top: 100%;            /* flush below the hairline */
-  left: 0;
-  right: 0;
-  z-index: 40;
-  padding-top: 2px;
-  transform-origin: top center;
-}
-
-.dc-intel-list {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0 4px;
-}
-
-.dc-intel-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 11px 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  transition: none;
-}
-
-.dc-intel-row-idx {
-  width: 26px;
-  flex-shrink: 0;
-  font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  color: rgba(201, 165, 90, 0.35);
-  transition: color 0.2s ease;
-}
-.dc-intel-row:hover .dc-intel-row-idx { color: rgba(201, 165, 90, 0.7); }
-
-.dc-intel-row-text {
-  flex: 1;
-  min-width: 0;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-style: italic;
-  font-size: 1.05rem;
-  font-weight: 400;
-  line-height: 1.3;
-  color: rgba(250, 248, 245, 0.5);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color 0.2s ease;
-}
-.dc-intel-row:hover .dc-intel-row-text { color: rgba(250, 248, 245, 0.9); }
-
-.dc-intel-row-arrow {
-  flex-shrink: 0;
-  margin-left: 10px;
-  color: transparent;
-  transform: translateX(-4px);
-  transition: color 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.dc-intel-row:hover .dc-intel-row-arrow {
-  color: rgba(201, 165, 90, 0.6);
-  transform: translateX(0);
-}
+.dc-ghost-rest { color: rgba(230, 198, 128, 0.62); }
 
 /* ============================================================
    INTENT CHIPS
@@ -462,7 +562,10 @@ body.is-agency .dc-bar-input:focus {
 
 /* layout only — mount handles visual design */
 .dc-card-score {
-  flex: none;
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  z-index: 4;
 }
 
 .dc-card-featured {
@@ -919,14 +1022,18 @@ body.is-agency .dc-bar-input:focus {
 
   .dc-bar-shell {
     height: 58px;
-    padding: 0 16px;
+    padding: 0 6px 0 16px;
     gap: 10px;
   }
 
   .dc-bar-input,
-  .dc-bar-ph {
+  .dc-bar-ph,
+  .dc-ghost {
     font-size: 0.9375rem;
   }
+
+  .dc-bar-go { width: 42px; height: 42px; }
+  .dc-search-aurora { height: min(66vh, 520px); filter: blur(44px); }
 
   .dc-curated {
     padding: 0 20px 60px;
@@ -965,23 +1072,34 @@ body.is-agency .dc-bar-input:focus {
   color: rgba(250, 248, 245, 0.46);
 }
 
-/* gold submit button */
-/* bare arrow — no pill, no background */
+/* submit — circular four-colour button */
 .dc-bar-go {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  background: transparent;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
   border: none;
-  color: rgba(201, 165, 90, 0.45);
+  background: conic-gradient(
+    from 120deg,
+    #f0d491 0deg,
+    #d9b46a 100deg,
+    #9b72cb 175deg,
+    #d96570 215deg,
+    #c9a55a 260deg,
+    #f0d491 360deg
+  );
+  color: #2b1d06;
   cursor: pointer;
-  transition: color 0.25s ease, transform 0.25s ease;
+  transition: transform 0.25s ease, filter 0.25s ease;
 }
-.dc-bar--on .dc-bar-go { color: rgba(201, 165, 90, 0.8); }
-.dc-bar-go:hover { color: #C9A55A; transform: translateX(2px); }
+.dc-bar-go:hover { transform: scale(1.05); filter: brightness(1.08); }
+.dc-bar-go:focus-visible {
+  outline: 2px solid #e6c680;
+  outline-offset: 3px;
+}
 
 /* example intent suggestions (replace fake chips) */
 .dc-suggest {
@@ -1051,8 +1169,7 @@ body.is-agency .dc-bar-input:focus {
    WS7 — brief mode · provenance · grouped results · browse pool
    ============================================================ */
 
-/* Search input is now a textarea (brief mode). Enforce resize:none and match
-   the frozen serif treatment. */
+/* Search input is a textarea (brief mode). Enforce resize:none. */
 .dc-page .dc-bar-input,
 body.is-agency .dc-bar-input {
   resize: none !important;
@@ -1068,13 +1185,19 @@ body.is-agency .dc-bar-input--brief {
   max-height: 180px;
   line-height: 1.5;
 }
+/* brief mode grows the pill into a rounded rect so multi-line text fits */
 .dc-bar-shell--brief {
   height: auto;
-  min-height: 72px;
+  min-height: 66px;
   align-items: flex-start;
-  padding: 18px 0;
+  padding: 16px 8px 16px 20px;
+  border-radius: 26px;
 }
 .dc-bar-shell--brief .dc-bar-field { height: auto; align-items: flex-start; }
+.dc-bar-shell--brief .dc-bar-spark,
+.dc-bar-shell--brief .dc-bar-go,
+.dc-bar-shell--brief .dc-bar-mode,
+.dc-bar-shell--brief .dc-bar-clear { margin-top: 2px; }
 
 /* mode toggle — bare icon, no box */
 .dc-bar-mode {
@@ -1086,43 +1209,12 @@ body.is-agency .dc-bar-input--brief {
   height: 26px;
   background: transparent;
   border: none;
-  color: rgba(201, 165, 90, 0.4);
+  color: rgba(244, 241, 234, 0.34);
   cursor: pointer;
   transition: color 0.2s ease;
 }
 .dc-bar-mode:hover,
-.dc-bar-mode--on { color: rgba(201, 165, 90, 0.85); }
-
-/* recent searches — above the canned briefs */
-.dc-intel-recent {
-  display: flex;
-  flex-direction: column;
-  padding: 10px 0 6px;
-  border-bottom: 1px solid rgba(201, 165, 90, 0.12);
-  margin-bottom: 4px;
-}
-.dc-intel-recent-label {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.5);
-  margin-bottom: 4px;
-}
-.dc-intel-recent-row {
-  padding: 8px 0;
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 13px;
-  color: rgba(250, 248, 245, 0.55);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: color 0.2s ease;
-}
-.dc-intel-recent-row:hover { color: rgba(250, 248, 245, 0.92); }
+.dc-bar-mode--on { color: rgba(244, 241, 234, 0.85); }
 
 /* ── grouped results ── */
 .dc-curated-header {

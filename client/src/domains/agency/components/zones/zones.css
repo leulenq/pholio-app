@@ -289,17 +289,18 @@
 }
 
 .zone-section-header {
-  font-size: 9px;
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: #9b9082;
+  letter-spacing: 0.12em;
+  color: var(--ag-text-3, #8C857E);
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-bottom: 9px;
+  padding-bottom: 10px;
   margin-bottom: 14px;
-  border-bottom: 1px solid #ddd5c6;
+  border-bottom: 1px solid var(--ag-border, rgba(26, 24, 21, 0.09));
 }
 
 /* Measurements strip (shared) */

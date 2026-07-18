@@ -38,6 +38,15 @@ const TABS = [
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
 ];
 
+const BOARD_SELECTOR_DIRECTIONS = [
+  { id: 'index', number: '01', name: 'Editorial index' },
+  { id: 'folios', number: '02', name: 'Board folios' },
+  { id: 'masthead', number: '03', name: 'Masthead' },
+  { id: 'spines', number: '04', name: 'Archive spines' },
+  { id: 'register', number: '05', name: 'Open register' },
+  { id: 'typeset', number: '06', name: 'Typeset field' },
+];
+
 // Translates the active board into the brief detail panel's shape.
 function boardBrief(board) {
   if (!board) return null;
@@ -143,30 +152,177 @@ function ApplicantRow({ a, onOpen, onShortlist, onAccept, onDecline, busy }) {
   );
 }
 
-// MASTER — board selector. A top strip of chips, not a sidebar.
-function BoardSelector({ boards, total, selectedId, onSelect }) {
+function selectorBoards(boards, total) {
+  return [
+    {
+      id: null,
+      name: 'All submissions',
+      application_count: total,
+      selector_context: 'Complete intake',
+      selector_waiting: 'Across every board',
+    },
+    ...boards.map((board) => ({
+      ...board,
+      name: board.name || 'Untitled Board',
+      selector_context: board.client_name || 'Agency division',
+    })),
+  ];
+}
+
+function boardCountLabel(board) {
+  const count = board.application_count || 0;
+  return `${count} submission${count === 1 ? '' : 's'}`;
+}
+
+function boardWaitingLabel(board) {
+  if (board.selector_waiting) return board.selector_waiting;
+  const waiting = board.submitted_count || 0;
+  return waiting > 0 ? `${waiting} awaiting review` : 'Intake clear';
+}
+
+function BoardSelectorStudy({ direction, onDirectionChange }) {
   return (
-    <div className="ap-boards" role="tablist" aria-label="Board context">
-      <button
-        className={`ap-board-chip${selectedId == null ? ' ap-board-chip--on' : ''}`}
-        role="tab"
-        aria-selected={selectedId == null}
-        onClick={() => onSelect(null)}
-      >
-        <span className="ap-board-chip-name">All submissions</span>
-        <span className="ap-board-chip-count">{total}</span>
-      </button>
-      {boards.map((b) => (
+    <div className="ap-selector-study" aria-label="Board selector prototype direction">
+      <span className="ap-selector-study-label">Board selector study</span>
+      <div className="ap-selector-study-options">
+        {BOARD_SELECTOR_DIRECTIONS.map((option) => (
+          <button
+            key={option.id}
+            className={`ap-selector-study-option${direction === option.id ? ' is-active' : ''}`}
+            aria-pressed={direction === option.id}
+            onClick={() => onDirectionChange(option.id)}
+          >
+            <span>{option.number}</span>
+            {option.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BoardSelector({ boards, total, selectedId, onSelect, direction = 'index' }) {
+  const items = selectorBoards(boards, total);
+  const active = items.find((board) => board.id === selectedId) || items[0];
+  const selectProps = (board) => ({
+    role: 'tab',
+    'aria-selected': board.id === selectedId,
+    onClick: () => onSelect(board.id),
+  });
+
+  if (direction === 'folios') {
+    return (
+      <div className="ap-board-selector ap-board-selector--folios" role="tablist" aria-label="Board context">
+        {items.map((board, index) => (
+          <button
+            key={board.id || 'all'}
+            className={`ap-board-folio${board.id === selectedId ? ' is-active' : ''}`}
+            {...selectProps(board)}
+          >
+            <span className="ap-board-folio-number">{String(index + 1).padStart(2, '0')}</span>
+            <span className="ap-board-folio-copy">
+              <span className="ap-board-folio-name">{board.name}</span>
+              <span className="ap-board-folio-meta">{board.selector_context} / {boardCountLabel(board)}</span>
+            </span>
+            <span className="ap-board-folio-waiting">{boardWaitingLabel(board)}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (direction === 'masthead') {
+    return (
+      <div className="ap-board-selector ap-board-selector--masthead" role="tablist" aria-label="Board context">
+        <button className="ap-board-masthead-active" {...selectProps(active)}>
+          <span className="ap-board-masthead-name">{active.name}</span>
+          <span className="ap-board-masthead-meta">
+            {active.selector_context} / {boardCountLabel(active)} / {boardWaitingLabel(active)}
+          </span>
+        </button>
+        <div className="ap-board-masthead-index">
+          {items.filter((board) => board.id !== active.id).map((board) => (
+            <button key={board.id || 'all'} className="ap-board-masthead-option" {...selectProps(board)}>
+              <span>{board.name}</span>
+              <span>{board.application_count || 0}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (direction === 'spines') {
+    return (
+      <div className="ap-board-selector ap-board-selector--spines" role="tablist" aria-label="Board context">
+        {items.map((board, index) => (
+          <button
+            key={board.id || 'all'}
+            className={`ap-board-spine${board.id === selectedId ? ' is-active' : ''}`}
+            {...selectProps(board)}
+          >
+            <span className="ap-board-spine-number">{String(index + 1).padStart(2, '0')}</span>
+            <span className="ap-board-spine-name">{board.name}</span>
+            <span className="ap-board-spine-count">{board.application_count || 0}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (direction === 'register') {
+    return (
+      <div className="ap-board-selector ap-board-selector--register" role="tablist" aria-label="Board context">
+        <div className="ap-board-register-lead">
+          <span>{active.name}</span>
+          <span>{boardCountLabel(active)} / {boardWaitingLabel(active)}</span>
+        </div>
+        <div className="ap-board-register-lines">
+          {items.map((board, index) => (
+            <button
+              key={board.id || 'all'}
+              className={`ap-board-register-line${board.id === selectedId ? ' is-active' : ''}`}
+              {...selectProps(board)}
+            >
+              <span className="ap-board-register-number">{String(index + 1).padStart(2, '0')}</span>
+              <span className="ap-board-register-name">{board.name}</span>
+              <span className="ap-board-register-rule" aria-hidden="true" />
+              <span className="ap-board-register-count">{board.application_count || 0}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (direction === 'typeset') {
+    return (
+      <div className="ap-board-selector ap-board-selector--typeset" role="tablist" aria-label="Board context">
+        {items.map((board, index) => (
+          <button
+            key={board.id || 'all'}
+            className={`ap-board-typeset${board.id === selectedId ? ' is-active' : ''}${index === 0 ? ' is-all' : ''}`}
+            {...selectProps(board)}
+          >
+            <span className="ap-board-typeset-name">{board.name}</span>
+            <span className="ap-board-typeset-count">{board.application_count || 0}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="ap-board-selector ap-board-selector--index" role="tablist" aria-label="Board context">
+      {items.map((board) => (
         <button
-          key={b.id}
-          className={`ap-board-chip${selectedId === b.id ? ' ap-board-chip--on' : ''}`}
-          role="tab"
-          aria-selected={selectedId === b.id}
-          onClick={() => onSelect(b.id)}
+          key={board.id || 'all'}
+          className={`ap-board-index${board.id === selectedId ? ' is-active' : ''}`}
+          {...selectProps(board)}
         >
-          <span className="ap-board-chip-name">{b.name || 'Untitled Board'}</span>
-          {b.submitted_count > 0 && <span className="ap-board-chip-flag">{b.submitted_count} new</span>}
-          <span className="ap-board-chip-count">{b.application_count || 0}</span>
+          <span className="ap-board-index-name">{board.name}</span>
+          <span className="ap-board-index-meta">{board.selector_context} / {boardCountLabel(board)}</span>
+          <span className="ap-board-index-waiting">{boardWaitingLabel(board)}</span>
         </button>
       ))}
     </div>
@@ -225,6 +381,13 @@ function ApplicationsPage() {
   const [sort, setSort] = useState('recent');
   const [selected, setSelected] = useState(null);
   const [boardId, setBoardId] = useState(null);
+  const [selectorDirection, setSelectorDirection] = useState(() => {
+    if (!import.meta.env.DEV) return 'index';
+    const requested = new URLSearchParams(window.location.search).get('board-selector');
+    return BOARD_SELECTOR_DIRECTIONS.some((direction) => direction.id === requested)
+      ? requested
+      : 'index';
+  });
 
   const boardsQuery = useQuery({
     queryKey: ['agency-boards'],
@@ -287,6 +450,10 @@ function ApplicationsPage() {
   }, [applicants, tab, q, sort]);
 
   const total = applicants.length;
+  const allSubmissionTotal = useMemo(
+    () => (allQuery.data?.profiles || []).filter((profile) => profile.application_id).length,
+    [allQuery.data],
+  );
   const newCount = counts.submitted || 0;
 
   // Pass rate = how selectively the agency has decided so far.
@@ -313,6 +480,12 @@ function ApplicationsPage() {
   const retrySubmissions = () => {
     boardsQuery.refetch();
     activeApplicantsQuery.refetch();
+  };
+  const changeSelectorDirection = (direction) => {
+    setSelectorDirection(direction);
+    const url = new URL(window.location.href);
+    url.searchParams.set('board-selector', direction);
+    window.history.replaceState({}, '', url);
   };
 
   if (isLoading) {
@@ -361,7 +534,19 @@ function ApplicationsPage() {
         </div>
       </header>
 
-      <BoardSelector boards={boards} total={total} selectedId={boardId} onSelect={setBoardId} />
+      {import.meta.env.DEV && (
+        <BoardSelectorStudy
+          direction={selectorDirection}
+          onDirectionChange={changeSelectorDirection}
+        />
+      )}
+      <BoardSelector
+        boards={boards}
+        total={allSubmissionTotal || total}
+        selectedId={boardId}
+        onSelect={setBoardId}
+        direction={selectorDirection}
+      />
 
       <div className="ap-body">
         <div className="ap-main">

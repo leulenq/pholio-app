@@ -15,10 +15,11 @@ const AGENCY_WEBSITE = "https://lumenmodels.com";
 const AGENCY_DESCRIPTION =
   "Lumen Model Management is a boutique New York agency focused on editorial, runway, commercial, and development talent. The team scouts selective new faces and builds polished books for luxury campaigns, fashion week packages, and brand lookbooks.";
 const AGENCY_LOGO = "/agency-logos/lumen-model-management.svg";
-const AGENCY_BRAND_COLOR = "#B8956A";
 const AGENCY_OPEN_BOARDS = ["Women", "Men", "Runway", "Development"];
 const OWNER_FIRST = "Sarah";
 const OWNER_LAST = "Chen";
+const OWNER_AVATAR =
+  "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=240&h=240&q=80";
 
 // Unsplash portrait set (content-backed headshots for demo talent).
 const PORTRAITS = [
@@ -43,11 +44,28 @@ const PORTRAITS = [
 ];
 const portraitUrl = (i) =>
   `https://images.unsplash.com/photo-${PORTRAITS[i % PORTRAITS.length]}?auto=format&fit=crop&w=400&h=520&q=80`;
+const teamAvatarUrl = (photoId) =>
+  `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=240&h=240&q=80`;
 
 const TEAM = [
-  { first: "Marcus", last: "Vance", role: "ADMIN" },
-  { first: "Priya", last: "Anand", role: "SCOUT" },
-  { first: "Theo", last: "Laurent", role: "SCOUT" },
+  {
+    first: "Marcus",
+    last: "Vance",
+    role: "ADMIN",
+    avatar: teamAvatarUrl("1507003211169-0a1dd7228f2d"),
+  },
+  {
+    first: "Priya",
+    last: "Anand",
+    role: "SCOUT",
+    avatar: teamAvatarUrl("1573497019940-1c28c88b4f3e"),
+  },
+  {
+    first: "Theo",
+    last: "Laurent",
+    role: "SCOUT",
+    avatar: teamAvatarUrl("1500648767791-00dcc994a43e"),
+  },
 ];
 
 const now = Date.now();
@@ -321,7 +339,7 @@ async function seedAgencyDemo(knex) {
     website: AGENCY_WEBSITE,
     description: AGENCY_DESCRIPTION,
     logo_path: AGENCY_LOGO,
-    brand_color: AGENCY_BRAND_COLOR,
+    brand_color: null,
     open_boards: JSON.stringify(AGENCY_OPEN_BOARDS),
     notify_new_applications: true,
     notify_status_changes: true,
@@ -334,13 +352,14 @@ async function seedAgencyDemo(knex) {
   await knex("users").where({ id: agency.id }).update({
     first_name: OWNER_FIRST,
     last_name: OWNER_LAST,
+    avatar_url: OWNER_AVATAR,
     agency_name: AGENCY_NAME,
     agency_location: AGENCY_LOCATION,
     agency_slug: AGENCY_SLUG,
     agency_website: AGENCY_WEBSITE,
     agency_description: AGENCY_DESCRIPTION,
     agency_logo_path: AGENCY_LOGO,
-    agency_brand_color: AGENCY_BRAND_COLOR,
+    agency_brand_color: null,
   });
 
   // ---- wipe prior demo (this agency only) ----
@@ -657,6 +676,7 @@ async function seedAgencyDemo(knex) {
       role: "AGENCY",
       first_name: t.first,
       last_name: t.last,
+      avatar_url: t.avatar || null,
       agency_name: AGENCY_NAME,
       created_at: daysAgo(ri(40, 300)),
     })),
