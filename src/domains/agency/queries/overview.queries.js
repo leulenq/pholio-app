@@ -96,8 +96,9 @@ async function getActiveCastings(db, agencyId) {
 
   const [closingRow] = await db("boards")
     .where({ agency_id: agencyId, is_active: true })
-    .where("closes_at", ">=", dayStart)
-    .where("closes_at", "<", dayEnd) // exclusive upper bound
+    // ISO strings for date bindings (same dialect-compatibility rule as getPulse)
+    .where("closes_at", ">=", dayStart.toISOString())
+    .where("closes_at", "<", dayEnd.toISOString()) // exclusive upper bound
     .count("* as count");
 
   return {
@@ -126,11 +127,11 @@ async function getRosterSize(db, agencyId) {
     .select(
       db.raw("COUNT(*) as count"),
       db.raw("COUNT(CASE WHEN accepted_at < ? THEN 1 END) as base", [
-        sevenWeeksAgo,
+        sevenWeeksAgo.toISOString(),
       ]),
       db.raw(
         "COUNT(CASE WHEN accepted_at >= ? THEN 1 END) as change_this_month",
-        [monthStart],
+        [monthStart.toISOString()],
       ),
     );
   const count = parseInt(aggRow.count, 10) || 0;
@@ -142,7 +143,7 @@ async function getRosterSize(db, agencyId) {
     .whereIn("status", ["accepted", "represented"])
     .where({ agency_id: agencyId })
     .whereNotNull("accepted_at")
-    .where("accepted_at", ">=", sevenWeeksAgo)
+    .where("accepted_at", ">=", sevenWeeksAgo.toISOString())
     .select("accepted_at");
 
   const newPerSlot = [0, 0, 0, 0, 0, 0, 0];
@@ -185,8 +186,8 @@ async function getPlacementRate(db, agencyId) {
   async function rateForWindow(windowStart, windowEnd) {
     const [row] = await db("applications")
       .where("agency_id", agencyId)
-      .where("created_at", ">=", windowStart)
-      .where("created_at", "<", windowEnd)
+      .where("created_at", ">=", windowStart.toISOString())
+      .where("created_at", "<", windowEnd.toISOString())
       .whereIn("status", ["represented", "passed", "declined", "accepted"])
       .select(
         db.raw("SUM(CASE WHEN status = 'represented' THEN 1 ELSE 0 END) as represented"),
@@ -283,20 +284,20 @@ async function getAlerts(db, agencyId) {
     // Critical: submitted applications older than 14 days
     db("applications")
       .where({ agency_id: agencyId, status: "submitted" })
-      .where("created_at", "<=", cutoff14d)
+      .where("created_at", "<=", cutoff14d.toISOString())
       .count("* as count"),
 
     // Warning: boards closing today (UTC)
     db("boards")
       .where({ agency_id: agencyId, is_active: true })
-      .where("closes_at", ">=", dayStart)
-      .where("closes_at", "<", dayEnd)
+      .where("closes_at", ">=", dayStart.toISOString())
+      .where("closes_at", "<", dayEnd.toISOString())
       .count("* as count"),
 
     // Positive: new submitted applications in last 2 hours
     db("applications")
       .where({ agency_id: agencyId, status: "submitted" })
-      .where("created_at", ">=", twoHoursAgo)
+      .where("created_at", ">=", twoHoursAgo.toISOString())
       .count("* as count"),
   ]);
 

@@ -31,6 +31,35 @@ const {
 const router = express.Router();
 mountAgencyApiGuard(router);
 
+/**
+ * Automated candidate evaluation, scoring, and ordering are intentionally
+ * unavailable unless both server launch flags are explicitly enabled.
+ */
+function isAutomatedMatchingEnabled(env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_AUTOMATED_MATCHING === "true" &&
+    env.PHOLIO_ENABLE_LEARNED_PREFERENCES === "true"
+  );
+}
+
+function manualBoardResponse(scope, rows = []) {
+  return {
+    scope,
+    mode: "manual",
+    ranked: rows.map((profile) => ({
+      profile_id: profile.id,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      city: profile.city,
+    })),
+    ineligible: [],
+    partial_order: { outranks: [], incomparable: [], tiers: [] },
+    notice:
+      "Automated matching is disabled. Candidates are shown in board submission order for manual review.",
+    candidate_notice: null,
+  };
+}
+
 // Resolve the matching scope for a board the agency owns, or null.
 async function ownedBoardScope(boardId, agencyId) {
   const board = await knex("boards").where({ id: boardId, agency_id: agencyId }).first();
@@ -67,18 +96,29 @@ router.post(
         .first();
       if (!board) return res.status(404).json({ error: "Board not found" });
 
+      const scope = {
+        type: board.kind === "casting" ? "brief" : "board",
+        id: boardId,
+      };
+
       const rows = await applyMinorSubmissionFilter(knex("board_applications as ba")
         .join("applications as a", "a.id", "ba.application_id")
         .join("profiles as p", "p.id", "a.profile_id")
         .where({ "ba.board_id": boardId, "a.agency_id": agencyId })
-        .select("p.*"), {
+        .select("p.*")
+        .orderBy("ba.created_at", "asc")
+        .orderBy("ba.id", "asc"), {
           alias: "a",
           allowMinor: req.allowMinorSubmissions,
         });
 
+      if (!isAutomatedMatchingEnabled()) {
+        return res.json(manualBoardResponse(scope, rows));
+      }
+
       if (!rows.length) {
         return res.json({
-          scope: { type: board.kind === "casting" ? "brief" : "board", id: boardId },
+          scope,
           ranked: [],
           ineligible: [],
           partial_order: { outranks: [], incomparable: [], tiers: [] },
@@ -90,11 +130,6 @@ router.post(
       const truthy = (v) => v === true || v === "true" || v === "1" || v === 1;
       const withCases = truthy(req.body?.withCases ?? req.query?.withCases);
       const withReasoning = truthy(req.body?.withReasoning ?? req.query?.withReasoning);
-
-      const scope = {
-        type: board.kind === "casting" ? "brief" : "board",
-        id: boardId,
-      };
 
       const result = await rankSet(knex, scope, rows, {
         withCases,
@@ -215,3 +250,7 @@ router.get(
 );
 
 module.exports = router;
+module.exports.__testables = {
+  isAutomatedMatchingEnabled,
+  manualBoardResponse,
+};

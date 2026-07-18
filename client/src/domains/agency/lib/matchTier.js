@@ -7,8 +7,22 @@ export function normalizeScore(score) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-// One tier scale everywhere a match score appears: high ≥90, mid ≥75, low <75.
+// One 4-tier strength spectrum everywhere a match score appears. Each tier
+// has a deliberately distinct hue for quick scanning in dense agency views.
+// Cut points: exceptional ≥90, strong ≥80, fair ≥70, low <70.
+// Adjust here only — every render site resolves through this one function.
 export function resolveTier(score) {
-  const normalized = normalizeScore(score);
-  return normalized >= 90 ? 'high' : normalized >= 75 ? 'mid' : 'low';
+  const n = normalizeScore(score);
+  if (n >= 90) return 'exceptional';
+  if (n >= 80) return 'strong';
+  if (n >= 70) return 'fair';
+  return 'low';
 }
+
+// Human labels for the tiers (aria / tooltips / future copy).
+export const MATCH_TIER_LABELS = {
+  exceptional: 'Exceptional',
+  strong: 'Strong',
+  fair: 'Fair',
+  low: 'Low',
+};

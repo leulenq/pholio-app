@@ -109,9 +109,18 @@ async function createSchema() {
       t.string('id', 36).primary()
       t.string('profile_id', 36).references('id').inTable('profiles').onDelete('CASCADE')
       t.text('file_path').notNullable()
+      t.string('path').nullable()
+      t.string('public_url').nullable()
       t.boolean('is_primary').defaultTo(false)
       t.integer('sort_order').defaultTo(0)
     })
+  } else {
+    // The activity feed selects COALESCE(img.public_url, img.path).
+    for (const col of ['path', 'public_url']) {
+      if (!(await knex.schema.hasColumn('images', col))) {
+        await knex.schema.alterTable('images', t => { t.string(col).nullable() })
+      }
+    }
   }
   if (!(await knex.schema.hasTable('subscriptions'))) {
     await knex.schema.createTable('subscriptions', t => {

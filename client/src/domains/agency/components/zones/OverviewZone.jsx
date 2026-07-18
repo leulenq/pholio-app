@@ -4,6 +4,7 @@ import { getApplicationDetails } from '../../api/agency';
 import { PortfolioStrip } from './PortfolioStrip';
 import { SectionSkeleton } from './SectionSkeleton';
 import { buildProfileHydration } from './profileHydration';
+import { SubmissionPackageDetails } from './SubmissionPackageDetails';
 import './zones.css';
 
 export const OverviewZone = ({ applicationId, onProfileHydrated }) => {
@@ -14,13 +15,14 @@ export const OverviewZone = ({ applicationId, onProfileHydrated }) => {
   });
 
   useEffect(() => {
-    const { profile } = appQuery.data || {};
+    const { profile, application } = appQuery.data || {};
     if (!profile) return;
     const hydration = buildProfileHydration(profile, profile.images);
     if (hydration) {
       onProfileHydrated?.({
         ...hydration,
-        matchScore: appQuery.data?.application?.match_score ?? null,
+        matchScore: application?.match_score ?? null,
+        status: application?.status ?? null,
       });
     }
   }, [appQuery.data, onProfileHydrated]);
@@ -28,8 +30,8 @@ export const OverviewZone = ({ applicationId, onProfileHydrated }) => {
   if (appQuery.isLoading) {
     return (
       <div>
+        <SectionSkeleton lines={1} height={16} />
         <SectionSkeleton lines={1} height={100} />
-        <SectionSkeleton lines={3} />
       </div>
     );
   }
@@ -44,15 +46,22 @@ export const OverviewZone = ({ applicationId, onProfileHydrated }) => {
     );
   }
 
-  const { profile } = appQuery.data || {};
+  const { profile, submissionPackage } = appQuery.data || {};
   const images = profile?.images || [];
 
   return (
     <div>
       {images.length > 0 && (
         <div className="zone-section">
-          <div className="zone-section-header">Portfolio</div>
+          <div className="zone-section-header">The book · {images.length} {images.length === 1 ? 'frame' : 'frames'}</div>
           <PortfolioStrip images={images} />
+        </div>
+      )}
+
+      {submissionPackage && (
+        <div className="zone-section">
+          <div className="zone-section-header">Comp card &amp; submission</div>
+          <SubmissionPackageDetails submissionPackage={submissionPackage} compact />
         </div>
       )}
     </div>

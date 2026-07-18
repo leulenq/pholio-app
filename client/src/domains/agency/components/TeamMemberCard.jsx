@@ -65,13 +65,20 @@ export default function TeamMemberCard({ member, isYou = false, canManage = fals
       className={`tm-card${isOwner ? ' tm-card--owner' : ''}${inactive ? ' tm-card--inactive' : ''}`}
     >
       <div className="tm-card-top">
-        <span
-          className="tm-mono"
-          style={{ background: hue.bg, color: hue.fg, boxShadow: isOwner ? `0 0 0 2px ${hue.ring}` : undefined }}
-        >
-          {monogramOf(member)}
-          {isOwner && <Crown size={11} className="tm-mono-crown" />}
-        </span>
+        {member.avatar_url ? (
+          <span className="tm-mono tm-mono--photo" style={{ boxShadow: isOwner ? `0 0 0 2px ${hue.ring}` : undefined }}>
+            <img src={member.avatar_url} alt="" />
+            {isOwner && <Crown size={11} className="tm-mono-crown" />}
+          </span>
+        ) : (
+          <span
+            className="tm-mono"
+            style={{ background: hue.bg, color: hue.fg, boxShadow: isOwner ? `0 0 0 2px ${hue.ring}` : undefined }}
+          >
+            {monogramOf(member)}
+            {isOwner && <Crown size={11} className="tm-mono-crown" />}
+          </span>
+        )}
 
         {manageable && (
           <div className="tm-menu-wrap">

@@ -231,6 +231,29 @@ router.post("/api/dev/login", async (req, res, next) => {
   }
 });
 
+// POST /api/dev/bootstrap — SessionGates call this to establish the seeded
+// principal for a dashboard role (client: shared/lib/dev-seed-session.js).
+// Hard-gated inside establishDevSeedSession (404 unless dev passthrough).
+router.post("/api/dev/bootstrap", async (req, res, next) => {
+  try {
+    const {
+      establishDevSeedSession,
+    } = require("../../../shared/lib/dev-seed-session");
+    const result = await establishDevSeedSession(req, req.body?.role);
+    if (!result.ok) {
+      return res
+        .status(result.status || 404)
+        .json({ success: false, error: result.error || "Not found" });
+    }
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => (err ? reject(err) : resolve()));
+    });
+    return res.json({ success: true, role: req.session.role });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 // GET /login
 router.get("/login", async (req, res) => {
   const forceLogin = req.query.force === "1";

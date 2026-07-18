@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import {
   Settings,
@@ -14,19 +14,14 @@ import { InlineErrorText } from '../../../../shared/components/states';
 import { postLogoutAndRedirectToMarketing } from '../../../../shared/lib/logout';
 import './UserDropdown.css';
 
-function getInitials(name) {
-  if (!name) return '?';
-  return name
-    .split(' ')
-    .map(p => p[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+function pathMatches(pathname, matchPath) {
+  return pathname === matchPath || pathname.startsWith(`${matchPath}/`);
 }
 
-export default function UserDropdown({ isOpen, onClose, profile }) {
+export default function UserDropdown({ isOpen, onClose }) {
   const firstItemRef = useRef(null);
   const [logoutError, setLogoutError] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     if (isOpen) firstItemRef.current?.focus();
@@ -34,23 +29,19 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
 
   if (!isOpen) return null;
 
-  const fullName = profile?.first_name 
-    ? (profile.last_name ? `${profile.first_name} ${profile.last_name}` : profile.first_name)
-    : profile?.agency_name || profile?.email?.split('@')[0] || 'Agency User';
-  const agencyName = profile?.agency_name || '';
-  
-  // Try to find an avatar URL:
-  // 1. From profile.images[0].path (talent-like structure)
-  // 2. From profile.agency_logo_path (agency-specific structure)
-  const avatarUrl = profile?.images?.[0]?.path
-    ? `/${profile.images[0].path}`
-    : profile?.agency_logo_path
-    ? `/${profile.agency_logo_path}`
-    : null;
-
   const navLinks = [
-    { label: 'Settings',           icon: Settings, to: '/dashboard/agency/settings?tab=profile' },
-    { label: 'Team Members',       icon: Users,    to: '/dashboard/agency/team'               },
+    {
+      label: 'Settings',
+      icon: Settings,
+      to: '/dashboard/agency/settings?tab=profile',
+      matchPath: '/dashboard/agency/settings',
+    },
+    {
+      label: 'Team Members',
+      icon: Users,
+      to: '/dashboard/agency/team',
+      matchPath: '/dashboard/agency/team',
+    },
   ];
 
   async function handleLogout() {
@@ -69,55 +60,33 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
   }
 
   return (
-    <div className="nav-panel ud-panel" aria-label="Account menu">
-      {/* Profile card */}
-      <div className="ud-profile">
-        <div className="ud-avatar-wrap">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={fullName} className="ud-avatar" />
-          ) : (
-            <div className="ud-avatar-initials" aria-hidden="true">
-              {getInitials(fullName)}
-            </div>
-          )}
-        </div>
-        <div className="ud-info">
-          <p className="ud-name">{fullName}</p>
-          {agencyName && (
-            <p className="ud-agency">
-              {agencyName}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="ud-divider" />
-
-      {/* Nav links */}
+    <div className="ud-panel" aria-label="Account menu">
       <nav className="ud-nav">
-        {navLinks.map(({ label, icon: Icon, to }, idx) => (
-          <Link
-            key={label}
-            to={to}
-            className="ud-item"
-            onClick={onClose}
-            ref={idx === 0 ? firstItemRef : null}
-          >
-            <Icon size={16} className="ud-item-icon" />
-            <span className="ud-item-label">{label}</span>
-          </Link>
-        ))}
+        {navLinks.map(({ label, icon: Icon, to, matchPath }, idx) => {
+          const active = pathMatches(location.pathname, matchPath);
+          return (
+            <NavLink
+              key={label}
+              to={to}
+              className={`ud-item${active ? ' ud-item--active' : ''}`}
+              onClick={onClose}
+              ref={idx === 0 ? firstItemRef : null}
+            >
+              <Icon size={14} strokeWidth={1.6} className="ud-item-icon" aria-hidden="true" />
+              <span className="ud-item-label">{label}</span>
+            </NavLink>
+          );
+        })}
 
-        {/* Help & Support — external mailto link */}
         <a
           href="mailto:support@pholio.studio"
           target="_blank"
           rel="noopener noreferrer"
           className="ud-item"
         >
-          <HelpCircle size={16} className="ud-item-icon" />
+          <HelpCircle size={14} strokeWidth={1.6} className="ud-item-icon" aria-hidden="true" />
           <span className="ud-item-label">Help & Support</span>
-          <ExternalLink size={12} className="ud-external-icon" />
+          <ExternalLink size={12} strokeWidth={1.6} className="ud-external-icon" aria-hidden="true" />
         </a>
       </nav>
 
@@ -130,7 +99,7 @@ export default function UserDropdown({ isOpen, onClose, profile }) {
       )}
 
       <button type="button" className="ud-item ud-item--logout" onClick={handleLogout}>
-        <LogOut size={16} className="ud-item-icon" />
+        <LogOut size={14} strokeWidth={1.6} className="ud-item-icon" aria-hidden="true" />
         <span className="ud-item-label">Log out</span>
       </button>
     </div>

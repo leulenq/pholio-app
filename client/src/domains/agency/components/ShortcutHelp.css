@@ -1,0 +1,106 @@
+/* ShortcutHelp — keyboard triage cheat sheet overlay. */
+
+.sc-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ag-z-modal, 100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 17, 11, 0.34);
+  /* Functional full-screen dimmer — the one sanctioned place for blur. */
+  backdrop-filter: blur(2px);
+}
+
+.sc-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--ag-surface-1);
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-lg);
+  box-shadow: var(--ag-shadow-lg);
+  padding: 22px 24px 20px;
+  outline: none;
+  font-family: var(--ag-font-body);
+}
+
+.sc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sc-title {
+  margin: 0;
+  font-family: var(--ag-font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ag-text-0);
+  letter-spacing: -0.01em;
+}
+
+.sc-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-sm);
+  background: transparent;
+  color: var(--ag-text-2);
+  cursor: pointer;
+  transition: color var(--ag-duration-fast) var(--ag-ease), border-color var(--ag-duration-fast) var(--ag-ease);
+}
+
+.sc-close:hover { color: var(--ag-text-0); border-color: var(--ag-border-strong); }
+.sc-close:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); }
+
+.sc-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-top: 1px solid var(--ag-border);
+}
+.sc-item:first-child { border-top: none; }
+
+.sc-keys {
+  display: inline-flex;
+  gap: 5px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.sc-key {
+  min-width: 22px;
+  padding: 2px 7px;
+  border: 1px solid var(--ag-border-strong);
+  border-radius: var(--ag-radius-sm);
+  background: var(--ag-surface-2);
+  color: var(--ag-text-1);
+  font-family: var(--ag-font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.sc-label {
+  margin: 0;
+  font-size: var(--ag-text-body);
+  color: var(--ag-text-2);
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-close { transition-duration: 0.01ms; }
+}

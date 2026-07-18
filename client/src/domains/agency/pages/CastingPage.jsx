@@ -196,7 +196,7 @@ export default function CastingPage() {
             className={`cas-chip${filter === f.value ? ' cas-chip--on' : ''}`}
             onClick={() => setFilter(f.value)}
           >
-            {f.label}<span className="cas-chip-count">{f.count}</span>
+            {f.label}
           </button>
         ))}
       </div>

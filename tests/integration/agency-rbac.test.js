@@ -61,12 +61,21 @@ async function createMinimalSchema() {
       t.string("account_status").notNullable().defaultTo("ACTIVE");
       t.string("first_name", 100).nullable();
       t.string("last_name", 100).nullable();
+      t.string("avatar_url", 2048).nullable();
       t.timestamp("created_at").defaultTo(knex.fn.now());
     });
-  } else if (!(await knex.schema.hasColumn("users", "account_status"))) {
-    await knex.schema.alterTable("users", (t) => {
-      t.string("account_status").notNullable().defaultTo("ACTIVE");
-    });
+  } else {
+    if (!(await knex.schema.hasColumn("users", "account_status"))) {
+      await knex.schema.alterTable("users", (t) => {
+        t.string("account_status").notNullable().defaultTo("ACTIVE");
+      });
+    }
+    // Team list/add select u.avatar_url (see inbox.js team routes).
+    if (!(await knex.schema.hasColumn("users", "avatar_url"))) {
+      await knex.schema.alterTable("users", (t) => {
+        t.string("avatar_url", 2048).nullable();
+      });
+    }
   }
 
   if (!(await knex.schema.hasTable("sessions"))) {
@@ -167,6 +176,86 @@ async function createMinimalSchema() {
     });
   }
 
+  // The agency-submission audience SELECT (profile-visibility.js) reads every
+  // one of these columns; /api/agency/applications 500s if any is missing.
+  const PROFILE_AUDIENCE_COLUMNS = [
+    ["slug", (t) => t.string("slug", 200).nullable()],
+    ["city", (t) => t.string("city", 100).nullable()],
+    ["gender", (t) => t.string("gender", 30).nullable()],
+    ["archetype", (t) => t.string("archetype", 60).nullable()],
+    ["stats_track", (t) => t.string("stats_track", 30).nullable()],
+    ["height_cm", (t) => t.integer("height_cm").nullable()],
+    ["bust_cm", (t) => t.integer("bust_cm").nullable()],
+    ["chest_cm", (t) => t.integer("chest_cm").nullable()],
+    ["waist_cm", (t) => t.integer("waist_cm").nullable()],
+    ["hips_cm", (t) => t.integer("hips_cm").nullable()],
+    ["inseam_cm", (t) => t.integer("inseam_cm").nullable()],
+    ["shoe_size", (t) => t.string("shoe_size", 20).nullable()],
+    ["dress_size", (t) => t.string("dress_size", 20).nullable()],
+    ["suit_size", (t) => t.string("suit_size", 20).nullable()],
+    ["hair_color", (t) => t.string("hair_color", 40).nullable()],
+    ["eye_color", (t) => t.string("eye_color", 40).nullable()],
+    ["measurements_updated_at", (t) => t.timestamp("measurements_updated_at").nullable()],
+    ["measured_in_person_at", (t) => t.timestamp("measured_in_person_at").nullable()],
+    ["availability_status", (t) => t.string("availability_status", 40).nullable()],
+    ["nationality", (t) => t.string("nationality", 80).nullable()],
+    ["date_of_birth", (t) => t.string("date_of_birth", 40).nullable()],
+    ["guardian_consent_at", (t) => t.timestamp("guardian_consent_at").nullable()],
+    ["languages", (t) => t.text("languages").nullable()],
+    ["bio_raw", (t) => t.text("bio_raw").nullable()],
+    ["phone", (t) => t.string("phone", 40).nullable()],
+    ["weight_kg", (t) => t.integer("weight_kg").nullable()],
+    ["weight_lbs", (t) => t.integer("weight_lbs").nullable()],
+    ["weight_unit", (t) => t.string("weight_unit", 10).nullable()],
+    ["is_discoverable", (t) => t.boolean("is_discoverable").defaultTo(false)],
+  ];
+  for (const [column, addColumn] of PROFILE_AUDIENCE_COLUMNS) {
+    if (!(await knex.schema.hasColumn("profiles", column))) {
+      await knex.schema.alterTable("profiles", addColumn);
+    }
+  }
+
+  // Signing an application syncs a roster membership row (roster-memberships
+  // service), and the roster detail route reads memberships + commitments.
+  if (!(await knex.schema.hasTable("roster_memberships"))) {
+    await knex.schema.createTable("roster_memberships", (t) => {
+      t.string("id", 36).primary();
+      t.string("agency_id", 36).notNullable();
+      t.string("profile_id", 36).nullable();
+      t.string("talent_record_id", 36).nullable();
+      t.string("board_id", 36).nullable();
+      t.string("stage", 20).notNullable().defaultTo("main");
+      t.string("status", 20).notNullable().defaultTo("active");
+      t.string("source_application_id", 36).nullable();
+      t.timestamp("joined_at").nullable();
+      t.timestamp("left_at").nullable();
+      t.text("notes").nullable();
+      t.string("created_by_user_id", 36).nullable();
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+      t.timestamp("updated_at").defaultTo(knex.fn.now());
+    });
+  }
+
+  if (!(await knex.schema.hasTable("talent_commitments"))) {
+    await knex.schema.createTable("talent_commitments", (t) => {
+      t.string("id", 36).primary();
+      t.string("agency_id", 36).notNullable();
+      t.string("profile_id", 36).nullable();
+      t.string("roster_membership_id", 36).nullable();
+      t.string("kind", 40).nullable();
+      t.string("option_tier", 40).nullable();
+      t.string("start_date", 40).nullable();
+      t.string("end_date", 40).nullable();
+      t.string("market", 80).nullable();
+      t.string("client_ref", 120).nullable();
+      t.string("category", 80).nullable();
+      t.text("notes").nullable();
+      t.string("status", 20).notNullable().defaultTo("active");
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+      t.timestamp("updated_at").defaultTo(knex.fn.now());
+    });
+  }
+
   if (!(await knex.schema.hasTable("social_accounts"))) {
     // Mirrors migrations/20260629160000_create_social_accounts_table.js —
     // shared/lib/social-accounts.js (Wave 2D canonical loader) selects the
@@ -211,6 +300,54 @@ async function createMinimalSchema() {
         t.timestamp("declined_at").nullable();
       });
     }
+  }
+
+  // Minor-submission gating (minor-submission-access.js) reads these
+  // application columns and joins minor_agency_consents.
+  const APPLICATION_MINOR_COLUMNS = [
+    ["minor_at_submission", (t) => t.boolean("minor_at_submission").defaultTo(false)],
+    ["guardian_consent_grant_id", (t) => t.string("guardian_consent_grant_id", 36).nullable()],
+    ["guardian_consent_expires_at", (t) => t.timestamp("guardian_consent_expires_at").nullable()],
+    ["minor_access_revoked_at", (t) => t.timestamp("minor_access_revoked_at").nullable()],
+    ["minor_access_revocation_reason", (t) => t.string("minor_access_revocation_reason", 120).nullable()],
+  ];
+  for (const [column, addColumn] of APPLICATION_MINOR_COLUMNS) {
+    if (!(await knex.schema.hasColumn("applications", column))) {
+      await knex.schema.alterTable("applications", addColumn);
+    }
+  }
+
+  if (!(await knex.schema.hasTable("minor_agency_consents"))) {
+    await knex.schema.createTable("minor_agency_consents", (t) => {
+      t.string("id", 36).primary();
+      t.string("profile_id", 36).notNullable();
+      t.string("agency_id", 36).notNullable();
+      t.string("consent_request_id", 36).nullable();
+      t.string("guardian_email").nullable();
+      t.timestamp("verified_at").nullable();
+      t.timestamp("revoked_at").nullable();
+      t.timestamp("authorization_expires_at").nullable();
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+      t.timestamp("updated_at").defaultTo(knex.fn.now());
+    });
+  }
+
+  // Team add revokes any pending invitation for the email (inbox.js team routes).
+  if (!(await knex.schema.hasTable("agency_team_invitations"))) {
+    await knex.schema.createTable("agency_team_invitations", (t) => {
+      t.string("id", 36).primary();
+      t.string("agency_id", 36).notNullable();
+      t.string("email", 320).notNullable();
+      t.string("membership_role", 32).notNullable();
+      t.string("token_hash", 64).nullable();
+      t.string("invited_by_user_id", 36).nullable();
+      t.string("invited_by_membership_id", 36).nullable();
+      t.timestamp("expires_at").nullable();
+      t.timestamp("accepted_at").nullable();
+      t.timestamp("revoked_at").nullable();
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+      t.timestamp("updated_at").defaultTo(knex.fn.now());
+    });
   }
 
   if (!(await knex.schema.hasTable("application_activities"))) {
@@ -651,7 +788,9 @@ describe("agency RBAC custom grants", () => {
       .where({ agency_id: AGENCY_ID, user_id: newUserId })
       .first();
     expect(membership).toBeDefined();
-    expect(membership.status).toBe("ACTIVE");
+    // Team adds are invitation-based (RBAC hardening): the membership is
+    // created INVITED and only becomes ACTIVE when the user accepts.
+    expect(membership.status).toBe("INVITED");
 
     await knex("agency_memberships")
       .where({ agency_id: AGENCY_ID, user_id: newUserId })
@@ -815,6 +954,7 @@ describe("agency applications cross-tenant isolation", () => {
 describe("agency roster/preview DTO isolation", () => {
   const ROSTER_PROFILE = uuidv4();
   const ROSTER_APP = uuidv4();
+  const ROSTER_MEMBERSHIP = uuidv4();
   const PREVIEW_ADULT = uuidv4();
   const PREVIEW_MINOR = uuidv4();
   const VISIBLE_IMG = uuidv4();
@@ -898,6 +1038,18 @@ describe("agency roster/preview DTO isolation", () => {
       status: "accepted",
     });
 
+    // Roster is membership-backed: production signing creates this row via
+    // syncRosterMembershipForApplication, so the fixture mirrors it.
+    await knex("roster_memberships").insert({
+      id: ROSTER_MEMBERSHIP,
+      agency_id: AGENCY_ID,
+      profile_id: ROSTER_PROFILE,
+      stage: "main",
+      status: "active",
+      source_application_id: ROSTER_APP,
+      joined_at: new Date(),
+    });
+
     await knex("images").insert([
       {
         id: VISIBLE_IMG,
@@ -929,6 +1081,7 @@ describe("agency roster/preview DTO isolation", () => {
 
   afterAll(async () => {
     await knex("images").whereIn("id", [VISIBLE_IMG, HIDDEN_IMG]).del();
+    await knex("roster_memberships").where({ id: ROSTER_MEMBERSHIP }).del();
     await knex("applications").where({ id: ROSTER_APP }).del();
     await knex("profiles")
       .whereIn("id", [ROSTER_PROFILE, PREVIEW_ADULT, PREVIEW_MINOR])
@@ -949,7 +1102,9 @@ describe("agency roster/preview DTO isolation", () => {
     );
 
     expect(res.status).toBe(200);
-    const keys = collectAllKeys(res.body.profile);
+    // Membership-backed contract: { success, data: { membership, talent, … } }.
+    expect(res.body.data.membership.id).toBe(ROSTER_MEMBERSHIP);
+    const keys = collectAllKeys(res.body.data);
     // Submission audience: age/archetype allowed, but account identity never is.
     const NEVER = [
       "owner_email",
@@ -966,8 +1121,8 @@ describe("agency roster/preview DTO isolation", () => {
     ];
     expect(NEVER.filter((k) => keys.has(k))).toEqual([]);
     // Only the visible image survives applyImageVisibility.
-    expect(res.body.profile.images).toHaveLength(1);
-    expect(res.body.profile.images[0].id).toBe(VISIBLE_IMG);
+    expect(res.body.data.talent.images).toHaveLength(1);
+    expect(res.body.data.talent.images[0].id).toBe(VISIBLE_IMG);
   });
 
   test("discover preview of an adult returns a discovery DTO with no forbidden keys", async () => {

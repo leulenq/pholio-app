@@ -4,7 +4,7 @@ description: Warm editorial luxury for agency roster operations — cream, gold,
 colors:
   ink: "#1A1815"
   ink-deep: "#141210"
-  canvas: "#FAF8F5"
+  canvas: "#F7F3EC"
   surface: "#FFFFFF"
   surface-hover: "#F5F2EE"
   surface-active: "#EDE9E3"
@@ -114,7 +114,7 @@ This system is **calm, dense, and composed**. It carries more discrete elements 
 What it explicitly rejects: cold blue-and-white admin chrome, status-badge dot soup, corner metadata chips on cards, glassmorphism, count bubbles on nav, and any small uppercase eyebrow floating above a heading. The agency tool should feel like an asset an agency is proud to run its business on — not a generic SaaS CRM.
 
 **Key Characteristics:**
-- Warm cream canvas (`#FAF8F5`), white panels, a single gold accent used sparingly.
+- Warm cream canvas (`#F7F3EC`), white panels, a single gold accent used sparingly.
 - Playfair Display serif for headlines; Inter for everything operational.
 - Density with composure — many signals, low visual noise.
 - Soft warm shadows + tonal cream layering for depth; never glass.
@@ -130,7 +130,7 @@ A warm-neutral foundation (cream → white → sand) carrying a single editorial
 ### Neutral
 - **Ink** (`#1A1815`): Headlines and primary text; the warm near-black that anchors the system.
 - **Ink Deep** (`#141210`): Reserved deepest tone — the command-rail ground and text on gold buttons.
-- **Canvas** (`#FAF8F5`): The warm cream page background. The single most identity-defining surface.
+- **Canvas** (`#F7F3EC`, token `--ag-canvas`): The warm cream page background of the command-center shell (`.ag-shell`, `.ag-main`). The single most identity-defining surface. Distinct from `--ag-surface-0` (`#FAF8F5`), the lighter cream shared platform-wide with the talent/auth surfaces — sub-pages, modals, and drawers inside the agency shell still lean on `--ag-surface-0` for panel backgrounds.
 - **Surface** (`#FFFFFF`): Sidebar, cards, panels — the "paper" laid on the canvas.
 - **Surface Hover / Active** (`#F5F2EE` / `#EDE9E3`): Tonal cream steps for hover and pressed/input states — depth by tone, not shadow.
 - **Body** (`#2D2A26`), **Secondary** (`#6B6560`), **Tertiary** (`#9C958E`), **Ghost** (`#C8C2BA`): The text ramp, warm-tinted top to bottom.
@@ -212,7 +212,7 @@ The roster casting board: columns of talent cards moved across pipeline stages v
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** keep the canvas warm cream (`#FAF8F5`) with white paper panels — the warmth is the brand.
+- **Do** keep the canvas warm cream (`#F7F3EC`) with white paper panels — the warmth is the brand.
 - **Do** reserve gold (`#C9A55A`) for the single most important action or the current selection (≤10% of a screen).
 - **Do** use Playfair Display only at masthead/section-title tier; Inter for every control, label, and data cell.
 - **Do** convey depth by tonal cream layering first, soft warm shadows second.

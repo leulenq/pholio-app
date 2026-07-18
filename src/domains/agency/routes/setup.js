@@ -174,6 +174,7 @@ async function loadSetupState(agencyId) {
           "u.email",
           "u.first_name",
           "u.last_name",
+          "u.avatar_url",
         )
         .orderBy("am.created_at", "asc"),
     ]);
@@ -218,6 +219,7 @@ async function loadSetupState(agencyId) {
       role: member.membership_role,
       email: member.email,
       name: [member.first_name, member.last_name].filter(Boolean).join(" "),
+      avatarUrl: member.avatar_url || null,
     })),
     importJobs: importJobs.map((job) => ({
       id: job.id,

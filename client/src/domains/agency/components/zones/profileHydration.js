@@ -14,6 +14,20 @@ export function buildProfileHydration(profile, images) {
     slug: profile.slug || null,
     portfolioUrl: findSocialUrl(profile, 'portfolio'),
     isPro: Boolean(profile.is_pro),
+    // Measurements — feed the panel's vitals band. Present in both the
+    // discover profile DTO and the application-details submitted profile.
+    measurements: {
+      height_cm: profile.height_cm ?? null,
+      bust_cm: profile.bust_cm ?? null,
+      waist_cm: profile.waist_cm ?? null,
+      hips_cm: profile.hips_cm ?? null,
+    },
+    // Physical attributes — feed the panel's identity caption.
+    attributes: {
+      hair_color: profile.hair_color || null,
+      eye_color: profile.eye_color || null,
+      nationality: profile.nationality || null,
+    },
   };
 }
 

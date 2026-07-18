@@ -1,20 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Search, Star, Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Search, Star, Check, X, ChevronRight, ArrowUpRight } from 'lucide-react';
 import {
   getApplicants, getBoards, getCastingBoardPipeline,
   acceptApplication, shortlistApplication, declineApplication,
 } from '../api/agency';
 import { TalentPanel } from '../components/TalentPanel';
 import MatchScore from '../components/ui/MatchScore';
-import { SkeletonRow, SkeletonStrip } from '../components/ui';
-import { TypeSpec, StageMark } from '../components/status';
-import { useCardButton } from '../hooks/useCardButton';
+import { SkeletonRow, SkeletonStrip, AgencyEmptyState, StatusText } from '../components/ui';
+import { TypeSpec } from '../components/status';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
+import ShortcutHelp from '../components/ShortcutHelp';
 import './ApplicantsPage.css';
+
+const PAGE_SIZE = 60;
 
 const timeAgo = (ts) => {
   if (!ts) return '—';
@@ -27,40 +30,26 @@ const timeAgo = (ts) => {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const isNew = (s) => s === 'submitted' || s === 'pending' || !s;
-const TABS = [
-  { key: 'all', label: 'All', match: () => true },
+const isNew = (s) => s === 'submitted' || s === 'pending' || s === 'new' || !s;
+const SIGNED_STATES = ['represented', 'booked', 'accepted', 'signed'];
+const isSigned = (s) => SIGNED_STATES.includes(s);
+// A submission is "decided" once it has left the review ladder in either direction.
+const isDecided = (s) => isSigned(s) || s === 'declined' || s === 'passed';
+
+// Primary ledger-as-tabs — the five views a booker triages between.
+const PRIMARY_TABS = [
   { key: 'submitted', label: 'New', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
-  { key: 'kept_on_file', label: 'On file', match: (s) => s === 'kept_on_file' },
   { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
-  { key: 'represented', label: 'Represented', match: (s) => ['represented', 'booked', 'accepted'].includes(s) },
+  { key: 'represented', label: 'Signed', match: isSigned },
+  { key: 'all', label: 'All', match: () => true },
+];
+// Quiet outcomes folded out of the ledger; reachable from the "More" filter row.
+const SECONDARY_TABS = [
+  { key: 'kept_on_file', label: 'On file', match: (s) => s === 'kept_on_file' },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
 ];
-
-// Translates the active board into the brief detail panel's shape.
-function boardBrief(board) {
-  if (!board) return null;
-  const pipeline = board.application_count || 0;
-  const waiting = board.submitted_count || 0;
-  const represented = board.represented_count || board.booked_count || 0;
-  return {
-    title: board.name || 'Untitled Board',
-    status: board.is_active === false ? 'Closed' : 'Open',
-    pipeline,
-    sections: [
-      {
-        label: 'The Brief',
-        body: board.description
-          || 'No brief written for this board yet. Add one so every reviewer shares the same point of view.',
-      },
-      {
-        label: 'Where It Stands',
-        body: `${pipeline} in pipeline · ${waiting} awaiting review · ${represented} represented.`,
-      },
-    ],
-  };
-}
+const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
 
 function mapRow(p) {
   const img = p.images?.[0];
@@ -69,7 +58,6 @@ function mapRow(p) {
     applicationId: p.application_id,
     profileId: p.id,
     name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown',
-    archetype: p.archetype || 'editorial',
     city: p.city || null,
     photo: img ? (img.public_url || img.path) : null,
     status,
@@ -77,7 +65,6 @@ function mapRow(p) {
     match: p.match_score ?? null,
     slug: p.slug,
     type: p.archetype || 'editorial',
-    location: p.city || null,
   };
 }
 
@@ -87,7 +74,6 @@ function mapCandidate(c) {
     applicationId: c.applicationId ?? c.id,
     profileId: c.profileId,
     name: c.name || 'Unknown',
-    archetype: c.archetype || 'editorial',
     city: c.location || null,
     photo: c.avatar || null,
     status: c.backendStatus || 'submitted',
@@ -95,17 +81,33 @@ function mapCandidate(c) {
     match: c.score ?? null,
     slug: c.slug,
     type: c.archetype || 'editorial',
-    location: c.location || null,
   };
 }
 
-
-function ApplicantRow({ a, onOpen, onShortlist, onAccept, onDecline, busy }) {
-  const decided = a.status === 'accepted' || a.status === 'booked' || a.status === 'declined';
+function ApplicantRow({ a, focused, onOpen, onShortlist, onAccept, onDecline, busy, rowRef, onFocus }) {
+  const decided = isDecided(a.status);
   const shortlisted = a.status === 'shortlisted';
-  const cardButtonProps = useCardButton(() => onOpen(a), { disabled: busy });
+  const classes = [
+    'ap-row',
+    'ap-row--talent',
+    focused ? 'ap-row--focused' : '',
+  ].filter(Boolean).join(' ');
   return (
-    <div className="ap-row" onClick={() => onOpen(a)} {...cardButtonProps}>
+    <div
+      ref={rowRef}
+      className={classes}
+      role="button"
+      tabIndex={0}
+      aria-selected={focused || undefined}
+      onFocus={onFocus}
+      onClick={() => onOpen(a)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          onOpen(a);
+        }
+      }}
+    >
       <span className="ap-pic">
         <span className="ap-pic-img" style={{ backgroundImage: a.photo ? `url(${a.photo})` : 'none' }} />
       </span>
@@ -117,105 +119,90 @@ function ApplicantRow({ a, onOpen, onShortlist, onAccept, onDecline, busy }) {
         </span>
       </div>
       <span className="ap-applied">{timeAgo(a.appliedAt)}</span>
-      {a.match != null && <MatchScore score={a.match} size="sm" className="ap-score" />}
-      <span className="ap-status"><StageMark status={a.status} /></span>
-      <div className="ap-actions" onClick={(e) => e.stopPropagation()}>
-        {!decided && (
+      <span className="ap-score-cell">{a.match != null && <MatchScore score={a.match} size="sm" />}</span>
+      <span className="ap-status"><StatusText status={a.status} /></span>
+      <div className="ap-actions" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+        {decided ? (
+          <span className="ap-decided" aria-hidden="true">Decided</span>
+        ) : (
           <>
             {!shortlisted && (
-              <button className="ap-act" title="Shortlist" disabled={busy} onClick={() => onShortlist(a.applicationId)}>
-                <Star size={15} />
+              <button
+                type="button"
+                className="ap-act"
+                aria-label={`Shortlist ${a.name}`}
+                disabled={busy}
+                onClick={() => onShortlist(a.applicationId)}
+              >
+                <Star size={14} aria-hidden="true" />
+                <span className="ap-act-label">Shortlist</span>
               </button>
             )}
-            <button className="ap-act ap-act--accept" title="Sign" disabled={busy} onClick={() => onAccept(a.applicationId)}>
-              <Check size={15} />
+            <button
+              type="button"
+              className="ap-act ap-act--accept"
+              aria-label={`Sign ${a.name}`}
+              disabled={busy}
+              onClick={() => onAccept(a.applicationId)}
+            >
+              <Check size={14} aria-hidden="true" />
+              <span className="ap-act-label">Sign</span>
             </button>
-            <button className="ap-act ap-act--decline" title="Pass" disabled={busy} onClick={() => onDecline(a.applicationId)}>
-              <X size={15} />
+            <button
+              type="button"
+              className="ap-act ap-act--decline"
+              aria-label={`Pass on ${a.name}`}
+              disabled={busy}
+              onClick={() => onDecline(a.applicationId)}
+            >
+              <X size={14} aria-hidden="true" />
+              <span className="ap-act-label">Pass</span>
             </button>
           </>
         )}
-        <button className="ap-act ap-act--review" title="Review" onClick={() => onOpen(a)}>
-          <ChevronRight size={16} />
+        <button
+          type="button"
+          className="ap-act ap-act--review"
+          aria-label={`Review ${a.name}`}
+          onClick={() => onOpen(a)}
+        >
+          <ChevronRight size={16} aria-hidden="true" />
         </button>
       </div>
     </div>
   );
 }
 
-// MASTER — board selector. A top strip of chips, not a sidebar.
-function BoardSelector({ boards, total, selectedId, onSelect }) {
+// Board context band — replaces the collapsible brief rail. Shown only for a
+// selected board: name, one-line brief excerpt, where-it-stands, link to signing.
+function BoardBand({ board }) {
+  if (!board) return null;
+  const pipeline = board.application_count || 0;
+  const waiting = board.submitted_count || 0;
+  const represented = board.represented_count || board.booked_count || 0;
+  const brief = board.description
+    ? board.description
+    : 'No brief written for this board yet. Add one so every reviewer shares the same point of view.';
   return (
-    <div className="ap-boards" role="tablist" aria-label="Board context">
-      <button
-        className={`ap-board-chip${selectedId == null ? ' ap-board-chip--on' : ''}`}
-        role="tab"
-        aria-selected={selectedId == null}
-        onClick={() => onSelect(null)}
-      >
-        <span className="ap-board-chip-name">All submissions</span>
-        <span className="ap-board-chip-count">{total}</span>
-      </button>
-      {boards.map((b) => (
-        <button
-          key={b.id}
-          className={`ap-board-chip${selectedId === b.id ? ' ap-board-chip--on' : ''}`}
-          role="tab"
-          aria-selected={selectedId === b.id}
-          onClick={() => onSelect(b.id)}
-        >
-          <span className="ap-board-chip-name">{b.name || 'Untitled Board'}</span>
-          {b.submitted_count > 0 && <span className="ap-board-chip-flag">{b.submitted_count} new</span>}
-          <span className="ap-board-chip-count">{b.application_count || 0}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// DETAIL — brief panel, shown only when a board is in context.
-function BriefRail({ brief }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <motion.aside
-      className="ap-brief-rail"
-      data-open={open ? 'true' : 'false'}
-      animate={{ width: open ? 332 : 46 }}
-      transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+    <motion.section
+      className="ap-band"
+      aria-label={`${board.name || 'Board'} context`}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
     >
-      <button className="ap-rail-tab ap-rail-tab--right" onClick={() => setOpen((v) => !v)} title={open ? 'Collapse brief' : 'Open brief'}>
-        {open ? <ChevronRight size={15} /> : (
-          <>
-            <ChevronLeft size={15} />
-            <span className="ap-rail-tab-label">Brief</span>
-          </>
-        )}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key={brief.title}
-            className="ap-brief-body"
-            initial={{ opacity: 0, x: 14 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 14 }}
-            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-          >
-            <h2 className="ap-brief-role">{brief.title}</h2>
-            <div className="ap-brief-pills">
-              <span className="ap-brief-pill">{brief.status}</span>
-              {brief.pipeline != null && <span className="ap-brief-pill ap-brief-pill--mute">{brief.pipeline} in pipeline</span>}
-            </div>
-            {brief.sections.map((s) => (
-              <div key={s.label} className="ap-brief-sec">
-                <h4 className="ap-brief-sec-label">{s.label}</h4>
-                <p className="ap-brief-sec-body">{s.body}</p>
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.aside>
+      <div className="ap-band-copy">
+        <h2 className="ap-band-name">{board.name || 'Untitled Board'}</h2>
+        <p className="ap-band-brief">{brief}</p>
+        <p className="ap-band-stands">
+          {pipeline} in pipeline · {waiting} awaiting review · {represented} represented
+        </p>
+      </div>
+      <Link className="ap-band-link" to={`/dashboard/agency/signing/${board.id}`}>
+        Open board
+        <ArrowUpRight size={14} aria-hidden="true" />
+      </Link>
+    </motion.section>
   );
 }
 
@@ -226,6 +213,13 @@ function ApplicationsPage() {
   const [sort, setSort] = useState('recent');
   const [selected, setSelected] = useState(null);
   const [boardId, setBoardId] = useState(null);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  const rowRefs = useRef([]);
+  const sentinelRef = useRef(null);
+  const searchRef = useRef(null);
 
   const boardsQuery = useQuery({
     queryKey: ['agency-boards'],
@@ -257,27 +251,27 @@ function ApplicationsPage() {
   }, [boardId, allQuery.data, boardQuery.data]);
 
   const activeBoard = useMemo(() => boards.find((b) => b.id === boardId) || null, [boards, boardId]);
-  const brief = useMemo(() => boardBrief(activeBoard), [activeBoard]);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['applicants'] });
     qc.invalidateQueries({ queryKey: ['board-candidates'] });
     qc.invalidateQueries({ queryKey: ['agency-boards'] });
     qc.invalidateQueries({ queryKey: ['agency'] });
-  };
+  }, [qc]);
+
   const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
-  const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Represented'); }, onError: () => toast.error('Action failed') });
+  const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Signed'); }, onError: () => toast.error('Action failed') });
   const decline = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
   const inFlight = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables) || null;
 
   const counts = useMemo(() => {
     const c = {};
-    TABS.forEach((t) => { c[t.key] = applicants.filter((a) => t.match(a.status)).length; });
+    ALL_TABS.forEach((t) => { c[t.key] = applicants.filter((a) => t.match(a.status)).length; });
     return c;
   }, [applicants]);
 
   const filtered = useMemo(() => {
-    const matcher = (TABS.find((t) => t.key === tab) || TABS[0]).match;
+    const matcher = (ALL_TABS.find((t) => t.key === tab) || ALL_TABS[0]).match;
     let list = applicants.filter((a) => matcher(a.status));
     if (q.trim()) {
       const s = q.toLowerCase();
@@ -288,40 +282,146 @@ function ApplicationsPage() {
   }, [applicants, tab, q, sort]);
 
   const total = applicants.length;
-  const newCount = counts.submitted || 0;
+  const allSubmissionTotal = useMemo(
+    () => (allQuery.data?.profiles || []).filter((profile) => profile.application_id).length,
+    [allQuery.data],
+  );
 
   // Pass rate = how selectively the agency has decided so far.
-  const representedCount = applicants.filter((a) => ['represented', 'booked', 'accepted'].includes(a.status)).length;
-  const passedCount = applicants.filter((a) => a.status === 'declined').length;
-  const decided = representedCount + passedCount;
-  const passRate = decided ? Math.round((passedCount / decided) * 100) : null;
+  const representedCount = counts.represented || 0;
+  const passedCount = counts.declined || 0;
+  const decidedCount = representedCount + passedCount;
+  const passRate = decidedCount ? Math.round((passedCount / decidedCount) * 100) : null;
 
-  const ledger = [
-    { label: 'New', value: newCount, tone: newCount ? 'gold' : 'mute' },
-    { label: 'Shortlisted', value: counts.shortlisted || 0, tone: 'ink' },
-    { label: 'New Faces', value: counts.development || 0, tone: 'ink' },
-    { label: 'Represented', value: representedCount, tone: 'ink' },
-    { label: 'Pass Rate', value: passRate == null ? '—' : passRate, suffix: passRate == null ? '' : '%', tone: 'mute' },
-  ];
+  // Reset triage focus + windowing whenever the working set changes. Done in the
+  // change handlers (not an effect) so we never chain renders off derived state.
+  const resetTriage = useCallback(() => {
+    setFocusedIndex(-1);
+    setVisibleCount(PAGE_SIZE);
+  }, []);
+  const changeTab = useCallback((next) => { setTab(next); resetTriage(); }, [resetTriage]);
+  const changeQuery = useCallback((next) => { setQ(next); resetTriage(); }, [resetTriage]);
+  const changeSort = useCallback((next) => { setSort(next); resetTriage(); }, [resetTriage]);
+  const changeBoard = useCallback((next) => { setBoardId(next); resetTriage(); }, [resetTriage]);
+
+  const focusRow = useCallback((i) => {
+    const el = rowRefs.current[i];
+    if (el) {
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }, []);
+
+  const openTalent = useCallback((a) => { if (a) setSelected(a); }, []);
+
+  const runAction = useCallback((kind, a) => {
+    if (!a) return;
+    if (isDecided(a.status)) return;
+    if (kind === 'shortlist') {
+      if (a.status === 'shortlisted') return;
+      shortlist.mutate(a.applicationId);
+    } else if (kind === 'accept') {
+      accept.mutate(a.applicationId);
+    } else if (kind === 'decline') {
+      decline.mutate(a.applicationId);
+    }
+  }, [shortlist, accept, decline]);
+
+  // Keep the latest triage state in a ref so the keyboard handler can bind once.
+  const triageRef = useRef({ filtered, focusedIndex, visibleCount, selected, helpOpen });
+  useEffect(() => {
+    triageRef.current = { filtered, focusedIndex, visibleCount, selected, helpOpen };
+  }, [filtered, focusedIndex, visibleCount, selected, helpOpen]);
+
+  useEffect(() => {
+    const move = (dir) => {
+      const { filtered: list, focusedIndex: cur } = triageRef.current;
+      const n = list.length;
+      if (!n) return;
+      let next = cur < 0 ? (dir > 0 ? 0 : n - 1) : cur + dir;
+      next = Math.max(0, Math.min(n - 1, next));
+      setFocusedIndex(next);
+      if (next >= triageRef.current.visibleCount) {
+        setVisibleCount(next + PAGE_SIZE);
+        requestAnimationFrame(() => focusRow(next));
+      } else {
+        focusRow(next);
+      }
+    };
+
+    const onKey = (e) => {
+      const t = e.target;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+
+      if (e.key === 'Escape') {
+        if (typing) { t.blur(); return; }
+        if (triageRef.current.helpOpen) { setHelpOpen(false); return; }
+        if (triageRef.current.selected) { setSelected(null); return; }
+        return;
+      }
+
+      // Never hijack keys while the booker is typing or using a modifier chord.
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const { filtered: list, focusedIndex: cur } = triageRef.current;
+      const row = cur >= 0 ? list[cur] : null;
+
+      switch (e.key) {
+        case 'j': case 'J': case 'ArrowDown':
+          e.preventDefault(); move(1); break;
+        case 'k': case 'K': case 'ArrowUp':
+          e.preventDefault(); move(-1); break;
+        case 'Enter':
+          if (row) { e.preventDefault(); openTalent(row); } break;
+        case 's': case 'S':
+          if (row) { e.preventDefault(); runAction('shortlist', row); } break;
+        case 'a': case 'A':
+          if (row) { e.preventDefault(); runAction('accept', row); } break;
+        case 'x': case 'X':
+          if (row) { e.preventDefault(); runAction('decline', row); } break;
+        case '?':
+          e.preventDefault(); setHelpOpen((v) => !v); break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [focusRow, openTalent, runAction]);
+
+  // Incremental rendering — grow the window when the sentinel scrolls into view.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || visibleCount >= filtered.length) return undefined;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setVisibleCount((v) => Math.min(filtered.length, v + PAGE_SIZE));
+      }
+    }, { rootMargin: '400px 0px' });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [filtered.length, visibleCount]);
 
   const hasActiveFilter = tab !== 'all' || Boolean(q.trim());
   const isGenuineEmpty = applicants.length === 0;
   const hasNoResults = !isGenuineEmpty && filtered.length === 0;
-  const resetFilters = () => {
-    setTab('all');
-    setQ('');
-  };
+  const visible = filtered.slice(0, visibleCount);
+
+  const resetFilters = () => { setTab('all'); setQ(''); resetTriage(); };
   const retrySubmissions = () => {
     boardsQuery.refetch();
     activeApplicantsQuery.refetch();
   };
+
+  const ledgerTabs = PRIMARY_TABS.map((t) => ({ ...t, value: counts[t.key] ?? 0 }));
 
   if (isLoading) {
     return (
       <div className="ap ap-loading" role="status" aria-live="polite" aria-busy="true">
         <header className="ap-header"><h1 className="ap-title">Submissions</h1></header>
         <SkeletonStrip count={5} />
-        <SkeletonRow count={6} />
+        <div className="ap-list"><SkeletonRow count={8} /></div>
       </div>
     );
   }
@@ -339,6 +439,11 @@ function ApplicationsPage() {
     );
   }
 
+  const boardOptions = [
+    { id: '', name: 'All submissions', count: allSubmissionTotal || total },
+    ...boards.map((b) => ({ id: b.id, name: b.name || 'Untitled Board', count: b.application_count || 0 })),
+  ];
+
   return (
     <div className="ap">
       <header className="ap-header">
@@ -351,82 +456,138 @@ function ApplicationsPage() {
           </p>
         </div>
         <div className="ap-controls">
+          <label className="ap-board-select">
+            <span className="ap-board-select-label">Board</span>
+            <select
+              value={boardId ?? ''}
+              onChange={(e) => changeBoard(e.target.value || null)}
+              aria-label="Filter submissions by board"
+            >
+              {boardOptions.map((b) => (
+                <option key={b.id || 'all'} value={b.id}>
+                  {b.name} · {b.count}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="ap-search">
-            <Search size={14} />
-            <input placeholder="Search by name or city…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Search size={14} aria-hidden="true" />
+            <input
+              ref={searchRef}
+              placeholder="Search by name or city…"
+              value={q}
+              onChange={(e) => changeQuery(e.target.value)}
+              aria-label="Search submissions"
+            />
           </div>
-          <div className="ap-sort">
-            <button className={sort === 'recent' ? 'is-on' : ''} onClick={() => setSort('recent')}>Newest</button>
-            <button className={sort === 'match' ? 'is-on' : ''} onClick={() => setSort('match')}>Match</button>
+          <div className="ap-sort" role="group" aria-label="Sort submissions">
+            <button type="button" className={sort === 'recent' ? 'is-on' : ''} aria-pressed={sort === 'recent'} onClick={() => changeSort('recent')}>Newest</button>
+            <button type="button" className={sort === 'match' ? 'is-on' : ''} aria-pressed={sort === 'match'} onClick={() => changeSort('match')}>Match</button>
           </div>
         </div>
       </header>
 
-      <BoardSelector boards={boards} total={total} selectedId={boardId} onSelect={setBoardId} />
-
-      <div className="ap-body">
-        <div className="ap-main">
-          <motion.div
-            className="ap-ledger"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+      {/* LEDGER-AS-TABS — the stat row IS the stage filter. */}
+      <motion.div
+        className="ap-ledger"
+        role="tablist"
+        aria-label="Filter by stage"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+      >
+        {ledgerTabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`ap-stat${tab === t.key ? ' ap-stat--on' : ''}${t.key === 'submitted' && t.value ? ' ap-stat--live' : ''}`}
+            onClick={() => changeTab(t.key)}
           >
-            {ledger.map((s) => (
-              <div key={s.label} className={`ap-stat ap-stat--${s.tone}`}>
-                <span className="ap-stat-num">{s.value}{s.suffix ? <span className="ap-stat-suffix">{s.suffix}</span> : null}</span>
-                <span className="ap-stat-label">{s.label}</span>
-              </div>
-            ))}
-          </motion.div>
+            <span className="ap-stat-num">{t.value}</span>
+            <span className="ap-stat-label">{t.label}</span>
+          </button>
+        ))}
+        <div className="ap-stat ap-stat--static" aria-hidden="true">
+          <span className="ap-stat-num">{passRate == null ? '—' : `${passRate}%`}</span>
+          <span className="ap-stat-label">Pass rate</span>
+        </div>
+      </motion.div>
 
-          <div className="ap-tabs">
-            {TABS.map((t) => (
-              <button key={t.key} className={`ap-tab${tab === t.key ? ' ap-tab--on' : ''}`} onClick={() => setTab(t.key)}>
-                {t.label}<span className="ap-tab-count">{counts[t.key] ?? 0}</span>
-              </button>
-            ))}
-          </div>
+      {/* MORE — the quiet outcomes folded out of the ledger. */}
+      <div className="ap-more" role="group" aria-label="Secondary filters">
+        <span className="ap-more-key">More</span>
+        {SECONDARY_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            aria-pressed={tab === t.key}
+            className={`ap-more-item${tab === t.key ? ' is-on' : ''}`}
+            onClick={() => changeTab(tab === t.key ? 'all' : t.key)}
+          >
+            {t.label} {counts[t.key] ?? 0}
+          </button>
+        ))}
+      </div>
 
-          <div className="ap-list">
-            {!isGenuineEmpty && (
-              <div className="ap-row ap-row--head">
-                <span aria-hidden="true" />
-                <span>Talent</span>
-                <span>Submitted</span>
-                <span className="ap-c">Match</span>
-                <span>Status</span>
-                <span aria-hidden="true" />
-              </div>
-            )}
-            {isGenuineEmpty && (
-              <div className="ap-empty" role="status">
-                <p className="ap-empty-title">No submissions yet</p>
-                <p>Inbound digitals from open calls and direct invitations will appear here for review.</p>
-              </div>
-            )}
-            {hasNoResults && (
-              <div className="ap-empty" role="status">
-                <p className="ap-empty-title">No submissions match this view</p>
-                <p>{hasActiveFilter ? 'Adjust the search or stage filter to see talent already in the pipeline.' : 'Try another view to continue review.'}</p>
-                {hasActiveFilter && <button className="ap-empty-action" onClick={resetFilters}>Clear filters</button>}
-              </div>
-            )}
-            {!isGenuineEmpty && !hasNoResults && filtered.map((a) => (
+      {activeBoard && <BoardBand board={activeBoard} />}
+
+      <p className="ap-hint">J/K to move · S shortlist · A sign · X pass · ? help</p>
+
+      <div className="ap-list">
+        {isGenuineEmpty && (
+          <AgencyEmptyState
+            title={activeBoard ? 'No submissions on this board' : 'No submissions yet'}
+            description={activeBoard
+              ? 'Assign talent to this board from the signing room to start reviewing here.'
+              : 'Inbound digitals from open calls and direct invitations will appear here for review.'}
+          />
+        )}
+
+        {hasNoResults && (
+          <AgencyEmptyState
+            title="No submissions match this view"
+            description={hasActiveFilter
+              ? 'Adjust the search or stage filter to see talent already in the pipeline.'
+              : 'Try another view to continue review.'}
+            action={hasActiveFilter
+              ? <button type="button" className="ap-empty-action" onClick={resetFilters}>Clear filters</button>
+              : undefined}
+          />
+        )}
+
+        {!isGenuineEmpty && !hasNoResults && (
+          <>
+            <div className="ap-row ap-row--head" aria-hidden="true">
+              <span />
+              <span>Talent</span>
+              <span>Submitted</span>
+              <span className="ap-c">Match</span>
+              <span>Status</span>
+              <span />
+            </div>
+            {visible.map((a, i) => (
               <ApplicantRow
                 key={a.applicationId}
                 a={a}
+                focused={focusedIndex === i}
                 busy={inFlight === a.applicationId}
-                onOpen={setSelected}
+                rowRef={(el) => { rowRefs.current[i] = el; }}
+                onFocus={() => setFocusedIndex(i)}
+                onOpen={openTalent}
                 onShortlist={() => shortlist.mutate(a.applicationId)}
                 onAccept={() => accept.mutate(a.applicationId)}
                 onDecline={() => decline.mutate(a.applicationId)}
               />
             ))}
-          </div>
-        </div>
-
-        {brief && <BriefRail brief={brief} />}
+            {visibleCount < filtered.length && (
+              <div ref={sentinelRef} className="ap-sentinel" aria-hidden="true">
+                <SkeletonRow count={3} />
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <AnimatePresence>
@@ -434,6 +595,8 @@ function ApplicationsPage() {
           <TalentPanel key={selected.applicationId} talent={selected} context="applicants" onClose={() => setSelected(null)} />
         )}
       </AnimatePresence>
+
+      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

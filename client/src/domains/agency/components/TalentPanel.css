@@ -1,12 +1,16 @@
-/* TalentPanel — editorial talent quick-view, integrated with the command shell */
+/* TalentPanel — the "Cinematic Column".
+   Right-hand sidebar drawer: cinematic hero, ink vitals band, pipeline
+   status, action bar, the book (+ comp card), and a tabbed working record.
+   Built on the agency Editorial Ledger tokens. */
 
 .talent-panel-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(20, 17, 11, 0.5);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  z-index: 200;
+  background: rgba(20, 17, 11, 0.44);
+  /* Permitted: full-screen functional scrim only (see No-Glass rule). */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--ag-z-panel, 40);
 }
 
 .talent-panel {
@@ -14,96 +18,115 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 580px;
+  width: 480px;
   max-width: 92vw;
-  background: var(--ag-canvas, #F7F3EC);
-  border-left: 1px solid #e4ddcd;
-  z-index: 201;
+  background: var(--ag-surface-1, #FFFFFF);
+  z-index: calc(var(--ag-z-panel, 40) + 1);
   display: flex;
   flex-direction: column;
-  box-shadow: -12px 0 56px rgba(20, 18, 14, 0.30);
+  box-shadow: -1px 0 0 rgba(26, 24, 21, 0.10), -28px 0 70px rgba(26, 24, 21, 0.22);
   overflow: hidden;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ag-font-body, 'Inter', sans-serif);
 }
 
 /* ---------- HERO ---------- */
 .tp-hero {
   position: relative;
-  height: 366px;
+  height: 300px;
   flex-shrink: 0;
-  background: #14110B;
+  background: var(--td-ink-deep, #141210);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
 }
-
 .tp-hero-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center top;
 }
-
-.tp-hero-gradient {
+.tp-hero-veil {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: linear-gradient(to top, #14110B 8%, rgba(20, 17, 11, 0.72) 38%, rgba(20, 17, 11, 0.05) 62%, transparent 100%);
+  background: linear-gradient(
+    to top,
+    rgba(20, 17, 11, 0.88) 0%,
+    rgba(20, 17, 11, 0.28) 44%,
+    rgba(20, 17, 11, 0.02) 72%,
+    transparent 100%
+  );
 }
-.tp-hero-grain { z-index: 2; opacity: 0.08; }
-
 .tp-hero-fallback {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Noto Serif Display', 'Playfair Display', serif;
-  font-size: 56px;
-  letter-spacing: 0.08em;
+  font-family: var(--ag-font-display, 'Playfair Display', serif);
+  font-size: 54px;
+  letter-spacing: 0.06em;
   color: var(--ag-gold, #C9A55A);
-  background: radial-gradient(120% 80% at 70% 20%, rgba(201,165,90,.12), transparent 60%), #1b160e;
+  background: radial-gradient(120% 80% at 70% 20%, rgba(201, 165, 90, 0.14), transparent 60%), #1b160e;
 }
 
-/* hero controls (close + expand) */
+/* frame counter */
+.tp-frame {
+  position: absolute;
+  top: 15px;
+  left: 16px;
+  z-index: 5;
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(244, 238, 226, 0.82);
+  background: rgba(20, 17, 11, 0.34);
+  padding: 4px 9px;
+  border-radius: var(--ag-radius-full, 100px);
+}
+
+/* hero controls (expand + close) */
+/* hero controls — a single segmented pill (expand · close) split by a hairline */
 .tp-hero-controls {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 14px;
+  right: 14px;
   z-index: 10;
   display: flex;
-  gap: 8px;
+  align-items: stretch;
+  background: rgba(18, 15, 10, 0.5);
+  border: 1px solid rgba(244, 238, 226, 0.16);
+  border-radius: 9px;
+  overflow: hidden;
 }
 .tp-ctl-btn {
-  width: 34px;
-  height: 34px;
-  background: rgba(20, 17, 11, 0.5);
-  border: 1px solid rgba(239, 233, 220, 0.22);
-  border-radius: 2px;
+  width: 36px;
+  height: 32px;
+  background: transparent;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: rgba(244, 238, 226, 0.82);
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition: background 0.18s var(--ag-ease, ease), color 0.18s;
 }
-.tp-ctl-btn:hover {
-  background: rgba(20, 17, 11, 0.5);
-  border-color: var(--ag-gold, #C9A55A);
-  color: #fff;
-}
+.tp-ctl-btn + .tp-ctl-btn { border-left: 1px solid rgba(244, 238, 226, 0.14); }
+.tp-ctl-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
 
-/* carousel */
+/* carousel arrows */
 .tp-carousel-arrow {
   position: absolute;
-  top: 42%;
+  top: 44%;
   transform: translateY(-50%);
   width: 36px;
   height: 36px;
-  background: rgba(20, 17, 11, 0.55);
+  background: rgba(20, 17, 11, 0.5);
   border: 1px solid rgba(239, 233, 220, 0.16);
-  border-radius: 4px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -114,43 +137,44 @@
   z-index: 5;
 }
 .tp-hero:hover .tp-carousel-arrow { opacity: 1; }
-.tp-carousel-arrow:hover { background: rgba(20, 17, 11, 0.62); }
+.tp-carousel-arrow:hover { background: rgba(20, 17, 11, 0.66); }
 .tp-carousel-arrow--prev { left: 12px; }
 .tp-carousel-arrow--next { right: 12px; }
 
-.tp-carousel-dots {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  display: flex;
-  gap: 5px;
-  z-index: 5;
-}
-.tp-carousel-dot {
-  width: 18px;
-  height: 3px;
-  border-radius: 2px;
-  background: rgba(239, 233, 220, 0.35);
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  transition: background 0.2s;
-}
-.tp-carousel-dot--active { background: var(--ag-gold, #C9A55A); }
-
-/* identity caption */
+/* identity caption over the hero */
 .tp-identity {
   position: relative;
-  padding: 0 24px 10px;
+  padding: 0 24px 20px;
   z-index: 3;
 }
+/* meta line + match chip on one row; the chip sits just after type · location */
+.tp-identity-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.tp-meta-type {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(244, 238, 226, 0.82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tp-hero-match { flex: none; }
 .tp-name {
-  font-family: 'Noto Serif Display', 'Playfair Display', serif;
-  font-size: 31px;
-  font-weight: 500;
-  color: #F4EEE2;
+  font-family: var(--ag-font-display, 'Playfair Display', serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #F7F1E6;
   margin: 0;
-  line-height: 1.08;
+  line-height: 1.04;
 }
 .tp-name-link {
   display: inline-flex;
@@ -158,103 +182,115 @@
   gap: 9px;
   color: inherit;
   text-decoration: none;
-  transition: color 0.2s var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1));
+  transition: color 0.2s var(--ag-ease, ease);
 }
-.tp-name-link:hover {
-  color: #fff;
-}
+.tp-name-link:hover { color: #fff; }
 .tp-name-arrow {
   flex: none;
   color: var(--ag-gold, #C9A55A);
   opacity: 0.85;
   transition: transform 0.2s var(--ag-ease-spring, cubic-bezier(0.16, 1, 0.3, 1)), opacity 0.2s;
 }
-.tp-name-link:hover .tp-name-arrow {
-  opacity: 1;
-  transform: translate(2px, -2px);
-}
-.tp-bio {
-  font-family: 'Noto Serif Display', 'Playfair Display', serif;
-  font-size: 13px;
-  line-height: 1.48;
-  color: rgba(244, 238, 226, 0.72);
-  margin: 10px 0 0;
-  padding: 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-.tp-identity-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 11px;
-}
-.tp-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 9px;
-}
-.tp-meta-type {
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(244, 238, 226, 0.52);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tp-match {
-  align-self: center;
-}
+.tp-name-link:hover .tp-name-arrow { opacity: 1; transform: translate(2px, -2px); }
 
-/* ---------- ACTION STRIP ---------- */
-.tp-action-strip {
-  padding: 15px 16px;
-  background: transparent;
-  border-bottom: 1px solid var(--ag-rule, #ddd5c6);
-  display: flex;
-  align-items: center;
-  gap: 9px;
+/* ---------- VITALS BAND ---------- */
+.tp-band {
   flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 24px;
+  background: var(--td-ink-deep, #141210);
+  color: #efe9df;
+  font-variant-numeric: tabular-nums;
 }
-.tp-btn {
-  height: 38px;
-  border-radius: 4px;
-  font-size: 12.5px;
-  font-weight: 500;
-  padding: 0 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  cursor: pointer;
-  transition: background 0.18s, border-color 0.18s, filter 0.18s;
-  border: 1px solid transparent;
+.tp-band-v { text-align: center; }
+.tp-band-k {
+  display: block;
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(239, 233, 223, 0.5);
+  margin-bottom: 4px;
 }
-.tp-btn--primary { background: var(--ag-gold, #C9A55A); color: #16130D; font-weight: 600; }
-.tp-btn--primary:hover { filter: brightness(1.07); }
-.tp-btn--secondary { background: rgba(255, 255, 255, 0.5); border-color: #e0d8c7; color: #4a443c; }
-.tp-btn--secondary:hover { background: #fff; border-color: var(--ag-gold, #C9A55A); }
-.tp-btn--icon { width: 38px; padding: 0; color: #6b6256; }
-.tp-btn--danger { color: #c0563f; }
-.tp-btn--danger:hover { border-color: #c0563f; }
+.tp-band-n {
+  font-family: var(--ag-font-display, 'Playfair Display', serif);
+  font-size: 1.08rem;
+  line-height: 1;
+}
 
-/* ---------- BODY ---------- */
+/* ---------- BODY (scroll) ---------- */
 .tp-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 24px 56px;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  padding: 20px 24px 56px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.tp-body::-webkit-scrollbar {
-  display: none; /* Safari and Chrome */
+.tp-body::-webkit-scrollbar { display: none; }
+
+.tp-topline {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 22px;
+  margin-bottom: 16px;
+}
+.tp-match { flex: none; }
+/* When the stepper is present it owns the center; the score pins to the edge. */
+.tp-topline--pipe .tp-match {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
+/* pipeline stepper */
+.tp-pipe {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.tp-pipe-st {
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ag-text-4, #C8C2BA);
+}
+.tp-pipe-st.is-done { color: var(--ag-gold-hover, #B8956A); }
+.tp-pipe-st.is-current { color: var(--ag-text-0, #1A1815); font-weight: 600; }
+.tp-pipe-st.is-current.is-danger { color: var(--ag-danger, #C0392B); }
+.tp-pipe-ln {
+  height: 1px;
+  width: 18px;
+  flex-shrink: 0;
+  background: var(--ag-border-strong, rgba(26, 24, 21, 0.14));
+}
+.tp-pipe-ln.is-done { background: var(--ag-gold, #C9A55A); }
 
-.tp-thread-wrap { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--ag-rule, #ddd5c6); }
+/* ---------- ACTION STRIP ---------- */
+.tp-action-strip {
+  margin: 0;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--ag-border, rgba(26, 24, 21, 0.09));
+}
+/* In a narrow drawer the permission-gated action set can be long — let it
+   wrap gracefully instead of clipping (the row is nowrap by default). */
+.tp-action-strip .tact-row { flex-wrap: wrap; }
+
+.tp-zone { margin-top: 24px; }
+
+.tp-thread-wrap {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--ag-border, rgba(26, 24, 21, 0.09));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-hero-img { transition: none !important; }
+}

@@ -1,31 +1,24 @@
 import React from 'react';
 import ReminderList from '../components/ReminderList';
-import DueReminders from '../components/DueReminders';
 import './RemindersPage.css';
 
 /**
- * RemindersPage
- * Agency dashboard page for managing reminders
+ * RemindersPage — the follow-up ledger.
+ * Grouped lanes (Overdue / Due Today / Upcoming / Completed) replace the
+ * old two-column list + due-count sidebar split; see ReminderList for the
+ * data layer and row rendering.
  */
 export default function RemindersPage() {
   return (
-    <div className="reminders-page">
-      <div className="reminders-header">
-        <h1>Reminders</h1>
-        <p>Manage your follow-up reminders and stay organized</p>
-      </div>
-
-      <div className="reminders-layout">
-        {/* Main reminder list */}
-        <div className="reminders-main">
-          <ReminderList />
+    <div className="rm-page">
+      <header className="rm-header">
+        <div>
+          <h1 className="rm-page-title">Reminders</h1>
+          <p className="rm-page-sub">Follow-ups and check-ins across your roster</p>
         </div>
+      </header>
 
-        {/* Due reminders sidebar */}
-        <div className="reminders-sidebar">
-          <DueReminders limit={10} />
-        </div>
-      </div>
+      <ReminderList />
     </div>
   );
 }

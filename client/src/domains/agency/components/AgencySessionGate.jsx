@@ -8,28 +8,16 @@ import {
   resolveEntryDisplayName,
 } from '../../auth/lib/entry-identity';
 import { useAuthEntryTransition } from '../../auth/hooks/useAuthEntryTransition';
+import { ensureDevDashboardSession } from '../../../shared/lib/dev-seed-session';
 import { getAgencyLegalStatus, getAgencyProfile } from '../api/agency';
 import { AgencyPermissionsProvider } from '../context/AgencyPermissionsProvider';
 import AgencyLegalAcceptanceGate from './AgencyLegalAcceptanceGate';
-
-async function getSession() {
-  const response = await fetch('/api/session', {
-    credentials: 'include',
-    headers: { Accept: 'application/json' },
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to load session');
-  }
-
-  return response.json();
-}
 
 export default function AgencySessionGate() {
   const location = useLocation();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['session', 'agency'],
-    queryFn: getSession,
+    queryFn: () => ensureDevDashboardSession('AGENCY'),
     retry: false,
     staleTime: 0,
     refetchOnMount: 'always',

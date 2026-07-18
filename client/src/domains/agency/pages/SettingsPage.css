@@ -40,7 +40,7 @@
 /* ---------- RAIL — sticky, transparent, lives on the canvas ---------- */
 .st-rail { position: sticky; top: 6px; align-self: start; background: none; padding: 2px 26px 8px 0; display: flex; flex-direction: column; gap: 24px; }
 .st-rail-group { display: flex; flex-direction: column; gap: 3px; }
-.st-rail-group-label { font-size: 9px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #b3a89a; padding: 0 12px 7px; }
+.st-rail-group-label { font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #b3a89a; padding: 0 12px 7px; }
 .st-rail-item {
   position: relative; display: flex; align-items: center; gap: 11px;
   background: none; border: none; border-radius: 9px; padding: 10px 14px; cursor: pointer;
@@ -72,12 +72,12 @@
 .st-fieldset:has(+ .st-panel-foot) { border-bottom: none; padding-bottom: 12px; }
 .st-fieldset-head { display: flex; flex-direction: column; gap: 3px; }
 .st-fieldset-title { font-size: 13px; font-weight: 700; color: #16130D; margin: 0; letter-spacing: .01em; }
-.st-fieldset-sub { font-size: 12px; color: #9b9082; margin: 0; }
+.st-fieldset-sub { font-size: 12px; color: var(--ag-text-2); margin: 0; }
 .st-fieldset--danger .st-fieldset-title { color: #c0563f; }
 
 .st-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .st-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.st-label { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #8a8073; }
+.st-label { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #8a8073; }
 .st-req { color: var(--ag-gold); font-style: normal; }
 .st-input { font-family: 'Inter', sans-serif; font-size: 14px; color: #16130D; background: #fff; border: 1px solid #e2dac9; border-radius: 9px; padding: 11px 13px; outline: none; transition: border-color .18s, box-shadow .18s; width: 100%; box-sizing: border-box; }
 .st-input::placeholder { color: #b3a89a; }
@@ -114,7 +114,7 @@ body.is-agency textarea.st-textarea,
 .st-brand-chip-ini { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--brand, #C9A55A); }
 .st-brand-preview-id { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .st-brand-preview-name { font-family: 'Playfair Display', serif; font-size: 17px; color: #16130D; }
-.st-brand-preview-meta { font-size: 11px; color: #9b9082; }
+.st-brand-preview-meta { font-size: 11px; color: var(--ag-text-2); }
 .st-brand-preview-meta code { color: #6b6256; }
 .st-brand-swatch { width: 34px; height: 34px; border-radius: 9px; margin-left: auto; background: var(--brand, #C9A55A); box-shadow: 0 4px 12px color-mix(in srgb, var(--brand, #C9A55A) 40%, transparent); border: 2px solid #fff; }
 
@@ -136,7 +136,7 @@ body.is-agency textarea.st-textarea,
 .st-toggle-row:last-child { border-bottom: none; }
 .st-toggle-text { display: flex; flex-direction: column; gap: 3px; }
 .st-toggle-label { font-size: 13.5px; font-weight: 600; color: #16130D; }
-.st-toggle-desc { font-size: 12px; color: #9b9082; }
+.st-toggle-desc { font-size: 12px; color: var(--ag-text-2); }
 .st-switch { position: relative; width: 42px; height: 24px; flex: none; cursor: pointer; }
 .st-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
 .st-switch-track { position: absolute; inset: 0; border-radius: 999px; background: #e2dac9; transition: background .2s; }
@@ -170,7 +170,7 @@ body.is-agency textarea.st-textarea,
 .st-fieldset--danger .st-sec-row { background: rgba(192,86,63,.04); border-color: rgba(192,86,63,.2); }
 .st-sec-text { display: flex; flex-direction: column; gap: 3px; }
 .st-sec-label { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: #16130D; }
-.st-sec-label svg { color: #9b9082; }
+.st-sec-label svg { color: var(--ag-text-2); }
 .st-fieldset--danger .st-sec-label svg { color: #c0563f; }
 .st-sec-desc { font-size: 12px; color: #8a8073; max-width: 56ch; }
 
@@ -189,7 +189,7 @@ body.is-agency textarea.st-textarea,
 .st-opencall-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .st-opencall-label { font-size: 13.5px; font-weight: 600; color: #16130D; }
 .st-opencall-url { font-size: 12px; color: #8a8073; word-break: break-all; }
-.st-opencall-funnel { font-size: 12px; color: #9b9082; margin-top: 3px; }
+.st-opencall-funnel { font-size: 12px; color: var(--ag-text-2); margin-top: 3px; }
 .st-opencall-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
 .st-opencall-confirm { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-width: 260px; }
 .st-opencall-confirm-text { font-size: 12px; line-height: 1.45; color: #c0563f; text-align: right; }
@@ -221,7 +221,7 @@ body.is-agency textarea.st-textarea,
 /* ---------- REPRESENTATION TERMS ---------- */
 .st-terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .st-term { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: #fff; border: 1px solid #e9e0cf; border-radius: 11px; }
-.st-term-label { font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #b3a89a; }
+.st-term-label { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #b3a89a; }
 .st-term-value { font-size: 13px; font-weight: 600; color: #16130D; }
 
 /* ---------- RESPONSIVE ---------- */

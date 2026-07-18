@@ -2,20 +2,7 @@
    PHOLIO AGENCY — Command Center Shell
    Visual source: docs/superpowers/specs/assets/2026-06-02-agency-command-center-mockup.html
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+Display:wght@400;500&family=Playfair+Display:wght@400;500;600;700&display=swap');
-
-:root {
-  --ag-rail-w: 244px;
-  --ag-rail-w-collapsed: 78px;
-  --ag-ink: #14110B;
-  --ag-ink-line: #221e16;
-  --ag-ink-faint: #6e6452;
-  --ag-cream: #EFE9DC;
-  --ag-pholio-gold: #C9A55A;
-  --ag-canvas: #F7F3EC;
-  --ag-rule: #ddd5c6;
-  --ag-pad-x: 40px;
-}
+/* Shell layout + ink/cream tokens now live in client/src/styles/agency-tokens.css (Shell section). */
 
 /* Agency workspace accent — scoped to shell; does not affect Pholio platform identity */
 .ag-shell {
@@ -66,9 +53,9 @@
 }
 .ag-shell--collapsed .ag-rail { width: var(--ag-rail-w-collapsed); }
 
-/* ---------- CO-BRAND LOCKUP (one horizontal line, balanced) ---------- */
-.ag-rail-header { padding: 22px 20px 18px; border-bottom: 1px solid var(--ag-rail-line); overflow: hidden; }
-.ag-cobrand { display: flex; align-items: center; gap: 11px; min-height: 24px; }
+/* ---------- CO-BRAND LOCKUP ---------- */
+.ag-rail-header { padding: 20px 18px 16px; border-bottom: 1px solid var(--ag-rail-line); overflow: hidden; }
+.ag-cobrand { display: flex; align-items: center; gap: 11px; min-height: 26px; }
 /* taller, intentional brand area when the agency wordmark stacks */
 .ag-cobrand--stacked { align-items: center; min-height: 54px; }
 /* Pholio platform wordmark — fixed gold, never agency-branded */
@@ -85,8 +72,15 @@
 }
 /* agency claims the remaining space and degrades gracefully */
 .ag-cobrand-agency { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; overflow: hidden; }
-.ag-cobrand-logo { max-height: 22px; max-width: 100%; width: auto; object-fit: contain; display: block; }
-.ag-cobrand--logo .ag-cobrand-logo { max-height: 26px; }
+.ag-cobrand-logo {
+  max-height: 30px;
+  max-width: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
+  display: block;
+}
+.ag-cobrand--logo .ag-cobrand-logo { max-height: 32px; }
 .ag-cobrand-name {
   font-size: 12.5px; font-weight: 600; letter-spacing: .08em; color: var(--ag-cream);
   text-transform: uppercase; line-height: 1.2;
@@ -172,7 +166,7 @@
   outline-offset: -2px;
   border-radius: 2px;
 }
-.ag-rail-meta { margin-top: 12px; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-ink-faint); white-space: nowrap; overflow: hidden; }
+.ag-rail-meta { margin-top: 12px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-ink-faint); white-space: nowrap; overflow: hidden; }
 
 /* fade collapsible nav/member labels (smoother than display:none) */
 .ag-nav-group-label, .ag-nav-item span,
@@ -218,25 +212,43 @@
 }
 
 /* ---------- NAV ---------- */
-.ag-rail-nav { padding: 20px 20px; flex: 1; overflow-y: auto; overflow-x: hidden; }
+.ag-rail-nav { padding: 18px 18px; flex: 1; overflow-y: auto; overflow-x: hidden; }
 .ag-nav-group + .ag-nav-group { margin-top: 22px; }
 .ag-nav-group--home + .ag-nav-group { margin-top: 18px; }
-.ag-nav-group--home .ag-nav-item { font-size: 13.5px; font-weight: 500; }
-.ag-nav-group-label { font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--ag-ink-faint); padding: 0 0 9px; white-space: nowrap; }
-.ag-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; font-size: 13px; color: #9a9082; text-decoration: none; position: relative; white-space: nowrap; transition: color .18s; }
+.ag-nav-group--home .ag-nav-item { font-size: 14px; font-weight: 500; }
+.ag-nav-group-label { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ag-ink-faint); padding: 0 0 9px; white-space: nowrap; }
+.ag-nav-item { display: flex; align-items: center; gap: 12px; padding: 9px 0; font-size: 14px; color: #9a9082; text-decoration: none; position: relative; white-space: nowrap; transition: color .18s; }
 .ag-nav-item:hover { color: var(--ag-cream); }
-.ag-nav-icon { width: 17px; height: 17px; flex: none; opacity: .55; transition: opacity .18s; }
+.ag-nav-icon { width: 18px; height: 18px; flex: none; opacity: .55; transition: opacity .18s; }
 .ag-nav-item--active { color: #F2ECDF; font-weight: 500; }
 .ag-nav-item--active .ag-nav-icon { opacity: 1; color: var(--ag-pholio-gold); }
-.ag-nav-item--active::before { content: ''; position: absolute; left: -20px; width: 2px; height: 18px; background: var(--ag-pholio-gold); box-shadow: 0 0 12px rgba(201, 165, 90, 0.75); }
+.ag-nav-item--active::before { content: ''; position: absolute; left: -18px; width: 2px; height: 18px; background: var(--ag-pholio-gold); box-shadow: 0 0 12px rgba(201, 165, 90, 0.75); }
 
 /* ---------- MEMBER FOOTER ---------- */
 .ag-rail-footer { padding: 15px 18px; border-top: 1px solid var(--ag-rail-line); position: relative; }
 .ag-member { display: flex; align-items: center; gap: 12px; background: none; border: none; width: 100%; cursor: pointer; padding: 0; text-align: left; overflow: hidden; }
 .ag-member-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ag-ink); background: #2a2417; color: var(--ag-cream); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600; flex: none; }
 .ag-member-name { font-size: 12.5px; font-weight: 600; color: var(--ag-cream); white-space: nowrap; }
-.ag-member-role { font-size: 9.5px; color: var(--ag-ink-faint); letter-spacing: .04em; white-space: nowrap; }
-.ag-member-chev { margin-left: auto; color: var(--ag-ink-faint); flex: none; }
+.ag-member-role { font-size: 10px; color: var(--ag-ink-faint); letter-spacing: .04em; white-space: nowrap; }
+.ag-member-chev {
+  margin-left: auto;
+  color: var(--ag-ink-faint);
+  flex: none;
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ag-member-chev--open { transform: rotate(-90deg); }
+.ag-rail-footer--menu-open {
+  z-index: 90;
+  overflow: visible;
+}
+.ag-rail:has(.ag-rail-footer--menu-open) {
+  overflow: visible;
+  z-index: 85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-member-chev { transition: none; }
+}
 
 /* ---------- BODY / MAIN ---------- */
 .ag-body { flex: 1; min-width: 0; display: flex; overflow: hidden; }
@@ -261,13 +273,14 @@
 
 /* ---------- MASTHEAD ---------- */
 .ag-masthead { display: flex; justify-content: space-between; align-items: center; padding: 22px var(--ag-pad-x) 16px; }
-.ag-masthead-status { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: #9b9082; }
+.ag-masthead-status { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ag-text-2); }
 .ag-masthead-actions { display: flex; gap: 8px; align-items: center; }
 .ag-masthead-divider { width: 1px; height: 16px; background: var(--ag-rule); }
 .ag-presence { display: flex; align-items: center; }
-.ag-presence-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ag-canvas); background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #9b9082; }
+.ag-presence-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--ag-canvas); background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--ag-text-2); }
+.ag-presence-avatar--photo { padding: 0; color: transparent; }
 .ag-presence-avatar + .ag-presence-avatar, .ag-presence-more { margin-left: -8px; }
-.ag-presence-more { width: 26px; height: 26px; border-radius: 50%; background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #9b9082; border: 1.5px solid var(--ag-canvas); }
+.ag-presence-more { width: 26px; height: 26px; border-radius: 50%; background: #ece4d4; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--ag-text-2); border: 1.5px solid var(--ag-canvas); }
 
 /* masthead left (hamburger + status) */
 .ag-masthead-left { display: flex; align-items: center; gap: 14px; min-width: 0; }

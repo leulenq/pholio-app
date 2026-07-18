@@ -1,194 +1,215 @@
-.st-activity-page {
-  min-height: calc(100vh - 80px);
-  background: var(--ag-bg-base);
+/* ============================================================
+   PHOLIO AGENCY — Activity (the wire)
+   The overview activity vocabulary at page scale: talent avatar,
+   strong name inline with quiet description, warm semantic text.
+   Day-grouped under small serif date headers on hairline rules.
+   No icon bubbles, no status-tag chips, no cold SaaS palette.
+   ============================================================ */
+
+.ac-page {
+  padding: 8px var(--ag-pad-x, 40px) 56px;
   position: relative;
-  padding: 60px 40px;
+  z-index: 1;
+  max-width: 860px;
 }
 
-.st-activity-container {
-  max-width: 900px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 2;
+/* ---------- HEADER ---------- */
+.ac-header {
+  margin: 8px 0 22px;
 }
-
-.st-activity-header {
-  margin-bottom: 60px;
+.ac-page-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 34px;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  color: #16130D;
+  margin: 0;
 }
-
-.st-activity-title {
-  font-family: var(--ag-font-display);
-  font-size: 3.5rem;
-  font-weight: 400;
-  color: var(--ag-text-base);
-  margin-bottom: 12px;
-  letter-spacing: -0.02em;
-}
-
-.st-activity-subtitle {
-  font-size: 1.1rem;
-  color: var(--ag-text-2);
-  letter-spacing: 0.01em;
-}
-
-/* Groups */
-.st-activity-group {
-  margin-bottom: 48px;
-}
-
-.st-activity-date-label {
-  font-size: 0.75rem;
+.ac-page-sub {
+  font-size: 10px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--ag-text-3);
-  margin-bottom: 24px;
-  padding-left: 56px;
+  color: var(--ag-text-2);
+  margin: 11px 0 0;
 }
 
-/* Items */
-.st-activity-items {
+/* ---------- FILTERS (quiet text tabs) ---------- */
+.ac-filters {
   display: flex;
-  flex-direction: column;
-}
-
-.st-activity-item {
-  display: flex;
-  gap: 24px;
-  padding: 24px 0;
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.st-activity-item:hover .st-activity-arrow {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* Icon & Line */
-.st-activity-icon-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 32px;
-  flex-shrink: 0;
-}
-
-.st-activity-icon-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.st-activity-line {
-  width: 1px;
-  flex-grow: 1;
-  background: var(--ag-border-subtle);
-  margin-top: 8px;
-  margin-bottom: -24px;
-}
-
-.st-activity-item:last-child .st-activity-line {
-  display: none;
-}
-
-/* Main Content */
-.st-activity-main {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.st-activity-body {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 22px;
+  margin-bottom: 26px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ag-rule, #ddd5c6);
 }
-
-.st-activity-talent {
+.ac-filter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ag-text-3);
+  transition: color var(--ag-duration) var(--ag-ease);
+}
+.ac-filter:hover {
+  color: var(--ag-text-1);
+}
+.ac-filter--active {
+  color: #16130D;
   font-weight: 600;
-  color: var(--ag-text-base);
-  font-size: 1.05rem;
+}
+.ac-filter-count {
+  font-family: var(--ag-font-mono);
+  font-size: 10px;
+  color: #b3a89a;
+}
+.ac-filter--active .ac-filter-count {
+  color: var(--ag-gold);
+}
+.ac-filter:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ag-gold-muted);
+  border-radius: 3px;
 }
 
-.st-activity-desc {
-  color: var(--ag-text-2);
-}
-
-.st-activity-status-tag {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  padding: 4px 10px;
-  border-radius: 4px;
-  background: var(--ag-border-subtle);
-  color: var(--ag-text-2);
-}
-
-.st-activity-status-tag[data-status="submitted"] { background: #64748b20; color: #64748b; }
-.st-activity-status-tag[data-status="underReview"] { background: #C9A55A20; color: #C9A55A; }
-.st-activity-status-tag[data-status="shortlisted"] { background: #0f172a15; color: #0f172a; }
-.st-activity-status-tag[data-status="booked"] { background: #10b98120; color: #10b981; }
-
-.st-activity-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.85rem;
-  color: var(--ag-text-3);
-}
-
-.st-activity-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.5;
-}
-
-.st-activity-arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  color: var(--ag-text-3);
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  background: var(--ag-bg-elevated);
-  border: 1px solid var(--ag-border-subtle);
-}
-
-.st-activity-arrow:hover {
-  color: var(--ag-gold-base);
-  border-color: var(--ag-gold-base);
-}
-
-/* States */
-.st-activity-loading,
-.st-activity-error,
-.st-activity-empty {
+/* ---------- FEED ---------- */
+.ac-feed {
   display: flex;
   flex-direction: column;
+  gap: 34px;
+}
+.ac-loading {
+  max-width: 560px;
+}
+
+.ac-group {
+  display: flex;
+  flex-direction: column;
+}
+.ac-date {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: -0.005em;
+  color: #16130D;
+  margin: 0 0 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ag-rule, #ddd5c6);
+}
+
+.ac-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.ac-row {
+  display: flex;
+  gap: 14px;
+  padding: 14px 12px;
+  margin: 0 -12px;
+  border-bottom: 1px solid var(--ag-border);
+  text-decoration: none;
+  border-radius: var(--ag-radius-md);
+  transition: background var(--ag-duration) var(--ag-ease);
+}
+.ac-row:hover {
+  background: var(--ag-surface-2);
+}
+.ac-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ag-gold);
+}
+
+.ac-avatar {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 50%;
+  background-color: #ece4d4;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 1px 4px rgba(20, 18, 14, 0.14);
+}
+.ac-avatar--fallback {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 100px 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b6256;
+  border: 1px solid var(--ag-border-strong);
+  box-shadow: none;
+}
+
+.ac-row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ac-row-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ag-text-2);
+}
+.ac-row-text strong {
+  font-weight: 600;
+  color: #16130D;
+}
+.ac-row-status {
+  font-weight: 600;
+}
+.ac-row-meta {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ag-text-2);
+}
+
+/* ---------- NO-RESULT (filtered) ---------- */
+.ac-noresult {
+  padding: 40px 0;
   text-align: center;
   color: var(--ag-text-3);
-  gap: 16px;
+  font-size: 13px;
+}
+.ac-noresult p {
+  margin: 0 0 10px;
+}
+.ac-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ag-gold);
+}
+.ac-link:hover {
+  text-decoration: underline;
+}
+.ac-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ag-gold-muted);
+  border-radius: 3px;
 }
 
-.st-activity-empty h3 {
-  font-family: var(--ag-font-display);
-  font-size: 1.5rem;
-  color: var(--ag-text-base);
+@media (prefers-reduced-motion: reduce) {
+  .ac-row,
+  .ac-filter {
+    transition: none;
+  }
 }

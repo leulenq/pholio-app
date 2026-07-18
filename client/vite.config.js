@@ -24,22 +24,22 @@ export default defineConfig(({ command }) => ({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       '/uploads': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       '/upload': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       '/onboarding': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false,
         // We match any /onboarding/ path EXCEPT the base /onboarding page
@@ -53,33 +53,33 @@ export default defineConfig(({ command }) => ({
       },
       // login removed to allow client-side route
       '/logout': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       '/signup': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       '/partners': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       '/stripe': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       '/pdf': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       },
       // vendored comp card fonts (@font-face inside the /pdf/view preview iframe)
       '/fonts': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false
       }

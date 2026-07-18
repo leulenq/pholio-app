@@ -81,8 +81,8 @@
 .submission-package__facts dt,
 .submission-package__contact-label,
 .submission-package__card-label {
-  color: #9b9082;
-  font-size: 8.5px;
+  color: var(--ag-text-2);
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -289,17 +289,18 @@
 }
 
 .zone-section-header {
-  font-size: 9px;
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: #9b9082;
+  letter-spacing: 0.12em;
+  color: var(--ag-text-3, #8C857E);
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-bottom: 9px;
+  padding-bottom: 10px;
   margin-bottom: 14px;
-  border-bottom: 1px solid #ddd5c6;
+  border-bottom: 1px solid var(--ag-border, rgba(26, 24, 21, 0.09));
 }
 
 /* Measurements strip (shared) */
@@ -319,11 +320,11 @@
 }
 
 .measure-label {
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #9b9082;
+  color: var(--ag-text-2);
   display: block;
 }
 
@@ -354,10 +355,10 @@
 }
 
 .attr-pill-label {
-  color: #9b9082;
+  color: var(--ag-text-2);
   margin-right: 4px;
   text-transform: uppercase;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
 }
 
@@ -387,11 +388,11 @@
 }
 
 .booking-stat-label {
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #9b9082;
+  color: var(--ag-text-2);
   display: block;
   margin-bottom: 5px;
 }
@@ -589,7 +590,7 @@
 
 .zone-advisory-label {
   font-family: 'Inter', sans-serif;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;

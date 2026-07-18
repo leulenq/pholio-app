@@ -2,12 +2,12 @@
 
 .agency-empty-state {
   text-align: center;
-  padding: var(--agency-spacing-3xl);
-  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: var(--ag-page-y);
+  animation: fadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .agency-empty-state--compact {
-  padding: var(--agency-spacing-xl);
+  padding: var(--ag-card-pad-lg);
 }
 
 .agency-empty-icon {
@@ -17,10 +17,10 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: var(--agency-bg-elevated);
-  color: var(--agency-text-tertiary);
-  margin-bottom: var(--agency-spacing-lg);
-  transition: all var(--agency-transition-normal);
+  background: var(--ag-surface-3);
+  color: var(--ag-text-3);
+  margin-bottom: var(--ag-gap);
+  transition: all var(--ag-duration) var(--ag-ease);
 }
 
 .agency-empty-icon--primary {
@@ -30,17 +30,17 @@
 
 .agency-empty-icon--success {
   background: rgba(22, 163, 74, 0.1);
-  color: var(--agency-success);
+  color: var(--ag-success);
 }
 
 .agency-empty-icon--warning {
   background: rgba(245, 158, 11, 0.1);
-  color: var(--agency-warning);
+  color: var(--ag-warning);
 }
 
 .agency-empty-icon--danger {
   background: rgba(220, 38, 38, 0.1);
-  color: var(--agency-danger);
+  color: var(--ag-danger);
 }
 
 .agency-empty-state:hover .agency-empty-icon {
@@ -50,23 +50,23 @@
 .agency-empty-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--agency-text-primary);
-  margin-bottom: var(--agency-spacing-sm);
+  color: var(--ag-text-0);
+  margin-bottom: 0.75rem;
   margin-top: 0;
 }
 
 .agency-empty-description {
   font-size: 0.9375rem;
-  color: var(--agency-text-secondary);
+  color: var(--ag-text-2);
   line-height: 1.6;
   max-width: 400px;
-  margin: 0 auto var(--agency-spacing-xl);
+  margin: 0 auto var(--ag-card-pad-lg);
 }
 
 .agency-empty-action {
   display: flex;
   justify-content: center;
-  gap: var(--agency-spacing-md);
+  gap: var(--ag-gap-sm);
   flex-wrap: wrap;
 }
 
@@ -74,7 +74,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -85,7 +85,7 @@
 /* Responsive */
 @media (max-width: 640px) {
   .agency-empty-state {
-    padding: var(--agency-spacing-xl);
+    padding: var(--ag-card-pad-lg);
   }
 
   .agency-empty-icon {
@@ -99,5 +99,11 @@
 
   .agency-empty-description {
     font-size: 0.875rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agency-empty-state {
+    animation: none;
   }
 }

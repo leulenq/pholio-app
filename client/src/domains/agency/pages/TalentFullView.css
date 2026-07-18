@@ -1,11 +1,11 @@
 .tfv { padding: 8px var(--ag-pad-x, 40px) 64px; position: relative; z-index: 1; }
-.tfv-loading { font-size: 13px; color: #9b9082; padding: 60px 0; text-align: center; }
+.tfv-loading { font-size: 13px; color: var(--ag-text-2); padding: 60px 0; text-align: center; }
 
 /* ---------- TOP BAR ---------- */
 .tfv-top { display: flex; justify-content: space-between; align-items: center; margin: 6px 0 26px; gap: 16px; }
 .tfv-back {
   display: inline-flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer;
-  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: #6b6256; padding: 0; transition: color .2s;
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #6b6256; padding: 0; transition: color .2s;
 }
 .tfv-back:hover { color: var(--ag-gold); }
 .tfv-actions { display: flex; gap: 9px; }
@@ -47,7 +47,7 @@
 .tfv-ledger { display: flex; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--ag-rule); }
 .tfv-stat { flex: 0 1 auto; padding: 0 26px; border-left: 1px solid #e2dac9; }
 .tfv-stat:first-child { border-left: none; padding-left: 0; }
-.tfv-stat-label { display: block; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: #9b9082; margin-bottom: 9px; }
+.tfv-stat-label { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-text-2); margin-bottom: 9px; }
 .tfv-stat-value { font-family: 'Playfair Display', serif; font-size: 28px; color: #16130D; line-height: 1; }
 .tfv-stat-suffix { font-size: 15px; margin-left: 2px; }
 

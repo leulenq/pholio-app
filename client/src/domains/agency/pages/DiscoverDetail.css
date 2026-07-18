@@ -149,7 +149,7 @@
 .dd-vital:last-child { padding-right: 0; border-right: none; }
 
 .dd-vital-label {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.24em;
   text-transform: uppercase;

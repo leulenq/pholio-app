@@ -1,27 +1,28 @@
-const knex = require("../db/knex");
+"use strict";
+
 const {
-  resolveAgencyContextForMemberUser,
-} = require("../../domains/agency/services/context");
+  isDevSeedAuthEnabled,
+  establishDevSeedSession,
+} = require("../lib/dev-seed-session");
 
 /**
  * Dev Auto-Auth Middleware
  *
- * Automatically signs in a default user in development mode
- * if no active session exists, based on the requested dashboard path.
+ * Automatically signs in a seeded principal in development when no usable
+ * session exists. Role is inferred from dashboard path / Referer.
+ *
+ * Prefer the explicit /api/dev/bootstrap call from SessionGates — this
+ * middleware remains as a safety net for API/referer-driven entry.
  */
 async function devAutoAuth(req, res, next) {
-  // Only run in development
-  if (process.env.NODE_ENV !== "development") {
+  if (!isDevSeedAuthEnabled()) {
     return next();
   }
 
   const path = req.originalUrl || req.path || "";
   const referer = (req.get && req.get("referer")) || req.headers?.referer || "";
 
-  // Decide which user to auto-login based on path
-  let targetEmail = null;
   let targetRole = null;
-  // Special case: SPA session bootstrap hits /api/session first. Use referer to infer role.
   const inferredFromReferer =
     typeof referer === "string" && referer.includes("/dashboard/agency")
       ? "AGENCY"
@@ -36,7 +37,6 @@ async function devAutoAuth(req, res, next) {
     path.includes("/api/agency") ||
     (path.includes("/api/session") && inferredFromReferer === "AGENCY")
   ) {
-    targetEmail = "agency@example.com";
     targetRole = "AGENCY";
   } else if (
     path.includes("/dashboard/talent") ||
@@ -44,94 +44,44 @@ async function devAutoAuth(req, res, next) {
     path.includes("/onboarding") ||
     (path.includes("/api/session") && inferredFromReferer === "TALENT")
   ) {
-    targetEmail = "talent@example.com";
     targetRole = "TALENT";
   }
 
-  if (!targetEmail) {
+  if (!targetRole) {
     return next();
   }
 
   try {
-    // If already signed in with the correct role, keep the session only if it
-    // still points at a valid dev principal. Stale local cookies can otherwise
-    // trap the demo on onboarding because no profile exists for the session id.
-    if (req.session && req.session.userId && req.session.role === targetRole) {
-      if (targetRole === "TALENT") {
-        const existingUser = await knex("users")
-          .where({ id: req.session.userId, role: "TALENT" })
-          .first();
-        const existingProfile = existingUser
-          ? await knex("profiles").where({ user_id: existingUser.id }).first()
-          : null;
+    // Keep an existing authenticated session unless this is an explicit
+    // dashboard/session entry for the other role. Prevents /api/talent or
+    // /onboarding calls from silently stealing an agency workspace session.
+    if (req.session?.userId && req.session?.role) {
+      if (req.session.role === targetRole) {
+        return next();
+      }
 
-        if (existingUser && existingProfile) {
-          if (!existingProfile.onboarding_completed_at) {
-            await knex("profiles")
-              .where({ id: existingProfile.id })
-              .update({ onboarding_completed_at: new Date() });
-          }
-          return next();
-        }
+      const isExplicitEntry =
+        path.includes("/dashboard/") ||
+        path.includes("/api/session") ||
+        path.includes("/api/dev/");
 
-        req.session.userId = null;
-        req.session.role = null;
-      } else {
+      if (!isExplicitEntry) {
         return next();
       }
     }
 
-    const user = await knex("users").where({ email: targetEmail }).first();
-    if (!user) {
-      console.warn(
-        `[DevAutoAuth] Target user ${targetEmail} not found in database.`,
-      );
-      return next();
-    }
-
-    if (user.role === "AGENCY") {
-      const agencyContext = await resolveAgencyContextForMemberUser(user.id);
-      if (agencyContext && agencyContext.agency) {
-        req.session.userId = agencyContext.agency.id;
-        req.session.memberUserId = user.id;
-        req.session.agencyId = agencyContext.agency.id;
-        req.session.agencyMembershipId = agencyContext.membership?.id || null;
-        req.session.agencyMembershipRole =
-          agencyContext.membership?.membership_role || "OWNER";
-        req.session.agencyOnboardingCompletedAt =
-          agencyContext.agency.onboarding_completed_at || new Date();
-        req.session.role = "AGENCY";
-      }
-    } else {
-      req.session.userId = user.id;
-      req.session.role = "TALENT";
-
-      // Ensure talent profile onboarding is "completed" for dev convenience
-      const profile = await knex("profiles")
-        .where({ user_id: user.id })
-        .first();
-      if (profile && !profile.onboarding_completed_at) {
-        await knex("profiles")
-          .where({ id: profile.id })
-          .update({ onboarding_completed_at: new Date() });
-      }
-    }
-
-    if (req.session.userId) {
+    const result = await establishDevSeedSession(req, targetRole);
+    if (result.ok) {
       console.log(
-        `[DevAutoAuth] Automatically signed in as ${targetEmail} for path ${path}`,
+        `[DevAutoAuth] Automatically signed in as ${result.email} for path ${path}`,
       );
-      // Save session synchronously to ensure it's available for next middleware
-      req.session.save((err) => {
-        if (err) console.error("[DevAutoAuth] Session save error:", err);
-        next();
-      });
-    } else {
-      next();
+    } else if (result.status !== 404) {
+      console.warn(`[DevAutoAuth] ${result.error}`);
     }
+    return next();
   } catch (error) {
     console.error("[DevAutoAuth] Error during auto-login:", error);
-    next();
+    return next();
   }
 }
 

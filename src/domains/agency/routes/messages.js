@@ -160,7 +160,9 @@ router.get(
         .select(
           "messages.*",
           "users.email as sender_email",
-          "users.name as sender_name",
+          knex.raw(
+            "TRIM(COALESCE(users.first_name, '') || ' ' || COALESCE(users.last_name, '')) as sender_name",
+          ),
         )
         .orderBy("messages.created_at", "asc");
 
@@ -334,7 +336,9 @@ router.post(
         .select(
           "messages.*",
           "users.email as sender_email",
-          "users.name as sender_name",
+          knex.raw(
+            "TRIM(COALESCE(users.first_name, '') || ' ' || COALESCE(users.last_name, '')) as sender_name",
+          ),
         )
         .first();
 

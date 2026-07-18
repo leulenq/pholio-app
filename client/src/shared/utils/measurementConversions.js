@@ -5,9 +5,11 @@
 
 export const cmToFeetInches = (cm) => {
   if (!cm) return { ft: '', in: '' };
-  const totalInches = cm / 2.54;
+  // Round total inches before splitting so the remainder can never round up
+  // to 12 (182 cm must be 6'0", not 5'12").
+  const totalInches = Math.round(cm / 2.54);
   const feet = Math.floor(totalInches / 12);
-  const inches = Math.round(totalInches % 12);
+  const inches = totalInches % 12;
   return { ft: feet.toString(), in: inches.toString() };
 };
 

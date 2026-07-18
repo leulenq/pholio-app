@@ -1,12 +1,12 @@
 /* Agency Card Component */
 
 .agency-card {
-  background: var(--agency-bg-surface);
-  border: 1px solid var(--agency-border);
-  border-radius: var(--agency-radius-md);
-  padding: var(--agency-spacing-xl);
-  box-shadow: var(--agency-shadow-sm);
-  transition: all var(--agency-transition-normal);
+  background: var(--ag-surface-1);
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-md);
+  padding: var(--ag-card-pad-lg);
+  box-shadow: var(--ag-shadow-sm);
+  transition: all var(--ag-duration) var(--ag-ease);
 }
 
 .agency-card--hover {
@@ -15,12 +15,12 @@
 
 .agency-card--hover:hover {
   transform: translateY(-4px);
-  box-shadow: var(--agency-shadow-md);
-  border-color: var(--agency-border-hover);
+  box-shadow: var(--ag-shadow-md);
+  border-color: var(--ag-border-strong);
 }
 
 .agency-card--elevated {
-  box-shadow: var(--agency-shadow-md);
+  box-shadow: var(--ag-shadow-md);
 }
 
 .agency-card--primary {
@@ -29,24 +29,24 @@
 }
 
 .agency-card--success {
-  border-color: var(--agency-success);
+  border-color: var(--ag-success);
   background: linear-gradient(135deg, rgba(22, 163, 74, 0.05), transparent);
 }
 
 .agency-card--warning {
-  border-color: var(--agency-warning);
+  border-color: var(--ag-warning);
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), transparent);
 }
 
 .agency-card--danger {
-  border-color: var(--agency-danger);
+  border-color: var(--ag-danger);
   background: linear-gradient(135deg, rgba(220, 38, 38, 0.05), transparent);
 }
 
 .agency-card--flat {
   box-shadow: none;
   border: none;
-  background: var(--agency-bg-elevated);
+  background: var(--ag-surface-3);
 }
 
 /* Card Sub-components */
@@ -54,20 +54,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--agency-spacing-lg);
-  padding-bottom: var(--agency-spacing-md);
-  border-bottom: 1px solid var(--agency-border);
+  margin-bottom: var(--ag-gap);
+  padding-bottom: var(--ag-gap-sm);
+  border-bottom: 1px solid var(--ag-border);
 }
 
 .agency-card-title {
   font-size: 1.0625rem;
   font-weight: 600;
-  color: var(--agency-text-primary);
+  color: var(--ag-text-0);
   margin: 0;
 }
 
 .agency-card-content {
-  color: var(--agency-text-secondary);
+  color: var(--ag-text-2);
   line-height: 1.6;
 }
 
@@ -75,9 +75,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--agency-spacing-lg);
-  padding-top: var(--agency-spacing-md);
-  border-top: 1px solid var(--agency-border);
+  margin-top: var(--ag-gap);
+  padding-top: var(--ag-gap-sm);
+  border-top: 1px solid var(--ag-border);
 }
 
 /* Focus state for interactive cards */
@@ -90,7 +90,7 @@
 @keyframes cardEntrance {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -99,18 +99,24 @@
 }
 
 .agency-card--animated {
-  animation: cardEntrance 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: cardEntrance 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agency-card--animated {
+    animation: none;
+  }
 }
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .agency-card {
-    padding: var(--agency-spacing-lg);
+    padding: var(--ag-gap);
   }
 
   .agency-card-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--agency-spacing-sm);
+    gap: 0.75rem;
   }
 }
