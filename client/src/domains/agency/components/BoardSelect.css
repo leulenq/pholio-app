@@ -1,0 +1,134 @@
+/* ============================================================
+   BoardSelect — the review scope, as an editorial control.
+   A quiet paper trigger (matches the Applicants command bar exactly)
+   opens a ledger-style boards panel: rows read like the casting
+   ledger — name, client, standing, closing pressure, stage-mix strip.
+   Warm --ag-* tokens throughout. Gold marks the active board only.
+   ============================================================ */
+
+.bsel {
+  position: relative;
+  display: inline-flex;
+}
+
+/* ---------- TRIGGER ----------
+   Matches the page's command-bar control vocabulary exactly: 36px
+   tall, the same hairline border, the same radius, white paper ground. */
+.bsel-trigger {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px; box-sizing: border-box;
+  background: var(--ag-surface-1); border: 1px solid var(--ag-border-strong);
+  border-radius: var(--ag-radius-sm); cursor: pointer;
+  font-family: var(--ag-font-body);
+  transition: border-color var(--ag-duration-fast) var(--ag-ease);
+}
+.bsel-trigger:hover { border-color: var(--ag-text-3); }
+.bsel-trigger:focus-visible {
+  outline: none; border-color: var(--ag-gold); box-shadow: var(--agency-shadow-focus);
+}
+.bsel--open .bsel-trigger { border-color: var(--ag-gold); }
+
+.bsel-trigger-name {
+  max-width: 220px; font-size: 13px; font-weight: 600; color: var(--ag-text-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bsel-trigger-count {
+  font-size: 12px; color: var(--ag-text-3); font-variant-numeric: tabular-nums;
+}
+.bsel-caret {
+  flex: none; color: var(--ag-text-3);
+  transition: transform var(--ag-duration-fast) var(--ag-ease);
+}
+.bsel--open .bsel-caret { transform: rotate(180deg); }
+
+/* ---------- PANEL ---------- */
+.bsel-panel {
+  position: absolute; top: calc(100% + 8px); left: 0;
+  width: 360px; max-width: min(360px, calc(100vw - 48px));
+  background: var(--ag-surface-1); border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-lg); box-shadow: 0 12px 40px rgba(26, 24, 21, 0.14);
+  padding: 8px; z-index: var(--ag-z-panel, 40);
+  animation: bsel-in 160ms var(--ag-ease) both;
+}
+@keyframes bsel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bsel-scroll { max-height: 320px; overflow-y: auto; }
+
+/* ---------- OPTIONS ---------- */
+.bsel-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; box-sizing: border-box; text-align: left;
+  padding: 10px 12px; border-radius: var(--ag-radius-md);
+  background: none; border: none; cursor: pointer;
+  font-family: var(--ag-font-body);
+  transition: background var(--ag-duration-fast) var(--ag-ease);
+}
+.bsel-option:hover { background: var(--ag-surface-2); }
+.bsel-option.is-on { background: var(--ag-gold-ghost); }
+.bsel-option:focus-visible {
+  outline: none; box-shadow: inset 0 0 0 2px var(--ag-gold);
+}
+
+.bsel-opt-main { min-width: 0; display: flex; flex-direction: column; }
+.bsel-opt-name {
+  font-size: 13px; font-weight: 600; color: var(--ag-text-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bsel-opt-sub {
+  margin-top: 3px; font-size: 11px; color: var(--ag-text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* stage-mix strip — the Overview funnel's vocabulary at row scale */
+.bsel-opt-mix {
+  display: flex; height: 3px; gap: 1px; margin-top: 7px;
+  border-radius: 2px; overflow: hidden; background: var(--ag-surface-3);
+}
+.bsel-opt-mix i {
+  display: block; height: 100%; min-width: 2px;
+}
+
+.bsel-opt-side {
+  flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+}
+.bsel-opt-count {
+  font-size: 12px; color: var(--ag-text-2); font-variant-numeric: tabular-nums;
+}
+.bsel-opt-check { color: var(--ag-gold); }
+
+.bsel-opt-closes {
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.bsel-opt-closes--calm { color: var(--ag-text-3); }
+.bsel-opt-closes--soon { color: var(--ag-danger); font-weight: 700; }
+.bsel-opt-closes--mute { color: var(--ag-text-4); }
+
+/* ---------- SECTION KEY ---------- */
+.bsel-key {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ag-text-3);
+  padding: 12px 12px 6px; margin-top: 6px; border-top: 1px solid var(--ag-border);
+}
+
+/* ---------- MANAGE LINK ---------- */
+.bsel-manage {
+  display: flex; align-items: center; justify-content: flex-end; gap: 5px;
+  padding: 10px 12px 6px; margin-top: 4px; border-top: 1px solid var(--ag-border);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--ag-gold); text-decoration: none;
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.bsel-manage:hover { color: var(--ag-gold-hover); }
+.bsel-manage:focus-visible {
+  outline: none; border-radius: var(--ag-radius-sm); box-shadow: var(--agency-shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bsel-panel { animation: none; }
+  .bsel-caret, .bsel-trigger, .bsel-option, .bsel-manage {
+    transition-duration: 0.01ms !important;
+  }
+}
