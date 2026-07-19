@@ -379,6 +379,16 @@ const ROUTE_PERMISSION_RULES = [
     permission: "boards.edit",
   },
   {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/boards\/[^/]+$/,
+    permission: "boards.edit",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/boards\/[^/]+\/identity-image$/,
+    permission: "boards.edit",
+  },
+  {
     method: "DELETE",
     pattern: /^\/api\/agency\/boards\/[^/]+$/,
     permission: "boards.delete",

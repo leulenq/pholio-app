@@ -341,6 +341,16 @@ router.get(
   },
 );
 
+// Board identity validation — invalid values fall back to null so the client
+// resolves its curated defaults instead of rendering from a bad value.
+const BRAND_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
+const PLATE_STYLES = new Set(["ink", "paper", "cover"]);
+const BOARD_TYPES = new Set(["division", "package"]);
+const cleanBrandColor = (v) =>
+  typeof v === "string" && BRAND_COLOR_RE.test(v) ? v.toUpperCase() : null;
+const cleanPlateStyle = (v) => (PLATE_STYLES.has(v) ? v : null);
+const cleanBoardType = (v) => (BOARD_TYPES.has(v) ? v : null);
+
 // POST /api/agency/boards - Create new board
 router.post(
   "/api/agency/boards",
@@ -358,6 +368,9 @@ router.post(
         sort_order = 0,
         requirements,
         scoring_weights,
+        brand_color,
+        plate_style,
+        board_type,
       } = req.body;
 
       if (!name || !name.trim()) {
@@ -381,6 +394,9 @@ router.post(
               : null,
           is_active: !!is_active,
           sort_order: parseInt(sort_order) || 0,
+          brand_color: cleanBrandColor(brand_color),
+          plate_style: cleanPlateStyle(plate_style),
+          board_type: cleanBoardType(board_type),
           created_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         })
@@ -455,9 +471,8 @@ router.post(
   },
 );
 
-// PUT /api/agency/boards/:boardId - Update board
-router.put(
-  "/api/agency/boards/:boardId",
+// PUT/PATCH /api/agency/boards/:boardId - Update board
+const updateBoardHandler = [
   requireRole("AGENCY"),
   async (req, res, next) => {
     try {
@@ -471,6 +486,11 @@ router.put(
         target_slots,
         is_active,
         sort_order,
+        brand_color,
+        plate_style,
+        board_type,
+        logo_path,
+        cover_image_path,
       } = req.body;
 
       // Verify board belongs to agency
@@ -500,6 +520,24 @@ router.put(
       if (is_active !== undefined) updates.is_active = !!is_active;
       if (sort_order !== undefined)
         updates.sort_order = parseInt(sort_order) || 0;
+      if (brand_color !== undefined)
+        updates.brand_color = cleanBrandColor(brand_color);
+      if (plate_style !== undefined)
+        updates.plate_style = cleanPlateStyle(plate_style);
+      if (board_type !== undefined)
+        updates.board_type = cleanBoardType(board_type);
+      // Image paths are only ever SET via the identity-image upload endpoint;
+      // here they may be cleared (null) or re-sent unchanged — anything else
+      // is ignored so a client can't point a board at arbitrary files.
+      if (logo_path !== undefined && (logo_path === null || logo_path === board.logo_path)) {
+        updates.logo_path = logo_path;
+      }
+      if (
+        cover_image_path !== undefined &&
+        (cover_image_path === null || cover_image_path === board.cover_image_path)
+      ) {
+        updates.cover_image_path = cover_image_path;
+      }
 
       await knex("boards").where({ id: boardId }).update(updates);
 
@@ -507,6 +545,102 @@ router.put(
     } catch (error) {
       console.error("[Boards API] Error updating board:", error);
       return res.status(500).json({ error: "Failed to update board" });
+    }
+  },
+];
+router.put("/api/agency/boards/:boardId", ...updateBoardHandler);
+router.patch("/api/agency/boards/:boardId", ...updateBoardHandler);
+
+// POST /api/agency/boards/:boardId/identity-image - Upload a board's client
+// logo (PNG/SVG, rasterized to PNG) or cover visual (JPG/PNG/WEBP → webp).
+// kind comes from the query string so the right multer pipeline can be
+// chosen before the multipart body is parsed.
+function handleBoardIdentityUpload(req, res, next) {
+  const { kind } = req.query;
+  if (kind === "logo") {
+    return uploadAgencyLogo.single("image")(req, res, (err) =>
+      err
+        ? res.status(400).json({
+            error: err.message || "Logo must be a PNG or SVG file",
+          })
+        : next(),
+    );
+  }
+  if (kind === "cover") {
+    return upload.single("image")(req, res, (err) =>
+      err
+        ? res.status(400).json({
+            error: err.message || "Cover must be a JPG, PNG, or WEBP image",
+          })
+        : next(),
+    );
+  }
+  return res.status(400).json({ error: "kind must be 'logo' or 'cover'" });
+}
+
+const IDENTITY_IMAGE_MAX_BYTES = {
+  logo: 2 * 1024 * 1024,
+  cover: 8 * 1024 * 1024,
+};
+
+router.post(
+  "/api/agency/boards/:boardId/identity-image",
+  requireRole("AGENCY"),
+  handleBoardIdentityUpload,
+  async (req, res) => {
+    try {
+      const { boardId } = req.params;
+      const { kind } = req.query;
+      const agencyId = getSessionAgencyId(req.session);
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+      const size = req.file.size || req.file.buffer?.length || 0;
+      if (size > IDENTITY_IMAGE_MAX_BYTES[kind]) {
+        return res.status(400).json({
+          error: `Image is too large (max ${kind === "logo" ? "2" : "8"} MB)`,
+        });
+      }
+
+      const board = await knex("boards")
+        .where({ id: boardId, agency_id: agencyId })
+        .first();
+      if (!board) {
+        return res.status(404).json({ error: "Board not found" });
+      }
+
+      let storedPath;
+      if (kind === "logo") {
+        const processed = await processAgencyLogo(req.file, {
+          agencyId,
+          maxWidth: 600,
+          maxHeight: 240,
+        });
+        storedPath = processed.path;
+      } else {
+        const processed = await processImage(req.file, {
+          agencyId,
+          maxWidth: 1600,
+          quality: 82,
+        });
+        storedPath = processed.path;
+      }
+
+      await knex("boards")
+        .where({ id: boardId })
+        .update({
+          [kind === "logo" ? "logo_path" : "cover_image_path"]: storedPath,
+          updated_at: knex.fn.now(),
+        });
+
+      return res.json({ success: true, data: { path: storedPath } });
+    } catch (error) {
+      console.error("[Boards API] Error uploading identity image:", error);
+      const isTypeError = /png|svg|jpg|jpeg|webp/i.test(error?.message || "");
+      return res.status(isTypeError ? 400 : 500).json({
+        error: isTypeError ? error.message : "Failed to upload image",
+      });
     }
   },
 );

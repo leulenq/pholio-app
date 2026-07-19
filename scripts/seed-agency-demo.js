@@ -254,6 +254,8 @@ const BOARDS = [
     client: "IMG Productions",
     closes: daysAhead(5),
     slots: 12,
+    plate_style: "ink",
+    brand_color: "#23364B",
     description:
       "Runway package for NYFW — minimum 175cm, confident walk, availability for fittings and show week.",
   },
@@ -599,6 +601,11 @@ async function seedAgencyDemo(knex) {
     target_slots: b.slots,
     is_active: true,
     sort_order: i,
+    // Board identity: client-briefed boards read as packages; a couple carry
+    // explicit art direction, the rest exercise the curated defaults.
+    board_type: b.client && b.slots ? "package" : "division",
+    plate_style: b.plate_style || null,
+    brand_color: b.brand_color || null,
     created_at: daysAgo(ri(10, 60)),
     updated_at: new Date(),
   }));

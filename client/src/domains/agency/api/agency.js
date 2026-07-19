@@ -392,8 +392,9 @@ export async function deleteBoard(boardId) {
 export async function uploadBoardIdentityImage(boardId, file, kind) {
   const formData = new FormData();
   formData.append('image', file);
-  formData.append('kind', kind);
-  return apiClient.post(`/boards/${boardId}/identity-image`, formData);
+  // kind travels in the query string so the server can pick the right upload
+  // pipeline before parsing the multipart body.
+  return apiClient.post(`/boards/${boardId}/identity-image?kind=${encodeURIComponent(kind)}`, formData);
 }
 
 /**
