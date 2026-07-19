@@ -313,6 +313,15 @@ export async function inviteTalent(profileId, queryLogId = null) {
 /**
  * Get all boards
  */
+/**
+ * Season Report aggregates. The endpoint returns { success, analytics } (not
+ * the standardized { success, data } envelope), so unwrap here.
+ */
+export async function getAgencyAnalytics(range = 90) {
+  const res = await apiClient.get(`/analytics?range=${range}`);
+  return res?.analytics || res;
+}
+
 export async function getBoards() {
   return apiClient.get('/boards');
 }
