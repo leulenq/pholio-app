@@ -1,10 +1,10 @@
 /* ============================================================
    ReviewRoom — the screening room (editorial spread).
-   Full-bleed photograph as the left page under a warm stage
-   light; the right page is the dossier — identity, comp card,
-   verdict, details — terminating in the decision deck. A queue
-   rail of faces runs along the foot. Light on deep ink; cream,
-   gold, and the match system's dark-ground tones only.
+   The photograph is the left page, lit by a soft studio cove;
+   the right page is the dossier, bound by a gutter seam. A
+   bespoke taxonomy of marks — market register, grade meter,
+   underscored state, filed tags — carries the categorical data.
+   Light on deep ink; cream and gold only.
    ============================================================ */
 
 .rr-room {
@@ -14,10 +14,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
+  /* Studio cove: a warm luminance rises from behind the photograph,
+     a gallery shadow falls from the ceiling, an edge vignette focuses in. */
   background:
-    radial-gradient(120% 90% at 30% 8%, rgba(201, 165, 90, 0.10), transparent 52%),
-    radial-gradient(90% 80% at 88% 100%, rgba(201, 165, 90, 0.05), transparent 60%),
-    var(--ag-ink, #14110B);
+    radial-gradient(76% 58% at 33% 60%, rgba(201, 165, 90, 0.085), transparent 66%),
+    radial-gradient(140% 100% at 50% -14%, rgba(0, 0, 0, 0.5), transparent 42%),
+    #16130D;
+  box-shadow: inset 0 0 260px 60px rgba(0, 0, 0, 0.44);
   color: var(--ag-canvas, #F7F3EC);
   font-family: var(--ag-font-body);
   overflow: hidden;
@@ -26,7 +29,7 @@
 /* Queue progress — the gold thread. */
 .rr-thread {
   position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: rgba(247, 243, 236, 0.10); z-index: 2;
+  background: rgba(247, 243, 236, 0.08); z-index: 2;
 }
 .rr-thread i { display: block; height: 100%; background: var(--ag-gold); transition: width 0.3s var(--ag-ease); }
 
@@ -39,14 +42,14 @@
   display: inline-flex; align-items: center; gap: 7px;
   background: none; border: none; cursor: pointer; padding: 6px 6px;
   font-family: var(--ag-font-body); font-size: 12px; font-weight: 600;
-  color: rgba(247, 243, 236, 0.66); border-radius: var(--ag-radius-sm);
+  color: rgba(247, 243, 236, 0.62); border-radius: var(--ag-radius-sm);
   transition: color var(--ag-duration-fast) var(--ag-ease);
 }
 .rr-back:hover, .rr-toplink:hover { color: var(--ag-gold); }
 .rr-top-right { display: flex; align-items: center; gap: 18px; }
 .rr-count {
-  font-size: 12px; color: rgba(247, 243, 236, 0.55);
-  font-variant-numeric: tabular-nums; letter-spacing: 0.04em; white-space: nowrap;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(247, 243, 236, 0.42); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .rr-back:focus-visible, .rr-toplink:focus-visible {
   outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
@@ -63,20 +66,20 @@
   min-height: 0; min-width: 0;
 }
 
-/* ---- Left page: the portrait, tall and centered under the stage light.
-   A casting lightbox shows the whole frame — ink margins, never a crop. ---- */
+/* ---- Left page: the portrait, centered under the cove light ---- */
 .rr-stage {
   position: relative; margin: 0; min-width: 0; min-height: 0;
   display: flex; align-items: center; justify-content: center;
-  padding: clamp(12px, 2.4vw, 40px);
+  padding: clamp(12px, 2.4vw, 44px);
 }
-/* The frame — a portrait box sized to the stage height, holding the photo
-   and its overlay controls. */
 .rr-frame {
   position: relative; height: 100%; width: auto; max-width: 100%;
   aspect-ratio: 3 / 4;
-  border-radius: 4px;
-  box-shadow: 0 40px 110px rgba(0, 0, 0, 0.6), 0 6px 22px rgba(0, 0, 0, 0.45);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px rgba(247, 243, 236, 0.06),
+    0 50px 120px rgba(0, 0, 0, 0.62),
+    0 8px 26px rgba(0, 0, 0, 0.5);
 }
 .rr-photo {
   display: block; position: absolute; inset: 0; width: 100%; height: 100%;
@@ -93,41 +96,52 @@
 }
 .rr-stage.is-loading .rr-frame { animation: rr-pulse 1.2s ease-in-out infinite; }
 
+/* On-photo controls — solid ink capsules with a warm hairline, no glass. */
 .rr-stage-bar {
-  position: absolute; left: 14px; right: 14px; bottom: 14px;
+  position: absolute; left: 12px; right: 12px; bottom: 12px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   pointer-events: none;
 }
 .rr-stage-bar > * { pointer-events: auto; }
 .rr-frame-nav {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px; border-radius: var(--ag-radius-full);
-  background: rgba(20, 17, 11, 0.62); border: 1px solid rgba(247, 243, 236, 0.14);
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 3px; border-radius: var(--ag-radius-full);
+  background: rgba(16, 13, 9, 0.72); border: 1px solid rgba(201, 165, 90, 0.24);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 .rr-frame-count {
-  padding: 0 8px; font-size: 11px; color: rgba(247, 243, 236, 0.8);
-  font-variant-numeric: tabular-nums;
+  padding: 0 9px; font-size: 11px; font-weight: 600; color: rgba(247, 243, 236, 0.82);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.04em;
 }
 .rr-frame-btn {
   width: 30px; height: 30px; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
-  background: rgba(20, 17, 11, 0.62); border: 1px solid rgba(247, 243, 236, 0.14);
+  background: rgba(16, 13, 9, 0.72); border: 1px solid rgba(201, 165, 90, 0.24);
   border-radius: 50%; color: rgba(247, 243, 236, 0.82); cursor: pointer;
-  transition: border-color var(--ag-duration-fast) var(--ag-ease), color var(--ag-duration-fast) var(--ag-ease);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: border-color var(--ag-duration-fast) var(--ag-ease), color var(--ag-duration-fast) var(--ag-ease), background var(--ag-duration-fast) var(--ag-ease);
 }
-.rr-frame-nav .rr-frame-btn { background: none; border: none; }
-.rr-frame-btn:hover { border-color: var(--ag-gold); color: var(--ag-canvas); }
-.rr-frame-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35); }
+.rr-frame-nav .rr-frame-btn { width: 26px; height: 26px; background: none; border: none; box-shadow: none; }
+.rr-frame-btn:hover { border-color: var(--ag-gold); color: var(--ag-canvas); background: rgba(16, 13, 9, 0.9); }
+.rr-frame-nav .rr-frame-btn:hover { background: rgba(247, 243, 236, 0.08); }
+.rr-frame-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
 
-/* ---- Right page: the dossier ---- */
+/* ---- Right page: the dossier, bound by a gutter seam ---- */
 .rr-page {
+  position: relative;
   display: grid; grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0; min-width: 0;
-  border-left: 1px solid rgba(247, 243, 236, 0.08);
+  background: linear-gradient(100deg, rgba(247, 243, 236, 0.025), rgba(247, 243, 236, 0) 44%);
+  box-shadow: -22px 0 46px -26px rgba(0, 0, 0, 0.7);
+}
+/* the binding — a soft vertical light down the gutter */
+.rr-page::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(247, 243, 236, 0.16) 26%, rgba(247, 243, 236, 0.16) 74%, transparent);
 }
 .rr-read {
   overflow-y: auto; overscroll-behavior: contain;
-  padding: clamp(14px, 2vw, 30px) clamp(22px, 2.6vw, 44px) 20px;
+  padding: clamp(16px, 2vw, 32px) clamp(24px, 2.6vw, 46px) 20px;
   scrollbar-width: thin; scrollbar-color: rgba(247, 243, 236, 0.2) transparent;
 }
 
@@ -136,9 +150,21 @@
   font-size: clamp(30px, 2.7vw, 44px); line-height: 1.04; letter-spacing: -0.015em;
   color: var(--ag-canvas); text-wrap: balance;
 }
-.rr-spec {
-  margin: 9px 0 0; font-size: 11px; font-weight: 600; letter-spacing: 0.16em;
-  text-transform: uppercase; color: rgba(247, 243, 236, 0.58);
+
+/* ── TAXONOMY: market register ── */
+.rr-market { display: flex; align-items: center; gap: 11px; margin: 12px 0 0; }
+.rr-market-mark { width: 2px; height: 13px; flex: none; background: var(--ag-gold); }
+.rr-market-name {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ag-canvas);
+}
+.rr-market-city {
+  position: relative; padding-left: 12px;
+  font-size: 12px; color: rgba(247, 243, 236, 0.6); letter-spacing: 0.01em;
+}
+.rr-market-city::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 11px; background: rgba(247, 243, 236, 0.24);
 }
 
 /* The comp card — the numbers a booker checks first. */
@@ -168,30 +194,46 @@
   color: rgba(247, 243, 236, 0.5); margin-left: 6px;
 }
 
-/* Verdict — one baseline, name-subordinate. */
-.rr-verdict { display: flex; align-items: baseline; gap: 12px; margin: 22px 0 0; flex-wrap: wrap; }
-.rr-score {
+/* ── TAXONOMY: billing — grade + state on one baseline ── */
+.rr-billing {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
+  margin: 22px 0 0;
+}
+
+/* grade — serif numeral over a four-mark strength meter */
+.rr-grade { display: flex; align-items: center; gap: 14px; }
+.rr-grade-num {
   font-family: 'Noto Serif Display', 'Playfair Display', serif; font-weight: 500;
-  font-size: 34px; line-height: 1; letter-spacing: -0.02em;
-  font-variant-numeric: lining-nums tabular-nums;
+  font-size: 40px; line-height: 0.9; letter-spacing: -0.02em;
+  color: var(--ag-canvas); font-variant-numeric: lining-nums tabular-nums;
 }
-.rr-score--exceptional { color: var(--ag-match-exc-tone); }
-.rr-score--strong { color: var(--ag-match-str-tone); }
-.rr-score--fair { color: var(--ag-match-fair-tone); }
-.rr-score--low { color: var(--ag-match-low-tone); }
-.rr-verdict-tier { font-size: 12px; font-weight: 600; color: rgba(247, 243, 236, 0.8); }
-.rr-verdict-status { font-size: 12px; color: rgba(247, 243, 236, 0.55); }
-
-/* Status on ink — sharp tonal plate (non-badge). */
-.rr-plate {
-  display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 0;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.02em; line-height: 1.2; white-space: nowrap;
-  background: color-mix(in srgb, var(--c) 22%, transparent);
-  color: color-mix(in srgb, var(--c) 52%, var(--ag-canvas));
-  border: 1px solid color-mix(in srgb, var(--c) 44%, transparent);
+.rr-grade-meta { display: flex; flex-direction: column; gap: 6px; }
+.rr-grade-meter { display: inline-flex; align-items: flex-end; gap: 3px; height: 14px; }
+.rr-grade-meter i {
+  width: 3px; height: 100%; border-radius: 1px;
+  background: rgba(247, 243, 236, 0.16);
+}
+.rr-grade-meter i.is-on { background: var(--ag-gold); }
+.rr-grade-tier {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(247, 243, 236, 0.68);
 }
 
-.rr-facts { margin: 14px 0 0; font-size: 12px; line-height: 1.6; color: rgba(247, 243, 236, 0.58); }
+/* state — an underscored line, tone by family; no cell, no dot */
+.rr-state {
+  flex: none; align-self: flex-end;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  padding-bottom: 4px; white-space: nowrap;
+  border-bottom: 1.5px solid currentColor;
+  color: rgba(247, 243, 236, 0.72);
+}
+.rr-state--signed { color: #86C6A2; }
+.rr-state--short { color: var(--ag-gold); }
+.rr-state--passed { color: rgba(214, 150, 138, 0.82); }
+.rr-state--filed { color: rgba(247, 243, 236, 0.55); }
+.rr-state--wait { color: rgba(247, 243, 236, 0.6); }
+
+.rr-facts { margin: 15px 0 0; font-size: 12px; line-height: 1.6; color: rgba(247, 243, 236, 0.55); }
 
 /* Details — quieter, two-up. */
 .rr-details {
@@ -214,10 +256,24 @@
 .rr-section { margin: 22px 0 0; }
 .rr-key {
   display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
-  color: rgba(247, 243, 236, 0.42); margin: 0 0 8px;
+  color: rgba(247, 243, 236, 0.42); margin: 0 0 9px;
 }
 .rr-bio { margin: 0; font-size: 13px; line-height: 1.65; color: rgba(247, 243, 236, 0.78); max-width: 60ch; }
 .rr-bio.is-clamped { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ── TAXONOMY: filed marks (agency record tags) ── */
+.rr-filed { display: flex; flex-wrap: wrap; align-items: center; gap: 0 14px; margin: 0 0 8px; }
+.rr-filed-mark {
+  position: relative;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase;
+  color: rgba(247, 243, 236, 0.7);
+}
+.rr-filed-mark + .rr-filed-mark { padding-left: 14px; }
+.rr-filed-mark + .rr-filed-mark::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 10px; background: rgba(247, 243, 236, 0.22);
+}
+
 .rr-line { margin: 0 0 5px; font-size: 12px; line-height: 1.5; color: rgba(247, 243, 236, 0.62); }
 .rr-line--link {
   display: inline-flex; align-items: center; gap: 5px; font-weight: 600;
@@ -228,7 +284,7 @@
 .rr-line--link:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35); border-radius: 2px; }
 
 .rr-textbtn {
-  margin-top: 6px; padding: 0; background: none; border: none; cursor: pointer;
+  margin-top: 8px; padding: 0; background: none; border: none; cursor: pointer;
   font-family: var(--ag-font-body); font-size: 12px; font-weight: 600; color: var(--ag-gold);
   transition: color var(--ag-duration-fast) var(--ag-ease);
 }
@@ -243,9 +299,9 @@
 
 /* ---- The decision deck: terminates the reading column ---- */
 .rr-deck {
-  padding: 16px clamp(22px, 2.6vw, 44px) 20px;
+  padding: 16px clamp(24px, 2.6vw, 46px) 20px;
   border-top: 1px solid rgba(247, 243, 236, 0.12);
-  background: rgba(0, 0, 0, 0.18);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.26));
 }
 .rr-deck-row { display: flex; align-items: center; gap: 10px; }
 .rr-act {
@@ -257,12 +313,13 @@
     color var(--ag-duration-fast) var(--ag-ease),
     transform var(--ag-duration-fast) var(--ag-ease);
 }
-.rr-act:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35); }
+.rr-act:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
 .rr-act:disabled { opacity: 0.45; cursor: default; }
 .rr-act:active:not(:disabled) { transform: translateY(1px); }
 .rr-act--sign {
   flex: 1 1 auto; justify-content: center;
   background: var(--ag-gold); border: 1px solid var(--ag-gold); color: var(--ag-ink, #14110B);
+  box-shadow: 0 6px 20px rgba(201, 165, 90, 0.22);
 }
 .rr-act--sign:hover:not(:disabled) { background: var(--ag-gold-hover); border-color: var(--ag-gold-hover); }
 .rr-act--shortlist {
@@ -276,15 +333,12 @@
   border-color: color-mix(in srgb, var(--ag-danger) 70%, var(--ag-canvas));
   color: color-mix(in srgb, var(--ag-danger) 46%, var(--ag-canvas));
 }
-.rr-key-cap {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 17px; height: 17px; padding: 0 4px;
-  border: 1px solid rgba(247, 243, 236, 0.25); border-radius: 3px;
-  font-family: var(--ag-font-mono); font-size: 10px; font-weight: 600; color: rgba(247, 243, 236, 0.6);
-}
-.rr-key-cap--ink { border-color: rgba(20, 17, 11, 0.32); color: rgba(20, 17, 11, 0.66); }
 
-.rr-deck-quiet { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.rr-deck-quiet {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 13px; flex-wrap: wrap;
+}
+.rr-soft-row { display: flex; align-items: center; gap: 12px; }
 .rr-soft {
   background: none; border: none; padding: 2px 0; cursor: pointer;
   font-family: var(--ag-font-body); font-size: 12px; font-weight: 600; color: rgba(247, 243, 236, 0.55);
@@ -294,7 +348,17 @@
 .rr-soft:disabled { opacity: 0.45; cursor: default; }
 .rr-soft:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35); border-radius: 2px; }
 .rr-soft-div { color: rgba(247, 243, 236, 0.3); font-size: 12px; }
-.rr-deck-decided { display: flex; align-items: center; gap: 14px; }
+
+/* keyboard legend — a quiet footnote, no boxed caps */
+.rr-legend {
+  display: inline-flex; align-items: center;
+  font-size: 10px; letter-spacing: 0.06em; color: rgba(247, 243, 236, 0.34);
+  text-transform: uppercase; font-weight: 500;
+}
+.rr-legend b { color: rgba(247, 243, 236, 0.62); font-weight: 700; margin-right: 4px; }
+.rr-legend i { display: inline-block; width: 1px; height: 9px; margin: 0 9px; background: rgba(247, 243, 236, 0.18); }
+
+.rr-deck-decided { display: flex; align-items: center; gap: 16px; }
 .rr-deck-note { font-size: 12px; color: rgba(247, 243, 236, 0.6); }
 
 /* ───────── QUEUE RAIL ───────── */
@@ -346,32 +410,34 @@
 .rr-topbtn {
   width: 34px; height: 34px; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
-  background: rgba(20, 17, 11, 0.6); border: 1px solid rgba(247, 243, 236, 0.2);
+  background: rgba(16, 13, 9, 0.6); border: 1px solid rgba(247, 243, 236, 0.2);
   border-radius: var(--ag-radius-sm); color: rgba(247, 243, 236, 0.85); cursor: pointer;
   transition: border-color var(--ag-duration-fast) var(--ag-ease), color var(--ag-duration-fast) var(--ag-ease);
 }
 .rr-topbtn:hover { border-color: var(--ag-gold); color: var(--ag-canvas); }
-.rr-topbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35); }
-
-/* tooltips on the ink ground */
-.rr-room [data-tip]::after { background: var(--ag-canvas); color: var(--ag-ink, #14110B); }
+.rr-topbtn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
 
 /* ───────── RESPONSIVE ───────── */
 @media (max-width: 1080px) {
   .rr-scene { grid-template-columns: 1fr; grid-auto-rows: min-content; overflow-y: auto; }
   .rr-stage { padding: 16px; }
-  .rr-photo { aspect-ratio: 3 / 4; width: auto; max-width: 100%; height: min(56vh, 460px); margin: 0 auto; }
-  .rr-page { border-left: none; border-top: 1px solid rgba(247, 243, 236, 0.08); }
+  .rr-frame { aspect-ratio: 3 / 4; width: auto; max-width: 100%; height: min(56vh, 460px); margin: 0 auto; }
+  .rr-page { box-shadow: none; }
+  .rr-page::before { display: none; }
+  .rr-page { border-top: 1px solid rgba(247, 243, 236, 0.08); }
   .rr-read { overflow: visible; }
 }
 @media (max-width: 640px) {
   .rr-details { grid-template-columns: 1fr; }
   .rr-deck-row { flex-wrap: wrap; }
+  .rr-billing { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .rr-state { align-self: flex-start; }
+  .rr-legend { display: none; }
   .rr-queue-key em { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rr-thread i, .rr-back, .rr-toplink, .rr-frame-btn, .rr-act, .rr-textbtn,
   .rr-line--link, .rr-q, .rr-soft, .rr-topbtn { transition: none; }
-  .rr-stage.is-loading .rr-photo, .rr-bone { animation: none; }
+  .rr-stage.is-loading .rr-frame, .rr-bone { animation: none; }
 }

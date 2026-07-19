@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { getApplicationDetails } from '../../api/agency';
 import { resolveTier, MATCH_TIER_LABELS, normalizeScore } from '../../lib/matchTier';
-import { getStatusMeta } from '../ui/StatusText';
 import { cmToImperial } from '../../pages/rosterFormat';
 import './ReviewRoom.css';
 
@@ -48,26 +47,49 @@ const titleCase = (value) =>
 const imageSrc = (img) => img?.url || img?.public_url || img?.path || null;
 
 const DECIDED = new Set(['represented', 'booked', 'accepted', 'signed', 'declined', 'passed']);
-const NEWISH = new Set(['submitted', 'pending', 'new', '']);
 
-// Compact labels for the dark status plate.
-const PLATE_LABELS = {
-  declined: 'Passed',
-  development: 'New Face',
-  requested_more: 'More digitals',
-  meeting_requested: 'Meeting',
-  under_review: 'In review',
+/* ── taxonomy — a bespoke set of marks for the room, not the codebase cell ── */
+
+// Match grade → a four-mark strength meter; the fill is the tier.
+const TIER_LEVEL = { exceptional: 4, strong: 3, fair: 2, low: 1 };
+
+// Pipeline state → the room's own labels + tone family.
+const STATE_LABELS = {
+  submitted: 'Awaiting review', pending: 'Awaiting review', new: 'Awaiting review', '': 'Awaiting review',
+  under_review: 'In review', shortlisted: 'Shortlisted', requested_more: 'Digitals requested',
+  meeting_requested: 'Meeting set', development: 'New face', kept_on_file: 'On file',
+  represented: 'Represented', booked: 'Represented', accepted: 'Represented', signed: 'Represented',
+  declined: 'Passed', passed: 'Passed', withdrawn: 'Withdrawn',
+};
+const STATE_TONE = {
+  represented: 'signed', booked: 'signed', accepted: 'signed', signed: 'signed',
+  shortlisted: 'short', requested_more: 'short', meeting_requested: 'short',
+  under_review: 'short', development: 'short',
+  declined: 'passed', passed: 'passed', withdrawn: 'passed',
+  kept_on_file: 'filed',
 };
 
-/** Status on ink — the sharp tonal cell, restated for the dark room. */
-function StatusPlate({ status }) {
-  const meta = getStatusMeta(status);
-  if (!meta) return null;
+/** State mark — an underscored state line; tone by family, no cell, no dot. */
+function StateMark({ status }) {
   const key = String(status || '').toLowerCase();
+  const label = STATE_LABELS[key] || 'Awaiting review';
+  const tone = STATE_TONE[key] || 'wait';
+  return <span className={`rr-state rr-state--${tone}`}>{label}</span>;
+}
+
+/** Grade — the match numeral over a four-mark strength meter. */
+function Grade({ score, tier }) {
+  const level = TIER_LEVEL[tier] || 0;
   return (
-    <span className="rr-plate" style={{ '--c': meta.color }}>
-      {PLATE_LABELS[key] || meta.label}
-    </span>
+    <div className="rr-grade">
+      <span className="rr-grade-num">{normalizeScore(score)}</span>
+      <span className="rr-grade-meta">
+        <span className="rr-grade-meter" aria-hidden="true">
+          {[0, 1, 2, 3].map((i) => <i key={i} className={i < level ? 'is-on' : ''} />)}
+        </span>
+        <span className="rr-grade-tier">{MATCH_TIER_LABELS[tier]}</span>
+      </span>
+    </div>
   );
 }
 
@@ -243,14 +265,12 @@ export default function ReviewRoom({
   const compCard = useMemo(() => buildCompCard(profile), [profile]);
   const details = useMemo(() => buildDetails(profile), [profile]);
   const decided = DECIDED.has(status);
-  const isNewStatus = NEWISH.has(status);
 
-  const tagLine = useMemo(
+  const tagList = useMemo(
     () =>
       tags
         .map((t) => (typeof t === 'string' ? t : t?.tag || t?.label || t?.name))
-        .filter(Boolean)
-        .join(' · '),
+        .filter(Boolean),
     [tags],
   );
   const latestNote = notes.length
@@ -360,7 +380,11 @@ export default function ReviewRoom({
             <div className="rr-page">
               <div className="rr-read">
                 <h2 className="rr-name">{name}</h2>
-                <p className="rr-spec">{[type, city].filter(Boolean).join(' · ')}</p>
+                <p className="rr-market">
+                  <span className="rr-market-mark" aria-hidden="true" />
+                  <span className="rr-market-name">{type}</span>
+                  {city && <span className="rr-market-city">{city}</span>}
+                </p>
 
                 {/* The comp card — the numbers a booker checks first. */}
                 {compCard.length > 0 && (
@@ -377,15 +401,10 @@ export default function ReviewRoom({
                   </div>
                 )}
 
-                {/* Verdict — one baseline. */}
-                <div className="rr-verdict">
-                  {score != null && (
-                    <span className={`rr-score rr-score--${tier}`}>{normalizeScore(score)}</span>
-                  )}
-                  {tier && <span className="rr-verdict-tier">{MATCH_TIER_LABELS[tier]} match</span>}
-                  {isNewStatus
-                    ? <span className="rr-verdict-status">Awaiting review</span>
-                    : <StatusPlate status={status} />}
+                {/* Billing — the match grade and the state, on one rule. */}
+                <div className="rr-billing">
+                  {score != null ? <Grade score={score} tier={tier} /> : <span />}
+                  <StateMark status={status} />
                 </div>
                 {factParts.length > 0 && <p className="rr-facts">{factParts.join(' · ')}</p>}
 
@@ -425,10 +444,16 @@ export default function ReviewRoom({
                       </div>
                     )}
 
-                    {(tagLine || notes.length > 0 || social.length > 0) && (
+                    {(tagList.length > 0 || notes.length > 0 || social.length > 0) && (
                       <div className="rr-section">
                         <span className="rr-key">Agency record</span>
-                        {tagLine && <p className="rr-line">{tagLine}</p>}
+                        {tagList.length > 0 && (
+                          <div className="rr-filed">
+                            {tagList.map((t, i) => (
+                              <span className="rr-filed-mark" key={`${t}-${i}`}>{t}</span>
+                            ))}
+                          </div>
+                        )}
                         {notes.length > 0 && (
                           <p className="rr-line">
                             {notes.length} {notes.length === 1 ? 'note' : 'notes'}
@@ -464,7 +489,7 @@ export default function ReviewRoom({
               <div className="rr-deck">
                 {decided ? (
                   <div className="rr-deck-decided">
-                    <StatusPlate status={status} />
+                    <StateMark status={status} />
                     <span className="rr-deck-note">Decided — J / K to keep moving</span>
                   </div>
                 ) : (
@@ -478,7 +503,6 @@ export default function ReviewRoom({
                       >
                         <Check size={16} strokeWidth={2.1} aria-hidden="true" />
                         Sign
-                        <kbd className="rr-key-cap rr-key-cap--ink">A</kbd>
                       </button>
                       <button
                         type="button"
@@ -488,7 +512,6 @@ export default function ReviewRoom({
                       >
                         <Star size={15} strokeWidth={1.9} aria-hidden="true" />
                         Shortlist
-                        <kbd className="rr-key-cap">S</kbd>
                       </button>
                       <button
                         type="button"
@@ -498,17 +521,21 @@ export default function ReviewRoom({
                       >
                         <X size={15} strokeWidth={1.9} aria-hidden="true" />
                         Pass
-                        <kbd className="rr-key-cap">X</kbd>
                       </button>
                     </div>
                     <div className="rr-deck-quiet">
-                      <button type="button" className="rr-soft" onClick={() => onDecide?.('kept_on_file')} disabled={busy}>
-                        Keep on file
-                      </button>
-                      <span className="rr-soft-div" aria-hidden="true">·</span>
-                      <button type="button" className="rr-soft" onClick={() => onDecide?.('requested_more')} disabled={busy}>
-                        Request digitals
-                      </button>
+                      <div className="rr-soft-row">
+                        <button type="button" className="rr-soft" onClick={() => onDecide?.('kept_on_file')} disabled={busy}>
+                          Keep on file
+                        </button>
+                        <span className="rr-soft-div" aria-hidden="true">·</span>
+                        <button type="button" className="rr-soft" onClick={() => onDecide?.('requested_more')} disabled={busy}>
+                          Request digitals
+                        </button>
+                      </div>
+                      <span className="rr-legend" aria-hidden="true">
+                        <b>S</b> shortlist<i /> <b>A</b> sign<i /> <b>X</b> pass<i /> <b>J K</b> browse
+                      </span>
                     </div>
                   </>
                 )}

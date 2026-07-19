@@ -102,6 +102,23 @@ weak. Audit of that version drove this one:
   stacking context (the rail's own layer was bleeding through the ink). The room mounts once
   (static key) so J/K page the queue with directional crossfades instead of remounting.
 
+## Round 5 — screening-room polish (background, spread, taxonomy, shortcuts)
+
+- **Background**: replaced the two floating gold blobs with a studio cove — a warm luminance
+  rising from behind the photograph, a gallery shadow falling from the top, and an inset edge
+  vignette that focuses the eye.
+- **Spread**: the dossier is now a distinct panel with a gutter "binding" (a soft vertical
+  light down its left edge) so the two-page spread reads like an open portfolio; the on-photo
+  controls became solid ink capsules with a warm gold hairline (no glass).
+- **Taxonomy, designed from scratch** (dropped the reused StatusCell/tonal-plate conventions):
+  a *market register* (gold tick + tracked-caps division + hairline-divided city), a *grade
+  meter* (serif numeral + a four-mark gold strength meter — cold cyan tier color gone), an
+  *underscored state* (tracked caps on a tone-keyed rule: cream=awaiting, gold=shortlisted,
+  green=represented, warm-red=passed — no cell, no dot), and *filed marks* for tags (tracked
+  caps split by hairline rules).
+- **Keyboard shortcuts**: removed the boxed keycaps stuck on the deck buttons; discovery now
+  lives in one quiet uppercase legend footnote (`S shortlist · A sign · X pass · J K browse`).
+
 ## Also fixed en route
 
 - `scripts/seed-agency-demo.js` wrote `images.status = "ready"`, which
