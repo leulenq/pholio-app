@@ -64,6 +64,24 @@ Submissions is now a review desk with two densities and one opinionated default:
   fake-tab pass-rate stat moved into the masthead sub-line as plain text; On file / Passed sit
   as quiet toggles on the ledger rail's right edge.
 
+## Round 3 — the review workflow (boards scope, multi-select, Review Room)
+
+- **BoardSelect** replaces the native board `<select>`: a command-bar paper trigger opening a
+  boards panel where each row reads like the casting ledger — name, client, pipeline standing,
+  closing pressure (danger tone under 3 days), and a thin stage-mix strip in the Overview
+  funnel's vocabulary. Gold marks the chosen scope only.
+- **Multi-select** on both views: square pick controls (top-left on Book cards, a leading
+  ledger column), Space toggles the focused row, shift-click ranges, decided rows never
+  select. A floating ink bulk bar carries N-selected + Shortlist / Sign / Pass / Clear;
+  bulk runs fan out with one summary toast. Escape unwinds help → review → selection.
+- **ReviewRoom** replaces the generic TalentPanel on Submissions: a two-column decision
+  drawer (left stage: 3:4 digitals, filmstrip, frame counter; right dossier: match verdict,
+  submission facts, null-omitting vitals ledger, bio, agency record, social), a decision
+  deck (Pass / Shortlist / one gold Sign + Keep-on-file / Request-more-digitals), serial
+  prev/next with position readout, neighbor prefetch, and J/K/S/A/X keyboard flow with
+  auto-advance after every decision. Keyboard lives in the page's single window handler so
+  decisions can never double-fire.
+
 ## Also fixed en route
 
 - `scripts/seed-agency-demo.js` wrote `images.status = "ready"`, which

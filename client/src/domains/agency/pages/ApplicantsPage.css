@@ -45,23 +45,6 @@
 /* Every control in the bar shares one vocabulary: 36px tall, the same
    hairline border, the same radius, white paper ground. */
 .ap-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ap-bar-key {
-  font-size: var(--ag-text-label); font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--ag-text-3);
-}
-
-.ap-board-select { display: inline-flex; align-items: center; gap: 8px; }
-.ap-board-select select {
-  height: 36px; padding: 0 30px 0 12px; border: 1px solid var(--ag-border-strong);
-  border-radius: var(--ag-radius-sm); background: var(--ag-surface-1); color: var(--ag-text-0);
-  font-family: var(--ag-font-body); font-size: 13px; cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6560' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center;
-  transition: border-color var(--ag-duration-fast) var(--ag-ease);
-}
-.ap-board-select select:hover { border-color: var(--ag-text-3); }
-.ap-board-select select:focus-visible { outline: none; border-color: var(--ag-gold); box-shadow: var(--agency-shadow-focus); }
 
 .ap-search {
   display: flex; align-items: center; gap: 8px;
@@ -213,6 +196,47 @@
 [data-tip]:hover::after,
 [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ---------- PICK CONTROL (multi-select) ----------
+   A square checkbox affordance, not a status marker. Hidden at rest, it
+   surfaces on hover/focus, when its row is picked, or in selection mode.
+   Two grounds: 'ink' rides over card photos, 'paper' sits on the ledger. */
+.ap-pick {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; box-sizing: border-box; flex: none; padding: 0;
+  border-radius: var(--ag-radius-sm); cursor: pointer;
+  opacity: 0; user-select: none; -webkit-user-select: none;
+  transition: opacity var(--ag-duration-fast) var(--ag-ease), background var(--ag-duration-fast) var(--ag-ease), border-color var(--ag-duration-fast) var(--ag-ease);
+}
+.ap-pick:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); opacity: 1; }
+
+/* ink — over the card photo */
+.ap-pick--ink {
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  border: 1.5px solid rgba(255, 255, 255, 0.75); background: rgba(16, 13, 9, 0.35);
+}
+.ap-pick--ink:hover { border-color: #fff; }
+.ap-pick--ink.is-picked { background: var(--ag-gold); border-color: var(--ag-gold); }
+.ap-card:hover .ap-pick--ink,
+.ap-card:focus-within .ap-pick--ink,
+.ap-card--picked .ap-pick--ink,
+.ap-book.is-selecting .ap-pick--ink { opacity: 1; }
+
+/* paper — on the ledger row */
+.ap-pick-cell { display: flex; align-items: center; justify-content: center; }
+.ap-pick--paper {
+  border: 1px solid var(--ag-border-strong); background: var(--ag-surface-1); color: var(--ag-text-2);
+}
+.ap-pick--paper:hover { border-color: var(--ag-gold); }
+.ap-pick--paper.is-picked { background: var(--ag-gold); border-color: var(--ag-gold); }
+.ap-row:hover .ap-pick--paper,
+.ap-row:focus-within .ap-pick--paper,
+.ap-row--picked .ap-pick--paper,
+.ap-list.is-selecting .ap-pick--paper { opacity: 1; }
+
+/* picked-row indication — quieter than focus (no glow) */
+.ap-card--picked .ap-card-img { outline: 2px solid var(--ag-gold); outline-offset: -2px; }
+.ap-row--picked { background: var(--ag-gold-ghost); }
+
 /* ---------- THE BOOK (contact-sheet grid) ---------- */
 .ap-book {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
@@ -274,7 +298,7 @@
 .ap-list { display: flex; flex-direction: column; }
 .ap-row {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 92px 96px 150px 118px;
+  grid-template-columns: 28px 56px minmax(0, 1fr) 92px 96px 150px 118px;
   align-items: center; gap: 16px;
   padding: 11px 12px;
   border-bottom: 1px solid var(--ag-border);
@@ -336,6 +360,43 @@
   gap: 22px 16px;
 }
 
+/* ---------- BULK ACTION BAR ----------
+   Floats bottom-center while a selection exists. Ink surface, light controls,
+   sits above the light table but below the review drawer. No glass. */
+.ap-bulk {
+  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+  z-index: 30;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  background: var(--ag-black); border-radius: var(--ag-radius-lg);
+  box-shadow: 0 12px 40px rgba(26, 24, 21, 0.28);
+}
+.ap-bulk-count {
+  font-family: var(--ag-font-body); font-weight: 600; font-size: 13px; color: #fff;
+  white-space: nowrap; user-select: none;
+}
+.ap-bulk-div { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.16); flex: none; }
+.ap-bulk-act {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: var(--ag-radius-sm);
+  background: transparent; color: rgba(255, 255, 255, 0.9);
+  font-family: var(--ag-font-body); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: background var(--ag-duration-fast) var(--ag-ease), border-color var(--ag-duration-fast) var(--ag-ease), color var(--ag-duration-fast) var(--ag-ease);
+}
+.ap-bulk-act:hover { border-color: var(--ag-gold); }
+.ap-bulk-act--sign:hover { background: var(--ag-gold); border-color: var(--ag-gold); color: var(--ag-black); }
+.ap-bulk-act--pass:hover { border-color: var(--ag-danger); color: #ffb4a8; }
+.ap-bulk-act:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); }
+.ap-bulk-act:disabled { opacity: 0.5; cursor: default; }
+.ap-bulk-clear {
+  background: none; border: none; padding: 4px 6px; cursor: pointer;
+  font-family: var(--ag-font-body); font-size: 12.5px; font-weight: 500; color: rgba(255, 255, 255, 0.65);
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.ap-bulk-clear:hover { color: #fff; }
+.ap-bulk-clear:disabled { opacity: 0.5; cursor: default; }
+.ap-bulk-clear:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); border-radius: var(--ag-radius-sm); }
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 1180px) {
   .ap-hero-top { flex-direction: column; align-items: flex-start; }
@@ -350,18 +411,19 @@
   .ap-hero-ledger { margin: 24px 0 28px; }
 }
 @media (max-width: 860px) {
-  .ap-row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; }
+  .ap-row { grid-template-columns: 28px 44px minmax(0, 1fr) auto; gap: 12px; }
   .ap-pic { width: 44px; height: 57px; }
-  .ap-applied, .ap-row--head span:nth-child(3) { display: none; }
-  .ap-score-cell, .ap-row--head span:nth-child(4) { display: none; }
-  .ap-status, .ap-row--head span:nth-child(5) { display: none; }
+  .ap-applied, .ap-row--head span:nth-child(4) { display: none; }
+  .ap-score-cell, .ap-row--head span:nth-child(5) { display: none; }
+  .ap-status, .ap-row--head span:nth-child(6) { display: none; }
   .ap-book { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ap-tab, .ap-tab-label, .ap-tab-count, .ap-row, .ap-pic-img, .ap-icon,
-  .ap-aside-item, .ap-band-link, .ap-search, .ap-board-select select,
-  .ap-card-img, .ap-card-acts, [data-tip]::after {
+  .ap-aside-item, .ap-band-link, .ap-search,
+  .ap-card-img, .ap-card-acts, [data-tip]::after,
+  .ap-pick, .ap-bulk-act, .ap-bulk-clear {
     transition-duration: 0.01ms !important;
   }
   .ap-row:hover .ap-pic-img { transform: none; }
