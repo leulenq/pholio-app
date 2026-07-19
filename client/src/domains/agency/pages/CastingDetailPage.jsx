@@ -6,7 +6,9 @@ import { toast } from 'sonner';
 import { ArrowLeft, Star, Check, X } from 'lucide-react';
 import {
   getCastingBoardPipeline, acceptApplication, shortlistApplication, declineApplication,
+  updateCastingApplicationStage,
 } from '../api/agency';
+import CastingKanban from '../components/casting-kanban/CastingKanban';
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import MatchScore from '../components/ui/MatchScore';
@@ -108,6 +110,31 @@ function CastingDetailPage() {
     qc.invalidateQueries({ queryKey: ['board-candidates', boardId] });
     qc.invalidateQueries({ queryKey: ['agency-boards'] });
   };
+  // Kanban drag: optimistic stage move with rollback. The card jumps to its
+  // column immediately; a failed PATCH restores the snapshot and toasts.
+  const stageMove = useMutation({
+    mutationFn: ({ applicationId, stage }) => updateCastingApplicationStage(applicationId, { stage }),
+    onMutate: async ({ applicationId, stage }) => {
+      await qc.cancelQueries({ queryKey: ['board-candidates', boardId] });
+      const previous = qc.getQueryData(['board-candidates', boardId]);
+      qc.setQueryData(['board-candidates', boardId], (old) => {
+        if (!old?.candidates) return old;
+        return {
+          ...old,
+          candidates: old.candidates.map((c) =>
+            (c.applicationId ?? c.id) === applicationId ? { ...c, stage } : c),
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['board-candidates', boardId], context.previous);
+      toast.error('Couldn’t move talent — restored');
+    },
+    onSuccess: (_data, { stage }) => toast.success(`Moved to ${stage}`),
+    onSettled: () => refresh(),
+  });
+
   const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
   const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Represented'); }, onError: () => toast.error('Action failed') });
   const decline = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
@@ -183,6 +210,14 @@ function CastingDetailPage() {
         </button>
         <button
           role="tab"
+          aria-selected={view === 'book'}
+          className={`cd-viewtab${view === 'book' ? ' cd-viewtab--on' : ''}`}
+          onClick={() => setView('book')}
+        >
+          Book
+        </button>
+        <button
+          role="tab"
           aria-selected={view === 'briefs'}
           className={`cd-viewtab${view === 'briefs' ? ' cd-viewtab--on' : ''}`}
           onClick={() => setView('briefs')}
@@ -192,6 +227,26 @@ function CastingDetailPage() {
       </div>
 
       {view === 'board' && (
+        <>
+          {isLoading && <div className="cas-loading">Loading candidates…</div>}
+          {isError && <div className="cas-loading">Couldn’t load this board.</div>}
+          {!isLoading && !isError && candidates.length === 0 && (
+            <div className="cas-empty">
+              <p className="cas-empty-title">No talent on this board yet</p>
+              <p className="cas-empty-sub">Add submissions to this board from Submissions or Scout.</p>
+            </div>
+          )}
+          {candidates.length > 0 && (
+            <CastingKanban
+              candidates={candidates}
+              onStageChange={(candidate, stage) =>
+                stageMove.mutate({ applicationId: candidate.applicationId ?? candidate.id, stage })}
+            />
+          )}
+        </>
+      )}
+
+      {view === 'book' && (
         <>
           <div className="cas-filters cd-filters">
             {TABS.map((t) => (
