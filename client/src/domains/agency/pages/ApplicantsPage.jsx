@@ -930,7 +930,7 @@ function ApplicationsPage() {
       <AnimatePresence>
         {reviewRow && (
           <ReviewRoom
-            key={reviewRow.applicationId}
+            key="screening-room"
             applicationId={reviewRow.applicationId}
             row={reviewRow}
             position={{ index: reviewIndex, total: filtered.length }}

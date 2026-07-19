@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -11,8 +11,8 @@ import {
   Star,
 } from 'lucide-react';
 import { getApplicationDetails } from '../../api/agency';
-import { MatchMeasure, StatusCell, SkeletonRow, SkeletonFigure } from '../ui';
-import { resolveTier, MATCH_TIER_LABELS } from '../../lib/matchTier';
+import { resolveTier, MATCH_TIER_LABELS, normalizeScore } from '../../lib/matchTier';
+import { getStatusMeta } from '../ui/StatusText';
 import { heightLine } from '../../pages/rosterFormat';
 import './ReviewRoom.css';
 
@@ -27,7 +27,6 @@ const initials = (name) =>
     .join('')
     .toUpperCase();
 
-// Relative time, mirroring the Submissions list vocabulary.
 const timeAgo = (ts) => {
   if (!ts) return null;
   const s = (Date.now() - new Date(ts).getTime()) / 1000;
@@ -40,33 +39,32 @@ const timeAgo = (ts) => {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const shortDate = (ts) => {
-  if (!ts) return null;
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
 const titleCase = (value) =>
   value ? String(value).charAt(0).toUpperCase() + String(value).slice(1).toLowerCase() : '';
 
 const imageSrc = (img) => img?.url || img?.public_url || img?.path || null;
 
-// A submission has left the review ladder once decided in either direction.
 const DECIDED = new Set(['represented', 'booked', 'accepted', 'signed', 'declined', 'passed']);
 const NEWISH = new Set(['submitted', 'pending', 'new', '']);
 
-const BIO_CLAMP = 420;
+// Compact labels for the dark status plate.
+const PLATE_LABELS = {
+  declined: 'Passed',
+  development: 'New Face',
+  requested_more: 'More digitals',
+  meeting_requested: 'Meeting',
+  under_review: 'In review',
+};
 
-/* ── field ledger rows ───────────────────────────────────────────── */
-
-function VitalRow({ label, value }) {
-  if (value == null || value === '') return null;
+/** Status on ink — the sharp tonal cell, restated for the dark room. */
+function StatusPlate({ status }) {
+  const meta = getStatusMeta(status);
+  if (!meta) return null;
+  const key = String(status || '').toLowerCase();
   return (
-    <div className="rr-vital">
-      <span className="rr-vital-k">{label}</span>
-      <span className="rr-vital-v">{value}</span>
-    </div>
+    <span className="rr-plate" style={{ '--c': meta.color }}>
+      {PLATE_LABELS[key] || meta.label}
+    </span>
   );
 }
 
@@ -80,13 +78,11 @@ function buildVitals(profile) {
   const languages = Array.isArray(profile.languages) && profile.languages.length
     ? profile.languages.join(', ')
     : null;
-
   return [
     { label: 'Height', value: profile.height_cm ? heightLine(profile.height_cm) : null },
     { label: bustLabel, value: cm(bust) },
     { label: 'Waist', value: cm(profile.waist_cm) },
     { label: 'Hips', value: cm(profile.hips_cm) },
-    { label: 'Inseam', value: cm(profile.inseam_cm) },
     { label: 'Shoe', value: profile.shoe_size != null && profile.shoe_size !== '' ? String(profile.shoe_size) : null },
     { label: dressLabel, value: dressValue },
     { label: 'Hair', value: titleCase(profile.hair_color) || null },
@@ -98,16 +94,18 @@ function buildVitals(profile) {
   ].filter((row) => row.label && row.value != null && row.value !== '');
 }
 
-/* ── the drawer ──────────────────────────────────────────────────── */
+/* ── the screening room ──────────────────────────────────────────── */
 
 /**
- * ReviewRoom — the Submissions review drawer.
+ * ReviewRoom — the screening room.
  *
- * A booker reviews digitals serially: big imagery on the left stage, complete
- * vitals + submission facts + agency record on the right dossier, and a
- * decision deck at the foot. Prev/next walk the review queue.
+ * A full-screen decision surface on the agency's deep ink: the photograph
+ * luminous at center, the identity and vitals set as light typography beside
+ * it, and one decision deck at the foot. The queue pages with directional
+ * crossfades; a gold thread across the top marks progress through the desk.
  *
- * The caller wraps conditional renders in <AnimatePresence> for the exit.
+ * Keyboard: the page's single window handler owns J/K/S/A/X/Esc; the room
+ * adds only ArrowLeft/ArrowRight for frames (no overlap, no double-fire).
  */
 export default function ReviewRoom({
   applicationId,
@@ -123,6 +121,15 @@ export default function ReviewRoom({
   const [frame, setFrame] = useState(0);
   const [bioOpen, setBioOpen] = useState(false);
 
+  // Track paging direction so the crossfade slides the way the queue moves
+  // (render-time "adjust state on prop change" idiom — no ref reads in render).
+  const [paging, setPaging] = useState({ index: position?.index ?? 0, dir: 1 });
+  const posIndex = position?.index ?? 0;
+  if (posIndex !== paging.index) {
+    setPaging({ index: posIndex, dir: posIndex > paging.index ? 1 : -1 });
+  }
+  const dir = paging.dir;
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['application', applicationId],
     queryFn: () => getApplicationDetails(applicationId),
@@ -134,8 +141,7 @@ export default function ReviewRoom({
   const notes = useMemo(() => (Array.isArray(data?.notes) ? data.notes : []), [data]);
   const tags = useMemo(() => (Array.isArray(data?.tags) ? data.tags : []), [data]);
 
-  // Reset per-talent view state whenever the queue advances — the
-  // render-time "adjust state on prop change" idiom (no effect, no cascade).
+  // Reset per-talent view state when the queue advances (render-time idiom).
   const [prevAppId, setPrevAppId] = useState(applicationId);
   if (prevAppId !== applicationId) {
     setPrevAppId(applicationId);
@@ -143,7 +149,6 @@ export default function ReviewRoom({
     setBioOpen(false);
   }
 
-  // Identity — prefer loaded profile, fall back to the list row while fetching.
   const name = useMemo(() => {
     const full = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
     return full || row?.name || 'Talent';
@@ -166,13 +171,31 @@ export default function ReviewRoom({
   const activeImage = images[activeFrame] || null;
   const multi = images.length > 1;
 
+  // Frames page with ArrowLeft/ArrowRight — the only keys the room owns.
+  useEffect(() => {
+    if (!multi) return undefined;
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setFrame((i) => (i - 1 + images.length) % images.length);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setFrame((i) => (i + 1) % images.length);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [multi, images.length]);
+
   const bioText = profile?.bio_curated || profile?.bio_raw || '';
-  const bioLong = bioText.length > BIO_CLAMP;
+  const bioLong = bioText.length > 300;
 
   const vitals = useMemo(() => buildVitals(profile), [profile]);
-
   const decided = DECIDED.has(status);
-  const isNew = NEWISH.has(status);
+  const isNewStatus = NEWISH.has(status);
 
   const tagLine = useMemo(
     () =>
@@ -187,330 +210,278 @@ export default function ReviewRoom({
     : '';
   const social = Array.isArray(profile?.social) ? profile.social.filter((s) => s?.handle || s?.url) : [];
 
-  // Keyboard lives in the page's single window handler (J/K queue, S/A/X
-  // decide, Esc close) — one owner, so decisions never double-fire.
-
   const submittedAgo = timeAgo(application?.created_at || row?.appliedAt);
-  const openedDate = shortDate(application?.viewed_at);
+  const total = position?.total ?? 0;
+  const index = position?.index ?? 0;
+  const progressPct = total > 0 ? ((index + 1) / total) * 100 : 0;
+
+  const factParts = [
+    submittedAgo ? `Submitted ${submittedAgo}` : null,
+    application ? (application.invited_by_agency_id ? 'Invited by your agency' : 'Open application') : null,
+    application && !application.viewed_at ? 'First look' : null,
+  ].filter(Boolean);
 
   return (
-    <>
-      <motion.div
-        className="rr-scrim"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="rr-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Reviewing ${name}`}
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', stiffness: 240, damping: 30, mass: 0.9 }}
-      >
-        {/* ───────── HEADER ───────── */}
-        <header className="rr-head">
-          <div className="rr-nav">
-            <button
-              type="button"
-              className="rr-icon"
-              onClick={onPrev || undefined}
-              disabled={!onPrev}
-              aria-label="Previous submission"
-            >
-              <ChevronLeft size={16} strokeWidth={1.9} />
-            </button>
-            <button
-              type="button"
-              className="rr-icon"
-              onClick={onNext || undefined}
-              disabled={!onNext}
-              aria-label="Next submission"
-            >
-              <ChevronRight size={16} strokeWidth={1.9} />
-            </button>
-            {position && Number.isFinite(position.index) && (
-              <span className="rr-position">
-                {position.index + 1} of {position.total}
-              </span>
-            )}
-          </div>
+    <motion.div
+      className="rr-room"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Reviewing ${name}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.26, ease: [0.4, 0, 0.2, 1] }}
+    >
+      {/* Queue progress — a gold thread across the very top. */}
+      <div className="rr-thread" aria-hidden="true">
+        <i style={{ width: `${progressPct}%` }} />
+      </div>
 
-          <div className="rr-identity">
-            <h2 className="rr-name">{name}</h2>
-            <p className="rr-subline">
-              {[type, city].filter(Boolean).join(' · ')}
-            </p>
-          </div>
-
-          <div className="rr-head-actions">
-            <button
-              type="button"
-              className="rr-fulllink"
-              onClick={() => navigate(`/dashboard/agency/talent/${applicationId}`)}
-            >
-              Full profile
-              <ArrowUpRight size={14} strokeWidth={1.9} aria-hidden="true" />
-            </button>
-            <button type="button" className="rr-icon" onClick={onClose} aria-label="Close review">
-              <X size={16} strokeWidth={1.9} />
-            </button>
-          </div>
-        </header>
-
-        {/* ───────── BODY ───────── */}
-        <div className="rr-body">
-          {isError ? (
-            <div className="rr-error">
-              <p className="rr-error-msg">This submission could not be loaded.</p>
-              <button type="button" className="rr-retry" onClick={() => refetch()}>
-                Try again
-              </button>
-            </div>
-          ) : (
-            <div className="rr-grid">
-              {/* ── STAGE ── */}
-              <div className="rr-stage">
-                {isLoading && !images.length ? (
-                  <SkeletonFigure className="rr-frame-skeleton" />
-                ) : (
-                  <>
-                    <div
-                      className="rr-frame"
-                      style={activeImage ? { backgroundImage: `url(${imageSrc(activeImage)})` } : undefined}
-                      role="img"
-                      aria-label={activeImage?.alt || `${name} — digital ${activeFrame + 1}`}
-                    >
-                      {!activeImage && <span className="rr-frame-initials">{initials(name)}</span>}
-                      {multi && (
-                        <>
-                          <button
-                            type="button"
-                            className="rr-frame-arrow rr-frame-arrow--prev"
-                            onClick={() => setFrame((i) => (i - 1 + images.length) % images.length)}
-                            aria-label="Previous image"
-                          >
-                            <ChevronLeft size={17} strokeWidth={1.9} />
-                          </button>
-                          <button
-                            type="button"
-                            className="rr-frame-arrow rr-frame-arrow--next"
-                            onClick={() => setFrame((i) => (i + 1) % images.length)}
-                            aria-label="Next image"
-                          >
-                            <ChevronRight size={17} strokeWidth={1.9} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    {multi && (
-                      <span className="rr-frame-count">
-                        {activeFrame + 1} / {images.length}
-                      </span>
-                    )}
-                    {multi && (
-                      <div className="rr-strip">
-                        {images.map((img, i) => (
-                          <button
-                            type="button"
-                            key={imageSrc(img) || i}
-                            className={`rr-thumb${i === activeFrame ? ' is-active' : ''}`}
-                            style={{ backgroundImage: `url(${imageSrc(img)})` }}
-                            onClick={() => setFrame(i)}
-                            aria-label={`View image ${i + 1}`}
-                            aria-pressed={i === activeFrame}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* ── DOSSIER ── */}
-              <div className="rr-dossier">
-                {isLoading ? (
-                  <div className="rr-dossier-loading">
-                    <SkeletonRow count={4} compact />
-                  </div>
-                ) : (
-                  <>
-                    {/* Verdict */}
-                    <div className="rr-verdict">
-                      <div className="rr-verdict-match">
-                        {score != null && <MatchMeasure score={score} size="md" />}
-                        {tier && <span className="rr-verdict-tier">{MATCH_TIER_LABELS[tier]} match</span>}
-                      </div>
-                      {isNew ? (
-                        <span className="rr-verdict-status">Submitted</span>
-                      ) : (
-                        <StatusCell status={status} />
-                      )}
-                    </div>
-
-                    {/* Submission facts */}
-                    <div className="rr-facts">
-                      {submittedAgo && <p className="rr-fact">Submitted {submittedAgo}</p>}
-                      <p className="rr-fact">
-                        {application?.invited_by_agency_id ? 'Invited by your agency' : 'Open application'}
-                      </p>
-                      <p className="rr-fact">
-                        {openedDate ? `First opened ${openedDate}` : 'First look'}
-                      </p>
-                    </div>
-
-                    {/* Vitals */}
-                    {vitals.length > 0 && (
-                      <section className="rr-section">
-                        <h3 className="rr-key">Vitals</h3>
-                        <div className="rr-vitals">
-                          {vitals.map((v) => (
-                            <VitalRow key={v.label} label={v.label} value={v.value} />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Bio */}
-                    {bioText && (
-                      <section className="rr-section">
-                        <h3 className="rr-key">Bio</h3>
-                        <p className={`rr-bio${bioLong && !bioOpen ? ' is-clamped' : ''}`}>
-                          {bioText}
-                        </p>
-                        {bioLong && (
-                          <button
-                            type="button"
-                            className="rr-textbtn"
-                            onClick={() => setBioOpen((v) => !v)}
-                          >
-                            {bioOpen ? 'Show less' : 'Read more'}
-                          </button>
-                        )}
-                      </section>
-                    )}
-
-                    {/* Agency record */}
-                    <section className="rr-section">
-                      <h3 className="rr-key">Agency record</h3>
-                      {tagLine && <p className="rr-record-tags">{tagLine}</p>}
-                      {notes.length > 0 ? (
-                        <div className="rr-record-notes">
-                          <p className="rr-record-count">
-                            {notes.length} {notes.length === 1 ? 'note' : 'notes'}
-                          </p>
-                          {latestNote && <p className="rr-record-snippet">{latestNote}</p>}
-                        </div>
-                      ) : (
-                        !tagLine && <p className="rr-record-empty">No notes or tags yet.</p>
-                      )}
-                    </section>
-
-                    {/* Social */}
-                    {social.length > 0 && (
-                      <section className="rr-section">
-                        <h3 className="rr-key">Social</h3>
-                        <div className="rr-social">
-                          {social.map((s, i) => {
-                            const label = `${(s.platform || 'link').toLowerCase()} — ${
-                              s.handle ? (s.handle.startsWith('@') ? s.handle : `@${s.handle}`) : s.url
-                            }`;
-                            return s.url ? (
-                              <a
-                                key={`${s.platform || 'link'}-${i}`}
-                                className="rr-social-link"
-                                href={s.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {label}
-                                <ArrowUpRight size={12} strokeWidth={1.9} aria-hidden="true" />
-                              </a>
-                            ) : (
-                              <span key={`${s.platform || 'link'}-${i}`} className="rr-social-plain">
-                                {label}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+      {/* ───────── TOP BAR ───────── */}
+      <header className="rr-top">
+        <div className="rr-top-left">
+          <span className="rr-mast">The screening room</span>
+          {total > 0 && (
+            <span className="rr-count">{index + 1} of {total}</span>
           )}
         </div>
+        <div className="rr-top-right">
+          <button
+            type="button"
+            className="rr-toplink"
+            onClick={() => navigate(`/dashboard/agency/talent/${applicationId}`)}
+          >
+            Full profile
+            <ArrowUpRight size={13} strokeWidth={1.9} aria-hidden="true" />
+          </button>
+          <button type="button" className="rr-topbtn" onClick={onClose} aria-label="Close the screening room">
+            <X size={17} strokeWidth={1.8} />
+          </button>
+        </div>
+      </header>
 
-        {/* ───────── FOOTER DECK ───────── */}
-        <footer className="rr-deck">
-          {decided ? (
-            <div className="rr-deck-decided">
-              <StatusCell status={status} />
-              <span className="rr-deck-decided-note">Decided — J / K to keep moving.</span>
+      {/* ───────── STAGE ROW ───────── */}
+      <div className="rr-row">
+        <button
+          type="button"
+          className="rr-edge"
+          onClick={onPrev || undefined}
+          disabled={!onPrev}
+          aria-label="Previous submission"
+          data-tip="Previous · K"
+        >
+          <ChevronLeft size={22} strokeWidth={1.6} />
+        </button>
+
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={applicationId}
+            className="rr-scene"
+            initial={{ opacity: 0, x: 26 * dir }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -26 * dir }}
+            transition={{ duration: 0.19, ease: [0.4, 0, 0.2, 1] }}
+          >
+            {/* The photograph */}
+            <div className="rr-stage">
+              <div
+                className={`rr-frame${isLoading && !activeImage ? ' rr-frame--loading' : ''}`}
+                style={activeImage ? { backgroundImage: `url(${imageSrc(activeImage)})` } : undefined}
+                role="img"
+                aria-label={activeImage?.alt || `${name} — digital ${activeFrame + 1}`}
+              >
+                {!activeImage && !isLoading && (
+                  <span className="rr-frame-initials">{initials(name)}</span>
+                )}
+              </div>
+              {multi && (
+                <div className="rr-strip" role="group" aria-label="Digitals">
+                  {images.map((img, i) => (
+                    <button
+                      type="button"
+                      key={imageSrc(img) || i}
+                      className={`rr-thumb${i === activeFrame ? ' is-active' : ''}`}
+                      style={{ backgroundImage: `url(${imageSrc(img)})` }}
+                      onClick={() => setFrame(i)}
+                      aria-label={`View digital ${i + 1}`}
+                      aria-pressed={i === activeFrame}
+                    />
+                  ))}
+                  <span className="rr-strip-count">{activeFrame + 1} / {images.length}</span>
+                </div>
+              )}
             </div>
-          ) : (
-            <>
-              <div className="rr-deck-row">
-                <button
-                  type="button"
-                  className="rr-btn rr-btn--pass"
-                  onClick={() => onDecide?.('decline')}
-                  disabled={busy}
-                >
-                  <X size={15} strokeWidth={1.9} aria-hidden="true" />
-                  Pass
-                </button>
-                <div className="rr-deck-primary">
-                  <button
-                    type="button"
-                    className="rr-btn rr-btn--shortlist"
-                    onClick={() => onDecide?.('shortlist')}
-                    disabled={busy}
-                  >
-                    <Star size={15} strokeWidth={1.9} aria-hidden="true" />
-                    Shortlist
-                  </button>
-                  <button
-                    type="button"
-                    className="rr-btn rr-btn--sign"
-                    onClick={() => onDecide?.('accept')}
-                    disabled={busy}
-                  >
-                    <Check size={16} strokeWidth={2} aria-hidden="true" />
-                    Sign
-                  </button>
-                </div>
+
+            {/* The dossier — light typography set directly on the ink. */}
+            <aside className="rr-dossier">
+              <h2 className="rr-name">{name}</h2>
+              <p className="rr-spec">
+                {[type, city].filter(Boolean).join(' · ')}
+              </p>
+
+              <div className="rr-verdict">
+                {score != null && (
+                  <span className={`rr-score rr-score--${tier}`}>{normalizeScore(score)}</span>
+                )}
+                <span className="rr-verdict-copy">
+                  {tier && <span className="rr-verdict-tier">{MATCH_TIER_LABELS[tier]} match</span>}
+                  {isNewStatus
+                    ? <span className="rr-verdict-status">Awaiting review</span>
+                    : <StatusPlate status={status} />}
+                </span>
               </div>
-              <div className="rr-deck-quiet">
-                <div className="rr-deck-soft">
-                  <button
-                    type="button"
-                    className="rr-textbtn"
-                    onClick={() => onDecide?.('kept_on_file')}
-                    disabled={busy}
-                  >
-                    Keep on file
-                  </button>
-                  <button
-                    type="button"
-                    className="rr-textbtn"
-                    onClick={() => onDecide?.('requested_more')}
-                    disabled={busy}
-                  >
-                    Request more digitals
-                  </button>
+
+              {factParts.length > 0 && (
+                <p className="rr-facts">{factParts.join(' · ')}</p>
+              )}
+
+              {isError ? (
+                <div className="rr-error">
+                  <p>This submission could not be loaded.</p>
+                  <button type="button" className="rr-textbtn" onClick={() => refetch()}>Try again</button>
                 </div>
-                <span className="rr-deck-hint">S · A · X decide — J / K next</span>
-              </div>
-            </>
-          )}
-        </footer>
-      </motion.div>
-    </>
+              ) : isLoading ? (
+                <div className="rr-loading" aria-hidden="true">
+                  {[72, 58, 64, 40, 52].map((w, i) => (
+                    <span key={i} className="rr-bone" style={{ width: `${w}%` }} />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {vitals.length > 0 && (
+                    <dl className="rr-vitals">
+                      {vitals.map((v) => (
+                        <div className="rr-vital" key={v.label}>
+                          <dt>{v.label}</dt>
+                          <dd>{v.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+
+                  {bioText && (
+                    <div className="rr-bio-wrap">
+                      <p className={`rr-bio${bioLong && !bioOpen ? ' is-clamped' : ''}`}>{bioText}</p>
+                      {bioLong && (
+                        <button type="button" className="rr-textbtn" onClick={() => setBioOpen((v) => !v)}>
+                          {bioOpen ? 'Show less' : 'Read more'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {(tagLine || notes.length > 0 || social.length > 0) && (
+                    <div className="rr-margins">
+                      {tagLine && <p className="rr-margin-line">{tagLine}</p>}
+                      {notes.length > 0 && (
+                        <p className="rr-margin-line">
+                          {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+                          {latestNote ? ` — “${latestNote.slice(0, 90)}${latestNote.length > 90 ? '…' : ''}”` : ''}
+                        </p>
+                      )}
+                      {social.map((s, i) => {
+                        const label = `${(s.platform || 'link').toLowerCase()} — ${
+                          s.handle ? (s.handle.startsWith('@') ? s.handle : `@${s.handle}`) : s.url
+                        }`;
+                        return s.url ? (
+                          <a
+                            key={`${s.platform || 'link'}-${i}`}
+                            className="rr-margin-link"
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {label}
+                            <ArrowUpRight size={11} strokeWidth={1.9} aria-hidden="true" />
+                          </a>
+                        ) : (
+                          <p key={`${s.platform || 'link'}-${i}`} className="rr-margin-line">{label}</p>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </aside>
+          </motion.div>
+        </AnimatePresence>
+
+        <button
+          type="button"
+          className="rr-edge"
+          onClick={onNext || undefined}
+          disabled={!onNext}
+          aria-label="Next submission"
+          data-tip="Next · J"
+        >
+          <ChevronRight size={22} strokeWidth={1.6} />
+        </button>
+      </div>
+
+      {/* ───────── DECISION DECK ───────── */}
+      <footer className="rr-deck">
+        {decided ? (
+          <div className="rr-deck-decided">
+            <StatusPlate status={status} />
+            <span className="rr-deck-note">Decided — J / K to keep moving</span>
+          </div>
+        ) : (
+          <>
+            <div className="rr-deck-side">
+              <button
+                type="button"
+                className="rr-act rr-act--pass"
+                onClick={() => onDecide?.('decline')}
+                disabled={busy}
+              >
+                <X size={15} strokeWidth={1.9} aria-hidden="true" />
+                Pass
+                <kbd className="rr-key">X</kbd>
+              </button>
+            </div>
+            <div className="rr-deck-soft">
+              <button
+                type="button"
+                className="rr-act rr-act--quiet"
+                onClick={() => onDecide?.('kept_on_file')}
+                disabled={busy}
+              >
+                Keep on file
+              </button>
+              <button
+                type="button"
+                className="rr-act rr-act--quiet"
+                onClick={() => onDecide?.('requested_more')}
+                disabled={busy}
+              >
+                Request digitals
+              </button>
+            </div>
+            <div className="rr-deck-main">
+              <button
+                type="button"
+                className="rr-act rr-act--shortlist"
+                onClick={() => onDecide?.('shortlist')}
+                disabled={busy}
+              >
+                <Star size={15} strokeWidth={1.9} aria-hidden="true" />
+                Shortlist
+                <kbd className="rr-key">S</kbd>
+              </button>
+              <button
+                type="button"
+                className="rr-act rr-act--sign"
+                onClick={() => onDecide?.('accept')}
+                disabled={busy}
+              >
+                <Check size={16} strokeWidth={2.1} aria-hidden="true" />
+                Sign
+                <kbd className="rr-key rr-key--ink">A</kbd>
+              </button>
+            </div>
+          </>
+        )}
+      </footer>
+    </motion.div>
   );
 }
