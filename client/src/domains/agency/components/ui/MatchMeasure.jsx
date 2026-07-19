@@ -4,10 +4,9 @@ import './MatchMeasure.css';
 /**
  * MatchMeasure — match strength as typography (the ledger expression).
  *
- * A tabular numeral over a 2px rule filled to the score, in the warm agency
- * palette: gold marks exceptional, ink strong, muted grays fair/low. Same
- * tiers as the ink-chip MatchScore (via matchTier) but flat and data-native —
- * built for dense Submissions surfaces where forty dark chips would shout.
+ * A bold tabular numeral whose color carries the tier — the same four-tier
+ * hue system as the ink-chip MatchScore (via matchTier), expressed flat for
+ * dense Submissions surfaces where forty dark chips would shout.
  */
 export default function MatchMeasure({ score = 0, size = 'md', className = '' }) {
   const normalized = normalizeScore(score);
@@ -22,10 +21,7 @@ export default function MatchMeasure({ score = 0, size = 'md', className = '' })
 
   return (
     <span className={classes} aria-label={`${normalized} match score, ${MATCH_TIER_LABELS[tier]}`}>
-      <span className="match-measure__num" aria-hidden="true">{normalized}</span>
-      <span className="match-measure__track" aria-hidden="true">
-        <span className="match-measure__fill" style={{ width: `${normalized}%` }} />
-      </span>
+      {normalized}
     </span>
   );
 }

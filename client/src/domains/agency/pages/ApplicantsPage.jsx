@@ -9,7 +9,7 @@ import {
   acceptApplication, shortlistApplication, declineApplication,
 } from '../api/agency';
 import { TalentPanel } from '../components/TalentPanel';
-import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, StatusText, MatchMeasure } from '../components/ui';
+import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, MatchMeasure, StatusCell } from '../components/ui';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
@@ -176,7 +176,7 @@ function SubmissionCard({ a, focused, onOpen, onShortlist, onAccept, onDecline, 
       </span>
       <span className="ap-card-state">
         <span className="ap-card-when">{timeAgo(a.appliedAt)}</span>
-        {!quietStatus && <StatusText status={a.status} className="ap-card-status" />}
+        {!quietStatus && <StatusCell status={a.status} className="ap-card-status" />}
       </span>
     </div>
   );
@@ -217,7 +217,11 @@ function LedgerRow({ a, focused, onOpen, onShortlist, onAccept, onDecline, busy,
       </div>
       <span className="ap-applied">{timeAgo(a.appliedAt)}</span>
       <span className="ap-score-cell">{a.match != null && <MatchMeasure score={a.match} size="sm" />}</span>
-      <span className="ap-status"><StatusText status={a.status} /></span>
+      <span className="ap-status">
+        {isNew(a.status)
+          ? <span className="ap-status-quiet">Submitted</span>
+          : <StatusCell status={a.status} />}
+      </span>
       <div className="ap-actions" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         {decided ? (
           <span className="ap-decided" aria-hidden="true">Decided</span>
@@ -477,17 +481,13 @@ function ApplicationsPage() {
     activeApplicantsQuery.refetch();
   };
 
-  const ledgerTabs = PRIMARY_TABS.map((t) => ({ ...t, value: counts[t.key] ?? 0 }));
-
-  const subLine = activeBoard
-    ? `${activeBoard.name} · ${total} submission${total === 1 ? '' : 's'}`
-    : `${total} submission${total === 1 ? '' : 's'}${passRate != null ? ` · ${passRate}% pass rate` : ''}`;
+  const railTabs = PRIMARY_TABS.map((t) => ({ ...t, value: counts[t.key] ?? 0 }));
 
   if (isLoading) {
     return (
       <div className="ap ap-loading" role="status" aria-live="polite" aria-busy="true">
-        <header className="ap-mast"><h1 className="ap-title">Submissions</h1></header>
-        <SkeletonStrip count={5} />
+        <header className="ap-hero"><h1 className="ap-title">Submissions</h1></header>
+        <SkeletonStrip count={2} />
         <div className="ap-book"><SkeletonCard count={10} /></div>
       </div>
     );
@@ -496,7 +496,7 @@ function ApplicationsPage() {
   if (isError) {
     return (
       <div className="ap">
-        <header className="ap-mast"><h1 className="ap-title">Submissions</h1></header>
+        <header className="ap-hero"><h1 className="ap-title">Submissions</h1></header>
         <EmptyErrorState
           title="Submissions unavailable"
           body="We could not load the current intake. Try again to resume review."
@@ -524,14 +524,15 @@ function ApplicationsPage() {
 
   return (
     <div className="ap">
-      <header className="ap-mast">
-        <div className="ap-mast-id">
+      {/* THE DESK SLIP — hero masthead. The title row carries the command bar;
+          beneath it, the desk's two governing figures in the serif-ledger
+          vocabulary the Overview hero speaks. */}
+      <header className="ap-hero">
+        <div className="ap-hero-top">
           <h1 className="ap-title">Submissions</h1>
-          <p className="ap-sub">{subLine}</p>
-        </div>
 
-        {/* One command bar — every control shares the same vocabulary. */}
-        <div className="ap-bar" role="toolbar" aria-label="Submission controls">
+          {/* One command bar — every control shares the same vocabulary. */}
+          <div className="ap-bar" role="toolbar" aria-label="Submission controls">
           <label className="ap-board-select">
             <span className="ap-bar-key">Board</span>
             <select
@@ -590,33 +591,48 @@ function ApplicationsPage() {
           >
             ?
           </button>
+          </div>
         </div>
+
+        {/* The desk's governing figures — serif ledger, lead in gold. */}
+        <motion.div
+          className="ap-hero-ledger"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <div className="ap-hero-stat">
+            <span className="ap-hero-lab">{activeBoard ? 'On this board' : 'On the desk'}</span>
+            <span className="ap-hero-fig ap-hero-fig--lead">{total}</span>
+          </div>
+          <div className="ap-hero-stat">
+            <span className="ap-hero-lab">Pass rate</span>
+            <span className={`ap-hero-fig${passRate == null ? ' ap-hero-fig--mute' : ''}`}>
+              {passRate == null ? '—' : `${passRate}%`}
+            </span>
+          </div>
+        </motion.div>
       </header>
 
-      {/* LEDGER-AS-TABS — the stat row IS the stage filter; gold marks the
-          active stage only. Quiet outcomes sit on the rail's right edge. */}
-      <motion.div
-        className="ap-ledger"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
-      >
-        <div className="ap-ledger-tabs" role="tablist" aria-label="Filter by stage">
-          {ledgerTabs.map((t) => (
+      {/* STAGE RAIL — quiet text tabs; gold marks the active stage only.
+          Quiet outcomes sit on the rail's right edge. */}
+      <div className="ap-rail">
+        <div className="ap-rail-tabs" role="tablist" aria-label="Filter by stage">
+          {railTabs.map((t) => (
             <button
               key={t.key}
               type="button"
               role="tab"
               aria-selected={tab === t.key}
-              className={`ap-stat${tab === t.key ? ' ap-stat--on' : ''}`}
+              className={`ap-tab${tab === t.key ? ' ap-tab--on' : ''}`}
               onClick={() => changeTab(t.key)}
             >
-              <span className="ap-stat-num">{t.value}</span>
-              <span className="ap-stat-label">{t.label}</span>
+              <span className="ap-tab-label">{t.label}</span>
+              <span className="ap-tab-count">{t.value}</span>
             </button>
           ))}
         </div>
-        <div className="ap-ledger-aside" role="group" aria-label="Secondary filters">
+        <div className="ap-rail-aside" role="group" aria-label="Secondary filters">
           {SECONDARY_TABS.map((t) => (
             <button
               key={t.key}
@@ -629,7 +645,7 @@ function ApplicationsPage() {
             </button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {activeBoard && <BoardBand board={activeBoard} />}
 
