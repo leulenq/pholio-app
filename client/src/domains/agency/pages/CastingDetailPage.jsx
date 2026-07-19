@@ -3,18 +3,23 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Palette } from 'lucide-react';
 import {
   getCastingBoardPipeline, acceptApplication, shortlistApplication, declineApplication,
   updateCastingApplicationStage,
 } from '../api/agency';
-import CastingKanban from '../components/casting-kanban/CastingKanban';
+import {
+  DndContext, PointerSensor, useSensor, useSensors, useDraggable, useDroppable, closestCorners,
+} from '@dnd-kit/core';
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import FitBriefsPanel from '../components/FitBriefs/FitBriefsPanel';
+import BoardIdentityEditor from '../components/BoardIdentityEditor';
 import { StatusText } from '../components/ui';
 import { normalizeScore, resolveTier, MATCH_TIER_LABELS } from '../lib/matchTier';
-import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
+import {
+  resolveBoardIdentity, boardIdentityStyle, resolveBoardType, BOARD_VOCAB,
+} from '../lib/board-identity';
 import { useCardButton } from '../hooks/useCardButton';
 import './CastingPage.css';
 
@@ -23,7 +28,9 @@ import './CastingPage.css';
    (kept on file, passed) live on a quiet shelf below the rail. Anything the
    backend sends that we don't recognize lands in New so nothing is lost. */
 const classify = (s) => {
-  if (s === 'shortlisted') return 'shortlist';
+  // The middle rungs of the ladder — more digitals requested, meeting
+  // scheduled — are shortlist work-in-progress, not new submissions.
+  if (['shortlisted', 'requested_more', 'meeting_requested'].includes(s)) return 'shortlist';
   if (['represented', 'booked', 'accepted', 'signed', 'development'].includes(s)) return 'signed';
   if (s === 'kept_on_file') return 'file';
   if (['declined', 'passed'].includes(s)) return 'passed';
@@ -33,7 +40,7 @@ const classify = (s) => {
 const COLUMNS = [
   { key: 'new', title: 'New submissions', empty: 'New submissions land here for first review.' },
   { key: 'shortlist', title: 'Shortlisted', empty: 'Shortlist promising faces to line them up for a meeting.' },
-  { key: 'signed', title: 'Signed', empty: 'No one signed to this board yet.' },
+  { key: 'signed', title: null, empty: null }, // title + empty copy come from the board vocabulary
 ];
 
 const SHELVES = [
@@ -91,12 +98,30 @@ function FitMeter({ score }) {
   );
 }
 
-function RailCard({ c, column, onOpen, onShortlist, onSign, onPass, busy }) {
+function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, onPass, busy }) {
   const reduceMotion = useReducedMotion();
   const status = c.backendStatus || 'submitted';
   const cardButtonProps = useCardButton(() => onOpen(c), { disabled: busy });
   const showActions = column !== 'signed';
+  // Shortlist cards mid-conversation carry their sub-state as plain text.
+  const showSubState = (column === 'signed') || (column === 'shortlist' && status !== 'shortlisted');
+  // Drag is a pointer affordance only (8px activation keeps clicks working);
+  // keyboard users move cards with the explicit labeled actions.
+  const { setNodeRef, listeners, transform, isDragging } = useDraggable({
+    id: String(c.applicationId ?? c.id),
+    data: { c, column },
+    disabled: busy,
+  });
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
   return (
+    <div
+      ref={setNodeRef}
+      style={dragStyle}
+      className={`rr-cardwrap${isDragging ? ' rr-cardwrap--drag' : ''}`}
+      {...listeners}
+    >
     <motion.div
       className="rr-card"
       onClick={() => onOpen(c)}
@@ -113,7 +138,10 @@ function RailCard({ c, column, onOpen, onShortlist, onSign, onPass, busy }) {
             {column === 'new' && (
               <button className="rr-act" disabled={busy} onClick={() => onShortlist(c)}>Shortlist</button>
             )}
-            <button className="rr-act rr-act--sign" disabled={busy} onClick={() => onSign(c)}>Sign</button>
+            <button className="rr-act rr-act--sign" disabled={busy} onClick={() => onSign(c)}>{vocab.action}</button>
+            {column === 'shortlist' && (
+              <button className="rr-act" disabled={busy} onClick={() => onNewFace(c)}>New Face</button>
+            )}
             <button className="rr-act rr-act--pass" disabled={busy} onClick={() => onPass(c)}>Pass</button>
           </div>
         )}
@@ -126,12 +154,42 @@ function RailCard({ c, column, onOpen, onShortlist, onSign, onPass, busy }) {
         </span>
         <div className="rr-card-foot">
           <FitLine score={c.score} />
-          {column === 'signed' && (
+          {showSubState && (
             <StatusText status={status} className="rr-card-status" />
           )}
         </div>
       </div>
     </motion.div>
+    </div>
+  );
+}
+
+// A droppable pipeline column. Dropping a card moves its application status.
+function RailColumn({ col, title, empty, note, items, vocab, busyId, cardHandlers }) {
+  const { setNodeRef, isOver } = useDroppable({ id: col.key });
+  return (
+    <section ref={setNodeRef} className={`rr-col${isOver ? ' rr-col--over' : ''}`} aria-label={title}>
+      <header className="rr-col-head">
+        <span className="rr-col-title">{title}</span>
+        <span className="rr-col-count">{items.length}</span>
+      </header>
+      {note && <p className="rr-col-note">{note}</p>}
+      <div className="rr-col-cards">
+        <AnimatePresence initial={true}>
+          {items.map((c) => (
+            <RailCard
+              key={c.applicationId ?? c.id}
+              c={c}
+              column={col.key}
+              vocab={vocab}
+              busy={busyId === (c.applicationId ?? c.id)}
+              {...cardHandlers}
+            />
+          ))}
+        </AnimatePresence>
+        {items.length === 0 && <p className="rr-col-empty">{empty}</p>}
+      </div>
+    </section>
   );
 }
 
@@ -192,6 +250,7 @@ function CastingDetailPage() {
   const qc = useQueryClient();
   const [view, setView] = useState('board');
   const [selected, setSelected] = useState(null);
+  const [identityOpen, setIdentityOpen] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['board-candidates', boardId],
@@ -211,11 +270,13 @@ function CastingDetailPage() {
     qc.invalidateQueries({ queryKey: ['board-candidates', boardId] });
     qc.invalidateQueries({ queryKey: ['agency-boards'] });
   };
-  // Kanban drag: optimistic stage move with rollback. The card jumps to its
+  const vocab = BOARD_VOCAB[resolveBoardType(board || {})];
+
+  // Kanban drag: optimistic status move with rollback. The card jumps to its
   // column immediately; a failed PATCH restores the snapshot and toasts.
   const stageMove = useMutation({
-    mutationFn: ({ applicationId, stage }) => updateCastingApplicationStage(applicationId, { stage }),
-    onMutate: async ({ applicationId, stage }) => {
+    mutationFn: ({ applicationId, status }) => updateCastingApplicationStage(applicationId, { status }),
+    onMutate: async ({ applicationId, status }) => {
       await qc.cancelQueries({ queryKey: ['board-candidates', boardId] });
       const previous = qc.getQueryData(['board-candidates', boardId]);
       qc.setQueryData(['board-candidates', boardId], (old) => {
@@ -223,7 +284,7 @@ function CastingDetailPage() {
         return {
           ...old,
           candidates: old.candidates.map((c) =>
-            (c.applicationId ?? c.id) === applicationId ? { ...c, stage } : c),
+            (c.applicationId ?? c.id) === applicationId ? { ...c, backendStatus: status } : c),
         };
       });
       return { previous };
@@ -232,14 +293,17 @@ function CastingDetailPage() {
       if (context?.previous) qc.setQueryData(['board-candidates', boardId], context.previous);
       toast.error('Couldn’t move talent — restored');
     },
-    onSuccess: (_data, { stage }) => toast.success(`Moved to ${stage}`),
+    onSuccess: (_data, { label }) => toast.success(`Moved to ${label}`),
     onSettled: () => refresh(),
   });
 
   const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
-  const sign = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Signed to the board'); }, onError: () => toast.error('Action failed') });
+  const sign = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success(vocab.toast); }, onError: () => toast.error('Action failed') });
+  const newFace = useMutation({ mutationFn: (id) => updateCastingApplicationStage(id, { status: 'development' }), onSuccess: () => { refresh(); toast.success('Development offer — New Face'); }, onError: () => toast.error('Action failed') });
   const pass = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
-  const busyId = (shortlist.isPending && shortlist.variables) || (sign.isPending && sign.variables) || (pass.isPending && pass.variables) || null;
+  const busyId = (shortlist.isPending && shortlist.variables) || (sign.isPending && sign.variables)
+    || (newFace.isPending && newFace.variables) || (pass.isPending && pass.variables)
+    || (stageMove.isPending && stageMove.variables?.applicationId) || null;
 
   // Bucket every candidate once; columns keep the backend's score ordering.
   const buckets = useMemo(() => {
@@ -260,10 +324,10 @@ function CastingDetailPage() {
       ? 'Wrapped'
       : buckets.new.length > 0
         ? 'In review'
-        : 'Casting';
+        : null;
 
   const docket = [
-    target > 0 && { label: 'Slots', value: `${signedCount} of ${target} signed` },
+    target > 0 && { label: 'Slots', value: `${signedCount} of ${target} ${vocab.decidedLower}` },
     { label: 'In consideration', value: candidates.length },
     buckets.new.length > 0 && { label: 'Awaiting review', value: buckets.new.length, gold: true },
     buckets.shortlist.length > 0 && { label: 'Shortlisted', value: buckets.shortlist.length },
@@ -273,19 +337,50 @@ function CastingDetailPage() {
     onOpen: (c) => setSelected(toTalent(c)),
     onShortlist: (c) => shortlist.mutate(c.applicationId ?? c.id),
     onSign: (c) => sign.mutate(c.applicationId ?? c.id),
+    onNewFace: (c) => newFace.mutate(c.applicationId ?? c.id),
     onPass: (c) => pass.mutate(c.applicationId ?? c.id),
   };
 
+  // Drag a card onto a column to move it. 8px activation preserves clicks.
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const DROP_TARGETS = {
+    new: { status: 'submitted', label: 'New submissions' },
+    shortlist: { status: 'shortlisted', label: 'Shortlisted' },
+    signed: { status: 'represented', label: vocab.column },
+  };
+  const onDragEnd = ({ active, over }) => {
+    if (!over) return;
+    const from = active.data.current?.column;
+    const targetMove = DROP_TARGETS[over.id];
+    if (!targetMove || from === over.id) return;
+    const candidate = active.data.current?.c;
+    stageMove.mutate({ applicationId: candidate.applicationId ?? candidate.id, ...targetMove });
+  };
+
   return (
-    <div className="rr" style={boardIdentityStyle(identity)} data-letterform={identity.letterform}>
+    <div
+      className="rr"
+      style={boardIdentityStyle(identity)}
+      data-letterform={identity.letterform}
+      data-treatment={identity.treatment}
+    >
       <button className="rr-back" onClick={() => navigate('/dashboard/agency/signing')}>
         <ArrowLeft size={15} /> Signing
       </button>
 
       <header className="rr-masthead">
         <div className="rr-plate">
-          <span className="rr-wordmark">{identity.label}</span>
-          <span className={`rr-plate-meta${closes?.soon ? ' is-soon' : ''}`}>{plateMeta}</span>
+          {identity.logoUrl
+            ? <img className="rr-plate-logo" src={identity.logoUrl} alt={identity.label} />
+            : <span className="rr-wordmark">{identity.label}</span>}
+          {plateMeta && (
+            <span className={`rr-plate-meta${closes?.soon ? ' is-soon' : ''}`}>{plateMeta}</span>
+          )}
+          {board && (
+            <button className="rr-idbtn" onClick={() => setIdentityOpen(true)}>
+              <Palette size={13} /> Identity
+            </button>
+          )}
         </div>
         <div className="rr-masthead-body">
           <div className="rr-masthead-id">
@@ -300,6 +395,7 @@ function CastingDetailPage() {
               </div>
             ))}
           </dl>
+          {identity.coverUrl && <div className="rr-cover" aria-hidden="true" />}
         </div>
       </header>
 
@@ -343,35 +439,24 @@ function CastingDetailPage() {
 
           {!isLoading && !isError && candidates.length > 0 && (
             <>
-              <div className="rr-rail">
-                {COLUMNS.map((col) => (
-                  <section key={col.key} className="rr-col" aria-label={col.title}>
-                    <header className="rr-col-head">
-                      <span className="rr-col-title">{col.title}</span>
-                      <span className="rr-col-count">{buckets[col.key].length}</span>
-                    </header>
-                    {col.key === 'signed' && target > 0 && (
-                      <p className="rr-col-note">{signedCount} of {target} slots filled</p>
-                    )}
-                    <div className="rr-col-cards">
-                      <AnimatePresence initial={true}>
-                        {buckets[col.key].map((c) => (
-                          <RailCard
-                            key={c.applicationId ?? c.id}
-                            c={c}
-                            column={col.key}
-                            busy={busyId === (c.applicationId ?? c.id)}
-                            {...cardHandlers}
-                          />
-                        ))}
-                      </AnimatePresence>
-                      {buckets[col.key].length === 0 && (
-                        <p className="rr-col-empty">{col.empty}</p>
-                      )}
-                    </div>
-                  </section>
-                ))}
-              </div>
+              <DndContext sensors={dndSensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
+                <div className="rr-rail">
+                  {COLUMNS.map((col) => (
+                    <RailColumn
+                      key={col.key}
+                      col={col}
+                      title={col.title || vocab.column}
+                      empty={col.empty
+                        || `No one ${vocab.decidedLower} ${vocab === BOARD_VOCAB.package ? 'for this package' : 'to this board'} yet.`}
+                      note={col.key === 'signed' && target > 0 ? `${signedCount} of ${target} slots filled` : null}
+                      items={buckets[col.key]}
+                      vocab={vocab}
+                      busyId={busyId}
+                      cardHandlers={cardHandlers}
+                    />
+                  ))}
+                </div>
+              </DndContext>
 
               {(buckets.file.length > 0 || buckets.passed.length > 0) && (
                 <div className="rr-shelves">
@@ -391,6 +476,10 @@ function CastingDetailPage() {
       )}
 
       {view === 'briefs' && <FitBriefsPanel boardId={boardId} />}
+
+      {board && (
+        <BoardIdentityEditor board={board} open={identityOpen} onClose={() => setIdentityOpen(false)} />
+      )}
 
       <AnimatePresence>
         {selected && (

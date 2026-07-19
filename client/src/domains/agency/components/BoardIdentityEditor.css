@@ -1,0 +1,104 @@
+/* BoardIdentityEditor — per-board art direction modal.
+   Reuses the cn-* modal shell from CastingPage.css (both are loaded on the
+   casting surfaces); everything editor-specific is bide-*. */
+
+/* Live plate preview — self-contained copy of the folio plate treatments so
+   the preview never depends on card CSS. */
+.bide-preview {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 50px; padding: 13px 20px; margin-bottom: 20px;
+  background: var(--bd-paper, #F2EFE9); border-radius: 10px;
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  border-bottom: 2px solid color-mix(in srgb, var(--bd-ink, #16130D) 80%, transparent);
+}
+.bide-preview-mark {
+  text-transform: uppercase; color: var(--bd-ink, #16130D);
+  letter-spacing: var(--bd-track, 0.3em);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  font-size: 13px;
+}
+[data-letterform="serif"].bide-preview .bide-preview-mark { font-family: 'Playfair Display', serif; font-weight: 600; }
+[data-letterform="didone"].bide-preview .bide-preview-mark { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 14.5px; }
+[data-letterform="sans"].bide-preview .bide-preview-mark { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 11.5px; }
+[data-letterform="sans-light"].bide-preview .bide-preview-mark { font-family: 'Inter', sans-serif; font-weight: 400; font-size: 12px; }
+.bide-preview-meta {
+  flex: none; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--bd-ink, #16130D) 82%, #FFFFFF);
+}
+.bide-preview-logo { display: block; height: 18px; width: auto; max-width: 55%; object-fit: contain; }
+
+.bide-preview[data-treatment="ink"] { background: var(--bd-ink, #16130D); }
+.bide-preview[data-treatment="ink"] .bide-preview-mark { color: #FBF7F1; }
+.bide-preview[data-treatment="ink"] .bide-preview-meta { color: rgba(251, 247, 241, 0.92); }
+.bide-preview[data-treatment="ink"] .bide-preview-logo { filter: brightness(0) invert(1); }
+.bide-preview[data-treatment="cover"] {
+  min-height: 76px;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent), color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent)),
+    var(--bd-cover);
+  background-size: cover; background-position: center;
+}
+.bide-preview[data-treatment="cover"] .bide-preview-mark { color: #FDFBF7; text-shadow: 0 1px 10px rgba(10, 8, 5, 0.35); }
+.bide-preview[data-treatment="cover"] .bide-preview-meta { color: rgba(253, 251, 247, 0.94); }
+.bide-preview[data-treatment="cover"] .bide-preview-logo { filter: brightness(0) invert(1); }
+
+/* Plate style segmented control */
+.bide-styles { display: flex; gap: 7px; flex-wrap: wrap; }
+.bide-style {
+  background: rgba(255, 255, 255, 0.6); border: 1px solid #E7DDCA; border-radius: 8px;
+  padding: 8px 16px; font-size: 12px; font-weight: 600; color: #6B6256; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.bide-style:hover:not(:disabled) { border-color: var(--ag-gold); }
+.bide-style--on { background: #16130D; border-color: #16130D; color: #FAF8F5; }
+.bide-style:disabled { opacity: 0.45; cursor: default; }
+.bide-style:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+
+/* House color swatches */
+.bide-swatches { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bide-swatch {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(26, 24, 21, 0.14);
+  cursor: pointer; padding: 0; transition: transform 0.15s, box-shadow 0.15s;
+}
+.bide-swatch:hover { transform: translateY(-1px); }
+.bide-swatch--on { box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #16130D; }
+.bide-swatch--auto {
+  width: auto; padding: 0 12px; height: 30px; background: rgba(255, 255, 255, 0.6);
+  font-size: 11px; font-weight: 600; color: #6B6256; border: 1px solid #E7DDCA;
+}
+.bide-swatch--auto.bide-swatch--on { box-shadow: none; background: #16130D; border-color: #16130D; color: #FAF8F5; }
+.bide-swatch:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.55); }
+.bide-hex { width: 96px; padding: 6px 10px; height: 30px; font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* File rows */
+.bide-file { display: flex; align-items: center; gap: 10px; }
+.bide-upload {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(255, 255, 255, 0.6); border: 1px solid #E7DDCA; border-radius: 8px;
+  padding: 9px 14px; font-size: 12px; font-weight: 600; color: #4A443C; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.bide-upload:hover:not(:disabled) { border-color: var(--ag-gold); background: #FFFFFF; }
+.bide-upload:disabled { opacity: 0.55; cursor: default; }
+.bide-upload:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+.bide-remove {
+  background: none; border: none; cursor: pointer; padding: 4px 2px;
+  font-size: 11.5px; font-weight: 600; color: #8A8073; transition: color 0.15s;
+}
+.bide-remove:hover { color: #C0563F; }
+.bide-remove:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); border-radius: 4px; }
+
+/* Save — the one gold action in the modal */
+.bide-save {
+  background: var(--ag-gold); color: #16130D; border: 1px solid var(--ag-gold); border-radius: 8px;
+  padding: 11px 22px; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+.bide-save:hover:not(:disabled) { background: #B8956A; border-color: #B8956A; transform: translateY(-1px); }
+.bide-save:disabled { opacity: 0.55; cursor: default; transform: none; }
+.bide-save:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bide-swatch, .bide-save, .bide-upload, .bide-style { transition: none; }
+  .bide-swatch:hover, .bide-save:hover { transform: none; }
+}

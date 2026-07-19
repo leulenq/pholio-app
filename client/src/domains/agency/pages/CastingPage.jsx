@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Plus, ArrowRight } from 'lucide-react';
 import { getBoards } from '../api/agency';
-import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
+import { resolveBoardIdentity, boardIdentityStyle, resolveBoardType, BOARD_VOCAB } from '../lib/board-identity';
 import { useCardButton } from '../hooks/useCardButton';
 import CastingNewModal from './CastingNewModal';
 import './CastingPage.css';
@@ -50,18 +50,32 @@ function mapBoard(b) {
     closesAt: b.closes_at || null,
     updatedAt: b.updated_at,
     wrapped,
+    // Raw identity + type fields, read by resolveBoardIdentity/resolveBoardType.
+    board_type: b.board_type || null,
+    brand_color: b.brand_color || null,
+    plate_style: b.plate_style || null,
+    logo_path: b.logo_path || null,
+    cover_image_path: b.cover_image_path || null,
   };
 }
 
-// The board's one-line casting ledger: consideration → review → signed.
-function ledgerLine(board) {
+// The board's one-line casting ledger: consideration → review → decided.
+// Key figures are <b> so they pick up the house ink.
+function LedgerLine({ board }) {
+  const vocab = BOARD_VOCAB[resolveBoardType(board)];
   const parts = [];
-  if (board.applicants > 0) parts.push(`${board.applicants} in consideration`);
-  if (board.submitted > 0) parts.push(`${board.submitted} awaiting review`);
-  if (board.target > 0) parts.push(`${board.signed} of ${board.target} signed`);
-  else if (board.signed > 0) parts.push(`${board.signed} signed`);
-  if (parts.length === 0) parts.push('Awaiting first submissions');
-  return parts.join(' · ');
+  if (board.applicants > 0) parts.push(<React.Fragment key="c"><b>{board.applicants}</b> in consideration</React.Fragment>);
+  if (board.submitted > 0) parts.push(<React.Fragment key="r"><b>{board.submitted}</b> awaiting review</React.Fragment>);
+  if (board.target > 0) parts.push(<React.Fragment key="s"><b>{board.signed} of {board.target}</b> {vocab.decidedLower}</React.Fragment>);
+  else if (board.signed > 0) parts.push(<React.Fragment key="s"><b>{board.signed}</b> {vocab.decidedLower}</React.Fragment>);
+  if (parts.length === 0) return <span className="sg-ledgerline">Awaiting first submissions</span>;
+  return (
+    <span className="sg-ledgerline">
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>{i > 0 && ' · '}{part}</React.Fragment>
+      ))}
+    </span>
+  );
 }
 
 const SHEET_FRAMES = 4;
@@ -74,20 +88,21 @@ function FolioCard({ board, index, onOpen }) {
   const shots = board.preview.slice(0, SHEET_FRAMES);
   const overflow = board.applicants - shots.length;
 
-  // Plate meta prefers the time signal; falls back to the board's state.
+  // Plate meta is the time signal; no abstract status words.
   const plateMeta = closes
     ? closes.text
     : board.wrapped
       ? 'Wrapped'
       : board.submitted > 0
         ? 'In review'
-        : 'Casting';
+        : null;
 
   return (
     <motion.article
       className={`sg-folio${board.wrapped ? ' sg-folio--wrapped' : ''}`}
       style={boardIdentityStyle(identity)}
       data-letterform={identity.letterform}
+      data-treatment={identity.treatment}
       onClick={() => onOpen(board.id)}
       aria-label={`Open board ${board.name}${board.client ? ` for ${board.client}` : ''}`}
       {...cardButtonProps}
@@ -96,8 +111,12 @@ function FolioCard({ board, index, onOpen }) {
       transition={{ duration: 0.25, delay: Math.min(index * 0.045, 0.32), ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="sg-plate">
-        <span className="sg-wordmark">{identity.label}</span>
-        <span className={`sg-plate-meta${closes?.soon ? ' is-soon' : ''}`}>{plateMeta}</span>
+        {identity.logoUrl
+          ? <img className="sg-plate-logo" src={identity.logoUrl} alt={identity.label} />
+          : <span className="sg-wordmark">{identity.label}</span>}
+        {plateMeta && (
+          <span className={`sg-plate-meta${closes?.soon ? ' is-soon' : ''}`}>{plateMeta}</span>
+        )}
       </div>
 
       <div className="sg-body">
@@ -122,7 +141,7 @@ function FolioCard({ board, index, onOpen }) {
       </div>
 
       <div className="sg-foot">
-        <span className="sg-ledgerline">{ledgerLine(board)}</span>
+        <LedgerLine board={board} />
         <span className="sg-open">
           <span className="sg-updated">Updated {timeAgo(board.updatedAt)}</span>
           <span className="sg-open-cue">Open board <ArrowRight size={13} /></span>

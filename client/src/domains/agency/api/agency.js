@@ -386,6 +386,17 @@ export async function deleteBoard(boardId) {
 }
 
 /**
+ * Upload a board identity image (client logo or cover visual).
+ * kind: 'logo' (PNG/SVG) | 'cover' (JPEG/PNG/WebP). Returns { path }.
+ */
+export async function uploadBoardIdentityImage(boardId, file, kind) {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('kind', kind);
+  return apiClient.post(`/boards/${boardId}/identity-image`, formData);
+}
+
+/**
  * Add applicant to board
  */
 export async function addToBoard(boardId, applicationId) {
@@ -860,6 +871,7 @@ export default {
   createBoard,
   updateBoard,
   deleteBoard,
+  uploadBoardIdentityImage,
   addToBoard,
   removeFromBoard,
   getAgencyProfile,

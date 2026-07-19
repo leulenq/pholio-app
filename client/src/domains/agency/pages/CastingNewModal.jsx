@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,9 +6,33 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { createBoard } from '../api/agency';
+import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
+import '../components/BoardIdentityEditor.css';
 
 const TYPES = ['Campaign', 'Editorial', 'Runway', 'Lookbook', 'Commercial', 'E-commerce'];
-const BLANK = { name: '', client_name: '', type: 'Campaign', description: '', closes_at: '', target_slots: '', is_active: true };
+const BLANK = { name: '', client_name: '', type: 'Campaign', description: '', closes_at: '', target_slots: '', is_active: true, board_type: null };
+
+// Live house-identity hint: the plate this board will wear, resolved from the
+// client name as the booker types. Full art direction lives in the board's
+// Identity editor after creation.
+function IdentityHint({ form }) {
+  const identity = useMemo(
+    () => resolveBoardIdentity({ name: form.name, client_name: form.client_name.trim() }),
+    [form.name, form.client_name],
+  );
+  return (
+    <div
+      className="bide-preview"
+      style={{ ...boardIdentityStyle(identity), marginBottom: 0 }}
+      data-letterform={identity.letterform}
+      data-treatment={identity.treatment}
+      aria-hidden="true"
+    >
+      <span className="bide-preview-mark">{identity.label}</span>
+      <span className="bide-preview-meta">Board plate</span>
+    </div>
+  );
+}
 
 export default function CastingNewModal({ open, onClose }) {
   const navigate = useNavigate();
@@ -28,6 +52,11 @@ export default function CastingNewModal({ open, onClose }) {
     setForm((f) => ({ ...f, [key]: value }));
   };
 
+  // A client name or slot target reads as a client package; otherwise it's a
+  // division signing board. The chips below let the booker override.
+  const impliedType = form.client_name.trim() || form.target_slots ? 'package' : 'division';
+  const boardType = form.board_type || impliedType;
+
   const create = useMutation({
     mutationFn: () => createBoard({
       name: form.name.trim(),
@@ -36,6 +65,7 @@ export default function CastingNewModal({ open, onClose }) {
       closes_at: form.closes_at || null,
       target_slots: form.target_slots || null,
       is_active: form.is_active,
+      board_type: boardType,
     }),
     onSuccess: (board) => {
       qc.invalidateQueries({ queryKey: ['agency-boards'] });
@@ -95,6 +125,28 @@ export default function CastingNewModal({ open, onClose }) {
                   <select className="cn-input" value={form.type} onChange={set('type')}>
                     {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
+                </div>
+              </div>
+
+              {form.client_name.trim() !== '' && <IdentityHint form={form} />}
+
+              <div className="cn-field">
+                <span className="cn-label">Board kind</span>
+                <div className="cn-types">
+                  <button
+                    type="button"
+                    className={`cn-type${boardType === 'package' ? ' cn-type--on' : ''}`}
+                    onClick={() => setForm((f) => ({ ...f, board_type: 'package' }))}
+                  >
+                    Client package
+                  </button>
+                  <button
+                    type="button"
+                    className={`cn-type${boardType === 'division' ? ' cn-type--on' : ''}`}
+                    onClick={() => setForm((f) => ({ ...f, board_type: 'division' }))}
+                  >
+                    Division board
+                  </button>
                 </div>
               </div>
 

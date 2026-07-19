@@ -34,6 +34,40 @@
 [data-letterform="didone"] .rr-wordmark { font-size: 18px; }
 [data-letterform="sans"] .rr-wordmark, [data-letterform="sans-light"] .rr-wordmark { font-size: 14px; }
 
+/* Client logo (agency-uploaded) replaces the wordmark when present. */
+.sg-plate-logo, .rr-plate-logo { display: block; width: auto; max-width: 55%; object-fit: contain; object-position: left center; }
+.sg-plate-logo { height: 18px; }
+.rr-plate-logo { height: 24px; }
+
+/* ---------- PLATE TREATMENTS ----------
+   ink   — plate drenched in the house color, type reversed out
+   paper — tinted stock, ink type (the default look)
+   cover — cover image under a house-color scrim, reversed type
+   The house ink is the client's voice; gold stays the platform's. */
+[data-treatment="ink"] :is(.sg-plate, .rr-plate) {
+  background: var(--bd-ink, #16130D);
+  border-bottom-color: color-mix(in srgb, var(--bd-ink, #16130D) 60%, #16130D);
+}
+[data-treatment="ink"] :is(.sg-wordmark, .rr-wordmark) { color: #FBF7F1; }
+[data-treatment="ink"] :is(.sg-plate-meta, .rr-plate-meta) { color: rgba(251, 247, 241, 0.92); }
+[data-treatment="ink"] :is(.sg-plate-meta, .rr-plate-meta).is-soon { color: #FBF7F1; }
+[data-treatment="ink"] :is(.sg-plate-logo, .rr-plate-logo) { filter: brightness(0) invert(1); }
+
+[data-treatment="cover"] :is(.sg-plate, .rr-plate) {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent), color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent)),
+    var(--bd-cover);
+  background-size: cover;
+  background-position: center;
+  border-bottom-color: color-mix(in srgb, var(--bd-ink, #16130D) 70%, transparent);
+}
+[data-treatment="cover"] .sg-plate { min-height: 76px; }
+[data-treatment="cover"] .rr-plate { min-height: 96px; }
+[data-treatment="cover"] :is(.sg-wordmark, .rr-wordmark) { color: #FDFBF7; text-shadow: 0 1px 10px rgba(10, 8, 5, 0.35); }
+[data-treatment="cover"] :is(.sg-plate-meta, .rr-plate-meta) { color: rgba(253, 251, 247, 0.94); }
+[data-treatment="cover"] :is(.sg-plate-meta, .rr-plate-meta).is-soon { color: #FDFBF7; }
+[data-treatment="cover"] :is(.sg-plate-logo, .rr-plate-logo) { filter: brightness(0) invert(1); }
+
 /* ---------- SIGNING — HEADER ---------- */
 .sg-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 8px 0 26px; flex-wrap: wrap; }
 .sg-title { font-family: 'Playfair Display', serif; font-size: 34px; color: #16130D; line-height: 1.02; margin: 0; letter-spacing: -0.01em; }
@@ -74,11 +108,13 @@
 .sg-folio--wrapped { opacity: 0.82; }
 .sg-folio--wrapped:hover { opacity: 1; }
 
-/* The brand plate — a structural masthead band in the client's paper. */
+/* The brand plate — a structural masthead band in the client's material.
+   A 2px house-ink baseline anchors every treatment (horizontal rule, not a
+   side stripe). */
 .sg-plate {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 13px 20px; background: var(--bd-paper, #F2EFE9);
-  border-bottom: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 16%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--bd-ink, #16130D) 80%, transparent);
 }
 .sg-plate-meta {
   flex: none; font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
@@ -118,6 +154,10 @@
 /* Foot — the casting ledger line + the open cue. */
 .sg-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 20px 16px; margin-top: auto; }
 .sg-ledgerline { font-size: 12px; font-weight: 500; color: #4A443C; min-width: 0; }
+.sg-ledgerline b {
+  font-weight: 700; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--bd-ink, #16130D) 78%, #16130D);
+}
 .sg-open { position: relative; flex: none; display: inline-flex; align-items: center; }
 .sg-updated { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #A79C8B; transition: opacity 0.18s; }
 .sg-open-cue {
@@ -160,27 +200,59 @@
 }
 .rr-plate {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 15px 28px;
-  border-bottom: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 16%, transparent);
+  padding: 15px 28px; background: var(--bd-paper, #F2EFE9);
+  border-bottom: 2px solid color-mix(in srgb, var(--bd-ink, #16130D) 80%, transparent);
 }
 .rr-plate-meta {
-  flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  flex: none; margin-left: auto;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
   color: color-mix(in srgb, var(--bd-ink, #16130D) 82%, #FFFFFF);
 }
 .rr-plate-meta.is-soon { color: #B4462F; }
 
-.rr-masthead-body { display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 44px; padding: 22px 28px 26px; }
-.rr-title { font-family: 'Playfair Display', serif; font-size: 30px; color: #16130D; line-height: 1.06; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-.rr-brief { font-size: 13.5px; line-height: 1.6; color: #4A443C; margin: 12px 0 0; max-width: 64ch; }
+/* Quiet identity-edit affordance living inside the plate; inherits the
+   plate's text color on every treatment. */
+.rr-idbtn {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px;
+  font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: inherit; opacity: 0.62; transition: opacity 0.15s;
+}
+.rr-plate .rr-idbtn { color: color-mix(in srgb, var(--bd-ink, #16130D) 82%, #FFFFFF); }
+[data-treatment="ink"] .rr-plate .rr-idbtn, [data-treatment="cover"] .rr-plate .rr-idbtn { color: rgba(251, 247, 241, 0.92); }
+.rr-idbtn:hover { opacity: 1; }
+.rr-idbtn:focus-visible { outline: none; opacity: 1; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.45); }
 
-/* Docket — the working counts as a typographic ledger, not stat tiles. */
+.rr-masthead-body { display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 44px; padding: 24px 28px 28px; }
+.rr-title { font-family: 'Playfair Display', serif; font-size: 30px; color: #16130D; line-height: 1.06; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.rr-brief { font-size: 14.5px; line-height: 1.65; color: #3E3830; margin: 13px 0 0; max-width: 62ch; }
+
+/* Docket — the working counts as a typographic ledger, not stat tiles.
+   Figures pick up a text-safe darkening of the house ink. */
 .rr-docket { margin: 2px 0 0; }
 .rr-docket-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0; }
-.rr-docket-row + .rr-docket-row { border-top: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 11%, transparent); }
-.rr-docket dt { font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #6B6256; }
-.rr-docket dd { margin: 0; font-size: 14px; font-weight: 600; color: #16130D; font-variant-numeric: tabular-nums; }
+.rr-docket-row + .rr-docket-row { border-top: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 18%, transparent); }
+.rr-docket dt { font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5C554B; }
+.rr-docket dd {
+  margin: 0; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--bd-ink, #16130D) 76%, #16130D);
+}
 .rr-docket dd.is-soon { color: #B4462F; }
 .rr-docket dd.is-gold { color: #8A6420; }
+
+/* Cover panel — a full-height image column on the masthead when the board
+   carries a cover image. Hidden unless :has() can widen the grid for it. */
+.rr-cover { display: none; }
+.rr-masthead-body:has(.rr-cover) { grid-template-columns: minmax(0, 1fr) 240px 216px; gap: 36px; }
+.rr-masthead-body:has(.rr-cover) .rr-cover {
+  display: block; border-radius: 10px; min-height: 168px;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bd-ink, #16130D) 18%, transparent), color-mix(in srgb, var(--bd-ink, #16130D) 18%, transparent)),
+    var(--bd-cover);
+  background-size: cover; background-position: center;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bd-ink, #16130D) 22%, transparent);
+}
 
 /* View switch — Pipeline vs Fit Briefs. */
 .rr-viewswitch { display: inline-flex; gap: 4px; margin: 0 0 24px; padding: 4px; background: rgba(20, 17, 11, 0.04); border: 1px solid #ECE4D4; border-radius: 10px; }
@@ -211,6 +283,12 @@
   font-size: 12.5px; line-height: 1.5; color: #7C7263; text-align: center;
   border: 1px dashed #DDD5C6; border-radius: 10px; padding: 26px 18px; margin: 0;
 }
+
+/* Drag-and-drop: cards lift while dragged; the hovered column tints. */
+.rr-cardwrap { touch-action: manipulation; }
+.rr-cardwrap--drag { position: relative; z-index: 30; cursor: grabbing; }
+.rr-cardwrap--drag .rr-card { box-shadow: 0 22px 48px rgba(20, 18, 14, 0.22); border-color: #E2DAC9; }
+.rr-col--over { background: color-mix(in srgb, var(--bd-ink, #16130D) 4%, transparent); border-radius: 12px; }
 
 /* Rail card — photo-led, fit meter as a baseline, plain-text metadata. */
 .rr-card {
@@ -305,6 +383,8 @@
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 1080px) {
   .rr-masthead-body { grid-template-columns: minmax(0, 1fr) 224px; gap: 28px; }
+  .rr-masthead-body:has(.rr-cover) { grid-template-columns: minmax(0, 1fr) 224px; }
+  .rr-masthead-body:has(.rr-cover) .rr-cover { display: none; }
 }
 @media (max-width: 860px) {
   .rr-masthead-body { grid-template-columns: 1fr; gap: 8px; padding: 20px 22px 22px; }
