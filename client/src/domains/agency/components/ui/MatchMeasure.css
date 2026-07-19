@@ -1,0 +1,55 @@
+/* MatchMeasure — match strength as typography for dense ledger surfaces.
+   A tabular numeral over a thin filled rule; tier carried by warm tone only
+   (gold = exceptional, ink = strong, muted = fair/low). Flat, no chip. */
+
+.match-measure {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: none;
+  user-select: none;
+}
+
+.match-measure__num {
+  font-family: var(--ag-font-body);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ag-text-2);
+}
+
+.match-measure__track {
+  display: block;
+  width: 44px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ag-border-strong);
+  overflow: hidden;
+}
+
+.match-measure__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+}
+
+/* tier tone — numeral and fill share one warm voice */
+.match-measure--exceptional .match-measure__num,
+.match-measure--exceptional .match-measure__track { color: var(--ag-gold); }
+.match-measure--strong .match-measure__num,
+.match-measure--strong .match-measure__track { color: var(--ag-text-0); }
+.match-measure--fair .match-measure__num,
+.match-measure--fair .match-measure__track { color: var(--ag-text-2); }
+.match-measure--low .match-measure__num,
+.match-measure--low .match-measure__track { color: var(--ag-text-3); }
+
+/* size scale */
+.match-measure--sm { gap: 3px; }
+.match-measure--sm .match-measure__num { font-size: 13px; }
+.match-measure--sm .match-measure__track { width: 34px; }
+.match-measure--md .match-measure__num { font-size: 15px; }

@@ -67,29 +67,37 @@ export function selectTalentMix(data) {
   return Array.isArray(data?.talentMix) ? data.talentMix : [];
 }
 
-// "Where to go next" — derive recommended actions from pulse + roster mix, by urgency.
+// "Where to go next" — derive recommended actions from pulse + roster mix, by
+// urgency. Each move renders as an agenda row: a serif figure, a statement,
+// and the destination it opens. Tone colors the figure only.
 export function buildNextMoves(pulse, talentMix = []) {
   const moves = [];
   if (pulse.closingWeek > 0) {
     moves.push({
       id: 'closing', tone: 'urgent',
-      text: `${pulse.closingWeek} board${pulse.closingWeek === 1 ? '' : 's'} close this week — finalize submissions`,
-      cta: { label: 'Review signing board', to: '/dashboard/agency/signing' },
+      figure: pulse.closingWeek,
+      text: `board${pulse.closingWeek === 1 ? '' : 's'} close this week — finalize submissions`,
+      where: 'Signing room',
+      to: '/dashboard/agency/signing',
     });
   }
   const thin = [...talentMix].sort((a, b) => a.pct - b.pct)[0];
   if (thin && talentMix.length > 1 && thin.pct <= 15) {
     moves.push({
       id: 'thin', tone: 'default',
-      text: `Low ${thin.name} representation on roster (${thin.pct}%)`,
-      cta: { label: 'Scout talent', to: '/dashboard/agency/discover' },
+      figure: `${thin.pct}%`,
+      text: `of the roster is ${thin.name} — coverage is thin`,
+      where: 'Discover',
+      to: '/dashboard/agency/discover',
     });
   }
   if (pulse.newTalentWeek > 0) {
     moves.push({
       id: 'newtalent', tone: 'positive',
-      text: `${pulse.newTalentWeek} new discoverable talent joined this week`,
-      cta: { label: 'Discover', to: '/dashboard/agency/discover' },
+      figure: pulse.newTalentWeek,
+      text: `new discoverable talent joined this week`,
+      where: 'Discover',
+      to: '/dashboard/agency/discover',
     });
   }
   return moves;

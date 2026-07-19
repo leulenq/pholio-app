@@ -25,12 +25,7 @@ export default function TeamModule() {
   return (
     <section className="ov-module">
       <div className="ov-module-head">
-        <h2 className="ov-module-title">
-          Team
-          {team.length ? (
-            <span className="ov-module-count">{String(team.length).padStart(2, '0')}</span>
-          ) : null}
-        </h2>
+        <h2 className="ov-module-title">Team</h2>
         <Link to="/dashboard/agency/team" className="ov-module-link">Manage</Link>
       </div>
       <div className="ov-team">

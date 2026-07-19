@@ -3,21 +3,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Search, Star, Check, X, ChevronRight, ArrowUpRight } from 'lucide-react';
+import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight } from 'lucide-react';
 import {
   getApplicants, getBoards, getCastingBoardPipeline,
   acceptApplication, shortlistApplication, declineApplication,
 } from '../api/agency';
 import { TalentPanel } from '../components/TalentPanel';
-import MatchScore from '../components/ui/MatchScore';
-import { SkeletonRow, SkeletonStrip, AgencyEmptyState, StatusText } from '../components/ui';
-import { TypeSpec } from '../components/status';
+import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, StatusText, MatchMeasure } from '../components/ui';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
 import './ApplicantsPage.css';
 
 const PAGE_SIZE = 60;
+const VIEW_KEY = 'ag-submissions-view';
 
 const timeAgo = (ts) => {
   if (!ts) return '—';
@@ -29,6 +28,15 @@ const timeAgo = (ts) => {
   if (d < 14) return `${d}d ago`;
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
+
+const initials = (name) => (name || '')
+  .split(' ')
+  .map((part) => part[0] || '')
+  .slice(0, 2)
+  .join('')
+  .toUpperCase();
+
+const typeLabel = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : 'Editorial');
 
 const isNew = (s) => s === 'submitted' || s === 'pending' || s === 'new' || !s;
 const SIGNED_STATES = ['represented', 'booked', 'accepted', 'signed'];
@@ -44,7 +52,7 @@ const PRIMARY_TABS = [
   { key: 'represented', label: 'Signed', match: isSigned },
   { key: 'all', label: 'All', match: () => true },
 ];
-// Quiet outcomes folded out of the ledger; reachable from the "More" filter row.
+// Quiet outcomes on the rail's right edge.
 const SECONDARY_TABS = [
   { key: 'kept_on_file', label: 'On file', match: (s) => s === 'kept_on_file' },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
@@ -84,18 +92,103 @@ function mapCandidate(c) {
   };
 }
 
-function ApplicantRow({ a, focused, onOpen, onShortlist, onAccept, onDecline, busy, rowRef, onFocus }) {
-  const decided = isDecided(a.status);
+/** The three triage verbs, icon-only with a shared tooltip treatment. */
+function TriageActions({ a, busy, onShortlist, onAccept, onDecline, light = false }) {
   const shortlisted = a.status === 'shortlisted';
-  const classes = [
-    'ap-row',
-    'ap-row--talent',
-    focused ? 'ap-row--focused' : '',
-  ].filter(Boolean).join(' ');
+  const cls = `ap-icon${light ? ' ap-icon--light' : ''}`;
+  return (
+    <>
+      {!shortlisted && (
+        <button
+          type="button"
+          className={cls}
+          aria-label={`Shortlist ${a.name}`}
+          data-tip="Shortlist · S"
+          disabled={busy}
+          onClick={() => onShortlist(a.applicationId)}
+        >
+          <Star size={15} aria-hidden="true" />
+        </button>
+      )}
+      <button
+        type="button"
+        className={`${cls} ap-icon--sign`}
+        aria-label={`Sign ${a.name}`}
+        data-tip="Sign · A"
+        disabled={busy}
+        onClick={() => onAccept(a.applicationId)}
+      >
+        <Check size={15} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        className={`${cls} ap-icon--pass`}
+        aria-label={`Pass on ${a.name}`}
+        data-tip="Pass · X"
+        disabled={busy}
+        onClick={() => onDecline(a.applicationId)}
+      >
+        <X size={15} aria-hidden="true" />
+      </button>
+    </>
+  );
+}
+
+/** Book view — one sheet on the light table. Photo-led; actions rise on hover. */
+function SubmissionCard({ a, focused, onOpen, onShortlist, onAccept, onDecline, busy, cardRef, onFocus }) {
+  const decided = isDecided(a.status);
+  const quietStatus = isNew(a.status);
+  return (
+    <div
+      ref={cardRef}
+      className={`ap-card${focused ? ' ap-card--focused' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-selected={focused || undefined}
+      onFocus={onFocus}
+      onClick={() => onOpen(a)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          onOpen(a);
+        }
+      }}
+    >
+      <span className="ap-card-photo">
+        {a.photo ? (
+          <span className="ap-card-img" style={{ backgroundImage: `url(${a.photo})` }} />
+        ) : (
+          <span className="ap-card-img ap-card-img--empty">{initials(a.name)}</span>
+        )}
+        {!decided && (
+          <span className="ap-card-acts" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} light />
+          </span>
+        )}
+      </span>
+      <span className="ap-card-row">
+        <span className="ap-card-name">{a.name}</span>
+        {a.match != null && <MatchMeasure score={a.match} size="sm" className="ap-card-match" />}
+      </span>
+      <span className="ap-card-spec">
+        {typeLabel(a.type)}
+        {a.city ? ` · ${a.city}` : ''}
+      </span>
+      <span className="ap-card-state">
+        <span className="ap-card-when">{timeAgo(a.appliedAt)}</span>
+        {!quietStatus && <StatusText status={a.status} className="ap-card-status" />}
+      </span>
+    </div>
+  );
+}
+
+/** Ledger view — the dense scanning row. */
+function LedgerRow({ a, focused, onOpen, onShortlist, onAccept, onDecline, busy, rowRef, onFocus }) {
+  const decided = isDecided(a.status);
   return (
     <div
       ref={rowRef}
-      className={classes}
+      className={`ap-row${focused ? ' ap-row--focused' : ''}`}
       role="button"
       tabIndex={0}
       aria-selected={focused || undefined}
@@ -109,72 +202,35 @@ function ApplicantRow({ a, focused, onOpen, onShortlist, onAccept, onDecline, bu
       }}
     >
       <span className="ap-pic">
-        <span className="ap-pic-img" style={{ backgroundImage: a.photo ? `url(${a.photo})` : 'none' }} />
+        {a.photo ? (
+          <span className="ap-pic-img" style={{ backgroundImage: `url(${a.photo})` }} />
+        ) : (
+          <span className="ap-pic-img ap-pic-img--empty">{initials(a.name)}</span>
+        )}
       </span>
       <div className="ap-id">
         <span className="ap-name">{a.name}</span>
         <span className="ap-meta">
-          <TypeSpec type={a.type} />
-          {a.city && <span className="ap-meta-city">{a.city}</span>}
+          {typeLabel(a.type)}
+          {a.city ? ` · ${a.city}` : ''}
         </span>
       </div>
       <span className="ap-applied">{timeAgo(a.appliedAt)}</span>
-      <span className="ap-score-cell">{a.match != null && <MatchScore score={a.match} size="sm" />}</span>
+      <span className="ap-score-cell">{a.match != null && <MatchMeasure score={a.match} size="sm" />}</span>
       <span className="ap-status"><StatusText status={a.status} /></span>
       <div className="ap-actions" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         {decided ? (
           <span className="ap-decided" aria-hidden="true">Decided</span>
         ) : (
-          <>
-            {!shortlisted && (
-              <button
-                type="button"
-                className="ap-act"
-                aria-label={`Shortlist ${a.name}`}
-                disabled={busy}
-                onClick={() => onShortlist(a.applicationId)}
-              >
-                <Star size={14} aria-hidden="true" />
-                <span className="ap-act-label">Shortlist</span>
-              </button>
-            )}
-            <button
-              type="button"
-              className="ap-act ap-act--accept"
-              aria-label={`Sign ${a.name}`}
-              disabled={busy}
-              onClick={() => onAccept(a.applicationId)}
-            >
-              <Check size={14} aria-hidden="true" />
-              <span className="ap-act-label">Sign</span>
-            </button>
-            <button
-              type="button"
-              className="ap-act ap-act--decline"
-              aria-label={`Pass on ${a.name}`}
-              disabled={busy}
-              onClick={() => onDecline(a.applicationId)}
-            >
-              <X size={14} aria-hidden="true" />
-              <span className="ap-act-label">Pass</span>
-            </button>
-          </>
+          <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} />
         )}
-        <button
-          type="button"
-          className="ap-act ap-act--review"
-          aria-label={`Review ${a.name}`}
-          onClick={() => onOpen(a)}
-        >
-          <ChevronRight size={16} aria-hidden="true" />
-        </button>
       </div>
     </div>
   );
 }
 
-// Board context band — replaces the collapsible brief rail. Shown only for a
-// selected board: name, one-line brief excerpt, where-it-stands, link to signing.
+// Board context band — shown only for a selected board: name, one-line brief
+// excerpt, where-it-stands, link to the signing room.
 function BoardBand({ board }) {
   if (!board) return null;
   const pipeline = board.application_count || 0;
@@ -211,6 +267,13 @@ function ApplicationsPage() {
   const [tab, setTab] = useState('all');
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('recent');
+  const [view, setView] = useState(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === 'ledger' ? 'ledger' : 'book';
+    } catch {
+      return 'book';
+    }
+  });
   const [selected, setSelected] = useState(null);
   const [boardId, setBoardId] = useState(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -219,7 +282,11 @@ function ApplicationsPage() {
 
   const rowRefs = useRef([]);
   const sentinelRef = useRef(null);
-  const searchRef = useRef(null);
+
+  const changeView = useCallback((next) => {
+    setView(next);
+    try { localStorage.setItem(VIEW_KEY, next); } catch { /* private mode */ }
+  }, []);
 
   const boardsQuery = useQuery({
     queryKey: ['agency-boards'],
@@ -282,10 +349,6 @@ function ApplicationsPage() {
   }, [applicants, tab, q, sort]);
 
   const total = applicants.length;
-  const allSubmissionTotal = useMemo(
-    () => (allQuery.data?.profiles || []).filter((profile) => profile.application_id).length,
-    [allQuery.data],
-  );
 
   // Pass rate = how selectively the agency has decided so far.
   const representedCount = counts.represented || 0;
@@ -416,12 +479,16 @@ function ApplicationsPage() {
 
   const ledgerTabs = PRIMARY_TABS.map((t) => ({ ...t, value: counts[t.key] ?? 0 }));
 
+  const subLine = activeBoard
+    ? `${activeBoard.name} · ${total} submission${total === 1 ? '' : 's'}`
+    : `${total} submission${total === 1 ? '' : 's'}${passRate != null ? ` · ${passRate}% pass rate` : ''}`;
+
   if (isLoading) {
     return (
       <div className="ap ap-loading" role="status" aria-live="polite" aria-busy="true">
-        <header className="ap-header"><h1 className="ap-title">Submissions</h1></header>
+        <header className="ap-mast"><h1 className="ap-title">Submissions</h1></header>
         <SkeletonStrip count={5} />
-        <div className="ap-list"><SkeletonRow count={8} /></div>
+        <div className="ap-book"><SkeletonCard count={10} /></div>
       </div>
     );
   }
@@ -429,7 +496,7 @@ function ApplicationsPage() {
   if (isError) {
     return (
       <div className="ap">
-        <header className="ap-header"><h1 className="ap-title">Submissions</h1></header>
+        <header className="ap-mast"><h1 className="ap-title">Submissions</h1></header>
         <EmptyErrorState
           title="Submissions unavailable"
           body="We could not load the current intake. Try again to resume review."
@@ -440,24 +507,33 @@ function ApplicationsPage() {
   }
 
   const boardOptions = [
-    { id: '', name: 'All submissions', count: allSubmissionTotal || total },
+    { id: '', name: 'All submissions', count: total },
     ...boards.map((b) => ({ id: b.id, name: b.name || 'Untitled Board', count: b.application_count || 0 })),
   ];
 
+  const rowProps = (a, i) => ({
+    a,
+    focused: focusedIndex === i,
+    busy: inFlight === a.applicationId,
+    onFocus: () => setFocusedIndex(i),
+    onOpen: openTalent,
+    onShortlist: () => shortlist.mutate(a.applicationId),
+    onAccept: () => accept.mutate(a.applicationId),
+    onDecline: () => decline.mutate(a.applicationId),
+  });
+
   return (
     <div className="ap">
-      <header className="ap-header">
-        <div>
+      <header className="ap-mast">
+        <div className="ap-mast-id">
           <h1 className="ap-title">Submissions</h1>
-          <p className="ap-sub">
-            {activeBoard
-              ? `${activeBoard.name} · ${total} submission${total === 1 ? '' : 's'}`
-              : `${total} total submission${total === 1 ? '' : 's'}`}
-          </p>
+          <p className="ap-sub">{subLine}</p>
         </div>
-        <div className="ap-controls">
+
+        {/* One command bar — every control shares the same vocabulary. */}
+        <div className="ap-bar" role="toolbar" aria-label="Submission controls">
           <label className="ap-board-select">
-            <span className="ap-board-select-label">Board</span>
+            <span className="ap-bar-key">Board</span>
             <select
               value={boardId ?? ''}
               onChange={(e) => changeBoard(e.target.value || null)}
@@ -473,122 +549,150 @@ function ApplicationsPage() {
           <div className="ap-search">
             <Search size={14} aria-hidden="true" />
             <input
-              ref={searchRef}
               placeholder="Search by name or city…"
               value={q}
               onChange={(e) => changeQuery(e.target.value)}
               aria-label="Search submissions"
             />
           </div>
-          <div className="ap-sort" role="group" aria-label="Sort submissions">
+          <div className="ap-seg" role="group" aria-label="Sort submissions">
             <button type="button" className={sort === 'recent' ? 'is-on' : ''} aria-pressed={sort === 'recent'} onClick={() => changeSort('recent')}>Newest</button>
             <button type="button" className={sort === 'match' ? 'is-on' : ''} aria-pressed={sort === 'match'} onClick={() => changeSort('match')}>Match</button>
           </div>
+          <div className="ap-seg" role="group" aria-label="View">
+            <button
+              type="button"
+              className={view === 'book' ? 'is-on' : ''}
+              aria-pressed={view === 'book'}
+              aria-label="Book view"
+              data-tip="Book view"
+              onClick={() => changeView('book')}
+            >
+              <LayoutGrid size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={view === 'ledger' ? 'is-on' : ''}
+              aria-pressed={view === 'ledger'}
+              aria-label="Ledger view"
+              data-tip="Ledger view"
+              onClick={() => changeView('ledger')}
+            >
+              <Rows3 size={14} aria-hidden="true" />
+            </button>
+          </div>
+          <button
+            type="button"
+            className="ap-help"
+            aria-label="Keyboard shortcuts"
+            data-tip="Shortcuts · ?"
+            onClick={() => setHelpOpen(true)}
+          >
+            ?
+          </button>
         </div>
       </header>
 
-      {/* LEDGER-AS-TABS — the stat row IS the stage filter. */}
+      {/* LEDGER-AS-TABS — the stat row IS the stage filter; gold marks the
+          active stage only. Quiet outcomes sit on the rail's right edge. */}
       <motion.div
         className="ap-ledger"
-        role="tablist"
-        aria-label="Filter by stage"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
       >
-        {ledgerTabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            className={`ap-stat${tab === t.key ? ' ap-stat--on' : ''}${t.key === 'submitted' && t.value ? ' ap-stat--live' : ''}`}
-            onClick={() => changeTab(t.key)}
-          >
-            <span className="ap-stat-num">{t.value}</span>
-            <span className="ap-stat-label">{t.label}</span>
-          </button>
-        ))}
-        <div className="ap-stat ap-stat--static" aria-hidden="true">
-          <span className="ap-stat-num">{passRate == null ? '—' : `${passRate}%`}</span>
-          <span className="ap-stat-label">Pass rate</span>
+        <div className="ap-ledger-tabs" role="tablist" aria-label="Filter by stage">
+          {ledgerTabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              className={`ap-stat${tab === t.key ? ' ap-stat--on' : ''}`}
+              onClick={() => changeTab(t.key)}
+            >
+              <span className="ap-stat-num">{t.value}</span>
+              <span className="ap-stat-label">{t.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="ap-ledger-aside" role="group" aria-label="Secondary filters">
+          {SECONDARY_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              aria-pressed={tab === t.key}
+              className={`ap-aside-item${tab === t.key ? ' is-on' : ''}`}
+              onClick={() => changeTab(tab === t.key ? 'all' : t.key)}
+            >
+              {t.label} {counts[t.key] ?? 0}
+            </button>
+          ))}
         </div>
       </motion.div>
 
-      {/* MORE — the quiet outcomes folded out of the ledger. */}
-      <div className="ap-more" role="group" aria-label="Secondary filters">
-        <span className="ap-more-key">More</span>
-        {SECONDARY_TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            aria-pressed={tab === t.key}
-            className={`ap-more-item${tab === t.key ? ' is-on' : ''}`}
-            onClick={() => changeTab(tab === t.key ? 'all' : t.key)}
-          >
-            {t.label} {counts[t.key] ?? 0}
-          </button>
-        ))}
-      </div>
-
       {activeBoard && <BoardBand board={activeBoard} />}
 
-      <p className="ap-hint">J/K to move · S shortlist · A sign · X pass · ? help</p>
+      {isGenuineEmpty && (
+        <AgencyEmptyState
+          title={activeBoard ? 'No submissions on this board' : 'No submissions yet'}
+          description={activeBoard
+            ? 'Assign talent to this board from the signing room to start reviewing here.'
+            : 'Inbound digitals from open calls and direct invitations will appear here for review.'}
+        />
+      )}
 
-      <div className="ap-list">
-        {isGenuineEmpty && (
-          <AgencyEmptyState
-            title={activeBoard ? 'No submissions on this board' : 'No submissions yet'}
-            description={activeBoard
-              ? 'Assign talent to this board from the signing room to start reviewing here.'
-              : 'Inbound digitals from open calls and direct invitations will appear here for review.'}
-          />
-        )}
+      {hasNoResults && (
+        <AgencyEmptyState
+          title="No submissions match this view"
+          description={hasActiveFilter
+            ? 'Adjust the search or stage filter to see talent already in the pipeline.'
+            : 'Try another view to continue review.'}
+          action={hasActiveFilter
+            ? <button type="button" className="ap-empty-action" onClick={resetFilters}>Clear filters</button>
+            : undefined}
+        />
+      )}
 
-        {hasNoResults && (
-          <AgencyEmptyState
-            title="No submissions match this view"
-            description={hasActiveFilter
-              ? 'Adjust the search or stage filter to see talent already in the pipeline.'
-              : 'Try another view to continue review.'}
-            action={hasActiveFilter
-              ? <button type="button" className="ap-empty-action" onClick={resetFilters}>Clear filters</button>
-              : undefined}
-          />
-        )}
-
-        {!isGenuineEmpty && !hasNoResults && (
-          <>
-            <div className="ap-row ap-row--head" aria-hidden="true">
-              <span />
-              <span>Talent</span>
-              <span>Submitted</span>
-              <span className="ap-c">Match</span>
-              <span>Status</span>
-              <span />
+      {!isGenuineEmpty && !hasNoResults && (view === 'book' ? (
+        <div className="ap-book">
+          {visible.map((a, i) => (
+            <SubmissionCard
+              key={a.applicationId}
+              cardRef={(el) => { rowRefs.current[i] = el; }}
+              {...rowProps(a, i)}
+            />
+          ))}
+          {visibleCount < filtered.length && (
+            <div ref={sentinelRef} className="ap-sentinel ap-sentinel--book" aria-hidden="true">
+              <SkeletonCard count={5} />
             </div>
-            {visible.map((a, i) => (
-              <ApplicantRow
-                key={a.applicationId}
-                a={a}
-                focused={focusedIndex === i}
-                busy={inFlight === a.applicationId}
-                rowRef={(el) => { rowRefs.current[i] = el; }}
-                onFocus={() => setFocusedIndex(i)}
-                onOpen={openTalent}
-                onShortlist={() => shortlist.mutate(a.applicationId)}
-                onAccept={() => accept.mutate(a.applicationId)}
-                onDecline={() => decline.mutate(a.applicationId)}
-              />
-            ))}
-            {visibleCount < filtered.length && (
-              <div ref={sentinelRef} className="ap-sentinel" aria-hidden="true">
-                <SkeletonRow count={3} />
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="ap-list">
+          <div className="ap-row ap-row--head" aria-hidden="true">
+            <span />
+            <span>Talent</span>
+            <span>Submitted</span>
+            <span>Match</span>
+            <span>Status</span>
+            <span />
+          </div>
+          {visible.map((a, i) => (
+            <LedgerRow
+              key={a.applicationId}
+              rowRef={(el) => { rowRefs.current[i] = el; }}
+              {...rowProps(a, i)}
+            />
+          ))}
+          {visibleCount < filtered.length && (
+            <div ref={sentinelRef} className="ap-sentinel" aria-hidden="true">
+              <SkeletonRow count={3} />
+            </div>
+          )}
+        </div>
+      ))}
 
       <AnimatePresence>
         {selected && (
