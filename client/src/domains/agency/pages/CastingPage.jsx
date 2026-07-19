@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { Plus, ChevronRight, Briefcase } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Plus, ArrowRight } from 'lucide-react';
 import { getBoards } from '../api/agency';
+import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
+import { useCardButton } from '../hooks/useCardButton';
 import CastingNewModal from './CastingNewModal';
 import './CastingPage.css';
 
@@ -19,32 +21,22 @@ const timeAgo = (ts) => {
 };
 
 const DAY = 1000 * 60 * 60 * 24;
-// Returns { text, soon } for a board close date, or null.
-const closeLabel = (ts) => {
+// { text, soon } describing the close date, or null when the board has none.
+const closeLabel = (ts, wrapped) => {
   if (!ts) return null;
   const days = (new Date(ts) - Date.now()) / DAY;
   const date = new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (wrapped) return { text: `Wrapped ${date}`, soon: false };
   if (days < 0) return { text: `Closed ${date}`, soon: false };
+  if (days <= 1) return { text: 'Closes today', soon: true };
   return { text: `Closes ${date}`, soon: days <= 7 };
 };
 
-const STATUS_META = {
-  Active: { label: 'Active', tone: 'active' },
-  Reviewing: { label: 'In Review', tone: 'review' },
-  Draft: { label: 'Draft', tone: 'draft' },
-  Closed: { label: 'Closed', tone: 'closed' },
-};
-
-// Derive an editorial status from the board's real activity.
 function mapBoard(b) {
   const applicants = b.application_count || 0;
   const submitted = b.submitted_count || 0;
-  const booked = b.booked_count || 0;
-  let status;
-  if (b.is_active === false) status = 'Closed';
-  else if (applicants === 0) status = 'Draft';
-  else if (submitted > 0) status = 'Reviewing';
-  else status = 'Active';
+  const signed = b.booked_count || 0;
+  const wrapped = b.is_active === false;
   return {
     id: b.id,
     name: b.name || 'Untitled Board',
@@ -52,75 +44,113 @@ function mapBoard(b) {
     description: b.description || '',
     applicants,
     submitted,
-    booked,
+    signed,
+    target: b.target_slots || 0,
     preview: Array.isArray(b.preview) ? b.preview : [],
     closesAt: b.closes_at || null,
     updatedAt: b.updated_at,
-    status,
+    wrapped,
   };
 }
 
-function CastingCard({ board, onReview }) {
-  const meta = STATUS_META[board.status] || STATUS_META.Draft;
-  const rate = board.applicants > 0 ? Math.round((board.booked / board.applicants) * 100) : 0;
-  const closes = closeLabel(board.closesAt);
+// The board's one-line casting ledger: consideration → review → signed.
+function ledgerLine(board) {
+  const parts = [];
+  if (board.applicants > 0) parts.push(`${board.applicants} in consideration`);
+  if (board.submitted > 0) parts.push(`${board.submitted} awaiting review`);
+  if (board.target > 0) parts.push(`${board.signed} of ${board.target} signed`);
+  else if (board.signed > 0) parts.push(`${board.signed} signed`);
+  if (parts.length === 0) parts.push('Awaiting first submissions');
+  return parts.join(' · ');
+}
+
+const SHEET_FRAMES = 4;
+
+function FolioCard({ board, index, onOpen }) {
+  const reduceMotion = useReducedMotion();
+  const identity = useMemo(() => resolveBoardIdentity(board), [board]);
+  const cardButtonProps = useCardButton(() => onOpen(board.id));
+  const closes = closeLabel(board.closesAt, board.wrapped);
+  const shots = board.preview.slice(0, SHEET_FRAMES);
+  const overflow = board.applicants - shots.length;
+
+  // Plate meta prefers the time signal; falls back to the board's state.
+  const plateMeta = closes
+    ? closes.text
+    : board.wrapped
+      ? 'Wrapped'
+      : board.submitted > 0
+        ? 'In review'
+        : 'Casting';
+
   return (
-    <article
-      className="cas-card"
-      data-tone={meta.tone}
-      role="button"
-      tabIndex={0}
-      onClick={() => onReview(board.id)}
+    <motion.article
+      className={`sg-folio${board.wrapped ? ' sg-folio--wrapped' : ''}`}
+      style={boardIdentityStyle(identity)}
+      data-letterform={identity.letterform}
+      onClick={() => onOpen(board.id)}
+      aria-label={`Open board ${board.name}${board.client ? ` for ${board.client}` : ''}`}
+      {...cardButtonProps}
+      initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, delay: Math.min(index * 0.045, 0.32), ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="cas-card-id">
-        <div className="cas-card-top">
-          <span className="cas-status">{meta.label}</span>
-          <h3 className="cas-name">{board.name}</h3>
-          {board.client && <span className="cas-client">{board.client}</span>}
-        </div>
-        <p className="cas-brief">
+      <div className="sg-plate">
+        <span className="sg-wordmark">{identity.label}</span>
+        <span className={`sg-plate-meta${closes?.soon ? ' is-soon' : ''}`}>{plateMeta}</span>
+      </div>
+
+      <div className="sg-body">
+        <h3 className="sg-name">{board.name}</h3>
+        <p className="sg-brief">
           {board.description || 'No brief yet — add one to guide your reviewers.'}
         </p>
-        <div className="cas-card-foot">
-          {board.preview.length > 0 ? (
-            <span className="cas-stack">
-              {board.preview.slice(0, 4).map((url, i) => (
-                <span key={i} className="cas-av" style={{ backgroundImage: `url(${url})` }} />
-              ))}
-              {board.applicants > Math.min(board.preview.length, 4) && (
-                <span className="cas-av-more">+{board.applicants - Math.min(board.preview.length, 4)}</span>
-              )}
+      </div>
+
+      <div className="sg-sheet" aria-hidden="true">
+        {Array.from({ length: SHEET_FRAMES }).map((_, i) => {
+          const url = shots[i];
+          if (!url) return <span key={i} className="sg-frame sg-frame--empty" />;
+          const isLast = i === shots.length - 1 && overflow > 0;
+          return (
+            <span key={i} className="sg-frame" style={{ backgroundImage: `url(${url})` }}>
+              {isLast && <span className="sg-frame-more">+{overflow}</span>}
             </span>
-          ) : <span className="cas-stack cas-stack--empty">No talent yet</span>}
-          {closes && <span className={closes.soon ? 'cas-foot-meta is-soon' : 'cas-foot-meta'}>{closes.text}</span>}
-          <span className="cas-updated">Updated {timeAgo(board.updatedAt)}</span>
-        </div>
+          );
+        })}
+        {shots.length === 0 && <span className="sg-sheet-note">Awaiting first submissions</span>}
       </div>
 
-      <div className="cas-metric">
-        <span className="cas-metric-label">Talent</span>
-        <span className="cas-metric-num">{board.applicants}</span>
-        <span className="cas-metric-sub">{board.booked ? `${board.booked} represented` : 'None represented'}</span>
-        <div className="cas-bar" title={`${rate}% represented`}>
-          <i style={{ width: `${rate}%` }} />
-        </div>
+      <div className="sg-foot">
+        <span className="sg-ledgerline">{ledgerLine(board)}</span>
+        <span className="sg-open">
+          <span className="sg-updated">Updated {timeAgo(board.updatedAt)}</span>
+          <span className="sg-open-cue">Open board <ArrowRight size={13} /></span>
+        </span>
       </div>
+    </motion.article>
+  );
+}
 
-      <div className="cas-actions">
-        <button
-          className="cas-review"
-          onClick={(e) => { e.stopPropagation(); onReview(board.id); }}
-        >
-          Review <ChevronRight size={15} />
-        </button>
+function FolioSection({ title, boards, onOpen, startIndex = 0 }) {
+  if (boards.length === 0) return null;
+  return (
+    <section className="sg-section">
+      <div className="sg-section-head">
+        <h2 className="sg-section-title">{title}</h2>
+        <span className="sg-section-count">{boards.length}</span>
       </div>
-    </article>
+      <div className="sg-grid">
+        {boards.map((board, i) => (
+          <FolioCard key={board.id} board={board} index={startIndex + i} onOpen={onOpen} />
+        ))}
+      </div>
+    </section>
   );
 }
 
 export default function CastingPage() {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState('all');
   const [creating, setCreating] = useState(false);
   const [openKey, setOpenKey] = useState(0);
   const openModal = () => { setOpenKey((k) => k + 1); setCreating(true); };
@@ -133,94 +163,76 @@ export default function CastingPage() {
 
   const boards = useMemo(() => (Array.isArray(data) ? data : []).map(mapBoard), [data]);
 
-  const filters = useMemo(() => ([
-    { label: 'All', value: 'all', count: boards.length },
-    { label: 'Active', value: 'active', count: boards.filter((b) => b.status === 'Active').length },
-    { label: 'In Review', value: 'reviewing', count: boards.filter((b) => b.status === 'Reviewing').length },
-    { label: 'Draft', value: 'draft', count: boards.filter((b) => b.status === 'Draft').length },
-    { label: 'Closed', value: 'closed', count: boards.filter((b) => b.status === 'Closed').length },
-  ]), [boards]);
+  // Open boards sort by urgency (closing soonest first), wrapped by recency.
+  const { open, wrapped } = useMemo(() => {
+    const openBoards = boards.filter((b) => !b.wrapped).sort((a, b) => {
+      if (a.closesAt && b.closesAt) return new Date(a.closesAt) - new Date(b.closesAt);
+      if (a.closesAt) return -1;
+      if (b.closesAt) return 1;
+      return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+    });
+    const wrappedBoards = boards.filter((b) => b.wrapped)
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+    return { open: openBoards, wrapped: wrappedBoards };
+  }, [boards]);
 
-  const filtered = useMemo(() => (
-    filter === 'all' ? boards : boards.filter((b) => b.status.toLowerCase() === filter)
-  ), [boards, filter]);
-
-  const stats = useMemo(() => ({
-    open: boards.filter((b) => b.status === 'Active' || b.status === 'Reviewing').length,
-    pipeline: boards.reduce((s, b) => s + b.applicants, 0),
-    incoming: boards.reduce((s, b) => s + b.submitted, 0),
-    booked: boards.reduce((s, b) => s + b.booked, 0),
-  }), [boards]);
-
-  const ledger = [
-    { label: 'Open Boards', value: stats.open, tone: 'ink' },
-    { label: 'In Pipeline', value: stats.pipeline, tone: 'ink' },
-    { label: 'Awaiting Review', value: stats.incoming, tone: stats.incoming ? 'gold' : 'mute' },
-    { label: 'Represented', value: stats.booked, tone: 'ink' },
-  ];
+  const sub = useMemo(() => {
+    if (!boards.length) return 'Signing boards gather the talent you are considering for a client or a season.';
+    const inReview = boards.reduce((s, b) => s + b.submitted, 0);
+    const pipeline = boards.reduce((s, b) => s + b.applicants, 0);
+    const parts = [`${open.length} open board${open.length === 1 ? '' : 's'}`];
+    if (pipeline) parts.push(`${pipeline} in consideration`);
+    if (inReview) parts.push(`${inReview} awaiting review`);
+    return parts.join(' · ');
+  }, [boards, open.length]);
 
   return (
-    <div className="cas">
-      <header className="cas-header">
+    <div className="sg">
+      <header className="sg-header">
         <div>
-          <h1 className="cas-title">Signing</h1>
-          <p className="cas-sub">
-            {boards.length
-              ? `${boards.length} board${boards.length === 1 ? '' : 's'} · ${stats.pipeline} talent in pipeline`
-              : 'Your signing boards live here'}
-          </p>
+          <h1 className="sg-title">Signing</h1>
+          <p className="sg-sub">{sub}</p>
         </div>
-        <button className="cas-new" onClick={openModal}>
+        <button className="sg-new" onClick={openModal}>
           <Plus size={16} /> New board
         </button>
       </header>
 
-      <motion.div
-        className="cas-ledger"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-      >
-        {ledger.map((s) => (
-          <div key={s.label} className={`cas-stat cas-stat--${s.tone}`}>
-            <span className="cas-stat-num">{s.value}</span>
-            <span className="cas-stat-label">{s.label}</span>
-          </div>
-        ))}
-      </motion.div>
-
-      <div className="cas-filters">
-        {filters.map((f) => (
-          <button
-            key={f.value}
-            className={`cas-chip${filter === f.value ? ' cas-chip--on' : ''}`}
-            onClick={() => setFilter(f.value)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
       {isLoading ? (
-        <div className="cas-loading">Loading signing boards…</div>
-      ) : filtered.length === 0 ? (
-        <div className="cas-empty">
-          <Briefcase size={26} />
-          <p className="cas-empty-title">{boards.length ? 'No boards in this view' : 'No signing boards yet'}</p>
-          <p className="cas-empty-sub">
-            {boards.length ? 'Adjust the filter to see more.' : 'Open your first signing board to start reviewing talent.'}
-          </p>
-        </div>
-      ) : (
-        <div className="cas-list">
-          {filtered.map((board) => (
-            <CastingCard
-              key={board.id}
-              board={board}
-              onReview={(id) => navigate(`/dashboard/agency/signing/${id}`)}
-            />
+        <div className="sg-grid" aria-hidden="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="sg-folio sg-folio--skeleton">
+              <div className="sg-plate" />
+              <div className="sg-body">
+                <span className="sg-skel sg-skel--title" />
+                <span className="sg-skel sg-skel--line" />
+              </div>
+              <div className="sg-sheet">
+                {[0, 1, 2, 3].map((j) => <span key={j} className="sg-frame sg-frame--empty" />)}
+              </div>
+            </div>
           ))}
         </div>
+      ) : boards.length === 0 ? (
+        <div className="sg-empty">
+          <p className="sg-empty-title">The board rack is empty.</p>
+          <p className="sg-empty-sub">
+            Open your first signing board to start reviewing talent for a client, a season, or a division.
+          </p>
+          <button className="sg-new sg-new--empty" onClick={openModal}>
+            <Plus size={16} /> Open a board
+          </button>
+        </div>
+      ) : (
+        <>
+          <FolioSection title="Open boards" boards={open} onOpen={(id) => navigate(`/dashboard/agency/signing/${id}`)} />
+          <FolioSection
+            title="Wrapped"
+            boards={wrapped}
+            startIndex={open.length}
+            onOpen={(id) => navigate(`/dashboard/agency/signing/${id}`)}
+          />
+        </>
       )}
 
       <CastingNewModal key={openKey} open={creating} onClose={() => setCreating(false)} />
