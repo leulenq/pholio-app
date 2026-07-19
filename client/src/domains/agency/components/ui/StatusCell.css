@@ -1,0 +1,20 @@
+/* StatusCell — the sharp tonal cell (status-system family, non-badge).
+   Tinted ground + tinted hairline border + ink-anchored label, radius 0.
+   Colored via the `--c` custom property from STATUS_MAP. */
+
+.ag-status-cell {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 0;
+  font-family: var(--ag-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  vertical-align: middle;
+  background: color-mix(in srgb, var(--c) 12%, var(--ag-surface-1));
+  color: color-mix(in srgb, var(--c) 78%, var(--ag-text-0));
+  border: 1px solid color-mix(in srgb, var(--c) 26%, transparent);
+}

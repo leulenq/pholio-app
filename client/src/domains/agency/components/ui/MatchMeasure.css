@@ -1,0 +1,27 @@
+/* MatchMeasure — match strength as typography for dense ledger surfaces.
+   A bold tabular numeral; the tier hue (shared with the ink chip's match
+   system) is the whole treatment. Each hue is mixed toward ink so the
+   numerals hold 4.5:1 on the cream canvas. */
+
+.match-measure {
+  display: inline-flex;
+  flex: none;
+  font-family: var(--ag-font-body);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+
+/* tier hues — the match system's light-ground set, ink-anchored for contrast */
+.match-measure--exceptional { color: color-mix(in srgb, var(--ag-match-exc) 84%, var(--ag-text-0)); }
+.match-measure--strong      { color: color-mix(in srgb, var(--ag-match-str) 84%, var(--ag-text-0)); }
+.match-measure--fair        { color: color-mix(in srgb, var(--ag-match-fair) 80%, var(--ag-text-0)); }
+.match-measure--low         { color: color-mix(in srgb, var(--ag-match-low) 90%, var(--ag-text-0)); }
+
+/* size scale */
+.match-measure--sm { font-size: 15px; }
+.match-measure--md { font-size: 16px; }

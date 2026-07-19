@@ -112,22 +112,6 @@
 .ov-module { margin-bottom: 28px; }
 .ov-module-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--ag-rule); }
 .ov-module-title { font-family: 'Playfair Display', serif; font-size: 19px; color: #16130D; margin: 0; }
-.ov-module-count {
-  font-family: var(--ag-font-display);
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--ag-gold);
-  margin-left: 8px;
-  display: inline-flex;
-  align-items: baseline;
-  font-variant-numeric: lining-nums;
-}
-.ov-module-count::before {
-  content: "—";
-  color: var(--ag-gold);
-  margin-right: 8px;
-  font-weight: 300;
-}
 .ov-module-link { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--ag-gold); text-decoration: none; }
 .ov-module-link:hover { text-decoration: underline; }
 .ov-empty { font-size: 11px; color: var(--ag-text-2); padding: 16px 0; }
@@ -188,14 +172,33 @@
 .ov-act-text strong { color: #16130D; font-weight: 600; }
 .ov-act-meta { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ag-text-2); margin-top: 3px; }
 
-/* ---------- NEXT MOVES ---------- */
-.ov-moves { display: flex; flex-direction: column; gap: 9px; }
-.ov-move { display: block; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--ag-gold) 45%, #e7ddca); border-radius: 4px; background: rgba(255,255,255,.5); text-decoration: none; transition: background .15s, border-color .15s; }
-.ov-move:hover { background: rgba(201,165,90,.08); }
-.ov-move--urgent { border-color: #c0563f; background: rgba(192, 86, 63, 0.04); }
-.ov-move--positive { border-color: #7d9b82; background: rgba(125, 155, 130, 0.04); }
-.ov-move-text { display: block; font-size: 11.5px; line-height: 1.4; color: #4a443c; }
-.ov-move-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ag-gold); font-weight: 600; }
+/* ---------- NEXT MOVES — the agenda ----------
+   Ruled rows in the Overview's own vocabulary: serif figure, statement,
+   destination. The whole row is the link; tone colors the figure only. */
+.ov-agenda { display: flex; flex-direction: column; }
+.ov-agenda-row {
+  display: flex; align-items: center; gap: 14px; padding: 12px 4px;
+  border-bottom: 1px solid #ece4d4; text-decoration: none;
+  transition: background .15s var(--ag-ease, ease), padding .15s var(--ag-ease, ease);
+}
+.ov-agenda-row:hover { background: rgba(201,165,90,.06); padding-left: 8px; padding-right: 0; }
+.ov-agenda-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ag-gold); border-radius: 4px; }
+.ov-agenda-fig {
+  flex: none; min-width: 58px; text-align: left;
+  font-family: 'Noto Serif Display', 'Playfair Display', serif; font-weight: 500;
+  font-size: 27px; line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums; color: #16130D;
+}
+.ov-agenda-row--urgent .ov-agenda-fig { color: #c0563f; }
+.ov-agenda-row--positive .ov-agenda-fig { color: var(--ag-gold); }
+.ov-agenda-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ov-agenda-text { font-size: 11.5px; line-height: 1.4; color: #4a443c; }
+.ov-agenda-where { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ag-text-2); }
+.ov-agenda-go { flex: none; margin-left: auto; color: #c3b89f; transition: color .15s, transform .15s var(--ag-ease-spring, ease); }
+.ov-agenda-row:hover .ov-agenda-go { color: var(--ag-gold); transform: translate(1px, -1px); }
+@media (prefers-reduced-motion: reduce) {
+  .ov-agenda-row, .ov-agenda-go { transition: none; }
+}
 
 /* ---------- TALENT STRIP (media) ---------- */
 .ov-strip {
@@ -218,11 +221,20 @@
 .ov-strip::-webkit-scrollbar {
   display: none; /* Safari and Chrome */
 }
-.ov-strip-card { flex: 0 0 134px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
+.ov-strip-card { flex: 0 0 148px; background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
 .ov-strip-photo { display: block; position: relative; }
-.ov-strip-img { display: block; position: relative; height: 170px; border-radius: 5px; background-size: cover; background-position: center top; background-color: #e7e2d8; box-shadow: 0 4px 14px rgba(20,18,14,.16); transition: box-shadow .24s, outline-color .24s; }
-.ov-strip-img::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.28) 38%, transparent 60%); }
+.ov-strip-img { display: block; position: relative; height: 188px; border-radius: 5px; background-size: cover; background-position: center top; background-color: #e7e2d8; box-shadow: 0 4px 14px rgba(20,18,14,.16); transition: box-shadow .24s, outline-color .24s; }
 .ov-strip-img::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; background: radial-gradient(130% 90% at 100% 0%, rgba(201,165,90,.34), transparent 62%); transition: opacity .24s; }
+/* Match — the ink chip (talent-panel language) anchored flush into the
+   photo's top-right corner, sharing its radius so it reads as part of the
+   card, not pasted on. Owner-sanctioned placement; the chip carries its own
+   contrast, no extra scrim. */
+.ov-strip-match.match-score {
+  position: absolute; top: 0; right: 0;
+  border-radius: 0 5px 0 9px;
+  border-top-width: 0; border-right-width: 0;
+  box-shadow: none;
+}
 .ov-strip-card:hover .ov-strip-img,
 .ov-strip-card:focus-visible .ov-strip-img { outline: 2px solid var(--ag-gold); outline-offset: -2px; box-shadow: 0 12px 28px rgba(201,165,90,.32); }
 .ov-strip-card:hover .ov-strip-img::after,

@@ -37,6 +37,7 @@ const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'))
 const AgencyInterviews = lazy(() => import('./domains/agency/pages/InterviewsPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
 const AgencyReminders = lazy(() => import('./domains/agency/pages/RemindersPage'));
+const AgencyAnalytics = lazy(() => import('./domains/agency/pages/AnalyticsPage'));
 const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
 const AgencyCalendar = lazy(() => import('./domains/agency/pages/BookingDeskPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
@@ -144,7 +145,7 @@ function App() {
               <Route path="/dashboard/agency/calendar" element={<AgencyCalendar />} />
               <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
               <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
-              <Route path="/dashboard/agency/analytics" element={<Navigate to="/dashboard/agency" replace />} />
+              <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
               <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
               <Route path="/dashboard/agency/team" element={<AgencyTeam />} />
               <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />

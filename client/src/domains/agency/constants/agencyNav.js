@@ -1,6 +1,6 @@
 import {
   LayoutGrid, Activity, Inbox, Clapperboard, CalendarClock, CalendarDays,
-  Telescope, Building2, Users,
+  Telescope, Building2, Users, BookOpenText,
 } from 'lucide-react';
 
 /** Collapse toggle sits after this group label in the rail. */
@@ -33,8 +33,9 @@ export const AGENCY_NAV_GROUPS = [
   {
     label: 'Organization',
     items: [
-      { label: 'Team',     to: '/dashboard/agency/team',     icon: Building2, permission: 'team.view'         },
-      { label: 'Activity', to: '/dashboard/agency/activity', icon: Activity,  permission: 'org.view_activity' },
+      { label: 'Team',     to: '/dashboard/agency/team',     icon: Building2,    permission: 'team.view'          },
+      { label: 'Activity', to: '/dashboard/agency/activity', icon: Activity,     permission: 'org.view_activity'  },
+      { label: 'Season',   to: '/dashboard/agency/analytics', icon: BookOpenText, permission: 'org.view_analytics' },
     ],
   },
 ];

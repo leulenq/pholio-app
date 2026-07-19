@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import MatchScore from '../ui/MatchScore';
 
 const DRAG_THRESHOLD = 6;
 
@@ -84,12 +85,7 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
   return (
     <section className="ov-module">
       <div className="ov-module-head">
-        <h2 className="ov-module-title">
-          {title}
-          {talents.length ? (
-            <span className="ov-module-count">{String(talents.length).padStart(2, '0')}</span>
-          ) : null}
-        </h2>
+        <h2 className="ov-module-title">{title}</h2>
         {viewAllTo && <Link to={viewAllTo} className="ov-module-link">View all</Link>}
       </div>
       {talents.length === 0 ? (
@@ -100,12 +96,14 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
             <button key={t.id} type="button" className="ov-strip-card" onClick={() => onSelect(t)}>
               <span className="ov-strip-photo">
                 <span className="ov-strip-img" style={{ backgroundImage: t.photo ? `url(${t.photo})` : 'none' }} />
+                {t.match != null && (
+                  <MatchScore score={t.match} size="xs" tone="overlay" className="ov-strip-match" />
+                )}
               </span>
               <span className="ov-strip-name">{t.name}</span>
               <span className="ov-strip-meta">
                 {t.typeLabel}
                 {t.city ? ` · ${t.city}` : ''}
-                {t.match != null ? ` · ${t.match} match` : ''}
               </span>
             </button>
           ))}

@@ -50,12 +50,7 @@ export default function BoardsTable({ boards, stages = [] }) {
   return (
     <section className="ov-module">
       <div className="ov-module-head">
-        <h2 className="ov-module-title">
-          Boards
-          {rows.length ? (
-            <span className="ov-module-count">{String(rows.length).padStart(2, '0')}</span>
-          ) : null}
-        </h2>
+        <h2 className="ov-module-title">Boards</h2>
         <Link to="/dashboard/agency/signing" className="ov-module-link">Manage all</Link>
       </div>
 

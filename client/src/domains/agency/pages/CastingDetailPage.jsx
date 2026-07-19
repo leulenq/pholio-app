@@ -6,7 +6,9 @@ import { toast } from 'sonner';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import {
   getCastingBoardPipeline, acceptApplication, shortlistApplication, declineApplication,
+  updateCastingApplicationStage,
 } from '../api/agency';
+import CastingKanban from '../components/casting-kanban/CastingKanban';
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import FitBriefsPanel from '../components/FitBriefs/FitBriefsPanel';
@@ -209,6 +211,31 @@ function CastingDetailPage() {
     qc.invalidateQueries({ queryKey: ['board-candidates', boardId] });
     qc.invalidateQueries({ queryKey: ['agency-boards'] });
   };
+  // Kanban drag: optimistic stage move with rollback. The card jumps to its
+  // column immediately; a failed PATCH restores the snapshot and toasts.
+  const stageMove = useMutation({
+    mutationFn: ({ applicationId, stage }) => updateCastingApplicationStage(applicationId, { stage }),
+    onMutate: async ({ applicationId, stage }) => {
+      await qc.cancelQueries({ queryKey: ['board-candidates', boardId] });
+      const previous = qc.getQueryData(['board-candidates', boardId]);
+      qc.setQueryData(['board-candidates', boardId], (old) => {
+        if (!old?.candidates) return old;
+        return {
+          ...old,
+          candidates: old.candidates.map((c) =>
+            (c.applicationId ?? c.id) === applicationId ? { ...c, stage } : c),
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['board-candidates', boardId], context.previous);
+      toast.error('Couldn’t move talent — restored');
+    },
+    onSuccess: (_data, { stage }) => toast.success(`Moved to ${stage}`),
+    onSettled: () => refresh(),
+  });
+
   const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
   const sign = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Signed to the board'); }, onError: () => toast.error('Action failed') });
   const pass = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });

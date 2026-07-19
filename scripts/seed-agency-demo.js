@@ -534,7 +534,9 @@ async function seedAgencyDemo(knex) {
         public_url: u,
         is_primary: true,
         sort: 0,
-        status: "ready",
+        // Must be "active": applyImageVisibility only passes NULL/'active',
+        // so 'ready' left every demo submission photo-less on agency surfaces.
+        status: "active",
         image_type: "headshot",
         created_at: p.created,
       };

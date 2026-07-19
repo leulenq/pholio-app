@@ -109,9 +109,9 @@ export default function OverviewPage() {
       <BoardsTable boards={boards} stages={stages} />
 
       <div className="ov-grid-3">
+        <NextMoves moves={nextMoves} />
         <ActivityFeed items={activity} />
         <TeamModule />
-        <NextMoves moves={nextMoves} />
       </div>
 
       <AnimatePresence>
