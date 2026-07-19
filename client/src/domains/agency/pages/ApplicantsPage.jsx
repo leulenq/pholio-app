@@ -448,6 +448,7 @@ function ApplicationsPage() {
   // ---- Review queue ----
   const openReview = useCallback((a) => { if (a) setReviewId(a.applicationId); }, []);
   const closeReview = useCallback(() => setReviewId(null), []);
+  const jumpReview = useCallback((id) => { if (id) setReviewId(id); }, []);
   const goNextReview = useCallback(() => {
     const { filtered: list, reviewId: rid } = triageRef.current;
     const idx = list.findIndex((a) => a.applicationId === rid);
@@ -934,10 +935,10 @@ function ApplicationsPage() {
             applicationId={reviewRow.applicationId}
             row={reviewRow}
             position={{ index: reviewIndex, total: filtered.length }}
-            onPrev={reviewIndex > 0 ? goPrevReview : null}
-            onNext={reviewIndex < filtered.length - 1 ? goNextReview : null}
             onClose={closeReview}
             onDecide={decideFromReview}
+            onJump={jumpReview}
+            queue={filtered}
             busy={Boolean(inFlight)}
           />
         )}

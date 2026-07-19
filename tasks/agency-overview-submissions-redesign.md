@@ -82,6 +82,26 @@ Submissions is now a review desk with two densities and one opinionated default:
   auto-advance after every decision. Keyboard lives in the page's single window handler so
   decisions can never double-fire.
 
+## Round 4 — the screening room (Review Room, rebuilt twice)
+
+First rebuild replaced the side drawer with a full-screen ink takeover but was rejected as
+weak. Audit of that version drove this one:
+- **Dead space, not immersion** → the photograph is now a real portrait frame filling the
+  left page's full height under a warm gold stage-light wash (the Overview hero's own DNA).
+- **No queue awareness** → a filmstrip of every face in the working set runs along the foot,
+  current one gold-ringed, decided ones dimmed, "N to review" count, click-to-jump (onJump).
+- **Undifferentiated data wall** → the comp-card band (Height · B/W/H · Shoe) is the dossier's
+  first data moment in large serif figures; the rest recede to a quiet two-up detail grid.
+- **Verdict outweighed the name** → score/tier/status now sit on one baseline, subordinate to
+  the cream Playfair name.
+- **Floating deck / orphaned metadata** → the decision deck terminates the reading column
+  (gold Sign leading, keycaps); bio and agency record carry section keys.
+- **No detail look** → click the photo (or the maximize control) to zoom; the zoom owns
+  Escape via capture so it closes without leaving the room.
+- Rendered through a **portal to `<body>`** so the takeover escapes the dashboard shell's
+  stacking context (the rail's own layer was bleeding through the ink). The room mounts once
+  (static key) so J/K page the queue with directional crossfades instead of remounting.
+
 ## Also fixed en route
 
 - `scripts/seed-agency-demo.js` wrote `images.status = "ready"`, which
