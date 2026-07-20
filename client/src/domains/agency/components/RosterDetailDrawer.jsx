@@ -5,14 +5,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Maximize2, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchRosterProfile, updateRosterMembership } from '../api/agency';
-import { AgencyButton, getStatusMeta, SkeletonRow } from './ui';
+import { AgencyButton, AgencyModal, getStatusMeta, SkeletonRow } from './ui';
 import { EmptyErrorState } from '../../../shared/components/states';
+import { TalentRecordForm } from '../pages/RosterPage';
 import {
   STAGE_LABELS,
   normalizeStatusKey,
   heightLine,
   measurementSummary,
   measurementAge,
+  measurementsToFormFields,
 } from '../pages/rosterFormat';
 import './RosterDetailDrawer.css';
 
@@ -48,6 +50,8 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
   const queryClient = useQueryClient();
   const [carouselIdx, setCarouselIdx] = useState(0);
 
+  const [editOpen, setEditOpen] = useState(false);
+
   const detailQuery = useQuery({
     queryKey: ['agency', 'roster-detail', item.id],
     queryFn: () => fetchRosterProfile(item.id),
@@ -55,6 +59,7 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
   const detail = detailQuery.data;
   const talent = detail?.talent || null;
   const membership = detail?.membership || null;
+  const isPrivateRecord = detail?.source === 'agency_private';
 
   const mutation = useMutation({
     mutationFn: (updates) => updateRosterMembership(item.id, updates),
@@ -80,6 +85,21 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
   }, [talent, item.imageUrl]);
   const multi = images.length > 1;
   const activeImage = images[Math.min(carouselIdx, images.length - 1)];
+
+  const editInitialValues = useMemo(() => {
+    if (!isPrivateRecord || !talent) return null;
+    return {
+      firstName: talent.first_name || '',
+      lastName: talent.last_name || '',
+      email: talent.email || '',
+      phone: talent.phone || '',
+      dateOfBirth: talent.date_of_birth ? String(talent.date_of_birth).slice(0, 10) : '',
+      gender: talent.gender || '',
+      heightCm: talent.height_cm ?? '',
+      market: talent.market || '',
+      ...measurementsToFormFields(talent.measurements),
+    };
+  }, [isPrivateRecord, talent]);
 
   const ledger = useLedgerRows(item, talent);
   const division = item.board?.name || 'Unassigned';
@@ -318,6 +338,11 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
               Return to active roster
             </AgencyButton>
           )}
+          {isPrivateRecord ? (
+            <AgencyButton onClick={() => setEditOpen(true)}>
+              Edit details
+            </AgencyButton>
+          ) : null}
           {sourceApplicationId ? (
             <AgencyButton onClick={() => navigate(`/dashboard/agency/talent/${sourceApplicationId}`)}>
               Open full profile
@@ -325,6 +350,22 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
           ) : null}
         </footer>
       </motion.aside>
+
+      {isPrivateRecord && editInitialValues ? (
+        <AgencyModal open={editOpen} onClose={() => setEditOpen(false)} title={`Edit ${item.name}`}>
+          <TalentRecordForm
+            mode="edit"
+            recordId={talent.id}
+            initialValues={editInitialValues}
+            onClose={() => setEditOpen(false)}
+            onSaved={() => {
+              setEditOpen(false);
+              queryClient.invalidateQueries({ queryKey: ['agency', 'roster-detail', item.id] });
+              onChanged?.();
+            }}
+          />
+        </AgencyModal>
+      ) : null}
     </>
   );
 }

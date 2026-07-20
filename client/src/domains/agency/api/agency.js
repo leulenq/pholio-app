@@ -274,6 +274,10 @@ export async function createTalentRecord(data) {
   return apiClient.post('/talent-records', data);
 }
 
+export async function updateTalentRecord(recordId, data) {
+  return apiClient.patch(`/talent-records/${recordId}`, data);
+}
+
 export async function updateRosterMembership(membershipId, data) {
   return apiClient.patch(`/roster-memberships/${membershipId}`, data);
 }
