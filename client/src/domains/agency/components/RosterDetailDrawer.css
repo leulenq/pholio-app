@@ -5,7 +5,7 @@
 .rd-scrim {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: calc(var(--ag-z-panel, 40) + 10);
   background: rgba(20, 17, 11, 0.44);
   /* Full-screen functional scrim — the one place blur is permitted (No-Glass rule). */
   backdrop-filter: blur(4px);
@@ -17,7 +17,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 201;
+  z-index: calc(var(--ag-z-panel, 40) + 11);
   display: flex;
   flex-direction: column;
   width: 540px;
