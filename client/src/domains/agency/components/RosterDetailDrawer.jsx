@@ -28,8 +28,11 @@ function getInitials(name) {
 
 /**
  * Physical ledger — prefers the canonical, track-driven `stats.fields` from the
- * Pholio profile DTO; falls back to the list row's height + measurement summary
- * for private agency records that carry no canonical stats.
+ * Pholio profile DTO; falls back to height + measurement summary for private
+ * agency records that carry no canonical stats. The fallback reads from the
+ * freshly-fetched `talent` record (not the roster list's `item` snapshot) so
+ * edits made via the "Edit details" form show up immediately without a stale
+ * re-render of the value that was just changed.
  */
 function useLedgerRows(item, talent) {
   return useMemo(() => {
@@ -37,9 +40,11 @@ function useLedgerRows(item, talent) {
     if (Array.isArray(fields) && fields.length) {
       return fields.map((field) => ({ label: field.label, value: field.value }));
     }
+    const heightCm = talent?.height_cm ?? item.heightCm;
+    const measurements = talent?.measurements ?? item.measurements;
     const rows = [];
-    if (item.heightCm) rows.push({ label: 'Height', value: heightLine(item.heightCm) });
-    const measure = measurementSummary(item);
+    if (heightCm) rows.push({ label: 'Height', value: heightLine(heightCm) });
+    const measure = measurementSummary({ measurements });
     if (measure !== 'Measurements incomplete') rows.push({ label: 'Measurements', value: measure });
     return rows;
   }, [item, talent]);
