@@ -193,6 +193,11 @@ const ROUTE_PERMISSION_RULES = [
   },
   {
     method: "PATCH",
+    pattern: /^\/api\/agency\/talent-records\/[^/]+$/,
+    permission: "roster.add_talent",
+  },
+  {
+    method: "PATCH",
     pattern: /^\/api\/agency\/roster-memberships\/[^/]+$/,
     permission: "roster.manage_status",
   },
