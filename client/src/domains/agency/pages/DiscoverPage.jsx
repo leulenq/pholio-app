@@ -38,6 +38,8 @@ const fmtHeight = (cm) => {
   const inch = Math.round(cm / 2.54);
   return `${Math.floor(inch / 12)}'${inch % 12}"`;
 };
+const AGE_BAND_LABEL = { under_18: 'Under 18', '18_or_older': '18+' };
+const fmtAgeBand = (band) => AGE_BAND_LABEL[band] || null;
 const firstPhoto = (imgs) => {
   const img = Array.isArray(imgs) ? imgs[0] : null;
   return img ? (img.public_url || img.path) : null;
@@ -105,7 +107,7 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
   // fixed height so absent data never reflows the grid.
   const headline = [
     talent.keyStat ? talent.keyStat.value : null,
-    talent.ageBand,
+    fmtAgeBand(talent.ageBand),
   ].filter(Boolean).join(' · ');
   const hasFacts = !!(talent.keyStat || talent.ageBand || talent.whyFacts || talent.annotations.length);
 
