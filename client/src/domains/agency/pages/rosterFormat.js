@@ -36,6 +36,20 @@ export function measurementSummary(item) {
   return `${ordered.join(' / ')} cm · ${ordered.map((value) => Math.round(value / 2.54)).join(' / ')} in`;
 }
 
+// Builds form-field values from a talent_records row's stored `measurements`
+// JSON so the edit form can prefill without the caller knowing the shape.
+export function measurementsToFormFields(measurements) {
+  const m = measurements || {};
+  return {
+    bustCm: m.bust_cm ?? '',
+    chestCm: m.chest_cm ?? '',
+    waistCm: m.waist_cm ?? '',
+    hipsCm: m.hips_cm ?? '',
+    inseamCm: m.inseam_cm ?? '',
+    shoeSize: m.shoe_size ?? '',
+  };
+}
+
 export function measurementAge(timestamp) {
   if (!timestamp) return 'Date not recorded';
   const ageDays = Math.floor((Date.now() - new Date(timestamp).getTime()) / 86400000);

@@ -67,6 +67,11 @@ const talentRecordSchema = z.object({
   isMinor: z.boolean().optional(),
 });
 
+const talentRecordUpdateSchema = talentRecordSchema
+  .omit({ boardId: true, stage: true })
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, "At least one field is required");
+
 const membershipUpdateSchema = z
   .object({
     boardId: z.string().uuid().nullable().optional(),
@@ -357,7 +362,10 @@ router.get("/api/agency/roster/:membershipOrProfileId", requireRole("AGENCY"), a
           "id",
           "first_name",
           "last_name",
+          "email",
+          "phone",
           "gender",
+          "date_of_birth",
           "height_cm",
           "measurements",
           "board_hint",
@@ -481,6 +489,49 @@ router.post("/api/agency/talent-records", requireRole("AGENCY"), async (req, res
     });
 
     return res.status(201).json({ success: true, data: { id: recordId, membershipId } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.patch("/api/agency/talent-records/:recordId", requireRole("AGENCY"), async (req, res, next) => {
+  try {
+    const parsed = talentRecordUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid talent record update", details: parsed.error.flatten() });
+    }
+    const value = parsed.data;
+    const agencyId = getSessionAgencyId(req.session);
+    const current = await knex("talent_records")
+      .where({ id: req.params.recordId, agency_id: agencyId })
+      .first();
+    if (!current) return res.status(404).json({ error: "Talent record not found" });
+
+    const update = { updated_at: knex.fn.now() };
+    if (Object.hasOwn(value, "firstName")) update.first_name = value.firstName;
+    if (Object.hasOwn(value, "lastName")) update.last_name = value.lastName;
+    if (Object.hasOwn(value, "email")) update.email = value.email || null;
+    if (Object.hasOwn(value, "phone")) update.phone = value.phone || null;
+    if (Object.hasOwn(value, "gender")) update.gender = value.gender || null;
+    if (Object.hasOwn(value, "heightCm")) update.height_cm = value.heightCm || null;
+    if (Object.hasOwn(value, "measurements")) {
+      update.measurements = value.measurements ? JSON.stringify(value.measurements) : null;
+    }
+    if (Object.hasOwn(value, "boardHint")) update.board_hint = value.boardHint || null;
+    if (Object.hasOwn(value, "market")) update.market = value.market || null;
+    if (Object.hasOwn(value, "dateOfBirth")) {
+      update.date_of_birth = value.dateOfBirth || null;
+      const isMinor = value.isMinor ?? calculateMinor(value.dateOfBirth);
+      update.is_minor = isMinor;
+      update.minor_consent_status = isMinor
+        ? (current.minor_consent_status === "verified" ? "verified" : "pending")
+        : "not_required";
+    } else if (Object.hasOwn(value, "isMinor")) {
+      update.is_minor = value.isMinor;
+    }
+
+    await knex("talent_records").where({ id: current.id }).update(update);
+    return res.json({ success: true, data: { id: current.id } });
   } catch (error) {
     return next(error);
   }

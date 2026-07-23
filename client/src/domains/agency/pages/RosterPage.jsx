@@ -7,6 +7,7 @@ import {
   createTalentRecord,
   fetchRoster,
   getBoards,
+  updateTalentRecord,
 } from '../api/agency';
 import { AgencyButton, AgencyModal, SkeletonRow, StatusText } from '../components/ui';
 import RosterDetailDrawer from '../components/RosterDetailDrawer';
@@ -36,6 +37,12 @@ const EMPTY_FORM = Object.freeze({
   market: '',
   boardId: '',
   stage: 'main',
+  bustCm: '',
+  chestCm: '',
+  waistCm: '',
+  hipsCm: '',
+  inseamCm: '',
+  shoeSize: '',
 });
 
 function RosterRow({ item, selected, onSelect }) {
@@ -89,13 +96,14 @@ function RosterRow({ item, selected, onSelect }) {
   );
 }
 
-function TalentRecordForm({ boards, onClose, onCreated }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+export function TalentRecordForm({ boards, onClose, onSaved, mode = 'create', recordId, initialValues }) {
+  const isEdit = mode === 'edit';
+  const [form, setForm] = useState({ ...EMPTY_FORM, ...initialValues });
   const mutation = useMutation({
-    mutationFn: createTalentRecord,
+    mutationFn: isEdit ? (data) => updateTalentRecord(recordId, data) : createTalentRecord,
     onSuccess: (data) => {
-      onCreated(data);
-      toast.success('Talent added to your private roster');
+      onSaved(data);
+      toast.success(isEdit ? 'Talent record updated' : 'Talent added to your private roster');
     },
   });
   const update = (event) => {
@@ -103,16 +111,30 @@ function TalentRecordForm({ boards, onClose, onCreated }) {
   };
   const submit = (event) => {
     event.preventDefault();
-    mutation.mutate({
-      ...form,
+    const measurements = {};
+    if (form.bustCm !== '') measurements.bust_cm = Number(form.bustCm);
+    if (form.chestCm !== '') measurements.chest_cm = Number(form.chestCm);
+    if (form.waistCm !== '') measurements.waist_cm = Number(form.waistCm);
+    if (form.hipsCm !== '') measurements.hips_cm = Number(form.hipsCm);
+    if (form.inseamCm !== '') measurements.inseam_cm = Number(form.inseamCm);
+    if (form.shoeSize !== '') measurements.shoe_size = form.shoeSize;
+
+    const payload = {
+      firstName: form.firstName,
+      lastName: form.lastName,
       email: form.email || null,
       phone: form.phone || null,
       dateOfBirth: form.dateOfBirth || null,
       gender: form.gender || null,
       market: form.market || null,
-      boardId: form.boardId || null,
       heightCm: form.heightCm ? Number(form.heightCm) : null,
-    });
+      measurements: Object.keys(measurements).length ? measurements : null,
+    };
+    if (!isEdit) {
+      payload.boardId = form.boardId || null;
+      payload.stage = form.stage;
+    }
+    mutation.mutate(payload);
   };
 
   return (
@@ -153,30 +175,63 @@ function TalentRecordForm({ boards, onClose, onCreated }) {
           Market
           <input name="market" value={form.market} onChange={update} maxLength={160} />
         </label>
+        {!isEdit && (
+          <label>
+            Division
+            <select name="boardId" value={form.boardId} onChange={update}>
+              <option value="">Unassigned</option>
+              {boards.map((board) => <option value={board.id} key={board.id}>{board.name}</option>)}
+            </select>
+          </label>
+        )}
+        {!isEdit && (
+          <label>
+            Stage
+            <select name="stage" value={form.stage} onChange={update}>
+              <option value="main">Main</option>
+              <option value="development">Development</option>
+              <option value="new_face">New Face</option>
+            </select>
+          </label>
+        )}
+      </div>
+
+      <p className="ag-roster-form-section-title">Measurements</p>
+      <div className="ag-roster-form-grid">
         <label>
-          Division
-          <select name="boardId" value={form.boardId} onChange={update}>
-            <option value="">Unassigned</option>
-            {boards.map((board) => <option value={board.id} key={board.id}>{board.name}</option>)}
-          </select>
+          Bust in cm
+          <input name="bustCm" type="number" min="20" max="250" value={form.bustCm} onChange={update} />
         </label>
         <label>
-          Stage
-          <select name="stage" value={form.stage} onChange={update}>
-            <option value="main">Main</option>
-            <option value="development">Development</option>
-            <option value="new_face">New Face</option>
-          </select>
+          Chest in cm
+          <input name="chestCm" type="number" min="20" max="250" value={form.chestCm} onChange={update} />
+        </label>
+        <label>
+          Waist in cm
+          <input name="waistCm" type="number" min="20" max="250" value={form.waistCm} onChange={update} />
+        </label>
+        <label>
+          Hips in cm
+          <input name="hipsCm" type="number" min="20" max="250" value={form.hipsCm} onChange={update} />
+        </label>
+        <label>
+          Inseam in cm
+          <input name="inseamCm" type="number" min="20" max="180" value={form.inseamCm} onChange={update} />
+        </label>
+        <label>
+          Shoe size
+          <input name="shoeSize" value={form.shoeSize} onChange={update} maxLength={30} />
         </label>
       </div>
+
       {mutation.isError ? (
         <p className="ag-roster-form-error" role="alert">
-          {mutation.error?.message || 'Could not add this talent.'}
+          {mutation.error?.message || 'Could not save this talent.'}
         </p>
       ) : null}
       <div className="ag-roster-form-actions">
         <AgencyButton variant="secondary" onClick={onClose}>Cancel</AgencyButton>
-        <AgencyButton type="submit" loading={mutation.isPending}>Add to roster</AgencyButton>
+        <AgencyButton type="submit" loading={mutation.isPending}>{isEdit ? 'Save changes' : 'Add to roster'}</AgencyButton>
       </div>
     </form>
   );
@@ -310,7 +365,7 @@ export default function RosterPage() {
         <TalentRecordForm
           boards={boards}
           onClose={() => setAddOpen(false)}
-          onCreated={() => { setAddOpen(false); refresh(); }}
+          onSaved={() => { setAddOpen(false); refresh(); }}
         />
       </AgencyModal>
     </main>
