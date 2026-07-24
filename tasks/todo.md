@@ -3,14 +3,13 @@
 ## Plan
 - [x] Locate error: server rejects first-time TALENT create without `terms_accepted`/`privacy_accepted`
 - [x] Confirm LoginPage shows LegalNoticeLine but does not send acceptance flags
-- [x] Fix LoginPage + InstagramCallbackPage to send browsewrap acceptance (CastingEntry pattern)
-- [x] Add regression tests for reject / accept / existing-user paths
+- [x] Product correction: unknown Google login users must go to `/onboarding`, not auto-create
+- [x] Return `NEEDS_ONBOARDING` from `POST /api/login`; client redirects to casting
+- [x] Keep agency invite auto-provision; update regression tests
 - [x] Run tests and ship
 
 ## Review
-Root cause: Google sign-in on `/login` authenticates with Firebase, then POSTs `/api/login` with only `firebase_token`. For accounts not yet in Pholio DB, the server auto-creates TALENT and requires ToS/Privacy flags. Onboarding already sent those flags; login did not — so first-time Google login failed with the acceptance error.
-
-Fix: send `{ terms_accepted: true, privacy_accepted: true }` from LoginPage and InstagramCallbackPage (matching CastingEntry + LegalNoticeLine browsewrap). Regression coverage in `tests/security/talent-login-terms-acceptance.test.js` (3 passing).
+First-time Google sign-in on `/login` was failing with a ToS error because login tried to auto-create talent without acceptance flags. Correct product behavior: **login never creates talent accounts**. Unknown Firebase identities now get `404 NEEDS_ONBOARDING` + `redirect: /onboarding`; LoginPage / Instagram login callback follow that redirect. Legal acceptance stays on `/onboarding/entry`. Agency invite provisioning unchanged. Tests: `tests/security/talent-login-onboarding-redirect.test.js` + agency session rotation.
 
 ---
 
