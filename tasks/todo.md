@@ -6,10 +6,11 @@
 - [x] Product correction: unknown Google login users must go to `/onboarding`, not auto-create
 - [x] Return `NEEDS_ONBOARDING` from `POST /api/login`; client redirects to casting
 - [x] Keep agency invite auto-provision; update regression tests
+- [x] Handoff Google Firebase session into casting (`?continue=google`) so OAuth is not clicked twice
 - [x] Run tests and ship
 
 ## Review
-First-time Google sign-in on `/login` was failing with a ToS error because login tried to auto-create talent without acceptance flags. Correct product behavior: **login never creates talent accounts**. Unknown Firebase identities now get `404 NEEDS_ONBOARDING` + `redirect: /onboarding`; LoginPage / Instagram login callback follow that redirect. Legal acceptance stays on `/onboarding/entry`. Agency invite provisioning unchanged. Tests: `tests/security/talent-login-onboarding-redirect.test.js` + agency session rotation.
+First-time Google sign-in on `/login` was failing with a ToS error because login tried to auto-create talent without acceptance flags. Correct product behavior: **login never creates talent accounts**. Unknown Firebase identities now get `404 NEEDS_ONBOARDING`; LoginPage stashes Google profile + redirects to `/onboarding?continue=google`. CastingEntry resumes from `auth.currentUser` (no second Google click), calls `/onboarding/entry`, and collects DOB inline if the adult gate requires it. Agency invite provisioning unchanged.
 
 ---
 
