@@ -8,7 +8,10 @@ Fill Google and Instagram sign-in buttons on `/login` with each provider's nativ
 - [x] Style Google button with official Google Identity look (white fill + multicolor G)
 - [x] Style Instagram button with Instagram brand gradient fill + white glyph
 - [x] Keep hover/focus/disabled/loading states and a11y
-- [ ] Visual check, commit, push, PR
+- [x] Visual check, commit, push, PR
+
+## Review
+Login `/login` social row now matches onboarding auth-door branding: Google Identity white fill + multicolor G; Instagram gradient fill + white glyph. Browser QA on Vite `:5173/login` confirmed both fills.
 
 ## Design rule
 Product register: familiar OAuth affordances; brand fills belong to the provider, not Pholio gold chrome.
