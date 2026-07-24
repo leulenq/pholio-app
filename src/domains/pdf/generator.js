@@ -23,7 +23,11 @@ const {
 let chromium = null;
 if (config.isServerless) {
   try {
-    chromium = require("@sparticuz/chromium");
+    // @sparticuz/chromium v149 ships as an ESM/CJS interop bundle where the
+    // runtime API (`args`, `executablePath()`) lives on the `default` export.
+    // Older versions expose it on module.exports directly, so normalize both.
+    const chromiumModule = require("@sparticuz/chromium");
+    chromium = chromiumModule.default || chromiumModule;
   } catch (error) {
     console.warn(
       "[renderCompCard] @sparticuz/chromium not available, falling back to default Puppeteer",
