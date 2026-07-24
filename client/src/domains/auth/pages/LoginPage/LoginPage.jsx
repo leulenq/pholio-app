@@ -57,7 +57,14 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(null);
+  // A bounce from api-client.js's 401 handler (session looked valid, then the
+  // very next request came back unauthenticated) carries reason=session_expired
+  // so this isn't a silent, unexplained return to a blank login form.
+  const [error, setError] = useState(() =>
+    searchParams.get('reason') === 'session_expired'
+      ? 'Your session couldn’t be verified. Please sign in again.'
+      : null,
+  );
   const [resetSent, setResetSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);

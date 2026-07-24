@@ -401,6 +401,37 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
 
       // Create user if doesn't exist
       if (!user) {
+        // Diagnostic only (no behavior change): about to create a brand-new
+        // account for this identity. If a row already exists for this email
+        // under a different firebase_uid (or was skipped because the token's
+        // email is unverified), log it — this is the exact "already had an
+        // account but got signed up again" scenario, and otherwise leaves no
+        // trace once entry succeeds and a second profile is created.
+        if (providerUser.email) {
+          try {
+            const possibleMatch = await knex("users")
+              .whereRaw("LOWER(email) = ?", [normalizedEmail])
+              .first();
+            if (possibleMatch) {
+              console.warn(
+                "[Casting Entry] Existing account found by email but did not match — creating a new account:",
+                {
+                  incomingFirebaseUid: providerUser.uid,
+                  incomingEmailVerified: emailVerified,
+                  existingUserId: possibleMatch.id,
+                  existingFirebaseUid: possibleMatch.firebase_uid,
+                  existingRole: possibleMatch.role,
+                },
+              );
+            }
+          } catch (diagError) {
+            console.warn(
+              "[Casting Entry] Account-match diagnostic lookup failed:",
+              diagError.message,
+            );
+          }
+        }
+
         if (!termsAccepted) {
           return res.status(400).json({
             error: "Terms acceptance required",
@@ -604,6 +635,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
     // Session fixation defense: regenerate the session (issuing a fresh id)
     // BEFORE binding the authenticated identity to it, then persist. Any id an
     // unauthenticated client may have held is discarded before it carries auth.
+    const preRegenerateSessionId = req.sessionID;
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => {
         if (err) reject(err);
@@ -620,6 +652,12 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         if (err) reject(err);
         else resolve();
       });
+    });
+    console.log("[Casting Entry] Session established:", {
+      preRegenerateSessionId,
+      postRegenerateSessionId: req.sessionID,
+      userId: user.id,
+      profileId: profile.id,
     });
 
     // The DOB screen is now pre-authentication. Mark the eligibility beat
