@@ -304,13 +304,37 @@ function requireActiveAccount() {
     }
 
     try {
-      const user = await knex("users")
+      let user = await knex("users")
         .where({ id: accountUserId })
         .select("account_status")
         .first();
 
-      // Missing user row (e.g. account deleted while session persists) — clear stale session.
+      // Missing user row — this destroys the session outright, so a request
+      // landing here right after the row was just written (session.regenerate()
+      // in /login or /onboarding/entry runs immediately after the insert/lookup
+      // that established req.session.userId) must not be confused with a
+      // genuinely deleted account: a single transient read miss (a lagging
+      // pooled/replica DB connection, a brief connection hiccup) would
+      // otherwise silently and permanently kill a session that is actually
+      // fine, with no trace in the logs. One short retry absorbs that
+      // false-positive window; a real deletion still gets caught on retry.
       if (!user) {
+        console.warn(
+          "[requireActiveAccount] users row not found on first read — retrying before treating as deleted:",
+          { userId: accountUserId, path: req.originalUrl || req.path },
+        );
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        user = await knex("users")
+          .where({ id: accountUserId })
+          .select("account_status")
+          .first();
+      }
+
+      if (!user) {
+        console.warn(
+          "[requireActiveAccount] users row still not found after retry — destroying session:",
+          { userId: accountUserId, path: req.originalUrl || req.path },
+        );
         return req.session.destroy((destroyErr) => {
           if (destroyErr) return next(destroyErr);
           return next();
