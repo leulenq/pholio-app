@@ -2518,12 +2518,18 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
 
 Keep Google/OAuth provider pictures on `users.avatar_url` (account avatar). Never ingest into talent book/media (`images`).
 
-- [ ] Helper: sync provider picture → `users.avatar_url` only
-- [ ] Stop seeding OAuth picture into `images` (casting entry + auth-helpers)
-- [ ] Sync avatar on login when provider picture present
-- [ ] Expose `avatar_url` on talent profile API `user`
-- [ ] TalentLayout account chip uses account avatar
-- [ ] Migrate existing remote OAuth image seeds → avatar_url + delete rows
-- [ ] Exclude leftover provider seeds from talent media/profile image lists
-- [ ] Update tests + add regression coverage
-- [ ] Verify focused tests
+- [x] Helper: sync provider picture → `users.avatar_url` only
+- [x] Stop seeding OAuth picture into `images` (casting entry + auth-helpers)
+- [x] Sync avatar on login when provider picture present
+- [x] Expose `avatar_url` on talent profile API `user`
+- [x] TalentLayout account chip uses account avatar
+- [x] Migrate existing remote OAuth image seeds → avatar_url + delete rows
+- [x] Exclude leftover provider seeds from talent media/profile image lists
+- [x] Update tests + add regression coverage
+- [x] Verify focused tests
+
+### Review
+- Root cause: casting entry + auth-helpers inserted OAuth `picture` into `images` as primary.
+- Fix: `users.avatar_url` only; reclaim migration + GET-time reclaim; talent shell uses account avatar.
+- Verified: account-avatar unit (6), oauth integration (1), M4 (2), e2e casting (15) — all green via `npm test` safe runner.
+
