@@ -13,6 +13,7 @@ const {
   createUser: createFirebaseUser,
   getUserByEmail,
 } = require("../services/firebase-admin");
+const { findUserByFirebaseIdentity } = require("../services/account-matching");
 const { extractIdToken } = require("../middleware/firebase-auth");
 const {
   resolveAgencyContextForMemberUser,
@@ -454,134 +455,129 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       }
     }
 
-    // Look up user in database by Firebase UID
-    let user = await knex("users").where({ firebase_uid: firebaseUid }).first();
+    // Look up user in database by Firebase UID, falling back to a
+    // verified-email match (see account-matching.js for why the order and
+    // the emailVerified gate both matter).
+    let user = await findUserByFirebaseIdentity(knex, {
+      firebaseUid,
+      email,
+      emailVerified,
+    });
 
-    // Fallback: match an existing account by email ONLY when Firebase asserts a
-    // verified email. Matching (and binding firebase_uid to) a pre-existing row
-    // on an UNVERIFIED email claim is an account-takeover vector — a user whose
-    // email isn't registered in Firebase (seeds, imports, legacy/Instagram
-    // rows) could otherwise be claimed by registering that email and logging in
-    // with an unverified token (audit finding H3).
-    if (!user && email && emailVerified) {
-      const normalizedEmail = email.toLowerCase().trim();
-      user = await knex("users").where({ email: normalizedEmail }).first();
+    // If user exists but doesn't have firebase_uid, update it and update profile with Google data
+    if (user && !user.firebase_uid) {
+      await knex("users")
+        .where({ id: user.id })
+        .update({ firebase_uid: firebaseUid });
+      console.log("[Login] Updated user with Firebase UID:", {
+        userId: user.id,
+        firebaseUid,
+      });
 
-      // If user exists but doesn't have firebase_uid, update it and update profile with Google data
-      if (user && !user.firebase_uid) {
-        await knex("users")
-          .where({ id: user.id })
-          .update({ firebase_uid: firebaseUid });
-        console.log("[Login] Updated user with Firebase UID:", {
-          userId: user.id,
-          firebaseUid,
-        });
+      // Update existing profile with Google name/picture and IP geolocation if available
+      if (firstName && user.role === "TALENT") {
+        const existingProfile = await knex("profiles")
+          .where({ user_id: user.id })
+          .first();
+        if (existingProfile) {
+          const updateData = {};
+          if (!existingProfile.first_name && firstName) {
+            updateData.first_name = firstName;
+          }
+          if (!existingProfile.last_name && lastName) {
+            updateData.last_name = lastName;
+          }
 
-        // Update existing profile with Google name/picture and IP geolocation if available
-        if (firstName && user.role === "TALENT") {
-          const existingProfile = await knex("profiles")
-            .where({ user_id: user.id })
+          // Capture IP geolocation and store in onboarding_signals (if not already set)
+          let geoData = {};
+          const existingSignals = await knex("onboarding_signals")
+            .where({ profile_id: existingProfile.id })
             .first();
-          if (existingProfile) {
-            const updateData = {};
-            if (!existingProfile.first_name && firstName) {
-              updateData.first_name = firstName;
-            }
-            if (!existingProfile.last_name && lastName) {
-              updateData.last_name = lastName;
-            }
 
-            // Capture IP geolocation and store in onboarding_signals (if not already set)
-            let geoData = {};
-            const existingSignals = await knex("onboarding_signals")
-              .where({ profile_id: existingProfile.id })
-              .first();
+          if (!existingSignals?.ip_address || !existingSignals?.ip_country) {
+            const clientIP =
+              req.ip ||
+              req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+              null;
+            if (clientIP) {
+              try {
+                const ipGeolocationData = await getIPGeolocation(clientIP);
+                if (ipGeolocationData) {
+                  if (!existingSignals?.ip_address)
+                    geoData.ip_address = ipGeolocationData.ip_address;
+                  if (!existingSignals?.ip_country)
+                    geoData.ip_country = ipGeolocationData.country;
+                  if (!existingSignals?.ip_region)
+                    geoData.ip_region = ipGeolocationData.region;
+                  if (!existingSignals?.ip_city)
+                    geoData.ip_city = ipGeolocationData.city;
+                  if (!existingSignals?.ip_timezone)
+                    geoData.ip_timezone = ipGeolocationData.timezone;
 
-            if (!existingSignals?.ip_address || !existingSignals?.ip_country) {
-              const clientIP =
-                req.ip ||
-                req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-                null;
-              if (clientIP) {
-                try {
-                  const ipGeolocationData = await getIPGeolocation(clientIP);
-                  if (ipGeolocationData) {
-                    if (!existingSignals?.ip_address)
-                      geoData.ip_address = ipGeolocationData.ip_address;
-                    if (!existingSignals?.ip_country)
-                      geoData.ip_country = ipGeolocationData.country;
-                    if (!existingSignals?.ip_region)
-                      geoData.ip_region = ipGeolocationData.region;
-                    if (!existingSignals?.ip_city)
-                      geoData.ip_city = ipGeolocationData.city;
-                    if (!existingSignals?.ip_timezone)
-                      geoData.ip_timezone = ipGeolocationData.timezone;
-
-                    // Update verified location intel
-                    const verifiedLocationIntel = createVerifiedLocationIntel(
-                      ipGeolocationData,
-                      existingProfile.city,
-                    );
-                    if (verifiedLocationIntel) {
-                      geoData.verified_location_intel = JSON.stringify(
-                        verifiedLocationIntel,
-                      );
-                    }
-                  }
-                } catch (geoError) {
-                  // Non-critical - continue without geolocation
-                  console.warn(
-                    "[Login] Error fetching IP geolocation for existing profile:",
-                    geoError.message,
+                  // Update verified location intel
+                  const verifiedLocationIntel = createVerifiedLocationIntel(
+                    ipGeolocationData,
+                    existingProfile.city,
                   );
+                  if (verifiedLocationIntel) {
+                    geoData.verified_location_intel = JSON.stringify(
+                      verifiedLocationIntel,
+                    );
+                  }
                 }
+              } catch (geoError) {
+                // Non-critical - continue without geolocation
+                console.warn(
+                  "[Login] Error fetching IP geolocation for existing profile:",
+                  geoError.message,
+                );
               }
             }
+          }
 
-            if (Object.keys(updateData).length > 0) {
-              await knex("profiles")
-                .where({ id: existingProfile.id })
-                .update(updateData);
-              console.log(
-                "[Login] Updated existing profile with Google data:",
-                updateData,
-              );
-            }
+          if (Object.keys(updateData).length > 0) {
+            await knex("profiles")
+              .where({ id: existingProfile.id })
+              .update(updateData);
+            console.log(
+              "[Login] Updated existing profile with Google data:",
+              updateData,
+            );
+          }
 
-            // Store geo/OAuth data in onboarding_signals
-            if (Object.keys(geoData).length > 0) {
-              if (existingSignals) {
-                await knex("onboarding_signals")
-                  .where({ profile_id: existingProfile.id })
-                  .update({
-                    ...geoData,
-                    updated_at: knex.fn.now(),
-                  });
-              } else {
-                // Create new onboarding_signals row
-                const { v4: uuidv4 } = require("uuid");
-                const isPostgres =
-                  knex.client.config.client === "pg" ||
-                  knex.client.config.client === "postgresql";
-                const insertData = {
-                  profile_id: existingProfile.id,
-                  user_edits_count: 0,
+          // Store geo/OAuth data in onboarding_signals
+          if (Object.keys(geoData).length > 0) {
+            if (existingSignals) {
+              await knex("onboarding_signals")
+                .where({ profile_id: existingProfile.id })
+                .update({
                   ...geoData,
-                  created_at: knex.fn.now(),
                   updated_at: knex.fn.now(),
-                };
-                if (isPostgres) {
-                  insertData.id = knex.raw("gen_random_uuid()");
-                } else {
-                  insertData.id = uuidv4();
-                }
-                await knex("onboarding_signals").insert(insertData);
+                });
+            } else {
+              // Create new onboarding_signals row
+              const { v4: uuidv4 } = require("uuid");
+              const isPostgres =
+                knex.client.config.client === "pg" ||
+                knex.client.config.client === "postgresql";
+              const insertData = {
+                profile_id: existingProfile.id,
+                user_edits_count: 0,
+                ...geoData,
+                created_at: knex.fn.now(),
+                updated_at: knex.fn.now(),
+              };
+              if (isPostgres) {
+                insertData.id = knex.raw("gen_random_uuid()");
+              } else {
+                insertData.id = uuidv4();
               }
-              console.log(
-                "[Login] Stored geolocation data in onboarding_signals:",
-                geoData,
-              );
+              await knex("onboarding_signals").insert(insertData);
             }
+            console.log(
+              "[Login] Stored geolocation data in onboarding_signals:",
+              geoData,
+            );
           }
         }
       }
