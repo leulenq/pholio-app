@@ -35,7 +35,8 @@ export default function TalentLayout({ outletContext = {}, children }) {
   const initials = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || 'ME';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || profile?.name || user?.email || 'Talent user';
   const email = profile?.email || user?.email || '';
-  const profileImage = profile?.profile_image || profile?.hero_image_path || '';
+  // Account avatar layer (OAuth / users.avatar_url) — never the book primary.
+  const profileImage = user?.avatar_url || '';
   const isStudioPlus = Boolean(profile?.is_pro || profile?.subscription?.isPro || user?.subscription?.isPro);
   const tierLabel = isStudioPlus ? 'Studio+' : 'Free';
 

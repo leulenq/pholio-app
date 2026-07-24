@@ -16,6 +16,7 @@ const {
   normalizeInstagramUser,
 } = require("./providers/instagram");
 const { initialState } = require("./state-machine");
+const { syncProviderAccountAvatar } = require("../../../shared/lib/account-avatar");
 
 /**
  * Normalize email address
@@ -139,18 +140,8 @@ async function ensureUserAndDraftProfile(providerUser, lockedAgencyId = null) {
       await saveProfileSocialFields(profileId, { instagram_handle });
     }
 
-    // Sync provider picture to images table as primary
-    if (picture) {
-      await knex("images").insert({
-        id: uuidv4(),
-        profile_id: profileId,
-        path: picture,
-        public_url: picture,
-        is_primary: true,
-        sort: 0,
-        created_at: knex.fn.now(),
-      });
-    }
+    // OAuth picture → account avatar only (never the book / images table).
+    await syncProviderAccountAvatar(knex, user.id, picture);
     profile = await knex("profiles").where({ id: profileId }).first();
     if (profile) {
       profile = await injectSocialFields(profile);
@@ -182,23 +173,8 @@ async function ensureUserAndDraftProfile(providerUser, lockedAgencyId = null) {
       }
     }
 
-    // Update hero image if profile picture available and no primary exists
-    if (picture) {
-      const primary = await knex("images")
-        .where({ profile_id: profile.id, is_primary: true })
-        .first();
-      if (!primary) {
-        await knex("images").insert({
-          id: uuidv4(),
-          profile_id: profile.id,
-          path: picture,
-          public_url: picture,
-          is_primary: true,
-          sort: 0,
-          created_at: knex.fn.now(),
-        });
-      }
-    }
+    // Refresh account avatar from provider; do not touch curated media.
+    await syncProviderAccountAvatar(knex, user.id, picture);
 
     // Update Instagram handle if provided and not set
     if (instagram_handle && !profile.instagram_handle) {

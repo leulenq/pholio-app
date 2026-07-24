@@ -6,10 +6,15 @@ function resolveImageUrl(url) {
   return `/${url}`;
 }
 
-export function resolveTalentEntryAvatar(profile, images) {
-  const primary = profile?.photo_url_primary;
-  if (primary) return resolveImageUrl(primary);
-  return resolveImageUrl(images?.[0]?.path);
+/**
+ * Account avatar for talent entry splash.
+ * Prefer `users.avatar_url` (OAuth). Never treat book/media frames as the
+ * account avatar — curated portfolio assets stay in the book layer.
+ */
+export function resolveTalentEntryAvatar(profile, images, user) {
+  const accountAvatar = user?.avatar_url || profile?.avatar_url;
+  if (accountAvatar) return resolveImageUrl(accountAvatar);
+  return null;
 }
 
 export function resolveAgencyEntryAvatar(profile) {

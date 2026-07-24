@@ -30,6 +30,7 @@ const {
   getIPGeolocation,
   createVerifiedLocationIntel,
 } = require("../../../shared/lib/geolocation");
+const { syncProviderAccountAvatar } = require("../../../shared/lib/account-avatar");
 const { sendPasswordResetViaSmtp } = require("../services/email-verification");
 const {
   acceptTeamInvitation,
@@ -817,6 +818,18 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
         .where({ id: user.id })
         .update({ email_verified: true });
       user.email_verified = true;
+    }
+
+    // Account avatar layer only — never write provider pictures into images/book.
+    if (user.role === "TALENT" && providerUser.picture) {
+      try {
+        await syncProviderAccountAvatar(knex, user.id, providerUser.picture);
+      } catch (avatarError) {
+        console.warn(
+          "[Login] Error syncing account avatar:",
+          avatarError.message,
+        );
+      }
     }
 
     console.log("[Login] Login successful for user:", {
