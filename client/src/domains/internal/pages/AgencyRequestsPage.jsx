@@ -42,6 +42,7 @@ export default function AgencyRequestsPage() {
   const [notes, setNotes] = useState('');
   const [callAt, setCallAt] = useState('');
 
+  // loadList is kept for runAction refreshes (user event — synchronous setState is fine there).
   const loadList = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -65,15 +66,53 @@ export default function AgencyRequestsPage() {
     }
   }, [status]);
 
-  useEffect(() => {
-    loadList();
-  }, [loadList]);
+  // Adjust during render: show loading immediately when status filter changes.
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (status !== prevStatus) {
+    setPrevStatus(status);
+    setLoading(true);
+    setError('');
+  }
 
+  // Fetch list on mount and when status changes — no synchronous setState in the effect body.
   useEffect(() => {
-    if (!selectedId) {
-      setDetail(null);
-      return;
-    }
+    let active = true;
+    listAgencyRequests(status)
+      .then((result) => {
+        if (!active) return;
+        setRequests(result.items || []);
+        setSelectedId((current) => {
+          if (current && result.items?.some((item) => item.id === current)) return current;
+          return result.items?.[0]?.id || null;
+        });
+        setError('');
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        setError(
+          requestError.status === 403
+            ? 'This workspace is restricted to authorized Pholio staff.'
+            : requestError.message,
+        );
+        setRequests([]);
+        setSelectedId(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [status]);
+
+  // Adjust during render: clear detail immediately when no item is selected.
+  const [prevSelectedId, setPrevSelectedId] = useState(selectedId);
+  if (selectedId !== prevSelectedId) {
+    setPrevSelectedId(selectedId);
+    if (!selectedId) setDetail(null);
+  }
+
+  // Fetch detail for the selected request — only runs when selectedId is set.
+  useEffect(() => {
+    if (!selectedId) return undefined;
     let active = true;
     getAgencyRequest(selectedId)
       .then((result) => {

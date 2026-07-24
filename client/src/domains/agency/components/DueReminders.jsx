@@ -16,6 +16,7 @@ export default function DueReminders() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
+  // fetchDue is kept for the retry button (user event — synchronous setState is fine there).
   const fetchDue = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
@@ -31,9 +32,23 @@ export default function DueReminders() {
     }
   }, []);
 
+  // Initial mount fetch — all setState calls happen inside async callbacks, not synchronously.
   useEffect(() => {
-    fetchDue();
-  }, [fetchDue]);
+    let active = true;
+    getDueRemindersCount()
+      .then((data) => {
+        if (active) { setDueData(data); setLoadError(null); setLoading(false); }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error('[DueReminders] Error:', err);
+          setLoadError(err);
+          setDueData(null);
+          setLoading(false);
+        }
+      });
+    return () => { active = false; };
+  }, []);
 
   if (loading) {
     return <div className="rm-due-widget rm-due-widget--loading">Loading…</div>;

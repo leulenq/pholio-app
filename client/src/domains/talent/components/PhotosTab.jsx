@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { ImagePlus, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -99,10 +99,12 @@ export const PhotosTab = ({ onPhotoUploaded }) => {
   const [settingHeroId, setSettingHeroId] = useState(null);
   const [uploadTransferError, setUploadTransferError] = useState(null);
 
-  useEffect(() => {
-    if (!Array.isArray(authImages)) return;
-    setPhotos(mapImagesToPhotos(authImages));
-  }, [authImages]);
+  // Sync server images into local state during render (adjust during render).
+  const [prevAuthImages, setPrevAuthImages] = useState(authImages);
+  if (authImages !== prevAuthImages) {
+    setPrevAuthImages(authImages);
+    if (Array.isArray(authImages)) setPhotos(mapImagesToPhotos(authImages));
+  }
 
   const resyncPhotosFromServer = async () => {
     const data = await talentApi.getProfile();

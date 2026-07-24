@@ -43,9 +43,12 @@ export default function BoardIdentityEditor({ board, open, onClose }) {
   const logoRef = useRef(null);
   const coverRef = useRef(null);
 
-  // Reset the draft each time the editor opens for a board.
-  useEffect(() => {
-    if (open) {
+  // Reset the draft each time the editor opens for a board (adjust during render).
+  const openKey = open ? (board?.id ?? 'open') : null;
+  const [prevOpenKey, setPrevOpenKey] = useState(openKey);
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey);
+    if (open && board) {
       setDraft({
         brand_color: board.brand_color || null,
         plate_style: board.plate_style || null,
@@ -54,7 +57,7 @@ export default function BoardIdentityEditor({ board, open, onClose }) {
       });
       setHexInput(board.brand_color || '');
     }
-  }, [open, board]);
+  }
 
   useEffect(() => {
     if (!open) return undefined;

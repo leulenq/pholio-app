@@ -919,6 +919,7 @@ export default function ApplyExperience() {
     const server = draftQuery.data || null;
     if (server && server.payload) {
       const serverDocument = clientDraftDocument(server);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration guarded by hydratedFor ref; setState inside applyDraftDocument is intentional
       applyDraftDocument(serverDocument);
       draftVersionRef.current = Number(server.version) || 0;
       draftGenerationRef.current = Number(server.generation) || 0;
@@ -1022,7 +1023,8 @@ export default function ApplyExperience() {
     }
   }, [draftClientId, draftHydrated, selectedAgencyId]);
 
-  persistDraftRef.current = persistDraftDocument;
+  // Keep the ref current after every render without a ref mutation during render.
+  useEffect(() => { persistDraftRef.current = persistDraftDocument; });
 
   // The server write follows after a short idle window.
   useEffect(() => {
@@ -1413,12 +1415,23 @@ export default function ApplyExperience() {
     consent &&
     consentBindingMatches(consentBinding, consentPackageKey);
 
-  useEffect(() => {
+  // Adjust during render: invalidate stale consent when the binding no longer matches the package.
+  const [prevAdultConsentCurrent, setPrevAdultConsentCurrent] = useState(adultConsentCurrent);
+  const [prevConsentMinor, setPrevConsentMinor] = useState(minor);
+  const [prevConsent, setPrevConsent] = useState(consent);
+  if (
+    adultConsentCurrent !== prevAdultConsentCurrent
+    || minor !== prevConsentMinor
+    || consent !== prevConsent
+  ) {
+    setPrevAdultConsentCurrent(adultConsentCurrent);
+    setPrevConsentMinor(minor);
+    setPrevConsent(consent);
     if (!minor && consent && !adultConsentCurrent) {
       setConsent(false);
       setConsentBinding(null);
     }
-  }, [adultConsentCurrent, consent, minor]);
+  }
 
   const handleAdultConsentChange = useCallback(
     async (checked) => {

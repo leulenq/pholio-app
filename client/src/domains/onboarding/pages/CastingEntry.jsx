@@ -94,7 +94,8 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
   const entryMutation = useCastingEntry();
   const resumeStartedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  // Keep the ref current after every render without a ref mutation during render.
+  React.useLayoutEffect(() => { onCompleteRef.current = onComplete; });
 
   // Propagate authenticating state up to hide progress bars
   React.useEffect(() => {
@@ -103,18 +104,17 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
     }
   }, [isAuthenticating, onAuthenticating]);
 
-  // Sync manualStep when initialStep changes from dev preview
-  React.useEffect(() => {
+  // Adjust during render: sync manualStep and OAuth simulation when initialStep
+  // changes from the dev preview harness (replaces two [initialStep] effects).
+  const [prevInitialStep, setPrevInitialStep] = React.useState(initialStep);
+  if (initialStep !== prevInitialStep) {
+    setPrevInitialStep(initialStep);
     if (initialStep !== undefined) {
       if (initialStep === 'name') setManualStep(1);
       else if (initialStep === 'email') setManualStep(2);
       else if (initialStep === 'password') setManualStep(3);
       else setManualStep(0);
     }
-  }, [initialStep]);
-
-  // Auto-simulate OAuth signups in dev preview mode
-  React.useEffect(() => {
     if (initialStep === 'google') {
       setAuthError(null);
       setAuthenticatingMethod('google');
@@ -124,7 +124,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       setAuthenticatingMethod('instagram');
       setIsAuthenticating(true);
     }
-  }, [initialStep]);
+  }
 
   // Register manual step back transitions with parent shell
   React.useEffect(() => {

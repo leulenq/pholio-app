@@ -231,22 +231,27 @@ export default function CompCard({ images = [], profile }) {
 
   const cardRef = React.useRef(null);
 
-  // First render uses the last-served seed (per slug) instead of a static
-  // default — returning users don't see the identical first card forever.
-  // Recent takes are restored from the same store.
-  React.useEffect(() => {
-    if (!slug) return;
-    setSeed(readLS(seedKey(slug)) || `profile:${slug}`);
-    lastTakeSeedRef.current = null;
-    const rawTakes = readLS(takesKey(slug));
-    if (rawTakes) {
-      try {
-        const arr = JSON.parse(rawTakes);
-        setRecentTakes(Array.isArray(arr) ? arr.slice(0, 8) : []);
-      } catch { setRecentTakes([]); }
-    } else {
-      setRecentTakes([]);
+  // Adjust during render: reset seed/takes when slug changes (returning users
+  // see their last-served seed instead of the static default).
+  const [prevSlug, setPrevSlug] = React.useState(slug);
+  if (slug !== prevSlug) {
+    setPrevSlug(slug);
+    if (slug) {
+      setSeed(readLS(seedKey(slug)) || `profile:${slug}`);
+      const rawTakes = readLS(takesKey(slug));
+      if (rawTakes) {
+        try {
+          const arr = JSON.parse(rawTakes);
+          setRecentTakes(Array.isArray(arr) ? arr.slice(0, 8) : []);
+        } catch { setRecentTakes([]); }
+      } else {
+        setRecentTakes([]);
+      }
     }
+  }
+  // Ref reset stays in an effect (ref mutations must not happen during render).
+  React.useEffect(() => {
+    if (slug) lastTakeSeedRef.current = null;
   }, [slug]);
 
   // Editions catalog for this profile — with real availability (e.g. the
@@ -272,7 +277,19 @@ export default function CompCard({ images = [], profile }) {
     }
   }, [slug]);
 
-  React.useEffect(() => { loadPresets(); }, [loadPresets]);
+  // Inline the fetch — setState only happens inside .then() (async), never synchronously.
+  React.useEffect(() => {
+    if (!slug) return undefined;
+    let active = true;
+    talentApi.listCompCardPresets(slug, { skipRedirect: true })
+      .then((res) => {
+        if (active) setPresets(Array.isArray(res?.presets) ? res.presets : []);
+      })
+      .catch(() => {
+        // Library is non-critical to the composer; fail quiet (empty library).
+      });
+    return () => { active = false; };
+  }, [slug]);
 
   const defaultPresetId = React.useMemo(() => resolveDefaultPresetId(presets), [presets]);
 
@@ -388,7 +405,12 @@ export default function CompCard({ images = [], profile }) {
     }
     return `/pdf/view/${slug}?${params.toString()}`;
   }, [slug, activePreset, seed, edition, structure, treatment, lockHeroId, lockGridIds, saveBoard, avoidHistory]);
-  React.useEffect(() => { setFrontReady(false); }, [previewUrl]);
+  // Adjust during render: reset front-ready flag whenever the preview URL changes.
+  const [prevPreviewUrl, setPrevPreviewUrl] = React.useState(previewUrl);
+  if (previewUrl !== prevPreviewUrl) {
+    setPrevPreviewUrl(previewUrl);
+    setFrontReady(false);
+  }
 
   // Design summary + refinement notes from the engine (deterministic meta).
   React.useEffect(() => {

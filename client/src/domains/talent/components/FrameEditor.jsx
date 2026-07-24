@@ -176,11 +176,17 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
 
   const imageSrc = getImageUrl(image.public_url || image.path);
 
-  React.useEffect(() => {
-    let active = true;
+  // Adjust during render: reset rights loading state when the image changes.
+  const [prevImageId, setPrevImageId] = React.useState(image.id);
+  if (image.id !== prevImageId) {
+    setPrevImageId(image.id);
     setRightsLoading(true);
     setRightsLoaded(false);
     setRightsError('');
+  }
+
+  React.useEffect(() => {
+    let active = true;
     talentApi.getImageRights(image.id)
       .then((res) => {
         if (!active) return;
