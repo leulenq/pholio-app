@@ -40,11 +40,7 @@ describe("OAuth account avatar stays out of the talent book", () => {
   const email = "oauth.avatar.book@example.test";
 
   beforeAll(async () => {
-    if (!(await knex.schema.hasColumn("users", "avatar_url"))) {
-      await knex.schema.alterTable("users", (t) => {
-        t.string("avatar_url", 2048).nullable();
-      });
-    }
+    await knex.migrate.latest();
   });
 
   afterAll(async () => {
@@ -71,6 +67,7 @@ describe("OAuth account avatar stays out of the talent book", () => {
       firebase_token: "fake-token",
       terms_accepted: true,
       privacy_accepted: true,
+      date_of_birth: "1996-04-01",
     });
 
     expect(res.status).toBe(200);
@@ -86,12 +83,18 @@ describe("OAuth account avatar stays out of the talent book", () => {
     const images = await knex("images").where({ profile_id: profile.id });
     expect(images).toHaveLength(0);
 
+    // Profile API may be gated until onboarding completes; stamp completion so
+    // the talent dashboard media payload can be asserted.
+    await knex("profiles")
+      .where({ id: profile.id })
+      .update({ onboarding_completed_at: knex.fn.now() });
+
     const cookie = cookieFrom(res);
     const profileRes = await agent
       .get("/api/talent/profile")
-      .set("Cookie", cookie)
-      .expect(200);
+      .set("Cookie", cookie);
 
+    expect(profileRes.status).toBe(200);
     const payload = profileRes.body.data || profileRes.body;
     expect(payload.user.avatar_url).toBe(PICTURE);
     expect(payload.images || []).toHaveLength(0);

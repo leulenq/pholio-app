@@ -116,10 +116,11 @@ function track(email) {
   return email;
 }
 
-beforeAll(() => {
+beforeAll(async () => {
   if (!fs.existsSync(FIXTURE)) {
     throw new Error("fixture test-image.jpg missing — run the e2e suite first");
   }
+  await knex.migrate.latest();
 });
 
 afterEach(() => {
@@ -343,13 +344,17 @@ describe("M4 — server-side height + real-headshot gates", () => {
     await purgeUserByEmail(email);
     const agent = request.agent(app);
     // entry parks Google picture on users.avatar_url — not as book media.
-    const res = await entry(agent, {
-      uid: "m4-photo-uid",
-      email,
-      email_verified: true,
-      name: "Avatar Only",
-      picture: "https://example.com/avatar.jpg",
-    });
+    const res = await entry(
+      agent,
+      {
+        uid: "m4-photo-uid",
+        email,
+        email_verified: true,
+        name: "Avatar Only",
+        picture: "https://example.com/avatar.jpg",
+      },
+      { date_of_birth: "1996-04-01" },
+    );
     const cookie = cookieFrom(res);
     const user = await knex("users").where({ email }).first();
     const profile = await getProfileByUser(user.id);
@@ -374,7 +379,12 @@ describe("M4 — server-side height + real-headshot gates", () => {
     const email = track("m4.height@example.test");
     await purgeUserByEmail(email);
     const agent = request.agent(app);
-    const res = await entry(agent, { uid: "m4-height-uid", email, email_verified: true, name: "No Height" });
+    const res = await entry(
+      agent,
+      { uid: "m4-height-uid", email, email_verified: true, name: "No Height" },
+      { date_of_birth: "1996-04-01" },
+    );
+    expect(res.status).toBe(200);
     const cookie = cookieFrom(res);
     const user = await knex("users").where({ email }).first();
     const profile = await getProfileByUser(user.id);

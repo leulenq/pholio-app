@@ -1365,6 +1365,19 @@ router.post(
 
       if (!profile) return res.status(404).json({ error: "Profile not found" });
 
+      // Photo-gate truth (audit finding M4): confirm requires a REAL uploaded
+      // headshot. Account avatars never enter `images`, so an OAuth-only user
+      // has no digital row and must be blocked here before any primary lookup.
+      const realUpload = await knex("images")
+        .where({ profile_id: profile.id, image_type: "digital" })
+        .first();
+      if (!realUpload) {
+        return res.status(400).json({
+          error: "HEADSHOT_REQUIRED",
+          message: "Please upload a headshot photo before continuing.",
+        });
+      }
+
       // Find the primary image
       let primaryImage = await knex("images")
         .where({ profile_id: profile.id, is_primary: true })
@@ -1384,20 +1397,6 @@ router.post(
 
       if (!primaryImage) {
         return res.status(400).json({ error: "No primary image set" });
-      }
-
-      // Photo-gate truth (audit finding M4): the confirmed photo must be a REAL
-      // uploaded headshot, not an account-avatar URL. Scout uploads are stored
-      // with image_type='digital'. Without this a Google user could pass the
-      // "photo" gate via direct API calls without ever uploading a headshot.
-      const realUpload = await knex("images")
-        .where({ profile_id: profile.id, image_type: "digital" })
-        .first();
-      if (!realUpload) {
-        return res.status(400).json({
-          error: "HEADSHOT_REQUIRED",
-          message: "Please upload a headshot photo before continuing.",
-        });
       }
 
       // Transition state

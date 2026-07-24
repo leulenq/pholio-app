@@ -169,6 +169,7 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
 
   beforeAll(async () => {
     ensureFixture();
+    await knex.migrate.latest();
     await purgeUserByEmail(testEmail);
     agent = request.agent(app);
   });
@@ -212,13 +213,14 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
   // STEP 1: ENTRY (Account Creation → birthdate step)
   // ============================================
   describe("Step 1: Casting Entry", () => {
-    it("creates the account and parks the user on the birthdate step", async () => {
+    it("creates the account with adult DOB evidence and parks on gender", async () => {
       const res = await agent
         .post("/casting/entry")
         .send({
           firebase_token: firebaseToken,
           terms_accepted: true,
           privacy_accepted: true,
+          date_of_birth: flowData.dateOfBirth,
         })
         .expect("Content-Type", /json/)
         .expect(200);
@@ -227,8 +229,8 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
       expect(res.body.user_id).toBeDefined();
       expect(res.body.profile_id).toBeDefined();
       expect(res.body.has_oauth_data).toBe(true);
-      // Live contract: entry advances to `birthdate` (COPPA age-gate first).
-      expect(res.body.next_step).toBe("birthdate");
+      // Live contract: adult DOB is required at entry; next step is gender.
+      expect(res.body.next_step).toBe("gender");
 
       // Capture the session for all subsequent authenticated requests.
       sessionCookie = (res.headers["set-cookie"] || []).map(
@@ -254,20 +256,21 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
       expect(profile.user_id).toBe(testUserId);
       expect(profile.first_name).toBe("Phoenix");
       expect(profile.last_name).toBe("Test");
-      expect(profile.onboarding_stage).toBe("birthdate");
+      expect(profile.onboarding_stage).toBe("gender");
+      expect(String(profile.date_of_birth).slice(0, 10)).toBe(flowData.dateOfBirth);
       expect(profile.visibility_mode).toBe("private_intake");
       // SQLite stores booleans as 0/1 — assert truthiness so the suite can run
       // against a local SQLite copy as well as PostgreSQL.
       expect(Boolean(profile.services_locked)).toBe(true);
     });
 
-    it("establishes a session reporting the birthdate step", async () => {
+    it("establishes a session reporting the gender step", async () => {
       const res = await agent
         .get("/casting/status")
         .set("Cookie", sessionCookie)
         .expect(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.state.current_step).toBe("birthdate");
+      expect(res.body.state.current_step).toBe("gender");
       // The status user block drives the client's resume-time inbox beat.
       expect(res.body.user.email).toBe(testEmail);
       expect(res.body.user.email_verified).toBe(false);
@@ -317,27 +320,27 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
   });
 
   // ============================================
-  // STEP 2: BIRTHDATE (persist + advance → gender)
+  // STEP 2: BIRTHDATE (already recorded at entry)
   // ============================================
   describe("Step 2: Birthdate", () => {
-    it("persists DOB and advances the state machine to gender", async () => {
-      const res = await agent
+    it("keeps the established adult DOB immutable on legacy birthdate replay", async () => {
+      const replay = await agent
         .post("/casting/birthdate")
         .set("Cookie", sessionCookie)
-        .send({ date_of_birth: flowData.dateOfBirth })
+        .send({ date_of_birth: "1991-07-18" })
         .expect("Content-Type", /json/)
-        .expect(200);
+        .expect(409);
 
-      expect(res.body.success).toBe(true);
-      expect(res.body.next_step).toBe("gender");
+      expect(replay.body.error).toBe("DOB_IMMUTABLE");
 
       const profile = await knex("profiles")
         .where({ id: testProfileId })
         .first();
+      expect(String(profile.date_of_birth).slice(0, 10)).toBe(flowData.dateOfBirth);
       expect(profile.onboarding_stage).toBe("gender");
 
       const state = await readState();
-      expect(state.completed_steps).toContain("birthdate");
+      expect(state.completed_steps).toContain("entry");
     });
   });
 
@@ -601,6 +604,7 @@ describe("E2E: Skip exploit is blocked at completion", () => {
   const skipEmail = "skip.e2e.test@example.com";
 
   beforeAll(async () => {
+    await knex.migrate.latest();
     await purgeUserByEmail(skipEmail);
     // A distinct Firebase identity so this suite gets its own user/profile.
     const firebaseAdmin = require("../src/domains/auth/services/firebase-admin");
@@ -619,6 +623,7 @@ describe("E2E: Skip exploit is blocked at completion", () => {
         firebase_token: "mock-firebase-token-skip-e2e",
         terms_accepted: true,
         privacy_accepted: true,
+        date_of_birth: "2000-05-15",
       })
       .expect(200);
 
@@ -653,14 +658,8 @@ describe("E2E: Skip exploit is blocked at completion", () => {
   });
 
   it("blocks completion (403) when scout + measurements were never done", async () => {
-    // Advance only birthdate → gender. Scout (photo) and measurements (height)
-    // are deliberately skipped.
-    await agent
-      .post("/casting/birthdate")
-      .set("Cookie", sessionCookie)
-      .send({ date_of_birth: "2000-05-15" })
-      .expect(200);
-
+    // Adult DOB was recorded at entry. Advance only gender. Scout (photo) and
+    // measurements (height) are deliberately skipped.
     await agent
       .post("/casting/gender")
       .set("Cookie", sessionCookie)
