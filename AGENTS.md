@@ -53,16 +53,31 @@ Pholio has separate dashboard instruction and design files. Before editing a das
 
 Do not average the talent and agency systems into one generic dashboard language. If a shared component is used by both dashboards, preserve the intentional differences documented in both domain design files.
 
-## Model Routing Guidance
+## AI Agent Operating Rule (GLOBAL — all agents)
 
-Use the least-expensive model class that can reliably complete the task, then escalate when quality or risk demands it. When a requested model is unavailable in the current environment, use the nearest available model in the same capability tier and state that substitution clearly.
+**Mandatory for Claude, Cursor, Codex, and any future coding agent.**  
+Full rule: [`docs/ai-agent-operating-rule.md`](docs/ai-agent-operating-rule.md) (Cursor also always-applies `.cursor/rules/ai-agent-operating-rule.mdc`).
 
-- **Haiku-class:** quick lookups, simple file edits, formatting, small copy changes, command-output summarization, and low-risk mechanical tasks.
-- **Sonnet-class:** default for everyday implementation, moderate debugging, routine refactors, test writing, product copy, and most single-surface UI work.
-- **Opus-class:** complex architecture, high-risk production fixes, multi-system debugging, security/auth/payment work, difficult migrations, deep code review, and important product/design decisions.
-- **Fable-class:** only for the most demanding long-horizon work if available: broad redesigns, large multi-agent plans, ambiguous architecture, major cross-domain refactors, or work where a mistake would be very expensive.
+Optimize cost and tokens **without** sacrificing engineering quality. Use the smallest capable model; escalate for complexity, risk, final review, testing strategy, and production validation.
 
-Prefer a planner/reviewer split for hard tasks: use Opus/Fable-class reasoning for planning or review, and Sonnet/Haiku-class execution for narrow, well-specified subtasks when safe.
+### Capability classes (map local model names to these)
+
+- **Fast** (Haiku-class / mini / flash): lookups, tiny edits, formatting, log summaries, mechanical refactors.
+- **Standard** (Sonnet-class / default): everyday implementation, routine refactors/tests, moderate debugging, single-surface UI.
+- **Strong** (Opus-class / high): architecture, auth/payments/migrations/security, deep review, hard multi-system debugging, production validation.
+- **Frontier** (Fable-class / strongest planner): broad redesigns, contested multi-agent plans, ambiguous architecture, very expensive-mistake work.
+
+Default to Standard. De-escalate mechanical work. Escalate when blast radius or ambiguity rises. If a requested model is unavailable, use the nearest same-class model and state the substitution once.
+
+Prefer **plan → execute → review** on non-trivial work: Strong/Frontier plans and high-risk reviews; Standard/Fast execute narrow slices. If the task is simple enough for one agent, that agent may plan, implement, review, test, and commit alone.
+
+### Token control (summary)
+
+Read narrowly; avoid re-reads; prefer diffs/symbols; offload exploration and return summaries; keep plans short; stop when acceptance criteria are met; batch independent tool calls. A failed cheap attempt that forces a full expensive redo is worse than starting at the right class.
+
+### Parallel coordination (summary)
+
+Parallelize large tasks only with **strict disjoint file ownership**. No shared writable files. No overlapping edit areas. **No git commits from parallel worker agents** — the lead agent integrates, verifies, and commits. Read-only lanes may share reads. Ownership collision ⇒ stop and re-plan. Full detail in the canonical rule.
 
 ## 🚫 Banned UI Patterns (NEVER implement these)
 
@@ -280,6 +295,8 @@ COOKIE_DOMAIN=.pholio.studio
 - Offload research, exploration, and parallel analysis to subagents
 - For complex problems, throw more compute at it via subagents
 - One task per subagent for focused execution
+- Parallel **writers** require strict disjoint file ownership; no shared writable files; no commits from worker agents — lead integrates (see `docs/ai-agent-operating-rule.md`)
+- If the task fits one agent, that agent may implement, review, test, and commit alone
 
 ### 3. Self-Improvement Loop
 - After ANY correction from the user: update `tasks/lessons.md` with the pattern

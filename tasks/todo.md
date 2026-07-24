@@ -1,3 +1,28 @@
+# AI Agent Operating Rule — 2026-07-24
+
+## Plan
+- [x] Draft durable, provider-agnostic operating rule (model routing, work split, tokens, quality, parallel coordination)
+- [x] Add Cursor always-apply rule under `.cursor/rules/`
+- [x] Publish canonical copy under `docs/`
+- [x] Sync `CLAUDE.md` + `AGENTS.md` Model Routing / Subagent sections to the new rule
+- [x] Align `tasks/lessons.md` parallel-ownership note with the global rule
+- [x] Commit, push, open PR
+
+## Review
+Published a provider-agnostic **AI Agent Operating Rule** as the durable contract for Claude, Cursor, Codex, and future agents.
+
+- Canonical: `docs/ai-agent-operating-rule.md`
+- Cursor always-apply: `.cursor/rules/ai-agent-operating-rule.mdc`
+- `CLAUDE.md` / `AGENTS.md` replace thin Model Routing with a global summary + parallel/token guidance; Subagent Strategy points at the rule
+- `tasks/lessons.md` records the global rule and links the 2026-07-11 parallel-ownership lesson to §6
+
+Covers: capability-class model routing (Fast/Standard/Strong/Frontier), plan→execute→review splits, token budget hygiene, non-negotiable quality/escalation for high-risk zones, and hard parallel rules (disjoint file ownership, no shared writes, no worker commits, lead integrates; single-agent exception for simple work).
+
+### CI note (2026-07-24)
+GitHub Actions (lint/build/tests) stayed green. The four red PR checks were Netlify deploy-preview cascades (`deploy-preview`, Redirect rules, Header rules, Pages changed). Root cause: two pushes ~4s apart launched concurrent previews; commit `4b462eb` deployed successfully, follow-up `ff2cdaa` (todo checkbox only) errored with empty build summary / `plugin_state: none`. Retriggered a single clean deploy.
+
+---
+
 # Google login ToS blocker — 2026-07-24
 
 ## Plan
