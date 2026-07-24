@@ -1,5 +1,4 @@
 const { URL } = require("url");
-const puppeteer = require("puppeteer");
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
 const { toFeetInches } = require("../talent/services/stats");
@@ -29,6 +28,20 @@ if (config.isServerless) {
       "[renderCompCard] @sparticuz/chromium not available, falling back to default Puppeteer",
     );
   }
+}
+
+// puppeteer is large and slow to load (hundreds of ms even locally; more under
+// a genuinely cold serverless container). This module used to require() it
+// unconditionally at the top, which meant EVERY cold Lambda invocation paid
+// that cost before handling a request — including requests with nothing to do
+// with PDF generation (e.g. /api/login), since app.js requires this whole
+// routes module eagerly at boot. Load it lazily on first actual use instead.
+let puppeteerModule = null;
+function getPuppeteer() {
+  if (!puppeteerModule) {
+    puppeteerModule = require("puppeteer");
+  }
+  return puppeteerModule;
 }
 
 async function loadProfile(slug) {
@@ -253,7 +266,7 @@ async function renderCompCard(slug, theme = null, opts = null) {
         executablePathType: typeof launchOptions.executablePath,
       });
 
-      browser = await puppeteer.launch(launchOptions);
+      browser = await getPuppeteer().launch(launchOptions);
     } catch (launchError) {
       console.error("[renderCompCard] Error launching Puppeteer browser:", {
         message: launchError.message,
@@ -727,7 +740,7 @@ async function renderDigitalsSheet(slug) {
       launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
     }
 
-    browser = await puppeteer.launch(launchOptions);
+    browser = await getPuppeteer().launch(launchOptions);
     const page = await browser.newPage();
     await page.goto(target, { waitUntil: "networkidle0", timeout: 30000 });
     const buffer = await page.pdf({
