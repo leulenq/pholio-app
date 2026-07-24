@@ -22,6 +22,7 @@ const router = express.Router();
 // Dependencies
 const knex = require("../../../shared/db/knex");
 const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
+const { syncProviderAccountAvatar } = require("../../../shared/lib/account-avatar");
 const {
   requireAuth,
   requireRole,
@@ -559,7 +560,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         });
 
         if (providerUser.instagram_handle) {
-          // Best-effort, matching the Google-photo sync just below: a social
+          // Best-effort, matching the account-avatar sync just below: a social
           // field write failure must not throw and fail the whole entry
           // request after the profiles row has already been inserted (that
           // insert isn't in a transaction with this call — saveProfileSocialFields
@@ -579,23 +580,23 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
           }
         }
 
-        // Add Google photo to images table as primary
+        // Provider picture belongs on the account avatar layer only — never
+        // ingest a Google/Instagram OAuth avatar into the book (`images`).
         if (providerUser.picture) {
           try {
-            await knex("images").insert({
-              id: uuidv4(),
-              profile_id: profileId,
-              path: providerUser.picture,
-              public_url: providerUser.picture,
-              is_primary: true,
-              sort: 0,
-              created_at: knex.fn.now(),
-            });
-            console.log(
-              "[Onboarding] Synced Google profile photo to images table",
+            await syncProviderAccountAvatar(
+              knex,
+              user.id,
+              providerUser.picture,
             );
-          } catch (imgError) {
-            console.error("[Onboarding] Error syncing Google photo:", imgError);
+            console.log(
+              "[Onboarding] Synced provider picture to users.avatar_url",
+            );
+          } catch (avatarError) {
+            console.error(
+              "[Onboarding] Error syncing account avatar:",
+              avatarError,
+            );
             // Non-blocking error
           }
         }
@@ -617,6 +618,22 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
               .where({ id: profile.id })
               .update(profileUpdates);
             profile = { ...profile, ...profileUpdates };
+          }
+        }
+
+        // Refresh account avatar from provider on returning entry; never touch images.
+        if (providerUser.picture) {
+          try {
+            await syncProviderAccountAvatar(
+              knex,
+              user.id,
+              providerUser.picture,
+            );
+          } catch (avatarError) {
+            console.error(
+              "[Onboarding] Error refreshing account avatar:",
+              avatarError,
+            );
           }
         }
       }
@@ -1199,7 +1216,7 @@ router.post(
         : false;
 
       // Headshots are the casting photo: they become/stay primary (demoting any
-      // seeded Google avatar). A full-body upload never steals primary, and a
+      // leftover non-primary rows). A full-body upload never steals primary, and a
       // flagged (review) image must NEVER surface publicly or become the primary
       // casting photo until a moderator approves it.
       const isPrimary = shotType === "headshot" && !isReview;
@@ -1353,9 +1370,9 @@ router.post(
         .where({ profile_id: profile.id, is_primary: true })
         .first();
 
-      // Defense-in-depth: if the primary is a remote seed with no file on disk
-      // (e.g. a Google avatar), fall back to the most recent local upload so the
-      // resume photo_url points at the real casting photo.
+      // Defense-in-depth for legacy rows: if the primary is a remote seed with no
+      // file on disk, fall back to the most recent local upload so the resume
+      // photo_url points at the real casting photo.
       if (primaryImage && !primaryImage.absolute_path) {
         const localImage = await knex("images")
           .where({ profile_id: profile.id })
@@ -1370,9 +1387,8 @@ router.post(
       }
 
       // Photo-gate truth (audit finding M4): the confirmed photo must be a REAL
-      // uploaded headshot, not the seeded Google avatar. Scout uploads are
-      // stored with image_type='digital'; the avatar row has neither an
-      // image_type nor a local file. Without this a Google user could pass the
+      // uploaded headshot, not an account-avatar URL. Scout uploads are stored
+      // with image_type='digital'. Without this a Google user could pass the
       // "photo" gate via direct API calls without ever uploading a headshot.
       const realUpload = await knex("images")
         .where({ profile_id: profile.id, image_type: "digital" })

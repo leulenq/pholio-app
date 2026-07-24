@@ -35,6 +35,10 @@ const {
   canCollectSensitiveProfileFields,
 } = require("../../../shared/lib/talent-age");
 const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
+const {
+  excludeProviderAccountAvatarImages,
+  reclaimProviderAccountAvatarSeeds,
+} = require("../../../shared/lib/account-avatar");
 const { masterVisionAnalysis } = require("../../ai/analyzeProfileImage");
 const {
   MODERATION_STATUS,
@@ -691,19 +695,29 @@ router.get(
 
     if (!profile) return res.json({ success: true, images: [] });
 
-    const images = await knex("images")
-      .where({ profile_id: profile.id })
-      .orderBy("created_at", "desc")
-      .limit(8)
-      .select(
-        "id",
-        "path",
-        "public_url",
-        "is_primary",
-        "metadata",
-        "sort",
-        "created_at",
-      );
+    await reclaimProviderAccountAvatarSeeds(knex, {
+      userId,
+      profileId: profile.id,
+    });
+
+    const images = excludeProviderAccountAvatarImages(
+      await knex("images")
+        .where({ profile_id: profile.id })
+        .orderBy("created_at", "desc")
+        .limit(8)
+        .select(
+          "id",
+          "path",
+          "public_url",
+          "is_primary",
+          "metadata",
+          "sort",
+          "created_at",
+          "absolute_path",
+          "image_type",
+          "asset_kind",
+        ),
+    );
 
     return res.json({
       success: true,

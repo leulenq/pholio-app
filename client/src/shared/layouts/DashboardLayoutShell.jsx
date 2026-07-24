@@ -30,7 +30,7 @@ async function persistUnlockCelebrated(retries = 3) {
 }
 
 export default function DashboardLayoutShell() {
-  const { profile, images, isLoading, isError, error } = useAuth();
+  const { user, profile, images, isLoading, isError, error } = useAuth();
   const location = useLocation();
   const authBootstrapReady = !isLoading || isError;
   const { showEntrySplash, isEntrySplashExiting, entryStartedAt } =
@@ -107,7 +107,7 @@ export default function DashboardLayoutShell() {
       startedAt={entryStartedAt}
       exiting={isEntrySplashExiting}
       talentName={resolveTalentGreetingName(profile)}
-      avatarUrl={resolveTalentEntryAvatar(profile, images)}
+      avatarUrl={resolveTalentEntryAvatar(profile, images, user)}
       avatarInitials={resolveEntryDisplayName(profile, 'talent').slice(0, 2).toUpperCase()}
     />
   ) : null;

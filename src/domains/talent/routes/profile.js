@@ -66,6 +66,11 @@ const {
   listRepresentations,
   syncStructuredRepresentationFromLegacy,
 } = require("../services/representations");
+const {
+  excludeProviderAccountAvatarImages,
+  reclaimProviderAccountAvatarSeeds,
+} = require("../../../shared/lib/account-avatar");
+
 
 /**
  * Allowlisted profile columns for GET/PUT JSON (excludes raw vectors / embeddings).
@@ -515,6 +520,7 @@ router.get(
       id: user.id,
       email: user.email,
       role: user.role,
+      avatar_url: user.avatar_url || null,
     };
 
     // Base response structure
@@ -544,9 +550,21 @@ router.get(
       return apiResponse.success(res, response);
     }
 
-    // Fetch images
-    // Fetch images (migrated to images table)
-    const images = await knex("images")
+    // Reclaim any legacy OAuth seeds that were incorrectly stored as book media.
+    await reclaimProviderAccountAvatarSeeds(knex, {
+      userId,
+      profileId: profile.id,
+    });
+    if (await knex.schema.hasColumn("users", "avatar_url")) {
+      const refreshed = await knex("users")
+        .where({ id: userId })
+        .first("avatar_url");
+      safeUser.avatar_url = refreshed?.avatar_url || null;
+    }
+
+    // Fetch images (migrated to images table) — account avatars are excluded.
+    const images = excludeProviderAccountAvatarImages(
+      await knex("images")
       .where({ profile_id: profile.id })
       .orderBy("sort", "asc")
       .select(
@@ -572,7 +590,8 @@ router.get(
         "asset_kind",
         "video_url",
         "video_duration_seconds",
-      );
+      ),
+    );
 
     const rightsMap = await loadImageRightsMap(
       knex,
@@ -1114,8 +1133,9 @@ router.put(
     }
 
     // Images are not mutated by this route anymore; load once for status,
-    // completeness, and the response payload.
-    const images = await knex("images")
+    // completeness, and the response payload. Exclude OAuth account avatars.
+    const images = excludeProviderAccountAvatarImages(
+      await knex("images")
       .where({ profile_id: profile.id })
       .orderBy("sort", "asc")
       .select(
@@ -1141,7 +1161,8 @@ router.put(
         "asset_kind",
         "video_url",
         "video_duration_seconds",
-      );
+      ),
+    );
 
     // Precompute profile_status so it is written in the SAME atomic UPDATE instead of
     // a second post-hoc write.

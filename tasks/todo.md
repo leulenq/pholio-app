@@ -2512,3 +2512,18 @@ mechanical). Full plan: ~/.claude/plans/agile-skipping-candy.md.
   that disposable copy.
 - Live browser automation remained unavailable, and no write was made to Mia's real profile during
   verification. The user must retry Save once with the rebuilt client to replace the old stored bio.
+
+
+## Google OAuth avatar → account layer only (talent) — 2026-07-24
+
+Keep Google/OAuth provider pictures on `users.avatar_url` (account avatar). Never ingest into talent book/media (`images`).
+
+- [ ] Helper: sync provider picture → `users.avatar_url` only
+- [ ] Stop seeding OAuth picture into `images` (casting entry + auth-helpers)
+- [ ] Sync avatar on login when provider picture present
+- [ ] Expose `avatar_url` on talent profile API `user`
+- [ ] TalentLayout account chip uses account avatar
+- [ ] Migrate existing remote OAuth image seeds → avatar_url + delete rows
+- [ ] Exclude leftover provider seeds from talent media/profile image lists
+- [ ] Update tests + add regression coverage
+- [ ] Verify focused tests

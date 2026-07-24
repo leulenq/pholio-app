@@ -23,10 +23,9 @@
 // verifies the OAuth token through this module via the Google provider helper.
 jest.mock("../src/domains/auth/services/firebase-admin", () => ({
   initializeFirebaseAdmin: jest.fn(),
-  // Includes `picture` on purpose: entry seeds this remote Google avatar as a
-  // primary image. The scout step must still promote the uploaded (local) photo
-  // to primary — this guards the Google-avatar regression where scout/confirm
-  // tried to read the remote URL from disk and 500'd.
+  // Includes `picture` on purpose: entry must park this on users.avatar_url
+  // (account avatar), never as a book/images primary. Scout upload becomes the
+  // only primary casting photo.
   verifyIdToken: jest.fn().mockResolvedValue({
     uid: "phoenix-firebase-uid-e2e",
     email: "phoenix.e2e.test@example.com",
@@ -244,6 +243,10 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
       expect(user.email).toBe(testEmail);
       expect(user.role).toBe("TALENT");
       expect(user.firebase_uid).toBe("phoenix-firebase-uid-e2e");
+      // Google picture lands on the account avatar layer only.
+      expect(user.avatar_url).toBe("https://example.com/phoenix-avatar.jpg");
+      const seededImages = await knex("images").where({ profile_id: testProfileId });
+      expect(seededImages).toHaveLength(0);
 
       const profile = await knex("profiles")
         .where({ id: testProfileId })
@@ -388,19 +391,21 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
 
       expect(res.body.success).toBe(true);
       expect(res.body.imageId).toBeDefined();
-      // The uploaded local photo becomes primary even though a remote Google
-      // avatar was seeded at entry (the regression guard).
+      // Local scout upload is the sole book primary; OAuth picture stays off images.
       expect(res.body.isPrimary).toBe(true);
       expect(res.body.photo_url).toBeDefined();
 
-      // Exactly one primary, and it is the local upload (has absolute_path),
-      // not the remote avatar seed.
-      const primaries = await knex("images")
-        .where({ profile_id: testProfileId, is_primary: true })
-        .select("id", "absolute_path");
-      expect(primaries).toHaveLength(1);
-      expect(primaries[0].id).toBe(res.body.imageId);
-      expect(primaries[0].absolute_path).toBeTruthy();
+      const imageRows = await knex("images")
+        .where({ profile_id: testProfileId })
+        .select("id", "absolute_path", "is_primary", "path");
+      expect(imageRows).toHaveLength(1);
+      expect(imageRows[0].id).toBe(res.body.imageId);
+      expect(Boolean(imageRows[0].is_primary)).toBe(true);
+      expect(imageRows[0].absolute_path).toBeTruthy();
+      expect(String(imageRows[0].path || "")).not.toMatch(/^https?:\/\//i);
+
+      const accountUser = await knex("users").where({ id: testUserId }).first();
+      expect(accountUser.avatar_url).toBe("https://example.com/phoenix-avatar.jpg");
 
       // Upload alone does not transition the state machine.
       const profile = await knex("profiles")

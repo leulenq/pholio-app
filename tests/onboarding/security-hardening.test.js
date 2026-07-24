@@ -326,7 +326,7 @@ describe("H2 — moderation / CSAM screening on scout upload", () => {
 
     expect(res.status).toBe(422);
     expect(res.body.error).toBe("IMAGE_REJECTED");
-    // No digital image row was persisted (only the seeded Google avatar remains).
+    // No digital image row was persisted (OAuth avatars never enter images).
     const digitals = await knex("images").where({
       profile_id: profile.id,
       image_type: "digital",
@@ -342,7 +342,7 @@ describe("M4 — server-side height + real-headshot gates", () => {
     const email = track("m4.photo@example.test");
     await purgeUserByEmail(email);
     const agent = request.agent(app);
-    // entry seeds a Google avatar (picture) as the primary image.
+    // entry parks Google picture on users.avatar_url — not as book media.
     const res = await entry(agent, {
       uid: "m4-photo-uid",
       email,
@@ -356,6 +356,10 @@ describe("M4 — server-side height + real-headshot gates", () => {
     await setProfileState(profile.id, "scout", ["entry", "birthdate", "gender"], {
       date_of_birth: "1996-04-01",
     });
+
+    expect(user.avatar_url).toBe("https://example.com/avatar.jpg");
+    const bookImages = await knex("images").where({ profile_id: profile.id });
+    expect(bookImages).toHaveLength(0);
 
     const confirm = await agent
       .post("/casting/scout/confirm")
