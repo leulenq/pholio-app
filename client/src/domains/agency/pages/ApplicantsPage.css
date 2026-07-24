@@ -237,6 +237,10 @@
 .ap-card--picked .ap-card-img { outline: 2px solid var(--ag-gold); outline-offset: -2px; }
 .ap-row--picked { background: var(--ag-gold-ghost); }
 
+/* The tabpanel the stage rail controls — a transparent flow wrapper so the
+   book/ledger keep their own layout while the tabs relate to a real region. */
+.ap-results { min-width: 0; }
+
 /* ---------- THE BOOK (contact-sheet grid) ---------- */
 .ap-book {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));

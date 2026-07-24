@@ -45,17 +45,35 @@ const SIGNED_STATES = ['represented', 'booked', 'accepted', 'signed'];
 const isSigned = (s) => SIGNED_STATES.includes(s);
 // A submission is "decided" once it has left the review ladder in either direction.
 const isDecided = (s) => isSigned(s) || s === 'declined' || s === 'passed';
+// The in-flight / awaiting-talent band: advancing states that sit between "New"
+// and a decision (digitals requested, meeting set, mid-review).
+const IN_FLIGHT_STATES = ['requested_more', 'meeting_requested', 'under_review'];
+const isInFlightState = (s) => IN_FLIGHT_STATES.includes(s);
+// Active = still on the desk awaiting a decision. Excludes decided outcomes,
+// kept-on-file, and development (a New Face outcome, not a pending review).
+const isActive = (s) => !isDecided(s) && s !== 'kept_on_file' && s !== 'development';
 
-// Primary ledger-as-tabs — the five views a booker triages between.
+// The status each triage verb writes — used for optimistic cache updates and to
+// predict whether an actioned row stays in the current view. Mirrors the backend.
+const STATUS_FOR = {
+  shortlist: 'shortlisted',
+  accept: 'accepted',
+  decline: 'declined',
+  keepOnFile: 'kept_on_file',
+  requestMore: 'requested_more',
+};
+
+// Primary ledger-as-tabs — the stages a booker triages between.
 const PRIMARY_TABS = [
   { key: 'submitted', label: 'New', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
-  { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
   { key: 'represented', label: 'Signed', match: isSigned },
   { key: 'all', label: 'All', match: () => true },
 ];
-// Quiet outcomes on the rail's right edge.
+// Quiet outcomes + the in-flight band on the rail's right edge.
 const SECONDARY_TABS = [
+  { key: 'in_progress', label: 'In progress', match: isInFlightState },
+  { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
   { key: 'kept_on_file', label: 'On file', match: (s) => s === 'kept_on_file' },
   { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
 ];
@@ -367,6 +385,8 @@ function ApplicationsPage() {
 
   const activeBoard = useMemo(() => boards.find((b) => b.id === boardId) || null, [boards, boardId]);
 
+  // Full reconcile — invalidate the desk plus every surface that reads off the
+  // same decisions (boards, agency overview). Run on settle so server truth wins.
   const refresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['applicants'] });
     qc.invalidateQueries({ queryKey: ['board-candidates'] });
@@ -374,11 +394,59 @@ function ApplicationsPage() {
     qc.invalidateQueries({ queryKey: ['agency'] });
   }, [qc]);
 
-  const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
-  const accept = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Signed'); }, onError: () => toast.error('Action failed') });
-  const decline = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
-  const keepOnFile = useMutation({ mutationFn: (id) => keepOnFileApplication(id), onSuccess: () => { refresh(); toast.success('Kept on file'); }, onError: () => toast.error('Action failed') });
-  const requestMore = useMutation({ mutationFn: (id) => requestMoreApplication(id), onSuccess: () => { refresh(); toast.success('Requested more digitals'); }, onError: () => toast.error('Action failed') });
+  // Which cached query backs the current view, and its raw record shape.
+  const activeKey = useCallback(
+    () => (boardId == null ? ['applicants'] : ['board-candidates', boardId]),
+    [boardId],
+  );
+
+  // Write a status into the RAW cache shape for the active query so an actioned
+  // row flips synchronously. `['applicants']` records live in data.profiles with
+  // field `application_status`; board candidates live in data.candidates with
+  // field `backendStatus`. Returns { key, prev } for rollback.
+  const applyOptimistic = useCallback((idOrSet, status) => {
+    const key = activeKey();
+    const ids = idOrSet instanceof Set ? idOrSet : new Set([idOrSet]);
+    const prev = qc.getQueryData(key);
+    qc.setQueryData(key, (old) => {
+      if (!old) return old;
+      if (key[0] === 'applicants') {
+        if (!Array.isArray(old.profiles)) return old;
+        return {
+          ...old,
+          profiles: old.profiles.map((p) => (ids.has(p.application_id) ? { ...p, application_status: status } : p)),
+        };
+      }
+      if (!Array.isArray(old.candidates)) return old;
+      return {
+        ...old,
+        candidates: old.candidates.map((c) => (ids.has(c.applicationId ?? c.id) ? { ...c, backendStatus: status } : c)),
+      };
+    });
+    return { key, prev };
+  }, [qc, activeKey]);
+
+  const rollback = useCallback((ctx) => {
+    if (ctx && ctx.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev);
+  }, [qc]);
+
+  // One optimistic-mutation recipe shared by all five triage verbs.
+  const triageOptions = (kind, mutationFn, successMsg) => ({
+    mutationFn,
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: activeKey() });
+      return applyOptimistic(id, STATUS_FOR[kind]);
+    },
+    onError: (_err, _id, ctx) => { rollback(ctx); toast.error('Action failed'); },
+    onSuccess: () => { toast.success(successMsg); },
+    onSettled: () => { refresh(); },
+  });
+
+  const shortlist = useMutation(triageOptions('shortlist', shortlistApplication, 'Shortlisted'));
+  const accept = useMutation(triageOptions('accept', acceptApplication, 'Signed'));
+  const decline = useMutation(triageOptions('decline', declineApplication, 'Passed'));
+  const keepOnFile = useMutation(triageOptions('keepOnFile', keepOnFileApplication, 'Kept on file'));
+  const requestMore = useMutation(triageOptions('requestMore', requestMoreApplication, 'Requested more digitals'));
   const inFlight = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables) || (keepOnFile.isPending && keepOnFile.variables) || (requestMore.isPending && requestMore.variables) || null;
 
   const counts = useMemo(() => {
@@ -399,6 +467,10 @@ function ApplicationsPage() {
   }, [applicants, tab, q, sort]);
 
   const total = applicants.length;
+  // The lead hero figure = what's actually on the desk: submissions still
+  // awaiting a decision (new / under review / shortlisted / in-flight), not a
+  // lifetime tally. Reflects the active board when one is selected.
+  const activeCount = useMemo(() => applicants.filter((a) => isActive(a.status)).length, [applicants]);
 
   // The unscoped submission count. When a board is selected the all-scope query
   // is disabled, so we read its cached data to keep the "All submissions" total
@@ -520,31 +592,51 @@ function ApplicationsPage() {
     if (!ids.length) return;
     const fn = { shortlist: shortlistApplication, accept: acceptApplication, decline: declineApplication }[kind];
     if (!fn) return;
+    // Flip the whole batch optimistically; the settle path reconciles from
+    // server truth (and we hard-roll-back if the entire batch fails).
+    await qc.cancelQueries({ queryKey: activeKey() });
+    const snapshot = applyOptimistic(new Set(ids), STATUS_FOR[kind]);
     setBulkBusy(true);
     const results = await Promise.allSettled(ids.map((id) => fn(id)));
     setBulkBusy(false);
     const ok = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.length - ok;
     const verb = kind === 'shortlist' ? 'Shortlisted' : kind === 'accept' ? 'Signed' : 'Passed';
-    if (ok === 0) toast.error(`${verb} 0 · ${failed} failed`);
+    if (ok === 0) { rollback(snapshot); toast.error(`${verb} 0 · ${failed} failed`); }
     else if (failed) toast(`${verb} ${ok} · ${failed} failed`);
     else toast.success(`${verb} ${ok}`);
     clearSelection();
     refresh();
-  }, [clearSelection, refresh]);
+  }, [clearSelection, refresh, qc, activeKey, applyOptimistic, rollback]);
 
+  // List-mode keyboard triage. Mirrors the review room's advance: act, then if
+  // the row leaves the current filtered view, move focus (index + real DOM) to
+  // the row that slides into its place. Optimistic updates (P0-1) flip status
+  // synchronously, so we predict the next view against the freshly-written status.
   const runAction = useCallback((kind, a) => {
     if (!a) return;
     if (isDecided(a.status)) return;
-    if (kind === 'shortlist') {
-      if (a.status === 'shortlisted') return;
-      shortlist.mutate(a.applicationId);
-    } else if (kind === 'accept') {
-      accept.mutate(a.applicationId);
-    } else if (kind === 'decline') {
-      decline.mutate(a.applicationId);
-    }
-  }, [shortlist, accept, decline]);
+    if (kind === 'shortlist' && a.status === 'shortlisted') return;
+    const mutation = { shortlist, accept, decline }[kind];
+    if (!mutation) return;
+
+    const { filtered: list, focusedIndex: cur } = triageRef.current;
+    const idx = (cur >= 0 && list[cur]?.applicationId === a.applicationId)
+      ? cur
+      : list.findIndex((r) => r.applicationId === a.applicationId);
+
+    mutation.mutate(a.applicationId);
+
+    if (idx < 0) return;
+    // Search filters on name/city (unaffected by status), so staying in view
+    // hinges purely on whether the new status still matches the active tab.
+    const matcher = (ALL_TABS.find((t) => t.key === tab) || ALL_TABS[0]).match;
+    if (matcher(STATUS_FOR[kind])) return; // row remains; leave focus put
+    const nextLen = list.length - 1;
+    const target = nextLen <= 0 ? -1 : Math.min(idx, nextLen - 1);
+    setFocusedIndex(target);
+    if (target >= 0) requestAnimationFrame(() => focusRow(target));
+  }, [shortlist, accept, decline, tab, focusRow]);
 
   // Keep the latest triage state fresh so the keyboard handler can bind once.
   // The effective reviewId is nulled when its row is not in view, so the
@@ -792,7 +884,7 @@ function ApplicationsPage() {
         >
           <div className="ap-hero-stat">
             <span className="ap-hero-lab">{activeBoard ? 'On this board' : 'On the desk'}</span>
-            <span className="ap-hero-fig ap-hero-fig--lead">{total}</span>
+            <span className="ap-hero-fig ap-hero-fig--lead">{activeCount}</span>
           </div>
           <div className="ap-hero-stat">
             <span className="ap-hero-lab">Pass rate</span>
@@ -805,14 +897,16 @@ function ApplicationsPage() {
 
       {/* STAGE RAIL — quiet text tabs; gold marks the active stage only.
           Quiet outcomes sit on the rail's right edge. */}
-      <div className="ap-rail">
-        <div className="ap-rail-tabs" role="tablist" aria-label="Filter by stage">
+      <div className="ap-rail" role="tablist" aria-label="Filter submissions by stage">
+        <div className="ap-rail-tabs" role="presentation">
           {railTabs.map((t) => (
             <button
               key={t.key}
               type="button"
               role="tab"
+              id={`ap-tab-${t.key}`}
               aria-selected={tab === t.key}
+              aria-controls="ap-results"
               className={`ap-tab${tab === t.key ? ' ap-tab--on' : ''}`}
               onClick={() => changeTab(t.key)}
             >
@@ -821,12 +915,16 @@ function ApplicationsPage() {
             </button>
           ))}
         </div>
-        <div className="ap-rail-aside" role="group" aria-label="Secondary filters">
+        {/* Same tablist, quiet grouping — outcomes and the in-flight band. */}
+        <div className="ap-rail-aside" role="presentation">
           {SECONDARY_TABS.map((t) => (
             <button
               key={t.key}
               type="button"
-              aria-pressed={tab === t.key}
+              role="tab"
+              id={`ap-tab-${t.key}`}
+              aria-selected={tab === t.key}
+              aria-controls="ap-results"
               className={`ap-aside-item${tab === t.key ? ' is-on' : ''}`}
               onClick={() => changeTab(tab === t.key ? 'all' : t.key)}
             >
@@ -838,6 +936,7 @@ function ApplicationsPage() {
 
       {activeBoard && <BoardBand board={activeBoard} />}
 
+      <div className="ap-results" id="ap-results" role="tabpanel" aria-label="Submissions">
       {isGenuineEmpty && (
         <AgencyEmptyState
           title={activeBoard ? 'No submissions on this board' : 'No submissions yet'}
@@ -899,6 +998,7 @@ function ApplicationsPage() {
           )}
         </div>
       ))}
+      </div>
 
       {/* BULK BAR — floats when a selection exists; sits below the review drawer. */}
       <AnimatePresence>
