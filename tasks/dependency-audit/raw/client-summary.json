@@ -1,0 +1,234 @@
+{
+  "outdated": {
+    "@hookform/resolvers": {
+      "current": "5.2.2",
+      "wanted": "5.4.0",
+      "latest": "5.4.0"
+    },
+    "@tailwindcss/postcss": {
+      "current": "4.2.1",
+      "wanted": "4.3.3",
+      "latest": "4.3.3"
+    },
+    "@tanstack/react-query": {
+      "current": "5.90.21",
+      "wanted": "5.101.4",
+      "latest": "5.101.4"
+    },
+    "@testing-library/jest-dom": {
+      "current": "6.9.1",
+      "wanted": "6.9.1",
+      "latest": "7.0.0"
+    },
+    "@tsparticles/react": {
+      "current": "3.0.0",
+      "wanted": "3.0.0",
+      "latest": "4.3.2"
+    },
+    "@tsparticles/slim": {
+      "current": "3.9.1",
+      "wanted": "3.9.1",
+      "latest": "4.3.2"
+    },
+    "@types/react": {
+      "current": "19.2.14",
+      "wanted": "19.2.17",
+      "latest": "19.2.17"
+    },
+    "@vitejs/plugin-react": {
+      "current": "5.1.4",
+      "wanted": "5.2.0",
+      "latest": "6.0.4"
+    },
+    "autoprefixer": {
+      "current": "10.4.27",
+      "wanted": "10.5.4",
+      "latest": "10.5.4"
+    },
+    "date-fns": {
+      "current": "4.1.0",
+      "wanted": "4.4.0",
+      "latest": "4.4.0"
+    },
+    "eslint": {
+      "current": "10.0.2",
+      "wanted": "10.7.0",
+      "latest": "10.7.0"
+    },
+    "eslint-plugin-react-hooks": {
+      "current": "7.0.1",
+      "wanted": "7.1.1",
+      "latest": "7.1.1"
+    },
+    "eslint-plugin-react-refresh": {
+      "current": "0.5.2",
+      "wanted": "0.5.3",
+      "latest": "0.5.3"
+    },
+    "firebase": {
+      "current": "12.9.0",
+      "wanted": "12.16.0",
+      "latest": "12.16.0"
+    },
+    "framer-motion": {
+      "current": "12.34.3",
+      "wanted": "12.42.2",
+      "latest": "12.42.2"
+    },
+    "globals": {
+      "current": "17.3.0",
+      "wanted": "17.7.0",
+      "latest": "17.7.0"
+    },
+    "lucide-react": {
+      "current": "0.575.0",
+      "wanted": "0.575.0",
+      "latest": "1.26.0"
+    },
+    "postcss": {
+      "current": "8.5.6",
+      "wanted": "8.5.22",
+      "latest": "8.5.22"
+    },
+    "react": {
+      "current": "19.2.4",
+      "wanted": "19.2.8",
+      "latest": "19.2.8"
+    },
+    "react-dom": {
+      "current": "19.2.4",
+      "wanted": "19.2.8",
+      "latest": "19.2.8"
+    },
+    "react-dropzone": {
+      "current": "15.0.0",
+      "wanted": "15.0.0",
+      "latest": "19.1.1"
+    },
+    "react-easy-crop": {
+      "current": "5.5.6",
+      "wanted": "5.5.7",
+      "latest": "6.2.2"
+    },
+    "react-hook-form": {
+      "current": "7.71.2",
+      "wanted": "7.82.0",
+      "latest": "7.82.0"
+    },
+    "react-is": {
+      "current": "19.2.4",
+      "wanted": "19.2.8",
+      "latest": "19.2.8"
+    },
+    "react-router-dom": {
+      "current": "7.13.1",
+      "wanted": "7.18.1",
+      "latest": "7.18.1"
+    },
+    "recharts": {
+      "current": "3.7.0",
+      "wanted": "3.10.0",
+      "latest": "3.10.0"
+    },
+    "tailwindcss": {
+      "current": "4.2.1",
+      "wanted": "4.3.3",
+      "latest": "4.3.3"
+    },
+    "three": {
+      "current": "0.183.2",
+      "wanted": "0.183.2",
+      "latest": "0.185.1"
+    },
+    "typescript": {
+      "current": "5.9.3",
+      "wanted": "5.9.3",
+      "latest": "7.0.2"
+    },
+    "vite": {
+      "current": "7.3.1",
+      "wanted": "7.3.6",
+      "latest": "8.1.5"
+    },
+    "vitest": {
+      "current": "4.1.9",
+      "wanted": "4.1.10",
+      "latest": "4.1.10"
+    },
+    "zod": {
+      "current": "4.3.6",
+      "wanted": "4.4.3",
+      "latest": "4.4.3"
+    }
+  },
+  "vulnerabilities": {
+    "info": 0,
+    "low": 2,
+    "moderate": 0,
+    "high": 9,
+    "critical": 1,
+    "total": 12
+  },
+  "direct_or_notable": {
+    "@grpc/grpc-js": {
+      "severity": "high",
+      "isDirect": false,
+      "fixAvailable": true,
+      "range": "<=1.9.15"
+    },
+    "brace-expansion": {
+      "severity": "high",
+      "isDirect": false,
+      "fixAvailable": true,
+      "range": "3.0.0 - 5.0.6"
+    },
+    "flatted": {
+      "severity": "high",
+      "isDirect": false,
+      "fixAvailable": true,
+      "range": "<=3.4.1"
+    },
+    "picomatch": {
+      "severity": "high",
+      "isDirect": false,
+      "fixAvailable": true,
+      "range": "4.0.0 - 4.0.3"
+    },
+    "postcss": {
+      "severity": "high",
+      "isDirect": true,
+      "fixAvailable": true,
+      "range": "<=8.5.11"
+    },
+    "react-router": {
+      "severity": "high",
+      "isDirect": false,
+      "fixAvailable": true,
+      "range": "6.0.0 - 7.17.0"
+    },
+    "react-router-dom": {
+      "severity": "high",
+      "isDirect": true,
+      "fixAvailable": true,
+      "range": "7.0.0-pre.0 - 7.14.1"
+    },
+    "rollup": {
+      "severity": "high",
+      "isDirect": false,
+      "fixAvailable": true,
+      "range": "4.0.0 - 4.58.0"
+    },
+    "vite": {
+      "severity": "high",
+      "isDirect": true,
+      "fixAvailable": true,
+      "range": "7.0.0 - 7.3.3"
+    },
+    "websocket-driver": {
+      "severity": "critical",
+      "isDirect": false,
+      "fixAvailable": true,
+      "range": "<=0.7.4"
+    }
+  }
+}
