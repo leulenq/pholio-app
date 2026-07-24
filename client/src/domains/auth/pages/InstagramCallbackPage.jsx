@@ -5,6 +5,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { auth } from '../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../shared/lib/pholio-auth/broadcast';
 import { markAuthEntryTransition } from '../../../shared/lib/pholio-auth/entry-transition';
+import { stashOnboardingAuthHandoff } from '../../../shared/lib/pholio-auth/onboarding-handoff';
 
 // Browsewrap acceptance for casting entry (signup). Login never creates talent
 // accounts — unknown identities are redirected to /onboarding instead.
@@ -28,7 +29,7 @@ async function completeCastingEntry(idToken) {
   return data;
 }
 
-async function completeLogin(idToken, nextPath) {
+async function completeLogin(idToken, nextPath, identity = {}) {
   const response = await fetch('/api/login', {
     method: 'POST',
     credentials: 'include',
@@ -41,7 +42,14 @@ async function completeLogin(idToken, nextPath) {
 
   const data = await response.json().catch(() => ({}));
   if (data?.error === 'NEEDS_ONBOARDING') {
-    window.location.href = data.redirect || '/onboarding';
+    const method = identity.method === 'instagram' ? 'instagram' : 'google';
+    stashOnboardingAuthHandoff({
+      method,
+      name: identity.name,
+      email: identity.email,
+      picture: identity.picture,
+    });
+    window.location.href = `/onboarding?continue=${method}`;
     return;
   }
   if (!response.ok) {
@@ -98,7 +106,13 @@ export default function InstagramCallbackPage() {
           return;
         }
 
-        await completeLogin(idToken, nextPath);
+        const firebaseUser = userCredential.user;
+        await completeLogin(idToken, nextPath, {
+          method: 'instagram',
+          name: firebaseUser.displayName,
+          email: firebaseUser.email,
+          picture: firebaseUser.photoURL,
+        });
       } catch (err) {
         if (!cancelled) {
           setError(err.message || 'Instagram sign-in failed.');
