@@ -53,6 +53,42 @@ const LEGACY_STEP_MAP = {
   verification_pending: 'birthdate',
 };
 
+// Persists which stable rail step the user was on across an unplanned remount
+// (tab suspend/resume, iOS Safari reclaiming the tab, a dropped connection that
+// bounces the component, etc). Without this, currentView always re-initializes
+// to 'entry' and briefly (or indefinitely, if the /status refetch stalls) shows
+// the Google/Instagram/Email choice screen to someone who is already deep into
+// the flow. Only the stable rail steps are stored — the transient beats
+// ('greet', 'verify', 'complete') depend on local-only data (oauthUserData,
+// greetName) that isn't persisted, so a remount during one of those instead
+// falls back to 'entry' and lets the server-driven resume effect below correct
+// it, same as before this fix.
+const VIEW_STORAGE_KEY = 'pholio.onboarding.currentView';
+const PERSISTABLE_VIEWS = new Set(['entry', 'birthdate', 'gender', 'scout', 'measurements', 'profile']);
+
+function readStoredView() {
+  if (typeof sessionStorage === 'undefined') return 'entry';
+  try {
+    const stored = sessionStorage.getItem(VIEW_STORAGE_KEY);
+    return PERSISTABLE_VIEWS.has(stored) ? stored : 'entry';
+  } catch {
+    return 'entry';
+  }
+}
+
+function writeStoredView(view) {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    if (PERSISTABLE_VIEWS.has(view)) {
+      sessionStorage.setItem(VIEW_STORAGE_KEY, view);
+    } else {
+      sessionStorage.removeItem(VIEW_STORAGE_KEY);
+    }
+  } catch {
+    // Private mode / quota — remount will just fall back to 'entry' as before.
+  }
+}
+
 function CastingCallPage() {
   const navigate = useNavigate();
   // Note: no auto-redirect for already-authenticated users here. /onboarding
@@ -60,7 +96,7 @@ function CastingCallPage() {
   // (their layout gates + server requireAuth redirect to the right login).
   const [searchParams] = useSearchParams();
   const plan = searchParams.get('plan');
-  const [currentView, setCurrentView] = useState('entry');
+  const [currentView, setCurrentView] = useState(readStoredView);
   const [, setPhotoData] = useState(null);
   const [profileData, setProfileData] = useState({});
   const [currentEntryProgress, setCurrentEntryProgress] = useState(0);
@@ -92,6 +128,14 @@ function CastingCallPage() {
   );
   const previewActive = DEV_PREVIEW && !!preview;
   const previewFinishing = previewActive && preview.view === 'finishing';
+
+  // Keep the persisted view in sync so a later remount resumes here instead of
+  // snapping back to the entry/auth screen. Dev preview owns its own state and
+  // must never write into the same sessionStorage key a real session uses.
+  React.useEffect(() => {
+    if (previewActive) return;
+    writeStoredView(currentView);
+  }, [currentView, previewActive]);
 
   React.useEffect(() => {
     if (!previewActive) return;
@@ -268,6 +312,7 @@ function CastingCallPage() {
 
   // Step 5: Complete - Redirect to dashboard
   const handleComplete = useCallback(() => {
+    writeStoredView(null); // done — don't resume a finished flow on a later /onboarding visit
     navigate('/reveal');
   }, [navigate]);
 

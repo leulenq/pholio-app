@@ -76,7 +76,14 @@ async function request(endpoint, options = {}) {
     // Handle 401 Unauthorized - Redirect to login (unless suppressed)
     if (response.status === 401) {
       if (!options.skipRedirect) {
-        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+        // reason=session_expired lets the login page explain the bounce instead
+        // of silently reopening a blank form — this is the redirect a user hits
+        // when a session looked valid moments earlier (e.g. right after signing
+        // in) but the very next request comes back unauthenticated.
+        const params = new URLSearchParams();
+        params.set('redirect', window.location.pathname);
+        params.set('reason', 'session_expired');
+        window.location.href = '/login?' + params.toString();
       }
       // If skipping redirect, we still return the response (or throw error/return null depending on logic below)
       // But typically we want to let the caller handle the 401 if they skipped redirect
