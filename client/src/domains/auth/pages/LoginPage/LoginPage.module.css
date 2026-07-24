@@ -287,7 +287,7 @@
   white-space: nowrap;
 }
 
-/* ── Social Buttons ─────────────────────────────────── */
+/* ── Social Buttons (provider-native fills) ─────────── */
 
 .socialRow {
   display: flex;
@@ -307,16 +307,65 @@
   font-size: 13.5px;
   font-weight: 600;
   font-family: var(--ag-font-sans, 'Inter', sans-serif);
-  color: var(--ag-text-0, #1a1815);
-  background: transparent;
-  border: 1px solid rgba(26, 24, 21, 0.15);
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.socialBtn:hover:not(:disabled) {
-  background: rgba(26, 24, 21, 0.03);
-  border-color: rgba(26, 24, 21, 0.25);
+.socialBtn span {
+  white-space: nowrap;
+}
+
+.socialBtn svg {
+  flex-shrink: 0;
+}
+
+/* Google Identity — white fill + multicolor G */
+.socialBtnGoogle {
+  color: #1a1815;
+  background: #ffffff;
+  border-color: rgba(26, 24, 21, 0.15);
+  box-shadow: 0 1px 2px rgba(26, 24, 21, 0.04);
+}
+
+.socialBtnGoogle:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: rgba(26, 24, 21, 0.28);
+  box-shadow: 0 4px 12px rgba(26, 24, 21, 0.1);
   transform: translateY(-1px);
+}
+
+.socialBtnGoogle:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(26, 24, 21, 0.06);
+}
+
+/* Instagram — brand gradient fill */
+.socialBtnInstagram {
+  color: #ffffff;
+  background: linear-gradient(
+    45deg,
+    #f09433 0%,
+    #e6683c 25%,
+    #dc2743 50%,
+    #cc2366 75%,
+    #bc1888 100%
+  );
+  border-color: transparent;
+  background-clip: padding-box;
+  box-shadow: 0 4px 12px rgba(188, 24, 136, 0.22);
+}
+
+.socialBtnInstagram:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(188, 24, 136, 0.3);
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.socialBtnInstagram:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.97);
+  box-shadow: 0 2px 8px rgba(188, 24, 136, 0.22);
 }
 
 .socialBtn:focus-visible {
@@ -324,9 +373,17 @@
   box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
 }
 
+.socialBtnInstagram:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(201, 165, 90, 0.35),
+    0 4px 12px rgba(188, 24, 136, 0.22);
+}
+
 .socialBtn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  filter: none;
+  transform: none;
 }
 
 /* ── Legal & Footer ─────────────────────────────────── */
@@ -386,5 +443,9 @@
   .submitButton:hover:not(:disabled),
   .socialBtn:hover:not(:disabled) {
     transform: none;
+  }
+
+  .socialBtnInstagram:hover:not(:disabled) {
+    filter: none;
   }
 }
