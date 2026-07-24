@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## 2026-07-24 — Global AI agent operating rule is mandatory across providers
+
+- Model choice, token budget, quality escalation, and parallel coordination are governed by
+  `docs/ai-agent-operating-rule.md` (Cursor: `.cursor/rules/ai-agent-operating-rule.mdc`).
+- Map vendor model names to Fast / Standard / Strong / Frontier; default Standard; escalate on blast radius.
+- Parallel writers: disjoint file ownership only; no shared writable files; no worker commits; lead integrates.
+- Simple tasks stay single-agent end-to-end (including commit). Do not invent multi-agent ceremony.
+
 ## 2026-07-24 — Login browsewrap must send the same legal payload as signup
 
 - `/login` must never auto-create talent accounts. Unknown Firebase identities
@@ -21,6 +29,7 @@
 - When the user requests parallel agents, assign each agent a disjoint file or read-only review lane, prohibit agent commits, and keep shared integration files with the lead agent.
 - The lead agent owns all cross-lane review, verification, task documentation, and commit grouping; agents report findings rather than landing overlapping changes.
 - Visual, JSX, and routing audits make good parallel read-only lanes for a frontend redesign because they surface independent classes of defects without filesystem collisions.
+- Codified globally in `docs/ai-agent-operating-rule.md` §6 (Parallel Agent Coordination).
 
 ## 2026-07-02 — Trace apparent field lines to section boundaries
 

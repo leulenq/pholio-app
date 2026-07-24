@@ -1,0 +1,87 @@
+---
+description: Global AI agent operating rule — model routing, tokens, quality, parallel coordination
+alwaysApply: true
+---
+
+# AI Agent Operating Rule
+
+**Applies to every coding agent in this repo** (Claude, Cursor, Codex, and future agents). Canonical copy: `docs/ai-agent-operating-rule.md`.
+
+Optimize **cost and token usage** without sacrificing **engineering quality**. Use the smallest capable model; escalate for risk and hard review. Parallelize only with strict disjoint ownership.
+
+## Capability classes (provider-agnostic)
+
+| Class | Use for |
+|-------|---------|
+| **Fast** | Lookups, tiny edits, formatting, log summaries, mechanical refactors |
+| **Standard** | Default implementation, routine refactors/tests, moderate debugging, single-surface UI |
+| **Strong** | Architecture, auth/payments/migrations/security, deep review, hard multi-system debugging, production validation |
+| **Frontier** | Broad redesigns, contested multi-agent plans, ambiguous architecture, very expensive-mistake work |
+
+Default to **Standard**. De-escalate mechanical work to **Fast**. Escalate when blast radius or ambiguity rises. If a requested model is missing, use the nearest same-class model and state the substitution once.
+
+**Never** spend Strong/Frontier on work Fast/Standard can finish safely. **Never** leave high-blast-radius work on Fast because it is cheaper.
+
+## Work splitting
+
+Prefer **plan → execute → review** on non-trivial tasks:
+
+1. Plan with Strong/Frontier when needed.
+2. Execute narrow slices with Standard/Fast.
+3. Review/validate with Strong on high risk; Standard on ordinary work.
+
+If the task is simple enough for **one agent**, that agent may plan, implement, review, test, and **commit** alone. Do not invent multi-agent ceremony for small work.
+
+One objective per agent. Escalating mid-flight is required when ambiguity, security risk, or failing invariants appear.
+
+## Token and context control
+
+1. Read narrowly; prefer search and partial reads.
+2. Do not re-read without a reason.
+3. Prefer diffs/symbols over dumping unchanged files.
+4. Offload exploration; return summaries.
+5. Keep plans short and checkable.
+6. Do not paste large rule bodies into prompts when this rule already applies.
+7. Stop when acceptance criteria are met.
+8. Batch independent tool calls.
+9. Discard failed hypotheses quickly.
+
+A failed Fast attempt that forces a full Strong redo costs more than starting at Standard.
+
+## Quality bar (non-negotiable)
+
+1. Root cause over patches.
+2. Minimal impact — touch only what is required.
+3. Prove it works (tests/lint/repro) before claiming done.
+4. Staff-engineer review standard.
+5. High-risk zones need Strong review even if cheaper models wrote the code: auth/sessions, Stripe/webhooks, migrations, middleware order, cross-tenant boundaries, onboarding/access gating.
+6. Testing strategy scales with risk.
+7. If quality slips, escalate model class and fix — never ship a cheap wrong answer.
+
+## Parallel agent coordination
+
+Parallelism is allowed for large tasks that benefit. Safety beats speed.
+
+**Hard rules when multiple writers are active:**
+
+1. **Strict disjoint file ownership** — each writable file has at most one active owner.
+2. **No shared writable files** — integration files stay with the **lead agent**.
+3. **No overlapping edit areas** — collide ⇒ serialize or re-scope.
+4. **No git commits from parallel worker agents** — workers do not add/commit/push/PR.
+5. **Lead agent integrates** — merge order, verification, task docs, and all commits.
+6. **Workers report within their lane** — no freelancing into other files.
+7. Read-only lanes may share reads; write lanes must not share writes.
+8. Ownership collision ⇒ **stop and re-plan**.
+
+**Single-agent exception:** one agent handling a simple task may implement, review, test, and commit its own changes.
+
+## Quick decision guide
+
+| Situation | Action |
+|-----------|--------|
+| Tiny localized tweak | Single Fast/Standard agent; commit own change |
+| Clear single-feature slice | Single Standard agent; self-review + tests |
+| Auth/payment/migration/security | Implement carefully; Strong review required |
+| Large redesign, independent files | Lead plans; parallel disjoint workers; lead commits |
+| Ambiguous architecture | Strong/Frontier plan first; do not parallelize into fog |
+| Worker needs out-of-lane file | Stop; return to lead; reassign ownership |
