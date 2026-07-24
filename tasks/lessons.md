@@ -1,5 +1,15 @@
 # Lessons Learned
 
+## 2026-07-24 — Concurrent Netlify previews can fail without an app regression
+
+- Four red Netlify checks (`deploy-preview`, Redirect/Header/Pages) can all fail together when the
+  deploy itself errors; they are cascades, not four independent product bugs.
+- If GitHub Actions is green and an earlier commit on the same PR already has a ready deploy
+  preview, check whether a second push launched within a few seconds. Concurrent previews can
+  error with empty summary / `plugin_state: none` even when the diff is docs-only.
+- Fix by pushing one clean retrigger after the prior build settles; avoid back-to-back pushes
+  that overlap Netlify build slots when possible.
+
 ## 2026-07-24 — Global AI agent operating rule is mandatory across providers
 
 - Model choice, token budget, quality escalation, and parallel coordination are governed by
