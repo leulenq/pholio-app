@@ -911,26 +911,30 @@ function ApplicationsPage() {
               onClick={() => changeTab(t.key)}
             >
               <span className="ap-tab-label">{t.label}</span>
-              <span className="ap-tab-count">{t.value}</span>
+              {t.value > 0 && <span className="ap-tab-count">{t.value}</span>}
             </button>
           ))}
         </div>
         {/* Same tablist, quiet grouping — outcomes and the in-flight band. */}
         <div className="ap-rail-aside" role="presentation">
-          {SECONDARY_TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              id={`ap-tab-${t.key}`}
-              aria-selected={tab === t.key}
-              aria-controls="ap-results"
-              className={`ap-aside-item${tab === t.key ? ' is-on' : ''}`}
-              onClick={() => changeTab(tab === t.key ? 'all' : t.key)}
-            >
-              {t.label} {counts[t.key] ?? 0}
-            </button>
-          ))}
+          {SECONDARY_TABS.map((t) => {
+            const value = counts[t.key] ?? 0;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                id={`ap-tab-${t.key}`}
+                aria-selected={tab === t.key}
+                aria-controls="ap-results"
+                className={`ap-aside-item${tab === t.key ? ' is-on' : ''}`}
+                onClick={() => changeTab(tab === t.key ? 'all' : t.key)}
+              >
+                <span className="ap-aside-label">{t.label}</span>
+                {value > 0 && <span className="ap-aside-count">{value}</span>}
+              </button>
+            );
+          })}
         </div>
       </div>
 

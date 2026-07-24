@@ -92,9 +92,9 @@
   display: flex; align-items: stretch; justify-content: space-between; gap: 18px;
   margin: 0 0 22px; border-bottom: 1px solid var(--ag-rule);
 }
-.ap-rail-tabs { display: flex; align-items: stretch; gap: 26px; }
+.ap-rail-tabs { display: flex; align-items: stretch; gap: 28px; }
 .ap-tab {
-  position: relative; display: inline-flex; align-items: baseline; gap: 7px;
+  position: relative; display: inline-flex; align-items: baseline; gap: 10px;
   padding: 4px 0 13px; background: none; border: none; cursor: pointer;
   font-family: var(--ag-font-body);
 }
@@ -102,33 +102,52 @@
   content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
   background: transparent; transition: background var(--ag-duration-fast) var(--ag-ease);
 }
+/* The count is the data a booker scans for; the word is its key. Label takes
+   the system's own sanctioned uppercase-tracked "Label" tier (DESIGN.md) —
+   quiet on purpose. The count is the dominant figure: bold ink, tabular. */
 .ap-tab-label {
-  font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; color: var(--ag-text-2);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ag-text-2);
   transition: color var(--ag-duration-fast) var(--ag-ease); white-space: nowrap;
 }
 .ap-tab-count {
-  font-size: 11.5px; font-weight: 500; color: var(--ag-text-3);
+  font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--ag-text-0);
   font-variant-numeric: tabular-nums;
   transition: color var(--ag-duration-fast) var(--ag-ease);
 }
-.ap-tab:hover .ap-tab-label { color: var(--ag-text-0); }
-.ap-tab--on .ap-tab-label { color: var(--ag-text-0); font-weight: 700; }
-.ap-tab--on .ap-tab-count { color: var(--ag-gold-hover); font-weight: 600; }
+.ap-tab:hover .ap-tab-label { color: var(--ag-text-1); }
+.ap-tab--on .ap-tab-label { color: var(--ag-text-1); font-weight: 700; }
+.ap-tab--on .ap-tab-count { color: var(--ag-gold); }
 .ap-tab--on::after { background: var(--ag-gold); }
 .ap-tab:focus-visible { outline: none; }
 .ap-tab:focus-visible::after { background: var(--ag-gold-dim); }
 
-/* Quiet outcomes — the rail's right edge. */
-.ap-rail-aside { display: flex; align-items: flex-end; gap: 16px; padding-bottom: 13px; }
+/* Quiet outcomes — the rail's right edge. Same figure-over-key logic, one
+   size down so the row stays visually subordinate to the primary stages. A
+   count of zero renders nothing — a ledger doesn't print empty categories. */
+.ap-rail-aside { display: flex; align-items: flex-end; gap: 18px; padding-bottom: 13px; }
 .ap-aside-item {
+  display: inline-flex; align-items: baseline; gap: 6px;
   background: none; border: none; padding: 2px 0; cursor: pointer;
-  font-family: var(--ag-font-body); font-size: 12px; color: var(--ag-text-3);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--ag-font-body);
   border-bottom: 1px solid transparent;
-  transition: color var(--ag-duration-fast) var(--ag-ease), border-color var(--ag-duration-fast) var(--ag-ease);
+  transition: border-color var(--ag-duration-fast) var(--ag-ease);
 }
-.ap-aside-item:hover { color: var(--ag-text-1); }
-.ap-aside-item.is-on { color: var(--ag-text-0); font-weight: 600; border-bottom-color: var(--ag-gold); }
+.ap-aside-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ag-text-3);
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.ap-aside-count {
+  font-size: 12.5px; font-weight: 700; color: var(--ag-text-1);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.ap-aside-item:hover .ap-aside-label { color: var(--ag-text-1); }
+.ap-aside-item:hover .ap-aside-count { color: var(--ag-text-0); }
+.ap-aside-item.is-on .ap-aside-label { color: var(--ag-text-0); font-weight: 700; }
+.ap-aside-item.is-on .ap-aside-count { color: var(--ag-text-0); }
+.ap-aside-item.is-on { border-bottom-color: var(--ag-gold); }
 .ap-aside-item:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); border-radius: 2px; }
 
 /* ---------- BOARD CONTEXT BAND ---------- */
@@ -425,7 +444,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ap-tab, .ap-tab-label, .ap-tab-count, .ap-row, .ap-pic-img, .ap-icon,
-  .ap-aside-item, .ap-band-link, .ap-search,
+  .ap-aside-item, .ap-aside-label, .ap-aside-count, .ap-band-link, .ap-search,
   .ap-card-img, .ap-card-acts, [data-tip]::after,
   .ap-pick, .ap-bulk-act, .ap-bulk-clear {
     transition-duration: 0.01ms !important;
