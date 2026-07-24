@@ -304,26 +304,35 @@ function requireActiveAccount() {
     }
 
     try {
+      // Missing user row — this destroys the session outright, so a request
+      // landing here right after the row was just written (session.regenerate()
+      // in /login or /onboarding/entry runs immediately after the insert/lookup
+      // that established req.session.userId) must not be confused with a
+      // genuinely deleted account: a transient read miss (a lagging
+      // pooled/serverless-DB connection — e.g. Neon resuming from an idle
+      // suspend — or a brief connection hiccup) would otherwise silently and
+      // permanently kill a session that is actually fine, with no trace in
+      // the logs. Retry with backoff (300ms, then 900ms — 1.2s total, well
+      // inside the function's own timeout budget) before concluding the
+      // account is genuinely gone; a real deletion still gets caught at the
+      // end of the retries.
+      const RETRY_DELAYS_MS = [300, 900];
       let user = await knex("users")
         .where({ id: accountUserId })
         .select("account_status")
         .first();
 
-      // Missing user row — this destroys the session outright, so a request
-      // landing here right after the row was just written (session.regenerate()
-      // in /login or /onboarding/entry runs immediately after the insert/lookup
-      // that established req.session.userId) must not be confused with a
-      // genuinely deleted account: a single transient read miss (a lagging
-      // pooled/replica DB connection, a brief connection hiccup) would
-      // otherwise silently and permanently kill a session that is actually
-      // fine, with no trace in the logs. One short retry absorbs that
-      // false-positive window; a real deletion still gets caught on retry.
-      if (!user) {
+      for (let attempt = 0; !user && attempt < RETRY_DELAYS_MS.length; attempt++) {
         console.warn(
-          "[requireActiveAccount] users row not found on first read — retrying before treating as deleted:",
-          { userId: accountUserId, path: req.originalUrl || req.path },
+          "[requireActiveAccount] users row not found — retrying before treating as deleted:",
+          {
+            userId: accountUserId,
+            path: req.originalUrl || req.path,
+            attempt: attempt + 1,
+            delayMs: RETRY_DELAYS_MS[attempt],
+          },
         );
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
         user = await knex("users")
           .where({ id: accountUserId })
           .select("account_status")
@@ -332,7 +341,7 @@ function requireActiveAccount() {
 
       if (!user) {
         console.warn(
-          "[requireActiveAccount] users row still not found after retry — destroying session:",
+          "[requireActiveAccount] users row still not found after all retries — destroying session:",
           { userId: accountUserId, path: req.originalUrl || req.path },
         );
         return req.session.destroy((destroyErr) => {

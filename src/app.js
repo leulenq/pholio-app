@@ -410,37 +410,92 @@ const sessionMiddleware = session({
   },
 });
 
+function isSessionConnectionError(err) {
+  return Boolean(
+    err &&
+      err.message &&
+      (err.message.includes("Connection terminated") ||
+        (err.message.includes("connection") &&
+          err.message.includes("unexpectedly")) ||
+        err.message.includes("timeout") ||
+        err.message.includes('select "sess" from "sessions"') ||
+        err.code === "ECONNRESET" ||
+        err.code === "EPIPE"),
+  );
+}
+
+function runSessionMiddleware(req, res) {
+  return new Promise((resolve, reject) => {
+    sessionMiddleware(req, res, (err) => (err ? reject(err) : resolve()));
+  });
+}
+
+// A serverless DB blip (e.g. a pooled/serverless Postgres connection that
+// went idle — Neon suspending after inactivity is a known case — and needs a
+// beat to reconnect) shouldn't cost a signed-in user their session for one
+// unlucky request. Retry the whole session read before deciding what to do.
+const SESSION_RETRY_DELAYS_MS = [250, 750];
+
 // Wrap session middleware with error handling for connection failures
-app.use((req, res, next) => {
-  // Execute session middleware, but catch connection errors
-  sessionMiddleware(req, res, (err) => {
-    // Catch session store errors and handle gracefully
-    if (err) {
-      // Check if it's a connection error
-      if (
-        err.message &&
-        (err.message.includes("Connection terminated") ||
-          (err.message.includes("connection") &&
-            err.message.includes("unexpectedly")) ||
-          err.message.includes("timeout") ||
-          err.message.includes('select "sess" from "sessions"') ||
-          err.code === "ECONNRESET" ||
-          err.code === "EPIPE")
-      ) {
-        // Connection error - log but continue without session
-        console.error(
-          "[Session] Connection error (continuing without session):",
-          err.message.substring(0, 150),
-        );
-        // Create a minimal session object to prevent errors downstream
-        req.session = req.session || {};
-        req.session.cookie = req.session.cookie || { maxAge: null };
-        return next(); // Continue without crashing
+app.use(async (req, res, next) => {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= SESSION_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      await runSessionMiddleware(req, res);
+      return next();
+    } catch (err) {
+      lastErr = err;
+      if (!isSessionConnectionError(err)) {
+        // Not a connection-shaped error — pass through immediately, no retry.
+        return next(err);
       }
-      // Other errors - pass through
-      return next(err);
+      console.error(
+        "[Session] Connection error reading session store:",
+        err.message.substring(0, 150),
+        { attempt: attempt + 1 },
+      );
+      if (attempt < SESSION_RETRY_DELAYS_MS.length) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, SESSION_RETRY_DELAYS_MS[attempt]),
+        );
+      }
     }
-    next();
+  }
+
+  // Exhausted retries on a connection-shaped error.
+  // A request with NO session cookie has nothing to lose — continuing
+  // anonymously is safe and matches the prior behavior.
+  const hadSessionCookie = Boolean(
+    req.headers.cookie && req.headers.cookie.includes("connect.sid="),
+  );
+  if (!hadSessionCookie) {
+    req.session = req.session || {};
+    req.session.cookie = req.session.cookie || { maxAge: null };
+    return next();
+  }
+
+  // A request that DID present a session cookie is a different story: we
+  // still cannot read the store, so we cannot tell whether this is a
+  // signed-in user or not. Silently swapping in a blank/anonymous session
+  // here is indistinguishable from "you got logged out" to every downstream
+  // requireAuth/requireRole check. Fail with a retryable error instead of
+  // guessing; the client already treats a non-401 error as retryable rather
+  // than bouncing to /login.
+  console.warn(
+    "[Session] Connection error with a session cookie present, all retries exhausted — refusing to silently treat as signed-out:",
+    { path: req.originalUrl || req.path },
+  );
+  res.set("Retry-After", "2");
+  const acceptsHtml = (req.headers.accept || "").includes("text/html");
+  if (acceptsHtml) {
+    return res
+      .status(503)
+      .send("Temporarily unavailable — please refresh in a moment.");
+  }
+  return res.status(503).json({
+    error: "Service temporarily unavailable",
+    message: "Please try again in a moment.",
+    retryable: true,
   });
 });
 

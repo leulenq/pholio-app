@@ -27,6 +27,7 @@ const {
   requireRole,
   requireActiveAccount,
 } = require("../../auth/middleware/require-auth");
+const { findUserByFirebaseIdentity } = require("../../auth/services/account-matching");
 const { addMessage } = require("../../../shared/middleware/context");
 const { upload, processImage } = require("../../../shared/lib/uploader");
 // Deprecated: const { analyzePhoto } = require('../../ai/photo-analysis');
@@ -323,22 +324,19 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         ? providerUser.email.toLowerCase().trim()
         : `instagram_${providerUser.uid.replace(":", "_")}@pholio.me`;
 
-      // Match an existing account by email ONLY when Firebase asserts a
-      // verified email. Matching on an UNVERIFIED email claim is an
-      // account-takeover vector (audit finding H3): any DB user whose email is
-      // not registered in Firebase (seeds, imports, legacy rows, or
-      // Instagram-synthesized addresses) could otherwise be claimed by
-      // registering that email in Firebase and hitting entry with an unverified
-      // token. When the email is unverified we fall back to firebase_uid only,
-      // which for a genuinely new identity simply creates a fresh account.
+      // Match an existing account by firebase_uid, falling back to a verified
+      // email match — same shared lookup /login uses (account-matching.js),
+      // so this can no longer drift from that logic or exhibit the previous
+      // single-OR-query's non-deterministic pick between a uid match and a
+      // different email match. When the email is unverified we fall back to
+      // firebase_uid only, which for a genuinely new identity simply creates
+      // a fresh account (audit finding H3 — see account-matching.js).
       const emailVerified = decodedToken.email_verified === true;
-      let userQuery = knex("users").where({ firebase_uid: providerUser.uid });
-      if (providerUser.email && emailVerified) {
-        userQuery = userQuery.orWhere({
-          email: providerUser.email.toLowerCase().trim(),
-        });
-      }
-      user = await userQuery.first();
+      user = await findUserByFirebaseIdentity(knex, {
+        firebaseUid: providerUser.uid,
+        email: providerUser.email,
+        emailVerified,
+      });
 
       // Role guard (audit finding M2): talent onboarding must never run for an
       // AGENCY account. Entry sets req.session.role = "TALENT" unconditionally
@@ -561,9 +559,24 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
         });
 
         if (providerUser.instagram_handle) {
-          await saveProfileSocialFields(profileId, {
-            instagram_handle: providerUser.instagram_handle
-          });
+          // Best-effort, matching the Google-photo sync just below: a social
+          // field write failure must not throw and fail the whole entry
+          // request after the profiles row has already been inserted (that
+          // insert isn't in a transaction with this call — saveProfileSocialFields
+          // uses its own connection — so an unguarded throw here would leave a
+          // profile behind with no way for this request to report success or
+          // clean up).
+          try {
+            await saveProfileSocialFields(profileId, {
+              instagram_handle: providerUser.instagram_handle
+            });
+          } catch (socialError) {
+            console.error(
+              "[Onboarding] Error syncing Instagram handle:",
+              socialError,
+            );
+            // Non-blocking error
+          }
         }
 
         // Add Google photo to images table as primary
