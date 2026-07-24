@@ -595,6 +595,37 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
         firebaseUid,
       );
 
+      // Diagnostic only (no behavior change): a report of "I already had an
+      // account but got sent to signup" is otherwise unreproducible after the
+      // fact. If a row exists for this email under a DIFFERENT firebase_uid (or
+      // the same uid didn't match for some other reason), log it so the
+      // uid/email mismatch is visible in logs instead of only in the user's
+      // description.
+      if (email) {
+        try {
+          const possibleMatch = await knex("users")
+            .whereRaw("LOWER(email) = ?", [email.toLowerCase().trim()])
+            .first();
+          if (possibleMatch) {
+            console.warn(
+              "[Login] Existing account found by email but did not match — treating as a new signup:",
+              {
+                incomingFirebaseUid: firebaseUid,
+                incomingEmailVerified: emailVerified,
+                existingUserId: possibleMatch.id,
+                existingFirebaseUid: possibleMatch.firebase_uid,
+                existingRole: possibleMatch.role,
+              },
+            );
+          }
+        } catch (diagError) {
+          console.warn(
+            "[Login] Account-match diagnostic lookup failed:",
+            diagError.message,
+          );
+        }
+      }
+
       if (!pendingTeamInvitation) {
         const onboardingRedirect = "/onboarding";
         console.log(
@@ -804,12 +835,18 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // empty session, so fields have to be (re-)assigned after this point.
     // Preserve any pre-auth onboarding prefill if present.
     const preAuthOnboardingData = req.session.onboardingData;
+    const preRegenerateSessionId = req.sessionID;
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => (err ? reject(err) : resolve()));
     });
     if (preAuthOnboardingData) {
       req.session.onboardingData = preAuthOnboardingData;
     }
+    console.log("[Login] Session regenerated:", {
+      preRegenerateSessionId,
+      postRegenerateSessionId: req.sessionID,
+      userId: user.id,
+    });
 
     if (user.role === "AGENCY") {
       const agencyContext = await resolveAgencyContextForMemberUser(user.id);
@@ -855,7 +892,11 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           console.error("[Login] Error saving session:", err);
           reject(err);
         } else {
-          console.log("[Login] Session saved successfully");
+          console.log("[Login] Session saved successfully:", {
+            sessionId: req.sessionID,
+            userId: req.session.userId,
+            role: req.session.role,
+          });
           resolve();
         }
       });
