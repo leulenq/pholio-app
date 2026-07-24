@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getApplicationDetails } from '../../api/agency';
 import { resolveTier, MATCH_TIER_LABELS, normalizeScore } from '../../lib/matchTier';
+import { getStatusLabel } from '../ui/StatusText';
 import { cmToImperial } from '../../pages/rosterFormat';
 import './ReviewRoom.css';
 
@@ -53,14 +54,10 @@ const DECIDED = new Set(['represented', 'booked', 'accepted', 'signed', 'decline
 // Match grade → a four-mark strength meter; the fill is the tier.
 const TIER_LEVEL = { exceptional: 4, strong: 3, fair: 2, low: 1 };
 
-// Pipeline state → the room's own labels + tone family.
-const STATE_LABELS = {
-  submitted: 'Awaiting review', pending: 'Awaiting review', new: 'Awaiting review', '': 'Awaiting review',
-  under_review: 'In review', shortlisted: 'Shortlisted', requested_more: 'Digitals requested',
-  meeting_requested: 'Meeting set', development: 'New face', kept_on_file: 'On file',
-  represented: 'Represented', booked: 'Represented', accepted: 'Represented', signed: 'Represented',
-  declined: 'Passed', passed: 'Passed', withdrawn: 'Withdrawn',
-};
+// Pipeline state → tone family ONLY. The room sits on deep ink, so it needs
+// its own dark-surface tone colors (a legitimate surface difference). The
+// LABEL is not defined here: it comes from the single source of truth,
+// `getStatusLabel`, so the room's vocabulary equals the list's everywhere.
 const STATE_TONE = {
   represented: 'signed', booked: 'signed', accepted: 'signed', signed: 'signed',
   shortlisted: 'short', requested_more: 'short', meeting_requested: 'short',
@@ -72,7 +69,7 @@ const STATE_TONE = {
 /** State mark — an underscored state line; tone by family, no cell, no dot. */
 function StateMark({ status }) {
   const key = String(status || '').toLowerCase();
-  const label = STATE_LABELS[key] || 'Awaiting review';
+  const label = getStatusLabel(status);
   const tone = STATE_TONE[key] || 'wait';
   return <span className={`rr-state rr-state--${tone}`}>{label}</span>;
 }
