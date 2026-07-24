@@ -427,15 +427,49 @@ app.use((req, res, next) => {
           err.code === "ECONNRESET" ||
           err.code === "EPIPE")
       ) {
-        // Connection error - log but continue without session
         console.error(
-          "[Session] Connection error (continuing without session):",
+          "[Session] Connection error reading session store:",
           err.message.substring(0, 150),
         );
-        // Create a minimal session object to prevent errors downstream
-        req.session = req.session || {};
-        req.session.cookie = req.session.cookie || { maxAge: null };
-        return next(); // Continue without crashing
+
+        // A request with NO session cookie has nothing to lose — continuing
+        // anonymously is safe and matches the prior behavior.
+        const hadSessionCookie = Boolean(
+          req.headers.cookie && req.headers.cookie.includes("connect.sid="),
+        );
+        if (!hadSessionCookie) {
+          req.session = req.session || {};
+          req.session.cookie = req.session.cookie || { maxAge: null };
+          return next();
+        }
+
+        // A request that DID present a session cookie is a different story:
+        // we cannot read the store right now, so we cannot tell whether this
+        // is a signed-in user or not. The previous behavior silently swapped
+        // in a blank/anonymous session here, which is indistinguishable from
+        // "you got logged out" to every downstream requireAuth/requireRole
+        // check — a serverless DB blip (e.g. a pooled/serverless Postgres
+        // connection that went idle and needs a beat to reconnect) would
+        // silently and incorrectly de-authenticate an actually-signed-in user
+        // for exactly one request. Fail with a retryable error instead of
+        // guessing; the client already treats a non-401 error as retryable
+        // rather than bouncing to /login.
+        console.warn(
+          "[Session] Connection error with a session cookie present — refusing to silently treat as signed-out:",
+          { path: req.originalUrl || req.path },
+        );
+        res.set("Retry-After", "2");
+        const acceptsHtml = (req.headers.accept || "").includes("text/html");
+        if (acceptsHtml) {
+          return res
+            .status(503)
+            .send("Temporarily unavailable — please refresh in a moment.");
+        }
+        return res.status(503).json({
+          error: "Service temporarily unavailable",
+          message: "Please try again in a moment.",
+          retryable: true,
+        });
       }
       // Other errors - pass through
       return next(err);
