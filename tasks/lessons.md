@@ -2,13 +2,12 @@
 
 ## 2026-07-24 — Login browsewrap must send the same legal payload as signup
 
-- `LegalNoticeLine` ("By continuing, you agree…") is browsewrap disclosure, not a UI checkbox.
-  Any auth path that can auto-create a TALENT row (`POST /api/login`, Instagram login/callback,
-  casting entry) must send `terms_accepted: true` and `privacy_accepted: true` with the token.
-- Onboarding (`CastingEntry`) already did this; `/login` Google/Instagram did not. First-time
-  Google login then failed with a ToS error even though the notice was visible on the page.
-- When adding a new OAuth complete handler, copy the CastingEntry `LEGAL_ACCEPTANCE` pattern
-  rather than posting only `firebase_token`.
+- `/login` must never auto-create talent accounts. Unknown Firebase identities
+  return `NEEDS_ONBOARDING` + `redirect: /onboarding`; the client sends them into
+  casting. Legal acceptance is recorded during `/onboarding/entry`, not login.
+- Agency team invites remain the only login auto-provision path.
+- `LegalNoticeLine` on login is still browsewrap disclosure for existing sign-in;
+  do not treat it as permission to skip casting for new talent.
 
 ## 2026-07-11 — Pholio cinematic work cannot be a luxury SaaS template
 

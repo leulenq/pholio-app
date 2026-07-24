@@ -22,11 +22,6 @@ import styles from './LoginPage.module.css';
 
 const EASE = [0.16, 1, 0.3, 1];
 
-// Browsewrap acceptance travels with every login payload — LegalNoticeLine
-// under the buttons is the disclosure (same pattern as CastingEntry).
-// Required when Google/Instagram creates a first-time Pholio talent account.
-const LEGAL_ACCEPTANCE = { terms_accepted: true, privacy_accepted: true };
-
 // Dev-only: when Firebase is not configured locally, sign in through the
 // backend /api/dev/login endpoint using the seeded bcrypt password.
 const DEV_PASSTHROUGH =
@@ -233,7 +228,6 @@ export default function LoginPage() {
         body: JSON.stringify({
           firebase_token: idToken,
           invite_token: inviteToken || undefined,
-          ...LEGAL_ACCEPTANCE,
         }),
       });
 
@@ -245,6 +239,13 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
+
+      // First-time Google/Instagram identities have no Pholio user yet — send
+      // them into casting instead of creating an account from /login.
+      if (data?.error === 'NEEDS_ONBOARDING') {
+        window.location.href = data.redirect || '/onboarding';
+        return;
+      }
 
       if (!response.ok) {
         let errorMessage = 'Backend authentication failed';

@@ -6,8 +6,8 @@ import { auth } from '../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../shared/lib/pholio-auth/broadcast';
 import { markAuthEntryTransition } from '../../../shared/lib/pholio-auth/entry-transition';
 
-// Same browsewrap payload as LoginPage / CastingEntry — required when Instagram
-// provisions a first-time Pholio talent account via login or onboarding entry.
+// Browsewrap acceptance for casting entry (signup). Login never creates talent
+// accounts — unknown identities are redirected to /onboarding instead.
 const LEGAL_ACCEPTANCE = { terms_accepted: true, privacy_accepted: true };
 
 async function completeCastingEntry(idToken) {
@@ -36,10 +36,14 @@ async function completeLogin(idToken, nextPath) {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
-    body: JSON.stringify({ firebase_token: idToken, ...LEGAL_ACCEPTANCE }),
+    body: JSON.stringify({ firebase_token: idToken }),
   });
 
   const data = await response.json().catch(() => ({}));
+  if (data?.error === 'NEEDS_ONBOARDING') {
+    window.location.href = data.redirect || '/onboarding';
+    return;
+  }
   if (!response.ok) {
     throw new Error(data.error || data.message || 'Login failed');
   }
