@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { moderationApi } from '../../../shared/lib/moderation-api';
@@ -28,34 +28,38 @@ export default function ModerationQueuePage() {
   const [enforceUserId, setEnforceUserId] = useState('');
   const [enforceReason, setEnforceReason] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const me = await moderationApi.getMe();
-      if (!me?.data?.isModerator) {
-        setAllowed(false);
-        return;
-      }
-      setAllowed(true);
-      const [queue, reportRows, csam] = await Promise.all([
-        moderationApi.getQueue('pending'),
-        moderationApi.getReports('pending'),
-        moderationApi.getCsamEscalations(),
-      ]);
-      setItems(queue?.data || []);
-      setReports(reportRows?.data || []);
-      setCsamItems(csam?.data || []);
-    } catch (error) {
-      toast.error(error.message || 'Could not load moderation data');
-      setAllowed(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Initial data load — all setState calls happen inside async callbacks, not synchronously.
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    (async () => {
+      try {
+        const me = await moderationApi.getMe();
+        if (!active) return;
+        if (!me?.data?.isModerator) {
+          setAllowed(false);
+          setLoading(false);
+          return;
+        }
+        setAllowed(true);
+        const [queue, reportRows, csam] = await Promise.all([
+          moderationApi.getQueue('pending'),
+          moderationApi.getReports('pending'),
+          moderationApi.getCsamEscalations(),
+        ]);
+        if (!active) return;
+        setItems(queue?.data || []);
+        setReports(reportRows?.data || []);
+        setCsamItems(csam?.data || []);
+      } catch (error) {
+        if (!active) return;
+        toast.error(error.message || 'Could not load moderation data');
+        setAllowed(false);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const handleReview = async (id, action) => {
     setActingId(id);

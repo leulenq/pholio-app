@@ -93,9 +93,14 @@ function CastingCallPage() {
   const previewActive = DEV_PREVIEW && !!preview;
   const previewFinishing = previewActive && preview.view === 'finishing';
 
+  // Step 1: Entry Complete → greet beat (when we know a name) → birthdate.
+  // Declared here so the preview effect below can reference setGreetName.
+  const [greetName, setGreetName] = useState(null);
+
   React.useEffect(() => {
     if (!previewActive) return;
-    // Replace local state with realistic seed data, then jump to the step.
+    // Dev-only preview harness: seeds UI state for visual QA (not reachable in production).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dev-only harness, intentional synchronous seed
     setProfileData(PREVIEW_SEED.profileData);
     setPhotoData(PREVIEW_SEED.photoData);
     if (preview.view === 'reveal') {
@@ -163,7 +168,7 @@ function CastingCallPage() {
 
   // Step 1: Entry Complete → greet beat (when we know a name) → birthdate.
   // "Good to meet you, {name}." is one of the House's three name uses.
-  const [greetName, setGreetName] = useState(null);
+  // (greetName declared above the preview effect so the dev harness can reference it.)
   const handleEntryComplete = ({ method, name, email, picture, manualData }) => {
     if (method) {
       setSignupMethod(method);
@@ -296,6 +301,7 @@ function CastingCallPage() {
 
     const photoUrl = status.state.step_data?.scout?.photo_url;
     if (photoUrl) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration guarded by hydratedRef; not a cascading pattern
       setPhotoData((prev) => prev || { photo_url: photoUrl });
     }
   }, [status, previewActive]);
@@ -320,6 +326,7 @@ function CastingCallPage() {
         current_step === 'birthdate' &&
         status.user?.auth_method === 'email' &&
         !status.user?.email_verified;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- routing effect to resume mid-flow; fires at most once per session step
       setCurrentView(needsVerifyBeat ? 'verify' : current_step);
     }
   }, [status, navigate, currentView, previewActive]);

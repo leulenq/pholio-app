@@ -58,18 +58,24 @@ export default function ReportDialog({
   const backdropRef = useRef(null);
   const selectRef = useRef(null);
 
-  // Reset form state when dialog opens
-  useEffect(() => {
+  // Reset form state when dialog opens (adjust during render, not in effect).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setReason('');
       setDetails('');
       setTargetType(targetTypeProp || '');
       setTargetId(targetIdProp || '');
-      // Focus the reason select on open for accessibility
-      const id = requestAnimationFrame(() => selectRef.current?.focus());
-      return () => cancelAnimationFrame(id);
     }
-  }, [open, targetTypeProp, targetIdProp]);
+  }
+
+  // Focus the reason select on open for accessibility (DOM side-effect must stay in effect).
+  useEffect(() => {
+    if (!open) return undefined;
+    const id = requestAnimationFrame(() => selectRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [open]);
 
   // Close on Escape
   useEffect(() => {

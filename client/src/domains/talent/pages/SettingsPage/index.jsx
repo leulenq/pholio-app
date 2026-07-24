@@ -288,20 +288,31 @@ function IdentityMovement({ settings }) {
   const [handleDirty, setHandleDirty] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
+  // Sync canonical slug into local handle when not dirty (adjust during render).
+  const [prevCanonicalSlug, setPrevCanonicalSlug] = useState(canonicalSlug);
+  const [prevHandleDirty, setPrevHandleDirty] = useState(handleDirty);
+  if (canonicalSlug !== prevCanonicalSlug || handleDirty !== prevHandleDirty) {
+    setPrevCanonicalSlug(canonicalSlug);
+    setPrevHandleDirty(handleDirty);
     if (!handleDirty) setHandle(canonicalSlug);
-  }, [canonicalSlug, handleDirty]);
+  }
 
-  useEffect(() => {
-    if (!profile || dirty) return;
-    setForm({
-      first_name: profile.first_name || '',
-      last_name: profile.last_name || '',
-      phone: profile.phone || '',
-      language: parseJsonArray(profile.languages)[0] || 'English',
-      timezone: profile.timezone || 'America/New_York',
-    });
-  }, [dirty, profile]);
+  // Sync server profile into local form when not dirty (adjust during render).
+  const [prevProfile, setPrevProfile] = useState(profile);
+  const [prevDirty, setPrevDirty] = useState(dirty);
+  if (profile !== prevProfile || dirty !== prevDirty) {
+    setPrevProfile(profile);
+    setPrevDirty(dirty);
+    if (profile && !dirty) {
+      setForm({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone: profile.phone || '',
+        language: parseJsonArray(profile.languages)[0] || 'English',
+        timezone: profile.timezone || 'America/New_York',
+      });
+    }
+  }
 
   const setField = (key, value) => { setForm((prev) => ({ ...prev, [key]: value })); setDirty(true); };
 

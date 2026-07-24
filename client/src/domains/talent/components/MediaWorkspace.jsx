@@ -605,7 +605,12 @@ export default function MediaWorkspace() {
   const [classificationTimedOutIds, setClassificationTimedOutIds] = React.useState(() => new Set());
   const timeoutToastedRef = React.useRef(false);
 
-  React.useEffect(() => { setLocalImages(images || []); }, [images]);
+  // Sync server images into local state during render (adjust during render).
+  const [prevImages, setPrevImages] = React.useState(images);
+  if (images !== prevImages) {
+    setPrevImages(images);
+    setLocalImages(images || []);
+  }
   React.useEffect(() => { document.title = 'Portfolio | Pholio'; }, []);
 
   React.useEffect(() => {
@@ -657,11 +662,17 @@ export default function MediaWorkspace() {
     [localImages],
   );
 
+  // Adjust during render: clear timed-out IDs when pending classification resolves.
+  const [prevHasPending, setPrevHasPending] = React.useState(hasPendingClassification);
+  if (hasPendingClassification !== prevHasPending) {
+    setPrevHasPending(hasPendingClassification);
+    if (!hasPendingClassification) setClassificationTimedOutIds(new Set());
+  }
+
   React.useEffect(() => {
     if (!hasPendingClassification) {
       pollStartedRef.current = null;
       timeoutToastedRef.current = false;
-      setClassificationTimedOutIds(new Set());
       return undefined;
     }
     if (!pollStartedRef.current) pollStartedRef.current = Date.now();
