@@ -1,3 +1,19 @@
+# Google login ToS blocker — 2026-07-24
+
+## Plan
+- [x] Locate error: server rejects first-time TALENT create without `terms_accepted`/`privacy_accepted`
+- [x] Confirm LoginPage shows LegalNoticeLine but does not send acceptance flags
+- [x] Fix LoginPage + InstagramCallbackPage to send browsewrap acceptance (CastingEntry pattern)
+- [x] Add regression tests for reject / accept / existing-user paths
+- [x] Run tests and ship
+
+## Review
+Root cause: Google sign-in on `/login` authenticates with Firebase, then POSTs `/api/login` with only `firebase_token`. For accounts not yet in Pholio DB, the server auto-creates TALENT and requires ToS/Privacy flags. Onboarding already sent those flags; login did not — so first-time Google login failed with the acceptance error.
+
+Fix: send `{ terms_accepted: true, privacy_accepted: true }` from LoginPage and InstagramCallbackPage (matching CastingEntry + LegalNoticeLine browsewrap). Regression coverage in `tests/security/talent-login-terms-acceptance.test.js` (3 passing).
+
+---
+
 # Intel Page — Ground-Up Build — 2026-07-03
 
 Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.
