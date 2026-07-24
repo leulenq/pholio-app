@@ -3,7 +3,7 @@
  * Brand-compliant auth selection: Google, Instagram, or Manual
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   GoogleAuthProvider,
@@ -12,9 +12,12 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { auth } from '../../../shared/lib/firebase';
+import {
+  takeOnboardingAuthHandoff,
+  waitForFirebaseUser,
+} from '../../../shared/lib/pholio-auth/onboarding-handoff';
 import { useCastingEntry } from '../hooks/useCasting';
 import { fadeVariants, containerVariants, childVariants } from './animations';
-import { Loader2 } from 'lucide-react';
 
 import StepBeat from '../components/StepBeat';
 import SpotlightField from '../components/SpotlightField';
@@ -51,9 +54,25 @@ function humanizeAuthError(error) {
       return 'Your browser blocked the sign-in window.';
     case 'auth/too-many-requests':
       return 'Too many attempts. Try again in a moment.';
+    case 'DOB_REQUIRED':
+      return 'Enter your date of birth to continue.';
+    case 'DOB_INVALID':
+    case 'DOB_FUTURE':
+      return error.message || 'Enter a valid date of birth.';
+    case 'ADULT_ELIGIBILITY_REQUIRED':
+      return error.message || 'Pholio’s current launch is for adults 18 and over.';
     default:
-      return 'Something interrupted sign-in. Try again.';
+      return error?.message || 'Something interrupted sign-in. Try again.';
   }
+}
+
+function clearContinueQuery() {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('continue')) return;
+  url.searchParams.delete('continue');
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, '', next);
 }
 
 function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAuthenticating }) {
@@ -70,7 +89,12 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
   const [authError, setAuthError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [instagramEnabled, setInstagramEnabled] = useState(false);
+  const [pendingOAuth, setPendingOAuth] = useState(null); // { user, method, name, email, picture }
+  const [dob, setDob] = useState('');
   const entryMutation = useCastingEntry();
+  const resumeStartedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   // Propagate authenticating state up to hide progress bars
   React.useEffect(() => {
@@ -106,6 +130,12 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
   React.useEffect(() => {
     if (!registerBack) return undefined;
     registerBack(() => {
+      if (pendingOAuth) {
+        setPendingOAuth(null);
+        setDob('');
+        setAuthError(null);
+        return true;
+      }
       if (manualStep > 0) {
         setManualStep((prev) => prev - 1);
         setFieldErrors({});
@@ -115,7 +145,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       return false;
     });
     return () => registerBack(null);
-  }, [registerBack, manualStep]);
+  }, [registerBack, manualStep, pendingOAuth]);
 
   // Report progress whenever manualStep changes.
   // 4 sub-steps: Choice(0), Name(1), Email(2), Password(3) → 0% -> 75% of "Entry".
@@ -127,6 +157,100 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
 
   useEffect(() => {
     isInstagramAuthConfigured().then(setInstagramEnabled);
+  }, []);
+
+  const finishOAuthEntry = async (user, method, extras = {}) => {
+    const token = await user.getIdToken();
+    const displayName = extras.name || user.displayName || null;
+    const response = await entryMutation.mutateAsync({
+      firebase_token: token,
+      name: displayName,
+      ...LEGAL_ACCEPTANCE,
+      ...(extras.date_of_birth ? { date_of_birth: extras.date_of_birth } : {}),
+    });
+
+    onCompleteRef.current({
+      hasOAuthData: response.has_oauth_data,
+      method,
+      name: displayName,
+      email: extras.email || user.email,
+      picture: extras.picture || user.photoURL,
+      manualData: displayName ? { name: displayName } : undefined,
+    });
+  };
+
+  const beginOAuthEntry = async (user, method, extras = {}) => {
+    setAuthError(null);
+    setAuthenticatingMethod(method);
+    setIsAuthenticating(true);
+    try {
+      await finishOAuthEntry(user, method, extras);
+    } catch (error) {
+      console.error('[Casting Entry] Auth error:', error);
+      if (
+        error?.code === 'DOB_REQUIRED' ||
+        error?.code === 'DOB_INVALID' ||
+        error?.code === 'DOB_FUTURE'
+      ) {
+        setPendingOAuth({
+          user,
+          method,
+          name: extras.name || user.displayName || null,
+          email: extras.email || user.email || null,
+          picture: extras.picture || user.photoURL || null,
+        });
+        setIsAuthenticating(false);
+        setAuthError(error.code === 'DOB_REQUIRED' ? null : humanizeAuthError(error));
+        return;
+      }
+      setAuthError(humanizeAuthError(error));
+      setIsAuthenticating(false);
+    }
+  };
+
+  // Resume Google/Instagram from /login when Firebase already signed them in.
+  useEffect(() => {
+    if (resumeStartedRef.current) return undefined;
+    if (import.meta.env.DEV && initialStep) return undefined;
+
+    const params = new URLSearchParams(window.location.search);
+    const continueMethod = params.get('continue');
+    const handoff = takeOnboardingAuthHandoff();
+    const method = continueMethod || handoff?.method;
+    if (method !== 'google' && method !== 'instagram') return undefined;
+
+    resumeStartedRef.current = true;
+    let cancelled = false;
+
+    async function resumeFromLoginHandoff() {
+      setAuthError(null);
+      setAuthenticatingMethod(method);
+      setIsAuthenticating(true);
+
+      const user = await waitForFirebaseUser(auth);
+      if (cancelled) return;
+
+      clearContinueQuery();
+
+      if (!user) {
+        setIsAuthenticating(false);
+        setAuthError('Sign-in session expired. Continue with Google below.');
+        return;
+      }
+
+      await beginOAuthEntry(user, method, {
+        name: handoff?.name || user.displayName,
+        email: handoff?.email || user.email,
+        picture: handoff?.picture || user.photoURL,
+      });
+    }
+
+    resumeFromLoginHandoff();
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally once on mount for the login → onboarding handoff.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGoogleSignIn = async () => {
@@ -150,19 +274,10 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      const token = await result.user.getIdToken();
-      const response = await entryMutation.mutateAsync({
-        firebase_token: token,
-        name: result.user.displayName,
-        ...LEGAL_ACCEPTANCE,
-      });
-      onComplete({
-        hasOAuthData: response.has_oauth_data,
-        method: 'google',
+      await beginOAuthEntry(result.user, 'google', {
         name: result.user.displayName,
         email: result.user.email,
         picture: result.user.photoURL,
-        manualData: result.user.displayName ? { name: result.user.displayName } : undefined,
       });
     } catch (error) {
       console.error('[Casting Entry] Auth error:', error);
@@ -199,6 +314,28 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
     setAuthNote(null);
     setIsAuthenticating(true);
     startInstagramAuth({ flow: 'signup' });
+  };
+
+  const handleDobContinue = async () => {
+    if (!pendingOAuth) return;
+    if (!dob) {
+      setAuthError('Enter your date of birth to continue.');
+      return;
+    }
+    setAuthError(null);
+    setIsAuthenticating(true);
+    try {
+      await finishOAuthEntry(pendingOAuth.user, pendingOAuth.method, {
+        name: pendingOAuth.name,
+        email: pendingOAuth.email,
+        picture: pendingOAuth.picture,
+        date_of_birth: dob,
+      });
+    } catch (error) {
+      console.error('[Casting Entry] DOB entry error:', error);
+      setAuthError(humanizeAuthError(error));
+      setIsAuthenticating(false);
+    }
   };
 
   const handleNextManual = () => {
@@ -266,15 +403,22 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
 
   // The single fixed action for the flow. Called once, unconditionally:
   //  · step 0 (the auth doors) → no dock (reserved height kept)
+  //  · pending OAuth DOB gate → Continue
   //  · steps 1–3 → "Continue" (gold once the field has content), Enter also works
   useActionDock(
-    manualStep === 0
-      ? { label: null }
-      : {
-          label: isAuthenticating ? 'Creating Account…' : 'Continue',
-          enabled: !isAuthenticating && manualValue.trim().length > 0,
-          onAdvance: handleNextManual,
+    pendingOAuth
+      ? {
+          label: isAuthenticating ? 'Continuing…' : 'Continue',
+          enabled: !isAuthenticating && dob.trim().length > 0,
+          onAdvance: handleDobContinue,
         }
+      : manualStep === 0
+        ? { label: null }
+        : {
+            label: isAuthenticating ? 'Creating Account…' : 'Continue',
+            enabled: !isAuthenticating && manualValue.trim().length > 0,
+            onAdvance: handleNextManual,
+          }
   );
 
   return (
@@ -308,6 +452,31 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
               {authenticatingMethod === 'email' ? 'Creating account.' : 'Authenticating.'}
             </span>
           )}
+        </motion.div>
+      ) : pendingOAuth ? (
+        <motion.div
+          key="oauth-dob"
+          variants={fadeVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="cs-step-stage"
+        >
+          <StepBeat text="When were you *born*?" dividerDelay={0.6} questionDelay={0.3} />
+          <SpotlightField
+            key="oauth-dob-field"
+            type="date"
+            autoFocus
+            value={dob}
+            onChange={(e) => {
+              setDob(e.target.value);
+              setAuthError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleDobContinue();
+            }}
+          />
+          <InlineErrorText message={authError} className="cinematic-field-error" />
         </motion.div>
       ) : manualStep === 0 ? (
         <motion.div
@@ -427,19 +596,12 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
             autoFocus
             value={formData.name}
             placeholder="Type your name"
-            aria-label="Your name"
-            aria-invalid={!!fieldErrors.name}
-            onChange={(e) => {
-              setFormData({ ...formData, name: e.target.value });
-              if (fieldErrors.name) setFieldErrors((prev) => { const n = { ...prev }; delete n.name; return n; });
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleNextManual();
             }}
-            onEnter={handleNextManual}
           />
-
-          <div className="entry-manual-below">
-            <InlineErrorText message={fieldErrors.name} className="cinematic-field-error" />
-            <span className="entry-hint">Press Enter ↵</span>
-          </div>
+          <InlineErrorText message={fieldErrors.name} className="cinematic-field-error" />
         </motion.div>
       ) : manualStep === 2 ? (
         <motion.div
@@ -450,27 +612,19 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
           exit="exit"
           className="cs-step-stage"
         >
-          <StepBeat text="And your *email*?" dividerDelay={0.6} questionDelay={0.3} />
-
+          <StepBeat text="What's your *email*?" dividerDelay={0.6} questionDelay={0.3} />
           <SpotlightField
             key="email-field"
             type="email"
             autoFocus
             value={formData.email}
-            placeholder="you@example.com"
-            aria-label="Your email"
-            aria-invalid={!!fieldErrors.email}
-            onChange={(e) => {
-              setFormData({ ...formData, email: e.target.value });
-              if (fieldErrors.email) setFieldErrors((prev) => { const n = { ...prev }; delete n.email; return n; });
+            placeholder="you@email.com"
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleNextManual();
             }}
-            onEnter={handleNextManual}
           />
-
-          <div className="entry-manual-below">
-            <InlineErrorText message={fieldErrors.email} className="cinematic-field-error" />
-            <span className="entry-hint">Press Enter ↵</span>
-          </div>
+          <InlineErrorText message={fieldErrors.email || authError} className="cinematic-field-error" />
         </motion.div>
       ) : (
         <motion.div
@@ -481,32 +635,21 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
           exit="exit"
           className="cs-step-stage"
         >
-          <StepBeat text="Create a *password*" dividerDelay={0.6} questionDelay={0.3} />
-
+          <StepBeat text="Choose a *password*" dividerDelay={0.6} questionDelay={0.3} />
           <SpotlightField
             key="password-field"
             type="password"
             autoFocus
             value={formData.password}
-            placeholder="Choose a password"
-            aria-label="Choose a password"
-            aria-invalid={!!fieldErrors.password}
-            onChange={(e) => {
-              setFormData({ ...formData, password: e.target.value });
-              if (fieldErrors.password) setFieldErrors((prev) => { const n = { ...prev }; delete n.password; return n; });
-              if (authError) setAuthError(null);
+            placeholder="At least 6 characters"
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleNextManual();
             }}
-            onEnter={handleNextManual}
           />
-
-          <div className="entry-manual-below">
-            <InlineErrorText message={fieldErrors.password} className="cinematic-field-error" />
-            <InlineErrorText message={authError} className="cinematic-field-error" />
-            <span className="entry-hint">Press Enter ↵</span>
-          </div>
+          <InlineErrorText message={fieldErrors.password || authError} className="cinematic-field-error" />
         </motion.div>
       )}
-
     </AnimatePresence>
   );
 }

@@ -27,16 +27,29 @@ async function castingRequest(endpoint, options = {}) {
 
   if (!response.ok) {
     let message = 'Request failed';
+    let code = null;
     try {
       const errorData = await response.json();
-      message = errorData.error?.message || errorData.message || errorData.error || message;
+      code =
+        (typeof errorData.error === 'string' && errorData.error) ||
+        errorData.error?.code ||
+        errorData.code ||
+        null;
+      message =
+        errorData.message ||
+        errorData.error?.message ||
+        (typeof errorData.error === 'string' ? errorData.error : null) ||
+        message;
     } catch {
       // Fallback for non-JSON errors (like standard 500 HTML pages)
       message = `Server error (${response.status}): ${response.statusText || 'Internal Server Error'}`;
     }
 
     console.error(`[Casting Hook] Error at ${endpoint}:`, message);
-    throw new Error(message);
+    const err = new Error(message);
+    err.code = code;
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();

@@ -18,6 +18,9 @@ import {
   startInstagramAuth,
 } from '../../lib/instagram-auth';
 import LegalNoticeLine from '../../../../shared/components/LegalNoticeLine';
+import {
+  stashOnboardingAuthHandoff,
+} from '../../../../shared/lib/pholio-auth/onboarding-handoff';
 import styles from './LoginPage.module.css';
 
 const EASE = [0.16, 1, 0.3, 1];
@@ -96,7 +99,12 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
-      await authenticateWithBackend(idToken);
+      await authenticateWithBackend(idToken, {
+        method: 'google',
+        name: result.user.displayName,
+        email: result.user.email,
+        picture: result.user.photoURL,
+      });
     } catch (err) {
       setError(
         err.code === 'auth/popup-closed-by-user'
@@ -137,7 +145,7 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const idToken = await userCredential.user.getIdToken();
-      await authenticateWithBackend(idToken);
+      await authenticateWithBackend(idToken, { method: 'email' });
     } catch (err) {
       let msg = 'Failed to sign in. Please check your credentials.';
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -217,7 +225,7 @@ export default function LoginPage() {
     }
   };
 
-  const authenticateWithBackend = async (idToken) => {
+  const authenticateWithBackend = async (idToken, identity = {}) => {
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
@@ -240,9 +248,20 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      // First-time Google/Instagram identities have no Pholio user yet — send
-      // them into casting instead of creating an account from /login.
+      // First-time Google/Instagram identities have no Pholio user yet — hand
+      // the Firebase session into casting so they don't click OAuth again.
       if (data?.error === 'NEEDS_ONBOARDING') {
+        const method = identity.method === 'instagram' ? 'instagram' : 'google';
+        if (identity.method === 'google' || identity.method === 'instagram') {
+          stashOnboardingAuthHandoff({
+            method,
+            name: identity.name,
+            email: identity.email,
+            picture: identity.picture,
+          });
+          window.location.href = `/onboarding?continue=${method}`;
+          return;
+        }
         window.location.href = data.redirect || '/onboarding';
         return;
       }

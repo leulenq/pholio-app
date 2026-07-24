@@ -6,6 +6,10 @@
   return `NEEDS_ONBOARDING` + `redirect: /onboarding`; the client sends them into
   casting. Legal acceptance is recorded during `/onboarding/entry`, not login.
 - Agency team invites remain the only login auto-provision path.
+- After `NEEDS_ONBOARDING`, stash Google/Instagram profile in sessionStorage and
+  redirect to `/onboarding?continue=google|instagram`. CastingEntry must resume
+  from `auth.currentUser` (wait for Firebase persistence) and call entry without
+  a second OAuth popup. Requiring another Google click is a product bug.
 - `LegalNoticeLine` on login is still browsewrap disclosure for existing sign-in;
   do not treat it as permission to skip casting for new talent.
 
