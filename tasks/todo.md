@@ -6,7 +6,7 @@
 - [x] Publish canonical copy under `docs/`
 - [x] Sync `CLAUDE.md` + `AGENTS.md` Model Routing / Subagent sections to the new rule
 - [x] Align `tasks/lessons.md` parallel-ownership note with the global rule
-- [ ] Commit, push, open PR
+- [x] Commit, push, open PR
 
 ## Review
 Published a provider-agnostic **AI Agent Operating Rule** as the durable contract for Claude, Cursor, Codex, and future agents.
