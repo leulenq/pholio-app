@@ -1,5 +1,14 @@
 # Lessons Learned
 
+## 2026-07-24 — Login browsewrap must send the same legal payload as signup
+
+- `/login` must never auto-create talent accounts. Unknown Firebase identities
+  return `NEEDS_ONBOARDING` + `redirect: /onboarding`; the client sends them into
+  casting. Legal acceptance is recorded during `/onboarding/entry`, not login.
+- Agency team invites remain the only login auto-provision path.
+- `LegalNoticeLine` on login is still browsewrap disclosure for existing sign-in;
+  do not treat it as permission to skip casting for new talent.
+
 ## 2026-07-11 — Pholio cinematic work cannot be a luxury SaaS template
 
 - Never hand-type or approximate the Pholio wordmark. Reuse the canonical shared mark: uppercase Noto Serif Display, fixed platform gold, wide tracking, and the established sweep where the shared component provides it.

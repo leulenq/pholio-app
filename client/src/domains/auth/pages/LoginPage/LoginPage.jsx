@@ -240,6 +240,13 @@ export default function LoginPage() {
 
       const data = await response.json();
 
+      // First-time Google/Instagram identities have no Pholio user yet — send
+      // them into casting instead of creating an account from /login.
+      if (data?.error === 'NEEDS_ONBOARDING') {
+        window.location.href = data.redirect || '/onboarding';
+        return;
+      }
+
       if (!response.ok) {
         let errorMessage = 'Backend authentication failed';
 

@@ -6,6 +6,10 @@ import { auth } from '../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../shared/lib/pholio-auth/broadcast';
 import { markAuthEntryTransition } from '../../../shared/lib/pholio-auth/entry-transition';
 
+// Browsewrap acceptance for casting entry (signup). Login never creates talent
+// accounts — unknown identities are redirected to /onboarding instead.
+const LEGAL_ACCEPTANCE = { terms_accepted: true, privacy_accepted: true };
+
 async function completeCastingEntry(idToken) {
   const response = await fetch('/onboarding/entry', {
     method: 'POST',
@@ -14,7 +18,7 @@ async function completeCastingEntry(idToken) {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
-    body: JSON.stringify({ firebase_token: idToken }),
+    body: JSON.stringify({ firebase_token: idToken, ...LEGAL_ACCEPTANCE }),
   });
 
   const data = await response.json().catch(() => ({}));
@@ -36,6 +40,10 @@ async function completeLogin(idToken, nextPath) {
   });
 
   const data = await response.json().catch(() => ({}));
+  if (data?.error === 'NEEDS_ONBOARDING') {
+    window.location.href = data.redirect || '/onboarding';
+    return;
+  }
   if (!response.ok) {
     throw new Error(data.error || data.message || 'Login failed');
   }

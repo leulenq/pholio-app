@@ -1,3 +1,18 @@
+# Google login ToS blocker — 2026-07-24
+
+## Plan
+- [x] Locate error: server rejects first-time TALENT create without `terms_accepted`/`privacy_accepted`
+- [x] Confirm LoginPage shows LegalNoticeLine but does not send acceptance flags
+- [x] Product correction: unknown Google login users must go to `/onboarding`, not auto-create
+- [x] Return `NEEDS_ONBOARDING` from `POST /api/login`; client redirects to casting
+- [x] Keep agency invite auto-provision; update regression tests
+- [x] Run tests and ship
+
+## Review
+First-time Google sign-in on `/login` was failing with a ToS error because login tried to auto-create talent without acceptance flags. Correct product behavior: **login never creates talent accounts**. Unknown Firebase identities now get `404 NEEDS_ONBOARDING` + `redirect: /onboarding`; LoginPage / Instagram login callback follow that redirect. Legal acceptance stays on `/onboarding/entry`. Agency invite provisioning unchanged. Tests: `tests/security/talent-login-onboarding-redirect.test.js` + agency session rotation.
+
+---
+
 # Intel Page — Ground-Up Build — 2026-07-03
 
 Spec: `tasks/intel-page-spec.md` (v2). Build order follows spec §8.

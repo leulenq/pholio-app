@@ -4,23 +4,16 @@ const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const config = require("../../../config");
 const knex = require("../../../shared/db/knex");
-const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
   loginSchema,
 } = require("../../../shared/lib/validation");
-const { addMessage } = require("../../../shared/middleware/context");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
-const { recordLegalAcceptance } = require("../../../shared/lib/legal-acceptance");
 const {
   verifyIdToken,
   createUser: createFirebaseUser,
   getUserByEmail,
 } = require("../services/firebase-admin");
 const { extractIdToken } = require("../middleware/firebase-auth");
-const {
-  createUser: createUserHelper,
-  determineRole,
-} = require("../../../shared/lib/user-helpers");
 const {
   resolveAgencyContextForMemberUser,
 } = require("../../agency/services/context");
@@ -292,8 +285,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
   // Support both JSON and form-encoded requests
   let idToken = null;
   let nextPath = null;
-  const termsAccepted = req.body?.terms_accepted === true;
-  const privacyAccepted = req.body?.privacy_accepted === true;
   const inviteToken =
     typeof req.body?.invite_token === "string"
       ? req.body.invite_token.trim()
@@ -402,8 +393,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     const email = providerUser.email;
     const emailVerified = decodedToken.email_verified === true;
     const displayName = providerUser.name || null;
-    const photoURL = providerUser.picture || null;
-    const instagramHandle = providerUser.instagram_handle || null;
 
     // Parse name into first_name and last_name
     let firstName = providerUser.first_name || null;
@@ -598,79 +587,33 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       }
     }
 
-    // Auto-create user if they don't exist but have valid Firebase token
+    // No Pholio account yet. Talent must complete /onboarding — login never
+    // auto-provisions talent. Agency invites still provision into the workspace.
     if (!user) {
       console.log(
-        "[Login] User not found in database, auto-creating user for Firebase UID:",
+        "[Login] User not found in database for Firebase UID:",
         firebaseUid,
       );
 
-      // Fetch IP geolocation (non-blocking, best-effort)
-      let ipGeolocationData = null;
-      let verifiedLocationIntel = null;
-      try {
-        const clientIP =
-          req.ip ||
-          req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-          null;
-        if (clientIP) {
-          ipGeolocationData = await getIPGeolocation(clientIP);
-          if (ipGeolocationData) {
-            verifiedLocationIntel = createVerifiedLocationIntel(
-              ipGeolocationData,
-              null,
-            );
-          }
-        }
-      } catch (geoError) {
-        console.warn(
-          "[Login] Error fetching IP geolocation:",
-          geoError.message,
+      if (!pendingTeamInvitation) {
+        const onboardingRedirect = "/onboarding";
+        console.log(
+          "[Login] No Pholio account — directing to onboarding:",
+          onboardingRedirect,
         );
+        return isJsonRequest
+          ? res.status(404).json({
+              success: false,
+              error: "NEEDS_ONBOARDING",
+              message: "Finish creating your Pholio account to continue.",
+              redirect: onboardingRedirect,
+            })
+          : res.redirect(onboardingRedirect);
       }
 
-      const isJsonRequest =
-        (req.headers["content-type"] || "").includes("application/json") ||
-        (req.headers.accept || "").includes("application/json");
-
       try {
-        const role = pendingTeamInvitation
-          ? "AGENCY"
-          : determineRole(null, req.path || req.url);
-        console.log("[Login] Creating new user with role:", role);
-
-        if (role === "AGENCY" && !pendingTeamInvitation) {
-          const msg =
-            "Agency accounts are provisioned by Pholio. Contact support if you need access.";
-          return isJsonRequest
-            ? res.status(403).json({ success: false, error: msg })
-            : res.status(403).render("auth/login", {
-                title: "Sign in",
-                values: req.body,
-                errors: { email: [msg] },
-                layout: "layout",
-                currentPage: "login",
-              });
-        }
-
-      if (role === "TALENT" && (!termsAccepted || !privacyAccepted)) {
-          const msg =
-            "You must accept the Terms of Service and Privacy Policy to create an account.";
-          return isJsonRequest
-            ? res.status(400).json({ success: false, error: msg })
-            : res.status(400).render("auth/login", {
-                title: "Sign in",
-                values: req.body,
-                errors: { email: [msg] },
-                layout: "layout",
-                currentPage: "login",
-              });
-        }
-
-        // Safe fallbacks for all required DB fields so INSERT never fails
         const safeFirstName = firstName || "User";
         const safeLastName = lastName || null;
-        const safeCity = ipGeolocationData?.city || "TBD";
         const safeEmail = email
           ? email.toLowerCase().trim()
           : `instagram_${firebaseUid.replace(":", "_")}@pholio.me`;
@@ -682,104 +625,30 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             id: userId,
             email: safeEmail,
             firebase_uid: firebaseUid,
-            role,
+            role: "AGENCY",
             first_name: safeFirstName,
             last_name: safeLastName,
           });
 
-          if (role === "AGENCY") {
-            await acceptTeamInvitation({
-              db: trx,
-              rawToken: inviteToken,
-              userId,
-              email: safeEmail,
-              emailVerified,
-            });
-            teamInvitationAccepted = true;
-          }
-
-          // Create a profile row for TALENT users so the dashboard loads immediately
-          if (role === "TALENT") {
-            await recordLegalAcceptance(trx, userId, {
-              terms: true,
-              privacy: true,
-            });
-
-            const slug = await ensureUniqueSlug(
-              trx,
-              "profiles",
-              `${safeFirstName}-${safeLastName}`,
-            );
-            const {
-              initialState,
-            } = require("../../onboarding/services/state-machine");
-            const startState = initialState("entry", trx);
-
-            const newProfileId = uuidv4();
-            await trx("profiles").insert({
-              id: newProfileId,
-              user_id: userId,
-              slug,
-              first_name: safeFirstName,
-              last_name: safeLastName,
-              bio_raw: "",
-              bio_curated: "",
-              city: safeCity,
-              phone: null,
-              height_cm: 0,
-              is_pro: false,
-              // Setup correct state machine baseline
-              ...startState,
-              // Mark onboarding done so the gate lets them into the dashboard.
-              // The incomplete-profile banner will prompt them to fill in the rest.
-              onboarding_completed_at: knex.fn.now(),
-              created_at: knex.fn.now(),
-              updated_at: knex.fn.now(),
-            });
-
-            if (instagramHandle) {
-              await saveProfileSocialFields(newProfileId, {
-                instagram_handle: instagramHandle
-              });
-            }
-          }
+          await acceptTeamInvitation({
+            db: trx,
+            rawToken: inviteToken,
+            userId,
+            email: safeEmail,
+            emailVerified,
+          });
+          teamInvitationAccepted = true;
 
           user = await trx("users").where({ id: userId }).first();
         });
 
-        console.log("[Login] User auto-created successfully:", {
+        console.log("[Login] Agency invitee auto-created successfully:", {
           id: user.id,
           email: user.email,
           role: user.role,
         });
-
-        // Store data in session for onboarding prefill
-        req.session.onboardingData = {
-          firstName: safeFirstName,
-          lastName: safeLastName,
-          email,
-          googleProfileSynced: !!displayName,
-          googlePhotoURL: photoURL || null,
-          ...(ipGeolocationData
-            ? {
-                ipGeolocation: {
-                  country: ipGeolocationData.country,
-                  region: ipGeolocationData.region,
-                  city: ipGeolocationData.city,
-                  timezone: ipGeolocationData.timezone,
-                },
-              }
-            : {}),
-          ...(verifiedLocationIntel ? { verifiedLocationIntel } : {}),
-        };
-
-        addMessage(
-          req,
-          "success",
-          "Welcome to Pholio! Your account has been created. Complete your profile to get started.",
-        );
       } catch (createError) {
-        console.error("[Login] Error auto-creating user:", createError);
+        console.error("[Login] Error auto-creating invitee:", createError);
 
         // Race condition: another request created the user between our lookup and insert
         if (
@@ -859,8 +728,8 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     }
 
     // Ensure TALENT users always have a profile row and onboarding_completed_at stamp.
-    // This covers: new auto-created users, accounts from outside the onboarding flow,
-    // and (critically) existing users whose profiles pre-date this fix.
+    // This covers accounts from outside the onboarding flow and existing users
+    // whose profiles pre-date this fix.
     if (user && user.role === "TALENT") {
       try {
         const existingProfile = await knex("profiles")
@@ -933,9 +802,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // (SEC-0.7: session-fixation gap). Must happen before any identity fields
     // are assigned — regenerate() replaces req.session with a brand-new,
     // empty session, so fields have to be (re-)assigned after this point.
-    // The auto-create branch above may have stashed onboarding prefill data
-    // on the pre-auth session (req.session.onboardingData); carry it forward
-    // across the regenerate so onboarding prefill still works.
+    // Preserve any pre-auth onboarding prefill if present.
     const preAuthOnboardingData = req.session.onboardingData;
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => (err ? reject(err) : resolve()));
