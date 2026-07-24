@@ -250,26 +250,7 @@ async function testCastingFlow() {
       `  Onboarding Completed: ${profile.onboarding_completed_at ? "✅ " + profile.onboarding_completed_at : "❌ NOT SET"}`,
     );
 
-    // Test 7: Verify Radar Reveal Data
-    console.log("\n\n7️⃣ Testing Radar Reveal Scoring...\n");
-
-    const { calculateFitScores } = require("../client/src/utils/fitScoring.js");
-
-    const scores = calculateFitScores({
-      height_cm: profile.height_cm,
-      bust_cm: profile.bust_cm,
-      waist_cm: profile.waist_cm,
-      hips_cm: profile.hips_cm,
-      weight_kg: profile.weight_kg,
-      gender: profile.gender?.toLowerCase() || "female",
-    });
-
-    console.log("Fit Scores Calculated:");
-    Object.entries(scores).forEach(([category, score]) => {
-      const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
-      const bar = "█".repeat(Math.round(score / 10));
-      console.log(`  ${categoryName.padEnd(12)}: ${score.toFixed(1)}% ${bar}`);
-    });
+    // Test 7: fitScoring module removed — radar reveal scoring no longer tested here.
 
     // Test 8: Check Completion Criteria
     console.log("\n\n8️⃣ Testing Completion Criteria...\n");
@@ -301,7 +282,6 @@ async function testCastingFlow() {
     console.log("  ✅ Gender field is saved to database");
     console.log("  ✅ onboarding_completed_at is set on completion");
     console.log("  ✅ Measurements are saved correctly");
-    console.log("  ✅ Radar reveal scoring works");
     console.log("  ✅ Completion criteria validated\n");
   } catch (error) {
     console.error("\n❌ TEST FAILED:", error);
