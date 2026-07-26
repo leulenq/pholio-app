@@ -1,3 +1,19 @@
+# Unify full-page loaders (gold spinner)
+
+## Goal
+One brand-aligned loading spinner — remove purple vs black dual loaders.
+
+## Plan
+- [x] Restyle `LoadingSpinner` to brand gold (`--color-gold-500`) with reduced-motion
+- [x] Replace talent shell black inline spinner with shared `LoadingSpinner`
+- [x] Confirm App / AgencySessionGate / AgencyOnboarding already use shared component
+- [ ] Lint + commit + PR
+
+## Review
+Pending.
+
+---
+
 # Fix Intel page blank state (useIntel hook regression)
 
 ## Goal
