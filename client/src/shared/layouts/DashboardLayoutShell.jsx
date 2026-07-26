@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../domains/auth/hooks/useAuth';
 import { useAuthEntryTransition } from '../../domains/auth/hooks/useAuthEntryTransition';
 import AuthEntrySplash from '../../domains/auth/components/AuthEntrySplash';
+import PageLoadingScreen from '../components/shared/PageLoadingScreen';
 import {
   resolveEntryDisplayName,
   resolveTalentEntryAvatar,
@@ -113,13 +114,7 @@ export default function DashboardLayoutShell() {
   ) : null;
 
   if (isLoading && !isError) {
-    return (
-      entrySplash || (
-        <div className="flex items-center justify-center h-screen bg-[#faf9f7]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-        </div>
-      )
-    );
+    return entrySplash || <PageLoadingScreen />;
   }
 
   return (
