@@ -1,5 +1,16 @@
 # Lessons Learned
 
+## 2026-07-26 — Intel page: keep intel2, never restore `instruments/`
+
+- Canonical UI is the **intel2** flat tree (`PulseZone`, `IntelKit`, `intel2-*`
+  CSS) in `client/src/domains/talent/pages/IntelPage/`. See `IntelPage/README.md`.
+- A parallel **`instruments/` rewrite** (commits `c6fa4b5`–`17cb101`) was merged
+  on `main` by mistake and regressed the finished design twice. Do not check out
+  that path from git history, ours-merge stale intel branches, or reintroduce
+  `instruments/parts.jsx`.
+- `useIntel` must return `{ intel, meta, … }`; intel2 `index.jsx` maps `intel`
+  to zone payloads. Hook thinning during unrelated merges also caused blank pages.
+
 ## 2026-07-26 — Intel page blank = hook return-shape regression, not a missing design
 
 - `IntelPage` destructures `{ intel, meta, isLoading, isError, refetch }` from

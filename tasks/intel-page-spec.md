@@ -259,7 +259,9 @@ New `src/domains/talent/routes/intel.js` — one composed `GET
 /api/talent/intel` payload (pulse, seismograph, markets, pipeline, book,
 lens, trajectory) + `GET /api/talent/intel/day/:date` for scrub detail.
 Aggregation lives in `src/domains/talent/services/intel/`. Frontend:
-`IntelPage` + instrument components under `client/src/domains/talent/`,
+`IntelPage/` at `client/src/domains/talent/pages/IntelPage/` — **flat intel2
+zone components** (`PulseZone`, `PipelineFlow`, `AgencyLens`, …) per
+`IntelPage/README.md`. **Not** the discarded `instruments/` rewrite.
 `useIntel` React Query hook.
 
 ### Tier gating (existing 7d/90d pattern)
