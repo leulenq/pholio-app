@@ -917,6 +917,14 @@ router.post(
   },
 );
 
+// Pathological-load guard for the submissions query below — NOT pagination.
+// The client derives its tab counts from the full returned set, so this cap
+// must stay well above any realistic live-pipeline size for a single agency.
+// If an agency ever hits this, the real fix is server-side aggregate counts
+// + pagination (roadmap); this constant only stops a runaway agency from
+// loading thousands of rows (plus resolving all their images) per request.
+const SUBMISSIONS_HARD_CAP = 2000;
+
 // GET /api/agency/applications - Get filtered applications as JSON
 router.get(
   "/api/agency/applications",
@@ -1052,7 +1060,16 @@ router.get(
         query = query.orderBy(["profiles.last_name", "profiles.first_name"]);
       }
 
+      // Safety ceiling only — see SUBMISSIONS_HARD_CAP comment above.
+      query = query.limit(SUBMISSIONS_HARD_CAP);
+
       const profiles = await query;
+      const capped = profiles.length >= SUBMISSIONS_HARD_CAP;
+      if (capped) {
+        console.warn(
+          `[API/Agency/Applications] Submissions hard cap (${SUBMISSIONS_HARD_CAP}) reached for agency ${req.session.userId}; results truncated.`,
+        );
+      }
 
       const submissionPackages = await loadApplicationSubmissionPackages(
         knex,
@@ -1146,7 +1163,11 @@ router.get(
         };
       });
 
-      return res.json({ profiles: safeProfiles, count: safeProfiles.length });
+      return res.json({
+        profiles: safeProfiles,
+        count: safeProfiles.length,
+        capped,
+      });
     } catch (error) {
       console.error("[API/Agency/Applications] Error:", error);
       return next(error);
