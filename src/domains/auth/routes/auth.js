@@ -13,6 +13,7 @@ const {
   verifyIdToken,
   createUser: createFirebaseUser,
   getUserByEmail,
+  revokeRefreshTokens,
 } = require("../services/firebase-admin");
 const { findUserByFirebaseIdentity } = require("../services/account-matching");
 const { extractIdToken } = require("../middleware/firebase-auth");
@@ -1065,8 +1066,40 @@ router.post("/signup", (req, res) => {
   return res.redirect("/onboarding" + queryString);
 });
 
+/**
+ * Revoke the signed-out user's Firebase refresh tokens.
+ *
+ * Destroying the Express session is not enough on its own. The React SPA's
+ * PholioAuthBridge re-posts a cached Firebase ID token to /api/login whenever it
+ * finds no Express session, so a logout that leaves the Firebase identity intact
+ * gets silently undone on the next visit or tab focus.
+ *
+ * This matters most for logout initiated from the marketing site: Firebase Web
+ * SDK persistence is per-origin, so www.pholio.studio cannot clear
+ * app.pholio.studio's Firebase state from the client at all. Revoking
+ * server-side is the only thing that makes "log out" mean logged out on both
+ * surfaces, and it does not depend on either client having a Firebase config.
+ *
+ * Best-effort: never blocks or fails the logout.
+ */
+async function revokeFirebaseForSession(session) {
+  try {
+    const accountUserId = session?.memberUserId || session?.userId;
+    if (!accountUserId) return;
+
+    const user = await knex("users")
+      .where({ id: accountUserId })
+      .select("firebase_uid")
+      .first();
+
+    await revokeRefreshTokens(user?.firebase_uid);
+  } catch (error) {
+    console.warn("[Logout] Firebase revocation skipped:", error.message);
+  }
+}
+
 // POST /logout
-router.post(["/logout", "/api/logout"], (req, res) => {
+router.post(["/logout", "/api/logout"], async (req, res) => {
   const isJson =
     req.headers.accept && req.headers.accept.includes("application/json");
   const redirectUrl =
@@ -1078,6 +1111,9 @@ router.post(["/logout", "/api/logout"], (req, res) => {
     }
     return res.redirect(redirectUrl);
   }
+
+  // Must run before destroy() — the session is where the account id lives.
+  await revokeFirebaseForSession(req.session);
 
   req.session.destroy((err) => {
     if (err) {

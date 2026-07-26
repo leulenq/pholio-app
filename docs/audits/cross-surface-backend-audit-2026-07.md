@@ -582,10 +582,11 @@ aggregate.
 
 ## Still needs an answer from outside the repos
 
-1. **Are `NEXT_PUBLIC_FIREBASE_*` set in the landing's Netlify environment?**
-   Unchanged by this work. `netlify.toml` sets only `NEXT_PUBLIC_APP_URL`, and
-   both Firebase clients fail silently on a missing key. `.env.example` now
-   documents the requirement, but only the dashboard can confirm it.
+1. ~~**Are `NEXT_PUBLIC_FIREBASE_*` set in the landing's Netlify environment?**~~
+   **Resolved — the question no longer applies.** Reported unset, which led to a
+   worse finding (see "Logout did not stick", below). The landing's Firebase
+   client has been removed entirely rather than configured, so no
+   `NEXT_PUBLIC_FIREBASE_*` value is needed on the marketing site at all.
 2. **Does the real client IP survive the Netlify Next-runtime proxy hop?** If
    not, all marketing-origin traffic shares one rate-limit bucket — which now
    matters more, since `/api/login` is rate-limited. Measure a real request's
@@ -595,3 +596,93 @@ aggregate.
    The app has been gating on the superseded version since. Treated as a real
    re-acceptance event, which is why the version bump above will re-prompt
    every user.
+
+
+---
+
+# Follow-up: logout did not stick (2026-07-26)
+
+Reported second-hand that the landing's Netlify environment has "a firebase
+client but no `NEXT_PUBLIC` firebase" — i.e. the variables exist under some
+other naming, not the prefix Next.js requires. Investigating that turned up a
+live auth defect that the original audit under-called as "the auth integration
+quietly does nothing."
+
+## The actual defect
+
+**Signing out from the marketing site did not sign the user out.**
+
+1. User signs in at `app.pholio.studio`. Firebase persists the user in the
+   **app origin's** IndexedDB; the Express session cookie is on
+   `.pholio.studio`.
+2. User clicks Log out on `www.pholio.studio`.
+   `PholioAuthProvider.logout()` called `getPholioFirebaseAuth()`, got `null`
+   (no `NEXT_PUBLIC_FIREBASE_*`), and **skipped `signOut()`**. The Express
+   session was destroyed correctly.
+3. User returns to `app.pholio.studio` — or has a tab already open that fires a
+   focus event.
+4. `PholioAuthBridge` (`client/src/shared/lib/pholio-auth/PholioAuthBridge.jsx`)
+   finds `auth.currentUser` still populated, calls `fetchAppSession()`, sees no
+   session, and posts the cached ID token to `/api/login` —
+   **silently re-creating the session the user just ended.**
+
+## Why setting the env vars would not have fixed it
+
+Firebase Web SDK persistence is **per-origin** (IndexedDB). A `signOut()` on
+`www.pholio.studio` clears www's Firebase state — never
+`app.pholio.studio`'s. The marketing site's Firebase client therefore *could
+never* have made logout stick on the app, configured or not. The missing
+variables were a symptom; the architecture was the cause.
+
+Compounding it: `verifyIdToken` called `auth.verifyIdToken(idToken)` **without
+`checkRevoked`**, so its `auth/id-token-revoked` branch was unreachable and a
+signed-out user's cached ID token stayed acceptable for up to an hour.
+
+## Fix
+
+Logout is now **server-authoritative** and independent of client config:
+
+- `revokeRefreshTokens(uid)` added to
+  `domains/auth/services/firebase-admin.js`; `POST /api/logout` looks up
+  `users.firebase_uid` and revokes before destroying the session. Best-effort —
+  it never blocks or fails a logout.
+- `verifyIdToken` now passes `checkRevoked: true` by default, so a revoked
+  token cannot re-establish a session. All four call sites verify identity, so
+  all four should honour revocation; an explicit `{ checkRevoked: false }`
+  opt-out exists.
+
+With revocation server-side, the marketing site's Firebase client became both
+unnecessary and impossible to make correct, so it was **removed**:
+
+- deleted `lib/pholio-auth/firebase.ts` and the `syncFirebaseSession` helper
+  (the marketing site has no auth UI, so nothing there can produce an ID token);
+- dropped `onAuthStateChanged` from `PholioAuthProvider` — session state comes
+  from `GET /api/public/session` via the shared cookie, which is what the header
+  already relied on;
+- removed the `firebase` dependency (**82 packages**) and the
+  `NEXT_PUBLIC_FIREBASE_*` plumbing from `next.config.ts`;
+- `.env.example` now states that no Firebase config belongs on the marketing
+  site, and why, so nobody re-adds it.
+
+This eliminates a silent-failure config surface, deletes a code path that could
+not work, and permanently answers open question 1.
+
+## Verification
+
+`tests/security/logout-revokes-firebase.test.js` — 8 cases: revocation calls
+through; is a no-op for accounts with no Firebase identity; never throws when
+Firebase is unreachable; `verifyIdToken` requests the revocation check by
+default; a revoked token is rejected; the opt-out works.
+
+Landing: `tsc --noEmit` and `next build` clean with `firebase` absent from the
+dependency tree.
+
+Regression: the 33 suites touching changed paths show **no new failures** versus
+the `origin/main` baseline (same 9 pre-existing failures in `tests/onboarding/`),
+208 passing vs 160.
+
+## Note for deploy
+
+Revocation only fires for accounts with a `users.firebase_uid`. Sessions created
+through the dev passthrough (`/api/dev/login`) have no Firebase identity and are
+unaffected — correct, since they have no Firebase token to revoke.
