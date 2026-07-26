@@ -10,6 +10,10 @@ const {
   recordLegalAcceptance,
   requireLegalAcceptance,
 } = require("../../../shared/lib/legal-acceptance");
+const {
+  CURRENT_LEGAL_VERSION,
+  changelogFor,
+} = require("../../../shared/lib/legal-versions");
 const apiResponse = require("../../../shared/lib/api-response");
 const {
   getSubscriptionStatus,
@@ -53,8 +57,13 @@ const DEFAULT_PRIVACY = {
   blockedAgencies: [],
 };
 
+// Opt-in, matching the consent banner. This used to default analytics to `true`
+// (opt-out) while the banner defaulted to opt-in — two records in the same
+// product disagreeing on the polarity of the same permission. The shared
+// `pholio_consent` cookie is the effective gate; this row is the account-level
+// mirror of it.
 const DEFAULT_COOKIES = {
-  analytics: true,
+  analytics: false,
   marketing: false,
 };
 
@@ -542,7 +551,13 @@ router.get(
   asyncHandler(async (req, res) => {
     const user = await knex("users").where({ id: req.session.userId }).first();
     const accepted = requireLegalAcceptance(user, { throwOnMissing: false });
-    return apiResponse.success(res, { needsAcceptance: !accepted });
+    // Version + changelog come from the server so the acceptance dialog can't
+    // drift from the version the gate actually enforces.
+    return apiResponse.success(res, {
+      needsAcceptance: !accepted,
+      version: CURRENT_LEGAL_VERSION,
+      changes: changelogFor(),
+    });
   }),
 );
 

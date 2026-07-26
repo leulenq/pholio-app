@@ -59,18 +59,32 @@ function getAuth() {
 }
 
 /**
- * Verify a Firebase ID token
+ * Verify a Firebase ID token.
+ *
+ * `checkRevoked` defaults to true. Without it `verifyIdToken` accepts any
+ * structurally-valid, unexpired token — so the "Token revoked" branch below was
+ * unreachable and a signed-out user's still-cached ID token could re-establish
+ * a session for up to an hour. That is exactly the hole the app's
+ * PholioAuthBridge fell through: it re-posts a cached Firebase token to
+ * /api/login whenever it finds no Express session.
+ *
+ * Checking costs one Admin SDK lookup per verification, which happens at
+ * session establishment, not per request.
+ *
  * @param {string} idToken - The Firebase ID token to verify
+ * @param {{checkRevoked?: boolean}} [options]
  * @returns {Promise<admin.auth.DecodedIdToken>} Decoded token with user info
  */
-async function verifyIdToken(idToken) {
+async function verifyIdToken(idToken, options = {}) {
   const auth = getAuth();
   if (!auth) {
     throw new Error("Firebase Admin not initialized");
   }
 
+  const checkRevoked = options.checkRevoked !== false;
+
   try {
-    const decodedToken = await auth.verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken, checkRevoked);
     return decodedToken;
   } catch (error) {
     // Re-throw with more context
@@ -239,10 +253,46 @@ async function createCustomToken(uid, claims = {}) {
   }
 }
 
+/**
+ * Revoke every Firebase refresh token for a user, making sign-out authoritative
+ * server-side.
+ *
+ * Firebase Web SDK persistence is per-origin (IndexedDB), so a client-side
+ * `signOut()` on www.pholio.studio can never clear app.pholio.studio's Firebase
+ * state — the two origins have separate stores. Client-side sign-out therefore
+ * cannot make logout stick across the two surfaces no matter how it is
+ * configured. Revoking here does, and it works whether or not either client has
+ * a Firebase config at all.
+ *
+ * Never throws: a logout must complete even if Firebase is unreachable or the
+ * account has no Firebase identity.
+ *
+ * @param {string|null|undefined} firebaseUid
+ * @returns {Promise<boolean>} true when tokens were revoked
+ */
+async function revokeRefreshTokens(firebaseUid) {
+  if (!firebaseUid) return false;
+
+  const auth = getAuth();
+  if (!auth) return false;
+
+  try {
+    await auth.revokeRefreshTokens(firebaseUid);
+    return true;
+  } catch (error) {
+    console.warn(
+      "[Firebase Admin] Could not revoke refresh tokens on logout:",
+      error.message,
+    );
+    return false;
+  }
+}
+
 module.exports = {
   initializeFirebaseAdmin,
   getAuth,
   verifyIdToken,
+  revokeRefreshTokens,
   createUser,
   deleteUser,
   getUser,

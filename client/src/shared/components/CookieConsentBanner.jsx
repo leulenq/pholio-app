@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MARKETING_SITE_URL } from '../lib/logout';
-import { getConsent, setConsent } from '../lib/cookie-consent';
+import { getConsent, setConsent, onConsentChange } from '../lib/cookie-consent';
 import PholioButton from './ui/PholioButton';
 import './CookieConsentBanner.css';
 
 export default function CookieConsentBanner() {
   const [visible, setVisible] = useState(() => !getConsent());
+
+  // Withdrawing consent (the "Cookie preferences" control, here or in Settings)
+  // deletes the record and re-raises this banner, so withdrawal is no harder
+  // than granting.
+  useEffect(() => onConsentChange(() => setVisible(!getConsent())), []);
 
   const dismiss = (analytics) => {
     setConsent({ necessary: true, analytics });

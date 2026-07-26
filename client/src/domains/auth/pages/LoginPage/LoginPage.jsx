@@ -22,6 +22,7 @@ import {
   stashOnboardingAuthHandoff,
 } from '../../../../shared/lib/pholio-auth/onboarding-handoff';
 import styles from './LoginPage.module.css';
+import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -82,7 +83,10 @@ export default function LoginPage() {
       await fetch('/api/logout', {
         method: 'POST',
         credentials: 'include',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...sameOriginMutationHeaders('POST'),
+        },
       }).catch(() => {});
       purgeApplyDraftStorage();
     }
@@ -236,6 +240,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          ...sameOriginMutationHeaders('POST'),
         },
         body: JSON.stringify({
           firebase_token: idToken,

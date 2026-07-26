@@ -2,6 +2,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Express backend the dev server proxies to. Defaults to :3000 — the port in
+// .env.example, in CLAUDE.md, and in pholio-landing's dev proxy target. These
+// entries were hardcoded to :3002, so with the documented .env one of the two
+// frontends always pointed at a dead port. Override with VITE_API_PROXY_TARGET
+// if you run Express somewhere else.
+const API_TARGET = process.env.VITE_API_PROXY_TARGET || 'http://localhost:3000';
+
+const proxyToApi = {
+  target: API_TARGET,
+  changeOrigin: true,
+  secure: false,
+};
+
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   root: '.',
@@ -23,25 +36,11 @@ export default defineConfig(({ command }) => ({
       allow: ['..']
     },
     proxy: {
-      '/api': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
-      '/uploads': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
-      '/upload': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
+      '/api': { ...proxyToApi },
+      '/uploads': { ...proxyToApi },
+      '/upload': { ...proxyToApi },
       '/onboarding': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false,
+        ...proxyToApi,
         // We match any /onboarding/ path EXCEPT the base /onboarding page
         bypass: (req) => {
           const pathname = req.url?.split('?')[0];
@@ -52,37 +51,13 @@ export default defineConfig(({ command }) => ({
         }
       },
       // login removed to allow client-side route
-      '/logout': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
-      '/signup': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
-      '/partners': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
-      '/stripe': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
-      '/pdf': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      },
+      '/logout': { ...proxyToApi },
+      '/signup': { ...proxyToApi },
+      '/partners': { ...proxyToApi },
+      '/stripe': { ...proxyToApi },
+      '/pdf': { ...proxyToApi },
       // vendored comp card fonts (@font-face inside the /pdf/view preview iframe)
-      '/fonts': {
-        target: 'http://localhost:3002',
-        changeOrigin: true,
-        secure: false
-      }
+      '/fonts': { ...proxyToApi }
     }
   }
 }))

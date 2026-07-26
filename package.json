@@ -9,7 +9,7 @@
     "dev": "nodemon server.js",
     "client:dev": "cd client && npm run dev",
     "client:build": "cd client && npm run build",
-    "dev:all": "concurrently -k \"npm run dev\" \"wait-on tcp:127.0.0.1:3002 -t 60000 && npm run client:dev\"",
+    "dev:all": "concurrently -k \"npm run dev\" \"wait-on tcp:127.0.0.1:3000 -t 60000 && npm run client:dev\"",
     "migrate": "knex migrate:latest",
     "migrate:status": "knex migrate:status",
     "migrate:rollback": "knex migrate:rollback",

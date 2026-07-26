@@ -12,6 +12,8 @@ const {
   ensureModerationColumnChecked,
 } = require("../shared/lib/content-moderation");
 const { v4: uuidv4 } = require("uuid");
+const { analyticsAllowed } = require("../shared/lib/consent");
+const { baseCookieOptions } = require("../shared/lib/cookie-domain");
 
 const { injectSocialFields } = require("../shared/lib/social-helpers");
 const {
@@ -76,17 +78,25 @@ async function logAnalyticsEvent(
       referrer: req?.headers?.["referer"] || req?.headers?.["referrer"] || null,
     };
 
+    // The event itself is aggregate product data the Talent needs (view counts),
+    // so it is still counted without consent — but IP and user agent are
+    // directly-identifying and are only stored when the visitor allowed
+    // analytics. Without consent the row is recorded with those fields null and
+    // no visitor/session linkage (trackVisitorSession returns null too).
+    const consented = req ? analyticsAllowed(req) : false;
+
     await knex("analytics").insert({
       id: uuidv4(),
       profile_id: profileId,
       event_type: eventType,
       event_source: "web",
       metadata: JSON.stringify(extendedMetadata),
-      ip_address:
-        req?.ip ||
-        req?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
-        null,
-      user_agent: req?.headers?.["user-agent"] || null,
+      ip_address: consented
+        ? req?.ip ||
+          req?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
+          null
+        : null,
+      user_agent: consented ? req?.headers?.["user-agent"] || null : null,
       created_at: knex.fn.now(),
     });
   } catch (error) {
@@ -96,10 +106,17 @@ async function logAnalyticsEvent(
 }
 
 /**
- * Helper function to track visitor sessions
+ * Helper function to track visitor sessions.
+ *
+ * Gated on the shared consent cookie. `pholio_visitor_id` is a persistent
+ * one-year identifier and `visitor_sessions` stores IP + user agent — exactly
+ * the non-essential analytics the consent banner offers to decline. Before
+ * this gate existed the banner's answer was never consulted here, so declining
+ * changed nothing. Fails closed: no recorded choice means no tracking.
  */
 async function trackVisitorSession(profileId, req, res) {
   if (!profileId || profileId === "demo-elara-k") return null;
+  if (!analyticsAllowed(req)) return null;
 
   try {
     const visitorId = req.cookies.pholio_visitor_id || uuidv4();
@@ -108,9 +125,11 @@ async function trackVisitorSession(profileId, req, res) {
 
     // Set visitor cookie (1 year)
     res.cookie("pholio_visitor_id", visitorId, {
+      ...baseCookieOptions(),
+      // Host-only: portfolio analytics must not ride the shared subdomain scope.
+      domain: undefined,
       maxAge: 365 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      sameSite: "lax",
     });
 
     if (sessionId) {
@@ -145,9 +164,10 @@ async function trackVisitorSession(profileId, req, res) {
 
     // Set session cookie (30 mins)
     res.cookie(sessionCookieName, newSessionId, {
+      ...baseCookieOptions(),
+      domain: undefined,
       maxAge: 30 * 60 * 1000,
       httpOnly: true,
-      sameSite: "lax",
     });
 
     return newSessionId;

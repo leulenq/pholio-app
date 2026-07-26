@@ -6,6 +6,7 @@ import { auth } from '../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../shared/lib/pholio-auth/broadcast';
 import { markAuthEntryTransition } from '../../../shared/lib/pholio-auth/entry-transition';
 import { stashOnboardingAuthHandoff } from '../../../shared/lib/pholio-auth/onboarding-handoff';
+import { sameOriginMutationHeaders } from '../../../shared/lib/same-origin-request';
 
 // Browsewrap acceptance for casting entry (signup). Login never creates talent
 // accounts — unknown identities are redirected to /onboarding instead.
@@ -36,6 +37,7 @@ async function completeLogin(idToken, nextPath, identity = {}) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...sameOriginMutationHeaders('POST'),
     },
     body: JSON.stringify({ firebase_token: idToken }),
   });

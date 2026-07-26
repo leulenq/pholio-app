@@ -1,6 +1,7 @@
 import { signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import { purgeApplyDraftStorage } from '../../domains/talent/pages/ApplyPage/applicationDraftStorage';
+import { sameOriginMutationHeaders } from './same-origin-request';
 
 /** Marketing site — used after dashboard sign-out. */
 export const MARKETING_SITE_URL = (
@@ -23,7 +24,10 @@ export async function postLogoutAndRedirectToMarketing() {
     const response = await fetch('/api/logout', {
       method: 'POST',
       credentials: 'include',
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        ...sameOriginMutationHeaders('POST'),
+      },
     });
 
     if (response.ok) {
