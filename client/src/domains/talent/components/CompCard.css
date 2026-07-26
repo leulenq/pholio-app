@@ -12,6 +12,14 @@
 .cc-stage { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(290px, 1fr); gap: 56px; align-items: start; }
 @media (max-width: 900px) { .cc-stage { grid-template-columns: 1fr; gap: 36px; } }
 
+/* Grid tracks size to `auto` minimums, which resolve to each item's
+   min-content. Without this guard the panel's widest rigid descendant (the
+   edition rail) inflates the single mobile `1fr` track well past the
+   viewport — the track measured 1017px inside a 342px stage, which pushed
+   the centered card mostly off-screen. Items must be allowed to shrink. */
+.cc-showcase,
+.cc-panel { min-width: 0; }
+
 /* ── The card object ── */
 .cc-showcase { display: flex; flex-direction: column; gap: 18px; }
 .cc-card {
@@ -132,6 +140,10 @@
    existing chip vocabulary; gold marks the pinned selection only. */
 .cc-rail {
   display: flex; flex-wrap: nowrap; gap: 8px;
+  /* This rail is meant to scroll horizontally, but its nowrap chips still
+     report their full summed width as min-content to every ancestor. Pin it
+     to 0 so the rail scrolls its own overflow instead of widening the page. */
+  min-width: 0;
   overflow-x: auto; overflow-y: hidden;
   padding-bottom: 6px; margin-bottom: -2px;
   scrollbar-width: thin;
