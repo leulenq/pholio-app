@@ -224,19 +224,6 @@
 .set-rail button.is-active { color: var(--set-text); }
 .set-rail button.is-active::before { height: 26px; }
 
-.set-rail__num {
-  flex: none;
-  min-width: 24px;
-  font-family: var(--set-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--set-text-faint);
-  transition: color 0.25s var(--set-ease);
-}
-
-.set-rail button.is-active .set-rail__num { color: var(--set-gold); }
-
 .set-rail__text {
   display: flex;
   flex-direction: column;
@@ -993,40 +980,86 @@
 }
 
 @media (max-width: 860px) {
+  /* Title + section strip share the masthead; space between title and strip. */
+  .set-page-header {
+    margin-bottom: 0;
+    padding-bottom: 18px;
+    border-bottom: none;
+  }
   .set-workspace {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
   }
+
+  /*
+   * Mobile section nav — keep the editorial ledger voice.
+   * No bordered chips / filled pills (outside PholioButton + talent nav language).
+   * Horizontal text strip with a gold active underline on the shared hairline.
+   */
   .set-rail {
     position: static;
     top: auto;
-    margin: 0 -4px;
+    margin: 0 0 4px;
+    padding-top: 4px;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
+    border-bottom: 1px solid var(--set-hair);
+    -webkit-overflow-scrolling: touch;
   }
   .set-rail::-webkit-scrollbar { display: none; }
   .set-rail ol {
     display: flex;
+    align-items: stretch;
+    width: max-content;
+    min-width: 100%;
     padding: 0;
-    gap: 4px;
+    gap: 0;
   }
   .set-rail ol::before { display: none; }
   .set-rail li { flex: none; }
   .set-rail button {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    padding: 12px 14px;
-    border: 1px solid var(--set-hair);
-    border-radius: var(--set-radius);
+    position: relative;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    width: auto;
+    padding: 12px 14px 14px;
+    border: none;
+    border-radius: 0;
+    background: none;
     white-space: nowrap;
+    color: var(--set-text-faint);
   }
-  .set-rail button::before { display: none; }
+  .set-rail button::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: auto;
+    bottom: -1px;
+    width: auto;
+    height: 0;
+    background: var(--set-gold);
+    transform: none;
+    transition: height 0.28s var(--set-ease);
+  }
+  .set-rail button:hover { color: var(--set-text-soft); }
   .set-rail button.is-active {
-    border-color: var(--set-hair-gold);
-    background: rgba(201, 165, 90, 0.07);
+    color: var(--set-text);
+    background: none;
+    border: none;
+  }
+  .set-rail button.is-active::before { height: 2px; }
+  .set-rail__text strong {
+    font-size: 13px;
+    font-weight: 500;
   }
   .set-rail__text small { display: none; }
+  .set-rail button:focus-visible {
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 @media (max-width: 560px) {
