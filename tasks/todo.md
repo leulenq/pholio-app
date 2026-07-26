@@ -9,7 +9,7 @@ Restore the correct Intel page data binding so zones render instead of an empty 
 - [x] Restore `useIntel` return shape from pre-regression version
 - [x] Keep `useIntelDay` compatible with both call sites
 - [x] Lint / focused verification
-- [ ] Commit, push, PR
+- [x] Commit, push, PR (#61)
 
 ## Root cause
 `7d18e28` / parallel merge thinned `useIntel` to raw `useQuery`, while `IntelPage` still expects `{ intel, meta, isLoading, isError, refetch }`. Result: `intel` always undefined → blank content; `meta` undefined → `tier` defaults to `free` → 30/90 locked.
