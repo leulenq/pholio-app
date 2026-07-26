@@ -37,11 +37,11 @@ const DETECTED_TIMEZONE = (() => {
 
 function Field({ label, hint, error, htmlFor, children }) {
   return (
-    <div className="thr-field">
+    <div className="stg-field">
       <label htmlFor={htmlFor}>{label}</label>
       {children}
-      {error ? <p className="thr-field__error">{error}</p> : null}
-      {!error && hint ? <p className="thr-field__hint">{hint}</p> : null}
+      {error ? <p className="stg-field__error">{error}</p> : null}
+      {!error && hint ? <p className="stg-field__hint">{hint}</p> : null}
     </div>
   );
 }
@@ -54,16 +54,12 @@ export default function AgencySetupPage() {
 
   if (isLoading) {
     return (
-      <main className="thr-stage thr-stage--plain" role="status" aria-label="Opening agency setup">
-        <div className="thr-stage__light" aria-hidden="true" />
-        <div className="thr-shell thr-shell--skeleton" aria-hidden="true">
-          <div className="thr-paper">
-            <span className="thr-sk thr-sk--mark" />
-            <span className="thr-sk thr-sk--title" />
-            <span className="thr-sk thr-sk--line" />
-            <span className="thr-sk thr-sk--block" />
-          </div>
-          <div className="thr-side" />
+      <main className="stg-plain" role="status" aria-label="Opening agency setup">
+        <div className="stg-skeleton" aria-hidden="true">
+          <span className="stg-sk stg-sk--mark" />
+          <span className="stg-sk stg-sk--title" />
+          <span className="stg-sk stg-sk--line" />
+          <span className="stg-sk stg-sk--block" />
         </div>
       </main>
     );
@@ -71,15 +67,14 @@ export default function AgencySetupPage() {
 
   if (isError || !data) {
     return (
-      <main className="thr-stage thr-stage--plain">
-        <div className="thr-stage__light" aria-hidden="true" />
-        <section className="thr-notice" role="alert">
+      <main className="stg-plain">
+        <section className="stg-centered" role="alert">
           <div role="img" aria-label="Pholio">
-            <PholioBillingWordmark variant="on-ink" size="sm" />
+            <PholioBillingWordmark variant="on-cream" size="sm" />
           </div>
           <h1>We couldn’t open your agency setup.</h1>
           <p>{error?.message || 'The agency workspace could not be loaded.'}</p>
-          <button type="button" className="thr-button thr-button--primary" onClick={() => window.location.reload()}>
+          <button type="button" className="stg-button stg-button--primary" onClick={() => window.location.reload()}>
             Try again
           </button>
         </section>
@@ -285,11 +280,10 @@ function SetupExperience({ data }) {
 
   if (openedWorkspace) {
     return (
-      <main className="thr-stage thr-stage--plain">
-        <div className="thr-stage__light" aria-hidden="true" />
-        <section className="thr-open" role="status" aria-live="polite">
+      <main className="stg-plain">
+        <section className="stg-centered" role="status" aria-live="polite">
           <div role="img" aria-label="Pholio">
-            <PholioBillingWordmark variant="on-ink" size="md" />
+            <PholioBillingWordmark variant="on-cream" size="md" />
           </div>
           <h1>The workspace is open.</h1>
           <p>
@@ -298,7 +292,7 @@ function SetupExperience({ data }) {
           </p>
           <button
             type="button"
-            className="thr-button thr-button--primary"
+            className="stg-button stg-button--primary"
             onClick={() => window.location.assign(openedWorkspace)}
           >
             Enter the command center
@@ -323,7 +317,7 @@ function SetupExperience({ data }) {
     >
       {chapter.id === 'agency' && (
         <>
-          <div className="thr-grid">
+          <div className="stg-grid">
             <Field label="Agency name" htmlFor="agency-name" error={fieldErrors.agencyName}>
               <input
                 id="agency-name"
@@ -373,9 +367,9 @@ function SetupExperience({ data }) {
             </Field>
           </div>
 
-          <fieldset className="thr-set">
+          <fieldset className="stg-set">
             <legend>How the agency operates</legend>
-            <div className="thr-rows">
+            <div className="stg-rows">
               {AGENCY_TYPES.map((type) => (
                 <OptionRow
                   key={type.value}
@@ -408,9 +402,9 @@ function SetupExperience({ data }) {
 
       {chapter.id === 'boards' && (
         <>
-          <fieldset className="thr-set">
+          <fieldset className="stg-set">
             <legend>Standing boards</legend>
-            <div className="thr-rows thr-rows--split">
+            <div className="stg-rows stg-rows--split">
               {BOARD_PRESETS.map((board) => (
                 <OptionRow
                   key={board.name}
@@ -423,9 +417,9 @@ function SetupExperience({ data }) {
             </div>
           </fieldset>
 
-          <fieldset className="thr-set">
+          <fieldset className="stg-set">
             <legend>Minor records</legend>
-            <div className="thr-rows">
+            <div className="stg-rows">
               <OptionRow
                 label="This workspace will hold minor records"
                 hint="Kids and teens boards, or imported talent under 18."
@@ -439,9 +433,9 @@ function SetupExperience({ data }) {
 
       {chapter.id === 'roster' && (
         <>
-          <fieldset className="thr-set">
+          <fieldset className="stg-set">
             <legend>Roster path</legend>
-            <div className="thr-rows">
+            <div className="stg-rows">
               {ROSTER_PATHS.map((path) => (
                 <OptionRow
                   key={path.value}
@@ -456,13 +450,13 @@ function SetupExperience({ data }) {
             </div>
           </fieldset>
 
-          <section className="thr-note">
+          <section className="stg-note">
             <h3>Who holds a key today</h3>
-            <ul className="thr-keys">
+            <ul className="stg-keys">
               {(data.team || []).map((member) => (
                 <li key={member.id}>
-                  <span className="thr-keys__name">{member.name || member.email}</span>
-                  <span className="thr-keys__role">{roleLabel(member.role)}</span>
+                  <span className="stg-keys__name">{member.name || member.email}</span>
+                  <span className="stg-keys__role">{roleLabel(member.role)}</span>
                 </li>
               ))}
             </ul>
@@ -476,9 +470,9 @@ function SetupExperience({ data }) {
 
       {chapter.id === 'intake' && (
         <>
-          <fieldset className="thr-set">
+          <fieldset className="stg-set">
             <legend>Open call</legend>
-            <div className="thr-rows">
+            <div className="stg-rows">
               <OptionRow
                 label="Prepare an open-call link"
                 hint="New faces submit to you directly; everything lands in your inbox for review."
@@ -488,15 +482,15 @@ function SetupExperience({ data }) {
             </div>
           </fieldset>
 
-          <fieldset className="thr-set">
+          <fieldset className="stg-set">
             <legend>Operating defaults</legend>
-            <dl className="thr-defaults">
+            <dl className="stg-defaults">
               <div>
                 <dt>Time zone</dt>
                 <dd>{DETECTED_TIMEZONE.replace(/_/g, ' ')}</dd>
               </div>
             </dl>
-            <div className="thr-grid">
+            <div className="stg-grid">
               <Field label="Currency" htmlFor="agency-currency">
                 <select
                   id="agency-currency"
@@ -526,7 +520,7 @@ function SetupExperience({ data }) {
 
       {chapter.id === 'custody' && (
         <>
-          <section className="thr-note">
+          <section className="stg-note">
             <h3>What your team can reach</h3>
             <p>
               Digitals, measurements, submissions, and contact details are visible only to the
@@ -542,9 +536,9 @@ function SetupExperience({ data }) {
             ) : null}
           </section>
 
-          <fieldset className="thr-set">
+          <fieldset className="stg-set">
             <legend>Acknowledgement</legend>
-            <div className="thr-rows">
+            <div className="stg-rows">
               <OptionRow
                 label="I accept custody of this talent data"
                 hint="Access is controlled by my team, and minor records are handled under guardian consent."

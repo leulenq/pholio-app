@@ -18,7 +18,7 @@ export default function OptionRow({
   disabled = false,
 }) {
   return (
-    <label className={`thr-row${checked ? ' is-selected' : ''}`}>
+    <label className={`stg-row${checked ? ' is-selected' : ''}`}>
       <input
         type={type}
         name={name}
@@ -26,11 +26,11 @@ export default function OptionRow({
         onChange={(event) => onChange(event.target.checked)}
         disabled={disabled}
       />
-      <span className="thr-row__text">
-        <span className="thr-row__label">{label}</span>
-        {hint ? <span className="thr-row__hint">{hint}</span> : null}
+      <span className="stg-row__text">
+        <span className="stg-row__label">{label}</span>
+        {hint ? <span className="stg-row__hint">{hint}</span> : null}
       </span>
-      <span className="thr-row__mark" aria-hidden="true">
+      <span className="stg-row__mark" aria-hidden="true">
         <Check size={13} strokeWidth={2.5} />
       </span>
     </label>
