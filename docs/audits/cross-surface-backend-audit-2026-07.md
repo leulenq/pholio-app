@@ -1,5 +1,11 @@
 # Cross-Surface Backend Audit — `pholio-app` ↔ `pholio-landing`
 
+> **Status: remediated 2026-07-26.** Every P0 and P1 finding below has been
+> fixed across both repos; see "Remediation" at the end of this document for
+> what changed, what was deliberately left, and the three questions that still
+> need answers from outside the repos. The findings are kept in their original
+> form as the record of what was wrong.
+
 **Date:** 2026-07-26
 **Scope:** auth/session architecture, cookie behavior, consent handling, subdomain/domain behavior,
 API usage, environment/config parity, redirect and callback flows, shared services, identity flow.
@@ -431,3 +437,161 @@ Three of the copied concepts have already drifted into production defects: legal
 2. Does the client IP survive the Netlify Next-runtime proxy hop into Express? (§3.1)
 3. Was the 2026-07-18 legal revision substantive enough to require re-acceptance? If yes, §2 is a
    compliance incident, not just drift.
+
+
+---
+
+# Remediation (2026-07-26)
+
+## Fixed — P0
+
+**1. Legal version drift.** `src/shared/lib/legal-versions.js` is now the app's
+single `CURRENT_LEGAL_VERSION`, set to **2026-07-18** to match what the landing
+publishes. The talent gate, the agency policy manifest, and the SPA acceptance
+dialog all read from it; the dialog now takes the version and changelog from
+`/settings/legal-status` rather than carrying a fourth copy.
+`tests/shared/legal-versions.test.js` fails if the constant is bumped without a
+plain-language changelog entry, or if any consumer drifts from it.
+`pholio-landing/lib/legal-constants.ts` documents the cross-repo contract.
+
+⚠️ **This bump re-prompts every talent and agency user for acceptance.** That is
+the intended behaviour of the gate given `784f738` rewrote every legal document,
+and it is what restores a truthful audit trail. Expect a wave of acceptance
+dialogs on deploy.
+
+**2. `/api/login` and `/api/logout` unthrottled and unprotected.** Both are now
+in the `authLimiter` mount list, and both require the `X-Pholio-Request`
+header. All five callers were updated (SPA login, Instagram callback, SPA
+logout, SPA force-logout, marketing `session-api.ts`).
+
+Origin/Referer is validated as defense in depth *when present* but tolerated
+when absent, because the marketing site's Next.js rewrite is a server-side
+proxy hop and we could not verify the Origin header survives it (open question
+2). The header requirement carries the protection on its own: an HTML form
+cannot set a request header, and cross-origin JS cannot set one without a
+preflight the CORS allowlist rejects. `www.pholio.studio` is trusted for these
+two endpoints only — dashboard mutation paths keep the app-only allowlist.
+
+**3. `/api/public/session` PII caching.** Both `/api/public/session` and
+`/api/session` now send `Cache-Control: private, no-store` and `Vary: Cookie`.
+
+**4. Password logging.** The `fullBody` log on the login no-token path is gone;
+key names and presence flags remain.
+
+## Fixed — P1
+
+**5 & 9. Consent is now one system, and it enforces.** Consent moved from
+per-origin `localStorage` to a first-party cookie (`pholio_consent`) on the
+shared `.pholio.studio` scope — the same mechanism the session cookie already
+uses. One choice now covers both surfaces, and the server can read it.
+
+`trackVisitorSession` in `src/routes/portfolio.js` is gated on it and **fails
+closed**: no recorded choice means no `pholio_visitor_id`, no `visitor_sessions`
+row. Event rows are still counted without consent (Talent need view counts) but
+no longer store IP or user agent.
+
+Four implementations are kept in step by a shared cookie name, version and
+payload shape, each cross-referencing the others: `src/shared/lib/consent.js`
+(server), `client/src/shared/lib/cookie-consent.js` (SPA),
+`public/scripts/cookie-consent.js` (EJS), `pholio-landing/lib/cookie-consent.ts`.
+
+Existing `localStorage` answers are adopted once on read, so the migration
+itself does not re-prompt anyone.
+
+The talent Settings record is now the account-level mirror of that cookie
+rather than a fourth disagreeing store, and its analytics default flipped from
+opt-out to opt-in to match the banner.
+
+**6. No withdrawal path.** Clearing consent re-raises the banner. Reachable from
+talent Settings ("Reset choice"), the marketing footer, and a new section on
+`/cookies` — the page both banners' "Manage" links already pointed at.
+
+**Consent banner on server-rendered pages.** Public portfolios are EJS, not the
+SPA, so their visitors never saw a banner — yet those are the pages that set the
+persistent identifier. `public/scripts/cookie-consent.js` is now loaded from
+both EJS layouts. Without this, gating tracking on consent would have silently
+zeroed portfolio analytics.
+
+**7. Agency funnel 404 in both directions.** `pholio-landing/app/agency/request-access/`
+now exists — the route `pholio-app`'s `/partners` handler has always redirected
+to. Its form posts to `POST /api/public/agency-access-requests`, the endpoint
+that already existed with a rate limiter and eleven-field validation and had
+zero callers. The `/agency` page's two primary CTAs were repointed there from
+the non-existent `${APP_URL}/agency/register`.
+
+**8. Shipped header 404 for signed-in talent.** `${APP_URL}/talent/:slug` →
+`${APP_URL}/portfolio/:slug`, which is what the app actually serves. The retired
+`Footer.tsx` links to `/casting` and `/studio-plus` were fixed too.
+
+## Fixed — P2
+
+**10. Landing security headers.** `next.config.ts` now sets `X-Frame-Options`,
+`X-Content-Type-Options`, `Referrer-Policy`, `Strict-Transport-Security`,
+`Permissions-Policy`, and a report-only CSP (matching the app's posture, since
+the marketing scenes need a browser pass before enforcement).
+
+**11. Dev port fork.** The Vite proxy targets `:3000` — the port in
+`.env.example`, `CLAUDE.md`, and the landing's dev proxy — via a single shared
+config overridable with `VITE_API_PROXY_TARGET`. `dev:all` waits on `:3000` to
+match. Also added the `.env.example` the landing repo never had, documenting
+`APP_BACKEND_URL` and the Firebase variables.
+
+**13. Shared constants.** `src/shared/lib/cookie-domain.js` centralizes the
+cookie scope that was inlined in three places (which is how the session cookie
+and its logout clear ended up with different attribute sets).
+`dashboardPathForRole` remains duplicated — it is a three-line fallback the
+server overrides on every response — but both copies now name each other.
+
+## Deliberately not changed
+
+**The `contentDigest` field name.** It hashes the policy *descriptor*, not the
+document body at the URL. Renaming it would ripple through a DB column, the API
+contract, and the client for a naming issue. Instead the function now documents
+precisely what it binds and warns against citing it as proof of document text.
+Because terms/privacy `version` now tracks the landing's published version, a
+published revision does change the digest — the residual gap is a landing-side
+content edit without a version bump, which the cross-repo contract comment and
+the parity test address.
+
+**Consent for `recordProfileEvent`.** It stores no IP or user agent, and its
+`session_id` linkage already goes null without consent because
+`trackVisitorSession` returns null. Coarse IP-derived `market` is left as
+aggregate.
+
+## Verification
+
+- `tests/integration/consent-gating.test.js` — end-to-end against the real
+  Express app: no cookie and declined both produce no identifier and no
+  `visitor_sessions` row; granted produces both; `/api/public/session` returns
+  `private, no-store`.
+- `tests/security/session-endpoint-guard.test.js` — 13 cases covering headerless
+  POSTs, cross-site form posts, untrusted origins, the absent-Origin proxy case,
+  and confirmation that the marketing origin is still rejected for
+  `/api/talent/*`.
+- `tests/shared/consent.test.js` — cookie parse/serialize, version rejection,
+  fail-closed behaviour, attribute assertions.
+- `tests/shared/legal-versions.test.js` — cross-consumer version parity and the
+  changelog requirement.
+- Regression check: the 31 suites touching changed code paths were run on
+  `origin/main` and on this branch. **Identical failure sets** (9 pre-existing
+  failures in `tests/onboarding/`), with 196 passing vs 160 on the baseline.
+  The full suite cannot complete in this container on either revision — SQLite
+  connection-pool exhaustion, unrelated to these changes.
+- `npx tsc --noEmit` and `npx next build` clean on the landing; 19 routes
+  generated including `/agency/request-access`.
+
+## Still needs an answer from outside the repos
+
+1. **Are `NEXT_PUBLIC_FIREBASE_*` set in the landing's Netlify environment?**
+   Unchanged by this work. `netlify.toml` sets only `NEXT_PUBLIC_APP_URL`, and
+   both Firebase clients fail silently on a missing key. `.env.example` now
+   documents the requirement, but only the dashboard can confirm it.
+2. **Does the real client IP survive the Netlify Next-runtime proxy hop?** If
+   not, all marketing-origin traffic shares one rate-limit bucket — which now
+   matters more, since `/api/login` is rate-limited. Measure a real request's
+   `x-forwarded-for` at the Express end.
+3. **Was the 2026-07-18 revision substantive?** *Answered from git:* commit
+   `784f738` rewrote all nine legal documents (459 insertions, 933 deletions).
+   The app has been gating on the superseded version since. Treated as a real
+   re-acceptance event, which is why the version bump above will re-prompt
+   every user.
