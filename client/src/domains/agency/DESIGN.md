@@ -230,3 +230,39 @@ The roster casting board: columns of talent cards moved across pipeline stages v
 - **Don't** use a `border-left`/`border-right` greater than 1px as a colored accent stripe — use full borders or a background tint.
 - **Don't** use gradient text (`background-clip: text`) — emphasis comes from weight, size, and the gold accent.
 - **Don't** let the surface go cold blue-and-white; this is not a generic SaaS admin panel.
+
+## 7. Threshold surface — agency setup (`/dashboard/agency/setup`)
+
+Agency setup is the one agency route that is **not** an operational screen. It is
+crossed once, before the command center exists, and it is where an agency decides
+whether Pholio is serious. It therefore gets a staged entry the working screens are
+explicitly denied — the global ban on over-choreographed page-load sequences (#14)
+governs the dashboard, not this threshold.
+
+**The Threshold.** A dark ink stage (`#0B0906`) holds one lit paper panel. The paper
+is the work: cream stock (`--ag-surface-0`), white fields, the agency system's own
+typography. The stage beside it holds the sequence, the house voice for the current
+chapter, and the agency lockup as it forms. The frame never moves between beats —
+only the chapter body and the voice change.
+
+- **Why dark.** Both Pholio audiences enter through a dark stage: talent through the
+  screen test (`domains/onboarding/DESIGN.md`), agencies through this. Landing on the
+  cream command center is the arrival, and it only reads as arrival if the threshold
+  is a different room.
+- **Chapters, not sections.** The seven backend setup steps are grouped into five
+  chapters; each commits its own steps on Continue. No per-section save buttons, and
+  never more than one chapter of forms on screen.
+- **One selection vocabulary.** Boards, agency type, roster path, open-call choice,
+  and the custody acknowledgement all use the same ruled `thr-row` — a real
+  checkbox/radio wearing a list row. No chips, no mixed control styles.
+- **The dock is fixed.** The chapter body scrolls inside the frame; the primary
+  action has one home and never moves between beats.
+- **Motion budget.** One shell entrance (560ms) and one crossfade-plus-rise per beat
+  (440ms), on `cubic-bezier(0.16, 1, 0.3, 1)`. Stage lighting is static gradient — no
+  looping ambient animation. Everything collapses under `prefers-reduced-motion`.
+- **Still bound by the bans.** No glass, no badges, no chips, no gradient text, no
+  side stripes, no decorative ornament. Gold stays rare: the current chapter, the
+  selected row, the primary action, the focus ring.
+
+Once setup completes, the agency lands in the cream command center and this system
+does not appear again.

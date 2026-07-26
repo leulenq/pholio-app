@@ -1,376 +1,927 @@
-:root {
-  --setup-canvas: var(--ag-surface-0, #FAF8F5);
-  --setup-surface: var(--ag-surface-1, #FFFFFF);
-  --setup-ink: var(--ag-text-0, #1A1815);
-  --setup-body: var(--ag-text-1, #2D2A26);
-  --setup-muted: var(--ag-text-2, #6B6560);
-  --setup-border: var(--ag-border, rgba(26, 24, 21, 0.12));
-  --setup-border-strong: var(--ag-border-strong, rgba(26, 24, 21, 0.18));
-  --setup-gold: var(--ag-gold, #C9A55A);
-  --setup-gold-hover: var(--ag-gold-hover, #B8956A);
-}
+/**
+ * Agency setup — "The Threshold".
+ *
+ * A dark stage carrying one lit paper panel. This is a threshold surface,
+ * crossed once, so it is allowed the staged entry that the operational agency
+ * screens are not (see agency DESIGN.md §7). The paper itself stays strictly
+ * inside the agency system: cream stock, white fields, Playfair for the
+ * chapter title only, Inter for every control.
+ */
 
-.ag-setup-shell {
+.thr-stage {
+  --thr-ground: #0B0906;
+  --thr-shell: #15120C;
+  --thr-paper: #FAF8F5;
+  --thr-surface: #FFFFFF;
+
+  --thr-gold: var(--ag-gold, #C9A55A);
+  --thr-gold-hover: var(--ag-gold-hover, #B8956A);
+  --thr-gold-ink: #141210;
+
+  --thr-ink: var(--ag-text-0, #1A1815);
+  --thr-body: var(--ag-text-1, #2D2A26);
+  --thr-muted: var(--ag-text-2, #6B6560);
+  --thr-placeholder: #767068;
+  --thr-line: rgba(26, 24, 21, 0.1);
+  --thr-line-strong: rgba(26, 24, 21, 0.22);
+
+  --thr-warm: #EDE7DC;
+  --thr-warm-2: rgba(237, 231, 220, 0.72);
+  --thr-warm-3: rgba(237, 231, 220, 0.42);
+  --thr-warm-line: rgba(237, 231, 220, 0.12);
+
+  --thr-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --thr-state: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  position: relative;
+  z-index: 0;
   box-sizing: border-box;
   min-height: 100vh;
-  background: var(--setup-canvas);
-  color: var(--setup-body);
-  padding: 48px clamp(24px, 5vw, 64px);
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 3vw, 48px);
+  background: var(--thr-ground);
+  color: var(--thr-warm);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
 }
 
-.ag-setup-shell *,
-.ag-setup-shell *::before,
-.ag-setup-shell *::after {
+.thr-stage *,
+.thr-stage *::before,
+.thr-stage *::after {
   box-sizing: border-box;
 }
 
-.ag-setup-masthead {
+/* Stage lighting. Static gradients, not ornament: they place the shell in a
+   room. No looping animation, per the global ban on decorative motion. */
+.thr-stage__light {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(62vw 52vh at 22% 8%, rgba(201, 165, 90, 0.16), transparent 68%),
+    radial-gradient(48vw 46vh at 88% 96%, rgba(201, 165, 90, 0.07), transparent 70%),
+    radial-gradient(90vw 90vh at 50% 50%, rgba(24, 20, 14, 0.75), var(--thr-ground) 78%);
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+
+.thr-shell {
+  position: relative;
+  width: 100%;
+  max-width: 1160px;
+  min-height: min(680px, calc(100dvh - 96px));
+  max-height: calc(100dvh - 2 * clamp(16px, 3vw, 48px));
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  /* Bound the row to the shell so the panels shrink and scroll internally
+     rather than overflowing and being clipped by the shell's radius. */
+  grid-template-rows: minmax(0, 1fr);
+  background: var(--thr-shell);
+  border: 1px solid rgba(201, 165, 90, 0.14);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
+  animation: thrShellEnter 560ms var(--thr-ease) both;
+}
+
+@keyframes thrShellEnter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Paper ─────────────────────────────────────────────────────────────── */
+
+.thr-paper {
   display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(28px, 3.2vw, 52px);
+  background: var(--thr-paper);
+  color: var(--thr-body);
+}
+
+.thr-paper__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  align-items: flex-start;
-  max-width: 1280px;
-  margin: 0 auto 32px;
-  border-bottom: 1px solid var(--setup-border);
-  padding-bottom: 28px;
+  gap: 16px;
 }
 
-.ag-setup-masthead h1,
-.ag-setup-panel h1,
-.ag-setup-summary h2,
-.ag-setup-section h2 {
+.thr-paper__marker {
   margin: 0;
-  color: var(--setup-ink);
-  font-family: "Playfair Display", Georgia, serif;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  color: var(--thr-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
 }
 
-.ag-setup-masthead h1 {
-  font-size: clamp(2.3rem, 5vw, 4rem);
-  line-height: 1.02;
+.thr-progress {
+  flex-shrink: 0;
+  margin: 18px 0 clamp(28px, 3.6vw, 44px);
+  height: 1px;
+  background: var(--thr-line);
+  overflow: hidden;
+}
+
+.thr-progress span {
+  display: block;
+  height: 100%;
+  background: var(--thr-gold);
+  transform: scaleX(var(--thr-progress, 0));
+  transform-origin: left center;
+  transition: transform 560ms var(--thr-ease);
+}
+
+/* The chapter body scrolls inside the frame so the dock never leaves the
+   viewport — the primary action has one fixed home across every beat. */
+.thr-beat {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  animation: thrBeatEnter 440ms var(--thr-ease) both;
+}
+
+@keyframes thrBeatEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.thr-paper h1 {
+  margin: 0;
+  max-width: 20ch;
+  color: var(--thr-ink);
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.9rem, 2.9vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
-.ag-setup-masthead p {
-  max-width: 760px;
-  margin: 16px 0 0;
-  color: var(--setup-muted);
-  line-height: 1.7;
+.thr-paper h1:focus-visible {
+  outline: 2px solid var(--thr-gold);
+  outline-offset: 6px;
 }
 
-.ag-setup-layout {
-  max-width: 1280px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 280px;
-  gap: 24px;
-  align-items: start;
+.thr-paper__lede {
+  margin: 14px 0 0;
+  max-width: 56ch;
+  color: var(--thr-muted);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  text-wrap: pretty;
 }
 
-.ag-setup-ledger,
-.ag-setup-panel,
-.ag-setup-summary {
-  background: var(--setup-surface);
-  border: 1px solid var(--setup-border);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(26, 24, 21, 0.06);
-}
-
-.ag-setup-ledger,
-.ag-setup-summary {
-  position: sticky;
-  top: 24px;
-  padding: 20px;
-}
-
-.ag-setup-ledger-row {
-  display: grid;
-  gap: 4px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(26, 24, 21, 0.08);
-}
-
-.ag-setup-ledger-row:last-child {
-  border-bottom: 0;
-}
-
-.ag-setup-ledger-name,
-.ag-setup-section-head span,
-.ag-setup-field > span,
-.ag-setup-ledger-state {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-.ag-setup-ledger-name {
-  color: var(--setup-ink);
-  font-weight: 650;
-  font-size: 0.9rem;
-}
-
-.ag-setup-ledger-state,
-.ag-setup-section-head span {
-  color: var(--setup-muted);
-  font-size: 0.78rem;
-}
-
-.ag-setup-panel {
-  padding: 28px;
-}
-
-.ag-setup-section {
-  padding: 0 0 28px;
-  margin: 0 0 28px;
-  border-bottom: 1px solid var(--setup-border);
-}
-
-.ag-setup-section:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.ag-setup-section-head {
+.thr-body {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-  margin-bottom: 18px;
+  flex-direction: column;
+  gap: 28px;
+  margin-top: clamp(26px, 3vw, 36px);
 }
 
-.ag-setup-section h2,
-.ag-setup-summary h2 {
-  font-size: 1.55rem;
-  line-height: 1.15;
-}
+/* ── Fields ────────────────────────────────────────────────────────────── */
 
-.ag-setup-fields {
+.thr-grid {
   display: grid;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.ag-setup-fields--two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
 }
 
-.ag-setup-field {
-  display: grid;
+.thr-field {
+  display: flex;
+  flex-direction: column;
   gap: 7px;
+  min-width: 0;
 }
 
-.ag-setup-field > span {
-  color: var(--setup-muted);
-  font-size: 0.69rem;
-  font-weight: 700;
+.thr-field > label,
+.thr-set > legend {
+  color: var(--thr-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.ag-setup-field input,
-.ag-setup-field textarea,
-.ag-setup-actions-row select {
+.thr-field input,
+.thr-field textarea,
+.thr-field select {
   width: 100%;
   min-height: 44px;
-  border: 1px solid var(--setup-border);
+  padding: 10px 14px;
+  border: 1px solid rgba(26, 24, 21, 0.12);
   border-radius: 8px;
-  background: #fff;
-  color: var(--setup-ink);
-  padding: 10px 12px;
+  background: var(--thr-surface);
+  color: var(--thr-ink);
   font: inherit;
   box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.04);
+  transition: border-color var(--thr-state), box-shadow var(--thr-state);
 }
 
-.ag-setup-field textarea {
+.thr-field textarea {
+  min-height: 92px;
+  line-height: 1.6;
   resize: none;
-  min-height: 96px;
+}
+
+.thr-field select {
+  appearance: none;
+  padding-right: 38px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--thr-muted) 50%),
+    linear-gradient(135deg, var(--thr-muted) 50%, transparent 50%);
+  background-position: calc(100% - 19px) calc(50% + 2px), calc(100% - 14px) calc(50% + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.thr-field input::placeholder,
+.thr-field textarea::placeholder {
+  color: var(--thr-placeholder);
+}
+
+.thr-field input:hover,
+.thr-field textarea:hover,
+.thr-field select:hover {
+  border-color: rgba(26, 24, 21, 0.22);
+}
+
+.thr-field input:focus-visible,
+.thr-field textarea:focus-visible,
+.thr-field select:focus-visible {
+  outline: none;
+  border-color: var(--thr-gold);
+  box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.04), 0 0 0 3px rgba(201, 165, 90, 0.18);
+}
+
+.thr-field input[aria-invalid='true'] {
+  border-color: rgba(192, 57, 43, 0.55);
+}
+
+.thr-field__error,
+.thr-field__hint {
+  margin: 0;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 
-.ag-setup-field input:focus,
-.ag-setup-field textarea:focus,
-.ag-setup-actions-row select:focus {
-  outline: none;
-  border-color: var(--setup-gold);
-  box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.04), 0 0 0 3px rgba(201, 165, 90, 0.16);
+.thr-field__error { color: #A9331F; }
+.thr-field__hint { color: var(--thr-muted); }
+
+/* ── Option rows ───────────────────────────────────────────────────────── */
+
+.thr-set {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
 }
 
-.ag-setup-copy,
-.ag-setup-summary p {
-  color: var(--setup-muted);
-  line-height: 1.65;
+.thr-set > legend {
+  padding: 0;
+  margin-bottom: 4px;
 }
 
-.ag-setup-board-list {
+.thr-rows {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
+  flex-direction: column;
 }
 
-.ag-setup-choice {
-  display: inline-flex;
+/* Long option sets (the standing boards) run two-up so the chapter stays one
+   readable screen instead of a scrolling column of near-identical rows. */
+.thr-rows--split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 36px;
+}
+
+.thr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  border: 1px solid var(--setup-border);
-  border-radius: 8px;
-  padding: 9px 11px;
-  background: #fff;
-  color: var(--setup-body);
-  font-size: 0.9rem;
+  gap: 18px;
+  padding: 11px 10px 11px 0;
+  border-bottom: 1px solid var(--thr-line);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color var(--thr-state);
 }
 
-.ag-setup-choice--plain {
-  border-color: transparent;
-  padding-left: 0;
+.thr-rows > .thr-row:last-child,
+.thr-rows--split > .thr-row:nth-last-child(-n + 2) {
+  border-bottom: 0;
 }
 
-.ag-setup-choice input {
-  accent-color: var(--setup-gold);
+.thr-row:hover {
+  background: rgba(26, 24, 21, 0.03);
 }
 
-.ag-setup-actions-row {
+.thr-row:has(input:focus-visible) {
+  outline: 2px solid var(--thr-gold);
+  outline-offset: 1px;
+}
+
+.thr-row input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.thr-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.thr-row__label {
+  color: var(--thr-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: color var(--thr-state);
+}
+
+.thr-row.is-selected .thr-row__label {
+  color: var(--thr-ink);
+}
+
+.thr-row__hint {
+  color: var(--thr-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.thr-row__mark {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 1px solid var(--thr-line-strong);
+  border-radius: 50%;
+  color: transparent;
+  transition: background-color var(--thr-state), border-color var(--thr-state), color var(--thr-state);
+}
+
+.thr-row:hover .thr-row__mark {
+  border-color: rgba(26, 24, 21, 0.4);
+}
+
+.thr-row.is-selected .thr-row__mark {
+  background: var(--thr-gold);
+  border-color: var(--thr-gold);
+  color: var(--thr-gold-ink);
+}
+
+.thr-row:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ── Supporting blocks ─────────────────────────────────────────────────── */
+
+.thr-note {
+  padding-top: 22px;
+  border-top: 1px solid var(--thr-line);
+}
+
+.thr-note h3 {
+  margin: 0 0 10px;
+  color: var(--thr-ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.thr-note p {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--thr-muted);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.thr-note p + p {
+  margin-top: 12px;
+}
+
+.thr-keys {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.thr-keys li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--thr-line);
+}
+
+.thr-keys li:last-child {
+  border-bottom: 0;
+}
+
+.thr-keys__name {
+  color: var(--thr-ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.thr-keys__role {
+  color: var(--thr-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.thr-defaults {
+  margin: 0 0 18px;
+}
+
+.thr-defaults > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--thr-line);
+}
+
+.thr-defaults dt {
+  color: var(--thr-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.thr-defaults dd {
+  margin: 0;
+  color: var(--thr-ink);
+  font-weight: 600;
+}
+
+/* ── Dock ──────────────────────────────────────────────────────────────── */
+
+.thr-dock {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: clamp(24px, 3vw, 34px);
+  padding-top: 20px;
+  border-top: 1px solid var(--thr-line);
+}
+
+/* Softens the cut where a scrolling chapter meets the dock. Invisible when the
+   chapter fits, since it then sits over bare paper. */
+.thr-dock::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 36px;
+  background: linear-gradient(to top, var(--thr-paper), rgba(250, 248, 245, 0));
+  pointer-events: none;
+}
+
+.thr-dock__error {
+  margin: 0 0 14px;
+  color: #A9331F;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.thr-dock__actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.ag-setup-actions-row select {
-  max-width: 100%;
-}
-
-.ag-setup-primary,
-.ag-setup-secondary {
+.thr-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid transparent;
   border-radius: 8px;
-  padding: 0 16px;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 180ms cubic-bezier(0.4, 0, 0.2, 1), border-color 180ms cubic-bezier(0.4, 0, 0.2, 1), color 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color var(--thr-state), border-color var(--thr-state),
+    color var(--thr-state), opacity var(--thr-state);
 }
 
-.ag-setup-primary {
-  border: 1px solid var(--setup-gold);
-  background: var(--setup-gold);
-  color: #141210;
+.thr-button--primary {
+  background: var(--thr-gold);
+  border-color: var(--thr-gold);
+  color: var(--thr-gold-ink);
 }
 
-.ag-setup-primary:hover:not(:disabled) {
-  background: var(--setup-gold-hover);
-  border-color: var(--setup-gold-hover);
+.thr-button--primary:hover:not(:disabled) {
+  background: var(--thr-gold-hover);
+  border-color: var(--thr-gold-hover);
 }
 
-.ag-setup-secondary {
-  border: 1px solid var(--setup-border-strong);
-  background: #fff;
-  color: var(--setup-body);
+.thr-button--ghost {
+  background: transparent;
+  color: var(--thr-muted);
 }
 
-.ag-setup-secondary:hover {
-  background: #F5F2EE;
+.thr-button--ghost:hover:not(:disabled) {
+  color: var(--thr-ink);
 }
 
-.ag-setup-primary:focus-visible,
-.ag-setup-secondary:focus-visible {
-  outline: 2px solid var(--setup-gold);
+.thr-button:focus-visible {
+  outline: 2px solid var(--thr-gold);
   outline-offset: 3px;
 }
 
-.ag-setup-primary:disabled {
+.thr-button:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
-.ag-setup-primary--wide {
-  width: 100%;
-  margin-top: 18px;
+.thr-button--ghost:disabled {
+  opacity: 0;
+  pointer-events: none;
 }
 
-.ag-setup-message {
-  border-top: 1px solid var(--setup-border);
-  padding-top: 14px;
-  color: var(--setup-ink) !important;
+/* ── The dark side ─────────────────────────────────────────────────────── */
+
+/* No gap: the voice's auto margins distribute the free space, so a tall
+   chapter packs tightly instead of overflowing the stage. */
+.thr-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(28px, 3.2vw, 52px);
+  overflow-y: auto;
 }
 
-.ag-setup-skeleton {
-  min-height: 360px;
-  border-radius: 12px;
-  background: linear-gradient(90deg, #f1ece4, #fff, #f1ece4);
-  background-size: 240% 100%;
-  animation: agSetupSkeleton 1.2s ease-in-out infinite;
+.thr-sequence ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.ag-setup-skeleton--wide {
-  min-height: 140px;
-  margin: 0 auto 24px;
-  max-width: 1280px;
-}
-
-.ag-setup-grid {
-  max-width: 1280px;
-  margin: 0 auto;
+.thr-sequence li {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  color: var(--thr-warm-3);
+  font-size: 0.875rem;
+  transition: color 320ms var(--thr-ease);
 }
 
-@keyframes agSetupSkeleton {
+.thr-sequence__rule {
+  height: 1px;
+  background: var(--thr-warm-line);
+  transition: background-color 320ms var(--thr-ease), width 320ms var(--thr-ease);
+}
+
+.thr-sequence li.is-done {
+  color: var(--thr-warm-2);
+}
+
+.thr-sequence li.is-done .thr-sequence__rule {
+  background: rgba(201, 165, 90, 0.4);
+}
+
+.thr-sequence li.is-current {
+  color: var(--thr-gold);
+  font-weight: 600;
+}
+
+.thr-sequence li.is-current .thr-sequence__rule {
+  background: var(--thr-gold);
+}
+
+.thr-sequence__name {
+  overflow-wrap: anywhere;
+}
+
+/* Sits in the optical centre of the stage between the sequence and the foot. */
+.thr-voice {
+  margin-block: auto;
+  padding-block: 28px;
+  animation: thrBeatEnter 440ms var(--thr-ease) both;
+}
+
+.thr-voice h2 {
+  margin: 0 0 14px;
+  max-width: 22ch;
+  color: var(--thr-warm);
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.25rem, 1.7vw, 1.5rem);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.thr-voice p {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--thr-warm-2);
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+
+.thr-side__foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 24px;
+  border-top: 1px solid var(--thr-warm-line);
+}
+
+.thr-lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.thr-lockup.is-unnamed strong,
+.thr-lockup.is-unnamed span {
+  color: var(--thr-warm-3);
+}
+
+.thr-lockup strong {
+  color: var(--thr-warm);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.thr-lockup span {
+  color: var(--thr-warm-3);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.thr-signout {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--thr-warm-3);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: color var(--thr-state);
+}
+
+.thr-signout:hover {
+  color: var(--thr-warm);
+}
+
+.thr-signout:focus-visible {
+  outline: 2px solid var(--thr-gold);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ── Closing beat, error notice, skeleton ──────────────────────────────── */
+
+.thr-stage--plain {
+  place-items: center;
+}
+
+.thr-open,
+.thr-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  max-width: 560px;
+  padding: clamp(24px, 4vw, 40px);
+  text-align: center;
+  animation: thrShellEnter 560ms var(--thr-ease) both;
+}
+
+.thr-open h1,
+.thr-notice h1 {
+  margin: 0;
+  color: var(--thr-warm);
+  font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.thr-open p,
+.thr-notice p {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--thr-warm-2);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.thr-open .thr-button,
+.thr-notice .thr-button {
+  margin-top: 10px;
+}
+
+.thr-shell--skeleton {
+  animation: none;
+}
+
+.thr-sk {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #F0EBE3, #FBF9F6, #F0EBE3);
+  background-size: 240% 100%;
+  animation: thrShimmer 1.4s ease-in-out infinite;
+}
+
+.thr-sk--mark { width: 84px; height: 14px; }
+.thr-sk--title { width: min(80%, 380px); height: 34px; margin-top: 46px; }
+.thr-sk--line { width: min(60%, 280px); height: 14px; margin-top: 16px; }
+.thr-sk--block { width: 100%; height: 240px; margin-top: 36px; }
+
+@keyframes thrShimmer {
   to { background-position: -240% 0; }
 }
 
-@media (max-width: 1120px) {
-  .ag-setup-layout {
-    grid-template-columns: 1fr;
+/* ── Responsive ────────────────────────────────────────────────────────── */
+
+/* Short laptop screens: give the chapter body back the space the masthead and
+   title would otherwise take, so fewer beats need to scroll. */
+@media (min-width: 981px) and (max-height: 820px) {
+  .thr-paper h1 {
+    font-size: clamp(1.6rem, 2.2vw, 2rem);
   }
 
-  .ag-setup-ledger,
-  .ag-setup-summary {
-    position: static;
+  .thr-progress {
+    margin: 14px 0 26px;
+  }
+
+  .thr-paper__lede {
+    margin-top: 10px;
+  }
+
+  .thr-body {
+    gap: 22px;
+    margin-top: 24px;
   }
 }
 
-@media (max-width: 720px) {
-  .ag-setup-shell {
-    padding: 28px 16px;
+@media (max-width: 980px) {
+  /* A stacked shell can exceed the viewport; top-align it so nothing sits
+     above the scroll origin. */
+  .thr-stage {
+    align-items: start;
   }
 
-  .ag-setup-masthead,
-  .ag-setup-fields--two,
-  .ag-setup-grid {
-    grid-template-columns: 1fr;
+  /* Stacked: the page scrolls as one document, so the panels size to content
+     and the internal scroll containers are released. */
+  .thr-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    min-height: 0;
+    max-height: none;
   }
 
-  .ag-setup-masthead {
-    display: grid;
+  .thr-beat,
+  .thr-side {
+    overflow: visible;
   }
 
-  .ag-setup-panel {
-    padding: 20px;
+  /* The paper leads on narrow screens; progression stays visible above the
+     fold via the chapter marker and progress rule in the paper header. */
+  .thr-paper { order: 1; }
+  .thr-side {
+    order: 2;
+    gap: 32px;
+    border-top: 1px solid var(--thr-warm-line);
   }
 
-  .ag-setup-actions-row {
+  .thr-sequence ol {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+
+  .thr-sequence li {
+    grid-template-columns: 18px auto;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .thr-stage {
+    padding: 0;
+  }
+
+  .thr-shell {
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .thr-paper,
+  .thr-side {
+    padding: 26px 20px 30px;
+  }
+
+  .thr-grid,
+  .thr-rows--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .thr-rows--split > .thr-row:nth-last-child(2) {
+    border-bottom: 1px solid var(--thr-line);
+  }
+
+  /* The document scrolls on narrow screens, so the dock sticks to the bottom
+     of the paper to keep the primary action in reach. */
+  .thr-dock {
+    position: sticky;
+    bottom: 0;
+    background: var(--thr-paper);
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .thr-dock__actions {
+    flex-direction: column-reverse;
     align-items: stretch;
-    flex-direction: column;
   }
 
-  .ag-setup-primary,
-  .ag-setup-secondary {
+  .thr-dock__actions .thr-button {
     width: 100%;
+  }
+
+  .thr-button--ghost:disabled {
+    display: none;
+  }
+
+  .thr-side__foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .thr-signout {
+    margin-left: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ag-setup-primary,
-  .ag-setup-secondary,
-  .ag-setup-skeleton {
-    transition: none;
+  .thr-shell,
+  .thr-beat,
+  .thr-voice,
+  .thr-open,
+  .thr-notice {
     animation: none;
+  }
+
+  .thr-sk {
+    animation: none;
+    background: #F0EBE3;
+  }
+
+  .thr-progress span,
+  .thr-sequence li,
+  .thr-sequence__rule {
+    transition: none;
   }
 }
