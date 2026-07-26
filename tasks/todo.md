@@ -7,8 +7,8 @@ Restore the correct Intel page data binding so zones render instead of an empty 
 - [x] Confirm screenshot matches broken hook shape (blank zones + free locks)
 - [x] Git history: find when `useIntel` stopped returning `{ intel, meta }`
 - [x] Restore `useIntel` return shape from pre-regression version
-- [ ] Keep `useIntelDay` compatible with both call sites
-- [ ] Lint / focused verification
+- [x] Keep `useIntelDay` compatible with both call sites
+- [x] Lint / focused verification
 - [ ] Commit, push, PR
 
 ## Root cause
