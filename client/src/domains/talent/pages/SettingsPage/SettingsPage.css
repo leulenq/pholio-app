@@ -409,36 +409,48 @@
   --track-w: 44px;
   --track-h: 26px;
   --knob: 20px;
+  --inset: 3px;
+  --travel: calc(var(--track-w) - var(--knob) - (var(--inset) * 2));
+  --hit: 10px;
+  appearance: none;
   flex: none;
-  box-sizing: content-box;
-  width: var(--track-w);
-  height: var(--track-h);
-  /* Expand hit target without enlarging the visual track. */
-  padding: 10px;
-  margin: -10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--track-w) + var(--hit) * 2);
+  height: calc(var(--track-h) + var(--hit) * 2);
+  padding: 0;
+  margin: calc(var(--hit) * -1);
   border: none;
-  background: none;
+  background: transparent;
   cursor: pointer;
+  line-height: 0;
 }
 
 .set-toggle__track {
+  position: relative;
   display: block;
-  width: 100%; height: 100%;
+  width: var(--track-w);
+  height: var(--track-h);
   border-radius: 999px;
   background: var(--set-cream-deep);
   box-shadow: inset 0 0 0 1px var(--set-hair-strong);
   transition: background 0.28s var(--set-ease), box-shadow 0.28s var(--set-ease);
+  flex: none;
 }
 
 .set-toggle__knob {
-  display: block;
-  width: var(--knob); height: var(--knob);
-  margin: 3px;
-  border-radius: 999px;
+  position: absolute;
+  top: 50%;
+  left: var(--inset);
+  width: var(--knob);
+  height: var(--knob);
+  margin: 0;
+  border-radius: 50%;
   background: var(--set-surface);
   box-shadow: 0 1px 3px rgba(26, 26, 26, 0.28);
+  transform: translateY(-50%);
   transition: transform 0.28s var(--set-ease);
-  will-change: transform;
 }
 
 .set-toggle.is-on .set-toggle__track {
@@ -447,7 +459,7 @@
 }
 
 .set-toggle.is-on .set-toggle__knob {
-  transform: translateX(calc(var(--track-w) - var(--knob) - 6px));
+  transform: translateY(-50%) translateX(var(--travel));
 }
 
 .set-toggle:disabled { cursor: not-allowed; opacity: 0.45; }
