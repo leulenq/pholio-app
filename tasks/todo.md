@@ -1,3 +1,21 @@
+# Fix Intel page blank state (useIntel hook regression)
+
+## Goal
+Restore the correct Intel page data binding so zones render instead of an empty masthead-only view.
+
+## Plan
+- [x] Confirm screenshot matches broken hook shape (blank zones + free locks)
+- [x] Git history: find when `useIntel` stopped returning `{ intel, meta }`
+- [x] Restore `useIntel` return shape from pre-regression version
+- [ ] Keep `useIntelDay` compatible with both call sites
+- [ ] Lint / focused verification
+- [ ] Commit, push, PR
+
+## Root cause
+`7d18e28` / parallel merge thinned `useIntel` to raw `useQuery`, while `IntelPage` still expects `{ intel, meta, isLoading, isError, refetch }`. Result: `intel` always undefined → blank content; `meta` undefined → `tier` defaults to `free` → 30/90 locked.
+
+---
+
 # Login social buttons — native branding
 
 ## Goal
