@@ -2,8 +2,10 @@
 const LIGHT_HEADER_PREFIXES = [
   '/dashboard/talent/profile',
   '/dashboard/talent/media',
-  '/dashboard/talent/analytics',
+  '/dashboard/talent/analytics', // legacy alias → IntelPage
+  '/dashboard/talent/intel',
   '/dashboard/talent/applications',
+  '/dashboard/talent/messages',
   '/dashboard/talent/settings',
 ];
 
