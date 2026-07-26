@@ -406,9 +406,9 @@
 /* ── Toggle switch ────────────────────────────────────────── */
 
 .set-toggle {
-  --track-w: 42px;
-  --track-h: 24px;
-  --knob: 18px;
+  --track-w: 44px;
+  --track-h: 26px;
+  --knob: 20px;
   flex: none;
   box-sizing: content-box;
   width: var(--track-w);
@@ -438,6 +438,7 @@
   background: var(--set-surface);
   box-shadow: 0 1px 3px rgba(26, 26, 26, 0.28);
   transition: transform 0.28s var(--set-ease);
+  will-change: transform;
 }
 
 .set-toggle.is-on .set-toggle__track {
