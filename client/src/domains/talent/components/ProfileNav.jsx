@@ -1,18 +1,7 @@
 import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
-
-const NAV_ITEMS = [
-  { id: 'identity', label: 'Personal Details' },
-  { id: 'discipline', label: 'Discipline & Focus' },
-  { id: 'appearance', label: 'Stats & Measurements' },
-  { id: 'credits', label: 'Credits & Experience' },
-  { id: 'training', label: 'Training & Skills' },
-  { id: 'representation', label: 'Representation' },
-  { id: 'socials', label: 'Socials & Media' },
-  { id: 'private', label: 'Private & Compliance' },
-  { id: 'contact', label: 'On-set Safety' }
-];
+import { NAV_ITEMS } from './profileNavItems';
 
 const VALID_NAV_IDS = new Set(NAV_ITEMS.map((item) => item.id));
 

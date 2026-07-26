@@ -20,6 +20,7 @@ import PholioTagInput from '../../../../shared/components/ui/forms/PholioTagInpu
 import CreditsEditor from '../../../../shared/components/ui/forms/CreditsEditor';
 import { Controller } from 'react-hook-form';
 import ProfileNav from '../../components/ProfileNav';
+import { NAV_LABELS_BY_ID } from '../../components/profileNavItems';
 import ProfileStrengthSidebar from '../../components/ProfileStrengthSidebar';
 import { calculateProfileStrength } from '../../../../shared/utils/profileScoring';
 import {
@@ -804,15 +805,6 @@ export default function ProfilePage() {
 
   return (
     <div ref={pageRef} className={styles.pageContainer}>
-      {/* Mobile Nav Toggle */}
-      <PholioIconButton
-        label="Toggle navigation"
-        className={styles.navToggle} 
-        onClick={() => setNavOpen(!navOpen)}
-      >
-        {navOpen ? <X size={20} /> : <Menu size={20} />}
-      </PholioIconButton>
-      
       {/* Mobile Nav Overlay */}
       <div 
         className={`${styles.navOverlay} ${navOpen ? styles.navOverlayVisible : ''}`}
@@ -910,11 +902,46 @@ export default function ProfilePage() {
         </motion.div>
       </header>
 
+      {/* Profile Strength — docked right under the hero so it reads as page
+          context, not an appendage after the whole form (mobile stacks this
+          here via DOM order; desktop/tablet still pin it to the grid's third
+          column via explicit grid-column on .sidebar). */}
+      <ProfileStrengthSidebar
+        strength={profileStrength}
+        profile={readinessProfile}
+        images={Array.isArray(authImages) ? authImages : []}
+        isSaving={isSubmitting}
+        hasChanges={hasChanges}
+        auditOpen={readinessAuditOpen}
+        onToggleAudit={() => setReadinessAuditOpen((open) => !open)}
+        onSaveClick={() => {
+          void handleSaveProfile();
+        }}
+        onItemClick={scrollToProfileSection}
+      />
+
+      {/* Mobile section index — sits after the masthead (hero + readiness),
+          where navigation for the form belongs, and sticks to the top of the
+          scroller once you're actually in the form. */}
+      <div className={styles.mobileIndexBar}>
+        <PholioIconButton
+          label="Toggle section index"
+          className={styles.navToggle}
+          onClick={() => setNavOpen(!navOpen)}
+        >
+          {navOpen ? <X size={17} /> : <Menu size={17} />}
+        </PholioIconButton>
+        <span className={styles.mobileIndexBarLabel}>Sections</span>
+        <span className={styles.mobileIndexBarCurrent}>
+          {NAV_LABELS_BY_ID[activeSection] || 'Personal Details'}
+        </span>
+      </div>
+
       {/* Page Header - Removed as requested */}
 
       {/* 3-Column Layout */}
       <div className={styles.layoutGrid}>
-        
+
         {/* Left Sidebar - Navigation */}
         <aside className={`${styles.leftSidebar} ${navOpen ? styles.leftSidebarOpen : ''}`}>
           <ProfileNav
@@ -1596,21 +1623,6 @@ export default function ProfilePage() {
 
           </form>
         </main>
-
-        {/* Right Sidebar - Profile Strength */}
-        <ProfileStrengthSidebar
-          strength={profileStrength}
-          profile={readinessProfile}
-          images={Array.isArray(authImages) ? authImages : []}
-          isSaving={isSubmitting}
-          hasChanges={hasChanges}
-          auditOpen={readinessAuditOpen}
-          onToggleAudit={() => setReadinessAuditOpen((open) => !open)}
-          onSaveClick={() => {
-            void handleSaveProfile();
-          }}
-          onItemClick={scrollToProfileSection}
-        />
 
       </div>{/* End layoutGrid */}
     </div>

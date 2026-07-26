@@ -666,8 +666,13 @@
   color: var(--pf-text);
 }
 
-.navToggle {
+.mobileIndexBar {
   display: none;
+}
+
+.navToggle {
+  width: 34px;
+  height: 34px;
 }
 
 .navOverlay {
@@ -2244,6 +2249,15 @@
 @media (max-width: 1024px) {
   .pageContainer {
     grid-template-columns: minmax(0, 1fr) 280px;
+    /* pfEntrance ends on transform:translateY(0) and runs with fill-mode
+       'both', so that identity transform sticks around permanently — and any
+       non-none transform makes this element the containing block for
+       position:fixed descendants. That silently re-anchors the .leftSidebar
+       drawer to this 14000px-tall container instead of the viewport, so
+       opening it below the fold put it thousands of px off-screen. The drawer
+       only exists at this breakpoint, so drop the decorative page entrance
+       here and let fixed mean fixed. */
+    animation: none;
   }
 
   .leftSidebar {
@@ -2280,21 +2294,48 @@
     pointer-events: auto;
   }
 
-  .navToggle {
+  /* Section index — docked chrome that sticks to the top of the scroller
+     once you're into the form, so it's a persistent wayfinder rather than a
+     floating button parked over the artwork. It also reports the section
+     you're currently in, which the floating button never did. */
+  .mobileIndexBar {
     display: flex;
-    position: fixed;
-    top: calc(var(--tl-topbar-h, 68px) + 12px);
-    left: 16px;
-    width: 40px;
-    height: 40px;
-    background: #fff;
-    border: 1px solid var(--pf-hair);
-    border-radius: var(--pf-radius-sm);
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 1001;
+    gap: 10px;
+    position: sticky;
+    /* The scroll container (.tl-content) already sits below the fixed app
+       topbar, so its own coordinate space starts at 0 there — stick to its
+       top, not to the topbar height again. */
+    top: 0;
+    z-index: 20;
+    padding: 10px 20px;
+    background: var(--pf-cream);
+    border-top: 1px solid var(--pf-hair);
+    border-bottom: 1px solid var(--pf-hair);
+  }
+
+  .mobileIndexBarLabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--pf-text-faint);
+    flex-shrink: 0;
+  }
+
+  .mobileIndexBarCurrent {
+    flex: 1;
+    min-width: 0;
+    font-family: 'Noto Serif Display', Georgia, serif;
+    font-size: 15px;
+    font-style: italic;
+    font-weight: 400;
     color: var(--pf-text);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .centerContent {
@@ -2326,6 +2367,12 @@
     grid-template-columns: 1fr;
     display: flex;
     flex-direction: column;
+    /* Base rule sets align-items:start for the desktop grid's row cross-
+       axis; in flex mode that leaks into shrink-wrapping every top-level
+       section to its content width instead of the viewport. Cream-on-cream
+       backgrounds hid this — the hero, sidebar, and index bar were all
+       narrower than the page and just happened not to show a hard edge. */
+    align-items: stretch;
   }
 
   .heroSection,
@@ -2371,7 +2418,7 @@
   }
 
   .centerContent {
-    padding: 24px 20px 48px;
+    padding: 24px 20px calc(96px + env(safe-area-inset-bottom));
   }
 
   .formGrid2,
@@ -2395,11 +2442,6 @@
   .heroReadiness {
     max-width: none;
     text-align: center;
-  }
-
-  .navToggle {
-    top: calc(var(--tl-topbar-h, 68px) + 8px);
-    left: 12px;
   }
 
   /* iOS zoom-on-focus fix: profile-scoped inputs render at 15px which is
