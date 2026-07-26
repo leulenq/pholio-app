@@ -27,7 +27,36 @@
      dropped in after every section. No grid-column needed here — .pageContainer
      is a flex column at this width and DOM order drives placement. */
   .sidebar {
-    padding: 20px 20px 0;
+    padding: 0 20px 22px;
+    /* The base rule sets align-self:start for the desktop grid row. In the
+       mobile flex column that same value applies to the CROSS (horizontal)
+       axis, so the card shrink-wraps to its text — it only looked correct
+       when the status copy happened to be long enough to fill the row. */
+    align-self: stretch;
+    position: static;
+  }
+
+  /* On mobile this is a flush panel in the page flow, not a floating card
+     in a rail: drop the lifted shadow and the gold halo so it reads as
+     structure rather than a second competing hero. */
+  .card {
+    border-radius: 10px;
+    box-shadow: none;
+    padding: 22px 20px;
+  }
+
+  .card::before {
+    display: none;
+  }
+
+  /* The oversized display score belongs to the desktop rail where it has a
+     column to itself; at phone width it competes with the talent's name. */
+  .score {
+    font-size: 2.5rem;
+  }
+
+  .percentSign {
+    font-size: 1.1rem;
   }
 
   /* The Save button still breaks out to a fixed bar pinned above the

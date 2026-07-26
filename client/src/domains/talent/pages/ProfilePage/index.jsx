@@ -20,6 +20,7 @@ import PholioTagInput from '../../../../shared/components/ui/forms/PholioTagInpu
 import CreditsEditor from '../../../../shared/components/ui/forms/CreditsEditor';
 import { Controller } from 'react-hook-form';
 import ProfileNav from '../../components/ProfileNav';
+import { NAV_LABELS_BY_ID } from '../../components/profileNavItems';
 import ProfileStrengthSidebar from '../../components/ProfileStrengthSidebar';
 import { calculateProfileStrength } from '../../../../shared/utils/profileScoring';
 import {
@@ -804,18 +805,6 @@ export default function ProfilePage() {
 
   return (
     <div ref={pageRef} className={styles.pageContainer}>
-      {/* Mobile section index bar — docked utility chrome, not a floating button */}
-      <div className={styles.mobileIndexBar}>
-        <PholioIconButton
-          label="Toggle section index"
-          className={styles.navToggle}
-          onClick={() => setNavOpen(!navOpen)}
-        >
-          {navOpen ? <X size={18} /> : <Menu size={18} />}
-        </PholioIconButton>
-        <span className={styles.mobileIndexBarLabel}>Index</span>
-      </div>
-
       {/* Mobile Nav Overlay */}
       <div 
         className={`${styles.navOverlay} ${navOpen ? styles.navOverlayVisible : ''}`}
@@ -930,6 +919,23 @@ export default function ProfilePage() {
         }}
         onItemClick={scrollToProfileSection}
       />
+
+      {/* Mobile section index — sits after the masthead (hero + readiness),
+          where navigation for the form belongs, and sticks to the top of the
+          scroller once you're actually in the form. */}
+      <div className={styles.mobileIndexBar}>
+        <PholioIconButton
+          label="Toggle section index"
+          className={styles.navToggle}
+          onClick={() => setNavOpen(!navOpen)}
+        >
+          {navOpen ? <X size={17} /> : <Menu size={17} />}
+        </PholioIconButton>
+        <span className={styles.mobileIndexBarLabel}>Sections</span>
+        <span className={styles.mobileIndexBarCurrent}>
+          {NAV_LABELS_BY_ID[activeSection] || 'Personal Details'}
+        </span>
+      </div>
 
       {/* Page Header - Removed as requested */}
 

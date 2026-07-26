@@ -2249,6 +2249,15 @@
 @media (max-width: 1024px) {
   .pageContainer {
     grid-template-columns: minmax(0, 1fr) 280px;
+    /* pfEntrance ends on transform:translateY(0) and runs with fill-mode
+       'both', so that identity transform sticks around permanently — and any
+       non-none transform makes this element the containing block for
+       position:fixed descendants. That silently re-anchors the .leftSidebar
+       drawer to this 14000px-tall container instead of the viewport, so
+       opening it below the fold put it thousands of px off-screen. The drawer
+       only exists at this breakpoint, so drop the decorative page entrance
+       here and let fixed mean fixed. */
+    animation: none;
   }
 
   .leftSidebar {
@@ -2285,22 +2294,23 @@
     pointer-events: auto;
   }
 
-  /* Docked utility chrome for the section index — sticky under the app
-     topbar, in normal flow. Replaces a floating button with no spatial
-     relationship to anything; this one has a fixed home in the page's
-     chrome layer and stays reachable while scrolling the form. */
+  /* Section index — docked chrome that sticks to the top of the scroller
+     once you're into the form, so it's a persistent wayfinder rather than a
+     floating button parked over the artwork. It also reports the section
+     you're currently in, which the floating button never did. */
   .mobileIndexBar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     position: sticky;
     /* The scroll container (.tl-content) already sits below the fixed app
        topbar, so its own coordinate space starts at 0 there — stick to its
        top, not to the topbar height again. */
     top: 0;
     z-index: 20;
-    padding: 8px 20px;
+    padding: 10px 20px;
     background: var(--pf-cream);
+    border-top: 1px solid var(--pf-hair);
     border-bottom: 1px solid var(--pf-hair);
   }
 
@@ -2308,9 +2318,24 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--pf-text-faint);
+    flex-shrink: 0;
+  }
+
+  .mobileIndexBarCurrent {
+    flex: 1;
+    min-width: 0;
+    font-family: 'Noto Serif Display', Georgia, serif;
+    font-size: 15px;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--pf-text);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .centerContent {
@@ -2360,46 +2385,32 @@
     min-height: auto;
   }
 
-  /* Mobile hero: the portrait bleeds edge-to-edge (cinematic, anchored to
-     the viewport rather than floating centered with no relationship to
-     anything), and the identity block sits directly beneath it, left-
-     aligned to the same gutter as every section below — one alignment
-     axis for the whole page instead of a centered hero over a left-aligned
-     body. */
   .heroInner {
     grid-template-columns: 1fr;
-    align-items: stretch;
-    justify-items: stretch;
-    text-align: left;
-    padding: 0 0 28px;
-    gap: 18px;
+    align-items: center;
+    justify-items: center;
+    text-align: center;
+    padding: 28px 20px 24px;
+    gap: 24px;
   }
 
   .heroPortraitWrap {
-    width: 100%;
-    max-width: none;
-  }
-
-  .heroImage,
-  .heroNoPhotoBg {
-    width: 100%;
-    height: clamp(300px, 56vh, 460px);
-    aspect-ratio: auto;
-    border-radius: 0;
-    border-width: 0 0 1px;
-  }
-
-  .addPhotoPrompt {
-    border-radius: 0;
+    width: min(280px, 72vw);
+    max-width: 100%;
   }
 
   .heroIdentity {
-    align-items: flex-start;
-    padding: 0 20px;
+    align-items: center;
   }
 
   .heroEyebrow {
-    justify-content: flex-start;
+    justify-content: center;
+  }
+
+  .heroSweep {
+    margin-left: auto;
+    margin-right: auto;
+    transform-origin: center;
   }
 
   .heroStats {
@@ -2430,10 +2441,7 @@
 
   .heroReadiness {
     max-width: none;
-  }
-
-  .mobileIndexBar {
-    padding: 8px 20px;
+    text-align: center;
   }
 
   /* iOS zoom-on-focus fix: profile-scoped inputs render at 15px which is
