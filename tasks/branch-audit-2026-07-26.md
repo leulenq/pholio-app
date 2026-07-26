@@ -125,3 +125,16 @@ Method: `git merge-base --is-ancestor`, `git rev-list` ahead/behind, `git cherry
 - `claude/agency-submissions-audit-oc5pht`
 - `claude/logo-icon-12euah`
 - `cursor/branch-audit-cleanup-54be` (this audit)
+
+## Follow-up — 2026-07-26 merge to main
+
+All four retained feature branches were merged into `main` at `5201e29` and then deleted:
+
+| Branch | Merge commit | Notes |
+|---|---|---|
+| `claude/agency-onboarding-redesign-ka60u6` | `171bcb1` | Clean |
+| `claude/talent-dashboard-auth-bug-7499at` | `17c77d9` | Conflict in `DashboardLayoutShell.jsx` → kept `PageLoadingScreen` |
+| `claude/agency-submissions-audit-oc5pht` | `2196278` | Clean |
+| `claude/logo-icon-12euah` | `5201e29` | Kept current `PRODUCT.md`; added `PholioMark` + SVG favicon sources alongside existing PNGs |
+
+Remote branches after this follow-up: `main` and `cursor/branch-audit-cleanup-54be` (this doc).
