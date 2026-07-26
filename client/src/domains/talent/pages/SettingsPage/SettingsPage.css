@@ -224,19 +224,6 @@
 .set-rail button.is-active { color: var(--set-text); }
 .set-rail button.is-active::before { height: 26px; }
 
-.set-rail__num {
-  flex: none;
-  min-width: 24px;
-  font-family: var(--set-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--set-text-faint);
-  transition: color 0.25s var(--set-ease);
-}
-
-.set-rail button.is-active .set-rail__num { color: var(--set-gold); }
-
 .set-rail__text {
   display: flex;
   flex-direction: column;
@@ -993,10 +980,10 @@
 }
 
 @media (max-width: 860px) {
-  /* Title + section strip read as one masthead; one hairline under the strip. */
+  /* Title + section strip share the masthead; space between title and strip. */
   .set-page-header {
     margin-bottom: 0;
-    padding-bottom: 4px;
+    padding-bottom: 18px;
     border-bottom: none;
   }
   .set-workspace {
@@ -1013,6 +1000,7 @@
     position: static;
     top: auto;
     margin: 0 0 4px;
+    padding-top: 4px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -1063,12 +1051,6 @@
     border: none;
   }
   .set-rail button.is-active::before { height: 2px; }
-  .set-rail button.is-active .set-rail__num { color: var(--set-gold); }
-  .set-rail__num {
-    min-width: 0;
-    font-size: 9px;
-    letter-spacing: 0.08em;
-  }
   .set-rail__text strong {
     font-size: 13px;
     font-weight: 500;
