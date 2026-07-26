@@ -666,8 +666,13 @@
   color: var(--pf-text);
 }
 
-.navToggle {
+.mobileIndexBar {
   display: none;
+}
+
+.navToggle {
+  width: 34px;
+  height: 34px;
 }
 
 .navOverlay {
@@ -2280,21 +2285,32 @@
     pointer-events: auto;
   }
 
-  .navToggle {
+  /* Docked utility chrome for the section index — sticky under the app
+     topbar, in normal flow. Replaces a floating button with no spatial
+     relationship to anything; this one has a fixed home in the page's
+     chrome layer and stays reachable while scrolling the form. */
+  .mobileIndexBar {
     display: flex;
-    position: fixed;
-    top: calc(var(--tl-topbar-h, 68px) + 12px);
-    left: 16px;
-    width: 40px;
-    height: 40px;
-    background: #fff;
-    border: 1px solid var(--pf-hair);
-    border-radius: var(--pf-radius-sm);
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 1001;
-    color: var(--pf-text);
+    gap: 12px;
+    position: sticky;
+    /* The scroll container (.tl-content) already sits below the fixed app
+       topbar, so its own coordinate space starts at 0 there — stick to its
+       top, not to the topbar height again. */
+    top: 0;
+    z-index: 20;
+    padding: 8px 20px;
+    background: var(--pf-cream);
+    border-bottom: 1px solid var(--pf-hair);
+  }
+
+  .mobileIndexBarLabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--pf-text-faint);
   }
 
   .centerContent {
@@ -2326,6 +2342,12 @@
     grid-template-columns: 1fr;
     display: flex;
     flex-direction: column;
+    /* Base rule sets align-items:start for the desktop grid's row cross-
+       axis; in flex mode that leaks into shrink-wrapping every top-level
+       section to its content width instead of the viewport. Cream-on-cream
+       backgrounds hid this — the hero, sidebar, and index bar were all
+       narrower than the page and just happened not to show a hard edge. */
+    align-items: stretch;
   }
 
   .heroSection,
@@ -2338,32 +2360,46 @@
     min-height: auto;
   }
 
+  /* Mobile hero: the portrait bleeds edge-to-edge (cinematic, anchored to
+     the viewport rather than floating centered with no relationship to
+     anything), and the identity block sits directly beneath it, left-
+     aligned to the same gutter as every section below — one alignment
+     axis for the whole page instead of a centered hero over a left-aligned
+     body. */
   .heroInner {
     grid-template-columns: 1fr;
-    align-items: center;
-    justify-items: center;
-    text-align: center;
-    padding: 28px 20px 24px;
-    gap: 24px;
+    align-items: stretch;
+    justify-items: stretch;
+    text-align: left;
+    padding: 0 0 28px;
+    gap: 18px;
   }
 
   .heroPortraitWrap {
-    width: min(280px, 72vw);
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
+  }
+
+  .heroImage,
+  .heroNoPhotoBg {
+    width: 100%;
+    height: clamp(300px, 56vh, 460px);
+    aspect-ratio: auto;
+    border-radius: 0;
+    border-width: 0 0 1px;
+  }
+
+  .addPhotoPrompt {
+    border-radius: 0;
   }
 
   .heroIdentity {
-    align-items: center;
+    align-items: flex-start;
+    padding: 0 20px;
   }
 
   .heroEyebrow {
-    justify-content: center;
-  }
-
-  .heroSweep {
-    margin-left: auto;
-    margin-right: auto;
-    transform-origin: center;
+    justify-content: flex-start;
   }
 
   .heroStats {
@@ -2371,7 +2407,7 @@
   }
 
   .centerContent {
-    padding: 24px 20px 48px;
+    padding: 24px 20px calc(96px + env(safe-area-inset-bottom));
   }
 
   .formGrid2,
@@ -2394,12 +2430,10 @@
 
   .heroReadiness {
     max-width: none;
-    text-align: center;
   }
 
-  .navToggle {
-    top: calc(var(--tl-topbar-h, 68px) + 8px);
-    left: 12px;
+  .mobileIndexBar {
+    padding: 8px 20px;
   }
 
   /* iOS zoom-on-focus fix: profile-scoped inputs render at 15px which is

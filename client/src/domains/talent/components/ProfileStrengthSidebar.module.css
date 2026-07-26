@@ -22,21 +22,19 @@
 }
 
 @media (max-width: 768px) {
+  /* Docked directly under the hero (see ProfilePage index.jsx render order)
+     so it reads as page context introducing the form, not an appendage
+     dropped in after every section. No grid-column needed here — .pageContainer
+     is a flex column at this width and DOM order drives placement. */
   .sidebar {
-    grid-column: 1;
-    padding: 24px 20px 40px;
-    border-top: 1px solid rgba(26, 26, 26, 0.08);
+    padding: 20px 20px 0;
   }
 
-  /* The sidebar (and its Save button) becomes the last static DOM node on
-     mobile, buried below the entire form. Pin the save bar to the bottom
-     of the viewport instead so it stays reachable while scrolling.
-     Fixed (not sticky) is used deliberately: .card has overflow:hidden
-     without a scroll mechanism of its own, so a sticky child would never
-     find a scrolling container to stick within. .card has no transform,
-     so it doesn't create a containing block that would clip a fixed
-     descendant. Desktop's in-sidebar save (outside this query) is
-     untouched. */
+  /* The Save button still breaks out to a fixed bar pinned above the
+     shell's mobile tab bar so it stays reachable while scrolling the form
+     — that part of the pattern holds regardless of where the readiness
+     card itself sits in the page. .card has no transform, so it doesn't
+     create a containing block that would clip this fixed descendant. */
   .saveContainer {
     position: fixed;
     left: 0;
@@ -51,12 +49,6 @@
     border-top: 1px solid rgba(26, 24, 21, 0.08);
     background: #FFFFFF;
     box-shadow: 0 -8px 24px rgba(26, 24, 21, 0.08);
-  }
-
-  /* Reserve room at the bottom of the scroll flow so the fixed bar never
-     overlaps the last bit of sidebar content (audit panel / gap list). */
-  .card {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 }
 

@@ -804,15 +804,18 @@ export default function ProfilePage() {
 
   return (
     <div ref={pageRef} className={styles.pageContainer}>
-      {/* Mobile Nav Toggle */}
-      <PholioIconButton
-        label="Toggle navigation"
-        className={styles.navToggle} 
-        onClick={() => setNavOpen(!navOpen)}
-      >
-        {navOpen ? <X size={20} /> : <Menu size={20} />}
-      </PholioIconButton>
-      
+      {/* Mobile section index bar — docked utility chrome, not a floating button */}
+      <div className={styles.mobileIndexBar}>
+        <PholioIconButton
+          label="Toggle section index"
+          className={styles.navToggle}
+          onClick={() => setNavOpen(!navOpen)}
+        >
+          {navOpen ? <X size={18} /> : <Menu size={18} />}
+        </PholioIconButton>
+        <span className={styles.mobileIndexBarLabel}>Index</span>
+      </div>
+
       {/* Mobile Nav Overlay */}
       <div 
         className={`${styles.navOverlay} ${navOpen ? styles.navOverlayVisible : ''}`}
@@ -910,11 +913,29 @@ export default function ProfilePage() {
         </motion.div>
       </header>
 
+      {/* Profile Strength — docked right under the hero so it reads as page
+          context, not an appendage after the whole form (mobile stacks this
+          here via DOM order; desktop/tablet still pin it to the grid's third
+          column via explicit grid-column on .sidebar). */}
+      <ProfileStrengthSidebar
+        strength={profileStrength}
+        profile={readinessProfile}
+        images={Array.isArray(authImages) ? authImages : []}
+        isSaving={isSubmitting}
+        hasChanges={hasChanges}
+        auditOpen={readinessAuditOpen}
+        onToggleAudit={() => setReadinessAuditOpen((open) => !open)}
+        onSaveClick={() => {
+          void handleSaveProfile();
+        }}
+        onItemClick={scrollToProfileSection}
+      />
+
       {/* Page Header - Removed as requested */}
 
       {/* 3-Column Layout */}
       <div className={styles.layoutGrid}>
-        
+
         {/* Left Sidebar - Navigation */}
         <aside className={`${styles.leftSidebar} ${navOpen ? styles.leftSidebarOpen : ''}`}>
           <ProfileNav
@@ -1596,21 +1617,6 @@ export default function ProfilePage() {
 
           </form>
         </main>
-
-        {/* Right Sidebar - Profile Strength */}
-        <ProfileStrengthSidebar
-          strength={profileStrength}
-          profile={readinessProfile}
-          images={Array.isArray(authImages) ? authImages : []}
-          isSaving={isSubmitting}
-          hasChanges={hasChanges}
-          auditOpen={readinessAuditOpen}
-          onToggleAudit={() => setReadinessAuditOpen((open) => !open)}
-          onSaveClick={() => {
-            void handleSaveProfile();
-          }}
-          onItemClick={scrollToProfileSection}
-        />
 
       </div>{/* End layoutGrid */}
     </div>
