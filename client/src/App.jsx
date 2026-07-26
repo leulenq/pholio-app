@@ -7,7 +7,7 @@ import AuthLayout from './shared/layouts/AuthLayout';
 import AgencyLayout from './shared/layouts/AgencyLayout';
 import AgencySessionGate from './domains/agency/components/AgencySessionGate';
 import CookieConsentBanner from './shared/components/CookieConsentBanner';
-import LoadingSpinner from './shared/components/shared/LoadingSpinner';
+import PageLoadingScreen from './shared/components/shared/PageLoadingScreen';
 
 const LoginPage = lazy(() => import('./domains/auth/pages/LoginPage/LoginPage'));
 const InstagramCallbackPage = lazy(() => import('./domains/auth/pages/InstagramCallbackPage'));
@@ -49,11 +49,7 @@ const MockConsentPage = lazy(() => import('./domains/talent/pages/ProfilePage/Mo
 const InternalAgencyRequests = lazy(() => import('./domains/internal/pages/AgencyRequestsPage'));
 
 function RouteFallback() {
-  return (
-    <div className="flex items-center justify-center h-screen bg-[#faf9f7]">
-      <LoadingSpinner size="lg" />
-    </div>
-  );
+  return <PageLoadingScreen />;
 }
 
 function LegacyAgencySigningRedirect() {
