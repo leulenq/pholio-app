@@ -993,6 +993,12 @@
 }
 
 @media (max-width: 860px) {
+  /* Title + section strip read as one masthead; one hairline under the strip. */
+  .set-page-header {
+    margin-bottom: 0;
+    padding-bottom: 4px;
+    border-bottom: none;
+  }
   .set-workspace {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
@@ -1006,7 +1012,7 @@
   .set-rail {
     position: static;
     top: auto;
-    margin: 0;
+    margin: 0 0 4px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
