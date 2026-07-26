@@ -360,9 +360,9 @@
 
 .set-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px 20px;
   padding: clamp(16px, 1.9vw, 22px) clamp(20px, 2.2vw, 28px);
   border-bottom: 1px solid var(--set-hair);
 }
@@ -370,7 +370,10 @@
 .set-row--muted,
 .set-row:last-child { border-bottom: none; }
 
-.set-row__copy { min-width: 0; }
+.set-row__copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 .set-row__copy h3 {
   margin: 0;
@@ -378,55 +381,75 @@
   font-weight: 500;
   letter-spacing: -0.003em;
   color: var(--set-text);
+  text-wrap: pretty;
 }
 
 .set-row__copy p {
-  max-width: 56ch;
   margin: 5px 0 0;
   font-size: 12.5px;
   font-weight: 300;
   line-height: 1.5;
   color: var(--set-text-soft);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
 }
 
 .set-row__control {
-  flex: none;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  /* Sit with the title line so multi-line descriptions don't drag the switch down. */
+  padding-top: 1px;
 }
 
 /* ── Toggle switch ────────────────────────────────────────── */
 
 .set-toggle {
   --track-w: 44px;
-  --track-h: 25px;
-  --knob: 19px;
+  --track-h: 26px;
+  --knob: 20px;
+  --inset: 3px;
+  --travel: calc(var(--track-w) - var(--knob) - (var(--inset) * 2));
+  --hit: 10px;
+  appearance: none;
   flex: none;
-  width: var(--track-w);
-  height: var(--track-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--track-w) + var(--hit) * 2);
+  height: calc(var(--track-h) + var(--hit) * 2);
   padding: 0;
+  margin: calc(var(--hit) * -1);
   border: none;
-  background: none;
+  background: transparent;
   cursor: pointer;
+  line-height: 0;
 }
 
 .set-toggle__track {
+  position: relative;
   display: block;
-  width: 100%; height: 100%;
+  width: var(--track-w);
+  height: var(--track-h);
   border-radius: 999px;
   background: var(--set-cream-deep);
   box-shadow: inset 0 0 0 1px var(--set-hair-strong);
   transition: background 0.28s var(--set-ease), box-shadow 0.28s var(--set-ease);
+  flex: none;
 }
 
 .set-toggle__knob {
-  display: block;
-  width: var(--knob); height: var(--knob);
-  margin: 3px;
-  border-radius: 999px;
+  position: absolute;
+  top: 50%;
+  left: var(--inset);
+  width: var(--knob);
+  height: var(--knob);
+  margin: 0;
+  border-radius: 50%;
   background: var(--set-surface);
   box-shadow: 0 1px 3px rgba(26, 26, 26, 0.28);
+  transform: translateY(-50%);
   transition: transform 0.28s var(--set-ease);
 }
 
@@ -436,7 +459,7 @@
 }
 
 .set-toggle.is-on .set-toggle__knob {
-  transform: translateX(calc(var(--track-w) - var(--knob) - 6px));
+  transform: translateY(-50%) translateX(var(--travel));
 }
 
 .set-toggle:disabled { cursor: not-allowed; opacity: 0.45; }
@@ -1011,14 +1034,27 @@
   .set-identity__avatar { width: 120px; height: 152px; }
   .set-fields--two { grid-template-columns: minmax(0, 1fr); }
   .set-index { grid-template-columns: 1fr 1fr; }
-  .set-choice,
+
+  /* Keep switch rows as title/description | control — never stack the
+     toggle under the copy (that left-aligns switches and truncates text). */
   .set-row {
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
     gap: 14px;
+    padding-block: 16px;
   }
-  .set-row__control,
-  .set-choice > :last-child { align-self: flex-start; }
+  .set-row__control {
+    padding-top: 1px;
+  }
+
+  /* Choice rows (label + PholioToggleGroup) still stack — the control is wide. */
+  .set-choice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .set-choice > :last-child { align-self: stretch; }
+
   .set-invoices li {
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 6px;
