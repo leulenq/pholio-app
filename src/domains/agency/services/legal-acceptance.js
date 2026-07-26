@@ -1,22 +1,26 @@
 const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const knex = require("../../../shared/db/knex");
+const { CURRENT_LEGAL_VERSION } = require("../../../shared/lib/legal-versions");
 
 const MARKETING_SITE_URL = (
   process.env.MARKETING_SITE_URL || "https://www.pholio.studio"
 ).replace(/\/$/, "");
 
+// Terms and Privacy track the landing-published version (shared source of
+// truth). The three workspace policies below are app-authored, not published
+// on the marketing site, so they version independently.
 const POLICY_DEFINITIONS = Object.freeze([
   {
     key: "terms",
-    version: "2026-06-25",
+    version: CURRENT_LEGAL_VERSION,
     title: "Terms of Service",
     copy: "I accept the current Terms of Service for my individual agency login.",
     url: `${MARKETING_SITE_URL}/terms`,
   },
   {
     key: "privacy",
-    version: "2026-06-25",
+    version: CURRENT_LEGAL_VERSION,
     title: "Privacy Policy",
     copy: "I have reviewed how Pholio processes portfolio, submission, and workspace data.",
     url: `${MARKETING_SITE_URL}/privacy`,
@@ -48,6 +52,23 @@ function sha256(value) {
   return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
 }
 
+/**
+ * Digest of the policy *descriptor* presented to the member — its key, version,
+ * title, the acceptance sentence they ticked, and the URL they were pointed at.
+ *
+ * SCOPE, precisely: this binds an acceptance record to the wording Pholio
+ * showed and to the version string in force at the time. It does NOT hash the
+ * document body at `url` — that document is published by pholio-landing and is
+ * not readable from here. Do not cite this digest as proof of the text of the
+ * Terms or Privacy Policy on the date of acceptance.
+ *
+ * What makes the binding meaningful is that `version` for terms/privacy now
+ * tracks the landing's published CURRENT_LEGAL_VERSION, so a published
+ * revision changes the version, which changes this digest, which re-prompts.
+ * The residual gap is a landing-side content edit that does not bump the
+ * version; the parity check in tests/shared/legal-versions.test.js and the
+ * comment in pholio-landing/lib/legal-constants.ts exist to prevent that.
+ */
 function policyDigest(policy) {
   return sha256(
     JSON.stringify({

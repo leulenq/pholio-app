@@ -4,18 +4,10 @@ import { talentApi } from '../../domains/talent/api/talent';
 import { MARKETING_SITE_URL } from '../lib/logout';
 import './LegalAcceptanceGate.css';
 
-// Keep in sync with the server: src/shared/lib/legal-acceptance.js CURRENT_TERMS_VERSION.
-// When that bumps, mirror it here AND add a matching TERMS_CHANGELOG entry below.
-const CURRENT_TERMS_VERSION = '2026-06-25';
-
-// Plain-language "what changed", keyed by the terms version string.
-const TERMS_CHANGELOG = {
-  // Plain-language summary for the 2026-06-25 terms and privacy policy updates.
-  '2026-06-25': [
-    'Clarified our role as a software platform rather than a talent agency, and incorporated our Community Guidelines to prohibit scamming, fake scouting, and unauthorized data use.',
-    'Updated our Privacy Policy to detail how we process portfolio data, verify locations, host images on Cloudflare R2, and use AI features like photo analysis and match scoring.',
-  ],
-};
+// The version and its plain-language changelog come from the server
+// (/settings/legal-status, sourced from src/shared/lib/legal-versions.js).
+// They used to be hardcoded here as a fourth copy, which could — and did —
+// describe a different version than the gate was actually enforcing.
 
 /**
  * Blocks talent dashboard use until updated Terms + Privacy are accepted.
@@ -25,6 +17,7 @@ const TERMS_CHANGELOG = {
 export default function LegalAcceptanceGate({ children }) {
   const [checking, setChecking] = useState(true);
   const [needsAcceptance, setNeedsAcceptance] = useState(false);
+  const [changes, setChanges] = useState([]);
   const [accepted, setAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -36,6 +29,7 @@ export default function LegalAcceptanceGate({ children }) {
         const status = await talentApi.getLegalStatus({ skipRedirect: true });
         if (!cancelled) {
           setNeedsAcceptance(Boolean(status?.needsAcceptance));
+          setChanges(Array.isArray(status?.changes) ? status.changes : []);
         }
       } catch {
         if (!cancelled) setNeedsAcceptance(false);
@@ -69,8 +63,6 @@ export default function LegalAcceptanceGate({ children }) {
   if (!needsAcceptance) {
     return children;
   }
-
-  const changes = TERMS_CHANGELOG[CURRENT_TERMS_VERSION] || [];
 
   return (
     <>

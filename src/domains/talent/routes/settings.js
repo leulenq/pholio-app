@@ -10,6 +10,10 @@ const {
   recordLegalAcceptance,
   requireLegalAcceptance,
 } = require("../../../shared/lib/legal-acceptance");
+const {
+  CURRENT_LEGAL_VERSION,
+  changelogFor,
+} = require("../../../shared/lib/legal-versions");
 const apiResponse = require("../../../shared/lib/api-response");
 const {
   getSubscriptionStatus,
@@ -547,7 +551,13 @@ router.get(
   asyncHandler(async (req, res) => {
     const user = await knex("users").where({ id: req.session.userId }).first();
     const accepted = requireLegalAcceptance(user, { throwOnMissing: false });
-    return apiResponse.success(res, { needsAcceptance: !accepted });
+    // Version + changelog come from the server so the acceptance dialog can't
+    // drift from the version the gate actually enforces.
+    return apiResponse.success(res, {
+      needsAcceptance: !accepted,
+      version: CURRENT_LEGAL_VERSION,
+      changes: changelogFor(),
+    });
   }),
 );
 

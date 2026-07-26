@@ -1,5 +1,10 @@
-const CURRENT_TERMS_VERSION = "2026-06-25";
-const CURRENT_PRIVACY_VERSION = "2026-06-25";
+// Sourced from shared/lib/legal-versions.js — do not hardcode a version here.
+// Terms and Privacy are published together by pholio-landing under one
+// CURRENT_LEGAL_VERSION, so both track the same constant.
+const { CURRENT_LEGAL_VERSION } = require("./legal-versions");
+
+const CURRENT_TERMS_VERSION = CURRENT_LEGAL_VERSION;
+const CURRENT_PRIVACY_VERSION = CURRENT_LEGAL_VERSION;
 
 async function recordLegalAcceptance(knex, userId, acceptance = {}) {
   if (!knex) {
