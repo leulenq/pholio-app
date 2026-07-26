@@ -360,9 +360,9 @@
 
 .set-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px 20px;
   padding: clamp(16px, 1.9vw, 22px) clamp(20px, 2.2vw, 28px);
   border-bottom: 1px solid var(--set-hair);
 }
@@ -370,7 +370,10 @@
 .set-row--muted,
 .set-row:last-child { border-bottom: none; }
 
-.set-row__copy { min-width: 0; }
+.set-row__copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 .set-row__copy h3 {
   margin: 0;
@@ -378,34 +381,41 @@
   font-weight: 500;
   letter-spacing: -0.003em;
   color: var(--set-text);
+  text-wrap: pretty;
 }
 
 .set-row__copy p {
-  max-width: 56ch;
   margin: 5px 0 0;
   font-size: 12.5px;
   font-weight: 300;
   line-height: 1.5;
   color: var(--set-text-soft);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
 }
 
 .set-row__control {
-  flex: none;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  /* Sit with the title line so multi-line descriptions don't drag the switch down. */
+  padding-top: 1px;
 }
 
 /* ── Toggle switch ────────────────────────────────────────── */
 
 .set-toggle {
-  --track-w: 44px;
-  --track-h: 25px;
-  --knob: 19px;
+  --track-w: 42px;
+  --track-h: 24px;
+  --knob: 18px;
   flex: none;
+  box-sizing: content-box;
   width: var(--track-w);
   height: var(--track-h);
-  padding: 0;
+  /* Expand hit target without enlarging the visual track. */
+  padding: 10px;
+  margin: -10px;
   border: none;
   background: none;
   cursor: pointer;
@@ -1011,14 +1021,27 @@
   .set-identity__avatar { width: 120px; height: 152px; }
   .set-fields--two { grid-template-columns: minmax(0, 1fr); }
   .set-index { grid-template-columns: 1fr 1fr; }
-  .set-choice,
+
+  /* Keep switch rows as title/description | control — never stack the
+     toggle under the copy (that left-aligns switches and truncates text). */
   .set-row {
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
     gap: 14px;
+    padding-block: 16px;
   }
-  .set-row__control,
-  .set-choice > :last-child { align-self: flex-start; }
+  .set-row__control {
+    padding-top: 1px;
+  }
+
+  /* Choice rows (label + PholioToggleGroup) still stack — the control is wide. */
+  .set-choice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .set-choice > :last-child { align-self: stretch; }
+
   .set-invoices li {
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 6px;
