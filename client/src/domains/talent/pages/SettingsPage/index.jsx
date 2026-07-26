@@ -231,7 +231,7 @@ export default function SettingsPage() {
       <div className="set-workspace">
         <nav className="set-rail" aria-label="Settings sections">
           <ol>
-            {MOVEMENTS.map((m) => (
+            {MOVEMENTS.map((m, index) => (
               <li key={m.id}>
                 <button
                   type="button"
@@ -239,6 +239,9 @@ export default function SettingsPage() {
                   aria-current={active === m.id ? 'true' : undefined}
                   onClick={() => selectTab(m.id)}
                 >
+                  <span className="set-rail__num" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
                   <span className="set-rail__text">
                     <strong>{m.label}</strong>
                     <small>{m.summary}</small>
