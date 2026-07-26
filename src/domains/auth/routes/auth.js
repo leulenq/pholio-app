@@ -8,6 +8,7 @@ const {
   loginSchema,
 } = require("../../../shared/lib/validation");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
+const { clearCookieOptions } = require("../../../shared/lib/cookie-domain");
 const {
   verifyIdToken,
   createUser: createFirebaseUser,
@@ -341,13 +342,14 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // The client should authenticate with Firebase first (either Google or email/password),
     // then send the Firebase token to the backend
     console.log("[Login] ⚠️ No Firebase token provided");
+    // Never log the raw body here — it can carry a plaintext password. The key
+    // names and presence flags are enough to diagnose a malformed login POST.
     console.log("[Login] Request body contents:", {
       hasEmail: !!(req.body && req.body.email),
       hasPassword: !!(req.body && req.body.password),
       hasNext: !!(req.body && req.body.next),
       bodyKeys: req.body ? Object.keys(req.body) : [],
       contentType: req.headers["content-type"],
-      fullBody: req.body ? JSON.stringify(req.body, null, 2) : "no body",
     });
 
     // If request is JSON or Accept header requests JSON, return JSON error response
@@ -1082,12 +1084,11 @@ router.post(["/logout", "/api/logout"], (req, res) => {
       console.error("[Logout] Error destroying session:", err);
     }
 
-    const cookieDomain =
-      process.env.COOKIE_DOMAIN ||
-      (process.env.NODE_ENV === "production" ? ".pholio.studio" : "localhost");
+    // Clear with the same attribute set the session cookie was created with
+    // (src/app.js) — shared helper so the two can't drift apart again.
     res.clearCookie("connect.sid", {
-      domain: cookieDomain,
-      path: "/",
+      ...clearCookieOptions(),
+      httpOnly: true,
     });
 
     if (isJson) {
@@ -1099,6 +1100,10 @@ router.post(["/logout", "/api/logout"], (req, res) => {
 });
 
 router.get("/api/session", async (req, res) => {
+  // Session-scoped response — same no-store requirement as /api/public/session.
+  res.set("Cache-Control", "private, no-store");
+  res.set("Vary", "Cookie");
+
   if (!req.session || !req.session.role || !req.session.userId) {
     return res.json({ authenticated: false });
   }

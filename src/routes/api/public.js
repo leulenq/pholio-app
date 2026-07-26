@@ -659,7 +659,15 @@ router.post("/open-call/:code/arrival", async (req, res) => {
 });
 
 // GET /api/public/session
+//
+// Session-scoped PII (email, name, slug, plan). This response crosses a CDN and
+// the marketing site's Next.js rewrite proxy, so it must never be stored by a
+// shared cache — the sibling /api/talent|agency|internal mounts get this from
+// middleware in src/app.js, but /api/public is deliberately not under it.
 router.get("/session", async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  res.set("Vary", "Cookie");
+
   try {
     if (req.session && req.session.userId) {
       const user = await knex("users")

@@ -20,6 +20,7 @@ const {
   createTalentAiWriterRateLimit,
 } = require("./shared/middleware/ai-writer-rate-limit");
 const cookieParser = require("cookie-parser");
+const { baseCookieOptions } = require("./shared/lib/cookie-domain");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
 const { requireActiveAccount } = require("./domains/auth/middleware/require-auth");
 
@@ -387,15 +388,12 @@ const sessionMiddleware = session({
   saveUninitialized: false,
   store: sessionStore,
   cookie: {
+    // Shared scope helper: marketing (www) and app subdomains in production;
+    // localhost in development so :3001 / :5173 / :3000 share the cookie.
+    // Logout clears with the same attributes via clearCookieOptions().
+    ...baseCookieOptions(),
     httpOnly: true,
-    sameSite: "lax",
-    secure: config.nodeEnv === "production",
     maxAge: 1000 * 60 * 60 * 24 * 7,
-    // Share session across marketing (www) and app subdomains in production;
-    // in development, pin to localhost so :3001 / :5173 / :3000 share the cookie.
-    domain:
-      process.env.COOKIE_DOMAIN ||
-      (config.nodeEnv === "production" ? ".pholio.studio" : "localhost"),
   },
   // Custom error handler for session store operations
   // This prevents session store errors from crashing the app
@@ -559,7 +557,11 @@ const talentAiWriterLimiter = createTalentAiWriterRateLimit({
   max: rateLimitMax.aiWriter,
 });
 
-app.use(["/login", "/signup"], authLimiter);
+// NOTE: `/api/login` and `/api/logout` are separate aliases of the same route
+// handlers (see domains/auth/routes/auth.js) and do NOT match the "/login" /
+// "/logout" mount prefixes — they must be listed explicitly or the marketing
+// site's session endpoints go unthrottled.
+app.use(["/login", "/signup", "/api/login", "/api/logout"], authLimiter);
 app.use(["/onboarding/entry", "/casting/entry"], authLimiter);
 app.use("/api/public/open-call", authLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);

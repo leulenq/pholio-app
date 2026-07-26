@@ -21,6 +21,12 @@ import { talentApi } from '../../api/talent';
 import { purgeApplyDraftStorage } from '../ApplyPage/applicationDraftStorage';
 import { auth } from '../../../../shared/lib/firebase';
 import { isMinorProfile, minorPublicExposureAllowed } from '../../../../shared/utils/talentAge';
+import {
+  clearConsent,
+  getConsent,
+  onConsentChange,
+  setConsent,
+} from '../../../../shared/lib/cookie-consent';
 import ReportDialog from '../../../../shared/components/ReportDialog';
 import { SubscriptionCheckoutModal } from '../../../../shared/components/SubscriptionCheckoutDisclosure';
 import CheckoutHandoff from '../../../../shared/components/billing/CheckoutHandoff';
@@ -844,7 +850,26 @@ function PrivacyMovement({ settings, isLoading }) {
     finally { setExporting(false); }
   };
 
-  const toggleCookie = (key) => mutation.mutate({ cookies: { ...cookies, [key]: !cookies[key] } });
+  // The shared `.pholio.studio` consent cookie is what actually gates analytics
+  // (server-side portfolio tracking reads it, and www honours the same record).
+  // This screen used to write only to a server column nothing consumed, with the
+  // opposite default, so the toggle and the banner could disagree. Keep the
+  // account-level record, but treat the cookie as the effective value and write
+  // both so one change lands on every surface.
+  const [browserConsent, setBrowserConsent] = useState(() => getConsent());
+  useEffect(() => onConsentChange(() => setBrowserConsent(getConsent())), []);
+
+  const analyticsOn = browserConsent
+    ? browserConsent.analytics
+    : (cookies.analytics ?? false);
+
+  const toggleCookie = (key) => {
+    const next = { ...cookies, [key]: key === 'analytics' ? !analyticsOn : !cookies[key] };
+    if (key === 'analytics') {
+      setConsent({ analytics: next.analytics });
+    }
+    mutation.mutate({ cookies: next });
+  };
 
   return (
     <Movement
@@ -872,11 +897,16 @@ function PrivacyMovement({ settings, isLoading }) {
             <Row title="Essential" description="Authentication, sessions, security, and payments.">
               <span className="set-fixed">Always on</span>
             </Row>
-            <Row title="Analytics" description="Helps improve dashboard quality and reliability.">
-              <Toggle label="Analytics cookies" checked={cookies.analytics ?? true} disabled={mutation.isPending} onChange={() => toggleCookie('analytics')} />
+            <Row title="Analytics" description="Helps improve dashboard quality and reliability. Applies to pholio.studio and app.pholio.studio.">
+              <Toggle label="Analytics cookies" checked={analyticsOn} disabled={mutation.isPending} onChange={() => toggleCookie('analytics')} />
             </Row>
             <Row title="Marketing" description="Non-essential product announcements and promotions." muted>
               <Toggle label="Marketing cookies" checked={cookies.marketing ?? false} disabled={mutation.isPending} onChange={() => toggleCookie('marketing')} />
+            </Row>
+            <Row title="Reset choice" description="Clears the stored preference and re-opens the consent banner." muted>
+              <PholioButton type="button" variant="secondary" onClick={() => clearConsent()}>
+                Reset
+              </PholioButton>
             </Row>
           </>
         )}

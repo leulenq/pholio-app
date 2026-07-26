@@ -15,5 +15,10 @@
     <main>
         <%- body %>
     </main>
+
+    <!-- Consent banner for server-rendered pages. Public portfolio views set a
+         persistent visitor identifier, and that tracking is gated on this
+         choice server-side, so this surface has to be able to ask. -->
+    <script src="/scripts/cookie-consent.js" defer></script>
 </body>
 </html>

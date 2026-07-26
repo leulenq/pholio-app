@@ -53,8 +53,13 @@ const DEFAULT_PRIVACY = {
   blockedAgencies: [],
 };
 
+// Opt-in, matching the consent banner. This used to default analytics to `true`
+// (opt-out) while the banner defaulted to opt-in — two records in the same
+// product disagreeing on the polarity of the same permission. The shared
+// `pholio_consent` cookie is the effective gate; this row is the account-level
+// mirror of it.
 const DEFAULT_COOKIES = {
-  analytics: true,
+  analytics: false,
   marketing: false,
 };
 
