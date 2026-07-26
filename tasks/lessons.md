@@ -1,5 +1,15 @@
 # Lessons Learned
 
+## 2026-07-26 — Intel page blank = hook return-shape regression, not a missing design
+
+- `IntelPage` destructures `{ intel, meta, isLoading, isError, refetch }` from
+  `useIntel`. Returning raw `useQuery` makes `intel`/`meta` always `undefined`:
+  masthead only, free-tier period locks, empty content. Check the hook contract
+  before redesigning zones or reseeding data.
+- Thinning a domain hook to "just return useQuery" during an unrelated merge
+  (`Fix duplicate settings notification handler`) is a high-blast-radius footgun
+  when call sites already depend on a named shape.
+
 ## 2026-07-24 — Concurrent Netlify previews can fail without an app regression
 
 - Four red Netlify checks (`deploy-preview`, Redirect/Header/Pages) can all fail together when the
