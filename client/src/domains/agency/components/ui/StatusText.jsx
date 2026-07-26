@@ -56,6 +56,51 @@ export function getStatusMeta(status) {
   );
 }
 
+/**
+ * Cross-surface label overrides — applied on BOTH the compact list cell and
+ * the full-size room, so terminal/outcome vocabulary is truly unified. We
+ * override here (not by mutating STATUS_MAP) so other consumers of
+ * `getStatusMeta`/`StatusText` (roster, overview, …) keep the canonical base
+ * label. `declined` reads "Passed" everywhere in the submissions vocabulary.
+ */
+const LABEL_OVERRIDES = {
+  declined: 'Passed',
+};
+
+/**
+ * Compact overrides — used only when `{ compact: true }`. These are the terse
+ * forms the list cell needs where the canonical prose runs long. The list's
+ * former private `CELL_LABELS` map lived in StatusCell; it now lives here so
+ * there is one source of truth for the display label.
+ */
+const COMPACT_OVERRIDES = {
+  development: 'New Face',
+  requested_more: 'More digitals',
+  meeting_requested: 'Meeting',
+  under_review: 'In review',
+};
+
+/**
+ * getStatusLabel — the single source of truth for a status's human display
+ * label. Returns the canonical `getStatusMeta(status).label`, with:
+ *   • `LABEL_OVERRIDES` applied on every surface (terminal wording unified), and
+ *   • `COMPACT_OVERRIDES` applied additionally when `compact` is true.
+ *
+ * `getStatusLabel(status, { compact: true })` reproduces exactly what the list
+ * cell renders for every known status. `getStatusLabel(status)` (full) is what
+ * the room uses; terminal outcomes match the list, longer states read in full.
+ * Unknown / empty / not-yet-triaged states fall back to a sensible default
+ * rather than rendering blank.
+ */
+export function getStatusLabel(status, { compact = false } = {}) {
+  const key = String(status || '').toLowerCase();
+  if (compact && COMPACT_OVERRIDES[key]) return COMPACT_OVERRIDES[key];
+  if (LABEL_OVERRIDES[key]) return LABEL_OVERRIDES[key];
+  const meta = getStatusMeta(key);
+  if (meta) return meta.label;
+  return 'Awaiting review';
+}
+
 export function StatusText({ status, label, className = '', ...props }) {
   const meta = getStatusMeta(status);
   if (!meta && !label) return null;

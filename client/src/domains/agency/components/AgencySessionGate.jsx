@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import LoadingSpinner from '../../../shared/components/shared/LoadingSpinner';
+import PageLoadingScreen from '../../../shared/components/shared/PageLoadingScreen';
 import AuthEntrySplash from '../../auth/components/AuthEntrySplash';
 import {
   resolveAgencyEntryAvatar,
@@ -55,13 +55,7 @@ export default function AgencySessionGate() {
   ) : null;
 
   if (isLoading) {
-    return (
-      entrySplash || (
-        <div className="flex items-center justify-center h-screen bg-[#faf9f7]">
-          <LoadingSpinner size="lg" />
-        </div>
-      )
-    );
+    return entrySplash || <PageLoadingScreen />;
   }
 
   if (isError || !data?.authenticated) {

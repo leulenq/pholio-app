@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../domains/auth/hooks/useAuth';
 import { useAuthEntryTransition } from '../../domains/auth/hooks/useAuthEntryTransition';
 import AuthEntrySplash from '../../domains/auth/components/AuthEntrySplash';
+import PageLoadingScreen from '../components/shared/PageLoadingScreen';
 import {
   resolveEntryDisplayName,
   resolveTalentEntryAvatar,
@@ -14,7 +15,6 @@ import { talentApi } from '../../domains/talent/api/talent';
 import ProfileUnlockExperience from '../../domains/onboarding/components/ProfileUnlockExperience';
 import ProfileGateBanner from '../components/gating/ProfileGateBanner';
 import LegalAcceptanceGate from '../components/LegalAcceptanceGate';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
 
 // Persist the one-shot "celebration seen" marker durably. A single fire-and-
 // forget POST is too fragile for a once-ever guarantee, so retry with backoff.
@@ -114,13 +114,7 @@ export default function DashboardLayoutShell() {
   ) : null;
 
   if (isLoading && !isError) {
-    return (
-      entrySplash || (
-        <div className="flex items-center justify-center h-screen bg-[#faf9f7]">
-          <LoadingSpinner size="lg" />
-        </div>
-      )
-    );
+    return entrySplash || <PageLoadingScreen />;
   }
 
   return (

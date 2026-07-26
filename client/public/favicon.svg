@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Pholio">
+  <!-- Near-black ground, rounded for app icon contexts -->
+  <rect width="100" height="100" rx="22" fill="#050505"/>
+
+  <!-- Stem body -->
+  <rect x="20" y="14" width="14" height="68" fill="#C9A55A"/>
+
+  <!-- Top-left cap serif (left extension only — right side blends into bowl) -->
+  <rect x="14" y="14" width="6" height="5" fill="#C9A55A"/>
+
+  <!-- Bottom bilateral serif -->
+  <rect x="14" y="77" width="25" height="5" fill="#C9A55A"/>
+
+  <!-- Bowl with Didone high-contrast counter:
+       outer D-shape minus inner ellipse via evenodd
+       thin walls at top/bottom (4 px), thick wall at right (≈13 px) -->
+  <path
+    fill="#C9A55A"
+    fill-rule="evenodd"
+    d="M 34 14 C 78 14 78 52 34 52 L 34 14 Z
+       M 54 33 A 10 15 0 0 0 34 33 A 10 15 0 0 0 54 33 Z"
+  />
+
+  <!-- Period mark — the brand signature -->
+  <circle cx="79" cy="81" r="6" fill="#C9A55A"/>
+</svg>

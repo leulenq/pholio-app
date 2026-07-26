@@ -230,3 +230,47 @@ The roster casting board: columns of talent cards moved across pipeline stages v
 - **Don't** use a `border-left`/`border-right` greater than 1px as a colored accent stripe — use full borders or a background tint.
 - **Don't** use gradient text (`background-clip: text`) — emphasis comes from weight, size, and the gold accent.
 - **Don't** let the surface go cold blue-and-white; this is not a generic SaaS admin panel.
+
+## 7. Threshold surface — agency setup (`/dashboard/agency/setup`)
+
+Agency setup is the one agency route that is **not** an operational screen. It is
+crossed once, before the command center exists, and it is where an agency decides
+whether Pholio is serious. It therefore gets a staged, one-decision-at-a-time
+pace the working screens are denied — the global ban on over-choreographed
+page-load sequences (#14) governs the dashboard, not this threshold.
+
+**The setup environment.** The cream surface **is** the page. There is no card, no
+shell, no panel, and no split composition — the masthead, the progress rule, the
+chapter index, and the dock all run the full width of the viewport, and the work
+sits in a generous column with the house voice in the margin beside it. What makes
+it feel cinematic is scale, space, and pacing, not a frame around it.
+
+- **Never re-introduce a container.** No centered card, no bordered shell, no
+  second panel, no dark side. If the composition could be described as "a panel on
+  a background", it is wrong.
+- **The progress rule is the signature.** A single hairline across the entire
+  viewport under the masthead, filling gold as chapters complete. It is the
+  strongest signal that this is an environment rather than a module.
+- **Chapters, not sections.** The seven backend setup steps are grouped into five
+  chapters; each commits its own steps on Continue. No per-section save buttons,
+  and never more than one chapter of forms on screen.
+- **The margin note.** The house voice for each chapter sits in the right margin —
+  same surface, no fill, no border, a short gold rule above it. Below 1160px it
+  folds in as a standfirst between the lede and the work.
+- **One selection vocabulary.** Boards, agency type, roster path, open-call choice,
+  and the custody acknowledgement all use the same ruled `stg-row` — a real
+  checkbox/radio wearing a list row. No chips, no mixed control styles.
+- **One work measure.** Fields, option rows, and supporting blocks share a 780px
+  cap so every element in a chapter aligns, while the page stays full-bleed.
+- **The dock is fixed.** Sticky to the bottom, full width, with the primary action
+  in one home across every beat.
+- **Motion budget.** A surface fade on load and one crossfade-plus-rise per beat
+  (460ms) on `cubic-bezier(0.16, 1, 0.3, 1)`. Everything collapses under
+  `prefers-reduced-motion`.
+- **Still bound by the bans.** No glass, no badges, no chips, no gradient text, no
+  side stripes, no decorative ornament. Gold stays rare: the current chapter, the
+  selected row, the primary action, the focus ring, the progress rule.
+
+Loading, error, and the closing "workspace is open" beat all render on the same
+cream surface. Once setup completes, the agency lands in the command center and
+this system does not appear again.
