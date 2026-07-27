@@ -810,30 +810,67 @@
 
 .set-plan__method svg { color: var(--set-gold); }
 
-/* ── Invoices / sessions ──────────────────────────────────── */
+/* ── Sign-in identity ─────────────────────────────────────── */
 
-.set-invoices,
-.set-sessions {
+.set-provider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 clamp(20px, 2.2vw, 28px) clamp(4px, 0.6vw, 8px);
+  padding: 16px 18px;
+  border: 1px solid var(--set-hair);
+  border-radius: var(--set-radius);
+  background: var(--set-surface-sunk, rgba(26, 24, 21, 0.015));
+}
+
+.set-provider__badge {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  border: 1px solid var(--set-hair);
+  border-radius: var(--set-radius);
+  /* Google requires its mark be shown unmodified on a clear background — never
+     tinted with the surrounding paper tone. */
+  background: #FFFFFF;
+  color: var(--set-text-soft);
+  font-weight: 500;
+}
+
+.set-provider__badge--email { background: transparent; }
+
+.set-provider__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.set-provider__body strong {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--set-text);
+}
+
+.set-provider__body span {
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--set-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Signed-in devices ────────────────────────────────────── */
+
+.set-devices {
   list-style: none;
   margin: 0;
   padding: 4px clamp(20px, 2.2vw, 28px) clamp(10px, 1.4vw, 16px);
 }
 
-.set-invoices li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--set-hair);
-  font-size: 13px;
-}
-
-.set-invoices li:last-child { border-bottom: none; }
-.set-invoices__id { font-family: var(--set-mono); font-size: 11px; color: var(--set-text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.set-invoices__date { color: var(--set-text-faint); font-size: 12px; }
-
-.set-sessions li {
+.set-devices li {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -841,9 +878,9 @@
   border-bottom: 1px solid var(--set-hair);
 }
 
-.set-sessions li:last-child { border-bottom: none; }
+.set-devices li:last-child { border-bottom: none; }
 
-.set-sessions__icon {
+.set-devices__icon {
   flex: none;
   display: flex;
   align-items: center;
@@ -854,21 +891,16 @@
   color: var(--set-text-soft);
 }
 
-.set-sessions__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.set-sessions__body strong { font-size: 13.5px; font-weight: 500; color: var(--set-text); }
-.set-sessions__body span { font-size: 11.5px; font-weight: 300; color: var(--set-text-faint); }
-
-.set-sessions__state {
-  flex: none;
-  font-family: var(--set-mono);
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.set-devices__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.set-devices__body strong { font-size: 13.5px; font-weight: 500; color: var(--set-text); }
+.set-devices__body span {
+  font-size: 11.5px;
+  font-weight: 300;
   color: var(--set-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-.set-sessions__state.is-current { color: var(--set-gold); }
 
 /* ── Small parts ──────────────────────────────────────────── */
 
@@ -927,6 +959,15 @@
   font-weight: 300;
   line-height: 1.55;
   color: var(--set-text);
+}
+
+/* Statements of fact — how the product behaves — rather than something needing
+   attention. Quieter than the gold notice so it doesn't read as a warning. */
+.set-notice--plain {
+  margin: 2px 0 0;
+  border-color: var(--set-hair);
+  background: transparent;
+  color: var(--set-text-faint);
 }
 
 /* ── Delete confirmation ──────────────────────────────────── */
@@ -1088,10 +1129,15 @@
   }
   .set-choice > :last-child { align-self: stretch; }
 
-  .set-invoices li {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 6px;
+  /* Device rows stay horizontal (icon | detail | action) but the action drops
+     under the label when the label needs the width. */
+  .set-devices li {
+    flex-wrap: wrap;
+    row-gap: 10px;
   }
+  .set-devices__body { flex-basis: calc(100% - 52px); }
+
+  .set-provider { margin-inline: clamp(14px, 4vw, 20px); }
 }
 
 /* ── Reduced motion ───────────────────────────────────────── */

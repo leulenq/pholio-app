@@ -23,7 +23,10 @@ const {
 const {
   isInstagramUid,
   normalizeOAuthUser,
+  resolveAuthProvider,
 } = require("../../onboarding/services/providers/oauth-user");
+const { stampSessionDevice } = require("../../../shared/lib/session-device");
+const { registerSession } = require("../../../shared/lib/session-registry");
 const {
   loadPermissionsArrayForSession,
 } = require("../../agency/services/permissions");
@@ -207,8 +210,16 @@ router.post("/api/dev/login", async (req, res, next) => {
       delete req.session.agencyOnboardingCompletedAt;
     }
 
+    const deviceStamp = stampSessionDevice(req);
+
     await new Promise((resolve, reject) => {
       req.session.save((err) => (err ? reject(err) : resolve()));
+    });
+
+    await registerSession(knex, {
+      userId: req.session.userId,
+      sid: req.sessionID,
+      fingerprint: deviceStamp?.fingerprint,
     });
 
     const nextPath = safeNext(req.body?.next);
@@ -868,6 +879,27 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       user.email_verified = true;
     }
 
+    // Record how this account actually signs in. Settings represents sign-in
+    // identity from this column (Google branding vs. an email/password account),
+    // and it decides whether offering a password reset is honest at all.
+    try {
+      const authProvider = resolveAuthProvider(decodedToken);
+      if (authProvider && user.auth_provider !== authProvider) {
+        if (await knex.schema.hasColumn("users", "auth_provider")) {
+          await knex("users")
+            .where({ id: user.id })
+            .update({ auth_provider: authProvider });
+          user.auth_provider = authProvider;
+        }
+      }
+    } catch (providerError) {
+      // Non-critical — settings falls back to the neutral representation.
+      console.warn(
+        "[Login] Error recording auth provider:",
+        providerError.message,
+      );
+    }
+
     // Account avatar layer only — never write provider pictures into images/book.
     if (user.role === "TALENT" && providerUser.picture) {
       try {
@@ -942,6 +974,10 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       delete req.session.agencyOnboardingCompletedAt;
     }
 
+    // Describe the device on the session before saving, so the row carries what
+    // the settings device list renders instead of a hardcoded label.
+    const deviceStamp = stampSessionDevice(req);
+
     // Save session before redirect
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
@@ -957,6 +993,17 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           resolve();
         }
       });
+    });
+
+    // `regenerate()` above only destroys the sid this request presented. A client
+    // that couldn't present its cookie leaves its previous authenticated row
+    // behind, and PholioAuthBridge re-checks on every focus/visibility change —
+    // which is how a single phone accumulated hundreds of "sessions". Collapse
+    // this user onto one live row per device now that the new row exists.
+    await registerSession(knex, {
+      userId: req.session.userId,
+      sid: req.sessionID,
+      fingerprint: deviceStamp?.fingerprint,
     });
 
     const sessionRedirect = redirectForSession(req.session);
