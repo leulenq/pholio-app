@@ -47,8 +47,14 @@ function Spark({ series, accent }) {
 }
 
 function Delta({ signal }) {
-  const { delta, deltaPercent, goodDirection, unit } = signal;
-  if (delta == null || delta === 0) {
+  const { delta, deltaPercent, goodDirection, unit, comparable = true } = signal;
+  if (!comparable) {
+    return <span className="sv-delta sv-delta--flat">Current cohort outcome</span>;
+  }
+  if (delta == null) {
+    return <span className="sv-delta sv-delta--flat">No previous-period comparison</span>;
+  }
+  if (delta === 0) {
     return (
       <span className="sv-delta sv-delta--flat">
         <Minus size={12} aria-hidden="true" />

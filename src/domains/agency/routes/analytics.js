@@ -21,8 +21,8 @@ mountAgencyApiGuard(router);
  * Query:
  *   range  30 | 90 | 365 | 730   (default 90)
  *   board  <uuid>                scope every section to one board
- *   tz     offset minutes        Date#getTimezoneOffset() from the browser, so
- *                                day and hour buckets match the desk's calendar
+ *   tz        minutes east of UTC  numeric fallback for local bucketing
+ *   timeZone  IANA timezone        preferred; preserves historical DST rules
  *
  * Aggregates only — no talent identity leaves this endpoint, so the
  * minor-submission visibility gates that scope the roster and inbox reads have
@@ -44,13 +44,14 @@ router.get(
         agencyId,
         range: req.query.range,
         boardId: req.query.board || null,
-        tzOffsetMinutes: Number.parseInt(req.query.tz, 10) || 0,
+        tzOffsetMinutes: req.query.tz,
+        timeZone: typeof req.query.timeZone === "string" ? req.query.timeZone : null,
       });
 
       return res.json({ success: true, data: analytics });
     } catch (error) {
       console.error("[AgencySeasonAnalytics] Error:", error);
-      return res.status(500).json({
+      return res.status(error.statusCode || 500).json({
         success: false,
         error: "Failed to load season analytics",
         details:

@@ -21,6 +21,7 @@ import LegalNoticeLine from '../../../../shared/components/LegalNoticeLine';
 import {
   stashOnboardingAuthHandoff,
 } from '../../../../shared/lib/pholio-auth/onboarding-handoff';
+import { syncFirebaseSession } from '../../../../shared/lib/pholio-auth/session-api';
 import styles from './LoginPage.module.css';
 import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
 
@@ -181,7 +182,11 @@ export default function LoginPage() {
     try {
       const response = await fetch('/api/auth/password-reset', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...sameOriginMutationHeaders('POST'),
+        },
         body: JSON.stringify({ email }),
       });
       if (!response.ok) {
@@ -214,6 +219,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          ...sameOriginMutationHeaders('POST'),
         },
         body: JSON.stringify({ email, password, next: explicitNext || undefined }),
       });
@@ -235,27 +241,7 @@ export default function LoginPage() {
 
   const authenticateWithBackend = async (idToken, identity = {}) => {
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...sameOriginMutationHeaders('POST'),
-        },
-        body: JSON.stringify({
-          firebase_token: idToken,
-          invite_token: inviteToken || undefined,
-        }),
-      });
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response from backend:', text.substring(0, 500));
-        throw new Error(`Server returned unexpected response (${response.status})`);
-      }
-
-      const data = await response.json();
+      const data = await syncFirebaseSession(idToken, { inviteToken });
 
       // First-time Google/Instagram identities have no Pholio user yet — hand
       // the Firebase session into casting so they don't click OAuth again.
@@ -275,7 +261,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (!response.ok) {
+      if (!data.success) {
         let errorMessage = 'Backend authentication failed';
 
         if (typeof data.error === 'string') {

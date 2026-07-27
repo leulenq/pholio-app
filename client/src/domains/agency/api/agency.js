@@ -329,14 +329,16 @@ export async function getAgencyAnalytics(range = 90) {
 /**
  * Season analytics — the aggregate behind the Season surface.
  *
- * Sends the viewer's UTC offset in minutes east (so New York sends -300) so
- * day and hour buckets are grouped on the desk's own calendar rather than UTC.
+ * Sends the viewer's IANA timezone so historical daylight-saving changes are
+ * respected, plus the current UTC offset as a fallback for older runtimes.
  */
 export async function getSeasonAnalytics({ range = 90, boardId = null } = {}) {
   const params = new URLSearchParams({
     range: String(range),
     tz: String(-new Date().getTimezoneOffset()),
   });
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (timeZone) params.set('timeZone', timeZone);
   if (boardId) params.set('board', boardId);
   const res = await apiClient.get(`/analytics/season?${params.toString()}`);
   return res?.data || res;

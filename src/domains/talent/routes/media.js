@@ -32,7 +32,7 @@ const {
 const {
   isMinorProfile,
   minorSensitiveFieldsUnlocked,
-  canCollectSensitiveProfileFields,
+  hasRecordedDateOfBirth,
 } = require("../../../shared/lib/talent-age");
 const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
 const {
@@ -158,23 +158,18 @@ function forcedPrivateColumns(profile) {
 /**
  * Audit P0-5 (image-AI half) — consent gate for SENSITIVE image inference.
  *
- * masterVisionAnalysis infers measurements, weight, build, skin tone, facial
- * structure and market suitability from a photo. This is sensitive processing
- * and must be gated:
- *   - Minors: NEVER without valid guardian authorization (fail CLOSED).
- *   - Age unverifiable (no recorded DOB): fail CLOSED — we cannot prove adult.
- *   - Adults with a recorded DOB: allowed.
- *
- * Reuses the canonical policy in talent-age.js (canCollectSensitiveProfileFields
- * already encodes "DOB on file AND (adult OR minor-with-consent)").
- *
- * TODO(schema-wave): add an explicit per-user `ai_processing_consent` flag so
- * adults can opt OUT of sensitive image AI. Until that column exists, adults
- * with a recorded DOB are treated as having implied consent via account +
- * ToS acceptance; minors always require guardian authorization.
+ * Image inference is not available by default. It requires a valid adult DOB,
+ * an explicit image-processing consent, and the deployment feature flag. A
+ * guardian authorization never enables provider image analysis for a minor.
  */
-function sensitiveImageAiAllowed(profile) {
-  return canCollectSensitiveProfileFields(profile);
+function imageAiProcessingAllowed(profile, env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" &&
+    (profile?.ai_processing_consent === true ||
+      profile?.ai_processing_consent === 1) &&
+    hasRecordedDateOfBirth(profile) &&
+    !isMinorProfile(profile)
+  );
 }
 
 /**
@@ -185,13 +180,16 @@ function sensitiveImageAiAllowed(profile) {
  */
 function runSensitiveImageAnalysisIfAllowed(profile, imageRow) {
   if (!profile || !imageRow) return;
-  if (!sensitiveImageAiAllowed(profile)) {
-    // Denied: unconsented minor or unverifiable age. Do not run sensitive AI.
+  if (!imageAiProcessingAllowed(profile)) {
+    // Fail closed: do not fetch provider-bound bytes or invoke Groq.
     return;
   }
   fetchImageBuffer(imageRow)
     .then((buffer) => {
       if (!buffer || !buffer.length) return;
+      // Keep the consent/feature check immediately adjacent to the external
+      // provider call as background jobs can outlive the original request.
+      if (!imageAiProcessingAllowed(profile)) return;
       return masterVisionAnalysis(knex, buffer, profile.id);
     })
     .catch((err) =>
@@ -201,6 +199,15 @@ function runSensitiveImageAnalysisIfAllowed(profile, imageRow) {
         err?.message || String(err),
       ),
     );
+}
+
+function scheduleImageClassificationIfAllowed(profile, imageId) {
+  if (!imageAiProcessingAllowed(profile)) return;
+  enqueuePitsJob(profile.id, () => runImageClassification(knex, imageId))
+    .catch((err) =>
+      console.warn("[PITS] classification failed:", imageId, err.message),
+    )
+    .then(() => enqueueMattePrecompute(knex, imageId));
 }
 
 /** Normalize processImage() return (camelCase) for DB columns (snake_case). */
@@ -1240,16 +1247,9 @@ router.post(
       });
 
       for (const imageId of uploadedImageIds) {
-        enqueuePitsJob(profile.id, () => runImageClassification(knex, imageId))
-          .catch((err) =>
-            console.warn("[PITS] classification failed:", imageId, err.message),
-          )
-          // Comp-card matte precompute (editions 1.3): once classification has
-          // landed the studio/plain background signal, compute and cache the
-          // subject matte so matte-gated comp-card looks are available at
-          // generation time. Fire-and-forget on a serialized global queue —
-          // never blocks the upload response; never rejects.
-          .then(() => enqueueMattePrecompute(knex, imageId));
+        // Classification can invoke a vision provider. It is intentionally not
+        // scheduled until the adult has explicitly enabled image processing.
+        scheduleImageClassificationIfAllowed(profile, imageId);
       }
 
       // Sensitive image AI (measurements / casting analysis) now lives here in
@@ -1741,6 +1741,7 @@ router.put(
         "profiles.date_of_birth",
         "profiles.guardian_consent_at",
         "profiles.work_permit_on_file",
+        "profiles.ai_processing_consent",
       )
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
@@ -1876,6 +1877,7 @@ router.put(
         "profiles.date_of_birth",
         "profiles.guardian_consent_at",
         "profiles.work_permit_on_file",
+        "profiles.ai_processing_consent",
       )
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
@@ -1905,6 +1907,7 @@ router.put(
         id: image.profile_id,
         date_of_birth: image.date_of_birth,
         guardian_consent_at: image.guardian_consent_at,
+        ai_processing_consent: image.ai_processing_consent,
       },
       image,
     );
@@ -2158,6 +2161,7 @@ router.post(
         "profiles.id as _profile_id",
         "profiles.date_of_birth",
         "profiles.guardian_consent_at",
+        "profiles.ai_processing_consent",
       )
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
@@ -2252,17 +2256,15 @@ router.post(
 
     const fresh = await knex("images").where({ id: imageId }).first();
 
-    enqueuePitsJob(image.profile_id, () => runImageClassification(knex, imageId))
-      .catch((err) =>
-        console.warn(
-          "[PITS] replace classification failed:",
-          imageId,
-          err.message,
-        ),
-      )
-      // Recompute the comp-card subject matte for the replaced pixels once
-      // classification lands (fire-and-forget; never rejects).
-      .then(() => enqueueMattePrecompute(knex, imageId));
+    scheduleImageClassificationIfAllowed(
+      {
+        id: image.profile_id,
+        date_of_birth: image.date_of_birth,
+        guardian_consent_at: image.guardian_consent_at,
+        ai_processing_consent: image.ai_processing_consent,
+      },
+      imageId,
+    );
 
     // Replacing the pixels of the current primary is a "primary changed" moment:
     // re-run sensitive image AI (consent-gated) on the fresh bytes.
@@ -2272,6 +2274,7 @@ router.post(
           id: image.profile_id,
           date_of_birth: image.date_of_birth,
           guardian_consent_at: image.guardian_consent_at,
+          ai_processing_consent: image.ai_processing_consent,
         },
         fresh,
       );
@@ -2925,5 +2928,8 @@ module.exports = router;
 module.exports.__testables = {
   minorForcesPrivate,
   forcedPrivateColumns,
-  sensitiveImageAiAllowed,
+  imageAiProcessingAllowed,
+  // Compatibility name for focused policy tests; the implementation now has
+  // the stricter explicit-adult-consent semantics above.
+  sensitiveImageAiAllowed: imageAiProcessingAllowed,
 };

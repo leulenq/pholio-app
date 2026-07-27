@@ -15,11 +15,15 @@ export default function PholioAuthBridge() {
   // kick off its own independent re-login.
   const syncInFlightRef = useRef(false);
 
-  const refreshFromFirebase = useCallback(async (firebaseUser) => {
+  const refreshFromFirebase = useCallback(async (firebaseUser, { announce = false } = {}) => {
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
+    let authenticated = false;
     try {
-      if (firebaseUser) {
+      const currentSession = await fetchAppSession();
+      authenticated = currentSession?.authenticated === true;
+
+      if (firebaseUser && !authenticated) {
         // Only re-establish the Express session if it actually looks gone.
         // POST /api/login regenerates the session id (session-fixation
         // hardening) even when the caller was already validly signed in —
@@ -27,19 +31,26 @@ export default function PholioAuthBridge() {
         // destroying a perfectly good session (and its cookie) for no
         // reason on every tab switch. Check first with a plain read; only
         // fall through to re-auth when the Express side is truly missing.
-        const currentSession = await fetchAppSession();
-        if (!currentSession?.authenticated) {
-          const idToken = await firebaseUser.getIdToken();
-          await syncFirebaseSession(idToken);
+        const idToken = await firebaseUser.getIdToken();
+        const syncResult = await syncFirebaseSession(idToken);
+        authenticated = syncResult.success === true;
+        if (!authenticated) {
+          console.warn('[PholioAuthBridge] Session sync failed:', syncResult.reason || 'unsuccessful_response');
         }
       }
-      notifyAuthChange({ authenticated: !!firebaseUser });
     } catch (error) {
       // Non-fatal — Express session may still be valid without Firebase
       // client state — but log it so a silent failure here is diagnosable.
       console.warn('[PholioAuthBridge] Session sync failed (non-fatal):', error?.message);
     } finally {
       syncInFlightRef.current = false;
+    }
+
+    // Firebase changes are local state changes worth announcing. Focus and
+    // incoming broadcasts are synchronization signals only; echoing either
+    // would create a cross-tab broadcast loop.
+    if (announce) {
+      notifyAuthChange({ authenticated });
     }
   }, []);
 
@@ -49,7 +60,7 @@ export default function PholioAuthBridge() {
     if (!auth) return undefined;
 
     const unsubscribeFirebase = onAuthStateChanged(auth, (user) => {
-      refreshFromFirebase(user);
+      refreshFromFirebase(user, { announce: true });
     });
 
     const unsubscribeBroadcast = subscribeAuthChanges(() => {
@@ -58,7 +69,6 @@ export default function PholioAuthBridge() {
 
     const onFocus = () => {
       refreshFromFirebase(auth.currentUser);
-      notifyAuthChange({ source: 'focus' });
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') onFocus();

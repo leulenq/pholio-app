@@ -25,6 +25,7 @@ const TAIL_W = 104; // terminal cap + its label, reserved so nothing overflows
 const HEAD_H = 66;
 const BAND_H = 128;
 const MIN_THICK = 2.5;
+const submissions = (count) => `${count} ${count === 1 ? 'submission' : 'submissions'}`;
 
 function ribbon(x0, y0a, y0b, x1, y1a, y1b) {
   const cx0 = x0 + (x1 - x0) * 0.5;
@@ -56,7 +57,7 @@ function FlowRows({ stages, cohort, show, hide }) {
         const parts = isLast
           ? [{ key: 'signed', value: stage.reached, color, label: 'signed' }]
           : [
-              { key: 'advanced', value: stage.advanced, color: VIZ.depth[i + 1], label: 'advanced' },
+              { key: 'advanced', value: stage.advanced, color: VIZ.depth[i + 1], label: 'at next depth' },
               { key: 'held', value: stage.held, color, label: 'holding' },
               { key: 'exited', value: stage.exited, color: VIZ.exit, label: 'passed' },
             ];
@@ -154,7 +155,7 @@ export function FlowRibbon({ flow }) {
         height={height}
         className="sv-flow"
         role="img"
-        aria-label={`Pipeline flow for ${cohort} submissions: ${stages
+        aria-label={`Pipeline depth for ${submissions(cohort)}: ${stages
           .map((s) => `${s.reached} reached ${s.stage}`)
           .join(', ')}`}
       >
@@ -200,8 +201,8 @@ export function FlowRibbon({ flow }) {
                   fillOpacity="0.45"
                   onMouseMove={(e) =>
                     tip(e, `${stage.stage} → ${stages[i + 1].stage}`, null, [
-                      { label: 'Advanced', value: stage.advanced, color: VIZ.depth[i + 1] },
-                      { label: 'Conversion', value: stage.conversion != null ? `${stage.conversion}%` : '—' },
+                      { label: 'Reached next depth', value: stage.advanced, color: VIZ.depth[i + 1] },
+                      { label: 'Next-depth rate', value: stage.conversion != null ? `${stage.conversion}%` : '—' },
                       {
                         label: 'Median in stage',
                         value: stage.medianDwellDays != null ? `${stage.medianDwellDays}d` : 'not yet timed',
@@ -276,8 +277,8 @@ export function FlowRibbon({ flow }) {
                 rx="2"
                 fill={color}
                 onMouseMove={(e) =>
-                  tip(e, stage.stage, `${stage.reached} of ${cohort} submissions reached this stage`, [
-                    ...(isLast ? [] : [{ label: 'Advanced', value: stage.advanced }, { label: 'Holding', value: stage.held }]),
+                  tip(e, stage.stage, `${stage.reached} of ${submissions(cohort)} reached this depth`, [
+                    ...(isLast ? [] : [{ label: 'Reached next depth', value: stage.advanced }, { label: 'Current here', value: stage.held }]),
                     { label: 'Passed', value: stage.exited },
                     {
                       label: 'Median in stage',
@@ -298,7 +299,7 @@ export function FlowRibbon({ flow }) {
               {/* conversion rides the gap it describes */}
               {!isLast && stage.conversion != null ? (
                 <text className="sv-flow-conv" x={gapStart + gapW / 2} y={48} textAnchor="middle">
-                  {stage.conversion}% advance
+                  {stage.conversion}% next depth
                 </text>
               ) : null}
 

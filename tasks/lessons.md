@@ -483,3 +483,13 @@
 
 - When implementation lives in an isolated worktree but the user is viewing a dev server from the original checkout, a correct diff can still look like “no change.” Restart the live backend and Vite processes from the implementation worktree, then verify the exact user-facing route in the browser before reporting progress.
 - Before continuing a named implementation branch, fetch and rebase onto the exact remote tip first. A branch-name match is not evidence that the checkout contains the latest branch work.
+
+## 2026-07-27 — Reconcile long-running audit remediation against today’s tree
+
+- After a multi-day pause or large intervening merge set, treat the current
+  branch, HEAD, worktree, tests, and contracts as authoritative. Reconcile every
+  old finding before replaying a patch; a prior audit is evidence to verify, not
+  an implementation script.
+- Freeze a fresh dirty-file inventory before assigning parallel writers. Exclude
+  active unrelated work from all ownership lanes, and stop a lane rather than
+  letting it “quickly” edit a newly overlapping file.

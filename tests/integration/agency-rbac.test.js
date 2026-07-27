@@ -12,6 +12,13 @@ const request = require("supertest");
 const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
 
+jest.mock("../../src/shared/services/agency-notifications", () => ({
+  notifyAgencyInterviewScheduled: jest.fn().mockResolvedValue([]),
+}));
+jest.mock("../../src/shared/services/notify-talent-interview", () => ({
+  notifyTalentForInterview: jest.fn().mockResolvedValue(null),
+}));
+
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { FORBIDDEN_KEYS } = require("../contract/audience-dto.test");
@@ -363,6 +370,44 @@ async function createMinimalSchema() {
     });
   }
 
+  if (!(await knex.schema.hasTable("interviews"))) {
+    await knex.schema.createTable("interviews", (t) => {
+      t.string("id", 36).primary();
+      t.string("application_id", 36).notNullable();
+      t.string("agency_id", 36).notNullable();
+      t.string("talent_id", 36).notNullable();
+      t.timestamp("proposed_datetime").notNullable();
+      t.integer("duration_minutes").defaultTo(30);
+      t.string("interview_type", 20).notNullable();
+      t.string("location", 500).nullable();
+      t.string("meeting_url", 500).nullable();
+      t.text("notes").nullable();
+      t.string("status", 20).notNullable().defaultTo("pending");
+      t.text("response_message").nullable();
+      t.timestamp("responded_at").nullable();
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+      t.timestamp("updated_at").defaultTo(knex.fn.now());
+    });
+  }
+
+  if (!(await knex.schema.hasTable("reminders"))) {
+    await knex.schema.createTable("reminders", (t) => {
+      t.string("id", 36).primary();
+      t.string("application_id", 36).notNullable();
+      t.string("agency_id", 36).notNullable();
+      t.string("reminder_type", 50).notNullable();
+      t.timestamp("reminder_date").notNullable();
+      t.string("title", 200).notNullable();
+      t.text("notes").nullable();
+      t.string("status", 20).notNullable().defaultTo("pending");
+      t.timestamp("completed_at").nullable();
+      t.timestamp("snoozed_until").nullable();
+      t.string("priority", 20).defaultTo("normal");
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+      t.timestamp("updated_at").defaultTo(knex.fn.now());
+    });
+  }
+
   if (!(await knex.schema.hasTable("images"))) {
     await knex.schema.createTable("images", (t) => {
       t.string("id", 36).primary();
@@ -394,6 +439,8 @@ async function createMinimalSchema() {
 
 async function seedRbacFixture() {
   const tables = [
+    "interviews",
+    "reminders",
     "application_activities",
     "applications",
     "agency_membership_permissions",
@@ -818,6 +865,68 @@ describe("agency RBAC custom grants", () => {
     await knex("agency_memberships")
       .where({ id: MEMBERSHIP.scout })
       .update({ membership_role: "SCOUT" });
+  });
+});
+
+describe("agency team-session operational sources", () => {
+  beforeEach(async () => {
+    await knex("interviews").del();
+    await knex("reminders").del();
+    await knex("application_activities").del();
+  });
+
+  test("OWNER team session schedules an interview for the agency and talent account", async () => {
+    const ownerCookie = await agentWithAgencySession({
+      memberUserId: OWNER_USER_ID,
+      membershipId: MEMBERSHIP.owner,
+      membershipRole: "OWNER",
+    });
+
+    const response = await ownerCookie(
+      request(app)
+        .post(`/api/agency/applications/${APPLICATION_ID}/interviews`)
+        .send({
+          proposed_datetime: new Date(Date.now() + 86400000).toISOString(),
+          interview_type: "video_call",
+        }),
+    );
+
+    expect(response.status).toBe(200);
+    const persisted = await knex("interviews").where({
+      application_id: APPLICATION_ID,
+    }).first();
+    expect(persisted).toMatchObject({
+      agency_id: AGENCY_ID,
+      talent_id: TALENT_USER_ID,
+      status: "pending",
+    });
+  });
+
+  test("OWNER team session creates a reminder under the canonical agency", async () => {
+    const ownerCookie = await agentWithAgencySession({
+      memberUserId: OWNER_USER_ID,
+      membershipId: MEMBERSHIP.owner,
+      membershipRole: "OWNER",
+    });
+
+    const response = await ownerCookie(
+      request(app)
+        .post(`/api/agency/applications/${APPLICATION_ID}/reminders`)
+        .send({
+          reminder_type: "follow_up",
+          reminder_date: new Date(Date.now() + 86400000).toISOString(),
+          title: "Follow up",
+        }),
+    );
+
+    expect(response.status).toBe(200);
+    const persisted = await knex("reminders").where({
+      application_id: APPLICATION_ID,
+    }).first();
+    expect(persisted).toMatchObject({
+      agency_id: AGENCY_ID,
+      status: "pending",
+    });
   });
 });
 

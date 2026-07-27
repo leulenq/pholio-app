@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { getSeasonAnalytics } from '../api/agency';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
@@ -58,6 +58,8 @@ const rise = {
 
 const pct = (value) => (value == null ? '—' : `${value}%`);
 const num = (value) => (value == null ? '—' : `${value}`);
+const counted = (value, singular, plural = `${singular}s`) =>
+  `${value} ${value === 1 ? singular : plural}`;
 
 // ---------------------------------------------------------------------------
 // Pipeline lens
@@ -85,14 +87,14 @@ function PipelineLens({ data }) {
         title="How the season flowed"
         reading={
           cohort
-            ? `${signed} of ${cohort} submissions reached representation${
+            ? `${signed} of ${counted(cohort, 'submission')} reached representation${
                 strongestHandoff
-                  ? ` · strongest hand-off is ${strongestHandoff.stage} at ${strongestHandoff.conversion}%`
+                  ? ` · highest next-depth rate is ${strongestHandoff.stage} at ${strongestHandoff.conversion}%`
                   : ''
               }`
             : undefined
         }
-        note="A stage counts as reached only where a recorded status change or the current status evidences it — a status jump never invents the hand-offs it skipped."
+        note="Depth is based on the furthest status the record evidences. Next-depth rates describe cohort depth, not an audited sequence of every intermediate hand-off."
         empty={cohort ? null : 'The flow draws itself once submissions land in this window.'}
         legend={
           <>
@@ -105,7 +107,7 @@ function PipelineLens({ data }) {
         table={
           <VizTable
             caption={`Pipeline flow for ${cohort} submissions`}
-            columns={['Stage', 'Reached', 'Advanced', 'Holding', 'Passed', 'Conversion', 'Median in stage']}
+            columns={['Stage', 'Reached depth', 'Reached next depth', 'Current here', 'Passed', 'Next-depth rate', 'Median in stage']}
             rows={stages.map((s) => [
               s.stage,
               s.reached,
@@ -124,7 +126,7 @@ function PipelineLens({ data }) {
       <Panel
         span={8}
         title="Intake and where it landed"
-        reading={`${volume?.series?.reduce((sum, r) => sum + r.total, 0) || 0} submissions across the window`}
+        reading={`${counted(volume?.series?.reduce((sum, r) => sum + r.total, 0) || 0, 'submission')} across the window`}
         note={`Line is the trailing ${volume?.windowSize || 7}-${volume?.granularity || 'day'} average of the same total.`}
         empty={cohort ? null : 'Nothing arrived in this window.'}
         legend={[...VOLUME_STACK].reverse().map((s) => (
@@ -156,7 +158,7 @@ function PipelineLens({ data }) {
         title="Open work by age"
         reading={
           queue?.total
-            ? `${queue.total} open · oldest untouched for ${queue.oldestDays} days`
+            ? `${queue.total} open · oldest untouched for ${counted(queue.oldestDays, 'day')}`
             : undefined
         }
         note="Age runs from the last recorded action, not the submission date, and ignores the reporting window — stale work does not expire."
@@ -177,12 +179,12 @@ function PipelineLens({ data }) {
         title="Match score against what the desk did"
         reading={
           calibration?.separation != null
-            ? `Signed talent scored ${calibration.separation} points above passed talent`
+            ? `Signed talent scored ${Math.abs(calibration.separation)} points ${calibration.separation >= 0 ? 'above' : 'below'} passed talent`
             : undefined
         }
         note={
           calibration?.sample
-            ? `${calibration.sample} scored submissions. A climbing line means the score is calibrated; a flat one means it is decorative.`
+            ? `${counted(calibration.sample, 'scored submission')}. The line shows whether higher scores correlate with advancement decisions.`
             : undefined
         }
         empty={calibration?.sample ? null : 'Match scores appear once submissions are scored against a board.'}
@@ -192,13 +194,13 @@ function PipelineLens({ data }) {
             <LegendKey color={VIZ.depth[2]} label="Advanced" />
             <LegendKey color={VIZ.depth[3]} label="Signed" />
             <LegendKey color={VIZ.exit} label="Passed" />
-            <LegendKey color={VIZ.series[1]} label="Advance rate" shape="line" />
+            <LegendKey color={VIZ.series[1]} label="Advance rate among decided" shape="line" />
           </>
         }
         table={
           <VizTable
             caption="Outcome by match score band"
-            columns={['Score', 'Scored', 'Still open', 'Advanced', 'Signed', 'Passed', 'Advance rate']}
+            columns={['Score', 'Scored', 'Still open', 'Advanced', 'Signed', 'Passed', 'Advance rate among decided']}
             rows={(calibration?.bins || []).map((b) => [
               b.label,
               b.total,
@@ -249,9 +251,9 @@ function PipelineLens({ data }) {
       <Panel
         span={12}
         title="Cohort progression"
-        reading="Each month's intake and how far it got"
-        note="Applied is not drawn — every submission reaches it by definition, so the column would carry no information. Read down a column to see whether the desk is getting better at a stage, and across a row to see one month's whole journey."
-        empty={cohorts?.length ? null : 'Cohorts build up over the first months of submissions.'}
+        reading="Twelve monthly intake cohorts, including the current partial month"
+        note="Applied is not drawn — every submission reaches it by definition. Recent cohorts have had less time to progress, so compare their current depth without treating the rows as equal-age performance."
+        empty={cohorts?.some((cohortRow) => cohortRow.size > 0) ? null : 'Cohorts build up over the first months of submissions.'}
         table={
           <VizTable
             caption="Share of each monthly cohort reaching each stage"
@@ -285,7 +287,12 @@ function RosterLens({ data }) {
   const netThisYear = movement.reduce((sum, m) => sum + m.net, 0);
   const heightsObserved = roster.coverage?.heights || 0;
   const agesObserved = roster.coverage?.ages || 0;
-  const fitObserved = roster.coverage?.fit || 0;
+  const fitMin = roster.coverage?.fitMin || 0;
+  const fitMax = roster.coverage?.fitMax || 0;
+  const pairedFitAxes = (roster.fit || []).filter(
+    (axis) => axis.rosterSample > 0 && axis.pipelineSample > 0,
+  ).length;
+  const sensitiveSuppressed = roster.coverage?.sensitiveSuppressed;
 
   return (
     <>
@@ -297,11 +304,11 @@ function RosterLens({ data }) {
             ? `${roster.size} represented · ${netThisYear >= 0 ? '+' : ''}${netThisYear} over twelve months`
             : undefined
         }
-        note="Signings above the line, departures below. Roster size runs underneath on its own scale."
-        empty={roster.size || roster.everSize ? null : 'Roster movement draws itself as talent signs.'}
+        note="Roster additions above the line, departures below. Roster size runs underneath on its own scale."
+        empty={roster.size || roster.everSize ? null : 'Roster movement draws itself as talent joins or leaves.'}
         legend={
           <>
-            <LegendKey color={VIZ.series[0]} label="Signed" />
+            <LegendKey color={VIZ.series[0]} label="Joined" />
             <LegendKey color={VIZ.series[1]} label="Left" />
             <LegendKey color={VIZ.depth[3]} label="On the roster" shape="line" />
           </>
@@ -309,7 +316,7 @@ function RosterLens({ data }) {
         table={
           <VizTable
             caption="Roster movement by month"
-            columns={['Month', 'Signed', 'Left', 'Net', 'On the roster']}
+            columns={['Month', 'Joined', 'Left', 'Net', 'On the roster']}
             rows={movement.map((m) => [
               formatMonth(m.month),
               m.joined,
@@ -326,8 +333,10 @@ function RosterLens({ data }) {
       <Panel
         span={5}
         title="Divisions"
-        reading={roster.boardMix?.length ? `${roster.size} across ${roster.boardMix.length} ${roster.boardMix.length === 1 ? 'division' : 'divisions'}` : undefined}
-        empty={roster.boardMix?.length ? null : 'Divisions appear once roster talent is assigned to a board.'}
+        reading={roster.boardMix?.length
+          ? `${counted(roster.size - (roster.outsideDivisions || 0), 'talent')} across ${counted(roster.boardMix.length, 'division')}${roster.outsideDivisions ? ` · ${roster.outsideDivisions} outside divisions` : ''}`
+          : undefined}
+        empty={roster.boardMix?.length ? null : `${roster.outsideDivisions || 0} roster talent outside divisions.`}
         table={
           <VizTable
             caption="Roster by division"
@@ -355,7 +364,7 @@ function RosterLens({ data }) {
             : undefined
         }
         note="Both series are shares of their own group, so a roster of forty and an intake of four hundred stay comparable."
-        empty={heightsObserved ? null : 'Height comparison appears once roster profiles carry measurements.'}
+        empty={heightsObserved ? null : sensitiveSuppressed ? 'Sensitive profile distributions are hidden for small minor cohorts.' : 'Height comparison appears once roster profiles carry measurements.'}
         legend={
           <>
             <LegendKey color={VIZ.series[0]} label="Roster" />
@@ -377,7 +386,7 @@ function RosterLens({ data }) {
         span={6}
         title="Age profile"
         reading={agesObserved ? `Dated on ${agesObserved} of ${roster.size} represented` : undefined}
-        empty={agesObserved ? null : 'Age comparison appears once roster profiles carry a date of birth.'}
+        empty={agesObserved ? null : sensitiveSuppressed ? 'Sensitive profile distributions are hidden for small minor cohorts.' : 'Age comparison appears once roster profiles carry a date of birth.'}
         legend={
           <>
             <LegendKey color={VIZ.series[0]} label="Roster" />
@@ -398,9 +407,9 @@ function RosterLens({ data }) {
       <Panel
         span={4}
         title="Category signature"
-        reading={fitObserved ? `Averaged over ${fitObserved} represented` : undefined}
+        reading={pairedFitAxes >= 3 ? `Measured on ${fitMin === fitMax ? fitMin : `${fitMin}–${fitMax}`} represented per category` : undefined}
         note="Where the incoming shape bulges outside the roster shape, the market is sending something the house does not yet represent."
-        empty={fitObserved ? null : 'Category fit appears once profiles have been analysed.'}
+        empty={pairedFitAxes >= 3 ? null : sensitiveSuppressed ? 'Sensitive profile distributions are hidden for small minor cohorts.' : 'Comparison appears once at least three categories are measured for both groups.'}
         legend={
           <>
             <LegendKey color={VIZ.series[0]} label="Roster" />
@@ -426,8 +435,9 @@ function RosterLens({ data }) {
       <Panel
         span={4}
         title="Markets"
-        reading={roster.markets?.length ? `${roster.markets.length} ${roster.markets.length === 1 ? 'market' : 'markets'} represented` : undefined}
-        empty={roster.markets?.length ? null : 'Markets appear once roster profiles carry a city.'}
+        reading={roster.marketCount ? `Roster talent across ${counted(roster.marketCount, 'market')}` : undefined}
+        note={roster.marketCount > 10 ? 'Chart and table show the ten largest markets.' : undefined}
+        empty={roster.marketCount ? null : 'Markets appear once roster records carry a canonical market.'}
         table={
           <VizTable
             caption="Roster by market"
@@ -450,7 +460,7 @@ function RosterLens({ data }) {
         span={4}
         title="Tenure"
         reading={roster.size ? 'How long the roster has been with the house' : undefined}
-        empty={roster.size ? null : 'Tenure appears once talent has been signed.'}
+        empty={roster.size ? null : 'Tenure appears once talent joins the roster.'}
         table={
           <VizTable
             caption="Roster by tenure"
@@ -528,6 +538,7 @@ function DeskLens({ data }) {
   if (!desk) return null;
 
   const { latency, team, interviews, reminders } = desk;
+  const activeTeamMembers = (team || []).filter((member) => member.touches > 0).length;
 
   return (
     <>
@@ -536,7 +547,7 @@ function DeskLens({ data }) {
         title="When the desk works"
         reading={
           desk.punchTotal
-            ? `${desk.punchTotal} recorded actions across the window`
+            ? `${counted(desk.punchTotal, 'recorded action')} across the window`
             : undefined
         }
         note="Grouped in your own timezone. Darker means busier."
@@ -560,7 +571,7 @@ function DeskLens({ data }) {
         title="Time to first response"
         reading={
           latency?.sample
-            ? `Median ${formatValue(latency.medianHours, 'hours')} · nine in ten inside ${formatValue(latency.p90Hours, 'hours')}`
+            ? `Median ${formatValue(latency.medianHours, 'hours')}${latency.sample >= 10 ? ` · observed 90th percentile ${formatValue(latency.p90Hours, 'hours')}` : ''}`
             : undefined
         }
         note={latency?.sample ? `Measured on ${latency.sample} submissions that have been touched.` : undefined}
@@ -587,7 +598,7 @@ function DeskLens({ data }) {
       <Panel
         span={6}
         title="Who is working the desk"
-        reading={desk.teamTotal ? `${desk.teamTotal} actions across ${team.length} ${team.length === 1 ? 'member' : 'members'}` : undefined}
+        reading={desk.teamTotal ? `${counted(desk.teamTotal, 'action')} by ${counted(activeTeamMembers, 'member')}` : undefined}
         empty={desk.teamTotal ? null : 'Team load appears once members act on submissions.'}
         table={
           <VizTable
@@ -614,7 +625,7 @@ function DeskLens({ data }) {
         title="Interview response"
         reading={
           interviews?.total
-            ? `${interviews.total} scheduled · ${interviews.answered} answered`
+            ? `${counted(interviews.total, 'invitation')} created · ${interviews.answered} answered`
             : undefined
         }
         note={
@@ -632,15 +643,16 @@ function DeskLens({ data }) {
               ['Declined', interviews?.declined ?? 0],
               ['Awaiting reply', interviews?.pending ?? 0],
               ['Completed', interviews?.completed ?? 0],
+              ['Rescheduled', interviews?.rescheduled ?? 0],
               ['Cancelled', interviews?.cancelled ?? 0],
             ]}
           />
         }
       >
         <Meter
-          label="Accepted of answered"
+          label="Accepted of recorded outcomes"
           value={interviews?.acceptRate}
-          caption={`${interviews?.accepted ?? 0} accepted, ${interviews?.declined ?? 0} declined`}
+          caption={`${interviews?.responseOutcomeSample ?? 0} accepted/declined outcomes still recorded`}
           tone="good"
         />
         <DistributionBars
@@ -649,6 +661,8 @@ function DeskLens({ data }) {
             { key: 'declined', label: 'Declined', value: interviews?.declined ?? 0 },
             { key: 'pending', label: 'Awaiting reply', value: interviews?.pending ?? 0 },
             { key: 'completed', label: 'Completed', value: interviews?.completed ?? 0 },
+            { key: 'rescheduled', label: 'Rescheduled', value: interviews?.rescheduled ?? 0 },
+            { key: 'cancelled', label: 'Cancelled', value: interviews?.cancelled ?? 0 },
           ]}
           labelWidth={104}
         />
@@ -657,7 +671,7 @@ function DeskLens({ data }) {
       <Panel
         span={4}
         title="Interview format"
-        reading={interviews?.byType?.length ? 'How the house meets talent' : undefined}
+        reading={interviews?.byType?.length ? 'Formats used for interview invitations created in the window' : undefined}
         empty={interviews?.byType?.length ? null : 'Formats appear once interviews are scheduled.'}
         table={
           <VizTable
@@ -755,7 +769,6 @@ function AnalyticsPage() {
     queryKey: ['agency-season', range, boardId],
     queryFn: () => getSeasonAnalytics({ range, boardId: boardId || null }),
     staleTime: 60_000,
-    placeholderData: keepPreviousData,
   });
 
   const rangeLabel = RANGES.find((r) => r.days === range)?.label || `${range} days`;
@@ -768,7 +781,7 @@ function AnalyticsPage() {
         <h1 className="sv-title">The Season</h1>
         <p className="sv-sub">
           {data
-            ? `${data.totals.windowSubmissions} submissions and ${data.roster?.size ?? 0} represented, read across ${rangeLabel.toLowerCase()}`
+            ? `${counted(data.totals.windowSubmissions, 'submission')} in ${rangeLabel.toLowerCase()} · ${data.roster?.size ?? 0} currently represented`
             : 'Reading the pipeline, the roster, and the desk'}
         </p>
       </header>
@@ -805,7 +818,7 @@ function AnalyticsPage() {
 
         {generatedAt ? (
           <span className="sv-generated">
-            {isFetching ? 'Refreshing' : `Read at ${generatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`}
+            {isFetching ? 'Refreshing' : `Read ${generatedAt.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`}
           </span>
         ) : null}
       </div>
@@ -859,7 +872,7 @@ function AnalyticsPage() {
 
           <footer className="sv-foot">
             <span>
-              {data.totals.allTimeSubmissions} submissions all time · {data.totals.activitiesObserved} recorded actions
+              {counted(data.totals.allTimeSubmissions, 'submission')} all time{data.meta.boardId ? ' on this board' : ''} · {counted(data.desk?.punchTotal ?? 0, 'recorded action')} in {rangeLabel.toLowerCase()}
               {data.meta.rosterIsDerived ? ' · roster derived from application status' : ''}
             </span>
           </footer>

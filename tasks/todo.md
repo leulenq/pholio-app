@@ -1,3 +1,42 @@
+# Season / Analytics production truth audit — 2026-07-27
+
+## Goal
+
+Ship the signed-off agency Season page with every number, comparison, subtitle,
+label, and accessible description traceable to correctly scoped production data.
+No visual redesign.
+
+## Plan
+
+- [x] Inventory the full client-visible and ARIA claim surface.
+- [x] Trace every metric through route, query, schema, and event writers.
+- [x] Reproduce handoff leads and independently audit tenant, board, range, and
+      timezone scoping.
+- [x] Verify fresh/empty, sparse, large, hostile-input, permission, SQLite, and
+      PostgreSQL-relevant behavior.
+- [x] Replace false or ambiguous claims with computed truth or remove them.
+- [x] Add regression fixtures/tests for every fixed integrity defect.
+- [x] Run focused backend tests, route tests, frontend lint/build, and an
+      independent final diff review.
+
+## Review
+
+- Removed fixed/mock supporting claims; every remaining numeric subtitle is
+  computed from the same scoped response as its chart or table.
+- Corrected tenant, board, reporting-window, actor, lifecycle, roster,
+  interview, reminder, score, timezone, and scale integrity defects.
+- Added focused SQLite/query and real team-session HTTP coverage.
+- Verification: 89 relevant Jest tests pass; changed client files lint; the
+  production client build and Node syntax checks pass; `git diff --check`
+  passes.
+- Full client lint remains blocked only by the pre-existing
+  `client/vite.config.js` modification (`/* eslint-env node */` plus `process`
+  no-undef). That file was not changed as part of this audit.
+- Detailed findings and residual limits:
+  `tasks/season-analytics-truth-audit.md`.
+
+---
+
 # Unify full-page loaders (gold spinner)
 
 ## Goal
@@ -2632,3 +2671,52 @@ panel ships direct labels and a table-view twin.
   aborts with a pre-existing "Unable to acquire a connection" crash — reproduced
   identically on the clean tree (17 failing suites there, and every suite that
   differed between runs passes in isolation on both trees).
+
+
+## Talent launch legal/security implementation — 2026-07-27
+
+Source backlog: `docs/talent-launch-legal-security-production-plan.md`.
+Launch posture: 18+, U.S.-only, free FWB participation, private by default,
+manual/unranked review, and AI disabled unless an independently approved feature
+gate and explicit consent both exist.
+
+### Coordination
+
+- [x] Preserve the in-progress Season analytics work; no launch lane owns a
+      currently dirty Season file.
+- [x] Worker agents have strictly disjoint file ownership and may not stage,
+      commit, reset, push, or access external services.
+- [ ] Lead reviews every diff; focused tests must use `node scripts/run-jest.js`
+      with isolated SQLite only.
+- [ ] Independent GPT-5.6 Sol review and test pass before each lead-owned commit.
+
+### Wave 1 — contain highest-risk launch paths
+
+- [ ] Auth/session lane: close residual email-collision, login-CSRF,
+      verification/onboarding, logging, cookie/CORS/cache, rate-limit, and
+      session-store failures without touching Season files.
+- [x] Adult-onboarding lane: prove the neutral age gate precedes account/PII
+      creation, enforce immutable 18+ eligibility on every onboarding write,
+      and remove duplicate or bypassable age paths. Sol-reviewed and committed
+      as `de61564`.
+- [ ] AI/manual-selection lane: fail closed for image analysis and embeddings,
+      remove protected/proxy inputs, disable learned preferences and automated
+      ordering by default, and purge local derivatives on opt-out.
+- [ ] Integrate, review, test, and commit each accepted grouping separately.
+
+### Later waves
+
+- [ ] Legal assent and immutable consent/opportunity evidence.
+- [ ] Private-by-default profiles/media, public DTOs, blocking, and analytics.
+- [ ] Safety/moderator, NCII/CSAM/DMCA operational product controls.
+- [ ] Deletion/retention, production fail-closed configuration, observability,
+      recovery, and stress-test harness.
+- [ ] Combined build/regression/adversarial verification and open-gate report.
+
+### External launch gates (cannot be closed by code)
+
+- [ ] New York classification opinion and operating-boundary approval.
+- [ ] Executed BK Style/FWB agreement and approved FWB program facts.
+- [ ] Corporate/vendor/insurance/tax/registration decisions and evidence.
+- [ ] Production credential rotation, deployment exercises, table-tops, and
+      final CEO/Engineering/counsel sign-off.

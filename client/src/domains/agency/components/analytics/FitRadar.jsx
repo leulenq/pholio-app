@@ -19,7 +19,13 @@ export function FitRadar({ axes, aLabel = 'Roster', bLabel = 'Incoming' }) {
   const [ref, width] = useMeasure(320);
   const { show, hide, node } = useTooltip();
 
-  const observed = (axes || []).filter((a) => a.roster != null || a.pipeline != null);
+  const observed = (axes || []).filter(
+    (axis) =>
+      axis.roster != null &&
+      axis.pipeline != null &&
+      axis.rosterSample > 0 &&
+      axis.pipelineSample > 0,
+  );
   if (observed.length < 3) return <div ref={ref} className="sv-chart" />;
 
   const cx = width / 2;

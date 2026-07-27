@@ -111,7 +111,7 @@ export function CohortGrid({ cohorts, stages }) {
         width={width}
         height={height}
         role="img"
-        aria-label={`Monthly submission cohorts and the share of each that reached every stage`}
+        aria-label="Monthly submission cohorts and the share of each that reached each post-application depth"
       >
         {stages.map((stage, i) => (
           <text

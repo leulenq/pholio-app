@@ -27,7 +27,12 @@ async function findUserByFirebaseIdentity(knex, { firebaseUid, email, emailVerif
 
   if (!user && email && emailVerified) {
     const normalizedEmail = email.toLowerCase().trim();
-    user = await knex("users").where({ email: normalizedEmail }).first();
+    // Older imported rows are not guaranteed to have been normalized at write
+    // time. The case-insensitive lookup avoids creating a duplicate account
+    // for a verified identity without weakening the verified-claim gate.
+    user = await knex("users")
+      .whereRaw("LOWER(email) = ?", [normalizedEmail])
+      .first();
   }
 
   return user || null;

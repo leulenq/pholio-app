@@ -33,6 +33,7 @@ const {
   upsertTextEmbedding,
   buildProfileText,
   reindexDiscoverProfile,
+  isProfileEmbeddingAllowed,
 } = require("../../ai/embeddings");
 const {
   normalizeProfileLanguages,
@@ -1258,6 +1259,10 @@ router.put(
     setImmediate(() => {
       (async () => {
         try {
+          // The derived selection-index path is off until the adult has
+          // separately opted in and the deploy feature flag is enabled. The
+          // helpers repeat this guard at their provider boundary.
+          if (!isProfileEmbeddingAllowed(updatedProfile)) return;
           const profileText = buildProfileText(updatedProfile);
           if (profileText) {
             await upsertTextEmbedding(
@@ -1265,6 +1270,7 @@ router.put(
               profile.id,
               "full_profile",
               profileText,
+              { profile: updatedProfile },
             );
           }
           await reindexDiscoverProfile(knex, profile.id);

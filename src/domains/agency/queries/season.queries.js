@@ -31,6 +31,14 @@ const DEFAULT_RANGE = 90;
 
 /** Application statuses that put talent on the roster (mirrors roster-memberships service). */
 const REPRESENTED_STATUSES = ["accepted", "booked", "represented"];
+const LIVE_QUEUE_STATUSES = new Set([
+  "pending",
+  "submitted",
+  "shortlisted",
+  "requested_more",
+  "meeting_requested",
+  "development",
+]);
 
 // ---------------------------------------------------------------------------
 // Small numeric helpers
@@ -73,7 +81,15 @@ function share(part, whole) {
 
 function toDate(value) {
   if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
+  // SQLite CURRENT_TIMESTAMP is UTC but is returned without a zone suffix.
+  // Node otherwise interprets "YYYY-MM-DD HH:mm:ss" in the server's local
+  // timezone, shifting fresh rows into the future outside UTC deployments.
+  const normalized =
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)
+      ? `${value.replace(" ", "T")}Z`
+      : value;
+  const date = value instanceof Date ? value : new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -87,26 +103,101 @@ function parseJson(raw) {
   }
 }
 
+function dbBoolean(value) {
+  return value === true || value === 1 || value === "1";
+}
+
+function earliestDate(...values) {
+  const dates = values.map(toDate).filter(Boolean);
+  return dates.length
+    ? new Date(Math.min(...dates.map((date) => date.getTime())))
+    : null;
+}
+
+function latestDate(...values) {
+  const dates = values.map(toDate).filter(Boolean);
+  return dates.length
+    ? new Date(Math.max(...dates.map((date) => date.getTime())))
+    : null;
+}
+
+function firstResponseHoursForEntry(entry, windowEnd = null) {
+  const { application, journey, createdAt } = entry;
+  const touch = earliestDate(journey.firstTouchAt, application.viewed_at);
+  if (!touch || !createdAt || (windowEnd && touch >= windowEnd)) return null;
+  const hours = (touch.getTime() - createdAt.getTime()) / HOUR_MS;
+  return hours >= 0 ? hours : null;
+}
+
 /**
  * `YYYY-MM-DD` in the viewer's offset, so day buckets match the desk's
  * calendar. `offsetMinutes` is minutes east of UTC — the client sends
  * `-new Date().getTimezoneOffset()`, so New York is -300 and it is added.
  */
-function localDayKey(date, offsetMinutes) {
-  const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
-  return shifted.toISOString().slice(0, 10);
+const dateTimeFormatters = new Map();
+
+function validTimeZone(value) {
+  if (!value || typeof value !== "string" || value.length > 80) return null;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return value;
+  } catch {
+    return null;
+  }
 }
 
-function localMonthKey(date, offsetMinutes) {
-  return localDayKey(date, offsetMinutes).slice(0, 7);
+function localParts(date, zoneOrOffset) {
+  if (typeof zoneOrOffset === "string") {
+    let formatter = dateTimeFormatters.get(zoneOrOffset);
+    if (!formatter) {
+      formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: zoneOrOffset,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        hourCycle: "h23",
+      });
+      dateTimeFormatters.set(zoneOrOffset, formatter);
+    }
+    const parts = Object.fromEntries(
+      formatter
+        .formatToParts(date)
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, part.value]),
+    );
+    return {
+      year: Number(parts.year),
+      month: Number(parts.month),
+      day: Number(parts.day),
+      hour: Number(parts.hour),
+    };
+  }
+
+  const shifted = new Date(date.getTime() + Number(zoneOrOffset || 0) * 60_000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+  };
+}
+
+function localDayKey(date, zoneOrOffset) {
+  const { year, month, day } = localParts(date, zoneOrOffset);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function localMonthKey(date, zoneOrOffset) {
+  return localDayKey(date, zoneOrOffset).slice(0, 7);
 }
 
 /** ISO-ish week key anchored to the Monday of the local week. */
-function localWeekKey(date, offsetMinutes) {
-  const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
-  const dow = (shifted.getUTCDay() + 6) % 7; // Monday = 0
-  shifted.setUTCDate(shifted.getUTCDate() - dow);
-  return shifted.toISOString().slice(0, 10);
+function localWeekKey(date, zoneOrOffset) {
+  const localDate = new Date(`${localDayKey(date, zoneOrOffset)}T12:00:00.000Z`);
+  const dow = (localDate.getUTCDay() + 6) % 7; // Monday = 0
+  localDate.setUTCDate(localDate.getUTCDate() - dow);
+  return localDate.toISOString().slice(0, 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -114,8 +205,36 @@ function localWeekKey(date, offsetMinutes) {
 // ---------------------------------------------------------------------------
 
 function resolveRange(requested) {
-  const parsed = parseInt(requested, 10);
-  return ALLOWED_RANGES.includes(parsed) ? parsed : DEFAULT_RANGE;
+  if (requested == null || requested === "") return DEFAULT_RANGE;
+  const parsed = Number(requested);
+  if (!Number.isInteger(parsed) || !ALLOWED_RANGES.includes(parsed)) {
+    const error = new Error("range must be one of 30, 90, 365, or 730");
+    error.statusCode = 400;
+    throw error;
+  }
+  return parsed;
+}
+
+function resolveTimezoneOffset(requested) {
+  if (requested == null || requested === "") return 0;
+  const parsed = Number(requested);
+  if (!Number.isInteger(parsed) || parsed < -840 || parsed > 840) {
+    const error = new Error("tz must be an integer from -840 to 840");
+    error.statusCode = 400;
+    throw error;
+  }
+  return parsed;
+}
+
+function resolveTimeZone(requested) {
+  if (requested == null || requested === "") return null;
+  const parsed = validTimeZone(requested);
+  if (!parsed) {
+    const error = new Error("timeZone must be a valid IANA timezone");
+    error.statusCode = 400;
+    throw error;
+  }
+  return parsed;
 }
 
 /**
@@ -167,7 +286,7 @@ function enumerateBuckets(start, end, granularity, offsetMinutes) {
  * Applications with no activity rows still yield a journey from their current
  * status — we just cannot time it, which is what `dwell: []` means.
  */
-function replayJourney(application, activities) {
+function replayJourney(application, activities, agencyActorIds = null) {
   const createdAt = toDate(application.created_at);
   const currentStage = mapApplicationStatusToCastingStage(application.status);
   const journey = {
@@ -190,7 +309,11 @@ function replayJourney(application, activities) {
   for (const activity of activities) {
     const at = toDate(activity.created_at);
     if (!at) continue;
-    if (!journey.firstTouchAt || at < journey.firstTouchAt) {
+    const isAgencyAction =
+      !agencyActorIds ||
+      agencyActorIds.size === 0 ||
+      (activity.user_id && agencyActorIds.has(activity.user_id));
+    if (isAgencyAction && (!journey.firstTouchAt || at < journey.firstTouchAt)) {
       journey.firstTouchAt = at;
     }
     if (activity.activity_type !== "status_change") continue;
@@ -255,34 +378,109 @@ async function tableExists(knex, name) {
   }
 }
 
+async function columnExists(knex, table, column) {
+  try {
+    return await knex.schema.hasColumn(table, column);
+  } catch {
+    return false;
+  }
+}
+
+function primaryBoardIdByApplication(boardApplications) {
+  const boardIdByApplication = new Map();
+  boardApplications.forEach((link) => {
+    if (!boardIdByApplication.has(link.application_id)) {
+      boardIdByApplication.set(link.application_id, link.board_id);
+    }
+  });
+  return boardIdByApplication;
+}
+
+/**
+ * Mirrors the client signing/package vocabulary. Stored board_type wins;
+ * otherwise a client name or slot target marks the board as a package.
+ * Casting boards (boards.kind !== "division") are never roster divisions.
+ */
+function resolveBoardType(board) {
+  if (!board) return null;
+  if (board.board_type === "division" || board.board_type === "package") {
+    return board.board_type;
+  }
+  if (board.client_name || board.target_slots) return "package";
+  if (board.kind && board.kind !== "division") return "package";
+  return "division";
+}
+
 async function loadRows(knex, agencyId, windowStart) {
+  const [
+    hasApplicationsBoardId,
+    hasBoardKind,
+    hasBoardType,
+  ] = await Promise.all([
+    columnExists(knex, "applications", "board_id"),
+    columnExists(knex, "boards", "kind"),
+    columnExists(knex, "boards", "board_type"),
+  ]);
+  const applicationColumns = [
+    "id",
+    "profile_id",
+    "status",
+    ...(hasApplicationsBoardId ? ["board_id"] : []),
+    "match_score",
+    "created_at",
+    "updated_at",
+    "viewed_at",
+    "accepted_at",
+    "declined_at",
+  ];
+  const boardColumns = [
+    "id",
+    "name",
+    "client_name",
+    "target_slots",
+    "is_active",
+    "closes_at",
+    ...(hasBoardKind ? ["kind"] : []),
+    ...(hasBoardType ? ["board_type"] : []),
+  ];
+  const fitScoreColumns = [
+    "fit_score_runway",
+    "fit_score_editorial",
+    "fit_score_commercial",
+    "fit_score_lifestyle",
+    "fit_score_swim_fitness",
+  ];
+
+  const activityQuery = knex("application_activities")
+    .where({ agency_id: agencyId })
+    .select("application_id", "user_id", "activity_type", "metadata", "created_at")
+    .orderBy("created_at", "asc");
+  if (knex.client.config.client === "sqlite3") {
+    activityQuery.whereRaw("datetime(created_at) >= datetime(?)", [
+      windowStart.toISOString(),
+    ]);
+  } else {
+    activityQuery.where("created_at", ">=", windowStart);
+  }
+
   const [
     applications,
     boards,
     boardApplications,
     activities,
+    lastActivitiesByActor,
     interviews,
     reminders,
     memberships,
     hasRosterTable,
+    hasTalentRecordsTable,
   ] = await Promise.all([
     knex("applications")
       .where({ agency_id: agencyId })
-      .select(
-        "id",
-        "profile_id",
-        "status",
-        "board_id",
-        "match_score",
-        "created_at",
-        "updated_at",
-        "viewed_at",
-        "accepted_at",
-        "declined_at",
-      ),
+      .select(...applicationColumns),
     knex("boards")
       .where({ agency_id: agencyId })
-      .select("id", "name", "client_name", "target_slots", "is_active", "closes_at"),
+      .select(...boardColumns),
     knex("board_applications as ba")
       .join("applications as a", "a.id", "ba.application_id")
       .where("a.agency_id", agencyId)
@@ -291,16 +489,33 @@ async function loadRows(knex, agencyId, windowStart) {
         "ba.application_id",
         "ba.match_score",
       ),
+    activityQuery,
     knex("application_activities")
       .where({ agency_id: agencyId })
-      .select("application_id", "user_id", "activity_type", "metadata", "created_at")
-      .orderBy("created_at", "asc"),
+      .select("application_id", "user_id")
+      .max("created_at as last_created_at")
+      .groupBy("application_id", "user_id"),
     knex("interviews")
       .where({ agency_id: agencyId })
-      .select("status", "interview_type", "proposed_datetime", "responded_at", "created_at"),
+      .select(
+        "application_id",
+        "status",
+        "interview_type",
+        "proposed_datetime",
+        "responded_at",
+        "created_at",
+      ),
     knex("reminders")
       .where({ agency_id: agencyId })
-      .select("status", "priority", "reminder_date", "completed_at", "created_at"),
+      .select(
+        "application_id",
+        "status",
+        "priority",
+        "reminder_date",
+        "snoozed_until",
+        "completed_at",
+        "created_at",
+      ),
     knex("agency_memberships as m")
       .leftJoin("users as u", "u.id", "m.user_id")
       .where("m.agency_id", agencyId)
@@ -313,9 +528,11 @@ async function loadRows(knex, agencyId, windowStart) {
         "u.email",
       ),
     tableExists(knex, "roster_memberships"),
+    tableExists(knex, "talent_records"),
   ]);
 
   let roster = [];
+  let rosterIsDerived = false;
   if (hasRosterTable) {
     roster = await knex("roster_memberships")
       .where({ agency_id: agencyId })
@@ -326,22 +543,22 @@ async function loadRows(knex, agencyId, windowStart) {
         "board_id",
         "stage",
         "status",
+        "source_application_id",
         "joined_at",
         "left_at",
       );
-  }
-
-  // Roster fallback for environments still deriving membership from
-  // applications (pre roster_memberships). Same definition the legacy
-  // analytics endpoint used, so the two never disagree.
-  if (!roster.length) {
+  } else {
+    // Compatibility only for pre-migration environments. An empty first-class
+    // roster is a real empty roster and must never resurrect historical apps.
+    rosterIsDerived = true;
+    const boardIdByApplication = primaryBoardIdByApplication(boardApplications);
     roster = applications
       .filter((a) => REPRESENTED_STATUSES.includes(a.status))
       .map((a) => ({
         id: `derived:${a.id}`,
         profile_id: a.profile_id,
         talent_record_id: null,
-        board_id: a.board_id,
+        board_id: a.board_id ?? boardIdByApplication.get(a.id) ?? null,
         stage: "main",
         status: "active",
         joined_at: a.accepted_at || a.updated_at || a.created_at,
@@ -357,37 +574,67 @@ async function loadRows(knex, agencyId, windowStart) {
     .filter(Boolean);
   const profileIds = [...new Set([...rosterProfileIds, ...applicantProfileIds])];
 
-  const profiles = profileIds.length
-    ? await knex("profiles")
-        .whereIn("id", profileIds)
+  const availableFitScoreColumns = [];
+  for (const column of fitScoreColumns) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await columnExists(knex, "profiles", column)) availableFitScoreColumns.push(column);
+  }
+
+  const profileColumns = [
+    "id",
+    "city",
+    "market",
+    "height_cm",
+    "date_of_birth",
+    "gender",
+    "experience_level",
+    "archetype",
+    ...availableFitScoreColumns,
+  ];
+  const profiles = [];
+  // Stay below SQLite's bind-variable ceiling and avoid enormous PG IN lists.
+  for (let i = 0; i < profileIds.length; i += 500) {
+    // eslint-disable-next-line no-await-in-loop
+    const chunk = await knex("profiles")
+      .whereIn("id", profileIds.slice(i, i + 500))
+      .select(...profileColumns);
+    profiles.push(...chunk);
+  }
+
+  const talentRecordIds = [
+    ...new Set(roster.map((r) => r.talent_record_id).filter(Boolean)),
+  ];
+  const talentRecords = [];
+  if (hasTalentRecordsTable) {
+    for (let i = 0; i < talentRecordIds.length; i += 500) {
+      // eslint-disable-next-line no-await-in-loop
+      const chunk = await knex("talent_records")
+        .where({ agency_id: agencyId })
+        .whereIn("id", talentRecordIds.slice(i, i + 500))
         .select(
           "id",
-          "city",
           "market",
           "height_cm",
           "date_of_birth",
           "gender",
-          "experience_level",
-          "archetype",
-          "fit_score_runway",
-          "fit_score_editorial",
-          "fit_score_commercial",
-          "fit_score_lifestyle",
-          "fit_score_swim_fitness",
-        )
-    : [];
+        );
+      talentRecords.push(...chunk);
+    }
+  }
 
   return {
     applications,
     boards,
     boardApplications,
     activities,
+    lastActivitiesByActor,
     interviews,
     reminders,
     memberships,
     roster,
     profiles,
-    rosterIsDerived: !hasRosterTable,
+    talentRecords,
+    rosterIsDerived,
   };
 }
 
@@ -471,10 +718,10 @@ function buildVolume(journeys, buckets, granularity, offsetMinutes) {
 
 const QUEUE_BUCKETS = [
   { key: "0-2", label: "Under 2 days", min: 0, max: 2 },
-  { key: "3-7", label: "3 – 7 days", min: 2, max: 7 },
-  { key: "8-14", label: "8 – 14 days", min: 7, max: 14 },
-  { key: "15-30", label: "15 – 30 days", min: 14, max: 30 },
-  { key: "30+", label: "Over 30 days", min: 30, max: Infinity },
+  { key: "2-7", label: "2 – 7 days", min: 2, max: 7 },
+  { key: "7-14", label: "7 – 14 days", min: 7, max: 14 },
+  { key: "14-30", label: "14 – 30 days", min: 14, max: 30 },
+  { key: "30+", label: "30 days and over", min: 30, max: Infinity },
 ];
 
 function buildQueue(openJourneys, now) {
@@ -486,7 +733,7 @@ function buildQueue(openJourneys, now) {
   openJourneys.forEach(({ application, journey, lastTouchAt }) => {
     const since = lastTouchAt || toDate(application.created_at);
     if (!since) return;
-    const days = (now.getTime() - since.getTime()) / DAY_MS;
+    const days = Math.max(0, (now.getTime() - since.getTime()) / DAY_MS);
     ages.push(days);
     if (days > oldest) oldest = days;
     const isUnviewed = !application.viewed_at;
@@ -593,7 +840,9 @@ function buildBoardPerformance(boards, journeys, boardsForApplication, roster, n
         id: b.id,
         name: b.name,
         clientName: b.client_name || null,
-        isActive: b.is_active !== false,
+        kind: b.kind || "division",
+        boardType: resolveBoardType(b),
+        isActive: b.is_active == null ? true : dbBoolean(b.is_active),
         targetSlots: b.target_slots ?? null,
         closesAt: b.closes_at || null,
         daysToClose: b.closes_at
@@ -624,29 +873,40 @@ function buildBoardPerformance(boards, journeys, boardsForApplication, roster, n
   return [...stats.values()]
     .map(({ scores, ...row }) => ({
       ...row,
+      filled: row.kind === "casting" ? row.signed : row.filled,
       averageMatch: round(mean(scores), 0),
       scoredSubmissions: scores.length,
       advanceRate: share(row.advanced, row.submissions),
       signRate: share(row.signed, row.submissions),
-      fillRate: row.targetSlots ? share(row.filled, row.targetSlots) : null,
+      fillRate:
+        row.targetSlots
+          ? share(row.kind === "casting" ? row.signed : row.filled, row.targetSlots)
+          : null,
     }))
     .sort((a, b) => b.submissions - a.submissions);
 }
 
-function buildCohorts(journeys, offsetMinutes, monthsBack = 12) {
+function buildCohorts(journeys, zoneOrOffset, now, monthsBack = 12) {
   const index = new Map();
+  const currentMonth = new Date(
+    `${localMonthKey(now, zoneOrOffset)}-01T12:00:00.000Z`,
+  );
+  for (let i = monthsBack - 1; i >= 0; i -= 1) {
+    const anchor = new Date(currentMonth);
+    anchor.setUTCMonth(anchor.getUTCMonth() - i);
+    const key = anchor.toISOString().slice(0, 7);
+    index.set(key, {
+      month: key,
+      size: 0,
+      reached: FORWARD_STAGES.map(() => 0),
+      passed: 0,
+    });
+  }
   journeys.forEach(({ application, journey }) => {
     const createdAt = toDate(application.created_at);
     if (!createdAt) return;
-    const key = localMonthKey(createdAt, offsetMinutes);
-    if (!index.has(key)) {
-      index.set(key, {
-        month: key,
-        size: 0,
-        reached: FORWARD_STAGES.map(() => 0),
-        passed: 0,
-      });
-    }
+    const key = localMonthKey(createdAt, zoneOrOffset);
+    if (!index.has(key)) return;
     const row = index.get(key);
     row.size += 1;
     for (let i = 0; i <= journey.reachedIndex; i += 1) row.reached[i] += 1;
@@ -662,7 +922,7 @@ function buildCohorts(journeys, offsetMinutes, monthsBack = 12) {
       stages: FORWARD_STAGES.map((stage, i) => ({
         stage,
         count: row.reached[i],
-        rate: share(row.reached[i], row.size),
+        rate: row.size ? share(row.reached[i], row.size) : null,
       })),
       passed: row.passed,
     }));
@@ -673,7 +933,7 @@ function buildDesk(context) {
     activities,
     windowStart,
     now,
-    offsetMinutes,
+    timeZone,
     journeysById,
     memberships,
     interviews,
@@ -686,14 +946,17 @@ function buildDesk(context) {
   let punchTotal = 0;
   const inWindow = activities.filter((a) => {
     const at = toDate(a.created_at);
-    return at && at >= windowStart && at <= now;
+    return at && at >= windowStart && at < now;
   });
 
   inWindow.forEach((activity) => {
     const at = toDate(activity.created_at);
-    const shifted = new Date(at.getTime() + offsetMinutes * 60_000);
-    const dow = (shifted.getUTCDay() + 6) % 7; // Monday = 0
-    const hour = shifted.getUTCHours();
+    const parts = localParts(at, timeZone);
+    const localDate = new Date(
+      Date.UTC(parts.year, parts.month - 1, parts.day, 12),
+    );
+    const dow = (localDate.getUTCDay() + 6) % 7; // Monday = 0
+    const hour = parts.hour;
     const key = `${dow}:${hour}`;
     const next = (grid.get(key) || 0) + 1;
     grid.set(key, next);
@@ -710,12 +973,16 @@ function buildDesk(context) {
 
   // --- response latency ----------------------------------------------------
   const latencyHours = [];
-  journeysById.forEach(({ application, journey, createdAt }) => {
-    if (!createdAt || createdAt < windowStart) return;
-    const touch = journey.firstTouchAt || toDate(application.viewed_at);
-    if (!touch) return;
-    const hours = (touch.getTime() - createdAt.getTime()) / HOUR_MS;
-    if (hours >= 0) latencyHours.push(hours);
+  journeysById.forEach((entry) => {
+    if (
+      !entry.createdAt ||
+      entry.createdAt < windowStart ||
+      entry.createdAt >= now
+    ) {
+      return;
+    }
+    const hours = firstResponseHoursForEntry(entry, now);
+    if (hours != null) latencyHours.push(hours);
   });
 
   const LATENCY_BUCKETS = [
@@ -743,7 +1010,7 @@ function buildDesk(context) {
           [m.first_name, m.last_name].filter(Boolean).join(" ") ||
           (m.email ? m.email.split("@")[0] : "Team member"),
         role: m.membership_role || null,
-        active: m.status === "active",
+        active: String(m.status || "").toLowerCase() === "active",
         decisions: 0,
         notes: 0,
         touches: 0,
@@ -771,11 +1038,13 @@ function buildDesk(context) {
   // --- interviews ----------------------------------------------------------
   const windowInterviews = interviews.filter((i) => {
     const at = toDate(i.created_at) || toDate(i.proposed_datetime);
-    return at && at >= windowStart && at <= now;
+    return at && at >= windowStart && at < now;
   });
   const interviewStatus = (status) =>
     windowInterviews.filter((i) => i.status === status).length;
-  const answered = interviewStatus("accepted") + interviewStatus("declined");
+  const answered = windowInterviews.filter((i) => toDate(i.responded_at)).length;
+  const recordedOutcomes =
+    interviewStatus("accepted") + interviewStatus("declined");
   const typeIndex = new Map();
   windowInterviews.forEach((i) => {
     const key = i.interview_type || "unspecified";
@@ -791,17 +1060,22 @@ function buildDesk(context) {
     .filter((v) => v != null && v >= 0);
 
   // --- reminders -----------------------------------------------------------
-  const openReminders = reminders.filter((r) => r.status === "pending");
+  const openReminders = reminders.filter((r) =>
+    ["pending", "snoozed"].includes(r.status),
+  );
   const overdue = openReminders.filter((r) => {
-    const due = toDate(r.reminder_date);
+    const due =
+      r.status === "snoozed"
+        ? toDate(r.snoozed_until) || toDate(r.reminder_date)
+        : toDate(r.reminder_date);
     return due && due < now;
   });
   const completedInWindow = reminders.filter((r) => {
     const at = toDate(r.completed_at);
-    return r.status === "completed" && at && at >= windowStart;
+    return r.status === "completed" && at && at >= windowStart && at < now;
   });
   const onTime = completedInWindow.filter((r) => {
-    const due = toDate(r.reminder_date);
+    const due = toDate(r.snoozed_until) || toDate(r.reminder_date);
     const done = toDate(r.completed_at);
     return due && done && done <= due;
   });
@@ -825,7 +1099,11 @@ function buildDesk(context) {
       declined: interviewStatus("declined"),
       completed: interviewStatus("completed"),
       cancelled: interviewStatus("cancelled"),
-      acceptRate: answered ? share(interviewStatus("accepted"), answered) : null,
+      rescheduled: interviewStatus("rescheduled"),
+      acceptRate: recordedOutcomes
+        ? share(interviewStatus("accepted"), recordedOutcomes)
+        : null,
+      responseOutcomeSample: recordedOutcomes,
       answered,
       medianLeadDays: round(median(leadDays)),
       byType: [...typeIndex.entries()]
@@ -886,9 +1164,18 @@ function binCounts(bins, values) {
 }
 
 function buildRoster(context) {
-  const { roster, profiles, boards, now, offsetMinutes, pipelineProfileIds } = context;
+  const {
+    roster,
+    profiles,
+    talentRecords,
+    boards,
+    now,
+    timeZone,
+    pipelineProfileIds,
+  } = context;
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
+  const talentRecordById = new Map((talentRecords || []).map((r) => [r.id, r]));
   const boardById = new Map(boards.map((b) => [b.id, b]));
   const active = roster.filter((r) => r.status === "active");
 
@@ -897,7 +1184,7 @@ function buildRoster(context) {
   for (let i = 11; i >= 0; i -= 1) {
     const anchor = new Date(now.getTime());
     anchor.setUTCMonth(anchor.getUTCMonth() - i, 1);
-    months.push(localMonthKey(anchor, offsetMinutes));
+    months.push(localMonthKey(anchor, timeZone));
   }
   const growth = months.map((month) => ({ month, joined: 0, left: 0, total: 0 }));
   const growthIndex = new Map(growth.map((row) => [row.month, row]));
@@ -905,24 +1192,22 @@ function buildRoster(context) {
   roster.forEach((r) => {
     const joined = toDate(r.joined_at);
     if (joined) {
-      const row = growthIndex.get(localMonthKey(joined, offsetMinutes));
+      const row = growthIndex.get(localMonthKey(joined, timeZone));
       if (row) row.joined += 1;
     }
     const left = toDate(r.left_at);
     if (left) {
-      const row = growthIndex.get(localMonthKey(left, offsetMinutes));
+      const row = growthIndex.get(localMonthKey(left, timeZone));
       if (row) row.left += 1;
     }
   });
 
   growth.forEach((row) => {
-    const monthEnd = new Date(`${row.month}-01T00:00:00.000Z`);
-    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
     row.total = roster.filter((r) => {
       const joined = toDate(r.joined_at);
       const left = toDate(r.left_at);
-      if (!joined || joined >= monthEnd) return false;
-      return !left || left >= monthEnd;
+      if (!joined || localMonthKey(joined, timeZone) > row.month) return false;
+      return !left || localMonthKey(left, timeZone) > row.month;
     }).length;
     row.net = row.joined - row.left;
   });
@@ -936,22 +1221,30 @@ function buildRoster(context) {
   const rosterAges = [];
   const tenureMonths = [];
   const fitTotals = FIT_AXES.map(() => []);
+  let outsideDivisions = 0;
 
   active.forEach((r) => {
     const stage = r.stage || "main";
     stageIndex.set(stage, (stageIndex.get(stage) || 0) + 1);
 
-    const boardName = r.board_id ? boardById.get(r.board_id)?.name : null;
-    const boardKey = boardName || "Unassigned";
-    boardMix.set(boardKey, (boardMix.get(boardKey) || 0) + 1);
+    const board = r.board_id ? boardById.get(r.board_id) : null;
+    if (board && resolveBoardType(board) === "division") {
+      boardMix.set(board.name, (boardMix.get(board.name) || 0) + 1);
+    } else {
+      outsideDivisions += 1;
+    }
 
     const joined = toDate(r.joined_at);
     if (joined) tenureMonths.push((now.getTime() - joined.getTime()) / (30.44 * DAY_MS));
 
-    const profile = r.profile_id ? profileById.get(r.profile_id) : null;
+    const profile = r.profile_id
+      ? profileById.get(r.profile_id)
+      : talentRecordById.get(r.talent_record_id);
     if (!profile) return;
 
-    const market = profile.market || profile.city;
+    const market = profile.market
+      ? String(profile.market).trim().toLowerCase()
+      : null;
     if (market) marketIndex.set(market, (marketIndex.get(market) || 0) + 1);
     if (profile.experience_level) {
       experienceIndex.set(
@@ -998,6 +1291,13 @@ function buildRoster(context) {
   ];
 
   const rosterSize = active.length;
+  const fitSamples = fitTotals.map((values) => values.length);
+  const sensitiveSuppressed =
+    (rosterSize < 5 && rosterAges.some((age) => age < 18)) ||
+    (pipelineProfileIds.size < 5 && pipelineAges.some((age) => age < 18));
+  const marketRows = [...marketIndex.entries()]
+    .map(([market, count]) => ({ market, count, share: share(count, rosterSize) }))
+    .sort((a, b) => b.count - a.count);
 
   return {
     size: rosterSize,
@@ -1010,38 +1310,47 @@ function buildRoster(context) {
     boardMix: [...boardMix.entries()]
       .map(([board, count]) => ({ board, count, share: share(count, rosterSize) }))
       .sort((a, b) => b.count - a.count),
-    markets: [...marketIndex.entries()]
-      .map(([market, count]) => ({ market, count, share: share(count, rosterSize) }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10),
+    outsideDivisions,
+    markets: marketRows.slice(0, 10),
+    marketCount: marketRows.length,
     experience: [...experienceIndex.entries()]
       .map(([level, count]) => ({ level, count }))
       .sort((a, b) => b.count - a.count),
     tenure: binCounts(TENURE_BINS, tenureMonths).map(({ lo, hi, ...rest }) => rest),
-    heights: HEIGHT_BINS.map(({ lo, hi, ...bin }, i) => ({
-      ...bin,
-      roster: rosterHeightBins[i].count,
-      pipeline: pipelineHeightBins[i].count,
-    })),
-    ages: AGE_BINS.map(({ lo, hi, ...bin }, i) => ({
-      ...bin,
-      roster: rosterAgeBins[i].count,
-      pipeline: pipelineAgeBins[i].count,
-    })),
-    fit: FIT_AXES.map((axis, i) => ({
-      axis: axis.label,
-      roster: round(mean(fitTotals[i]), 0),
-      pipeline: round(mean(pipelineFit[i]), 0),
-      rosterSample: fitTotals[i].length,
-      pipelineSample: pipelineFit[i].length,
-    })),
+    heights: sensitiveSuppressed
+      ? []
+      : HEIGHT_BINS.map(({ lo, hi, ...bin }, i) => ({
+          ...bin,
+          roster: rosterHeightBins[i].count,
+          pipeline: pipelineHeightBins[i].count,
+        })),
+    ages: sensitiveSuppressed
+      ? []
+      : AGE_BINS.map(({ lo, hi, ...bin }, i) => ({
+          ...bin,
+          roster: rosterAgeBins[i].count,
+          pipeline: pipelineAgeBins[i].count,
+        })),
+    fit: sensitiveSuppressed
+      ? []
+      : FIT_AXES.map((axis, i) => ({
+          axis: axis.label,
+          roster: round(mean(fitTotals[i]), 0),
+          pipeline: round(mean(pipelineFit[i]), 0),
+          rosterSample: fitTotals[i].length,
+          pipelineSample: pipelineFit[i].length,
+        })),
     coverage: {
-      heights: rosterHeights.length,
-      ages: rosterAges.length,
+      sensitiveSuppressed,
+      heights: sensitiveSuppressed ? 0 : rosterHeights.length,
+      ages: sensitiveSuppressed ? 0 : rosterAges.length,
       markets: [...marketIndex.values()].reduce((sum, v) => sum + v, 0),
-      fit: fitTotals[0].length,
-      pipelineHeights: pipelineHeights.length,
-      pipelineFit: pipelineFit[0].length,
+      fitMin:
+        sensitiveSuppressed || !fitSamples.length ? 0 : Math.min(...fitSamples),
+      fitMax:
+        sensitiveSuppressed || !fitSamples.length ? 0 : Math.max(...fitSamples),
+      pipelineHeights: sensitiveSuppressed ? 0 : pipelineHeights.length,
+      pipelineFit: sensitiveSuppressed ? 0 : pipelineFit[0].length,
       pipelineSize: pipelineProfileIds.size,
     },
   };
@@ -1059,7 +1368,10 @@ function buildSignals(current, previous, slices) {
       value != null && previousValue ? share(value - previousValue, previousValue) : null,
     // The tile's spark is the same metric measured over equal slices of the
     // window — a real sub-series, not a decorative squiggle.
-    series: slices.map((slice) => slice[options.metric || key] ?? null),
+    series:
+      options.comparable === false
+        ? []
+        : slices.map((slice) => slice[options.metric || key] ?? null),
     ...options,
   });
 
@@ -1072,6 +1384,7 @@ function buildSignals(current, previous, slices) {
       unit: "percent",
       goodDirection: "up",
       note: "Share of submissions that moved past Applied",
+      comparable: false,
     }),
     signal("signed", "Signed", current.signed, previous.signed, {
       unit: "count",
@@ -1105,6 +1418,7 @@ function buildSignals(current, previous, slices) {
       unit: "count",
       goodDirection: "neutral",
       metric: "open",
+      comparable: false,
     }),
   ];
 }
@@ -1135,12 +1449,7 @@ function windowSummary(journeys, windowStart, windowEnd) {
       journey.signedAt && journey.signedAt >= windowStart && journey.signedAt < windowEnd,
   );
   const firstResponse = inWindow
-    .map(({ application, journey, createdAt }) => {
-      const touch = journey.firstTouchAt || toDate(application.viewed_at);
-      if (!touch || !createdAt) return null;
-      const hours = (touch.getTime() - createdAt.getTime()) / HOUR_MS;
-      return hours >= 0 ? hours : null;
-    })
+    .map((entry) => firstResponseHoursForEntry(entry, windowEnd))
     .filter((v) => v != null);
   const timeToSign = signedJourneys
     .map(({ journey, createdAt }) =>
@@ -1154,9 +1463,8 @@ function windowSummary(journeys, windowStart, windowEnd) {
     submissions,
     advanceRate: share(advanced, submissions),
     signed: signedJourneys.length,
-    open: inWindow.filter(
-      ({ journey }) =>
-        journey.currentStage !== EXIT_STAGE && journey.reachedIndex < 3,
+    open: inWindow.filter(({ application }) =>
+      LIVE_QUEUE_STATUSES.has(application.status),
     ).length,
     firstResponseHours: round(median(firstResponse)),
     firstResponseSample: firstResponse.length,
@@ -1177,6 +1485,8 @@ function windowSummary(journeys, windowStart, windowEnd) {
  * @param {string|null} [options.boardId] scope every section to one board
  * @param {number} [options.tzOffsetMinutes] viewer offset, so day/hour buckets
  *   line up with the desk's own calendar rather than UTC
+ * @param {string} [options.timeZone] viewer IANA timezone; preferred over the
+ *   fixed offset because historical daylight-saving rules vary by timestamp
  * @param {Date} [options.now] injectable clock for tests
  */
 async function buildSeasonAnalytics(knex, options) {
@@ -1185,15 +1495,24 @@ async function buildSeasonAnalytics(knex, options) {
     range,
     boardId = null,
     tzOffsetMinutes = 0,
+    timeZone = null,
     now = new Date(),
   } = options;
 
   const rangeDays = resolveRange(range);
-  const offsetMinutes = Math.max(-840, Math.min(840, Number(tzOffsetMinutes) || 0));
+  const offsetMinutes = resolveTimezoneOffset(tzOffsetMinutes);
+  const resolvedTimeZone = resolveTimeZone(timeZone);
+  const timeContext = resolvedTimeZone || offsetMinutes;
   const windowStart = new Date(now.getTime() - rangeDays * DAY_MS);
   const previousStart = new Date(now.getTime() - 2 * rangeDays * DAY_MS);
+  const cohortStart = new Date(now.getTime());
+  cohortStart.setUTCMonth(cohortStart.getUTCMonth() - 11, 1);
+  cohortStart.setUTCHours(0, 0, 0, 0);
+  const dataStart = new Date(
+    Math.min(previousStart.getTime(), cohortStart.getTime()),
+  );
 
-  const rows = await loadRows(knex, agencyId, previousStart);
+  const rows = await loadRows(knex, agencyId, dataStart);
 
   // --- board scoping -------------------------------------------------------
   const boardLinks = new Map();
@@ -1218,7 +1537,20 @@ async function buildSeasonAnalytics(knex, options) {
     }
     return [];
   };
+  const activeBoardId =
+    boardId && rows.boards.some((b) => b.id === boardId) ? boardId : null;
+  if (boardId && !activeBoardId) {
+    const error = new Error("board does not belong to this agency");
+    error.statusCode = 400;
+    throw error;
+  }
   const scoreForApplication = (application) => {
+    if (activeBoardId) {
+      const selected = boardsForApplication(application).find(
+        (link) => link.boardId === activeBoardId,
+      );
+      return selected?.score == null ? null : Number(selected.score);
+    }
     if (application.match_score != null) return Number(application.match_score);
     const scores = boardsForApplication(application)
       .map((l) => l.score)
@@ -1226,14 +1558,23 @@ async function buildSeasonAnalytics(knex, options) {
     return scores.length ? Math.max(...scores) : null;
   };
 
-  const activeBoardId =
-    boardId && rows.boards.some((b) => b.id === boardId) ? boardId : null;
-
+  // Withdrawn submissions are no longer agency work and may be withdrawn as
+  // part of a minor-access revocation. They must not reappear in aggregates.
+  const reportableApplications = rows.applications.filter(
+    (application) => {
+      const createdAt = toDate(application.created_at);
+      return (
+        application.status !== "withdrawn" &&
+        createdAt &&
+        createdAt < now
+      );
+    },
+  );
   const scopedApplications = activeBoardId
-    ? rows.applications.filter((a) =>
+    ? reportableApplications.filter((a) =>
         boardsForApplication(a).some((l) => l.boardId === activeBoardId),
       )
-    : rows.applications;
+    : reportableApplications;
 
   // --- journeys ------------------------------------------------------------
   const activitiesByApplication = new Map();
@@ -1244,42 +1585,79 @@ async function buildSeasonAnalytics(knex, options) {
     activitiesByApplication.get(activity.application_id).push(activity);
   });
 
+  const agencyActorIds = new Set(
+    rows.memberships
+      .filter((membership) =>
+        ["active"].includes(String(membership.status || "").toLowerCase()),
+      )
+      .map((membership) => membership.user_id)
+      .filter(Boolean),
+  );
+  // Legacy single-user agencies may not have membership rows; their agency
+  // account id is still the only valid agency actor. Never treat an empty
+  // membership table as permission to count talent-originated activity.
+  if (agencyActorIds.size === 0) agencyActorIds.add(agencyId);
+  const lastAgencyActivityByApplication = new Map();
+  rows.lastActivitiesByActor.forEach((activity) => {
+    if (
+      agencyActorIds.size > 0 &&
+      (!activity.user_id || !agencyActorIds.has(activity.user_id))
+    ) {
+      return;
+    }
+    const at = toDate(activity.last_created_at);
+    if (!at) return;
+    const previous = lastAgencyActivityByApplication.get(activity.application_id);
+    if (!previous || at > previous) {
+      lastAgencyActivityByApplication.set(activity.application_id, at);
+    }
+  });
+
   const allJourneys = scopedApplications.map((application) => ({
     application,
     createdAt: toDate(application.created_at),
     journey: replayJourney(
       application,
       activitiesByApplication.get(application.id) || [],
+      agencyActorIds,
     ),
-    lastTouchAt: (() => {
-      const list = activitiesByApplication.get(application.id);
-      if (!list || !list.length) return null;
-      return toDate(list[list.length - 1].created_at);
-    })(),
+    lastTouchAt: latestDate(
+      lastAgencyActivityByApplication.get(application.id),
+      application.viewed_at,
+    ),
   }));
 
   const windowJourneys = allJourneys.filter(
-    ({ createdAt }) => createdAt && createdAt >= windowStart,
+    ({ createdAt }) => createdAt && createdAt >= windowStart && createdAt < now,
   );
 
   // Open work is a live queue — it is never bounded by the reporting window,
   // because a submission that has sat untouched for 200 days is exactly the
   // one a booker needs to see.
   const openJourneys = allJourneys.filter(
-    ({ journey }) => journey.currentStage !== EXIT_STAGE && journey.reachedIndex < 3,
+    ({ application }) => LIVE_QUEUE_STATUSES.has(application.status),
   );
 
   const buckets = enumerateBuckets(
     windowStart,
     now,
     resolveGranularity(rangeDays),
-    offsetMinutes,
+    timeContext,
   );
 
   const scopedActivityIds = new Set(scopedApplications.map((a) => a.id));
   const scopedActivities = activeBoardId
     ? rows.activities.filter((a) => scopedActivityIds.has(a.application_id))
     : rows.activities;
+  const deskActivities = scopedActivities.filter(
+    (activity) => activity.user_id && agencyActorIds.has(activity.user_id),
+  );
+  const scopedInterviews = activeBoardId
+    ? rows.interviews.filter((row) => scopedActivityIds.has(row.application_id))
+    : rows.interviews;
+  const scopedReminders = activeBoardId
+    ? rows.reminders.filter((row) => scopedActivityIds.has(row.application_id))
+    : rows.reminders;
 
   const pipelineProfileIds = new Set(
     windowJourneys.map(({ application }) => application.profile_id).filter(Boolean),
@@ -1301,13 +1679,16 @@ async function buildSeasonAnalytics(knex, options) {
       windowEnd: now.toISOString(),
       generatedAt: now.toISOString(),
       tzOffsetMinutes: offsetMinutes,
+      timeZone: resolvedTimeZone,
       boardId: activeBoardId,
       boards: rows.boards
         .map((b) => ({
           id: b.id,
           name: b.name,
           clientName: b.client_name || null,
-          isActive: b.is_active !== false,
+          kind: b.kind || "division",
+          boardType: resolveBoardType(b),
+          isActive: b.is_active == null ? true : dbBoolean(b.is_active),
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
       stages: FORWARD_STAGES,
@@ -1324,7 +1705,7 @@ async function buildSeasonAnalytics(knex, options) {
       windowJourneys,
       buckets,
       resolveGranularity(rangeDays),
-      offsetMinutes,
+      timeContext,
     ),
     queue: buildQueue(openJourneys, now),
     calibration: buildCalibration(windowJourneys, scoreForApplication),
@@ -1338,31 +1719,35 @@ async function buildSeasonAnalytics(knex, options) {
       now,
     ),
     cohorts: buildCohorts(
-      allJourneys.filter(({ createdAt }) => createdAt && createdAt >= previousStart),
-      offsetMinutes,
+      allJourneys.filter(
+        ({ createdAt }) =>
+          createdAt && createdAt >= cohortStart && createdAt < now,
+      ),
+      timeContext,
+      now,
     ),
     desk: buildDesk({
-      activities: scopedActivities,
+      activities: deskActivities,
       windowStart,
       now,
-      offsetMinutes,
+      timeZone: timeContext,
       journeysById: allJourneys,
       memberships: rows.memberships,
-      interviews: rows.interviews,
-      reminders: rows.reminders,
+      interviews: scopedInterviews,
+      reminders: scopedReminders,
     }),
     roster: buildRoster({
       roster: scopedRoster,
       profiles: rows.profiles,
+      talentRecords: rows.talentRecords,
       boards: rows.boards,
       now,
-      offsetMinutes,
+      timeZone: timeContext,
       pipelineProfileIds,
     }),
     totals: {
       allTimeSubmissions: scopedApplications.length,
       windowSubmissions: windowJourneys.length,
-      activitiesObserved: scopedActivities.length,
       scoredSubmissions: windowJourneys.filter(
         ({ application }) => scoreForApplication(application) != null,
       ).length,
@@ -1382,4 +1767,5 @@ module.exports = {
   buildCalibration,
   resolveGranularity,
   enumerateBuckets,
+  resolveBoardType,
 };

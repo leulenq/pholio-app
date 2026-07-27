@@ -6,7 +6,7 @@ import { useTooltip } from './useTooltip';
 import { TipRows } from './Tooltip';
 
 /**
- * Twelve months of roster movement, as polarity around a zero line: signings
+ * Twelve months of roster movement, as polarity around a zero line: additions
  * above, departures below, on the validated diverging pair with a neutral
  * baseline between them.
  *
@@ -54,7 +54,7 @@ export function RosterFlow({ growth }) {
       <TipRows
         title={formatMonth(month.month)}
         rows={[
-          { label: 'Signed', value: month.joined, color: VIZ.series[0] },
+          { label: 'Joined', value: month.joined, color: VIZ.series[0] },
           { label: 'Left', value: month.left, color: VIZ.series[1] },
           { label: 'Net', value: month.net > 0 ? `+${month.net}` : month.net },
           { label: 'On the roster', value: month.total },
@@ -70,7 +70,7 @@ export function RosterFlow({ growth }) {
         height={FLOW_H + TRAIL_H}
         role="img"
         aria-label={`Roster movement by month: ${months
-          .map((m) => `${formatMonth(m.month)} signed ${m.joined}, left ${m.left}, total ${m.total}`)
+          .map((m) => `${formatMonth(m.month)} joined ${m.joined}, left ${m.left}, total ${m.total}`)
           .join('; ')}`}
       >
         {months.map((month, i) => (

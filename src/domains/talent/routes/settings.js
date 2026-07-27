@@ -32,9 +32,14 @@ const {
 const { v4: uuidv4 } = require("uuid");
 const {
   minorPublicExposureAllowed,
-  canCollectSensitiveProfileFields,
   isSensitiveImageShotType,
+  hasRecordedDateOfBirth,
+  isMinorProfile,
 } = require("../../../shared/lib/talent-age");
+const {
+  purgeProfileEmbeddingDerivatives,
+  purgeImageEmbeddingDerivatives,
+} = require("../../ai/embeddings");
 
 const DEFAULT_NOTIFICATIONS = {
   emailFrequency: "immediate",
@@ -87,6 +92,118 @@ function jsonForDb(value) {
 
 function cleanBoolean(value, fallback = false) {
   return value === undefined ? fallback : !!value;
+}
+
+function hasExplicitConsent(value) {
+  // PostgreSQL returns booleans while SQLite commonly returns 0/1.
+  return value === true || value === 1;
+}
+
+function isExplicitAdultAiEligible(profile) {
+  return hasRecordedDateOfBirth(profile) && !isMinorProfile(profile);
+}
+
+async function hasColumn(db, table, column) {
+  try {
+    return await db.schema.hasColumn(table, column);
+  } catch {
+    return false;
+  }
+}
+
+async function hasTable(db, table) {
+  try {
+    return await db.schema.hasTable(table);
+  } catch {
+    return false;
+  }
+}
+
+function removeImageMetadataDerivatives(rawMetadata) {
+  const metadata = parseJson(rawMetadata, {});
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return { changed: false, metadata: rawMetadata };
+  }
+  const next = { ...metadata };
+  const hadAi = Object.hasOwn(next, "ai");
+  const hadMatte = Object.hasOwn(next, "matte");
+  delete next.ai;
+  delete next.matte;
+  return {
+    changed: hadAi || hadMatte,
+    metadata: JSON.stringify(next),
+  };
+}
+
+/**
+ * Clear Pholio-held results derived from image processing. This is local
+ * cleanup only; it intentionally makes no assertion about a provider's own
+ * retention or deletion controls.
+ */
+async function purgeLocalImageDerivatives(db, profileId) {
+  const profileColumns = [
+    "image_analysis",
+    "image_analyzed_at",
+    "image_analysis_model",
+    "look_descriptor",
+    "look_descriptor_generated_at",
+    "archetype",
+    "fit_score_runway",
+    "fit_score_editorial",
+    "fit_score_commercial",
+    "fit_score_lifestyle",
+    "fit_score_swim_fitness",
+    "fit_score_overall",
+    "fit_scores_calculated_at",
+  ];
+
+  const profileUpdate = {};
+  for (const column of profileColumns) {
+    if (await hasColumn(db, "profiles", column)) profileUpdate[column] = null;
+  }
+  if (Object.keys(profileUpdate).length) {
+    profileUpdate.updated_at = db.fn.now();
+    await db("profiles").where({ id: profileId }).update(profileUpdate);
+  }
+
+  if (await hasTable(db, "images")) {
+    const images = await db("images")
+      .where({ profile_id: profileId })
+      .select("id", "metadata");
+    for (const image of images) {
+      const next = removeImageMetadataDerivatives(image.metadata);
+      if (next.changed) {
+        await db("images").where({ id: image.id }).update({ metadata: next.metadata });
+      }
+    }
+  }
+
+  // Onboarding rows are another local location for model-generated analysis.
+  if (await hasTable(db, "onboarding_signals")) {
+    const columns = [
+      "ai_results",
+      "archetype_runway_pct",
+      "archetype_editorial_pct",
+      "archetype_lifestyle_pct",
+      "archetype_commercial_pct",
+      "archetype_label",
+      "casting_verdict",
+    ];
+    const update = {};
+    for (const column of columns) {
+      if (await hasColumn(db, "onboarding_signals", column)) update[column] = null;
+    }
+    if (Object.keys(update).length) {
+      await db("onboarding_signals").where({ profile_id: profileId }).update(update);
+    }
+  }
+
+  if (
+    (await hasTable(db, "ai_profile_analysis")) &&
+    (await hasColumn(db, "ai_profile_analysis", "profile_id"))
+  ) {
+    await db("ai_profile_analysis").where({ profile_id: profileId }).del();
+  }
 }
 
 function cleanStringArray(value, max = 25) {
@@ -313,6 +430,11 @@ async function buildSettingsPayload(userId, currentSid = null) {
     ...DEFAULT_COOKIES,
     ...parseJson(settingsRow?.cookie_preferences, {}),
   });
+  const [hasImageConsentColumn, hasEmbeddingConsentColumn] = await Promise.all([
+    hasColumn(knex, "profiles", "ai_processing_consent"),
+    hasColumn(knex, "profiles", "embedding_processing_consent"),
+  ]);
+  const adultEligible = isExplicitAdultAiEligible(profile);
 
   return {
     slug: profile?.slug || null,
@@ -323,6 +445,19 @@ async function buildSettingsPayload(userId, currentSid = null) {
     showContact: privacy.showContact,
     blockedAgencies: privacy.blockedAgencies,
     cookies,
+    ai: {
+      imageProcessing: hasImageConsentColumn
+        ? hasExplicitConsent(profile?.ai_processing_consent)
+        : false,
+      profileEmbedding: hasEmbeddingConsentColumn
+        ? hasExplicitConsent(profile?.embedding_processing_consent)
+        : false,
+      canEnable: adultEligible && hasImageConsentColumn && hasEmbeddingConsentColumn,
+      imageProcessingAvailable:
+        process.env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true",
+      profileEmbeddingAvailable:
+        process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS === "true",
+    },
     data: {
       exportRequestedAt: formatDate(settingsRow?.data_export_requested_at),
       erasureRequestedAt: formatDate(settingsRow?.data_erasure_requested_at),
@@ -400,6 +535,8 @@ router.put(
       notifications,
       display,
       cookies,
+      aiProcessingConsent,
+      embeddingProcessingConsent,
     } = req.body || {};
 
     const profile = await knex("profiles").where({ user_id: userId }).first();
@@ -407,7 +544,50 @@ router.put(
       return apiResponse.notFound(res, "Profile not found");
     }
 
+    const requestedAiConsents = [
+      aiProcessingConsent,
+      embeddingProcessingConsent,
+    ].filter((value) => value !== undefined);
+    if (requestedAiConsents.some((value) => typeof value !== "boolean")) {
+      return apiResponse.error(
+        res,
+        "AI processing preferences must be true or false.",
+        400,
+      );
+    }
+    if (
+      requestedAiConsents.some((value) => value === true) &&
+      !isExplicitAdultAiEligible(profile)
+    ) {
+      return apiResponse.error(
+        res,
+        "Image analysis and profile indexing are available only to adults with a valid date of birth on file.",
+        403,
+      );
+    }
+    if (requestedAiConsents.length) {
+      const [hasImageConsentColumn, hasEmbeddingConsentColumn] =
+        await Promise.all([
+          hasColumn(knex, "profiles", "ai_processing_consent"),
+          hasColumn(knex, "profiles", "embedding_processing_consent"),
+        ]);
+      if (!hasImageConsentColumn || !hasEmbeddingConsentColumn) {
+        return apiResponse.error(
+          res,
+          "AI processing settings are not available until the current database migration is applied.",
+          503,
+        );
+      }
+    }
+
     const profileUpdate = { updated_at: knex.fn.now() };
+
+    if (aiProcessingConsent !== undefined) {
+      profileUpdate.ai_processing_consent = aiProcessingConsent;
+    }
+    if (embeddingProcessingConsent !== undefined) {
+      profileUpdate.embedding_processing_consent = embeddingProcessingConsent;
+    }
 
     if (slug !== undefined) {
       const cleanSlug = String(slug)
@@ -439,6 +619,17 @@ router.put(
 
     if (Object.keys(profileUpdate).length > 1) {
       await knex("profiles").where({ id: profile.id }).update(profileUpdate);
+    }
+
+    // A withdrawal removes Pholio's own derived copies synchronously before we
+    // report the saved preference. Provider deletion is deliberately not
+    // claimed here; that requires the vendor/account deletion workflow.
+    if (aiProcessingConsent === false) {
+      await purgeLocalImageDerivatives(knex, profile.id);
+      await purgeImageEmbeddingDerivatives(knex, profile.id);
+    }
+    if (embeddingProcessingConsent === false) {
+      await purgeProfileEmbeddingDerivatives(knex, profile.id);
     }
 
     const row = await ensureSettingsRow(userId);
@@ -663,3 +854,9 @@ router.delete(
 );
 
 module.exports = router;
+module.exports.__testables = {
+  hasExplicitConsent,
+  isExplicitAdultAiEligible,
+  removeImageMetadataDerivatives,
+  purgeLocalImageDerivatives,
+};

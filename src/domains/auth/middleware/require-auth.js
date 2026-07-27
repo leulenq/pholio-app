@@ -323,15 +323,9 @@ function requireActiveAccount() {
         .first();
 
       for (let attempt = 0; !user && attempt < RETRY_DELAYS_MS.length; attempt++) {
-        console.warn(
-          "[requireActiveAccount] users row not found — retrying before treating as deleted:",
-          {
-            userId: accountUserId,
-            path: req.originalUrl || req.path,
-            attempt: attempt + 1,
-            delayMs: RETRY_DELAYS_MS[attempt],
-          },
-        );
+        console.warn("[requireActiveAccount] User lookup retrying", {
+          attempt: attempt + 1,
+        });
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
         user = await knex("users")
           .where({ id: accountUserId })
@@ -341,8 +335,7 @@ function requireActiveAccount() {
 
       if (!user) {
         console.warn(
-          "[requireActiveAccount] users row still not found after all retries — destroying session:",
-          { userId: accountUserId, path: req.originalUrl || req.path },
+          "[requireActiveAccount] User lookup failed after retries; destroying session",
         );
         return req.session.destroy((destroyErr) => {
           if (destroyErr) return next(destroyErr);
@@ -367,6 +360,60 @@ function requireActiveAccount() {
       }
 
       return res.status(403).render("errors/403", { title: "Account restricted" });
+    } catch (error) {
+      return next(error);
+    }
+  };
+}
+
+/**
+ * A talent session is useful during onboarding (including email verification),
+ * but it is not dashboard authorization. The full talent surface requires a
+ * server-recorded verified email and a completed profile; login intentionally
+ * does not manufacture either state.
+ */
+function requireTalentDashboardEligibility() {
+  return async (req, res, next) => {
+    if (
+      !req.session?.userId ||
+      req.session.role !== "TALENT"
+    ) {
+      return next();
+    }
+
+    try {
+      const user = await knex("users")
+        .where({ id: req.session.userId })
+        .select("email_verified")
+        .first();
+      const profile = await knex("profiles")
+        .where({ user_id: req.session.userId })
+        .select("onboarding_completed_at")
+        .first();
+
+      const verificationRequired = !Boolean(user?.email_verified);
+      const onboardingRequired = !profile?.onboarding_completed_at;
+      if (!verificationRequired && !onboardingRequired) {
+        return next();
+      }
+
+      const redirect = verificationRequired
+        ? "/onboarding?verification=required"
+        : "/onboarding";
+      if (isApiRequest(req)) {
+        return res.status(403).json({
+          success: false,
+          error: verificationRequired
+            ? "EMAIL_VERIFICATION_REQUIRED"
+            : "ONBOARDING_REQUIRED",
+          message: verificationRequired
+            ? "Verify your email address before accessing the talent dashboard."
+            : "Finish onboarding before accessing the talent dashboard.",
+          redirect,
+        });
+      }
+
+      return res.redirect(redirect);
     } catch (error) {
       return next(error);
     }
@@ -462,4 +509,5 @@ module.exports = {
   requireAgencyPermission,
   enforceAgencyRoutePermissions,
   requireActiveAccount,
+  requireTalentDashboardEligibility,
 };

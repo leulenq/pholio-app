@@ -21,8 +21,18 @@ const {
 } = require("./shared/middleware/ai-writer-rate-limit");
 const cookieParser = require("cookie-parser");
 const { baseCookieOptions } = require("./shared/lib/cookie-domain");
+const {
+  credentialedCorsOrigins,
+  sessionMutationOrigins,
+  sessionCookieScope,
+  legacySharedSessionCookieOptions,
+  requireSessionMutationClientIntent,
+} = require("./shared/lib/production-boundaries");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
-const { requireActiveAccount } = require("./domains/auth/middleware/require-auth");
+const {
+  requireActiveAccount,
+  requireTalentDashboardEligibility,
+} = require("./domains/auth/middleware/require-auth");
 
 // +++ 1. ADD THIS LINE +++
 const ejs = require("ejs");
@@ -53,20 +63,9 @@ const app = express();
 
 const cors = require("cors");
 
-// Determine allowed origins based on environment
-const allowedOrigins = [
-  "http://localhost:5173", // Vite dev server (React SPA)
-  "http://localhost:3001", // Next.js dev server (Landing page)
-  "http://localhost:3002", // Next.js dev fallback
-];
-
-// Add production origins if in production
-if (process.env.NODE_ENV === "production") {
-  allowedOrigins.push(
-    "https://www.pholio.studio", // Marketing site (Next.js)
-    "https://app.pholio.studio", // App site (this server)
-  );
-}
+// Production credentials are app-only. `www` is a separate marketing origin
+// and must not be able to make credentialed requests to app.pholio.studio.
+const allowedOrigins = credentialedCorsOrigins();
 
 app.use(
   cors({
@@ -329,19 +328,15 @@ const sessionStoreConfig = {
   // Test suites own their schema lifecycle. Disabling the store's background
   // create avoids racing migrations and teardown on short-lived SQLite files.
   createtable: process.env.NODE_ENV !== "test",
+  // connect-session-knex ignores the old `cleanupInterval` spelling. Its
+  // supported switch is disableDbCleanup; a timer that survives a serverless
+  // invocation can attempt a database write after the connection is gone.
+  disableDbCleanup: config.isServerless || process.env.NODE_ENV === "test",
 };
 
-// In serverless environments, disable automatic cleanup to prevent connection errors
-// Automatic cleanup runs on a timer and can execute after connections are closed
-// In serverless, functions are short-lived and connections can terminate unexpectedly
-if (config.isServerless) {
-  // Disable automatic cleanup in serverless to prevent connection errors
-  // In connect-session-knex, cleanupInterval defaults to 15 minutes (900000 ms)
-  // Setting it to 0 explicitly disables the cleanup interval
-  sessionStoreConfig.cleanupInterval = 0; // 0 = disabled (no cleanup)
-
+if (sessionStoreConfig.disableDbCleanup) {
   console.log(
-    "[Session Store] Automatic cleanup disabled for serverless environment (cleanupInterval: 0)",
+    "[Session Store] Automatic cleanup disabled for this ephemeral runtime",
   );
 }
 
@@ -388,10 +383,10 @@ const sessionMiddleware = session({
   saveUninitialized: false,
   store: sessionStore,
   cookie: {
-    // Shared scope helper: marketing (www) and app subdomains in production;
-    // localhost in development so :3001 / :5173 / :3000 share the cookie.
-    // Logout clears with the same attributes via clearCookieOptions().
+    // Production browser sessions are host-only for app.pholio.studio. Local
+    // development retains the existing shared localhost behavior.
     ...baseCookieOptions(),
+    ...sessionCookieScope(),
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 * 7,
   },
@@ -497,6 +492,17 @@ app.use(async (req, res, next) => {
   });
 });
 
+// Retire the old parent-domain session cookie as browsers encounter it. A
+// host-only cookie is written on the next authenticated session establishment;
+// clearing the legacy cookie prevents www.pholio.studio from continuing to
+// receive an old, shared credential after this boundary ships.
+if (process.env.NODE_ENV === "production") {
+  app.use((req, res, next) => {
+    res.clearCookie("connect.sid", legacySharedSessionCookieOptions());
+    next();
+  });
+}
+
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 
@@ -561,7 +567,18 @@ const talentAiWriterLimiter = createTalentAiWriterRateLimit({
 // handlers (see domains/auth/routes/auth.js) and do NOT match the "/login" /
 // "/logout" mount prefixes — they must be listed explicitly or the marketing
 // site's session endpoints go unthrottled.
-app.use(["/login", "/signup", "/api/login", "/api/logout"], authLimiter);
+app.use(
+  [
+    "/login",
+    "/signup",
+    "/api/login",
+    "/api/logout",
+    "/api/auth/password-reset",
+    "/api/dev/login",
+    "/api/dev/bootstrap",
+  ],
+  authLimiter,
+);
 app.use(["/onboarding/entry", "/casting/entry"], authLimiter);
 app.use("/api/public/open-call", authLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
@@ -595,10 +612,44 @@ app.use((req, res, next) => {
 // Authenticated dashboard APIs return account-scoped data and must never be
 // stored by browser/shared caches. Scoped to the authenticated API mounts
 // only — public/static asset routes are untouched.
-app.use(["/api/talent", "/api/agency", "/api/internal"], (req, res, next) => {
-  res.set("Cache-Control", "private, no-store");
-  next();
-});
+app.use(
+  [
+    "/api/talent",
+    "/api/agency",
+    "/api/internal",
+    "/api/session",
+    "/api/public/session",
+    "/api/reply",
+    "/api/login",
+    "/api/logout",
+    "/api/auth/password-reset",
+  ],
+  (req, res, next) => {
+    res.set("Cache-Control", "private, no-store");
+    if (req.path === "/api/session" || req.path === "/api/public/session") {
+      res.append("Vary", "Cookie");
+    }
+    next();
+  },
+);
+
+// Auth and session lifecycle endpoints require explicit browser intent and an
+// app-origin source. This also protects password-reset and dev bootstrap
+// writes, which are outside the generic dashboard mutation path list.
+app.use(
+  [
+    "/api/login",
+    "/api/logout",
+    "/login",
+    "/logout",
+    "/api/auth/password-reset",
+    "/api/dev/login",
+    "/api/dev/bootstrap",
+  ],
+  requireSessionMutationClientIntent({
+    enabled: config.csrfProtectionEnabled,
+  }),
+);
 
 // Cookie-authenticated dashboard writes and token-authenticated reply writes
 // must come from the Pholio app. The required custom header forces a CORS
@@ -607,6 +658,7 @@ app.use(["/api/talent", "/api/agency", "/api/internal"], (req, res, next) => {
 app.use(
   sameOriginMutationGuard({
     enabled: config.csrfProtectionEnabled,
+    allowedSessionOrigins: sessionMutationOrigins(),
   }),
 );
 
@@ -758,7 +810,13 @@ app.use("/", portfolioRoutes);
 // Dashboard routes (protected by onboarding middleware).
 // requireProfileUnlocked is not applied here: it only redirects HTML and would block
 // /api/talent/* needed to complete essentials; comp card / PDF locking stays per-route in domain routers.
-app.use("/", requireOnboardingComplete, requireActiveAccount(), dashboardTalentRoutes);
+app.use(
+  "/",
+  requireOnboardingComplete,
+  requireActiveAccount(),
+  requireTalentDashboardEligibility(),
+  dashboardTalentRoutes,
+);
 // Agency dashboard routes handled by agencyDomainRoutes above
 
 // PDF generation routes (public viewing routes don't need unlock check)

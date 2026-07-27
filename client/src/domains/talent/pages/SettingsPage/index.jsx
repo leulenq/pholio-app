@@ -835,8 +835,9 @@ function SecurityMovement({ settings, isLoading }) {
 function PrivacyMovement({ settings, isLoading }) {
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
-  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Cookie preference saved') });
+  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Settings saved') });
   const cookies = settings?.cookies || {};
+  const ai = settings?.ai || {};
   const lastExport = formatDate(settings?.data?.exportRequestedAt);
 
   const exportData = async () => {
@@ -871,6 +872,22 @@ function PrivacyMovement({ settings, isLoading }) {
     mutation.mutate({ cookies: next });
   };
 
+  const toggleAiProcessing = (key, currentlyEnabled) => {
+    const next = !currentlyEnabled;
+    if (next && !ai.canEnable) {
+      toast.error('A valid adult date of birth is required before this processing can be enabled.');
+      return;
+    }
+    mutation.mutate({ [key]: next });
+  };
+
+  const imageProcessingDescription = ai.imageProcessingAvailable
+    ? 'When you enable this, Pholio may send a portfolio image to its image-analysis provider. Turning it off clears Pholio’s local image-analysis results; it does not claim deletion from a provider.'
+    : 'Image analysis is not available in this launch environment. A saved preference alone does not send any image to a provider.';
+  const embeddingDescription = ai.profileEmbeddingAvailable
+    ? 'When you enable this, Pholio may create a limited profile-search index from approved profile fields. Turning it off clears Pholio’s local embedding and index derivatives; it does not claim deletion from a provider.'
+    : 'Profile embedding is not available in this launch environment. A saved preference alone does not send profile data to an embedding provider.';
+
   return (
     <Movement
       id="privacy"
@@ -883,6 +900,35 @@ function PrivacyMovement({ settings, isLoading }) {
             {exporting ? 'Preparing…' : 'Request export'}
           </PholioButton>
         </Row>
+      </div>
+
+      <div className="set-card">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Optional processing</h3>
+            <p className="set-card__sub">These permissions are separate from cookies and are available only to adults with a valid date of birth on file.</p>
+          </div>
+        </div>
+        {isLoading ? <SkeletonRows count={2} /> : (
+          <>
+            <Row title="Image analysis" description={imageProcessingDescription}>
+              <Toggle
+                label="Allow image analysis"
+                checked={ai.imageProcessing ?? false}
+                disabled={mutation.isPending || (!ai.canEnable && !(ai.imageProcessing ?? false))}
+                onChange={() => toggleAiProcessing('aiProcessingConsent', ai.imageProcessing ?? false)}
+              />
+            </Row>
+            <Row title="Profile search indexing" description={embeddingDescription} muted>
+              <Toggle
+                label="Allow profile search indexing"
+                checked={ai.profileEmbedding ?? false}
+                disabled={mutation.isPending || (!ai.canEnable && !(ai.profileEmbedding ?? false))}
+                onChange={() => toggleAiProcessing('embeddingProcessingConsent', ai.profileEmbedding ?? false)}
+              />
+            </Row>
+          </>
+        )}
       </div>
 
       <div className="set-card">

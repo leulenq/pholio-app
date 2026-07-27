@@ -1235,7 +1235,7 @@ router.post(
           .first();
         if (!row) return null;
 
-        const acceptedAt = new Date();
+        const acceptedAt = row.accepted_at || new Date();
         await trx("applications").where({ id: applicationId }).update({
           status: "accepted",
           accepted_at: acceptedAt,
@@ -1334,7 +1334,6 @@ router.patch(
         "meeting_requested",
         "development",
         "accepted",
-        "booked",
         "represented",
         "passed",
         "declined",
@@ -1356,7 +1355,7 @@ router.patch(
 
         const acceptedAt =
           requestedStatus === "accepted"
-            ? new Date()
+            ? row.accepted_at || new Date()
             : requestedStatus === "booked" || requestedStatus === "represented"
               ? row.accepted_at || new Date()
               : null;
@@ -1681,7 +1680,6 @@ router.patch(
         "meeting_requested",
         "development",
         "accepted",
-        "booked",
         "represented",
         "passed",
         "declined",
@@ -1706,7 +1704,7 @@ router.patch(
           status: requestedStatus,
           accepted_at:
             requestedStatus === "accepted"
-              ? acceptedAt
+              ? trx.raw("COALESCE(accepted_at, CURRENT_TIMESTAMP)")
               : requestedStatus === "booked" || requestedStatus === "represented"
                 ? trx.raw("COALESCE(accepted_at, CURRENT_TIMESTAMP)")
                 : null,
