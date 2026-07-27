@@ -19,7 +19,22 @@ export function useAuth(options = {}) {
 
   const updateProfileMutation = useMutation({
     mutationFn: (data) => talentApi.updateProfile(data),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Merge the PUT response into every auth-user cache entry immediately so
+      // Settings → Identity (and the account menu) do not briefly revert to stale
+      // blank names while the refetch is in flight.
+      if (data?.profile) {
+        queryClient.setQueriesData({ queryKey: ['auth-user'] }, (old) => {
+          if (!old || typeof old !== 'object') return old;
+          return {
+            ...old,
+            profile: { ...(old.profile || {}), ...data.profile },
+            completeness: data.completeness ?? old.completeness,
+            images: data.images ?? old.images,
+            subscription: data.subscription ?? old.subscription,
+          };
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
     },
   });
