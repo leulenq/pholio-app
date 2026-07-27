@@ -32,6 +32,28 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName } = {}) {
   });
 }
 
+/**
+ * The first email an approved agency receives.
+ *
+ * This is an activation, not a password reset: the account was created during
+ * review with a password that was never disclosed, so this link is how the
+ * owner sets a real one for the first time. It must read as access granted.
+ */
+function buildAgencyActivationEmailHtml({ contactName, agencyName, activationUrl, expiresMinutes } = {}) {
+  return renderEmail({
+    previewText: `${agencyName || "Your agency"} has been approved for Pholio.`,
+    blocks: [
+      heading("Your access is granted."),
+      goldRule(),
+      paragraph(`${greet(contactName)} ${agencyName ? strong(agencyName) : "your agency"} has been reviewed and accepted into Pholio.`),
+      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, and decide how your roster arrives — most of it is confirmation rather than new information."),
+      button("Set your password", activationUrl),
+      note(`This link expires in ${expiresMinutes || 60} minutes and can be used once. If it has lapsed, request a new one from the sign-in page or reply to this email.`),
+      signoff(),
+    ],
+  });
+}
+
 function buildEmailVerificationHtml({ firstName, verifyUrl, verificationCode, expiresMinutes } = {}) {
   return renderEmail({
     previewText: "Confirm your email to continue your Pholio screen test.",
@@ -167,4 +189,4 @@ function buildGuardianConsentEmailHtml({ guardianName, talentName, talentPhotoUr
   });
 }
 
-module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml };
+module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildAgencyActivationEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml };

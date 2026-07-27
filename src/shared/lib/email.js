@@ -11,6 +11,7 @@ const {
   buildAgencyInviteEmailHtml,
   buildWelcomeTalentEmailHtml,
   buildWelcomeAgencyEmailHtml,
+  buildAgencyActivationEmailHtml,
   buildEmailVerificationHtml,
   buildPasswordResetEmailHtml,
   buildPasswordChangedEmailHtml,
@@ -208,6 +209,23 @@ async function sendWelcomeAgencyEmail({ to, contactName, agencyName }) {
   return sendEmail({ to, subject, html });
 }
 
+async function sendAgencyActivationEmail({
+  to,
+  contactName,
+  agencyName,
+  activationUrl,
+  expiresMinutes,
+}) {
+  const subject = `${agencyName || "Your agency"} is approved for Pholio`;
+  const html = buildAgencyActivationEmailHtml({
+    contactName,
+    agencyName,
+    activationUrl,
+    expiresMinutes,
+  });
+  return sendEmail({ to, subject, html });
+}
+
 async function sendEmailVerificationEmail({
   to,
   firstName,
@@ -325,6 +343,7 @@ module.exports = {
   sendAgencyInviteEmail,
   sendWelcomeTalentEmail,
   sendWelcomeAgencyEmail,
+  sendAgencyActivationEmail,
   sendEmailVerificationEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,

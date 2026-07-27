@@ -246,23 +246,99 @@ function createAgencyRequestReviewService({
     return { identityUser, created, normalizedEmail };
   }
 
+  /**
+   * Issue the one-time activation link.
+   *
+   * The account was created during approval with a password that was never
+   * disclosed, so this link is how the owner sets a real one for the first
+   * time. It is a Firebase action link underneath, but the agency must never
+   * be told to "reset" a password they have never had — that is why this sends
+   * the activation template rather than sendPasswordResetEmail, and why it is
+   * a single email rather than an activation plus a separate welcome.
+   */
   async function deliverApprovalInvite({ request, ownerUser }) {
-    const resetUrl = await identity.generatePasswordResetLink(ownerUser.email, {
+    const activationUrl = await identity.generatePasswordResetLink(ownerUser.email, {
       url: `${config.appUrl || "https://app.pholio.studio"}/login`,
       handleCodeInApp: false,
     });
-    const { firstName } = splitContactName(request.contact_name);
-    await emailService.sendPasswordResetEmail({
-      to: ownerUser.email,
-      firstName,
-      resetUrl,
-      expiresMinutes: 60,
-    });
-    await emailService.sendWelcomeAgencyEmail({
+    await emailService.sendAgencyActivationEmail({
       to: ownerUser.email,
       contactName: request.contact_name,
       agencyName: request.agency_name,
+      activationUrl,
+      expiresMinutes: 60,
     });
+  }
+
+  /**
+   * Re-issue the activation link for an already-approved request.
+   *
+   * Delivery can fail (recorded as `approval_invitation_failed`) or the link
+   * can simply lapse, and without this an approved agency has no way back in.
+   * Re-approving is not an option — approval is idempotent and returns early.
+   */
+  async function resendApprovalInvite(requestId, { actor }) {
+    const request = await db("agency_access_requests")
+      .where({ id: requestId })
+      .first();
+    if (!request) {
+      throw domainError("AGENCY_REQUEST_NOT_FOUND", "Agency request not found.", 404);
+    }
+    if (request.status !== REVIEW_STATUSES.APPROVED) {
+      throw domainError(
+        "AGENCY_REQUEST_NOT_APPROVED",
+        "Only an approved request can have its activation link re-sent.",
+        409,
+      );
+    }
+
+    const ownerUser = await db("users")
+      .where({ id: request.provisioned_owner_user_id })
+      .first();
+    if (!ownerUser) {
+      throw domainError(
+        "AGENCY_OWNER_NOT_PROVISIONED",
+        "This request has no provisioned owner to send an activation link to.",
+        409,
+      );
+    }
+
+    try {
+      await deliverApprovalInvite({ request, ownerUser });
+    } catch (error) {
+      await db.transaction((trx) =>
+        recordEvent(trx, {
+          request,
+          actor,
+          eventType: "approval_invitation_failed",
+          previousStatus: REVIEW_STATUSES.APPROVED,
+          nextStatus: REVIEW_STATUSES.APPROVED,
+          agencyId: request.provisioned_agency_id,
+          ownerUserId: ownerUser.id,
+          metadata: { reason: "delivery_failed", resend: true },
+        }),
+      );
+      throw domainError(
+        "ACTIVATION_DELIVERY_FAILED",
+        "The activation link could not be delivered.",
+        502,
+      );
+    }
+
+    await db.transaction((trx) =>
+      recordEvent(trx, {
+        request,
+        actor,
+        eventType: "approval_invitation_sent",
+        previousStatus: REVIEW_STATUSES.APPROVED,
+        nextStatus: REVIEW_STATUSES.APPROVED,
+        agencyId: request.provisioned_agency_id,
+        ownerUserId: ownerUser.id,
+        metadata: { resend: true },
+      }),
+    );
+
+    return getRequest(requestId);
   }
 
   async function approveRequest(requestId, { notes, actor }) {
@@ -464,6 +540,7 @@ function createAgencyRequestReviewService({
     getRequest,
     scheduleQualificationCall,
     approveRequest,
+    resendApprovalInvite,
     declineRequest,
   };
 }
