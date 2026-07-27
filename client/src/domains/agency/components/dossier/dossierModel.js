@@ -409,3 +409,18 @@ export function positionRead(position, talent) {
     } talent`,
   ];
 }
+
+/* ------------------------------------------------------------ asset guard */
+
+/**
+ * A dead asset URL must never leave a broken-image glyph on this surface.
+ * Drop the failed <img> and mark its holder so it renders as the same hatched
+ * "nothing here" ground an unfilled slot uses. Handled imperatively rather
+ * than with per-image state: a book can carry fifty frames, and none of them
+ * should own a React state cell for a case that almost never fires.
+ */
+export function handleShotError(event) {
+  const img = event.currentTarget;
+  img.style.display = 'none';
+  img.parentElement?.classList.add('is-missing');
+}

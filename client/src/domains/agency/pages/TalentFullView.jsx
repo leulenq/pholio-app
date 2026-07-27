@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getTalentDossier } from '../api/agency';
 import { useTalentActions } from '../hooks/useTalentActions';
 import { useAgencyPermissions } from '../hooks/useAgencyPermissions';
-import { DossierPlate } from '../components/dossier/DossierPlate';
+import { DossierPlate, StatLine } from '../components/dossier/DossierPlate';
 import { ReadoutBand } from '../components/dossier/ReadoutBand';
 import { CalendarLine } from '../components/dossier/CalendarLine';
 import { DigitalsSet } from '../components/dossier/DigitalsSet';
@@ -44,18 +44,20 @@ function DossierSkeleton() {
         <span className="dx-skel dx-skel--pill" />
         <span className="dx-skel dx-skel--pill" />
       </div>
-      <div className="dx-page">
-        <div className="dx-plate">
-          <div className="dx-plate__frame"><span className="dx-skel dx-skel--frame" /></div>
-          <div className="dx-plate__identity">
-            <span className="dx-skel dx-skel--title" />
-            <span className="dx-skel dx-skel--line" />
-            <span className="dx-skel dx-skel--line" />
-          </div>
-          <div className="dx-plate__stats">
-            <span className="dx-skel dx-skel--block" />
+      <div className="dx-masthead">
+        <div className="dx-masthead__inner">
+          <div className="dx-plate">
+            <div className="dx-plate__frame"><span className="dx-skel dx-skel--frame" /></div>
+            <div className="dx-plate__identity">
+              <span className="dx-skel dx-skel--title" />
+              <span className="dx-skel dx-skel--line" />
+              <span className="dx-skel dx-skel--line" />
+            </div>
           </div>
         </div>
+      </div>
+      <div className="dx-page">
+        <div className="dx-statline"><span className="dx-skel dx-skel--strip" /></div>
         <div className="dx-band">
           {[0, 1, 2, 3].map((i) => (
             <div className="dx-readout" key={i}>
@@ -148,6 +150,12 @@ export default function TalentFullView() {
     () => images.find((img) => img.is_primary) || images[0] || null,
     [images],
   );
+  // The next few frames sit under the identity so the book starts reading at
+  // the masthead rather than four sections down.
+  const strip = useMemo(
+    () => images.filter((img) => img !== hero).slice(0, 5),
+    [images, hero],
+  );
 
   if (isLoading) return <DossierSkeleton />;
 
@@ -201,14 +209,21 @@ export default function TalentFullView() {
         />
       </div>
 
-      <div className="dx-page">
-        <div ref={plateRef}>
+      <div className="dx-masthead" ref={plateRef}>
+        <div className="dx-masthead__inner">
           <DossierPlate
             dossier={data}
             hero={hero}
+            strip={strip}
+            frameCount={images.length}
             onOpenHero={() => setLightboxIndex(hero ? images.indexOf(hero) : 0)}
+            onOpenFrame={(frame) => setLightboxIndex(images.indexOf(frame))}
           />
         </div>
+      </div>
+
+      <div className="dx-page">
+        <StatLine talent={talent} />
 
         <ReadoutBand dossier={data} onJump={jump} />
 

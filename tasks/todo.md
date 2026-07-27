@@ -2646,3 +2646,33 @@ Verification
 - Browser-verified against a seeded agency at 1600 / 1400 / 1180 / 900 / 560 px, including
   the sparse-submission case (0 of 5 digitals, unrepresented, never opened) and the
   404 halt state. No horizontal overflow at any width.
+
+### Revision — presence pass
+
+Feedback: the surface read as an unfinished draft. Type sat in a washed-out middle
+tone, the page had structure but no authority, and everything lived on one flat
+ground. Reworked the visual system (the banned-UI list still governs; the scoped
+agency density/colour guidance was deliberately overridden for this surface):
+
+- **Three registers instead of one flat ground.** The plate now runs full-bleed on
+  deep ink (`#17130F`) with the frame and name carrying the page; the stat line is
+  white paper lifted over the ink seam; the working area is cream with paper sheets.
+  The command bar sits on the same ink, so the dock reads as a command surface.
+- **A darker local type ramp.** `--dx-ink #100E0C` / `--dx-body #201D19` /
+  `--dx-key #574F46` replace the shared `--ag-text-*` steps, which are tuned for
+  forty-row tables. Field keys gained weight (700) and tracking; values went to 600;
+  rules doubled from 0.08 to 0.13/0.26 alpha.
+- **Real anchors.** Section heads sit on a 2px ink rule. Derived readings (the
+  digitals verdict, the roster comparison, the calendar legend) sit on a recessed
+  `#F3EFE7` ground so data types are distinguishable at a glance.
+- **The Stat Line replaces the vertical stat block** — the back of a comp card read
+  across, height leading on a gold-edged cell, dual-unit under each figure,
+  provenance stated on the same band.
+- **A filmstrip in the masthead** so the book starts reading immediately instead of
+  four sections down, which also removed the dead space beside the bio.
+- Hair and eyes moved out of the stat line (they already live in the professional
+  record); that removed a duplication and kept the band on one row to 1180px.
+- Match score restated in the dossier's warm palette — the shared tier blue read as
+  a foreign accent at readout scale.
+- Broken asset URLs now fall back to the monogram plate / hatched ground instead of
+  a broken-image glyph.

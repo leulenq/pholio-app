@@ -5,7 +5,7 @@ import { ImageLightbox } from '../ImageLightbox';
 import { isDigitalSlot } from '../../../../shared/utils/profileReadinessImages';
 import { SHOT_LABELS, IMAGE_TYPE_LABELS } from '../../../../shared/constants/frameTaxonomy';
 import { Quiet } from './DossierPrimitives';
-import { titleCase } from './dossierModel';
+import { handleShotError, titleCase } from './dossierModel';
 import './dossier.css';
 
 /**
@@ -79,7 +79,12 @@ export function TheBook({ images = [], submissionPackage, openIndex, onOpenChang
               key={img.id}
               onClick={() => setIndex(images.indexOf(img))}
             >
-              <img src={img.path || img.url} alt={img.alt || caption || 'Frame'} loading="lazy" />
+              <img
+                src={img.path || img.url}
+                alt={img.alt || caption || 'Frame'}
+                loading="lazy"
+                onError={handleShotError}
+              />
               {caption && <span className="dx-frame__cap">{caption}</span>}
             </button>
           );

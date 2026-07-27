@@ -1,6 +1,8 @@
 import React from 'react';
 import { Camera } from 'lucide-react';
-import { DIGITAL_SLOTS, fmtAgo, frameForSlot, packageRead } from './dossierModel';
+import {
+  DIGITAL_SLOTS, fmtAgo, frameForSlot, handleShotError, packageRead,
+} from './dossierModel';
 import './dossier.css';
 
 /**
@@ -46,7 +48,11 @@ export function DigitalsSet({ dossier, onOpenFrame, onRequestMore, canRequest, r
               onClick={() => onOpenFrame?.(frame)}
             >
               <div className="dx-slot__frame">
-                <img src={frame.path || frame.url} alt={`${slot.label} digital`} />
+                <img
+                  src={frame.path || frame.url}
+                  alt={`${slot.label} digital`}
+                  onError={handleShotError}
+                />
               </div>
               <span className="dx-slot__label">{slot.label}</span>
               <span className="dx-slot__state">
