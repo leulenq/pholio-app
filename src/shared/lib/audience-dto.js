@@ -95,6 +95,20 @@ const PUBLIC_IMAGE_FIELDS = Object.freeze([
 ]);
 
 /**
+ * Image properties an AUTHENTICATED AGENCY may read on a submission it
+ * received. `PUBLIC_IMAGE_FIELDS` plus the register (`style_type`), the
+ * capture/upload dates a booker needs to judge whether digitals are current,
+ * and the talent's own caption. Nothing else — see `buildAgencyImageDTO`.
+ */
+const AGENCY_IMAGE_FIELDS = Object.freeze([
+  ...PUBLIC_IMAGE_FIELDS,
+  "style_type",
+  "captured_at",
+  "created_at",
+  "alt",
+]);
+
+/**
  * Agency Discover results. Professional/casting fields + book images that
  * passed moderation. No owner email, no DOB/phone/guardian/emergency, no raw AI
  * columns, no protected traits (ethnicity/skin_tone) in generic discovery, no
@@ -551,6 +565,34 @@ function buildPublicImageDTO(image) {
 }
 
 /**
+ * Shape a single image for an authenticated agency reading a submission it
+ * received. Strictly `PUBLIC_IMAGE_FIELDS` plus four presentation/recency
+ * fields an agency legitimately needs and the public never does:
+ *
+ *   - `style_type`  — editorial / commercial / lifestyle register of a book
+ *                     frame; the Book-range read is meaningless without it.
+ *   - `captured_at` — when the frame was SHOT. The industry rule is that
+ *                     digitals must be current (≤3 months); an agency that
+ *                     cannot see the capture date cannot judge the package.
+ *   - `created_at`  — upload date, the honest fallback when `captured_at` is
+ *                     absent.
+ *   - `alt`         — the talent's own caption, present on frozen submission
+ *                     package frames (see application-submission-package.js);
+ *                     null for a live `images` row, which has no such column.
+ *
+ * Deliberately still an allowlist, not a spread: storage keys, moderation
+ * internals, AI predictions, and embeddings never leave through here.
+ *
+ * @param {object|null|undefined} image
+ */
+function buildAgencyImageDTO(image) {
+  if (!image) return null;
+  const dto = pickAllowed(image, AGENCY_IMAGE_FIELDS);
+  dto.url = dto.public_url || dto.path || null;
+  return dto;
+}
+
+/**
  * UNAUTHENTICATED public card DTO.
  * Callers MUST have already gated the profile through
  * `minorPublicExposureAllowed` (profile-visibility.isPubliclyExposable) — a
@@ -661,6 +703,7 @@ module.exports = {
   // Allowlists (referenced by contract tests + reader agents).
   PUBLIC_CARD_FIELDS,
   PUBLIC_IMAGE_FIELDS,
+  AGENCY_IMAGE_FIELDS,
   AGENCY_DISCOVERY_FIELDS,
   SOCIAL_ACCOUNT_FIELDS,
   OWNER_FIELDS,
@@ -675,6 +718,7 @@ module.exports = {
   ensureRepresentationDiscloseColumnChecked,
   // DTO builders.
   buildPublicImageDTO,
+  buildAgencyImageDTO,
   buildPublicCardDTO,
   buildAgencyDiscoveryDTO,
   buildAgencySubmissionDTO,

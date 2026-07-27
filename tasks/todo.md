@@ -2723,66 +2723,110 @@ Keep Google/OAuth provider pictures on `users.avatar_url` (account avatar). Neve
 
 
 
-## Season / Analytics redesign — agency command surface — 2026-07-27
+## Expanded Talent View → "The Talent Dossier" — 2026-07-27
 
-### Goal
-Replace the text-heavy "Season Report" ledger with a chart-driven analytics
-environment: three lenses (Pipeline · Roster · Desk) over one shared filter row,
-every panel driven by a real aggregate.
+Rebuild of `/dashboard/agency/talent/:applicationId` from first principles as a talent
+**command surface**. Design authority: `client/src/domains/agency/DESIGN.md` (Editorial Ledger).
+Industry authority: `.claude/skills/industry/reference/{standards,lifecycle}.md`.
 
-### Chart palette (validated with the dataviz `validate_palette.js` six checks)
-Chart surface `#FFFFFF` on the agency cream canvas.
+### The questions the page answers, in a booker's order
+1. Who is this right now? → the Plate (portrait, name, reading line, representation standing)
+2. Can I use them? → the Vitals Ledger + the Calendar Line (availability, bookouts, our options/holds)
+3. Where do they sit with **us**? → the Standing Ledger (dated ladder, day count, board, tags)
+4. Did they send a real package? → the Digitals Set (5 canonical slots) + the Book + comp card
+5. What else do we know? → Professional Record + Representation Record + market position
+6. What do I do next? → Decision dock, follow-ups, the working record
 
-- **Depth ordinal ramp** `#C9A55A → #B0873F → #8E6B31 → #5F4623` — PASS monotone L,
-  adjacent ΔL ≥ 0.06, light end 2.33:1, hue spread 10°. Encodes pipeline depth.
-- **Exit neutral** `#948C82` (3.32:1). In stacks it only ever touches the darkest
-  ramp step (ΔE 23.5 normal / 23.2 CVD); beside `#C9A55A` that pair measures 12.8,
-  under the 15 floor — so the stack order in `VOLUME_STACK` is load-bearing.
-- **Heat sequential** `#F7EFDF → … → #5C441F` — magnitude only (punchcard, cohorts).
-- **Five-step ordinal** `#C9A55A → … → #4E3A1D` for ordered bands (latency, tenure).
-- **Series pair** `#A8803A` ↔ `#3B6FA8` — all-pairs PASS (CVD ΔE 19.7, normal 22.6,
-  both ≥ 3:1). Only two identity slots exist; nominal charts use one hue.
+### Named instruments (each earns its structure from real data)
+- **The Plate** — comp-card front logic; portrait, name, reading line, representation sentence
+- **The Vitals Ledger** — track-aware canonical stats, dual-unit, dated, provenance + staleness
+- **The Readout Band** — four hairline-ruled live readouts: Standing · Fit · Availability · Package
+- **The Digitals Set** — headshot / ¾ / full length / profile / back, present or absent
+- **The Calendar Line** — 90-day rule marking bookouts and this agency's options / holds / bookings
+- **The Representation Record** — mother vs. placement, market, territory, exclusivity, dates
+- **The Standing Ledger** — submitted → viewed → last action, with day count and actor
+- **Fit** — match measure against the applied board + position within our own roster
 
-`#C9A55A` is 2.33:1, below the 3:1 mark floor, so the relief rule applies: every
-panel ships direct labels and a table-view twin.
-
-### Backend
-- [x] `src/domains/agency/queries/season.queries.js` — one folding pass over
-      applications, activities, board links, boards, roster memberships, profiles,
-      interviews, reminders, and team.
-- [x] `GET /api/agency/analytics/season?range=&board=&tz=` in `routes/analytics.js`,
-      mounted in `routes/index.js`, gated by `org.view_analytics`.
-- [x] Legacy `GET /api/agency/analytics` untouched.
-- [x] 25 unit tests in `queries/__tests__/season.queries.test.js`.
-
-### Frontend
-- [x] Chart kit in `client/src/domains/agency/components/analytics/` — viz tokens,
-      Panel + table twin, SignalRail, FlowRibbon, VolumeStream, QueueAging,
-      MatchCalibration, BoardQuadrant, HeatGrid (Punchcard + CohortGrid),
-      DistributionBars + Meter, PairedHistogram, FitRadar, RosterFlow.
-- [x] `AnalyticsPage.jsx` / `.css` rebuilt as the three-lens environment.
-- [x] `getSeasonAnalytics` in `api/agency.js`, sending the viewer's UTC offset.
+### Tasks
+- [ ] Backend: `buildAgencyImageDTO` (additive allowlist), `talent-dossier` service + route, RBAC map
+- [ ] Frontend: `getTalentDossier`, full rewrite of `TalentFullView.jsx` / `.css`, `components/dossier/*`
+- [ ] States: skeleton, error, withdrawn (410), minor-blocked (403), empty package
+- [ ] Verify: client lint, client build, jest (agency DTO / RBAC / dossier)
 
 ### Review
-- **Stage flow is now cohort-based.** The old funnel compared current bucket
-  sizes, which is why it could report conversions above 100%. `replayJourney`
-  replays each application's recorded `status_change` events and reports the
-  furthest stage it can evidence, so a status jump never invents a hand-off.
-- **Honest by construction.** Unobserved measures return `null` with a `sample`
-  count rather than zero; panels with nothing observed drop their legend, table
-  toggle, and note and carry one sentence saying what will make them appear.
-- **Charts fixed after looking at them in a browser**, not from the code:
-  the flow ribbon overflowed its panel and collided its own labels; axis ticks
-  read 0/3/5/8/10 because a "nice max" was divided by the tick count instead of
-  choosing the step first; the volume area interpolated arrivals between quiet
-  days and drew a comb of spikes (now columns); scatter labels stacked on top of
-  each other (now a right-hand gutter with leader lines); the ordinal bar ramp's
-  light end sat under 2:1; the cohort grid carried an always-100% Applied column.
-- **Responsive.** Verified at 1440 / 1024 / 390. The ribbon cannot hold four
-  columns under ~620px, so it redraws as stacked rows with the same numbers.
-- **Verification.** 25 new unit tests green; `npx vitest run src/domains/agency`
-  27 green; client ESLint clean; production build clean; all three lenses plus the
-  zero-data state rendered and inspected in Chromium. The full `npm test` run
-  aborts with a pre-existing "Unable to acquire a connection" crash — reproduced
-  identically on the clean tree (17 failing suites there, and every suite that
-  differed between runs passes in isolation on both trees).
+
+**Shipped.** The expanded talent view is now a talent command surface rather than a
+document. Everything below is new; the old `tfv-*` page and its stylesheet were deleted.
+
+Backend
+- `src/domains/agency/services/talent-dossier.js` — one aggregate read composing the
+  minor-safe submission snapshot, canonical track-aware stats, the professional record,
+  the representation record, availability (declared status + bookouts + this agency's
+  options/holds/bookings), standing with this agency, roster position, and the working
+  record.
+- `GET /api/agency/applications/:id/dossier` (`routes/talent-dossier.js`), registered in
+  the agency router, mapped to `applications.view_detail` in `route-permissions.js`, and
+  added to `MINOR_SUBMISSION_ENDPOINT_MATRIX` so it is gated exactly like `/details`.
+- `buildAgencyImageDTO` + `AGENCY_IMAGE_FIELDS` added to `audience-dto.js` — additive
+  allowlist (`PUBLIC_IMAGE_FIELDS` + `style_type`, `captured_at`, `created_at`, `alt`) so
+  an agency can judge whether digitals are current. No existing builder changed.
+
+Frontend — `components/dossier/`
+- The Plate (comp-card logic: frame, name, reading line, representation standing,
+  height-led stat block with provenance and staleness).
+- The Readout Band (Standing · Fit · Availability · Digitals, each a jump link).
+- The Digitals Set (five canonical slots, empty drawn as empty, wired to Request more).
+- The Calendar Line (90-day rule carrying bookouts against our own options/holds/bookings).
+- The Representation Record, Professional Record, Against-our-book position.
+- The Standing Rail (dated ladder, day count, stall warning, board, tags, work owed,
+  minor compliance, contact) and The Record (activity ledger + working thread).
+
+Bugs found and fixed while building
+- `loadTalentRepresentationsForProfiles` only selects the columns a Discover *list* needs,
+  so market/territory/dates came back undefined. Added `loadRepresentationRecord` in the
+  dossier service rather than widening the shared batch loader.
+- The house `StageTrack` collides with itself inside a 348px rail; scoped the segments to
+  flex in `dossier.css` instead of forking the component.
+
+Verification
+- `tests/integration/agency-talent-dossier.test.js` — 14 tests: payload shape, dual-unit
+  track-aware stats, DOB never leaving, per-row agency disclosure, image visibility,
+  availability windowing, standing, roster position, field containment against
+  `AGENCY_DISCOVERY_FIELDS`, forbidden-key sweep, and the 404 / 410 / 401 boundaries.
+- Client `eslint` clean; `npm run client:build` green.
+- Backend suites: 348 passing. The 2 remaining failures (`dto-security`,
+  `roster-measured-in-person`) fail identically on a clean checkout — pre-existing
+  `knex.migrate.latest()` hook timeouts in this environment, unrelated to this change.
+- Browser-verified against a seeded agency at 1600 / 1400 / 1180 / 900 / 560 px, including
+  the sparse-submission case (0 of 5 digitals, unrepresented, never opened) and the
+  404 halt state. No horizontal overflow at any width.
+
+### Revision — presence pass
+
+Feedback: the surface read as an unfinished draft. Type sat in a washed-out middle
+tone, the page had structure but no authority, and everything lived on one flat
+ground. Reworked the visual system (the banned-UI list still governs; the scoped
+agency density/colour guidance was deliberately overridden for this surface):
+
+- **Three registers instead of one flat ground.** The plate now runs full-bleed on
+  deep ink (`#17130F`) with the frame and name carrying the page; the stat line is
+  white paper lifted over the ink seam; the working area is cream with paper sheets.
+  The command bar sits on the same ink, so the dock reads as a command surface.
+- **A darker local type ramp.** `--dx-ink #100E0C` / `--dx-body #201D19` /
+  `--dx-key #574F46` replace the shared `--ag-text-*` steps, which are tuned for
+  forty-row tables. Field keys gained weight (700) and tracking; values went to 600;
+  rules doubled from 0.08 to 0.13/0.26 alpha.
+- **Real anchors.** Section heads sit on a 2px ink rule. Derived readings (the
+  digitals verdict, the roster comparison, the calendar legend) sit on a recessed
+  `#F3EFE7` ground so data types are distinguishable at a glance.
+- **The Stat Line replaces the vertical stat block** — the back of a comp card read
+  across, height leading on a gold-edged cell, dual-unit under each figure,
+  provenance stated on the same band.
+- **A filmstrip in the masthead** so the book starts reading immediately instead of
+  four sections down, which also removed the dead space beside the bio.
+- Hair and eyes moved out of the stat line (they already live in the professional
+  record); that removed a duplication and kept the band on one row to 1180px.
+- Match score restated in the dossier's warm palette — the shared tier blue read as
+  a foreign accent at readout scale.
+- Broken asset URLs now fall back to the monogram plate / hatched ground instead of
+  a broken-image glyph.

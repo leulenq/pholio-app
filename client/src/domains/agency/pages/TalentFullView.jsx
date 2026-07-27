@@ -1,145 +1,293 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { getApplicationDetails } from '../api/agency';
-import { TalentActionBar } from '../components/talent/TalentActionBar';
-import { TalentThread } from '../components/talent/TalentThread';
-import { PortfolioGrid } from '../components/zones/PortfolioGrid';
-import { SubmissionPackageDetails } from '../components/zones/SubmissionPackageDetails';
-import '../components/zones/zones.css';
-import './TalentFullView.css';
+import { getTalentDossier } from '../api/agency';
+import { useTalentActions } from '../hooks/useTalentActions';
+import { useAgencyPermissions } from '../hooks/useAgencyPermissions';
+import { DossierPlate, StatLine } from '../components/dossier/DossierPlate';
+import { ReadoutBand } from '../components/dossier/ReadoutBand';
+import { CalendarLine } from '../components/dossier/CalendarLine';
+import { DigitalsSet } from '../components/dossier/DigitalsSet';
+import { TheBook } from '../components/dossier/TheBook';
+import {
+  PositionRecord,
+  ProfessionalRecord,
+  RepresentationRecord,
+} from '../components/dossier/RecordPanels';
+import { StandingRail } from '../components/dossier/StandingRail';
+import { WorkingRecord } from '../components/dossier/WorkingRecord';
+import { DecisionDock } from '../components/dossier/DecisionDock';
+import { Sheet } from '../components/dossier/DossierPrimitives';
+import { initials, talentName } from '../components/dossier/dossierModel';
+import '../components/dossier/dossier.css';
 
-const scrollToThread = () =>
-  document.getElementById('talent-thread')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+/**
+ * The expanded talent view — the Talent Dossier.
+ *
+ * This is the surface an agent opens when a name matters enough to stop
+ * scrolling. It is built as a casting sheet, not a profile page: the plate
+ * carries identity and stats the way a comp card does, a band of live
+ * readouts answers "where does this stand" without reading, and the working
+ * columns carry the package, the record, and the decision.
+ *
+ * Region order is a booker's order, not a database's:
+ *   plate → readouts → package → who they are professionally → position →
+ *   representation → the record, with standing and what's owed pinned right.
+ */
 
-const daysAgo = (ts) => Math.max(0, Math.floor((Date.now() - new Date(ts).getTime()) / 86400000));
-const measure = (v) => (v != null ? `${v} cm` : '—');
+function DossierSkeleton() {
+  return (
+    <div className="dx dx--loading" aria-busy="true" aria-label="Loading talent dossier">
+      <div className="dx-command">
+        <span className="dx-skel dx-skel--pill" />
+        <span className="dx-skel dx-skel--pill" />
+      </div>
+      <div className="dx-masthead">
+        <div className="dx-masthead__inner">
+          <div className="dx-plate">
+            <div className="dx-plate__frame"><span className="dx-skel dx-skel--frame" /></div>
+            <div className="dx-plate__identity">
+              <span className="dx-skel dx-skel--title" />
+              <span className="dx-skel dx-skel--line" />
+              <span className="dx-skel dx-skel--line" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="dx-page">
+        <div className="dx-statline"><span className="dx-skel dx-skel--strip" /></div>
+        <div className="dx-band">
+          {[0, 1, 2, 3].map((i) => (
+            <div className="dx-readout" key={i}>
+              <span className="dx-skel dx-skel--key" />
+              <span className="dx-skel dx-skel--val" />
+            </div>
+          ))}
+        </div>
+        <div className="dx-body">
+          <div className="dx-main"><span className="dx-skel dx-skel--panel" /></div>
+          <div className="dx-rail"><span className="dx-skel dx-skel--panel" /></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DossierMessage({ title, body, onBack }) {
+  return (
+    <div className="dx">
+      <div className="dx-command">
+        <button type="button" className="dx-back" onClick={onBack}>
+          <ArrowLeft size={15} aria-hidden /> Back
+        </button>
+      </div>
+      <div className="dx-page">
+        <div className="dx-halt">
+          <h1 className="dx-halt__title">{title}</h1>
+          <p className="dx-halt__body">{body}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const HALTS = {
+  410: {
+    title: 'This submission was withdrawn',
+    body: 'The talent withdrew it, and Pholio revoked access to the disclosure package. Nothing from it can be shown.',
+  },
+  403: {
+    title: 'Guardian authorisation required',
+    body: 'This talent is under 18. A current guardian authorisation, and the permission to view minor submissions, are both needed before this dossier opens.',
+  },
+  404: {
+    title: 'Submission not found',
+    body: 'It may have been removed, or it belongs to another agency.',
+  },
+};
 
 export default function TalentFullView() {
   const { applicationId } = useParams();
   const navigate = useNavigate();
+  const reduce = useReducedMotion();
+  const { can } = useAgencyPermissions();
+  const [condensed, setCondensed] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const plateRef = useRef(null);
 
-  const appQuery = useQuery({
-    queryKey: ['application', applicationId],
-    queryFn: () => getApplicationDetails(applicationId),
-    enabled: !!applicationId,
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['talent-dossier', applicationId],
+    queryFn: () => getTalentDossier(applicationId),
+    enabled: Boolean(applicationId),
+    retry: (count, err) => ![403, 404, 410].includes(err?.status) && count < 2,
   });
-  if (appQuery.isLoading) {
-    return <div className="tfv"><div className="tfv-loading">Loading profile…</div></div>;
-  }
-  if (appQuery.isError) {
+
+  const actions = useTalentActions(applicationId);
+
+  // The command bar condenses once the plate scrolls away, so the name and the
+  // decision stay reachable. State, not spectacle.
+  useEffect(() => {
+    const node = plateRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => setCondensed(!entry.isIntersecting),
+      { rootMargin: '-72px 0px 0px 0px', threshold: 0 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [data]);
+
+  const jump = useCallback((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  }, [reduce]);
+
+  const images = useMemo(() => data?.images || [], [data]);
+  const hero = useMemo(
+    () => images.find((img) => img.is_primary) || images[0] || null,
+    [images],
+  );
+  // The next few frames sit under the identity so the book starts reading at
+  // the masthead rather than four sections down.
+  const strip = useMemo(
+    () => images.filter((img) => img !== hero).slice(0, 5),
+    [images, hero],
+  );
+
+  if (isLoading) return <DossierSkeleton />;
+
+  if (error) {
+    const halt = HALTS[error?.status];
     return (
-      <div className="tfv">
-        <button className="tfv-back" onClick={() => navigate(-1)}><ArrowLeft size={15} /> Back</button>
-        <div className="tfv-loading">Couldn't load this profile.</div>
-      </div>
+      <DossierMessage
+        title={halt?.title || 'This dossier could not be opened'}
+        body={halt?.body || error?.message || 'Try again in a moment.'}
+        onBack={() => navigate(-1)}
+      />
+    );
+  }
+  if (!data) {
+    return (
+      <DossierMessage
+        title="Nothing to show"
+        body="This submission returned no data."
+        onBack={() => navigate(-1)}
+      />
     );
   }
 
-  const { application, profile, submissionPackage } = appQuery.data || {};
-  const images = profile?.images || [];
-  const hero = images[0]?.path || null;
-  const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Talent';
-  const archetype = profile?.archetype || 'editorial';
-  const location = profile?.city || null;
-  const match = application?.match_score;
-  const bio = profile?.bio_curated || profile?.bio_raw;
-
-  const ledger = [
-    { label: 'Status', value: application?.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : '—' },
-    { label: 'Days Active', value: application?.created_at ? daysAgo(application.created_at) : '—' },
-    { label: 'Height', value: profile?.height_cm ? `${profile.height_cm}` : '—', suffix: profile?.height_cm ? 'cm' : '' },
-  ];
+  const { talent, application, standing, availability, position, representation } = data;
+  const name = talentName(talent);
 
   return (
-    <motion.div className="tfv" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
-      {/* top bar */}
-      <div className="tfv-top">
-        <button className="tfv-back" onClick={() => navigate(-1)}><ArrowLeft size={15} /> Back</button>
-        <div className="tfv-actions">
-          <TalentActionBar
-            applicationId={applicationId}
-            profileId={profile?.id}
-            slug={profile?.slug}
-            status={application?.status}
-            context="overview"
-            onMessage={scrollToThread}
+    <motion.div
+      className="dx"
+      initial={reduce ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <div className={`dx-command${condensed ? ' is-condensed' : ''}`}>
+        <button type="button" className="dx-back" onClick={() => navigate(-1)}>
+          <ArrowLeft size={15} aria-hidden /> Back
+        </button>
+
+        <div className="dx-command__id" aria-hidden={!condensed}>
+          <span className="dx-command__thumb">
+            {hero ? <img src={hero.path || hero.url} alt="" /> : <span>{initials(name)}</span>}
+          </span>
+          <span className="dx-command__name">{name}</span>
+        </div>
+
+        <DecisionDock
+          applicationId={applicationId}
+          status={application?.status}
+          slug={talent?.slug}
+          compact={condensed}
+        />
+      </div>
+
+      <div className="dx-masthead" ref={plateRef}>
+        <div className="dx-masthead__inner">
+          <DossierPlate
+            dossier={data}
+            hero={hero}
+            strip={strip}
+            frameCount={images.length}
+            onOpenHero={() => setLightboxIndex(hero ? images.indexOf(hero) : 0)}
+            onOpenFrame={(frame) => setLightboxIndex(images.indexOf(frame))}
           />
         </div>
       </div>
 
-      {/* hero */}
-      <div className="tfv-hero">
-        <div className="tfv-portrait">
-          {hero ? <img src={hero} alt={name} /> : <span className="tfv-portrait-fallback">{name.charAt(0)}</span>}
-        </div>
-        <div className="tfv-identity">
-          <div className="tfv-sub-row">
-            {(archetype || location) && <p className="tfv-sub">{archetype}{location ? ` · ${location}` : ''}</p>}
-            {match != null && <span className="tfv-match-num">{match}</span>}
+      <div className="dx-page">
+        <StatLine talent={talent} />
+
+        <ReadoutBand dossier={data} onJump={jump} />
+
+        <div className="dx-body">
+          <div className="dx-main">
+            <Sheet
+              id="dx-package"
+              title="The digitals set"
+              aside={
+                standing?.board?.name
+                  ? `Submitted for ${standing.board.name}`
+                  : 'Submitted for general consideration'
+              }
+            >
+              <DigitalsSet
+                dossier={data}
+                onOpenFrame={(frame) => setLightboxIndex(images.indexOf(frame))}
+                onRequestMore={() => actions.requestMore.mutate()}
+                canRequest={can('applications.update_status')}
+                requesting={actions.requestMore.isPending}
+              />
+            </Sheet>
+
+            <Sheet
+              id="dx-book"
+              title="The book"
+              aside={`${images.length} frame${images.length === 1 ? '' : 's'}`}
+            >
+              <TheBook
+                images={images}
+                submissionPackage={data.submissionPackage}
+                openIndex={lightboxIndex}
+                onOpenChange={setLightboxIndex}
+              />
+            </Sheet>
+
+            <Sheet id="dx-professional" title="The professional record">
+              <ProfessionalRecord talent={talent} />
+            </Sheet>
+
+            <Sheet id="dx-position" title="Against our book">
+              <PositionRecord
+                position={position}
+                talent={talent}
+                board={standing?.board}
+                matchScore={application?.match_score}
+              />
+            </Sheet>
+
+            <Sheet id="dx-representation" title="Representation">
+              <RepresentationRecord representation={representation} />
+            </Sheet>
+
+            <Sheet id="dx-availability" title="Availability">
+              <CalendarLine availability={availability} />
+            </Sheet>
           </div>
-          <h1 className="tfv-name">{name}</h1>
-          {bio && <p className="tfv-lead">{bio}</p>}
-          <div className="tfv-ledger">
-            {ledger.map((s) => (
-              <div key={s.label} className="tfv-stat">
-                <span className="tfv-stat-label">{s.label}</span>
-                <span className="tfv-stat-value">{s.value}{s.suffix ? <span className="tfv-stat-suffix">{s.suffix}</span> : null}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* body */}
-      <div className="tfv-grid">
-        <div className="tfv-main">
-          <section className="tfv-section">
-            <h2 className="tfv-section-title">
-              {submissionPackage ? 'Submitted package' : 'Portfolio'}
-              {images.length ? <span className="tfv-section-count">{images.length}</span> : null}
-            </h2>
-            <PortfolioGrid images={images} />
-          </section>
-          {bio && (
-            <section className="tfv-section">
-              <h2 className="tfv-section-title">Bio</h2>
-              <p className="zone-bio">{bio}</p>
-            </section>
-          )}
+          <StandingRail dossier={data} applicationId={applicationId} />
         </div>
 
-        <aside className="tfv-aside">
-          {submissionPackage && (
-            <section className="tfv-section">
-              <h2 className="tfv-section-title">Submission details</h2>
-              <SubmissionPackageDetails submissionPackage={submissionPackage} />
-            </section>
-          )}
-          <section className="tfv-section">
-            <h2 className="tfv-section-title">Measurements</h2>
-            <div className="measure-strip">
-              {[
-                { label: 'Height', value: profile?.height_cm },
-                { label: 'Bust', value: profile?.bust_cm },
-                { label: 'Waist', value: profile?.waist_cm },
-                { label: 'Hips', value: profile?.hips_cm },
-              ].map(({ label, value }) => (
-                <div key={label} className="measure-chip">
-                  <span className="measure-label">{label}</span>
-                  <span className="measure-value">{measure(value)}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="tfv-section">
-            <h2 className="tfv-section-title">Communication</h2>
-            <TalentThread applicationId={applicationId} />
-          </section>
-        </aside>
+        <Sheet id="dx-log" title="The record" tone="wide">
+          <WorkingRecord applicationId={applicationId} timeline={standing?.timeline} />
+        </Sheet>
       </div>
     </motion.div>
   );

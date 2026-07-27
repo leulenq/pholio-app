@@ -14,6 +14,7 @@ const MINOR_ACCESS_ERROR = "MINOR_SUBMISSION_ACCESS_DENIED";
 const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
   ["GET", "/api/agency/applications", "filtered_collection"],
   ["GET", "/api/agency/applications/:applicationId/details", "application_guard"],
+  ["GET", "/api/agency/applications/:applicationId/dossier", "application_guard"],
   ["GET", "/api/agency/applications/:applicationId/timeline", "application_guard"],
   ["PATCH", "/api/agency/applications/:applicationId/status", "application_guard"],
   ["POST", "/api/agency/applications/:applicationId/accept", "application_guard"],

@@ -254,6 +254,16 @@ export async function getApplicationDetails(applicationId) {
 }
 
 /**
+ * The talent dossier — the aggregate read behind the expanded talent view.
+ * One request carries identity, canonical stats, representation, availability,
+ * standing with this agency, the book, the submitted package, roster position,
+ * and the working record. Unwrapped by apiClient to the `data` payload.
+ */
+export async function getTalentDossier(applicationId) {
+  return apiClient.get(`/applications/${applicationId}/dossier`);
+}
+
+/**
  * Get full agency roster
  */
 export async function fetchRoster(params = {}) {
@@ -883,6 +893,7 @@ export default {
   getProfilePreview,
   fetchProfileDetails,
   getApplicationDetails,
+  getTalentDossier,
   fetchRoster,
   fetchRosterProfile,
   inviteTalent,
