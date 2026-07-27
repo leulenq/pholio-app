@@ -1,3 +1,24 @@
+# Fix Settings → Identity blank name fields
+
+## Problem
+Talent Settings → Identity shows blank First/Last name even when the account menu and Profile tab show the name. Save toasts success, but fields are blank again after leaving and returning.
+
+## Root cause
+`IdentityMovement` initialized the form empty and used an "adjust during render" sync that seeded `prevProfile` with the already-cached profile. On normal in-dashboard navigation, mount never saw a profile change, so the form never hydrated.
+
+## Plan
+- [x] Seed identity form from cached profile on mount
+- [x] Merge `updateProfile` response into `auth-user` cache before clearing dirty
+- [x] Sync `users` name columns on profile name save; GET falls back to account names
+- [x] Backfill blank profile names from Google/account on login
+- [x] Regression tests (client helper + profile-save-contract)
+- [x] Commit, push, PR
+
+## Review
+Client helper tests 3/3; profile-save-contract 6/6 including identity persistence/fallback.
+
+---
+
 # Mobile-first legal consent gate
 
 ## Goal

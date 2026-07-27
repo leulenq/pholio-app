@@ -33,6 +33,7 @@ import CheckoutHandoff from '../../../../shared/components/billing/CheckoutHando
 import SubscriptionReturnBanner from '../../../../shared/components/billing/SubscriptionReturnBanner';
 import PholioButton, { PholioToggleButton, PholioToggleGroup } from '../../../../shared/components/ui/PholioButton';
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
+import { identityFormFromProfile } from './identityForm';
 import './SettingsPage.css';
 
 /* ------------------------------------------------------------------ *
@@ -87,17 +88,6 @@ function useSettingsMutation(options = {}) {
 }
 
 /* --- helpers ------------------------------------------------------- */
-
-function parseJsonArray(raw) {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw !== 'string' || !raw.trim()) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return raw ? [raw] : [];
-  }
-}
 
 function formatDate(value) {
   if (!value) return null;
@@ -285,7 +275,9 @@ function IdentityMovement({ settings }) {
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', language: 'English', timezone: 'America/New_York' });
+  // Seed from the cached auth profile on mount — otherwise the render-sync below
+  // never fires when React Query already has auth-user (normal in-dashboard nav).
+  const [form, setForm] = useState(() => identityFormFromProfile(profile));
   const [dirty, setDirty] = useState(false);
 
   const handleMutation = useSettingsMutation({ onSuccess: () => toast.success('Public handle updated') });
@@ -304,19 +296,15 @@ function IdentityMovement({ settings }) {
   }
 
   // Sync server profile into local form when not dirty (adjust during render).
+  // Form is seeded from the cached profile above; this covers async profile
+  // arrival and later refetches without wiping in-progress edits.
   const [prevProfile, setPrevProfile] = useState(profile);
   const [prevDirty, setPrevDirty] = useState(dirty);
   if (profile !== prevProfile || dirty !== prevDirty) {
     setPrevProfile(profile);
     setPrevDirty(dirty);
     if (profile && !dirty) {
-      setForm({
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        phone: profile.phone || '',
-        language: parseJsonArray(profile.languages)[0] || 'English',
-        timezone: profile.timezone || 'America/New_York',
-      });
+      setForm(identityFormFromProfile(profile));
     }
   }
 
@@ -324,7 +312,13 @@ function IdentityMovement({ settings }) {
 
   const save = async () => {
     try {
-      await updateProfile({ ...form, languages: form.language ? [form.language] : [] });
+      const result = await updateProfile({ ...form, languages: form.language ? [form.language] : [] });
+      // Apply the persisted profile before clearing dirty so the render-sync cannot
+      // race-wipe the form with a stale auth-user cache entry.
+      if (result?.profile) {
+        setForm(identityFormFromProfile(result.profile));
+        setPrevProfile(result.profile);
+      }
       setDirty(false);
       toast.success('Identity saved');
     } catch (error) {

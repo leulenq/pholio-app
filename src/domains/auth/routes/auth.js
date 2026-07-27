@@ -793,16 +793,61 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             updated_at: knex.fn.now(),
           });
           console.log("[Login] Profile created for existing user");
-        } else if (!existingProfile.onboarding_completed_at) {
-          // Profile exists but onboarding gate was never cleared — stamp it now.
-          // This backfills accounts created before the Firebase-only auth fix.
-          await knex("profiles")
-            .where({ id: existingProfile.id })
-            .update({ onboarding_completed_at: knex.fn.now() });
-          console.log(
-            "[Login] Backfilled onboarding_completed_at for existing profile:",
-            existingProfile.id,
-          );
+        } else {
+          const profileNameBackfill = {};
+          const resolvedFirst =
+            firstName || user.first_name || null;
+          const resolvedLast = lastName || user.last_name || null;
+          if (
+            (!existingProfile.first_name ||
+              existingProfile.first_name === "User") &&
+            resolvedFirst &&
+            resolvedFirst !== "User"
+          ) {
+            profileNameBackfill.first_name = resolvedFirst;
+          }
+          if (!existingProfile.last_name && resolvedLast) {
+            profileNameBackfill.last_name = resolvedLast;
+          }
+          if (Object.keys(profileNameBackfill).length > 0) {
+            profileNameBackfill.updated_at = knex.fn.now();
+            await knex("profiles")
+              .where({ id: existingProfile.id })
+              .update(profileNameBackfill);
+            console.log(
+              "[Login] Backfilled profile name from account/provider:",
+              profileNameBackfill,
+            );
+          }
+
+          if (!existingProfile.onboarding_completed_at) {
+            // Profile exists but onboarding gate was never cleared — stamp it now.
+            // This backfills accounts created before the Firebase-only auth fix.
+            await knex("profiles")
+              .where({ id: existingProfile.id })
+              .update({ onboarding_completed_at: knex.fn.now() });
+            console.log(
+              "[Login] Backfilled onboarding_completed_at for existing profile:",
+              existingProfile.id,
+            );
+          }
+        }
+
+        // Keep users.name aligned with the best-known provider/account name.
+        const userNameBackfill = {};
+        if (
+          (!user.first_name || user.first_name === "User") &&
+          firstName &&
+          firstName !== "User"
+        ) {
+          userNameBackfill.first_name = firstName;
+        }
+        if (!user.last_name && lastName) {
+          userNameBackfill.last_name = lastName;
+        }
+        if (Object.keys(userNameBackfill).length > 0) {
+          await knex("users").where({ id: user.id }).update(userNameBackfill);
+          Object.assign(user, userNameBackfill);
         }
       } catch (profileError) {
         // Non-critical — log but continue
