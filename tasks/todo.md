@@ -1,3 +1,28 @@
+# Mobile-first legal consent gate
+
+## Goal
+Redesign the talent login legal acceptance popup for phone screens: scannable summary, sticky action, contained composition — not a desktop legal wall squeezed into a narrow viewport.
+
+## Plan
+- [x] Rebuild `LegalAcceptanceGate` as mobile bottom-sheet + sticky agree footer
+- [x] Progressive disclosure for changelog bullets (title + expandable detail)
+- [x] Safe-area / browser-chrome clearance; larger touch targets
+- [x] Keep desktop as a refined centered dialog with the same information architecture
+- [x] Light CookieConsentBanner mobile polish if needed so it does not fight the gate
+- [x] Lint + unit tests
+- [x] Mobile/desktop visual verification
+- [x] Commit, push, PR
+
+## Review
+Mobile consent sheet now fits title + 5 scannable change titles + sticky links/checkbox/CTA in one phone viewport. Progressive disclosure for detail. Desktop remains a centered dialog.
+
+## Design rules applied
+- Talent DESIGN.md: warm paper panel, serif title, gold accent, spring motion; no eyebrows/badges/glass cards
+- Product register: earned familiarity for consent — bottom sheet + sticky CTA on phone
+- Industry: keep age/guardian and privacy change titles visible in the summary (minors are a distinct regime)
+
+---
+
 # Unify full-page loaders (gold spinner)
 
 ## Goal

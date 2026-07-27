@@ -13,63 +13,163 @@
 }
 
 .legal-gate-panel {
-  width: min(100%, 460px);
-  padding: 34px 32px;
+  width: min(100%, 440px);
+  max-height: min(84vh, 680px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
   border-radius: 16px;
   background: var(--ag-surface-1, #fff);
   box-shadow: 0 28px 60px rgba(26, 24, 21, 0.28);
   text-align: left;
+  overflow: hidden;
+}
+
+.legal-gate-handle {
+  display: none;
+}
+
+.legal-gate-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 32px 32px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.legal-gate-header {
+  margin-bottom: 18px;
 }
 
 .legal-gate-title {
-  margin: 0 0 12px;
-  font-family: var(--font-display, 'Playfair Display', serif);
+  margin: 0 0 10px;
+  font-family: var(--font-display, 'Playfair Display', 'Noto Serif Display', Georgia, serif);
   font-size: 1.6rem;
   font-weight: 500;
   letter-spacing: -0.01em;
+  line-height: 1.2;
   color: var(--ag-text-0, #1a1815);
+  text-wrap: balance;
 }
 
 .legal-gate-lead {
-  margin: 0 0 18px;
+  margin: 0;
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--ag-text-2, #6b6560);
+  text-wrap: pretty;
 }
 
 .legal-gate-changes {
-  margin: 0 0 20px;
+  margin: 0 0 18px;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-.legal-gate-changes li {
-  position: relative;
-  padding-left: 20px;
+.legal-gate-change {
+  border: 1px solid var(--ag-border, #ede8dd);
+  border-radius: 12px;
+  background: var(--ag-surface-0, #faf8f5);
+  overflow: hidden;
+}
+
+.legal-gate-change-toggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 14px 14px 16px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.legal-gate-change-toggle:hover {
+  background: rgba(184, 149, 106, 0.06);
+}
+
+.legal-gate-change-toggle:focus-visible {
+  outline: 2px solid var(--ag-gold, #b8956a);
+  outline-offset: -2px;
+}
+
+.legal-gate-change-title {
+  margin: 0;
+  flex: 1 1 auto;
   font-size: 0.9375rem;
-  line-height: 1.5;
+  font-weight: 600;
+  line-height: 1.45;
   color: var(--ag-text-0, #1a1815);
 }
 
-.legal-gate-changes li::before {
+.legal-gate-change > .legal-gate-change-title {
+  display: block;
+  padding: 14px 16px;
+}
+
+.legal-gate-change-chevron {
+  position: relative;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: rgba(184, 149, 106, 0.12);
+}
+
+.legal-gate-change-chevron::before {
   content: '';
   position: absolute;
-  left: 2px;
-  top: 0.62em;
+  top: 7px;
+  left: 6px;
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: var(--ag-gold, #b8956a);
+  border-right: 1.5px solid var(--ag-gold, #b8956a);
+  border-bottom: 1.5px solid var(--ag-gold, #b8956a);
+  transform: rotate(45deg);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.legal-gate-change.is-open .legal-gate-change-chevron::before {
+  top: 8px;
+  transform: rotate(225deg);
+}
+
+.legal-gate-change-detail {
+  padding: 0 16px 14px;
+}
+
+.legal-gate-change-detail[hidden] {
+  display: none;
+}
+
+.legal-gate-change-detail p {
+  margin: 0;
+  padding-top: 2px;
+  border-top: 1px solid var(--ag-border, #ede8dd);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ag-text-2, #6b6560);
+  text-wrap: pretty;
 }
 
 .legal-gate-links {
-  margin: 0 0 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0 0 12px;
   font-size: 0.8125rem;
-  line-height: 1.55;
-  color: var(--ag-text-2, #6b6560);
+  line-height: 1.4;
 }
 
 .legal-gate-links a {
@@ -84,18 +184,27 @@
   text-decoration: underline;
 }
 
+.legal-gate-footer {
+  flex: 0 0 auto;
+  padding: 16px 32px 28px;
+  border-top: 1px solid var(--ag-border, #ede8dd);
+  background: var(--ag-surface-1, #fff);
+}
+
 .legal-gate-check {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   cursor: pointer;
-  margin-bottom: 8px;
+  margin: 0;
+  min-height: 44px;
+  padding: 4px 0;
 }
 
 .legal-gate-check input[type='checkbox'] {
-  margin-top: 2px;
-  width: 17px;
-  height: 17px;
+  margin-top: 3px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   accent-color: var(--ag-gold, #b8956a);
   cursor: pointer;
@@ -105,16 +214,121 @@
   font-size: 0.875rem;
   line-height: 1.45;
   color: var(--ag-text-0, #1a1815);
+  text-wrap: pretty;
 }
 
 .legal-gate-error {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   font-size: 0.8125rem;
   line-height: 1.45;
   color: #c0392b;
 }
 
 .legal-gate-submit {
-  margin-top: 22px;
+  margin-top: 14px;
   width: 100%;
+  min-height: 48px;
+}
+
+/* —— Mobile: bottom-sheet consent composition —— */
+@media (max-width: 640px) {
+  .legal-gate-scrim {
+    align-items: flex-end;
+    justify-content: stretch;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .legal-gate-panel {
+    width: 100%;
+    max-width: none;
+    /* Leave a band of scrim above so the sheet reads as contained, not a page. */
+    max-height: min(86dvh, 100%);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -18px 48px rgba(26, 24, 21, 0.22);
+  }
+
+  .legal-gate-handle {
+    display: block;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 4px;
+    margin: 10px auto 0;
+    border-radius: 999px;
+    background: rgba(26, 24, 21, 0.16);
+  }
+
+  .legal-gate-scroll {
+    padding: 14px 20px 8px;
+  }
+
+  .legal-gate-header {
+    margin-bottom: 14px;
+  }
+
+  .legal-gate-title {
+    font-size: 1.4rem;
+  }
+
+  .legal-gate-lead {
+    font-size: 0.9rem;
+  }
+
+  .legal-gate-changes {
+    gap: 6px;
+  }
+
+  .legal-gate-change-toggle {
+    min-height: 46px;
+    padding: 12px 12px 12px 14px;
+  }
+
+  .legal-gate-change-title {
+    font-size: 0.875rem;
+  }
+
+  .legal-gate-links {
+    gap: 8px 16px;
+    margin-bottom: 10px;
+  }
+
+  .legal-gate-links a {
+    padding: 4px 0;
+    font-size: 0.8125rem;
+  }
+
+  .legal-gate-footer {
+    /* Keep agree controls clear of browser chrome / home indicator */
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -8px 24px rgba(26, 24, 21, 0.06);
+  }
+
+  .legal-gate-check {
+    align-items: center;
+    gap: 14px;
+  }
+
+  .legal-gate-check input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+    margin-top: 0;
+  }
+
+  .legal-gate-check span {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .legal-gate-submit {
+    margin-top: 12px;
+    min-height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legal-gate-change-toggle,
+  .legal-gate-change-chevron::before,
+  .legal-gate-links a {
+    transition: none;
+  }
 }

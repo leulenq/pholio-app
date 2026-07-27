@@ -50,8 +50,44 @@
 
 .app-cookie-btn {
   flex: 0 0 auto;
+  min-height: 44px;
 }
 
 .app-cookie-link {
   flex: 0 0 auto;
+  min-height: 44px;
+}
+
+@media (max-width: 640px) {
+  .app-cookie-banner {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-cookie-inner {
+    padding: 16px 16px 12px;
+    gap: 14px;
+  }
+
+  .app-cookie-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .app-cookie-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .app-cookie-btn-primary {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .app-cookie-btn,
+  .app-cookie-link {
+    width: 100%;
+    justify-content: center;
+  }
 }

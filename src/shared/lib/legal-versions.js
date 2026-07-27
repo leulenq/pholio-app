@@ -29,11 +29,11 @@ const CURRENT_LEGAL_VERSION = "2026-07-18";
  */
 const TERMS_CHANGELOG = Object.freeze({
   "2026-07-18": Object.freeze([
-    "Broadened who can receive a submission: agencies, casting organizations, event producers, brands, and other clients are now covered as “Recipients,” each with defined obligations and the ability to add opportunity-specific terms.",
+    "Broadened who can receive a submission — agencies, casting organizations, event producers, brands, and other clients are now covered as “Recipients,” each with defined obligations and the ability to add opportunity-specific terms.",
     "Added explicit age and guardian rules — a 13+ minimum, guardian authorization for under-18 Talent, and a statement that a self-reported date of birth is not verification.",
-    "Restructured the Privacy Policy around public profiles and discoverability, portfolio analytics, children's and teen privacy, retention and deletion, and your rights and requests.",
-    "Clarified that acknowledging the Privacy Policy is not consent to optional processing that requires a separate choice, and that the image-analysis setting and profile-search embedding are separate AI activities.",
-    "Detailed subscription renewal, cancellation, tax, and price-change notices, and stated that a paid plan never buys review, selection, representation, or booking.",
+    "Restructured the Privacy Policy — public profiles and discoverability, portfolio analytics, children's and teen privacy, retention and deletion, and your rights and requests.",
+    "Clarified optional processing and AI activities — acknowledging the Privacy Policy is not consent to optional processing that requires a separate choice; image-analysis and profile-search embeddings are separate AI activities.",
+    "Detailed subscription and billing notices — renewal, cancellation, tax, and price-change notices; a paid plan never buys review, selection, representation, or booking.",
   ]),
   "2026-06-25": Object.freeze([
     "Clarified our role as a software platform rather than a talent agency, and incorporated our Community Guidelines to prohibit scamming, fake scouting, and unauthorized data use.",
