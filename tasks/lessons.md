@@ -1,5 +1,20 @@
 # Lessons Learned
 
+## 2026-07-27 — Settings Identity blank names = mount hydration skip, not missing data
+
+- `IdentityMovement` used empty `useState` + "adjust during render" sync that
+  seeded `prevProfile` with the already-cached `auth-user` profile. On normal
+  in-dashboard navigation the profile reference never changed on mount, so First
+  / Last name stayed blank even though the account menu and Profile tab read the
+  same cache correctly.
+- Pattern: if local form state must mirror server data, **seed `useState` from
+  the cached value** (like the public-handle field already did). Do not rely on
+  a prev-value sync alone when `prev` is initialized to the current value.
+- After `updateProfile`, merge the PUT response into `auth-user` before clearing
+  dirty state, or `setDirty(false)` can race-wipe the form with a stale cache.
+- Keep `users` and `profiles` name columns aligned on save/login; GET should fall
+  back to the account layer when the book row is blank.
+
 ## 2026-07-26 — Intel page: keep intel2, never restore `instruments/`
 
 - Canonical UI is the **intel2** flat tree (`PulseZone`, `IntelKit`, `intel2-*`
