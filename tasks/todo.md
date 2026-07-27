@@ -10,8 +10,11 @@ Redesign the talent login legal acceptance popup for phone screens: scannable su
 - [x] Keep desktop as a refined centered dialog with the same information architecture
 - [x] Light CookieConsentBanner mobile polish if needed so it does not fight the gate
 - [x] Lint + unit tests
-- [ ] Mobile/desktop visual verification
-- [ ] Commit, push, PR
+- [x] Mobile/desktop visual verification
+- [x] Commit, push, PR
+
+## Review
+Mobile consent sheet now fits title + 5 scannable change titles + sticky links/checkbox/CTA in one phone viewport. Progressive disclosure for detail. Desktop remains a centered dialog.
 
 ## Design rules applied
 - Talent DESIGN.md: warm paper panel, serif title, gold accent, spring motion; no eyebrows/badges/glass cards
