@@ -140,8 +140,36 @@ function setupIncludesMinorData(state) {
   );
 }
 
+/**
+ * The approved access request the agency was vetted on.
+ *
+ * Setup must confirm what Pholio already holds rather than re-interrogate an
+ * agency it has already reviewed, so the request supplies the pre-fill for
+ * boards, roster path, timezone, and the contact of record.
+ */
+function mapOnFile(row) {
+  if (!row) return null;
+  return {
+    approvedAt: row.approved_at,
+    agencyName: row.agency_name,
+    website: row.website_url,
+    market: [row.primary_market_city, row.primary_market_country]
+      .filter(Boolean)
+      .join(", "),
+    agencyType: row.agency_type,
+    boards: parseMaybeJson(row.primary_boards, []) || [],
+    migrationInterest: row.migration_interest,
+    rosterSizeRange: row.roster_size_range,
+    teamSizeRange: row.team_size_range,
+    timezone: row.timezone,
+    contactName: row.contact_name,
+    contactEmail: row.contact_email,
+    contactRole: row.contact_role,
+  };
+}
+
 async function loadSetupState(agencyId) {
-  const [agency, steps, boards, importJobs, openCallLinks, team] =
+  const [agency, steps, boards, importJobs, openCallLinks, team, onFile] =
     await Promise.all([
       knex("agencies").where({ id: agencyId }).first(),
       knex("agency_setup_steps").where({ agency_id: agencyId }),
@@ -177,6 +205,14 @@ async function loadSetupState(agencyId) {
           "u.avatar_url",
         )
         .orderBy("am.created_at", "asc"),
+      knex.schema.hasTable("agency_access_requests").then((has) =>
+        has
+          ? knex("agency_access_requests")
+              .where({ provisioned_agency_id: agencyId, status: "approved" })
+              .orderBy("approved_at", "desc")
+              .first()
+          : null,
+      ),
     ]);
 
   const stepMap = new Map(steps.map((step) => [step.step_key, mapSetupStep(step)]));
@@ -205,6 +241,7 @@ async function loadSetupState(agencyId) {
       minorDataAcknowledgedAt: agency.minor_data_acknowledged_at || null,
       setupReturnTo: agency.setup_return_to || null,
     },
+    onFile: mapOnFile(onFile),
     steps: normalizedSteps,
     requiredComplete: normalizedSteps.every((step) => step.status === "complete"),
     boards: boards.map((board) => ({

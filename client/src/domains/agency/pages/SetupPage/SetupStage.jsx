@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import PholioBillingWordmark from '../../../../shared/components/billing/PholioBillingWordmark';
+import SetupHeader from './SetupHeader';
 import { CHAPTERS } from './chapters';
 
 /**
@@ -14,7 +14,6 @@ import { CHAPTERS } from './chapters';
 export default function SetupStage({
   chapterIndex,
   agencyName,
-  agencyMarket,
   isBusy,
   canContinue,
   error,
@@ -37,27 +36,11 @@ export default function SetupStage({
 
   return (
     <div className="stg">
-      <header className="stg-masthead">
-        <div className="stg-masthead__inner">
-          <div className="stg-wordmark" role="img" aria-label="Pholio">
-            <PholioBillingWordmark variant="on-cream" size="sm" />
-          </div>
-
-          <div className="stg-masthead__end">
-            <p className={`stg-lockup${agencyName ? '' : ' is-unnamed'}`}>
-              <strong>{agencyName || 'Your agency'}</strong>
-              <span>{agencyMarket || 'Private workspace'}</span>
-            </p>
-            <button type="button" className="stg-signout" onClick={onSignOut}>
-              Sign out
-            </button>
-          </div>
-        </div>
-
+      <SetupHeader agencyName={agencyName} onSignOut={onSignOut}>
         <div className="stg-progress" aria-hidden="true">
           <span style={{ '--stg-progress': (chapterIndex + 1) / CHAPTERS.length }} />
         </div>
-      </header>
+      </SetupHeader>
 
       <nav className="stg-index" aria-label="Agency setup chapters">
         <ol>

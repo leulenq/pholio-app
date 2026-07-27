@@ -274,3 +274,57 @@ it feel cinematic is scale, space, and pacing, not a frame around it.
 Loading, error, and the closing "workspace is open" beat all render on the same
 cream surface. Once setup completes, the agency lands in the command center and
 this system does not appear again.
+
+## 8. Setup information architecture
+
+Setup runs **after** review and approval. The agency already submitted an access
+request (`agency_access_requests`) that Pholio read, assessed, and accepted. Setup
+therefore **confirms the record** and collects only what the request never asked.
+Re-interrogating an approved agency is the failure mode this IA exists to prevent.
+
+### Chapter map
+
+| # | Chapter | Backend steps | Collects |
+|---|---------|---------------|----------|
+| — | Welcome | none | Nothing. Access-granted arrival. |
+| 1 | The record | `profile`, `defaults` | Name, market, website, agency type (all pre-filled from the request) + time zone, currency, measurements |
+| 2 | The boards | `boards` | Standing divisions, pre-selected from `primary_boards` |
+| 3 | The roster | `roster` | How talent arrives, pre-selected from `migration_interest` |
+| 4 | The team | `team` | Real invitations via `POST /api/agency/team` |
+| 5 | Intake | `open_call` | Open-call link, inbound email, what talent see |
+| 6 | Custody | `privacy` | Minor-record declaration + custody acknowledgement |
+
+### Placement rules
+
+- **Workspace-level facts belong in The record.** Time zone, currency, and units
+  are administrative properties of the workspace, not intake routing.
+- **Anything talent-facing belongs in Intake.** The public note is what a talent
+  reads when submitting, so it sits with open-call routing, not with identity.
+- **Inbound email is not the owner's login.** Approval seeds `support_email` with
+  the reviewed contact address; Intake is where it is corrected to a published
+  agency address.
+- **Minors are declared once, in Custody.** Selecting the Kids/Teens board implies
+  the declaration and locks the control; the acknowledgement gates completion.
+- **The profile endpoint writes every column it reads.** Any chapter that saves
+  profile fields must send the complete record or it will null another chapter's
+  work.
+
+## 9. Access and activation
+
+**Model: one-time invitation link, password set before setup (Option A).** Already
+implemented in `agency-request-review.js` and correct — do not replace it with
+temporary credentials.
+
+On approval, `ensureIdentityForRequest` creates the Firebase user with a random
+password that is **never disclosed or transmitted**, then `deliverApprovalInvite`
+emails a Firebase action link the owner redeems to set their own password.
+Redeeming the link is what proves control of the reviewed inbox, which is why the
+account is created `emailVerified: true`.
+
+Consequences for setup UI:
+
+- **Setup must not contain a credentials step.** The password already exists by the
+  time the owner can reach `/dashboard/agency/setup` — they could not have signed
+  in otherwise. A "set your password" screen inside setup would be dead UI.
+- The correct place to strengthen access is the **invitation email and the login
+  screen**, not the setup flow.
