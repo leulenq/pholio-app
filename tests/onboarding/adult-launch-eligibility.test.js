@@ -35,11 +35,20 @@ const request = require("supertest");
 const knex = require("../../src/shared/db/knex");
 
 const mockAuth = { token: null };
+const mockVerifyIdToken = jest.fn(() => Promise.resolve(mockAuth.token));
 jest.mock("../../src/domains/auth/services/firebase-admin", () => ({
   initializeFirebaseAdmin: jest.fn(),
-  verifyIdToken: jest.fn(() => Promise.resolve(mockAuth.token)),
+  verifyIdToken: mockVerifyIdToken,
   createUser: jest.fn(),
   getUserByEmail: jest.fn(),
+}));
+const mockSendVerificationEmail = jest.fn();
+jest.mock("../../src/domains/auth/services/email-verification", () => ({
+  sendVerificationEmailViaSmtp: mockSendVerificationEmail,
+}));
+const mockCollectEntrySignals = jest.fn();
+jest.mock("../../src/domains/onboarding/services/signal-collector", () => ({
+  collectEntrySignals: mockCollectEntrySignals,
 }));
 
 const app = require("../../src/app");
@@ -56,6 +65,39 @@ function uniqueEmail(label) {
 
 function tokenFor(email, uid) {
   return { uid, email, email_verified: true, name: "Adult Launch Test" };
+}
+
+function launchDateParts(date = new Date()) {
+  const values = {};
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date).forEach(({ type, value }) => {
+    if (type !== "literal") values[type] = Number(value);
+  });
+  return values;
+}
+
+function launchDobYearsAgo(years) {
+  const today = launchDateParts();
+  return `${today.year - years}-${String(today.month).padStart(2, "0")}-${String(today.day).padStart(2, "0")}`;
+}
+
+async function launchWriteCounts() {
+  const tables = [
+    "users",
+    "profiles",
+    "onboarding_signals",
+    "onboarding_analytics",
+    "sessions",
+  ];
+  const entries = await Promise.all(tables.map(async (table) => {
+    const row = await knex(table).count({ total: "*" }).first();
+    return [table, Number(row.total)];
+  }));
+  return Object.fromEntries(entries);
 }
 
 function onboardingStep(profile) {
@@ -86,15 +128,13 @@ async function purgeUserByEmail(email) {
     await knex("onboarding_analytics").where({ profile_id: profile.id }).del().catch(() => {});
     await knex("profiles").where({ id: profile.id }).del();
   }
-  await knex("legal_acceptances").where({ user_id: user.id }).del().catch(() => {});
   await knex("sessions").where("sess", "like", `%${user.id}%`).del().catch(() => {});
   await knex("users").where({ id: user.id }).del();
 }
 
 describe("adult-only talent onboarding launch boundary", () => {
   test("rejects missing, malformed, and 17-year-old DOB evidence before any account or profile write", async () => {
-    const today = new Date();
-    const seventeenDob = `${today.getUTCFullYear() - 17}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
+    const seventeenDob = launchDobYearsAgo(17);
     const cases = [
       { label: "missing", dob: undefined, status: 400, error: "DOB_REQUIRED" },
       { label: "invalid", dob: "not-a-date", status: 400, error: "DOB_INVALID" },
@@ -105,12 +145,27 @@ describe("adult-only talent onboarding launch boundary", () => {
       const email = uniqueEmail(candidate.label);
       const uid = `adult-launch-${candidate.label}-${sequence}`;
       const agent = request.agent(app);
+      const countsBefore = await launchWriteCounts();
+      mockVerifyIdToken.mockClear();
+      mockSendVerificationEmail.mockClear();
+      mockCollectEntrySignals.mockClear();
 
       const response = await postEntry(agent, { email, uid, dob: candidate.dob });
 
       expect(response.status).toBe(candidate.status);
       expect(response.body.error).toBe(candidate.error);
       expect(await knex("users").where({ email }).first()).toBeUndefined();
+      expect(await launchWriteCounts()).toEqual(countsBefore);
+      expect(mockSendVerificationEmail).not.toHaveBeenCalled();
+      expect(mockCollectEntrySignals).not.toHaveBeenCalled();
+      if (candidate.label === "missing") {
+        // Identity verification is necessary to determine whether this is an
+        // established adult resuming an existing Pholio profile.
+        expect(mockVerifyIdToken).toHaveBeenCalledTimes(1);
+      } else {
+        // Supplied malformed/under-18 evidence is rejected before Firebase.
+        expect(mockVerifyIdToken).not.toHaveBeenCalled();
+      }
     }
   });
 
@@ -118,8 +173,7 @@ describe("adult-only talent onboarding launch boundary", () => {
     const email = uniqueEmail("eighteen");
     const uid = `adult-launch-eighteen-${sequence}`;
     const agent = request.agent(app);
-    const today = new Date();
-    const dob = `${today.getUTCFullYear() - 18}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
+    const dob = launchDobYearsAgo(18);
 
     const response = await postEntry(agent, { email, uid, dob });
 
@@ -127,6 +181,10 @@ describe("adult-only talent onboarding launch boundary", () => {
     expect(response.body.next_step).toBe("gender");
     const user = await knex("users").where({ email }).first();
     const profile = await knex("profiles").where({ user_id: user.id }).first();
+    expect(user.terms_accepted_at).toBeTruthy();
+    expect(user.terms_accepted_version).toBeTruthy();
+    expect(user.privacy_accepted_at).toBeTruthy();
+    expect(user.privacy_accepted_version).toBeTruthy();
     expect(profile.date_of_birth).toBe(dob);
     expect(onboardingStep(profile)).toBe("gender");
   });
@@ -169,8 +227,7 @@ describe("adult-only talent onboarding launch boundary", () => {
     expect(first.status).toBe(200);
 
     const user = await knex("users").where({ email }).first();
-    const today = new Date();
-    const minorDob = `${today.getUTCFullYear() - 17}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
+    const minorDob = launchDobYearsAgo(17);
     await knex("profiles")
       .where({ user_id: user.id })
       .update({ date_of_birth: minorDob });
@@ -219,6 +276,15 @@ describe("adult-only talent onboarding launch boundary", () => {
     expect(instagram).toContain("Instagram sign-up is unavailable during this adults-only launch.");
     expect(entrySource).not.toContain("startInstagramAuth");
     expect(entrySource).not.toContain("isInstagramAuthConfigured");
+
+    const handoffStart = entrySource.indexOf("async function rejectLoginHandoff");
+    const handoffEnd = entrySource.indexOf("const handleGoogleSignIn", handoffStart);
+    expect(handoffStart).toBeGreaterThan(-1);
+    const handoff = entrySource.slice(handoffStart, handoffEnd);
+    expect(handoff).toContain("await signOut(auth)");
+    expect(handoff).not.toContain("beginOAuthEntry(");
+    expect(handoff).not.toContain("finishOAuthEntry(");
+    expect(handoff).not.toContain("entryMutation.mutateAsync");
   });
 
   test("uses America/New_York as the explicit pilot eligibility calendar", () => {

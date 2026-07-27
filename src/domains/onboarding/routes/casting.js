@@ -277,6 +277,17 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
     } = req.body;
     const termsAccepted = terms_accepted === true;
     const privacyAccepted = privacy_accepted === true;
+    // When DOB was supplied, reject invalid or under-18 evidence before even
+    // verifying the Firebase token. This keeps rejected pilot attempts out of
+    // every account, profile, session, signal, and email path. A missing DOB
+    // remains resolvable after identity lookup only for an already-established
+    // adult resuming an existing Pholio profile.
+    const submittedEligibility = date_of_birth != null
+      ? adultEligibilityResult(date_of_birth, { requireDateOnly: true })
+      : null;
+    if (submittedEligibility && !submittedEligibility.ok) {
+      return rejectEligibility(res, submittedEligibility);
+    }
 
     let user,
       profile,
@@ -361,9 +372,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       const establishedDob = profile?.date_of_birth
         ? adultEligibilityResult(profile.date_of_birth)
         : null;
-      const submittedDob = date_of_birth != null
-        ? adultEligibilityResult(date_of_birth, { requireDateOnly: true })
-        : null;
+      const submittedDob = submittedEligibility;
 
       if (profile?.date_of_birth && !establishedDob.ok) {
         return rejectEligibility(res, establishedDob);
@@ -970,7 +979,11 @@ router.post(
       // current adults reach gender only after pre-auth eligibility evidence.
       const genderNextStep = profile.date_of_birth ? "scout" : "birthdate";
 
-      if (state.current_step === "gender") {
+      // Profiles parked at the pre-launch birthdate step already have a
+      // canonical, adult DOB (the router-wide gate enforced it). Treat their
+      // gender submission as the tolerant legacy birthdate → scout edge so the
+      // updated client never re-collects or mutates that DOB.
+      if (state.current_step === "gender" || state.current_step === "birthdate") {
         const transition = transitionTo(
           state,
           genderNextStep,
