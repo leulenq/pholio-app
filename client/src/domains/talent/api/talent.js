@@ -166,6 +166,7 @@ export const talentApi = {
   deactivateAccount: () => apiClient.post('/settings/deactivate', {}),
   deleteAccount: () => apiClient.delete('/settings/account'),
   revokeSession: (id) => apiClient.delete(`/settings/sessions/${encodeURIComponent(id)}`),
+  revokeOtherSessions: () => apiClient.delete('/settings/sessions'),
 
   // PDF
   getPdfCustomization: () => apiClient.get('/pdf-customization'),
