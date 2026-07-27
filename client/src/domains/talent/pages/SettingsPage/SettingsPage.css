@@ -30,7 +30,10 @@
   --set-hair: rgba(26, 26, 26, 0.09);
   --set-hair-strong: rgba(26, 26, 26, 0.16);
   --set-hair-gold: rgba(201, 165, 90, 0.28);
-  --set-danger: #b4433a;
+  --set-danger: #fff5f4;
+  --set-danger-surface: #5c100c;
+  --set-danger-border: #5c100c;
+  --set-danger-hair: rgba(255, 245, 244, 0.2);
   --set-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --set-radius: 8px;
   --set-mono: 'JetBrains Mono', 'SF Mono', 'SFMono-Regular', ui-monospace, monospace;
@@ -305,7 +308,52 @@
 
 .set-card + .set-card { margin-top: 18px; }
 
-.set-card--danger { border-color: rgba(180, 67, 58, 0.28); }
+.set-card--danger {
+  background: var(--set-danger-surface);
+  border: 2px solid var(--set-danger-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.set-card--danger .set-card__head {
+  border-bottom: 1px solid var(--set-danger-hair);
+}
+
+.set-card--danger .set-card__title {
+  color: var(--set-danger);
+  font-weight: 600;
+}
+
+.set-card--danger .set-card__sub {
+  color: rgba(255, 245, 244, 0.9);
+}
+
+.set-card--danger .set-card__foot {
+  border-top: 1px solid var(--set-danger-hair);
+}
+
+.set-card--danger .set-confirm p {
+  color: var(--set-danger);
+  font-weight: 600;
+}
+
+.set-card--danger .pholio-btn--destructive {
+  color: var(--set-danger) !important;
+  border-bottom-color: rgba(255, 245, 244, 0.55) !important;
+}
+
+.set-card--danger .pholio-btn--destructive:hover:not(:disabled):not([aria-disabled='true']) {
+  color: #ffffff !important;
+  border-bottom-color: #ffffff !important;
+}
+
+.set-card--danger .set-inline-link {
+  color: rgba(255, 245, 244, 0.82);
+}
+
+.set-card--danger .set-inline-link:hover:not(:disabled) {
+  color: #ffffff;
+}
 
 .set-card__head {
   display: flex;

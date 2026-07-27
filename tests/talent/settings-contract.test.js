@@ -29,6 +29,10 @@ describe("talent settings contract", () => {
   const sessionIds = [];
 
   beforeAll(async () => {
+    // Ensure schema + fixtures exist before inserting rows.
+    // Other test suites in this repo follow the same pattern.
+    await knex.migrate.latest();
+
     const now = new Date().toISOString();
     // Legal acceptance is a hard gate on settings writes. Acceptance must both
     // exist and match the current version, so record the version too — otherwise
