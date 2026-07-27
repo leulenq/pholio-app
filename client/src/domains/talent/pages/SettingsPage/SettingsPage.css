@@ -31,9 +31,9 @@
   --set-hair-strong: rgba(26, 26, 26, 0.16);
   --set-hair-gold: rgba(201, 165, 90, 0.28);
   --set-danger: #fff5f4;
-  --set-danger-surface: #9b2c24;
-  --set-danger-border: #5c1410;
-  --set-danger-hair: rgba(255, 245, 244, 0.24);
+  --set-danger-surface: #5c100c;
+  --set-danger-border: #5c100c;
+  --set-danger-hair: rgba(255, 245, 244, 0.2);
   --set-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --set-radius: 8px;
   --set-mono: 'JetBrains Mono', 'SF Mono', 'SFMono-Regular', ui-monospace, monospace;
