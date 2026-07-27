@@ -326,6 +326,22 @@ export async function getAgencyAnalytics(range = 90) {
   return res?.analytics || res;
 }
 
+/**
+ * Season analytics — the aggregate behind the Season surface.
+ *
+ * Sends the viewer's UTC offset in minutes east (so New York sends -300) so
+ * day and hour buckets are grouped on the desk's own calendar rather than UTC.
+ */
+export async function getSeasonAnalytics({ range = 90, boardId = null } = {}) {
+  const params = new URLSearchParams({
+    range: String(range),
+    tz: String(-new Date().getTimezoneOffset()),
+  });
+  if (boardId) params.set('board', boardId);
+  const res = await apiClient.get(`/analytics/season?${params.toString()}`);
+  return res?.data || res;
+}
+
 export async function getBoards() {
   return apiClient.get('/boards');
 }

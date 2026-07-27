@@ -2567,3 +2567,68 @@ Keep Google/OAuth provider pictures on `users.avatar_url` (account avatar). Neve
 - Fix: `users.avatar_url` only; reclaim migration + GET-time reclaim; talent shell uses account avatar.
 - Verified: account-avatar unit (6), oauth integration (1), M4 (2), e2e casting (15) — all green via `npm test` safe runner.
 
+
+
+## Season / Analytics redesign — agency command surface — 2026-07-27
+
+### Goal
+Replace the text-heavy "Season Report" ledger with a chart-driven analytics
+environment: three lenses (Pipeline · Roster · Desk) over one shared filter row,
+every panel driven by a real aggregate.
+
+### Chart palette (validated with the dataviz `validate_palette.js` six checks)
+Chart surface `#FFFFFF` on the agency cream canvas.
+
+- **Depth ordinal ramp** `#C9A55A → #B0873F → #8E6B31 → #5F4623` — PASS monotone L,
+  adjacent ΔL ≥ 0.06, light end 2.33:1, hue spread 10°. Encodes pipeline depth.
+- **Exit neutral** `#948C82` (3.32:1). In stacks it only ever touches the darkest
+  ramp step (ΔE 23.5 normal / 23.2 CVD); beside `#C9A55A` that pair measures 12.8,
+  under the 15 floor — so the stack order in `VOLUME_STACK` is load-bearing.
+- **Heat sequential** `#F7EFDF → … → #5C441F` — magnitude only (punchcard, cohorts).
+- **Five-step ordinal** `#C9A55A → … → #4E3A1D` for ordered bands (latency, tenure).
+- **Series pair** `#A8803A` ↔ `#3B6FA8` — all-pairs PASS (CVD ΔE 19.7, normal 22.6,
+  both ≥ 3:1). Only two identity slots exist; nominal charts use one hue.
+
+`#C9A55A` is 2.33:1, below the 3:1 mark floor, so the relief rule applies: every
+panel ships direct labels and a table-view twin.
+
+### Backend
+- [x] `src/domains/agency/queries/season.queries.js` — one folding pass over
+      applications, activities, board links, boards, roster memberships, profiles,
+      interviews, reminders, and team.
+- [x] `GET /api/agency/analytics/season?range=&board=&tz=` in `routes/analytics.js`,
+      mounted in `routes/index.js`, gated by `org.view_analytics`.
+- [x] Legacy `GET /api/agency/analytics` untouched.
+- [x] 25 unit tests in `queries/__tests__/season.queries.test.js`.
+
+### Frontend
+- [x] Chart kit in `client/src/domains/agency/components/analytics/` — viz tokens,
+      Panel + table twin, SignalRail, FlowRibbon, VolumeStream, QueueAging,
+      MatchCalibration, BoardQuadrant, HeatGrid (Punchcard + CohortGrid),
+      DistributionBars + Meter, PairedHistogram, FitRadar, RosterFlow.
+- [x] `AnalyticsPage.jsx` / `.css` rebuilt as the three-lens environment.
+- [x] `getSeasonAnalytics` in `api/agency.js`, sending the viewer's UTC offset.
+
+### Review
+- **Stage flow is now cohort-based.** The old funnel compared current bucket
+  sizes, which is why it could report conversions above 100%. `replayJourney`
+  replays each application's recorded `status_change` events and reports the
+  furthest stage it can evidence, so a status jump never invents a hand-off.
+- **Honest by construction.** Unobserved measures return `null` with a `sample`
+  count rather than zero; panels with nothing observed drop their legend, table
+  toggle, and note and carry one sentence saying what will make them appear.
+- **Charts fixed after looking at them in a browser**, not from the code:
+  the flow ribbon overflowed its panel and collided its own labels; axis ticks
+  read 0/3/5/8/10 because a "nice max" was divided by the tick count instead of
+  choosing the step first; the volume area interpolated arrivals between quiet
+  days and drew a comb of spikes (now columns); scatter labels stacked on top of
+  each other (now a right-hand gutter with leader lines); the ordinal bar ramp's
+  light end sat under 2:1; the cohort grid carried an always-100% Applied column.
+- **Responsive.** Verified at 1440 / 1024 / 390. The ribbon cannot hold four
+  columns under ~620px, so it redraws as stacked rows with the same numbers.
+- **Verification.** 25 new unit tests green; `npx vitest run src/domains/agency`
+  27 green; client ESLint clean; production build clean; all three lenses plus the
+  zero-data state rendered and inspected in Chromium. The full `npm test` run
+  aborts with a pre-existing "Unable to acquire a connection" crash — reproduced
+  identically on the clean tree (17 failing suites there, and every suite that
+  differed between runs passes in isolation on both trees).
