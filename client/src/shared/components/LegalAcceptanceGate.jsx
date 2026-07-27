@@ -163,16 +163,14 @@ export default function LegalAcceptanceGate({ children }) {
 
                 {changes.length > 0 && (
                   <ul className="legal-gate-changes">
-                    {changes.map((change, index) => (
-                      <ChangeRow
-                        key={change}
-                        change={change}
-                        defaultOpen={index === 0 && changes.length <= 3}
-                      />
+                    {changes.map((change) => (
+                      <ChangeRow key={change} change={change} />
                     ))}
                   </ul>
                 )}
+              </div>
 
+              <footer className="legal-gate-footer">
                 <nav className="legal-gate-links" aria-label="Full legal documents">
                   <a href={`${MARKETING_SITE_URL}/terms`} target="_blank" rel="noopener noreferrer">
                     Terms
@@ -184,9 +182,7 @@ export default function LegalAcceptanceGate({ children }) {
                     AI Notice
                   </a>
                 </nav>
-              </div>
 
-              <footer className="legal-gate-footer">
                 <label className="legal-gate-check">
                   <input
                     type="checkbox"
