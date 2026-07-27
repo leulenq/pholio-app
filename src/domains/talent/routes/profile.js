@@ -521,6 +521,8 @@ router.get(
       email: user.email,
       role: user.role,
       avatar_url: user.avatar_url || null,
+      first_name: user.first_name || null,
+      last_name: user.last_name || null,
     };
 
     // Base response structure
@@ -614,6 +616,14 @@ router.get(
 
     const publicProfile = pickTalentProfileForApi(profile);
     formatProfileDateOfBirthForApi(publicProfile);
+    // Prefer profile identity; fall back to the account (users) layer so Google
+    // sign-in names surface even when the profile row was never backfilled.
+    if (!publicProfile.first_name && user.first_name) {
+      publicProfile.first_name = user.first_name;
+    }
+    if (!publicProfile.last_name && user.last_name) {
+      publicProfile.last_name = user.last_name;
+    }
     const bookingLanePayload = await loadProfileBookingLanePayload(
       profile.id,
       profile.modeling_categories,
@@ -1056,6 +1066,21 @@ router.put(
       }
     }
 
+    // Keep the account (users) name layer aligned with the book identity so the
+    // header, settings, and session/account surfaces cannot diverge after a save.
+    const accountNameUpdate = {};
+    if (
+      data.first_name !== undefined &&
+      data.first_name !== user.first_name
+    ) {
+      accountNameUpdate.first_name =
+        data.first_name === "" ? null : data.first_name;
+    }
+    if (data.last_name !== undefined && data.last_name !== user.last_name) {
+      accountNameUpdate.last_name =
+        data.last_name === "" ? null : data.last_name;
+    }
+
     // Social Handle Parsing & URLs. Social accounts live in their own table and are
     // written independently of the profile row (the client also mutates them via the
     // OAuth endpoints), so this runs before the profile transaction.
@@ -1219,6 +1244,10 @@ router.put(
               data.current_agency,
             );
           }
+        }
+
+        if (Object.keys(accountNameUpdate).length > 0) {
+          await trx("users").where({ id: userId }).update(accountNameUpdate);
         }
       });
     } catch (txError) {

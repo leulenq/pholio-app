@@ -30,10 +30,10 @@ export default function TalentLayout({ outletContext = {}, children }) {
 
   const unreadCount = useNotificationUnreadCount();
 
-  const firstName = profile?.first_name || profile?.name?.split(' ')[0] || '';
-  const lastName = profile?.last_name || profile?.name?.split(' ').slice(1)[0] || '';
+  const firstName = profile?.first_name || profile?.name?.split(' ')[0] || user?.first_name || '';
+  const lastName = profile?.last_name || profile?.name?.split(' ').slice(1)[0] || user?.last_name || '';
   const initials = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || 'ME';
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || profile?.name || user?.email || 'Talent user';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || profile?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || 'Talent user';
   const email = profile?.email || user?.email || '';
   // Account avatar layer (OAuth / users.avatar_url) — never the book primary.
   const profileImage = user?.avatar_url || '';

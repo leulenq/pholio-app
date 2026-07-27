@@ -70,6 +70,11 @@ const ROUTE_PERMISSION_RULES = [
   },
   {
     method: "GET",
+    pattern: /^\/api\/agency\/analytics\/season$/,
+    permission: "org.view_analytics",
+  },
+  {
+    method: "GET",
     pattern: /^\/api\/agency\/analytics$/,
     permission: "org.view_analytics",
   },

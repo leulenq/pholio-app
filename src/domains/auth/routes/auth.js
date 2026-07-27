@@ -23,7 +23,10 @@ const {
 const {
   isInstagramUid,
   normalizeOAuthUser,
+  resolveAuthProvider,
 } = require("../../onboarding/services/providers/oauth-user");
+const { stampSessionDevice } = require("../../../shared/lib/session-device");
+const { registerSession } = require("../../../shared/lib/session-registry");
 const {
   loadPermissionsArrayForSession,
 } = require("../../agency/services/permissions");
@@ -207,8 +210,16 @@ router.post("/api/dev/login", async (req, res, next) => {
       delete req.session.agencyOnboardingCompletedAt;
     }
 
+    const deviceStamp = stampSessionDevice(req);
+
     await new Promise((resolve, reject) => {
       req.session.save((err) => (err ? reject(err) : resolve()));
+    });
+
+    await registerSession(knex, {
+      userId: req.session.userId,
+      sid: req.sessionID,
+      fingerprint: deviceStamp?.fingerprint,
     });
 
     const nextPath = safeNext(req.body?.next);
@@ -793,16 +804,61 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             updated_at: knex.fn.now(),
           });
           console.log("[Login] Profile created for existing user");
-        } else if (!existingProfile.onboarding_completed_at) {
-          // Profile exists but onboarding gate was never cleared — stamp it now.
-          // This backfills accounts created before the Firebase-only auth fix.
-          await knex("profiles")
-            .where({ id: existingProfile.id })
-            .update({ onboarding_completed_at: knex.fn.now() });
-          console.log(
-            "[Login] Backfilled onboarding_completed_at for existing profile:",
-            existingProfile.id,
-          );
+        } else {
+          const profileNameBackfill = {};
+          const resolvedFirst =
+            firstName || user.first_name || null;
+          const resolvedLast = lastName || user.last_name || null;
+          if (
+            (!existingProfile.first_name ||
+              existingProfile.first_name === "User") &&
+            resolvedFirst &&
+            resolvedFirst !== "User"
+          ) {
+            profileNameBackfill.first_name = resolvedFirst;
+          }
+          if (!existingProfile.last_name && resolvedLast) {
+            profileNameBackfill.last_name = resolvedLast;
+          }
+          if (Object.keys(profileNameBackfill).length > 0) {
+            profileNameBackfill.updated_at = knex.fn.now();
+            await knex("profiles")
+              .where({ id: existingProfile.id })
+              .update(profileNameBackfill);
+            console.log(
+              "[Login] Backfilled profile name from account/provider:",
+              profileNameBackfill,
+            );
+          }
+
+          if (!existingProfile.onboarding_completed_at) {
+            // Profile exists but onboarding gate was never cleared — stamp it now.
+            // This backfills accounts created before the Firebase-only auth fix.
+            await knex("profiles")
+              .where({ id: existingProfile.id })
+              .update({ onboarding_completed_at: knex.fn.now() });
+            console.log(
+              "[Login] Backfilled onboarding_completed_at for existing profile:",
+              existingProfile.id,
+            );
+          }
+        }
+
+        // Keep users.name aligned with the best-known provider/account name.
+        const userNameBackfill = {};
+        if (
+          (!user.first_name || user.first_name === "User") &&
+          firstName &&
+          firstName !== "User"
+        ) {
+          userNameBackfill.first_name = firstName;
+        }
+        if (!user.last_name && lastName) {
+          userNameBackfill.last_name = lastName;
+        }
+        if (Object.keys(userNameBackfill).length > 0) {
+          await knex("users").where({ id: user.id }).update(userNameBackfill);
+          Object.assign(user, userNameBackfill);
         }
       } catch (profileError) {
         // Non-critical — log but continue
@@ -821,6 +877,27 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
         .where({ id: user.id })
         .update({ email_verified: true });
       user.email_verified = true;
+    }
+
+    // Record how this account actually signs in. Settings represents sign-in
+    // identity from this column (Google branding vs. an email/password account),
+    // and it decides whether offering a password reset is honest at all.
+    try {
+      const authProvider = resolveAuthProvider(decodedToken);
+      if (authProvider && user.auth_provider !== authProvider) {
+        if (await knex.schema.hasColumn("users", "auth_provider")) {
+          await knex("users")
+            .where({ id: user.id })
+            .update({ auth_provider: authProvider });
+          user.auth_provider = authProvider;
+        }
+      }
+    } catch (providerError) {
+      // Non-critical — settings falls back to the neutral representation.
+      console.warn(
+        "[Login] Error recording auth provider:",
+        providerError.message,
+      );
     }
 
     // Account avatar layer only — never write provider pictures into images/book.
@@ -897,6 +974,10 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       delete req.session.agencyOnboardingCompletedAt;
     }
 
+    // Describe the device on the session before saving, so the row carries what
+    // the settings device list renders instead of a hardcoded label.
+    const deviceStamp = stampSessionDevice(req);
+
     // Save session before redirect
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
@@ -912,6 +993,17 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           resolve();
         }
       });
+    });
+
+    // `regenerate()` above only destroys the sid this request presented. A client
+    // that couldn't present its cookie leaves its previous authenticated row
+    // behind, and PholioAuthBridge re-checks on every focus/visibility change —
+    // which is how a single phone accumulated hundreds of "sessions". Collapse
+    // this user onto one live row per device now that the new row exists.
+    await registerSession(knex, {
+      userId: req.session.userId,
+      sid: req.sessionID,
+      fingerprint: deviceStamp?.fingerprint,
     });
 
     const sessionRedirect = redirectForSession(req.session);

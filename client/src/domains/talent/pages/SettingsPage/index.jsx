@@ -8,11 +8,13 @@ import {
   Check,
   Copy,
   CreditCard,
-  Download,
   Link2,
   Loader2,
+  Mail,
   Monitor,
   Plus,
+  Smartphone,
+  Tablet,
   X,
 } from 'lucide-react';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -31,8 +33,9 @@ import ReportDialog from '../../../../shared/components/ReportDialog';
 import { SubscriptionCheckoutModal } from '../../../../shared/components/SubscriptionCheckoutDisclosure';
 import CheckoutHandoff from '../../../../shared/components/billing/CheckoutHandoff';
 import SubscriptionReturnBanner from '../../../../shared/components/billing/SubscriptionReturnBanner';
-import PholioButton, { PholioToggleButton, PholioToggleGroup } from '../../../../shared/components/ui/PholioButton';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
+import { identityFormFromProfile } from './identityForm';
 import './SettingsPage.css';
 
 /* ------------------------------------------------------------------ *
@@ -45,13 +48,18 @@ const PUBLIC_PORTFOLIO_ORIGIN = (
   import.meta.env.VITE_PORTFOLIO_URL || 'https://pholio.studio'
 ).replace(/\/$/, '');
 
+/**
+ * There is no "Presentation" section. It held comp-card layout, cover image and
+ * watermark — none of which had a consumer. Comp cards are composed from the
+ * actual frames by the generator, the lead frame is chosen in Media, and the PDF
+ * watermark tracks the plan (`!profile.is_pro`), not a preference.
+ */
 const MOVEMENTS = [
   { id: 'identity', label: 'Identity', summary: 'Name, sign-in, handle' },
   { id: 'presence', label: 'Presence', summary: 'Who can see and reach you' },
-  { id: 'presentation', label: 'Presentation', summary: 'How the book reads' },
   { id: 'notifications', label: 'Signals', summary: 'What Pholio tells you' },
   { id: 'studio', label: 'Membership', summary: 'Plan and billing' },
-  { id: 'security', label: 'Security', summary: 'Access and sessions' },
+  { id: 'security', label: 'Security', summary: 'Sign-in and devices' },
   { id: 'privacy', label: 'Data', summary: 'Cookies and export' },
   { id: 'legal', label: 'Standing', summary: 'Consent and protection' },
   { id: 'account', label: 'Account', summary: 'Pause or close' },
@@ -87,17 +95,6 @@ function useSettingsMutation(options = {}) {
 }
 
 /* --- helpers ------------------------------------------------------- */
-
-function parseJsonArray(raw) {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw !== 'string' || !raw.trim()) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return raw ? [raw] : [];
-  }
-}
 
 function formatDate(value) {
   if (!value) return null;
@@ -189,6 +186,69 @@ function SkeletonRows({ count = 3 }) {
   );
 }
 
+/* --- sign-in identity ---------------------------------------------- */
+
+/**
+ * Google's four-colour "G", inline so it survives the CSP and needs no asset
+ * pipeline. Reproduced at the official proportions and colours — Google's brand
+ * guidelines require the mark be shown unmodified, so it is never recoloured,
+ * outlined, or given a currentColor treatment.
+ */
+function GoogleMark({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
+      <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z" />
+      <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z" />
+      <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z" />
+    </svg>
+  );
+}
+
+const PROVIDERS = {
+  google: { name: 'Google', mark: GoogleMark },
+  instagram: { name: 'Instagram', mark: null },
+  apple: { name: 'Apple', mark: null },
+  facebook: { name: 'Facebook', mark: null },
+};
+
+/**
+ * Sign-in identity, kept distinct from the editable profile fields around it.
+ * This used to be a disabled "Sign-in email" text input, which flattened an
+ * OAuth identity you don't own into something that looked like an editable field
+ * you'd forgotten the password to.
+ */
+function SignInIdentity({ email, provider }) {
+  const known = provider ? PROVIDERS[provider] : null;
+  const Mark = known?.mark;
+
+  if (known) {
+    return (
+      <div className="set-provider">
+        <span className={`set-provider__badge set-provider__badge--${provider}`}>
+          {Mark ? <Mark size={20} /> : <span aria-hidden="true">{known.name.charAt(0)}</span>}
+        </span>
+        <span className="set-provider__body">
+          <strong>Signed in with {known.name}</strong>
+          <span title={email || undefined}>{email || 'Account email unavailable'}</span>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="set-provider">
+      <span className="set-provider__badge set-provider__badge--email">
+        <Mail size={18} aria-hidden="true" />
+      </span>
+      <span className="set-provider__body">
+        <strong>Email and password</strong>
+        <span title={email || undefined}>{email || 'Account email unavailable'}</span>
+      </span>
+    </div>
+  );
+}
+
 /* --- page ---------------------------------------------------------- */
 
 export default function SettingsPage() {
@@ -209,8 +269,6 @@ export default function SettingsPage() {
         return <IdentityMovement settings={settings} />;
       case 'presence':
         return <PresenceMovement settings={settings} isLoading={isLoading} />;
-      case 'presentation':
-        return <PresentationMovement settings={settings} isLoading={isLoading} />;
       case 'notifications':
         return <NotificationsMovement settings={settings} isLoading={isLoading} />;
       case 'studio':
@@ -285,7 +343,9 @@ function IdentityMovement({ settings }) {
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', language: 'English', timezone: 'America/New_York' });
+  // Seed from the cached auth profile on mount — otherwise the render-sync below
+  // never fires when React Query already has auth-user (normal in-dashboard nav).
+  const [form, setForm] = useState(() => identityFormFromProfile(profile));
   const [dirty, setDirty] = useState(false);
 
   const handleMutation = useSettingsMutation({ onSuccess: () => toast.success('Public handle updated') });
@@ -304,19 +364,15 @@ function IdentityMovement({ settings }) {
   }
 
   // Sync server profile into local form when not dirty (adjust during render).
+  // Form is seeded from the cached profile above; this covers async profile
+  // arrival and later refetches without wiping in-progress edits.
   const [prevProfile, setPrevProfile] = useState(profile);
   const [prevDirty, setPrevDirty] = useState(dirty);
   if (profile !== prevProfile || dirty !== prevDirty) {
     setPrevProfile(profile);
     setPrevDirty(dirty);
     if (profile && !dirty) {
-      setForm({
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        phone: profile.phone || '',
-        language: parseJsonArray(profile.languages)[0] || 'English',
-        timezone: profile.timezone || 'America/New_York',
-      });
+      setForm(identityFormFromProfile(profile));
     }
   }
 
@@ -324,7 +380,13 @@ function IdentityMovement({ settings }) {
 
   const save = async () => {
     try {
-      await updateProfile({ ...form, languages: form.language ? [form.language] : [] });
+      const result = await updateProfile({ ...form, languages: form.language ? [form.language] : [] });
+      // Apply the persisted profile before clearing dirty so the render-sync cannot
+      // race-wipe the form with a stale auth-user cache entry.
+      if (result?.profile) {
+        setForm(identityFormFromProfile(result.profile));
+        setPrevProfile(result.profile);
+      }
       setDirty(false);
       toast.success('Identity saved');
     } catch (error) {
@@ -405,10 +467,7 @@ function IdentityMovement({ settings }) {
             <Field label="Last name">
               <input value={form.last_name} onChange={(e) => setField('last_name', e.target.value)} autoComplete="family-name" />
             </Field>
-            <Field label="Sign-in email" hint="Managed through your sign-in. Change it under Security.">
-              <input value={profile?.email || ''} disabled type="email" />
-            </Field>
-            <Field label="Phone">
+            <Field label="Phone" hint="Used for booking contact on submissions. Never published on your public book.">
               <input value={form.phone} onChange={(e) => setField('phone', e.target.value)} autoComplete="tel" placeholder="+1 (555) 000-0000" />
             </Field>
             <Field label="Working language">
@@ -434,6 +493,21 @@ function IdentityMovement({ settings }) {
             {isUpdatingProfile ? 'Saving…' : 'Save identity'}
           </PholioButton>
         </div>
+      </div>
+
+      <div className="set-card">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">How you sign in</h3>
+            <p className="set-card__sub">
+              Your sign-in identity, separate from the contact details above. Managed under Security.
+            </p>
+          </div>
+        </div>
+        <SignInIdentity
+          email={settings?.user?.email || profile?.email || ''}
+          provider={settings?.user?.authProvider}
+        />
       </div>
 
       <div className="set-card">
@@ -495,7 +569,7 @@ function PresenceMovement({ settings, isLoading }) {
     <Movement
       id="presence"
       title="Who can see and reach you"
-      lede="Your book, your discoverability, and your contact details are three separate decisions. Digitals and measurements always stay sensitive submission material."
+      lede="Your public book and your discoverability are two separate decisions. Digitals and measurements always stay sensitive submission material."
     >
       {minorLocked && (
         <p className="set-notice">
@@ -509,15 +583,23 @@ function PresenceMovement({ settings, isLoading }) {
             <Row title="Public portfolio" description="Let your book be viewed at its public link, outside your account.">
               <Toggle label="Public portfolio" checked={!!settings?.isPublic} disabled={mutation.isPending || minorLocked} onChange={() => update({ isPublic: !settings?.isPublic })} />
             </Row>
-            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio scout and roster search.">
+            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio scout and roster search." muted>
               <Toggle label="Agency discovery" checked={!!settings?.isDiscoverable} disabled={mutation.isPending || minorLocked} onChange={() => update({ isDiscoverable: !settings?.isDiscoverable })} />
-            </Row>
-            <Row title="Show contact details" description="Expose email or phone on eligible public surfaces. Leave off to keep agencies contacting you inside Pholio." muted>
-              <Toggle label="Show contact details" checked={!!settings?.showContact} disabled={mutation.isPending || minorLocked} onChange={() => update({ showContact: !settings?.showContact })} />
             </Row>
           </>
         )}
       </div>
+
+      {/*
+        There was a "Show contact details" toggle here, defaulted on, claiming to
+        expose email or phone "on eligible public surfaces". No public surface
+        renders talent contact details, so it controlled nothing while implying
+        exposure. Stated as a fact instead of offered as a switch.
+      */}
+      <p className="set-notice set-notice--plain">
+        Your email and phone number are never published on your public book or comp card.
+        Agencies reach you through Pholio, and you decide what a submission includes.
+      </p>
 
       <div className="set-card">
         <div className="set-card__head">
@@ -557,93 +639,36 @@ function PresenceMovement({ settings, isLoading }) {
   );
 }
 
-/* --- III · Presentation -------------------------------------------- */
+/* --- III · Notifications ------------------------------------------- */
 
-const CARD_LAYOUTS = [['editorial', 'Editorial'], ['classic', 'Classic'], ['minimal', 'Minimal']];
-const COVER_CHOICES = [['first', 'First image'], ['latest', 'Latest'], ['featured', 'Featured']];
-
-function PresentationMovement({ settings, isLoading }) {
-  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Presentation updated') });
-  const display = settings?.display || {};
-  const save = (next) => mutation.mutate({ display: { ...display, ...next } });
-
-  return (
-    <Movement
-      id="presentation"
-      title="How the book reads"
-      lede="Defaults for how your comp card and public portfolio present. Layouts and images are still composed in Media and the comp-card studio — this sets the resting state."
-    >
-      <div className="set-card">
-        {isLoading ? <SkeletonRows count={2} /> : (
-          <>
-            <div className="set-choice">
-              <div className="set-choice__copy">
-                <h3>Comp-card layout</h3>
-                <p>The template a fresh comp card opens with.</p>
-              </div>
-              <PholioToggleGroup role="group" aria-label="Comp-card layout">
-                {CARD_LAYOUTS.map(([value, label]) => (
-                  <PholioToggleButton key={value} type="button" active={(display.cardLayout || 'editorial') === value} onClick={() => save({ cardLayout: value })}>{label}</PholioToggleButton>
-                ))}
-              </PholioToggleGroup>
-            </div>
-            <div className="set-choice">
-              <div className="set-choice__copy">
-                <h3>Cover image</h3>
-                <p>Which frame leads your public book.</p>
-              </div>
-              <PholioToggleGroup role="group" aria-label="Cover image">
-                {COVER_CHOICES.map(([value, label]) => (
-                  <PholioToggleButton key={value} type="button" active={(display.coverImage || 'first') === value} onClick={() => save({ coverImage: value })}>{label}</PholioToggleButton>
-                ))}
-              </PholioToggleGroup>
-            </div>
-            <Row title="Watermark exports" description="Stamp your handle onto downloaded comp cards and shared images." muted>
-              <Toggle label="Watermark exports" checked={!!display.watermark} disabled={mutation.isPending} onChange={() => save({ watermark: !display.watermark })} />
-            </Row>
-          </>
-        )}
-      </div>
-    </Movement>
-  );
-}
-
-/* --- IV · Notifications -------------------------------------------- */
-
+/**
+ * Only the two categories the notification service actually consults. The list
+ * previously also offered an email rhythm (immediate / daily / weekly — no digest
+ * job exists), "Product notes", and a "Messages" switch that
+ * `shared/services/notifications.js` deliberately ignores, because a booker
+ * reaching out always has to reach you.
+ */
 const NOTIFICATION_ROWS = [
   ['applicationUpdates', 'Submission updates', 'Received, reviewed, kept on file, meeting, offer, and decline.'],
   ['profileViews', 'Agency views', 'When an agency opens your portfolio or comp card.'],
-  ['newMessages', 'Messages', 'Booker and agency communication inside Pholio.'],
-  ['marketing', 'Product notes', 'Occasional Pholio announcements and workflow guidance.'],
 ];
-const FREQUENCIES = [['immediate', 'Immediate'], ['daily', 'Daily digest'], ['weekly', 'Weekly digest']];
 
 function NotificationsMovement({ settings, isLoading }) {
   const mutation = useSettingsMutation({ onSuccess: () => toast.success('Signal preference saved') });
   const notifications = settings?.notifications || {};
-  const value = (key) => notifications[key] ?? (key !== 'marketing');
+  // Defaults are ON server-side; only an explicit false opts out.
+  const value = (key) => notifications[key] !== false;
   const save = (next) => mutation.mutate({ notifications: { ...notifications, ...next } });
 
   return (
     <Movement
       id="notifications"
       title="What Pholio tells you"
-      lede="Keep the signals that move work forward without turning settings into a second inbox."
+      lede="Two categories you can turn down. Everything else here is either time-sensitive or doesn't exist — so it isn't offered as a switch."
     >
       <div className="set-card">
-        {isLoading ? <SkeletonRows /> : (
+        {isLoading ? <SkeletonRows count={2} /> : (
           <>
-            <div className="set-choice">
-              <div className="set-choice__copy">
-                <h3>Email rhythm</h3>
-                <p>How often email is allowed to reach you.</p>
-              </div>
-              <PholioToggleGroup role="group" aria-label="Email rhythm">
-                {FREQUENCIES.map(([v, label]) => (
-                  <PholioToggleButton key={v} type="button" active={(notifications.emailFrequency || 'immediate') === v} onClick={() => save({ emailFrequency: v })}>{label}</PholioToggleButton>
-                ))}
-              </PholioToggleGroup>
-            </div>
             {NOTIFICATION_ROWS.map(([key, title, desc], i) => (
               <Row key={key} title={title} description={desc} muted={i === NOTIFICATION_ROWS.length - 1}>
                 <Toggle label={title} checked={value(key)} disabled={mutation.isPending} onChange={() => save({ [key]: !value(key) })} />
@@ -652,6 +677,12 @@ function NotificationsMovement({ settings, isLoading }) {
           </>
         )}
       </div>
+
+      <p className="set-notice set-notice--plain">
+        Messages and interview times always reach you. When a booker writes or a meeting
+        is scheduled, that notification isn't optional — it's the part of Pholio you
+        can't afford to miss.
+      </p>
     </Movement>
   );
 }
@@ -667,7 +698,6 @@ function StudioMovement({ settings, isLoading }) {
   const [opening, setOpening] = useState(false);
   const { redirectToCheckout } = useBrandedStripeCheckout({ onHandoffStart: () => setHandoffOpen(true) });
   const subscription = settings?.subscription;
-  const invoices = settings?.invoices || [];
 
   useEffect(() => {
     if (!returnState) return;
@@ -729,30 +759,18 @@ function StudioMovement({ settings, isLoading }) {
             </p>
           </div>
 
-          <div className="set-card">
-            <div className="set-card__head">
-              <div>
-                <h3 className="set-card__title">Invoices</h3>
-                <p className="set-card__sub">Receipts appear here once Stripe returns records for your account.</p>
-              </div>
-            </div>
-            {invoices.length ? (
-              <ul className="set-invoices">
-                {invoices.map((invoice) => (
-                  <li key={invoice.id}>
-                    <span className="set-invoices__id">{invoice.id}</span>
-                    <span className="set-invoices__date">{invoice.date}</span>
-                    <strong>{invoice.amount}</strong>
-                    <button type="button" className="set-inline-link" onClick={() => downloadJson(`pholio-invoice-${invoice.id}.json`, invoice)}>
-                      <Download size={13} aria-hidden="true" /> Save
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="set-empty">No invoices are available yet.</p>
-            )}
-          </div>
+          {/*
+            No invoices card. The server hardcoded an empty list, so it could only
+            ever say "no invoices are available yet" — including to paying members.
+            Stripe's customer portal holds the real receipts and is one click away
+            behind "Manage billing" above.
+          */}
+          {subscription.stripeCustomerId && (
+            <p className="set-notice set-notice--plain">
+              Invoices, receipts, and payment method changes live in the Stripe billing
+              portal — open it with Manage billing above.
+            </p>
+          )}
         </>
       )}
 
@@ -763,67 +781,145 @@ function StudioMovement({ settings, isLoading }) {
 
 /* --- VI · Security ------------------------------------------------- */
 
+const DEVICE_ICONS = { phone: Smartphone, tablet: Tablet, desktop: Monitor };
+
+/** Relative last-active reads better than a date for something updated hourly. */
+function formatLastSeen(value) {
+  if (!value) return null;
+  const then = new Date(value);
+  if (Number.isNaN(then.getTime())) return null;
+
+  const minutes = Math.floor((Date.now() - then.getTime()) / 60000);
+  if (minutes < 2) return 'active now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  return formatDate(value);
+}
+
 function SecurityMovement({ settings, isLoading }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [sending, setSending] = useState(false);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+
   const revoke = useMutation({
     mutationFn: talentApi.revokeSession,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['talent-settings'] }); toast.success('Session ended'); },
-    onError: (error) => toast.error(error?.message || 'Unable to end session'),
+    onSuccess: () => { invalidate(); toast.success('Device signed out'); },
+    onError: (error) => toast.error(error?.message || 'Unable to sign out that device'),
+  });
+  const revokeOthers = useMutation({
+    mutationFn: talentApi.revokeOtherSessions,
+    onSuccess: (result) => {
+      invalidate();
+      const count = result?.revoked ?? 0;
+      toast.success(count ? `Signed out ${count} other ${count === 1 ? 'device' : 'devices'}` : 'No other devices were signed in');
+    },
+    onError: (error) => toast.error(error?.message || 'Unable to sign out other devices'),
   });
 
+  const accountEmail = settings?.user?.email || profile?.email || '';
+  const provider = settings?.user?.authProvider;
+  // A Google/Instagram account has no Pholio password, so a Firebase reset email
+  // either fails or invents a second credential the talent never asked for.
+  const canResetPassword = settings?.user?.canResetPassword !== false;
+
   const resetPassword = async () => {
-    if (!profile?.email) return;
+    if (!accountEmail) return;
     setSending(true);
-    try { await sendPasswordResetEmail(auth, profile.email); toast.success(`Reset link sent to ${profile.email}`); }
+    try { await sendPasswordResetEmail(auth, accountEmail); toast.success(`Reset link sent to ${accountEmail}`); }
     catch { toast.error('Unable to send reset link'); }
     finally { setSending(false); }
   };
 
-  const sessions = settings?.sessions || [];
+  const devices = settings?.devices || [];
+  const others = devices.filter((device) => !device.isCurrent);
 
   return (
     <Movement
       id="security"
-      title="Access and sessions"
-      lede="Recover your sign-in and end any browser you no longer recognise. Sensitive changes always verify against your sign-in identity."
+      title="Sign-in and devices"
+      lede="Where your account is currently signed in, and how to cut off anything you don’t recognise."
     >
       <div className="set-card">
-        <Row title="Password" description={profile?.email ? `Reset the password for ${profile.email}.` : 'Reset your account password.'}>
-          <PholioButton type="button" variant="secondary" onClick={resetPassword} disabled={sending}>
-            {sending ? 'Sending…' : 'Send reset link'}
-          </PholioButton>
-        </Row>
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Sign-in method</h3>
+            <p className="set-card__sub">
+              {provider === 'google' || provider === 'instagram' || provider === 'apple' || provider === 'facebook'
+                ? 'Your sign-in is held by your provider. Change the password or security settings with them.'
+                : 'Your Pholio password protects this account.'}
+            </p>
+          </div>
+        </div>
+        <SignInIdentity email={accountEmail} provider={provider} />
+        {canResetPassword ? (
+          <Row title="Password" description={accountEmail ? `Send a reset link to ${accountEmail}.` : 'Reset your account password.'} muted>
+            <PholioButton type="button" variant="secondary" onClick={resetPassword} disabled={sending || !accountEmail}>
+              {sending ? 'Sending…' : 'Send reset link'}
+            </PholioButton>
+          </Row>
+        ) : (
+          <Row
+            title="Password"
+            description="This account signs in through a provider, so there’s no Pholio password to reset."
+            muted
+          >
+            <span className="set-fixed">Not applicable</span>
+          </Row>
+        )}
       </div>
 
       <div className="set-card">
         <div className="set-card__head">
           <div>
-            <h3 className="set-card__title">Signed-in browsers</h3>
-            <p className="set-card__sub">Your current browser can’t be ended from here.</p>
+            <h3 className="set-card__title">Signed-in devices</h3>
+            <p className="set-card__sub">
+              Live sessions only, one entry per device. Signing a device out takes effect immediately.
+            </p>
           </div>
+          {others.length > 0 && (
+            <PholioButton type="button" variant="secondary" onClick={() => revokeOthers.mutate()} disabled={revokeOthers.isPending}>
+              {revokeOthers.isPending ? 'Signing out…' : 'Sign out everywhere else'}
+            </PholioButton>
+          )}
         </div>
-        {isLoading ? <SkeletonRows /> : sessions.length ? (
-          <ul className="set-sessions">
-            {sessions.map((session) => (
-              <li key={session.id}>
-                <span className="set-sessions__icon" aria-hidden="true"><Monitor size={16} /></span>
-                <div className="set-sessions__body">
-                  <strong>{session.device || 'Browser session'}</strong>
-                  <span>{(session.location || 'Location unavailable')} · {session.expiresAt ? `expires ${formatDate(session.expiresAt)}` : 'active'}</span>
-                </div>
-                <span className={`set-sessions__state${session.isCurrent ? ' is-current' : ''}`}>
-                  {session.isCurrent ? 'This browser' : session.active ? 'Active' : 'Expired'}
-                </span>
-                {!session.isCurrent && (
-                  <button type="button" className="set-inline-link set-inline-link--danger" onClick={() => revoke.mutate(session.id)} disabled={revoke.isPending}>End</button>
-                )}
-              </li>
-            ))}
+        {isLoading ? <SkeletonRows /> : devices.length ? (
+          <ul className="set-devices">
+            {devices.map((device) => {
+              const Icon = DEVICE_ICONS[device.type] || Monitor;
+              const lastSeen = formatLastSeen(device.lastSeenAt);
+              return (
+                <li key={device.id}>
+                  <span className="set-devices__icon" aria-hidden="true"><Icon size={17} /></span>
+                  <div className="set-devices__body">
+                    <strong>{device.label}</strong>
+                    <span>
+                      {device.isCurrent ? 'This device' : lastSeen ? `Last active ${lastSeen}` : 'Active'}
+                      {device.signedInAt && ` · signed in ${formatDate(device.signedInAt)}`}
+                    </span>
+                  </div>
+                  {device.isCurrent ? (
+                    <span className="set-fixed">Current</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="set-inline-link set-inline-link--danger"
+                      onClick={() => revoke.mutate(device.id)}
+                      disabled={revoke.isPending || revokeOthers.isPending}
+                    >
+                      Sign out
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         ) : (
-          <p className="set-empty">No other active sessions.</p>
+          <p className="set-empty">No signed-in devices to show.</p>
         )}
       </div>
     </Movement>
@@ -897,11 +993,14 @@ function PrivacyMovement({ settings, isLoading }) {
             <Row title="Essential" description="Authentication, sessions, security, and payments.">
               <span className="set-fixed">Always on</span>
             </Row>
+            {/*
+              No marketing-cookie toggle. The canonical consent contract
+              (`shared/lib/consent.js`) models only `necessary` and `analytics` —
+              there is no marketing category to consent to, so offering one was
+              granularity over a permission the product doesn't have.
+            */}
             <Row title="Analytics" description="Helps improve dashboard quality and reliability. Applies to pholio.studio and app.pholio.studio.">
               <Toggle label="Analytics cookies" checked={analyticsOn} disabled={mutation.isPending} onChange={() => toggleCookie('analytics')} />
-            </Row>
-            <Row title="Marketing" description="Non-essential product announcements and promotions." muted>
-              <Toggle label="Marketing cookies" checked={cookies.marketing ?? false} disabled={mutation.isPending} onChange={() => toggleCookie('marketing')} />
             </Row>
             <Row title="Reset choice" description="Clears the stored preference and re-opens the consent banner." muted>
               <PholioButton type="button" variant="secondary" onClick={() => clearConsent()}>

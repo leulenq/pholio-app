@@ -40,6 +40,8 @@ describe("Profile save remediation contract", () => {
   let authCookie;
 
   beforeAll(async () => {
+    await knex.migrate.latest();
+
     userId = uuidv4();
     profileId = uuidv4();
 
@@ -193,5 +195,52 @@ describe("Profile save remediation contract", () => {
     const row = await knex("profiles").where({ id: profileId }).first();
     expect(!!row.is_public).toBe(false);
     expect(!!row.is_discoverable).toBe(false);
+  });
+
+  test("identity name save persists on profile and users, and GET falls back", async () => {
+    const hasUserFirst = await knex.schema.hasColumn("users", "first_name");
+    const hasUserLast = await knex.schema.hasColumn("users", "last_name");
+
+    // Clear book identity (empty string — SQLite profiles.first_name is NOT NULL).
+    await knex("profiles").where({ id: profileId }).update({
+      first_name: "",
+      last_name: "",
+    });
+    if (hasUserFirst || hasUserLast) {
+      const userPatch = {};
+      if (hasUserFirst) userPatch.first_name = "Account";
+      if (hasUserLast) userPatch.last_name = "Only";
+      await knex("users").where({ id: userId }).update(userPatch);
+    }
+
+    const before = await get();
+    expect(before.status).toBe(200);
+    // GET should surface account-layer names when the profile row is blank.
+    if (hasUserFirst) {
+      expect(before.body.data.profile.first_name).toBe("Account");
+    }
+    if (hasUserLast) {
+      expect(before.body.data.profile.last_name).toBe("Only");
+    }
+
+    const res = await put({ first_name: "Nova", last_name: "Lane" });
+    expect(res.status).toBe(200);
+    expect(res.body.data.profile.first_name).toBe("Nova");
+    expect(res.body.data.profile.last_name).toBe("Lane");
+
+    const profileRow = await knex("profiles").where({ id: profileId }).first();
+    expect(profileRow.first_name).toBe("Nova");
+    expect(profileRow.last_name).toBe("Lane");
+
+    if (hasUserFirst || hasUserLast) {
+      const userRow = await knex("users").where({ id: userId }).first();
+      if (hasUserFirst) expect(userRow.first_name).toBe("Nova");
+      if (hasUserLast) expect(userRow.last_name).toBe("Lane");
+    }
+
+    const reloaded = await get();
+    expect(reloaded.status).toBe(200);
+    expect(reloaded.body.data.profile.first_name).toBe("Nova");
+    expect(reloaded.body.data.profile.last_name).toBe("Lane");
   });
 });
