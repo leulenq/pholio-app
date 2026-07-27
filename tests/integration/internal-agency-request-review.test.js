@@ -32,8 +32,9 @@ const identity = {
     .mockResolvedValue("https://identity.example.test/set-password"),
 };
 const emailService = {
-  sendPasswordResetEmail: jest.fn().mockResolvedValue({ messageId: "reset" }),
-  sendWelcomeAgencyEmail: jest.fn().mockResolvedValue({ messageId: "welcome" }),
+  sendAgencyActivationEmail: jest
+    .fn()
+    .mockResolvedValue({ messageId: "activation" }),
 };
 
 const app = express();
@@ -318,10 +319,13 @@ describe("internal agency request review", () => {
       expect.any(String),
       expect.objectContaining({ emailVerified: true }),
     );
-    expect(emailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+    // An approved agency has never had a password, so the first email must be
+    // an activation, not a reset.
+    expect(emailService.sendAgencyActivationEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "avery@northstar.example.test",
-        resetUrl: "https://identity.example.test/set-password",
+        agencyName: "North Star Models",
+        activationUrl: "https://identity.example.test/set-password",
       }),
     );
 
@@ -333,6 +337,44 @@ describe("internal agency request review", () => {
     expect(idempotent.body.data.invitationDelivered).toBeNull();
     const agencyCount = await knex("agencies").count("id as count").first();
     expect(Number(agencyCount.count)).toBe(1);
+  });
+
+  test("re-sends the activation link for an approved request", async () => {
+    await request(app)
+      .post(`/api/internal/agency-requests/${REQUEST_ID}/approve`)
+      .set("x-test-admin", "1")
+      .send({})
+      .expect(200);
+    emailService.sendAgencyActivationEmail.mockClear();
+
+    await request(app)
+      .post(`/api/internal/agency-requests/${REQUEST_ID}/resend-invitation`)
+      .set("x-test-admin", "1")
+      .send({})
+      .expect(200);
+
+    expect(emailService.sendAgencyActivationEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "avery@northstar.example.test",
+        activationUrl: "https://identity.example.test/set-password",
+      }),
+    );
+
+    const events = await knex("agency_access_request_events")
+      .where({ request_id: REQUEST_ID, event_type: "approval_invitation_sent" })
+      .orderBy("created_at", "asc");
+    expect(events.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("refuses to re-send an activation link for an unapproved request", async () => {
+    emailService.sendAgencyActivationEmail.mockClear();
+    const response = await request(app)
+      .post(`/api/internal/agency-requests/${DECLINE_REQUEST_ID}/resend-invitation`)
+      .set("x-test-admin", "1")
+      .send({})
+      .expect(409);
+    expect(response.body.error).toBe("AGENCY_REQUEST_NOT_APPROVED");
+    expect(emailService.sendAgencyActivationEmail).not.toHaveBeenCalled();
   });
 
   test("requires and records a reason when staff decline a request", async () => {

@@ -115,6 +115,16 @@ function createAgencyRequestsRouter(options = {}) {
   );
 
   router.post(
+    "/api/internal/agency-requests/:requestId/resend-invitation",
+    asyncHandler(async (req, res) => {
+      const data = await service.resendApprovalInvite(req.params.requestId, {
+        actor: actorFromRequest(req),
+      });
+      return res.json({ success: true, data });
+    }),
+  );
+
+  router.post(
     "/api/internal/agency-requests/:requestId/decline",
     asyncHandler(async (req, res) => {
       const data = await service.declineRequest(req.params.requestId, {
