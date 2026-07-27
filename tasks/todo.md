@@ -2567,3 +2567,82 @@ Keep Google/OAuth provider pictures on `users.avatar_url` (account avatar). Neve
 - Fix: `users.avatar_url` only; reclaim migration + GET-time reclaim; talent shell uses account avatar.
 - Verified: account-avatar unit (6), oauth integration (1), M4 (2), e2e casting (15) — all green via `npm test` safe runner.
 
+
+
+## Expanded Talent View → "The Talent Dossier" — 2026-07-27
+
+Rebuild of `/dashboard/agency/talent/:applicationId` from first principles as a talent
+**command surface**. Design authority: `client/src/domains/agency/DESIGN.md` (Editorial Ledger).
+Industry authority: `.claude/skills/industry/reference/{standards,lifecycle}.md`.
+
+### The questions the page answers, in a booker's order
+1. Who is this right now? → the Plate (portrait, name, reading line, representation standing)
+2. Can I use them? → the Vitals Ledger + the Calendar Line (availability, bookouts, our options/holds)
+3. Where do they sit with **us**? → the Standing Ledger (dated ladder, day count, board, tags)
+4. Did they send a real package? → the Digitals Set (5 canonical slots) + the Book + comp card
+5. What else do we know? → Professional Record + Representation Record + market position
+6. What do I do next? → Decision dock, follow-ups, the working record
+
+### Named instruments (each earns its structure from real data)
+- **The Plate** — comp-card front logic; portrait, name, reading line, representation sentence
+- **The Vitals Ledger** — track-aware canonical stats, dual-unit, dated, provenance + staleness
+- **The Readout Band** — four hairline-ruled live readouts: Standing · Fit · Availability · Package
+- **The Digitals Set** — headshot / ¾ / full length / profile / back, present or absent
+- **The Calendar Line** — 90-day rule marking bookouts and this agency's options / holds / bookings
+- **The Representation Record** — mother vs. placement, market, territory, exclusivity, dates
+- **The Standing Ledger** — submitted → viewed → last action, with day count and actor
+- **Fit** — match measure against the applied board + position within our own roster
+
+### Tasks
+- [ ] Backend: `buildAgencyImageDTO` (additive allowlist), `talent-dossier` service + route, RBAC map
+- [ ] Frontend: `getTalentDossier`, full rewrite of `TalentFullView.jsx` / `.css`, `components/dossier/*`
+- [ ] States: skeleton, error, withdrawn (410), minor-blocked (403), empty package
+- [ ] Verify: client lint, client build, jest (agency DTO / RBAC / dossier)
+
+### Review
+
+**Shipped.** The expanded talent view is now a talent command surface rather than a
+document. Everything below is new; the old `tfv-*` page and its stylesheet were deleted.
+
+Backend
+- `src/domains/agency/services/talent-dossier.js` — one aggregate read composing the
+  minor-safe submission snapshot, canonical track-aware stats, the professional record,
+  the representation record, availability (declared status + bookouts + this agency's
+  options/holds/bookings), standing with this agency, roster position, and the working
+  record.
+- `GET /api/agency/applications/:id/dossier` (`routes/talent-dossier.js`), registered in
+  the agency router, mapped to `applications.view_detail` in `route-permissions.js`, and
+  added to `MINOR_SUBMISSION_ENDPOINT_MATRIX` so it is gated exactly like `/details`.
+- `buildAgencyImageDTO` + `AGENCY_IMAGE_FIELDS` added to `audience-dto.js` — additive
+  allowlist (`PUBLIC_IMAGE_FIELDS` + `style_type`, `captured_at`, `created_at`, `alt`) so
+  an agency can judge whether digitals are current. No existing builder changed.
+
+Frontend — `components/dossier/`
+- The Plate (comp-card logic: frame, name, reading line, representation standing,
+  height-led stat block with provenance and staleness).
+- The Readout Band (Standing · Fit · Availability · Digitals, each a jump link).
+- The Digitals Set (five canonical slots, empty drawn as empty, wired to Request more).
+- The Calendar Line (90-day rule carrying bookouts against our own options/holds/bookings).
+- The Representation Record, Professional Record, Against-our-book position.
+- The Standing Rail (dated ladder, day count, stall warning, board, tags, work owed,
+  minor compliance, contact) and The Record (activity ledger + working thread).
+
+Bugs found and fixed while building
+- `loadTalentRepresentationsForProfiles` only selects the columns a Discover *list* needs,
+  so market/territory/dates came back undefined. Added `loadRepresentationRecord` in the
+  dossier service rather than widening the shared batch loader.
+- The house `StageTrack` collides with itself inside a 348px rail; scoped the segments to
+  flex in `dossier.css` instead of forking the component.
+
+Verification
+- `tests/integration/agency-talent-dossier.test.js` — 14 tests: payload shape, dual-unit
+  track-aware stats, DOB never leaving, per-row agency disclosure, image visibility,
+  availability windowing, standing, roster position, field containment against
+  `AGENCY_DISCOVERY_FIELDS`, forbidden-key sweep, and the 404 / 410 / 401 boundaries.
+- Client `eslint` clean; `npm run client:build` green.
+- Backend suites: 348 passing. The 2 remaining failures (`dto-security`,
+  `roster-measured-in-person`) fail identically on a clean checkout — pre-existing
+  `knex.migrate.latest()` hook timeouts in this environment, unrelated to this change.
+- Browser-verified against a seeded agency at 1600 / 1400 / 1180 / 900 / 560 px, including
+  the sparse-submission case (0 of 5 digitals, unrepresented, never opened) and the
+  404 halt state. No horizontal overflow at any width.

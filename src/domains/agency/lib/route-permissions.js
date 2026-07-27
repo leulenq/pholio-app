@@ -262,6 +262,12 @@ const ROUTE_PERMISSION_RULES = [
     permission: "applications.view_detail",
   },
   {
+    // The expanded talent view's aggregate read — same object as /details.
+    method: "GET",
+    pattern: /^\/api\/agency\/applications\/[^/]+\/dossier$/,
+    permission: "applications.view_detail",
+  },
+  {
     method: "GET",
     pattern: /^\/api\/agency\/applications\/[^/]+\/timeline$/,
     permission: "applications.view_timeline",

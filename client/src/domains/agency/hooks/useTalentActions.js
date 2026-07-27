@@ -14,6 +14,7 @@ export function useTalentActions(applicationId) {
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['application', applicationId] });
+    qc.invalidateQueries({ queryKey: ['talent-dossier', applicationId] });
     qc.invalidateQueries({ queryKey: ['agency'] });
     qc.invalidateQueries({ queryKey: ['applications'] });
   };
