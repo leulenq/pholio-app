@@ -57,6 +57,8 @@ const {
   purgeStoredImageArtifacts,
 } = require("../../../shared/lib/purge-image-artifacts");
 const { verifyGoogleToken } = require("../services/providers/google");
+const { stampSessionDevice } = require("../../../shared/lib/session-device");
+const { registerSession } = require("../../../shared/lib/session-registry");
 const {
   sendVerificationEmailViaSmtp,
 } = require("../../auth/services/email-verification");
@@ -677,11 +679,21 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
     req.session.role = "TALENT";
     req.session.profileId = profile.id;
 
+    // Describe the device on the session so the settings device list has real
+    // data for accounts that first sign in through casting entry.
+    const deviceStamp = stampSessionDevice(req);
+
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
         if (err) reject(err);
         else resolve();
       });
+    });
+
+    await registerSession(knex, {
+      userId: user.id,
+      sid: req.sessionID,
+      fingerprint: deviceStamp?.fingerprint,
     });
     console.log("[Casting Entry] Session established:", {
       preRegenerateSessionId,

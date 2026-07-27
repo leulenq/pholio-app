@@ -16,6 +16,11 @@ const {
 } = require("../../../shared/lib/legal-versions");
 const apiResponse = require("../../../shared/lib/api-response");
 const {
+  listUserDevices,
+  revokeOtherSessions,
+  revokeSession,
+} = require("../../../shared/lib/session-registry");
+const {
   getSubscriptionStatus,
   getTrialDaysRemaining,
   isCanceling,
@@ -32,28 +37,26 @@ const {
 const { v4: uuidv4 } = require("uuid");
 const {
   minorPublicExposureAllowed,
-  canCollectSensitiveProfileFields,
-  isSensitiveImageShotType,
 } = require("../../../shared/lib/talent-age");
 
+// Only the two categories `shared/services/notifications.js` actually consults.
+// This used to also carry `emailFrequency` (immediate/daily/weekly — no digest
+// job exists anywhere in the codebase), `marketing`, `newMessages`,
+// `inAppApplications` and `emailNotifications`. None had a consumer, and
+// `newMessages` contradicted an explicit decision documented in
+// notifications.js: messages and interviews are never gated, because a booker
+// reaching out always has to reach the talent.
 const DEFAULT_NOTIFICATIONS = {
-  emailFrequency: "immediate",
-  emailNotifications: true,
   profileViews: true,
   applicationUpdates: true,
-  marketing: false,
-  inAppApplications: true,
-  newMessages: true,
 };
 
-const DEFAULT_DISPLAY = {
-  watermark: false,
-  cardLayout: "editorial",
-  coverImage: "first",
-};
-
+// `showContact` used to live here, defaulting to true and claiming to control
+// whether email/phone appear "on eligible public surfaces". No public surface
+// renders talent contact details at all — not the portfolio views, not the PDF
+// templates — so the toggle described exposure that never happened. Removed
+// rather than left as a privacy control that controls nothing.
 const DEFAULT_PRIVACY = {
-  showContact: true,
   blockedAgencies: [],
 };
 
@@ -62,9 +65,12 @@ const DEFAULT_PRIVACY = {
 // product disagreeing on the polarity of the same permission. The shared
 // `pholio_consent` cookie is the effective gate; this row is the account-level
 // mirror of it.
+//
+// `marketing` is deliberately absent: the canonical consent contract in
+// `shared/lib/consent.js` has no marketing category, so a marketing toggle here
+// was fake granularity over a permission the product does not model.
 const DEFAULT_COOKIES = {
   analytics: false,
-  marketing: false,
 };
 
 function parseJson(raw, fallback) {
@@ -106,18 +112,7 @@ function cleanStringArray(value, max = 25) {
 
 function sanitizeNotifications(value) {
   const incoming = value && typeof value === "object" ? value : {};
-  const frequency = ["immediate", "daily", "weekly"].includes(
-    incoming.emailFrequency,
-  )
-    ? incoming.emailFrequency
-    : DEFAULT_NOTIFICATIONS.emailFrequency;
-
   return {
-    emailFrequency: frequency,
-    emailNotifications: cleanBoolean(
-      incoming.emailNotifications,
-      DEFAULT_NOTIFICATIONS.emailNotifications,
-    ),
     profileViews: cleanBoolean(
       incoming.profileViews,
       DEFAULT_NOTIFICATIONS.profileViews,
@@ -126,40 +121,12 @@ function sanitizeNotifications(value) {
       incoming.applicationUpdates,
       DEFAULT_NOTIFICATIONS.applicationUpdates,
     ),
-    marketing: cleanBoolean(incoming.marketing, DEFAULT_NOTIFICATIONS.marketing),
-    inAppApplications: cleanBoolean(
-      incoming.inAppApplications,
-      DEFAULT_NOTIFICATIONS.inAppApplications,
-    ),
-    newMessages: cleanBoolean(
-      incoming.newMessages,
-      DEFAULT_NOTIFICATIONS.newMessages,
-    ),
-  };
-}
-
-function sanitizeDisplay(value) {
-  const incoming = value && typeof value === "object" ? value : {};
-  const layout = ["editorial", "classic", "minimal"].includes(
-    incoming.cardLayout,
-  )
-    ? incoming.cardLayout
-    : DEFAULT_DISPLAY.cardLayout;
-  const cover = ["first", "latest", "featured"].includes(incoming.coverImage)
-    ? incoming.coverImage
-    : DEFAULT_DISPLAY.coverImage;
-
-  return {
-    watermark: cleanBoolean(incoming.watermark, DEFAULT_DISPLAY.watermark),
-    cardLayout: layout,
-    coverImage: cover,
   };
 }
 
 function sanitizePrivacy(value) {
   const incoming = value && typeof value === "object" ? value : {};
   return {
-    showContact: cleanBoolean(incoming.showContact, DEFAULT_PRIVACY.showContact),
     blockedAgencies: cleanStringArray(incoming.blockedAgencies),
   };
 }
@@ -168,7 +135,6 @@ function sanitizeCookies(value) {
   const incoming = value && typeof value === "object" ? value : {};
   return {
     analytics: cleanBoolean(incoming.analytics, DEFAULT_COOKIES.analytics),
-    marketing: cleanBoolean(incoming.marketing, DEFAULT_COOKIES.marketing),
   };
 }
 
@@ -193,7 +159,6 @@ async function ensureSettingsRow(userId) {
     id: uuidv4(),
     user_id: userId,
     notification_preferences: jsonForDb(DEFAULT_NOTIFICATIONS),
-    display_preferences: jsonForDb(DEFAULT_DISPLAY),
     privacy_preferences: jsonForDb(DEFAULT_PRIVACY),
     cookie_preferences: jsonForDb(DEFAULT_COOKIES),
     created_at: knex.fn.now(),
@@ -262,48 +227,32 @@ function formatSubscription(subscription, profile) {
   };
 }
 
-async function listSignedInSessions(userId) {
-  const exists = await knex.schema.hasTable("sessions");
-  if (!exists) return [];
-
-  const rows = await knex("sessions").select("sid", "sess", "expired");
-  const now = Date.now();
-
-  return rows
-    .map((row) => {
-      const sess = parseJson(row.sess, {});
-      if (sess.userId !== userId) return null;
-      const expiredAt = row.expired ? new Date(row.expired) : null;
-      return {
-        id: row.sid,
-        device: "Browser session",
-        location: "Current workspace",
-        active: expiredAt ? expiredAt.getTime() > now : true,
-        expiresAt: expiredAt ? expiredAt.toISOString() : null,
-        isCurrent: false,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => String(b.expiresAt || "").localeCompare(a.expiresAt || ""));
+/**
+ * How the account signs in. Drives whether settings shows Google identity or an
+ * email/password account, and whether offering a password reset is honest.
+ * `null` when unknown (pre-dating the column, or a provider we don't brand).
+ */
+function resolveProvider(user) {
+  const raw = user?.auth_provider ? String(user.auth_provider) : null;
+  if (!raw) return null;
+  if (["google", "instagram", "apple", "facebook", "password"].includes(raw)) {
+    return raw;
+  }
+  return "other";
 }
 
 async function buildSettingsPayload(userId, currentSid = null) {
-  const [profile, user, settingsRow, subscription, sessions] =
-    await Promise.all([
-      knex("profiles").where({ user_id: userId }).first(),
-      knex("users").where({ id: userId }).first(),
-      loadSettingsRow(userId),
-      getSubscriptionStatus(userId),
-      listSignedInSessions(userId),
-    ]);
+  const [profile, user, settingsRow, subscription, devices] = await Promise.all([
+    knex("profiles").where({ user_id: userId }).first(),
+    knex("users").where({ id: userId }).first(),
+    loadSettingsRow(userId),
+    getSubscriptionStatus(userId),
+    listUserDevices(knex, userId, currentSid),
+  ]);
 
   const notifications = sanitizeNotifications({
     ...DEFAULT_NOTIFICATIONS,
     ...parseJson(settingsRow?.notification_preferences, {}),
-  });
-  const display = sanitizeDisplay({
-    ...DEFAULT_DISPLAY,
-    ...parseJson(settingsRow?.display_preferences, {}),
   });
   const privacy = sanitizePrivacy({
     ...DEFAULT_PRIVACY,
@@ -314,35 +263,36 @@ async function buildSettingsPayload(userId, currentSid = null) {
     ...parseJson(settingsRow?.cookie_preferences, {}),
   });
 
+  const provider = resolveProvider(user);
+
   return {
     slug: profile?.slug || null,
     isPublic: profile?.is_public !== undefined ? !!profile.is_public : true,
     isDiscoverable: !!profile?.is_discoverable,
     notifications,
-    display,
-    showContact: privacy.showContact,
     blockedAgencies: privacy.blockedAgencies,
     cookies,
     data: {
       exportRequestedAt: formatDate(settingsRow?.data_export_requested_at),
-      erasureRequestedAt: formatDate(settingsRow?.data_erasure_requested_at),
     },
     account: {
       deactivatedAt: formatDate(settingsRow?.account_deactivated_at),
       isDeactivated: !!settingsRow?.account_deactivated_at,
     },
     subscription: formatSubscription(subscription, profile),
-    invoices: [],
-    sessions: sessions.map((session) => ({
-      ...session,
-      isCurrent: currentSid ? session.id === currentSid : false,
-    })),
+    // Live sessions, one per device, described from data recorded at sign-in.
+    // Never includes expired rows: those are not devices.
+    devices,
     user: user
       ? {
           id: user.id,
           email: user.email,
           role: user.role,
           createdAt: formatDate(user.created_at),
+          authProvider: provider,
+          // A Google/Instagram account has no Pholio password to reset, so the
+          // client must not offer one.
+          canResetPassword: provider === null || provider === "password",
         }
       : null,
   };
@@ -395,10 +345,8 @@ router.put(
       slug,
       isPublic,
       isDiscoverable,
-      showContact,
       blockedAgencies,
       notifications,
-      display,
       cookies,
     } = req.body || {};
 
@@ -455,16 +403,6 @@ router.put(
         );
       }
 
-      if (display !== undefined) {
-        update.display_preferences = jsonForDb(
-          sanitizeDisplay({
-            ...DEFAULT_DISPLAY,
-            ...parseJson(row.display_preferences, {}),
-            ...display,
-          }),
-        );
-      }
-
       if (cookies !== undefined) {
         update.cookie_preferences = jsonForDb(
           sanitizeCookies({
@@ -475,22 +413,12 @@ router.put(
         );
       }
 
-      if (showContact !== undefined || blockedAgencies !== undefined) {
-        const effectiveShowContact =
-          showContact !== undefined ? !!showContact : undefined;
-        if (effectiveShowContact && !minorPublicExposureAllowed(profile)) {
-          return apiResponse.error(
-            res,
-            "A valid date of birth is required (and guardian consent for minors) before contact details can be shown publicly.",
-            403,
-          );
-        }
+      if (blockedAgencies !== undefined) {
         update.privacy_preferences = jsonForDb(
           sanitizePrivacy({
             ...DEFAULT_PRIVACY,
             ...parseJson(row.privacy_preferences, {}),
-            ...(showContact !== undefined ? { showContact: effectiveShowContact } : {}),
-            ...(blockedAgencies !== undefined ? { blockedAgencies } : {}),
+            blockedAgencies,
           }),
         );
       }
@@ -529,18 +457,6 @@ router.post(
         ...exportPayload,
         settings,
       },
-    });
-  }),
-);
-
-router.post(
-  "/settings/erasure-request",
-  requireRole("TALENT"),
-  asyncHandler(async (req, res) => {
-    return res.status(400).json({
-      error: "Use account deletion",
-      message:
-        "To permanently erase your personal data, delete your account from Danger Zone in Settings. That removes your profile, images, and account from Pholio.",
     });
   }),
 );
@@ -641,24 +557,41 @@ router.delete(
   }),
 );
 
+/**
+ * End every session except the caller's own. The bulk action a talent actually
+ * wants when something looks wrong — ending unrecognised devices one at a time
+ * was the only option before.
+ *
+ * Registered before the `:sid` route so it isn't captured as a session id.
+ */
+router.delete(
+  "/settings/sessions",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const result = await revokeOtherSessions(
+      knex,
+      req.session.userId,
+      req.sessionID,
+    );
+    return apiResponse.success(res, result);
+  }),
+);
+
 router.delete(
   "/settings/sessions/:sid",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    if (!(await knex.schema.hasTable("sessions"))) {
-      return apiResponse.success(res, { revoked: false });
+    if (req.params.sid === req.sessionID) {
+      return apiResponse.error(
+        res,
+        "You can't end the session you're currently using. Use log out instead.",
+        400,
+      );
     }
 
-    const row = await knex("sessions").where({ sid: req.params.sid }).first();
-    if (!row) return apiResponse.notFound(res, "Session not found");
-
-    const sess = parseJson(row.sess, {});
-    if (sess.userId !== req.session.userId) {
-      return apiResponse.notFound(res, "Session not found");
-    }
-
-    await knex("sessions").where({ sid: req.params.sid }).del();
-    return apiResponse.success(res, { revoked: true });
+    const result = await revokeSession(knex, req.session.userId, req.params.sid);
+    if (result.notFound) return apiResponse.notFound(res, "Session not found");
+    return apiResponse.success(res, { revoked: result.revoked });
   }),
 );
 
