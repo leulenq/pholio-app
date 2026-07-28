@@ -28,8 +28,14 @@ if (config.isServerless) {
     const chromiumModule = require("@sparticuz/chromium");
     chromium = chromiumModule.default || chromiumModule;
   } catch (error) {
+    // Log the cause, not just the symptom. Lambda has no browser to fall back
+    // to, so this warning means comp-card PDFs are broken — and for a long time
+    // it printed no reason, which is why it went unnoticed. MODULE_NOT_FOUND
+    // means the package did not ship in the function bundle; anything else
+    // (ERR_REQUIRE_ESM, unsupported engine) means it shipped but would not load.
     console.warn(
-      "[renderCompCard] @sparticuz/chromium not available, falling back to default Puppeteer",
+      `[renderCompCard] @sparticuz/chromium not available (${error.code || "no code"}: ${error.message}) — ` +
+        `node ${process.version}. Falling back to default Puppeteer, which has no browser binary in Lambda.`,
     );
   }
 }
