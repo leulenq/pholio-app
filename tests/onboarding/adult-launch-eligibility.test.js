@@ -264,9 +264,12 @@ describe("adult-only talent onboarding launch boundary", () => {
   });
 });
 
+// Migrations exceed Jest's 5s default hook timeout on a cold database. Without
+// an explicit budget this suite passed or failed depending on whether an earlier
+// suite had already migrated — 7/7 failed in isolation, 4/7 in a batch.
 beforeAll(async () => {
   await knex.migrate.latest();
-});
+}, 120000);
 
 afterAll(async () => {
   for (const email of createdEmails) {
