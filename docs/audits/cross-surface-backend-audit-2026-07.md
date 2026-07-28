@@ -587,10 +587,11 @@ aggregate.
    worse finding (see "Logout did not stick", below). The landing's Firebase
    client has been removed entirely rather than configured, so no
    `NEXT_PUBLIC_FIREBASE_*` value is needed on the marketing site at all.
-2. **Does the real client IP survive the Netlify Next-runtime proxy hop?** If
-   not, all marketing-origin traffic shares one rate-limit bucket — which now
-   matters more, since `/api/login` is rate-limited. Measure a real request's
-   `x-forwarded-for` at the Express end.
+2. ~~**Does the real client IP survive the Netlify Next-runtime proxy hop?**~~
+   **Resolved — the hop no longer exists.** Measuring it turned up that the
+   proxy returned 500 for every path in production (see "The API proxy was dead",
+   below). The marketing site now calls the app API cross-origin, so the browser
+   reaches Express directly and the real client IP is preserved by construction.
 3. **Was the 2026-07-18 revision substantive?** *Answered from git:* commit
    `784f738` rewrote all nine legal documents (459 insertions, 933 deletions).
    The app has been gating on the superseded version since. Treated as a real
@@ -686,3 +687,131 @@ the `origin/main` baseline (same 9 pre-existing failures in `tests/onboarding/`)
 Revocation only fires for accounts with a `users.firebase_uid`. Sessions created
 through the dev passthrough (`/api/dev/login`) have no Firebase identity and are
 unaffected — correct, since they have no Firebase token to revoke.
+
+
+---
+
+# Follow-up: the API proxy was dead in production (2026-07-28)
+
+Checking the client-IP question through the Netlify MCP turned up something
+larger. **Every `/api/*` request from the marketing site returned HTTP 500 in
+production.** The cross-surface integration described in §3.1 was not merely
+imperfect — it never worked at all.
+
+## Evidence
+
+Probed against live production:
+
+| Path class | Example | Result |
+|---|---|---|
+| Normal page | `www.pholio.studio/agency` | **200** |
+| Internal rewrite (`beforeFiles`) | `/studio-plus` → `/studio/plus` | **200** |
+| Internal rewrite | `/agencies` → `/agency` | **200** |
+| **External rewrite (`afterFiles` → app)** | `/api/public/languages` | **500** |
+| ″ | `/api/public/session` | **500** |
+| ″ | `/api/anything` | **500** |
+| Same path, direct to app | `app.pholio.studio/api/public/languages` | **200** |
+
+The 500 carries `server: Netlify` with a `text/plain` "Internal Server Error"
+body — it comes from the Netlify Next runtime, not from Express. Pages and
+internal rewrites are healthy on the same deploy, which isolates the failure to
+**external rewrites specifically**.
+
+## What that meant in production
+
+- `fetchPublicSession()` always failed → `{ authenticated: false }`. The
+  marketing header could **never** resolve a signed-in state.
+- The account menu in `components/header/kit.tsx` is gated on `isAuthenticated`
+  (line 586), so the dashboard link, the portfolio link and **the logout control
+  were unreachable** on the marketing site.
+- `POST /api/logout` from www would have 500'd anyway, and the failure is
+  swallowed by `.catch(() => {})`.
+
+**This corrects two things stated earlier in this document.**
+
+1. The §5 finding that the shipped header 404'd for signed-in talent
+   (`${APP_URL}/talent/:slug`) was **real in the code but unreachable in
+   production** — the header never rendered that link. Still correct to have
+   fixed; it would have surfaced the moment the proxy started working.
+2. The follow-up above describes marketing-site logout as destroying the Express
+   session but leaving the Firebase identity live. In production it did not get
+   that far: the logout request itself failed, and the control was not reachable
+   to begin with. The server-side revocation fix remains correct and necessary —
+   it is what makes logout authoritative once the marketing surface works — but
+   the sequence described there was the code path, not the observed production
+   behaviour.
+
+## Fix: call the app API cross-origin, delete the proxy
+
+The external rewrite is removed rather than repaired. Direct cross-origin calls
+are the better architecture regardless of the Netlify bug:
+
+- **No proxy hop**, so the real client IP reaches Express and rate limiting keys
+  per visitor rather than per proxy. This is what makes open question 2 moot.
+- **The browser always sends `Origin`** on a cross-origin request, so the app's
+  CSRF origin check becomes real defense in depth instead of a check that must
+  tolerate a missing header.
+- `credentials: "include"` becomes meaningful. It was previously a no-op,
+  because the call was same-origin to www.
+
+`www` → `app` is cross-origin but **same-site** (both under `pholio.studio`), so
+the `SameSite=Lax` session cookie is still sent.
+
+Verified against production before changing anything:
+
+```
+OPTIONS app.pholio.studio/api/public/agency-access-requests
+  Origin: https://www.pholio.studio
+→ 204
+  access-control-allow-origin: https://www.pholio.studio
+  access-control-allow-credentials: true
+  access-control-allow-headers: content-type,x-pholio-request
+```
+
+The app's CORS allowlist already names the marketing origin and already permits
+the `x-pholio-request` CSRF header — no app-side change was needed.
+
+Changed in `pholio-landing`: `lib/pholio-auth/constants.ts` (absolute app-API
+paths + rationale), `lib/pholio-auth/session-api.ts`, `AgencyRequestAccessForm`,
+`next.config.ts` (external rewrite deleted, `connect-src` narrowed to the app
+origin), `.env.example` (`APP_BACKEND_URL` removed).
+
+⚠️ **This also un-breaks work from this same audit.** The new
+`/agency/request-access` form posts to `/api/public/agency-access-requests`; had
+it shipped against the proxy, it would have 500'd on every submission.
+
+## Firebase: confirmed from the shipped artifact
+
+The report that the landing has "a firebase client but no `NEXT_PUBLIC`
+firebase" is **confirmed**, with stronger evidence than a dashboard reading.
+
+`NEXT_PUBLIC_*` values are inlined into the client bundle at build time. Fetching
+the complete chunk graph of the deployed marketing site — 16 chunks, 1.13 MB,
+across `/`, `/agency`, `/talent`, `/studio-plus` — finds:
+
+| Marker | Chunks containing it |
+|---|---|
+| `firebase` / `Firebase` | **0** |
+| `AIza…` (API key) | **0** |
+| `authDomain`, `messagingSenderId` | **0** |
+| `initializeApp`, `onAuthStateChanged` | **0** |
+| *controls:* `framer`, `gsap`, `lenis` | 1, 2, 1 |
+
+The controls confirm the extraction is complete, so the zeroes are real. The
+Firebase SDK is not merely unconfigured — it is **absent from the bundle**,
+which is what happens when `process.env.NEXT_PUBLIC_FIREBASE_API_KEY` inlines to
+`undefined`: `getPholioFirebaseAuth()`'s guard becomes statically false, its body
+is dead code, and the imports tree-shake away. A build with those variables set
+could not have produced this bundle.
+
+This is now moot — the Firebase client has been removed from the marketing site
+entirely — but it confirms the production state the logout fix was reasoning
+about.
+
+## Deploy ordering
+
+The landing must be redeployed for any of this to take effect; the currently
+deployed marketing build still contains the broken proxy. Nothing in the app
+needs to ship first — its CORS already permits the marketing origin — but
+deploying the app's branch first is harmless and keeps the CSRF-header
+requirement and the session endpoints in step.
