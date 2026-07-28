@@ -131,6 +131,15 @@
   to = "/.netlify/functions/server"
   status = 200
 
+# Sub-paths of the Stripe mount (webhook, create-checkout-session,
+# checkout/success, customer-portal). Without this splat they fall through to
+# the static publish dir and 404 — the webhook never reaches Express, so no
+# subscription ever activates.
+[[redirects]]
+  from = "/stripe/*"
+  to = "/.netlify/functions/server"
+  status = 200
+
 [[redirects]]
   from = "/pdf/*"
   to = "/.netlify/functions/server"
