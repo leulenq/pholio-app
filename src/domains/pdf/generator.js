@@ -18,26 +18,39 @@ const {
   },
 } = compCardDimensions;
 
-// Import Chromium for serverless environments (Netlify Functions, AWS Lambda)
-let chromium = null;
-if (config.isServerless) {
-  try {
-    // @sparticuz/chromium v149 ships as an ESM/CJS interop bundle where the
-    // runtime API (`args`, `executablePath()`) lives on the `default` export.
-    // Older versions expose it on module.exports directly, so normalize both.
-    const chromiumModule = require("@sparticuz/chromium");
-    chromium = chromiumModule.default || chromiumModule;
-  } catch (error) {
-    // Log the cause, not just the symptom. Lambda has no browser to fall back
-    // to, so this warning means comp-card PDFs are broken — and for a long time
-    // it printed no reason, which is why it went unnoticed. MODULE_NOT_FOUND
-    // means the package did not ship in the function bundle; anything else
-    // (ERR_REQUIRE_ESM, unsupported engine) means it shipped but would not load.
-    console.warn(
-      `[renderCompCard] @sparticuz/chromium not available (${error.code || "no code"}: ${error.message}) — ` +
-        `node ${process.version}. Falling back to default Puppeteer, which has no browser binary in Lambda.`,
-    );
+// Chromium for serverless environments (Netlify Functions, AWS Lambda).
+//
+// @sparticuz/chromium v149 is pure ESM. require()ing it from this CommonJS
+// module throws ERR_REQUIRE_ESM, which the old top-level require() swallowed
+// into a bare "not available" warning — so comp-card PDFs silently had no
+// browser in Lambda. It must be loaded with a dynamic import().
+//
+// The import is routed through `new Function` so esbuild cannot see the
+// specifier and rewrite it into a require() while bundling the function for
+// CJS, which would reintroduce ERR_REQUIRE_ESM. The package stays listed in
+// netlify.toml external_node_modules so it ships from node_modules.
+const importESM = new Function("specifier", "return import(specifier);");
+
+let chromiumPromise = null;
+
+/** Resolves the chromium module, or null when it cannot be loaded. Cached. */
+function loadChromium() {
+  if (!config.isServerless) return Promise.resolve(null);
+  if (!chromiumPromise) {
+    chromiumPromise = importESM("@sparticuz/chromium")
+      .then((mod) => mod.default || mod)
+      .catch((error) => {
+        // Lambda has no fallback browser, so this means PDFs are broken. Say
+        // why: MODULE_NOT_FOUND = did not ship; anything else = shipped but
+        // would not load.
+        console.warn(
+          `[renderCompCard] @sparticuz/chromium not available (${error.code || "no code"}: ${error.message}) — ` +
+            `node ${process.version}. Falling back to default Puppeteer, which has no browser binary in Lambda.`,
+        );
+        return null;
+      });
   }
+  return chromiumPromise;
 }
 
 // puppeteer is large and slow to load (hundreds of ms even locally; more under
@@ -230,6 +243,8 @@ async function renderCompCard(slug, theme = null, opts = null) {
       headless: "new",
       args: puppeteerArgs,
     };
+
+    const chromium = await loadChromium();
 
     if (config.isServerless && chromium) {
       // Use @sparticuz/chromium for Netlify Functions
@@ -733,6 +748,8 @@ async function renderDigitalsSheet(slug) {
     ];
 
     let launchOptions = { headless: "new", args: puppeteerArgs };
+
+    const chromium = await loadChromium();
 
     if (config.isServerless && chromium) {
       let executablePath = chromium.executablePath();
