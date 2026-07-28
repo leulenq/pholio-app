@@ -815,3 +815,91 @@ deployed marketing build still contains the broken proxy. Nothing in the app
 needs to ship first — its CORS already permits the marketing origin — but
 deploying the app's branch first is harmless and keeps the CSRF-header
 requirement and the session endpoints in step.
+
+
+---
+
+# Correction: the proxy 500s were a misconfigured env var, not a Netlify limitation (2026-07-28)
+
+The section above attributes the `/api/*` 500s to "Netlify's Next runtime does
+not serve this site's external rewrites." **That diagnosis is wrong.** The
+deployed marketing site's own CSP header gives the real answer:
+
+```
+content-security-policy-report-only: … connect-src 'self' http://localhost:3000 …
+```
+
+That `http://localhost:3000` is `${apiBackendOrigin}` baked in at build time. The
+same variable fed the rewrite destination:
+
+```ts
+const apiBackendOrigin =
+  process.env.APP_BACKEND_URL ||
+  (process.env.NODE_ENV === "development" ? "http://localhost:3000" : pholioAppOrigin);
+
+const apiProxy = { source: "/api/:path*", destination: `${apiBackendOrigin}/api/:path*` };
+```
+
+So the production rewrite was `/api/:path*` → **`http://localhost:3000/api/:path*`**.
+Netlify's Next server tried to proxy to localhost inside the Lambda, found
+nothing listening, and returned 500. External rewrites are fine; the destination
+was wrong.
+
+`NEXT_PUBLIC_APP_URL` inlined correctly as `https://app.pholio.studio`, so
+`pholioAppOrigin` was right and the fallback was never reached. That leaves two
+candidates in the landing site's Netlify environment:
+
+- **`APP_BACKEND_URL=http://localhost:3000`** — most likely; `netlify.toml` does
+  not set it, so it is a dashboard value, probably added for local testing and
+  never scoped to a deploy context; or
+- **`NODE_ENV=development`** — less likely (Next forces production for `next build`).
+
+**Action:** delete or correct that variable in the landing site's Netlify
+environment. The fix on this branch removes `apiBackendOrigin` and the rewrite
+entirely and hardcodes the app origin in `connect-src`, so the site is no longer
+sensitive to it — but a stray `APP_BACKEND_URL` pointing at localhost will
+mislead the next person who reads the config.
+
+## Retraction: the Firebase bundle evidence is inconclusive
+
+The "Firebase: confirmed from the shipped artifact" section above reasoned that
+zero Firebase in the deployed bundle proves `NEXT_PUBLIC_FIREBASE_*` were unset,
+because dead-code elimination would strip the SDK. **That inference does not
+hold**, for two reasons discovered afterwards:
+
+1. The deployed marketing build already contains commits from this audit branch
+   (`/agency/request-access` returns 200 and the security headers are live), so
+   it may already include the commit that **removed** the Firebase client. If so,
+   the SDK is absent because it was deleted, not because it was tree-shaken.
+2. The pre-removal `logout()` used a **dynamic** `await import("firebase/auth")`.
+   A lazily-loaded chunk would not appear in the initially-referenced chunk list
+   that the scan walked, so its absence there proves nothing either way.
+
+Whether `NEXT_PUBLIC_FIREBASE_*` are set in the landing's Netlify environment is
+therefore **still unverified**. It no longer affects behaviour — the Firebase
+client is gone from the marketing site and logout is server-authoritative — but
+it should not be recorded as confirmed. Reading it requires either the Netlify
+CLI with an auth token or the dashboard; this MCP server exposes no environment
+variable operations.
+
+## Branch/deploy state at time of writing
+
+Both repos moved substantially during this work, and parts of this branch are
+already merged and live:
+
+| | `pholio-app` | `pholio-landing` |
+|---|---|---|
+| Audit commits merged to `main` | all except the newest doc commit | `cc69a13`, `48906f2` merged; `d4efd36` not |
+| Deployed | yes — production runs the hardened session endpoints, the consent gate, and the 2026-07-18 legal version | partially — `/agency/request-access` and the headers are live; the cross-origin fix is not |
+| Branch behind `main` | 234 commits | 30 commits |
+
+Two consequences worth acting on:
+
+- **The legal re-acceptance wave has already started in production.** The bumped
+  version is live on the app.
+- **The landing is in a half-fixed state**: the security headers and the new
+  agency page are deployed, but the form still posts through the broken
+  localhost proxy, so submissions 500 until `d4efd36` ships.
+
+This branch should be rebased onto current `main` before any further work; it is
+far enough behind that its base no longer reflects either repo.
