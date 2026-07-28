@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= title || 'Server Error' %> · Pholio</title>
+  <title><%= typeof title !== 'undefined' && title ? title : 'Server Error' %> · Pholio</title>
   <style>
     body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
       background: #050505; color: rgba(255,255,255,0.88); font-family: Georgia, "Times New Roman", serif; }
@@ -18,9 +18,9 @@
 <body>
   <div class="wrap">
     <div class="mark">PHOLIO</div>
-    <h1><%= title || 'Something went wrong' %></h1>
-    <p><%= error && error.message ? error.message : 'Please try again in a moment.' %></p>
-    <% if (showDetails && error && error.details) { %>
+    <h1><%= typeof title !== 'undefined' && title ? title : 'Something went wrong' %></h1>
+    <p><%= typeof error !== 'undefined' && error && error.message ? error.message : 'Please try again in a moment.' %></p>
+    <% if (typeof showDetails !== 'undefined' && showDetails && typeof error !== 'undefined' && error && error.details) { %>
       <pre><%= typeof error.details === 'string' ? error.details : JSON.stringify(error.details, null, 2) %></pre>
     <% } %>
   </div>

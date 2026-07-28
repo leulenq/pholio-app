@@ -18,7 +18,7 @@
   <div class="wrap">
     <div class="mark">PHOLIO</div>
     <h1>Page not found</h1>
-    <p><%= error && error.message ? error.message : 'That page does not exist.' %></p>
+    <p><%= typeof error !== 'undefined' && error && error.message ? error.message : 'That page does not exist.' %></p>
     <p><a href="/">Return home</a></p>
   </div>
 </body>

@@ -10,10 +10,12 @@
  * candidate against a fixed rubric. The winner blends the model's eye with
  * the deterministic score.
  *
- * Model: meta-llama/llama-4-scout-17b-16e-instruct — the vision model on this
- * Groq account — with response_format json_schema strict:true. The transport
- * shape is guaranteed by strict decoding but still validated field by field
- * (strict mode guarantees shape, not sense).
+ * Model: config.groq.visionModel — the vision model on this Groq account —
+ * with response_format json_object. It does NOT support json_schema, so the
+ * shape is spelled out in the system prompt rather than guaranteed by strict
+ * decoding, and validateVerdict() below is now the only shape guarantee as
+ * well as the sense check. JURY_SCHEMA is retained as the written contract
+ * the prompt mirrors.
  *
  * Failure contract: ANY problem (no key, <2 renderable PNGs, timeout, SDK
  * error, malformed JSON, out-of-range index, non-numeric score) resolves to
@@ -25,7 +27,10 @@
  * stabilizing tie-breaker.
  */
 
-const JURY_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const config = require("../../../../config");
+
+// Single source of truth — see config.groq.visionModel. Never hardcode here.
+const JURY_MODEL = config.groq.visionModel;
 const JURY_TEMPERATURE = 0.3;
 const JURY_MAX_TOKENS = 1200;
 const DEFAULT_TIMEOUT_MS = 8000;
@@ -70,7 +75,11 @@ const SYSTEM_PROMPT = `You are the senior art director of a top modeling agency,
 - balance: confident visual-weight balance, edge alignment, calm whitespace rhythm; nothing crowds the trim edge.
 - subjectRespect: the composition honors the talent — the figure and face are unobstructed, no type crossing the face, no claustrophobic crowding.
 - premiumFeel: confident, RESTRAINED, high-fashion agency register; reward editorial calm and a clear hero, penalize busy/cluttered/amateur layouts.
-Reward confident, restrained, premium composition. Penalize text fighting the image, crowding, and clutter. Then pick the single winningIndex and give a one-line rationale. Return ONLY the JSON.`;
+Reward confident, restrained, premium composition. Penalize text fighting the image, crowding, and clutter. Then pick the single winningIndex and give a one-line rationale.
+
+Return ONLY a JSON object in exactly this shape, with one scores entry per candidate and every score an integer 0-100:
+{"scores":[{"index":0,"legibility":0,"balance":0,"subjectRespect":0,"premiumFeel":0}],"winningIndex":0,"rationale":"one line, max 200 chars"}
+No prose, no markdown fences, no commentary outside the JSON.`;
 
 // ── Groq client (lazy, mirrors art-director / ai-advisor pattern) ────────────
 
@@ -221,7 +230,10 @@ async function rankFrontCandidates({ candidates, renderPng, timeoutMs = DEFAULT_
       ],
       temperature: JURY_TEMPERATURE,
       max_completion_tokens: JURY_MAX_TOKENS,
-      response_format: { type: "json_schema", json_schema: JURY_SCHEMA },
+      // json_object, not json_schema: the vision model does not support strict
+      // schema decoding. validateVerdict() below enforces the shape instead.
+      response_format: { type: "json_object" },
+      reasoning_effort: config.groq.visionReasoningEffort,
     });
     Promise.resolve(request).catch(() => {}); // pre-handle late rejections
     const timeout = new Promise((resolve) => {

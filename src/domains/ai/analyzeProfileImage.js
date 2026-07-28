@@ -49,7 +49,8 @@ function getGroq() {
 
 // ─── Vision model + prompt ──────────────────────────────────────────────────
 
-const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+// Single source of truth — see config.groq.visionModel. Never hardcode here.
+const VISION_MODEL = config.groq.visionModel;
 
 const MASTER_VISION_PROMPT = `You are a senior casting director at a premier international modeling agency reviewing a new talent submission.
 
@@ -125,6 +126,7 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
         },
       ],
       response_format: { type: "json_object" },
+      reasoning_effort: config.groq.visionReasoningEffort,
       temperature: 0.2,
       max_completion_tokens: 1500,
     });

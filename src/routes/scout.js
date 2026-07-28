@@ -101,11 +101,12 @@ Respond in JSON format:
           ]
         }
       ],
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Scout model for image analysis
+      model: require('../config').groq.visionModel, // single source of truth — see config.js
       temperature: 0.5,
       max_completion_tokens: 1000,
       top_p: 1,
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      reasoning_effort: require('../config').groq.visionReasoningEffort
     });
 
     let scoutAnalysis;

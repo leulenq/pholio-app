@@ -5,6 +5,7 @@ const {
   hasGuardianConsent,
   hasRecordedDateOfBirth,
 } = require("../../../shared/lib/talent-age");
+const config = require("../../../config");
 
 // Body-revealing framing / registers. Kept in sync with the SENSITIVE_* sets in
 // media.js. Used to decide whether a classification result is "sensitive".
@@ -23,7 +24,9 @@ const THRESHOLDS = {
   image_type: { auto: 0.8, suggest: 0.55 },
 };
 
-const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+// Recorded as the provenance label on stored classifications. Single source of
+// truth — see config.groq.visionModel. Never hardcode here.
+const VISION_MODEL = config.groq.visionModel;
 
 /** Stable ~5% audit sample for auto-applied tags (deterministic per image id). */
 const AUDIT_SAMPLE_PERCENT = 5;

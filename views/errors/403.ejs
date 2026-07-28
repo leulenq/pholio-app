@@ -17,7 +17,7 @@
   <div class="wrap">
     <div class="mark">PHOLIO</div>
     <h1>Access denied</h1>
-    <p><%= error && error.message ? error.message : 'You do not have permission to view this page.' %></p>
+    <p><%= typeof error !== 'undefined' && error && error.message ? error.message : 'You do not have permission to view this page.' %></p>
   </div>
 </body>
 </html>

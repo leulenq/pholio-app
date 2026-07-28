@@ -90,6 +90,7 @@ async function runScout(absolutePath) {
     temperature: 0.3,
     max_completion_tokens: 512,
     response_format: { type: "json_object" },
+    reasoning_effort: config.groq.visionReasoningEffort,
   });
 
   const raw = completion.choices[0]?.message?.content || "{}";

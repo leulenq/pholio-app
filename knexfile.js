@@ -255,8 +255,14 @@ const pg = {
   // This helps handle connection termination issues with pooled connections (e.g., Neon)
   pool: {
     min: 0,
-    // One connection per serverless invocation; Neon pooler handles concurrency.
-    max: isServerless ? 1 : 3,
+    // A Lambda container serves one request at a time, but a single request
+    // fans out several queries in parallel (e.g. buildSettingsPayload awaits
+    // five at once, plus the session store). At max:1 those serialised behind
+    // one connection and could exhaust acquireTimeoutMillis, producing
+    // "Knex: Timeout acquiring a connection" — which AWS's own
+    // unhandledRejection listener turns into a hard 502. Neon's pooler is
+    // built for many short-lived clients, so a small pool is the safer shape.
+    max: isServerless ? 5 : 3,
     idleTimeoutMillis: isServerless ? 5000 : 10000,
     acquireTimeoutMillis: isServerless ? 10000 : 60000,
     createTimeoutMillis: isServerless ? 10000 : 30000,

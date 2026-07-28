@@ -8,7 +8,8 @@ const {
   STYLE_TYPE_VALUES,
 } = require("../../shared/lib/validation");
 
-const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+// Single source of truth — see config.groq.visionModel. Never hardcode here.
+const VISION_MODEL = config.groq.visionModel;
 
 let _groq = null;
 
@@ -280,6 +281,7 @@ async function classifyPortfolioImageCore({
           },
         ],
         response_format: { type: "json_object" },
+        reasoning_effort: config.groq.visionReasoningEffort,
         temperature: 0.1,
         max_completion_tokens: 800,
       }),

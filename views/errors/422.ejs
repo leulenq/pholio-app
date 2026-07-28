@@ -15,7 +15,7 @@
 <body>
   <div class="wrap">
     <h1>Please fix the following</h1>
-    <% if (formErrors && typeof formErrors === 'object') { %>
+    <% if (typeof formErrors !== 'undefined' && formErrors && typeof formErrors === 'object') { %>
       <ul>
         <% Object.keys(formErrors).forEach(function (field) {
           const msgs = formErrors[field];
@@ -25,7 +25,7 @@
         }); %>
       </ul>
     <% } else { %>
-      <p><%= error && error.message ? error.message : 'Validation failed.' %></p>
+      <p><%= typeof error !== 'undefined' && error && error.message ? error.message : 'Validation failed.' %></p>
     <% } %>
   </div>
 </body>

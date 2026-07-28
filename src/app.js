@@ -80,14 +80,17 @@ app.use(
 process.on("unhandledRejection", (reason, promise) => {
   // Check if it's a session or database connection error (expected in serverless)
   if (reason && typeof reason === "object" && reason.message) {
+    // Matched case-insensitively: knex raises "Knex: Timeout acquiring a
+    // connection" with a capital T, which a lowercase "timeout" test misses.
+    const message = String(reason.message);
+    const lowered = message.toLowerCase();
     const isConnectionError =
-      reason.message.includes("Connection terminated") ||
-      (reason.message.includes("connection") &&
-        reason.message.includes("unexpectedly")) ||
-      reason.message.includes('select "sess" from "sessions"') ||
-      reason.message.includes('delete from "sessions"') ||
-      reason.message.includes("expired") ||
-      reason.message.includes("timeout") ||
+      lowered.includes("connection terminated") ||
+      (lowered.includes("connection") && lowered.includes("unexpectedly")) ||
+      message.includes('select "sess" from "sessions"') ||
+      message.includes('delete from "sessions"') ||
+      lowered.includes("expired") ||
+      lowered.includes("timeout") ||
       reason.code === "ECONNRESET" ||
       reason.code === "EPIPE";
 

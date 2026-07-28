@@ -5,7 +5,12 @@
   publish = "public"
 
 [build.environment]
-  NODE_VERSION = "20"
+  # 22, not 20: puppeteer@25 requires node >=22.12 and @sparticuz/chromium@149
+  # requires ^22.17. On 20 npm installs them anyway with an EBADENGINE warning,
+  # then the chromium binding fails to load at runtime — production logs show
+  # "[renderCompCard] @sparticuz/chromium not available, falling back to default
+  # Puppeteer", which has no browser in Lambda, so comp-card PDFs cannot render.
+  NODE_VERSION = "22"
   NPM_FLAGS = "--include=optional"
 
 [functions]

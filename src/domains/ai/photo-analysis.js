@@ -116,11 +116,12 @@ Respond in exactly this JSON format. Return null for any field not confidently v
           ]
         }
       ],
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct', // New explicit physical measurements model
+      model: config.groq.visionModel, // single source of truth — see config.js
       temperature: 0.1, // Lower temperature for more consistent/factual estimates
       max_completion_tokens: 1024,
       top_p: 1,
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      reasoning_effort: config.groq.visionReasoningEffort
     });
 
     let content = completion.choices[0]?.message?.content || '{}';

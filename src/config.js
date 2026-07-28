@@ -76,6 +76,18 @@ if (DEPRECATED_GROQ_TEXT_MODELS.includes(groqTextModel)) {
   );
 }
 
+// Stripe webhook signing secrets are `whsec_...`. The endpoint *identifier*
+// shown next to it in the dashboard is `we_...`, and pasting that instead is
+// silent: constructEvent only throws once a real event arrives, so every
+// webhook 400s and no subscription ever activates. Catch it at startup.
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+if (stripeWebhookSecret && !stripeWebhookSecret.startsWith("whsec_")) {
+  console.warn(
+    `[config] STRIPE_WEBHOOK_SECRET does not look like a signing secret (expected "whsec_...", got "${stripeWebhookSecret.slice(0, 6)}..."). ` +
+      "Every webhook will fail signature verification. Copy the signing secret from Stripe → Developers → Webhooks → your endpoint.",
+  );
+}
+
 // Discover engine selector. DISCOVER_ENGINE takes precedence when set to a
 // recognized value; DISCOVER_HYBRID=true remains a legacy alias for 'hybrid'.
 const DISCOVER_ENGINES = ["launch", "hybrid", "browse"];
@@ -141,7 +153,7 @@ module.exports = {
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    webhookSecret: stripeWebhookSecret,
     priceId: process.env.STRIPE_PRICE_ID, // legacy / monthly fallback
     priceIdMonthly: process.env.STRIPE_PRICE_ID_MONTHLY,
     priceIdAnnual: process.env.STRIPE_PRICE_ID_ANNUAL,
@@ -157,10 +169,23 @@ module.exports = {
     // Text/JSON: query understanding, rerank, chat. GROQ_TEXT_MODEL is the
     // rollback lever (deprecated defaults trigger a startup warning below).
     textModel: groqTextModel,
-    // Vision: Scout headshot analysis (same model as analyzeProfileImage.js)
-    visionModel:
-      process.env.GROQ_VISION_MODEL ||
-      "meta-llama/llama-4-scout-17b-16e-instruct",
+    // Vision: every image-analysis path (Scout, portfolio classification,
+    // photo analysis, comp-card front jury) resolves its model from here — do
+    // not hardcode a model id at a call site, or GROQ_VISION_MODEL stops being
+    // a working rollback lever.
+    //
+    // meta-llama/llama-4-scout-17b-16e-instruct was decommissioned and now
+    // returns model_not_found, which silently disabled every vision feature.
+    // qwen/qwen3.6-27b is the vision-capable model on this Groq account. It
+    // supports response_format json_object but NOT json_schema — callers must
+    // use json_object and validate the shape themselves.
+    visionModel: process.env.GROQ_VISION_MODEL || "qwen/qwen3.6-27b",
+    // qwen3.6 is a REASONING model: left at default effort it spends the whole
+    // max_completion_tokens budget thinking and returns an empty completion,
+    // which Groq rejects as "Failed to validate JSON". "none" suppresses the
+    // reasoning pass and yields the JSON directly. Set to "default" (or any
+    // level) only if GROQ_VISION_MODEL is swapped for a non-reasoning model.
+    visionReasoningEffort: process.env.GROQ_VISION_REASONING_EFFORT || "none",
   },
   // OpenAI — Discover semantic search embeddings (text-embedding-3-small)
   openai: {
