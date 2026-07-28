@@ -125,8 +125,16 @@ npm run seed             # Load seed data (talent@example.com / password123, age
 # Tests
 npm test                 # Jest + Supertest integration tests
 npm run test:db          # Test database connection
-# Run a single test file:
-npx jest path/to/test.js --testNamePattern "test name"
+# Run a single test file / single test — always through `npm test`:
+npm test -- path/to/test.js
+npm test -- path/to/test.js -t "test name"
+
+# NEVER run `npx jest` directly. `npm test` goes through scripts/run-jest.js,
+# which forces an isolated SQLite file, deletes DATABASE_URL and sets
+# PHOLIO_SAFE_TEST_RUNNER=1. Bare `npx jest` skips that, so knexfile.js loads
+# `.env` — whose DATABASE_URL is the PRODUCTION Neon database — and the
+# destructive migration/seed/integration suites wipe it. This has happened.
+# tests/setup/guard-production-db.js now aborts such a run, but use `npm test`.
 
 # Lint
 cd client && npm run lint     # React SPA
