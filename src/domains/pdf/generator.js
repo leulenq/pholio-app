@@ -59,12 +59,19 @@ function loadChromium() {
 // that cost before handling a request — including requests with nothing to do
 // with PDF generation (e.g. /api/login), since app.js requires this whole
 // routes module eagerly at boot. Load it lazily on first actual use instead.
-let puppeteerModule = null;
+let puppeteerPromise = null;
+
+/**
+ * puppeteer v25 is pure ESM, so require() throws ERR_REQUIRE_ESM from this
+ * CommonJS bundle — the same failure as @sparticuz/chromium above. Loaded via
+ * the same bundler-opaque dynamic import, still lazily so cold invocations
+ * that never render a PDF do not pay for it. Returns a promise; callers await.
+ */
 function getPuppeteer() {
-  if (!puppeteerModule) {
-    puppeteerModule = require("puppeteer");
+  if (!puppeteerPromise) {
+    puppeteerPromise = importESM("puppeteer").then((mod) => mod.default || mod);
   }
-  return puppeteerModule;
+  return puppeteerPromise;
 }
 
 async function loadProfile(slug) {
@@ -291,7 +298,7 @@ async function renderCompCard(slug, theme = null, opts = null) {
         executablePathType: typeof launchOptions.executablePath,
       });
 
-      browser = await getPuppeteer().launch(launchOptions);
+      browser = await (await getPuppeteer()).launch(launchOptions);
     } catch (launchError) {
       console.error("[renderCompCard] Error launching Puppeteer browser:", {
         message: launchError.message,
@@ -767,7 +774,7 @@ async function renderDigitalsSheet(slug) {
       launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
     }
 
-    browser = await getPuppeteer().launch(launchOptions);
+    browser = await (await getPuppeteer()).launch(launchOptions);
     const page = await browser.newPage();
     await page.goto(target, { waitUntil: "networkidle0", timeout: 30000 });
     const buffer = await page.pdf({
