@@ -26,4 +26,14 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Build/tooling config runs in Node, not the browser. Without this the
+    // block above gives these files only browser globals, so vite.config.js
+    // reading process.env.VITE_API_PROXY_TARGET failed no-undef and broke the
+    // "Client lint (required)" CI job for every push.
+    files: ['*.config.js', '*.config.mjs'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])
