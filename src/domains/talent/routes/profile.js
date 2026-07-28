@@ -758,10 +758,38 @@ router.put(
     };
 
     // Helper to update only if defined
+    // `profiles` columns declared NOT NULL. mapField below turns "" into null,
+    // and the client sends null for a cleared field, so either one used to
+    // write null into a NOT NULL column — which aborts the whole UPDATE with
+    // "violates not-null constraint" and 500s a save of entirely unrelated
+    // fields. That is what made clearing a bio break saving measurements.
+    //
+    // Text columns where "empty" is a real value take "". The rest cannot be
+    // represented as empty (a height or a discipline is either set or
+    // unchanged), so a null simply leaves the stored value alone.
+    const NOT_NULL_EMPTY_STRING = new Set([
+      "city",
+      "first_name",
+      "last_name",
+      "slug",
+    ]);
+    const NOT_NULL_KEEP_EXISTING = new Set([
+      "height_cm",
+      "discipline",
+      "work_permit_on_file",
+      "is_public",
+      "is_discoverable",
+    ]);
+
     const mapField = (field, dbField = field) => {
       if (data[field] !== undefined) {
-        if (data[field] === "") {
-          updateData[dbField] = null;
+        if (data[field] === "" || data[field] === null) {
+          if (NOT_NULL_EMPTY_STRING.has(dbField)) {
+            updateData[dbField] = "";
+          } else if (!NOT_NULL_KEEP_EXISTING.has(dbField)) {
+            updateData[dbField] = null;
+          }
+          // NOT_NULL_KEEP_EXISTING: write nothing, preserving the stored value.
         } else if (typeof data[field] === "object" && data[field] !== null) {
           updateData[dbField] = JSON.stringify(data[field]);
         } else {
@@ -1025,7 +1053,12 @@ router.put(
 
     // Bio curation
     if (data.bio !== undefined) {
-      updateData.bio_raw = data.bio;
+      // profiles.bio_raw and bio_curated are both NOT NULL, and the client
+      // sends bio: null for an empty field — writing that straight through
+      // violated the constraint and 500'd the entire save. "" is already how
+      // bio_curated represents "no bio" (see the ternary below), so bio_raw
+      // matches it rather than the column being made nullable.
+      updateData.bio_raw = data.bio ?? "";
       updateData.bio_curated = data.bio
         ? curateBio(
             data.bio,
