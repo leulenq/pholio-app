@@ -149,11 +149,19 @@ if (process.env.NODE_ENV !== "production") {
 // This MUST be the first middleware after trust proxy to prevent "undefined IP" errors
 // In serverless (Netlify Functions), req.ip might be undefined even with trust proxy
 app.use((req, res, next) => {
-  // Express should set req.ip automatically with trust proxy, but verify it's set
-  // In serverless, we need to manually extract IP from headers
-  let ip = req.ip;
+  // Netlify's own single-value client IP header is the most trustworthy source
+  // here and cannot be spoofed by a client-supplied x-forwarded-for entry, so
+  // prefer it before falling back to the proxy chain.
+  let ip = req.headers["x-nf-client-connection-ip"];
 
-  // If req.ip is not set or invalid, get it from headers
+  // Express computes req.ip from the connection via trust proxy. Under
+  // serverless-http there is no real socket, so it is usually undefined — but
+  // use it when present.
+  if (!ip) {
+    ip = req.ip;
+  }
+
+  // If still unset, take the client entry from the proxy chain.
   if (!ip || ip === undefined || ip === null || ip === "") {
     // Netlify Functions provide x-forwarded-for header with client IP
     const forwardedFor = req.headers["x-forwarded-for"];
@@ -201,24 +209,31 @@ app.use((req, res, next) => {
     }
   }
 
-  // CRITICAL: Always set req.ip to a valid string value
-  // express-rate-limit requires req.ip to be defined, even if we use a custom keyGenerator
-  req.ip = ip && typeof ip === "string" && ip !== "" ? ip : "127.0.0.1";
+  // `req.ip` is a GETTER on the Express request prototype with no setter, so
+  // `req.ip = ...` silently does nothing. The resolved address therefore has to
+  // live on our own property. Reading req.ip here would also re-enter the
+  // getter, which runs proxyaddr() against the connection object synthesized
+  // below and yields undefined — that is exactly how every unauthenticated
+  // request ended up keyed "127.0.0.1", putting all logins into ONE shared
+  // 15-per-minute bucket.
+  const resolvedIp =
+    ip && typeof ip === "string" && ip !== "" ? ip : "127.0.0.1";
+  req.clientIp = resolvedIp;
 
-  // Also ensure req.connection.remoteAddress is set (some libraries check this)
+  // Some libraries read these directly. Seed them from the resolved value, not
+  // from req.ip.
   if (!req.connection) {
     req.connection = {};
   }
   if (!req.connection.remoteAddress) {
-    req.connection.remoteAddress = req.ip;
+    req.connection.remoteAddress = resolvedIp;
   }
 
-  // Ensure req.socket.remoteAddress is set (additional fallback)
   if (!req.socket) {
     req.socket = {};
   }
   if (!req.socket.remoteAddress) {
-    req.socket.remoteAddress = req.ip;
+    req.socket.remoteAddress = resolvedIp;
   }
 
   next();
@@ -238,7 +253,12 @@ function rateLimitKeyGenerator(req) {
   // fresh sessionID for every cookieless request, so a scripted client that
   // drops cookies would get a unique bucket per request and bypass the limiter
   // entirely (audit finding H1). ipKeyGenerator is the IPv6-safe helper.
+  // req.clientIp is set by the IP-resolution middleware above. It must come
+  // first: req.ip is a getter that returns undefined under serverless-http, and
+  // relying on it collapsed every anonymous caller into a single "127.0.0.1"
+  // bucket — one shared 15-per-minute allowance for all logins platform-wide.
   const ip =
+    req.clientIp ||
     req.ip ||
     req.connection?.remoteAddress ||
     req.socket?.remoteAddress ||

@@ -48,7 +48,9 @@ router.post(
   async (req, res, next) => {
     try {
       const data = await recordAgencyLegalAcceptance(req.session, req.body, {
-        ipAddress: req.ip,
+        // req.clientIp first — req.ip is undefined under serverless-http, which
+        // was storing legal acceptances with no IP on record.
+        ipAddress: req.clientIp || req.ip || null,
         userAgent: req.get("user-agent"),
       });
       await recordAuditEvent({

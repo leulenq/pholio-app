@@ -43,7 +43,8 @@ function actorFromRequest(req) {
   return {
     userId: req.platformAdmin.user_id,
     email: req.session.email || null,
-    ip: req.ip || null,
+    // req.clientIp first — req.ip is undefined under serverless-http.
+    ip: req.clientIp || req.ip || null,
   };
 }
 

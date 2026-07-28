@@ -511,6 +511,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
 
           if (!existingSignals?.ip_address || !existingSignals?.ip_country) {
             const clientIP =
+              req.clientIp ||
               req.ip ||
               req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
               null;
