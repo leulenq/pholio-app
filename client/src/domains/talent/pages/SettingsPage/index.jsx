@@ -693,10 +693,15 @@ function StudioMovement({ settings, isLoading }) {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [handoffOpen, setHandoffOpen] = useState(false);
   const [returnState, setReturnState] = useState(() => searchParams.get('checkout'));
   const [opening, setOpening] = useState(false);
-  const { redirectToCheckout } = useBrandedStripeCheckout({ onHandoffStart: () => setHandoffOpen(true) });
+  // useBrandedStripeCheckout takes the session-creating FUNCTION and owns the
+  // handoff state itself. It was being handed an options object, so the hook
+  // called that object and threw "createSession is not a function" — surfacing
+  // minified as "l is not a function" the moment Start Studio+ was clicked.
+  const { handoffOpen, redirectToCheckout } = useBrandedStripeCheckout(
+    (payload) => talentApi.createCheckoutSession(payload),
+  );
   const subscription = settings?.subscription;
 
   useEffect(() => {

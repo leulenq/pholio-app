@@ -534,6 +534,11 @@ app.use(attachLocals);
 // the in-memory store is shared across users on the same Lambda instance.
 const rateLimitMax = {
   auth: config.isServerless ? 15 : 10,
+  // Onboarding is an interactive multi-step flow, not a credential endpoint:
+  // one person walking through it normally issues far more than 15 requests a
+  // minute, so sharing the auth ceiling 429'd real users mid-signup. Still
+  // capped, just at a ceiling a human cannot reach by filling in forms.
+  onboarding: config.isServerless ? 60 : 30,
   upload: config.isServerless ? 60 : 20,
   message: config.isServerless ? 30 : 15,
   report: config.isServerless ? 20 : 10,
@@ -543,6 +548,15 @@ const rateLimitMax = {
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: rateLimitMax.auth,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
+const onboardingLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: rateLimitMax.onboarding,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: rateLimitKeyGenerator,
@@ -585,7 +599,7 @@ const talentAiWriterLimiter = createTalentAiWriterRateLimit({
 // "/logout" mount prefixes — they must be listed explicitly or the marketing
 // site's session endpoints go unthrottled.
 app.use(["/login", "/signup", "/api/login", "/api/logout"], authLimiter);
-app.use(["/onboarding/entry", "/casting/entry"], authLimiter);
+app.use(["/onboarding/entry", "/casting/entry"], onboardingLimiter);
 app.use("/api/public/open-call", authLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
 app.use("/upload", uploadLimiter);
