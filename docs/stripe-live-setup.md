@@ -27,44 +27,81 @@ Set these in **Netlify → Environment variables** (live mode values):
 
 ```bash
 STRIPE_SECRET_KEY=sk_live_...          # Dashboard → Developers → API keys
-STRIPE_PUBLISHABLE_KEY=pk_live_...
 STRIPE_PRICE_ID_MONTHLY=price_1TmNc95fG8vzA1hRHuZfyg8k
 STRIPE_PRICE_ID_ANNUAL=price_1TmNc95fG8vzA1hRZjRtrBkp
 STRIPE_WEBHOOK_SECRET=whsec_...        # From live webhook endpoint (below)
-STRIPE_BRAND_ICON_FILE_ID=...          # After --live-brand run
-STRIPE_BRAND_LOGO_FILE_ID=...          # After --live-brand run
 ```
 
 Keep **test** keys in local `.env` only. Do not commit live secrets.
 
+> ⚠️ **Do NOT set `STRIPE_BRAND_ICON_FILE_ID` / `STRIPE_BRAND_LOGO_FILE_ID` in Netlify.**
+>
+> The Lambda-compatibility function runtime caps *all* environment variables at
+> **4KB combined**, and this project sits within ~100 bytes of that ceiling
+> (`FIREBASE_PRIVATE_KEY` alone is ~1.75KB). Adding those two vars overflows the
+> limit and every deploy fails at function upload with
+> `Your environment variables exceed the 4KB limit imposed by AWS Lambda` —
+> reported confusingly as `Build script returned non-zero exit code: 2` even
+> though the build itself succeeded.
+>
+> They are unnecessary anyway: with the file IDs unset,
+> `buildCheckoutBrandingSettings()` falls back to public URLs
+> (`/brand/pholio-brand-mark.png`, `/brand/pholio-wordmark-lockup-on-ink.png`),
+> which Stripe accepts and which render identical branding.
+>
+> `STRIPE_PUBLISHABLE_KEY` is also omitted: no code path reads it (checkout is a
+> server-side redirect), so it only consumes budget.
+>
+> Before adding *any* new production env var, check the headroom:
+> `netlify env:list --context production --json`. The durable fix is migrating
+> the function off Lambda compatibility mode (<https://ntl.fyi/functions-migrate>),
+> which removes the 4KB limit entirely.
+
+## Completed (2026-07-28)
+
+### 1. Live webhook endpoint — ✅ done
+
+`we_1TyGUo5fG8vzA1hRwDyMaCbu` → `https://app.pholio.studio/stripe/webhook`
+
+Pinned to **`api_version 2024-12-18.acacia`**, matching the `Stripe()` client in
+`src/shared/lib/stripe.js`. Keep it pinned: the handler reads
+`invoice.subscription`, which later API versions relocate — an unpinned endpoint
+would silently stop activating subscriptions.
+
+Registers all **seven** events the handler switches on (the original list here
+omitted `trial_will_end`, which matters given the 14-day trial):
+
+`checkout.session.completed`, `customer.subscription.created`,
+`customer.subscription.updated`, `customer.subscription.deleted`,
+`customer.subscription.trial_will_end`, `invoice.paid`, `invoice.payment_failed`
+
+Signing secret is set in Netlify (`production` context, marked secret).
+
+> The value next to the endpoint in the Dashboard is the endpoint **ID**
+> (`we_…`), not the signing secret (`whsec_…`). Pasting the former is silent —
+> `constructEvent` only throws once a real event arrives, so every webhook 400s
+> and no subscription ever activates. `src/config.js` warns about this at startup.
+
+### 2. Customer Portal — ✅ done
+
+Configuration `bpc_1TyGZr5fG8vzA1hRhU5bYEWe`, set as the account default so
+`billingPortal.sessions.create()` (which passes no `configuration`) resolves it.
+Enables cancel-at-period-end with reasons, payment-method update, invoice
+history, customer update, and monthly↔annual switching with prorations — the
+portal is the only path between intervals, as the app has no in-app switcher.
+
+Without a default configuration this call **throws**, so "Manage subscription"
+500s for every subscriber.
+
+### 3. Live checkout branding — handled via URL fallback
+
+Do **not** run `--brand --write-live` against production: it writes
+`STRIPE_BRAND_*_FILE_ID`, which overflows the 4KB env limit (see warning above).
+The URL fallback is already active and verified.
+
 ## Remaining manual steps
 
-### 1. Live webhook endpoint
-
-Stripe Dashboard (switch to **Live**) → **Developers → Webhooks → Add endpoint**
-
-- **URL:** `https://app.pholio.studio/stripe/webhook`
-- **Events:**
-  - `checkout.session.completed`
-  - `customer.subscription.created`
-  - `customer.subscription.updated`
-  - `customer.subscription.deleted`
-  - `invoice.paid`
-  - `invoice.payment_failed`
-
-Copy signing secret → `STRIPE_WEBHOOK_SECRET` in Netlify.
-
-### 2. Live checkout branding (logo upload)
-
-MCP cannot upload binary files. Run locally with your **live** secret key:
-
-```bash
-STRIPE_SECRET_KEY=sk_live_... node scripts/setup-stripe-billing.js --brand --write-live
-```
-
-This uploads Pholio assets and writes `STRIPE_BRAND_*_FILE_ID` to `.env.live` (does not overwrite test `.env`).
-
-### 3. Dashboard branding (live)
+### 4. Dashboard branding (live)
 
 **Settings → Branding** (in Live mode):
 
@@ -72,10 +109,6 @@ This uploads Pholio assets and writes `STRIPE_BRAND_*_FILE_ID` to `.env.live` (d
 - Icon: `public/brand/pholio-brand-mark.png`
 - Brand color: `#C9A55A`
 - Accent: `#050505`
-
-### 4. Customer Portal (live)
-
-**Settings → Billing → Customer portal** — enable in Live mode.
 
 ## Verify
 
