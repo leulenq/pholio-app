@@ -15,7 +15,12 @@ export default function PholioAuthBridge() {
   // kick off its own independent re-login.
   const syncInFlightRef = useRef(false);
 
-  const refreshFromFirebase = useCallback(async (firebaseUser) => {
+  // `broadcast: false` for refreshes that were themselves triggered by an
+  // incoming broadcast. Re-notifying there is what closed the loop:
+  // notify -> subscriber -> refresh -> notify, each pass issuing another
+  // GET /api/session. broadcast.js now also shares one channel so a tab no
+  // longer hears itself; this is the belt to that pair of braces.
+  const refreshFromFirebase = useCallback(async (firebaseUser, { broadcast = true } = {}) => {
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
@@ -33,7 +38,7 @@ export default function PholioAuthBridge() {
           await syncFirebaseSession(idToken);
         }
       }
-      notifyAuthChange({ authenticated: !!firebaseUser });
+      if (broadcast) notifyAuthChange({ authenticated: !!firebaseUser });
     } catch (error) {
       // Non-fatal — Express session may still be valid without Firebase
       // client state — but log it so a silent failure here is diagnosable.
@@ -53,7 +58,7 @@ export default function PholioAuthBridge() {
     });
 
     const unsubscribeBroadcast = subscribeAuthChanges(() => {
-      refreshFromFirebase(auth.currentUser);
+      refreshFromFirebase(auth.currentUser, { broadcast: false });
     });
 
     const onFocus = () => {

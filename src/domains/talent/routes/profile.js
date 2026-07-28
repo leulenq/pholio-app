@@ -712,12 +712,14 @@ router.put(
     const parsed = talentProfileUpdateSchema.safeParse(req.body);
 
     if (!parsed.success) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn(
-          "[Profile API] Validation failed:",
-          parsed.error.flatten().fieldErrors,
-        );
-      }
+      // Logged in every environment. Field names and their messages are not
+      // sensitive, and gating this to development meant a production save that
+      // 400s gave no way to see WHICH field was rejected — a bio:null rejection
+      // looked like a generic "Validation failed" with nothing to act on.
+      console.warn(
+        "[Profile API] Validation failed:",
+        JSON.stringify(parsed.error.flatten().fieldErrors),
+      );
       return res.status(400).json({
         success: false,
         message: "Validation failed",

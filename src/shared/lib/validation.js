@@ -123,7 +123,13 @@ const bioSchema = z
   .trim()
   .max(2000, "Bio must be less than 2000 characters") // Frontend limit
   .optional()
-  .or(z.literal(""));
+  .or(z.literal(""))
+  // Must accept null, like phoneSchema below. The client declares bio as
+  // `.nullable().optional()` and sends `bio: null` when it is empty, so without
+  // this the whole PUT /api/talent/profile payload 400s on an optional field —
+  // making bio effectively required and blocking saves of unrelated fields such
+  // as bust/waist/hips.
+  .or(z.null());
 
 const phoneSchema = z
   .string()
