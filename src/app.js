@@ -84,13 +84,54 @@ process.on("unhandledRejection", (reason, promise) => {
     // connection" with a capital T, which a lowercase "timeout" test misses.
     const message = String(reason.message);
     const lowered = message.toLowerCase();
+
+    // Pool-acquire timeouts are checked FIRST and reported separately, because
+    // they are the one "timeout" that is never routine. A dropped socket means
+    // the platform recycled a connection under us; a KnexTimeoutError means
+    // every connection in the pool was already checked out for the whole
+    // acquire window - i.e. we are out of capacity or leaking connections
+    // (a missing .transacting(trx), a query that never resolves, too many
+    // concurrent lambdas for the configured pool). Folding this into the
+    // "expected in serverless" bucket is what let real pool exhaustion sit
+    // unnoticed in production behind a reassuring log line, so it gets its own
+    // loud, greppable prefix instead.
+    const isPoolExhaustion =
+      reason.name === "KnexTimeoutError" ||
+      lowered.includes("timeout acquiring a connection") ||
+      lowered.includes("pool is probably full");
+
+    if (isPoolExhaustion) {
+      // Still don't crash - killing the container makes the capacity problem
+      // worse for every in-flight request. But this is a bug to fix, not noise.
+      console.error(
+        "[Unhandled Rejection][DB POOL EXHAUSTION] Knex could not acquire a connection before the pool's acquire timeout. " +
+          "This is NOT expected serverless behaviour - the connection pool is saturated or connections are being leaked " +
+          "(missing .transacting(trx), unreleased connection, or too much concurrency for the configured pool size). " +
+          "Requests are failing with 500s while this fires:",
+        message.substring(0, 300),
+      );
+      return;
+    }
+
+    // Genuinely transient serverless conditions: the database or the platform
+    // closed a connection out from under an in-flight query. Nothing is broken
+    // on our side and the next request opens a fresh connection, so these are
+    // logged and swallowed. "expired" and "timeout" are deliberately no longer
+    // matched bare - unqualified they also caught pool exhaustion above, so
+    // "expired" is now scoped to session/token/connection expiry noise and
+    // timeouts are scoped to connect-level (socket) timeouts only.
     const isConnectionError =
       lowered.includes("connection terminated") ||
       (lowered.includes("connection") && lowered.includes("unexpectedly")) ||
       message.includes('select "sess" from "sessions"') ||
       message.includes('delete from "sessions"') ||
-      lowered.includes("expired") ||
-      lowered.includes("timeout") ||
+      (lowered.includes("expired") &&
+        (lowered.includes("session") ||
+          lowered.includes("token") ||
+          lowered.includes("connection"))) ||
+      lowered.includes("connection timeout") ||
+      lowered.includes("connect timeout") ||
+      reason.code === "ETIMEDOUT" ||
       reason.code === "ECONNRESET" ||
       reason.code === "EPIPE";
 
