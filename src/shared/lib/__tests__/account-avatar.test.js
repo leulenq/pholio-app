@@ -39,6 +39,25 @@ describe("account-avatar helpers", () => {
         }),
       ).toBe(false);
     });
+
+    // Regression: an R2-backed upload has no local file and no image_type until
+    // the talent labels it, and its public_url is an absolute https URL — the
+    // exact shape this predicate used to call an OAuth seed. That made
+    // reclaimProviderAccountAvatarSeeds delete real uploads seconds after they
+    // were saved. storage_key is what distinguishes bytes we stored.
+    it("never flags a freshly uploaded, unlabelled R2 frame", () => {
+      expect(
+        isProviderAccountAvatarImage({
+          path: "https://media.pholio.studio/pholio-media/prod/profiles/p1/processed/abc.webp",
+          public_url:
+            "https://media.pholio.studio/pholio-media/prod/profiles/p1/processed/abc.webp",
+          storage_key: "pholio-media/prod/profiles/p1/processed/abc.webp",
+          absolute_path: null,
+          image_type: null,
+          asset_kind: "image",
+        }),
+      ).toBe(false);
+    });
   });
 
   describe("excludeProviderAccountAvatarImages", () => {
@@ -56,9 +75,18 @@ describe("account-avatar helpers", () => {
           absolute_path: "/tmp/a.webp",
           image_type: "portfolio",
         },
+        {
+          // Regression: R2 upload, not yet labelled — must survive the filter.
+          id: "r2-frame",
+          path: "https://media.pholio.studio/pholio-media/prod/profiles/p1/processed/abc.webp",
+          storage_key: "pholio-media/prod/profiles/p1/processed/abc.webp",
+          absolute_path: null,
+          image_type: null,
+        },
       ];
       expect(excludeProviderAccountAvatarImages(rows).map((r) => r.id)).toEqual([
         "book",
+        "r2-frame",
       ]);
     });
   });

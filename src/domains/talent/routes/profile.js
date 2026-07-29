@@ -576,6 +576,11 @@ router.get(
         "is_primary",
         "metadata",
         "label as kind",
+        // absolute_path + storage_key are read by
+        // excludeProviderAccountAvatarImages; without them every R2-backed
+        // image looks like a provider avatar and is filtered out of the book.
+        "absolute_path",
+        "storage_key",
         "image_type",
         "shot_type",
         "style_type",
@@ -1205,6 +1210,11 @@ router.put(
         "is_primary",
         "metadata",
         "label as kind",
+        // absolute_path + storage_key are read by
+        // excludeProviderAccountAvatarImages; without them every R2-backed
+        // image looks like a provider avatar and is filtered out of the book.
+        "absolute_path",
+        "storage_key",
         "image_type",
         "shot_type",
         "style_type",

@@ -714,6 +714,9 @@ router.get(
           "sort",
           "created_at",
           "absolute_path",
+          // storage_key is what marks a row as our own upload rather than a
+          // provider avatar; without it the filter hides real R2 images.
+          "storage_key",
           "image_type",
           "asset_kind",
         ),

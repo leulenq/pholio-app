@@ -14,6 +14,16 @@
  */
 function isProviderAccountAvatarImage(row) {
   if (!row || typeof row !== "object") return false;
+  // Anything WE stored carries a storage key (the R2 object key). A provider
+  // avatar is a bare remote URL we never uploaded, so it has none.
+  //
+  // Without this guard every R2-backed upload matches the checks below — an R2
+  // row legitimately has absolute_path = null (no local file) and an absolute
+  // https public_url — so reclaimProviderAccountAvatarSeeds deleted real talent
+  // uploads moments after they were saved. That was invisible while the
+  // predicate was written against local-disk uploads, which had an
+  // absolute_path and a relative /uploads/... URL.
+  if (row.storage_key) return false;
   if (row.absolute_path) return false;
   if (row.image_type) return false;
   if (row.asset_kind && row.asset_kind !== "image") return false;
@@ -82,6 +92,9 @@ async function reclaimProviderAccountAvatarSeeds(db, scope = {}) {
     "images.path",
     "images.public_url",
     "images.absolute_path",
+    // Required by isProviderAccountAvatarImage to tell our own R2 uploads apart
+    // from provider avatars. Omitting it here makes the predicate delete them.
+    "images.storage_key",
     "images.image_type",
     "images.asset_kind",
     "profiles.user_id",
