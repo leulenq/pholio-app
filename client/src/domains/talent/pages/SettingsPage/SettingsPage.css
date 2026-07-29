@@ -305,7 +305,25 @@
 
 .set-card + .set-card { margin-top: 18px; }
 
-.set-card--danger { border-color: rgba(180, 67, 58, 0.28); }
+/* The state of a row that has no switch, in the column where a switch would be:
+   same mono ledger mark as "Current" on a device, with a lock so it reads as
+   fixed rather than merely disabled. */
+.set-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--set-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--set-text-faint);
+  white-space: nowrap;
+}
+
+/* Deliberately not gold. A gold lock on this product reads as a paywall, and
+   these rows are fixed behaviour, not a plan upgrade. */
+.set-locked svg { opacity: 0.75; }
 
 .set-card__head {
   display: flex;
@@ -341,7 +359,6 @@
   border-top: 1px solid var(--set-hair);
 }
 
-.set-card__foot--start { justify-content: flex-start; border-top: none; }
 
 /* ── Row (copy + control, hairline divided) ───────────────── */
 
@@ -812,54 +829,110 @@
 
 /* ── Sign-in identity ─────────────────────────────────────── */
 
-.set-provider {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 0 clamp(20px, 2.2vw, 28px) clamp(4px, 0.6vw, 8px);
-  padding: 16px 18px;
-  border: 1px solid var(--set-hair);
-  border-radius: var(--set-radius);
-  background: var(--set-surface-sunk, rgba(26, 24, 21, 0.015));
+/* One composed statement, not a bordered row inside a bordered card under a
+   bordered header. Built on the same frame as the public-handle card beside it:
+   gold label, then the thing itself, then the consequence in prose. */
+.set-signin { padding: clamp(22px, 2.4vw, 30px); }
+
+/* A sign-in block followed by controls (Security's password row) needs the rule
+   the card head used to provide. */
+.set-card > .set-signin:not(:last-child) {
+  border-bottom: 1px solid var(--set-hair);
 }
 
-.set-provider__badge {
+.set-signin__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--set-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.set-signin__label svg { color: var(--set-gold); }
+
+.set-signin__identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+/* Provider marks sit on their own brand ground, unmodified: Google on white with
+   a hairline, Instagram on the brand gradient, Apple on black, Facebook on brand
+   blue. Never recoloured to the page palette. */
+.set-signin__mark {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px; height: 40px;
-  border: 1px solid var(--set-hair);
-  border-radius: var(--set-radius);
-  /* Google requires its mark be shown unmodified on a clear background — never
-     tinted with the surrounding paper tone. */
-  background: #FFFFFF;
+  width: 52px; height: 52px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   color: var(--set-text-soft);
-  font-weight: 500;
 }
 
-.set-provider__badge--email { background: transparent; }
+.set-signin__mark--google {
+  background: #ffffff;
+  border-color: var(--set-hair-strong);
+  box-shadow: 0 1px 3px rgba(26, 26, 26, 0.07);
+}
 
-.set-provider__body {
+.set-signin__mark--instagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  box-shadow: 0 6px 16px -8px rgba(188, 24, 136, 0.6);
+}
+
+.set-signin__mark--apple {
+  background: #000000;
+  box-shadow: 0 6px 16px -9px rgba(0, 0, 0, 0.7);
+}
+
+.set-signin__mark--facebook {
+  background: #1877f2;
+  box-shadow: 0 6px 16px -9px rgba(24, 119, 242, 0.7);
+}
+
+.set-signin__mark--email {
+  background: var(--set-cream-warm);
+  border-color: var(--set-hair);
+}
+
+.set-signin__who {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
-.set-provider__body strong {
-  font-size: 13.5px;
-  font-weight: 500;
+/* The provider gets the serif this surface gives to names. */
+.set-signin__who strong {
+  font-family: var(--set-serif);
+  font-size: clamp(1.15rem, 1.7vw, 1.35rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   color: var(--set-text);
 }
 
-.set-provider__body span {
+/* Same mono as the handle in the card below — the two addresses rhyme. */
+.set-signin__address {
+  font-family: var(--set-mono);
   font-size: 12.5px;
-  font-weight: 300;
   color: var(--set-text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.set-signin__note {
+  max-width: 62ch;
+  margin: 18px 0 0;
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--set-text-soft);
+  text-wrap: pretty;
 }
 
 /* ── Signed-in devices ────────────────────────────────────── */
@@ -961,32 +1034,131 @@
   color: var(--set-text);
 }
 
-/* Statements of fact — how the product behaves — rather than something needing
-   attention. Quieter than the gold notice so it doesn't read as a warning. */
-.set-notice--plain {
-  margin: 2px 0 0;
-  border-color: var(--set-hair);
-  background: transparent;
-  color: var(--set-text-faint);
+/* ── Danger zone ──────────────────────────────────────────── */
+
+/* Deleting an account sat in a card whose only difference from the reversible
+   "Pause visibility" card above it was a 28%-tinted hairline. It now reads as
+   what it is, without a decorative side stripe: a warm red wash, a red rule,
+   and a filled red action. */
+.set-danger {
+  padding: clamp(22px, 2.4vw, 30px);
+  border-color: rgba(180, 67, 58, 0.32);
+  background:
+    linear-gradient(180deg, rgba(180, 67, 58, 0.055) 0%, rgba(180, 67, 58, 0.015) 220px, rgba(180, 67, 58, 0) 100%),
+    var(--set-surface);
+  box-shadow: 0 1px 2px rgba(180, 67, 58, 0.05), 0 14px 32px -24px rgba(180, 67, 58, 0.35);
 }
 
-/* ── Delete confirmation ──────────────────────────────────── */
+.set-danger__title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--set-danger);
+}
 
-.set-confirm { padding: clamp(18px, 2vw, 22px) clamp(20px, 2.2vw, 28px); }
-
-.set-confirm p {
-  margin: 0 0 16px;
-  font-size: 14px;
-  font-weight: 500;
+.set-danger__lede {
+  max-width: 60ch;
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.55;
   color: var(--set-text);
 }
 
-.set-confirm__actions {
+.set-danger__list {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid rgba(180, 67, 58, 0.16);
+}
+
+.set-danger__list li {
+  padding: 9px 0 9px 18px;
+  border-bottom: 1px solid rgba(180, 67, 58, 0.16);
+  position: relative;
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--set-text-soft);
+}
+
+/* An em rule, not a coloured status dot. */
+.set-danger__list li::before {
+  content: '';
+  position: absolute;
+  top: 17px; left: 0;
+  width: 8px;
+  border-top: 1px solid rgba(180, 67, 58, 0.5);
+}
+
+.set-danger__fine {
+  max-width: 60ch;
+  margin: 14px 0 0;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--set-text-soft);
+}
+
+.set-danger__confirm { margin-top: 22px; }
+
+.set-danger__confirm p {
+  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--set-danger);
+}
+
+.set-danger__actions {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
   flex-wrap: wrap;
+  margin-top: 22px;
 }
+
+.set-danger__confirm .set-danger__actions { margin-top: 0; }
+
+/* The one filled red control on the surface. The shared destructive variant is a
+   quiet mono underline, which is right for reversible actions and wrong here. */
+.set-danger__go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 22px;
+  border: 1px solid var(--set-danger);
+  border-radius: 999px;
+  background: var(--set-danger);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.set-danger__go:hover:not(:disabled) {
+  background: #9e352d;
+  border-color: #9e352d;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px rgba(180, 67, 58, 0.9);
+}
+
+.set-danger__go:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+
+.set-danger__go:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(180, 67, 58, 0.25);
+}
+
+.set-danger__go:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ── Skeleton ─────────────────────────────────────────────── */
 
@@ -1137,7 +1309,10 @@
   }
   .set-devices__body { flex-basis: calc(100% - 52px); }
 
-  .set-provider { margin-inline: clamp(14px, 4vw, 20px); }
+  /* The mark shrinks rather than pushing a long address into an ellipsis. */
+  .set-signin__identity { gap: 14px; }
+  .set-signin__mark { width: 46px; height: 46px; }
+  .set-signin__address { font-size: 12px; }
 }
 
 /* ── Reduced motion ───────────────────────────────────────── */

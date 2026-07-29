@@ -4,12 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
+  AlertTriangle,
   Camera,
   Check,
   Copy,
   CreditCard,
+  KeyRound,
   Link2,
   Loader2,
+  Lock,
   Mail,
   Monitor,
   Plus,
@@ -168,6 +171,21 @@ function Toggle({ checked, disabled, label, onChange }) {
   );
 }
 
+/**
+ * The state of something that is not a switch. Used where a row exists because
+ * the behaviour is worth stating, not because there is a decision to make —
+ * these used to be paragraphs floating between cards, which read as leftover
+ * copy rather than part of the ledger.
+ */
+function Locked({ children }) {
+  return (
+    <span className="set-locked">
+      <Lock size={12} aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
 function Field({ label, hint, children }) {
   return (
     <label className="set-field">
@@ -205,46 +223,90 @@ function GoogleMark({ size = 18 }) {
   );
 }
 
+/** Instagram's glyph, white on the brand gradient tile (see `.set-signin__mark--instagram`). */
+function InstagramMark({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true" focusable="false">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+    </svg>
+  );
+}
+
+/** Apple's mark, white on black — the only presentation Apple's guidelines allow. */
+function AppleMark({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true" focusable="false">
+      <path d="M17.05 12.54c-.02-2.2 1.79-3.25 1.87-3.3-1.02-1.49-2.61-1.7-3.18-1.72-1.35-.14-2.64.79-3.33.79-.69 0-1.75-.77-2.87-.75-1.48.02-2.84.86-3.6 2.18-1.53 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.25 2.75 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.87.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.34-3.52zM14.9 5.98c.61-.74 1.02-1.77.91-2.79-.88.04-1.94.58-2.57 1.32-.56.65-1.05 1.7-.92 2.7.98.08 1.98-.5 2.58-1.23z" />
+    </svg>
+  );
+}
+
+/** Facebook's "f", white on brand blue. */
+function FacebookMark({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true" focusable="false">
+      <path d="M13.5 21.9V13.9h2.7l.4-3.1h-3.1V8.8c0-.9.25-1.5 1.55-1.5H16.7V4.5c-.29-.04-1.28-.13-2.43-.13-2.41 0-4.06 1.47-4.06 4.17v2.32H7.5v3.1h2.71v8h3.29z" />
+    </svg>
+  );
+}
+
 const PROVIDERS = {
   google: { name: 'Google', mark: GoogleMark },
-  instagram: { name: 'Instagram', mark: null },
-  apple: { name: 'Apple', mark: null },
-  facebook: { name: 'Facebook', mark: null },
+  instagram: { name: 'Instagram', mark: InstagramMark },
+  apple: { name: 'Apple', mark: AppleMark },
+  facebook: { name: 'Facebook', mark: FacebookMark },
 };
 
 /**
  * Sign-in identity, kept distinct from the editable profile fields around it.
  * This used to be a disabled "Sign-in email" text input, which flattened an
  * OAuth identity you don't own into something that looked like an editable field
- * you'd forgotten the password to.
+ * you'd forgotten the password to. Then it became a bordered row nested inside a
+ * bordered card under a bordered header — three containers describing one fact.
+ *
+ * It is now a single composed statement, built like the public-handle card it
+ * sits beside: gold label, the identity itself, then the consequence in prose.
+ * The provider name carries the serif the rest of the surface gives to names,
+ * and the address is set in the same mono as the handle directly below it.
+ *
+ * Three states, and the third matters: a provider we can't resolve is *unknown*,
+ * not "email and password". Asserting a password login to a Google account is a
+ * lie the talent can act on — they go looking for a password that doesn't exist.
  */
-function SignInIdentity({ email, provider }) {
+function SignInIdentity({ email, provider, label = 'How you sign in' }) {
   const known = provider ? PROVIDERS[provider] : null;
-  const Mark = known?.mark;
+  const isPassword = provider === 'password';
 
-  if (known) {
-    return (
-      <div className="set-provider">
-        <span className={`set-provider__badge set-provider__badge--${provider}`}>
-          {Mark ? <Mark size={20} /> : <span aria-hidden="true">{known.name.charAt(0)}</span>}
-        </span>
-        <span className="set-provider__body">
-          <strong>Signed in with {known.name}</strong>
-          <span title={email || undefined}>{email || 'Account email unavailable'}</span>
-        </span>
-      </div>
-    );
-  }
+  const Mark = known?.mark;
+  const name = known?.name || (isPassword ? 'Email and password' : 'Pholio account');
+  // Never open the sentence with the provider name — it sits directly under a
+  // headline that already says it.
+  const note = known
+    ? `Your password and any two-step verification live with ${known.name}. Pholio never sees them.`
+    : isPassword
+      ? 'A password you set on Pholio, kept separate from the contact details on your profile.'
+      : 'How this account signs in isn’t on record yet — it is written the next time you sign in.';
 
   return (
-    <div className="set-provider">
-      <span className="set-provider__badge set-provider__badge--email">
-        <Mail size={18} aria-hidden="true" />
-      </span>
-      <span className="set-provider__body">
-        <strong>Email and password</strong>
-        <span title={email || undefined}>{email || 'Account email unavailable'}</span>
-      </span>
+    <div className="set-signin">
+      {label && (
+        <div className="set-signin__label">
+          <KeyRound size={15} aria-hidden="true" />
+          <span>{label}</span>
+        </div>
+      )}
+      <div className="set-signin__identity">
+        <span className={`set-signin__mark set-signin__mark--${known ? provider : 'email'}`}>
+          {Mark ? <Mark size={24} /> : <Mail size={20} aria-hidden="true" />}
+        </span>
+        <span className="set-signin__who">
+          <strong>{name}</strong>
+          <span className="set-signin__address" title={email || undefined}>
+            {email || 'Account email unavailable'}
+          </span>
+        </span>
+      </div>
+      <p className="set-signin__note">{note}</p>
     </div>
   );
 }
@@ -496,14 +558,6 @@ function IdentityMovement({ settings }) {
       </div>
 
       <div className="set-card">
-        <div className="set-card__head">
-          <div>
-            <h3 className="set-card__title">How you sign in</h3>
-            <p className="set-card__sub">
-              Your sign-in identity, separate from the contact details above. Managed under Security.
-            </p>
-          </div>
-        </div>
         <SignInIdentity
           email={settings?.user?.email || profile?.email || ''}
           provider={settings?.user?.authProvider}
@@ -583,23 +637,27 @@ function PresenceMovement({ settings, isLoading }) {
             <Row title="Public portfolio" description="Let your book be viewed at its public link, outside your account.">
               <Toggle label="Public portfolio" checked={!!settings?.isPublic} disabled={mutation.isPending || minorLocked} onChange={() => update({ isPublic: !settings?.isPublic })} />
             </Row>
-            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio scout and roster search." muted>
+            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio scout and roster search.">
               <Toggle label="Agency discovery" checked={!!settings?.isDiscoverable} disabled={mutation.isPending || minorLocked} onChange={() => update({ isDiscoverable: !settings?.isDiscoverable })} />
+            </Row>
+            {/*
+              There was a "Show contact details" toggle here, defaulted on, claiming
+              to expose email or phone "on eligible public surfaces". No public
+              surface renders talent contact details, so it controlled nothing while
+              implying exposure. It reads as a row in the same ledger as the switches
+              it qualifies — a state, not a decision — rather than a paragraph left
+              floating after the card.
+            */}
+            <Row
+              title="Contact details"
+              description="Your email and phone stay with Pholio. Agencies reach you here, and you decide what each submission carries."
+              muted
+            >
+              <Locked>Never published</Locked>
             </Row>
           </>
         )}
       </div>
-
-      {/*
-        There was a "Show contact details" toggle here, defaulted on, claiming to
-        expose email or phone "on eligible public surfaces". No public surface
-        renders talent contact details, so it controlled nothing while implying
-        exposure. Stated as a fact instead of offered as a switch.
-      */}
-      <p className="set-notice set-notice--plain">
-        Your email and phone number are never published on your public book or comp card.
-        Agencies reach you through Pholio, and you decide what a submission includes.
-      </p>
 
       <div className="set-card">
         <div className="set-card__head">
@@ -653,6 +711,12 @@ const NOTIFICATION_ROWS = [
   ['profileViews', 'Agency views', 'When an agency opens your portfolio or comp card.'],
 ];
 
+/** Time-sensitive by nature — the notification service will not suppress these. */
+const ALWAYS_ON_ROWS = [
+  ['Messages from agencies', 'A booker writing to you always reaches you.'],
+  ['Interview times', 'Scheduled meetings, changes, and cancellations always reach you.'],
+];
+
 function NotificationsMovement({ settings, isLoading }) {
   const mutation = useSettingsMutation({ onSuccess: () => toast.success('Signal preference saved') });
   const notifications = settings?.notifications || {};
@@ -664,25 +728,30 @@ function NotificationsMovement({ settings, isLoading }) {
     <Movement
       id="notifications"
       title="What Pholio tells you"
-      lede="Two categories you can turn down. Everything else here is either time-sensitive or doesn't exist — so it isn't offered as a switch."
+      lede="Two signals you can turn down, and two you can’t — a booker’s message and a meeting time are the ones you can’t afford to miss."
     >
       <div className="set-card">
         {isLoading ? <SkeletonRows count={2} /> : (
           <>
-            {NOTIFICATION_ROWS.map(([key, title, desc], i) => (
-              <Row key={key} title={title} description={desc} muted={i === NOTIFICATION_ROWS.length - 1}>
+            {NOTIFICATION_ROWS.map(([key, title, desc]) => (
+              <Row key={key} title={title} description={desc}>
                 <Toggle label={title} checked={value(key)} disabled={mutation.isPending} onChange={() => save({ [key]: !value(key) })} />
+              </Row>
+            ))}
+            {/*
+              The two signals `shared/services/notifications.js` refuses to suppress.
+              They belong in the same list as the switches — a booker writing to you
+              is a signal, and its state is "always on". Stating that in a paragraph
+              under the card left the list looking as if it were the whole story.
+            */}
+            {ALWAYS_ON_ROWS.map(([title, desc], i) => (
+              <Row key={title} title={title} description={desc} muted={i === ALWAYS_ON_ROWS.length - 1}>
+                <Locked>Always on</Locked>
               </Row>
             ))}
           </>
         )}
       </div>
-
-      <p className="set-notice set-notice--plain">
-        Messages and interview times always reach you. When a booker writes or a meeting
-        is scheduled, that notification isn't optional — it's the part of Pholio you
-        can't afford to miss.
-      </p>
     </Movement>
   );
 }
@@ -762,20 +831,20 @@ function StudioMovement({ settings, isLoading }) {
               <CreditCard size={14} aria-hidden="true" />
               {subscription.stripeCustomerId ? 'Payment method on file' : 'No payment method on file'}
             </p>
+            {/*
+              No invoices card. The server hardcoded an empty list, so it could only
+              ever say "no invoices are available yet" — including to paying members.
+              Stripe's customer portal holds the real receipts and is one click away
+              behind "Manage billing" above. It belongs with the payment method it
+              qualifies, not adrift under the card.
+            */}
+            {subscription.stripeCustomerId && (
+              <p className="set-plan__fine">
+                Invoices, receipts, and payment method changes live in the Stripe billing
+                portal — open it with Manage billing above.
+              </p>
+            )}
           </div>
-
-          {/*
-            No invoices card. The server hardcoded an empty list, so it could only
-            ever say "no invoices are available yet" — including to paying members.
-            Stripe's customer portal holds the real receipts and is one click away
-            behind "Manage billing" above.
-          */}
-          {subscription.stripeCustomerId && (
-            <p className="set-notice set-notice--plain">
-              Invoices, receipts, and payment method changes live in the Stripe billing
-              portal — open it with Manage billing above.
-            </p>
-          )}
         </>
       )}
 
@@ -850,17 +919,7 @@ function SecurityMovement({ settings, isLoading }) {
       lede="Where your account is currently signed in, and how to cut off anything you don’t recognise."
     >
       <div className="set-card">
-        <div className="set-card__head">
-          <div>
-            <h3 className="set-card__title">Sign-in method</h3>
-            <p className="set-card__sub">
-              {provider === 'google' || provider === 'instagram' || provider === 'apple' || provider === 'facebook'
-                ? 'Your sign-in is held by your provider. Change the password or security settings with them.'
-                : 'Your Pholio password protects this account.'}
-            </p>
-          </div>
-        </div>
-        <SignInIdentity email={accountEmail} provider={provider} />
+        <SignInIdentity email={accountEmail} provider={provider} label="Sign-in method" />
         {canResetPassword ? (
           <Row title="Password" description={accountEmail ? `Send a reset link to ${accountEmail}.` : 'Reset your account password.'} muted>
             <PholioButton type="button" variant="secondary" onClick={resetPassword} disabled={sending || !accountEmail}>
@@ -870,7 +929,9 @@ function SecurityMovement({ settings, isLoading }) {
         ) : (
           <Row
             title="Password"
-            description="This account signs in through a provider, so there’s no Pholio password to reset."
+            description={PROVIDERS[provider]
+              ? `${PROVIDERS[provider].name} holds this account’s password, so there is nothing for Pholio to reset.`
+              : 'This account signs in through a provider, so there’s no Pholio password to reset.'}
             muted
           >
             <span className="set-fixed">Not applicable</span>
@@ -1126,26 +1187,58 @@ function AccountMovement({ settings }) {
         </Row>
       </div>
 
-      <div className="set-card set-card--danger">
-        <div className="set-card__head">
-          <div>
-            <h3 className="set-card__title">Delete account</h3>
-            <p className="set-card__sub">Permanently erases your profile, images, applications, drafts, and account history where deletion is permitted. This can’t be undone.</p>
-          </div>
-        </div>
+      {/*
+        A destructive action reads as destructive. This was a card with a hairline
+        tinted 28% red and a quiet mono underline for a button — visually
+        indistinguishable from "Pause visibility" directly above it, which is
+        reversible. The consequence is now enumerated rather than summarised,
+        because "account history" does not tell anyone what they are about to lose.
+      */}
+      <div className="set-card set-danger">
+        <h3 className="set-danger__title">
+          <AlertTriangle size={16} aria-hidden="true" />
+          Delete account
+        </h3>
+        <p className="set-danger__lede">
+          Deleting removes it all at once, and there is no restore. What goes:
+        </p>
+        <ul className="set-danger__list">
+          <li>Your book, every image in it, and any comp card built from them</li>
+          <li>Submissions, drafts, and the history behind each one</li>
+          <li>Messages and interview records with agencies</li>
+          <li>Your profile, your public link, and this sign-in</li>
+        </ul>
+        <p className="set-danger__fine">
+          Anything an agency already downloaded lives outside Pholio and can’t be recalled.
+        </p>
+
         {confirmDelete ? (
-          <div className="set-confirm">
+          <div className="set-danger__confirm">
             <p>Delete everything and sign out for good?</p>
-            <div className="set-confirm__actions">
-              <PholioButton type="button" variant="destructive" onClick={() => remove.mutate()} disabled={remove.isPending}>
+            <div className="set-danger__actions">
+              <button
+                type="button"
+                className="set-danger__go"
+                onClick={() => remove.mutate()}
+                disabled={remove.isPending}
+              >
                 {remove.isPending ? 'Deleting…' : 'Yes, delete my account'}
-              </PholioButton>
-              <button type="button" className="set-inline-link" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>Keep my account</button>
+              </button>
+              <button
+                type="button"
+                className="set-inline-link"
+                onClick={() => setConfirmDelete(false)}
+                disabled={remove.isPending}
+              >
+                Keep my account
+              </button>
             </div>
           </div>
         ) : (
-          <div className="set-card__foot set-card__foot--start">
-            <PholioButton type="button" variant="destructive" onClick={() => setConfirmDelete(true)}>Delete account</PholioButton>
+          <div className="set-danger__actions">
+            <button type="button" className="set-danger__go" onClick={() => setConfirmDelete(true)}>
+              Delete account
+            </button>
           </div>
         )}
       </div>

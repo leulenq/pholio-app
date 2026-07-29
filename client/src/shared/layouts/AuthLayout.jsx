@@ -6,8 +6,8 @@ export default function AuthLayout() {
   return (
     <div className={styles.root}>
       <header className={styles.header}>
-        <Link to="/" className={styles.logo}>
-          Pholio
+        <Link to="/" className={styles.logo} aria-label="Pholio">
+          <span className={styles.logoWord}>PHOLIO</span>
         </Link>
       </header>
 

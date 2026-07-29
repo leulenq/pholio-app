@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
+const { ensureAuthProvider } = require("../../auth/services/auth-provider");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const { deleteUserAccount } = require("../../../shared/lib/account-deletion");
@@ -230,10 +231,14 @@ function formatSubscription(subscription, profile) {
 /**
  * How the account signs in. Drives whether settings shows Google identity or an
  * email/password account, and whether offering a password reset is honest.
- * `null` when unknown (pre-dating the column, or a provider we don't brand).
+ *
+ * Accounts that pre-date `users.auth_provider` carry a null column until their
+ * next sign-in, so resolve it from Firebase once and persist rather than let the
+ * surface describe a Google account as email-and-password. Still `null` when
+ * genuinely unknown — the client treats that as unknown, not as a password login.
  */
-function resolveProvider(user) {
-  const raw = user?.auth_provider ? String(user.auth_provider) : null;
+async function resolveProvider(user) {
+  const raw = await ensureAuthProvider(knex, user);
   if (!raw) return null;
   if (["google", "instagram", "apple", "facebook", "password"].includes(raw)) {
     return raw;
@@ -263,7 +268,7 @@ async function buildSettingsPayload(userId, currentSid = null) {
     ...parseJson(settingsRow?.cookie_preferences, {}),
   });
 
-  const provider = resolveProvider(user);
+  const provider = await resolveProvider(user);
 
   return {
     slug: profile?.slug || null,

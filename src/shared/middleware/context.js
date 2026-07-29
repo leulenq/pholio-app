@@ -205,9 +205,6 @@ async function attachLocals(req, res, next) {
     measurementId: config.firebase.measurementId || "",
   };
 
-  // Add Stripe publishable key to res.locals for client-side use
-  res.locals.stripePublishableKey = config.stripe.publishableKey || "";
-
   // Debug logging for Firebase config (only log if missing critical values)
   if (
     !res.locals.firebaseConfig.apiKey ||
