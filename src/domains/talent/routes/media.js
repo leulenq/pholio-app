@@ -1119,18 +1119,18 @@ router.post(
             // a flagged image must never surface on the public profile.
             let becamePrimary = false;
             if (!hasValidHero && !heroSet && !isReview) {
+              // Two plain updates, not a CASE with bound booleans: Postgres
+              // types untyped binds inside CASE as text, so the single-statement
+              // form failed with 42804 "column is_primary is of type boolean but
+              // expression is of type text" and broke every first upload. Both
+              // statements share the transaction, so the one-hero invariant
+              // still holds atomically. Matches the idiom in casting.js.
               await trx("images")
                 .where({ profile_id: profile.id })
-                .update({
-                  // trx.raw, not knex.raw: binding the root instance inside a
-                  // transaction is what Knex's "Are you missing a
-                  // .transacting(trx) call?" timeout hint points at.
-                  is_primary: trx.raw("CASE WHEN id = ? THEN ? ELSE ? END", [
-                    imageId,
-                    true,
-                    false,
-                  ]),
-                });
+                .update({ is_primary: false });
+              await trx("images")
+                .where({ id: imageId })
+                .update({ is_primary: true });
               heroSet = true;
               becamePrimary = true;
             }
@@ -1188,13 +1188,10 @@ router.post(
         if (!hasValidHero && !heroSet && firstUploadedImageId) {
           await trx("images")
             .where({ profile_id: profile.id })
-            .update({
-              is_primary: trx.raw("CASE WHEN id = ? THEN ? ELSE ? END", [
-                firstUploadedImageId,
-                true,
-                false,
-              ]),
-            });
+            .update({ is_primary: false });
+          await trx("images")
+            .where({ id: firstUploadedImageId })
+            .update({ is_primary: true });
         }
 
         await normalizeProfileImageSort(trx, profile.id);
