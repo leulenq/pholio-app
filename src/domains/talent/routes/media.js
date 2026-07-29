@@ -970,6 +970,16 @@ router.post(
     let firstUploadedImageId = null;
     const processedArtifacts = [];
     const rejectedArtifacts = [];
+    // TEMP DIAGNOSTIC — remove once the missing-commit cause is found.
+    // Uploads return 200 with a populated uploadedImages array while no row
+    // reaches the database, and non-transactional writes from the same request
+    // (activities, sessions) DO land. These three numbers separate the possible
+    // causes: insert never ran / COMMIT silently discarded / row removed after.
+    const diag = {
+      inTxnCount: null,
+      txnResolved: false,
+      afterCommitCount: null,
+    };
     try {
       await knex.transaction(async (trx) => {
         const maxSortRow = await trx("images")
@@ -1195,7 +1205,17 @@ router.post(
         }
 
         await normalizeProfileImageSort(trx, profile.id);
+
+        // TEMP DIAGNOSTIC: rows visible INSIDE the transaction, pre-COMMIT.
+        const inTxnRows = await trx("images")
+          .where({ profile_id: profile.id })
+          .count({ n: "*" })
+          .first();
+        diag.inTxnCount = Number(inTxnRows?.n ?? -1);
       });
+      // Reached only if knex resolved the transaction (i.e. it believes COMMIT
+      // succeeded); a rollback or failed commit rejects and lands in catch.
+      diag.txnResolved = true;
     } catch (batchError) {
       console.error(
         "[Media Upload] Batch upload failed:",
@@ -1232,6 +1252,31 @@ router.post(
         failedFiles,
       });
     }
+
+    // TEMP DIAGNOSTIC: rows visible on the ROOT connection immediately after
+    // the transaction resolved. If inTxnCount > afterCommitCount the COMMIT did
+    // not durably land, which is the whole question.
+    try {
+      const afterRows = await knex("images")
+        .where({ profile_id: profile.id })
+        .count({ n: "*" })
+        .first();
+      diag.afterCommitCount = Number(afterRows?.n ?? -1);
+    } catch (diagErr) {
+      diag.afterCommitCount = `ERR:${diagErr?.message}`;
+    }
+    console.error("[Media Upload][DIAG]", {
+      profileId: profile.id,
+      uploadedIds: uploadedImageIds,
+      uploadedCount: uploadedImages.length,
+      rejectedCount: rejectedArtifacts.length,
+      inTxnCount: diag.inTxnCount,
+      txnResolved: diag.txnResolved,
+      afterCommitCount: diag.afterCommitCount,
+      pgClient: knex.client?.config?.client,
+      poolUsed: knex.client?.pool?.numUsed?.(),
+      poolFree: knex.client?.pool?.numFree?.(),
+    });
 
     // Purge bytes for images rejected by moderation (best-effort, post-commit).
     if (rejectedArtifacts.length > 0) {
