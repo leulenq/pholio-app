@@ -1122,7 +1122,10 @@ router.post(
               await trx("images")
                 .where({ profile_id: profile.id })
                 .update({
-                  is_primary: knex.raw("CASE WHEN id = ? THEN ? ELSE ? END", [
+                  // trx.raw, not knex.raw: binding the root instance inside a
+                  // transaction is what Knex's "Are you missing a
+                  // .transacting(trx) call?" timeout hint points at.
+                  is_primary: trx.raw("CASE WHEN id = ? THEN ? ELSE ? END", [
                     imageId,
                     true,
                     false,
@@ -1152,7 +1155,26 @@ router.post(
             uploadedImageIds.push(imageId);
             if (!firstUploadedImageId) firstUploadedImageId = imageId;
           } catch (fileError) {
-            const err = new Error("Failed to process image");
+            // Keep the real cause. Replacing it with a bare string made every
+            // upload failure — Sharp, R2 PutObject, and DB constraint errors
+            // alike — indistinguishable in the logs.
+            console.error("[Media Upload] File failed:", {
+              fileName: file.originalname || "Unknown file",
+              mimetype: file.mimetype,
+              bytes: file.size ?? file.buffer?.length ?? null,
+              name: fileError?.name,
+              message: fileError?.message,
+              // pg surfaces constraint violations here; undefined elsewhere.
+              code: fileError?.code,
+              constraint: fileError?.constraint,
+              column: fileError?.column,
+              table: fileError?.table,
+              detail: fileError?.detail,
+              stack: fileError?.stack,
+            });
+            const err = new Error("Failed to process image", {
+              cause: fileError,
+            });
             err.fileName = file.originalname || "Unknown file";
             throw err;
           }
@@ -1167,7 +1189,7 @@ router.post(
           await trx("images")
             .where({ profile_id: profile.id })
             .update({
-              is_primary: knex.raw("CASE WHEN id = ? THEN ? ELSE ? END", [
+              is_primary: trx.raw("CASE WHEN id = ? THEN ? ELSE ? END", [
                 firstUploadedImageId,
                 true,
                 false,
@@ -1178,7 +1200,12 @@ router.post(
         await normalizeProfileImageSort(trx, profile.id);
       });
     } catch (batchError) {
-      console.error("[Media Upload] Batch upload failed:", batchError);
+      console.error(
+        "[Media Upload] Batch upload failed:",
+        batchError,
+        "cause:",
+        batchError?.cause?.message || batchError?.cause || "(none)",
+      );
       if (processedArtifacts.length > 0) {
         const cleanupOps = [];
         for (const artifact of processedArtifacts) {

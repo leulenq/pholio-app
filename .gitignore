@@ -5,6 +5,7 @@ public/dashboard-app
 .env
 .env.local
 .env.live
+.env.bak*
 client/.env
 client/.env.local
 dev.sqlite3

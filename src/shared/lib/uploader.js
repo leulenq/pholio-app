@@ -27,7 +27,7 @@ const getR2Prefix = (id, type = "profiles") => {
   return `pholio-media/${env}/${type}/${id}`;
 };
 
-/** Build public CDN URL for an object key (R2_PUBLIC_URL must be the r2.dev or custom domain). */
+/** Build public CDN URL for an object key (R2_PUBLIC_URL is the media.pholio.studio custom domain). */
 function r2PublicUrlForKey(key) {
   const base = (config.r2.publicUrl || "").replace(/\/$/, "");
   return `${base}/${key}`;

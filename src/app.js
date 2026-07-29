@@ -313,7 +313,8 @@ app.use(
           "https://*.googleusercontent.com", // Google/Firebase auth avatars
           "https://*.firebasestorage.app",
           "https://*.appspot.com",
-          "https://*.r2.dev", // Cloudflare R2 public uploads bucket
+          "https://media.pholio.studio", // R2 custom domain (serves talent media)
+          "https://*.r2.dev", // Cloudflare R2 public dev URL (legacy uploads)
           "https://*.r2.cloudflarestorage.com",
         ],
         connectSrc: [
@@ -321,6 +322,7 @@ app.use(
           "https://*.googleapis.com", // Firebase Auth/Firestore REST + Google Fonts CSS
           "https://*.firebaseio.com",
           "https://www.gstatic.com",
+          "https://media.pholio.studio", // R2 custom domain (crop reads pixels via fetch/canvas)
           "https://*.r2.dev",
           "https://*.r2.cloudflarestorage.com",
         ],
