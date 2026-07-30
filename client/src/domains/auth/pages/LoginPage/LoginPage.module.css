@@ -340,32 +340,24 @@
   box-shadow: 0 1px 2px rgba(26, 24, 21, 0.06);
 }
 
-/* Instagram — brand gradient fill */
+/* Instagram — white button + gradient glyph */
 .socialBtnInstagram {
-  color: #ffffff;
-  background: linear-gradient(
-    45deg,
-    #f09433 0%,
-    #e6683c 25%,
-    #dc2743 50%,
-    #cc2366 75%,
-    #bc1888 100%
-  );
-  border-color: transparent;
-  background-clip: padding-box;
-  box-shadow: 0 4px 12px rgba(188, 24, 136, 0.22);
+  color: #1a1815;
+  background: #ffffff;
+  border-color: rgba(26, 24, 21, 0.15);
+  box-shadow: 0 1px 2px rgba(26, 24, 21, 0.04);
 }
 
 .socialBtnInstagram:hover:not(:disabled) {
-  box-shadow: 0 8px 20px rgba(188, 24, 136, 0.3);
+  background: #ffffff;
+  border-color: rgba(26, 24, 21, 0.28);
+  box-shadow: 0 4px 12px rgba(26, 24, 21, 0.1);
   transform: translateY(-1px);
-  filter: brightness(1.04);
 }
 
 .socialBtnInstagram:active:not(:disabled) {
   transform: translateY(0);
-  filter: brightness(0.97);
-  box-shadow: 0 2px 8px rgba(188, 24, 136, 0.22);
+  box-shadow: 0 1px 2px rgba(26, 24, 21, 0.06);
 }
 
 .socialBtn:focus-visible {
@@ -376,7 +368,7 @@
 .socialBtnInstagram:focus-visible {
   box-shadow:
     0 0 0 3px rgba(201, 165, 90, 0.35),
-    0 4px 12px rgba(188, 24, 136, 0.22);
+    0 1px 2px rgba(26, 24, 21, 0.04);
 }
 
 .socialBtn:disabled {

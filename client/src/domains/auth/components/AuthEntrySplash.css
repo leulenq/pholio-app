@@ -10,6 +10,11 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  /* The canvas can be corrected once (talent ink vs agency cream) when the
+     server settles which dashboard this account belongs to. Wash between the
+     two rather than snapping. */
+  transition: background-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .auth-entry--talent {

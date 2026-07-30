@@ -2,12 +2,11 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import PageLoadingScreen from '../../../shared/components/shared/PageLoadingScreen';
-import AuthEntrySplash from '../../auth/components/AuthEntrySplash';
 import {
   resolveAgencyEntryAvatar,
   resolveEntryDisplayName,
 } from '../../auth/lib/entry-identity';
-import { useAuthEntryTransition } from '../../auth/hooks/useAuthEntryTransition';
+import { useAuthEntryHandoff } from '../../auth/hooks/useAuthEntry';
 import { ensureDevDashboardSession } from '../../../shared/lib/dev-seed-session';
 import { getAgencyLegalStatus, getAgencyProfile } from '../api/agency';
 import { AgencyPermissionsProvider } from '../context/AgencyPermissionsProvider';
@@ -41,21 +40,20 @@ export default function AgencySessionGate() {
   const legalStatusSettled = !isAgencySession || !legalStatusQuery.isLoading;
   const profileSettled = !legalAccepted || !agencyProfileQuery.isLoading;
   const entryDataReady = !isLoading && legalStatusSettled && profileSettled;
-  const { showEntrySplash, isEntrySplashExiting, entryStartedAt } = useAuthEntryTransition(entryDataReady);
 
-  const entrySplash = showEntrySplash ? (
-    <AuthEntrySplash
-      variant="agency"
-      startedAt={entryStartedAt}
-      exiting={isEntrySplashExiting}
-      agencyName={agencyProfile?.agency_name}
-      avatarUrl={resolveAgencyEntryAvatar(agencyProfile)}
-      avatarInitials={resolveEntryDisplayName(agencyProfile, 'agency').slice(0, 2).toUpperCase()}
-    />
-  ) : null;
+  // See DashboardLayoutShell: the splash itself lives above the router, so this
+  // gate only reports identity and readiness to it.
+  useAuthEntryHandoff(entryDataReady, {
+    variant: 'agency',
+    agencyName: agencyProfile?.agency_name || null,
+    avatarUrl: resolveAgencyEntryAvatar(agencyProfile),
+    initials: agencyProfile
+      ? resolveEntryDisplayName(agencyProfile, 'agency').slice(0, 2).toUpperCase()
+      : null,
+  });
 
   if (isLoading) {
-    return entrySplash || <PageLoadingScreen />;
+    return <PageLoadingScreen />;
   }
 
   if (isError || !data?.authenticated) {
@@ -76,7 +74,6 @@ export default function AgencySessionGate() {
   return (
     <AgencyPermissionsProvider session={data}>
       <AgencyLegalAcceptanceGate statusQuery={legalStatusQuery}>
-        {entrySplash}
         <Outlet />
       </AgencyLegalAcceptanceGate>
     </AgencyPermissionsProvider>

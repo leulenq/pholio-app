@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
+import { isExplicitAuthInFlight } from './auth-lock';
 import { notifyAuthChange, subscribeAuthChanges } from './broadcast';
 import { fetchAppSession, syncFirebaseSession } from './session-api';
 
@@ -21,6 +22,14 @@ export default function PholioAuthBridge() {
   // GET /api/session. broadcast.js now also shares one channel so a tab no
   // longer hears itself; this is the belt to that pair of braces.
   const refreshFromFirebase = useCallback(async (firebaseUser, { broadcast = true } = {}) => {
+    // A sign-in is running and owns the session. Closing the OAuth popup fires
+    // `focus` and `onAuthStateChanged` at almost the same instant the login
+    // handler POSTs /api/login; reconciling here would issue a second POST,
+    // and each one regenerates the session id, so whichever lost the race left
+    // the other holding a cookie for a session that no longer exists — a
+    // transient 401 moments later, which the api-client turns into a bounce
+    // back to /login. Stand down; the login flow will broadcast when it lands.
+    if (isExplicitAuthInFlight()) return;
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
@@ -62,6 +71,7 @@ export default function PholioAuthBridge() {
     });
 
     const onFocus = () => {
+      if (isExplicitAuthInFlight()) return;
       refreshFromFirebase(auth.currentUser);
       notifyAuthChange({ source: 'focus' });
     };
