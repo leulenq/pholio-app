@@ -152,7 +152,7 @@ describe("adult-only talent onboarding launch boundary", () => {
     expect(onboardingStep(profile)).toBe("gender");
   });
 
-  test("keeps an established adult DOB immutable across entry replay and legacy birthdate calls", async () => {
+  test("keeps an established adult DOB authoritative across entry resume and legacy birthdate calls", async () => {
     const email = uniqueEmail("immutable");
     const uid = `adult-launch-immutable-${sequence}`;
     const agent = request.agent(app);
@@ -164,11 +164,14 @@ describe("adult-only talent onboarding launch boundary", () => {
     const resume = await postEntry(agent, { email, uid });
     expect(resume.status).toBe(200);
 
+    // Entry is an idempotent authentication/resume request, not a DOB edit.
+    // Once the account is known, the established adult DOB wins over the
+    // transient value collected before provider sign-in.
     const replay = await postEntry(agent, { email, uid, dob: "1991-07-18" });
-    expect(replay.status).toBe(409);
-    expect(replay.body.error).toBe("DOB_IMMUTABLE");
+    expect(replay.status).toBe(200);
+    expect(replay.body.date_of_birth).toBe(dob);
 
-    const cookie = responseCookie(resume);
+    const cookie = responseCookie(replay);
     const backButtonReplay = await agent
       .post("/casting/birthdate")
       .set("Cookie", cookie)

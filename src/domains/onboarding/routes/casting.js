@@ -370,18 +370,13 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       if (profile?.date_of_birth && !establishedDob.ok) {
         return rejectEligibility(res, establishedDob);
       }
-      if (submittedDob && !submittedDob.ok) {
+      // Entry is authentication/resume, not a DOB-edit endpoint. Returning
+      // adults may have typed a different value into the pre-auth gate before
+      // Pholio knew which account they were using; keep the established DOB
+      // authoritative and ignore that transient submission. New/legacy
+      // age-unknown accounts must still provide valid adult evidence.
+      if (!establishedDob?.ok && submittedDob && !submittedDob.ok) {
         return rejectEligibility(res, submittedDob);
-      }
-      if (
-        establishedDob?.ok &&
-        submittedDob?.ok &&
-        establishedDob.dob !== submittedDob.dob
-      ) {
-        return res.status(409).json({
-          error: "DOB_IMMUTABLE",
-          message: "Your established date of birth cannot be changed during onboarding.",
-        });
       }
 
       eligibility = establishedDob?.ok ? establishedDob : submittedDob;
@@ -796,6 +791,7 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
       profile_id: profile.id,
       is_new_user: isNewUser,
       has_oauth_data: hasOAuthData,
+      date_of_birth: eligibility.dob,
       next_step: "gender",
       message: "Authentication successful. Ready to start casting call.",
     });

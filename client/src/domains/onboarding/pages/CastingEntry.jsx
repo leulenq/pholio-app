@@ -197,6 +197,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       ...LEGAL_ACCEPTANCE,
       date_of_birth: dob,
     });
+    const establishedDob = response.date_of_birth || dob;
 
     onCompleteRef.current({
       hasOAuthData: response.has_oauth_data,
@@ -204,7 +205,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       name: displayName,
       email: extras.email || user.email,
       picture: extras.picture || user.photoURL,
-      date_of_birth: dob,
+      date_of_birth: establishedDob,
       manualData: displayName ? { name: displayName } : undefined,
     });
   };
@@ -400,11 +401,12 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
         ...LEGAL_ACCEPTANCE,
         date_of_birth: dob,
       });
+      const establishedDob = response.date_of_birth || dob;
 
       onComplete({
         hasOAuthData: response.has_oauth_data,
         method: 'manual',
-        date_of_birth: dob,
+        date_of_birth: establishedDob,
         manualData: { name: formData.name, email: formData.email },
       });
     } catch (error) {
