@@ -233,114 +233,18 @@ export const IdentitySection = ({
       )}
 
       <div className={styles.formRow}>
-        <div className={styles.bioHeader}>
-          <p className={styles.bioKicker}>Bio</p>
-          <div className={styles.bioTitleRow}>
-            <h3 className={styles.bioTitle}>
-              About <em>you</em>
-            </h3>
-            {/*
-              An icon, not a labelled button. Was a 120x40 HorizonFlare — a
-              decorative flare wired to onClick, with no label, no hit area and
-              no pressed state, which at that size rendered as a thin vertical
-              sliver. This is the same action carried as a real control: a 44px
-              target, an accessible name, a focus ring, and a working state.
-            */}
-            <button
-              type="button"
-              aria-label={hasBio ? 'Refine your bio with Pholio' : 'Write your bio with Pholio'}
-              title={hasBio ? 'Refine your bio with Pholio' : 'Write your bio with Pholio'}
-              className={`${styles.bioSpark} ${isImproving ? 'is-working' : ''}`}
-              onClick={isImproving ? undefined : (hasBio ? onBioRefine : onBioGenerate)}
-              disabled={isImproving}
-              aria-busy={isImproving}
-            >
-              <PholioSpark size={22} />
-            </button>
-          </div>
-          <p className={styles.bioLede}>
-            Tell agencies what makes you unique.
-          </p>
-          <div className={styles.bioModeControls}>
-            <div
-              className={styles.bioModeGroup}
-              role="group"
-              aria-label="Bio length"
-            >
-              <span className={styles.bioModeLabel}>Length</span>
-              <PholioToggleGroup className={styles.bioModeOptions}>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ length: 'tight' })}
-                  disabled={isImproving}
-                  aria-pressed={bioLength === 'tight'}
-                  active={bioLength === 'tight'}
-                  className={`${styles.bioModeBtn} ${bioLength === 'tight' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Tight
-                </PholioToggleButton>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ length: 'standard' })}
-                  disabled={isImproving}
-                  aria-pressed={bioLength === 'standard'}
-                  active={bioLength === 'standard'}
-                  className={`${styles.bioModeBtn} ${bioLength === 'standard' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Standard
-                </PholioToggleButton>
-              </PholioToggleGroup>
-            </div>
-            <div
-              className={styles.bioModeGroup}
-              role="group"
-              aria-label="Bio voice"
-            >
-              <span className={styles.bioModeLabel}>Voice</span>
-              <PholioToggleGroup className={styles.bioModeOptions}>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ person: 'third' })}
-                  disabled={isImproving}
-                  aria-pressed={bioPerson === 'third'}
-                  active={bioPerson === 'third'}
-                  className={`${styles.bioModeBtn} ${bioPerson === 'third' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Agency
-                </PholioToggleButton>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ person: 'first' })}
-                  disabled={isImproving}
-                  aria-pressed={bioPerson === 'first'}
-                  active={bioPerson === 'first'}
-                  className={`${styles.bioModeBtn} ${bioPerson === 'first' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Personal
-                </PholioToggleButton>
-              </PholioToggleGroup>
-            </div>
-          </div>
-        </div>
-        <PholioTextarea
-          label=""
-          placeholder="Tell us about yourself, your passions, and what drives your career..."
-          rows={6}
+        <BioWriter
+          field={register('bio')}
           error={errors.bio}
-          {...register('bio')}
+          value={bioValue}
+          isWorking={!!isImproving}
+          options={bioOptions}
+          onOptionsChange={onBioOptionsChange}
+          onWrite={onBioGenerate}
+          onRefine={onBioRefine}
+          previousBio={previousBio}
+          onRevert={handleUndoAI}
         />
-        {previousBio && (
-          <div className={styles.bioActions}>
-            <PholioButton
-              type="button"
-              variant="tertiary"
-              onClick={handleUndoAI}
-              className={styles.bioUndoBtn}
-            >
-              Revert to original
-            </PholioButton>
-          </div>
-        )}
       </div>
     </Section>
   );

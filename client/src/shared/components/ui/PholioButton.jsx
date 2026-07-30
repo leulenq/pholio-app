@@ -102,12 +102,13 @@ const PholioButton = React.forwardRef(function PholioButton({
 
   const sharedProps = {
     ...props,
+    ref,
     className: classes,
     'aria-busy': loading || undefined,
     onClick: handleClick,
   };
 
-  const content = renderButtonContent(children, resolvedVariant);
+  const content = renderButtonContent(children, resolvedVariant, icon);
 
   if (as === 'a' || href) {
     return (
@@ -146,17 +147,20 @@ const PholioButton = React.forwardRef(function PholioButton({
       {content}
     </Component>
   );
-}
+});
 
-export function PholioIconButton({
+export default PholioButton;
+
+export const PholioIconButton = React.forwardRef(function PholioIconButton({
   label,
   danger = false,
   className = '',
   children,
   ...props
-}) {
+}, ref) {
   return (
     <PholioButton
+      ref={ref}
       variant="icon"
       aria-label={label}
       className={cx(danger && 'pholio-btn--icon-danger', className)}
@@ -165,7 +169,7 @@ export function PholioIconButton({
       {children}
     </PholioButton>
   );
-}
+});
 
 export function PholioToggleGroup({
   children,

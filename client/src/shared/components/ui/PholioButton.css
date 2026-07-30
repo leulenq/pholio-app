@@ -191,6 +191,12 @@
   letter-spacing: 0.02em;
 }
 
+/* A caller-supplied mark (the house spark, say) carries the same gold as the
+   built-in one, so the AI action looks like itself whichever glyph it wears. */
+.pholio-btn--ai > svg {
+  color: var(--ph-btn-gold-warm);
+}
+
 /* The mark reads as a writing instrument at rest and turns gold on contact, so
    the control announces what it does before it announces that it is clever. */
 .pholio-btn--ai .lucide {
