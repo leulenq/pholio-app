@@ -1,3 +1,14 @@
+/* ── Legal acceptance gate ──────────────────────────────────────────────
+   The talent register: warm paper masthead, Noto Serif Display, ink-fill
+   control, gold only on the tick and on focus. It previously used agency
+   tokens (--ag-*) while wrapping the talent dashboard.
+
+   Structure is three fixed bands — masthead, scrolling changes, consent —
+   so the footer can never sit on top of the text it is asking you to agree
+   to. Only the middle band scrolls, and it fades at its own edge rather
+   than disappearing under an opaque bar.
+   --------------------------------------------------------------------- */
+
 .legal-gate-scrim {
   position: fixed;
   inset: 0;
@@ -13,322 +24,246 @@
 }
 
 .legal-gate-panel {
-  width: min(100%, 440px);
-  max-height: min(84vh, 680px);
+  --lg-ink: #1a1a1a;
+  --lg-cream: #faf7f2;
+  --lg-cream-warm: #f5f0e8;
+  --lg-gold: #c9a55a;
+  --lg-text: #1a1a1a;
+  --lg-text-soft: rgba(26, 26, 26, 0.62);
+  --lg-text-faint: rgba(26, 26, 26, 0.42);
+  --lg-hair: rgba(26, 26, 26, 0.09);
+  --lg-hair-strong: rgba(26, 26, 26, 0.16);
+  --lg-serif: "Noto Serif Display", Georgia, serif;
+  --lg-mono: "JetBrains Mono", "SF Mono", monospace;
+  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* 600px, not 440: five paragraphs of legal prose at a 440px measure is what
+     forced the scroll-inside-a-scroll in the first place. */
+  width: min(100%, 600px);
+  max-height: min(86vh, 720px);
   display: flex;
   flex-direction: column;
-  padding: 0;
-  border-radius: 16px;
-  background: var(--ag-surface-1, #fff);
-  box-shadow: 0 28px 60px rgba(26, 24, 21, 0.28);
+  border-radius: 4px;
+  background: #fff;
+  /* Stated, not inherited: this panel renders over whatever surface mounted it,
+     and must not fall back to a UA serif if that surface sets no family. */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  box-shadow: 0 30px 70px -20px rgba(16, 15, 14, 0.55);
   text-align: left;
   overflow: hidden;
 }
 
-.legal-gate-handle {
-  display: none;
+/* ── Masthead ── */
+
+.legal-gate-header {
+  flex: none;
+  padding: 34px 38px 26px;
+  background: var(--lg-cream-warm);
+  border-bottom: 1px solid var(--lg-hair);
 }
+
+.legal-gate-effective {
+  margin: 0;
+  font-family: var(--lg-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--lg-text-faint);
+}
+
+.legal-gate-title {
+  margin: 12px 0 0;
+  font-family: var(--lg-serif);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  color: var(--lg-text);
+  text-wrap: balance;
+}
+
+.legal-gate-lead {
+  margin: 12px 0 0;
+  max-width: 48ch;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--lg-text-soft);
+  text-wrap: pretty;
+}
+
+/* ── The changes ── */
 
 .legal-gate-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 32px 32px 20px;
   -webkit-overflow-scrolling: touch;
-}
-
-.legal-gate-header {
-  margin-bottom: 18px;
-}
-
-.legal-gate-title {
-  margin: 0 0 10px;
-  font-family: var(--font-display, 'Playfair Display', 'Noto Serif Display', Georgia, serif);
-  font-size: 1.6rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  color: var(--ag-text-0, #1a1815);
-  text-wrap: balance;
-}
-
-.legal-gate-lead {
-  margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.55;
-  color: var(--ag-text-2, #6b6560);
-  text-wrap: pretty;
+  padding: 4px 38px 26px;
+  /* Fades its own bottom edge, so a partly-visible change reads as "keep
+     scrolling" instead of as a rendering fault. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%);
 }
 
 .legal-gate-changes {
-  margin: 0 0 18px;
+  margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .legal-gate-change {
-  border: 1px solid var(--ag-border, #ede8dd);
-  border-radius: 12px;
-  background: var(--ag-surface-0, #faf8f5);
-  overflow: hidden;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--lg-hair);
 }
 
-.legal-gate-change-toggle {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  padding: 14px 14px 14px 16px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.legal-gate-change-toggle:hover {
-  background: rgba(184, 149, 106, 0.06);
-}
-
-.legal-gate-change-toggle:focus-visible {
-  outline: 2px solid var(--ag-gold, #b8956a);
-  outline-offset: -2px;
-}
+.legal-gate-change:last-child { border-bottom: none; }
 
 .legal-gate-change-title {
-  margin: 0;
-  flex: 1 1 auto;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  line-height: 1.45;
-  color: var(--ag-text-0, #1a1815);
-}
-
-.legal-gate-change > .legal-gate-change-title {
-  display: block;
-  padding: 14px 16px;
-}
-
-.legal-gate-change-chevron {
-  position: relative;
-  flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  margin-top: 2px;
-  border-radius: 50%;
-  background: rgba(184, 149, 106, 0.12);
-}
-
-.legal-gate-change-chevron::before {
-  content: '';
-  position: absolute;
-  top: 7px;
-  left: 6px;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--ag-gold, #b8956a);
-  border-bottom: 1.5px solid var(--ag-gold, #b8956a);
-  transform: rotate(45deg);
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.legal-gate-change.is-open .legal-gate-change-chevron::before {
-  top: 8px;
-  transform: rotate(225deg);
+  margin: 0 0 6px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--lg-text);
+  text-wrap: balance;
 }
 
 .legal-gate-change-detail {
-  padding: 0 16px 14px;
-}
-
-.legal-gate-change-detail[hidden] {
-  display: none;
-}
-
-.legal-gate-change-detail p {
   margin: 0;
-  padding-top: 2px;
-  border-top: 1px solid var(--ag-border, #ede8dd);
-  font-size: 0.875rem;
-  line-height: 1.55;
-  color: var(--ag-text-2, #6b6560);
+  max-width: 62ch;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.62;
+  color: var(--lg-text-soft);
   text-wrap: pretty;
+}
+
+/* ── Consent ── */
+
+.legal-gate-footer {
+  flex: none;
+  padding: 20px 38px 26px;
+  border-top: 1px solid var(--lg-hair);
+  background: #fff;
 }
 
 .legal-gate-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  margin: 0 0 12px;
-  font-size: 0.8125rem;
-  line-height: 1.4;
+  gap: 18px;
+  margin-bottom: 16px;
 }
 
 .legal-gate-links a {
-  color: var(--ag-gold, #b8956a);
+  font-size: 12.5px;
+  color: var(--lg-text-soft);
   text-decoration: none;
-  text-underline-offset: 2px;
-  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--lg-hair-strong);
+  transition: color 0.2s var(--lg-ease), border-color 0.2s var(--lg-ease);
 }
 
-.legal-gate-links a:hover {
-  color: var(--ag-gold-hover, #a6845c);
-  text-decoration: underline;
-}
-
-.legal-gate-footer {
-  flex: 0 0 auto;
-  padding: 16px 32px 28px;
-  border-top: 1px solid var(--ag-border, #ede8dd);
-  background: var(--ag-surface-1, #fff);
+.legal-gate-links a:hover,
+.legal-gate-links a:focus-visible {
+  color: var(--lg-gold);
+  border-color: var(--lg-gold);
 }
 
 .legal-gate-check {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  padding: 10px 0 16px;
   cursor: pointer;
-  margin: 0;
-  min-height: 44px;
-  padding: 4px 0;
 }
 
-.legal-gate-check input[type='checkbox'] {
-  margin-top: 3px;
+/* The real control stays in the DOM and keeps the label's accessible name;
+   the drawn box is decorative. */
+.legal-gate-check input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.legal-gate-check-box {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
-  flex-shrink: 0;
-  accent-color: var(--ag-gold, #b8956a);
-  cursor: pointer;
+  margin-top: 1px;
+  border: 1px solid var(--lg-hair-strong);
+  border-radius: 2px;
+  background: var(--lg-cream);
+  color: #fff;
+  transition: background 0.2s var(--lg-ease), border-color 0.2s var(--lg-ease);
 }
 
-.legal-gate-check span {
-  font-size: 0.875rem;
-  line-height: 1.45;
-  color: var(--ag-text-0, #1a1815);
-  text-wrap: pretty;
+.legal-gate-check-box svg {
+  opacity: 0;
+  transition: opacity 0.18s var(--lg-ease);
+}
+
+.legal-gate-check input:checked ~ .legal-gate-check-box {
+  background: var(--lg-gold);
+  border-color: var(--lg-gold);
+}
+
+.legal-gate-check input:checked ~ .legal-gate-check-box svg { opacity: 1; }
+
+.legal-gate-check input:focus-visible ~ .legal-gate-check-box {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+}
+
+.legal-gate-check-text {
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--lg-text);
 }
 
 .legal-gate-error {
-  margin: 10px 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: #c0392b;
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #b4433a;
 }
 
 .legal-gate-submit {
-  margin-top: 14px;
   width: 100%;
-  min-height: 48px;
+  justify-content: center;
 }
 
-/* —— Mobile: bottom-sheet consent composition —— */
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .legal-gate-scrim {
-    align-items: flex-end;
-    justify-content: stretch;
     padding: 0;
-    padding-top: env(safe-area-inset-top, 0px);
+    align-items: flex-end;
   }
 
   .legal-gate-panel {
     width: 100%;
-    max-width: none;
-    /* Leave a band of scrim above so the sheet reads as contained, not a page. */
-    max-height: min(86dvh, 100%);
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -18px 48px rgba(26, 24, 21, 0.22);
+    max-height: 92vh;
+    border-radius: 12px 12px 0 0;
   }
 
-  .legal-gate-handle {
-    display: block;
-    flex: 0 0 auto;
-    width: 36px;
-    height: 4px;
-    margin: 10px auto 0;
-    border-radius: 999px;
-    background: rgba(26, 24, 21, 0.16);
-  }
-
-  .legal-gate-scroll {
-    padding: 14px 20px 8px;
-  }
-
-  .legal-gate-header {
-    margin-bottom: 14px;
-  }
-
-  .legal-gate-title {
-    font-size: 1.4rem;
-  }
-
-  .legal-gate-lead {
-    font-size: 0.9rem;
-  }
-
-  .legal-gate-changes {
-    gap: 6px;
-  }
-
-  .legal-gate-change-toggle {
-    min-height: 46px;
-    padding: 12px 12px 12px 14px;
-  }
-
-  .legal-gate-change-title {
-    font-size: 0.875rem;
-  }
-
-  .legal-gate-links {
-    gap: 8px 16px;
-    margin-bottom: 10px;
-  }
-
-  .legal-gate-links a {
-    padding: 4px 0;
-    font-size: 0.8125rem;
-  }
-
+  .legal-gate-header { padding: 26px 24px 22px; }
+  .legal-gate-title { font-size: 28px; }
+  .legal-gate-scroll { padding: 4px 24px 22px; }
   .legal-gate-footer {
-    /* Keep agree controls clear of browser chrome / home indicator */
-    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
-    box-shadow: 0 -8px 24px rgba(26, 24, 21, 0.06);
-  }
-
-  .legal-gate-check {
-    align-items: center;
-    gap: 14px;
-  }
-
-  .legal-gate-check input[type='checkbox'] {
-    width: 22px;
-    height: 22px;
-    margin-top: 0;
-  }
-
-  .legal-gate-check span {
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
-
-  .legal-gate-submit {
-    margin-top: 12px;
-    min-height: 52px;
+    padding: 18px 24px calc(22px + env(safe-area-inset-bottom, 0px));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .legal-gate-change-toggle,
-  .legal-gate-change-chevron::before,
-  .legal-gate-links a {
-    transition: none;
-  }
+  .legal-gate-links a,
+  .legal-gate-check-box,
+  .legal-gate-check-box svg { transition: none; }
 }

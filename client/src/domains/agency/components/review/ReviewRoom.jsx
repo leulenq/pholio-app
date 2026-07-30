@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   X,
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   ArrowUpRight,
@@ -153,7 +151,6 @@ export default function ReviewRoom({
   busy,
   queue = [],
 }) {
-  const navigate = useNavigate();
   const [frame, setFrame] = useState(0);
   const [bioOpen, setBioOpen] = useState(false);
   const [zoom, setZoom] = useState(false);
@@ -306,21 +303,30 @@ export default function ReviewRoom({
         <i style={{ width: `${progressPct}%` }} />
       </div>
 
-      {/* ───────── TOP BAR ───────── */}
-      <header className="rr-top">
-        <button type="button" className="rr-back" onClick={onClose}>
-          <ArrowLeft size={15} strokeWidth={1.9} aria-hidden="true" />
-          The desk
+      {/* ───────── TOP BAR — apply-workspace chrome, dark room ───────── */}
+      <header className="rr-top" aria-label="Submissions review workspace">
+        <button
+          type="button"
+          className="rr-top-logo"
+          onClick={onClose}
+          aria-label="Exit room"
+        >
+          <span>PHOLIO</span>
         </button>
-        <div className="rr-top-right">
-          {total > 0 && <span className="rr-count">{index + 1} of {total}</span>}
-          <button
-            type="button"
-            className="rr-toplink"
-            onClick={() => navigate(`/dashboard/agency/talent/${applicationId}`)}
-          >
-            Full profile
-            <ArrowUpRight size={13} strokeWidth={1.9} aria-hidden="true" />
+        <div
+          className="rr-top-status"
+          aria-label={
+            total > 0
+              ? `Submissions review, queue position ${index + 1} of ${total}`
+              : 'Submissions review'
+          }
+        >
+          <span>Submissions review</span>
+          {total > 0 && <strong>queue {index + 1}</strong>}
+        </div>
+        <div className="rr-top-actions">
+          <button type="button" className="rr-top-exit" onClick={onClose}>
+            Exit room
           </button>
         </div>
       </header>

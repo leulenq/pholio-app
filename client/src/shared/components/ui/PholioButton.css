@@ -173,17 +173,43 @@
   color: #9b742f;
 }
 
+/* The AI action. Deliberately the house ink-fill — Pholio's writing tool is a
+   Pholio control, not a "magic" affordance borrowed from somewhere else — with
+   one gold rule as its only signature. The rule is the whole language: it sits
+   short at rest (a nib mark), sweeps the full width on hover, and travels while
+   the model composes. No sparkle, no glow, no gradient. */
 .pholio-btn--ai {
-  min-height: 44px;
-  gap: 12px;
+  min-height: 46px;
+  gap: 10px;
   overflow: hidden;
-  padding: 10px 22px;
+  padding: 11px 24px;
   border: 1px solid var(--ph-btn-ink);
   background: var(--ph-btn-ink);
   color: var(--ph-btn-canvas);
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* A caller-supplied mark (the house spark, say) carries the same gold as the
+   built-in one, so the AI action looks like itself whichever glyph it wears. */
+.pholio-btn--ai > svg {
+  color: var(--ph-btn-gold-warm);
+}
+
+/* The mark reads as a writing instrument at rest and turns gold on contact, so
+   the control announces what it does before it announces that it is clever. */
+.pholio-btn--ai .lucide {
+  color: var(--ph-btn-gold);
+  opacity: 0.85;
+  transition:
+    opacity 0.3s var(--ph-btn-ease),
+    transform 0.45s var(--ph-btn-ease);
+}
+
+.pholio-btn--ai:hover:not(:disabled):not([aria-disabled='true']) .lucide {
+  opacity: 1;
+  transform: translateY(-1px) rotate(-6deg);
 }
 
 .pholio-btn--ai::after {
@@ -286,25 +312,26 @@
   color: var(--ph-btn-gold-text);
 }
 
+/* Icon actions are glyphs, not framed controls. A resting hairline reads as an
+   accidental focus box — especially on dark dismiss (X) buttons. Intent shows
+   through color and a quiet wash, not a square stroke. */
 .pholio-btn--icon {
   width: 40px;
   min-width: 40px;
   height: 40px;
   min-height: 40px;
   padding: 0;
-  border: 1px solid var(--ph-btn-hair-strong);
+  border: 0;
   background: transparent;
   color: var(--ph-btn-text-faint);
 }
 
 .pholio-btn--icon:hover:not(:disabled):not([aria-disabled='true']) {
-  border-color: var(--ph-btn-gold);
   background: rgba(201, 165, 90, 0.05);
   color: var(--ph-btn-gold-text);
 }
 
 .pholio-btn--icon-danger:hover:not(:disabled):not([aria-disabled='true']) {
-  border-color: rgba(143, 58, 58, 0.5);
   background: rgba(143, 58, 58, 0.05);
   color: var(--ph-btn-danger);
 }
@@ -335,14 +362,14 @@
   gap: 26px !important;
   max-width: 100%;
   border: 0 !important;
-  border-bottom: 1px solid var(--ph-btn-hair) !important;
+  border-bottom: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
 }
 
 .pholio-btn--toggle {
-  min-height: 40px;
-  padding: 0 0 11px;
+  min-height: 24px;
+  padding: 0 0 4px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -495,27 +522,25 @@
   height: 40px !important;
   min-height: 40px !important;
   padding: 0 !important;
-  border: 1px solid var(--ph-btn-hair-strong) !important;
+  border: 0 !important;
   border-radius: var(--ph-btn-radius) !important;
   background: transparent !important;
   color: var(--ph-btn-text-faint) !important;
 }
 
 .pholio-btn--icon:hover:not(:disabled):not([aria-disabled='true']) {
-  border-color: var(--ph-btn-gold) !important;
   background: rgba(201, 165, 90, 0.05) !important;
   color: var(--ph-btn-gold-text) !important;
 }
 
 .pholio-btn--icon.pholio-btn--icon-danger:hover:not(:disabled):not([aria-disabled='true']) {
-  border-color: rgba(143, 58, 58, 0.5) !important;
   background: rgba(143, 58, 58, 0.05) !important;
   color: var(--ph-btn-danger) !important;
 }
 
 .pholio-btn--toggle {
-  min-height: 40px !important;
-  padding: 0 0 11px !important;
+  min-height: 24px !important;
+  padding: 0 0 4px !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -572,5 +597,38 @@
   .pholio-btn,
   .pholio-btn::after {
     transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* Composing. The gold rule leaves its resting mark and travels the width of the
+   button until the text comes back — the state is carried by the control that
+   started it, so no spinner is parked in the middle of the writing surface. */
+.pholio-btn--ai.is-working {
+  cursor: progress;
+}
+
+.pholio-btn--ai.is-working::after {
+  width: 38%;
+  opacity: 1;
+  animation: ph-btn-compose 1.5s var(--ph-btn-ease) infinite;
+}
+
+.pholio-btn--ai.is-working .lucide {
+  opacity: 1;
+}
+
+@keyframes ph-btn-compose {
+  0%   { transform: translateX(-180%); }
+  100% { transform: translateX(180%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pholio-btn--ai .lucide { transition: none; }
+  .pholio-btn--ai:hover:not(:disabled) .lucide { transform: none; }
+  .pholio-btn--ai.is-working::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.75;
   }
 }

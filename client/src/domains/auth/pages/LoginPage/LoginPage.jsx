@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   signInWithPopup,
@@ -10,8 +10,12 @@ import {
 import { Loader2, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
-import { markAuthEntryTransition } from '../../../../shared/lib/pholio-auth/entry-transition';
+import {
+  beginExplicitAuth,
+  endExplicitAuth,
+} from '../../../../shared/lib/pholio-auth/auth-lock';
 import { purgeApplyDraftStorage } from '../../../talent/pages/ApplyPage/applicationDraftStorage';
+import { useAuthEntry } from '../../hooks/useAuthEntry';
 import { useAuthenticatedEntryRedirect } from '../../hooks/useAuthenticatedEntryRedirect';
 import {
   isInstagramAuthConfigured,
@@ -25,6 +29,41 @@ import styles from './LoginPage.module.css';
 import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
 
 const EASE = [0.16, 1, 0.3, 1];
+
+/** First name only — the splash greets, it does not address formally. */
+function firstNameOf(displayName) {
+  if (!displayName) return null;
+  const first = String(displayName).trim().split(/\s+/)[0];
+  return first || null;
+}
+
+function entryVariantFor(path) {
+  return typeof path === 'string' && path.startsWith('/dashboard/agency')
+    ? 'agency'
+    : 'talent';
+}
+
+/**
+ * Sign-in used to finish with `window.location.href = redirect`, which tears
+ * the SPA down and boots it again from scratch: blank page, chunk re-download,
+ * Firebase re-init, every query re-fetched. Inside the app that whole reload is
+ * dead weight — the session cookie is already set by the time /api/login
+ * answers, and the React Query cache is empty anyway on a fresh sign-in.
+ *
+ * So route in-app whenever the destination is a route this SPA owns, and keep
+ * the hard navigation only for targets it does not (server-rendered pages,
+ * other origins), where a document load is the actual requirement.
+ */
+const SPA_ROUTE_ROOTS = ['/dashboard', '/reveal', '/internal'];
+
+function isSpaRoute(target) {
+  if (typeof target !== 'string' || !target.startsWith('/')) return false;
+  if (target.startsWith('//')) return false; // protocol-relative — off-origin
+  const path = target.split(/[?#]/)[0];
+  return SPA_ROUTE_ROOTS.some(
+    (root) => path === root || path.startsWith(`${root}/`)
+  );
+}
 
 // Dev-only: when Firebase is not configured locally, sign in through the
 // backend /api/dev/login endpoint using the seeded bcrypt password.
@@ -42,13 +81,29 @@ const GoogleIcon = () => (
 );
 
 const InstagramIcon = () => (
-  <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+  <svg width={18} height={18} viewBox="0 0 24 24" aria-hidden="true">
+    <defs>
+      <linearGradient id="loginIgGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#f09433" />
+        <stop offset="25%" stopColor="#e6683c" />
+        <stop offset="50%" stopColor="#dc2743" />
+        <stop offset="75%" stopColor="#cc2366" />
+        <stop offset="100%" stopColor="#bc1888" />
+      </linearGradient>
+    </defs>
+    <path
+      fill="url(#loginIgGrad)"
+      fillRule="evenodd"
+      d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM5.838 12a6.162 6.162 0 1 1 12.324 0A6.162 6.162 0 0 1 5.838 12zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.405a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"
+    />
   </svg>
 );
 
 export default function LoginPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { startEntryTransition, cancelEntryTransition, reportEntryIdentity } =
+    useAuthEntry();
   const searchParams = new URLSearchParams(location.search);
   const forceLogin = searchParams.get('force') === '1';
   const inviteToken = searchParams.get('invite') || '';
@@ -74,6 +129,14 @@ export default function LoginPage() {
   useEffect(() => {
     isInstagramAuthConfigured().then(setInstagramEnabled);
   }, []);
+
+  // Deliberately NOT prefetching the dashboard chunk from here. Pulling the
+  // dashboard's module graph into the login page makes Vite discover new
+  // dependencies at runtime, which it answers by re-optimizing and force-
+  // reloading the page — an abrupt refresh on the login screen, and a torn
+  // module graph mid-swap ("dispatcher is null"). The chunk fetch does not
+  // need hiding anyway: the entry splash now sits above the router's Suspense
+  // boundary, so the route fallback resolves underneath an opaque overlay.
 
   useEffect(() => {
     if (!forceLogin) return undefined;
@@ -106,6 +169,17 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
+
+      // Raise the splash the moment the identity is confirmed, not after the
+      // backend round-trip. That trip used to play out as a bare spinner inside
+      // the button for well over a second; under the splash it is invisible,
+      // and Google already told us the name and photo to open on.
+      startEntryTransition({
+        variant: entryVariantFor(from),
+        name: firstNameOf(result.user.displayName),
+        avatarUrl: result.user.photoURL || null,
+      });
+
       const idToken = await result.user.getIdToken();
       await authenticateWithBackend(idToken, {
         method: 'google',
@@ -114,6 +188,7 @@ export default function LoginPage() {
         picture: result.user.photoURL,
       });
     } catch (err) {
+      cancelEntryTransition();
       setError(
         err.code === 'auth/popup-closed-by-user'
           ? 'Sign in cancelled.'
@@ -152,9 +227,15 @@ export default function LoginPage() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      startEntryTransition({
+        variant: entryVariantFor(from),
+        name: firstNameOf(userCredential.user.displayName),
+        avatarUrl: userCredential.user.photoURL || null,
+      });
       const idToken = await userCredential.user.getIdToken();
       await authenticateWithBackend(idToken, { method: 'email' });
     } catch (err) {
+      cancelEntryTransition();
       let msg = 'Failed to sign in. Please check your credentials.';
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         msg = 'Invalid email or password.';
@@ -200,7 +281,22 @@ export default function LoginPage() {
     }
   };
 
+  /**
+   * Land in the app without reloading it when the destination is ours; fall
+   * back to a document load for anything this SPA does not route.
+   */
+  const goToDestination = (target) => {
+    if (isSpaRoute(target)) {
+      navigate(target, { replace: true });
+      return;
+    }
+    window.location.href = target;
+  };
+
   const devEmailSignIn = async () => {
+    beginExplicitAuth();
+    // No Firebase step on this path, so this is where the transition starts.
+    startEntryTransition({ variant: entryVariantFor(from) });
     try {
       // Only forward an explicit redirect target; otherwise let the backend
       // pick the role-based destination (from defaults to the talent dashboard).
@@ -224,16 +320,25 @@ export default function LoginPage() {
         throw new Error(data.error || 'Invalid email or password.');
       }
 
+      const target = data.redirect || from;
+      reportEntryIdentity({ variant: entryVariantFor(target) });
       notifyAuthChange({ authenticated: true });
-      markAuthEntryTransition();
-      window.location.href = data.redirect || from;
+      goToDestination(target);
     } catch (err) {
+      cancelEntryTransition();
       setError(err.message || 'Failed to sign in.');
       setIsLoading(false);
+    } finally {
+      endExplicitAuth();
     }
   };
 
   const authenticateWithBackend = async (idToken, identity = {}) => {
+    // Hold the session for this flow: closing the OAuth popup also fires
+    // `focus` and `onAuthStateChanged`, and PholioAuthBridge answers those by
+    // re-establishing the Express session — a competing POST /api/login that
+    // regenerates the session id underneath this one.
+    beginExplicitAuth();
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
@@ -260,6 +365,8 @@ export default function LoginPage() {
       // First-time Google/Instagram identities have no Pholio user yet — hand
       // the Firebase session into casting so they don't click OAuth again.
       if (data?.error === 'NEEDS_ONBOARDING') {
+        // Not an entry into the app — casting has its own opening.
+        cancelEntryTransition();
         const method = identity.method === 'instagram' ? 'instagram' : 'google';
         if (identity.method === 'google' || identity.method === 'instagram') {
           stashOnboardingAuthHandoff({
@@ -296,13 +403,21 @@ export default function LoginPage() {
         throw new Error(errorMessage);
       }
 
+      const target = data.redirect || from;
+      // Refine, never restart: the transition is already running with the name
+      // and photo the provider took from the signed-in Firebase user. Only the
+      // canvas may still be wrong, if the server routed this account somewhere
+      // the login page could not have known about (agency vs talent).
+      reportEntryIdentity({ variant: entryVariantFor(target) });
       notifyAuthChange({ authenticated: true });
-      markAuthEntryTransition();
-      window.location.href = data.redirect || from;
+      goToDestination(target);
     } catch (err) {
+      cancelEntryTransition();
       setError(err.message || 'Server connection failed. Please try again.');
       setIsLoading(false);
       setIsGoogleLoading(false);
+    } finally {
+      endExplicitAuth();
     }
   };
 

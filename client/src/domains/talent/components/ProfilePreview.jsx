@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
+import { formatLocation } from '../../../shared/utils/locationFormat';
 
 export default function ProfilePreview({ images = [] }) {
   const { watch } = useFormContext();
@@ -33,7 +34,7 @@ export default function ProfilePreview({ images = [] }) {
             {formData.first_name || 'Name'} {formData.last_name}
           </h2>
           <p className="text-lg opacity-90">
-            {formData.title || (typeof formData.specialties === 'string' ? formData.specialties.split(',')[0] : 'Model')} • {formData.city || 'City'}
+            {formData.title || (typeof formData.specialties === 'string' ? formData.specialties.split(',')[0] : 'Model')} • {formData.city ? formatLocation(formData.city) : 'City'}
           </p>
         </div>
       </div>

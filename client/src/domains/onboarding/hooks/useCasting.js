@@ -263,24 +263,6 @@ export function useCastingProfile() {
 }
 
 /**
- * Hook: Reveal complete (mark reveal as viewed)
- */
-export function useCastingRevealComplete() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      return castingRequest('/reveal-complete', {
-        method: 'POST'
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['casting', 'status'] });
-    }
-  });
-}
-
-/**
  * Hook: Complete casting call
  */
 export function useCastingComplete() {

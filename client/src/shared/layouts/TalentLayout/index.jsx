@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom';
-import { Lock, ChevronDown, Bell } from 'lucide-react';
+import { Lock, ChevronDown, Bell, MessageSquare } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../domains/auth/hooks/useAuth';
+import { talentApi } from '../../../domains/talent/api/talent';
 import { useFlash } from '../../hooks/useFlash';
 import { getTalentHeaderTone } from '../../utils/talentHeaderTone';
 import { TALENT_NAV_SECTIONS } from '../../constants/talentNav';
 import { postLogoutAndRedirectToMarketing } from '../../lib/logout';
 import NotificationCenter from '../../components/NotificationCenter/NotificationCenter';
 import { useNotificationUnreadCount } from '../../components/NotificationCenter/useNotificationUnreadCount';
-import PholioButton, {
-  PholioIconButton,
-} from '../../components/ui/PholioButton';
+import { PholioIconButton } from '../../components/ui/PholioButton';
 import MobileTabBar from './MobileTabBar';
 import '../../components/NotificationCenter/NotificationCenter.css';
 import './TalentLayout.css';
@@ -29,6 +29,14 @@ export default function TalentLayout({ outletContext = {}, children }) {
   const notificationsButtonRef = useRef(null);
 
   const unreadCount = useNotificationUnreadCount();
+
+  const { data: threadsData } = useQuery({
+    queryKey: ['talent', 'message-threads'],
+    queryFn: () => talentApi.getMessageThreads(),
+    refetchInterval: 30000,
+    enabled: Boolean(user),
+  });
+  const unreadMessagesCount = threadsData?.unreadCount ?? 0;
 
   const firstName = profile?.first_name || profile?.name?.split(' ')[0] || user?.first_name || '';
   const lastName = profile?.last_name || profile?.name?.split(' ').slice(1)[0] || user?.last_name || '';
@@ -130,14 +138,34 @@ export default function TalentLayout({ outletContext = {}, children }) {
           {!isStudioPlus && (
             <>
               <Link
-                to="/dashboard/talent/settings/subscription"
-                className="tl-tier-pill is-studio tl-btn-upgrade"
+                to="/dashboard/talent/settings/studio"
+                className="tl-btn-upgrade"
               >
                 Upgrade
               </Link>
               <span className="tl-header-actions-divider" aria-hidden="true" />
             </>
           )}
+          <NavLink
+            to="/dashboard/talent/messages"
+            data-button-exception="shell-messages"
+            aria-label={
+              unreadMessagesCount > 0
+                ? `Messages, ${unreadMessagesCount} unread`
+                : 'Messages'
+            }
+            className={({ isActive }) =>
+              `tl-action-icon${isActive ? ' is-active' : ''}${unreadMessagesCount > 0 ? ' has-unread' : ''}`
+            }
+          >
+            <MessageSquare size={18} strokeWidth={1.5} />
+            {unreadMessagesCount > 0 && (
+              <span className="tl-action-badge" aria-hidden>
+                {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+              </span>
+            )}
+          </NavLink>
+
           <div
             ref={notificationsRef}
             className={`tl-notifications-container${isNotificationsOpen ? ' is-open' : ''}`}
@@ -182,11 +210,9 @@ export default function TalentLayout({ outletContext = {}, children }) {
             className={`tl-account${isAccountOpen ? ' is-open' : ''}`}
           >
             <div className="tl-account-suite">
-              <PholioButton
+              <button
                 ref={accountButtonRef}
                 type="button"
-                variant="tertiary"
-                tone={headerTone === 'light' ? 'light' : 'dark'}
                 className={`tl-account-trigger${isAccountOpen ? ' is-open' : ''}`}
                 aria-label={`Account menu for ${fullName}`}
                 aria-haspopup="true"
@@ -208,7 +234,7 @@ export default function TalentLayout({ outletContext = {}, children }) {
                   className={`tl-account-chevron${isAccountOpen ? ' is-open' : ''}`}
                   aria-hidden="true"
                 />
-            </PholioButton>
+              </button>
 
             {isAccountOpen && (
               <>

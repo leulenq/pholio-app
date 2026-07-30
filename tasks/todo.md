@@ -2830,3 +2830,95 @@ agency density/colour guidance was deliberately overridden for this surface):
   a foreign accent at readout scale.
 - Broken asset URLs now fall back to the monogram plate / hatched ground instead of
   a broken-image glyph.
+
+# Production Error Handling Audit and Remediation — 2026-07-29
+
+- [x] Audit every React ErrorBoundary and mount site.
+- [x] Verify the exact development and production fallback output.
+- [x] Audit current client logging/monitoring and identify the observability gap.
+- [x] Confirm the pattern against React, Sentry, and OWASP guidance.
+- [x] Approve the Sentry-based production reporting design.
+- [x] Add Sentry monitoring and URL/privacy sanitization with failing tests first.
+- [x] Report caught boundary errors and React 19 root errors without duplicates.
+- [x] Keep detailed diagnostics in development and safe recovery UI in production.
+- [x] Configure optional private source-map uploads for production CI.
+- [x] Verify focused tests, changed-file lint, production build, and bundle disclosure.
+
+Design: `docs/superpowers/specs/2026-07-29-production-error-handling-design.md`
+
+Plan: `docs/superpowers/plans/2026-07-29-production-error-handling.md`
+
+## Review
+
+**Audit verdict:** Production UI was already sanitized. The real defect was that
+`componentDidCatch` only wrote to the affected browser console, so operators never
+received the JavaScript stack, React component stack, or route context.
+
+**Shipped**
+- `client/src/shared/lib/error-monitoring.js` — Sentry init, privacy URL sanitization,
+  boundary reporting, and React 19 root handlers.
+- `client/src/shared/components/ErrorBoundary.jsx` — production-safe copy, reports via
+  the monitoring adapter, keeps development-only details behind `import.meta.env.DEV`.
+- `client/src/main.jsx` / `client/src/App.jsx` — initialize monitoring before root create
+  and label the app-root boundary.
+- `client/vite.config.js` — optional `@sentry/vite-plugin` source-map upload when
+  `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` are present.
+- `.env.example` — documents browser-safe `VITE_SENTRY_*` and build-secret `SENTRY_*`.
+
+**Verification**
+- `cd client && npm run test -- src/shared/components/__tests__/ErrorBoundary.test.jsx src/shared/lib/__tests__/error-monitoring.test.js` → 9 passed
+- `cd client && npx eslint src/main.jsx src/App.jsx src/shared/components/ErrorBoundary.jsx src/shared/components/__tests__/ErrorBoundary.test.jsx src/shared/lib/error-monitoring.js src/shared/lib/__tests__/error-monitoring.test.js vite.config.js` → exit 0
+- `npm run client:build` without Sentry credentials → exit 0, no source-map upload, no source maps emitted
+- Production bundle with `VITE_SENTRY_DSN` set retains reporting (`error.boundary`, DSN host) and the friendly fallback; without DSN, reporting is tree-shaken and the UI remains sanitized
+- Disclosure scan: no `Error details`, synthetic stack fixture, or `/Users/private` strings in production assets
+
+**Deploy requirement**
+Configure production/CI values before expecting live reports:
+`VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT`, `VITE_SENTRY_RELEASE`, plus
+`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` for private source-map uploads.
+
+# Remove /reveal from the talent experience
+
+- [x] Rename the entry-splash suppression flag from reveal to onboarding intent, with a test.
+- [x] Send onboarding completion straight to `/dashboard/talent`.
+- [x] Redirect legacy `/reveal` and `/dashboard/talent/reveal` URLs, delete `RevealPage`.
+- [x] Retire the dead reveal CSS while keeping the onboarding error screen's `.reveal-cta`.
+- [x] Delete orphaned `CastingCall.css`.
+- [x] Remove `POST /onboarding/reveal-complete` and its `reveal_viewed` / `can_enter_reveal` step data.
+- [x] Verify focused tests, changed-file lint, and the production client build.
+
+Design: `docs/superpowers/specs/2026-07-29-remove-talent-reveal-design.md`
+
+Plan: `docs/superpowers/plans/2026-07-29-remove-talent-reveal.md`
+
+## Review
+
+Onboarding's finishing preloader now hands off to `/dashboard/talent` instead of the
+"First Card" cinematic. The account was already finalized server-side by
+`POST /onboarding/profile`, so nothing else had to move for the reveal to go.
+
+**Shipped**
+- `client/src/domains/onboarding/pages/CastingCallPage.jsx` — `finishToDashboard`
+  replaces `finishToReveal` on the free-plan, Stripe-fallback, and legacy `complete`
+  paths, and marks the onboarding arrival so no sign-in splash plays after signup.
+- `client/src/App.jsx` — `/reveal` and `/dashboard/talent/reveal` redirect to
+  `/dashboard/talent`; the lazy `RevealPage` import is gone.
+- Deleted `client/src/domains/talent/pages/RevealPage/` (page, `FirstCard`, its CSS).
+- `client/src/shared/lib/pholio-auth/entry-transition.js` /
+  `AuthEntryTransitionProvider.jsx` — suppression flag renamed to
+  `pholio:arrived-from-onboarding` with a `markArrivedFromOnboarding` writer.
+- Removed `useCastingRevealComplete`, the dev preview's reveal step, the `/reveal`
+  breadcrumb entry, and ~430 lines of dead reveal scorecard CSS in
+  `CastingCinematic.css` (kept `.reveal-cta`, used by the onboarding error screen).
+- Deleted `client/src/domains/onboarding/styles/CastingCall.css` (orphaned).
+- Removed `POST /onboarding/reveal-complete`, `reveal_viewed` / `reveal_viewed_at`
+  step data, and `can_enter_reveal` from new onboarding state. Legacy `reveal`
+  current_step heals to `done`.
+
+**Verification**
+- `cd client && npm run test` → 19 files, 88 tests passed (includes the new
+  `src/shared/lib/pholio-auth/__tests__/entry-transition.test.js`)
+- `cd client && npx eslint` on all 8 changed client files → exit 0
+- `npm run client:build` → exit 0, no dangling import of the deleted page
+- Grep sweep: no `RevealPage`, `arrived-from-reveal`, `useCastingRevealComplete`,
+  `reveal-complete`, or `reveal_viewed` references remain in app code

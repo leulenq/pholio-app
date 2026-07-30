@@ -53,9 +53,10 @@ describe('LegalAcceptanceGate', () => {
     vi.clearAllMocks();
   });
 
-  test('renders a scannable consent sheet with sticky agree controls', async () => {
+  test('prints every change open, with the effective date and agree controls', async () => {
     talentApi.getLegalStatus.mockResolvedValue({
       needsAcceptance: true,
+      version: '2026-07-18',
       changes: [
         'Added explicit age and guardian rules — a 13+ minimum and guardian authorization for under-18 Talent.',
         'Detailed subscription renewal, cancellation, tax, and price-change notices.',
@@ -69,8 +70,26 @@ describe('LegalAcceptanceGate', () => {
     );
 
     expect(await screen.findByRole('dialog', { name: /our terms have changed/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /added explicit age and guardian rules/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^terms$/i })).toHaveAttribute(
+    expect(screen.getByText(/effective 18 july 2026/i)).toBeInTheDocument();
+
+    // The detail is visible without interaction — a consent gate must show the
+    // thing being consented to, so there is no disclosure control to open.
+    expect(
+      screen.getByRole('heading', { name: /added explicit age and guardian rules/i }),
+    ).toBeInTheDocument();
+    // Not toBeVisible(): the panel carries framer-motion's initial opacity: 0 in
+    // jsdom, where the entrance never runs. `hidden` is what the old accordion
+    // used to withhold the detail, so that is what this pins.
+    const detail = screen.getByText(
+      /a 13\+ minimum and guardian authorization for under-18 talent/i,
+    );
+    expect(detail).toBeInTheDocument();
+    expect(detail).not.toHaveAttribute('hidden');
+    expect(
+      screen.queryByRole('button', { name: /added explicit age and guardian rules/i }),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByRole('link', { name: /terms of service/i })).toHaveAttribute(
       'href',
       'https://www.pholio.studio/terms',
     );

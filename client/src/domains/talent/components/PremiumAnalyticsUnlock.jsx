@@ -26,7 +26,7 @@ export default function PremiumAnalyticsUnlock() {
               <li>Exportable PDF reports</li>
             </ul>
             <PholioButton
-              href="/dashboard/talent/settings/subscription"
+              href="/dashboard/talent/settings/studio"
               variant="primary" tone="dark"
               style={{ marginTop: 32 }}
             >

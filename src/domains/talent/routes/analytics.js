@@ -127,6 +127,7 @@ function emptyWebsiteAnalytics(days) {
     metrics: {
       visits: 0,
       uniqueVisitors: 0,
+      returningVisitors: 0,
       pageViews: 0,
       outboundClicks: 0,
     },
@@ -137,6 +138,7 @@ function emptyWebsiteAnalytics(days) {
       visitsChangePct: null,
       hasPriorBaseline: false,
     },
+    sources: [],
     series,
     hasData: false,
   };
@@ -276,8 +278,10 @@ router.get(
       previousVisitsRow,
       identifiedVisitsRow,
       uniqueVisitorsRow,
+      returningVisitsRow,
       websitePageViewsRow,
       outboundClicksRow,
+      websiteReferrerRows,
       dailyVisits,
     ] = await Promise.all([
       knex("visitor_sessions")
@@ -331,6 +335,21 @@ router.get(
         .whereNotNull("visitor_id")
         .countDistinct({ total: "visitor_id" })
         .first(),
+      // Repeat visitors are the strongest interest signal the site can report:
+      // a scout who comes back is worth more than a hundred one-off hits.
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .where("is_returning", true)
+        .count({ total: "*" })
+        .first(),
       knex("analytics")
         .where({ profile_id: profile.id, event_type: "view" })
         .modify((query) =>
@@ -356,6 +375,21 @@ router.get(
         )
         .count({ total: "*" })
         .first(),
+      // Session-level referrers (not view events): "who sent these people" is
+      // answered per visitor, so it stays consistent with the visitor counts.
+      knex("visitor_sessions")
+        .where({ profile_id: profile.id })
+        .modify((query) =>
+          applyTimestampRange(query, {
+            column: "started_at",
+            start: currentStart,
+            end: currentEnd,
+            isPostgres,
+          }),
+        )
+        .select("referrer")
+        .count({ total: "*" })
+        .groupBy("referrer"),
       knex("visitor_sessions")
         .where({ profile_id: profile.id })
         .modify((query) =>
@@ -376,8 +410,21 @@ router.get(
     const previousVisits = countValue(previousVisitsRow);
     const identifiedVisits = countValue(identifiedVisitsRow);
     const uniqueVisitors = countValue(uniqueVisitorsRow);
+    const returningVisitors = countValue(returningVisitsRow);
     const pageViews = countValue(websitePageViewsRow);
     const outboundClicks = countValue(outboundClicksRow);
+    const websiteSourceMap = websiteReferrerRows.reduce((acc, row) => {
+      const label = categorizeReferrer(row.referrer);
+      acc[label] = (acc[label] || 0) + countValue(row);
+      return acc;
+    }, {});
+    const websiteSources = Object.entries(websiteSourceMap)
+      .map(([label, count]) => ({
+        label,
+        visits: count,
+        percentage: visits > 0 ? Math.round((count / visits) * 100) : 0,
+      }))
+      .sort((a, b) => b.visits - a.visits);
     const dailyVisitMap = new Map(
       dailyVisits.map((row) => {
         const date =
@@ -442,6 +489,7 @@ router.get(
           metrics: {
             visits,
             uniqueVisitors,
+            returningVisitors,
             pageViews,
             outboundClicks,
           },
@@ -455,6 +503,7 @@ router.get(
             visitsChangePct: calculatePeriodChange(visits, previousVisits),
             hasPriorBaseline: previousVisits > 0,
           },
+          sources: websiteSources,
           series: websiteSeries,
           hasData: visits > 0 || pageViews > 0 || outboundClicks > 0,
         },

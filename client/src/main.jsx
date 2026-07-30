@@ -8,16 +8,32 @@ import './index.css'            /* 3. Global + component styles */
 import App from './App'
 import FlashProvider from './shared/hooks/FlashProvider'
 import PholioToaster from './shared/components/toast/PholioToaster'
+import { AuthEntryTransitionProvider } from './domains/auth/components/AuthEntryTransitionProvider'
+import {
+  getReactRootErrorHandlers,
+  initErrorMonitoring,
+} from './shared/lib/error-monitoring'
+
+initErrorMonitoring();
 
 const queryClient = new QueryClient();
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+// AuthEntryTransitionProvider sits outside <App /> deliberately. It renders the
+// post-login splash, which must not be a descendant of the router's Suspense
+// boundary: a lazy route suspending there would swap the splash out for the
+// route fallback mid-transition and replay it on reveal.
+ReactDOM.createRoot(
+  document.getElementById('root'),
+  getReactRootErrorHandlers(),
+).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <FlashProvider>
-          <App />
-          <PholioToaster />
+          <AuthEntryTransitionProvider>
+            <App />
+            <PholioToaster />
+          </AuthEntryTransitionProvider>
         </FlashProvider>
       </BrowserRouter>
     </QueryClientProvider>

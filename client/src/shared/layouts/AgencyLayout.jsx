@@ -170,7 +170,7 @@ export default function AgencyLayout() {
               <TeamPresence members={team} />
               <span className="ag-masthead-divider" aria-hidden="true" />
               <div ref={messagesRef} style={{ position: 'relative' }}>
-                <button ref={messagesBtnRef} className={`ag-topbar-icon${unreadMessages > 0 ? ' ag-topbar-icon--unread' : ''}`} aria-label={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'} aria-expanded={openPanel === 'messages'}
+                <button ref={messagesBtnRef} className="ag-topbar-icon" aria-label={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'} aria-expanded={openPanel === 'messages'}
                   onClick={() => setOpenPanel((p) => (p === 'messages' ? null : 'messages'))}>
                   <MessageSquare size={17} />
                 </button>
@@ -184,7 +184,7 @@ export default function AgencyLayout() {
                 />
               </div>
               <div ref={notificationsRef} style={{ position: 'relative' }}>
-                <button ref={notificationsBtnRef} className={`ag-topbar-icon${unreadNotifications > 0 ? ' ag-topbar-icon--unread' : ''}`} aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} unread` : 'Notifications'} aria-expanded={openPanel === 'notifications'}
+                <button ref={notificationsBtnRef} className="ag-topbar-icon" aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} unread` : 'Notifications'} aria-expanded={openPanel === 'notifications'}
                   onClick={() => setOpenPanel((p) => (p === 'notifications' ? null : 'notifications'))}>
                   <Bell size={17} />
                 </button>

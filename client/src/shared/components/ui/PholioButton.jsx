@@ -21,7 +21,17 @@ function normalizeVariant(variant) {
   return BUTTON_VARIANTS.has(variant) ? variant : 'secondary';
 }
 
-function renderButtonContent(children, variant) {
+function renderButtonContent(children, variant, icon) {
+  // A caller-supplied mark replaces the variant's built-in one, so a control can
+  // carry the house spark (or any other glyph) without forking the variant.
+  if (icon) {
+    return (
+      <>
+        {icon}
+        <span>{children}</span>
+      </>
+    );
+  }
   if (variant === 'ai') {
     return (
       <>
@@ -54,7 +64,7 @@ function renderButtonContent(children, variant) {
  * primary commit, secondary alternative, tertiary quiet action, meta/inline
  * action, icon action, destructive action, and toggle item.
  */
-export default function PholioButton({
+const PholioButton = React.forwardRef(function PholioButton({
   children,
   variant = 'secondary',
   tone = 'light',
@@ -62,6 +72,7 @@ export default function PholioButton({
   className = '',
   disabled = false,
   loading = false,
+  icon = null,
   type,
   as,
   to,
@@ -69,7 +80,7 @@ export default function PholioButton({
   tabIndex,
   onClick,
   ...props
-}) {
+}, ref) {
   const resolvedVariant = normalizeVariant(variant);
   const isDisabled = disabled || loading;
   const classes = cx(
@@ -91,12 +102,13 @@ export default function PholioButton({
 
   const sharedProps = {
     ...props,
+    ref,
     className: classes,
     'aria-busy': loading || undefined,
     onClick: handleClick,
   };
 
-  const content = renderButtonContent(children, resolvedVariant);
+  const content = renderButtonContent(children, resolvedVariant, icon);
 
   if (as === 'a' || href) {
     return (
@@ -135,17 +147,20 @@ export default function PholioButton({
       {content}
     </Component>
   );
-}
+});
 
-export function PholioIconButton({
+export default PholioButton;
+
+export const PholioIconButton = React.forwardRef(function PholioIconButton({
   label,
   danger = false,
   className = '',
   children,
   ...props
-}) {
+}, ref) {
   return (
     <PholioButton
+      ref={ref}
       variant="icon"
       aria-label={label}
       className={cx(danger && 'pholio-btn--icon-danger', className)}
@@ -154,7 +169,7 @@ export function PholioIconButton({
       {children}
     </PholioButton>
   );
-}
+});
 
 export function PholioToggleGroup({
   children,

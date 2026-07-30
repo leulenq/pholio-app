@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { isExplicitAuthInFlight } from '../../../shared/lib/pholio-auth/auth-lock';
 import {
   fetchAppSession,
   fetchPublicSession,
@@ -25,6 +26,11 @@ export function useAuthenticatedEntryRedirect() {
           : await fetchAppSession();
 
       if (cancelled || !session?.authenticated) return;
+
+      // A sign-in in progress is already steering to its own destination (and
+      // running the entry transition over it). Redirecting from here as well
+      // would race it, which is redirect churn on a single sign-in.
+      if (isExplicitAuthInFlight()) return;
 
       if (location.pathname === '/login') {
         const target =

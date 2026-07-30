@@ -33,26 +33,125 @@
 }
 .rr-thread i { display: block; height: 100%; background: var(--ag-gold); transition: width 0.3s var(--ag-ease); }
 
-/* ───────── TOP BAR ───────── */
+/* ───────── TOP BAR — apply-workspace structure on dark ink ───────── */
 .rr-top {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 20px; padding: 16px 26px 8px;
+  --rr-topbar-h: 72px;
+
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
+  align-items: stretch;
+  min-height: var(--rr-topbar-h);
+  padding: 0 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent),
+    rgba(12, 10, 7, 0.55);
 }
-.rr-back, .rr-toplink {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: none; border: none; cursor: pointer; padding: 6px 6px;
-  font-family: var(--ag-font-body); font-size: 12px; font-weight: 600;
-  color: rgba(247, 243, 236, 0.62); border-radius: var(--ag-radius-sm);
+
+.rr-top::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--ag-gold, #C9A55A), transparent);
+  pointer-events: none;
+}
+
+.rr-top-logo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  justify-self: start;
+  grid-column: 1;
+  min-width: max-content;
+  padding: 0 12px 0 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--ag-radius-sm);
+}
+
+.rr-top-logo span {
+  color: var(--ag-pholio-gold, var(--ag-gold, #C9A55A));
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
   transition: color var(--ag-duration-fast) var(--ag-ease);
 }
-.rr-back:hover, .rr-toplink:hover { color: var(--ag-gold); }
-.rr-top-right { display: flex; align-items: center; gap: 18px; }
-.rr-count {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
-  color: rgba(247, 243, 236, 0.42); font-variant-numeric: tabular-nums; white-space: nowrap;
+
+.rr-top-logo:hover span {
+  color: var(--ag-gold-warm, #D4B87A);
 }
-.rr-back:focus-visible, .rr-toplink:focus-visible {
-  outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
+
+.rr-top-status {
+  grid-column: 2;
+  justify-self: center;
+  align-self: center;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  min-width: 0;
+}
+
+.rr-top-status span,
+.rr-top-status strong,
+.rr-top-exit {
+  font-family: var(--ag-font-body, 'Inter', system-ui, sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rr-top-status span {
+  color: rgba(247, 243, 236, 0.4);
+}
+
+.rr-top-status strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(247, 243, 236, 0.88);
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.rr-top-actions {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--rr-topbar-h);
+}
+
+.rr-top-exit {
+  min-height: 34px;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  color: rgba(247, 243, 236, 0.4);
+  cursor: pointer;
+  border-radius: var(--ag-radius-sm);
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+
+.rr-top-exit:hover {
+  color: rgba(247, 243, 236, 0.92);
+}
+
+.rr-top-logo:focus-visible,
+.rr-top-exit:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.35);
 }
 
 /* ───────── THE SPREAD ───────── */
@@ -428,6 +527,29 @@
   .rr-read { overflow: visible; }
 }
 @media (max-width: 640px) {
+  .rr-top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 12px;
+    padding-inline: 18px;
+  }
+  .rr-top-status {
+    gap: 8px;
+  }
+  .rr-top-status span {
+    display: none;
+  }
+  .rr-top-status strong {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+  }
+  .rr-top-logo span {
+    font-size: 15px;
+    letter-spacing: 0.2em;
+  }
+  .rr-top-exit {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
   .rr-details { grid-template-columns: 1fr; }
   .rr-deck-row { flex-wrap: wrap; }
   .rr-billing { flex-direction: column; align-items: flex-start; gap: 14px; }
@@ -437,7 +559,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rr-thread i, .rr-back, .rr-toplink, .rr-frame-btn, .rr-act, .rr-textbtn,
+  .rr-thread i, .rr-top-logo span, .rr-top-exit, .rr-frame-btn, .rr-act, .rr-textbtn,
   .rr-line--link, .rr-q, .rr-soft, .rr-topbtn { transition: none; }
   .rr-stage.is-loading .rr-frame, .rr-bone { animation: none; }
 }

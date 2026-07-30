@@ -1,14 +1,11 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
-import { PholioInput, PholioTextarea, PholioToggle } from '../../../shared/components/ui/forms';
-import PholioButton, {
-  PholioToggleButton,
-  PholioToggleGroup,
-} from '../../../shared/components/ui/PholioButton';
+import { PholioInput, PholioToggle } from '../../../shared/components/ui/forms';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
-import HorizonFlare from './HorizonFlare';
+import BioWriter from './BioWriter/BioWriter';
 import { computeAge, isMinorProfile } from '../../../shared/utils/talentAge';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
@@ -37,14 +34,6 @@ export const IdentitySection = ({
 }) => {
   const age = computeAge(watchDob);
   const isMinor = isMinorProfile({ date_of_birth: watchDob });
-  const hasBio = (bioValue || '').trim().length >= 10;
-  const bioLength = bioOptions?.length === 'tight' ? 'tight' : 'standard';
-  const bioPerson = bioOptions?.person === 'first' ? 'first' : 'third';
-  const setBioOption = (patch) => {
-    if (onBioOptionsChange) {
-      onBioOptionsChange({ length: bioLength, person: bioPerson, ...patch });
-    }
-  };
   return (
     <Section
       id="identity"
@@ -120,31 +109,6 @@ export const IdentitySection = ({
             />
           )}
         />
-      </div>
-
-      <div className={`${styles.formGrid2} ${styles.formRow}`}>
-        <div style={{ position: 'relative' }}>
-          <PholioInput
-            label="Date of Birth"
-            type="date"
-            error={errors.date_of_birth}
-            {...register('date_of_birth')}
-          />
-          {age !== null && (
-            <span
-              style={{
-                position: 'absolute',
-                right: '12px',
-                top: '38px',
-                fontSize: '13px',
-                color: 'rgba(255,255,255,0.4)',
-                pointerEvents: 'none'
-              }}
-            >
-              {age} yrs
-            </span>
-          )}
-        </div>
         <Controller
           name="pronouns"
           control={control}
@@ -167,6 +131,22 @@ export const IdentitySection = ({
             />
           )}
         />
+      </div>
+
+      <div className={`${styles.formGrid2} ${styles.formRow}`}>
+        <div className={styles.dobField}>
+          <PholioInput
+            label="Date of Birth"
+            type="date"
+            error={errors.date_of_birth}
+            {...register('date_of_birth')}
+          />
+          {age !== null && (
+            <span className={styles.dobAge}>
+              {age} {age === 1 ? 'year' : 'years'}
+            </span>
+          )}
+        </div>
       </div>
 
       {isMinor && (
@@ -241,109 +221,18 @@ export const IdentitySection = ({
       )}
 
       <div className={styles.formRow}>
-        <div className={styles.bioHeader}>
-          <p className={styles.bioKicker}>Bio</p>
-          <div className={styles.bioTitleRow}>
-            <h3 className={styles.bioTitle}>
-              About <em>you</em>
-            </h3>
-            <HorizonFlare
-              evaluating={isImproving}
-              onClick={isImproving ? undefined : (hasBio ? onBioRefine : onBioGenerate)}
-              style={{ 
-                width: '120px', 
-                height: '40px', 
-                cursor: isImproving ? 'not-allowed' : 'pointer',
-                opacity: isImproving ? 0.7 : 1,
-                marginLeft: '16px'
-              }}
-              title={hasBio ? "Refine Biography" : "Generate Biography"}
-              aria-label={hasBio ? "Refine Biography" : "Generate Biography"}
-            />
-          </div>
-          <p className={styles.bioLede}>
-            Tell agencies what makes you unique.
-          </p>
-          <div className={styles.bioModeControls}>
-            <div
-              className={styles.bioModeGroup}
-              role="group"
-              aria-label="Bio length"
-            >
-              <span className={styles.bioModeLabel}>Length</span>
-              <PholioToggleGroup className={styles.bioModeOptions}>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ length: 'tight' })}
-                  disabled={isImproving}
-                  aria-pressed={bioLength === 'tight'}
-                  active={bioLength === 'tight'}
-                  className={`${styles.bioModeBtn} ${bioLength === 'tight' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Tight
-                </PholioToggleButton>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ length: 'standard' })}
-                  disabled={isImproving}
-                  aria-pressed={bioLength === 'standard'}
-                  active={bioLength === 'standard'}
-                  className={`${styles.bioModeBtn} ${bioLength === 'standard' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Standard
-                </PholioToggleButton>
-              </PholioToggleGroup>
-            </div>
-            <div
-              className={styles.bioModeGroup}
-              role="group"
-              aria-label="Bio voice"
-            >
-              <span className={styles.bioModeLabel}>Voice</span>
-              <PholioToggleGroup className={styles.bioModeOptions}>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ person: 'third' })}
-                  disabled={isImproving}
-                  aria-pressed={bioPerson === 'third'}
-                  active={bioPerson === 'third'}
-                  className={`${styles.bioModeBtn} ${bioPerson === 'third' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Agency
-                </PholioToggleButton>
-                <PholioToggleButton
-                  type="button"
-                  onClick={() => setBioOption({ person: 'first' })}
-                  disabled={isImproving}
-                  aria-pressed={bioPerson === 'first'}
-                  active={bioPerson === 'first'}
-                  className={`${styles.bioModeBtn} ${bioPerson === 'first' ? styles.bioModeBtnActive : ''}`}
-                >
-                  Personal
-                </PholioToggleButton>
-              </PholioToggleGroup>
-            </div>
-          </div>
-        </div>
-        <PholioTextarea
-          label=""
-          placeholder="Tell us about yourself, your passions, and what drives your career..."
-          rows={6}
+        <BioWriter
+          field={register('bio')}
           error={errors.bio}
-          {...register('bio')}
+          value={bioValue}
+          isWorking={!!isImproving}
+          options={bioOptions}
+          onOptionsChange={onBioOptionsChange}
+          onWrite={onBioGenerate}
+          onRefine={onBioRefine}
+          previousBio={previousBio}
+          onRevert={handleUndoAI}
         />
-        {previousBio && (
-          <div className={styles.bioActions}>
-            <PholioButton
-              type="button"
-              variant="tertiary"
-              onClick={handleUndoAI}
-              className={styles.bioUndoBtn}
-            >
-              Revert to original
-            </PholioButton>
-          </div>
-        )}
       </div>
     </Section>
   );

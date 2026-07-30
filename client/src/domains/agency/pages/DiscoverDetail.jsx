@@ -2,6 +2,7 @@ import React, { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import MatchScore from '../components/ui/MatchScore';
+import { formatLocation } from '../../../shared/utils/locationFormat';
 import './DiscoverDetail.css';
 
 export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite, inviting }) {
@@ -12,7 +13,7 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
   const stats = [
     talent.height  && { label: 'Height',    value: talent.height },
     talent.gender  && { label: 'Gender',    value: talent.gender },
-    talent.city    && { label: 'Based',     value: talent.city },
+    talent.city    && { label: 'Based',     value: formatLocation(talent.city) },
     talent.exp     && { label: 'Experience', value: talent.exp },
   ].filter(Boolean);
 
@@ -104,7 +105,7 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
               {(talent.archetype || talent.city) && (
                 <p className="dd-sub">
                   {talent.archetype}
-                  {talent.city ? <><span className="dd-sep">·</span>{talent.city}</> : null}
+                  {talent.city ? <><span className="dd-sep">·</span>{formatLocation(talent.city)}</> : null}
                 </p>
               )}
               <div className="dd-name-row">

@@ -80,7 +80,6 @@ export const PREVIEW_STEPS = [
     ],
   },
   { view: 'finishing', label: 'Finishing · preloader', subSteps: null },
-  { view: 'reveal', label: 'Reveal page', subSteps: null },
 ];
 
 /**
