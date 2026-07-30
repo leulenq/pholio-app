@@ -19,7 +19,6 @@ const routeNames = {
   '/dashboard/agency/analytics': 'Insights',
   '/dashboard/agency/settings': 'Settings',
   '/onboarding': 'Onboarding',
-  '/reveal': 'Profile Reveal',
 };
 
 export default function Breadcrumbs() {
@@ -27,7 +26,7 @@ export default function Breadcrumbs() {
   const pathParts = location.pathname.split('/').filter(Boolean);
 
   // Don't show breadcrumbs on root paths or casting flow
-  if (pathParts.length <= 1 || location.pathname === '/onboarding' || location.pathname === '/reveal') {
+  if (pathParts.length <= 1 || location.pathname === '/onboarding') {
     return null;
   }
 

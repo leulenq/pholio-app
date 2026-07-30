@@ -29,6 +29,7 @@ import {
 } from '../../components/profile-index';
 import { cmToFeetInches } from '../../../../shared/utils/measurementConversions';
 import { normalizePhoneInput } from '../../../../shared/lib/phone-format';
+import { formatLocation } from '../../../../shared/utils/locationFormat';
 import { IdentitySection } from './IdentitySection';
 import { DisciplineSection } from './DisciplineSection';
 import { MeasurementsSection } from './MeasurementsSection';
@@ -841,7 +842,7 @@ export default function ProfilePage() {
           <div className={styles.heroIdentity}>
             <div className={styles.heroEyebrow}>
               {values.city ? (
-                <p className={styles.heroTagline}>{String(values.city).toUpperCase()}</p>
+                <p className={styles.heroTagline}>{formatLocation(values.city).toUpperCase()}</p>
               ) : (
                 <p className={styles.heroTaglineMuted}>LOCATION</p>
               )}
@@ -1198,6 +1199,7 @@ export default function ProfilePage() {
           title="Casting Preferences"
           titleEmphasis="Preferences"
           description="Add the union, playing-age, comfort, and availability details that shape which briefs fit."
+          showDivider={false}
         >
           <div className={styles.formRow}>
             <Controller

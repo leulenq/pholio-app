@@ -42,7 +42,6 @@ async function resetOnboarding(email) {
       current_step: 'entry',
       completed_steps: [],
       step_data: {},
-      can_enter_reveal: false,
       started_at: new Date().toISOString()
     };
 

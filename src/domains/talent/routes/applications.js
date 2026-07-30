@@ -113,6 +113,21 @@ async function getProfileBySessionUserId(userId) {
   return knex("profiles").where({ user_id: userId }).first();
 }
 
+// Deploy-before-migrate guard: until the note flag exists, the note falls back
+// to the legacy "earliest TALENT message" derivation. Checked once per process.
+let submissionNoteFlagPromise = null;
+function hasSubmissionNoteFlag(db) {
+  if (!submissionNoteFlagPromise) {
+    submissionNoteFlagPromise = db.schema
+      .hasColumn("messages", "is_submission_note")
+      .catch(() => {
+        submissionNoteFlagPromise = null;
+        return false;
+      });
+  }
+  return submissionNoteFlagPromise;
+}
+
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -287,6 +302,20 @@ router.get(
 
     const openCallReady = await hasOpenCallSchema(knex);
 
+    // The submitted note lives in the messages table so it opens the agency's
+    // thread, but only the row flagged at submission time is the note. Deriving
+    // it from "earliest TALENT message" promoted ordinary chat into "Your note"
+    // whenever a submission carried no note.
+    const noteQuery = knex("messages as note_msg")
+      .select("note_msg.message")
+      .whereRaw("note_msg.application_id = applications.id")
+      .where("note_msg.sender_type", "TALENT")
+      .orderBy("note_msg.created_at", "asc")
+      .limit(1);
+    if (await hasSubmissionNoteFlag(knex)) {
+      noteQuery.where("note_msg.is_submission_note", true);
+    }
+
     // Fetch applications with organization-backed agency info
     const applications = await knex("applications")
       .leftJoin("agencies", "applications.agency_id", "agencies.id")
@@ -308,15 +337,7 @@ router.get(
         "agencies.website as agency_website",
         "agencies.logo_path as agency_logo",
         "agencies.open_boards as agency_open_boards",
-        // The talent's submitted note lives in the messages table as the first
-        // TALENT-authored message for the application (see POST "/" below).
-        knex("messages as note_msg")
-          .select("note_msg.message")
-          .whereRaw("note_msg.application_id = applications.id")
-          .where("note_msg.sender_type", "TALENT")
-          .orderBy("note_msg.created_at", "asc")
-          .limit(1)
-          .as("note"),
+        noteQuery.as("note"),
         ...(openCallReady
           ? [
               // Provenance: the latest completed quota event tells whether this
@@ -835,6 +856,7 @@ router.post(
     const applicationNote = minorSubmission
       ? ""
       : normalizeSubmissionNote(normalizedSubmissionReferences.note);
+    const noteFlagReady = await hasSubmissionNoteFlag(knex);
     const packageFingerprint = buildSubmissionPackageFingerprint({
       agencyId,
       boards: normalizedSubmissionReferences.boards,
@@ -1205,12 +1227,15 @@ router.post(
         }
 
         if (applicationNote) {
+          // Flagged so the applications list can tell the cover note apart from
+          // the chat messages that follow it in this same thread.
           await trx("messages").insert({
             application_id: applicationId,
             sender_id: req.session.userId,
             sender_type: "TALENT",
             message: applicationNote.slice(0, 1200),
             is_read: false,
+            ...(noteFlagReady ? { is_submission_note: true } : {}),
           });
         }
 

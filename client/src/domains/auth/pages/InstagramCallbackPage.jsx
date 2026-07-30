@@ -3,6 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { signInWithCustomToken } from 'firebase/auth';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { auth } from '../../../shared/lib/firebase';
+import {
+  beginExplicitAuth,
+  endExplicitAuth,
+} from '../../../shared/lib/pholio-auth/auth-lock';
 import { notifyAuthChange } from '../../../shared/lib/pholio-auth/broadcast';
 import { markAuthEntryTransition } from '../../../shared/lib/pholio-auth/entry-transition';
 import { stashOnboardingAuthHandoff } from '../../../shared/lib/pholio-auth/onboarding-handoff';
@@ -28,6 +32,12 @@ async function completeCastingEntry(idToken) {
     throw new Error(data.message || data.error || 'Onboarding entry failed');
   }
   return data;
+}
+
+function firstNameOf(displayName) {
+  if (!displayName) return null;
+  const first = String(displayName).trim().split(/\s+/)[0];
+  return first || null;
 }
 
 async function completeLogin(idToken, nextPath, identity = {}) {
@@ -58,9 +68,18 @@ async function completeLogin(idToken, nextPath, identity = {}) {
     throw new Error(data.error || data.message || 'Login failed');
   }
 
+  const target = data.redirect || nextPath || '/dashboard/talent';
   notifyAuthChange({ authenticated: true });
-  markAuthEntryTransition();
-  window.location.href = data.redirect || nextPath || '/dashboard/talent';
+  // This path genuinely crosses a document load (it is an OAuth return), so the
+  // transition is handed over in sessionStorage. Carry the identity with it so
+  // the splash opens on the real name and photo rather than placeholder
+  // initials that a later profile fetch would then rewrite mid-animation.
+  markAuthEntryTransition({
+    variant: target.startsWith('/dashboard/agency') ? 'agency' : 'talent',
+    name: firstNameOf(identity.name),
+    avatarUrl: identity.picture || null,
+  });
+  window.location.href = target;
 }
 
 export default function InstagramCallbackPage() {
@@ -79,6 +98,9 @@ export default function InstagramCallbackPage() {
         return;
       }
 
+      // Signing in with the custom token fires onAuthStateChanged, which would
+      // otherwise have PholioAuthBridge racing this page's own /api/login.
+      beginExplicitAuth();
       try {
         const completeResponse = await fetch('/api/auth/instagram/complete', {
           credentials: 'include',
@@ -119,6 +141,8 @@ export default function InstagramCallbackPage() {
         if (!cancelled) {
           setError(err.message || 'Instagram sign-in failed.');
         }
+      } finally {
+        endExplicitAuth();
       }
     }
 

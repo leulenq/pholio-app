@@ -5,7 +5,7 @@ import {
   markAgencyNotificationRead,
   markAllAgencyNotificationsRead,
 } from '../../api/agency';
-import NotificationPanel from '../../../../shared/components/NotificationCenter/NotificationPanel';
+import NotificationInbox from '../../../../shared/components/NotificationCenter/NotificationInbox';
 import '../../../../shared/components/NotificationCenter/NotificationCenter.css';
 
 export default function NotificationsDropdown({
@@ -55,7 +55,7 @@ export default function NotificationsDropdown({
 
   return (
     <div className="nd-panel-host">
-      <NotificationPanel
+      <NotificationInbox
         variant="agency"
         notifications={notifications}
         unreadCount={unreadCount}

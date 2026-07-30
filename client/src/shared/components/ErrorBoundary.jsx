@@ -1,8 +1,10 @@
 import React from 'react';
 import { ErrorStateCard } from './states';
+import { reportReactError } from '../lib/error-monitoring';
 
 /**
  * Error Boundary — catches render errors and shows the shared page-level pattern.
+ * Production shows only recovery copy; technical details are reported, not rendered.
  */
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -19,7 +21,9 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    reportReactError(error, errorInfo, {
+      boundary: this.props.boundary || 'shared',
+    });
     this.setState({ error, errorInfo });
   }
 
@@ -39,9 +43,8 @@ export class ErrorBoundary extends React.Component {
             variant="page"
             context="crash"
             severity="error"
-            eyebrow="Unexpected issue"
             title="Something went wrong"
-            body="We hit an unexpected error. Your data is safe — try again or reload the page."
+            body="We couldn't display this page. Try again, or reload the page."
             retry={{ label: 'Try again', onClick: this.handleReset }}
             secondaryAction={{
               label: 'Reload page',

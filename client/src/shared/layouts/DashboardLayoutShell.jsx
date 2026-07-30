@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../domains/auth/hooks/useAuth';
-import { useAuthEntryTransition } from '../../domains/auth/hooks/useAuthEntryTransition';
-import AuthEntrySplash from '../../domains/auth/components/AuthEntrySplash';
+import { useAuthEntryHandoff } from '../../domains/auth/hooks/useAuthEntry';
 import PageLoadingScreen from '../components/shared/PageLoadingScreen';
 import {
   resolveEntryDisplayName,
@@ -34,8 +33,6 @@ export default function DashboardLayoutShell() {
   const { user, profile, images, isLoading, isError, error } = useAuth();
   const location = useLocation();
   const authBootstrapReady = !isLoading || isError;
-  const { showEntrySplash, isEntrySplashExiting, entryStartedAt } =
-    useAuthEntryTransition(authBootstrapReady);
   const [promptContext, setPromptContext] = useState(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   // Local one-shot guard so the experience can't re-open mid-session between
@@ -45,6 +42,19 @@ export default function DashboardLayoutShell() {
   const { isBlocked } = gating;
   const isRouteGated = isBlocked && isRestrictedTalentRoute(location.pathname);
   const gateFeature = getProfileGateFeature(location.pathname);
+
+  // Hand off to the app-level entry splash: who arrived, and when this shell is
+  // genuinely usable. `authBootstrapReady` is reported from an effect in the
+  // component that renders <Outlet/>, so a route still suspending on its lazy
+  // chunk cannot commit — and the splash cannot fade out onto a route fallback.
+  useAuthEntryHandoff(authBootstrapReady, {
+    variant: 'talent',
+    name: profile ? resolveTalentGreetingName(profile) : null,
+    avatarUrl: resolveTalentEntryAvatar(profile, images, user),
+    initials: profile
+      ? resolveEntryDisplayName(profile, 'talent').slice(0, 2).toUpperCase()
+      : null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -102,24 +112,12 @@ export default function DashboardLayoutShell() {
     return <Navigate to="/onboarding" replace />;
   }
 
-  const entrySplash = showEntrySplash ? (
-    <AuthEntrySplash
-      variant="talent"
-      startedAt={entryStartedAt}
-      exiting={isEntrySplashExiting}
-      talentName={resolveTalentGreetingName(profile)}
-      avatarUrl={resolveTalentEntryAvatar(profile, images, user)}
-      avatarInitials={resolveEntryDisplayName(profile, 'talent').slice(0, 2).toUpperCase()}
-    />
-  ) : null;
-
   if (isLoading && !isError) {
-    return entrySplash || <PageLoadingScreen />;
+    return <PageLoadingScreen />;
   }
 
   return (
     <LegalAcceptanceGate>
-      {entrySplash}
       <TalentLayout outletContext={{ ...gating }}>
         {isRouteGated ? (
           <ProfileGateBanner

@@ -4,5 +4,35 @@
     "pr": "",
     "sessionUrl": false
   },
-  "includeCoAuthoredBy": false
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "Bash(netlify env:list:*)",
+      "Bash(netlify env:get:*)",
+      "Bash(netlify status:*)",
+      "Bash(dig:*)",
+      "Bash(whois:*)",
+      "Bash(nslookup:*)",
+      "Bash(tmux ls)",
+      "Bash(tmux has-session:*)",
+      "Bash(tmux capture-pane:*)",
+      "mcp__claude_ai_Higgsfield__job_status",
+      "mcp__claude_ai_Stripe__stripe_api_read",
+      "mcp__claude_ai_Stripe__stripe_api_search",
+      "mcp__claude_ai_Stripe__get_stripe_account_info",
+      "mcp__claude_ai_Stripe__search_stripe_documentation",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__list_connected_browsers",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__tabs_context",
+      "mcp__Neon__describe_project",
+      "mcp__Neon__list_projects",
+      "mcp__Neon__get_database_tables",
+      "mcp__Neon__describe_table_schema"
+    ]
+  }
 }

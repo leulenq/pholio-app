@@ -482,64 +482,176 @@
 .set-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   min-width: 0;
 }
 
 .set-field__label {
   font-family: var(--set-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--set-text-faint);
+  margin-bottom: 10px;
 }
 
-.set-field input,
-.set-field select {
+/* Match Profile tab Pholio fields: white hairline wells, 2px radius, soft gold focus. */
+.set-field input {
   width: 100%;
-  min-height: 46px;
-  padding: 0 14px;
+  min-height: 48px;
+  height: 48px;
+  padding: 12px 16px;
   border: 1px solid var(--set-hair);
-  border-radius: var(--set-radius);
-  background: var(--set-well);
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: none;
   color: var(--set-text);
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  transition: border-color 0.22s var(--set-ease), background 0.22s var(--set-ease), box-shadow 0.22s var(--set-ease);
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.set-field select {
-  appearance: none;
-  padding-right: 38px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23999' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  cursor: pointer;
+.set-field input:hover:not(:focus) {
+  border-color: var(--set-hair-strong);
+  background: #fff;
 }
 
-.set-field input:focus,
-.set-field select:focus {
+.set-field input:focus {
   outline: none;
-  border-color: var(--set-hair-gold);
-  background: var(--set-surface);
-  box-shadow: 0 0 0 4px rgba(201, 165, 90, 0.1);
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
 }
 
 .set-field input:disabled {
   color: var(--set-text-faint);
   cursor: not-allowed;
-  background: var(--set-cream-warm);
+  background: #fff;
 }
 
-.set-field input::placeholder { color: var(--set-text-faint); font-style: italic; }
+.set-field input::placeholder {
+  color: var(--set-text-faint);
+  font-style: normal;
+  font-weight: 300;
+}
 
+/* Profile-matching custom selects (Working language / Home timezone). */
+.set-fields .pholio-form-group {
+  gap: 0;
+  min-width: 0;
+}
+
+.set-fields .pholio-label {
+  font-family: var(--set-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--set-text-faint);
+  margin-bottom: 10px;
+}
+
+.set-fields .pholio-custom-select-trigger {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--set-text);
+  background: #fff;
+  border: 1px solid var(--set-hair);
+  border-radius: 2px;
+  box-shadow: none;
+  min-height: 56px;
+  height: 56px;
+  padding: 14px 18px;
+  transform: none;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.set-fields .pholio-custom-select-trigger:hover:not(:focus):not(.open) {
+  border-color: var(--set-hair-strong);
+  background: #fff;
+  transform: none;
+}
+
+.set-fields .pholio-custom-select-trigger:focus,
+.set-fields .pholio-custom-select-trigger.open {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+  outline: none;
+  transform: none;
+}
+
+.set-fields .pholio-select-control-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.set-fields .pholio-custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #fff;
+  border: 1px solid var(--set-hair);
+  border-radius: 2px;
+  box-shadow: 0 12px 36px rgba(26, 24, 21, 0.08);
+  padding: 0;
+  max-height: 250px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.set-fields .pholio-custom-select-dropdown::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.set-fields .pholio-custom-select-dropdown .pholio-select-option {
+  min-height: 52px;
+  padding: 16px 14px;
+  margin: 0;
+  border-radius: 0;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: none;
+}
+
+.set-fields .pholio-select-option:hover,
+.set-fields .pholio-select-option.active {
+  background: rgba(201, 165, 90, 0.05) !important;
+  color: var(--set-gold) !important;
+  transform: none;
+}
+
+.set-fields .pholio-select-option.selected {
+  background: rgba(201, 165, 90, 0.08);
+  color: var(--set-gold);
+  font-weight: 500;
+}
+
+.set-fields .selected-value.placeholder {
+  color: var(--set-text-faint);
+  font-weight: 300;
+}
+
+/* Sits under a 10px mono label, so it stays below the label in weight —
+   otherwise the aside reads louder than the field it annotates. */
 .set-field__hint {
-  font-size: 11.5px;
+  display: block;
+  margin-top: 6px;
+  font-size: 10.5px;
   font-weight: 300;
   line-height: 1.4;
   color: var(--set-text-faint);
+  opacity: 0.8;
 }
 
 /* ── Identity block ───────────────────────────────────────── */
@@ -622,23 +734,30 @@
   display: flex;
   align-items: center;
   min-height: 48px;
+  height: 48px;
   border: 1px solid var(--set-hair);
-  border-radius: var(--set-radius);
-  background: var(--set-well);
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: none;
   overflow: hidden;
-  transition: border-color 0.22s var(--set-ease), box-shadow 0.22s var(--set-ease);
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.set-handle__field:hover:not(:focus-within) {
+  border-color: var(--set-hair-strong);
 }
 
 .set-handle__field:focus-within {
-  border-color: var(--set-hair-gold);
-  box-shadow: 0 0 0 4px rgba(201, 165, 90, 0.1);
+  border-color: rgba(201, 165, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
 }
 
 .set-handle__origin {
   flex: none;
-  padding: 0 4px 0 15px;
-  font-family: var(--set-mono);
-  font-size: 13px;
+  padding: 0 4px 0 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 300;
   color: var(--set-text-faint);
   white-space: nowrap;
 }
@@ -646,17 +765,25 @@
 .set-handle__field input {
   flex: 1;
   min-width: 0;
-  height: 46px;
-  padding: 0 14px 0 2px;
+  height: 100%;
+  padding: 12px 16px 12px 2px;
   border: none;
   background: none;
+  box-shadow: none;
   color: var(--set-text);
-  font-family: var(--set-mono);
-  font-size: 13px;
-  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
 }
 
 .set-handle__field input:focus { outline: none; }
+
+.set-handle__field input::placeholder {
+  color: var(--set-text-faint);
+  font-style: normal;
+  font-weight: 300;
+}
 
 .set-handle__actions {
   display: flex;
@@ -706,25 +833,38 @@
 .set-blockform input {
   flex: 1;
   min-width: 0;
-  min-height: 46px;
-  padding: 0 14px;
+  min-height: 48px;
+  height: 48px;
+  padding: 12px 16px;
   border: 1px solid var(--set-hair);
-  border-radius: var(--set-radius);
-  background: var(--set-well);
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: none;
   color: var(--set-text);
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  transition: border-color 0.22s var(--set-ease), box-shadow 0.22s var(--set-ease);
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.set-blockform input:hover:not(:focus) {
+  border-color: var(--set-hair-strong);
+  background: #fff;
 }
 
 .set-blockform input:focus {
   outline: none;
-  border-color: var(--set-hair-gold);
-  background: var(--set-surface);
-  box-shadow: 0 0 0 4px rgba(201, 165, 90, 0.1);
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
 }
 
-.set-blockform input::placeholder { color: var(--set-text-faint); font-style: italic; }
+.set-blockform input::placeholder {
+  color: var(--set-text-faint);
+  font-style: normal;
+  font-weight: 300;
+}
 
 .set-blocklist {
   list-style: none;
@@ -834,8 +974,116 @@
    gold label, then the thing itself, then the consequence in prose. */
 .set-signin { padding: clamp(22px, 2.4vw, 30px); }
 
-/* A sign-in block followed by controls (Security's password row) needs the rule
-   the card head used to provide. */
+/* ── Google-Native Sign-In Identity Card ─────────────────────── */
+
+.set-signin-google {
+  padding: clamp(22px, 2.4vw, 30px);
+  font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.set-card > .set-signin-google:not(:last-child) {
+  border-bottom: 1px solid var(--set-hair);
+}
+
+.set-signin-google__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--set-text);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  font-family: 'Inter', sans-serif;
+}
+
+.set-signin-google__label svg {
+  color: var(--set-gold);
+}
+
+.set-signin-google__card {
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.08), 0 1px 3px 1px rgba(60, 64, 67, 0.04);
+}
+
+.set-signin-google__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.set-signin-google__mark {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
+}
+
+.set-signin-google__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.set-signin-google__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.set-signin-google__title {
+  font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: #202124;
+  line-height: 1.25;
+}
+
+.set-signin-google__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 12px;
+  background: #e6f4ea;
+  color: #137333;
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.set-signin-google__email {
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #5f6368;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-signin-google__note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #f1f3f4;
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #5f6368;
+}
+
 .set-card > .set-signin:not(:last-child) {
   border-bottom: 1px solid var(--set-hair);
 }
@@ -1313,6 +1561,20 @@
   .set-signin__identity { gap: 14px; }
   .set-signin__mark { width: 46px; height: 46px; }
   .set-signin__address { font-size: 12px; }
+
+  /* iOS zoom-on-focus fix — match Profile tab (≥16px on small screens). */
+  .set-field input,
+  .set-handle__origin,
+  .set-handle__field input,
+  .set-blockform input,
+  .set-fields .pholio-custom-select-trigger {
+    font-size: 16px;
+  }
+
+  .set-field__label,
+  .set-fields .pholio-label {
+    font-size: 11px;
+  }
 }
 
 /* ── Reduced motion ───────────────────────────────────────── */

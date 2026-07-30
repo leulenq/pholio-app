@@ -1,5 +1,58 @@
 # Lessons Learned
 
+## 2026-07-29 — Don't vertically centre an overlay inside a native-control field
+
+- Two offset attempts failed to align the date-of-birth age readout with
+  Firefox's native calendar button: a `top` derived from label metrics sat too
+  high, and a `bottom`-anchored translate sat too low. Any magic offset is
+  guessing at a line box the browser owns.
+- Fix: put the derived value on the **label line** (`top: 0; right: 0`) with the
+  label's exact font metrics. It is aligned by construction, needs no offset,
+  and cannot collide with the native picker button.
+- Keep the overlay's font-size in sync with the label inside responsive queries,
+  or the shared baseline breaks on mobile.
+
+## 2026-07-29 — Drawer height animation must not permanently clip dropdowns
+
+- Framer Motion height expand/collapse needs `overflow: hidden` only while
+  animating. Leaving it on after open clips absolutely positioned selects
+  (`PholioCustomSelect`) at the drawer edge — Board/Market looked cropped in
+  Saved cards.
+- Pattern: clip during `onAnimationStart`, set `overflow: visible` in
+  `onAnimationComplete` when open; re-clip before exit. Prefer this over
+  portaling unless multiple ancestors clip.
+
+## 2026-07-29 — Reuse Profile field geometry exactly
+
+- When the user says a control should match `/profile`, inspect the scoped
+  Profile CSS before styling it. `PholioCustomSelect` / `PholioInput` alone do
+  not provide the Profile appearance; `ProfilePage.module.css` overrides the
+  shared 8px wells with 2px editorial field radius, white hairline borders,
+  JetBrains Mono field titles, light 300-weight text, and a restrained gold
+  focus state.
+- A compact version may reduce height, width, font size, and padding for its
+  context, but should preserve the source control's geometry and state language.
+  Do not describe an approximation as matching the Profile field.
+- Talent `global.css` uppercases every bare `<label>`. Scoped form titles must
+  explicitly set JetBrains Mono / tracking / faint color, or they inherit the
+  generic Inter uppercase treatment and look wrong next to Profile.
+
+## 2026-07-29 — Media publishing controls: use enforced audience flags and shared controls
+
+- Do not compose a premium audience selector from a one-off checkbox styled as
+  a switch. Firefox exposed inconsistent native checkbox rendering despite the
+  custom CSS. Use the shared `PholioToggle` and scope its dark-surface treatment.
+- Talent `global.css` uppercases every `<label>`. Sentence-case controls inside
+  talent overlays must explicitly reset `text-transform` and `letter-spacing`
+  on the actual labels, then be verified in the running browser.
+- `metadata.visibility` is not used by portfolio or agency image queries.
+  `exclude_from_public` and `exclude_from_agency` are the enforced sources of
+  truth. UI state and legacy metadata must derive from those columns rather
+  than presenting three controls that can contradict one another.
+- Premium composition on a narrow editor rail means open rows, clear hierarchy,
+  and quiet hairlines—not nested bordered cards, saturated tracks, all-caps
+  labels, or explanatory copy competing at the same weight.
+
 ## 2026-07-27 — Settings Identity blank names = mount hydration skip, not missing data
 
 - `IdentityMovement` used empty `useState` + "adjust during render" sync that
@@ -498,3 +551,65 @@
 
 - When implementation lives in an isolated worktree but the user is viewing a dev server from the original checkout, a correct diff can still look like “no change.” Restart the live backend and Vite processes from the implementation worktree, then verify the exact user-facing route in the browser before reporting progress.
 - Before continuing a named implementation branch, fetch and rebase onto the exact remote tip first. A branch-name match is not evidence that the checkout contains the latest branch work.
+
+## 2026-07-29 — Never squeeze a PholioButton role into a custom footprint
+
+- `PholioButton.css` re-declares each role with `!important` (`--primary` locks
+  `min-height: 44px` and `padding: 10px 22px`). Route CSS that sets `width: 42px`
+  plus a non-important `padding: 0` cannot win, and `overflow: hidden` on the
+  role then clips the label — that is what cropped “Send” to “Sen”. If a control
+  needs a square footprint, use `PholioIconButton`; otherwise let the role size
+  to its content and give it room in the layout. In a narrow dock, skip
+  `PholioButton` entirely and own a compact native control — page-scale primary
+  is the wrong size for a 384px sheet.
+- Replacing a `PholioButton` with `<button>` is not enough if the replacement
+  keeps the same dark filled block treatment. When the direction is “do not use
+  PholioButton,” remove both the component dependency and its visual language;
+  the dock send should be a quiet inline action with a transparent background.
+- Global `:where(body) textarea` paints a bordered white field on every bare
+  textarea. A composer well that also draws a border must override the global
+  rules (`border: 0 !important`, transparent background, no inset shadow) or the
+  field reads as two outlines. Same trap: `:where(body:not(.is-agency)) button`
+  forces pill radius and `0.75rem 1.75rem` padding on bare buttons — dock close
+  and send need explicit `!important` resets.
+- A composer reads composed when the field and its actions share one well: a
+  borderless textarea, a hairline divider, then assist-left / send-right, with
+  focus expressed as a single border-color change — not an extra outer ring.
+- A message thread must open on the newest exchange. Scroll the last bubble into
+  view with `block: 'nearest'` so it works whether the list scrolls (submission
+  dock) or an ancestor scrolls (Messages workspace).
+
+## 2026-07-29 — Never re-derive a distinct record from ordering
+
+- `applications.note` had no column. The list endpoint reconstructed the
+  submitted cover note as "the earliest TALENT row in `messages`", because the
+  note is written into that table so it opens the agency's thread. Any talent who
+  messaged after a note-less submission saw their chat surface as "Your note".
+  Two records sharing one table need an explicit marker (`is_submission_note`),
+  not a position guess — ordering is not identity.
+- Guard a new column with a cached `hasColumn` probe on both the read and write
+  path (the `hasOpenCallSchema` pattern) so a deploy that lands before its
+  migration degrades to the old behaviour instead of throwing.
+- Backfilling a flag that was never stored needs an anchor, not a guess. The note
+  is written in the submission transaction, so `talent_submission_packages.created_at`
+  (one row per send, which also covers resubmission — a revived application keeps
+  its original `created_at`) dates it within seconds. Candidates matching no
+  anchor stay unflagged: missing a note is recoverable, mislabelling chat is the
+  bug being fixed.
+- Prove a data-provenance fix by re-running the test with the old derivation
+  restored. Seeing the suite return the user's exact symptom (`Received: "Hello"`)
+  is the evidence; a green suite alone would not distinguish the two.
+- `.env` in this repo points `DATABASE_URL` at the production Neon branch, so the
+  local dev server reads production. Never run `npm run migrate` as part of
+  "verifying locally" — ask first, and keep verification on the isolated SQLite
+  runner (`npm test`).
+
+## 2026-07-29 — Match the rendered reference, not an inferred component name
+
+- “Metric / Imperial toggle” referred to the rendered editorial tab treatment:
+  tracked uppercase labels and a gold active underline. Reading only the local
+  module CSS suggested an inset segmented pill because global `!important`
+  toggle styles override that module at runtime.
+- For visual matching requests, inspect the supplied screenshot and the full
+  cascade before choosing the visual primitive. A class name or stale local rule
+  is weaker evidence than the rendered control.

@@ -18,7 +18,6 @@ const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const ApplicationsPage = lazy(() => import('./domains/talent/pages/ApplicationsPage'));
 const MessagesPage = lazy(() => import('./domains/talent/pages/MessagesPage'));
 const ApplyPage = lazy(() => import('./domains/talent/pages/ApplyPage'));
-const RevealPage = lazy(() => import('./domains/talent/pages/RevealPage'));
 
 const SettingsPage = lazy(() => import('./domains/talent/pages/SettingsPage'));
 const CastingCallPage = lazy(() => import('./domains/onboarding/pages/CastingCallPage'));
@@ -62,7 +61,7 @@ function LegacyAgencySigningRedirect() {
 
 function App() {
   return (
-    <ErrorBoundary>
+    <ErrorBoundary boundary="app-root">
       <PholioAuthBridge />
       <CookieConsentBanner />
       <Suspense fallback={<RouteFallback />}>
@@ -92,9 +91,12 @@ function App() {
           {/* Magic-link message reply (standalone, no login wall) */}
           <Route path="/reply/:token" element={<ReplyPage />} />
 
-          {/* Standalone Reveal */}
-          <Route path="/reveal" element={<RevealPage />} />
-          <Route path="/dashboard/talent/reveal" element={<RevealPage />} />
+          {/* The post-onboarding reveal is gone; old links land on the dashboard. */}
+          <Route path="/reveal" element={<Navigate to="/dashboard/talent" replace />} />
+          <Route
+            path="/dashboard/talent/reveal"
+            element={<Navigate to="/dashboard/talent" replace />}
+          />
 
           {/* Agency open call arrival — standalone, pre-auth */}
           <Route path="/opencall/:code" element={<OpenCallArrivalPage />} />

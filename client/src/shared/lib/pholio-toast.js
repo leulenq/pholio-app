@@ -34,8 +34,14 @@ function normalizeToastCopy(type, title, options) {
   let nextTitle = rawTitle;
   let nextDescription = rawDescription;
 
-  if (type === 'success' && lowerTitle === 'profile saved successfully') {
-    nextTitle = 'Profile saved';
+  if (type === 'success') {
+    if (lowerTitle === 'profile saved successfully') {
+      nextTitle = 'Profile saved';
+    } else if (lowerTitle === 'media set created') {
+      nextTitle = 'Dated set created';
+    } else if (lowerTitle === 'current media set updated') {
+      nextTitle = 'Current set updated';
+    }
   }
 
   if (type === 'error') {
