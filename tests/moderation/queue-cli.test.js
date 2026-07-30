@@ -41,6 +41,9 @@ describe("moderation review queue (WS10)", () => {
   const allImageIds = [IMAGE_REVIEW, IMAGE_ORPHAN, IMAGE_APPROVED, IMAGE_ROUTED];
 
   beforeAll(async () => {
+    // Own the schema rather than inheriting whatever the previously-run suite
+    // left in the shared SQLite file (see queue-actions.test.js).
+    await knex.migrate.latest();
     await ensureModerationColumnChecked(knex);
     const now = new Date().toISOString();
 

@@ -3210,3 +3210,63 @@ Onboarding's finishing preloader now hands off to `/dashboard/talent` instead of
 - `ProfilePage.test.jsx`: 6/6 passed. Changed-file ESLint: passed.
 - Production build is blocked outside this task by the in-progress Intel rewrite:
   `BookBlock.jsx` imports `DataTable`, which `charts/chartKit.jsx` does not export.
+## 2026-07-29 — `/onboarding` headshot upload: "No primary image set"
+
+**Reported:** `[Casting Hook] Error at /scout/confirm: No primary image set` after
+uploading a headshot on `/onboarding`.
+
+**Root cause (three stacked defects, confirmed against the live DB and the actual
+uploaded file):**
+
+1. `src/shared/lib/content-moderation.js` — the heuristic's "skin-tone ratio"
+   classifies warm *hue*, not skin. The reported photo (a clothed selfie in front
+   of a cream wall) scored 0.639 against a 0.6 review threshold; the wall region
+   alone scored 0.997. Verdict: `review`.
+2. `src/domains/onboarding/routes/casting.js` — the scout upload withholds
+   `is_primary` from a `review` image (correct: it must not surface publicly), but
+   `/scout/confirm` *required* a primary row and returned `400 "No primary image
+   set"`. With no moderator on call, the talent could never leave the scout step.
+3. `src/shared/lib/csam-moderation.js` treats `high_skin_ratio` as CRITICAL, so
+   every warm-toned portrait also opened a critical CSAM escalation. (Rules left
+   untouched — fixing (1) removes the false input.)
+
+**Changes**
+
+- [x] Gate the skin-tone ratio on local texture (3x3 luma std-dev floor) so a flat
+      warm backdrop no longer counts as skin. Review threshold and the
+      fail-toward-review posture unchanged; ungated hue ratio recorded as
+      `flags.skinHueRatio` for queue triage.
+- [x] `/scout/confirm` resolves the casting photo as primary → newest digital
+      headshot → any digital upload, so a review-held photo advances the flow while
+      staying non-primary and hidden from viewers. `HEADSHOT_REQUIRED` remains the
+      only photo gate; response now carries `pending_review`.
+- [x] New `tests/onboarding/scout-confirm-review.test.js` — pins that a
+      review-held headshot advances scout → measurements and is not published.
+- [x] Replaced flat solid-colour moderation fixtures with textured ones (they had
+      encoded the wall case); added a regression test that a beige wall approves.
+- [x] Repaired pre-existing failures in `tests/onboarding/security-hardening.test.js`
+      (its `entry()` helper predated mandatory DOB at entry, so every seed got a
+      non-200; M5's minor-headshot expectations predated the adult-only launch gate).
+- [x] `tests/moderation/queue-{actions,cli}.test.js` now run their own migrations
+      instead of inheriting another suite's SQLite file.
+
+**Verification**
+
+- The exact failing photo now returns `approved`, `isPrimary: true`, no CSAM
+  escalation (`skinRatio` 0.639 → 0.279).
+- Full `/onboarding` flow driven end to end against the real heuristic (no
+  moderation mock) with that photo: entry → gender → scout upload → confirm →
+  measurements → profile → complete → `done`.
+- `tests/onboarding`, `tests/e2e-casting-to-dashboard`, `tests/shared`: all green.
+- Full suite: 18 failing suites, all pre-existing and unrelated (Puppeteer/Chrome
+  missing, PDF jury, talent/* + integration SQLite migration debt). Baseline was
+  21 — the casting e2e and onboarding security-hardening suites now pass.
+
+**Left open (needs a product call, not a code fix)**
+
+- The heuristic cannot actually distinguish nudity from a skin-hued backdrop. It is
+  a weak triage signal only. Real detection means enabling the existing `hive`
+  provider (`MODERATION_PROVIDER=hive` + `HIVE_API_KEY`).
+- Two false-positive CSAM escalations + two pending queue rows remain on profile
+  `ed43363e…` in production, and that profile is still parked at `scout` with both
+  headshots held at `review`.

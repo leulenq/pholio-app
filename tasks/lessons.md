@@ -726,3 +726,25 @@
 - Fashion Week Brooklyn only validates the core thesis when an actual agency is
   receiving a representation submission. Event casting is a different product
   object and must not be relabeled to fit the agency-application portal.
+## 2026-07-29 — A "skin-tone ratio" measures hue, not skin
+
+- The onboarding scout upload flagged an ordinary clothed selfie for moderation
+  review (`high_skin_ratio`, ratio 0.639 vs a 0.6 threshold), which withheld
+  `is_primary`, which made `/scout/confirm` answer `400 "No primary image set"`
+  and dead-end the flow. Three defects stacked; the visible error named none of
+  them.
+- Measure before tuning a threshold. Cropping the frame showed the empty cream
+  wall behind the subject scored **0.997** on its own: the Kovac RGB rule accepts
+  any warm surface (beige paint, wood, sand), and no threshold can separate a
+  backdrop from a body when both are the same hue. YCbCr bounds do not fix it
+  either — beige *is* skin-hued. The fix was to add a signal the hue rule lacks
+  (3x3 luma std-dev floor: flat paint ~0, photographed skin not), which dropped
+  the wall to 0.021 while the face region held 0.481.
+- A gate whose only escape hatch is a human queue must never block a linear
+  flow. Onboarding had no moderator on call, so a false positive was an
+  unbounded block. Advance the flow off the uploaded photo and keep the image
+  hidden from viewers instead — the exposure rule and the progression rule are
+  separate concerns.
+- Tests that assert on flat solid-colour fixtures can encode the bug. Three
+  suites asserted a *uniform* skin-toned PNG flags for review — i.e. exactly the
+  wall case. Synthesise texture when standing in for a photograph.

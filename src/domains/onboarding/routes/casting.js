@@ -1406,9 +1406,23 @@ router.post(
         if (localImage) primaryImage = localImage;
       }
 
+      // A headshot held for moderation review is deliberately NOT promoted to
+      // primary (it must not surface publicly before a moderator clears it), so
+      // there may be no primary row even though the talent supplied a real
+      // photo. Onboarding must not dead-end on that: fall back to the newest
+      // uploaded headshot so the flow advances while the image stays hidden from
+      // viewers. `realUpload` above is the only photo gate on this step.
       if (!primaryImage) {
-        return res.status(400).json({ error: "No primary image set" });
+        primaryImage = await knex("images")
+          .where({ profile_id: profile.id, image_type: "digital" })
+          .andWhere({ shot_type: "headshot" })
+          .orderBy("created_at", "desc")
+          .first();
       }
+
+      // Last resort: any digital upload. `realUpload` proved one exists, so this
+      // only differs from the query above when the row predates shot_type.
+      if (!primaryImage) primaryImage = realUpload;
 
       // Transition state
       const state = getState(profile);
@@ -1449,12 +1463,18 @@ router.post(
         ai_success: true,
       });
 
+      // Truthful signal for the client: the step advanced, but the confirmed
+      // photo is still held for review and will not be visible to agencies yet.
+      const pendingReview =
+        primaryImage.moderation_status === MODERATION_STATUS.REVIEW;
+
       return res.json({
         success: true,
         redirect: "/onboarding/measurements",
         photo_url: primaryImage.path,
         can_complete: canComplete(updatedState),
         next_steps: getNextSteps(updatedState),
+        ...(pendingReview ? { pending_review: true } : {}),
         message: "Scout confirmed",
       });
     } catch (error) {
