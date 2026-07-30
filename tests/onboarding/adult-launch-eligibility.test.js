@@ -46,6 +46,29 @@ const app = require("../../src/app");
 
 const createdEmails = new Set();
 let sequence = 0;
+const LAUNCH_TIME_ZONE = "America/New_York";
+
+function launchCalendarParts(date = new Date()) {
+  const values = {};
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: LAUNCH_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date).forEach(({ type, value }) => {
+    if (type !== "literal") values[type] = Number(value);
+  });
+  return values;
+}
+
+function launchBirthdayForAge(age) {
+  const today = launchCalendarParts();
+  return `${today.year - age}-${String(today.month).padStart(2, "0")}-${String(today.day).padStart(2, "0")}`;
+}
+
+function responseCookie(response) {
+  return (response.headers["set-cookie"] || []).map((item) => item.split(";")[0]);
+}
 
 function uniqueEmail(label) {
   sequence += 1;
@@ -93,8 +116,7 @@ async function purgeUserByEmail(email) {
 
 describe("adult-only talent onboarding launch boundary", () => {
   test("rejects missing, malformed, and 17-year-old DOB evidence before any account or profile write", async () => {
-    const today = new Date();
-    const seventeenDob = `${today.getUTCFullYear() - 17}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
+    const seventeenDob = launchBirthdayForAge(17);
     const cases = [
       { label: "missing", dob: undefined, status: 400, error: "DOB_REQUIRED" },
       { label: "invalid", dob: "not-a-date", status: 400, error: "DOB_INVALID" },
@@ -118,8 +140,7 @@ describe("adult-only talent onboarding launch boundary", () => {
     const email = uniqueEmail("eighteen");
     const uid = `adult-launch-eighteen-${sequence}`;
     const agent = request.agent(app);
-    const today = new Date();
-    const dob = `${today.getUTCFullYear() - 18}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
+    const dob = launchBirthdayForAge(18);
 
     const response = await postEntry(agent, { email, uid, dob });
 
@@ -147,7 +168,7 @@ describe("adult-only talent onboarding launch boundary", () => {
     expect(replay.status).toBe(409);
     expect(replay.body.error).toBe("DOB_IMMUTABLE");
 
-    const cookie = (first.headers["set-cookie"] || []).map((item) => item.split(";")[0]);
+    const cookie = responseCookie(resume);
     const backButtonReplay = await agent
       .post("/casting/birthdate")
       .set("Cookie", cookie)
@@ -169,13 +190,15 @@ describe("adult-only talent onboarding launch boundary", () => {
     expect(first.status).toBe(200);
 
     const user = await knex("users").where({ email }).first();
-    const today = new Date();
-    const minorDob = `${today.getUTCFullYear() - 17}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
+    const minorDob = launchBirthdayForAge(17);
     await knex("profiles")
       .where({ user_id: user.id })
       .update({ date_of_birth: minorDob });
 
-    const blocked = await agent.post("/casting/gender").send({ gender: "Female" });
+    const blocked = await agent
+      .post("/casting/gender")
+      .set("Cookie", responseCookie(first))
+      .send({ gender: "Female" });
     expect(blocked.status).toBe(403);
     expect(blocked.body.error).toBe("ADULT_ELIGIBILITY_REQUIRED");
   });

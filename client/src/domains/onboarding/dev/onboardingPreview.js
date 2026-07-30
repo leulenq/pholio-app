@@ -53,7 +53,6 @@ export const PREVIEW_STEPS = [
     ],
   },
   { view: 'verify', label: 'Verify email', subSteps: null },
-  { view: 'birthdate', label: 'Birthdate', subSteps: null },
   { view: 'gender', label: 'Identity', subSteps: null },
   { view: 'scout', label: 'Digitals', subSteps: null },
   {
