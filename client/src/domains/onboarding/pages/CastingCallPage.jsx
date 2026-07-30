@@ -2,8 +2,8 @@
  * Casting Call Page
  * Main controller for the talent onboarding flow.
  *
- * Flow: Entry → Birthdate → Gender → Scout → Measurements → Profile → Dashboard
- * (birthdate before gender: the age gate precedes further personal data)
+ * Flow: Entry (including adult DOB eligibility) → Gender → Scout →
+ * Measurements → Profile → Reveal
  */
 
 import React, { useCallback, useState } from 'react';
@@ -20,7 +20,6 @@ import CastingEntry from './CastingEntry';
 import CastingScout from './CastingScout';
 import CastingMeasurements from './CastingMeasurements';
 import CastingGender from './CastingGender';
-import CastingBirthdate from './CastingBirthdate';
 import CastingProfile from './CastingProfile';
 import CastingVerifyEmail from './CastingVerifyEmail';
 import AcknowledgmentBeat from './AcknowledgmentBeat';
@@ -40,7 +39,6 @@ const DEV_PREVIEW = import.meta.env.DEV;
 // User-facing guided steps shown in the rail (entry/auth precedes the rail,
 // the finishing preloader follows it).
 const RAIL_STEPS = [
-  { view: 'birthdate', label: 'Birthdate' },
   { view: 'gender', label: 'Identity' },
   { view: 'scout', label: 'Digitals' },
   { view: 'measurements', label: 'Stats' },
@@ -50,9 +48,9 @@ const RAIL_STEPS = [
 // Legacy step names that can still live in old rows' onboarding_state_json.
 // The server heals these too; this is belt-and-braces for stale /status data.
 const LEGACY_STEP_MAP = {
-  identity: 'birthdate',
-  verification_pending: 'birthdate',
-  reveal: 'done',
+  identity: 'gender',
+  verification_pending: 'gender',
+  birthdate: 'gender',
 };
 
 // Persists which stable rail step the user was on across an unplanned remount
@@ -66,7 +64,7 @@ const LEGACY_STEP_MAP = {
 // falls back to 'entry' and lets the server-driven resume effect below correct
 // it, same as before this fix.
 const VIEW_STORAGE_KEY = 'pholio.onboarding.currentView';
-const PERSISTABLE_VIEWS = new Set(['entry', 'birthdate', 'gender', 'scout', 'measurements', 'profile']);
+const PERSISTABLE_VIEWS = new Set(['entry', 'gender', 'scout', 'measurements', 'profile']);
 
 function readStoredView() {
   if (typeof sessionStorage === 'undefined') return 'entry';
@@ -131,7 +129,7 @@ function CastingCallPage() {
   const previewActive = DEV_PREVIEW && !!preview;
   const previewFinishing = previewActive && preview.view === 'finishing';
 
-  // Step 1: Entry Complete → greet beat (when we know a name) → birthdate.
+  // Step 1: Entry Complete → greet beat (when we know a name) → identity.
   // Declared here so the preview effect below can reference setGreetName.
   const [greetName, setGreetName] = useState(null);
 
@@ -172,7 +170,7 @@ function CastingCallPage() {
   // Custom Greet Beat auto-advance and click-to-skip handling for all signups.
   // Email/password signups pass through the inbox beat first — their address
   // is unverified until the Firebase link is clicked. OAuth arrives verified.
-  const afterGreetView = 'birthdate';
+  const afterGreetView = 'gender';
   React.useEffect(() => {
     if (currentView !== 'greet') return;
     if (previewActive) return; // Do not auto-advance when previewing!
@@ -208,10 +206,17 @@ function CastingCallPage() {
       guardian_consent_at: status?.profile?.guardian_consent_at,
     });
 
-  // Step 1: Entry Complete → greet beat (when we know a name) → birthdate.
+  // Step 1: Entry Complete → greet beat (when we know a name) → identity.
   // "Good to meet you, {name}." is one of the House's three name uses.
   // (greetName declared above the preview effect so the dev harness can reference it.)
-  const handleEntryComplete = ({ method, name, email, picture, manualData }) => {
+  const handleEntryComplete = ({
+    method,
+    name,
+    email,
+    picture,
+    manualData,
+    date_of_birth,
+  }) => {
     if (method) {
       setSignupMethod(method);
       setOauthUserData({
@@ -224,6 +229,9 @@ function CastingCallPage() {
     if (manualData) {
       setProfileData(prev => ({ ...prev, ...manualData }));
     }
+    if (date_of_birth) {
+      setProfileData(prev => ({ ...prev, date_of_birth }));
+    }
 
     const rawName = name || manualData?.name || status?.profile?.first_name || '';
     const firstName = rawName.trim().split(' ')[0];
@@ -233,16 +241,10 @@ function CastingCallPage() {
       return;
     }
     // No greet without a usable name; email signups still take the inbox beat.
-    setCurrentView(method === 'manual' ? 'verify' : 'birthdate');
+    setCurrentView(method === 'manual' ? 'verify' : 'gender');
   };
 
-  // Step 1.5: Birthdate Complete (age gate before any further personal data)
-  const handleBirthdateComplete = (data) => {
-    setProfileData(prev => ({ ...prev, date_of_birth: data.date_of_birth, age: data.age }));
-    setCurrentView('gender');
-  };
-
-  // Step 1.6: Gender Complete (gender already persisted by CastingGender)
+  // Step 1.5: Gender Complete (gender already persisted by CastingGender)
   const handleGenderComplete = (data) => {
     setProfileData(prev => ({ ...prev, gender: data.gender }));
     setCurrentView('scout');
@@ -370,10 +372,10 @@ function CastingCallPage() {
     // Resume from where the user left off (skip 'done' — no auto-forward).
     if (currentView === 'entry' && current_step !== 'entry' && current_step !== 'done') {
       // An email/password signup that reloaded before verifying re-enters the
-      // inbox beat first. Only at birthdate (the step right after entry) — a
+      // inbox beat first. Only at gender (the step right after entry) — a
       // user already deeper in the flow is never yanked back.
       const needsVerifyBeat =
-        current_step === 'birthdate' &&
+        current_step === 'gender' &&
         status.user?.auth_method === 'email' &&
         !status.user?.email_verified;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- routing effect to resume mid-flow; fires at most once per session step
@@ -439,7 +441,7 @@ function CastingCallPage() {
   // Cinematic preloader shown during the isFinishing → dashboard transition
 
   // The greet beat shares entry's progress slot — it isn't a step of its own.
-  const steps = ['entry', 'birthdate', 'gender', 'scout', 'measurements', 'profile', 'complete'];
+  const steps = ['entry', 'gender', 'scout', 'measurements', 'profile', 'complete'];
   const currentStepIndex = steps.indexOf(
     currentView === 'greet' || currentView === 'verify' ? 'entry' : currentView,
   );
@@ -720,17 +722,9 @@ function CastingCallPage() {
                     if (greetName) {
                       setCurrentView('greet');
                     } else {
-                      setCurrentView('birthdate');
+                      setCurrentView('gender');
                     }
                   }}
-                />
-              )}
-
-              {currentView === 'birthdate' && (
-                <CastingBirthdate
-                  key="birthdate"
-                  onComplete={handleBirthdateComplete}
-                  firstName={firstName}
                 />
               )}
 

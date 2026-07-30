@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signOut,
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
@@ -24,16 +25,51 @@ import SpotlightField from '../components/SpotlightField';
 import { useActionDock } from '../components/ActionDockContext';
 import { InlineErrorText } from '../../../shared/components/states';
 import LegalNoticeLine from '../../../shared/components/LegalNoticeLine';
-import {
-  isInstagramAuthConfigured,
-  startInstagramAuth,
-} from '../../auth/lib/instagram-auth';
 import './CastingEntry.screen.css';
 import '../styles/CastingSteps.css';
 
 // Acceptance travels silently with every entry payload — the colophon under the
 // buttons is the disclosure; nothing blocks and nothing toasts.
 const LEGAL_ACCEPTANCE = { terms_accepted: true, privacy_accepted: true };
+const LAUNCH_TIME_ZONE = 'America/New_York';
+
+function launchCalendarParts(date = new Date()) {
+  const values = {};
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: LAUNCH_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date).forEach(({ type, value }) => {
+    if (type !== 'literal') values[type] = Number(value);
+  });
+  return values;
+}
+
+function launchCalendarDateString(date = new Date()) {
+  const { year, month, day } = launchCalendarParts(date);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function getLaunchAge(value, referenceDate = new Date()) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  ) return null;
+
+  const today = launchCalendarParts(referenceDate);
+  let age = today.year - year;
+  if (today.month < month || (today.month === month && today.day < day)) age -= 1;
+  return age >= 0 && age < 130 ? age : null;
+}
 
 /** Map raw Firebase error codes to quiet, house-voice inline copy. */
 function humanizeAuthError(error) {
@@ -88,9 +124,12 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [authError, setAuthError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [instagramEnabled, setInstagramEnabled] = useState(false);
-  const [pendingOAuth, setPendingOAuth] = useState(null); // { user, method, name, email, picture }
-  const [dob, setDob] = useState('');
+  const [dob, setDob] = useState(() => (
+    import.meta.env.DEV && initialStep ? '1998-01-01' : ''
+  ));
+  // DOB is eligibility evidence, not a profile detail step. Confirm it before
+  // any provider can create an identity or submit the Pholio entry request.
+  const [dobConfirmed, setDobConfirmed] = useState(() => Boolean(import.meta.env.DEV && initialStep));
   const entryMutation = useCastingEntry();
   const resumeStartedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
@@ -130,12 +169,6 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
   React.useEffect(() => {
     if (!registerBack) return undefined;
     registerBack(() => {
-      if (pendingOAuth) {
-        setPendingOAuth(null);
-        setDob('');
-        setAuthError(null);
-        return true;
-      }
       if (manualStep > 0) {
         setManualStep((prev) => prev - 1);
         setFieldErrors({});
@@ -145,7 +178,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       return false;
     });
     return () => registerBack(null);
-  }, [registerBack, manualStep, pendingOAuth]);
+  }, [registerBack, manualStep]);
 
   // Report progress whenever manualStep changes.
   // 4 sub-steps: Choice(0), Name(1), Email(2), Password(3) → 0% -> 75% of "Entry".
@@ -155,10 +188,6 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
     }
   }, [manualStep, onProgress]);
 
-  useEffect(() => {
-    isInstagramAuthConfigured().then(setInstagramEnabled);
-  }, []);
-
   const finishOAuthEntry = async (user, method, extras = {}) => {
     const token = await user.getIdToken();
     const displayName = extras.name || user.displayName || null;
@@ -166,8 +195,9 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       firebase_token: token,
       name: displayName,
       ...LEGAL_ACCEPTANCE,
-      ...(extras.date_of_birth ? { date_of_birth: extras.date_of_birth } : {}),
+      date_of_birth: dob,
     });
+    const establishedDob = response.date_of_birth || dob;
 
     onCompleteRef.current({
       hasOAuthData: response.has_oauth_data,
@@ -175,6 +205,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       name: displayName,
       email: extras.email || user.email,
       picture: extras.picture || user.photoURL,
+      date_of_birth: establishedDob,
       manualData: displayName ? { name: displayName } : undefined,
     });
   };
@@ -187,28 +218,15 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       await finishOAuthEntry(user, method, extras);
     } catch (error) {
       console.error('[Casting Entry] Auth error:', error);
-      if (
-        error?.code === 'DOB_REQUIRED' ||
-        error?.code === 'DOB_INVALID' ||
-        error?.code === 'DOB_FUTURE'
-      ) {
-        setPendingOAuth({
-          user,
-          method,
-          name: extras.name || user.displayName || null,
-          email: extras.email || user.email || null,
-          picture: extras.picture || user.photoURL || null,
-        });
-        setIsAuthenticating(false);
-        setAuthError(error.code === 'DOB_REQUIRED' ? null : humanizeAuthError(error));
-        return;
-      }
       setAuthError(humanizeAuthError(error));
       setIsAuthenticating(false);
     }
   };
 
-  // Resume Google/Instagram from /login when Firebase already signed them in.
+  // The adults-only launch starts here, with DOB before provider signup. A
+  // /login continuation already authenticated with a provider, so clear that
+  // identity and return to the eligibility gate instead of creating a Pholio
+  // account before DOB is established.
   useEffect(() => {
     if (resumeStartedRef.current) return undefined;
     if (import.meta.env.DEV && initialStep) return undefined;
@@ -222,30 +240,33 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
     resumeStartedRef.current = true;
     let cancelled = false;
 
-    async function resumeFromLoginHandoff() {
-      setAuthError(null);
+    async function rejectLoginHandoff() {
       setAuthenticatingMethod(method);
       setIsAuthenticating(true);
+      clearContinueQuery();
 
       const user = await waitForFirebaseUser(auth);
       if (cancelled) return;
 
-      clearContinueQuery();
-
-      if (!user) {
-        setIsAuthenticating(false);
-        setAuthError('Sign-in session expired. Continue with Google below.');
-        return;
+      if (user) {
+        try {
+          await signOut(auth);
+        } catch (error) {
+          console.error('[Casting Entry] Could not clear rejected login handoff:', error);
+        }
       }
 
-      await beginOAuthEntry(user, method, {
-        name: handoff?.name || user.displayName,
-        email: handoff?.email || user.email,
-        picture: handoff?.picture || user.photoURL,
-      });
+      setAuthenticatingMethod(null);
+      setIsAuthenticating(false);
+      setDobConfirmed(false);
+      setAuthError(
+        method === 'instagram'
+          ? 'Instagram sign-up is unavailable during this adults-only launch. Start here, then use Google or email.'
+          : 'Start here with your date of birth, then choose Google or email.',
+      );
     }
 
-    resumeFromLoginHandoff();
+    rejectLoginHandoff();
     return () => {
       cancelled = true;
     };
@@ -255,6 +276,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
 
   const handleGoogleSignIn = async () => {
     setAuthError(null);
+    if (!validateAdultEligibility()) return;
     setAuthenticatingMethod('google');
     setIsAuthenticating(true);
 
@@ -266,6 +288,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
         name: 'Ava Martinez',
         email: 'ava.martinez@gmail.com',
         picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+        date_of_birth: dob,
         manualData: { name: 'Ava Martinez' },
       });
       return;
@@ -286,11 +309,12 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
     }
   };
 
-  // Instagram stays in the flow even before it's fully wired (owner call
-  // 2026-07-02). Unconfigured environments answer with a quiet inline note.
+  // Instagram remains visible, but its redirect cannot safely carry DOB
+  // evidence during the adults-only launch.
   const [authNote, setAuthNote] = useState(null);
   const handleInstagramSignIn = () => {
     setAuthError(null);
+    if (!validateAdultEligibility()) return;
     setAuthenticatingMethod('instagram');
 
     if (import.meta.env.DEV) {
@@ -301,41 +325,38 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
           method: 'instagram',
           name: 'ava.martinez',
           picture: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
+          date_of_birth: dob,
           manualData: { name: 'Ava Martinez' },
         });
       }, 1000);
       return;
     }
 
-    if (!instagramEnabled) {
-      setAuthNote('Instagram sign-up is almost ready. Use Google or email for now.');
-      return;
-    }
-    setAuthNote(null);
-    setIsAuthenticating(true);
-    startInstagramAuth({ flow: 'signup' });
+    setAuthNote('Instagram sign-up is unavailable during this adults-only launch. Use Google or email.');
   };
 
-  const handleDobContinue = async () => {
-    if (!pendingOAuth) return;
+  const validateAdultEligibility = () => {
+    const age = getLaunchAge(dob);
+    const today = launchCalendarDateString();
     if (!dob) {
       setAuthError('Enter your date of birth to continue.');
-      return;
+      return false;
+    }
+    if (age === null || dob > today) {
+      setAuthError('Enter a valid date of birth.');
+      return false;
+    }
+    if (age < 18) {
+      setAuthError('Pholio’s current launch is for adults 18 and over.');
+      return false;
     }
     setAuthError(null);
-    setIsAuthenticating(true);
-    try {
-      await finishOAuthEntry(pendingOAuth.user, pendingOAuth.method, {
-        name: pendingOAuth.name,
-        email: pendingOAuth.email,
-        picture: pendingOAuth.picture,
-        date_of_birth: dob,
-      });
-    } catch (error) {
-      console.error('[Casting Entry] DOB entry error:', error);
-      setAuthError(humanizeAuthError(error));
-      setIsAuthenticating(false);
-    }
+    return true;
+  };
+
+  const handleDobContinue = () => {
+    if (!validateAdultEligibility()) return;
+    setDobConfirmed(true);
   };
 
   const handleNextManual = () => {
@@ -360,6 +381,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
 
   const handleManualSignup = async () => {
     setAuthError(null);
+    if (!validateAdultEligibility()) return;
     setAuthenticatingMethod('email');
     setIsAuthenticating(true);
     try {
@@ -377,11 +399,14 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
         firebase_token: token,
         name: formData.name,
         ...LEGAL_ACCEPTANCE,
+        date_of_birth: dob,
       });
+      const establishedDob = response.date_of_birth || dob;
 
       onComplete({
         hasOAuthData: response.has_oauth_data,
         method: 'manual',
+        date_of_birth: establishedDob,
         manualData: { name: formData.name, email: formData.email },
       });
     } catch (error) {
@@ -402,11 +427,11 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
           : '';
 
   // The single fixed action for the flow. Called once, unconditionally:
+  //  · pre-auth DOB gate → Continue
   //  · step 0 (the auth doors) → no dock (reserved height kept)
-  //  · pending OAuth DOB gate → Continue
   //  · steps 1–3 → "Continue" (gold once the field has content), Enter also works
   useActionDock(
-    pendingOAuth
+    !dobConfirmed
       ? {
           label: isAuthenticating ? 'Continuing…' : 'Continue',
           enabled: !isAuthenticating && dob.trim().length > 0,
@@ -453,9 +478,9 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
             </span>
           )}
         </motion.div>
-      ) : pendingOAuth ? (
+      ) : !dobConfirmed ? (
         <motion.div
-          key="oauth-dob"
+          key="adult-dob"
           variants={fadeVariants}
           initial="initial"
           animate="animate"
@@ -464,10 +489,11 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
         >
           <StepBeat text="When were you *born*?" dividerDelay={0.6} questionDelay={0.3} />
           <SpotlightField
-            key="oauth-dob-field"
+            key="adult-dob-field"
             type="date"
             autoFocus
             value={dob}
+            max={launchCalendarDateString()}
             onChange={(e) => {
               setDob(e.target.value);
               setAuthError(null);
