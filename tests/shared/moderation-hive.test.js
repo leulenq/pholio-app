@@ -29,6 +29,31 @@ async function makePng(width, height, rgb) {
     .toBuffer();
 }
 
+/**
+ * A skin-toned surface with photographic texture. The skin-tone ratio only
+ * counts textured pixels (a flat warm fill is a beige wall, not skin), so
+ * heuristic-flag cases must use this rather than makePng.
+ */
+async function makeTexturedPng(width, height, rgb, spread = 26) {
+  const channels = 3;
+  const raw = Buffer.alloc(width * height * channels);
+  let seed = 1;
+  const next = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  for (let p = 0; p < width * height; p += 1) {
+    const jitter = (next() - 0.5) * 2 * spread;
+    for (let c = 0; c < channels; c += 1) {
+      raw[p * channels + c] = Math.max(
+        0,
+        Math.min(255, Math.round(rgb[c] + jitter)),
+      );
+    }
+  }
+  return sharp(raw, { raw: { width, height, channels } }).png().toBuffer();
+}
+
 /** Hive sync-API response envelope around a class list. */
 function hiveResponse(classes) {
   return { status: [{ response: { output: [{ classes }] } }] };
@@ -307,7 +332,7 @@ describe("moderation/hive adapter", () => {
         hiveResponse([{ class: "general_nsfw", score: 0.0 }]),
       );
 
-      const buffer = await makePng(100, 100, [200, 140, 110]); // skin-tone fill
+      const buffer = await makeTexturedPng(100, 100, [200, 140, 110]); // skin-like
       const result = await analyzeImageBuffer(buffer);
 
       // Exact heuristic reason preserved — csam-moderation.js keys on it.

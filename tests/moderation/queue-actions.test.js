@@ -24,6 +24,12 @@ describe("moderation queue API", () => {
   const sessionIds = [];
 
   beforeAll(async () => {
+    // Own the schema rather than inheriting whatever the previously-run suite
+    // left in the shared SQLite file. Suites that point DATABASE_URL at their
+    // own database (and delete it on teardown) otherwise leave this one reading
+    // a path with no tables — or no file at all.
+    await knex.migrate.latest();
+
     const now = new Date().toISOString();
     await knex("users").insert([
       {

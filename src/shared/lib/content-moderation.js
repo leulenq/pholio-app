@@ -89,6 +89,20 @@ const SKIN_SAMPLE_SIZE = 64; // downsample to NxN before pixel sampling
 const SKIN_RATIO_REVIEW_THRESHOLD = 0.6; // >60% skin-tone pixels → review
 const EXTREME_ASPECT_RATIO = 3.0; // very tall/wide framing → review
 
+// The RGB rule below classifies *hue*, and skin's hue is the hue of beige
+// paint, wood, sand, and a warm studio backdrop. Measured on a real onboarding
+// upload (a fully clothed selfie in front of a cream wall): the wall region
+// alone scored 0.997 by hue and the whole frame scored 0.639, tripping the 0.6
+// review threshold and dead-ending the user. Raising the threshold cannot fix
+// that — a flat backdrop approaches 1.0 by hue no matter where the line sits.
+//
+// So the ratio is gated on local texture as well as hue: skin in a photograph
+// carries shading, contour, and sensor noise, while a painted wall is flat. A
+// 3x3 luma standard deviation floor separates the two (same photo: wall region
+// 0.997 -> 0.021, face region 0.856 -> 0.481). This tightens *precision* only —
+// the review threshold and the fail-toward-review posture are unchanged.
+const SKIN_TEXTURE_MIN_STD = 6; // 3x3 luma std-dev floor for a countable pixel
+
 /**
  * Resolve the configured moderation provider. Pluggable via env so a real
  * vendor can be wired in without touching call sites.
@@ -120,16 +134,51 @@ function isSkinTonePixel(r, g, b) {
 }
 
 /**
- * Compute the fraction of sampled pixels classified as skin-tone.
+ * Standard-deviation of luma across the 3x3 neighbourhood centred on (x, y).
+ * Flat painted surfaces sit near 0; photographed skin does not.
+ *
+ * @param {Float64Array} luma - per-pixel luma, row-major, size*size
+ * @param {number} size - grid edge length
+ * @param {number} x
+ * @param {number} y
+ * @returns {number}
+ */
+function localLumaStdDev(luma, size, x, y) {
+  let sum = 0;
+  let sumSq = 0;
+  let n = 0;
+  for (let dy = -1; dy <= 1; dy += 1) {
+    const ny = y + dy;
+    if (ny < 0 || ny >= size) continue;
+    for (let dx = -1; dx <= 1; dx += 1) {
+      const nx = x + dx;
+      if (nx < 0 || nx >= size) continue;
+      const v = luma[ny * size + nx];
+      sum += v;
+      sumSq += v * v;
+      n += 1;
+    }
+  }
+  if (n === 0) return 0;
+  const mean = sum / n;
+  return Math.sqrt(Math.max(0, sumSq / n - mean * mean));
+}
+
+/**
+ * Compute the fraction of sampled pixels that are both skin-hued and textured
+ * like photographed skin rather than like a flat warm surface. See
+ * SKIN_TEXTURE_MIN_STD for why hue alone is not usable.
+ *
  * @param {Buffer} buffer
- * @returns {Promise<number>} ratio in [0, 1]
+ * @returns {Promise<{ratio: number, hueRatio: number}>} ratios in [0, 1]
  */
 async function computeSkinToneRatio(buffer) {
   const sharp = getSharp();
-  if (!sharp) return 0;
+  if (!sharp) return { ratio: 0, hueRatio: 0 };
 
+  const size = SKIN_SAMPLE_SIZE;
   const { data, info } = await sharp(buffer)
-    .resize(SKIN_SAMPLE_SIZE, SKIN_SAMPLE_SIZE, {
+    .resize(size, size, {
       fit: "fill",
     })
     .removeAlpha()
@@ -139,18 +188,38 @@ async function computeSkinToneRatio(buffer) {
   const channels = info.channels || 3;
   if (channels < 3) {
     // Grayscale or single-channel — skin-tone heuristic is not meaningful.
-    return 0;
+    return { ratio: 0, hueRatio: 0 };
+  }
+
+  const total = size * size;
+  const luma = new Float64Array(total);
+  const skinHued = new Uint8Array(total);
+  let hueMatches = 0;
+
+  for (let p = 0; p < total; p += 1) {
+    const i = p * channels;
+    if (i + 2 >= data.length) break;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    luma[p] = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (isSkinTonePixel(r, g, b)) {
+      skinHued[p] = 1;
+      hueMatches += 1;
+    }
   }
 
   let skin = 0;
-  let total = 0;
-  for (let i = 0; i + 2 < data.length; i += channels) {
-    total += 1;
-    if (isSkinTonePixel(data[i], data[i + 1], data[i + 2])) {
+  for (let p = 0; p < total; p += 1) {
+    if (!skinHued[p]) continue;
+    const x = p % size;
+    const y = (p - x) / size;
+    if (localLumaStdDev(luma, size, x, y) >= SKIN_TEXTURE_MIN_STD) {
       skin += 1;
     }
   }
-  return total > 0 ? skin / total : 0;
+
+  return { ratio: skin / total, hueRatio: hueMatches / total };
 }
 
 /**
@@ -218,8 +287,13 @@ async function analyzeImageBuffer(buffer) {
 
   let skinRatio;
   try {
-    skinRatio = await computeSkinToneRatio(buffer);
+    const sampled = await computeSkinToneRatio(buffer);
+    skinRatio = sampled.ratio;
     flags.skinRatio = Number(skinRatio.toFixed(4));
+    // Recorded for queue triage / threshold tuning: the ungated hue ratio is
+    // what the old heuristic reported, so a large gap between the two means a
+    // flat warm backdrop dominated the frame.
+    flags.skinHueRatio = Number(sampled.hueRatio.toFixed(4));
   } catch (err) {
     // If we cannot sample pixels we cannot vouch for the image → review.
     return {
