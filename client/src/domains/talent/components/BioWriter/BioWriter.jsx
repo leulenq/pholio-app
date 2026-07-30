@@ -264,6 +264,7 @@ export default function BioWriter({
           error={error}
           aria-busy={isWorking || undefined}
           {...field}
+          value={value}
         />
         <AnimatePresence>
           {sweeping && (

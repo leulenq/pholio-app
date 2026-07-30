@@ -1,15 +1,11 @@
 import React from 'react';
 import { Controller } from 'react-hook-form';
-import { PholioInput, PholioTextarea, PholioToggle } from '../../../shared/components/ui/forms';
-import PholioButton, {
-  PholioIconButton,
-  PholioToggleButton,
-  PholioToggleGroup,
-} from '../../../shared/components/ui/PholioButton';
-import PholioSpark from '../../../shared/components/ui/PholioSpark';
+import { PholioInput, PholioToggle } from '../../../shared/components/ui/forms';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
+import BioWriter from './BioWriter/BioWriter';
 import { computeAge, isMinorProfile } from '../../../shared/utils/talentAge';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
@@ -38,14 +34,6 @@ export const IdentitySection = ({
 }) => {
   const age = computeAge(watchDob);
   const isMinor = isMinorProfile({ date_of_birth: watchDob });
-  const hasBio = (bioValue || '').trim().length >= 10;
-  const bioLength = bioOptions?.length === 'tight' ? 'tight' : 'standard';
-  const bioPerson = bioOptions?.person === 'first' ? 'first' : 'third';
-  const setBioOption = (patch) => {
-    if (onBioOptionsChange) {
-      onBioOptionsChange({ length: bioLength, person: bioPerson, ...patch });
-    }
-  };
   return (
     <Section
       id="identity"

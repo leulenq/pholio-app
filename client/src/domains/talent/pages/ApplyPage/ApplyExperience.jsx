@@ -3240,7 +3240,6 @@ function MessagePage({
   const name = agency?.name || 'this agency';
 
   const [assistBusy, setAssistBusy] = useState(false);
-  const [assistMode, setAssistMode] = useState(null);
   const [previousNote, setPreviousNote] = useState(null);
 
   const trimmedNote = note.trim();
@@ -3248,7 +3247,6 @@ function MessagePage({
   const wordCount = trimmedNote ? trimmedNote.split(/\s+/).length : 0;
 
   const runAssist = async (mode) => {
-    setAssistMode(mode);
     setAssistBusy(true);
     const snapshot = note;
     try {
@@ -3290,7 +3288,6 @@ function MessagePage({
       }
     } finally {
       setAssistBusy(false);
-      setAssistMode(null);
     }
   };
 
@@ -3300,15 +3297,6 @@ function MessagePage({
     setPreviousNote(null);
     toast.info('Reverted to your original note');
   };
-
-  const busyLabel =
-    assistMode === 'draft'
-      ? 'Drafting…'
-      : assistMode === 'sharpen'
-        ? 'Sharpening…'
-        : assistMode === 'shorten'
-          ? 'Shortening…'
-          : 'Working…';
 
   const isEmpty = noteLen < 10;
   const board = boardLabels.find(Boolean);

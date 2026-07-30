@@ -298,6 +298,7 @@ describe('ProfilePage Component', () => {
     // The AI action is an icon, so its accessible name comes from aria-label —
     // which the old unlabelled flare never had.
     await user.click(screen.getByRole('button', { name: /write your bio with pholio/i }));
+    await user.click(screen.getByRole('button', { name: /^write bio$/i }));
 
     const bioInput = screen.getByPlaceholderText(/tell us about yourself/i);
     await waitFor(() => expect(bioInput).toHaveValue(generatedBio));
