@@ -31,6 +31,7 @@ import PholioButton, {
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../../shared/components/ui/PholioButton';
+import PholioSpark from '../../../../shared/components/ui/PholioSpark';
 import ProfileGateBanner from '../../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../../shared/utils/profileGating';
 import { sendBlockerLabel } from '../../../../shared/utils/sendReadiness';
@@ -2268,17 +2269,15 @@ function ApplyHeader({
             <strong>{statusText}</strong>
           </p>
         )}
-        <PholioButton
+        <button
           type="button"
-          variant="tertiary"
-          tone="dark"
           className="apply-workspace-exit"
           onClick={onSaveAndExit}
           disabled={disabled}
           aria-label={buttonLabel}
         >
           {buttonLabel}
-        </PholioButton>
+        </button>
       </div>
     </header>
   );
@@ -3241,7 +3240,6 @@ function MessagePage({
   const name = agency?.name || 'this agency';
 
   const [assistBusy, setAssistBusy] = useState(false);
-  const [assistMode, setAssistMode] = useState(null);
   const [previousNote, setPreviousNote] = useState(null);
 
   const trimmedNote = note.trim();
@@ -3249,7 +3247,6 @@ function MessagePage({
   const wordCount = trimmedNote ? trimmedNote.split(/\s+/).length : 0;
 
   const runAssist = async (mode) => {
-    setAssistMode(mode);
     setAssistBusy(true);
     const snapshot = note;
     try {
@@ -3291,7 +3288,6 @@ function MessagePage({
       }
     } finally {
       setAssistBusy(false);
-      setAssistMode(null);
     }
   };
 
@@ -3301,15 +3297,6 @@ function MessagePage({
     setPreviousNote(null);
     toast.info('Reverted to your original note');
   };
-
-  const busyLabel =
-    assistMode === 'draft'
-      ? 'Drafting…'
-      : assistMode === 'sharpen'
-        ? 'Sharpening…'
-        : assistMode === 'shorten'
-          ? 'Shortening…'
-          : 'Working…';
 
   const isEmpty = noteLen < 10;
   const board = boardLabels.find(Boolean);
@@ -3366,41 +3353,17 @@ function MessagePage({
       {/* Assist + count — an integrated document footer, secondary to the page. */}
       <div className="apply-compose__foot">
         <div className="apply-compose__assist">
-          <PenLine className="apply-compose__assist-icon" size={13} aria-hidden />
-          {isEmpty ? (
-            <PholioButton
-              type="button"
-              variant="secondary"
-              className="apply-compose__assist-act"
-              onClick={() => runAssist('draft')}
-              disabled={assistBusy}
-            >
-              {assistBusy ? busyLabel : 'Draft a first note'}
-            </PholioButton>
-          ) : (
-            <>
-              <PholioButton
-                type="button"
-                variant="secondary"
-                className="apply-compose__assist-act"
-                onClick={() => runAssist('sharpen')}
-                disabled={assistBusy}
-              >
-                {assistBusy && assistMode === 'sharpen' ? busyLabel : 'Sharpen'}
-              </PholioButton>
-              {noteLen >= 50 && (
-                <PholioButton
-                  type="button"
-                  variant="secondary"
-                  className="apply-compose__assist-act"
-                  onClick={() => runAssist('shorten')}
-                  disabled={assistBusy}
-                >
-                  {assistBusy && assistMode === 'shorten' ? busyLabel : 'Shorten'}
-                </PholioButton>
-              )}
-            </>
-          )}
+          <button
+            type="button"
+            aria-label={isEmpty ? 'Draft a note with Pholio' : 'Refine note with Pholio'}
+            title={isEmpty ? 'Draft a note with Pholio' : 'Refine note with Pholio'}
+            className={`bioSpark ${assistBusy ? 'is-working' : ''}`}
+            onClick={assistBusy ? undefined : () => runAssist(isEmpty ? 'draft' : 'sharpen')}
+            disabled={assistBusy}
+            aria-busy={assistBusy}
+          >
+            <PholioSpark size={22} />
+          </button>
           {previousNote !== null && (
             <PholioButton
               type="button"

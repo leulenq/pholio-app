@@ -11,16 +11,34 @@ import { X } from 'lucide-react';
 import { CITIES } from '../../../../data/cities';
 import './PholioForms.css';
 
+/**
+ * Ranked, not merely filtered. CITIES is already ordered by industry tier, so
+ * an empty query surfaces the fashion capitals first; a typed query promotes
+ * prefix matches over substring matches, then falls back to tier. Without this
+ * "mi" offered Minneapolis above Milan, which no booker or model would expect.
+ */
+function rankCities(query, list) {
+  const q = String(query ?? '').trim().toLowerCase();
+  if (!q) return list;
+  return [...list].sort((a, b) => {
+    const ap = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+    const bp = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function filterCities(query) {
   const q = String(query ?? '').trim().toLowerCase();
   if (!q) return CITIES;
-  return CITIES.filter(
+  return rankCities(q, CITIES.filter(
     (c) =>
-      c.label.toLowerCase().includes(q) ||
+      c.name.toLowerCase().startsWith(q) ||
       c.name.toLowerCase().includes(q) ||
-      (c.state && c.state.toLowerCase().includes(q)) ||
+      (c.region && c.region.toLowerCase().includes(q)) ||
       c.country.toLowerCase().includes(q)
-  );
+  ));
 }
 
 const CityAutocompleteField = forwardRef(function CityAutocompleteField(
@@ -205,7 +223,10 @@ const CityAutocompleteField = forwardRef(function CityAutocompleteField(
                 onMouseEnter={() => setHighlightedIndex(index)}
                 onClick={() => pickCity(city)}
               >
-                {city.label}
+                <span className="pholio-city-opt">
+                  <span className="pholio-city-opt__name">{city.name}</span>
+                  <span className="pholio-city-opt__region">{city.secondary}</span>
+                </span>
               </li>
             ))}
           </ul>

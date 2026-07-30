@@ -11,10 +11,11 @@ import {
 } from '../api/agency';
 import BoardSelect from '../components/BoardSelect';
 import ReviewRoom from '../components/review/ReviewRoom';
-import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, MatchMeasure, StatusCell } from '../components/ui';
+import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, MatchScore, StatusCell } from '../components/ui';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
+import { formatLocation } from '../../../shared/utils/locationFormat';
 import './ApplicantsPage.css';
 
 const PAGE_SIZE = 60;
@@ -201,6 +202,9 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
         ) : (
           <span className="ap-card-img ap-card-img--empty">{initials(a.name)}</span>
         )}
+        {a.match != null && (
+          <MatchScore score={a.match} size="xs" tone="overlay" className="ap-card-match" />
+        )}
         {!decided && (
           <PickButton
             name={a.name}
@@ -217,11 +221,10 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
       </span>
       <span className="ap-card-row">
         <span className="ap-card-name">{a.name}</span>
-        {a.match != null && <MatchMeasure score={a.match} size="sm" className="ap-card-match" />}
       </span>
       <span className="ap-card-spec">
         {typeLabel(a.type)}
-        {a.city ? ` · ${a.city}` : ''}
+        {a.city ? ` · ${formatLocation(a.city)}` : ''}
       </span>
       <span className="ap-card-state">
         <span className="ap-card-when">{timeAgo(a.appliedAt)}</span>
@@ -271,11 +274,11 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
         <span className="ap-name">{a.name}</span>
         <span className="ap-meta">
           {typeLabel(a.type)}
-          {a.city ? ` · ${a.city}` : ''}
+          {a.city ? ` · ${formatLocation(a.city)}` : ''}
         </span>
       </div>
       <span className="ap-applied">{timeAgo(a.appliedAt)}</span>
-      <span className="ap-score-cell">{a.match != null && <MatchMeasure score={a.match} size="sm" />}</span>
+      <span className="ap-score-cell">{a.match != null && <MatchScore score={a.match} size="xs" tone="overlay" />}</span>
       <span className="ap-status">
         {isNew(a.status)
           ? <span className="ap-status-quiet">Submitted</span>

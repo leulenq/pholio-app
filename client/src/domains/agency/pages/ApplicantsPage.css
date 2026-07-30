@@ -307,7 +307,13 @@
   min-width: 0; font-family: var(--ag-font-display); font-size: 15.5px; font-weight: 500;
   color: var(--ag-text-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ap-card-match { align-items: flex-end; }
+/* Match — overview ink chip, flush into the photo's top-right corner. */
+.ap-card-match.match-score {
+  position: absolute; top: 0; right: 0;
+  border-radius: 0 var(--ag-radius-md) 0 9px;
+  border-top-width: 0; border-right-width: 0;
+  box-shadow: none;
+}
 .ap-card-spec {
   display: block; margin-top: 4px;
   font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ag-text-3);

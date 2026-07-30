@@ -1,27 +1,47 @@
-/* MatchMeasure — match strength as typography for dense ledger surfaces.
-   A bold tabular numeral; the tier hue (shared with the ink chip's match
-   system) is the whole treatment. Each hue is mixed toward ink so the
-   numerals hold 4.5:1 on the cream canvas. */
+/* MatchMeasure — match strength as an editorial grade notation ("the Hallmark").
+   A tabular numeral ruled beneath by a hairline, tier set as a micro caption.
+   The tier accent lives in the numeral's own underline: gold at the exceptional
+   tier, muted ink otherwise; a low score recedes to tertiary. One ink-and-gold
+   voice — no rainbow, no chip — quiet enough to repeat across the ledger. */
 
 .match-measure {
   display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   flex: none;
   font-family: var(--ag-font-body);
+  user-select: none;
+}
+
+.match-measure__num {
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: 'tnum' 1, 'lnum' 1;
   font-weight: 700;
   font-size: 16px;
   line-height: 1;
-  letter-spacing: -0.01em;
-  user-select: none;
+  letter-spacing: -0.02em;
+  color: var(--ag-text-0);
+  padding-bottom: 3px;
+  border-bottom: 2px solid var(--ag-border-strong);
 }
 
-/* tier hues — the match system's light-ground set, ink-anchored for contrast */
-.match-measure--exceptional { color: color-mix(in srgb, var(--ag-match-exc) 84%, var(--ag-text-0)); }
-.match-measure--strong      { color: color-mix(in srgb, var(--ag-match-str) 84%, var(--ag-text-0)); }
-.match-measure--fair        { color: color-mix(in srgb, var(--ag-match-fair) 80%, var(--ag-text-0)); }
-.match-measure--low         { color: color-mix(in srgb, var(--ag-match-low) 90%, var(--ag-text-0)); }
+.match-measure__tier {
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ag-text-3);
+}
 
-/* size scale */
-.match-measure--sm { font-size: 15px; }
-.match-measure--md { font-size: 16px; }
+/* tiers — gold marks exceptional only; low recedes into muted ink */
+.match-measure--exceptional .match-measure__num  { border-bottom-color: var(--ag-gold); }
+.match-measure--exceptional .match-measure__tier { color: var(--ag-gold-hover); }
+.match-measure--low .match-measure__num { color: var(--ag-text-3); }
+
+/* size scale — number only; the underline + caption track it */
+.match-measure--sm .match-measure__num { font-size: 15px; }
+.match-measure--md .match-measure__num { font-size: 16px; }
+.match-measure--lg .match-measure__num { font-size: 18px; padding-bottom: 4px; }
+.match-measure--lg .match-measure__tier { font-size: 9px; }

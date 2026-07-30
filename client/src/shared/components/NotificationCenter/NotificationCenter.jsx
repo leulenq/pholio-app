@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../../../domains/talent/api/talent';
-import NotificationPanel from './NotificationPanel';
+import NotificationInbox from './NotificationInbox';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from './talentNotifications';
 import './NotificationCenter.css';
 
@@ -53,7 +53,7 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
   }, [navigate, onClose]);
 
   return (
-    <NotificationPanel
+    <NotificationInbox
       className={panelClassName}
       variant="talent"
       notifications={notifications}

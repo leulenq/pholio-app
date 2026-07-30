@@ -1,18 +1,23 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Bookmark, Check, Download, Plus, RefreshCw, RotateCw, Sparkles, Trash2 } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Bookmark, Check, ChevronDown, Download, Lock, Pencil, Plus, RefreshCw, RotateCw, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import PholioSpark from '../../../shared/components/ui/PholioSpark';
 import { TransferFailureNotice } from '../../../shared/components/states';
 import PholioButton, {
   PholioIconButton,
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../shared/components/ui/PholioButton';
+import PholioInput from '../../../shared/components/ui/forms/PholioInput';
+import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import { talentApi } from '../api/talent';
 import {
   isMinorProfile,
   minorPublicExposureAllowed,
 } from '../../../shared/utils/talentAge';
+import { buildCompCardPresetRenamePayload } from '../utils/compCardPresetRename';
 import CompCardStatsNudge from './CompCardStatsNudge';
 import './CompCard.css';
 
@@ -105,7 +110,11 @@ const EDITION_UNLOCK_COPY = {
   'ink-noir': 'A dark register set for adult portfolios',
 };
 
-const COUNT_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
+/** The condition reads as a continuation of the locked edition's name. */
+function lowerFirst(text) {
+  if (!text) return text;
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
 
 function unlockCopy(id, minor) {
   return (
@@ -187,6 +196,77 @@ function writeLS(key, value) {
   try { window.localStorage.setItem(key, value); } catch { /* storage blocked — non-critical */ }
 }
 
+/**
+ * One refinement, folded away until it is wanted.
+ *
+ * The control column used to stack six sibling blocks — direction, the direction
+ * chooser, casting, recent takes, saved cards, suggestions — each with its own
+ * serif heading, its own line of instruction and its own controls, all at one
+ * weight and separated by identical hairlines. Nothing in it was primary, so the
+ * whole column had to be read before any of it could be used.
+ *
+ * Composing a card is one decision. Everything else is adjustment, and adjustment
+ * belongs behind a line that states where it currently stands — so the summary
+ * answers the question most of the time and the controls only appear when the
+ * answer is not the wanted one.
+ */
+function CardDrawer({ title, summary, children, defaultOpen = false }) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  const shouldReduce = useReducedMotion();
+  // Height animation needs overflow:hidden while collapsing/expanding. Once
+  // open and settled, lift the clip so absolute dropdowns (Board / Market)
+  // can escape the drawer instead of being cropped at the body edge.
+  const [clipBody, setClipBody] = React.useState(!defaultOpen);
+  const id = React.useId();
+
+  const toggleDrawer = () => {
+    if (open) {
+      setClipBody(true);
+      setOpen(false);
+      return;
+    }
+    setClipBody(!shouldReduce);
+    setOpen(true);
+  };
+
+  return (
+    <div className={`cc-drawer${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="cc-drawer__bar"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={toggleDrawer}
+      >
+        <span className="cc-drawer__title">{title}</span>
+        {summary ? <span className="cc-drawer__summary">{summary}</span> : null}
+        <ChevronDown size={14} className="cc-drawer__chev" aria-hidden="true" />
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            id={id}
+            className="cc-drawer__body"
+            initial={shouldReduce ? false : { height: 0, opacity: 0 }}
+            animate={shouldReduce ? {} : { height: 'auto', opacity: 1 }}
+            exit={shouldReduce ? {} : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            onAnimationStart={() => {
+              if (!shouldReduce) setClipBody(true);
+            }}
+            onAnimationComplete={() => {
+              if (open) setClipBody(false);
+            }}
+            style={{ overflow: clipBody ? 'hidden' : 'visible' }}
+          >
+            <div className="cc-drawer__inner">{children}</div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function CompCard({ images = [], profile }) {
   const slug = profile?.slug;
   const minor = isMinorProfile(profile);
@@ -228,6 +308,8 @@ export default function CompCard({ images = [], profile }) {
   const [saving, setSaving] = React.useState(false);
   const [libBusyId, setLibBusyId] = React.useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = React.useState(null);
+  const [renamePresetId, setRenamePresetId] = React.useState(null);
+  const [renameName, setRenameName] = React.useState('');
 
   const cardRef = React.useRef(null);
 
@@ -343,6 +425,54 @@ export default function CompCard({ images = [], profile }) {
       toast.error(err?.message || 'Could not save this card. Try a different name.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  function beginRenamePreset(preset) {
+    if (!preset || libBusyId) return;
+    setConfirmDeleteId(null);
+    setRenamePresetId(preset.id);
+    setRenameName(preset.name || '');
+  }
+
+  function cancelRenamePreset() {
+    setRenamePresetId(null);
+    setRenameName('');
+  }
+
+  async function handleRenamePreset(preset) {
+    if (!preset || !slug || libBusyId) return;
+
+    let payload;
+    try {
+      payload = buildCompCardPresetRenamePayload(preset, renameName);
+    } catch (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    if (payload.name === preset.name) {
+      cancelRenamePreset();
+      return;
+    }
+
+    setLibBusyId(preset.id);
+    try {
+      const res = await talentApi.renameCompCardPreset(slug, preset.id, payload);
+      const renamed = res?.preset;
+      setPresets((current) =>
+        current.map((item) =>
+          item.id === preset.id
+            ? (renamed || { ...item, name: payload.name, payload })
+            : item,
+        ),
+      );
+      cancelRenamePreset();
+      toast.success(`Renamed card to “${payload.name}”.`);
+    } catch (error) {
+      toast.error(error?.message || 'Could not rename this saved card.');
+    } finally {
+      setLibBusyId(null);
     }
   }
 
@@ -529,10 +659,6 @@ export default function CompCard({ images = [], profile }) {
   );
   const editionLabel = meta?.edition?.label || activeEditionEntry?.label || null;
   const editionTone = activeEditionEntry?.tone || null;
-  const availableCount = React.useMemo(
-    () => editions.filter((e) => e.available).length,
-    [editions],
-  );
 
   const gridImages = React.useMemo(
     () => (images || []).filter((img) => img && img.id && !img.video_url),
@@ -592,7 +718,6 @@ export default function CompCard({ images = [], profile }) {
           <h2 className="mw-h2">Comp card</h2>
           <p className="mw-sub">Designed for you from your portfolio — two-sided 5.5 × 8.5, always current.</p>
         </div>
-        <span className={`cc-status cc-status--${statusTone}`}>{statusLabel}</span>
       </header>
 
       {downloadError && (
@@ -682,25 +807,160 @@ export default function CompCard({ images = [], profile }) {
             </PholioToggleGroup>
             <span className="cc-showcase__meta">5.5 × 8.5 · Two-sided PDF</span>
           </div>
+
+          {/*
+            The export lives with the object it exports, and the status lives
+            with the export it gates. "Rights check" used to sit alone in red at
+            the top of the control column, ~800px from both — a warning about an
+            action you could not see.
+          */}
+          {/*
+            One export, then the ways it travels. The wallet badge used to hang
+            below the primary as a third stacked block of its own — a 40px black
+            Apple asset floating under a black button, belonging to nothing. It is
+            a second way to carry the same card, so it sits on the status line as
+            the quiet half of one export group.
+          */}
+          <div className="cc-export">
+            <PholioButton variant="primary" onClick={handleDownload}
+              disabled={downloading || blocked}
+              title={blocked ? 'Add photos to generate your card' : 'Download PDF comp card'}
+              className="cc-download">
+              {downloading ? <><span className="cc-spinner" aria-hidden="true" /> Composing…</> : <><Download size={15} aria-hidden="true" /> Download PDF</>}
+            </PholioButton>
+            <div className="cc-export__foot">
+              <span className={`cc-status cc-status--${statusTone}`}>{statusLabel}</span>
+              {!blocked && !minorGated && (
+                <a href="/api/talent/wallet/pass" className="cc-wallet" aria-label="Add to Apple Wallet">
+                  <img src="/brand/add-to-apple-wallet-badge.svg" alt="Add to Apple Wallet" />
+                </a>
+              )}
+            </div>
+            {blocked ? (
+              <Link
+                to={minorGated ? '/dashboard/talent/profile?tab=identity' : '/dashboard/talent/profile'}
+                className="cc-unlock"
+              >
+                {minorGated
+                  ? 'Record guardian consent to unlock'
+                  : blocking
+                    ? 'Resolve the note above to unlock'
+                    : 'Complete your profile to unlock'}
+              </Link>
+            ) : null}
+          </div>
         </div>
 
-        {/* ── Atelier panel ── */}
+        {/* ── The control column ── */}
         <div className="cc-panel">
-          <section className="cc-stage-block cc-direction">
-            {/* The name moment: the edition set in its voice. Serif for the
-                edition (the quiet moment); Inter for the voice line. */}
+          {/*
+            THE decision, and the only thing at full weight here: which direction
+            the card is composed in. The edition name names where it stands, the
+            list underneath is the choice, and one primary act draws a new one.
+            This was two separate same-weight blocks — the name and tone in one,
+            the chooser in another — which split a single decision across a
+            hairline and left neither half looking like the point.
+          */}
+          {/*
+            The card's current state, in three deliberately different registers.
+            The name, the voice and the tone were all set in the same 12.5–13px
+            sans, so "Set in Stark Grotesque" and "Dark paper, reversed type, gold
+            that finally sings" read as two equal sentences with no indication
+            that one is a typeface and the other is a description. Serif names it,
+            mono states the voice, sans describes it.
+          */}
+          {/*
+            A specimen plate. The three facts about the card in play — what the
+            edition is called, what it is set in, how it reads — were three loose
+            left-aligned lines in three sizes of sans, which is a stack of
+            statements rather than a composition. They are set as a type specimen
+            now: the name in serif, the typeface as a ruled mono label, and the
+            tone as an italic serif epigraph, which is the register that phrase
+            ("gold that finally sings") was always written in.
+          */}
+          <section className="cc-state">
             <h3 className="cc-editionname">
               {editionLabel ? (
-                <>
-                  <span className="cc-editionname__label">{editionLabel}</span>
-                  {voiceLabel && (
-                    <span className="cc-editionname__voice"> — set in {voiceLabel}</span>
-                  )}
-                </>
+                <span className="cc-editionname__label">{editionLabel}</span>
               ) : (
                 <span className="cc-editionname__label cc-editionname__label--pending">Your direction</span>
               )}
             </h3>
+            {editionLabel && voiceLabel && (
+              <span className="cc-editionname__voice">{voiceLabel}</span>
+            )}
+            {editionTone && <p className="cc-state__tone">{editionTone}</p>}
+
+            {!editionLabel && !editions.length && (
+              <p className="cc-state__tone">
+                Composed from your strongest frames — typography, layout, and crops are designed around your photographs, statistics, and market.
+              </p>
+            )}
+          </section>
+
+          <section className="cc-decision">
+
+            {editions.length > 0 && (
+              <>
+              {/*
+                A selector, not a list of links. These were underlined words in a
+                wrapped type grid — indistinguishable from body copy and from each
+                other, so the one real decision on this surface looked like a
+                paragraph. They are tiles now: a real surface, a press state, and
+                the chosen one filled rather than underlined.
+              */}
+              <div className="cc-eds" role="group" aria-label="Card direction">
+                <button
+                  type="button"
+                  aria-pressed={!edition}
+                  className={`cc-ed ${!edition ? 'is-active' : ''}`}
+                  onClick={() => selectEdition(null)}
+                  title="Let Pholio choose the direction that suits your photos"
+                >
+                  <span className="cc-ed__name">Pholio’s choice</span>
+                </button>
+                {editions.filter((e) => e.available).map((e) => {
+                  const isSelected = edition === e.id;
+                  const isCurrent = !edition && meta?.edition?.id === e.id;
+                  return (
+                    <button
+                      key={e.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      className={`cc-ed ${isSelected ? 'is-active' : ''} ${isCurrent ? 'is-current' : ''}`}
+                      onClick={() => selectEdition(isSelected ? null : e.id)}
+                      title={e.tone}
+                    >
+                      <span className="cc-ed__name">{e.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/*
+                A schedule of conditions: each direction and what it needs, in two
+                aligned columns. A <dl> because that is exactly what this is —
+                terms and what each requires. The names share a left edge and the
+                conditions share theirs, which is what makes a list of
+                restrictions read as deliberate rather than as a pile of
+                rejections, and the lock on each row carries the state without a
+                heading having to announce it.
+              */}
+              {editions.some((e) => !e.available) && (
+                <dl className="cc-locked" aria-label="Directions not yet available">
+                  {editions.filter((e) => !e.available).map((e) => (
+                    <React.Fragment key={e.id}>
+                      <dt className="cc-locked__name">
+                        <Lock size={10} className="cc-locked__icon" aria-hidden="true" />
+                        {e.label}
+                      </dt>
+                      <dd className="cc-locked__why">{lowerFirst(unlockCopy(e.id, minor))}</dd>
+                    </React.Fragment>
+                  ))}
+                </dl>
+              )}
+              </>
+            )}
 
             <div className="cc-gestures">
               <PholioButton
@@ -711,9 +971,12 @@ export default function CompCard({ images = [], profile }) {
                 disabled={!previewUrl}
                 title="Draw a genuinely different edition"
               >
-                <Sparkles size={14} aria-hidden="true" /> New direction
+                <PholioSpark size={14} aria-hidden="true" /> New direction
               </PholioButton>
               {activeEditionId && (
+                /* Shares the row with "New direction" — hierarchy comes from ink
+                   fill against a hairline, not from demoting one of them to an
+                   underlined text link. */
                 <PholioButton
                   type="button"
                   variant="secondary"
@@ -722,169 +985,121 @@ export default function CompCard({ images = [], profile }) {
                   disabled={!previewUrl}
                   title="Another version within this edition"
                 >
-                  <RefreshCw size={13} aria-hidden="true" /> Another take of this
+                  <RefreshCw size={13} aria-hidden="true" /> Another take
                 </PholioButton>
               )}
             </div>
 
-            {editions.length > 0 && (
-              <>
-                <div className="cc-rail" role="group" aria-label="Editions">
-                  <PholioToggleButton
-                    type="button"
-                    active={!edition}
-                    aria-pressed={!edition}
-                    className={`cc-rail__chip ${!edition ? 'is-active' : ''}`}
-                    onClick={() => selectEdition(null)}
-                    title="Let Pholio choose the direction that suits your photos"
-                  >
-                    Pholio’s choice
-                  </PholioToggleButton>
-                  {editions.map((e) => {
-                    const isSelected = edition === e.id;
-                    const isCurrent = !edition && meta?.edition?.id === e.id;
-                    if (!e.available) {
-                      return (
-                        <span
-                          key={e.id}
-                          className="cc-rail__chip cc-rail__chip--locked"
-                          role="button"
-                          aria-disabled="true"
-                          title={unlockCopy(e.id, minor)}
-                        >
-                          {e.label}
-                        </span>
-                      );
-                    }
-                    return (
-                      <PholioToggleButton
-                        key={e.id}
-                        type="button"
-                        active={isSelected}
-                        aria-pressed={isSelected}
-                        className={`cc-rail__chip ${isSelected ? 'is-active' : ''} ${isCurrent ? 'is-current' : ''}`}
-                        onClick={() => selectEdition(isSelected ? null : e.id)}
-                        title={e.tone}
-                      >
-                        {e.label}
-                      </PholioToggleButton>
-                    );
-                  })}
-                </div>
-                {editionTone && <p className="cc-stage-note">{editionTone}</p>}
-                {availableCount > 0 && availableCount <= 2 && (
-                  <p className="cc-stage-note cc-stage-note--quiet">
-                    {COUNT_WORDS[availableCount] || availableCount} direction{availableCount === 1 ? '' : 's'} suit this card.
-                  </p>
-                )}
-              </>
-            )}
-
-            {!editionLabel && !editions.length && (
-              <p className="cc-stage-note">
-                Composed from your strongest frames — typography, layout, and crops are designed around your photographs, statistics, and market.
-              </p>
-            )}
-
             {meta?.booking?.label && (
-              <p className="cc-stage-note cc-stage-note--quiet">
+              <p className="cc-stage-note cc-stage-note--quiet cc-decision__foot">
                 {meta.booking.mode === 'represented' ? 'Carries your representation.' : `Carries your ${meta.booking.label.toLowerCase()} details.`}
                 {' '}The gold Pholio mark links to your live portfolio.
               </p>
             )}
           </section>
 
+          {/* ── Adjustments ── */}
+          <div className="cc-drawers">
           {!minorGated && hasImages && (
-            <section className="cc-stage-block">
-              <header className="cc-stage-head">
-                <h3 className="cc-stage-title">Front photo</h3>
-              </header>
+            /* One drawer, two rows. "Front photo" and "Back page photos" are the
+               same interaction — pick frames, or leave it to Pholio — and were
+               two serif-titled sections each carrying its own line of
+               instruction, which put two headings and two paragraphs of prose
+               through the middle of the panel to explain one idea. */
+            <CardDrawer
+              title="Casting"
+              summary={
+                !lockHeroId && lockGridIds.length === 0
+                  ? 'Pholio’s pick'
+                  : [lockHeroId ? 'front locked' : null, lockGridIds.length ? `${lockGridIds.length} on back` : null]
+                      .filter(Boolean)
+                      .join(' · ')
+              }
+            >
               <p className="cc-stage-note cc-stage-note--quiet">
-                Lock the frame the front is built around, or leave the casting to Pholio.
+                Lock the frames the card is built around, or leave the casting to Pholio.
               </p>
-              <div className="cc-hero__strip" role="group" aria-label="Front photo">
-                <PholioToggleButton
-                  type="button"
-                  active={!lockHeroId}
-                  aria-pressed={!lockHeroId}
-                  className={`cc-hero__auto ${!lockHeroId ? 'is-active' : ''}`}
-                  onClick={() => { setLockHeroId(null); setActivePresetId(null); }}
-                  title="The engine casts your strongest frame"
-                >
-                  Pholio’s pick
-                </PholioToggleButton>
-                {gridImages.slice(0, 12).map((img) => {
-                  const src = imageUrl(img);
-                  const active = lockHeroId === img.id;
-                  return (
-                    <button
-                      key={img.id}
-                      type="button"
-                      className={`cc-hero__thumb ${active ? 'is-active' : ''}`}
-                      aria-pressed={active}
-                      onClick={() => { setLockHeroId(active ? null : img.id); setActivePresetId(null); }}
-                      title={active ? 'Unlock — let Pholio cast the front' : 'Build the front around this frame'}
-                    >
-                      {src ? <img src={src} alt="" loading="lazy" /> : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
 
-          {!minorGated && hasImages && (
-            <section className="cc-stage-block">
-              <header className="cc-stage-head">
-                <h3 className="cc-stage-title">Back page photos</h3>
-                {lockGridIds.length > 0 && (
-                  <span className="cc-lib__count">{lockGridIds.length} of {BACK_GRID_MAX}</span>
-                )}
-              </header>
-              <p className="cc-stage-note cc-stage-note--quiet">
-                Choose up to four photos for the back page, or leave the selection to Pholio.
-              </p>
-              <div className="cc-grid__strip" role="group" aria-label="Back page photos">
-                <PholioToggleButton
-                  type="button"
-                  active={lockGridIds.length === 0}
-                  aria-pressed={lockGridIds.length === 0}
-                  className={`cc-hero__auto ${lockGridIds.length === 0 ? 'is-active' : ''}`}
-                  onClick={() => { setLockGridIds([]); setActivePresetId(null); }}
-                  title="Let Pholio choose the back-page frames"
-                >
-                  Pholio’s pick
-                </PholioToggleButton>
-                {gridImages.slice(0, 12).map((img) => {
-                  const src = imageUrl(img);
-                  const selected = lockGridIds.includes(img.id);
-                  const atMax = lockGridIds.length >= BACK_GRID_MAX;
-                  return (
-                    <button
-                      key={img.id}
+              <div className="cc-cast">
+                <div className="cc-cast__row">
+                  <span className="cc-cast__key">Front</span>
+                  <div className="cc-hero__strip" role="group" aria-label="Front photo">
+                    <PholioToggleButton
                       type="button"
-                      className={`cc-grid__thumb ${selected ? 'is-active' : ''}`}
-                      aria-pressed={selected}
-                      disabled={!selected && atMax}
-                      onClick={() => toggleGridId(img.id)}
-                      title={selected ? 'Remove from the back page' : atMax ? 'Back page is full — remove one first' : 'Add to the back page'}
+                      active={!lockHeroId}
+                      aria-pressed={!lockHeroId}
+                      className={`cc-hero__auto ${!lockHeroId ? 'is-active' : ''}`}
+                      onClick={() => { setLockHeroId(null); setActivePresetId(null); }}
+                      title="The engine casts your strongest frame"
                     >
-                      {src ? <img src={src} alt="" loading="lazy" /> : null}
-                      {selected && (
-                        <span className="cc-grid__mark" aria-hidden="true"><Check size={11} /></span>
-                      )}
-                    </button>
-                  );
-                })}
+                      Pholio’s pick
+                    </PholioToggleButton>
+                    {gridImages.slice(0, 12).map((img) => {
+                      const src = imageUrl(img);
+                      const active = lockHeroId === img.id;
+                      return (
+                        <button
+                          key={img.id}
+                          type="button"
+                          className={`cc-hero__thumb ${active ? 'is-active' : ''}`}
+                          aria-pressed={active}
+                          onClick={() => { setLockHeroId(active ? null : img.id); setActivePresetId(null); }}
+                          title={active ? 'Unlock — let Pholio cast the front' : 'Build the front around this frame'}
+                        >
+                          {src ? <img src={src} alt="" loading="lazy" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="cc-cast__row">
+                  <span className="cc-cast__key">
+                    Back page
+                    {lockGridIds.length > 0 && (
+                      <span className="cc-cast__count">{lockGridIds.length}/{BACK_GRID_MAX}</span>
+                    )}
+                  </span>
+                  <div className="cc-grid__strip" role="group" aria-label="Back page photos">
+                    <PholioToggleButton
+                      type="button"
+                      active={lockGridIds.length === 0}
+                      aria-pressed={lockGridIds.length === 0}
+                      className={`cc-hero__auto ${lockGridIds.length === 0 ? 'is-active' : ''}`}
+                      onClick={() => { setLockGridIds([]); setActivePresetId(null); }}
+                      title="Let Pholio choose the back-page frames"
+                    >
+                      Pholio’s pick
+                    </PholioToggleButton>
+                    {gridImages.slice(0, 12).map((img) => {
+                      const src = imageUrl(img);
+                      const selected = lockGridIds.includes(img.id);
+                      const atMax = lockGridIds.length >= BACK_GRID_MAX;
+                      return (
+                        <button
+                          key={img.id}
+                          type="button"
+                          className={`cc-grid__thumb ${selected ? 'is-active' : ''}`}
+                          aria-pressed={selected}
+                          disabled={!selected && atMax}
+                          onClick={() => toggleGridId(img.id)}
+                          title={selected ? 'Remove from the back page' : atMax ? 'Back page is full — remove one first' : 'Add to the back page'}
+                        >
+                          {src ? <img src={src} alt="" loading="lazy" /> : null}
+                          {selected && (
+                            <span className="cc-grid__mark" aria-hidden="true"><Check size={11} /></span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </section>
+            </CardDrawer>
           )}
 
           {!minorGated && recentTakes.length > 1 && (
-            <section className="cc-stage-block">
-              <header className="cc-stage-head">
-                <h3 className="cc-stage-title">Recent takes</h3>
-              </header>
+            <CardDrawer title="Recent takes" summary={String(recentTakes.length)}>
               <p className="cc-stage-note cc-stage-note--quiet">
                 Jump back to a take you liked.
               </p>
@@ -905,36 +1120,71 @@ export default function CompCard({ images = [], profile }) {
                   );
                 })}
               </div>
-            </section>
+            </CardDrawer>
           )}
 
           {!minorGated && slug && (
-            <section className="cc-stage-block cc-lib">
-              <header className="cc-stage-head">
-                <h3 className="cc-stage-title">Saved cards</h3>
-                {presets.length > 0 && (
-                  <span className="cc-lib__count">{presets.length} of 40</span>
-                )}
-              </header>
+            <CardDrawer
+              title="Saved cards"
+              summary={presets.length > 0 ? `${presets.length} of 40` : 'None yet'}
+            >
               <p className="cc-stage-note cc-stage-note--quiet">
                 Pin a take to keep it — a commercial card, an editorial card, one per market.
                 The card you use last is the one your applications send by default.
               </p>
 
-              <div className="cc-lib__save">
-                <input
-                  type="text"
-                  className="cc-lib__name"
-                  placeholder="Name this take — e.g. Commercial"
+              {/*
+                Same components as /profile (PholioInput + PholioCustomSelect).
+                Field chrome is scoped in CompCard.css to match Profile's hairline
+                geometry and JetBrains Mono titles — shared PholioForms defaults
+                alone are the wrong wells.
+              */}
+              <div className="cc-lib__form">
+                <PholioInput
+                  label="Name this take"
+                  placeholder="e.g. Commercial"
                   value={saveName}
                   maxLength={80}
                   disabled={blocked || saving}
                   onChange={(e) => setSaveName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveTake(); } }}
                 />
+
+                {/* Purpose — the board/lane this card is built for, and an optional
+                    market. Tagging lets /apply default to the right card per agency.
+                    Side by side: they are one thought, and the rail has the measure
+                    for it. */}
+                <div className="cc-lib__purpose">
+                  <PholioCustomSelect
+                    label="Board"
+                    id="cc-board"
+                    placeholder="Any board"
+                    disabled={blocked || saving}
+                    value={saveBoard}
+                    onChange={setSaveBoard}
+                    options={[
+                      { value: '', label: 'Any board' },
+                      ...CARD_BOARDS.map((b) => ({ value: b, label: b })),
+                    ]}
+                  />
+                  <PholioCustomSelect
+                    label="Market"
+                    id="cc-market"
+                    placeholder="Any market"
+                    disabled={blocked || saving}
+                    value={saveMarket}
+                    onChange={setSaveMarket}
+                    options={[
+                      { value: '', label: 'Any market' },
+                      ...CARD_MARKETS.map((m) => ({ value: m, label: m })),
+                    ]}
+                  />
+                </div>
+
                 <PholioButton
                   type="button"
                   variant="primary"
+                  className="cc-lib__savebtn"
                   onClick={handleSaveTake}
                   disabled={blocked || saving || !saveName.trim()}
                   title={blocked ? 'Add photos to save a card' : 'Save this take to your library'}
@@ -944,37 +1194,13 @@ export default function CompCard({ images = [], profile }) {
                 </PholioButton>
               </div>
 
-              {/* Purpose — the board/lane this card is built for, and an optional
-                  market. Tagging lets /apply default to the right card per agency. */}
-              <div className="cc-lib__purpose">
-                <select
-                  className="cc-lib__tag"
-                  value={saveBoard}
-                  disabled={blocked || saving}
-                  aria-label="Board this card is built for"
-                  onChange={(e) => setSaveBoard(e.target.value)}
-                >
-                  <option value="">Any board</option>
-                  {CARD_BOARDS.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
-                <select
-                  className="cc-lib__tag"
-                  value={saveMarket}
-                  disabled={blocked || saving}
-                  aria-label="Market this card is aimed at"
-                  onChange={(e) => setSaveMarket(e.target.value)}
-                >
-                  <option value="">Any market</option>
-                  {CARD_MARKETS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
               {presets.length > 0 && (
                 <ul className="cc-lib__list">
                   {presets.map((preset) => {
                     const isActive = preset.id === activePresetId;
                     const isDefault = preset.id === defaultPresetId;
                     const busy = libBusyId === preset.id;
+                    const isRenaming = renamePresetId === preset.id;
                     const thumbUrl = presetPreviewUrl(slug, preset);
                     return (
                       <li key={preset.id} className={`cc-lib__item ${isActive ? 'is-active' : ''}`}>
@@ -997,33 +1223,87 @@ export default function CompCard({ images = [], profile }) {
                           )}
                         </PholioToggleButton>
                         <div className="cc-lib__body">
-                          <span className="cc-lib__itemname">{preset.name}</span>
-                          {presetTag(preset) && (
-                            <span className="cc-lib__tagline">{presetTag(preset)}</span>
+                          {isRenaming ? (
+                            <input
+                              type="text"
+                              className="cc-lib__rename-input"
+                              value={renameName}
+                              maxLength={80}
+                              autoFocus
+                              aria-label={`Rename ${preset.name}`}
+                              disabled={busy}
+                              onChange={(event) => setRenameName(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  void handleRenamePreset(preset);
+                                }
+                                if (event.key === 'Escape') {
+                                  event.preventDefault();
+                                  cancelRenamePreset();
+                                }
+                              }}
+                            />
+                          ) : (
+                            <>
+                              <span className="cc-lib__itemname">{preset.name}</span>
+                              {presetTag(preset) && (
+                                <span className="cc-lib__tagline">{presetTag(preset)}</span>
+                              )}
+                              {isDefault && <span className="cc-lib__flag">Default</span>}
+                            </>
                           )}
-                          {isDefault && <span className="cc-lib__flag">Default</span>}
                         </div>
                         <div className="cc-lib__actions">
-                          {!isActive && (
-                            <PholioButton type="button" variant="tertiary" onClick={() => handleSelectPreset(preset)} disabled={busy}>
-                              <Bookmark size={12} aria-hidden="true" /> Use
-                            </PholioButton>
-                          )}
-                          {confirmDeleteId === preset.id ? (
+                          {isRenaming ? (
+                            <>
+                              <PholioIconButton
+                                label={`Save name for ${preset.name}`}
+                                onClick={() => void handleRenamePreset(preset)}
+                                disabled={busy || !renameName.trim()}
+                              >
+                                <Check size={13} aria-hidden="true" />
+                              </PholioIconButton>
+                              <PholioIconButton
+                                label="Cancel rename"
+                                onClick={cancelRenamePreset}
+                                disabled={busy}
+                              >
+                                <X size={13} aria-hidden="true" />
+                              </PholioIconButton>
+                            </>
+                          ) : confirmDeleteId === preset.id ? (
                             <span className="cc-lib__confirm">
                               <PholioButton type="button" variant="destructive" onClick={() => handleDeletePreset(preset)} disabled={busy}>Remove</PholioButton>
                               <PholioButton type="button" variant="tertiary" onClick={() => setConfirmDeleteId(null)} disabled={busy}>Keep</PholioButton>
                             </span>
                           ) : (
-                            <PholioIconButton
-                              label={`Remove ${preset.name}`}
-                              danger
-                              className="cc-lib__del"
-                              onClick={() => setConfirmDeleteId(preset.id)}
-                              disabled={busy}
-                            >
-                              <Trash2 size={13} aria-hidden="true" />
-                            </PholioIconButton>
+                            <>
+                              {!isActive && (
+                                <PholioButton type="button" variant="tertiary" onClick={() => handleSelectPreset(preset)} disabled={busy}>
+                                  <Bookmark size={12} aria-hidden="true" /> Use
+                                </PholioButton>
+                              )}
+                              <PholioIconButton
+                                label={`Rename ${preset.name}`}
+                                onClick={() => beginRenamePreset(preset)}
+                                disabled={busy}
+                              >
+                                <Pencil size={13} aria-hidden="true" />
+                              </PholioIconButton>
+                              <PholioIconButton
+                                label={`Remove ${preset.name}`}
+                                danger
+                                className="cc-lib__del"
+                                onClick={() => {
+                                  setRenamePresetId(null);
+                                  setConfirmDeleteId(preset.id);
+                                }}
+                                disabled={busy}
+                              >
+                                <Trash2 size={13} aria-hidden="true" />
+                              </PholioIconButton>
+                            </>
                           )}
                         </div>
                       </li>
@@ -1031,49 +1311,22 @@ export default function CompCard({ images = [], profile }) {
                   })}
                 </ul>
               )}
-            </section>
+            </CardDrawer>
           )}
+          </div>
 
+          {/*
+            Advice, not a control — so it closes the column as a quiet note rather
+            than a sixth serif-titled section competing with the decision above it.
+          */}
           {suggestions.length > 0 && (
-            <section className="cc-stage-block">
-              <header className="cc-stage-head">
-                <h3 className="cc-stage-title">Strengthen the card</h3>
-              </header>
+            <section className="cc-closing">
               <ul className="cc-notes">
                 {suggestions.map((s) => <li key={s}>{s}</li>)}
               </ul>
             </section>
           )}
 
-          <div className="cc-download-row">
-            <PholioButton variant="primary" onClick={handleDownload}
-              disabled={downloading || blocked}
-              title={blocked ? 'Add photos to generate your card' : 'Download PDF comp card'}
-              className="cc-download">
-              {downloading ? <><span className="cc-spinner" aria-hidden="true" /> Composing…</> : <><Download size={15} aria-hidden="true" /> Download PDF</>}
-            </PholioButton>
-            {blocked ? (
-              <Link
-                to={minorGated ? '/dashboard/talent/profile?tab=identity' : '/dashboard/talent/profile'}
-                className="cc-unlock"
-              >
-                {minorGated
-                  ? 'Record guardian consent to unlock'
-                  : blocking
-                    ? 'Resolve the note above to unlock'
-                    : 'Complete your profile to unlock'}
-              </Link>
-            ) : (
-              <PholioButton type="button" variant="tertiary" className="cc-flip-hint" onClick={previewUrl ? flip : undefined} disabled={!previewUrl}>
-                <RotateCw size={13} aria-hidden="true" /> Flip card
-              </PholioButton>
-            )}
-            {!blocked && !minorGated && (
-              <a href="/api/talent/wallet/pass" className="cc-wallet" aria-label="Add to Apple Wallet">
-                <img src="/brand/add-to-apple-wallet-badge.svg" alt="Add to Apple Wallet" />
-              </a>
-            )}
-          </div>
         </div>
       </div>
     </div>

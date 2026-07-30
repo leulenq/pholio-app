@@ -136,7 +136,9 @@
 }
 
 .ph-error-boundary {
-  min-height: 60vh;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -192,7 +194,9 @@
 }
 
 .ph-error-boundary-shell {
-  min-height: 60vh;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;

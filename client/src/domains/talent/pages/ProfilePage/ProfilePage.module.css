@@ -691,7 +691,7 @@
 .sectionDivider {
   height: 1px;
   background: var(--pf-hair);
-  margin: 0 0 32px;
+  margin: 32px 0;
   border: none;
 }
 
@@ -866,6 +866,27 @@
   margin-top: 32px;
 }
 
+/* Date of birth: the derived age sits on the label line, right-aligned. It must
+   not share the label's mono-tracked uppercase voice — that made it read as a
+   second title. Inter sentence case, quiet weight, no tracking. */
+.dobField {
+  position: relative;
+}
+
+.dobAge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.4;
+  color: var(--pf-text-soft);
+  pointer-events: none;
+}
+
 .formStack {
   display: flex;
   flex-direction: column;
@@ -1012,6 +1033,15 @@
   height: 0;
 }
 
+.profileForms :global(.pholio-multiselect-search) {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #ffffff;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--pf-hair, rgba(26, 24, 21, 0.06));
+}
+
 /* Dropdown Option List States */
 .profileForms :global(.pholio-custom-select-dropdown .pholio-select-option),
 .profileForms :global(.pholio-autocomplete-dropdown .pholio-select-option) {
@@ -1128,12 +1158,102 @@
   margin: 0 0 10px;
 }
 
+/* The heading and the writing tool share a baseline-anchored row. `baseline`
+   with a 46px control dropped the button's text onto the serif baseline and
+   pushed its box above the line, which is part of why the action read as a
+   floating artefact rather than a control. */
 .bioTitleRow {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
+  flex-wrap: wrap;
   margin-bottom: 10px;
+}
+
+/* The writing tool is a first-class action, so it holds its own width instead
+   of collapsing to whatever the flex line leaves it. */
+/* The writing spark. An icon rather than a labelled button, so it has to earn
+   its affordance another way: a full 44px target, a warm ground that appears on
+   approach, and a mark that is gold at rest — gold is this surface's one
+   interactive colour, so a gold glyph beside a serif heading reads as a control
+   and nothing else does. */
+.bioSpark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-gold, #c9a55a);
+  cursor: pointer;
+  transition: color 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bioSpark:hover:not(:disabled) {
+  background: transparent !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--pf-text, #1a1815);
+  transform: none;
+}
+
+.bioSpark:active:not(:disabled) {
+  transform: none;
+}
+
+.bioSpark:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+}
+
+/* The points drift apart and back while the model composes — the mark itself
+   is the progress indicator, so nothing else has to appear on the page. */
+.bioSpark.is-working {
+  cursor: progress;
+  background: transparent !important;
+  color: var(--color-gold, #c9a55a);
+}
+
+.bioSpark.is-working :global(.pholio-spark__major) {
+  animation: sparkPulse 1.6s ease-in-out infinite;
+  transform-origin: 9.7px 11.1px;
+}
+
+.bioSpark.is-working :global(.pholio-spark__minor--up) {
+  animation: sparkPulse 1.6s ease-in-out infinite 0.22s;
+  transform-origin: 18.6px 4.2px;
+}
+
+.bioSpark.is-working :global(.pholio-spark__minor--down) {
+  animation: sparkPulse 1.6s ease-in-out infinite 0.44s;
+  transform-origin: 18.6px 18.8px;
+}
+
+@keyframes sparkPulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.86); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bioSpark,
+  .bioSpark.is-working :global(.pholio-spark__major),
+  .bioSpark.is-working :global(.pholio-spark__minor--up),
+  .bioSpark.is-working :global(.pholio-spark__minor--down) {
+    transition: none;
+    animation: none;
+  }
+  .bioSpark:hover:not(:disabled) { transform: none; }
+  .bioSpark.is-working { opacity: 0.7; }
 }
 
 .bioTitle {
@@ -1165,32 +1285,43 @@
 .bioModeControls {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 14px 32px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
   margin-top: 18px;
 }
 
 .bioModeGroup {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+/* Quiet rule between Length and Voice so the two decisions read as peers,
+   not one continuous option strip. */
+.bioModeGroup + .bioModeGroup {
+  margin-left: 28px;
+  padding-left: 28px;
+  border-left: 1px solid var(--pf-hair-strong);
 }
 
 .bioModeOptions {
   display: inline-flex;
   align-items: stretch;
+  justify-content: center;
   gap: 18px;
   border-bottom: 1px solid var(--pf-hair-strong);
 }
 
 .bioModeLabel {
-  align-self: center;
-  padding-bottom: 11px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+  text-align: center;
   color: var(--pf-gold);
 }
 
@@ -1248,6 +1379,18 @@
 @media (prefers-reduced-motion: reduce) {
   .bioModeBtn::after {
     transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .bioModeGroup + .bioModeGroup {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--pf-hair-strong);
+    width: 100%;
   }
 }
 

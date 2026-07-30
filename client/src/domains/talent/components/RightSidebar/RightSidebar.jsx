@@ -113,7 +113,7 @@ export const RightSidebar = ({ nextPriority }) => {
             </ul>
 
             <PholioButton
-              to="/dashboard/talent/settings/subscription"
+              to="/dashboard/talent/settings/studio"
               variant="primary"
               fullWidth
             >

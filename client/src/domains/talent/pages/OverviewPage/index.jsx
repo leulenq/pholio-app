@@ -15,11 +15,11 @@ import {
   ArrowUpRight,
   ChevronRight,
   FileText,
-  TrendingUp,
   AlertCircle,
   Download,
   Globe,
   ExternalLink,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { useProfileStrength } from '../../hooks/useProfileStrength';
@@ -74,6 +74,45 @@ function displayPublicUrl(url) {
   }
 }
 
+/**
+ * Hairline sparkline for the site ledger. Deliberately axis-less and
+ * tooltip-less — shape only. The readable chart lives on /analytics.
+ */
+function SiteSparkline({ series, animate = true }) {
+  const width = 220;
+  const height = 34;
+
+  const points = Array.isArray(series) ? series : [];
+  if (points.length < 2) return null;
+
+  const peak = Math.max(...points.map((p) => p.visits), 1);
+  const step = width / (points.length - 1);
+  const coords = points.map((point, i) => {
+    const x = i * step;
+    const y = height - (point.visits / peak) * (height - 3) - 1.5;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
+
+  return (
+    <svg
+      className="ov-site-spark"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      aria-hidden
+      focusable="false"
+    >
+      <polyline
+        className={animate ? 'ov-site-spark-line ov-site-spark-line--draw' : 'ov-site-spark-line'}
+        points={coords.join(' ')}
+      />
+    </svg>
+  );
+}
+
+/**
+ * The spec line the public site leads with. Only fields the talent has
+ * actually filled — no placeholders, no invented values.
+ */
 function chartDateLabel(value, options = { month: 'short', day: 'numeric' }) {
   const date = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(date.getTime())) return value;

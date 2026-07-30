@@ -371,85 +371,212 @@ select.fe-input {
   color: #e8c79a;
 }
 
-/* ── Model release ── */
-.fe-release {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--fe-border);
+/* ── Checkbox ──
+   The global `:where(body:not(.is-agency)) label` rule uppercases and tracks
+   every label, so this control resets casing explicitly. */
+.fe-check {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding-top: 2px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.fe-check__box {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  border: 1px solid var(--fe-input-bd);
+  border-radius: 3px;
+  background: var(--fe-input-bg);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background-color 0.2s var(--fe-ease), border-color 0.2s var(--fe-ease);
+}
+
+.fe-check__box:hover:not(:disabled) {
+  border-color: var(--fe-border-gold);
+}
+
+.fe-check__box:checked {
+  border-color: var(--fe-gold);
+  background-color: var(--fe-gold);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23111111' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 11px;
+}
+
+.fe-check__box:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 2px;
+}
+
+.fe-check__box:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fe-check__text {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 4px;
+  min-width: 0;
 }
 
-.fe-release__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.fe-check__name {
+  font-family: var(--fe-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fe-cream);
 }
 
-.fe-release__state {
+.fe-check__note {
   font-family: var(--fe-sans);
   font-size: 12px;
-  font-weight: 400;
-  color: var(--fe-cream-faint);
+  font-weight: 300;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fe-cream-soft);
 }
 
-.fe-release__state--on {
+.fe-section__note--ok {
   color: var(--fe-gold);
 }
 
 /* ── Publishing ── */
-.fe-control-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.fe-section--publishing {
+  padding-bottom: 10px;
 }
 
-.fe-control-label {
-  font-family: var(--fe-mono);
-  font-size: 9px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--fe-cream-faint);
+.fe-section--publishing .fe-section__head {
+  color: var(--fe-cream);
 }
 
-.fe-segment {
-  display: inline-flex;
+.fe-section--publishing .fe-section__head svg {
+  color: var(--fe-gold);
+  opacity: 0.72;
 }
 
-.fe-segment button {
-  flex: 0 0 auto;
+.fe-section--publishing .fe-section__head h3 {
+  font-family: var(--fe-sans);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fe-cream);
 }
 
-.fe-switch-list {
+.fe-section__note {
+  margin: -7px 0 2px;
+  color: var(--fe-cream-soft);
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.45;
+}
+
+.fe-audience {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 6px;
   border-top: 1px solid var(--fe-border);
 }
 
-.fe-switch {
+.fe-audience__row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--fe-border);
 }
 
-.fe-switch input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
-  accent-color: var(--fe-gold);
+.fe-audience__row:last-child {
+  border-bottom: none;
+  padding-bottom: 4px;
 }
 
-.fe-switch span {
+.fe-audience__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fe-audience__name {
+  font-family: var(--fe-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fe-cream);
+}
+
+.fe-audience__note {
   font-family: var(--fe-sans);
   font-size: 12px;
   font-weight: 300;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
   color: var(--fe-cream-soft);
+}
+
+/* Profile Metric / Imperial editorial-tab pattern, adapted to the dark editor */
+.fe-unit-toggle {
+  display: flex !important;
+  align-items: center !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  gap: 18px !important;
+  border: 0 !important;
+  flex-shrink: 0;
+}
+
+.fe-unit-toggle__btn {
+  min-width: 52px;
+  min-height: 28px !important;
+  padding: 0 0 6px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  font-family: var(--fe-mono) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  color: var(--fe-cream-soft) !important;
+  cursor: pointer !important;
+  transition: color 0.2s var(--fe-ease) !important;
+}
+
+.fe-unit-toggle__btn::after {
+  display: block !important;
+  bottom: 0 !important;
+  height: 2px !important;
+  background: var(--fe-gold) !important;
+}
+
+.fe-unit-toggle__btn:hover:not(.is-active) {
+  color: var(--fe-cream) !important;
+}
+
+.fe-unit-toggle__btn.is-active {
+  background: transparent !important;
+  color: var(--fe-cream) !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
 }
 
 /* ── Crop controls ── */
@@ -574,6 +701,8 @@ select.fe-input {
 @media (prefers-reduced-motion: reduce) {
   .fe-shell { animation: none; }
   .fe-spin  { animation: none; opacity: 0.6; }
+  .fe-unit-toggle__btn,
+  .fe-unit-toggle__btn::after { transition: none !important; }
 }
 
 /* ── Responsive ── */
@@ -586,6 +715,7 @@ select.fe-input {
   /* Crop needs a taller canvas for precise pinch/drag framing of a 2:3 portrait. */
   .fe-stage:has(.fe-stage__crop) { max-height: 52vh; }
   .fe-panel   { width: 100%; border-left: none; border-top: 1px solid var(--fe-border); }
+  .fe-unit-toggle__btn { min-height: 44px !important; padding-bottom: 8px !important; }
   /* iOS Safari zooms the viewport when a focused input is < 16px. */
   .fe-input   { font-size: 16px; }
   /* Keep Save reachable above the keyboard / home indicator; allow buttons to wrap. */

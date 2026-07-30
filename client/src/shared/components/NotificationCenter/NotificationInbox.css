@@ -1,0 +1,328 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Notification inbox — a fresh surface, sharing nothing with the old
+   .nc-dropdown styles.
+
+   Every interactive element here declares its own background, border,
+   border-radius, padding, font and color in full. `styles/global.css` applies
+   a talent-wide reset to bare <button> (border-radius: 999px, 0.75rem 1.75rem
+   padding) with zero specificity, so a class wins — but only for what it
+   actually declares. Partial declarations are how the previous version grew
+   stray pills, and how its filter tabs inherited a dark ink colour that went
+   invisible. Nothing below inherits.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ni {
+  --ni-ink: #1a1815;
+  --ni-soft: rgba(26, 24, 21, 0.62);
+  --ni-faint: rgba(26, 24, 21, 0.42);
+  --ni-hair: rgba(26, 24, 21, 0.1);
+  --ni-gold: #c9a55a;
+  --ni-gold-deep: #a8894e;
+  --ni-paper: #ffffff;
+  --ni-cream: #faf7f2;
+  --ni-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  width: min(380px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--ni-hair);
+  border-radius: 4px;
+  background: var(--ni-paper);
+  box-shadow: 0 26px 60px -22px rgba(16, 15, 14, 0.55);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--ni-ink);
+  text-align: left;
+}
+
+/* ── Head ── */
+
+.ni__head {
+  flex: none;
+  padding: 16px 18px 0;
+  background: var(--ni-cream);
+  border-bottom: 1px solid var(--ni-hair);
+}
+
+.ni__title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ni__title {
+  margin: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--ni-ink);
+}
+
+.ni__unread {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ni-gold-deep);
+  white-space: nowrap;
+}
+
+.ni__markall {
+  margin: 0;
+  padding: 0 0 1px;
+  border: 0;
+  border-bottom: 1px solid var(--ni-hair);
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ni-soft);
+  transition: color 0.2s var(--ni-ease), border-color 0.2s var(--ni-ease);
+}
+
+.ni__markall:hover:not(:disabled) {
+  color: var(--ni-gold-deep);
+  border-bottom-color: var(--ni-gold);
+}
+
+.ni__markall:focus-visible {
+  outline: 2px solid var(--ni-gold);
+  outline-offset: 3px;
+}
+
+.ni__markall:disabled { opacity: 0.45; cursor: default; }
+
+/* Filters — plain text, gold rule marks the active one. Fully declared so the
+   global button reset cannot reach them. */
+.ni__filters {
+  display: flex;
+  gap: 18px;
+  margin-top: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ni__filters::-webkit-scrollbar { display: none; }
+
+.ni__filter {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 0 9px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--ni-soft);
+  transition: color 0.2s var(--ni-ease), border-color 0.2s var(--ni-ease);
+}
+
+.ni__filter:hover { color: var(--ni-ink); }
+
+.ni__filter[aria-selected='true'] {
+  color: var(--ni-ink);
+  font-weight: 500;
+  border-bottom-color: var(--ni-gold);
+}
+
+.ni__filter:focus-visible {
+  outline: 2px solid var(--ni-gold);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Body ── */
+
+.ni__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(420px, 56vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ni-paper);
+}
+
+.ni__list { list-style: none; margin: 0; padding: 0; }
+
+.ni__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--ni-hair);
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+  transition: background-color 0.18s var(--ni-ease);
+}
+
+.ni__item:last-child { border-bottom: 0; }
+.ni__item:hover { background: var(--ni-cream); }
+
+.ni__item:focus-visible {
+  outline: 2px solid var(--ni-gold);
+  outline-offset: -2px;
+}
+
+/* Unread is a single gold dot on the reading edge — no pill, no chip, no
+   tinted row. It aligns with the first line of the headline. */
+.ni__dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--ni-gold);
+}
+
+.ni__dot--read { background: transparent; }
+
+.ni__text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ni-ink);
+  text-wrap: pretty;
+}
+
+.ni__text strong { font-weight: 600; }
+
+.ni__meta {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--ni-soft);
+}
+
+.ni__time {
+  display: block;
+  margin-top: 5px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ni-faint);
+}
+
+/* ── States ── */
+
+.ni__empty { padding: 26px 18px 30px; }
+
+.ni__empty-title {
+  margin: 0 0 6px;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--ni-ink);
+}
+
+.ni__empty-copy {
+  margin: 0;
+  max-width: 40ch;
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--ni-soft);
+}
+
+.ni__error {
+  padding: 22px 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #b4433a;
+}
+
+.ni__loading { padding: 16px 18px; }
+
+.ni__sk {
+  height: 11px;
+  margin-bottom: 10px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(26, 24, 21, 0.05) 25%,
+    rgba(26, 24, 21, 0.09) 50%,
+    rgba(26, 24, 21, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: ni-shimmer 1.2s linear infinite;
+}
+
+.ni__sk:nth-child(2) { width: 62%; }
+.ni__sk:nth-child(3) { width: 84%; }
+
+@keyframes ni-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* ── Foot ── */
+
+.ni__foot {
+  flex: none;
+  padding: 12px 18px;
+  border-top: 1px solid var(--ni-hair);
+  background: var(--ni-cream);
+  text-align: right;
+}
+
+.ni__foot-link {
+  display: inline-block;
+  margin: 0;
+  padding: 0 0 1px;
+  border: 0;
+  border-bottom: 1px solid var(--ni-hair);
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: none;
+  color: var(--ni-soft);
+  transition: color 0.2s var(--ni-ease), border-color 0.2s var(--ni-ease);
+}
+
+.ni__foot-link:hover {
+  color: var(--ni-gold-deep);
+  border-bottom-color: var(--ni-gold);
+}
+
+.ni__foot-link:focus-visible {
+  outline: 2px solid var(--ni-gold);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ni__item,
+  .ni__filter,
+  .ni__markall,
+  .ni__foot-link { transition: none; }
+  .ni__sk { animation: none; }
+}

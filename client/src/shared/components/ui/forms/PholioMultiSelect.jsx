@@ -84,9 +84,14 @@ const PholioMultiSelect = ({
   }, [options, searchable, searchQuery]);
 
   useEffect(() => {
-    if (isOpen && searchable) {
-      const t = setTimeout(() => searchInputRef.current?.focus(), 0);
-      return () => clearTimeout(t);
+    if (isOpen) {
+      if (listboxRef.current) {
+        listboxRef.current.scrollTop = 0;
+      }
+      if (searchable) {
+        const t = setTimeout(() => searchInputRef.current?.focus(), 0);
+        return () => clearTimeout(t);
+      }
     }
   }, [isOpen, searchable]);
 

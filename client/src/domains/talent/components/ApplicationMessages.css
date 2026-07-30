@@ -1,8 +1,49 @@
-/* Talent-facing message thread inside the application detail panel.
-   Inherits --app-* tokens from .applications-view-container. */
+/* Talent-facing message thread. Rendered inside the submission detail dock and
+   the unified Messages workspace; both remap the --app-* tokens it reads. */
 
 .app-msg {
+  --app-msg-ease: var(--app-ease, cubic-bezier(0.22, 1, 0.36, 1));
+
   margin-top: 24px;
+}
+
+.app-msg--workspace {
+  margin-top: 0;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-msg__scroll {
+  display: contents;
+}
+
+.app-msg--workspace .app-msg__scroll {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 20px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 165, 90, 0.3) transparent;
+}
+
+.app-msg--workspace .app-msg__thread {
+  max-height: none;
+  margin-bottom: 0;
+}
+
+.app-msg--workspace .app-msg__empty {
+  min-height: 160px;
+  margin-bottom: 0;
+}
+
+.app-msg--workspace .app-msg__compose {
+  flex-shrink: 0;
+  padding: 12px 20px 18px;
+  border-top: 1px solid var(--app-hair);
+  background: #ffffff;
 }
 
 .app-msg__title {
@@ -16,12 +57,37 @@
   margin-bottom: 14px;
 }
 
+/* ── Empty / loading ─────────────────────────────────────────────────────── */
+
 .app-msg__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   margin: 0 0 14px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.app-msg__empty-title {
+  margin: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--app-text);
+}
+
+.app-msg__empty-copy {
+  margin: 0;
+  max-width: 30ch;
   font-family: 'Inter', sans-serif;
   font-size: 12.5px;
+  line-height: 1.5;
   color: var(--app-text-faint);
 }
+
+/* ── Thread ──────────────────────────────────────────────────────────────── */
 
 .app-msg__thread {
   list-style: none;
@@ -29,127 +95,318 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   max-height: 320px;
   overflow-y: auto;
 }
 
 .app-msg__bubble {
-  max-width: 82%;
-  padding: 10px 13px;
-  border-radius: 12px;
+  max-width: 84%;
+  padding: 11px 14px 9px;
+  border-radius: 4px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .app-msg__bubble--them {
   align-self: flex-start;
-  background: rgba(26, 26, 26, 0.05);
-  border: 1px solid var(--app-hair);
-  border-bottom-left-radius: 4px;
+  background: #ffffff;
+  border: 1px solid var(--app-hair-strong);
 }
 
 .app-msg__bubble--me {
   align-self: flex-end;
-  background: rgba(201, 165, 90, 0.12);
+  background: rgba(201, 165, 90, 0.09);
   border: 1px solid var(--app-hair-gold);
-  border-bottom-right-radius: 4px;
 }
 
 .app-msg__text {
   margin: 0;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
-  line-height: 1.5;
+  font-weight: 400;
+  line-height: 1.55;
   color: var(--app-text);
   white-space: pre-wrap;
 }
 
 .app-msg__footer {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
+}
+
+.app-msg__bubble--me .app-msg__footer {
+  justify-content: flex-end;
 }
 
 .app-msg__time {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.03em;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--app-text-faint);
 }
 
+/* Reporting is a rare, defensive action. It stays in the layout so the stamp
+   never shifts, but it only surfaces on the bubble it belongs to. */
 .app-msg__report {
   flex-shrink: 0;
+  margin: 0;
+  padding: 0 0 1px !important;
+  border: 0 !important;
+  border-bottom: 1px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px !important;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  transform: none !important;
+  transition:
+    color 0.2s var(--app-msg-ease),
+    border-color 0.2s var(--app-msg-ease),
+    opacity 0.2s var(--app-msg-ease);
 }
+
+.app-msg__bubble:hover .app-msg__report,
+.app-msg__bubble:focus-within .app-msg__report {
+  opacity: 1;
+}
+
+.app-msg__report:hover,
+.app-msg__report:focus-visible {
+  border-bottom-color: var(--app-gold, #c9a55a);
+  color: var(--app-text);
+}
+
+.app-msg__report:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.5);
+  outline-offset: 3px;
+}
+
+@media (hover: none) {
+  .app-msg__report {
+    opacity: 1;
+  }
+}
+
+/* ── Composer ────────────────────────────────────────────────────────────── */
 
 .app-msg__compose {
   display: flex;
   flex-direction: column;
 }
 
-.app-msg__compose-inner {
+/* One surface for the draft and its actions. Global `:where(body) textarea`
+   would otherwise paint a second border inside this frame — override it. */
+.app-msg__well {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.app-msg__toolbar {
-  align-self: flex-start;
-}
-
-.app-msg__input-row {
-  display: flex;
-  align-items: flex-end;
   gap: 8px;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: 4px;
+  background: #ffffff;
+  transition:
+    border-color 0.2s var(--app-msg-ease),
+    box-shadow 0.2s var(--app-msg-ease);
 }
 
-.app-msg__input {
-  flex: 1;
+.app-msg__well:focus-within {
+  border-color: rgba(201, 165, 90, 0.62);
+}
+
+.app-msg__input,
+.app-msg textarea.app-msg__input {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 56px;
+  max-height: 148px;
+  margin: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   resize: none;
-  min-height: 42px;
-  max-height: 160px;
-  padding: 10px 12px;
-  border: 1px solid var(--app-hair-strong);
-  border-radius: 10px;
-  background: transparent;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
-  line-height: 1.5;
+  font-weight: 400;
+  line-height: 1.55;
   color: var(--app-text);
-  transition: border-color 0.2s ease;
+  transition: none;
 }
 
-.app-msg__input:focus {
+.app-msg__input:hover:not(:focus),
+.app-msg__input:focus,
+.app-msg textarea.app-msg__input:hover:not(:focus),
+.app-msg textarea.app-msg__input:focus {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   outline: none;
-  border-color: var(--app-gold);
 }
 
+.app-msg__input::placeholder {
+  color: var(--app-text-faint);
+}
+
+.app-msg__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--app-hair);
+}
+
+.app-msg__assist {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto 0 0;
+}
+
+.app-msg__assist-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 1px !important;
+  border: 0 !important;
+  border-bottom: 1px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px !important;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+  transform: none !important;
+  transition:
+    color 0.2s var(--app-msg-ease),
+    border-color 0.2s var(--app-msg-ease);
+}
+
+.app-msg__assist-btn:hover:not(:disabled) {
+  border-bottom-color: var(--app-gold, #c9a55a) !important;
+  background: transparent !important;
+  color: var(--app-text);
+  transform: none !important;
+}
+
+.app-msg__assist-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.app-msg__assist-btn:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.5);
+  outline-offset: 3px;
+}
+
+/* Quiet inline action — intentionally not a filled application button.
+   !important beats the global talent button reset (pill radius + padding). */
 .app-msg__send {
+  display: inline-flex !important;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  min-height: 42px;
-  padding: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 2px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--app-text) !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  transform: none !important;
+  transition:
+    color 0.2s var(--app-msg-ease),
+    opacity 0.2s var(--app-msg-ease);
+}
+
+.app-msg__send > svg {
+  flex-shrink: 0;
+  color: #c8a96e;
+}
+
+.app-msg__send:hover:not(:disabled) {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #75501b !important;
+  transform: none !important;
+}
+
+.app-msg__send:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.app-msg__send:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.6);
+  outline-offset: 2px;
+}
+
+.app-msg .app-spin {
+  animation: app-msg-spin 0.8s linear infinite;
+}
+
+@keyframes app-msg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-msg__well,
+  .app-msg__report {
+    transition: none;
+  }
+
+  .app-msg .app-spin {
+    animation: none;
+  }
 }
 
 @media (max-width: 520px) {
-  /* 16px stops iOS Safari from auto-zooming the page when the textarea focuses
-     (which would jerk the fixed message sheet). Desktop keeps 13px. */
-  .app-msg__input {
+  .app-msg__input,
+  .app-msg textarea.app-msg__input {
     font-size: 16px;
   }
 
-  /* Let the primary action size to its content so the icon + "Send" label show
-     at a real 44px target. The base primary variant forces 22px side padding
-     via !important, so the padding override must also be !important. */
-  .app-msg__send {
-    width: auto;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
-    padding: 0 16px !important;
+  .app-msg__assist {
+    width: 100%;
+  }
+
+  .app-msg__assist {
+    margin: 0;
+    justify-content: flex-start;
   }
 }

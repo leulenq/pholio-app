@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { talentApi } from '../api/talent';
-import { useFlash } from '../../../shared/hooks/useFlash';
+import { pholioToast } from '../../../shared/lib/pholio-toast';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/talentNotifications';
 
 export function useMedia() {
   const queryClient = useQueryClient();
-  const { flash } = useFlash();
   const { images, isLoading } = useAuth(); // Images come from auth context
   const replacingRef = useRef(false);
 
@@ -16,9 +15,9 @@ export function useMedia() {
     mutationFn: (formData) => talentApi.uploadMedia(formData),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-      flash('success', data.message || 'Images uploaded');
+      pholioToast.success(data.message || 'Images uploaded');
     },
-    onError: (err) => flash('error', err.message || 'Upload failed')
+    onError: (err) => pholioToast.error(err.message || 'Upload failed'),
   });
 
   // Delete
@@ -27,9 +26,9 @@ export function useMedia() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
-      flash('success', 'Image deleted');
+      pholioToast.success('Image deleted');
     },
-    onError: (err) => flash('error', err.message || 'Delete failed')
+    onError: (err) => pholioToast.error(err.message || 'Delete failed'),
   });
 
   // Bulk Delete
@@ -38,9 +37,9 @@ export function useMedia() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
-      flash('success', data?.message || 'Images deleted');
+      pholioToast.success(data?.message || 'Images deleted');
     },
-    onError: (err) => flash('error', err.message || 'Delete failed')
+    onError: (err) => pholioToast.error(err.message || 'Delete failed'),
   });
 
   // Bulk Update
@@ -48,9 +47,9 @@ export function useMedia() {
     mutationFn: ({ imageIds, patch }) => talentApi.bulkUpdateMedia(imageIds, patch),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-      flash('success', data?.message || 'Images updated');
+      pholioToast.success(data?.message || 'Images updated');
     },
-    onError: (err) => flash('error', err.message || 'Update failed')
+    onError: (err) => pholioToast.error(err.message || 'Update failed'),
   });
 
   // Reorder
@@ -60,7 +59,7 @@ export function useMedia() {
       // Optimistic update would be better but simple refetch is okay for now
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
     },
-    onError: (err) => flash('error', err.message || 'Reorder failed')
+    onError: (err) => pholioToast.error(err.message || 'Reorder failed'),
   });
 
   // Set Hero
@@ -68,9 +67,9 @@ export function useMedia() {
     mutationFn: (id) => talentApi.setHeroImage(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-      flash('success', 'Hero image updated');
+      pholioToast.success('Hero image updated');
     },
-    onError: (err) => flash('error', err.message || 'Failed to set hero image')
+    onError: (err) => pholioToast.error(err.message || 'Failed to set hero image'),
   });
 
   const createSetMutation = useMutation({
@@ -78,9 +77,9 @@ export function useMedia() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       queryClient.invalidateQueries({ queryKey: ['talent-media-sets'] });
-      flash('success', data?.message || 'Media set created');
+      pholioToast.success(data?.message || 'Dated set created');
     },
-    onError: (err) => flash('error', err.message || 'Failed to create media set')
+    onError: (err) => pholioToast.error(err.message || 'Failed to create media set'),
   });
 
   const setCurrentSetMutation = useMutation({
@@ -88,10 +87,10 @@ export function useMedia() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       queryClient.invalidateQueries({ queryKey: ['talent-media-sets'] });
-      flash('success', data?.message || 'Current media set updated');
+      pholioToast.success(data?.message || 'Current set updated');
     },
     onError: (err) =>
-      flash('error', err.message || 'Failed to set current media set')
+      pholioToast.error(err.message || 'Failed to set current media set'),
   });
 
   // Live image_sets — drives the dated digitals-set picker in the workspace.
@@ -107,9 +106,9 @@ export function useMedia() {
     mutationFn: (payload) => talentApi.addVideoAsset(payload),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-      flash('success', data?.message || 'Motion asset added');
+      pholioToast.success(data?.message || 'Motion asset added');
     },
-    onError: (err) => flash('error', err.message || 'Failed to add motion asset'),
+    onError: (err) => pholioToast.error(err.message || 'Failed to add motion asset'),
   });
 
   const fetchSets = useCallback(() => talentApi.getMediaSets(), []);
@@ -128,7 +127,7 @@ export function useMedia() {
       const res = await talentApi.replaceImageFile(id, formData);
       await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
       await queryClient.refetchQueries({ queryKey: ['auth-user'] });
-      flash('success', 'Image updated');
+      pholioToast.success('Image updated');
       return res.image;
     } finally {
       replacingRef.current = false;
@@ -139,7 +138,7 @@ export function useMedia() {
     const res = await talentApi.restoreImageOriginal(id);
     await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
     await queryClient.refetchQueries({ queryKey: ['auth-user'] });
-    flash('success', 'Original restored');
+    pholioToast.success('Original restored');
     return res.image;
   };
 

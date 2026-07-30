@@ -160,6 +160,153 @@
   text-transform: uppercase;
 }
 
+/* Send pre-flight — what still blocks a submission, and where to clear it */
+.app-preflight {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0 0 clamp(26px, 3vw, 38px);
+  border: 1px solid var(--app-hair);
+  border-top-color: var(--app-hair-gold);
+  border-radius: var(--app-radius);
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.app-preflight__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 24px;
+  align-items: baseline;
+  padding: clamp(18px, 2.1vw, 25px) clamp(18px, 2.2vw, 28px) 15px;
+  border-bottom: 1px solid var(--app-hair);
+}
+
+.app-preflight__head h2 {
+  margin: 0;
+  min-width: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.24rem, 1.85vw, 1.62rem);
+  font-weight: 300;
+  line-height: 1.06;
+}
+
+.app-preflight__head span {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.app-preflight__list {
+  list-style: none;
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.app-preflight__row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 22px minmax(96px, 190px) minmax(0, 1fr) auto;
+  gap: 6px 20px;
+  align-items: baseline;
+  padding: 14px clamp(18px, 2.2vw, 28px);
+  border-bottom: 1px solid var(--app-hair);
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: app-entrance 0.5s var(--app-ease) both;
+  animation-delay: calc(var(--app-row-index, 0) * 60ms);
+}
+
+.app-preflight__row:last-child {
+  border-bottom: none;
+}
+
+.app-preflight__row:hover {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.app-preflight__index {
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.app-preflight__label {
+  min-width: 0;
+  color: var(--app-text);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.app-preflight__task {
+  min-width: 0;
+  max-width: 62ch;
+  margin: 0;
+  color: var(--app-text-soft);
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.app-preflight__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-text);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 2px;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-preflight__action svg {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-preflight__action:hover,
+.app-preflight__action:focus-visible {
+  color: var(--app-gold);
+  border-bottom-color: var(--app-hair-gold);
+}
+
+.app-preflight__action:hover svg,
+.app-preflight__action:focus-visible svg {
+  transform: translate(2px, -2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-preflight__row {
+    animation: none;
+  }
+
+  .app-preflight__action svg {
+    transition: none;
+  }
+
+  .app-preflight__action:hover svg,
+  .app-preflight__action:focus-visible svg {
+    transform: none;
+  }
+}
+
 
 .app-modal-section__head {
   display: flex;
@@ -348,14 +495,12 @@
   pointer-events: none;
 }
 
-.app-send-list,
 .app-check-list {
   display: grid;
   gap: 0;
   border-top: 1px solid var(--app-hair);
 }
 
-.app-send-list div,
 .app-check {
   min-width: 0;
   display: grid;
@@ -366,12 +511,10 @@
   border-bottom: 1px solid var(--app-hair);
 }
 
-.app-send-list svg,
 .app-check svg {
   color: var(--app-text-faint);
 }
 
-.app-send-list span,
 .app-check span {
   color: var(--app-text-faint);
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
@@ -381,7 +524,6 @@
   text-transform: uppercase;
 }
 
-.app-send-list strong,
 .app-check strong {
   min-width: 0;
   color: var(--app-text);
@@ -1451,8 +1593,8 @@
 /* ── Message dock — on-demand conversation anchored bottom-right ──────────── */
 @keyframes app-dock-in {
   from {
-    opacity: 0;
-    transform: translateY(16px);
+    opacity: 0.6;
+    transform: translate(18px, 18px);
   }
 
   to {
@@ -1473,20 +1615,41 @@
 }
 
 .app-msgdock {
+  --app-ink: #050505;
+  --app-cream: #faf7f2;
+  --app-gold: #c9a55a;
+  --app-text: #1a1a1a;
+  --app-text-soft: rgba(26, 26, 26, 0.62);
+  --app-text-faint: rgba(26, 26, 26, 0.38);
+  --app-hair: rgba(26, 26, 26, 0.09);
+  --app-hair-strong: rgba(26, 26, 26, 0.16);
+  --app-hair-gold: rgba(201, 165, 90, 0.24);
+  --app-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-radius: 6px;
+
   position: fixed;
-  right: clamp(16px, 3vw, 32px);
-  bottom: clamp(16px, 3vw, 28px);
+  right: 0;
+  bottom: 0;
   z-index: 41;
-  width: min(384px, calc(100vw - 32px));
-  max-height: min(560px, calc(100vh - 120px));
+  width: min(384px, 100vw);
+  max-height: min(560px, calc(100dvh - 72px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--app-hair-strong);
-  border-radius: var(--app-radius);
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: var(--app-radius) 0 0 0;
   background: var(--app-cream);
-  box-shadow: 0 24px 60px rgba(26, 26, 26, 0.18);
+  box-shadow: -12px -10px 36px rgba(26, 26, 26, 0.1);
+  transform-origin: right bottom;
   animation: app-dock-in 0.32s var(--app-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-msgdock {
+    animation: none;
+  }
 }
 
 .app-msgdock__head {
@@ -1498,27 +1661,87 @@
   border-bottom: 1px solid var(--app-hair);
 }
 
+.app-msgdock__identity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .app-msgdock__title {
   min-width: 0;
   overflow: hidden;
   color: var(--app-text);
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 300;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.app-msgdock__meta {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
 .app-msgdock__close {
+  display: inline-flex !important;
   flex: 0 0 auto;
-  min-width: 34px;
-  padding: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  margin: 0 -2px 0 0;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--app-text-faint);
+  cursor: pointer;
+  transform: none !important;
+  transition: color 0.2s var(--app-ease);
+}
+
+.app-msgdock__close:hover,
+.app-msgdock__close:active {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--app-text);
+  transform: none !important;
+}
+
+.app-msgdock__close:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.55);
+  outline-offset: 3px;
 }
 
 .app-msgdock__body {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
+}
+
+/* Scrolled-past messages dissolve into the header rule instead of being sliced
+   by it. */
+.app-msgdock__body::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 20px;
+  background: linear-gradient(to bottom, var(--app-cream), transparent);
+  pointer-events: none;
 }
 
 /* The thread fills and scrolls; the composer stays pinned at the dock's base. */
@@ -1528,6 +1751,11 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  margin-top: 0;
+}
+
+.app-msgdock .app-msg__scroll {
+  display: contents;
 }
 
 .app-msgdock .app-msg__thread,
@@ -1541,9 +1769,10 @@
 
 .app-msgdock .app-msg__compose {
   margin: 0;
-  padding: 12px 16px;
+  padding: 14px 16px 16px;
   border-top: 1px solid var(--app-hair);
   background: var(--app-cream);
+  overflow: visible;
 }
 
 .app-detail__package {
@@ -1749,14 +1978,29 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .app-send-list div,
   .app-check {
     grid-template-columns: 18px minmax(0, 1fr);
   }
 
-  .app-send-list strong,
   .app-check strong {
     grid-column: 2;
+  }
+
+  .app-preflight__row {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 8px 14px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .app-preflight__task,
+  .app-preflight__action {
+    grid-column: 2;
+  }
+
+  .app-preflight__action {
+    justify-self: start;
+    margin-top: 4px;
   }
 
   .app-step-actions {
@@ -1926,7 +2170,7 @@
   }
 
   .app-msgdock .app-msg__compose {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
 
   /* Give the submission "package" exits (Book / Profile / Comp Card) a real

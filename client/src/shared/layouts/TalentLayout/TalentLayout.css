@@ -140,21 +140,39 @@
   color: rgba(201, 165, 90, 0.72);
 }
 
+/* Upgrade is an action, not a tier badge. The solid gold fill belongs to
+   `.tl-tier-pill.is-studio`, which states what you already have; reusing it
+   here spent the loudest colour in the shell on an ad. Gold now marks the
+   action as a stroke and a label, and only fills on intent. */
 .tl-btn-upgrade {
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  min-height: 18px;
+  padding: 5px 11px;
+  border: 1px solid rgba(201, 165, 90, 0.42);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tl-gold);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background 0.25s var(--tl-ease),
     color 0.25s var(--tl-ease),
-    border-color 0.25s var(--tl-ease),
-    transform 0.2s var(--tl-ease);
+    border-color 0.25s var(--tl-ease);
 }
 
 .tl-btn-upgrade:hover {
-  background: #d4bc8a;
-  border-color: #d4bc8a;
-  color: var(--tl-ink);
+  border-color: var(--tl-gold);
+  background: rgba(201, 165, 90, 0.12);
+  color: #d4bc8a;
 }
 
 .tl-btn-upgrade:focus-visible {
@@ -191,6 +209,11 @@
 .tl-action-icon:hover {
   background: rgba(255, 255, 255, 0.04);
   color: #fff;
+}
+
+.tl-action-icon.is-active {
+  color: var(--tl-gold);
+  background: rgba(201, 165, 90, 0.12);
 }
 
 .tl-action-icon.has-unread .tl-action-badge {
@@ -267,9 +290,16 @@
   height: var(--tl-topbar-h);
   padding: 0 8px 0 16px;
   border: 0;
+  border-radius: 0;
   background: transparent;
   cursor: pointer;
   text-align: left;
+}
+
+.tl-account-trigger:hover,
+.tl-account-trigger:active,
+.tl-account-trigger.is-open {
+  background: transparent;
 }
 
 .tl-account-trigger:focus-visible {
@@ -585,6 +615,11 @@
   color: #1A1A1A;
 }
 
+.tl-root--tone-light .tl-action-icon.is-active {
+  color: var(--tl-gold);
+  background: rgba(201, 165, 90, 0.14);
+}
+
 .tl-root--tone-light .tl-topnav-link--locked svg {
   color: rgba(201, 165, 90, 0.85);
 }
@@ -638,6 +673,19 @@
 .tl-root--tone-light .tl-tier-pill.is-free {
   border-color: rgba(26, 26, 26, 0.16);
   color: rgba(26, 26, 26, 0.52);
+}
+
+/* Working gold (#c9a55a) only reaches ~2.3:1 on the cream topbar, so the
+   label drops to the deep gold the button system uses on light surfaces. */
+.tl-root--tone-light .tl-btn-upgrade {
+  border-color: rgba(201, 165, 90, 0.55);
+  color: #75501b;
+}
+
+.tl-root--tone-light .tl-btn-upgrade:hover {
+  border-color: var(--tl-gold);
+  background: rgba(201, 165, 90, 0.14);
+  color: #5e3f14;
 }
 
 .tl-root--tone-light .tl-account-panel-section--footer {

@@ -37,7 +37,7 @@ export function LockCard({ zone, children }) {
       <Lock size={20} className="intel2-lock-icon" aria-hidden />
       <span className="intel2-lock-title">Studio+ · {zone}</span>
       <p className="intel2-lock-copy">{children}</p>
-      <PholioButton to="/dashboard/talent/settings/subscription" variant="meta">
+      <PholioButton to="/dashboard/talent/settings/studio" variant="meta">
         Upgrade to Studio+
       </PholioButton>
     </div>

@@ -12,13 +12,8 @@ vi.mock('../../api/agency', () => ({
   acceptAgencyLegalPolicies: vi.fn(),
 }));
 
-vi.mock('../../../auth/hooks/useAuthEntryTransition', () => ({
-  useAuthEntryTransition: () => ({
-    showEntrySplash: false,
-    isEntrySplashExiting: false,
-    entryStartedAt: null,
-  }),
-}));
+// The entry splash now lives above the router in AuthEntryTransitionProvider;
+// this gate only reports to it, and useAuthEntryHandoff no-ops without one.
 
 describe('AgencySessionGate', () => {
   beforeEach(() => {

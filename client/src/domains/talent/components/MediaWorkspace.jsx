@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -8,29 +9,34 @@ import {
   arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
-  Plus, Star, Edit2, Crop, Trash2, EyeOff, Loader2, Upload, Film, ExternalLink, X, Download, Check,
+  Plus, Star, Edit2, Crop, Trash2, EyeOff, Loader2, Upload, Film, ExternalLink, X, Check,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { pholioToast } from '../../../shared/lib/pholio-toast';
 import { useMedia } from '../hooks/useMedia';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { TransferFailureNotice } from '../../../shared/components/states';
 import { parseApiFailure } from '../../../shared/lib/api-error-message';
-import { getClassificationState, formatTypeLabel } from '../../../shared/utils/imageClassification';
+import {
+  getClassificationState,
+  formatTypeLabel,
+  imageNeedsReview,
+} from '../../../shared/utils/imageClassification';
 import { analyzePackageIntelligence } from '../../../shared/utils/packageIntelligence';
 import FrameReadCaption from '../../../shared/components/frame/FrameReadCaption';
 import { talentApi } from '../api/talent';
 import FrameEditor from './FrameEditor';
-import DigitalsBookPanel from './DigitalsBookPanel';
+import DigitalsContactSheet from './DigitalsContactSheet';
+import { ClassificationReviewRows } from './ClassificationReviewStrip';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import PholioButton, {
   PholioIconButton,
 } from '../../../shared/components/ui/PholioButton';
+import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import { checkGatingStatus } from '../../../shared/utils/profileGating';
 import CompCard from './CompCard';
 import CompCardGate from './CompCardGate';
 import './MediaWorkspace.css';
 import './ClassificationReviewStrip.css';
-import './DigitalsBookPanel.css';
 
 const ARRIVE = {
   initial: { opacity: 0, y: 12 },
@@ -57,14 +63,6 @@ const SECTION_META = {
   campaigns: { title: 'Campaigns', blurb: 'Unpublished brand and advertising work.' },
   tearsheets: { title: 'Tearsheets', blurb: 'Published editorial and campaign pages, with credit.' },
   motion: { title: 'Motion', blurb: 'Showreel and video assets.' },
-};
-
-const DIGITALS_SLOT_LABELS = {
-  headshot: 'Headshot',
-  three_quarter: 'Three-quarter',
-  full_length: 'Full length',
-  profile: 'Profile',
-  back: 'Back',
 };
 
 function normalizeToken(value) {
@@ -132,8 +130,8 @@ function partitionFiles(files) {
 }
 function showInvalidToasts(invalid) {
   if (invalid.length === 0) return;
-  if (invalid.length === 1) { toast.error(`${invalid[0].name}: ${invalid[0].reason}`); return; }
-  toast.error(`${invalid.length} files could not be uploaded`, {
+  if (invalid.length === 1) { pholioToast.error(`${invalid[0].name}: ${invalid[0].reason}`); return; }
+  pholioToast.error(`${invalid.length} files could not be uploaded`, {
     description: invalid.slice(0, 5).map((i) => `${i.name}: ${i.reason}`).join('\n'),
   });
 }
@@ -307,14 +305,32 @@ function MediaFrame({
   );
 }
 
-function DigitalsSetControl({ pkg, sets, onSelectSet, onCreateSet, busy, slug, hasDigitals }) {
-  const set = pkg.digitalsSet || { filledCount: 0, requiredCount: 5, missingSlots: [] };
-  const missing = (set.missingSlots || []).map((k) => DIGITALS_SLOT_LABELS[k] || k);
-  const recency = pkg.recency || {};
-  const currentSet = sets.find((s) => s.is_current) || null;
+/**
+ * The digitals set controls, rendered inside the section masthead.
+ *
+ * They belong on the same line as the title they act on: one module, one
+ * masthead, one rule under it. The set picker, New dated set, and Download
+ * sheet stay together as a single row.
+ */
+function DigitalsSetTools({ sets, onSelectSet, onCreateSet, busy, slug, hasDigitals }) {
+  // Digitals-kind only — book/test sets can also be marked current and must
+  // never appear in this picker or steal the "current" read.
+  const digitalsSets = React.useMemo(
+    () => sets.filter((s) => normalizeToken(s.kind) === 'digitals'),
+    [sets],
+  );
+  const currentSet = digitalsSets.find((s) => s.is_current) || null;
   const [downloading, setDownloading] = React.useState(false);
 
-  // The digitals sheet — the raw, dated set + measurements agencies request.
+  const setOptions = React.useMemo(
+    () =>
+      digitalsSets.map((s) => ({
+        value: s.id,
+        label: `${s.name || s.kind}${s.is_current ? ' · current' : ''}`,
+      })),
+    [digitalsSets],
+  );
+
   const handleDownloadDigitals = async () => {
     if (!slug || downloading) return;
     setDownloading(true);
@@ -331,73 +347,42 @@ function DigitalsSetControl({ pkg, sets, onSelectSet, onCreateSet, busy, slug, h
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error(err?.message || 'Could not download your digitals sheet.');
+      pholioToast.error(err?.message || 'Could not download your digitals sheet.');
     } finally {
       setDownloading(false);
     }
   };
 
   return (
-    <div className="mw-digitals-set">
-      <div className="mw-digitals-set__coverage">
-        <span className="mw-digitals-set__count">
-          {set.filledCount} of {set.requiredCount} slots
-        </span>
-        {missing.length > 0 ? (
-          <span className="mw-digitals-set__missing">Missing {missing.join(' · ')}</span>
-        ) : (
-          <span className="mw-digitals-set__missing">Set complete</span>
-        )}
-        {pkg.suppressBodyImagery ? (
-          <span className="mw-digitals-set__missing">Body frames held until guardian consent</span>
-        ) : null}
-        {recency.oldestDays != null ? (
-          <span className={`mw-digitals-set__recency${recency.isStale ? ' mw-digitals-set__recency--stale' : ''}`}>
-            {recency.isStale
-              ? `Oldest ${recency.oldestDays}d — reshoot to stay current`
-              : `Current — within the 3-month window (oldest ${recency.oldestDays}d)`}
-          </span>
-        ) : null}
-      </div>
-      <div className="mw-digitals-set__controls">
-        {sets.length > 0 ? (
-          <label className="mw-digitals-set__picker">
-            <span className="mw-meta">Current set</span>
-            <select
-              className="mw-digitals-set__select"
-              value={currentSet?.id || ''}
-              disabled={busy}
-              onChange={(e) => e.target.value && onSelectSet(e.target.value)}
-            >
-              <option value="" disabled>Select a set</option>
-              {sets.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name || s.kind}{s.is_current ? ' — current' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        <PholioButton type="button" variant="secondary" disabled={busy} onClick={onCreateSet}>
-          <Plus size={14} aria-hidden="true" /> Start new dated set
+    <div className="mw-tools">
+      {digitalsSets.length > 0 ? (
+        <div className="mw-tools__select">
+          <PholioCustomSelect
+            id="digitals-current-set"
+            label="Current digitals set"
+            options={setOptions}
+            value={currentSet?.id || ''}
+            onChange={(nextId) => nextId && onSelectSet(nextId)}
+            disabled={busy}
+            placeholder="Select a set"
+          />
+        </div>
+      ) : null}
+      <PholioButton type="button" variant="meta" disabled={busy} onClick={onCreateSet}>
+        New dated set
+      </PholioButton>
+      {hasDigitals && slug ? (
+        <PholioButton
+          type="button"
+          variant="meta"
+          disabled={downloading}
+          onClick={handleDownloadDigitals}
+          title="Download your digitals as a dated PDF sheet"
+        >
+          {downloading ? <Loader2 size={12} className="mw-spin" aria-hidden="true" /> : null}
+          Download sheet
         </PholioButton>
-        {hasDigitals && slug ? (
-          <PholioButton
-            type="button"
-            variant="secondary"
-            disabled={downloading}
-            onClick={handleDownloadDigitals}
-            title="Download your digitals as a dated PDF sheet"
-          >
-            {downloading ? (
-              <Loader2 size={14} className="mw-spin" aria-hidden="true" />
-            ) : (
-              <Download size={14} aria-hidden="true" />
-            )}
-            Download digitals
-          </PholioButton>
-        ) : null}
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -405,7 +390,7 @@ function DigitalsSetControl({ pkg, sets, onSelectSet, onCreateSet, busy, slug, h
 function UploadDatePrompt({ count, onConfirm, onSkip, onCancel }) {
   const [value, setValue] = React.useState('');
   const today = dateToInput(new Date());
-  return (
+  return createPortal(
     <div className="mw-modal-overlay" onClick={onCancel}>
       <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Shoot date" onClick={(e) => e.stopPropagation()}>
         <header className="mw-modal__head">
@@ -433,7 +418,8 @@ function UploadDatePrompt({ count, onConfirm, onSkip, onCancel }) {
           </PholioButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -445,7 +431,7 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
   const today = dateToInput(new Date());
   const submit = () => {
     const trimmed = url.trim();
-    if (!trimmed) { toast.error('Add a video URL'); return; }
+    if (!trimmed) { pholioToast.error('Add a video URL'); return; }
     onSubmit({
       video_url: trimmed,
       label: label.trim() || undefined,
@@ -453,7 +439,7 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
       captured_at: dateInputToIso(captured) || undefined,
     });
   };
-  return (
+  return createPortal(
     <div className="mw-modal-overlay" onClick={onCancel}>
       <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Add motion" onClick={(e) => e.stopPropagation()}>
         <header className="mw-modal__head">
@@ -492,7 +478,8 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
           </PholioButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -515,7 +502,7 @@ function BulkReclassifyModal({ sets, onConfirm, onCancel, busy }) {
     });
   };
 
-  return (
+  return createPortal(
     <div className="mw-modal-overlay" onClick={onCancel}>
       <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Bulk reclassify" onClick={(e) => e.stopPropagation()}>
         <header className="mw-modal__head">
@@ -567,7 +554,8 @@ function BulkReclassifyModal({ sets, onConfirm, onCancel, busy }) {
           </PholioButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -626,30 +614,28 @@ export default function MediaWorkspace() {
       ) {
         toastedAutoRef.current.add(img.id);
         const label = formatTypeLabel(state.shotType, state.imageType, state.styleType);
-        toast(`Pholio read this as ${label}`, {
-          action: {
-            label: 'Clear read',
-            onClick: () => {
-              talentApi.updateMedia(img.id, {
-                shot_type: null,
-                image_type: null,
-                style_type: null,
-                metadata: {
-                  ...(typeof img.metadata === 'object' ? img.metadata : {}),
-                  ai: {
-                    classification: {
-                      source: 'user',
-                      confirmed: true,
-                      band: 'ask',
-                    },
+        pholioToast.info(`Pholio read this as ${label}`, {
+          actionLabel: 'Clear read',
+          onAction: () => {
+            talentApi.updateMedia(img.id, {
+              shot_type: null,
+              image_type: null,
+              style_type: null,
+              metadata: {
+                ...(typeof img.metadata === 'object' ? img.metadata : {}),
+                ai: {
+                  classification: {
+                    source: 'user',
+                    confirmed: true,
+                    band: 'ask',
                   },
                 },
-              }).then(() => {
-                queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-              }).catch(() => {
-                toast.error('Could not clear the frame read');
-              });
-            },
+              },
+            }).then(() => {
+              queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+            }).catch(() => {
+              pholioToast.error('Could not clear the frame read');
+            });
           },
         });
       }
@@ -686,7 +672,7 @@ export default function MediaWorkspace() {
           setClassificationTimedOutIds(new Set(stillPending));
           if (!timeoutToastedRef.current) {
             timeoutToastedRef.current = true;
-            toast.error('Some frames need a manual read. Open details to place them.');
+            pholioToast.error('Some frames need a manual read. Open details to place them.');
           }
         }
         return;
@@ -717,17 +703,35 @@ export default function MediaWorkspace() {
   const frames = localImages;
   const visibleCount = frames.filter((img) => !isHiddenFromMarket(img)).length;
 
+  // Digitals are versioned by dated set. The picker marks one set current; the
+  // Digitals section must show only that set's frames — otherwise "New dated
+  // set" looks like it copied the previous shoot.
+  const currentDigitalsSet = React.useMemo(
+    () => sets.find((s) => normalizeToken(s.kind) === 'digitals' && s.is_current) || null,
+    [sets],
+  );
+
   const grouped = React.useMemo(() => {
     const g = { digitals: [], book: [], tests: [], campaigns: [], tearsheets: [], motion: [] };
-    for (const img of frames) g[bucketFor(img)].push(img);
+    for (const img of frames) {
+      const bucket = bucketFor(img);
+      if (bucket === 'digitals' && currentDigitalsSet) {
+        if (img.set_id !== currentDigitalsSet.id) continue;
+      }
+      g[bucket].push(img);
+    }
     return g;
-  }, [frames]);
+  }, [frames, currentDigitalsSet]);
 
   // Profile is threaded so minor-suppression activates on the /media surface.
   const pkg = React.useMemo(
     () => analyzePackageIntelligence({ images: frames, profile }),
     [frames, profile],
   );
+
+  // Frames whose read is still undecided. Drives whether the reads block exists
+  // at all — a settled book shows nothing rather than an empty container.
+  const reviewFrames = React.useMemo(() => frames.filter(imageNeedsReview), [frames]);
 
   const compCardGating = React.useMemo(
     () => checkGatingStatus(profile, images),
@@ -762,6 +766,9 @@ export default function MediaWorkspace() {
     const formData = new FormData();
     valid.forEach((f) => formData.append('media', f));
     if (capturedAtIso) formData.append('captured_at', capturedAtIso);
+    // Attach uploads to the current digitals set so they don't float as
+    // set-less frames and reappear across every dated set.
+    if (currentDigitalsSet?.id) formData.append('set_id', currentDigitalsSet.id);
     try {
       setUploadError(null);
       const result = await upload(formData);
@@ -787,7 +794,7 @@ export default function MediaWorkspace() {
         message = 'Could not reach the server. Wait a moment and try again (the API may still be restarting).';
       }
       setUploadError(message);
-      toast.error(message);
+      pholioToast.error(message);
     }
   };
 
@@ -802,7 +809,7 @@ export default function MediaWorkspace() {
     const next = SECTION_ORDER.flatMap((k) => (k === sectionKey ? reordered : grouped[k]));
     setLocalImages(next);
     try { await reorder(next.map((i) => i.id)); }
-    catch (err) { setLocalImages(prev); toast.error(err?.message || 'Failed to reorder'); }
+    catch (err) { setLocalImages(prev); pholioToast.error(err?.message || 'Failed to reorder'); }
   };
 
   const handleSetCover = async (id) => {
@@ -810,23 +817,59 @@ export default function MediaWorkspace() {
     try {
       await setHero(id);
       setLocalImages((prev) => prev.map((img) => ({ ...img, is_primary: img.id === id })));
-    } catch (err) { toast.error(err?.message || 'Failed to set cover'); }
+    } catch (err) { pholioToast.error(err?.message || 'Failed to set cover'); }
     finally { setSettingCoverId(null); }
   };
 
   const handleSelectSet = async (id) => {
     setSetBusy(true);
     try { await setCurrentSet(id); }
-    catch (err) { toast.error(err?.message || 'Failed to set current set'); }
+    catch (err) { pholioToast.error(err?.message || 'Failed to set current set'); }
     finally { setSetBusy(false); }
   };
 
   const handleCreateSet = async () => {
     setSetBusy(true);
     try {
+      // Park set-less digitals on the previous current set before opening a
+      // new empty one — otherwise they'd vanish from every set view once
+      // filtering is applied, or appear to "carry over" if we kept showing them.
+      const previousCurrent = currentDigitalsSet;
+      const orphans = frames.filter(
+        (img) => bucketFor(img) === 'digitals' && !img.set_id,
+      );
+      if (previousCurrent?.id && orphans.length > 0) {
+        await bulkUpdateMedia({
+          imageIds: orphans.map((img) => img.id),
+          patch: { set_id: previousCurrent.id },
+        });
+        setLocalImages((prev) =>
+          prev.map((img) =>
+            orphans.some((o) => o.id === img.id)
+              ? { ...img, set_id: previousCurrent.id }
+              : img,
+          ),
+        );
+      }
+
       const name = `Digitals — ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
-      await createSet({ kind: 'digitals', name, is_current: true });
-    } catch (err) { toast.error(err?.message || 'Failed to create set'); }
+      const created = await createSet({ kind: 'digitals', name, is_current: true });
+      const newSetId = created?.set?.id;
+
+      // First dated set ever: existing orphan frames belong to it (they're
+      // becoming the dated set). Later "New dated set" clicks stay empty.
+      if (!previousCurrent && orphans.length > 0 && newSetId) {
+        await bulkUpdateMedia({
+          imageIds: orphans.map((img) => img.id),
+          patch: { set_id: newSetId },
+        });
+        setLocalImages((prev) =>
+          prev.map((img) =>
+            orphans.some((o) => o.id === img.id) ? { ...img, set_id: newSetId } : img,
+          ),
+        );
+      }
+    } catch (err) { pholioToast.error(err?.message || 'Failed to create set'); }
     finally { setSetBusy(false); }
   };
 
@@ -838,7 +881,7 @@ export default function MediaWorkspace() {
         setLocalImages((prev) => (prev.some((p) => p.id === img.id) ? prev : [...prev, img]));
       }
       setShowMotionPrompt(false);
-    } catch (err) { toast.error(err?.message || 'Failed to add motion asset'); }
+    } catch (err) { pholioToast.error(err?.message || 'Failed to add motion asset'); }
   };
 
   const handleUpdateMetadata = (id, patch) =>
@@ -852,18 +895,18 @@ export default function MediaWorkspace() {
   const handleReplace = async (blob) => {
     if (!editor) return;
     try { await replaceImage(editor.image.id, blob); setEditor(null); }
-    catch (err) { console.error(err); toast.error('Failed to save edited photo. Please try again.'); }
+    catch (err) { console.error(err); pholioToast.error('Failed to save edited photo. Please try again.'); }
   };
 
   const handleRestore = async (id) => {
     try { await restoreImage(id); setEditor(null); }
-    catch (err) { toast.error(err?.message || 'Failed to restore original'); }
+    catch (err) { pholioToast.error(err?.message || 'Failed to restore original'); }
   };
 
   const confirmDelete = async () => {
     if (!deleteId) return;
     try { await deleteImage(deleteId); setDeleteId(null); }
-    catch (err) { toast.error(err?.message || 'Failed to delete image'); }
+    catch (err) { pholioToast.error(err?.message || 'Failed to delete image'); }
   };
 
   const handleToggleSelect = (id) => {
@@ -885,7 +928,7 @@ export default function MediaWorkspace() {
       setBulkMode(false);
       setShowBulkDeleteConfirm(false);
     } catch (err) {
-      toast.error(err?.message || 'Bulk delete failed');
+      pholioToast.error(err?.message || 'Bulk delete failed');
     } finally {
       setIsBulkDeleting(false);
     }
@@ -901,7 +944,7 @@ export default function MediaWorkspace() {
       setBulkMode(false);
       setShowBulkReclassifyModal(false);
     } catch (err) {
-      toast.error(err?.message || 'Bulk update failed');
+      pholioToast.error(err?.message || 'Bulk update failed');
     } finally {
       setIsBulkUpdating(false);
     }
@@ -909,27 +952,50 @@ export default function MediaWorkspace() {
 
   const renderSection = (key) => {
     const items = grouped[key];
-    if (items.length === 0) return null;
+    // Digitals survives an empty bucket: five empty slots are the clearest
+    // possible brief for someone who hasn't shot their digitals yet, and hiding
+    // the section is how they'd never learn the set exists.
+    if (items.length === 0 && key !== 'digitals') return null;
     const meta = SECTION_META[key];
     const allowCover = key === 'book';
+    const isDigitals = key === 'digitals';
     return (
       <section key={key} className="mw-section" aria-label={meta.title}>
-        <div className="mw-section__head">
+        <div className={`mw-section__head${isDigitals ? ' mw-section__head--tools' : ''}`}>
           <h2 className="mw-h2">{meta.title}</h2>
-          <span className="mw-section__count mw-meta">{items.length} {items.length === 1 ? 'frame' : 'frames'}</span>
+          <div className="mw-section__aside">
+            {items.length > 0 ? (
+              <span className="mw-section__count mw-meta">{items.length} {items.length === 1 ? 'frame' : 'frames'}</span>
+            ) : null}
+            {isDigitals ? (
+              <DigitalsSetTools
+                sets={sets}
+                busy={setBusy}
+                onSelectSet={handleSelectSet}
+                onCreateSet={handleCreateSet}
+                slug={profile?.slug}
+                hasDigitals={items.length > 0}
+              />
+            ) : null}
+          </div>
         </div>
         <p className="mw-sub mw-section__blurb">{meta.blurb}</p>
-        {key === 'digitals' ? (
-          <DigitalsSetControl
-            pkg={pkg}
-            sets={sets}
-            busy={setBusy}
-            onSelectSet={handleSelectSet}
-            onCreateSet={handleCreateSet}
-            slug={profile?.slug}
-            hasDigitals={items.length > 0}
+        {/*
+          Digitals renders the sheet and nothing else. It used to render the sheet
+          AND the grid below, both drawn from this same bucket — the same photos
+          twice, as two content layers of equal weight. The sheet is the set.
+        */}
+        {isDigitals ? (
+          <DigitalsContactSheet
+            images={items}
+            suppressBodyImagery={pkg.suppressBodyImagery}
+            recency={pkg.recency}
+            onAddFrames={openFilePicker}
+            onOpenFrame={(img) => setEditor({ image: img, mode: 'details' })}
+            onCropFrame={(img) => setEditor({ image: img, mode: 'crop' })}
+            onDeleteFrame={setDeleteId}
           />
-        ) : null}
+        ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter}
           onDragEnd={(e) => { if (e.over) handleSectionReorder(key, e.active.id, e.over.id); }}>
           <div className="mw-grid">
@@ -967,6 +1033,7 @@ export default function MediaWorkspace() {
             )}
           </div>
         </DndContext>
+        )}
       </section>
     );
   };
@@ -1081,7 +1148,7 @@ export default function MediaWorkspace() {
           <div className="mw-masthead__actions">
             {hasAnyFrame && (
               <PholioButton
-                variant={bulkMode ? 'secondary' : 'secondary'}
+                variant="secondary"
                 onClick={() => {
                   setBulkMode(!bulkMode);
                   setSelectedIds(new Set());
@@ -1108,14 +1175,29 @@ export default function MediaWorkspace() {
         )}
 
         <section aria-label="Frame library" className="mw-library">
-          <div className="mw-section-head">
-            <DigitalsBookPanel
-              images={frames}
-              profile={profile}
-              onConfirm={handleClassificationConfirm}
-              onEdit={(img) => setEditor({ image: img, mode: 'details' })}
-            />
-          </div>
+          {/*
+            What stood here was "Digitals read": an accordion holding a tick-mark
+            meter, a count, and eight lines of coaching prose — above a Digitals
+            section that already printed the same coverage as text. The coverage
+            is now drawn as the five-slot sheet inside that section, where the
+            frames are. What is left here is the only part that was work rather
+            than commentary: frames whose read still needs a decision.
+          */}
+          {reviewFrames.length > 0 ? (
+            <div className="mw-reads">
+              <h2 className="mw-h2 mw-reads__title">Frame reads</h2>
+              <p className="mw-sub mw-reads__blurb">
+                Pholio has placed {reviewFrames.length === 1 ? 'a frame' : 'these frames'} and
+                wants your word on {reviewFrames.length === 1 ? 'it' : 'them'} before an agency
+                reads {reviewFrames.length === 1 ? 'it' : 'them'} that way.
+              </p>
+              <ClassificationReviewRows
+                images={frames}
+                onConfirm={handleClassificationConfirm}
+                onEdit={(img) => setEditor({ image: img, mode: 'details' })}
+              />
+            </div>
+          ) : null}
 
           {isLoading ? (
             <div className="mw-grid">

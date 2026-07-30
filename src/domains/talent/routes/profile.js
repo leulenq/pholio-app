@@ -154,6 +154,9 @@ const TALENT_PROFILE_API_KEYS = [
   "instagram_engagement",
   "is_discoverable",
   "is_pro",
+  // Owner's own publish flag — already returned by GET /settings; the dashboard
+  // needs it to say whether the public site is live.
+  "is_public",
   "is_unicorn",
   "languages",
   "last_name",

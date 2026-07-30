@@ -12,6 +12,7 @@
   --mw-hair: rgba(26, 26, 26, 0.08);
   --mw-hair-strong: rgba(26, 26, 26, 0.16);
   --mw-hair-gold: rgba(201, 165, 90, 0.18);
+  --mw-radius-sm: 2px;
   --mw-serif: "Noto Serif Display", Georgia, serif;
   --mw-sans: "Inter", system-ui, sans-serif;
   --mw-mono: "JetBrains Mono", "SF Mono", monospace;
@@ -48,8 +49,7 @@
 @media (max-width: 720px) {
   .mw-wrap { padding: 32px 24px 64px; }
   /* iOS Safari zooms the viewport when a focused input is < 16px. Keep 16px on touch. */
-  .mw-modal__input,
-  .mw-digitals-set__select { font-size: 16px; }
+  .mw-modal__input { font-size: 16px; }
 }
 
 /* ── Editorial primitives ── */
@@ -131,6 +131,18 @@
 
 /* ── Library ── */
 .mw-library { margin-top: 56px; }
+
+/* ── Frame reads ──
+   Frames whose read is still undecided. This was the expandable body of a
+   "Digitals read" accordion; it is a section like any other now, and it only
+   exists when there is actually a decision to make. */
+.mw-reads {
+  margin-bottom: 56px;
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--mw-hair);
+}
+.mw-reads__title { font-size: clamp(24px, 2.8vw, 34px); }
+.mw-reads__blurb { margin: 14px 0 24px; max-width: 58ch; }
 
 .mw-grid {
   display: grid;
@@ -325,7 +337,10 @@
 
 /* ── Grouped sections (Digitals / Book / Tests / Campaigns / Tearsheets / Motion) ── */
 .mw-section { margin-top: 56px; }
-.mw-section:first-of-type { margin-top: 8px; }
+/* The page masthead's own action row lands right here, so 8px put two separate
+   control layers — Add images, then the Digitals set controls — within a few
+   pixels of each other. The first section needs the same air as every other. */
+.mw-section:first-of-type { margin-top: 48px; }
 .mw-section__head {
   display: flex;
   align-items: baseline;
@@ -334,47 +349,139 @@
   border-bottom: 1px solid var(--mw-hair);
   padding-bottom: 10px;
 }
+/* The h2's default UA margin left ~36px of dead air between every section title
+   and its own rule, so the title read as floating above the module rather than
+   heading it. The rule belongs to the title. */
+.mw-section__head .mw-h2 { margin: 0; }
 .mw-section__count { white-space: nowrap; }
 .mw-section__blurb { margin: 14px 0 20px; max-width: 60ch; }
 
-/* ── Digitals set control ── */
-.mw-digitals-set {
+/* Everything that sits opposite the section title: the frame count, and — for
+   Digitals — the set controls. */
+.mw-section__aside {
   display: flex;
+  align-items: baseline;
+  gap: 18px;
   flex-wrap: wrap;
+}
+
+/* ── Digitals masthead tools ──
+   The set controls belong beside the title: one masthead, one rule, then the
+   sheet underneath it. Picker and both actions stay on a single row. */
+.mw-section__head--tools {
+  align-items: flex-end;
+  flex-wrap: wrap;
+  row-gap: 18px;
+  padding-bottom: 14px;
+}
+
+.mw-section__head--tools .mw-section__aside {
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 0 0 24px;
-  padding: 16px 18px;
-  border: 1px solid var(--mw-hair);
-  border-left: 2px solid var(--mw-gold);
-  border-radius: 2px;
-  background: var(--mw-cream-warm);
+  gap: 20px;
 }
-.mw-digitals-set__coverage { display: flex; flex-direction: column; gap: 4px; }
-.mw-digitals-set__count {
-  font-family: var(--mw-serif);
-  font-size: 18px;
-  color: var(--mw-text);
+
+.mw-tools {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: nowrap;
 }
-.mw-digitals-set__missing,
-.mw-digitals-set__recency {
-  font-family: var(--mw-sans);
-  font-size: 12.5px;
+
+.mw-tools__select {
+  flex: 0 0 auto;
+  width: 232px;
+}
+
+.mw-tools__select .pholio-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mw-tools__select .pholio-form-group {
+  margin: 0;
+  position: relative;
+}
+
+/* Profile field treatment at masthead scale: square editorial corners, white
+   surface, light hairline, and the same restrained gold focus state. */
+.mw-tools__select .pholio-custom-select-trigger {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
   font-weight: 300;
-  color: var(--mw-text-soft);
-}
-.mw-digitals-set__recency--stale { color: #9a5b32; }
-.mw-digitals-set__controls { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
-.mw-digitals-set__picker { display: flex; flex-direction: column; gap: 6px; }
-.mw-digitals-set__select {
-  font-family: var(--mw-sans);
-  font-size: 13px;
-  padding: 8px 10px;
-  border: 1px solid var(--mw-hair-strong);
-  border-radius: 2px;
-  background: #fff;
+  line-height: 1.45;
   color: var(--mw-text);
+  background: #ffffff;
+  border: 1px solid var(--mw-hair);
+  border-radius: var(--mw-radius-sm);
+  box-shadow: none;
+  min-height: 40px;
+  height: 40px;
+  padding: 9px 14px;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: none;
+}
+
+.mw-tools__select .pholio-custom-select-trigger:hover:not(:focus):not(.open) {
+  border-color: var(--mw-hair-strong);
+  background: #ffffff;
+  transform: none;
+}
+
+.mw-tools__select .pholio-custom-select-trigger:focus,
+.mw-tools__select .pholio-custom-select-trigger.open {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+  outline: none;
+  transform: none;
+}
+
+.mw-tools__select .pholio-custom-select-dropdown {
+  border: 1px solid var(--mw-hair);
+  border-radius: var(--mw-radius-sm);
+  box-shadow: 0 12px 36px rgba(26, 24, 21, 0.08);
+  background: #ffffff;
+  padding: 0;
+  z-index: 30;
+}
+
+.mw-tools__select .pholio-select-option {
+  font-size: 13.5px;
+  min-height: 44px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 0;
+  transform: none;
+}
+
+@media (max-width: 720px) {
+  .mw-section__head--tools .mw-section__aside {
+    width: 100%;
+    gap: 14px;
+  }
+
+  /* Below the phone break the single row can't hold three controls, so let it
+     wrap rather than clip the picker. */
+  .mw-tools {
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    width: 100%;
+  }
+
+  .mw-tools__select {
+    width: 100%;
+  }
+
+  .mw-tools__select .pholio-custom-select-trigger {
+    font-size: 16px;
+  }
 }
 /* ── Motion (video) placeholder card ── */
 .mw-frame__motion {
@@ -410,7 +517,7 @@
 .mw-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;

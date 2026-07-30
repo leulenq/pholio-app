@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from '../../../shared/components/NotificationCenter/talentNotifications';
 import ReportDialog from '../../../shared/components/ReportDialog';
 import { talentApi } from '../api/talent';
-import WritingAssistToolbar from '../../../shared/components/writing/WritingAssistToolbar';
-import PholioButton from '../../../shared/components/ui/PholioButton';
 import './ApplicationMessages.css';
 
 const POLISH_MIN_LENGTH = 10;
@@ -29,7 +27,12 @@ function timeLabel(value) {
   });
 }
 
-export default function ApplicationMessages({ applicationId, agencyName, hideTitle = false }) {
+export default function ApplicationMessages({
+  applicationId,
+  agencyName,
+  hideTitle = false,
+  variant = 'dock',
+}) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [prePolishDraft, setPrePolishDraft] = useState(null);
@@ -44,6 +47,14 @@ export default function ApplicationMessages({ applicationId, agencyName, hideTit
   });
   const messages = asList(threadQuery.data);
 
+  // The thread opens on the latest exchange rather than the oldest. `nearest`
+  // keeps the scroll inside whichever ancestor scrolls — the dock scrolls the
+  // list, the Messages workspace scrolls the conversation body.
+  const latestRef = useRef(null);
+  useEffect(() => {
+    latestRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [messages.length]);
+
   const send = useMutation({
     mutationFn: (text) => talentApi.sendApplicationMessage(applicationId, text),
     onSuccess: () => {
@@ -51,6 +62,7 @@ export default function ApplicationMessages({ applicationId, agencyName, hideTit
       setPrePolishDraft(null);
       queryClient.invalidateQueries({ queryKey: threadKey });
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['talent', 'message-threads'] });
     },
     onError: (err) => toast.error(err?.message || 'Could not send your message'),
   });
@@ -97,88 +109,111 @@ export default function ApplicationMessages({ applicationId, agencyName, hideTit
   const showUndo = prePolishDraft !== null;
 
   return (
-    <div className="app-msg">
+    <div className={`app-msg${variant === 'workspace' ? ' app-msg--workspace' : ''}`}>
       {!hideTitle && <span className="app-msg__title">Messages</span>}
 
-      {threadQuery.isLoading ? (
-        <p className="app-msg__empty">Loading conversation…</p>
-      ) : messages.length === 0 ? (
-        <p className="app-msg__empty">
-          No messages yet. Send {agencyName || 'the agency'} a note below.
-        </p>
-      ) : (
-        <ol className="app-msg__thread">
-          {messages.map((m) => (
-            <li
-              key={m.id}
-              className={`app-msg__bubble app-msg__bubble--${
-                m.sender_type === 'TALENT' ? 'me' : 'them'
-              }`}
-            >
-              <p className="app-msg__text">{m.message}</p>
-              <div className="app-msg__footer">
-                <span className="app-msg__time">{timeLabel(m.created_at)}</span>
-                {m.sender_type !== 'TALENT' && m.id && (
-                  <PholioButton
-                    type="button"
-                    variant="meta"
-                    className="app-msg__report"
-                    onClick={() =>
-                      setReportTarget({
-                        targetType: 'message',
-                        targetId: m.id,
-                        targetLabel: `message from ${agencyName || 'agency'}`,
-                      })
-                    }
-                  >
-                    Report
-                  </PholioButton>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+      <div className="app-msg__scroll">
+        {threadQuery.isLoading ? (
+          <div className="app-msg__empty">
+            <p className="app-msg__empty-copy">Loading conversation…</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="app-msg__empty">
+            <p className="app-msg__empty-title">No messages yet</p>
+            <p className="app-msg__empty-copy">Write the first note below.</p>
+          </div>
+        ) : (
+          <ol className="app-msg__thread">
+            {messages.map((m, index) => (
+              <li
+                key={m.id}
+                ref={index === messages.length - 1 ? latestRef : null}
+                className={`app-msg__bubble app-msg__bubble--${
+                  m.sender_type === 'TALENT' ? 'me' : 'them'
+                }`}
+              >
+                <p className="app-msg__text">{m.message}</p>
+                <div className="app-msg__footer">
+                  <span className="app-msg__time">{timeLabel(m.created_at)}</span>
+                  {m.sender_type !== 'TALENT' && m.id && (
+                    <button
+                      type="button"
+                      className="app-msg__report"
+                      onClick={() =>
+                        setReportTarget({
+                          targetType: 'message',
+                          targetId: m.id,
+                          targetLabel: `message from ${agencyName || 'agency'}`,
+                        })
+                      }
+                    >
+                      Report
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
 
       <form className="app-msg__compose" onSubmit={submit}>
-        <div className="app-msg__compose-inner">
-          {showToolbar && (
-            <WritingAssistToolbar
-              className="app-msg__toolbar"
-              actions={[{ id: 'polish', label: 'Polish', onClick: () => polish.mutate() }]}
-              busy={polish.isPending}
-              busyActionId="polish"
-              busyLabel="Polishing…"
-              onUndo={handleUndo}
-              showUndo={showUndo}
-            />
-          )}
-          <div className="app-msg__input-row">
-            <textarea
-              className="app-msg__input"
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                if (prePolishDraft !== null) setPrePolishDraft(null);
-              }}
-              placeholder={`Message ${agencyName || 'the agency'}…`}
-              rows={2}
-              maxLength={4000}
-            />
-            <PholioButton
+        <div className="app-msg__well">
+          <textarea
+            className="app-msg__input"
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (prePolishDraft !== null) setPrePolishDraft(null);
+            }}
+            placeholder={`Message ${agencyName || 'the agency'}…`}
+            rows={3}
+            maxLength={4000}
+          />
+          <div className="app-msg__actions">
+            {(showToolbar || showUndo) && (
+              <div className="app-msg__assist">
+                {showToolbar && (
+                  <button
+                    type="button"
+                    className="app-msg__assist-btn"
+                    onClick={() => polish.mutate()}
+                    disabled={polish.isPending}
+                    aria-busy={polish.isPending || undefined}
+                  >
+                    {polish.isPending ? (
+                      <>
+                        <Loader2 size={11} className="app-spin" aria-hidden />
+                        <span>Polishing…</span>
+                      </>
+                    ) : (
+                      <span>Polish</span>
+                    )}
+                  </button>
+                )}
+                {showUndo && (
+                  <button
+                    type="button"
+                    className="app-msg__assist-btn"
+                    onClick={handleUndo}
+                  >
+                    Revert
+                  </button>
+                )}
+              </div>
+            )}
+            <button
               type="submit"
-              variant="primary"
               className="app-msg__send"
               disabled={!draft.trim() || send.isPending}
-              aria-label="Send message"
             >
               {send.isPending ? (
-                <Loader2 size={14} className="app-spin" aria-hidden />
+                <Loader2 size={13} className="app-spin" aria-hidden />
               ) : (
-                <Send size={14} aria-hidden />
+                <Send size={13} aria-hidden />
               )}
-              <span>Send</span>
-            </PholioButton>
+              <span>{send.isPending ? 'Sending' : 'Send'}</span>
+            </button>
           </div>
         </div>
       </form>

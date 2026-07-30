@@ -37,6 +37,7 @@ import { SubscriptionCheckoutModal } from '../../../../shared/components/Subscri
 import CheckoutHandoff from '../../../../shared/components/billing/CheckoutHandoff';
 import SubscriptionReturnBanner from '../../../../shared/components/billing/SubscriptionReturnBanner';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
+import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCustomSelect';
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
 import { identityFormFromProfile } from './identityForm';
 import './SettingsPage.css';
@@ -273,14 +274,51 @@ const PROVIDERS = {
  * not "email and password". Asserting a password login to a Google account is a
  * lie the talent can act on — they go looking for a password that doesn't exist.
  */
+function GoogleSignInIdentity({ email, label = 'How you sign in' }) {
+  return (
+    <div className="set-signin-google">
+      {label && (
+        <div className="set-signin-google__label">
+          <KeyRound size={15} aria-hidden="true" />
+          <span>{label}</span>
+        </div>
+      )}
+      <div className="set-signin-google__card">
+        <div className="set-signin-google__header">
+          <div className="set-signin-google__mark">
+            <GoogleMark size={22} />
+          </div>
+          <div className="set-signin-google__info">
+            <div className="set-signin-google__title-row">
+              <span className="set-signin-google__title">Signed in with Google</span>
+              <span className="set-signin-google__chip">
+                <Check size={12} strokeWidth={2.5} aria-hidden="true" />
+                Connected
+              </span>
+            </div>
+            <span className="set-signin-google__email" title={email || undefined}>
+              {email || 'Account email unavailable'}
+            </span>
+          </div>
+        </div>
+        <p className="set-signin-google__note">
+          Your password and 2-step verification are managed directly by your Google Account. Pholio never sees or stores your Google password.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function SignInIdentity({ email, provider, label = 'How you sign in' }) {
+  if (provider === 'google') {
+    return <GoogleSignInIdentity email={email} label={label} />;
+  }
+
   const known = provider ? PROVIDERS[provider] : null;
   const isPassword = provider === 'password';
 
   const Mark = known?.mark;
   const name = known?.name || (isPassword ? 'Email and password' : 'Pholio account');
-  // Never open the sentence with the provider name — it sits directly under a
-  // headline that already says it.
   const note = known
     ? `Your password and any two-step verification live with ${known.name}. Pholio never sees them.`
     : isPassword
@@ -319,7 +357,14 @@ export default function SettingsPage() {
   const prefersReduced = useReducedMotion();
   const { data: settings, isLoading } = useTalentSettings();
 
-  const active = MOVEMENT_IDS.includes(section) ? section : 'identity';
+  const SECTION_ALIASES = {
+    subscription: 'studio',
+    membership: 'studio',
+    billing: 'studio',
+    plan: 'studio',
+  };
+  const resolvedSection = SECTION_ALIASES[section] || section;
+  const active = MOVEMENT_IDS.includes(resolvedSection) ? resolvedSection : 'identity';
 
   const selectTab = useCallback((id) => {
     navigate(`/dashboard/talent/settings/${id}`);
@@ -399,6 +444,27 @@ export default function SettingsPage() {
 }
 
 /* --- I · Identity -------------------------------------------------- */
+
+const LANGUAGE_OPTIONS = [
+  'English',
+  'Spanish',
+  'French',
+  'Italian',
+  'German',
+  'Portuguese',
+  'Japanese',
+  'Korean',
+].map((language) => ({ value: language, label: language }));
+
+const TIMEZONE_OPTIONS = [
+  { value: 'America/New_York', label: 'Eastern (ET)' },
+  { value: 'America/Chicago', label: 'Central (CT)' },
+  { value: 'America/Denver', label: 'Mountain (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { value: 'Europe/London', label: 'London (GMT)' },
+  { value: 'Europe/Paris', label: 'Paris (CET)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+];
 
 function IdentityMovement({ settings }) {
   const { profile, updateProfile, isUpdatingProfile } = useAuth();
@@ -529,25 +595,25 @@ function IdentityMovement({ settings }) {
             <Field label="Last name">
               <input value={form.last_name} onChange={(e) => setField('last_name', e.target.value)} autoComplete="family-name" />
             </Field>
-            <Field label="Phone" hint="Used for booking contact on submissions. Never published on your public book.">
+            <Field label="Phone" hint="booking contact only, never public">
               <input value={form.phone} onChange={(e) => setField('phone', e.target.value)} autoComplete="tel" placeholder="+1 (555) 000-0000" />
             </Field>
-            <Field label="Working language">
-              <select value={form.language} onChange={(e) => setField('language', e.target.value)}>
-                {['English', 'Spanish', 'French', 'Italian', 'German', 'Portuguese', 'Japanese', 'Korean'].map((l) => <option key={l}>{l}</option>)}
-              </select>
-            </Field>
-            <Field label="Home timezone">
-              <select value={form.timezone} onChange={(e) => setField('timezone', e.target.value)}>
-                <option value="America/New_York">Eastern (ET)</option>
-                <option value="America/Chicago">Central (CT)</option>
-                <option value="America/Denver">Mountain (MT)</option>
-                <option value="America/Los_Angeles">Pacific (PT)</option>
-                <option value="Europe/London">London (GMT)</option>
-                <option value="Europe/Paris">Paris (CET)</option>
-                <option value="Asia/Tokyo">Tokyo (JST)</option>
-              </select>
-            </Field>
+            <PholioCustomSelect
+              label="Working language"
+              id="settings-language"
+              options={LANGUAGE_OPTIONS}
+              value={form.language}
+              onChange={(value) => setField('language', value)}
+              placeholder="Select language"
+            />
+            <PholioCustomSelect
+              label="Home timezone"
+              id="settings-timezone"
+              options={TIMEZONE_OPTIONS}
+              value={form.timezone}
+              onChange={(value) => setField('timezone', value)}
+              placeholder="Select timezone"
+            />
           </div>
         </div>
         <div className="set-card__foot">

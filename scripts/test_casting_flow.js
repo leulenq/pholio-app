@@ -182,31 +182,7 @@ async function testCastingFlow() {
       });
     console.log("✅ Transitioned to: profile (measurements saved)");
 
-    // Profile → Reveal (TEST THE FIX!)
-    profile = await knex("profiles").where({ id: profileId }).first();
-    state = getState(profile);
-
-    const revealUpdate = transitionTo(
-      state,
-      "reveal",
-      {
-        profile_completed: true,
-      },
-      knex,
-    );
-
-    // Add gender field (TEST THE FIX!)
-    await knex("profiles")
-      .where({ id: profileId })
-      .update({
-        ...revealUpdate,
-        city: "Dubai, UAE",
-        gender: "Female", // THIS SHOULD NOW BE SAVED!
-        experience_level: "beginner",
-      });
-    console.log("✅ Transitioned to: reveal (gender saved!)");
-
-    // Reveal → Done (TEST THE FIX!)
+    // Profile → Done
     profile = await knex("profiles").where({ id: profileId }).first();
     state = getState(profile);
 
@@ -214,16 +190,19 @@ async function testCastingFlow() {
       state,
       "done",
       {
-        reveal_viewed: true,
+        profile_completed: true,
+        completed_at: new Date().toISOString(),
       },
       knex,
     );
 
-    // Add onboarding_completed_at (TEST THE FIX!)
     await knex("profiles")
       .where({ id: profileId })
       .update({
         ...doneUpdate,
+        city: "Dubai, UAE",
+        gender: "Female",
+        experience_level: "beginner",
         onboarding_completed_at: knex.fn.now(),
       });
     console.log("✅ Transitioned to: done (onboarding_completed_at set!)");

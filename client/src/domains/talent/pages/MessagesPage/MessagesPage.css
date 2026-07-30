@@ -1,6 +1,6 @@
-/* Talent Messages — unified inbox.
-   Warm paper canvas, white surfaces, editorial serif masthead, pill controls.
-   Two-pane on desktop, single-pane view-swap on mobile. */
+/* Talent Messages — submission-linked working inbox.
+   One workspace shell (not two floating cards). Warm paper, gold accent,
+   editorial masthead, Inter for operations. */
 
 .tmx {
   --tmx-ink: #1a1815;
@@ -9,7 +9,7 @@
   --tmx-hair: rgba(26, 24, 21, 0.09);
   --tmx-hair-strong: rgba(26, 24, 21, 0.14);
   --tmx-surface: #ffffff;
-  --tmx-canvas: #faf8f5;
+  --tmx-canvas: #faf9f7;
   --tmx-well: #f8f8f7;
   --tmx-gold: #c9a55a;
   --tmx-gold-deep: #a8894e;
@@ -19,9 +19,9 @@
 
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 32px clamp(20px, 4vw, 48px) 40px;
-  max-width: 1180px;
+  gap: 20px;
+  padding: 28px clamp(16px, 3.5vw, 40px) 36px;
+  max-width: 1240px;
   margin: 0 auto;
   width: 100%;
   color: var(--tmx-ink);
@@ -30,8 +30,17 @@
 /* ---- Masthead ---- */
 .tmx__masthead {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.tmx__masthead-copy {
+  display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .tmx__title {
@@ -42,6 +51,7 @@
   letter-spacing: -0.02em;
   line-height: 1.1;
   color: var(--tmx-ink);
+  text-wrap: balance;
 }
 
 .tmx__sub {
@@ -51,23 +61,84 @@
   color: var(--tmx-ink-soft);
 }
 
-/* ---- Workspace shell ---- */
-.tmx__workspace {
-  display: grid;
-  grid-template-columns: minmax(280px, 340px) 1fr;
-  gap: 18px;
-  height: clamp(460px, calc(100vh - 240px), 760px);
-  min-height: 0;
+.tmx__filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--tmx-hair);
+  border-radius: 10px;
+  background: var(--tmx-surface);
 }
 
-/* ---- Thread list ---- */
-.tmx__list {
+.tmx__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tmx-ink-soft);
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.18s var(--tmx-ease),
+    color 0.18s var(--tmx-ease);
+}
+
+.tmx__filter:hover {
+  color: var(--tmx-ink);
+  background: var(--tmx-well);
+}
+
+.tmx__filter.is-active {
+  background: var(--tmx-ink);
+  color: #faf9f7;
+}
+
+.tmx__filter:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 2px;
+}
+
+.tmx__filter-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.72;
+}
+
+.tmx__filter.is-active .tmx__filter-count {
+  opacity: 0.88;
+  color: var(--tmx-gold);
+}
+
+/* ---- Workspace shell (one composition) ---- */
+.tmx__workspace {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) 1fr;
+  min-height: clamp(480px, calc(100vh - 220px), 780px);
+  height: clamp(480px, calc(100vh - 220px), 780px);
   background: var(--tmx-surface);
   border: 1px solid var(--tmx-hair);
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* ---- Thread list ---- */
+.tmx__list {
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  border-right: 1px solid var(--tmx-hair);
+  background: linear-gradient(180deg, #fffdfb 0%, #ffffff 48px);
   scrollbar-width: thin;
   scrollbar-color: rgba(201, 165, 90, 0.3) transparent;
 }
@@ -75,7 +146,7 @@
 .tmx__rows {
   list-style: none;
   margin: 0;
-  padding: 8px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -84,9 +155,9 @@
 .tmx__row {
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 11px 12px;
+  padding: 12px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
@@ -94,8 +165,7 @@
   cursor: pointer;
   transition:
     background 0.18s var(--tmx-ease),
-    border-color 0.18s var(--tmx-ease),
-    transform 0.18s var(--tmx-ease);
+    border-color 0.18s var(--tmx-ease);
   animation: tmx-row-in 0.32s var(--tmx-ease) both;
 }
 
@@ -156,7 +226,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .tmx__row-top {
@@ -183,13 +253,6 @@
   color: var(--tmx-ink-faint);
 }
 
-.tmx__row-bottom {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .tmx__row-preview {
   font-family: 'Inter', sans-serif;
   font-size: 12.5px;
@@ -200,40 +263,121 @@
   text-overflow: ellipsis;
 }
 
-.tmx__row-unread {
-  flex-shrink: 0;
+.tmx__row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tmx__status {
   font-family: 'Inter', sans-serif;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: 500;
+  color: var(--tmx-ink-faint);
+  white-space: nowrap;
+}
+
+.tmx__status--accepted {
+  color: #3f6b45;
+}
+
+.tmx__status--pending {
+  color: var(--tmx-ink-soft);
+}
+
+.tmx__status--file {
   color: var(--tmx-gold-deep);
 }
 
-/* Unread: strengthen the copy rather than badge it. */
-.tmx__row.is-unread .tmx__row-name { font-weight: 600; }
-.tmx__row.is-unread .tmx__row-preview { color: var(--tmx-ink-soft); }
+.tmx__status--closed {
+  color: var(--tmx-ink-faint);
+}
+
+.tmx__row-flag {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tmx-gold-deep);
+  white-space: nowrap;
+}
+
+.tmx__row.is-unread .tmx__row-name {
+  font-weight: 600;
+}
+
+.tmx__row.is-unread .tmx__row-preview {
+  color: var(--tmx-ink-soft);
+}
 
 /* ---- List states ---- */
 .tmx__list-state {
-  padding: 28px 20px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 28px 22px;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   color: var(--tmx-ink-faint);
+}
+
+.tmx__list-state--empty,
+.tmx__list-state:has(.tmx__list-state-title) {
+  align-items: stretch;
+}
+
+.tmx__list-state-title {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tmx-ink);
+}
+
+.tmx__list-state-copy {
+  margin: 0;
+  max-width: 28ch;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--tmx-ink-soft);
+}
+
+.tmx__list-state-action {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--tmx-ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s var(--tmx-ease);
+}
+
+.tmx__list-state-action:hover {
+  border-bottom-color: var(--tmx-gold);
+}
+
+.tmx__list-state-action:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
 }
 
 .tmx__list-loading {
   padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .tmx__row-skel {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 11px 12px;
+  padding: 12px;
 }
 
 .tmx__skel-avatar {
@@ -249,6 +393,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-top: 4px;
 }
 
 .tmx__skel-line {
@@ -264,7 +409,8 @@
   animation: tmx-shimmer 1.1s infinite;
 }
 
-.tmx__skel-line--short { width: 62%; }
+.tmx__skel-line--mid { width: 78%; }
+.tmx__skel-line--short { width: 42%; }
 
 @keyframes tmx-shimmer {
   from { background-position: 200% 0; }
@@ -279,14 +425,13 @@
   --app-hair-strong: var(--tmx-hair-strong);
   --app-hair-gold: var(--tmx-gold-line);
   --app-gold: var(--tmx-gold);
+  --app-ease: var(--tmx-ease);
 
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   background: var(--tmx-surface);
-  border: 1px solid var(--tmx-hair);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   overflow: hidden;
 }
 
@@ -294,9 +439,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--tmx-hair);
-  background: linear-gradient(180deg, #fffdf9 0%, #ffffff 100%);
+  background: #ffffff;
+  flex-shrink: 0;
 }
 
 .tmx__back {
@@ -314,7 +460,15 @@
   transition: background 0.18s var(--tmx-ease), color 0.18s var(--tmx-ease);
 }
 
-.tmx__back:hover { background: var(--tmx-well); color: var(--tmx-ink); }
+.tmx__back:hover {
+  background: var(--tmx-well);
+  color: var(--tmx-ink);
+}
+
+.tmx__back:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 2px;
+}
 
 .tmx__convo-avatar {
   flex-shrink: 0;
@@ -333,19 +487,23 @@
   color: var(--tmx-gold-deep);
 }
 
-.tmx__convo-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.tmx__convo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .tmx__convo-identity {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .tmx__convo-name {
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--tmx-ink);
@@ -355,9 +513,17 @@
 }
 
 .tmx__convo-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--tmx-ink-faint);
+}
+
+.tmx__convo-sep {
+  opacity: 0.55;
 }
 
 .tmx__convo-link.pholio-btn {
@@ -368,19 +534,34 @@
   font-size: 12.5px;
 }
 
+.tmx__convo-cue {
+  margin: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--tmx-hair);
+  background: var(--tmx-well);
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--tmx-ink-soft);
+  flex-shrink: 0;
+}
+
 .tmx__convo-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  padding: 4px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
 }
 
-/* ApplicationMessages ships with a top margin meant for the application panel;
-   the conversation head already provides separation here. */
-.tmx__convo-body .app-msg { margin-top: 16px; }
-.tmx__convo-body .app-msg__thread { max-height: none; }
+.tmx__convo-body .app-msg {
+  margin-top: 0;
+  flex: 1;
+  min-height: 0;
+}
 
-/* ---- Placeholder / empty conversation ---- */
+/* ---- Placeholder ---- */
 .tmx__placeholder {
   flex: 1;
   display: flex;
@@ -401,7 +582,6 @@
   border-radius: 50%;
   color: var(--tmx-gold-deep);
   background: var(--tmx-gold-soft);
-  box-shadow: 0 0 0 8px rgba(201, 165, 90, 0.06);
   margin-bottom: 4px;
 }
 
@@ -415,7 +595,7 @@
 
 .tmx__placeholder-copy {
   margin: 0;
-  max-width: 34ch;
+  max-width: 36ch;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   line-height: 1.55;
@@ -424,23 +604,57 @@
 
 /* ---- Mobile: single-pane view swap ---- */
 @media (max-width: 880px) {
+  .tmx {
+    padding: 20px 14px 28px;
+    gap: 16px;
+  }
+
+  .tmx__filters {
+    width: 100%;
+    overflow-x: auto;
+  }
+
   .tmx__workspace {
     grid-template-columns: 1fr;
     height: auto;
-    min-height: calc(100vh - 220px);
+    min-height: calc(100dvh - 210px);
   }
 
-  .tmx__back { display: inline-flex; }
+  .tmx__list {
+    border-right: 0;
+  }
 
-  .tmx[data-pane='list'] .tmx__conversation { display: none; }
-  .tmx[data-pane='conversation'] .tmx__list { display: none; }
+  .tmx__back {
+    display: inline-flex;
+  }
 
-  .tmx__list { max-height: none; }
+  .tmx[data-pane='list'] .tmx__conversation {
+    display: none;
+  }
+
+  .tmx[data-pane='conversation'] .tmx__list {
+    display: none;
+  }
+
+  .tmx[data-pane='conversation'] .tmx__workspace {
+    min-height: calc(100dvh - 210px);
+    height: calc(100dvh - 210px);
+  }
+
+  .tmx__convo-link.pholio-btn span:first-child {
+    display: none;
+  }
 }
 
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   .tmx__row,
-  .tmx__skel-line { animation: none; }
-  .tmx__row { transition: none; }
+  .tmx__skel-line {
+    animation: none;
+  }
+
+  .tmx__row,
+  .tmx__filter {
+    transition: none;
+  }
 }

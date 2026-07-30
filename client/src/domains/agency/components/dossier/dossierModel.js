@@ -11,11 +11,8 @@ import {
   analyzeDigitalsSet,
   analyzeBookRange,
   isDigitalSlot,
-  isHeadshotImage,
-  isDigitalProfileImage,
-  isDigitalThreeQuarterImage,
-  isDigitalFullLengthImage,
-  isDigitalBackImage,
+  DIGITALS_SLOTS,
+  frameForSlot,
 } from '../../../../shared/utils/profileReadinessImages';
 import { SHOT_LABELS } from '../../../../shared/constants/frameTaxonomy';
 
@@ -105,6 +102,8 @@ export function titleCase(value) {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+import { formatLocation } from '../../../../shared/utils/locationFormat';
+
 /**
  * The reading line — the handful of facts a booker says out loud when they
  * pull a card off the shelf. Age band, track, base, and second market.
@@ -116,9 +115,9 @@ export function readingLine(dossier) {
   else if (t.age != null) out.push(`${t.age}`);
   if (t.stats_track) out.push(TRACK_LABELS[t.stats_track] || titleCase(t.stats_track));
   if (t.professional?.discipline) out.push(titleCase(t.professional.discipline));
-  const base = t.city || marketLabel(t.market);
+  const base = formatLocation(t.city) || marketLabel(t.market);
   if (base) out.push(base);
-  if (t.professional?.city_secondary) out.push(`+ ${t.professional.city_secondary}`);
+  if (t.professional?.city_secondary) out.push(`+ ${formatLocation(t.professional.city_secondary)}`);
   if (t.nationality) out.push(t.nationality);
   return out;
 }
@@ -253,32 +252,14 @@ export function packageRead(dossier) {
   };
 }
 
-export const DIGITAL_SLOTS = [
-  { key: 'headshot', label: 'Headshot', body: false },
-  { key: 'profile', label: 'Profile', body: false },
-  { key: 'three_quarter', label: 'Three-quarter', body: true },
-  { key: 'full_length', label: 'Full length', body: true },
-  { key: 'back', label: 'Back', body: true },
-];
-
 /**
- * The frame filling a digitals slot, using the exact predicates
- * `analyzeDigitalsSet` counts with — so the pictures and the coverage number
- * can never disagree. A styled book frame never stands in for a raw digital.
+ * The slot list and its frame lookup now live beside the predicates they count
+ * with, in `shared/utils/profileReadinessImages`, because the talent /media
+ * sheet has to draw the same five slots. Re-exported so dossier callers keep
+ * their existing import.
  */
-const SLOT_PREDICATE = {
-  headshot: isHeadshotImage,
-  profile: isDigitalProfileImage,
-  three_quarter: isDigitalThreeQuarterImage,
-  full_length: isDigitalFullLengthImage,
-  back: isDigitalBackImage,
-};
-
-export function frameForSlot(images, slot) {
-  const predicate = SLOT_PREDICATE[slot];
-  if (!predicate) return null;
-  return (images || []).find(predicate) || null;
-}
+export const DIGITAL_SLOTS = DIGITALS_SLOTS;
+export { frameForSlot };
 
 /* --------------------------------------------------------------- calendar */
 

@@ -1,0 +1,207 @@
+/* ── The digitals set ─────────────────────────────────────────────────
+   The section's one content layer, not an index above a second grid. Five
+   slots at full scale in the library's own material: 4:5 stages, 2px corners,
+   hairline rules, paper grain, mono captions.
+
+   It is a fixed 5-up sheet rather than an auto-filling grid, because the set is
+   five specific positions — headshot, profile, ¾, full length, back — and a
+   reflow that put three on one row and two on the next would read as an
+   arbitrary gallery instead of a set.
+   ------------------------------------------------------------------- */
+
+.mw-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 4px 0 8px;
+}
+
+.mw-sheet__slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.mw-sheet__slot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Wraps the stage and its action row so the actions can overlay the image
+   without the caption underneath moving. */
+.mw-sheet__frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.mw-sheet__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--mw-hair, rgba(26, 26, 26, 0.08));
+  border-radius: 2px;
+  background: var(--mw-cream-warm, #f5f0e8);
+  box-shadow: 0 12px 30px -18px rgba(26, 26, 26, 0.35);
+  cursor: pointer;
+  transition:
+    transform 0.28s var(--mw-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    border-color 0.28s var(--mw-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow 0.28s var(--mw-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+/* Paper grain, matching the library frames. */
+.mw-sheet__stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px 120px;
+}
+
+.mw-sheet__stage:hover { box-shadow: 0 18px 38px -20px rgba(26, 26, 26, 0.45); }
+
+.mw-sheet__stage:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+}
+
+.mw-sheet__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+}
+
+/* An empty slot is left empty on purpose — the gap is the point. Blank paper,
+   flat on the page while filled slots sit above it, and the fastest way to add
+   the frame that belongs there. (No hatching or stripe fill: that is ornament,
+   and this surface bans it.) */
+.mw-sheet__stage--empty {
+  background: var(--mw-cream, #faf7f2);
+  border-style: dashed;
+  border-color: var(--mw-hair-strong, rgba(26, 26, 26, 0.16));
+  box-shadow: none;
+}
+
+/* The mark stays put on hover — it is a target, and a target that moves when you
+   reach for it reads as decoration. Colour alone carries the state change. */
+.mw-sheet__plus {
+  color: var(--mw-text-faint, rgba(26, 26, 26, 0.42));
+  transition: color 0.28s var(--mw-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.mw-sheet__stage--empty:hover {
+  border-color: var(--mw-gold, #c9a55a);
+  box-shadow: 0 12px 26px -20px rgba(201, 165, 90, 0.7);
+}
+
+.mw-sheet__stage--empty:hover .mw-sheet__plus {
+  color: var(--mw-gold, #c9a55a);
+}
+
+/* The action row lives in MediaWorkspace.css as .mw-frame__actions; it reveals
+   on hover of the frame wrapper here. */
+.mw-sheet__frame:hover .mw-frame__actions,
+.mw-sheet__frame:focus-within .mw-frame__actions { opacity: 1; }
+
+.mw-sheet__label {
+  font-family: var(--mw-mono, "JetBrains Mono", monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mw-text-soft, rgba(26, 26, 26, 0.62));
+  padding-left: 1px;
+}
+
+/* An unfilled slot names itself more quietly than a filled one. */
+.mw-sheet__label--empty { color: var(--mw-text-faint, rgba(26, 26, 26, 0.42)); }
+
+/* Captions on the sheet above, not a section of their own — so they sit tight to
+   the slots and share one left edge with them. */
+.mw-sheet__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mw-sheet__notes:empty { display: none; }
+
+.mw-sheet__note {
+  margin: 0;
+  font-family: var(--mw-sans, Inter, sans-serif);
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--mw-text-soft, rgba(26, 26, 26, 0.62));
+  max-width: 62ch;
+}
+
+.mw-sheet__note--complete { color: var(--mw-gold, #c9a55a); }
+.mw-sheet__note--stale { color: #9a5b32; }
+
+/* ── Also in this set ──
+   Spare frames — a second headshot, an unclassified upload. Deliberately much
+   smaller than the set: it is a drawer, and it must never read as a second
+   image system competing with the sheet above it. */
+.mw-sheet__extras {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.mw-sheet__extras-title {
+  margin: 0;
+  font-weight: 400;
+}
+
+.mw-sheet__extras-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mw-sheet__extra { width: 78px; }
+
+.mw-sheet__stage--extra {
+  box-shadow: none;
+  border-color: var(--mw-hair, rgba(26, 26, 26, 0.08));
+}
+
+/* The full 36px action row does not fit a 78px tile; shrink it to match. */
+.mw-sheet__extra .mw-frame__actions { padding: 5px; gap: 4px; }
+.mw-sheet__extra .mw-frame__action { min-width: 22px; min-height: 22px; }
+.mw-sheet__extra .mw-frame__action svg { width: 11px; height: 11px; }
+
+@media (max-width: 900px) {
+  .mw-sheet__slots { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+}
+
+@media (max-width: 600px) {
+  .mw-sheet__slots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  /* Tightened just enough that "THREE-QUARTER" stays on one line and the
+     captions keep a single shared baseline across the wrapped rows. */
+  .mw-sheet__label { letter-spacing: 0.1em; font-size: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-sheet__stage,
+  .mw-sheet__plus { transition: none; }
+}

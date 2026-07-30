@@ -158,6 +158,41 @@ export function analyzeDigitalsReadiness(images = []) {
 }
 
 /**
+ * The five canonical digitals slots, in the order a booker reads them: the face
+ * first, then the body. Both dashboards draw from this one list so the sheet a
+ * talent works against and the sheet an agency judges are the same sheet.
+ *
+ * `body: true` marks the slots withheld from a minor without guardian consent.
+ */
+export const DIGITALS_SLOTS = [
+  { key: 'headshot', label: 'Headshot', body: false },
+  { key: 'profile', label: 'Profile', body: false },
+  { key: 'three_quarter', label: 'Three-quarter', body: true },
+  { key: 'full_length', label: 'Full length', body: true },
+  { key: 'back', label: 'Back', body: true },
+];
+
+/**
+ * The predicates `analyzeDigitalsSet` counts with, keyed by slot — so a picture
+ * and the coverage number can never disagree. A styled book frame never stands
+ * in for a raw digital.
+ */
+const SLOT_PREDICATE = {
+  headshot: isHeadshotImage,
+  profile: isDigitalProfileImage,
+  three_quarter: isDigitalThreeQuarterImage,
+  full_length: isDigitalFullLengthImage,
+  back: isDigitalBackImage,
+};
+
+/** The frame filling a digitals slot, or null when the slot is empty. */
+export function frameForSlot(images, slot) {
+  const predicate = SLOT_PREDICATE[slot];
+  if (!predicate) return null;
+  return (images || []).find(predicate) || null;
+}
+
+/**
  * The canonical RAW digitals set — 5 discrete slots, image_type:'digital' only.
  * headshot · three_quarter (¾) · full_length · profile · back.
  * Styled book frames never count here (that's the Book range, see analyzeBookRange).

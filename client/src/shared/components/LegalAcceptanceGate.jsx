@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import PholioButton from './ui/PholioButton';
 import { talentApi } from '../../domains/talent/api/talent';
@@ -11,41 +11,29 @@ import './LegalAcceptanceGate.css';
 // They used to be hardcoded here as a fourth copy, which could — and did —
 // describe a different version than the gate was actually enforcing.
 
-function ChangeRow({ change, defaultOpen = false }) {
-  const { title, detail } = summarizeChange(change);
-  const [open, setOpen] = useState(defaultOpen);
-  const panelId = useId();
-  const hasDetail = Boolean(detail);
+/**
+ * `summarizeChange` splits the changelog sentence at its em dash, so the detail
+ * arrives as a lower-case continuation ("agencies, casting organizations…").
+ * That was fine when it hung under an accordion title; as a standalone
+ * paragraph it needs a capital. Done here rather than in `summarizeChange`,
+ * whose job is to split the sentence, not to rewrite it.
+ */
+function asSentence(text) {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
 
-  if (!hasDetail) {
-    return (
-      <li className="legal-gate-change">
-        <p className="legal-gate-change-title">{title}</p>
-      </li>
-    );
-  }
-
-  return (
-    <li className={`legal-gate-change${open ? ' is-open' : ''}`}>
-      <button
-        type="button"
-        className="legal-gate-change-toggle"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="legal-gate-change-title">{title}</span>
-        <span className="legal-gate-change-chevron" aria-hidden="true" />
-      </button>
-      <div
-        id={panelId}
-        className="legal-gate-change-detail"
-        hidden={!open}
-      >
-        <p>{detail}</p>
-      </div>
-    </li>
-  );
+/** "2026-07-18" → "18 July 2026". Returns null for anything unparseable. */
+function formatEffectiveDate(version) {
+  if (!version || typeof version !== 'string') return null;
+  const date = new Date(`${version}T12:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 /**
@@ -53,13 +41,22 @@ function ChangeRow({ change, defaultOpen = false }) {
  * Full-screen scrim (the one legitimate backdrop-filter use) — an explicit
  * consent gate, so an affirmative tick is required here.
  *
- * Mobile: bottom sheet with sticky agree footer (thumb-zone CTA).
- * Desktop: centered dialog. Same information architecture on both.
+ * Every change is printed open. This was an accordion of collapsed rows, which
+ * meant reading what you were agreeing to cost five clicks and produced five
+ * identical grey pills — the wrong control for a consent gate, which exists to
+ * show the thing consent is being given to. The panel is wide enough to carry
+ * legal prose at a readable measure, which is what removed the scroll-inside-
+ * a-scroll that was slicing a change in half under the footer.
+ *
+ * Styled in the talent register (warm paper masthead, Noto Serif Display,
+ * ink-fill control): it wraps the talent dashboard, and used to borrow agency
+ * tokens, which the two-design-systems rule does not allow.
  */
 export default function LegalAcceptanceGate({ children }) {
   const [checking, setChecking] = useState(true);
   const [needsAcceptance, setNeedsAcceptance] = useState(false);
   const [changes, setChanges] = useState([]);
+  const [version, setVersion] = useState(null);
   const [accepted, setAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -73,6 +70,7 @@ export default function LegalAcceptanceGate({ children }) {
         if (!cancelled) {
           setNeedsAcceptance(Boolean(status?.needsAcceptance));
           setChanges(Array.isArray(status?.changes) ? status.changes : []);
+          setVersion(status?.version || null);
         }
       } catch {
         if (!cancelled) setNeedsAcceptance(false);
@@ -126,6 +124,9 @@ export default function LegalAcceptanceGate({ children }) {
         transition: { type: 'spring', stiffness: 55, damping: 16 },
       };
 
+  const effective = formatEffectiveDate(version);
+  const count = changes.length;
+
   return (
     <>
       {children}
@@ -148,32 +149,42 @@ export default function LegalAcceptanceGate({ children }) {
               aria-modal="true"
               {...panelMotion}
             >
-              <div className="legal-gate-handle" aria-hidden="true" />
+              <header className="legal-gate-header">
+                {effective ? (
+                  <p className="legal-gate-effective">Effective {effective}</p>
+                ) : null}
+                <h2 id="legal-gate-title" className="legal-gate-title">
+                  Our terms have changed
+                </h2>
+                <p id="legal-gate-lead" className="legal-gate-lead">
+                  {count > 0
+                    ? `${count === 1 ? 'One change' : `${count} changes`} since you last agreed, summarised in full below. The complete documents are linked at the bottom.`
+                    : 'Please review the updated documents linked below before continuing.'}
+                </p>
+              </header>
 
-              <div className="legal-gate-scroll">
-                <header className="legal-gate-header">
-                  <h2 id="legal-gate-title" className="legal-gate-title">
-                    Our terms have changed
-                  </h2>
-                  <p id="legal-gate-lead" className="legal-gate-lead">
-                    Here&rsquo;s what&rsquo;s new. Tap a point for detail, or open
-                    the full documents.
-                  </p>
-                </header>
-
-                {changes.length > 0 && (
+              {count > 0 && (
+                <div className="legal-gate-scroll">
                   <ul className="legal-gate-changes">
-                    {changes.map((change) => (
-                      <ChangeRow key={change} change={change} />
-                    ))}
+                    {changes.map((change) => {
+                      const { title, detail } = summarizeChange(change);
+                      return (
+                        <li key={change} className="legal-gate-change">
+                          <h3 className="legal-gate-change-title">{title}</h3>
+                          {detail ? (
+                            <p className="legal-gate-change-detail">{asSentence(detail)}</p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ul>
-                )}
-              </div>
+                </div>
+              )}
 
               <footer className="legal-gate-footer">
                 <nav className="legal-gate-links" aria-label="Full legal documents">
                   <a href={`${MARKETING_SITE_URL}/terms`} target="_blank" rel="noopener noreferrer">
-                    Terms
+                    Terms of Service
                   </a>
                   <a href={`${MARKETING_SITE_URL}/privacy`} target="_blank" rel="noopener noreferrer">
                     Privacy Policy
@@ -190,7 +201,14 @@ export default function LegalAcceptanceGate({ children }) {
                     onChange={(e) => setAccepted(e.target.checked)}
                     aria-required="true"
                   />
-                  <span>I agree to the updated Terms of Service and Privacy Policy.</span>
+                  <span className="legal-gate-check-box" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  </span>
+                  <span className="legal-gate-check-text">
+                    I agree to the updated Terms of Service and Privacy Policy.
+                  </span>
                 </label>
 
                 {error && (

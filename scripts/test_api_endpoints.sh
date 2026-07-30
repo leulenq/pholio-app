@@ -55,15 +55,6 @@ else
   echo "   ⚠️  /casting/profile returned: $response"
 fi
 
-# Test /casting/reveal-complete (NEW ENDPOINT - should require auth)
-echo "   Testing /casting/reveal-complete (NEW)..."
-response=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/casting/reveal-complete)
-if [ "$response" = "401" ] || [ "$response" = "403" ]; then
-  echo "   ✅ /casting/reveal-complete exists (returns $response without auth)"
-else
-  echo "   ⚠️  /casting/reveal-complete returned: $response"
-fi
-
 # Test /casting/complete (should require auth)
 echo "   Testing /casting/complete..."
 response=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/casting/complete)
@@ -85,15 +76,6 @@ else
   echo "   ⚠️  /casting returned: $response"
 fi
 
-# Test /casting/preview-reveal route
-echo "   Testing /casting/preview-reveal..."
-response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/casting/preview-reveal)
-if [ "$response" = "200" ]; then
-  echo "   ✅ /casting/preview-reveal accessible (HTTP $response)"
-else
-  echo "   ⚠️  /casting/preview-reveal returned: $response"
-fi
-
 # Test /casting/test route
 echo "   Testing /casting/test..."
 response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/casting/test)
@@ -110,10 +92,8 @@ echo ""
 echo "Summary:"
 echo "  ✅ Backend is running and responding"
 echo "  ✅ All casting endpoints exist and require auth"
-echo "  ✅ New /casting/reveal-complete endpoint created"
 echo "  ✅ Frontend routes are accessible"
 echo ""
 echo "Ready for manual testing at:"
 echo "  🔗 http://localhost:5173/casting"
-echo "  🔗 http://localhost:5173/casting/preview-reveal"
 echo ""

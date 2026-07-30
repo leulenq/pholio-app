@@ -89,6 +89,7 @@
   min-width: max-content;
   padding: 0 12px 0 0;
   border: 0;
+  border-bottom: 0 !important;
   background: transparent;
   cursor: pointer;
 }
@@ -189,6 +190,7 @@
   min-height: 34px;
   padding: 6px 2px;
   border: 0;
+  border-radius: 0;
   background: transparent;
   color: rgba(26, 26, 26, 0.4);
   cursor: pointer;
@@ -3561,6 +3563,82 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: color 0.2s var(--app-ease);
+}
+
+.bioSpark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  border: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-gold, #c9a55a);
+  cursor: pointer;
+  transition: color 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bioSpark:hover:not(:disabled) {
+  background: transparent !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--app-text, #1a1815);
+  transform: none;
+}
+
+.bioSpark:active:not(:disabled) {
+  transform: none;
+}
+
+.bioSpark:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+}
+
+.bioSpark.is-working {
+  cursor: progress;
+  background: transparent !important;
+  color: var(--color-gold, #c9a55a);
+}
+
+.bioSpark.is-working .pholio-spark__major {
+  animation: sparkPulse 1.6s ease-in-out infinite;
+  transform-origin: 9.7px 11.1px;
+}
+
+.bioSpark.is-working .pholio-spark__minor--up {
+  animation: sparkPulse 1.6s ease-in-out infinite 0.22s;
+  transform-origin: 18.6px 4.2px;
+}
+
+.bioSpark.is-working .pholio-spark__minor--down {
+  animation: sparkPulse 1.6s ease-in-out infinite 0.44s;
+  transform-origin: 18.6px 18.8px;
+}
+
+@keyframes sparkPulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.86); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bioSpark,
+  .bioSpark.is-working .pholio-spark__major,
+  .bioSpark.is-working .pholio-spark__minor--up,
+  .bioSpark.is-working .pholio-spark__minor--down {
+    transition: none;
+    animation: none;
+  }
+  .bioSpark:hover:not(:disabled) { transform: none; }
+  .bioSpark.is-working { opacity: 0.7; }
 }
 
 .apply-compose__assist-act:hover:not(:disabled),

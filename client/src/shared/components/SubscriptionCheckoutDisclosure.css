@@ -19,117 +19,22 @@
   box-shadow: 0 32px 80px rgba(5, 5, 5, 0.35);
 }
 
-.ph-billing-modal__hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 36px 28px 32px;
-  text-align: center;
-  background: #050505;
-  color: rgba(245, 240, 232, 0.9);
-}
 
-.ph-billing-modal__hero::after {
-  content: '';
-  width: 120px;
-  height: 1px;
-  margin-top: 24px;
-  background: linear-gradient(to right, transparent, rgba(200, 169, 110, 0.55), transparent);
-}
 
-.ph-billing-modal__title {
-  margin: 22px 0 0;
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(1.35rem, 4vw, 1.65rem);
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: rgba(245, 240, 232, 0.96);
-}
 
-.ph-billing-modal__lede {
-  margin: 10px 0 0;
-  max-width: 36ch;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 300;
-  line-height: 1.55;
-  color: rgba(245, 240, 232, 0.52);
-}
 
 .ph-billing-modal__body {
   padding: 24px 28px 28px;
 }
 
-.ph-billing-modal__plans {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 20px;
-}
 
-.ph-billing-plan {
-  display: flex;
-  min-height: 96px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 4px;
-  padding: 16px;
-  border: 1px solid rgba(26, 24, 21, 0.1);
-  border-radius: 12px;
-  background: #fff;
-  color: #1a1815;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
-.ph-billing-plan:hover {
-  border-color: rgba(201, 165, 90, 0.45);
-}
 
-.ph-billing-plan.is-selected {
-  border-color: #c9a55a;
-  background: rgba(201, 165, 90, 0.08);
-  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.14);
-}
 
-.ph-billing-plan__label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #6b6560;
-}
 
-.ph-billing-plan.is-selected .ph-billing-plan__label {
-  color: #a8894e;
-}
 
-.ph-billing-plan__price {
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 400;
-  line-height: 1;
-  color: #1a1815;
-}
 
-.ph-billing-plan__unit {
-  margin-left: 2px;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: #6b6560;
-}
 
-.ph-billing-plan__note {
-  font-size: 0.75rem;
-  color: #9c958e;
-}
 
 .ph-billing-disclosure {
   display: flex;
@@ -138,17 +43,7 @@
   padding-top: 4px;
 }
 
-.ph-billing-disclosure__text {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.6;
-  color: #6b6560;
-}
 
-.ph-billing-disclosure__text strong {
-  font-weight: 600;
-  color: #1a1815;
-}
 
 .ph-billing-disclosure__check {
   display: flex;
@@ -179,8 +74,45 @@
 .ph-billing-modal__actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
   margin-top: 22px;
+}
+
+/* Quiet dismiss — text only; never pick up tertiary's gold hover fill. */
+.ph-billing-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #6b6560;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.15;
+  cursor: pointer;
+  transition: color 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ph-billing-dismiss:hover:not(:disabled),
+.ph-billing-dismiss:active:not(:disabled) {
+  background: transparent;
+  color: #1a1815;
+}
+
+.ph-billing-dismiss:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ph-billing-dismiss:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
 }
 
 .ph-billing-modal__secure {
@@ -213,9 +145,343 @@
     flex-direction: column-reverse;
   }
 
-  .ph-billing-btn,
+  .ph-billing-dismiss,
   .ph-billing-modal__actions .pholio-btn {
     width: 100%;
     justify-content: center;
   }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Redesign. Every control below declares its own background, border, radius,
+   padding, font and colour in full — `styles/global.css` resets bare <button>
+   with zero specificity, so partial declarations inherit a 999px pill.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+
+
+/* Plans: two rows, chosen by a gold rule rather than a filled pill. */
+.ph-billing-modal__plans {
+  display: flex !important;
+  flex-direction: column;
+  gap: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(26, 24, 21, 0.09) !important;
+  background: none !important;
+  border-radius: 0 !important;
+}
+
+
+
+
+
+
+
+/* Terms as a ledger, not a paragraph. */
+
+
+/* Consent: a real drawn box, sentence case, one line. */
+.ph-billing-disclosure__check {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 18px 0 0 !important;
+  cursor: pointer;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.ph-billing-disclosure__check input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0; margin: 0;
+  pointer-events: none;
+}
+.ph-billing-disclosure__box {
+  flex: none;
+  width: 18px; height: 18px;
+  margin-top: 1px;
+  border: 1px solid rgba(26, 24, 21, 0.24);
+  border-radius: 2px;
+  background: #fff;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ph-billing-disclosure__check input:checked ~ .ph-billing-disclosure__box {
+  background: #c9a55a;
+  border-color: #c9a55a;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-size: 12px 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.ph-billing-disclosure__check input:focus-visible ~ .ph-billing-disclosure__box {
+  outline: 2px solid #c9a55a;
+  outline-offset: 3px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The ink half — rebuilt. One subject, one accent, no rules.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ph-billing-modal__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 56px 32px 48px;
+  text-align: center;
+  background: #0a0908;
+}
+
+.ph-billing-modal__name {
+  margin: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(44px, 9vw, 58px);
+  font-weight: 200;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  color: #f7f4ef;
+}
+
+/* The one gold mark on the panel. Superscripted so it reads as a mark on the
+   name rather than a character in it. */
+.ph-billing-modal__plus {
+  color: #c9a55a;
+  font-weight: 300;
+  font-size: 0.62em;
+  vertical-align: 0.34em;
+  margin-left: 0.04em;
+}
+
+
+@media (max-width: 560px) {
+  .ph-billing-modal__hero { padding: 42px 24px 36px; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Hierarchy pass. Three problems fixed together:
+
+   · Contrast. Body sat at 0.42–0.5 alpha on cream, which is under 4.5:1 for
+     text this size. The ramp now runs 1.0 / 0.72 / 0.58 and nothing carrying
+     meaning goes below 0.58.
+   · One family for numbers. Prices were Noto Serif Display with an Inter unit
+     stuck to them — two typefaces inside one figure, which is what read as
+     awkward. Prices are Inter throughout; the serif stays for the plan name.
+   · A real selection affordance. It is a radiogroup, so it now shows a radio.
+     A gold underline alone left the two rows looking like a noisy table.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ph-billing-modal__offer {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: rgba(247, 244, 239, 0.72);
+}
+
+/* ── Plans ── */
+
+
+.ph-billing-modal__plans {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px !important;
+  border: 0 !important;
+  background: none !important;
+  border-radius: 0 !important;
+}
+
+
+
+
+
+
+
+
+
+/* ── Terms ── */
+
+.ph-billing-terms {
+  margin: 22px 0 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: rgba(26, 24, 21, 0.72);
+  text-wrap: pretty;
+}
+
+.ph-billing-terms strong { font-weight: 600; color: #1a1815; }
+
+.ph-billing-disclosure__text {
+  margin: 12px 0 0 !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.55 !important;
+  color: rgba(26, 24, 21, 0.58) !important;
+}
+
+.ph-billing-disclosure__consent {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(26, 24, 21, 0.86);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+
+/* A stacking rule elsewhere in the cascade (an `* + *` owl) was giving every
+   sibling after the first an 18px top margin — half of which, 9px, was the
+   measured offset between the radio and its label. Flex children here own their
+   own spacing via `gap`; nothing inherits vertical margin. */
+.ph-billing-plan span { margin: 0 !important; }
+
+/* ── Plans, composed ──
+   Both rows are the same height whether or not they carry a note, the radio is
+   centred against the name it selects, and each figure keeps its note in its
+   own column. Previously a three-track grid floated the mark above the label
+   and dropped the annual note into the name's column, so the two rows never
+   lined up with each other. */
+
+.ph-billing-modal__plans {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px !important;
+  border: 0 !important;
+  background: none !important;
+  border-radius: 0 !important;
+}
+
+.ph-billing-plan {
+  /* Three flex children on one centred line: mark, name, figure. The mark and
+     name were nested in their own flex box, which resolved to a 32.5px tall
+     container against 15px children and left the mark riding 9px above the
+     word — measured, not guessed. Flattening removes the box that grew. */
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 13px;
+  width: 100%;
+  min-height: 68px;
+  margin: 0 !important;
+  padding: 14px 18px !important;
+  border: 1px solid rgba(26, 24, 21, 0.13) !important;
+  border-radius: 3px !important;
+  background: #fff !important;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  transition: border-color 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ph-billing-plan:hover { border-color: rgba(26, 24, 21, 0.3) !important; }
+.ph-billing-plan:focus-visible { outline: 2px solid #c9a55a; outline-offset: 2px; }
+
+
+.ph-billing-plan__mark {
+  flex: none;
+  /* Centred explicitly rather than by the flex default: the label's line box is
+     taller than the 15px mark, and any inherited align-items on the row left the
+     mark riding above the word it selects. */
+  /* Mark and label are both given the same 20px box below, so they centre to the
+     same axis no matter what else the row contains. Relying on flex centring of
+     two differently-sized boxes left a measured 9px offset on the row whose
+     figure was a single line. */
+  align-self: center !important;
+  position: relative;
+  width: 15px; height: 20px;
+  border: 0;
+  background: none;
+  transition: border-color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ph-billing-plan__label {
+  align-self: center !important;
+  flex: 1 1 auto;
+  height: 20px;
+  font-size: 14.5px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  color: #1a1815 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* The figure column: amount, then its qualifier beneath it, both flush right so
+   the two rows read down the same edge. */
+.ph-billing-plan__figure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+}
+
+.ph-billing-plan__price {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 19px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.02em !important;
+  color: #12100e !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.ph-billing-plan__unit {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+  color: rgba(26, 24, 21, 0.66) !important;
+  margin-left: 3px;
+}
+
+.ph-billing-plan__note {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: rgba(26, 24, 21, 0.66) !important;
+}
+
+/* Selection is the gold ring and a gold border — no tinted fill. The wash made
+   the chosen row read as highlighted rather than chosen. */
+/* One crisp gold line, not a border plus an inset ring — the two together read
+   as a 2px double rule at this size. */
+.ph-billing-plan.is-selected { border-color: #c9a55a !important; }
+
+.ph-billing-plan.is-selected .ph-billing-plan__mark {
+  border-color: #c9a55a;
+  box-shadow: inset 0 0 0 3.5px #fff, inset 0 0 0 15px #c9a55a;
+}
+
+.ph-billing-plan.is-selected .ph-billing-plan__label { font-weight: 500 !important; }
+
+
+/* The circle itself, drawn inside the 20px alignment box. */
+.ph-billing-plan__mark::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 0;
+  width: 15px; height: 15px;
+  margin-top: -7.5px;
+  border: 1px solid rgba(26, 24, 21, 0.3);
+  border-radius: 50%;
+  background: #fff;
+  transition: border-color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ph-billing-plan.is-selected .ph-billing-plan__mark::before {
+  border-color: #c9a55a;
+  box-shadow: inset 0 0 0 3.5px #fff, inset 0 0 0 15px #c9a55a;
 }

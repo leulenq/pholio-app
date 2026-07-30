@@ -1,4 +1,5 @@
 import { calculateProfileStrength } from './profileScoring';
+import { READINESS_KEY_TO_PROFILE_URL } from '../../domains/talent/components/profileReadinessItems';
 import { auditSubmissionPackage } from './packageIntelligence';
 import { hasGuardianConsent, isMinorProfile } from './talentAge';
 import {
@@ -46,6 +47,54 @@ function hasRequiredContact(profile) {
 export function sendBlockerLabel(blocker) {
   if (typeof blocker === 'string') return blocker;
   return blocker?.message || blocker?.task || blocker?.label || 'Complete this requirement';
+}
+
+const SEND_BLOCKER_TARGETS = {
+  guardian_consent: { label: 'Guardian consent', actionLabel: 'Open identity' },
+  guardian_agency_consent: {
+    label: 'Guardian consent',
+    href: '/dashboard/talent/profile?tab=identity',
+    actionLabel: 'Open identity',
+  },
+  core: {
+    label: 'Submission core',
+    href: '/dashboard/talent/profile?tab=identity',
+    actionLabel: 'Open profile',
+  },
+  photo_headshot: { label: 'Digital headshot', actionLabel: 'Open the book' },
+  photo_full_body: { label: 'Full-length digital', actionLabel: 'Open the book' },
+  digitals_recency: { label: 'Digitals currency', actionLabel: 'Open the book' },
+  digitals_retouching: {
+    label: 'Unretouched digitals',
+    href: '/dashboard/talent/media',
+    actionLabel: 'Open the book',
+  },
+  distribution_rights: {
+    label: 'Image rights',
+    href: '/dashboard/talent/media',
+    actionLabel: 'Open the book',
+  },
+  measurements: { label: 'Measurements', actionLabel: 'Open measurements' },
+  contact: { label: 'Contact', actionLabel: 'Open settings' },
+};
+
+/**
+ * Where a talent goes to clear a send blocker.
+ * @returns {{ label: string, href: string, actionLabel: string }}
+ */
+export function sendBlockerTarget(blocker) {
+  const key = typeof blocker === 'string' ? null : blocker?.key;
+  const target = (key && SEND_BLOCKER_TARGETS[key]) || {};
+  const href =
+    target.href
+    || (key && READINESS_KEY_TO_PROFILE_URL[key])
+    || '/dashboard/talent/profile?tab=identity';
+
+  return {
+    label: target.label || (typeof blocker === 'string' ? 'Requirement' : blocker?.label || 'Requirement'),
+    href,
+    actionLabel: target.actionLabel || 'Open profile',
+  };
 }
 
 /**

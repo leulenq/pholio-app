@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowUpRight,
@@ -19,13 +20,12 @@ import { toast } from 'sonner';
 import { useAuth } from '../../auth/hooks/useAuth';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import PholioButton, {
-  PholioIconButton,
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../shared/components/ui/PholioButton';
 import ProfileGateBanner from '../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../shared/utils/profileGating';
-import { sendBlockerLabel } from '../../../shared/utils/sendReadiness';
+import { sendBlockerLabel, sendBlockerTarget } from '../../../shared/utils/sendReadiness';
 import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { talentApi } from '../api/talent';
 import { canWithdrawApplication, statusConfig } from '../utils/applicationStatus';
@@ -393,15 +393,38 @@ export default function ApplicationsView() {
         )}
 
         {gating.isCoreReady && !isSendReady && sendBlockers.length > 0 && (
-          <div className="app-send-list" role="status" aria-label="Send requirements">
-            {sendBlockers.map((blocker) => (
-              <div key={blocker.key || blocker.label}>
-                <CircleDashed size={14} aria-hidden />
-                <span>Send</span>
-                <strong>{sendBlockerLabel(blocker)}</strong>
-              </div>
-            ))}
-          </div>
+          <section
+            className="app-preflight"
+            role="status"
+            aria-labelledby="app-preflight-title"
+          >
+            <div className="app-preflight__head">
+              <h2 id="app-preflight-title">Clear this before you send</h2>
+              <span>{metricLabel(sendBlockers.length, 'requirement', 'requirements')}</span>
+            </div>
+            <ol className="app-preflight__list">
+              {sendBlockers.map((blocker, index) => {
+                const target = sendBlockerTarget(blocker);
+                return (
+                  <li
+                    key={blocker.key || target.label}
+                    className="app-preflight__row"
+                    style={{ '--app-row-index': index }}
+                  >
+                    <span className="app-preflight__index" aria-hidden>
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="app-preflight__label">{target.label}</span>
+                    <p className="app-preflight__task">{sendBlockerLabel(blocker)}</p>
+                    <Link className="app-preflight__action" to={target.href}>
+                      {target.actionLabel}
+                      <ArrowUpRight size={13} aria-hidden />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
         )}
 
         {agenciesQuery.isLoading ? (
@@ -719,7 +742,7 @@ function MessageDock({ app, onClose }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <>
       <div
         className="app-msgdock__scrim"
@@ -732,19 +755,24 @@ function MessageDock({ app, onClose }) {
         aria-label={`Messages with ${app.agency_name || 'agency'}`}
       >
         <header className="app-msgdock__head">
-          <span className="app-msgdock__title">{app.agency_name || 'Agency'}</span>
-          <PholioIconButton
-            label="Close messages"
+          <span className="app-msgdock__identity">
+            <span className="app-msgdock__title">{app.agency_name || 'Agency'}</span>
+            <span className="app-msgdock__meta">Submission thread</span>
+          </span>
+          <button
+            type="button"
             className="app-msgdock__close"
             onClick={onClose}
+            aria-label="Close messages"
           >
-            <X size={15} aria-hidden />
-          </PholioIconButton>
+            <X size={14} strokeWidth={1.5} aria-hidden />
+          </button>
         </header>
         <div className="app-msgdock__body">
           <ApplicationMessages applicationId={app.id} agencyName={app.agency_name} hideTitle />
         </div>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }

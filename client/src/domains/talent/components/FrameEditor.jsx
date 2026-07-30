@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import Cropper from 'react-easy-crop';
 import {
-  Calendar, Camera, Crop, EyeOff, Image as ImageIcon,
+  Calendar, Camera, Crop, EyeOff, FileSignature, Image as ImageIcon,
   RotateCcw, RotateCw, Save, ScanLine, Shield, Tags, X, ZoomIn,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { pholioToast } from '../../../shared/lib/pholio-toast';
 import { talentApi } from '../api/talent';
 import { classificationFormDefaults } from '../../../shared/utils/imageClassification';
 import {
@@ -160,7 +160,9 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         credit: initialCredits.credit || '',
       },
       description: initialMeta.description || initialMeta.caption || '',
-      visibility: initialMeta.visibility || 'public',
+      // The audience columns are the enforced source of truth. Legacy
+      // metadata.visibility is display-only and can disagree with them.
+      visibility: image.exclude_from_public ? 'private' : 'public',
     },
     image_type: classDefaults.image_type,
     shot_type: classDefaults.shot_type,
@@ -246,7 +248,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
       const blob = await getCroppedImgBlob(imageSrc, croppedAreaPixels, rotation);
       await Promise.resolve(onReplace(blob));
     } catch {
-      toast.error('Could not crop image. Please try again.');
+      pholioToast.error('Could not crop image. Please try again.');
       setIsProcessing(false);
     }
   };
@@ -254,10 +256,23 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
   const handleRestore = async () => {
     setIsRestoring(true);
     try { await Promise.resolve(onRestore(image.id)); }
-    catch { toast.error('Failed to restore original. Please try again.'); setIsRestoring(false); }
+    catch { pholioToast.error('Failed to restore original. Please try again.'); setIsRestoring(false); }
   };
 
   const setMeta = (patch) => setForm((p) => ({ ...p, metadata: { ...p.metadata, ...patch } }));
+  /* `metadata.visibility` is stored but never filters a query — `exclude_from_public`
+     is what the public portfolio actually reads. Derive it from that flag so the two
+     can't disagree. */
+  const setAudience = (patch) => setForm((p) => {
+    const next = { ...p, ...patch };
+    return {
+      ...next,
+      metadata: {
+        ...next.metadata,
+        visibility: next.exclude_from_public ? 'private' : 'public',
+      },
+    };
+  });
   const setCredit = (field, value) => setForm((p) => ({
     ...p, metadata: { ...p.metadata, credits: { ...p.metadata.credits, [field]: value } },
   }));
@@ -274,7 +289,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
       const hasCredit = rights.copyright_owner.trim().length > 0
         || rights.photographer_name.trim().length > 0;
       if (normalizedRightsStatus === 'cleared' && (!hasLicenseType || !hasCredit)) {
-        toast.error(
+        pholioToast.error(
           "Set a license type and either copyright owner or photographer before marking rights as cleared.",
         );
         return;
@@ -289,7 +304,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
           || !release.signer_role
           || !release.signed_at)
       ) {
-        toast.error('Complete the release reference, signer, signer role, and signed date.');
+        pholioToast.error('Complete the release reference, signer, signer role, and signed date.');
         return;
       }
 
@@ -368,7 +383,7 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
         onClose();
       }
     } catch {
-      toast.error('Failed to save changes. Please try again.');
+      pholioToast.error('Failed to save changes. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -568,40 +583,80 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
               ) : (
                 <>
                   {/* Publishing */}
-                  <div className="fe-section">
+                  <div className="fe-section fe-section--publishing">
                     <div className="fe-section__head">
                       <Shield size={14} aria-hidden="true" />
                       <h3>Publishing</h3>
                     </div>
-                    <PholioToggleGroup className="fe-segment" tone="dark" role="group" aria-label="Visibility">
-                      <PholioToggleButton
-                        type="button"
-                        tone="dark"
-                        active={form.metadata.visibility === 'public'}
-                        aria-pressed={form.metadata.visibility === 'public'}
-                        className={form.metadata.visibility === 'public' ? 'is-active' : ''}
-                        onClick={() => setMeta({ visibility: 'public' })}
-                      >Public</PholioToggleButton>
-                      <PholioToggleButton
-                        type="button"
-                        tone="dark"
-                        active={form.metadata.visibility === 'private'}
-                        aria-pressed={form.metadata.visibility === 'private'}
-                        className={form.metadata.visibility === 'private' ? 'is-active is-private' : ''}
-                        onClick={() => setMeta({ visibility: 'private' })}
-                      >Private</PholioToggleButton>
-                    </PholioToggleGroup>
-                    <div className="fe-switch-list">
-                      <label className="fe-switch">
-                        <input type="checkbox" checked={form.exclude_from_public}
-                          onChange={(e) => setForm((p) => ({ ...p, exclude_from_public: e.target.checked }))} />
-                        <span>Exclude from public</span>
-                      </label>
-                      <label className="fe-switch">
-                        <input type="checkbox" checked={form.exclude_from_agency}
-                          onChange={(e) => setForm((p) => ({ ...p, exclude_from_agency: e.target.checked }))} />
-                        <span>Exclude from agency</span>
-                      </label>
+                    <p className="fe-section__note">Choose where this frame can appear.</p>
+                    <div className="fe-audience">
+                      <div className="fe-audience__row">
+                        <span className="fe-audience__text">
+                          <span className="fe-audience__name">Public book</span>
+                          <span className="fe-audience__note">Visible at your shareable portfolio link</span>
+                        </span>
+                        <PholioToggleGroup
+                          className="fe-unit-toggle"
+                          tone="dark"
+                          role="group"
+                          aria-label="Public book visibility"
+                        >
+                          <PholioToggleButton
+                            type="button"
+                            tone="dark"
+                            active={form.exclude_from_public}
+                            aria-pressed={form.exclude_from_public}
+                            className={`fe-unit-toggle__btn ${form.exclude_from_public ? 'is-active' : ''}`}
+                            onClick={() => setAudience({ exclude_from_public: true })}
+                          >
+                            Hidden
+                          </PholioToggleButton>
+                          <PholioToggleButton
+                            type="button"
+                            tone="dark"
+                            active={!form.exclude_from_public}
+                            aria-pressed={!form.exclude_from_public}
+                            className={`fe-unit-toggle__btn ${!form.exclude_from_public ? 'is-active' : ''}`}
+                            onClick={() => setAudience({ exclude_from_public: false })}
+                          >
+                            Shown
+                          </PholioToggleButton>
+                        </PholioToggleGroup>
+                      </div>
+
+                      <div className="fe-audience__row">
+                        <span className="fe-audience__text">
+                          <span className="fe-audience__name">Agency submissions</span>
+                          <span className="fe-audience__note">Available when you build a submission</span>
+                        </span>
+                        <PholioToggleGroup
+                          className="fe-unit-toggle"
+                          tone="dark"
+                          role="group"
+                          aria-label="Agency submissions availability"
+                        >
+                          <PholioToggleButton
+                            type="button"
+                            tone="dark"
+                            active={form.exclude_from_agency}
+                            aria-pressed={form.exclude_from_agency}
+                            className={`fe-unit-toggle__btn ${form.exclude_from_agency ? 'is-active' : ''}`}
+                            onClick={() => setAudience({ exclude_from_agency: true })}
+                          >
+                            Hidden
+                          </PholioToggleButton>
+                          <PholioToggleButton
+                            type="button"
+                            tone="dark"
+                            active={!form.exclude_from_agency}
+                            aria-pressed={!form.exclude_from_agency}
+                            className={`fe-unit-toggle__btn ${!form.exclude_from_agency ? 'is-active' : ''}`}
+                            onClick={() => setAudience({ exclude_from_agency: false })}
+                          >
+                            Shown
+                          </PholioToggleButton>
+                        </PholioToggleGroup>
+                      </div>
                     </div>
                   </div>
 
@@ -719,14 +774,18 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                           onChange={(e) => setRights((p) => ({ ...p, expires_at: e.target.value }))}
                         />
                       </label>
-                      <label className="fe-grid__wide fe-switch">
+                      <label className="fe-grid__wide fe-check">
                         <input
                           type="checkbox"
+                          className="fe-check__box"
                           checked={rights.exclusive}
                           disabled={rightsLoading}
                           onChange={(e) => setRights((p) => ({ ...p, exclusive: e.target.checked }))}
                         />
-                        <span>Exclusive license</span>
+                        <span className="fe-check__text">
+                          <span className="fe-check__name">Exclusive license</span>
+                          <span className="fe-check__note">Limits reuse outside this agreement</span>
+                        </span>
                       </label>
                     </div>
                     {expiry ? (
@@ -735,64 +794,65 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                         {expiry.expired ? ' — expired-rights frames are blocked from packages and export.' : ''}
                       </p>
                     ) : null}
+                  </div>
 
-                    {/* Model release */}
-                    <div className="fe-release">
-                      <div className="fe-release__head">
-                        <span className="fe-label">Model release</span>
-                        <span className={`fe-release__state${releaseOnFile ? ' fe-release__state--on' : ''}`}>
-                          {releaseOnFile ? 'On file' : 'Not on file'}
-                        </span>
-                      </div>
-                      <div className="fe-grid">
-                        <label className="fe-grid__wide">
-                          <span className="fe-label">Release reference / URL</span>
-                          <input
-                            type="text"
-                            className="fe-input"
-                            placeholder="Link or document reference"
-                            value={release.release_url}
-                            disabled={rightsLoading}
-                            onChange={(e) => setReleaseField('release_url', e.target.value)}
-                          />
-                        </label>
-                        <label>
-                          <span className="fe-label">Signer</span>
-                          <input
-                            type="text"
-                            className="fe-input"
-                            placeholder="Signer name"
-                            value={release.signer_name}
-                            disabled={rightsLoading}
-                            onChange={(e) => setReleaseField('signer_name', e.target.value)}
-                          />
-                        </label>
-                        <label>
-                          <span className="fe-label">Signer role</span>
-                          <select
-                            className="fe-input"
-                            value={release.signer_role}
-                            disabled={rightsLoading}
-                            onChange={(e) => setReleaseField('signer_role', e.target.value)}
-                          >
-                            {RELEASE_SIGNER_ROLE_OPTIONS.map((option) => (
-                              <option key={`release-role-${option.value || 'empty'}`} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          <span className="fe-label"><Calendar size={12} aria-hidden="true" />Signed</span>
-                          <input
-                            type="date"
-                            className="fe-input"
-                            value={release.signed_at}
-                            disabled={rightsLoading}
-                            onChange={(e) => setReleaseField('signed_at', e.target.value)}
-                          />
-                        </label>
-                      </div>
+                  {/* Model release */}
+                  <div className="fe-section">
+                    <div className="fe-section__head">
+                      <FileSignature size={14} aria-hidden="true" />
+                      <h3>Model release</h3>
+                    </div>
+                    <p className={`fe-section__note${releaseOnFile ? ' fe-section__note--ok' : ''}`}>
+                      {releaseOnFile ? 'On file for this frame.' : 'Not on file yet — add the reference and signer details.'}
+                    </p>
+                    <div className="fe-grid">
+                      <label className="fe-grid__wide">
+                        <span className="fe-label">Release reference / URL</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="Link or document reference"
+                          value={release.release_url}
+                          disabled={rightsLoading}
+                          onChange={(e) => setReleaseField('release_url', e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label">Signer</span>
+                        <input
+                          type="text"
+                          className="fe-input"
+                          placeholder="Signer name"
+                          value={release.signer_name}
+                          disabled={rightsLoading}
+                          onChange={(e) => setReleaseField('signer_name', e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span className="fe-label">Signer role</span>
+                        <select
+                          className="fe-input"
+                          value={release.signer_role}
+                          disabled={rightsLoading}
+                          onChange={(e) => setReleaseField('signer_role', e.target.value)}
+                        >
+                          {RELEASE_SIGNER_ROLE_OPTIONS.map((option) => (
+                            <option key={`release-role-${option.value || 'empty'}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />Signed</span>
+                        <input
+                          type="date"
+                          className="fe-input"
+                          value={release.signed_at}
+                          disabled={rightsLoading}
+                          onChange={(e) => setReleaseField('signed_at', e.target.value)}
+                        />
+                      </label>
                     </div>
                   </div>
 

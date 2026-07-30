@@ -1,0 +1,269 @@
+/* ============================================================
+   BIO WRITER — the spark, and the composer that opens from it
+   ============================================================
+   The parameters are inside the popover, so nothing here competes
+   with the field for attention. Gold appears in exactly three
+   places: the spark, the parameter labels, and the rule drawn
+   under the field when the model returns.
+   ============================================================ */
+
+.writer {
+  --bw-gold: var(--pf-gold, #c9a55a);
+  --bw-gold-deep: #a6845c;
+  --bw-text: var(--pf-text, #1a1a1a);
+  --bw-text-soft: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  --bw-text-faint: var(--pf-text-faint, rgba(26, 26, 26, 0.42));
+  --bw-hair: var(--pf-hair, rgba(26, 26, 26, 0.08));
+  --bw-ease: var(--pf-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+/* ─── Heading, with the spark holding the right edge ─── */
+.head {
+  margin-bottom: 16px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--bw-text);
+  margin: 0;
+}
+
+.title em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--bw-gold);
+}
+
+.lede {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--bw-text-soft);
+  margin: 8px 0 0;
+  max-width: 48ch;
+}
+
+.sparkAnchor {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+/* The one entrance to the writer, so it carries a real 44px target and the
+   only gold glyph on the section. Doubled class beats the icon variant's
+   resting colour without reaching for !important. */
+.spark.spark {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  color: var(--bw-gold);
+}
+
+.spark.spark:hover:not(:disabled) {
+  background: rgba(201, 165, 90, 0.08);
+  color: var(--bw-gold-deep);
+}
+
+/* Open reads as pressed-and-held: the ground stays while the composer is out,
+   so the popover is visibly coming from this control. */
+.sparkOpen.sparkOpen,
+.sparkOpen.sparkOpen:hover:not(:disabled) {
+  background: rgba(201, 165, 90, 0.14);
+  color: var(--bw-gold-deep);
+}
+
+/* Composing. The points drift apart and back — the mark is the progress
+   indicator, so no spinner has to appear anywhere on the page. */
+.sparkWorking.sparkWorking {
+  cursor: progress;
+  color: var(--bw-gold);
+}
+
+.sparkWorking :global(.pholio-spark__major) {
+  animation: bwSparkPulse 1.6s ease-in-out infinite;
+  transform-origin: 9.7px 11.1px;
+}
+
+.sparkWorking :global(.pholio-spark__minor--up) {
+  animation: bwSparkPulse 1.6s ease-in-out infinite 0.22s;
+  transform-origin: 18.6px 4.2px;
+}
+
+.sparkWorking :global(.pholio-spark__minor--down) {
+  animation: bwSparkPulse 1.6s ease-in-out infinite 0.44s;
+  transform-origin: 18.6px 18.8px;
+}
+
+@keyframes bwSparkPulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.86); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+
+/* ─── The composer ─── */
+.panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(304px, calc(100vw - 40px));
+  padding: 18px;
+  border: 1px solid var(--bw-hair);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.22);
+  text-align: left;
+  transform-origin: top right;
+}
+
+/* Notch under the spark — the popover is tethered to the control, not floating
+   near it. */
+.panel::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 15px;
+  width: 9px;
+  height: 9px;
+  border-top: 1px solid var(--bw-hair);
+  border-left: 1px solid var(--bw-hair);
+  border-top-left-radius: 2px;
+  background: #ffffff;
+  transform: rotate(45deg);
+}
+
+.panelLede {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--bw-text-soft);
+  margin: 0 0 16px;
+}
+
+.param {
+  display: grid;
+  gap: 11px;
+  justify-items: start;
+}
+
+.param + .param {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--bw-hair);
+}
+
+.paramLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bw-gold);
+}
+
+.paramOptions {
+  gap: 22px !important;
+}
+
+/* Held at two lines so choosing an option never resizes the popover. */
+.paramNote {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--bw-text-soft);
+  margin: 0;
+  min-height: 36px;
+}
+
+.confirm {
+  margin-top: 18px;
+}
+
+/* ─── Field ─── */
+.field {
+  position: relative;
+}
+
+.field[data-working='true'] :global(.pholio-textarea) {
+  opacity: 0.5;
+  border-color: rgba(201, 165, 90, 0.3);
+}
+
+/* Prose lands inside a textarea and can't animate in, so the arrival is marked
+   by a rule drawn across the top of the field. */
+.sweep {
+  position: absolute;
+  z-index: 2;
+  top: -1px;
+  left: 2px;
+  right: 2px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(to right, transparent, var(--bw-gold), transparent);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+/* ─── Footer: revert on the left, the count (or progress) on the right ─── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 26px;
+  margin-top: 10px;
+}
+
+.revert {
+  flex: 0 0 auto;
+}
+
+.count,
+.status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 0;
+  text-align: right;
+}
+
+.count {
+  color: var(--bw-text-faint);
+}
+
+.status {
+  color: var(--bw-gold-deep);
+}
+
+@media (max-width: 560px) {
+  .panel {
+    width: min(304px, calc(100vw - 32px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sparkWorking :global(.pholio-spark__major),
+  .sparkWorking :global(.pholio-spark__minor--up),
+  .sparkWorking :global(.pholio-spark__minor--down) {
+    animation: none;
+  }
+
+  .sparkWorking.sparkWorking {
+    opacity: 0.7;
+  }
+}

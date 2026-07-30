@@ -29,6 +29,7 @@ import MatchScore from '../components/ui/MatchScore';
 import BriefUnderstanding from '../components/BriefUnderstanding';
 import { DiscoverDetail } from './DiscoverDetail';
 import Grainient from './Grainient';
+import { formatLocation } from '../../../shared/utils/locationFormat';
 import './DiscoverPage.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -142,7 +143,7 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
         </div>
         <div className="dc-card-line">
           <span className="dc-card-arch">{talent.archetype}</span>
-          {talent.city && <><span className="dc-dot" /><span className="dc-card-loc">{talent.city}</span></>}
+          {talent.city && <><span className="dc-dot" /><span className="dc-card-loc">{formatLocation(talent.city)}</span></>}
         </div>
 
         {hasFacts && (
