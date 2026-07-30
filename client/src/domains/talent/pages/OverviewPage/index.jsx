@@ -3,23 +3,16 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import {
   ArrowUpRight,
   ChevronRight,
   FileText,
-  TrendingUp,
   AlertCircle,
   Download,
+  Check,
+  Copy,
   Globe,
   ExternalLink,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { useProfileStrength } from '../../hooks/useProfileStrength';
@@ -29,6 +22,8 @@ import { talentApi } from '../../api/talent';
 import { bucketCounts } from '../../utils/applicationStatus';
 import { StatsCurrencyPrompt } from '../../components/StatsCurrencyPrompt';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
+import { formatLocation } from '../../../../shared/utils/locationFormat';
+import { cmToFeetInches } from '../../../../shared/utils/measurementConversions';
 import {
   isMinorProfile,
   minorSensitiveFieldsUnlocked,
@@ -74,22 +69,66 @@ function displayPublicUrl(url) {
   }
 }
 
-function chartDateLabel(value, options = { month: 'short', day: 'numeric' }) {
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
-}
+/**
+ * Hairline sparkline for the site ledger. Deliberately axis-less and
+ * tooltip-less — shape only. The readable chart lives on /analytics.
+ */
+function SiteSparkline({ series, animate = true }) {
+  const width = 220;
+  const height = 34;
 
-function WebsiteChartTooltip({ active, payload, label }) {
-  if (!active || !Array.isArray(payload) || payload.length === 0) return null;
-  const visits = asNum(payload[0]?.value);
+  const points = Array.isArray(series) ? series : [];
+  if (points.length < 2) return null;
+
+  const peak = Math.max(...points.map((p) => p.visits), 1);
+  const step = width / (points.length - 1);
+  const coords = points.map((point, i) => {
+    const x = i * step;
+    const y = height - (point.visits / peak) * (height - 3) - 1.5;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
 
   return (
-    <div className="ov-website-tooltip">
-      <span>{chartDateLabel(label, { month: 'long', day: 'numeric' })}</span>
-      <strong>{visits.toLocaleString()} {visits === 1 ? 'visit' : 'visits'}</strong>
-    </div>
+    <svg
+      className="ov-site-spark"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      aria-hidden
+      focusable="false"
+    >
+      <polyline
+        className={animate ? 'ov-site-spark-line ov-site-spark-line--draw' : 'ov-site-spark-line'}
+        points={coords.join(' ')}
+      />
+    </svg>
   );
+}
+
+/**
+ * The spec line the public site leads with. Only fields the talent has
+ * actually filled — no placeholders, no invented values.
+ */
+function siteSpecs(profile) {
+  if (!profile) return [];
+  const specs = [];
+
+  const height = asNum(profile.height_cm);
+  if (height > 0) {
+    const { ft, in: inch } = cmToFeetInches(height);
+    specs.push({ label: 'Height', value: `${ft}'${inch}"` });
+  }
+
+  const bust = asNum(profile.bust_cm);
+  const waist = asNum(profile.waist_cm);
+  const hips = asNum(profile.hips_cm);
+  if (bust > 0 && waist > 0 && hips > 0) {
+    specs.push({ label: 'Measurements', value: `${bust} · ${waist} · ${hips}` });
+  }
+
+  if (profile.hair_color) specs.push({ label: 'Hair', value: profile.hair_color });
+  if (profile.eye_color) specs.push({ label: 'Eyes', value: profile.eye_color });
+
+  return specs.slice(0, 4);
 }
 
 function getGreetingByTime(date = new Date()) {

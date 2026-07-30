@@ -11,7 +11,7 @@
  * - POST /onboarding/scout/confirm- Confirm primary, advances to measurements
  * - POST /onboarding/measurements - Height (+ optional gender-branched stats)
  * - POST /onboarding/profile      - Lanes + city (skippable), completes onboarding
- * - POST /onboarding/reveal-complete / /onboarding/complete - finalization
+ * - POST /onboarding/complete - finalization safety net
  * - GET  /onboarding/status       - State polling / resume
  */
 
@@ -1440,7 +1440,6 @@ router.post(
 
       await knex("profiles").where({ id: profile.id }).update(updatePayload);
 
-      // Get updated state to check if can reveal
       const updatedProfile = await knex("profiles")
         .where({ id: profile.id })
         .first();
@@ -1809,80 +1808,6 @@ router.post(
       });
     } catch (error) {
       console.error("[Casting Profile] Error:", error);
-      return next(error);
-    }
-  },
-);
-
-/**
- * POST /onboarding/reveal-complete
- * Mark the reveal as viewed: state transition + timestamps only.
- */
-router.post(
-  "/onboarding/reveal-complete",
-  requireRole("TALENT"),
-  async (req, res, next) => {
-    try {
-      const profile = await knex("profiles")
-        .where({ user_id: req.session.userId })
-        .first();
-
-      if (!profile) {
-        return res.status(404).json({
-          error: "Profile not found",
-          message: "Please complete entry step first",
-        });
-      }
-
-      // Guard against using reveal-complete as a completion shortcut.
-      // The canonical completion path is /onboarding/profile (or /onboarding/complete)
-      // which must set onboarding_completed_at first.
-      if (!profile.onboarding_completed_at) {
-        const state = getState(profile);
-        return res.status(403).json({
-          error: "Prerequisites not met",
-          message:
-            "Complete the profile step before marking reveal as complete.",
-          current_step: state.current_step,
-          completed_steps: state.completed_steps || [],
-        });
-      }
-
-      // Transition state to 'done' and mark reveal viewed
-      const state = getState(profile);
-      const updatePayload = transitionTo(
-        state,
-        "done",
-        {
-          reveal_viewed: true,
-          reveal_viewed_at: new Date().toISOString(),
-        },
-        knex,
-      );
-
-      if (!updatePayload) {
-        return invalidOnboardingSequence(
-          res,
-          state,
-          "Reveal completion is only valid once the prior onboarding steps are complete.",
-        );
-      }
-
-      updatePayload.onboarding_completed_at = knex.fn.now();
-
-      await knex("profiles").where({ id: profile.id }).update(updatePayload);
-
-      console.log("[Casting Reveal Complete] State → done");
-
-      await updateProfileCompleteness(profile.id);
-
-      return res.json({
-        success: true,
-        next_step: "complete",
-        message: "Reveal completed successfully",
-      });
-    } catch (error) {
-      console.error("[Casting Reveal Complete] Error:", error);
       return next(error);
     }
   },

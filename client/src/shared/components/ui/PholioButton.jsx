@@ -21,7 +21,17 @@ function normalizeVariant(variant) {
   return BUTTON_VARIANTS.has(variant) ? variant : 'secondary';
 }
 
-function renderButtonContent(children, variant) {
+function renderButtonContent(children, variant, icon) {
+  // A caller-supplied mark replaces the variant's built-in one, so a control can
+  // carry the house spark (or any other glyph) without forking the variant.
+  if (icon) {
+    return (
+      <>
+        {icon}
+        <span>{children}</span>
+      </>
+    );
+  }
   if (variant === 'ai') {
     return (
       <>
@@ -54,7 +64,7 @@ function renderButtonContent(children, variant) {
  * primary commit, secondary alternative, tertiary quiet action, meta/inline
  * action, icon action, destructive action, and toggle item.
  */
-export default function PholioButton({
+const PholioButton = React.forwardRef(function PholioButton({
   children,
   variant = 'secondary',
   tone = 'light',
@@ -62,6 +72,7 @@ export default function PholioButton({
   className = '',
   disabled = false,
   loading = false,
+  icon = null,
   type,
   as,
   to,
@@ -69,7 +80,7 @@ export default function PholioButton({
   tabIndex,
   onClick,
   ...props
-}) {
+}, ref) {
   const resolvedVariant = normalizeVariant(variant);
   const isDisabled = disabled || loading;
   const classes = cx(

@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Lock } from 'lucide-react';
 import { MARKETING_SITE_URL } from '../lib/logout';
-import PholioBillingWordmark from './billing/PholioBillingWordmark';
-import PholioButton, {
-  PholioToggleButton,
-  PholioToggleGroup,
-} from './ui/PholioButton';
+import PholioButton from './ui/PholioButton';
 import './SubscriptionCheckoutDisclosure.css';
 
 const EASE = [0.22, 1, 0.36, 1];
 const linkClass = 'ph-billing-link';
+
+// "Free for 14 days" — spelling the number out ("Fourteen days free") inverted
+// normal word order to sound editorial and just read as stilted instead.
 
 /**
  * Required billing disclosure + checkbox before Stripe checkout (ROSCA / CA ARL).
@@ -26,21 +25,35 @@ export function SubscriptionCheckoutDisclosure({
 }) {
   return (
     <div className="ph-billing-disclosure">
+      {/*
+        Every fact ROSCA / CA ARL requires — trial length, the price after it,
+        that it auto-renews, how to stop it — kept, but as four scanned lines
+        instead of a six-line paragraph nobody read. The affirmative tick is a
+        recorded consent and is not optional.
+      */}
+      {/*
+        Was a three-row FREE FOR / THEN / CANCEL table. A mini-table for three
+        short facts is more furniture than the facts need — three mono labels,
+        three columns and two rules to say one sentence. Same disclosure, read
+        as a sentence.
+      */}
+      <p className="ph-billing-terms">
+        Free for {trialDays} days, then <strong>{renewalLabel}</strong>, auto-renewing.
+        Cancel anytime in Settings — access runs to the end of the paid period.
+      </p>
+
       <p className="ph-billing-disclosure__text">
-        Studio+ is a <strong>software subscription</strong> — Pholio is not a talent agency and
-        does not guarantee representation, bookings, or income. Your plan includes a{' '}
-        {trialDays}-day free trial, then {renewalLabel} until you cancel. Subscriptions auto-renew
-        each billing period. Cancel anytime in Settings; access continues through the end of the
-        paid period. See our{' '}
+        Studio+ is a software subscription. Pholio is not a talent agency and does not
+        guarantee representation, bookings, or income.{' '}
         <a href={`${MARKETING_SITE_URL}/terms`} target="_blank" rel="noopener noreferrer" className={linkClass}>
           Terms
-        </a>{' '}
-        and{' '}
-        <a href={`${MARKETING_SITE_URL}/privacy`} target="_blank" rel="noopener noreferrer" className={linkClass}>
-          Privacy Policy
         </a>
-        .
+        {' · '}
+        <a href={`${MARKETING_SITE_URL}/privacy`} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          Privacy
+        </a>
       </p>
+
       <label className="ph-billing-disclosure__check" htmlFor={id}>
         <input
           id={id}
@@ -48,9 +61,9 @@ export function SubscriptionCheckoutDisclosure({
           checked={accepted}
           onChange={(e) => onAcceptedChange(e.target.checked)}
         />
-        <span>
-          I understand the trial and auto-renewal terms and agree to be charged after the trial
-          unless I cancel.
+        <span className="ph-billing-disclosure__box" aria-hidden="true" />
+        <span className="ph-billing-disclosure__consent">
+          I agree to be charged {renewalLabel} after the trial unless I cancel.
         </span>
       </label>
     </div>
@@ -118,9 +131,9 @@ export function SubscriptionCheckoutModal({
     });
   };
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div className="ph-billing-modal-scrim" role="presentation" onClick={handleClose}>
       <motion.div
         className="ph-billing-modal"
@@ -131,44 +144,62 @@ export function SubscriptionCheckoutModal({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: EASE }}
       >
+        {/*
+          The ink half, built from nothing.
+
+          What it replaces: a wordmark that draws its own gold sweep, a heading,
+          a lede of three abstractions, and a second gold sweep under all of it
+          from `.hero::after`. Two gold rules in one small field, in a system
+          where gold marks one thing.
+
+          What it is: a field with a single subject. The plan name set as a name,
+          and one line telling you what you are being offered. The `+` is the
+          only gold on the panel — nothing else competes with it.
+        */}
         <div className="ph-billing-modal__hero">
-          <PholioBillingWordmark variant="on-ink" size="md" />
-          <h2 id="billing-modal-title" className="ph-billing-modal__title">
-            Start your {trialDays}-day Studio+ trial
+          <h2 id="billing-modal-title" className="ph-billing-modal__name">
+            Studio<span className="ph-billing-modal__plus">+</span>
           </h2>
-          <p className="ph-billing-modal__lede">
-            Premium portfolio tools, deeper analytics, and the full Pholio experience.
-          </p>
+          <p className="ph-billing-modal__offer">Free for {trialDays} days</p>
         </div>
 
         <div className="ph-billing-modal__body">
-          <PholioToggleGroup className="ph-billing-modal__plans" role="radiogroup" aria-label="Billing interval">
+          <div className="ph-billing-modal__plans" role="radiogroup" aria-label="Billing interval">
             {plans.map((plan) => {
               const selected = plan.interval === selectedInterval;
               return (
-                <PholioToggleButton
+                <button
                   key={plan.interval}
                   type="button"
-                  active={selected}
                   role="radio"
                   aria-checked={selected}
                   className={`ph-billing-plan${selected ? ' is-selected' : ''}`}
                   onClick={() => setSelectedInterval(plan.interval)}
                 >
+                  {/*
+                    Two groups, not a three-column grid. The radio and the plan
+                    name belong together on the left; the figure and its note
+                    belong together on the right. The grid had the mark on its
+                    own track, which is why it floated above the label's optical
+                    centre, and pushed the annual note into the name's column.
+                  */}
+                  <span className="ph-billing-plan__mark" aria-hidden="true" />
                   <span className="ph-billing-plan__label">
                     {plan.interval === 'annual' ? 'Annual' : 'Monthly'}
                   </span>
-                  <span className="ph-billing-plan__price">
-                    {plan.priceLabel}
-                    <span className="ph-billing-plan__unit">{plan.priceUnit}</span>
+                  <span className="ph-billing-plan__figure">
+                    <span className="ph-billing-plan__price">
+                      {plan.priceLabel}
+                      <span className="ph-billing-plan__unit">{plan.priceUnit}</span>
+                    </span>
+                    {plan.secondaryLabel ? (
+                      <span className="ph-billing-plan__note">{plan.secondaryLabel}</span>
+                    ) : null}
                   </span>
-                  {plan.secondaryLabel && (
-                    <span className="ph-billing-plan__note">{plan.secondaryLabel}</span>
-                  )}
-                </PholioToggleButton>
+                </button>
               );
             })}
-          </PholioToggleGroup>
+          </div>
 
           <SubscriptionCheckoutDisclosure
             priceLabel={priceLabel}
@@ -180,30 +211,26 @@ export function SubscriptionCheckoutModal({
           />
 
           <div className="ph-billing-modal__actions">
-            <PholioButton
+            <button
               type="button"
-              variant="tertiary"
+              className="ph-billing-dismiss"
               onClick={handleClose}
               disabled={isLoading}
             >
               Not now
-            </PholioButton>
+            </button>
             <PholioButton
               type="button"
               variant="primary"
               disabled={!accepted || isLoading}
               onClick={handleConfirm}
             >
-              {isLoading ? 'Preparing checkout…' : 'Continue to secure checkout'}
+              {isLoading ? 'Preparing…' : 'Start trial'}
             </PholioButton>
           </div>
-
-          <p className="ph-billing-modal__secure">
-            <Lock size={12} strokeWidth={1.8} aria-hidden="true" />
-            Encrypted checkout · Cancel anytime
-          </p>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -2,7 +2,7 @@
  * Casting Call Page
  * Main controller for the talent onboarding flow.
  *
- * Flow: Entry → Birthdate → Gender → Scout → Measurements → Profile → Reveal
+ * Flow: Entry → Birthdate → Gender → Scout → Measurements → Profile → Dashboard
  * (birthdate before gender: the age gate precedes further personal data)
  */
 
@@ -29,6 +29,7 @@ import { ActionDockProvider } from '../components/ActionDockContext';
 import OnboardingDevPanel from '../dev/OnboardingDevPanel';
 import { PREVIEW_SEED, PREVIEW_STEPS, parsePreviewParam } from '../dev/onboardingPreview';
 import { canCollectSensitiveProfileFields } from '../../../shared/utils/talentAge';
+import { markArrivedFromOnboarding } from '../../../shared/lib/pholio-auth/entry-transition';
 import '../styles/CastingCinematic.css';
 import './CastingScout.screen.css';
 
@@ -51,6 +52,7 @@ const RAIL_STEPS = [
 const LEGACY_STEP_MAP = {
   identity: 'birthdate',
   verification_pending: 'birthdate',
+  reveal: 'done',
 };
 
 // Persists which stable rail step the user was on across an unplanned remount
@@ -147,10 +149,6 @@ function CastingCallPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- dev-only harness, intentional synchronous seed
     setProfileData(PREVIEW_SEED.profileData);
     setPhotoData(PREVIEW_SEED.photoData);
-    if (preview.view === 'reveal') {
-      navigate('/reveal');
-      return;
-    }
     if (preview.view === 'greet') {
       const provider = preview.subStep || 'google';
       setSignupMethod(provider);
@@ -271,8 +269,13 @@ function CastingCallPage() {
     (payload) => talentApi.createCheckoutSession(payload),
   );
 
-  const finishToReveal = () => {
-    setTimeout(() => navigate('/reveal'), 2800);
+  // The finishing preloader holds for a cinematic beat, then the dashboard is
+  // the destination — the account is already finalized server-side by
+  // /onboarding/profile. Marking the arrival keeps the sign-in splash away:
+  // this is the end of a long flow, not a return visit.
+  const finishToDashboard = () => {
+    markArrivedFromOnboarding();
+    setTimeout(() => navigate('/dashboard/talent'), 2800);
   };
 
   const handleCheckoutConfirm = async (payload) => {
@@ -281,11 +284,11 @@ function CastingCallPage() {
     try {
       const data = await redirectToCheckout(payload);
       if (!data?.url) {
-        finishToReveal();
+        finishToDashboard();
       }
     } catch (checkoutError) {
-      console.error('[CastingCallPage] Stripe checkout failed, falling back to reveal:', checkoutError);
-      finishToReveal();
+      console.error('[CastingCallPage] Stripe checkout failed, falling back to the dashboard:', checkoutError);
+      finishToDashboard();
     } finally {
       setIsOpeningCheckout(false);
     }
@@ -297,7 +300,7 @@ function CastingCallPage() {
 
     // Onboarding is already finalized server-side by CastingProfile's /profile
     // call. /complete is an idempotent safety net — its failure must not block
-    // the paid-plan checkout or the reveal handoff below.
+    // the paid-plan checkout or the dashboard handoff below.
     try {
       await completeMutation.mutateAsync();
     } catch (error) {
@@ -312,13 +315,14 @@ function CastingCallPage() {
     }
 
     // Hold the preloader for a cinematic beat before navigating
-    finishToReveal();
+    finishToDashboard();
   };
 
   // Step 5: Complete - Redirect to dashboard
   const handleComplete = useCallback(() => {
     writeStoredView(null); // done — don't resume a finished flow on a later /onboarding visit
-    navigate('/reveal');
+    markArrivedFromOnboarding();
+    navigate('/dashboard/talent');
   }, [navigate]);
 
   // One-time rehydration: seed local state from the server's persisted answers
@@ -354,7 +358,8 @@ function CastingCallPage() {
   // Resume an in-progress flow if the page is reloaded mid-onboarding.
   // We intentionally do NOT auto-forward already-completed ('done') accounts
   // anywhere — /onboarding stays freely viewable regardless of session. The
-  // live completion path navigates to /reveal on its own (handleProfileComplete).
+  // live completion path navigates to the dashboard on its own
+  // (handleProfileComplete).
   React.useEffect(() => {
     if (previewActive) return; // don't let server state yank the previewed step
     if (!status?.state) return;
@@ -431,7 +436,7 @@ function CastingCallPage() {
     );
   }
 
-  // Cinematic preloader shown during the isFinishing → navigate('/reveal') transition
+  // Cinematic preloader shown during the isFinishing → dashboard transition
 
   // The greet beat shares entry's progress slot — it isn't a step of its own.
   const steps = ['entry', 'birthdate', 'gender', 'scout', 'measurements', 'profile', 'complete'];

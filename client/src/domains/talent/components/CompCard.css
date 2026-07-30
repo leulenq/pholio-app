@@ -8,8 +8,24 @@
 .cc-status--warning { color: var(--mw-gold); }
 .cc-status--blocked { color: #b04848; }
 
-/* ── Stage layout ── */
-.cc-stage { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(290px, 1fr); gap: 56px; align-items: start; }
+/* ── Stage layout ──
+   The card leads at its shipped 420px cap — enlarging it to 580 made a 896px-tall
+   object that owned the whole viewport vertically. What had to change was not the
+   card's size but the rail's: it used to take `1fr` against the card's cap, so at
+   1200px the controls measured ~580px against the card's 420 and the support
+   column was physically the larger object. The rail is fixed and narrow now, and
+   the card holds the free track flush to the page's left margin. */
+.cc-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 560px);
+  gap: 56px; align-items: start;
+  /* Both columns flush to the page margins, the slack collected into one gutter
+     between them. A 320px rail against the card's 420 left ~360px of dead space
+     mid-row and forced every control in the rail to stack; 560 gives the rail
+     enough measure to lay its own content out sideways. */
+  justify-content: space-between;
+}
+@media (max-width: 1100px) { .cc-stage { gap: 40px; } }
 @media (max-width: 900px) { .cc-stage { grid-template-columns: 1fr; gap: 36px; } }
 
 /* Grid tracks size to `auto` minimums, which resolve to each item's
@@ -21,13 +37,25 @@
 .cc-panel { min-width: 0; }
 
 /* ── The card object ── */
-.cc-showcase { display: flex; flex-direction: column; gap: 18px; }
+.cc-showcase { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 32px; }
+@media (max-width: 900px) {
+  .cc-showcase { position: static; }
+  /* Single column: the track IS the viewport, so centring is correct again. */
+  .cc-card, .cc-showcase__foot, .cc-export, .cc-stats-nudge { margin-left: auto; margin-right: auto; }
+}
 .cc-card {
   --cc-scale: 0.6;
   position: relative;
   width: 100%;
+  /* The shipped cap. CompCard.jsx derives --cc-scale from the rendered width, so
+     this number is what decides the card's size — 580 here produced a 896px-tall
+     card that filled the viewport on its own. */
   max-width: 420px;
-  margin: 0 auto;
+  /* Left-aligned, not centred: centring inside the free track left ~180px of
+     dead space between the page's left margin and the card, and broke the card's
+     alignment with the "Comp card" heading above it. Re-centred on mobile, where
+     the track is the viewport. */
+  margin: 0;
   aspect-ratio: 5.5 / 8.5;
   perspective: 1800px;
   cursor: pointer;
@@ -89,7 +117,7 @@
 }
 @keyframes cc-ring { to { transform: rotate(360deg); } }
 
-.cc-showcase__foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 420px; margin: 0 auto; width: 100%; }
+.cc-showcase__foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 420px; margin: 0; width: 100%; }
 .cc-sideswitch { display: inline-flex; }
 .cc-sideswitch__btn {
   flex: 0 0 auto;
@@ -97,80 +125,71 @@
 .cc-showcase__meta { font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mw-text-faint); }
 
 /* ── Atelier panel ── */
-.cc-panel { display: flex; flex-direction: column; }
-.cc-stage-block { display: flex; flex-direction: column; gap: 14px; padding: 26px 0; }
-.cc-stage-block + .cc-stage-block { border-top: 1px solid var(--mw-hair); }
-.cc-stage-block:first-child { padding-top: 4px; }
+/* ── The control column ───────────────────────────────────────────────
+   Three tiers, not six peers: the decision, the adjustments folded behind it,
+   and a closing note. Previously six sibling `.cc-stage-block`s each carried a
+   19px serif heading, a line of instruction and its own controls, padded and
+   hairline-ruled identically — so the column had no centre and had to be read
+   end to end before any part of it could be used.
+   ------------------------------------------------------------------- */
+.cc-panel { display: flex; flex-direction: column; gap: 26px; }
 
-.cc-stage-head { display: flex; align-items: baseline; gap: 12px; }
-.cc-stage-title { font-family: var(--mw-serif); font-weight: 400; font-size: 19px; letter-spacing: -0.01em; color: var(--mw-text); }
-
-.cc-stage-head > .pholio-btn { margin-left: auto; }
-
-.cc-stage-note { font-family: var(--mw-sans); font-size: 12.5px; line-height: 1.6; color: var(--mw-text-soft); }
-.cc-stage-note--quiet { color: var(--mw-text-faint); font-size: 12px; }
+.cc-stage-note { font-family: var(--mw-sans); font-size: 12px; line-height: 1.6; color: var(--mw-text-soft); }
+.cc-stage-note--quiet { color: var(--mw-text-faint); font-size: 11.5px; }
 .cc-em { color: var(--mw-gold-warm, var(--mw-gold)); font-style: italic; font-family: var(--mw-serif); font-size: 13.5px; }
 
-/* ── Direction (Editions) — the name moment + the two gestures + the rail ── */
-.cc-direction { gap: 16px; }
-
-/* The name moment: the edition set in its voice. Serif carries the edition
-   (a quiet editorial moment); Inter carries the voice line. */
-.cc-editionname {
-  margin: 0; display: flex; flex-wrap: wrap; align-items: baseline;
-  column-gap: 2px; row-gap: 2px;
-}
+/* ── The specimen plate ──
+   Three facts, three registers, one composition. Serif names the edition; a gold
+   rule carries the typeface as a mono specimen label; the tone is set as an
+   italic serif epigraph. Previously all three were flush-left sans in descending
+   sizes — a stack of statements with nothing holding them together. */
+.cc-state { display: flex; flex-direction: column; gap: 10px; }
+.cc-editionname { margin: 0; }
 .cc-editionname__label {
   font-family: var(--mw-serif); font-weight: 400; font-size: 22px;
-  letter-spacing: -0.01em; line-height: 1.2; color: var(--mw-text);
+  letter-spacing: -0.012em; line-height: 1.15; color: var(--mw-text);
 }
 .cc-editionname__label--pending { color: var(--mw-text-faint); }
+
+/* The rule is what makes this a specimen label rather than another line of text,
+   and it is the one place gold appears in the plate. */
 .cc-editionname__voice {
-  font-family: var(--mw-sans); font-weight: 400; font-size: 13px;
-  letter-spacing: 0.01em; color: var(--mw-text-soft);
+  display: flex; align-items: center; gap: 11px;
+  font-family: var(--mw-mono); font-size: 9px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--mw-text-faint);
+}
+.cc-editionname__voice::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 24px; height: 1px;
+  background: var(--mw-gold);
+  opacity: 0.8;
 }
 
-/* The two gestures. "New direction" is the primary (ink-fill PholioButton,
-   gold-underline sweep — the talent primary vocabulary); "Another take of
-   this" is the secondary, shown once an edition is established. */
-.cc-gestures { display: flex; flex-wrap: wrap; gap: 10px; }
-.cc-gesture { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; }
-
-/* Edition rail — a horizontally-scrollable row of edition chips using the
-   existing chip vocabulary; gold marks the pinned selection only. */
-.cc-rail {
-  display: flex; flex-wrap: nowrap; gap: 8px;
-  /* This rail is meant to scroll horizontally, but its nowrap chips still
-     report their full summed width as min-content to every ancestor. Pin it
-     to 0 so the rail scrolls its own overflow instead of widening the page. */
-  min-width: 0;
-  overflow-x: auto; overflow-y: hidden;
-  padding-bottom: 6px; margin-bottom: -2px;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x proximity;
-}
-.cc-rail::-webkit-scrollbar { height: 5px; }
-.cc-rail::-webkit-scrollbar-thumb { background: var(--mw-hair-strong); border-radius: 999px; }
-.cc-rail__chip { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
-
-/* The edition Pholio is showing right now, while in Pholio's-choice mode:
-   a quiet gold underline, not the full gold selection state. */
-.cc-rail__chip.is-current:not(.is-active) {
-  box-shadow: inset 0 -2px 0 var(--mw-gold);
+.cc-state__tone {
+  margin: 2px 0 0;
+  font-family: var(--mw-serif); font-style: italic; font-weight: 400;
+  font-size: 14.5px; line-height: 1.5;
+  color: var(--mw-text-soft);
+  /* A measure wide enough that these one-sentence tones don't strand their last
+     word on a line of its own; `pretty` catches the rest. */
+  max-width: 42ch;
+  text-wrap: pretty;
 }
 
-/* Unavailable editions — clearly disabled, honest unlock copy on hover/title.
-   Not a button (nothing to press); communicates the gate, never a fake tier. */
-.cc-rail__chip--locked {
-  display: inline-flex; align-items: center;
-  padding: 7px 14px; border-radius: 999px;
-  border: 1px dashed var(--mw-hair-strong);
-  font-family: var(--mw-sans); font-size: 12.5px; letter-spacing: 0.01em;
-  color: var(--mw-text-faint); background: transparent;
-  cursor: not-allowed; user-select: none;
+/* ── The decision ── */
+.cc-decision { display: flex; flex-direction: column; gap: 14px; }
+
+/* One row, two real buttons. "Another take" was an underlined text link stacked
+   under the primary; it is a sibling action and now reads as one — hierarchy from
+   ink fill against a hairline. They share the row equally, so a single button
+   (before an edition is established) simply spans it. */
+.cc-gestures { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.cc-gesture {
+  flex: 1 1 auto; min-width: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  white-space: nowrap;
 }
-.cc-rail__chip--locked:hover { border-color: var(--mw-hair-strong); color: var(--mw-text-soft); }
 
 /* ── Front photo casting strip ── */
 .cc-hero__strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -255,20 +274,22 @@
 }
 
 /* Download */
-.cc-download-row { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 8px; padding-top: 26px; border-top: 1px solid var(--mw-hair); }
 .cc-download { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
 .cc-spinner { width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, 0.34); border-top-color: #fff; border-radius: 50%; animation: mw-spin 0.8s linear infinite; }
 .cc-unlock { font-family: var(--mw-sans); font-size: 12px; color: var(--mw-gold); text-decoration: none; }
-.cc-flip-hint { opacity: 0.85; }
 
 /*
  * Official "Add to Apple Wallet" badge — Apple-provided artwork, never
  * restyled or recreated. Sits directly on the cream workspace surface per
  * Apple's light-background guidance; no chip/box, no shadow, aspect preserved.
  */
-.cc-wallet { display: inline-flex; align-items: center; transition: opacity 0.2s var(--mw-ease); }
-.cc-wallet:hover { opacity: 0.85; }
-.cc-wallet img { display: block; height: 40px; width: auto; }
+/* Apple dictates this badge's artwork, so it can never be made of hairlines like
+   everything else here. What it can be is small and in its right place: scaled
+   to the status line it shares, rather than a 40px black slab under a black
+   button. */
+.cc-wallet { display: inline-flex; align-items: center; flex: 0 0 auto; transition: opacity 0.2s var(--mw-ease); }
+.cc-wallet:hover { opacity: 0.8; }
+.cc-wallet img { display: block; height: 30px; width: auto; }
 
 .cc-gate {
   display: grid;
@@ -293,7 +314,7 @@
   justify-content: space-between;
   gap: 16px;
   max-width: 420px;
-  margin: 0 auto;
+  margin: 0;
   width: 100%;
   padding: 0 2px;
 }
@@ -322,31 +343,171 @@
   margin: 0;
 }
 
-/* ── Saved cards library ── */
-.cc-lib__count { margin-left: auto; font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mw-text-faint); }
+/* ── Tier 2: the adjustments ──
+   A stack of quiet lines, each stating where it stands. Closed, the whole tier
+   is three rows of text; open, one set of controls at a time. */
+.cc-drawers {
+  display: flex; flex-direction: column;
+  border-top: 1px solid var(--mw-hair);
+}
+.cc-drawer { border-bottom: 1px solid var(--mw-hair); }
 
-.cc-lib__save { display: flex; gap: 8px; align-items: stretch; }
-.cc-lib__name {
-  flex: 1 1 auto; min-width: 0;
-  font-family: var(--mw-sans); font-size: 12.5px; color: var(--mw-text);
-  background: #fff; border: 1px solid var(--mw-hair-strong); border-radius: 8px;
-  padding: 8px 12px;
-  transition: border-color 0.2s var(--mw-ease);
+/* The bar is a row of type, not a framed control — the global talent <button>
+   reset would otherwise make it a 999px pill. */
+.cc-drawer__bar {
+  display: flex; align-items: baseline; gap: 14px; width: 100%;
+  padding: 13px 2px;
+  border: 0; border-radius: 0; background: transparent;
+  text-align: left; cursor: pointer;
+  transition: color 0.2s var(--mw-ease);
 }
-.cc-lib__name::placeholder { color: var(--mw-text-faint); }
-.cc-lib__name:focus { outline: none; border-color: var(--mw-gold); }
-.cc-lib__name:disabled { opacity: 0.55; }
-/* purpose tags — board/lane + market, quiet selects under the name field */
-.cc-lib__purpose { display: flex; gap: 8px; margin-top: 8px; }
-.cc-lib__tag {
-  flex: 1 1 0; min-width: 0;
-  font-family: var(--mw-sans); font-size: 12px; color: var(--mw-text-soft);
-  background: #fff; border: 1px solid var(--mw-hair-strong); border-radius: 8px;
-  padding: 7px 10px; cursor: pointer;
-  transition: border-color 0.2s var(--mw-ease), color 0.2s var(--mw-ease);
+/* A step below the edition name, not a rival to it: these are the third tier of
+   the rail and must read as such. */
+.cc-drawer__title {
+  font-family: var(--mw-serif); font-weight: 400; font-size: 14px;
+  letter-spacing: -0.005em; color: var(--mw-text-soft);
 }
-.cc-lib__tag:focus { outline: none; border-color: var(--mw-gold); color: var(--mw-text); }
-.cc-lib__tag:disabled { opacity: 0.55; }
+/* The answer, so the drawer usually needn't be opened at all. */
+.cc-drawer__summary {
+  margin-left: auto;
+  font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--mw-text-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cc-drawer__chev {
+  flex: 0 0 auto; align-self: center;
+  color: var(--mw-text-faint);
+  transition: transform 0.28s var(--mw-ease), color 0.2s var(--mw-ease);
+}
+.cc-drawer.is-open .cc-drawer__chev { transform: rotate(180deg); }
+.cc-drawer__bar:hover .cc-drawer__title,
+.cc-drawer__bar:hover .cc-drawer__summary,
+.cc-drawer__bar:hover .cc-drawer__chev { color: var(--mw-gold); }
+.cc-drawer__bar:focus-visible { outline: 2px solid var(--mw-gold); outline-offset: 2px; border-radius: 2px; }
+.cc-drawer.is-open .cc-drawer__title { color: var(--mw-text); }
+
+.cc-drawer__inner {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 2px 2px 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-drawer__chev { transition: none; }
+}
+
+/* ── Tier 3: the closing note ── */
+.cc-closing { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Saved cards library ── */
+/* Match /profile field geometry and label voice exactly. Shared PholioForms
+   defaults (8px wells, Inter labels) are wrong here — Profile scopes them to
+   2px hairline fields + JetBrains Mono titles. */
+.cc-lib__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  --cc-field-hair: rgba(26, 26, 26, 0.08);
+  --cc-field-hair-strong: rgba(26, 26, 26, 0.16);
+  --cc-field-radius: 2px;
+  --cc-field-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cc-lib__form .pholio-form-group {
+  gap: 0;
+}
+
+.cc-lib__form .pholio-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mw-text-faint);
+  margin-bottom: 10px;
+}
+
+.cc-lib__form .pholio-input,
+.cc-lib__form .pholio-custom-select-trigger {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--mw-text);
+  background: #fff;
+  border: 1px solid var(--cc-field-hair);
+  border-radius: var(--cc-field-radius);
+  box-shadow: none;
+  min-height: 48px;
+  height: 48px;
+  padding: 12px 16px;
+  transition:
+    border-color 0.2s var(--cc-field-ease),
+    background 0.2s var(--cc-field-ease),
+    color 0.2s var(--cc-field-ease);
+  transform: none;
+}
+
+.cc-lib__form .pholio-custom-select-trigger {
+  min-height: 48px;
+  height: 48px;
+  padding: 12px 16px;
+}
+
+.cc-lib__form .pholio-input::placeholder {
+  color: var(--mw-text-faint);
+  font-style: normal;
+  font-weight: 300;
+}
+
+.cc-lib__form .pholio-input:hover:not(:focus),
+.cc-lib__form .pholio-custom-select-trigger:hover:not(:focus):not(.open) {
+  border-color: var(--cc-field-hair-strong);
+  background: #fff;
+  transform: none;
+}
+
+.cc-lib__form .pholio-input:focus,
+.cc-lib__form .pholio-custom-select-trigger:focus,
+.cc-lib__form .pholio-custom-select-trigger.open {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+  outline: none;
+  transform: none;
+}
+
+.cc-lib__form .pholio-custom-select-dropdown {
+  border: 1px solid var(--cc-field-hair);
+  border-radius: var(--cc-field-radius);
+  box-shadow: 0 12px 36px rgba(26, 24, 21, 0.08);
+  background: #fff;
+  padding: 0;
+  z-index: 40;
+}
+
+.cc-lib__form .pholio-select-option {
+  min-height: 44px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 0;
+  font-size: 13.5px;
+  transform: none;
+}
+
+.cc-lib__purpose { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) {
+  .cc-lib__purpose { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .cc-lib__form .pholio-input,
+  .cc-lib__form .pholio-custom-select-trigger {
+    font-size: 16px;
+  }
+  .cc-lib__form .pholio-label {
+    font-size: 11px;
+  }
+}
+.cc-lib__savebtn { align-self: flex-start; }
 .cc-lib__tagline {
   font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--mw-text-faint);
@@ -388,6 +549,35 @@
   font-family: var(--mw-serif); font-size: 14.5px; color: var(--mw-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.cc-lib__rename-input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--cc-field-hair, rgba(26, 26, 26, 0.08));
+  border-radius: var(--cc-field-radius, 2px);
+  background: #fff;
+  box-shadow: none;
+  font-family: var(--mw-sans);
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--mw-text);
+  outline: none;
+  transition:
+    border-color 0.2s var(--mw-ease),
+    box-shadow 0.2s var(--mw-ease);
+}
+.cc-lib__rename-input:hover:not(:focus) {
+  border-color: var(--cc-field-hair-strong, rgba(26, 26, 26, 0.16));
+}
+.cc-lib__rename-input:focus {
+  border-color: rgba(201, 165, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+}
+.cc-lib__rename-input:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
 .cc-lib__flag { font-family: var(--mw-mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mw-gold); }
 
 .cc-lib__actions { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 12px; }
@@ -399,4 +589,148 @@
 @media (prefers-reduced-motion: reduce) {
   .cc-card__flip { transition: none; }
   .cc-veil__ring { animation: none; }
+}
+
+/* ── Export ──
+   Sits under the card, because it is what the card becomes. The status rides
+   with it: "Rights check" is a statement about whether this button will work. */
+.cc-export {
+  display: flex; flex-direction: column; gap: 12px;
+  max-width: 420px; margin: 0; width: 100%;
+  padding-top: 16px; border-top: 1px solid var(--mw-hair);
+}
+.cc-export .cc-download { width: 100%; justify-content: center; }
+
+/* The status and the wallet pass: two quiet halves of one line beneath the
+   export they both describe. */
+.cc-export__foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; min-height: 30px;
+}
+
+/* ── Editions ──
+   NOTE: `styles/global.css` applies a talent-wide reset to every bare <button>
+   (`border-radius: 999px`, 0.75rem/1.75rem padding). Zero-specificity
+   `:where()`, so a class wins — but only for what it actually declares. These
+   rules therefore restate radius and padding explicitly; without the radius,
+   the global 999px turned every focus ring and hover shadow into a stray pill. */
+/* A tile selector. These were underlined words on a transparent ground, which
+   made the surface's one real decision look like a paragraph of links. Each
+   option is a pressed surface with a press state; the chosen one is filled in
+   ink so the choice is legible at a glance rather than by hunting for a gold
+   underline. */
+/* Three across at the rail's full measure. Two columns of 270px tiles was a lot
+   of stretched white for a two-word label, and it pushed seven directions into
+   four rows. */
+.cc-eds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 560px) {
+  .cc-eds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.cc-ed {
+  display: flex; align-items: center; min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--mw-hair);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  text-align: left;
+  letter-spacing: 0;
+  transition:
+    border-color 0.24s var(--mw-ease),
+    background-color 0.24s var(--mw-ease),
+    color 0.24s var(--mw-ease),
+    transform 0.24s var(--mw-ease),
+    box-shadow 0.24s var(--mw-ease);
+}
+.cc-ed__name {
+  font-family: var(--mw-sans); font-size: 12.5px; font-weight: 500;
+  line-height: 1.3; color: var(--mw-text-soft);
+  transition: color 0.24s var(--mw-ease);
+}
+.cc-ed:hover {
+  border-color: var(--mw-hair-gold);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -14px rgba(26, 26, 26, 0.35);
+}
+.cc-ed:hover .cc-ed__name { color: var(--mw-text); }
+.cc-ed:focus-visible { outline: 2px solid var(--mw-gold); outline-offset: 2px; }
+
+/* The chosen direction. Ink fill, gold hairline — the talent primary vocabulary,
+   at tile scale. */
+.cc-ed.is-active {
+  border-color: var(--mw-ink);
+  background: var(--mw-ink);
+  box-shadow: 0 10px 26px -16px rgba(5, 5, 5, 0.55);
+}
+.cc-ed.is-active .cc-ed__name { color: var(--mw-cream); }
+.cc-ed.is-active:hover { transform: none; }
+
+/* What Pholio is showing right now while in Pholio's-choice mode: named, but not
+   claimed as the user's choice. */
+.cc-ed.is-current:not(.is-active) { border-color: var(--mw-hair-gold); }
+.cc-ed.is-current:not(.is-active) .cc-ed__name { color: var(--mw-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-ed, .cc-ed:hover { transition: none; transform: none; }
+}
+
+/* ── The schedule of conditions ──
+   No container and no heading: at the rail's full measure each direction and its
+   condition fit on one line, so the alignment alone does the composing. Names
+   share a left edge, conditions share theirs, and the lock on each row carries
+   the state — which is what a heading was standing in for. */
+.cc-locked {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 20px; row-gap: 9px;
+  margin: 4px 0 2px;
+}
+.cc-locked__name {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 0;
+  font-family: var(--mw-sans); font-size: 12px; font-weight: 500;
+  line-height: 1.45; color: var(--mw-text-soft);
+}
+.cc-locked__icon { flex: 0 0 auto; color: var(--mw-text-faint); opacity: 0.7; }
+.cc-locked__why {
+  margin: 0;
+  font-family: var(--mw-sans); font-weight: 300; font-size: 11.5px;
+  font-style: italic; line-height: 1.45;
+  color: var(--mw-text-faint);
+}
+
+/* Too narrow for two columns: the condition tucks under its name, indented past
+   the lock so the pairing survives. */
+@media (max-width: 520px) {
+  .cc-locked { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .cc-locked__name { margin-top: 8px; }
+  .cc-locked__name:first-of-type { margin-top: 0; }
+  .cc-locked__why { padding-left: 18px; }
+}
+
+/* ── Casting rows ── */
+.cc-cast { display: flex; flex-direction: column; gap: 18px; }
+.cc-cast__row { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.cc-cast__key {
+  flex: 0 0 104px; padding-top: 9px; white-space: nowrap;
+  font-family: var(--mw-sans); font-size: 12.5px; color: var(--mw-text-soft);
+  display: flex; align-items: baseline; gap: 8px;
+}
+.cc-cast__count {
+  font-family: var(--mw-mono); font-size: 9.5px; letter-spacing: 0.14em;
+  color: var(--mw-text-faint);
+}
+.cc-cast__row .cc-hero__strip,
+.cc-cast__row .cc-grid__strip { flex: 1 1 240px; min-width: 0; }
+
+/* `.cc-gesture-link` lived here — the underlined-text treatment for "Another
+   take". It is a secondary PholioButton sharing the gestures row now. */
+
+@media (max-width: 600px) {
+  .cc-cast__key { flex-basis: 100%; padding-top: 0; }
 }

@@ -2,13 +2,14 @@ import React from 'react';
 import { Controller } from 'react-hook-form';
 import { PholioInput, PholioTextarea, PholioToggle } from '../../../shared/components/ui/forms';
 import PholioButton, {
+  PholioIconButton,
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../shared/components/ui/PholioButton';
+import PholioSpark from '../../../shared/components/ui/PholioSpark';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import CityAutocompleteField from '../../../shared/components/ui/forms/CityAutocompleteField';
 import { Section } from './Section';
-import HorizonFlare from './HorizonFlare';
 import { computeAge, isMinorProfile } from '../../../shared/utils/talentAge';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
 
@@ -120,31 +121,6 @@ export const IdentitySection = ({
             />
           )}
         />
-      </div>
-
-      <div className={`${styles.formGrid2} ${styles.formRow}`}>
-        <div style={{ position: 'relative' }}>
-          <PholioInput
-            label="Date of Birth"
-            type="date"
-            error={errors.date_of_birth}
-            {...register('date_of_birth')}
-          />
-          {age !== null && (
-            <span
-              style={{
-                position: 'absolute',
-                right: '12px',
-                top: '38px',
-                fontSize: '13px',
-                color: 'rgba(255,255,255,0.4)',
-                pointerEvents: 'none'
-              }}
-            >
-              {age} yrs
-            </span>
-          )}
-        </div>
         <Controller
           name="pronouns"
           control={control}
@@ -167,6 +143,22 @@ export const IdentitySection = ({
             />
           )}
         />
+      </div>
+
+      <div className={`${styles.formGrid2} ${styles.formRow}`}>
+        <div className={styles.dobField}>
+          <PholioInput
+            label="Date of Birth"
+            type="date"
+            error={errors.date_of_birth}
+            {...register('date_of_birth')}
+          />
+          {age !== null && (
+            <span className={styles.dobAge}>
+              {age} {age === 1 ? 'year' : 'years'}
+            </span>
+          )}
+        </div>
       </div>
 
       {isMinor && (
@@ -247,19 +239,24 @@ export const IdentitySection = ({
             <h3 className={styles.bioTitle}>
               About <em>you</em>
             </h3>
-            <HorizonFlare
-              evaluating={isImproving}
+            {/*
+              An icon, not a labelled button. Was a 120x40 HorizonFlare — a
+              decorative flare wired to onClick, with no label, no hit area and
+              no pressed state, which at that size rendered as a thin vertical
+              sliver. This is the same action carried as a real control: a 44px
+              target, an accessible name, a focus ring, and a working state.
+            */}
+            <button
+              type="button"
+              aria-label={hasBio ? 'Refine your bio with Pholio' : 'Write your bio with Pholio'}
+              title={hasBio ? 'Refine your bio with Pholio' : 'Write your bio with Pholio'}
+              className={`${styles.bioSpark} ${isImproving ? 'is-working' : ''}`}
               onClick={isImproving ? undefined : (hasBio ? onBioRefine : onBioGenerate)}
-              style={{ 
-                width: '120px', 
-                height: '40px', 
-                cursor: isImproving ? 'not-allowed' : 'pointer',
-                opacity: isImproving ? 0.7 : 1,
-                marginLeft: '16px'
-              }}
-              title={hasBio ? "Refine Biography" : "Generate Biography"}
-              aria-label={hasBio ? "Refine Biography" : "Generate Biography"}
-            />
+              disabled={isImproving}
+              aria-busy={isImproving}
+            >
+              <PholioSpark size={22} />
+            </button>
           </div>
           <p className={styles.bioLede}>
             Tell agencies what makes you unique.

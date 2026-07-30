@@ -289,16 +289,6 @@
 /* masthead icon buttons (carried forward) */
 .ag-topbar-icon { width: 34px; height: 34px; border: none; border-radius: 50%; background: transparent; color: #6b6256; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; text-decoration: none; transition: all .2s cubic-bezier(0.4, 0, 0.2, 1); }
 .ag-topbar-icon:hover { background: rgba(0,0,0,0.04); color: var(--ag-ink); }
-.ag-topbar-icon--unread::after {
-  content: '';
-  position: absolute;
-  right: 8px;
-  bottom: 5px;
-  width: 10px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--ag-pholio-gold);
-}
 
 /* ---------- RIGHT COLUMN ---------- */
 .ag-rightcol { width: 280px; flex: none; border-left: 1px solid #e6ddcd; background: rgba(255,255,255,.5); padding: 22px 22px 28px; overflow-y: auto; position: relative; }

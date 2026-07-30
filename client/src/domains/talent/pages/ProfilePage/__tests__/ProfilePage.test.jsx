@@ -23,6 +23,7 @@ vi.mock('lucide-react', () => {
     Check: makeIconMock('Check'),
     Link2: makeIconMock('Link2'),
     Sparkles: makeIconMock('Sparkles'),
+    Feather: makeIconMock('Feather'),
     ClipboardList: makeIconMock('ClipboardList'),
     Menu: makeIconMock('Menu'),
     X: makeIconMock('X'),
@@ -294,7 +295,9 @@ describe('ProfilePage Component', () => {
     const saveButton = screen.getByRole('button', { name: /save profile/i });
     expect(saveButton).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: /generate/i }));
+    // The AI action is an icon, so its accessible name comes from aria-label —
+    // which the old unlabelled flare never had.
+    await user.click(screen.getByRole('button', { name: /write your bio with pholio/i }));
 
     const bioInput = screen.getByPlaceholderText(/tell us about yourself/i);
     await waitFor(() => expect(bioInput).toHaveValue(generatedBio));

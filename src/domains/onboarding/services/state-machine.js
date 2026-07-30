@@ -22,6 +22,7 @@
 const LEGACY_STEP_MAP = {
   identity: "birthdate",
   verification_pending: "birthdate",
+  reveal: "done",
 };
 
 function healStep(step) {
@@ -55,7 +56,7 @@ const TRANSITIONS_V2 = {
     parallel: [],
   },
   profile: {
-    next: ["done"], // Skip reveal, go directly to done
+    next: ["done"],
     prev: "measurements",
     parallel: [],
   },
@@ -175,7 +176,7 @@ function canTransitionTo(from, to, completedSteps = []) {
  * Requires 'scout', 'measurements', and 'profile' to be in completed_steps
  *
  * @param {Object} state - Full state object
- * @returns {boolean} True if can enter reveal
+ * @returns {boolean} True if onboarding can finish
  */
 function canComplete(state) {
   const completedSteps = state.completed_steps || [];
@@ -293,7 +294,6 @@ function initialState(startStep = "entry", knex) {
     current_step: startStep,
     completed_steps: [],
     step_data: {},
-    can_enter_reveal: false,
     started_at: new Date().toISOString(),
   };
 
@@ -325,8 +325,6 @@ function getNextSteps(state) {
 
   // If next is array, return all valid options
   if (Array.isArray(config.next)) {
-    // Note: Legacy "reveal" step has been removed from the new casting flow
-    // All steps in the new flow (entry → scout → measurements → profile → done) are linear
     return config.next;
   }
 

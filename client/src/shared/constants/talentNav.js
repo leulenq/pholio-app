@@ -24,12 +24,6 @@ export const TALENT_NAV_SECTIONS = [
         requiresProfileGate: true,
       },
       {
-        label: 'Messages',
-        to: '/dashboard/talent/messages',
-        pageKicker: 'Messages',
-        requiresProfileGate: true,
-      },
-      {
         label: 'Intel',
         to: '/dashboard/talent/intel',
         pageKicker: 'Intel',
@@ -43,6 +37,9 @@ export const TALENT_NAV_SECTIONS = [
 export const TALENT_NAV_ITEMS = TALENT_NAV_SECTIONS.flatMap((section) => section.items);
 
 export function getTalentNavItemByPath(pathname = '') {
+  if (pathname === '/dashboard/talent/messages' || pathname.startsWith('/dashboard/talent/messages/')) {
+    return { label: 'Messages', to: '/dashboard/talent/messages', pageKicker: 'Messages' };
+  }
   return TALENT_NAV_ITEMS.find(
     (item) => pathname === item.to || pathname.startsWith(`${item.to}/`),
   );
