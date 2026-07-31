@@ -352,8 +352,10 @@ export async function getSeasonAnalytics({ range = 90, boardId = null } = {}) {
   return res?.data || res;
 }
 
-export async function getBoards() {
-  return apiClient.get('/boards');
+export async function getBoards(type) {
+  // `type` is optional: 'division' for standing boards (Women, Editorial),
+  // 'package' for casting boards. Omitted returns both, as before.
+  return apiClient.get(type ? `/boards?type=${encodeURIComponent(type)}` : '/boards');
 }
 
 /**

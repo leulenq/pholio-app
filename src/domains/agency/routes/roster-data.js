@@ -30,6 +30,79 @@ const {
 const router = express.Router();
 mountAgencyApiGuard(router);
 
+/* ============================================================
+   Divisions vs casting boards
+
+   `boards` is dual-purpose: it holds standing DIVISIONS (Women, Editorial)
+   and CASTING/PACKAGE boards ("Nike SS26"), discriminated by `board_type`.
+   Without this filter the division mark confidently labels a casting board
+   as a division.
+
+   `board_type` is NULLABLE, and every board created before that column
+   existed — including all standing divisions created by agency setup — is
+   NULL. So only an explicit 'package' is a casting board.
+
+   The SQL matters: `whereNot('board_type', 'package')` would also drop every
+   NULL row, because `NULL <> 'package'` evaluates to NULL, not true. That
+   would hide almost every real division.
+   ============================================================ */
+const CASTING_BOARD_TYPE = "package";
+
+const isDivisionBoard = (boardType) => boardType !== CASTING_BOARD_TYPE;
+
+/** Restrict a query to division boards, keeping NULL-typed legacy boards. */
+function onlyDivisionBoards(query, alias) {
+  return query.where((scope) =>
+    scope.whereNull(`${alias}.board_type`).orWhereNot(`${alias}.board_type`, CASTING_BOARD_TYPE),
+  );
+}
+
+/* `roster_board_standings` is newer than some deployments. Checked once per
+   process rather than per request so a pre-migration environment degrades to
+   the single-board shape instead of throwing. */
+let standingsTableChecked = null;
+async function hasStandingsTable(db) {
+  if (standingsTableChecked === null) {
+    standingsTableChecked = await db.schema.hasTable("roster_board_standings");
+  }
+  return standingsTableChecked;
+}
+
+/**
+ * Every division a set of memberships sits on, with its standing.
+ * Returns Map<membershipId, Array<{ board, standing, isPrimary }>>.
+ */
+async function loadBoardStandings(db, membershipIds) {
+  const byMembership = new Map();
+  if (membershipIds.length === 0 || !(await hasStandingsTable(db))) return byMembership;
+
+  const rows = await onlyDivisionBoards(
+    db("roster_board_standings as rbs")
+      .join("boards as sb", "sb.id", "rbs.board_id")
+      .whereIn("rbs.membership_id", membershipIds),
+    "sb",
+  )
+    .select(
+      "rbs.membership_id",
+      "rbs.board_id",
+      "rbs.standing",
+      "rbs.is_primary",
+      "sb.name as board_name",
+    )
+    .orderBy(["rbs.membership_id", { column: "rbs.is_primary", order: "desc" }, "sb.name"]);
+
+  rows.forEach((row) => {
+    const list = byMembership.get(row.membership_id) || [];
+    list.push({
+      board: { id: row.board_id, name: row.board_name },
+      standing: row.standing,
+      isPrimary: Boolean(row.is_primary),
+    });
+    byMembership.set(row.membership_id, list);
+  });
+  return byMembership;
+}
+
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(30),
@@ -233,6 +306,7 @@ router.get("/api/agency/roster", requireRole("AGENCY"), async (req, res, next) =
         "rm.joined_at",
         "rm.left_at",
         "b.name as board_name",
+        "b.board_type as board_type",
         ...PROFILE_COLUMNS.map((column) => `p.${column} as profile_${column}`),
         "tr.first_name as record_first_name",
         "tr.last_name as record_last_name",
@@ -279,6 +353,11 @@ router.get("/api/agency/roster", requireRole("AGENCY"), async (req, res, next) =
       commitmentsByProfile.set(commitment.profile_id, current);
     });
 
+    const boardStandings = await loadBoardStandings(
+      knex,
+      rows.map((row) => row.membership_id),
+    );
+
     const items = rows.map((row) => {
       const platform = Boolean(row.profile_id);
       const measurements = platform
@@ -304,7 +383,13 @@ router.get("/api/agency/roster", requireRole("AGENCY"), async (req, res, next) =
             .filter(Boolean)
             .join(" ") || "Roster talent",
         location: platform ? row.profile_city : row.record_market,
-        board: row.board_id ? { id: row.board_id, name: row.board_name } : null,
+        // Singular primary board, kept for callers that predate multi-board.
+        board:
+          row.board_id && isDivisionBoard(row.board_type)
+            ? { id: row.board_id, name: row.board_name }
+            : null,
+        // Every division this talent sits on, strongest standing first.
+        boards: boardStandings.get(row.membership_id) || [],
         stage: row.stage,
         membershipStatus: row.membership_status,
         availability: resolveAvailability({

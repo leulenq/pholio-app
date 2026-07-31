@@ -253,7 +253,13 @@ export default function RosterPage() {
     queryFn: () => fetchRoster(filters),
     placeholderData: (previous) => previous,
   });
-  const boardsQuery = useQuery({ queryKey: ['agency-boards'], queryFn: getBoards, staleTime: 60000 });
+  // Divisions only — the roster board picker must not offer casting boards
+  // ("Nike SS26") as though they were standing divisions.
+  const boardsQuery = useQuery({
+    queryKey: ['agency-boards', 'division'],
+    queryFn: () => getBoards('division'),
+    staleTime: 60000,
+  });
   const items = rosterQuery.data?.items || EMPTY_ITEMS;
   const pagination = rosterQuery.data?.pagination;
   const boards = boardsQuery.data || [];

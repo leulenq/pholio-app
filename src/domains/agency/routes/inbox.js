@@ -183,8 +183,27 @@ router.get(
       const agencyId = getSessionAgencyId(req.session);
       const actorUserId = getSessionActorUserId(req.session);
 
+      /* `boards` is dual-purpose: standing DIVISIONS (Women, Editorial) and
+         CASTING/PACKAGE boards ("Nike SS26"), discriminated by `board_type`.
+         Callers that need one kind pass ?type=division|package; the default
+         stays unfiltered so existing casting/signing callers are unaffected.
+
+         `board_type` is nullable and every board predating the column — which
+         includes all divisions created by agency setup — is NULL, so a
+         division filter must keep NULLs. `whereNot(...)` alone would drop them,
+         because `NULL <> 'package'` is NULL rather than true. */
+      const boardTypeFilter = String(req.query?.type || "").trim();
       const boards = await knex("boards")
         .where({ agency_id: agencyId })
+        .modify((query) => {
+          if (boardTypeFilter === "division") {
+            query.where((scope) =>
+              scope.whereNull("board_type").orWhereNot("board_type", "package"),
+            );
+          } else if (boardTypeFilter === "package") {
+            query.where("board_type", "package");
+          }
+        })
         .orderBy("sort_order", "asc")
         .orderBy("created_at", "asc");
 
