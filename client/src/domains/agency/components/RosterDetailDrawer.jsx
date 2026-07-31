@@ -16,19 +16,30 @@ import {
   measurementAge,
   measurementsToFormFields,
 } from '../pages/rosterFormat';
-import { DivisionMark } from './status';
+import { DivisionSet } from './status';
 import './RosterDetailDrawer.css';
 
 const STAGE_ORDER = ['main', 'development', 'new_face'];
 
-/* A roster member's ladder stage is their standing on that board: main-board
-   talent are signed to it, new faces and development talent are being built
-   for it. See status/divisions.js. */
-const STAGE_STANDING = {
-  main: 'represented',
-  development: 'developing',
-  new_face: 'developing',
+/* The ladder stage is itself a board in the division taxonomy, so it renders
+   in the same vocabulary as the roster board rather than as a separate label.
+   Previously the mark said "Developing" while the line beneath it said "New
+   Face" — one fact, two vocabularies. */
+const STAGE_DIVISION = {
+  main: 'mainboard',
+  development: 'development',
+  new_face: 'newfaces',
 };
+
+/* Mirrors deriveStanding() in the roster_board_standings migration, so the
+   UI and the backfill agree on what a stage plus status means. */
+function standingFor(stage, status) {
+  if (status === 'left' || status === 'ended') return 'ended';
+  if (status === 'inactive') return 'inactive';
+  if (stage === 'new_face' || stage === 'development') return 'developing';
+  if (stage === 'main') return 'represented';
+  return 'unknown';
+}
 
 function getInitials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -117,8 +128,25 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
   }, [isPrivateRecord, talent]);
 
   const ledger = useLedgerRows(item, talent);
-  // Left null when unset — DivisionMark renders the "Unassigned" board itself.
-  const division = item.board?.name || null;
+  /* The ladder stage plus every board this membership carries.
+     `item.boards` is the new multi-board shape (roster_board_standings); the
+     single `item.board` is the pre-migration fallback, so this renders
+     correctly either way. Named distinctly from the `boards` prop, which is
+     the agency's full board list used by the picker below. */
+  const boardStandings = useMemo(() => {
+    const standing = standingFor(item.stage, item.availability || item.status);
+    const rows = [{ division: STAGE_DIVISION[item.stage] || 'mainboard', standing }];
+
+    if (Array.isArray(item.boards) && item.boards.length > 0) {
+      for (const b of item.boards) {
+        const name = typeof b === 'string' ? b : b?.board?.name || b?.name;
+        if (name) rows.push({ division: name, standing: b?.standing });
+      }
+    } else if (item.board?.name) {
+      rows.push({ division: item.board.name, standing });
+    }
+    return rows;
+  }, [item.stage, item.status, item.availability, item.boards, item.board]);
   const availabilityMeta = getStatusMeta(normalizeStatusKey(item.availability));
   const bio = talent?.bio_curated || null;
   const social = Array.isArray(talent?.social) ? talent.social.filter((s) => s?.url || s?.handle) : [];
@@ -224,17 +252,11 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
           <div className="rd-identity">
             <h2 className="rd-name">{item.name}</h2>
             <div className="rd-boards">
-              <DivisionMark
-                division={division}
-                standing={STAGE_STANDING[item.stage] || 'represented'}
-                size="sm"
-                onDark
-              />
+              <DivisionSet divisions={boardStandings} size="sm" onDark empty="No board assigned" />
             </div>
-            <p className="rd-facts">
-              {STAGE_LABELS[item.stage] || STAGE_LABELS.main}
-              {identityFacts.length ? ` · ${identityFacts.join(' · ')}` : ''}
-            </p>
+            {identityFacts.length > 0 && (
+              <p className="rd-facts">{identityFacts.join(' · ')}</p>
+            )}
             {availabilityMeta && (
               <p className="rd-availability" style={{ color: availabilityMeta.color }}>
                 {availabilityMeta.label}

@@ -22,7 +22,7 @@ import { norm, titleCase, resolveDivision } from './divisions';
    taxonomy and a never-null fallback behind it. */
 export const getDivision = (key) => {
   const d = resolveDivision(key);
-  return { label: d.label, code: d.code, c: `var(--ss-p-${d.pigment})` };
+  return { label: d.label, code: d.code, c: `var(--dv-${d.pigment})` };
 };
 
 /* ---------- Type / market — pigment ---------- */

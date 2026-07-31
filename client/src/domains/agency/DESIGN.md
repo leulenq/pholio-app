@@ -211,40 +211,56 @@ Hybrid: depth comes first from **tonal layering of warm cream surfaces** (canvas
 `components/status/DivisionMark` + `DivisionSet`. The one sanctioned way to show
 which boards a talent sits on and where they stand on each.
 
-**Two axes that never interfere:**
-- **Pigment = identity.** *Which* board. Never quality, never severity. The same
-  pigment appears on a "represented" mark and on a "passed" one.
-- **Ink weight = standing.** Solid stamp (represented) → stamp (active) → dashed
-  (developing) → ruled (shortlisted) → ghost (on file) → muted (inactive) →
-  struck (passed).
+**Three layers, in order of what carries what:**
 
-Because standing lives in fill and stroke rather than hue, the mark reads
-correctly in greyscale and for colour-blind bookers, and it never becomes the
-green/yellow/red status badge banned in §6 and root DESIGN.md #3. **This
-separation is the rule — do not add a "standing colour."**
+- **Typesetting identifies the board.** Each division has an authored setting —
+  Editorial is a tracked serif (the masthead voice), Commercial is plain Inter
+  (commercial work is plain), Fit is mono caps (booked on measurement, not on
+  look), Kids & Teens is deliberately unstyled. This is the *accessible*
+  identifier: it survives colour blindness, greyscale, and print.
+- **The ground carries the standing** — represented / active / developing /
+  shortlisted / on file / inactive / ended / passed / unknown.
+- **Colour is a family-level recall aid, never the identifier.**
 
-**The code is the identifier; the pigment is a recall aid.** An agency may run
-twenty-one boards, and twenty-one hues cannot stay mutually distinct. The
-two-letter booker shorthand (WM, NF, ED, BT…) is what a booker actually reads;
-pigment groups boards into families so the eye can pre-sort a dense roster.
+**Why colour is not the identifier.** 22 mutually CVD-distinct hues do not exist
+in sRGB — red-green deficiency collapses the usable gamut to roughly a
+blue-yellow axis plus lightness, and the practical ceiling is ~10–12 colours. An
+earlier version of this palette held lightness fixed across all divisions on an
+"equality" argument and scored 57 confusable pairs of 231 under deuteranopia,
+*worse* than the ad-hoc pigments it replaced. Lightness is now solved per
+division across a narrow band. **Do not reintroduce fixed lightness, and do not
+make hue load-bearing.**
 
-- **Shape:** square corners (radius 0), hairline-ruled, mono shorthand cell
-  welded to an Inter name field. A filing plate, not a pill. Inter throughout —
-  never the display serif, per the Serif-For-Identity Rule.
-- **Grounds:** paper/canvas by default; `onDark` lightens each pigment to a 45%
-  tint for the drawer hero and photo scrims.
-- **Sizes:** `sm` (roster rows, 20px), `md` (default, 26px), `lg` (drawer, 32px);
-  `codeOnly` for dense columns.
-- **Motion:** only the interactive filter variant animates (160ms, hover/focus),
-  with a reduced-motion fallback. Static marks are static — agency motion
-  supports state, not decoration.
-- **Focus:** the platform gold ring. Gold marks focus; boards mark boards.
-- **Board names are agency-authored free text** (`boards.name`). `resolveDivision`
-  never returns null — unknown names get a derived shorthand and a stable pigment.
-- **Accessibility:** every mark carries its standing as text for screen readers;
-  all 22 pigments clear 4.5:1 on paper, canvas, and the dark scrim. Verified by
-  `node scripts/check-division-contrast.mjs` — run it after touching any
-  `--ss-p-*` token.
+**Serif at the identity tier is a sanctioned exception** to the agency system's
+"no serif in dense controls" rule — the serif does semantic work here. It is
+capped at `md`/`lg`; `sm` (the roster-table size) drops serif entirely and
+degrades every treatment to weight, tracking and case, because Playfair's
+hairlines fall under one device pixel below ~12px. `sm` also normalises
+font-size so a row of marks shares one baseline.
+
+- **Shape:** square corners (radius 0), 1px border, no internal divider.
+- **Every rung differs in ground lightness AND border treatment**, so standing
+  never depends on hue. The low rungs are 6–12% tints measuring ~1.05:1 against
+  the cream canvas — the border is what makes the field a field, and it is held
+  at 3:1 (WCAG 1.4.11).
+- **Grounds:** paper/canvas by default; `onDark` for the drawer hero.
+- **Motion:** only the interactive filter variant animates, with a
+  reduced-motion fallback.
+- **Forced colors:** each rung carries a distinct border style, because
+  backgrounds are stripped.
+- **Board names are agency-authored free text.** `resolveDivision` never returns
+  null, never renames an agency's board, matches aliases on whole tokens (never
+  substrings), and keeps non-Latin names intact.
+- **Absence is never a positive claim.** An unrecognised or missing standing
+  resolves to `unknown` and renders as a visible gap — never as "Active".
+
+**Verification (run all three after touching this component):**
+- `node scripts/build-division-palette.mjs` — regenerates the palette, fails on
+  contrast or on two boards rendering as literally the same colour under CVD.
+- `node scripts/check-division-contrast.mjs` — checks the *actual shipped* CSS
+  pairs, text at 4.5:1 and borders at 3:1.
+- `npm test -- tests/agency/division-palette-parity.test.js` and
+  `npx vitest run src/domains/agency` (from `client/`).
 
 ### Signature Component — Casting Kanban
 The roster casting board: columns of talent cards moved across pipeline stages via @dnd-kit. Cards stay flat and compact, photo-led, with type and match-score rendered as **plain inline text** (no corner chips, no score badge). Column min-width 220px, 8px card gap. The board is the densest expression of the "ledger" idea — many talent, calm surface, gold only on the active/selected card.

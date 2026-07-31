@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { DivisionMark } from './DivisionMark';
 import { byStanding, resolveDivision } from './divisions';
+import '../../../../styles/division-palette.css';
 import './division-marks.css';
 
 /**
@@ -38,13 +39,18 @@ export function DivisionSet({
     const normalized = (Array.isArray(divisions) ? divisions : [divisions])
       .filter(Boolean)
       .map((entry) => {
-        if (typeof entry === 'string') return { division: entry, standing: 'active' };
-        const division = entry.division || entry.board?.name || entry.board || entry.name || entry.key;
+        if (typeof entry === 'string') return { division: entry, standing: undefined };
+        // `entry.board` may be an object; taking it raw rendered "[object Object]"
+        // as a board name, with code "[O" and a hashed pigment.
+        const board = entry.board;
+        const boardName = typeof board === 'string' ? board : board?.name;
+        const division = entry.division || boardName || entry.name || entry.key;
         return {
-          division,
-          standing: entry.standing || entry.status || 'active',
+          division: typeof division === 'string' ? division : null,
+          // No fallback to 'active' — an absent standing must resolve to
+          // `unknown`, not to a representation claim nobody entered.
+          standing: entry.standing ?? entry.status,
           label: entry.label,
-          count: entry.count,
         };
       })
       .filter((entry) => entry.division);
@@ -85,7 +91,6 @@ export function DivisionSet({
           division={entry.division}
           standing={entry.standing}
           label={entry.label}
-          count={entry.count}
           size={size}
           codeOnly={codeOnly}
           onDark={onDark}
