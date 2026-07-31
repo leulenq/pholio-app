@@ -98,8 +98,18 @@ async function createSchema() {
     }
   }
 
+  /* The session store's own `createtable` is disabled under NODE_ENV=test
+     (src/app.js) so suites own their schema lifecycle — which means this one
+     has to create `sessions` itself. Without it every injected session insert
+     fails with "no such table: sessions". */
   if (await knex.schema.hasTable("sessions")) {
     await knex("sessions").del();
+  } else {
+    await knex.schema.createTable("sessions", (t) => {
+      t.string("sid", 255).primary();
+      t.json("sess").notNullable();
+      t.timestamp("expired").notNullable().index();
+    });
   }
 
   await knex.schema.createTable("users", (t) => {

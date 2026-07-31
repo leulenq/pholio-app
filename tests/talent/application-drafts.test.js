@@ -8,6 +8,7 @@ const request = require("supertest");
 const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
 
+const { acceptedLegal } = require("../setup/legal-fixture");
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { recordLegalAcceptance } = require("../../src/shared/lib/legal-acceptance");
@@ -69,6 +70,9 @@ describe("application drafts", () => {
       email: `application-draft-${userId}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      // Talent API routes sit behind the legal gate; without this the fixture
+      // 403s before reaching the draft logic under test.
+      ...acceptedLegal(),
     });
     await knex("users").insert({
       id: agencyId,
