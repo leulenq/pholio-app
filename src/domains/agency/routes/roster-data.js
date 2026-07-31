@@ -647,4 +647,124 @@ router.patch("/api/agency/roster-memberships/:membershipId", requireRole("AGENCY
   }
 });
 
+/* ============================================================
+   Board standings — the write path
+
+   A talent can sit on several boards with a different standing on each
+   (see the roster_board_standings migration). This replaces the whole set
+   in one transaction rather than exposing add/remove/patch separately:
+   standings are a small set that a booker edits as a unit, and a single
+   idempotent PUT removes the ordering and partial-failure problems that
+   granular endpoints create.
+   ============================================================ */
+
+// Mirrors STANDINGS in client/src/domains/agency/components/status/divisions.js
+// and the CHECK constraint on roster_board_standings.
+const BOARD_STANDINGS = [
+  "represented",
+  "active",
+  "developing",
+  "shortlisted",
+  "onfile",
+  "inactive",
+  "ended",
+  "passed",
+  "unknown",
+];
+
+const boardStandingsSchema = z.object({
+  boards: z
+    .array(
+      z.object({
+        boardId: z.string().uuid(),
+        standing: z.enum(BOARD_STANDINGS),
+        isPrimary: z.boolean().optional(),
+        notes: z.string().trim().max(500).optional().nullable(),
+      }),
+    )
+    .max(24),
+});
+
+router.put(
+  "/api/agency/roster-memberships/:membershipId/boards",
+  requireRole("AGENCY"),
+  async (req, res, next) => {
+    try {
+      if (!(await hasStandingsTable(knex))) {
+        return res.status(503).json({ error: "Board standings are not available yet" });
+      }
+
+      const parsed = boardStandingsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ error: "Invalid board standings", details: parsed.error.flatten() });
+      }
+      const agencyId = getSessionAgencyId(req.session);
+
+      const membership = await knex("roster_memberships")
+        .where({ id: req.params.membershipId, agency_id: agencyId })
+        .first();
+      if (!membership) return res.status(404).json({ error: "Roster membership not found" });
+
+      const requested = parsed.data.boards;
+      const boardIds = [...new Set(requested.map((b) => b.boardId))];
+      if (boardIds.length !== requested.length) {
+        return res.status(400).json({ error: "A board can appear only once" });
+      }
+      if (requested.filter((b) => b.isPrimary).length > 1) {
+        return res.status(400).json({ error: "Only one board can be the primary board" });
+      }
+
+      // Every board must belong to this agency AND be a division, never a
+      // casting board. Checked server-side: the client picker filters too, but
+      // an ID can be posted directly.
+      const valid = boardIds.length
+        ? await onlyDivisionBoards(
+            knex("boards as sb").whereIn("sb.id", boardIds).where("sb.agency_id", agencyId),
+            "sb",
+          ).select("sb.id")
+        : [];
+      const validIds = new Set(valid.map((row) => row.id));
+      const rejected = boardIds.filter((id) => !validIds.has(id));
+      if (rejected.length > 0) {
+        return res
+          .status(400)
+          .json({ error: "Unknown or non-division board", details: { boardIds: rejected } });
+      }
+
+      const primary = requested.find((b) => b.isPrimary) || null;
+
+      await knex.transaction(async (trx) => {
+        await trx("roster_board_standings").where({ membership_id: membership.id }).del();
+        if (requested.length > 0) {
+          await trx("roster_board_standings").insert(
+            requested.map((b) => ({
+              id: uuidv4(),
+              membership_id: membership.id,
+              board_id: b.boardId,
+              standing: b.standing,
+              is_primary: Boolean(b.isPrimary),
+              notes: b.notes || null,
+            })),
+          );
+        }
+        // Keep the denormalised pointer in step, so callers that still read
+        // the singular `board_id` do not go stale.
+        await trx("roster_memberships")
+          .where({ id: membership.id })
+          .update({ board_id: primary ? primary.boardId : null, updated_at: trx.fn.now() });
+      });
+
+      const boards = await loadBoardStandings(knex, [membership.id]);
+      return res.json({
+        success: true,
+        data: { id: membership.id, boards: boards.get(membership.id) || [] },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
+
 module.exports = router;

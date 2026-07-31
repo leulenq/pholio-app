@@ -17,6 +17,7 @@ import {
   measurementsToFormFields,
 } from '../pages/rosterFormat';
 import { DivisionSet } from './status';
+import BoardStandingsEditor from './BoardStandingsEditor';
 import './RosterDetailDrawer.css';
 
 const STAGE_ORDER = ['main', 'development', 'new_face'];
@@ -31,8 +32,13 @@ const STAGE_DIVISION = {
   new_face: 'newfaces',
 };
 
-/* Mirrors deriveStanding() in the roster_board_standings migration, so the
-   UI and the backfill agree on what a stage plus status means. */
+/* Mirrors deriveStanding() in the roster_board_standings migration, so the UI
+   and the backfill agree on what a stage plus status means.
+
+   `status` here is the MEMBERSHIP status ('active'|'inactive'|'left'|'ended'),
+   not `item.availability`, which is a humanised display string ("Available",
+   "On booking"). Passing availability made an inactive talent fall through
+   every branch and render as Represented. */
 function standingFor(stage, status) {
   if (status === 'left' || status === 'ended') return 'ended';
   if (status === 'inactive') return 'inactive';
@@ -134,7 +140,7 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
      correctly either way. Named distinctly from the `boards` prop, which is
      the agency's full board list used by the picker below. */
   const boardStandings = useMemo(() => {
-    const standing = standingFor(item.stage, item.availability || item.status);
+    const standing = standingFor(item.stage, item.membershipStatus);
     const rows = [{ division: STAGE_DIVISION[item.stage] || 'mainboard', standing }];
 
     if (Array.isArray(item.boards) && item.boards.length > 0) {
@@ -146,7 +152,7 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
       rows.push({ division: item.board.name, standing });
     }
     return rows;
-  }, [item.stage, item.status, item.availability, item.boards, item.board]);
+  }, [item.stage, item.membershipStatus, item.boards, item.board]);
   const availabilityMeta = getStatusMeta(normalizeStatusKey(item.availability));
   const bio = talent?.bio_curated || null;
   const social = Array.isArray(talent?.social) ? talent.social.filter((s) => s?.url || s?.handle) : [];
@@ -279,19 +285,18 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
 
           <section className="rd-section">
             <h3 className="rd-label">Placement</h3>
-            <label className="rd-field">
-              <span>Division</span>
-              <select
-                value={membership?.board_id || ''}
-                onChange={(event) => mutation.mutate({ boardId: event.target.value || null })}
-                disabled={mutation.isPending || !membership}
-              >
-                <option value="">Unassigned</option>
-                {boards.map((board) => (
-                  <option value={board.id} key={board.id}>{board.name}</option>
-                ))}
-              </select>
-            </label>
+            <div className="rd-field rd-field--block">
+              <span>Boards</span>
+              {/* A talent can sit on several boards with a different standing
+                  on each. The old single "Division" select could express only
+                  one, which is not how a roster works. */}
+              <BoardStandingsEditor
+                membershipId={item.id}
+                value={item.boards}
+                boards={boards}
+                onChanged={onChanged}
+              />
+            </div>
             <div className="rd-field">
               <span>Stage</span>
               <div className="rd-segmented" role="group" aria-label="Stage">

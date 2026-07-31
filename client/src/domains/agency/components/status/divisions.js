@@ -346,13 +346,26 @@ export const STANDINGS = {
   unknown:     { label: 'Standing unknown', ink: 'unknown', weight: -1, note: 'No standing recorded for this board' },
 };
 
-/** Backend status strings -> standing key. */
+/**
+ * Backend status strings -> standing key.
+ *
+ * AVAILABILITY IS NOT STANDING. Options, holds, bookouts and bookings are
+ * calendar states on the booking lifecycle (`reference/lifecycle.md` §3);
+ * standing is the representation relationship to a board (§1). They are
+ * orthogonal — a talent on a first option is still represented on their
+ * board, and a talent between jobs is not less represented.
+ *
+ * So availability values are deliberately absent here. Passing 'on_booking'
+ * as a standing resolves to `unknown`, which is the honest answer: that
+ * string says nothing about which boards they sit on. Mapping them to
+ * `active` (as this table originally did) silently answered a question the
+ * caller had not asked. Availability has its own component —
+ * `AvailabilityCell`.
+ */
 const STANDING_ALIASES = {
   represented: 'represented', signed: 'represented', contracted: 'represented',
   exclusive: 'represented', nonexclusive: 'represented',
   active: 'active', bookable: 'active', main: 'active', mainboard: 'active',
-  booked: 'active', onbooking: 'active', booking: 'active', option: 'active',
-  firstoption: 'active', secondoption: 'active', onhold: 'active', bookout: 'active',
   developing: 'developing', development: 'developing', newface: 'developing',
   newfaces: 'developing', scouted: 'developing',
   shortlisted: 'shortlisted', shortlist: 'shortlisted', considering: 'shortlisted',

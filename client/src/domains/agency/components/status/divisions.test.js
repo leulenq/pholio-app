@@ -118,12 +118,21 @@ describe('resolveStanding — absence is never a positive claim', () => {
   it.each([
     ['represented', 'represented'],
     ['signed', 'represented'],
-    ['on_booking', 'active'],
     ['under_review', 'shortlisted'],
     ['kept_on_file', 'onfile'],
   ])('maps %s to %s', (input, key) => {
     expect(resolveStanding(input).key).toBe(key);
   });
+
+  it.each(['on_booking', 'booked', '1st option', 'on_hold', 'bookout'])(
+    'does not treat the availability value %s as a standing',
+    (input) => {
+      // Availability is the booking calendar; standing is representation on a
+      // board. They are orthogonal, so an availability string answers nothing
+      // about standing and must not resolve to a positive one.
+      expect(resolveStanding(input).key).toBe('unknown');
+    },
+  );
 });
 
 describe('byStanding', () => {

@@ -352,6 +352,16 @@ export async function getSeasonAnalytics({ range = 90, boardId = null } = {}) {
   return res?.data || res;
 }
 
+/**
+ * Replace the full set of boards a roster member sits on.
+ *
+ * @param {string} membershipId
+ * @param {Array<{boardId: string, standing: string, isPrimary?: boolean}>} boards
+ */
+export async function updateRosterBoards(membershipId, boards) {
+  return apiClient.put(`/roster-memberships/${membershipId}/boards`, { boards });
+}
+
 export async function getBoards(type) {
   // `type` is optional: 'division' for standing boards (Women, Editorial),
   // 'package' for casting boards. Omitted returns both, as before.
