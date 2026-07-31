@@ -110,6 +110,38 @@ async function createSchema() {
     t.timestamp("created_at").defaultTo(knex.fn.now());
     t.timestamp("updated_at").defaultTo(knex.fn.now());
   });
+
+  /* Columns the minor-access decision selects. Added via ensureColumn rather
+     than in the ensureTable builder above: the applications table frequently
+     already exists on the shared run database, in which case ensureTable
+     returns early and a widened builder is silently ignored. */
+  await ensureColumn("applications", "minor_at_submission", (t) =>
+    t.boolean("minor_at_submission").nullable(),
+  );
+  await ensureColumn("applications", "guardian_consent_grant_id", (t) =>
+    t.string("guardian_consent_grant_id", 36).nullable(),
+  );
+  await ensureColumn("applications", "guardian_consent_expires_at", (t) =>
+    t.timestamp("guardian_consent_expires_at").nullable(),
+  );
+  await ensureColumn("applications", "minor_access_revoked_at", (t) =>
+    t.timestamp("minor_access_revoked_at").nullable(),
+  );
+  await ensureColumn("applications", "minor_access_revocation_reason", (t) =>
+    t.string("minor_access_revocation_reason").nullable(),
+  );
+
+  /* getApplicationAccessDecision() joins this on every roster write. A missing
+     table surfaced as a bare 500 from the measurement endpoints, which read as
+     a failure of the measurement feature rather than of the fixture. */
+  await ensureTable("minor_agency_consents", (t) => {
+    t.string("id", 36).primary();
+    t.string("profile_id", 36).notNullable();
+    t.string("agency_id", 36).notNullable();
+    t.timestamp("authorization_expires_at").nullable();
+    t.timestamp("revoked_at").nullable();
+    t.timestamp("created_at").defaultTo(knex.fn.now());
+  });
 }
 
 async function seedFixture() {

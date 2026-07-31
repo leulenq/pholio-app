@@ -65,11 +65,24 @@ function cookieFrom(res) {
 }
 
 // Drive entry with a given decoded token; returns the response.
+/** A date_of_birth `years` ago, as YYYY-MM-DD. */
+function dobYearsAgo(years) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  return d.toISOString().slice(0, 10);
+}
+
 async function entry(agent, token, body = {}) {
   mockAuth.token = token;
-  return agent
-    .post("/casting/entry")
-    .send({ firebase_token: "tok", terms_accepted: true, privacy_accepted: true, ...body });
+  return agent.post("/casting/entry").send({
+    firebase_token: "tok",
+    terms_accepted: true,
+    privacy_accepted: true,
+    // Account creation now requires a date of birth up front (DOB_REQUIRED).
+    // Callers that care about age pass their own; everyone else gets an adult.
+    date_of_birth: dobYearsAgo(28),
+    ...body,
+  });
 }
 
 async function getProfileByUser(userId) {
@@ -221,12 +234,35 @@ describe("H3 — account linking requires a verified email", () => {
 });
 
 // -----------------------------------------------------------------------------
+/* NEEDS A PRODUCT DECISION — these two tests currently fail.
+ *
+ * They cover defence-in-depth: a minor with an account must not be able to
+ * upload a full_body shot (SENSITIVE_SHOT_BLOCKED). That premise is no longer
+ * reachable through onboarding — POST /casting/entry now rejects any minor
+ * outright with ADULT_ELIGIBILITY_REQUIRED ("Pholio's current launch is for
+ * adults 18 and over"), so no minor account can be created to exercise the
+ * upload guard.
+ *
+ * Two defensible resolutions, and picking between them is a safeguarding call
+ * rather than a test-maintenance one:
+ *   a) Adult-only entry is the whole answer: replace these with an assertion
+ *      that a minor cannot create an account, and retire the upload coverage.
+ *   b) The upload guard stays as a second layer for legacy/grandfathered minor
+ *      records: build the minor profile directly in the fixture, bypassing
+ *      entry, and keep asserting SENSITIVE_SHOT_BLOCKED.
+ *
+ * Deliberately left failing rather than quietly rewritten — silently deleting
+ * minor-safety coverage is not a call to make in passing. */
 describe("M5 — minors cannot upload full_body at collection", () => {
   it("rejects a full_body scout upload for a minor with 403", async () => {
     const email = track("m5.minor@example.test");
     await purgeUserByEmail(email);
     const agent = request.agent(app);
-    const res = await entry(agent, { uid: "m5-minor-uid", email, email_verified: true, name: "Minor Teen" });
+    const res = await entry(
+      agent,
+      { uid: "m5-minor-uid", email, email_verified: true, name: "Minor Teen" },
+      { date_of_birth: dobYearsAgo(15) },
+    );
     const cookie = cookieFrom(res);
     const user = await knex("users").where({ email }).first();
     const profile = await getProfileByUser(user.id);
@@ -253,7 +289,11 @@ describe("M5 — minors cannot upload full_body at collection", () => {
     const email = track("m5.minor.headshot@example.test");
     await purgeUserByEmail(email);
     const agent = request.agent(app);
-    const res = await entry(agent, { uid: "m5-minor-hs-uid", email, email_verified: true, name: "Minor Two" });
+    const res = await entry(
+      agent,
+      { uid: "m5-minor-hs-uid", email, email_verified: true, name: "Minor Two" },
+      { date_of_birth: dobYearsAgo(15) },
+    );
     const cookie = cookieFrom(res);
     const user = await knex("users").where({ email }).first();
     const profile = await getProfileByUser(user.id);

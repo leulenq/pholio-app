@@ -205,25 +205,92 @@ async function createSchema() {
     t.string("agency_id", 36).notNullable();
     t.string("status").notNullable().defaultTo("submitted");
   });
+
+  /* The roster access check reads this table before it can decide whether to
+     return 403. Without it the guarded handler 500s on SQLite with "no such
+     table: roster_memberships", so the suite could not distinguish "correctly
+     forbidden" from "crashed". */
+  if (!(await knex.schema.hasTable("roster_memberships")))
+    await knex.schema.createTable("roster_memberships", (t) => {
+      t.string("id", 36).primary();
+      t.string("agency_id", 36).notNullable();
+      t.string("profile_id", 36).nullable();
+      t.string("talent_record_id", 36).nullable();
+      t.string("board_id", 36).nullable();
+      t.string("stage", 20).notNullable().defaultTo("main");
+      t.string("status", 20).notNullable().defaultTo("active");
+      t.string("source_application_id", 36).nullable();
+      t.timestamp("created_at").defaultTo(knex.fn.now());
+    });
+
+  /* Intel capture writes here on every agency view. It swallows its own
+     errors, so a missing table only shows up as console noise — but the noise
+     obscures the real failures this suite is meant to surface. */
+  if (!(await knex.schema.hasTable("profile_events")))
+    await knex.schema.createTable("profile_events", (t) => {
+      t.string("id", 36).primary();
+      t.string("profile_id", 36).notNullable();
+      t.string("action").notNullable();
+      t.string("source").nullable();
+      t.string("viewer_class").nullable();
+      t.string("session_id", 64).nullable();
+      t.string("share_token_id", 36).nullable();
+      t.string("image_id", 36).nullable();
+      t.string("market").nullable();
+      t.string("referrer").nullable();
+      t.integer("dwell_ms").nullable();
+      t.json("metadata").nullable();
+      t.timestamp("occurred_at").defaultTo(knex.fn.now());
+    });
 }
 
 async function seedData() {
   // Insert agencies
   await knex("agencies").insert([
-    { id: AGENCY_A_ID, name: "Agency A", status: "ACTIVE", onboarding_completed_at: knex.fn.now() },
-    { id: AGENCY_B_ID, name: "Agency B", status: "ACTIVE", onboarding_completed_at: knex.fn.now() },
+    {
+      id: AGENCY_A_ID,
+      name: "Agency A",
+      status: "ACTIVE",
+      onboarding_completed_at: knex.fn.now(),
+    },
+    {
+      id: AGENCY_B_ID,
+      name: "Agency B",
+      status: "ACTIVE",
+      onboarding_completed_at: knex.fn.now(),
+    },
   ]);
 
   // Insert agency users
   await knex("users").insert([
-    { id: USER_OWNER_A_ID, email: "owner-a@test.agency", role: "AGENCY", account_status: "ACTIVE" },
-    { id: USER_OWNER_B_ID, email: "owner-b@test.agency", role: "AGENCY", account_status: "ACTIVE" },
+    {
+      id: USER_OWNER_A_ID,
+      email: "owner-a@test.agency",
+      role: "AGENCY",
+      account_status: "ACTIVE",
+    },
+    {
+      id: USER_OWNER_B_ID,
+      email: "owner-b@test.agency",
+      role: "AGENCY",
+      account_status: "ACTIVE",
+    },
   ]);
 
   // Insert memberships
   await knex("agency_memberships").insert([
-    { id: MEMBERSHIP_A_ID, agency_id: AGENCY_A_ID, user_id: USER_OWNER_A_ID, membership_role: "OWNER" },
-    { id: MEMBERSHIP_B_ID, agency_id: AGENCY_B_ID, user_id: USER_OWNER_B_ID, membership_role: "OWNER" },
+    {
+      id: MEMBERSHIP_A_ID,
+      agency_id: AGENCY_A_ID,
+      user_id: USER_OWNER_A_ID,
+      membership_role: "OWNER",
+    },
+    {
+      id: MEMBERSHIP_B_ID,
+      agency_id: AGENCY_B_ID,
+      user_id: USER_OWNER_B_ID,
+      membership_role: "OWNER",
+    },
   ]);
 
   // Insert profiles
@@ -276,9 +343,27 @@ async function seedData() {
 
   // Insert images
   await knex("images").insert([
-    { id: uuidv4(), profile_id: ADULT_DISCOVERABLE_ID, is_primary: true, path: "/img-a.jpg", storage_key: "SK-adult" },
-    { id: uuidv4(), profile_id: MINOR_NO_CONSENT_ID, is_primary: true, path: "/img-m-no.jpg", storage_key: "SK-minor-no" },
-    { id: uuidv4(), profile_id: MINOR_WITH_CONSENT_ID, is_primary: true, path: "/img-m-with.jpg", storage_key: "SK-minor-with" },
+    {
+      id: uuidv4(),
+      profile_id: ADULT_DISCOVERABLE_ID,
+      is_primary: true,
+      path: "/img-a.jpg",
+      storage_key: "SK-adult",
+    },
+    {
+      id: uuidv4(),
+      profile_id: MINOR_NO_CONSENT_ID,
+      is_primary: true,
+      path: "/img-m-no.jpg",
+      storage_key: "SK-minor-no",
+    },
+    {
+      id: uuidv4(),
+      profile_id: MINOR_WITH_CONSENT_ID,
+      is_primary: true,
+      path: "/img-m-with.jpg",
+      storage_key: "SK-minor-with",
+    },
   ]);
 
   // Set up an accepted application from Adult to Agency A
@@ -294,7 +379,13 @@ async function seedData() {
 async function createAgencySessionCookie(agencyId, userId, membershipId) {
   const sid = uuidv4();
   const sessionData = {
-    cookie: { originalMaxAge: null, expires: null, secure: false, httpOnly: true, path: "/" },
+    cookie: {
+      originalMaxAge: null,
+      expires: null,
+      secure: false,
+      httpOnly: true,
+      path: "/",
+    },
     userId: agencyId,
     memberUserId: userId,
     agencyId,
@@ -337,17 +428,32 @@ describe("DTO security path integration tests", () => {
 
   describe("2. Agency No-Application Path", () => {
     test("Agency B attempts to view roster profile of Adult (no application to Agency B) -> Forbidden (403)", async () => {
-      const cookie = await createAgencySessionCookie(AGENCY_B_ID, USER_OWNER_B_ID, MEMBERSHIP_B_ID);
+      const cookie = await createAgencySessionCookie(
+        AGENCY_B_ID,
+        USER_OWNER_B_ID,
+        MEMBERSHIP_B_ID,
+      );
       const res = await request(app)
         .get(`/api/agency/roster/${ADULT_DISCOVERABLE_ID}`)
         .set("Cookie", cookie);
 
-      expect(res.status).toBe(403);
-      expect(res.body.error).toContain("roster");
+      /* Roster access moved from application-derived (403 "Talent is not on
+         your roster") to membership-derived (404 "Roster membership not
+         found"). Both deny; 404 additionally declines to confirm the profile
+         exists, which is the stronger answer for an enumeration probe. The
+         security property under test is "denied, and no profile data leaks",
+         so assert that rather than one specific code. */
+      expect([403, 404]).toContain(res.status);
+      expect(String(res.body.error)).toMatch(/roster/i);
+      expect(res.body).not.toHaveProperty("profile");
     });
 
     test("Agency B fetches discover preview of Adult (discoverable, no active app) -> Shaped DTO returned", async () => {
-      const cookie = await createAgencySessionCookie(AGENCY_B_ID, USER_OWNER_B_ID, MEMBERSHIP_B_ID);
+      const cookie = await createAgencySessionCookie(
+        AGENCY_B_ID,
+        USER_OWNER_B_ID,
+        MEMBERSHIP_B_ID,
+      );
       const res = await request(app)
         .get(`/api/agency/discover/${ADULT_DISCOVERABLE_ID}/preview`)
         .set("Cookie", cookie);
@@ -360,12 +466,23 @@ describe("DTO security path integration tests", () => {
 
   describe("3. Agency B Path", () => {
     test("Agency B requests roster for talent that applied to Agency A only -> Forbidden (403)", async () => {
-      const cookie = await createAgencySessionCookie(AGENCY_B_ID, USER_OWNER_B_ID, MEMBERSHIP_B_ID);
+      const cookie = await createAgencySessionCookie(
+        AGENCY_B_ID,
+        USER_OWNER_B_ID,
+        MEMBERSHIP_B_ID,
+      );
       const res = await request(app)
         .get(`/api/agency/roster/${ADULT_DISCOVERABLE_ID}`)
         .set("Cookie", cookie);
 
-      expect(res.status).toBe(403);
+      /* Roster access moved from application-derived (403 "Talent is not on
+         your roster") to membership-derived (404 "Roster membership not
+         found"). Both deny; 404 additionally declines to confirm the profile
+         exists, which is the stronger answer for an enumeration probe. The
+         security property under test is "denied, and no profile data leaks",
+         so assert that rather than one specific code. */
+      expect([403, 404]).toContain(res.status);
+      expect(res.body).not.toHaveProperty("profile");
     });
   });
 
@@ -380,7 +497,11 @@ describe("DTO security path integration tests", () => {
     });
 
     test("Minor WITHOUT guardian consent is blocked from discover preview -> Not Found (404)", async () => {
-      const cookie = await createAgencySessionCookie(AGENCY_B_ID, USER_OWNER_B_ID, MEMBERSHIP_B_ID);
+      const cookie = await createAgencySessionCookie(
+        AGENCY_B_ID,
+        USER_OWNER_B_ID,
+        MEMBERSHIP_B_ID,
+      );
       const res = await request(app)
         .get(`/api/agency/discover/${MINOR_NO_CONSENT_ID}/preview`)
         .set("Cookie", cookie);
@@ -389,7 +510,11 @@ describe("DTO security path integration tests", () => {
     });
 
     test("Minor WITH guardian consent is discoverable by agencies -> Shape DTO is minor-safe", async () => {
-      const cookie = await createAgencySessionCookie(AGENCY_B_ID, USER_OWNER_B_ID, MEMBERSHIP_B_ID);
+      const cookie = await createAgencySessionCookie(
+        AGENCY_B_ID,
+        USER_OWNER_B_ID,
+        MEMBERSHIP_B_ID,
+      );
       const res = await request(app)
         .get(`/api/agency/discover/${MINOR_WITH_CONSENT_ID}/preview`)
         .set("Cookie", cookie);
@@ -417,7 +542,9 @@ describe("DTO security path integration tests", () => {
     });
 
     test("Viewing adult PDF diagnostics JSON leaks no forbidden keys or PII sentinels", async () => {
-      const res = await request(app).get(`/pdf/view/adult-discoverable?diagnostics=1&format=json`);
+      const res = await request(app).get(
+        `/pdf/view/adult-discoverable?diagnostics=1&format=json`,
+      );
       expect(res.status).toBe(200);
 
       assertNoForbiddenKeys(res.body, "pdf-view-diagnostics");
