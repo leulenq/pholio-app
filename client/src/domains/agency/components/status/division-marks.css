@@ -1,0 +1,427 @@
+/* ============================================================
+   Division Mark — the board stamp.
+
+   An agency board is a place, not a tag: a divider tab in a binder, a
+   pigment plate on a printed roster. The mark is built like one — a mono
+   shorthand cell welded to a name field, ruled with hairlines, square
+   cornered. It is deliberately NOT a rounded pill.
+
+   TWO AXES, KEPT SEPARATE:
+     --p   pigment  → WHICH board.        Identity. Never quality.
+     ink   modifier → WHAT standing.      Fill and stroke, never hue.
+
+   Because standing lives in fill/stroke rather than colour, the mark
+   survives greyscale and colour-blindness, and it never becomes the
+   green/yellow/red status badge banned in DESIGN.md #3.
+
+   THE INK LADDER, heaviest to lightest:
+     solid   represented   pigment cell + tinted field + pigment rule
+     stamp   active        pigment cell on paper
+     ruled   shortlisted   tinted cell, pigment rule — pencilled in
+     dashed  developing    as ruled, provisional stroke
+     ghost   on file       drained to a whisper of pigment
+     muted   inactive      no pigment at all
+     struck  passed        muted, ruled through
+
+   Agency motion supports state, not spectacle (DESIGN.md #14): only the
+   interactive variant moves, and only on hover/focus.
+   ============================================================ */
+
+.dv-mark {
+  --dv-h: 26px;
+  --dv-code-size: 11px;
+  --dv-label-size: 12.5px;
+  --dv-pad: 9px;
+
+  display: inline-flex;
+  align-items: stretch;
+  min-height: var(--dv-h);
+  max-width: 100%;
+  border: 1px solid var(--ag-border-strong);
+  border-radius: 0;
+  background: var(--ag-surface-1);
+  font-family: var(--ag-font-body);
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+/* The shorthand cell — what a booker actually reads. */
+.dv-mark__code {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 0 var(--dv-pad);
+  font-family: var(--ag-font-mono);
+  font-size: var(--dv-code-size);
+  font-weight: 600;
+  letter-spacing: 0.075em;
+  line-height: 1;
+  color: var(--ag-text-2);
+  border-right: 1px solid var(--ag-border);
+  white-space: nowrap;
+}
+
+/* The board name. Inter, never the display serif — serif in dense controls
+   reads as costume (agency DESIGN.md §3, Serif-For-Identity Rule). */
+.dv-mark__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 calc(var(--dv-pad) + 2px);
+  font-size: var(--dv-label-size);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1;
+  color: var(--ag-text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Optional head-count / secondary figure inside the name field. */
+.dv-mark__meta {
+  flex: none;
+  font-family: var(--ag-font-mono);
+  font-size: calc(var(--dv-label-size) - 2px);
+  font-weight: 500;
+  color: var(--ag-text-3);
+  letter-spacing: 0.02em;
+}
+
+/* Screen-reader-only standing text. Colour and fill are visual affordances;
+   the standing must also be readable as words. */
+.dv-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Sizes ---------- */
+.dv-mark--sm {
+  --dv-h: 20px;
+  --dv-code-size: 10px;
+  --dv-label-size: 11px;
+  --dv-pad: 6px;
+}
+.dv-mark--lg {
+  --dv-h: 32px;
+  --dv-code-size: 12px;
+  --dv-label-size: 14px;
+  --dv-pad: 11px;
+}
+
+/* ---------- Code-only variant, for dense rows and tight columns ---------- */
+.dv-mark--code .dv-mark__code {
+  border-right: 0;
+  justify-content: center;
+  min-width: var(--dv-h);
+}
+
+/* ============================================================
+   The ink ladder
+   ============================================================ */
+
+/* solid — Represented. The full stamp: the talent belongs to this board. */
+.dv-mark--solid {
+  border-color: color-mix(in srgb, var(--p) 38%, transparent);
+}
+.dv-mark--solid .dv-mark__code {
+  background: var(--p);
+  color: var(--ag-surface-1);
+  border-right-color: color-mix(in srgb, #000 18%, transparent);
+}
+.dv-mark--solid .dv-mark__label {
+  background: color-mix(in srgb, var(--p) 9%, var(--ag-surface-1));
+}
+.dv-mark--solid .dv-mark__meta {
+  color: color-mix(in srgb, var(--p) 62%, var(--ag-text-2));
+}
+
+/* stamp — Active. Working the board; pigment cell on plain paper. */
+.dv-mark--stamp .dv-mark__code {
+  background: var(--p);
+  color: var(--ag-surface-1);
+  border-right-color: transparent;
+}
+
+/* ruled — Shortlisted. Pencilled in: pigment held as outline and tint. */
+.dv-mark--ruled {
+  border-color: color-mix(in srgb, var(--p) 34%, transparent);
+}
+.dv-mark--ruled .dv-mark__code {
+  background: color-mix(in srgb, var(--p) 13%, var(--ag-surface-1));
+  /* Darkened toward ink so the code clears 4.5:1 on its own tint. */
+  color: color-mix(in srgb, var(--p) 86%, var(--ag-text-0));
+  border-right-color: color-mix(in srgb, var(--p) 26%, transparent);
+}
+.dv-mark--ruled .dv-mark__label {
+  color: var(--ag-text-1, var(--ag-text-0));
+}
+
+/* dashed — Developing. Same weight as ruled, but a provisional stroke:
+   the talent is being built for this board, not yet placed on it. */
+.dv-mark--dashed {
+  border-color: color-mix(in srgb, var(--p) 40%, transparent);
+  border-style: dashed;
+}
+.dv-mark--dashed .dv-mark__code {
+  background: color-mix(in srgb, var(--p) 13%, var(--ag-surface-1));
+  color: color-mix(in srgb, var(--p) 86%, var(--ag-text-0));
+  border-right: 1px dashed color-mix(in srgb, var(--p) 30%, transparent);
+}
+.dv-mark--dashed .dv-mark__label {
+  color: var(--ag-text-1, var(--ag-text-0));
+}
+
+/* ghost — On File. The commonest real outcome of a submission: a soft yes.
+   Pigment drained to a whisper, still just identifiable. */
+.dv-mark--ghost {
+  border-color: var(--ag-border);
+}
+.dv-mark--ghost .dv-mark__code {
+  background: var(--ag-surface-1);
+  color: color-mix(in srgb, var(--p) 42%, var(--ag-text-3));
+}
+.dv-mark--ghost .dv-mark__label {
+  color: var(--ag-text-3);
+  font-weight: 500;
+}
+
+/* muted — Inactive. No pigment at all: the board is history, not context. */
+.dv-mark--muted {
+  border-color: var(--ag-border);
+}
+.dv-mark--muted .dv-mark__code,
+.dv-mark--muted .dv-mark__label {
+  background: var(--ag-surface-1);
+  color: var(--ag-text-3);
+  font-weight: 500;
+}
+
+/* struck — Passed. Declined for this board; ruled through like a ledger line. */
+.dv-mark--struck {
+  border-color: var(--ag-border);
+}
+.dv-mark--struck .dv-mark__code,
+.dv-mark--struck .dv-mark__label {
+  background: var(--ag-surface-1);
+  color: var(--ag-text-3);
+  font-weight: 500;
+}
+.dv-mark--struck .dv-mark__label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--ag-text-3);
+}
+
+/* ============================================================
+   Interactive variant — division marks as roster filters.
+   Only this variant animates.
+   ============================================================ */
+.dv-mark--action {
+  cursor: pointer;
+  appearance: none;
+  padding: 0;
+  font: inherit;
+  transition:
+    border-color 160ms var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1)),
+    box-shadow 160ms var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1)),
+    transform 160ms var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.dv-mark--action:hover {
+  border-color: color-mix(in srgb, var(--p) 55%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--ag-shadow-sm, 0 1px 3px rgba(26, 24, 21, 0.06));
+}
+.dv-mark--action:active {
+  transform: translateY(0);
+}
+/* Gold ring is the platform focus voice — it marks focus, not the board. */
+.dv-mark--action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.3);
+  border-color: var(--ag-gold, #c9a55a);
+}
+/* Deselected filter state: legible, but clearly not applied. */
+.dv-mark--action[aria-pressed='false'] .dv-mark__code {
+  background: color-mix(in srgb, var(--p) 12%, var(--ag-surface-1));
+  color: color-mix(in srgb, var(--p) 86%, var(--ag-text-0));
+}
+.dv-mark--action[aria-pressed='false'] .dv-mark__label {
+  background: var(--ag-surface-1);
+  color: var(--ag-text-2);
+}
+.dv-mark--action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ============================================================
+   Division Set — a talent's boards, strongest standing first.
+   ============================================================ */
+.dv-set {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.dv-set--tight {
+  gap: 4px;
+}
+
+/* Overflow indicator. Plain ledger geometry — deliberately not a count
+   bubble (DESIGN.md #5): square, hairline, mono, attached to nothing. */
+.dv-set__more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--ag-border);
+  border-radius: 0;
+  background: var(--ag-surface-1);
+  font-family: var(--ag-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ag-text-3);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.dv-set--sm .dv-set__more {
+  min-height: 20px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+.dv-set--lg .dv-set__more {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* Empty state — a talent on no board is a real, meaningful roster condition. */
+.dv-set__empty {
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  color: var(--ag-text-3);
+  font-style: italic;
+}
+
+/* ============================================================
+   On-dark variant — drawer heroes, photo scrims, dark overlays.
+
+   The board pigments are tuned for paper (L* 34–46); on a dark ground they
+   would sink. Each is lightened to a 45% tint of itself, which keeps the
+   hue identifiable while clearing 7.6:1 minimum against the #14110B hero
+   scrim. The ink ladder is unchanged — only the ground flips.
+   ============================================================ */
+.dv-mark--onDark {
+  --pl: color-mix(in srgb, var(--p) 45%, #ffffff);
+  --dv-cream: #f4eee2;
+  background: transparent;
+  border-color: rgba(239, 233, 220, 0.2);
+}
+.dv-mark--onDark .dv-mark__code {
+  color: rgba(244, 238, 226, 0.72);
+  border-right-color: rgba(239, 233, 220, 0.16);
+}
+.dv-mark--onDark .dv-mark__label {
+  color: var(--dv-cream);
+}
+.dv-mark--onDark .dv-mark__meta {
+  color: rgba(244, 238, 226, 0.55);
+}
+
+.dv-mark--onDark.dv-mark--solid {
+  border-color: color-mix(in srgb, var(--pl) 40%, transparent);
+}
+.dv-mark--onDark.dv-mark--solid .dv-mark__code,
+.dv-mark--onDark.dv-mark--stamp .dv-mark__code {
+  background: var(--pl);
+  color: #14110b;
+  border-right-color: rgba(0, 0, 0, 0.22);
+}
+.dv-mark--onDark.dv-mark--solid .dv-mark__label {
+  background: rgba(255, 255, 255, 0.08);
+}
+.dv-mark--onDark.dv-mark--stamp .dv-mark__label {
+  background: transparent;
+}
+
+.dv-mark--onDark.dv-mark--ruled,
+.dv-mark--onDark.dv-mark--dashed {
+  border-color: color-mix(in srgb, var(--pl) 42%, transparent);
+}
+.dv-mark--onDark.dv-mark--ruled .dv-mark__code,
+.dv-mark--onDark.dv-mark--dashed .dv-mark__code {
+  background: color-mix(in srgb, var(--pl) 15%, transparent);
+  color: var(--pl);
+}
+.dv-mark--onDark.dv-mark--dashed .dv-mark__code {
+  border-right-color: color-mix(in srgb, var(--pl) 34%, transparent);
+}
+.dv-mark--onDark.dv-mark--ruled .dv-mark__label,
+.dv-mark--onDark.dv-mark--dashed .dv-mark__label {
+  color: rgba(244, 238, 226, 0.86);
+}
+
+.dv-mark--onDark.dv-mark--ghost {
+  border-color: rgba(239, 233, 220, 0.14);
+}
+.dv-mark--onDark.dv-mark--ghost .dv-mark__code {
+  background: transparent;
+  color: color-mix(in srgb, var(--pl) 60%, rgba(244, 238, 226, 0.6));
+}
+.dv-mark--onDark.dv-mark--ghost .dv-mark__label,
+.dv-mark--onDark.dv-mark--muted .dv-mark__label,
+.dv-mark--onDark.dv-mark--struck .dv-mark__label,
+.dv-mark--onDark.dv-mark--muted .dv-mark__code,
+.dv-mark--onDark.dv-mark--struck .dv-mark__code {
+  background: transparent;
+  color: rgba(244, 238, 226, 0.58);
+}
+.dv-mark--onDark.dv-mark--muted,
+.dv-mark--onDark.dv-mark--struck {
+  border-color: rgba(239, 233, 220, 0.14);
+}
+.dv-mark--onDark.dv-mark--struck .dv-mark__label {
+  text-decoration-color: rgba(244, 238, 226, 0.58);
+}
+
+.dv-set--onDark .dv-set__more {
+  background: transparent;
+  border-color: rgba(239, 233, 220, 0.14);
+  color: rgba(244, 238, 226, 0.58);
+}
+.dv-set--onDark .dv-set__empty {
+  color: rgba(244, 238, 226, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-mark--action {
+    transition: border-color 160ms linear, box-shadow 160ms linear;
+  }
+  .dv-mark--action:hover,
+  .dv-mark--action:active {
+    transform: none;
+  }
+}
+
+/* Forced-colors: keep the ladder legible when pigment is stripped away. */
+@media (forced-colors: active) {
+  .dv-mark {
+    border-color: CanvasText;
+  }
+  .dv-mark--solid .dv-mark__code,
+  .dv-mark--stamp .dv-mark__code {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+}

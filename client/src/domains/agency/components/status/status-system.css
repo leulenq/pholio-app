@@ -6,50 +6,10 @@
    No rounded pills anywhere; sharp editorial geometry.
    ============================================================ */
 
-/* ---------- Division → Board Plate ---------- */
-.ss-plate {
-  display: inline-flex;
-  align-items: stretch;
-  border: 1px solid var(--ag-border-strong);
-  border-radius: 0;
-  background: var(--ag-surface-1);
-  box-shadow: var(--ag-shadow-sm);
-  transition: transform var(--ag-duration) var(--ag-ease-spring), box-shadow var(--ag-duration) var(--ag-ease);
-  vertical-align: middle;
-}
-.ss-plate:hover { transform: translateY(-2px); box-shadow: var(--ag-shadow-md); }
-.ss-plate__code {
-  background: var(--c);
-  color: var(--ag-surface-1);
-  font-family: var(--ag-font-mono);
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-}
-.ss-plate__name {
-  padding: 8px 15px;
-  font-family: var(--ag-font-display);
-  font-size: 1.02rem;
-  font-weight: 600;
-  color: var(--ag-text-0);
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  white-space: nowrap;
-}
-.ss-plate__count {
-  font-family: var(--ag-font-body);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ag-text-3);
-  letter-spacing: 0.02em;
-}
-/* compact — code cell only, for avatars / dense lists */
-.ss-plate--compact { box-shadow: none; }
-.ss-plate--compact .ss-plate__code { padding: 4px 8px; font-size: 11px; }
+/* ---------- Division → Board Plate ----------
+   Moved to division-marks.css. The division class is now rendered by
+   <DivisionMark>, which carries both axes (board pigment + standing ink);
+   the old `.ss-plate` rules are gone rather than left as dead CSS. */
 
 /* ---------- Type → Spec Line ---------- */
 .ss-spec { display: inline-flex; flex-direction: column; gap: 5px; vertical-align: middle; }
@@ -146,5 +106,5 @@
 .ss-cell--sm { font-size: 11px; padding: 3px 9px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ss-plate, .ss-spec__rule, .ss-track__dot, .ss-mark__dot, .ss-cell { transition: none; }
+  .ss-spec__rule, .ss-track__dot, .ss-mark__dot, .ss-cell { transition: none; }
 }

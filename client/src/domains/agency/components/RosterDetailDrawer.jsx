@@ -16,9 +16,19 @@ import {
   measurementAge,
   measurementsToFormFields,
 } from '../pages/rosterFormat';
+import { DivisionMark } from './status';
 import './RosterDetailDrawer.css';
 
 const STAGE_ORDER = ['main', 'development', 'new_face'];
+
+/* A roster member's ladder stage is their standing on that board: main-board
+   talent are signed to it, new faces and development talent are being built
+   for it. See status/divisions.js. */
+const STAGE_STANDING = {
+  main: 'represented',
+  development: 'developing',
+  new_face: 'developing',
+};
 
 function getInitials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -107,7 +117,8 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
   }, [isPrivateRecord, talent]);
 
   const ledger = useLedgerRows(item, talent);
-  const division = item.board?.name || 'Unassigned';
+  // Left null when unset — DivisionMark renders the "Unassigned" board itself.
+  const division = item.board?.name || null;
   const availabilityMeta = getStatusMeta(normalizeStatusKey(item.availability));
   const bio = talent?.bio_curated || null;
   const social = Array.isArray(talent?.social) ? talent.social.filter((s) => s?.url || s?.handle) : [];
@@ -212,8 +223,16 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
 
           <div className="rd-identity">
             <h2 className="rd-name">{item.name}</h2>
+            <div className="rd-boards">
+              <DivisionMark
+                division={division}
+                standing={STAGE_STANDING[item.stage] || 'represented'}
+                size="sm"
+                onDark
+              />
+            </div>
             <p className="rd-facts">
-              {STAGE_LABELS[item.stage] || STAGE_LABELS.main} · {division}
+              {STAGE_LABELS[item.stage] || STAGE_LABELS.main}
               {identityFacts.length ? ` · ${identityFacts.join(' · ')}` : ''}
             </p>
             {availabilityMeta && (

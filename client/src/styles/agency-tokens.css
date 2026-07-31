@@ -160,17 +160,56 @@
   --ss-pass:   #9E4330;   /* passed · released · cancelled */
   --ss-off:    #9A9186;   /* inactive · archived */
 
-  /* Category pigments — boards + types */
-  --ss-p-editorial:  #574A6E;
-  --ss-p-commercial: #35664F;
-  --ss-p-runway:     #876527;
-  --ss-p-fitness:    #35617D;
-  --ss-p-curve:      #A6503A;
-  --ss-p-women:      #984B5E;
-  --ss-p-men:        #43506A;
-  --ss-p-newfaces:   #5D703F;
-  --ss-p-dev:        #7C5230;
-  --ss-p-talent:     #59504A;
+  /* ── Division pigments ──────────────────────────────────────
+     One pigment per board. These identify WHICH division, never how
+     good a standing is — standing is carried by ink weight and fill in
+     division-marks.css. That separation is what keeps the division mark
+     clear of the banned green/yellow/red status-badge pattern.
+
+     All pigments sit in a narrow luminance band (L* ~34–46) so no board
+     outranks another, and all clear 4.5:1 both as white-on-pigment (the
+     solid code cell) and as pigment-on-paper (the ruled outline).
+     Verified by scripts/check-division-contrast.mjs.
+
+     Grouped into families by board character. With ~21 boards, hues
+     cannot all stay mutually distinct — the two-letter code is the
+     identifier, the pigment is a recall aid that pre-sorts a dense roster.
+     ─────────────────────────────────────────────────────────── */
+
+  /* Roster boards — a home */
+  --ss-p-women:      #984B5E;   /* plum-rose   */
+  --ss-p-men:        #43506A;   /* indigo      */
+  --ss-p-curve:      #A6503A;   /* terracotta  */
+  --ss-p-petite:     #8C5566;   /* dusty rose  */
+  --ss-p-kids:       #46704A;   /* fresh green */
+  --ss-p-classic:    #6B5548;   /* deep taupe  */
+  --ss-p-talent:     #59504A;   /* warm grey   */
+
+  /* Ladder — development standing */
+  --ss-p-newfaces:   #5D703F;   /* olive       */
+  --ss-p-development:#7C5230;   /* brown       */
+  --ss-p-main:       #3A3630;   /* near-ink; the flagship board */
+
+  /* Market boards — what they're booked for */
+  --ss-p-editorial:  #574A6E;   /* violet-slate */
+  --ss-p-commercial: #35664F;   /* green        */
+  --ss-p-runway:     #876527;   /* bronze       */
+  --ss-p-beauty:     #74477A;   /* orchid       */
+  --ss-p-digital:    #2E6A68;   /* teal         */
+  --ss-p-lifestyle:  #5C7346;   /* moss         */
+  --ss-p-fitness:    #35617D;   /* steel blue   */
+  --ss-p-swim:       #2F6C7C;   /* deep aqua    */
+
+  /* Specialist boards */
+  --ss-p-fit:        #4C6579;   /* slate blue   */
+  --ss-p-parts:      #6A5566;   /* plum-grey    */
+  --ss-p-artists:    #6F6250;   /* warm stone   */
+
+  /* Unresolvable / unassigned board */
+  --ss-p-unassigned: #6E6760;
+
+  /* Legacy alias — `dev` was the pre-division-system token name. */
+  --ss-p-dev:        var(--ss-p-development);
 
   /* ── Score thresholds ── */
   --ag-score-high: var(--ag-gold);

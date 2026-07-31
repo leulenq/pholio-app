@@ -206,6 +206,46 @@ Hybrid: depth comes first from **tonal layering of warm cream surfaces** (canvas
 - **Mobile:** The rail collapses structurally (icon-only / drawer), not by shrinking type.
 - **Forbidden:** `ag-nav-count` style counter bubbles attached to nav items.
 
+### Signature Component — Division Marks
+
+`components/status/DivisionMark` + `DivisionSet`. The one sanctioned way to show
+which boards a talent sits on and where they stand on each.
+
+**Two axes that never interfere:**
+- **Pigment = identity.** *Which* board. Never quality, never severity. The same
+  pigment appears on a "represented" mark and on a "passed" one.
+- **Ink weight = standing.** Solid stamp (represented) → stamp (active) → dashed
+  (developing) → ruled (shortlisted) → ghost (on file) → muted (inactive) →
+  struck (passed).
+
+Because standing lives in fill and stroke rather than hue, the mark reads
+correctly in greyscale and for colour-blind bookers, and it never becomes the
+green/yellow/red status badge banned in §6 and root DESIGN.md #3. **This
+separation is the rule — do not add a "standing colour."**
+
+**The code is the identifier; the pigment is a recall aid.** An agency may run
+twenty-one boards, and twenty-one hues cannot stay mutually distinct. The
+two-letter booker shorthand (WM, NF, ED, BT…) is what a booker actually reads;
+pigment groups boards into families so the eye can pre-sort a dense roster.
+
+- **Shape:** square corners (radius 0), hairline-ruled, mono shorthand cell
+  welded to an Inter name field. A filing plate, not a pill. Inter throughout —
+  never the display serif, per the Serif-For-Identity Rule.
+- **Grounds:** paper/canvas by default; `onDark` lightens each pigment to a 45%
+  tint for the drawer hero and photo scrims.
+- **Sizes:** `sm` (roster rows, 20px), `md` (default, 26px), `lg` (drawer, 32px);
+  `codeOnly` for dense columns.
+- **Motion:** only the interactive filter variant animates (160ms, hover/focus),
+  with a reduced-motion fallback. Static marks are static — agency motion
+  supports state, not decoration.
+- **Focus:** the platform gold ring. Gold marks focus; boards mark boards.
+- **Board names are agency-authored free text** (`boards.name`). `resolveDivision`
+  never returns null — unknown names get a derived shorthand and a stable pigment.
+- **Accessibility:** every mark carries its standing as text for screen readers;
+  all 22 pigments clear 4.5:1 on paper, canvas, and the dark scrim. Verified by
+  `node scripts/check-division-contrast.mjs` — run it after touching any
+  `--ss-p-*` token.
+
 ### Signature Component — Casting Kanban
 The roster casting board: columns of talent cards moved across pipeline stages via @dnd-kit. Cards stay flat and compact, photo-led, with type and match-score rendered as **plain inline text** (no corner chips, no score badge). Column min-width 220px, 8px card gap. The board is the densest expression of the "ledger" idea — many talent, calm surface, gold only on the active/selected card.
 
