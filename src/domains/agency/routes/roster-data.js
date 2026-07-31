@@ -48,10 +48,25 @@ mountAgencyApiGuard(router);
    ============================================================ */
 const CASTING_BOARD_TYPE = "package";
 
+/* `undefined` means the column was never selected (or does not exist yet), so
+   the row cannot be proven to be a casting board — treat it as a division. */
 const isDivisionBoard = (boardType) => boardType !== CASTING_BOARD_TYPE;
 
+/* `board_type` arrives with a migration. Guard reads on it so an environment
+   that has not run that migration serves the roster instead of 500ing on a
+   missing column — the same hazard as roster_board_standings below. Checked
+   once per process, not per request. */
+let boardTypeColumnChecked = null;
+async function hasBoardTypeColumn(db) {
+  if (boardTypeColumnChecked === null) {
+    boardTypeColumnChecked = await db.schema.hasColumn("boards", "board_type");
+  }
+  return boardTypeColumnChecked;
+}
+
 /** Restrict a query to division boards, keeping NULL-typed legacy boards. */
-function onlyDivisionBoards(query, alias) {
+function onlyDivisionBoards(query, alias, columnExists) {
+  if (!columnExists) return query;
   return query.where((scope) =>
     scope.whereNull(`${alias}.board_type`).orWhereNot(`${alias}.board_type`, CASTING_BOARD_TYPE),
   );
@@ -81,6 +96,7 @@ async function loadBoardStandings(db, membershipIds) {
       .join("boards as sb", "sb.id", "rbs.board_id")
       .whereIn("rbs.membership_id", membershipIds),
     "sb",
+    await hasBoardTypeColumn(db),
   )
     .select(
       "rbs.membership_id",
@@ -232,6 +248,8 @@ router.get("/api/agency/roster", requireRole("AGENCY"), async (req, res, next) =
     const { page, limit, search, boardId, stage, status } = parsed.data;
     const agencyId = getSessionAgencyId(req.session);
 
+    await hasBoardTypeColumn(knex);
+
     const base = knex("roster_memberships as rm")
       .leftJoin("profiles as p", "p.id", "rm.profile_id")
       .leftJoin("talent_records as tr", "tr.id", "rm.talent_record_id")
@@ -296,6 +314,9 @@ router.get("/api/agency/roster", requireRole("AGENCY"), async (req, res, next) =
     const total = Number(countRow?.count || 0);
     const rows = await base
       .clone()
+      .modify((query) => {
+        if (boardTypeColumnChecked) query.select("b.board_type as board_type");
+      })
       .select(
         "rm.id as membership_id",
         "rm.profile_id",
@@ -306,7 +327,6 @@ router.get("/api/agency/roster", requireRole("AGENCY"), async (req, res, next) =
         "rm.joined_at",
         "rm.left_at",
         "b.name as board_name",
-        "b.board_type as board_type",
         ...PROFILE_COLUMNS.map((column) => `p.${column} as profile_${column}`),
         "tr.first_name as record_first_name",
         "tr.last_name as record_last_name",
@@ -723,6 +743,7 @@ router.put(
         ? await onlyDivisionBoards(
             knex("boards as sb").whereIn("sb.id", boardIds).where("sb.agency_id", agencyId),
             "sb",
+            await hasBoardTypeColumn(knex),
           ).select("sb.id")
         : [];
       const validIds = new Set(valid.map((row) => row.id));

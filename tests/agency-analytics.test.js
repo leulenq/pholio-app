@@ -14,7 +14,13 @@ const { v4: uuidv4 } = require('uuid')
 const knex = require('../src/shared/db/knex')
 const app = require('../src/app')
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'pholio-secret'
+/* Must be the SAME secret the app signs with, or every injected cookie fails
+   signature verification and each request 401s before it reaches the handler.
+   Deriving it from src/config (rather than hardcoding a fallback) means the
+   two cannot drift again: config falls back to
+   "pholio-dev-secret-do-not-use-in-production" outside production, and this
+   file previously guessed 'pholio-secret'. */
+const SESSION_SECRET = require('../src/config').sessionSecret
 const TEST_DB_PATH = path.resolve(__dirname, '../test-agency-analytics.sqlite3')
 
 // ─── Schema setup ─────────────────────────────────────────────────────────────

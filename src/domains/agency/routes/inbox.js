@@ -193,9 +193,15 @@ router.get(
          division filter must keep NULLs. `whereNot(...)` alone would drop them,
          because `NULL <> 'package'` is NULL rather than true. */
       const boardTypeFilter = String(req.query?.type || "").trim();
+      /* `board_type` arrives with a migration; an environment that has not run
+         it must still serve boards rather than 500 on a missing column. */
+      const canFilterByType = boardTypeFilter
+        ? await knex.schema.hasColumn("boards", "board_type")
+        : false;
       const boards = await knex("boards")
         .where({ agency_id: agencyId })
         .modify((query) => {
+          if (!canFilterByType) return;
           if (boardTypeFilter === "division") {
             query.where((scope) =>
               scope.whereNull("board_type").orWhereNot("board_type", "package"),
