@@ -292,6 +292,9 @@ describe("agency open call claims", () => {
       userId: invitingAgencyId,
       role: "AGENCY",
       agencyMembershipRole: "OWNER",
+      // requireAgencyOnboardingComplete reads this straight off the session and
+      // 403s AGENCY_SETUP_REQUIRED without it, before any handler runs.
+      agencyOnboardingCompletedAt: new Date().toISOString(),
     });
   }
 

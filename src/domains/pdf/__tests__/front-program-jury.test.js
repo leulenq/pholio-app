@@ -146,11 +146,17 @@ describe("rankFrontCandidates", () => {
     expect(result.rationale).toBe("Most confident hero.");
     expect(result.scores.find((s) => s.index === 1).vision.premiumFeel).toBe(95);
 
-    // exactly one vision call, carrying the strict schema and 3 images
+    // exactly one vision call, carrying json_object mode and 3 images.
+    // The jury deliberately uses response_format json_object, NOT json_schema:
+    // the Groq vision model does not support strict schema decoding, so the
+    // shape lives in the system prompt and validateVerdict() is the only shape
+    // guarantee (see the module header in jury.js). This assertion previously
+    // required json_schema.strict and had not been updated when the
+    // implementation moved.
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const args = mockCreate.mock.calls[0][0];
     expect(args.model).toBe(JURY_MODEL);
-    expect(args.response_format.json_schema.strict).toBe(true);
+    expect(args.response_format).toEqual({ type: "json_object" });
     const userContent = args.messages.find((m) => m.role === "user").content;
     const images = userContent.filter((c) => c.type === "image_url");
     expect(images).toHaveLength(3);

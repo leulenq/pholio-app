@@ -286,6 +286,9 @@ describe("application drafts", () => {
         userId: sessionAgencyId,
         role: "AGENCY",
         agencyMembershipRole: "OWNER",
+        // requireAgencyOnboardingComplete reads this off the session and 403s
+        // AGENCY_SETUP_REQUIRED without it, before any handler runs.
+        agencyOnboardingCompletedAt: new Date().toISOString(),
       },
       expired: new Date(Date.now() + 86400000).toISOString(),
     });

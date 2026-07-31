@@ -60,9 +60,15 @@ function pageHtml({ scrimZIndex }) {
   </body></html>`;
 }
 
+/* The gate has to prove puppeteer can be LOADED, not merely resolved.
+   require.resolve() only checks the package exists on disk; current puppeteer
+   ships ESM, so the later require() inside beforeAll threw
+   "SyntaxError: Unexpected token 'export'" under Jest's CommonJS runtime and
+   the suite failed instead of skipping. Attempting the real require is the
+   only check that answers the question this gate is asking. */
 const describeMaybe = (() => {
   try {
-    require.resolve("puppeteer");
+    require("puppeteer");
     return describe;
   } catch {
     return describe.skip;
