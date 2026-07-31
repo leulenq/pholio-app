@@ -1,0 +1,200 @@
+[
+  {
+    "key": "women",
+    "label": "Women",
+    "group": "roster",
+    "hex": "#945453",
+    "H": 22,
+    "C": 0.085,
+    "why": "Bordeaux — the couture house red, of the carpet and the box. Not pink."
+  },
+  {
+    "key": "men",
+    "label": "Men",
+    "group": "roster",
+    "hex": "#576892",
+    "H": 268,
+    "C": 0.07,
+    "why": "Indigo — tailoring navy and denim. Not blue-for-boys."
+  },
+  {
+    "key": "curve",
+    "label": "Curve",
+    "group": "roster",
+    "hex": "#9a5235",
+    "H": 42,
+    "C": 0.105,
+    "why": "Terracotta — warm and declarative. The board fought for its place; it should not read apologetic."
+  },
+  {
+    "key": "petite",
+    "label": "Petite",
+    "group": "roster",
+    "hex": "#825c6d",
+    "H": 350,
+    "C": 0.055,
+    "why": "Dusty rose — adjacent to Women, lower in arousal."
+  },
+  {
+    "key": "kids",
+    "label": "Kids & Teens",
+    "group": "roster",
+    "hex": "#56715c",
+    "H": 152,
+    "C": 0.045,
+    "why": "Deep sage — the calmest hue in the set. A minors board must never read playful or marketable."
+  },
+  {
+    "key": "classic",
+    "label": "Classic",
+    "group": "roster",
+    "hex": "#79654f",
+    "H": 68,
+    "C": 0.042,
+    "why": "Bronze-taupe — patina. Age as an asset, not a fade."
+  },
+  {
+    "key": "talent",
+    "label": "Talent",
+    "group": "roster",
+    "hex": "#756179",
+    "H": 322,
+    "C": 0.045,
+    "why": "Plum-grey — stage curtain, house lights down."
+  },
+  {
+    "key": "newfaces",
+    "label": "New Faces",
+    "group": "ladder",
+    "hex": "#5d7143",
+    "H": 128,
+    "C": 0.072,
+    "why": "Fresh olive — growth, unripe, not yet arrived."
+  },
+  {
+    "key": "development",
+    "label": "Development",
+    "group": "ladder",
+    "hex": "#895e3c",
+    "H": 58,
+    "C": 0.075,
+    "why": "Raw sienna — earth and work-in-progress. Raw material being worked."
+  },
+  {
+    "key": "mainboard",
+    "label": "Main Board",
+    "group": "ladder",
+    "hex": "#726662",
+    "H": 40,
+    "C": 0.016,
+    "why": "Warm neutral — the LEAST chromatic board in the set. Fixed lightness means the flagship cannot be the darkest, so it is the quietest instead: everything around it has a hue, and the main board simply does not need one."
+  },
+  {
+    "key": "editorial",
+    "label": "Editorial",
+    "group": "market",
+    "hex": "#706379",
+    "H": 312,
+    "C": 0.038,
+    "why": "Near-achromatic violet-ink. Editorial identity IS the absence of colour — Vogue runs monochrome and lets the image carry it. Lowest chroma of any market board, on purpose."
+  },
+  {
+    "key": "commercial",
+    "label": "Commercial",
+    "group": "market",
+    "hex": "#3a737e",
+    "H": 212,
+    "C": 0.062,
+    "why": "Trust blue — the most reliably \"competent/dependable\" hue cross-culturally. Commercial is the workhorse board."
+  },
+  {
+    "key": "runway",
+    "label": "Runway",
+    "group": "market",
+    "hex": "#886119",
+    "H": 78,
+    "C": 0.098,
+    "why": "Bronze — show invitations are foil-stamped. Ceremony and occasion."
+  },
+  {
+    "key": "beauty",
+    "label": "Beauty",
+    "group": "market",
+    "hex": "#91526c",
+    "H": 354,
+    "C": 0.09,
+    "why": "Rose — beauty packaging documentably moved from clinical white to rose quartz and blush. Skin, intimacy, care."
+  },
+  {
+    "key": "digital",
+    "label": "Digital",
+    "group": "market",
+    "hex": "#0d7879",
+    "H": 196,
+    "C": 0.086,
+    "why": "Cyan-teal — screen-native signal. Held bright rather than dark: dark low-chroma cyan tested as the fear direction."
+  },
+  {
+    "key": "lifestyle",
+    "label": "Lifestyle",
+    "group": "market",
+    "hex": "#597150",
+    "H": 138,
+    "C": 0.058,
+    "why": "Moss — domestic, outdoors, real people."
+  },
+  {
+    "key": "fitness",
+    "label": "Fitness",
+    "group": "market",
+    "hex": "#2d6bab",
+    "H": 252,
+    "C": 0.12,
+    "why": "Electric blue — activewear trades in kinetic brights and dopamine colour. The highest-arousal division in the industry gets the highest chroma in the palette."
+  },
+  {
+    "key": "swim",
+    "label": "Swim",
+    "group": "market",
+    "hex": "#0f758b",
+    "H": 218,
+    "C": 0.09,
+    "why": "Aqua — the 2026 trade reports name blue \"the new neutral\" for swim."
+  },
+  {
+    "key": "fit",
+    "label": "Fit",
+    "group": "specialist",
+    "hex": "#586c77",
+    "H": 232,
+    "C": 0.03,
+    "why": "Steel — instrument grey-blue. Fit is booked on measurement, not on look, and the colour should be as unglamorous as the job."
+  },
+  {
+    "key": "parts",
+    "label": "Parts",
+    "group": "specialist",
+    "hex": "#6e6478",
+    "H": 308,
+    "C": 0.034,
+    "why": "Mauve-grey — clinical and close-up."
+  },
+  {
+    "key": "artists",
+    "label": "Artists",
+    "group": "specialist",
+    "hex": "#726851",
+    "H": 88,
+    "C": 0.036,
+    "why": "Warm stone — hands, craft, materials."
+  },
+  {
+    "key": "unassigned",
+    "label": "Unassigned",
+    "group": "none",
+    "hex": "#696969",
+    "H": 0,
+    "C": 0,
+    "why": "True neutral. No board, no hue."
+  }
+]
