@@ -6,7 +6,22 @@
  * a lightweight integration check for the route validation layer.
  */
 
+const {
+  useIsolatedDatabase,
+  migrate,
+  dropIsolatedDatabase,
+} = require('../setup/isolated-db');
 const { isModerator } = require('../../src/shared/lib/moderation');
+
+/* Own database, resolved before src/shared/db/knex is required anywhere.
+ *
+ * The integration block below used to roll the SHARED run database all the way
+ * back and migrate it again. Whatever ran earlier lost its fixtures, and when
+ * the rollback partially failed the re-migration replayed table rebuilds over
+ * rows left behind — SQLite copies through a temp table, so it aborted with a
+ * foreign-key error that had nothing to do with reports. It passed alone and
+ * failed in a full run. */
+const DB_FILE = useIsolatedDatabase('moderation-reports');
 
 // ─── isModerator helper ───────────────────────────────────────────────────────
 
@@ -91,24 +106,13 @@ describe('POST /api/reports — unauthenticated', () => {
 
   beforeAll(async () => {
     knex = require('../../src/shared/db/knex');
-
-    try {
-      await knex.raw('UPDATE knex_migrations_lock SET is_locked = 0 WHERE is_locked = 1');
-    } catch {
-      // ignore
-    }
-    try {
-      await knex.migrate.rollback({}, true);
-    } catch {
-      try { await knex.raw('UPDATE knex_migrations_lock SET is_locked = 0'); } catch { /* ignore */ }
-    }
-
-    await knex.migrate.latest();
+    await migrate(knex);
     app = require('../../src/app');
   }, 45000);
 
   afterAll(async () => {
     await knex.destroy();
+    dropIsolatedDatabase(DB_FILE);
   });
 
   it('returns 401 when not logged in', async () => {

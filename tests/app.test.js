@@ -1,41 +1,42 @@
+// The dev email/password login is hard-gated behind this flag (see
+// isDevLoginEnabled in domains/auth/routes/auth.js) and is the only way to
+// establish a session without a real Firebase token. Set before src/app loads.
+process.env.AUTH_PASSTHROUGH_ENABLED = "1";
+
 const request = require("supertest");
-const sharp = require("sharp");
+const {
+  useIsolatedDatabase,
+  migrateAndSeed,
+  dropIsolatedDatabase,
+} = require("./setup/isolated-db");
+
+/* Own database, resolved before src/shared/db/knex is required below.
+ *
+ * This suite needs the seed dataset (elara-k, talent@example.com), and used to
+ * get it by rolling the SHARED run database back to zero and re-migrating it —
+ * destroying the fixtures of every suite that ran first, and replaying table
+ * rebuilds over leftover rows when the rollback only partly succeeded. */
+const DB_FILE = useIsolatedDatabase("app");
+
 const knex = require("../src/shared/db/knex");
 const app = require("../src/app");
 
 beforeAll(async () => {
-  // Clear any stale migration locks before starting
-  try {
-    await knex.raw(
-      "UPDATE knex_migrations_lock SET is_locked = 0 WHERE is_locked = 1",
-    );
-  } catch (err) {
-    // Lock table might not exist yet, that's okay
-  }
-
-  try {
-    // Rollback all migrations first
-    await knex.migrate.rollback({}, true);
-  } catch (err) {
-    // If rollback fails, clear lock and continue
-    try {
-      await knex.raw("UPDATE knex_migrations_lock SET is_locked = 0");
-    } catch (unlockErr) {
-      // Ignore
-    }
-  }
-
-  // Run migrations
-  await knex.migrate.latest();
-  await knex.seed.run();
-}, 30000); // 30 second timeout for migrations
+  await migrateAndSeed(knex);
+}, 60000);
 
 afterAll(async () => {
   await knex.destroy();
+  dropIsolatedDatabase(DB_FILE);
 });
 
 describe("ZipSite application", () => {
-  test("login redirects to the correct dashboard", async () => {
+  /* RETIRED — targets a removed endpoint.
+     This asserted a server-rendered form POST to /login returning a 302.
+     /login is now an SPA route (src/app.js) and authentication moved to
+     Firebase ID tokens, so no such handler exists. The behaviour it covered
+     lives in tests/security/talent-login-onboarding-redirect.test.js. */
+  test.skip("login redirects to the correct dashboard", async () => {
     const response = await request(app)
       .post("/login")
       .type("form")
@@ -45,7 +46,14 @@ describe("ZipSite application", () => {
     expect(response.headers.location).toBe("/dashboard/agency");
   });
 
-  test("apply flow creates a profile, upload works, and PDF is available", async () => {
+  /* RETIRED — targets a removed endpoint.
+     This asserted a server-rendered form POST to /apply creating an account.
+     /apply is now an SPA route and signup goes through /casting/entry with a
+     Firebase token. The successor end-to-end path is
+     tests/e2e-casting-to-dashboard.test.js; upload coverage is in
+     tests/talent/media-packages.test.js and media-bulk.test.js, and PDF
+     coverage in src/domains/pdf/__tests__. */
+  test.skip("apply flow creates a profile, upload works, and PDF is available", async () => {
     const agent = request.agent(app);
     const email = `talent-${Date.now()}@example.com`;
 
@@ -134,11 +142,21 @@ describe("ZipSite application", () => {
 
   test("talent can manage comp-card presets via backend API", async () => {
     const agent = request.agent(app);
-    await agent
-      .post("/login")
-      .type("form")
+    // Password login moved to /api/dev/login and returns JSON, not a redirect.
+    const loginResponse = await agent
+      .post("/api/dev/login")
       .send({ email: "talent@example.com", password: "password123" })
-      .expect(302);
+      .expect(200);
+
+    /* The session cookie carries Domain=localhost (see cookie-domain.js) while
+       supertest talks to 127.0.0.1, so superagent's jar refuses to replay it
+       and every follow-up request arrives unauthenticated. Carry the cookie by
+       hand — the same workaround tests/e2e-casting-to-dashboard.test.js uses. */
+    const sessionCookie = (loginResponse.headers["set-cookie"] || []).map(
+      (cookie) => cookie.split(";")[0],
+    );
+    expect(sessionCookie.length).toBeGreaterThan(0);
+    const auth = (req) => req.set("Cookie", sessionCookie);
 
     const talentUser = await knex("users")
       .where({ email: "talent@example.com" })
@@ -148,16 +166,16 @@ describe("ZipSite application", () => {
       .first();
     expect(profile?.slug).toBeTruthy();
 
-    const createResponse = await agent
-      .post(`/api/pdf/presets/${profile.slug}`)
-      .send({
-        name: "Board A",
-        seed: "seed:board-a",
-        layoutFamily: "runway-split",
-        styleVariant: "dark-room",
-        lockHeroId: "hero-1",
-        lockGridIds: ["grid-1", "grid-2"],
-      });
+    const createResponse = await auth(
+      agent.post(`/api/pdf/presets/${profile.slug}`),
+    ).send({
+      name: "Board A",
+      seed: "seed:board-a",
+      layoutFamily: "runway-split",
+      styleVariant: "dark-room",
+      lockHeroId: "hero-1",
+      lockGridIds: ["grid-1", "grid-2"],
+    });
 
     expect(createResponse.status).toBe(201);
     expect(createResponse.body.ok).toBe(true);
@@ -171,15 +189,17 @@ describe("ZipSite application", () => {
     const presetId = createResponse.body.preset.id;
     expect(presetId).toBeTruthy();
 
-    const listResponse = await agent.get(`/api/pdf/presets/${profile.slug}`);
+    const listResponse = await auth(
+      agent.get(`/api/pdf/presets/${profile.slug}`),
+    );
     expect(listResponse.status).toBe(200);
     expect(Array.isArray(listResponse.body.presets)).toBe(true);
     expect(
       listResponse.body.presets.some((preset) => preset.id === presetId),
     ).toBe(true);
 
-    const applyResponse = await agent.post(
-      `/api/pdf/presets/${profile.slug}/${presetId}/apply`,
+    const applyResponse = await auth(
+      agent.post(`/api/pdf/presets/${profile.slug}/${presetId}/apply`),
     );
     expect(applyResponse.status).toBe(200);
     expect(applyResponse.body.ok).toBe(true);
@@ -192,19 +212,19 @@ describe("ZipSite application", () => {
       }),
     );
 
-    const updateResponse = await agent
-      .put(`/api/pdf/presets/${profile.slug}/${presetId}`)
-      .send({
-        name: "Board A Updated",
-        seed: "seed:board-b",
-        layoutFamily: "mosaic-horizontal",
-      });
+    const updateResponse = await auth(
+      agent.put(`/api/pdf/presets/${profile.slug}/${presetId}`),
+    ).send({
+      name: "Board A Updated",
+      seed: "seed:board-b",
+      layoutFamily: "mosaic-horizontal",
+    });
     expect(updateResponse.status).toBe(200);
     expect(updateResponse.body.preset.name).toBe("Board A Updated");
     expect(updateResponse.body.preset.layoutFamily).toBe("mosaic-horizontal");
 
-    const revisionsResponse = await agent.get(
-      `/api/pdf/presets/${profile.slug}/${presetId}/revisions`,
+    const revisionsResponse = await auth(
+      agent.get(`/api/pdf/presets/${profile.slug}/${presetId}/revisions`),
     );
     expect(revisionsResponse.status).toBe(200);
     expect(Array.isArray(revisionsResponse.body.revisions)).toBe(true);
@@ -217,16 +237,16 @@ describe("ZipSite application", () => {
     )?.id;
     expect(targetRevisionId).toBeTruthy();
 
-    const rollbackResponse = await agent
-      .post(`/api/pdf/presets/${profile.slug}/${presetId}/rollback`)
-      .send({ revisionId: targetRevisionId });
+    const rollbackResponse = await auth(
+      agent.post(`/api/pdf/presets/${profile.slug}/${presetId}/rollback`),
+    ).send({ revisionId: targetRevisionId });
     expect(rollbackResponse.status).toBe(200);
     expect(rollbackResponse.body.ok).toBe(true);
     expect(rollbackResponse.body.preset.name).toBe("Board A");
     expect(rollbackResponse.body.preset.seed).toBe("seed:board-a");
 
-    const exportResponse = await agent.get(
-      `/api/pdf/presets/${profile.slug}/${presetId}/export`,
+    const exportResponse = await auth(
+      agent.get(`/api/pdf/presets/${profile.slug}/${presetId}/export`),
     );
     expect(exportResponse.status).toBe(200);
     expect(exportResponse.body.ok).toBe(true);
@@ -237,33 +257,33 @@ describe("ZipSite application", () => {
       }),
     );
 
-    const importResponse = await agent
-      .post(`/api/pdf/presets/${profile.slug}/import`)
-      .send({
-        preset: {
-          ...exportResponse.body.preset,
-          payload: {
-            ...exportResponse.body.preset.payload,
-            name: "Board Imported",
-          },
+    const importResponse = await auth(
+      agent.post(`/api/pdf/presets/${profile.slug}/import`),
+    ).send({
+      preset: {
+        ...exportResponse.body.preset,
+        payload: {
+          ...exportResponse.body.preset.payload,
+          name: "Board Imported",
         },
-      });
+      },
+    });
     expect(importResponse.status).toBe(201);
     expect(importResponse.body.ok).toBe(true);
     expect(importResponse.body.status).toBe("created");
     expect(importResponse.body.preset.name).toBe("Board Imported");
 
-    const importConflictResponse = await agent
-      .post(`/api/pdf/presets/${profile.slug}/import`)
-      .send({
-        payload: exportResponse.body.preset.payload,
-        overwriteExisting: "false",
-      });
+    const importConflictResponse = await auth(
+      agent.post(`/api/pdf/presets/${profile.slug}/import`),
+    ).send({
+      payload: exportResponse.body.preset.payload,
+      overwriteExisting: "false",
+    });
     expect(importConflictResponse.status).toBe(409);
     expect(importConflictResponse.body.code).toBe("PRESET_NAME_CONFLICT");
 
-    const deleteResponse = await agent.delete(
-      `/api/pdf/presets/${profile.slug}/${presetId}`,
+    const deleteResponse = await auth(
+      agent.delete(`/api/pdf/presets/${profile.slug}/${presetId}`),
     );
     expect(deleteResponse.status).toBe(200);
     expect(deleteResponse.body.ok).toBe(true);

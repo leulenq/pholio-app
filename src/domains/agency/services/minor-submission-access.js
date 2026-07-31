@@ -285,6 +285,14 @@ async function revokeProfileGrantsAndPurge(
 
 async function expireMinorSubmissionAccessForAgency(knex, agencyId) {
   if (!agencyId) return [];
+  /* ISO string, not a Date object. `guardian_consent_expires_at` is TEXT under
+     SQLite, and binding a Date there makes node-sqlite3 stringify it as
+     "Fri Jul 31 2026 …" — so the comparison runs lexicographically against an
+     ISO timestamp and every unexpired grant looks expired ("2027-…" < "Fri").
+     The sweep then purges a live minor submission and marks it withdrawn,
+     which is destructive and irreversible. applyMinorSubmissionFilter above
+     already compares against an ISO string; this is the same contract. */
+  const now = new Date().toISOString();
   const expired = await knex("applications as application")
     .leftJoin(
       "minor_agency_consents as grant",
@@ -300,7 +308,7 @@ async function expireMinorSubmissionAccessForAgency(knex, agencyId) {
       scope
         .whereNull("application.guardian_consent_grant_id")
         .orWhereNotNull("grant.revoked_at")
-        .orWhere("application.guardian_consent_expires_at", "<=", new Date())
+        .orWhere("application.guardian_consent_expires_at", "<=", now)
         .orWhereNull("application.guardian_consent_expires_at");
     })
     .select("application.id", "grant.revoked_at as grant_revoked_at");

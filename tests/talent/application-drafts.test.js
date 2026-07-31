@@ -238,6 +238,22 @@ describe("application drafts", () => {
       await knex("sessions").whereIn("sid", sessionIds).delete();
     }
     await knex("application_drafts").where({ profile_id: profileId }).delete();
+    /* talent_submission_packages and application_submission_consent_events
+       both hold a RESTRICT reference to minor_agency_consents (see
+       20260714110000_minor_submission_grant_lifecycle). Leaving them behind
+       makes the grant undeletable and the whole suite fail in afterAll with a
+       foreign-key error that looks unrelated to anything under test. */
+    const applicationIds = (
+      await knex("applications").where({ profile_id: profileId }).select("id")
+    ).map((row) => row.id);
+    if (applicationIds.length) {
+      await knex("application_submission_consent_events")
+        .whereIn("application_id", applicationIds)
+        .delete();
+      await knex("talent_submission_packages")
+        .whereIn("application_id", applicationIds)
+        .delete();
+    }
     await knex("applications").where({ profile_id: profileId }).delete();
     await knex("boards").where({ agency_id: agencyId }).delete();
     await knex("minor_agency_consents").where({ profile_id: profileId }).delete();
