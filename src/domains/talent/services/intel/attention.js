@@ -89,16 +89,76 @@ function countByDay(rows, dateField) {
   return out;
 }
 
-/** 7×24 grid (UTC dow × hour) of attention arrivals. */
-function rhythmGrid(legacyEvents, intelEvents) {
-  const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+const DOW_INDEX = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+/**
+ * Day-of-week + hour in the talent's own zone.
+ *
+ * The old grid bucketed on getUTCDay()/getUTCHours() and then labelled the
+ * result as clock time, so "attention arrives Tuesday evenings" was wrong by
+ * the reader's UTC offset — advice that actively misfires. Intl does the zone
+ * and DST properly; the formatter is built once per call site.
+ */
+function makeLocalParts(tz) {
+  let fmt = null;
+  try {
+    fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz || "UTC",
+      weekday: "short",
+      hour: "numeric",
+      hour12: false,
+    });
+  } catch {
+    fmt = null; // unknown zone → fall back to UTC below
+  }
+  return (date) => {
+    if (!fmt) return { dow: date.getUTCDay(), hour: date.getUTCHours() };
+    const parts = fmt.formatToParts(date);
+    const weekday = parts.find((p) => p.type === "weekday")?.value;
+    const hour = Number(parts.find((p) => p.type === "hour")?.value);
+    return {
+      dow: DOW_INDEX[weekday] ?? date.getUTCDay(),
+      // hour12:false can emit 24 for midnight in some ICU versions.
+      hour: Number.isFinite(hour) ? hour % 24 : date.getUTCHours(),
+    };
+  };
+}
+
+// Three-hour blocks: 56 buckets instead of 168, so a real pattern can clear
+// the noise floor at the sample sizes talent profiles actually produce.
+const BLOCK_HOURS = 3;
+const BLOCKS_PER_DAY = 24 / BLOCK_HOURS;
+const MIN_RHYTHM_EVENTS = 24;
+const RHYTHM_LIFT = 1.6; // peak must beat a flat distribution by this much
+
+/**
+ * When attention arrives, as one claimable window — or nothing.
+ *
+ * Returns null rather than a grid: a 168-cell heat map over 30 sparse events is
+ * noise wearing the costume of a finding. A window is only claimed when there
+ * is enough volume AND the peak block genuinely stands above uniform.
+ */
+function rhythmWindow(legacyEvents, intelEvents, tz) {
+  const localParts = makeLocalParts(tz);
+  const blocks = Array.from({ length: 7 }, () => Array(BLOCKS_PER_DAY).fill(0));
   let total = 0;
+
   const add = (ts) => {
     const d = parseDbDate(ts);
     if (!d || isNaN(d.getTime())) return;
-    grid[d.getUTCDay()][d.getUTCHours()] += 1;
+    const { dow, hour } = localParts(d);
+    blocks[dow][Math.floor(hour / BLOCK_HOURS)] += 1;
     total += 1;
   };
+
   for (const e of legacyEvents) {
     if (e.event_type === "view" || CARD_PULL_LEGACY.has(e.event_type)) {
       add(e.created_at);
@@ -107,17 +167,32 @@ function rhythmGrid(legacyEvents, intelEvents) {
   for (const e of intelEvents) {
     if (e.action === "link_open" && e.share_token_id) add(e.occurred_at);
   }
+
+  if (total < MIN_RHYTHM_EVENTS) return { total, window: null, tz: tz || "UTC" };
+
   let peak = null;
-  let max = 0;
-  grid.forEach((row, dow) =>
-    row.forEach((count, hour) => {
-      if (count > max) {
-        max = count;
-        peak = { dow, hour };
-      }
+  blocks.forEach((row, dow) =>
+    row.forEach((count, block) => {
+      if (!peak || count > peak.count) peak = { dow, block, count };
     }),
   );
-  return { grid, total, peak };
+
+  const uniform = total / (7 * BLOCKS_PER_DAY);
+  if (!peak || peak.count < uniform * RHYTHM_LIFT) {
+    return { total, window: null, tz: tz || "UTC" };
+  }
+
+  return {
+    total,
+    tz: tz || "UTC",
+    window: {
+      dow: peak.dow,
+      startHour: peak.block * BLOCK_HOURS,
+      endHour: peak.block * BLOCK_HOURS + BLOCK_HOURS,
+      count: peak.count,
+      share: peak.count / total,
+    },
+  };
 }
 
 /** Attention composition by tier for the Signal Spectrum (tiers 3–5 here). */
@@ -156,7 +231,36 @@ function tier345Counts({ legacyEvents, intelEvents, sessions }) {
   return { cardPulls: pulls, linkOpens, qualified, reach };
 }
 
-/** Qualified visits per day (base layer of the Seismograph). */
+/**
+ * Intent-bearing attention per day: a card pull, a share-link open or a
+ * qualified visit — someone who did something beyond arriving. Raw reach is
+ * deliberately excluded; it is the number that inflates and decides nothing.
+ */
+function intentByDay({ legacyEvents, intelEvents, sessions }) {
+  const strikes = strikesByDay(legacyEvents, intelEvents);
+  const qualified = qualifiedByDay(sessions, intelEvents);
+  const out = {};
+  for (const map of [strikes.pulls, strikes.opens, qualified]) {
+    for (const [day, n] of Object.entries(map)) out[day] = (out[day] || 0) + n;
+  }
+  return out;
+}
+
+/**
+ * The current window against the one before it, aligned by position so the two
+ * lines can share one axis. `prior` is null when the earlier window is too thin
+ * to compare against honestly — a comparison drawn from three events is a
+ * decoration, not a benchmark.
+ */
+function intentSeries({ dayKeys, priorDayKeys, current, prior, comparable }) {
+  return dayKeys.map((date, i) => ({
+    date,
+    intent: current[date] || 0,
+    prior: comparable ? prior[priorDayKeys[i]] || 0 : null,
+  }));
+}
+
+/** Qualified visits per day (base layer of the intent series). */
 function qualifiedByDay(sessions, intelEvents) {
   const agencySessionIds = new Set(
     intelEvents
@@ -181,7 +285,11 @@ function qualifiedByDay(sessions, intelEvents) {
  * Market Board rows from capture-v2 events. Calibrating until enough located
  * attention has accrued to be honest.
  */
-function marketRows(intelEvents, priorIntelEvents, { minLocated = 10 } = {}) {
+function marketRows(
+  intelEvents,
+  priorIntelEvents,
+  { minLocated = 10, dayKeys = [] } = {},
+) {
   const located = intelEvents.filter((e) => e.market);
   const priorLocated = priorIntelEvents.filter((e) => e.market);
   const total = located.length;
@@ -214,7 +322,10 @@ function marketRows(intelEvents, priorIntelEvents, { minLocated = 10 } = {}) {
           ? entry.count - (priorByMarket.get(market) || 0)
           : null,
       mix: entry.mix,
-      days: entry.days,
+      // Aligned to the window's day keys. This used to ship as a date-keyed
+      // object, which the frontend sparkline rejected with Array.isArray — the
+      // chart silently rendered its empty placeholder for every market.
+      series: dayKeys.map((k) => entry.days[k] || 0),
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
@@ -290,38 +401,62 @@ function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
       impressions: a.impressions,
       opens: a.opens,
       dwellMs: a.dwellMs,
-      score: a.opens * 3 + a.dwellMs / 4000 + a.impressions * 0.5,
+      // Open rate is the honest, comparable metric: of the people who saw this
+      // frame in the grid, how many opened it. The previous ranking multiplied
+      // opens, dwell and impressions into a unitless "score" that could not be
+      // checked against anything or compared between two frames.
+      openRate: a.impressions > 0 ? a.opens / a.impressions : null,
+      avgDwellMs: a.opens > 0 ? Math.round(a.dwellMs / a.opens) : null,
     };
   });
 
   const calibrating = imageEvents.length < minEvents;
-  if (!calibrating) {
-    const ranked = [...scored].sort((a, b) => b.score - a.score);
-    ranked.forEach((img, i) => {
-      img.rank = i + 1;
-    });
-    const maxDwell = Math.max(...scored.map((s) => s.dwellMs), 1);
+  // Only frames that were actually shown can be ranked; an unseen frame is
+  // unranked, not last.
+  const SEEN = 5;
+  const rankable = scored.filter((s) => s.impressions >= SEEN);
+
+  if (!calibrating && rankable.length >= 2) {
+    [...rankable]
+      .sort((a, b) => b.openRate - a.openRate || b.avgDwellMs - a.avgDwellMs)
+      .forEach((img, i) => {
+        img.rank = i + 1;
+      });
     for (const img of scored) {
-      img.dwellShare = img.dwellMs / maxDwell;
+      if (img.rank == null) img.rank = null;
       img.flags = [];
-      if (img.rank === 1 && img.opens > 0) img.flags.push("most_opened");
-      if (
-        img.impressions >= 5 &&
-        img.opens === 0 &&
-        img.dwellMs < 1500 * Math.max(1, img.impressions / 5)
-      ) {
+      if (img.rank === 1) img.flags.push("most_opened");
+      if (img.rank === rankable.length && rankable.length >= 3) {
         img.flags.push("most_skipped");
       }
+      if (img.impressions < SEEN) img.flags.push("unseen");
     }
   } else {
     for (const img of scored) {
       img.rank = null;
-      img.dwellShare = 0;
       img.flags = [];
     }
   }
 
-  return { calibrating, totalEvents: imageEvents.length, images: scored };
+  const front = scored.find((s) => s.isPrimary);
+  return {
+    calibrating: calibrating || rankable.length < 2,
+    totalEvents: imageEvents.length,
+    ranked: rankable.length,
+    // The decision the ranking exists to support: is the frame you lead with
+    // the frame that earns attention?
+    cardFront:
+      front && front.rank != null
+        ? { id: front.id, rank: front.rank, of: rankable.length }
+        : null,
+    best: rankable.length >= 2
+      ? (() => {
+          const top = rankable.find((r) => r.rank === 1);
+          return top ? { id: top.id, openRate: top.openRate } : null;
+        })()
+      : null,
+    images: scored,
+  };
 }
 
 module.exports = {
@@ -330,9 +465,11 @@ module.exports = {
   loadVisitorSessions,
   strikesByDay,
   countByDay,
-  rhythmGrid,
+  rhythmWindow,
   tier345Counts,
   qualifiedByDay,
+  intentByDay,
+  intentSeries,
   marketRows,
   sourceRows,
   bookAttention,

@@ -109,50 +109,23 @@
   gap: 12px;
   overflow: hidden;
   padding: 10px 22px;
-  border: 1px solid var(--ph-btn-ink);
-  background: var(--ph-btn-ink);
-  color: var(--ph-btn-canvas);
+  border: 1px solid #000000;
+  background: #000000;
+  color: #ffffff;
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
+.pholio-btn--primary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: #2e2e2e;
+  border-color: #4a4a4a;
+  color: #ffffff;
+  transform: none;
+}
+
 .pholio-btn--primary > svg {
-  color: var(--ph-btn-gold-warm);
-}
-
-.pholio-btn--primary::after {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  left: 50%;
-  bottom: 0;
-  width: 46px;
-  height: 1.5px;
-  border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    var(--ph-btn-gold),
-    transparent
-  );
-  opacity: 0.6;
-  pointer-events: none;
-  transform: translateX(-50%);
-  transition:
-    width 0.45s var(--ph-btn-ease),
-    opacity 0.3s var(--ph-btn-ease);
-}
-
-.pholio-btn--primary:hover:not(:disabled):not([aria-disabled='true'])::after,
-.pholio-btn--primary:focus-visible::after {
-  width: 100%;
-  opacity: 1;
-}
-
-.pholio-btn--primary:disabled::after,
-.pholio-btn--primary[aria-disabled='true']::after {
-  opacity: 0.3;
+  color: currentColor;
 }
 
 .pholio-btn--primary.pholio-btn--tone-dark {
@@ -161,16 +134,14 @@
   color: #1a1815;
 }
 
-.pholio-btn--primary > svg {
-  color: var(--ph-btn-gold-warm) !important;
+.pholio-btn--primary.pholio-btn--tone-dark:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: #e5e0d8;
+  background: #e5e0d8;
+  color: #1a1815;
 }
 
 .pholio-btn--primary.pholio-btn--tone-dark > svg {
-  color: #9b742f !important;
-}
-
-.pholio-btn--primary.pholio-btn--tone-dark > svg {
-  color: #9b742f;
+  color: currentColor;
 }
 
 /* The AI action. Deliberately the house ink-fill — Pholio's writing tool is a
@@ -411,15 +382,22 @@
 .pholio-btn--primary {
   min-height: 44px !important;
   padding: 10px 22px !important;
-  border: 1px solid var(--ph-btn-ink) !important;
+  border: 1px solid #000000 !important;
   border-radius: var(--ph-btn-radius) !important;
-  background: var(--ph-btn-ink) !important;
-  color: var(--ph-btn-canvas) !important;
+  background: #000000 !important;
+  color: #ffffff !important;
   font-family: var(--ph-btn-sans) !important;
   font-size: 0.8125rem !important;
   font-weight: 600 !important;
   letter-spacing: 0.02em !important;
   text-transform: none !important;
+}
+
+.pholio-btn--primary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: #2e2e2e !important;
+  border-color: #4a4a4a !important;
+  color: #ffffff !important;
+  transform: none !important;
 }
 
 .pholio-btn--ai {

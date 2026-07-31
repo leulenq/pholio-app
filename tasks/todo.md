@@ -1,3 +1,167 @@
+# Talent profile measurement ranges
+
+- [x] Trace circumference storage, conversion, validation, and measuring-tape behavior.
+- [x] Replace fashion-size clamps with broad canonical data-sanity bounds.
+- [x] Keep metric/imperial values stable and preserve useful precision.
+- [x] Add focused regression coverage for range and conversion behavior.
+- [x] Run focused lint/build/tests and review the final diff.
+
+## Review
+
+- Circumference tapes now use broad technical bounds of 20–254 cm / 8–100 in;
+  these are data-sanity endpoints, not fashion eligibility criteria.
+- Integer centimeters remain canonical to match the existing database columns.
+  Imperial editing now uses half-inch steps and returns to the same displayed
+  half-inch after conversion.
+- Widening the tape no longer shifts blank fields to the new midpoint. Explicit
+  unset resting values preserve the previous interaction anchors without
+  storing a measurement until the talent interacts.
+- Feet-and-inches parsing is now opt-in for height, so decimal circumference
+  entries cannot be interpreted as a height.
+- Fixed Firefox endpoint geometry: the scale now uses scroll-width padding
+  instead of trailing percentage flex spacers, with the final tick width
+  subtracted so both endpoints land exactly beneath the center needle.
+- Aligned imperial weight bounds with canonical metric storage: 30–150 kg maps
+  to 66–331 lb, avoiding an accessible value of 331 against a maximum of 330.
+- Verified with focused ESLint, 17 Vitest tests, a production Vite build, and a
+  browser pass across metric and imperial slider state.
+
+---
+
+# Intel page rebuild — decision-grade
+
+## Diagnosis of the shipped page
+
+Real defects found (not taste):
+
+1. **Market sparkline never renders.** `attention.marketRows` returns `days` as an
+   object keyed by date; `MarketBoard`'s `Sparkline` does `Array.isArray(points)`
+   → always falls through to the flat placeholder. Dead chart shipped as decoration.
+2. **Trajectory draws a fake benchmark.** The "cohort band" is a hardcoded dashed
+   rect at an arbitrary y/height with no data behind it. The momentum value itself
+   is an invented weighted index (8/5/3/1) — a number a model cannot act on.
+3. **Pipeline funnel mixes denominators.** Spine bands scale to `entered`; the
+   outcome column scales to its own `outTotal`. The two halves of one chart are
+   not comparable.
+4. **Rhythm Field is UTC.** Grid built from `getUTCDay()/getUTCHours()` but
+   labelled as clock time → "share Tuesday 3pm" advice is wrong by the talent's
+   UTC offset. Also 168 cells of mostly-zero noise at real sample sizes.
+5. **`preserveAspectRatio="none"`** on Seismograph/Trajectory distorts strokes,
+   circles and text non-uniformly at every viewport width.
+6. **Signal Spectrum is dominated by tier 5.** Raw-count widths mean the band is
+   almost always ~all "reach" — it encodes nothing decidable.
+7. **Currency rings have mixed semantics.** The card ring has `windowDays: null`
+   and `remaining` of exactly 0 or 1, so its arc is not on the same scale as the
+   other two rings it sits beside.
+8. **Eight equally-weighted zones**, all with identical chrome — no hierarchy, and
+   filler prose ("the market is still there", "the book is listening").
+
+## Structure — questions, unequal weight
+
+| Block | Question it answers | Instrument |
+|---|---|---|
+| Lead | What needs a decision this week? | ranked decision stack, each with its evidence number |
+| Submissions | Where do my submissions die? | conversion funnel w/ real step rates + period-vs-lifetime; read clock w/ per-submission ageing vs platform band |
+| Materials | Can I send my package today? | currency timeline against industry windows (days left / days over) + range matrix |
+| Attention | Is anyone with intent looking? | intent trend vs prior period (one axis) + market bars w/ viewer mix |
+| The Book | Which frames earn attention? | rank + open rate per frame; card-front comparison |
+| Momentum | Am I gaining ground? | real weekly counts, recent-half vs prior-half |
+
+## Chart palette (validated, `dataviz` skill)
+
+Ordinal signal ramp, one hue, monotone L, light end 2.10:1 on canvas — all checks pass:
+`#CDAA61 · #B08D45 · #8A6A31 · #61441E · #38240F` (weak signal → strongest).
+Context gray `#8A857C` (3.49:1, prior-period + baselines). Attention accent
+`#A33B21` (6.23:1, always with a text label — never colour alone).
+No categorical rainbow: every scale here is ordered or emphasis.
+
+## Work — done
+
+### Backend
+- [x] `intel/conversion.js` — funnel step rates, open-submission ageing vs band
+- [x] `intel/decisions.js` — ranked decision stack (materials + pipeline evidence)
+- [x] `attention.js` — market `days` → aligned array; intent series + prior; book open rate; tz-aware timing window
+- [x] `materials.js` — days left / days over, sendability verdict
+- [x] `compose.js` — new payload shape (`decisions`/`submissions`/`materials`/`attention`/`book`/`momentum`)
+- [x] `routes/intel.js` — accept and validate `tz`
+- [x] `tests/talent/intel.test.js` rewritten to the new contract — 22 tests, all passing
+
+### Frontend
+- [x] validated palette + formatters (`intelTheme.js`)
+- [x] 9 chart components on real-pixel sizing
+- [x] 6 question blocks; every decorative instrument deleted
+- [x] `IntelPage.css` rebuilt
+- [x] lint + build + browser check (desktop, mobile, reduced motion)
+
+## Review
+
+### Defects fixed along the way (not just redesign)
+
+- **Dead sparkline** — `marketRows.days` shipped as a date-keyed object against a
+  frontend `Array.isArray` guard, so every market sparkline rendered its empty
+  placeholder. Now an array aligned to the window's day keys, asserted in tests.
+- **Funnel was not nested** — `kept_on_file` settled positively without ever
+  counting as `advanced`, and `reviewed` missed submissions whose `viewed_at` was
+  never stamped. Stage-to-stage conversion rates were therefore meaningless
+  (settled could exceed advanced). `flowCounts` now counts kept-on-file as
+  movement and treats an advance as evidence of a read.
+- **UTC timing advice** — the rhythm grid bucketed on `getUTCDay/getUTCHours` but
+  labelled the result as clock time, so "share Tuesday evenings" was wrong by the
+  reader's offset. Now bucketed in the talent's IANA zone via `Intl`.
+- **Invisible marks** — `whileInView` on SVG children left lower marks stuck at
+  `initial` (Chrome reports collapsed intersection rects inside a tall `<svg>`).
+  Moving the observer to the wrapper failed differently: the wrapper has zero
+  height until a width is measured, so with a negative rootMargin whole charts
+  stayed blank. Reveals are now mount-driven.
+- **Null median rendered an empty sentence** — `Number.isFinite(Number(null))` is
+  true, so a missing read median printed "they take  on average".
+- **Right-edge overflow** — value text anchored at `x={width}` with a trailing
+  `tspan dx` ran past the plot; qualifiers now precede the number inside an
+  end-anchored run.
+- **`preserveAspectRatio="none"`** distorted strokes and text at every width;
+  charts now draw in real pixels via `useMeasure`.
+
+### Removed as unactionable or invented
+
+- The momentum composite index (reviews ×8, advances ×5, pulls ×3, visits ×1) and
+  its "cohort band", which the frontend drew as a fixed dashed rectangle with no
+  data behind it. Replaced by real weekly counts and a recent-half vs prior-half
+  comparison.
+- The Signal Spectrum, whose raw-count widths meant the band was almost always
+  ~all "reach".
+- Three currency rings that were not on a shared scale.
+- The 168-cell rhythm heat map (noise at real sample sizes) — now one claimable
+  window, or nothing.
+- Per-chart "values" tables: talent want the answer, not a dataset. Accessibility
+  is carried by direct labels on every mark instead.
+
+### Text system (final round)
+
+The last redesign was of the *copy treatment*, from first principles: catalogue
+what kinds of writing exist on an analytics page, then give each one its own
+typographic identity so they can be told apart without being read. Nine kinds,
+three families, five sizes, four weights — variation by size and weight rather
+than by tint. Findings are lockups (figure → rule → qualifier → tag); questions
+carry an italic operative word; decisions stack three voices (Inter observation,
+serif-italic rationale, mono act). Full table in the IntelPage README.
+
+### Design direction (settled after three rounds of feedback)
+
+Paper surface, warm ink, charts dominant. A dark "darkroom" treatment was built
+and rejected; the shell tone for `/intel` is back to `light`. Copy is a `Finding`
+(figure + one clause), a `Stat`, or a panel label — no paragraphs, no chapter
+numerals, no per-chart values tables. Type carries hierarchy through three fixed
+registers (serif questions/verdicts, Inter figures, mono labels) plus serif
+italic for the industry reason under each decision.
+
+### Known limitation
+
+The seeded fixture has no `profile_events` image rows, so The Book renders its
+calibrating state rather than the ranked grid. That path is exercised by the
+backend tests (`book ranks on an open rate…`) but was not seen in the browser.
+
+---
+
 # Talent Settings — product / UX / backend truth audit
 
 Goal: every control on `/dashboard/talent/settings` is real, necessary, honestly
@@ -2922,3 +3086,35 @@ Onboarding's finishing preloader now hands off to `/dashboard/talent` instead of
 - `npm run client:build` → exit 0, no dangling import of the deleted page
 - Grep sweep: no `RevealPage`, `arrived-from-reveal`, `useCastingRevealComplete`,
   `reveal-complete`, or `reveal_viewed` references remain in app code
+
+# Talent bio intelligence control — 2026-07-30
+
+- [x] Inspect the BioWriter implementation and scoped talent design rules.
+- [x] Research current AI-button, icon-button, and interaction-state patterns.
+- [x] Keep the original Pholio spark, remove the button fill, and add stateful Motion SVG animation.
+- [x] Distill the composer to compact choices with the icon as the only generate action.
+- [x] Verify reduced motion, keyboard semantics, focused lint/tests, and the rendered surface.
+
+## Review
+
+- Restored the original thin-waisted three-part Pholio spark after visual review.
+- The 44px transparent icon control reveals `Tight / Standard` and
+  `Agency / Personal` on hover/focus; click/Enter generates. Touch uses first
+  tap to reveal and second tap to generate.
+- Removed the rectangular Write/Refine confirmation and every explanatory text
+  block requested for removal.
+- Motion now uses the installed Framer Motion SVG variant system: coordinated
+  major/minor gather-and-release keyframes, a faster working state, and an idle
+  reduced-motion fallback.
+- The panel closes after leaving the trigger/panel region, on Escape, and on
+  pointer/focus anywhere else (including the textarea). A 140ms leave grace
+  period prevents flicker while crossing from the icon into its controls.
+- The Pholio gold sweep is now a thinking-only state: a quiet full textarea
+  boundary with one softened current taking 4.6s to travel the perimeter. It
+  eases in/out with generation and does not play after completion.
+- Live verification confirmed a transparent button, compact popover, restored
+  glyph geometry, different SVG transforms across sampled animation frames,
+  correct panel dismissal, and the full restrained thinking sweep.
+- `ProfilePage.test.jsx`: 6/6 passed. Changed-file ESLint: passed.
+- Production build is blocked outside this task by the in-progress Intel rewrite:
+  `BookBlock.jsx` imports `DataTable`, which `charts/chartKit.jsx` does not export.

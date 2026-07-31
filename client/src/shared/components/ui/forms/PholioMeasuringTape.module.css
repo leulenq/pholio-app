@@ -147,8 +147,7 @@
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  display: flex;
-  align-items: flex-end;
+  display: block;
   cursor: grab;
   scrollbar-width: none;
 }
@@ -161,16 +160,19 @@
   cursor: grabbing;
 }
 
-/* Spacers to center the first and last values */
-.spacer {
-  flex: 0 0 50%;
-  height: 100%;
-}
-
 .scale {
   display: flex;
   align-items: flex-end;
+  width: max-content;
   height: 100%;
+  box-sizing: content-box;
+  /*
+   * Padding is part of scrollWidth in Firefox and Chromium, unlike a trailing
+   * percentage flex spacer. Subtract one tick on the right because the final
+   * marker sits at the left edge of its tick box.
+   */
+  padding-left: 50%;
+  padding-right: calc(50% - var(--tape-tick-width));
   padding-bottom: 12px; /* Reduced padding */
 }
 

@@ -22,6 +22,7 @@ const router = express.Router();
 // Dependencies
 const knex = require("../../../shared/db/knex");
 const { saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
+const { canonicalizeGender } = require("../../../shared/lib/gender");
 const { syncProviderAccountAvatar } = require("../../../shared/lib/account-avatar");
 const {
   requireAuth,
@@ -962,8 +963,10 @@ router.post(
         });
       }
 
-      // Preserve multi-word labels (e.g. "Non-Binary", "Prefer not to say")
-      const normalizedGender = String(gender).trim();
+      // Canonical spelling on the way in — this route writes `gender` straight
+      // to the DB with no zod gate, so it is the origin of any case drift the
+      // profile validator would later reject. See src/shared/lib/gender.js.
+      const normalizedGender = canonicalizeGender(String(gender).trim());
 
       const state = getState(profile);
 

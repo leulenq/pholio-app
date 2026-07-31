@@ -1,13 +1,25 @@
 /**
- * Composed intel payload (spec §6 backend shape): one read for the whole page
- * — pulse, seismograph, rhythm, markets, sources, pipeline, book, lens,
- * trajectory — plus the per-day scrub detail.
+ * Composed intel payload: one read for the whole page.
  *
- * Non-negotiables enforced here (spec §4):
+ * The page asks a small number of decidable questions, and this file assembles
+ * exactly the evidence each one needs:
+ *
+ *   decisions   — what to do next, ranked, each carrying its trigger number
+ *   submissions — where submissions die (conversion) and which are past a read
+ *   materials   — whether the package can be sent today
+ *   attention   — whether anyone with intent is looking, and from where
+ *   book        — which frames earn opens
+ *   momentum    — whether the recent weeks beat the ones before them
+ *
+ * Non-negotiables (spec §4), unchanged:
  *  - agency attention only in aggregate (no per-agency view logs anywhere)
  *  - minors: no geo/viewer detail at all — materials + submission states only
- *  - small-n honesty: deltas only when the prior period has ≥ 10 events;
+ *  - small-n honesty: deltas only when the prior period has >= 10 events;
  *    percentage suppression flagged below ~20 views / 2 submissions
+ *
+ * Removed deliberately: the momentum composite index (an invented weighted
+ * number nobody could act on) and its "cohort band", which the frontend drew as
+ * a fixed dashed rectangle with no data behind it.
  */
 
 const knex = require("../../../../shared/db/knex");
@@ -17,12 +29,14 @@ const { marketLabel } = require("./market-resolve");
 const attention = require("./attention");
 const pipeline = require("./pipeline");
 const materials = require("./materials");
+const conversion = require("./conversion");
+const { buildDecisions } = require("./decisions");
 const { buildSearchDemandNudges } = require("./searchability");
 
-const MOMENTUM_WEIGHTS = { t1: 8, t2: 5, t3: 3, t4: 1 };
 const DELTA_MIN_PRIOR_EVENTS = 10;
 const SMALL_N_VIEWS = 20;
 const SMALL_N_SUBMISSIONS = 2;
+const MOMENTUM_WEEKS = 12;
 
 async function loadImages(profileId) {
   return knex("images")
@@ -67,7 +81,7 @@ function selfAnnotations({ images, applications, since }) {
   return byDay;
 }
 
-async function buildIntel(profile, { days }) {
+async function buildIntel(profile, { days, tz = "UTC" }) {
   const now = new Date();
   const since = daysAgo(days, now);
   const priorSince = daysAgo(days * 2, now);
@@ -93,63 +107,79 @@ async function buildIntel(profile, { days }) {
     pipeline.withinWindow(app.created_at, since),
   );
 
-  // ---- Pipeline (zone 4) + tiers 1–2 — available for every profile
-  const { reviews, advances } = pipeline.tier12Counts(periodActivities);
+  // ---- Submissions — available for every profile
   const periodFlow = pipeline.flowCounts(periodApplications, activitiesByApp);
   const lifetimeFlow = pipeline.flowCounts(applications, activitiesByApp);
   const clock = await pipeline.stageClock(profile.id, applications);
-  const inMotionRows = pipeline.inMotion(applications);
+  const openRows = conversion.openSubmissions(applications, clock.typicalBand, now);
+  const openStates = conversion.countStates(openRows);
 
-  // ---- Lens (zone 6) — available for every profile
-  const lens = await materials.buildLens(profile, images);
-  const verdict = materials.materialsVerdict(lens.rings);
+  // The ladder reads off whichever window carries enough submissions to say
+  // something; lifetime is the honest fallback, never a padded period.
+  const periodSteps = conversion.ladder(periodFlow);
+  const lifetimeSteps = conversion.ladder(lifetimeFlow);
+  const basis = periodFlow.entered >= 3 ? "period" : "lifetime";
+  const weakest = conversion.weakestStep(
+    basis === "period" ? periodSteps : lifetimeSteps,
+  );
 
-  const pipelinePayload = {
-    period: periodFlow,
-    lifetime: lifetimeFlow,
-    diagnosis: pipeline.diagnose(periodFlow.entered >= 2 ? periodFlow : lifetimeFlow),
-    stageClock: clock,
+  const submissions = {
+    basis,
+    period: { days, steps: periodSteps, outcomes: periodFlow.outcomes },
+    lifetime: { steps: lifetimeSteps, outcomes: lifetimeFlow.outcomes },
+    weakest,
+    diagnosis: pipeline.diagnose(basis === "period" ? periodFlow : lifetimeFlow),
+    readClock: {
+      band: clock.typicalBand,
+      platformSampled: clock.platformSampled,
+      yourMedianDays: clock.medianReviewDays,
+      yourSampled: clock.sampled,
+      open: openRows,
+      states: openStates,
+    },
     keptOnFile: pipeline.keptOnFile(applications),
   };
+
+  // ---- Materials — available for every profile
+  const lens = await materials.buildLens(profile, images);
+  const verdict = materials.materialsVerdict(lens.rings, lens.range);
+  const materialsPayload = {
+    items: lens.rings,
+    range: lens.range,
+    ...verdict,
+  };
+
+  const decisions = buildDecisions({
+    materials: lens.rings,
+    range: lens.range,
+    open: openRows,
+    states: openStates,
+    steps: basis === "period" ? periodSteps : lifetimeSteps,
+    weakest,
+    band: clock.typicalBand,
+    periodDays: days,
+  });
 
   const meta = {
     days,
     minor,
+    tz,
     generatedAt: now.toISOString(),
-    weights: MOMENTUM_WEIGHTS,
   };
 
   // ---- Minors: materials readiness + submission states ONLY (spec §4).
   if (minor) {
     return {
       meta: { ...meta, smallSample: true, deltasSuppressed: true },
-      pulse: {
-        headline: null,
-        spectrum: null,
-        inMotion: inMotionRows,
-        materials: verdict,
-      },
-      seismograph: null,
-      rhythm: null,
-      markets: null,
-      sources: null,
-      pipeline: pipelinePayload,
+      decisions,
+      submissions,
+      materials: materialsPayload,
+      attention: null,
       book: null,
-      lens: {
-        ...lens,
-        nextMoves: materials.nextMoves({
-          rings: lens.rings,
-          range: lens.range,
-          inMotionRows,
-          flow: lifetimeFlow,
-          periodDays: days,
-        }),
-      },
+      momentum: null,
       // Search-demand nudges are aggregate market data (like markets/sources),
-      // withheld for minors along with the rest of the attention streams
-      // (spec §4 — minors get materials + submission states only).
+      // withheld for minors along with the rest of the attention streams.
       demand: null,
-      trajectory: null,
     };
   }
 
@@ -171,112 +201,109 @@ async function buildIntel(profile, { days }) {
   ]);
 
   const t345 = attention.tier345Counts({ legacyEvents, intelEvents, sessions });
+  const priorT345 = attention.tier345Counts({
+    legacyEvents: priorLegacyEvents,
+    intelEvents: priorIntelEvents,
+    sessions: priorSessions,
+  });
+  const { reviews, advances } = pipeline.tier12Counts(periodActivities);
+
   const periodViews = legacyEvents.filter((e) => e.event_type === "view").length;
   const smallSample =
     periodViews < SMALL_N_VIEWS && periodFlow.entered < SMALL_N_SUBMISSIONS;
   const priorEventTotal = priorLegacyEvents.length + priorIntelEvents.length;
   const deltasSuppressed = priorEventTotal < DELTA_MIN_PRIOR_EVENTS;
 
-  // ---- Zone 1 — Pulse
-  const markets = attention.marketRows(intelEvents, priorIntelEvents);
-  const topMarket = markets.rows[0] || null;
-  const spectrum = [
-    { tier: 1, key: "reviews", count: reviews },
-    { tier: 2, key: "advances", count: advances },
-    { tier: 3, key: "pulls", count: t345.cardPulls + t345.linkOpens },
-    { tier: 4, key: "qualified", count: t345.qualified },
-    { tier: 5, key: "reach", count: t345.reach },
-  ];
+  const dayKeys = dayRange(since, days);
+  const priorDayKeys = dayRange(priorSince, days);
 
-  // ---- Zone 2 — Seismograph + Rhythm Field
-  const strikes = attention.strikesByDay(legacyEvents, intelEvents);
-  const qualifiedDays = attention.qualifiedByDay(sessions, intelEvents);
+  const intentNow = attention.intentByDay({ legacyEvents, intelEvents, sessions });
+  const intentPrior = attention.intentByDay({
+    legacyEvents: priorLegacyEvents,
+    intelEvents: priorIntelEvents,
+    sessions: priorSessions,
+  });
+  const intentTotal = t345.cardPulls + t345.linkOpens + t345.qualified;
+  const priorIntentTotal =
+    priorT345.cardPulls + priorT345.linkOpens + priorT345.qualified;
+
   const eventDays = pipeline.pipelineEventsByDay(periodActivities);
   const annotations = selfAnnotations({ images, applications, since });
-  const seismographDays = dayRange(since, days).map((date) => ({
-    date,
-    qualified: qualifiedDays[date] || 0,
-    pulls: strikes.pulls[date] || 0,
-    opens: strikes.opens[date] || 0,
-    reviews: eventDays[date]?.reviews || 0,
-    advances: eventDays[date]?.advances || 0,
-    annotations: annotations[date] || [],
-  }));
-  const priorQualifiedDays = attention.qualifiedByDay(
-    priorSessions,
-    priorIntelEvents,
-  );
-  const prior = deltasSuppressed
-    ? null
-    : dayRange(priorSince, days).map((date) => ({
-        date,
-        qualified: priorQualifiedDays[date] || 0,
-      }));
 
-  // ---- Zone 7 — Trajectory (momentum composite over 90 days, inspectable)
-  const trajectory = await buildTrajectory(profile.id, {
+  const attentionPayload = {
+    intent: {
+      total: intentTotal,
+      priorTotal: deltasSuppressed ? null : priorIntentTotal,
+      changePct:
+        deltasSuppressed || priorIntentTotal === 0
+          ? null
+          : (intentTotal - priorIntentTotal) / priorIntentTotal,
+      series: attention.intentSeries({
+        dayKeys,
+        priorDayKeys,
+        current: intentNow,
+        prior: intentPrior,
+        comparable: !deltasSuppressed,
+      }),
+      // Days that carry a cause the talent created, so a step in the line is
+      // explainable rather than mysterious.
+      annotations: dayKeys
+        .map((date) => ({ date, events: annotations[date] || [] }))
+        .filter((d) => d.events.length > 0),
+      // Agency-side events on the same axis: the top of the signal hierarchy.
+      agencyDays: dayKeys
+        .map((date) => ({
+          date,
+          reviews: eventDays[date]?.reviews || 0,
+          advances: eventDays[date]?.advances || 0,
+        }))
+        .filter((d) => d.reviews > 0 || d.advances > 0),
+    },
+    // Ordered weak → strong. Reach is last and never dominates the reading:
+    // the frontend charts intent, and reports reach as context.
+    composition: [
+      { key: "reach", label: "Reach", count: t345.reach, tier: 5 },
+      { key: "qualified", label: "Qualified visits", count: t345.qualified, tier: 4 },
+      { key: "pulls", label: "Card pulls", count: t345.cardPulls, tier: 3 },
+      { key: "opens", label: "Link opens", count: t345.linkOpens, tier: 3 },
+      { key: "reviews", label: "Agency reviews", count: reviews, tier: 1 },
+      { key: "advances", label: "Advances", count: advances, tier: 1 },
+    ],
+    markets: attention.marketRows(intelEvents, priorIntelEvents, { dayKeys }),
+    sources: attention.sourceRows(intelEvents, sessions),
+    rhythm: attention.rhythmWindow(legacyEvents, intelEvents, tz),
+  };
+
+  const momentum = await buildMomentum(profile.id, {
     applications,
     activitiesByApp,
     now,
   });
 
-  // ---- Search-demand nudges (WS9.3) — mines discover_query_log; tolerant of
-  // a missing/empty table (returns []).
   const demandNudges = await buildSearchDemandNudges(profile);
 
   return {
     meta: { ...meta, smallSample, deltasSuppressed },
-    pulse: {
-      headline: {
-        reviews,
-        advances,
-        cardPulls: t345.cardPulls,
-        linkOpens: t345.linkOpens,
-        topMarket: topMarket
-          ? {
-              market: topMarket.market,
-              label: topMarket.label || marketLabel(topMarket.market),
-              share: topMarket.share,
-            }
-          : null,
-      },
-      spectrum,
-      inMotion: inMotionRows,
-      materials: verdict,
-    },
-    seismograph: {
-      days: seismographDays,
-      prior,
-      hasStrikes: Object.keys(strikes.pulls).length + Object.keys(strikes.opens).length > 0,
-    },
-    rhythm: attention.rhythmGrid(legacyEvents, intelEvents),
-    markets,
-    sources: { rows: attention.sourceRows(intelEvents, sessions) },
-    pipeline: pipelinePayload,
+    decisions,
+    submissions,
+    materials: materialsPayload,
+    attention: attentionPayload,
     book: attention.bookAttention(intelEvents, images),
-    lens: {
-      ...lens,
-      nextMoves: materials.nextMoves({
-        rings: lens.rings,
-        range: lens.range,
-        inMotionRows,
-        flow: periodFlow.entered > 0 ? periodFlow : lifetimeFlow,
-        periodDays: days,
-      }),
-    },
+    momentum,
     demand: { nudges: demandNudges },
-    trajectory,
   };
 }
 
 /**
- * Momentum line over 90 days: weekly composite of Tier 1–4 events with the
- * composition always inspectable — never a hidden formula. The benchmark band
- * ships only when population size makes it honest; until then it renders as
- * "calibrating" (spec zone 7). Never faked.
+ * Weekly counts of the things that actually move a career, plus a recent-half
+ * vs prior-half comparison.
+ *
+ * These are counts, not an index: "3 agency reviews" is checkable against the
+ * submissions ledger, where "momentum 47" was not checkable against anything.
  */
-async function buildTrajectory(profileId, { applications, activitiesByApp, now }) {
-  const since = daysAgo(90, now);
+async function buildMomentum(profileId, { applications, activitiesByApp, now }) {
+  const spanDays = MOMENTUM_WEEKS * 7;
+  const since = daysAgo(spanDays, now);
   const [intelEvents, legacyEvents, sessions] = await Promise.all([
     attention.loadIntelEvents(profileId, since),
     attention.loadLegacyEvents(profileId, since),
@@ -285,9 +312,9 @@ async function buildTrajectory(profileId, { applications, activitiesByApp, now }
   const allActivities = [...activitiesByApp.values()].flat();
 
   const weeks = [];
-  for (let w = 0; w < 13; w += 1) {
-    const start = daysAgo(90 - w * 7, now);
-    const end = daysAgo(Math.max(0, 90 - (w + 1) * 7), now);
+  for (let w = 0; w < MOMENTUM_WEEKS; w += 1) {
+    const start = daysAgo(spanDays - w * 7, now);
+    const end = daysAgo(Math.max(0, spanDays - (w + 1) * 7), now);
     const inWeek = (ts) => {
       const d = parseDbDate(ts);
       return d && d >= start && d < end;
@@ -295,39 +322,37 @@ async function buildTrajectory(profileId, { applications, activitiesByApp, now }
 
     const weekActivities = allActivities.filter((a) => inWeek(a.created_at));
     const { reviews, advances } = pipeline.tier12Counts(weekActivities);
-    const weekLegacy = legacyEvents.filter((e) => inWeek(e.created_at));
-    const weekIntel = intelEvents.filter((e) => inWeek(e.occurred_at));
-    const weekSessions = sessions.filter((s) => inWeek(s.started_at));
     const t345 = attention.tier345Counts({
-      legacyEvents: weekLegacy,
-      intelEvents: weekIntel,
-      sessions: weekSessions,
+      legacyEvents: legacyEvents.filter((e) => inWeek(e.created_at)),
+      intelEvents: intelEvents.filter((e) => inWeek(e.occurred_at)),
+      sessions: sessions.filter((s) => inWeek(s.started_at)),
     });
 
-    const components = {
-      t1: reviews,
-      t2: advances,
-      t3: t345.cardPulls + t345.linkOpens,
-      t4: t345.qualified,
-    };
     weeks.push({
       weekStart: start.toISOString().slice(0, 10),
-      value:
-        components.t1 * MOMENTUM_WEIGHTS.t1 +
-        components.t2 * MOMENTUM_WEIGHTS.t2 +
-        components.t3 * MOMENTUM_WEIGHTS.t3 +
-        components.t4 * MOMENTUM_WEIGHTS.t4,
-      components,
+      sent: applications.filter((a) => inWeek(a.created_at)).length,
+      reviews,
+      advances,
+      intent: t345.cardPulls + t345.linkOpens + t345.qualified,
     });
   }
 
+  const half = MOMENTUM_WEEKS / 2;
+  const sum = (rows, key) => rows.reduce((s, r) => s + r[key], 0);
+  const older = weeks.slice(0, half);
+  const recent = weeks.slice(half);
+  const totals = (rows) => ({
+    sent: sum(rows, "sent"),
+    reviews: sum(rows, "reviews"),
+    advances: sum(rows, "advances"),
+    intent: sum(rows, "intent"),
+  });
+
   return {
     weeks,
-    weights: MOMENTUM_WEIGHTS,
-    // Cohort percentile bands are deferred until the population supports
-    // honest anonymized comparison (spec §8 build order, step 4).
-    band: null,
-    bandState: "calibrating",
+    halfWeeks: half,
+    recent: totals(recent),
+    prior: totals(older),
   };
 }
 
@@ -370,4 +395,4 @@ async function buildIntelDay(profile, date) {
   };
 }
 
-module.exports = { buildIntel, buildIntelDay, MOMENTUM_WEIGHTS };
+module.exports = { buildIntel, buildIntelDay };

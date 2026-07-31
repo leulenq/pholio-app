@@ -1,6 +1,6 @@
 /**
  * Casting Gender — identity tiles.
- * Four portrait tiles (Female / Male / Non-Binary / Undisclosed) sit free on
+ * Four portrait tiles (Female / Male / Non-binary / Undisclosed) sit free on
  * the stage; the chosen tile lights gold. Confirming routes through the
  * flow's single fixed Action Dock, not a page-local button.
  */

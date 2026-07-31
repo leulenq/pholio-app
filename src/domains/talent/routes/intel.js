@@ -27,6 +27,18 @@ async function loadOwnProfile(req) {
   return knex("profiles").where({ user_id: req.session.userId }).first();
 }
 
+/** Accept an IANA zone from the client; fall back to UTC on anything else. */
+function resolveTimeZone(value) {
+  const tz = String(value || "").trim();
+  if (!tz || tz.length > 64) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return tz;
+  } catch {
+    return "UTC";
+  }
+}
+
 router.get(
   "/intel",
   requireRole("TALENT"),
@@ -44,22 +56,26 @@ router.get(
       maxDays,
     );
 
-    const payload = await buildIntel(profile, { days });
+    // The talent's own zone, so "attention arrives Thursday afternoons" is
+    // their afternoon. Validated against Intl before it reaches aggregation.
+    const tz = resolveTimeZone(req.query.tz);
+
+    const payload = await buildIntel(profile, { days, tz });
     payload.meta.tier = isPro ? "studio" : "free";
     payload.meta.maxDays = maxDays;
 
-    // Free tier: Pulse, Seismograph (7-day), Pipeline counts, Lens with one
-    // action (spec §6 tier gating). Studio-only instruments are omitted, not
-    // blurred-with-fake-data.
+    // Free tier keeps the decision stack, submissions and materials — the parts
+    // that tell a talent what to do. Market/source/timing detail and the ranked
+    // book are Studio+. Withheld sections are omitted, never faked or blurred.
     if (!isPro && !payload.meta.minor) {
-      payload.markets = null;
-      payload.sources = null;
-      payload.rhythm = null;
-      payload.book = null;
-      payload.trajectory = null;
-      if (payload.lens?.nextMoves) {
-        payload.lens.nextMoves = payload.lens.nextMoves.slice(0, 1);
+      if (payload.attention) {
+        payload.attention.markets = null;
+        payload.attention.sources = null;
+        payload.attention.rhythm = null;
       }
+      payload.book = null;
+      payload.momentum = null;
+      payload.decisions = payload.decisions.slice(0, 1);
     }
 
     return apiResponse.success(res, payload);

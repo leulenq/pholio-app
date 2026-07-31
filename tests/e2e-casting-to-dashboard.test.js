@@ -139,7 +139,12 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
 
     dateOfBirth: "2000-05-15", // adult — unlocks sensitive measurement fields
 
+    // Sent with the legacy capital-B spelling on purpose: the route now
+    // canonicalizes on write (src/shared/lib/gender.js), so what lands in the DB
+    // is `storedGender`. Writing it verbatim was the bug that 400'd these
+    // talents on their first dashboard profile save.
     gender: "Non-Binary",
+    storedGender: "Non-binary",
 
     photoPath: path.join(__dirname, "fixtures", "test-image.jpg"),
 
@@ -362,7 +367,8 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
       const profile = await knex("profiles")
         .where({ id: testProfileId })
         .first();
-      expect(profile.gender).toBe(flowData.gender);
+      // Canonical spelling, not the variant that was posted.
+      expect(profile.gender).toBe(flowData.storedGender);
       expect(profile.onboarding_stage).toBe("scout");
 
       const state = await readState();
@@ -375,7 +381,7 @@ describe("E2E: Casting Call → Dashboard Flow", () => {
         .set("Cookie", sessionCookie)
         .expect(200);
       expect(res.body.state.current_step).toBe("scout");
-      expect(res.body.profile.gender).toBe(flowData.gender);
+      expect(res.body.profile.gender).toBe(flowData.storedGender);
     });
   });
 

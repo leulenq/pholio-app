@@ -1,5 +1,27 @@
 # Lessons Learned
 
+## 2026-07-30 — Scroll endpoints cannot depend on trailing percentage flex spacers
+
+- Firefox and Chromium can disagree about whether a trailing percentage flex
+  item contributes usable horizontal overflow. A tape may therefore update its
+  value while its last marks stop short of the center needle.
+- Build endpoint centering into one scrollable scale using inline padding. When
+  tick markers sit on the left edge of fixed-width tick boxes, subtract one
+  tick width from the trailing padding so maximum scroll equals the final
+  marker's target exactly.
+- Verify geometry numerically at both endpoints (`scrollLeft`, `maxScroll`, and
+  marker-to-indicator delta), not only by looking at a middle value.
+
+## 2026-07-30 — Widening a measuring-tape range changes its empty-state behavior
+
+- A finite tape/slider uses its range for more than validation: its midpoint
+  controls where an unset field rests and what first contact can initialize.
+- When replacing narrow business ranges with broad technical bounds, preserve
+  an explicit unset resting value so the control does not jump to a surprising
+  new default.
+- Keep height-specific feet/inches parsing opt-in. Circumference fields sharing
+  the `in` unit still need ordinary decimal-inch semantics.
+
 ## 2026-07-29 — Don't vertically centre an overlay inside a native-control field
 
 - Two offset attempts failed to align the date-of-birth age readout with
@@ -613,3 +635,78 @@
 - For visual matching requests, inspect the supplied screenshot and the full
   cascade before choosing the visual primitive. A class name or stale local rule
   is weaker evidence than the rendered control.
+
+## 2026-07-30 — “Intelligence” is not permission to replace a magic reference
+
+- When the user asks for an AI control to “wake up” but supplies or points toward
+  a magic glyph, preserve that symbolic language. An abstract neural/inference
+  loop can read as an eye, loader, or generic system emblem even when its motion
+  is technically sophisticated.
+- “Keep the icon only” means the icon owns the action. Do not retain a popover
+  plus a second rectangular Write/Refine confirmation button; put the hover,
+  working, focus, and progress states on the one icon button.
+- For icon feedback, inspect the exact supplied asset before drawing a substitute.
+  Reuse its silhouette as the motion skeleton and animate its constituent forms
+  rather than inventing a new mark from the category prompt.
+
+## 2026-07-30 — Removing the confirmation does not remove its controls
+
+- “Remove the Refine bio button; the icon should be the button” means preserve
+  the length/voice controls while transferring the generate action to the icon.
+  It does not mean deleting the control panel.
+- When the user says the original icon was better, restore the approved original
+  geometry exactly. Do not keep iterating on a thicker reference glyph just
+  because its category is closer.
+- For coordinated icon motion, prefer the installed Motion/Framer Motion SVG
+  variant system over independent CSS keyframes: one parent state can orchestrate
+  the major and minor paths, provide a distinct working cadence, and collapse to
+  an idle state under reduced-motion preferences.
+
+## 2026-07-30 — Popover boundaries must match the visible popover system
+
+- A popover attached to one control must use the trigger + panel anchor as its
+  inside-click/focus boundary. Using the entire field component as the boundary
+  makes clicks on the textarea look “inside,” so the panel never dismisses when
+  users return to writing.
+- Hover-revealed panels need a short close grace period. Close on leaving the
+  combined trigger/panel anchor, cancel the timer on re-entry, and still close
+  immediately on Escape or pointer/focus outside.
+- When the user calls the gold sweep a “thinking state,” its timing is the
+  contract: it belongs around the full textarea while generation is active, not
+  after the result lands. Use a low continuous boundary plus one slow perimeter
+  current, ease the whole state in/out, and keep reduced motion as a static gold
+  boundary. Do not reinterpret it as a fast completion flourish.
+
+## 2026-07-30 — Intel rebuild: charts carry an analytics page, not paragraphs
+
+- "Text-forward" does not mean paragraphs. On talent analytics the copy is a
+  figure plus one clause, a stat label, or a panel label — nothing longer. Every
+  block that needed explaining beyond that needed a better chart instead.
+- Give copy real typographic registers or it reads as one pale grey block: serif
+  for questions and verdicts, Inter for figures and working text, mono for
+  labels/axes/numerals, serif *italic* for the industry reason under a decision.
+  Uniform 0.9rem body ink at 60% opacity was the actual complaint behind "pale".
+- Talent do not want a values table under each chart — that is an agency habit.
+  Serve the a11y requirement by direct-labelling every mark in the plot instead,
+  so no value is hover-only or colour-only.
+- Ordinal/emphasis scales beat categorical palettes for this product: one
+  validated warm ramp plus a context grey plus one reserved accent covered every
+  chart, and it stays on-brand. Run the `dataviz` validator rather than eyeballing.
+- **Never gate the visibility of data on an IntersectionObserver.** `whileInView`
+  on SVG children silently leaves lower marks at `initial` in Chrome, and moving
+  the observer to a wrapper that is zero-height until measured fails too. Tie
+  mark reveals to mount. A chart that renders nothing is worse than one that
+  doesn't animate.
+- Verify charts by probing computed style in a real browser (opacity, transform,
+  bounding width), not by reading the JSX. Three separate "invisible chart" bugs
+  here looked correct in source.
+- When rebuilding an analytics surface, audit the existing one for *dead* charts
+  first: this page shipped a sparkline whose data shape the component rejected,
+  a funnel with two different denominators, and a hardcoded "cohort band"
+  rectangle with no data behind it.
+- The dev server does not hot-reload CommonJS backend modules. After editing
+  anything under `src/`, restart Express before trusting a browser check — I
+  screenshotted stale copy twice.
+- Do not `git stash` to get a baseline when the user may be editing concurrently:
+  it sweeps up their uncommitted work. Compare against `git show origin/main:path`
+  or a worktree instead.

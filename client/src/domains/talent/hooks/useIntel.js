@@ -12,10 +12,20 @@ import { talentApi } from '../api/talent';
  * Returning raw useQuery made `intel`/`meta` always undefined (blank page +
  * free-tier locks).
  */
+/** Resolved once — the browser's IANA zone, or UTC where Intl can't say. */
+function localTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 export function useIntel(days = 30) {
+  const tz = localTimeZone();
   const query = useQuery({
-    queryKey: ['talent-intel', 'v1', days],
-    queryFn: () => talentApi.getIntel(days),
+    queryKey: ['talent-intel', 'v2', days, tz],
+    queryFn: () => talentApi.getIntel(days, tz),
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });

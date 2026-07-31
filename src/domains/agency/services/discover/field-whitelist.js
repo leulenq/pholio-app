@@ -47,12 +47,15 @@ const SHOE_REGIONS = ["US", "EU", "UK"];
 // ── Enum vocabularies (closed sets, lowercase snake canonical) ───────────────
 
 // Contract uses lowercase presentation terms; GENDER_DB_MAP bridges to the
-// stored profile values (Female / Male / Non-Binary) for the PR5 SQL gate.
+// canonical stored profile values (src/shared/lib/gender.js) for the PR5 SQL
+// gate. These MUST match CANONICAL_GENDERS exactly — the sibling map in
+// agency/lib/intent-parser.js spelled "Non-binary" while this one spelled
+// "Non-Binary", and only the LOWER()-based comparisons papered over the split.
 const GENDER_PRESENTATION = ["female", "male", "non_binary"];
 const GENDER_DB_MAP = {
   female: "Female",
   male: "Male",
-  non_binary: "Non-Binary",
+  non_binary: "Non-binary",
 };
 
 // Derived from onboarding CastingMeasurements HAIR_OPTIONS / EYE_OPTIONS

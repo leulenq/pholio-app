@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PholioButton, {
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../../shared/components/ui/PholioButton';
 import { useIntel } from '../../hooks/useIntel';
-import { ZoneSection, LockCard } from './IntelKit';
-import { isLocked } from './intelUtils';
-import PulseZone from './PulseZone';
-import Seismograph from './Seismograph';
-import RhythmField from './RhythmField';
-import MarketBoard from './MarketBoard';
-import PipelineFlow from './PipelineFlow';
-import BookRanked from './BookRanked';
-import AgencyLens from './AgencyLens';
-import SearchDemand from './SearchDemand';
-import Trajectory from './Trajectory';
+import DecisionStack from './blocks/DecisionStack';
+import SubmissionsBlock from './blocks/SubmissionsBlock';
+import MaterialsBlock from './blocks/MaterialsBlock';
+import AttentionBlock from './blocks/AttentionBlock';
+import BookBlock from './blocks/BookBlock';
+import MomentumBlock from './blocks/MomentumBlock';
+import { Block } from './Chrome';
 import './IntelPage.css';
 
 const RANGES = [
@@ -36,7 +33,7 @@ function PeriodControl({ days, onChange, tier }) {
           onClick={() => onChange(r.days)}
         >
           {r.label}
-          {free && r.proOnly ? <Lock size={9} className="intel2-range-lock" aria-hidden /> : null}
+          {free && r.proOnly ? <Lock size={9} className="iv-range-lock" aria-hidden /> : null}
         </PholioToggleButton>
       ))}
     </PholioToggleGroup>
@@ -45,26 +42,35 @@ function PeriodControl({ days, onChange, tier }) {
 
 function IntelLoading() {
   return (
-    <div className="intel2-loading" role="status" aria-label="Loading intel">
-      <div className="intel2-loading-band" />
-      <p className="intel2-loading-copy">Reading the market…</p>
+    <div className="iv-loading" role="status" aria-label="Loading intel">
+      <div className="iv-loading-band" />
     </div>
   );
 }
 
 function IntelError({ onRetry }) {
   return (
-    <div className="intel2-error">
-      <p className="intel2-error-copy">Intel couldn&rsquo;t load. The market is still there.</p>
-      <PholioButton variant="secondary" onClick={onRetry}>Try again</PholioButton>
+    <div className="iv-error">
+      <p>Intel couldn&rsquo;t load.</p>
+      <PholioButton variant="secondary" onClick={onRetry}>
+        Try again
+      </PholioButton>
     </div>
   );
 }
 
 /**
- * Intel — the talent-facing intelligence hub (tasks/intel-page-spec.md).
- * Zones flow top-down by signal value: agency reviews before raw reach.
- * Minors get materials readiness + submission states only.
+ * Intel — the talent-facing intelligence hub.
+ *
+ * The page is a short sequence of questions, in the order a working model asks
+ * them: what do I do now, where are my submissions dying, can I send today, is
+ * anyone real looking, am I leading with the right frame, am I gaining ground.
+ * Each block states its finding in one line and puts the chart underneath as
+ * the evidence for it. Blocks are deliberately not equally weighted — the
+ * decision stack leads, and the rest support it.
+ *
+ * Minors get materials readiness and submission states only; every audience
+ * instrument is absent rather than emptied (spec §4).
  */
 export default function IntelPage() {
   const [days, setDays] = useState(30);
@@ -75,100 +81,71 @@ export default function IntelPage() {
   const tier = meta?.tier ?? 'studio';
   const minor = Boolean(meta?.minor);
 
+  const clock = data?.submissions?.readClock;
+  const standing = {
+    open: clock?.open?.length ?? 0,
+    late: (clock?.states?.late ?? 0) + (clock?.states?.cold ?? 0),
+  };
+
   return (
-    <div className="intel2-page">
-      <header className="intel2-head">
-        <h1 className="intel2-title">Intel</h1>
-        {!minor && data && (
-          <PeriodControl days={effectiveDays} onChange={setDays} tier={tier} />
-        )}
+    <div className="iv-page">
+      <header className="iv-masthead">
+        <span className="iv-masthead-mark">Pholio</span>
+        <div className="iv-masthead-bar">
+          <h1 className="iv-title">Intel</h1>
+          {!minor && data && (
+            <PeriodControl days={effectiveDays} onChange={setDays} tier={tier} />
+          )}
+        </div>
       </header>
 
       {isLoading && <IntelLoading />}
       {isError && <IntelError onRetry={refetch} />}
 
-      {data && minor && (
+      {data && (
         <>
-          <p className="intel2-minor-note">
-            Intel for under-18 profiles covers materials readiness and submission states —
-            audience detail stays off.
-          </p>
-          <ZoneSection id="intel2-pulse" title={null}>
-            <PulseZone pulse={data.pulse} />
-          </ZoneSection>
-          <ZoneSection id="intel2-pipeline" title="The Pipeline">
-            <PipelineFlow pipeline={data.pipeline} />
-          </ZoneSection>
-          <ZoneSection id="intel2-lens" title="The Agency Lens">
-            <AgencyLens lens={data.lens} />
-          </ZoneSection>
-        </>
-      )}
+          <DecisionStack
+            decisions={data.decisions}
+            sendability={data.materials?.sendability}
+            standing={standing}
+          />
 
-      {data && !minor && (
-        <>
-          <ZoneSection id="intel2-pulse" title={null}>
-            <PulseZone pulse={data.pulse} />
-          </ZoneSection>
-
-          <ZoneSection id="intel2-seismograph" title="The Seismograph">
-            <Seismograph seismograph={data.seismograph} canScrub={tier === 'studio'} />
-            {isLocked(data.rhythm, meta) ? (
-              <LockCard zone="The Rhythm Field">
-                When attention arrives — a day-by-hour field that tells you when to share,
-                post and follow up.
-              </LockCard>
-            ) : (
-              data.rhythm && <RhythmField rhythm={data.rhythm} />
-            )}
-          </ZoneSection>
-
-          <ZoneSection id="intel2-markets" title="The Market Board">
-            {isLocked(data.markets, meta) ? (
-              <LockCard zone="The Market Board">
-                Where your attention comes from, rendered the way the industry thinks —
-                markets, not countries. Sustained market attention is a placement signal.
-              </LockCard>
-            ) : (
-              <MarketBoard markets={data.markets} sources={data.sources} meta={meta} />
-            )}
-          </ZoneSection>
-
-          <ZoneSection id="intel2-pipeline" title="The Pipeline">
-            <PipelineFlow pipeline={data.pipeline} />
-          </ZoneSection>
-
-          <ZoneSection id="intel2-book" title="The Book, Ranked">
-            {isLocked(data.book, meta) ? (
-              <LockCard zone="The Book, Ranked">
-                Your actual book, ranked by the attention each frame earns — evidence for
-                choosing your card front and portfolio opener.
-              </LockCard>
-            ) : (
-              <BookRanked book={data.book} />
-            )}
-          </ZoneSection>
-
-          <ZoneSection id="intel2-lens" title="The Agency Lens">
-            <AgencyLens lens={data.lens} />
-          </ZoneSection>
-
-          {Array.isArray(data.demand?.nudges) && data.demand.nudges.length > 0 && (
-            <ZoneSection id="intel2-demand" title="The Search Signal">
-              <SearchDemand demand={data.demand} />
-            </ZoneSection>
+          {minor && (
+            <p className="iv-minor-note">
+              Intel for under-18 profiles covers materials readiness and submission states.
+              Audience detail stays off.
+            </p>
           )}
 
-          <ZoneSection id="intel2-trajectory" title="Trajectory">
-            {isLocked(data.trajectory, meta) ? (
-              <LockCard zone="Trajectory">
-                Your ninety-day momentum line, drawn from tier 1–4 signal with the
-                composition always inspectable.
-              </LockCard>
-            ) : (
-              <Trajectory trajectory={data.trajectory} />
-            )}
-          </ZoneSection>
+          <SubmissionsBlock submissions={data.submissions} days={effectiveDays} />
+
+          <MaterialsBlock materials={data.materials} />
+
+          {!minor && (
+            <AttentionBlock attention={data.attention} meta={meta} tier={tier} />
+          )}
+
+          {!minor && <BookBlock book={data.book} tier={tier} />}
+
+          {!minor && <MomentumBlock momentum={data.momentum} tier={tier} />}
+
+          {!minor && Array.isArray(data.demand?.nudges) && data.demand.nudges.length > 0 && (
+            <Block
+              id="iv-demand"
+              question="What are agencies searching for that I haven't filled in?"
+            >
+              <ul className="iv-demand">
+                {data.demand.nudges.map((nudge) => (
+                  <li key={nudge.field}>
+                    {nudge.text}{' '}
+                    <Link to={nudge.to} className="iv-inline-link">
+                      Fill it in
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Block>
+          )}
         </>
       )}
     </div>

@@ -10,6 +10,16 @@ import PholioButton, {
   PholioToggleGroup,
 } from '../../../../shared/components/ui/PholioButton';
 import { BOOKING_LANE_BY_SLUG } from '../../../../shared/constants/bookingLanes';
+import {
+  resolveStatsTrack,
+  coreCircumferenceFor,
+  sizingFieldsFor,
+} from '../../../../shared/constants/statsTrack';
+import {
+  circumferenceTapeConfig,
+  circumferenceToCentimeters,
+  circumferenceToDisplay,
+} from '../../../../shared/utils/circumferenceMeasurements';
 import styles from './ProfilePage.module.css';
 
 export function MeasurementsSection({
@@ -26,6 +36,23 @@ export function MeasurementsSection({
   const primaryLane = watch('booking_primary_lane');
   const laneInfo = BOOKING_LANE_BY_SLUG[primaryLane];
   const showWeight = !laneInfo || laneInfo.group !== 'fashion';
+
+  // Which measurement set renders. Resolved through the shared helper so the
+  // stored lowercase value matches, and so a profile that has never picked a
+  // track still falls back through gender exactly as the server does.
+  const track = resolveStatsTrack({
+    stats_track: watch('stats_track'),
+    gender: watch('gender'),
+  });
+  const core = coreCircumferenceFor(track);
+  const sizing = sizingFieldsFor(track);
+  const coreCm = watch(core.field);
+  const circumferenceTape = circumferenceTapeConfig(unitSystem);
+  // Preserve the original tape's unset resting positions after widening its
+  // technical range. These are interaction anchors only; no value is stored
+  // until the talent actually moves or edits the tape.
+  const coreUnsetValue = circumferenceToDisplay(100, unitSystem);
+  const waistUnsetValue = circumferenceToDisplay(85, unitSystem);
 
   if (measurementsLocked) {
     return (
@@ -92,6 +119,7 @@ export function MeasurementsSection({
             unit={unitSystem === 'metric' ? 'cm' : 'in'}
             min={unitSystem === 'metric' ? 130 : 50}
             max={unitSystem === 'metric' ? 230 : 90}
+            allowFeetInches={unitSystem === 'imperial'}
             formatter={
               unitSystem === 'imperial'
                 ? (val) => {
@@ -120,8 +148,8 @@ export function MeasurementsSection({
                     : null
               }
               unit={unitSystem === 'metric' ? 'kg' : 'lbs'}
-              min={unitSystem === 'metric' ? 30 : 70}
-              max={unitSystem === 'metric' ? 150 : 330}
+              min={unitSystem === 'metric' ? 30 : 66}
+              max={unitSystem === 'metric' ? 150 : 331}
               onChange={(val) => {
                 const metricVal = unitSystem === 'metric' ? val : Math.round(val / 2.20462);
                 setValue('weight_kg', metricVal, { shouldDirty: true });
@@ -191,32 +219,20 @@ export function MeasurementsSection({
 
       <div className={`${styles.measurementRow} ${styles.formRow}`} style={{ gap: '16px' }}>
         <div className={styles.measurementField}>
-          <label className={styles.measurementLabel}>{watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered' ? 'Chest' : 'Bust'}</label>
+          <label className={styles.measurementLabel}>{core.label}</label>
           <PholioMeasuringTape
-            value={
-              watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered'
-                ? (unitSystem === 'metric'
-                    ? watch('chest_cm')
-                    : watch('chest_cm')
-                      ? Math.round(watch('chest_cm') / 2.54)
-                      : null)
-                : (unitSystem === 'metric'
-                    ? watch('bust_cm')
-                    : watch('bust_cm')
-                      ? Math.round(watch('bust_cm') / 2.54)
-                      : null)
-            }
-            unit={unitSystem === 'metric' ? 'cm' : 'in'}
-            min={unitSystem === 'metric' ? 70 : 28}
-            max={unitSystem === 'metric' ? 130 : 52}
+            aria-label={`${core.label} circumference`}
+            value={circumferenceToDisplay(coreCm, unitSystem)}
+            unit={circumferenceTape.unit}
+            min={circumferenceTape.min}
+            max={circumferenceTape.max}
+            step={circumferenceTape.step}
+            majorStep={circumferenceTape.majorStep}
+            unsetValue={coreUnsetValue}
             size="small"
             onChange={(val) => {
-              const metricVal = unitSystem === 'metric' ? val : Math.round(val * 2.54);
-              if (watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered') {
-                setValue('chest_cm', metricVal, { shouldDirty: true });
-              } else {
-                setValue('bust_cm', metricVal, { shouldDirty: true });
-              }
+              const metricVal = circumferenceToCentimeters(val, unitSystem);
+              setValue(core.field, metricVal, { shouldDirty: true });
             }}
           />
         </div>
@@ -224,19 +240,17 @@ export function MeasurementsSection({
         <div className={styles.measurementField}>
           <label className={styles.measurementLabel}>Waist</label>
           <PholioMeasuringTape
-            value={
-              unitSystem === 'metric'
-                ? watch('waist_cm')
-                : watch('waist_cm')
-                  ? Math.round(watch('waist_cm') / 2.54)
-                  : null
-            }
-            unit={unitSystem === 'metric' ? 'cm' : 'in'}
-            min={unitSystem === 'metric' ? 50 : 20}
-            max={unitSystem === 'metric' ? 120 : 48}
+            aria-label="Waist circumference"
+            value={circumferenceToDisplay(watch('waist_cm'), unitSystem)}
+            unit={circumferenceTape.unit}
+            min={circumferenceTape.min}
+            max={circumferenceTape.max}
+            step={circumferenceTape.step}
+            majorStep={circumferenceTape.majorStep}
+            unsetValue={waistUnsetValue}
             size="small"
             onChange={(val) => {
-              const metricVal = unitSystem === 'metric' ? val : Math.round(val * 2.54);
+              const metricVal = circumferenceToCentimeters(val, unitSystem);
               setValue('waist_cm', metricVal, { shouldDirty: true });
             }}
           />
@@ -245,34 +259,28 @@ export function MeasurementsSection({
         <div className={styles.measurementField}>
           <label className={styles.measurementLabel}>Hips</label>
           <PholioMeasuringTape
-            value={
-              unitSystem === 'metric'
-                ? watch('hips_cm')
-                : watch('hips_cm')
-                  ? Math.round(watch('hips_cm') / 2.54)
-                  : null
-            }
-            unit={unitSystem === 'metric' ? 'cm' : 'in'}
-            min={unitSystem === 'metric' ? 70 : 28}
-            max={unitSystem === 'metric' ? 130 : 52}
+            aria-label="Hips circumference"
+            value={circumferenceToDisplay(watch('hips_cm'), unitSystem)}
+            unit={circumferenceTape.unit}
+            min={circumferenceTape.min}
+            max={circumferenceTape.max}
+            step={circumferenceTape.step}
+            majorStep={circumferenceTape.majorStep}
+            unsetValue={coreUnsetValue}
             size="small"
             onChange={(val) => {
-              const metricVal = unitSystem === 'metric' ? val : Math.round(val * 2.54);
+              const metricVal = circumferenceToCentimeters(val, unitSystem);
               setValue('hips_cm', metricVal, { shouldDirty: true });
             }}
           />
         </div>
       </div>
 
-      <div className={`${styles.formGrid2} ${styles.formRow}`}>
-        {watch('stats_track') === 'Menswear' || watch('stats_track') === 'Ungendered' ? (
-          <PholioInput
-            label="Suit Size"
-            placeholder="e.g. 40, M, 50"
-            {...register('suit_size')}
-            error={errors.suit_size}
-          />
-        ) : (
+      {/* Sizing systems per track. `ungendered` collects BOTH — matching
+          buildCanonicalStats, which renders whichever the talent filled in
+          rather than forcing one system on them. */}
+      <div className={`${sizing.dress && sizing.suit ? styles.formGrid3 : styles.formGrid2} ${styles.formRow}`}>
+        {sizing.dress && (
           <PholioCustomSelect
             label="Dress Size"
             id="dress_size"
@@ -284,6 +292,15 @@ export function MeasurementsSection({
             onChange={(val) => setValue('dress_size', val, { shouldDirty: true })}
             error={errors.dress_size}
             placeholder="Select dress size"
+          />
+        )}
+
+        {sizing.suit && (
+          <PholioInput
+            label="Suit Size"
+            placeholder="e.g. 40, M, 50"
+            {...register('suit_size')}
+            error={errors.suit_size}
           />
         )}
 

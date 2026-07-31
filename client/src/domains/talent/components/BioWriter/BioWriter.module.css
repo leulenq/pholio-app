@@ -1,10 +1,5 @@
 /* ============================================================
-   BIO WRITER — the spark, and the composer that opens from it
-   ============================================================
-   The parameters are inside the popover, so nothing here competes
-   with the field for attention. Gold appears in exactly three
-   places: the spark, the parameter labels, and the rule drawn
-   under the field when the model returns.
+   BIO WRITER — the magic mark is the action
    ============================================================ */
 
 .writer {
@@ -17,7 +12,7 @@
   --bw-ease: var(--pf-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
-/* ─── Heading, with the spark holding the right edge ─── */
+/* ─── Heading, with the magic action holding the right edge ─── */
 .head {
   margin-bottom: 16px;
 }
@@ -55,85 +50,79 @@
   max-width: 48ch;
 }
 
-.sparkAnchor {
+.magicAnchor {
   position: relative;
   flex: 0 0 auto;
 }
 
-/* The one entrance to the writer, so it carries a real 44px target and the
-   only gold glyph on the section. Doubled class beats the icon variant's
-   resting colour without reaching for !important. */
-.spark.spark {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  min-height: 44px;
-  color: var(--bw-gold);
+/* The glyph remains visually unframed while the button keeps a 44px target. */
+.magicButton.magicButton {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--bw-gold) !important;
 }
 
-.spark.spark:hover:not(:disabled) {
-  background: rgba(201, 165, 90, 0.08);
-  color: var(--bw-gold-deep);
+.magicButton.magicButton:hover:not(:disabled),
+.magicButton.magicButton:focus-visible,
+.magicOpen.magicOpen {
+  background: transparent !important;
+  color: var(--bw-gold-deep) !important;
 }
 
-/* Open reads as pressed-and-held: the ground stays while the composer is out,
-   so the popover is visibly coming from this control. */
-.sparkOpen.sparkOpen,
-.sparkOpen.sparkOpen:hover:not(:disabled) {
-  background: rgba(201, 165, 90, 0.14);
-  color: var(--bw-gold-deep);
+.magicMark {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 0 0 rgba(166, 132, 92, 0));
+  overflow: visible;
+  transition: filter 0.3s var(--bw-ease);
 }
 
-/* Composing. The points drift apart and back — the mark is the progress
-   indicator, so no spinner has to appear anywhere on the page. */
-.sparkWorking.sparkWorking {
+.magicMajor,
+.magicMinor {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.magicButton:hover .magicMark,
+.magicButton:focus-visible .magicMark,
+.magicOpen .magicMark {
+  filter: drop-shadow(0 3px 4px rgba(166, 132, 92, 0.24));
+}
+
+.magicWorking.magicWorking {
   cursor: progress;
-  color: var(--bw-gold);
+  color: var(--bw-gold-deep) !important;
 }
 
-.sparkWorking :global(.pholio-spark__major) {
-  animation: bwSparkPulse 1.6s ease-in-out infinite;
-  transform-origin: 9.7px 11.1px;
+.magicWorking .magicMark {
+  filter: drop-shadow(0 3px 5px rgba(166, 132, 92, 0.32));
 }
 
-.sparkWorking :global(.pholio-spark__minor--up) {
-  animation: bwSparkPulse 1.6s ease-in-out infinite 0.22s;
-  transform-origin: 18.6px 4.2px;
-}
-
-.sparkWorking :global(.pholio-spark__minor--down) {
-  animation: bwSparkPulse 1.6s ease-in-out infinite 0.44s;
-  transform-origin: 18.6px 18.8px;
-}
-
-@keyframes bwSparkPulse {
-  0%, 100% { opacity: 0.45; transform: scale(0.86); }
-  50%      { opacity: 1;    transform: scale(1.08); }
-}
-
-/* ─── The composer ─── */
+/* ─── Compact controls. The icon above is still the only generate action. ─── */
 .panel {
   position: absolute;
   z-index: 30;
-  top: calc(100% + 12px);
+  top: calc(100% + 11px);
   right: 0;
-  width: min(304px, calc(100vw - 40px));
-  padding: 18px;
+  width: min(272px, calc(100vw - 40px));
+  padding: 15px 16px;
   border: 1px solid var(--bw-hair);
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.07);
   text-align: left;
   transform-origin: top right;
 }
 
-/* Notch under the spark — the popover is tethered to the control, not floating
-   near it. */
 .panel::before {
   content: '';
   position: absolute;
   top: -5px;
-  right: 15px;
+  right: 16px;
   width: 9px;
   height: 9px;
   border-top: 1px solid var(--bw-hair);
@@ -143,78 +132,71 @@
   transform: rotate(45deg);
 }
 
-.panelLede {
-  font-family: 'Inter', sans-serif;
-  font-size: 12.5px;
-  font-weight: 400;
-  line-height: 1.55;
-  color: var(--bw-text-soft);
-  margin: 0 0 16px;
-}
-
 .param {
-  display: grid;
-  gap: 11px;
-  justify-items: start;
+  display: flex;
+  justify-content: center;
 }
 
 .param + .param {
-  margin-top: 15px;
-  padding-top: 15px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--bw-hair);
 }
 
-.paramLabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--bw-gold);
-}
-
 .paramOptions {
-  gap: 22px !important;
-}
-
-/* Held at two lines so choosing an option never resizes the popover. */
-.paramNote {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 300;
-  line-height: 1.5;
-  color: var(--bw-text-soft);
-  margin: 0;
-  min-height: 36px;
-}
-
-.confirm {
-  margin-top: 18px;
+  width: 100%;
+  justify-content: space-around;
+  gap: 18px !important;
 }
 
 /* ─── Field ─── */
 .field {
   position: relative;
+  isolation: isolate;
+}
+
+.field :global(.pholio-textarea) {
+  transition:
+    opacity 0.42s var(--bw-ease),
+    border-color 0.42s var(--bw-ease),
+    box-shadow 0.42s var(--bw-ease);
 }
 
 .field[data-working='true'] :global(.pholio-textarea) {
-  opacity: 0.5;
+  opacity: 0.68;
   border-color: rgba(201, 165, 90, 0.3);
 }
 
-/* Prose lands inside a textarea and can't animate in, so the arrival is marked
-   by a rule drawn across the top of the field. */
-.sweep {
+/* The Pholio gold sweep becomes the thinking state: a quiet full boundary and
+   one softened current travelling the perimeter at an unhurried cadence. */
+.thinkingSweep {
   position: absolute;
   z-index: 2;
-  top: -1px;
-  left: 2px;
-  right: 2px;
-  height: 1.5px;
-  border-radius: 999px;
-  background: linear-gradient(to right, transparent, var(--bw-gold), transparent);
-  transform-origin: left center;
+  inset: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  overflow: visible;
+  transform-origin: center;
   pointer-events: none;
+}
+
+.thinkingSweepBase,
+.thinkingSweepCurrent {
+  fill: none;
+  stroke: var(--bw-gold);
+}
+
+.thinkingSweepBase {
+  stroke-width: 1.15px;
+  filter: drop-shadow(0 0 3px rgba(201, 165, 90, 0.2));
+}
+
+.thinkingSweepCurrent {
+  stroke-width: 2.15px;
+  stroke-linecap: round;
+  filter:
+    drop-shadow(0 0 2px rgba(201, 165, 90, 0.42))
+    drop-shadow(0 0 6px rgba(201, 165, 90, 0.18));
 }
 
 /* ─── Footer: revert on the left, the count (or progress) on the right ─── */
@@ -250,20 +232,12 @@
   color: var(--bw-gold-deep);
 }
 
-@media (max-width: 560px) {
-  .panel {
-    width: min(304px, calc(100vw - 32px));
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .sparkWorking :global(.pholio-spark__major),
-  .sparkWorking :global(.pholio-spark__minor--up),
-  .sparkWorking :global(.pholio-spark__minor--down) {
-    animation: none;
+  .magicMark {
+    transition: none;
   }
 
-  .sparkWorking.sparkWorking {
-    opacity: 0.7;
+  .magicWorking.magicWorking {
+    opacity: 0.72;
   }
 }

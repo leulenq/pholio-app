@@ -1,50 +1,52 @@
-/* Shared full-page / inline loading spinner — brand gold only.
-   Replaces purple Tailwind and one-off black shell spinners. */
+/* Pholio Gold Sweep Spinner — Thick Editorial Sweep */
 
 .ph-spinner {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.ph-spinner__ring {
+  position: relative;
   box-sizing: border-box;
-  border-radius: 50%;
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--color-gold-500, #c9a55a) 22%, transparent);
-  border-top-color: var(--color-gold-500, #c9a55a);
-  animation: ph-spinner-spin 0.8s linear infinite;
 }
 
-.ph-spinner--sm .ph-spinner__ring {
-  width: 1rem;
-  height: 1rem;
-  border-width: 2px;
+.ph-spinner__svg {
+  display: block;
+  animation: ph-sweep-spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  transform-origin: center center;
+  filter: drop-shadow(0 0 8px rgba(201, 165, 90, 0.35));
 }
 
-.ph-spinner--md .ph-spinner__ring {
-  width: 2rem;
-  height: 2rem;
-  border-width: 2px;
-}
-
-.ph-spinner--lg .ph-spinner__ring {
-  width: 3rem;
-  height: 3rem;
-  border-width: 3px;
-}
-
-@keyframes ph-spinner-spin {
-  to {
+@keyframes ph-sweep-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
     transform: rotate(360deg);
   }
 }
 
+.ph-spinner--sm {
+  width: 24px;
+  height: 24px;
+}
+
+.ph-spinner--md {
+  width: 40px;
+  height: 40px;
+}
+
+.ph-spinner--lg {
+  width: 56px;
+  height: 56px;
+}
+
+.ph-spinner--xl {
+  width: 72px;
+  height: 72px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ph-spinner__ring {
-    animation: none;
-    border-color: color-mix(in srgb, var(--color-gold-500, #c9a55a) 35%, transparent);
-    border-top-color: var(--color-gold-500, #c9a55a);
-    opacity: 0.75;
+  .ph-spinner__svg {
+    animation: none !important;
+    opacity: 0.85;
   }
 }

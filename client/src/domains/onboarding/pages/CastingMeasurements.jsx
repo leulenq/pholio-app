@@ -32,7 +32,7 @@ const START = {
   inseam_cm: 80,
 };
 
-// Gender-aware stat fields (adults only). Non-Binary / Prefer not to say
+// Gender-aware stat fields (adults only). Non-binary / Prefer not to say
 // (and unknown) are offered no stats in onboarding — height → review.
 function statFieldsFor(gender) {
   if (gender === 'Female') {

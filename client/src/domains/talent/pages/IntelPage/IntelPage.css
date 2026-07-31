@@ -1,991 +1,1061 @@
-/* IntelPage.css — the talent intelligence hub (tasks/intel-page-spec.md §5).
-   Editorial serif statements over hand-drawn SVG instruments; JetBrains Mono
-   for numerals and axes; warm ink + gold on the talent cream canvas. */
+/* IntelPage.css — talent intelligence, on paper.
 
-.intel2-page {
-  max-width: 980px;
+   Type rule for this page: no black, and no pale grey. The ink scale is warm
+   (espresso → walnut → bark) and every step, including the smallest mono label,
+   clears AA on the cream canvas. Opacity is used for rules and tracks, never
+   for text.
+
+   Three registers, and they never blur: Noto Serif Display for questions and
+   verdicts, Inter for figures and working copy, JetBrains Mono for labels, axes
+   and numerals. Chart colour lives in intelTheme.js. */
+
+.iv-page {
+  --iv-ink: #2a1f14;        /* 15.3:1 — headings, figures, chart labels        */
+  --iv-ink-2: #55432f;      /*  8.9:1 — qualifying copy                        */
+  --iv-ink-3: #7e6a52;      /*  4.9:1 — small labels, still AA                 */
+  --iv-rule: rgba(42, 31, 20, 0.2);
+  --iv-rule-soft: rgba(42, 31, 20, 0.11);
+  --iv-well: rgba(42, 31, 20, 0.035);
+  --iv-gold: #8a6a31;
+  --iv-gold-deep: #61441e;
+  --iv-ember: #a33b21;
+
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 40px 32px 120px;
-  color: #1a1815;
+  padding: 44px 40px 140px;
+  color: var(--iv-ink-2);
 }
 
-/* ---------- header ---------- */
+/* ================================================================ masthead */
 
-.intel2-head {
+.iv-masthead {
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--iv-ink);
+}
+
+.iv-masthead-mark {
+  display: none;
+}
+
+.iv-masthead-bar {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 40px;
+  gap: 24px;
 }
 
-.intel2-title {
+.iv-title {
   font-family: 'Noto Serif Display', 'Playfair Display', serif;
   font-weight: 400;
-  font-size: 1.75rem;
-  letter-spacing: 0.01em;
+  font-size: 2.35rem;
+  line-height: 1;
+  letter-spacing: -0.015em;
   margin: 0;
+  color: var(--iv-ink);
 }
 
-.intel2-range-lock {
+.iv-range-lock {
   margin-left: 5px;
-  opacity: 0.55;
+  opacity: 0.6;
   vertical-align: middle;
 }
 
-/* ---------- zones ---------- */
-
-.intel2-zone {
-  margin-top: 88px;
-}
-
-.intel2-zone:first-of-type {
-  margin-top: 0;
-}
-
-.intel2-zone-head {
-  border-top: 1px solid rgba(26, 24, 21, 0.1);
-  padding-top: 20px;
-  margin-bottom: 26px;
-}
-
-.intel2-zone-title {
-  font-family: 'Noto Serif Display', 'Playfair Display', serif;
-  font-weight: 400;
-  font-size: 1.3rem;
-  margin: 0;
-}
-
-.intel2-subhead {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #6b6560;
-  margin: 34px 0 14px;
-}
-
-.intel2-inline-link {
-  color: #b08d45;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(176, 141, 69, 0.4);
-}
-
-.intel2-inline-link:hover {
-  border-bottom-color: #b08d45;
-}
-
-/* ---------- search signal (Discover WS9.3) ---------- */
-
-.intel2-demand-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 14px;
-}
-
-.intel2-demand-row { margin: 0; }
-
-.intel2-demand-text {
-  font-family: 'Noto Serif Display', serif;
-  font-size: 1.05rem;
-  line-height: 1.5;
-  margin: 0;
-  color: #1a1815;
-}
-
-/* ---------- loading / error ---------- */
-
-.intel2-loading {
-  padding: 72px 0;
-  text-align: center;
-}
-
-.intel2-loading-band {
-  width: 220px;
-  height: 10px;
-  margin: 0 auto 18px;
-  border-radius: 5px;
-  background: linear-gradient(
-    90deg,
-    rgba(201, 165, 90, 0.12),
-    rgba(201, 165, 90, 0.4),
-    rgba(201, 165, 90, 0.12)
-  );
-  background-size: 200% 100%;
-  animation: intel2-shimmer 1.6s ease-in-out infinite;
-}
-
-@keyframes intel2-shimmer {
-  0% { background-position: 180% 0; }
-  100% { background-position: -80% 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .intel2-loading-band { animation: none; }
-}
-
-.intel2-loading-copy,
-.intel2-error-copy {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  color: #6b6560;
-}
-
-.intel2-error {
-  padding: 64px 0;
-  text-align: center;
-  display: grid;
-  gap: 16px;
-  justify-items: center;
-}
-
-.intel2-minor-note {
-  font-size: 0.85rem;
-  color: #6b6560;
-  margin: -18px 0 34px;
-}
-
-/* ---------- lock + calibrating ---------- */
-
-.intel2-lock {
-  border: 1px solid rgba(26, 24, 21, 0.08);
-  border-radius: 12px;
-  background: #fff;
-  padding: 30px 32px;
-  display: grid;
-  justify-items: start;
-  gap: 8px;
-  margin-top: 22px;
-}
-
-.intel2-lock-icon { color: #b08d45; }
-
-.intel2-lock-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.intel2-lock-copy {
-  font-size: 0.9rem;
-  color: #6b6560;
-  max-width: 52ch;
-  margin: 0 0 6px;
-}
-
-.intel2-calibrating {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  border: 1px dashed rgba(176, 141, 69, 0.4);
-  border-radius: 12px;
-  padding: 24px 26px;
-  margin-top: 6px;
-}
-
-.intel2-calibrating-icon {
-  color: #b08d45;
-  flex: none;
-  margin-top: 2px;
-}
-
-.intel2-calibrating-copy {
-  font-size: 0.9rem;
-  line-height: 1.55;
-  color: #4d463f;
-  margin: 0;
-  max-width: 58ch;
-}
-
-/* ---------- zone 1 — the pulse ---------- */
-
-.intel2-pulse-headline {
-  font-family: 'Noto Serif Display', 'Playfair Display', serif;
-  font-weight: 400;
-  font-size: clamp(1.5rem, 3.4vw, 2.15rem);
-  line-height: 1.35;
-  max-width: 24em;
-  margin: 0 0 34px;
-}
-
-.intel2-pulse-num {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.82em;
-  color: #b08d45;
-  padding: 0 0.06em;
-}
-
-.intel2-pulse-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 18px 32px;
-  margin-top: 26px;
-}
-
-.intel2-motion-label {
-  display: block;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #6b6560;
-  margin-bottom: 8px;
-}
-
-.intel2-motion-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.intel2-motion-row {
-  font-size: 0.9rem;
-  color: #4d463f;
-}
-
-.intel2-motion-agency { font-weight: 600; color: #1a1815; }
-
-.intel2-motion-row--urgent .intel2-motion-agency { color: #b08d45; }
-
-.intel2-motion-urge { color: #b08d45; font-weight: 600; }
-
-.intel2-pulse-materials {
-  font-size: 0.9rem;
-  color: #6b6560;
-  margin: 0;
-}
-
-.intel2-verdict {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 6px;
-  font-family: 'Noto Serif Display', serif;
-  font-style: italic;
-  font-size: 1.05rem;
-  text-decoration: none;
-  border-bottom: 1px solid currentColor;
-  padding-bottom: 1px;
-}
-
-.intel2-verdict--current { color: #7a6a3f; }
-.intel2-verdict--aging { color: #b98b3e; }
-.intel2-verdict--stale { color: #8c5a33; }
-
-/* ---------- the signal spectrum ---------- */
-
-.intel2-spectrum-band {
-  display: flex;
-  align-items: stretch;
-  height: 34px;
-  border-radius: 6px;
-  overflow: hidden;
-  gap: 2px;
-}
-
-.intel2-spectrum-empty {
-  flex: 1;
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(26, 24, 21, 0.04),
-    rgba(26, 24, 21, 0.04) 6px,
-    transparent 6px,
-    transparent 12px
-  );
-}
-
-.intel2-spectrum-seg { min-width: 3px; }
-
-.intel2-spectrum-tick {
-  width: 2px;
-  flex: none;
-  opacity: 0.5;
-}
-
-.intel2-spectrum-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 22px;
-  margin-top: 12px;
-}
-
-.intel2-spectrum-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  letter-spacing: 0.06em;
-  color: #6b6560;
-}
-
-.intel2-spectrum-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-
-.intel2-spectrum-legend-num { color: #1a1815; font-weight: 600; }
-
-/* ---------- zone 2 — the seismograph ---------- */
-
-.intel2-seis-plot { position: relative; }
-
-.intel2-seis-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.intel2-seis-pop {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  background: #1a1815;
-  color: #faf8f5;
-  border-radius: 8px;
-  padding: 10px 14px;
-  display: grid;
-  gap: 4px;
-  pointer-events: none;
-  min-width: 170px;
-  max-width: 240px;
-  z-index: 4;
-}
-
-.intel2-seis-pop-date,
-.intel2-traj-pop-date {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.65;
-}
-
-.intel2-seis-pop-line { font-size: 0.78rem; }
-
-.intel2-seis-ledger {
-  border-top: 1px solid rgba(250, 248, 245, 0.18);
-  margin-top: 4px;
-  padding-top: 7px;
-  display: grid;
-  gap: 4px;
-}
-
-.intel2-seis-ledger-date { display: none; }
-
-.intel2-seis-ledger-classes,
-.intel2-seis-ledger-markets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  font-size: 0.7rem;
-  opacity: 0.85;
-}
-
-.intel2-seis-ledger-loading {
-  font-size: 0.68rem;
-  opacity: 0.6;
-  margin: 2px 0 0;
-}
-
-.intel2-seis-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 22px;
-  margin-top: 14px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  color: #6b6560;
-}
-
-.intel2-seis-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.intel2-seis-key {
-  display: inline-block;
-  width: 12px;
-  height: 8px;
-}
-
-.intel2-seis-key--wash {
-  background: linear-gradient(180deg, rgba(201, 165, 90, 0.35), rgba(201, 165, 90, 0.05));
-  border-radius: 2px;
-}
-
-.intel2-seis-key--strike {
-  width: 2px;
-  height: 12px;
-  background: #1a1815;
-}
-
-.intel2-seis-key--review {
-  width: 9px;
-  height: 9px;
-  border: 1.4px solid #1a1815;
-  transform: rotate(45deg);
-  background: transparent;
-}
-
-.intel2-seis-key--advance {
-  width: 9px;
-  height: 9px;
-  transform: rotate(45deg);
-  background: #c9a55a;
-}
-
-.intel2-seis-note {
-  font-size: 0.82rem;
-  color: #6b6560;
-  margin: 10px 0 0;
-}
-
-/* ---------- the rhythm field ---------- */
-
-.intel2-rhythm { margin-top: 44px; }
-
-.intel2-rhythm-grid {
-  display: grid;
-  grid-template-columns: 18px repeat(24, 1fr);
-  gap: 3px;
-  align-items: center;
-}
-
-.intel2-rhythm-daylabel,
-.intel2-rhythm-hourlabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  color: #9a938c;
-}
-
-.intel2-rhythm-hourlabel { text-align: left; white-space: nowrap; }
-
-.intel2-rhythm-cell {
-  display: block;
-  aspect-ratio: 1 / 1;
-  border-radius: 3px;
-  background: #b8956a;
-}
-
-.intel2-rhythm-cell--peak {
-  outline: 1.5px solid #1a1815;
-  outline-offset: 1px;
-}
-
-.intel2-rhythm-caption {
-  font-size: 0.88rem;
-  color: #4d463f;
-  margin: 16px 0 0;
-}
-
-/* ---------- zone 3 — the market board ---------- */
-
-.intel2-market-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-}
-
-.intel2-market-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) 84px minmax(90px, auto) minmax(150px, 1.2fr);
-  align-items: center;
-  gap: 18px;
-  padding: 13px 2px;
-  border-bottom: 1px solid rgba(26, 24, 21, 0.07);
-}
-
-.intel2-market-name {
-  font-family: 'Noto Serif Display', serif;
-  font-size: 1.02rem;
-}
-
-.intel2-spark {
-  width: 72px;
-  height: 22px;
-  display: block;
-}
-
-.intel2-spark--flat {
-  border-bottom: 1px solid rgba(26, 24, 21, 0.15);
-}
-
-.intel2-market-figs {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 12px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.76rem;
-}
-
-.intel2-market-share { color: #1a1815; font-weight: 600; }
-
-.intel2-market-delta {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 0.68rem;
-}
-
-.intel2-market-delta.is-up { color: #7a6a3f; }
-.intel2-market-delta.is-down { color: #8c5a33; }
-
-.intel2-mix { display: grid; gap: 5px; }
-
-.intel2-mix-bar {
-  display: flex;
-  height: 5px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: rgba(26, 24, 21, 0.05);
-}
-
-.intel2-mix-caption {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.04em;
-  color: #9a938c;
-}
-
-.intel2-source-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.intel2-source-row {
-  display: grid;
-  grid-template-columns: minmax(110px, 0.6fr) auto 1.6fr;
-  align-items: baseline;
-  gap: 18px;
-  padding: 10px 2px;
-  border-bottom: 1px solid rgba(26, 24, 21, 0.06);
+.iv-minor-note {
   font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--iv-ink-2);
+  margin: 20px 0 0;
+  max-width: 60ch;
 }
 
-.intel2-source-name { font-weight: 600; }
+/* ==================================================================== lead */
 
-.intel2-source-count {
+.iv-lead {
+  padding: 44px 0 0;
+}
+
+.iv-lead-rail {
+  display: none;
+}
+
+/* The largest thing on the page. It is a sentence, so it is set in serif. */
+.iv-lead-state {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-size: clamp(2rem, 3.7vw, 2.95rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  margin: 0;
+  max-width: 19ch;
+  color: var(--iv-ink);
+}
+
+/* State of play: figures at working size, their nouns in mono. */
+.iv-lead-standing {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 9px;
+  margin: 24px 0 0;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: #6b6560;
-}
-
-.intel2-source-meaning { color: #6b6560; }
-
-/* ---------- zone 4 — the pipeline ---------- */
-
-.intel2-pipe-controls { margin-bottom: 22px; }
-
-.intel2-pipe-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.intel2-pipe-axis {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  fill: #9a938c;
+  color: var(--iv-ink-3);
 }
 
-.intel2-pipe-count {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 600;
-  fill: #1a1815;
+.iv-lead-figure {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--iv-ink);
 }
 
-.intel2-pipe-outlabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10.5px;
-  fill: #4d463f;
+.iv-lead-figure--flag,
+.iv-lead-flag {
+  color: var(--iv-ember);
 }
 
-.intel2-pipe-diagnosis {
-  font-family: 'Noto Serif Display', serif;
-  font-size: 1.05rem;
-  line-height: 1.5;
-  max-width: 46em;
+.iv-lead-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--iv-rule);
+  margin: 0 8px;
+  align-self: center;
+}
+
+.iv-lead-clear {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  font-weight: 350;
+  color: var(--iv-ink-2);
+  max-width: 52ch;
   margin: 22px 0 0;
 }
 
-.intel2-pipe-kept {
-  font-size: 0.9rem;
-  color: #4d463f;
+/* ----------------------------------------------------------- decisions */
+
+.iv-decisions {
+  list-style: none;
+  margin: 40px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--iv-ink);
+}
+
+.iv-decision {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0 36px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--iv-rule-soft);
+}
+
+/* Urgency is a word, not a colour swatch or a badge. */
+.iv-decision-rank {
+  grid-column: 1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--iv-ember);
+  margin-bottom: 8px;
+}
+
+/* Voice 1 — the observation. Inter, medium, near-display size. */
+.iv-decision-headline {
+  grid-column: 1;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.16rem;
+  line-height: 1.32;
+  font-weight: 500;
+  letter-spacing: -0.017em;
+  margin: 0;
+  color: var(--iv-ink);
+  max-width: 44ch;
+}
+
+/* Voice 2 — the industry rationale. A different mouth: serif italic. */
+.iv-decision-reason {
+  grid-column: 1;
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--iv-ink-2);
+  margin: 8px 0 0;
+  max-width: 50ch;
+}
+
+/* Voice 3 — the act. Mono, boxed, the only clickable thing in the row. */
+.iv-decision-action {
+  grid-row: 1 / span 3;
+  grid-column: 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--iv-ink);
+  text-decoration: none;
+  padding: 12px 18px;
+  border: 1px solid var(--iv-rule);
+  border-radius: 2px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iv-decision-action:hover {
+  gap: 13px;
+  color: #fff;
+  background: var(--iv-ink);
+  border-color: var(--iv-ink);
+}
+
+/* ================================================================== blocks */
+
+.iv-block {
+  margin-top: 96px;
+}
+
+.iv-block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--iv-ink);
+}
+
+/* The question is asked, not stated: serif, with the operative word italic. */
+.iv-question {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-weight: 400;
+  font-size: clamp(1.35rem, 2.1vw, 1.72rem);
+  line-height: 1.2;
+  letter-spacing: -0.022em;
+  margin: 0;
+  color: var(--iv-ink);
+}
+
+.iv-question em {
+  font-style: italic;
+  color: var(--iv-gold);
+}
+
+/* ================================================================= finding */
+
+/* The answer, as a lockup: figure, rule, qualifier, tag. */
+.iv-finding {
+  margin: 34px 0 44px;
+  max-width: 54ch;
+}
+
+.iv-finding-lead {
+  margin: 0;
+  line-height: 0.95;
+  color: var(--iv-ink);
+}
+
+/* Answer-as-number: Inter at its lightest, very large, tight. */
+.iv-finding--figure .iv-finding-lead {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(3.4rem, 7vw, 5.4rem);
+  font-weight: 200;
+  letter-spacing: -0.045em;
+}
+
+/* Answer-as-change: two figures, so the movement is the shape of the answer.
+   Structurally distinct from a single measurement on purpose — period
+   comparisons should not wear the same costume as a standing value. */
+.iv-finding--delta .iv-finding-lead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.22em;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(2.8rem, 5.6vw, 4.4rem);
+  font-weight: 200;
+  letter-spacing: -0.045em;
+}
+
+.iv-finding-from {
+  color: var(--iv-ink-3);
+  font-weight: 200;
+}
+
+.iv-finding-arrow {
+  font-size: 0.44em;
+  font-weight: 300;
+  color: var(--iv-gold);
+  transform: translateY(-0.35em);
+  margin: 0 0.06em;
+}
+
+.iv-finding--delta.is-warn .iv-finding-to {
+  color: var(--iv-ember);
+}
+
+.iv-finding--delta.is-good .iv-finding-to {
+  color: var(--iv-gold-deep);
+}
+
+/* Answer-as-word: serif, because it is language. */
+.iv-finding--verdict .iv-finding-lead {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-size: clamp(2.1rem, 4vw, 3rem);
+  font-weight: 400;
+  line-height: 1.06;
+  letter-spacing: -0.026em;
+}
+
+.iv-finding.is-warn .iv-finding-lead {
+  color: var(--iv-ember);
+}
+
+.iv-finding.is-good .iv-finding-lead {
+  color: var(--iv-gold-deep);
+}
+
+/* The rule is what binds the lockup into one object. */
+.iv-finding-rule {
+  display: block;
+  width: 34px;
+  height: 2px;
+  background: var(--iv-gold);
+  margin: 22px 0 16px;
+}
+
+.iv-finding.is-warn .iv-finding-rule {
+  background: var(--iv-ember);
+}
+
+.iv-finding.is-good .iv-finding-rule {
+  background: var(--iv-gold-deep);
+}
+
+/* The reading. Light by default so its emphasised operands carry the scan. */
+.iv-finding-qualifier {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.08rem;
+  font-weight: 340;
+  line-height: 1.45;
+  letter-spacing: -0.006em;
+  color: var(--iv-ink-2);
+  margin: 0;
+  max-width: 44ch;
+}
+
+/* Weight contrast, not colour, does the emphasis. */
+.iv-emph {
+  font-weight: 600;
+  color: var(--iv-gold-deep);
+}
+
+/* Two words that classify the answer. */
+.iv-finding-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--iv-gold);
+  margin: 14px 0 0;
+}
+
+.iv-finding.is-warn .iv-finding-tag {
+  color: var(--iv-ember);
+}
+
+/* ================================================================== panels */
+
+.iv-panel {
+  margin-top: 44px;
+  min-width: 0;
+}
+
+.iv-panelrow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 44px;
+}
+
+.iv-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--iv-rule);
+}
+
+.iv-panel-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--iv-ink);
+  font-weight: 600;
+  margin: 0;
+}
+
+.iv-panel-note {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--iv-ink-3);
+  text-align: right;
+}
+
+/* =================================================================== stats */
+
+.iv-statrow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin: 28px 0;
+  border-top: 1px solid var(--iv-ink);
+}
+
+.iv-stat {
+  padding: 18px 22px 18px 22px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  border-right: 1px solid var(--iv-rule-soft);
+}
+
+.iv-stat:first-child {
+  padding-left: 0;
+}
+
+.iv-stat:last-child {
+  border-right: 0;
+}
+
+.iv-stat-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 2.15rem;
+  font-weight: 200;
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  color: var(--iv-ink);
+}
+
+.iv-stat--attention .iv-stat-value {
+  color: var(--iv-ember);
+  font-weight: 350;
+}
+
+/* A zero belongs in the row so the comparison holds, but it must not claim the
+   optical weight of a real measurement. */
+.iv-stat.is-null .iv-stat-value {
+  font-size: 1.35rem;
+  font-weight: 300;
+  color: var(--iv-ink-3);
+}
+
+.iv-stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  line-height: 1.45;
+  color: var(--iv-ink-2);
+}
+
+/* =============================================================== misc copy */
+
+.iv-note,
+.iv-chart-note {
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--iv-ink-2);
+  max-width: 62ch;
+  margin: 14px 0 0;
+}
+
+.iv-notyet {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  max-width: 62ch;
+  margin: 0;
+  padding: 0;
+}
+
+/* The threshold is the information; the sentence is only the reason. */
+.iv-notyet-threshold {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--iv-ink);
+  padding-bottom: 3px;
+  border-bottom: 2px solid var(--iv-gold);
+}
+
+.iv-notyet-copy {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--iv-ink-2);
+}
+
+.iv-marginalia {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+  line-height: 1.6;
+  color: var(--iv-ink-3);
   margin: 12px 0 0;
 }
 
-.intel2-pipe-kept--quiet { color: #9a938c; }
-
-/* ---------- the stage clock ---------- */
-
-.intel2-clock-copy {
-  font-size: 0.9rem;
-  color: #4d463f;
-  margin: 0 0 12px;
-  max-width: 56ch;
+.iv-inline-link {
+  color: var(--iv-ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--iv-gold);
 }
 
-.intel2-clock-svg {
+/* ================================================================ withheld */
+
+.iv-withheld {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 26px;
+  border: 1px solid var(--iv-rule);
+  border-radius: 3px;
+}
+
+.iv-withheld-icon {
+  color: var(--iv-gold);
+}
+
+.iv-withheld-title {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-size: 1.05rem;
+  margin: 0 0 6px;
+  color: var(--iv-ink);
+}
+
+.iv-withheld-copy {
+  font-family: 'Noto Serif Display', 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: var(--iv-ink-2);
+  margin: 0;
+  max-width: 52ch;
+}
+
+/* ================================================================= figures */
+
+.iv-figure {
+  margin: 0;
+}
+
+.iv-figure-plot {
   width: 100%;
-  max-width: 620px;
-  height: auto;
-  display: block;
 }
 
-.intel2-clock-num {
+.iv-figure-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.6;
+  color: var(--iv-ink-3);
+  display: block;
+  max-width: 78ch;
+  margin-top: 18px;
+}
+
+/* ======================================================== svg text tokens */
+
+/* Text always wears an ink token — never a series colour, never pale. */
+.iv-axis-tick {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  fill: #7e6a52;
+  font-variant-numeric: tabular-nums;
+}
+
+.iv-ladder-label,
+.iv-currency-label,
+.iv-clock-name,
+.iv-market-name,
+.iv-ranked-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  fill: #2a1f14;
+}
+
+.iv-clock-name,
+.iv-market-name,
+.iv-ranked-label {
+  font-size: 12px;
+}
+
+.iv-ladder-value,
+.iv-currency-figure,
+.iv-clock-age,
+.iv-market-figure,
+.iv-ranked-value {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-  font-weight: 600;
-  fill: #1a1815;
+  font-variant-numeric: tabular-nums;
+  fill: #2a1f14;
+  font-weight: 500;
 }
 
-.intel2-clock-note {
+.iv-ladder-rate,
+.iv-market-share,
+.iv-clock-state,
+.iv-market-delta,
+.iv-ranked-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  fill: #55432f;
+}
+
+.iv-clock-bandlabel {
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  fill: #55432f;
+}
+
+.iv-clock-note {
   font-size: 0.84rem;
-  color: #9a938c;
-  margin: 4px 0 0;
+  line-height: 1.6;
+  color: var(--iv-ink-2);
+  margin: 14px 0 0;
 }
 
-/* ---------- zone 5 — the book, ranked ---------- */
-
-.intel2-book-caption,
-.intel2-book-empty {
-  font-size: 0.9rem;
-  color: #4d463f;
-  margin: 0 0 22px;
-  max-width: 58ch;
+.iv-clock-note b {
+  color: var(--iv-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.intel2-book-grid {
+/* ========================================================= stacked share */
+
+.iv-stack-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.iv-stack-legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iv-ink-2);
+}
+
+.iv-stack-key {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.iv-stack-value {
+  font-family: 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--iv-ink);
+  font-size: 0.94rem;
+  font-weight: 500;
+  text-transform: none;
+}
+
+/* =================================================================== range */
+
+.iv-range-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 26px 22px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  border-top: 1px solid var(--iv-ink);
 }
 
-.intel2-book-frame { margin: 0; }
+.iv-range-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 0.88rem;
+  padding: 16px 18px;
+  color: var(--iv-ink-2);
+  border-right: 1px solid var(--iv-rule-soft);
+}
 
-.intel2-book-photo-wrap {
-  border-radius: 10px;
-  overflow: hidden;
+.iv-range-item:first-child {
+  padding-left: 0;
+}
+
+.iv-range-item:last-child {
+  border-right: 0;
+}
+
+.iv-range-mark {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--iv-ink-3);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.iv-range-item.is-present .iv-range-mark {
+  background: var(--iv-gold);
+  border-color: var(--iv-gold);
+}
+
+.iv-range-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.94rem;
+  font-weight: 450;
+  letter-spacing: -0.008em;
+  color: var(--iv-ink);
+  flex: 1;
+}
+
+.iv-range-state {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--iv-ink-3);
+}
+
+.iv-range-item:not(.is-present) .iv-range-state {
+  color: var(--iv-ember);
+}
+
+/* =================================================================== trend */
+
+.iv-trend-plot {
+  position: relative;
+  width: 100%;
+  outline: none;
+  cursor: crosshair;
+}
+
+.iv-trend-plot:focus-visible {
+  box-shadow: 0 0 0 2px rgba(138, 106, 49, 0.5);
+  border-radius: 4px;
+}
+
+.iv-trend-axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.07em;
+  color: var(--iv-ink-3);
+  margin-top: 4px;
+}
+
+.iv-tip {
+  position: absolute;
+  top: 2px;
+  z-index: 3;
+  transform: translateX(-50%);
+  background: #2a1f14;
+  color: #faf9f7;
+  border-radius: 3px;
+  padding: 10px 13px;
+  display: grid;
+  gap: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 12px 32px rgba(42, 31, 20, 0.24);
+}
+
+.iv-tip--start { transform: translateX(-12%); }
+.iv-tip--end { transform: translateX(-88%); }
+
+.iv-tip-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #d7b877;
+}
+
+.iv-tip-line {
+  font-size: 0.86rem;
+}
+
+.iv-tip-line b {
+  font-variant-numeric: tabular-nums;
+}
+
+.iv-tip-sub {
+  font-size: 0.74rem;
+  color: rgba(250, 249, 247, 0.72);
+}
+
+/* ==================================================================== book */
+
+.iv-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 26px 18px;
+}
+
+.iv-frame {
+  margin: 0;
+}
+
+.iv-frame-photo {
+  position: relative;
   aspect-ratio: 3 / 4;
-  background: rgba(26, 24, 21, 0.05);
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--iv-well);
 }
 
-.intel2-book-photo {
+.iv-frame.is-front .iv-frame-photo {
+  box-shadow: 0 0 0 2px var(--iv-gold);
+}
+
+.iv-frame-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.intel2-book-meta {
-  padding-top: 10px;
+.iv-frame-rank {
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: 24px;
+  padding: 4px 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: #faf9f7;
+  background: var(--iv-ink);
+  text-align: center;
+}
+
+.iv-frame-meta {
   display: grid;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.iv-frame-rate {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--iv-ink);
+  font-weight: 500;
+  display: flex;
+  align-items: baseline;
   gap: 6px;
 }
 
-.intel2-book-rankline {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
+.iv-frame-rate em {
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--iv-ink-3);
 }
 
-.intel2-book-rank {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.intel2-book-rank--muted { color: #c4beb6; font-weight: 400; }
-
-.intel2-book-front {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #b08d45;
-}
-
-.intel2-book-dwell {
+.iv-frame-bar {
+  display: block;
   height: 3px;
-  border-radius: 2px;
-  background: rgba(26, 24, 21, 0.06);
+  background: rgba(42, 31, 20, 0.1);
   overflow: hidden;
 }
 
-.intel2-book-dwell-fill {
+.iv-frame-bar > span {
   display: block;
   height: 100%;
-  background: #c9a55a;
-  border-radius: 2px;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.intel2-book-flag {
-  font-size: 0.76rem;
-  font-style: italic;
-  color: #6b6560;
+.iv-frame-sub {
+  font-size: 0.72rem;
+  color: var(--iv-ink-3);
+  line-height: 1.45;
 }
 
-/* ---------- zone 6 — the agency lens ---------- */
+/* ================================================================== weekly */
 
-.intel2-rings {
+.iv-weekly {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 30px;
+}
+
+.iv-weekly-head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 34px 54px;
-}
-
-.intel2-ring {
-  display: grid;
-  justify-items: center;
-  gap: 3px;
-}
-
-.intel2-ring-svg {
-  width: 108px;
-  height: 108px;
-}
-
-.intel2-ring-num {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 15px;
-  font-weight: 600;
-  fill: #1a1815;
-}
-
-.intel2-ring-state {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 8.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  fill: #9a938c;
-}
-
-.intel2-ring-label {
-  margin-top: 8px;
-  font-weight: 600;
-  font-size: 0.86rem;
-}
-
-.intel2-ring-caption {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.05em;
-  color: #9a938c;
-}
-
-.intel2-range-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.intel2-range-row {
-  display: grid;
-  grid-template-columns: 22px minmax(110px, 0.5fr) 1.8fr;
   align-items: baseline;
-  gap: 14px;
-  padding: 11px 2px;
-  border-bottom: 1px solid rgba(26, 24, 21, 0.06);
-  font-size: 0.88rem;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--iv-rule);
 }
 
-.intel2-range-mark { color: #7a6a3f; display: inline-flex; }
-
-.intel2-range-gap {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border: 1.4px solid rgba(26, 24, 21, 0.25);
-  border-radius: 50%;
+.iv-weekly-label {
+  font-size: 0.8rem;
+  color: var(--iv-ink);
 }
 
-.intel2-range-name { font-weight: 600; }
+.iv-weekly-peak {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.07em;
+  color: var(--iv-ink-3);
+  font-variant-numeric: tabular-nums;
+}
 
-.intel2-range-row:not(.is-present) .intel2-range-name { color: #8c5a33; }
+.iv-weekly-plot {
+  width: 100%;
+}
 
-.intel2-range-reason { color: #6b6560; }
+/* ================================================================== demand */
 
-.intel2-moves-list {
+.iv-demand {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 22px;
+  gap: 14px;
 }
 
-.intel2-move {
-  display: grid;
-  grid-template-columns: 34px 1fr;
-  gap: 16px;
-}
-
-.intel2-move-index {
-  font-family: 'Noto Serif Display', serif;
-  font-size: 1.5rem;
-  color: rgba(176, 141, 69, 0.55);
-  line-height: 1.15;
-}
-
-.intel2-move-observation {
-  font-family: 'Noto Serif Display', serif;
-  font-size: 1.08rem;
-  margin: 0 0 5px;
-}
-
-.intel2-move-reason {
-  font-size: 0.87rem;
-  color: #6b6560;
-  margin: 0 0 9px;
-  max-width: 58ch;
-}
-
-.intel2-moves-clear {
-  font-family: 'Noto Serif Display', serif;
-  font-size: 1.05rem;
-  color: #4d463f;
-  margin: 30px 0 0;
-}
-
-/* ---------- zone 7 — trajectory ---------- */
-
-.intel2-traj-plot { position: relative; }
-
-.intel2-traj-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.intel2-traj-bandlabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  fill: #9a938c;
-}
-
-.intel2-traj-pop {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  background: #1a1815;
-  color: #faf8f5;
-  border-radius: 8px;
-  padding: 9px 13px;
-  display: grid;
-  gap: 3px;
-  pointer-events: none;
-  min-width: 180px;
-  z-index: 4;
-}
-
-.intel2-traj-pop-line { font-size: 0.78rem; font-weight: 600; }
-
-.intel2-traj-pop-parts { font-size: 0.68rem; opacity: 0.8; }
-
-.intel2-traj-bandnote {
-  font-size: 0.84rem;
-  color: #6b6560;
-  margin: 14px 0 0;
+.iv-demand li {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--iv-ink-2);
   max-width: 62ch;
 }
 
-.intel2-traj-disclosure {
-  display: inline-flex;
+/* ======================================================= loading / error */
+
+.iv-loading {
+  padding: 80px 0;
+}
+
+.iv-loading-band {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(42, 31, 20, 0.06) 0%,
+    var(--iv-gold) 50%,
+    rgba(42, 31, 20, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: iv-sweep 1.6s linear infinite;
+}
+
+@keyframes iv-sweep {
+  0% { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+
+.iv-error {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 16px;
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #b08d45;
+  gap: 20px;
+  padding: 48px 0;
+  font-size: 0.95rem;
+  color: var(--iv-ink-2);
 }
 
-.intel2-traj-disclosure svg {
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+.iv-error p {
+  margin: 0;
 }
 
-.intel2-traj-disclosure svg.is-open { transform: rotate(180deg); }
+/* ============================================================== responsive */
 
-.intel2-traj-composition {
-  font-size: 0.85rem;
-  color: #4d463f;
-  margin: 10px 0 0;
-  max-width: 60ch;
-}
-
-/* ---------- responsive ---------- */
-
-@media (max-width: 860px) {
-  .intel2-page { padding: 28px 20px 90px; }
-
-  .intel2-zone { margin-top: 64px; }
-
-  .intel2-market-row {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'name figs'
-      'spark spark'
-      'mix mix';
-    gap: 8px 14px;
+@media (max-width: 900px) {
+  .iv-page {
+    padding: 30px 22px 110px;
   }
 
-  .intel2-market-name { grid-area: name; }
-  .intel2-spark { grid-area: spark; width: 100%; }
-  .intel2-market-figs { grid-area: figs; }
-  .intel2-mix { grid-area: mix; }
-
-  .intel2-source-row {
-    grid-template-columns: 1fr auto;
+  .iv-block {
+    margin-top: 62px;
   }
 
-  .intel2-source-meaning {
-    grid-column: 1 / -1;
-    font-size: 0.8rem;
-  }
-
-  .intel2-book-grid { grid-template-columns: repeat(2, 1fr); gap: 20px 14px; }
-
-  .intel2-range-row { grid-template-columns: 22px 1fr; }
-
-  .intel2-range-reason { grid-column: 2; }
-
-  .intel2-rhythm-hourlabel { font-size: 0.5rem; }
-}
-
-@media (max-width: 520px) {
-  .intel2-head {
+  .iv-block-head {
     flex-direction: column;
     align-items: flex-start;
+    gap: 14px;
   }
 
-  .intel2-pulse-foot { flex-direction: column; }
+  .iv-decision {
+    grid-template-columns: 1fr;
+  }
 
-  .intel2-rings { gap: 22px 26px; }
+  .iv-decision-action {
+    grid-row: auto;
+    grid-column: 1;
+    justify-self: start;
+    margin-top: 16px;
+  }
 
-  .intel2-ring-svg { width: 92px; height: 92px; }
+  .iv-stat {
+    padding-left: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--iv-rule-soft);
+  }
+
+  .iv-range-item {
+    padding-left: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--iv-rule-soft);
+  }
+
+  .iv-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .iv-panel-note {
+    text-align: left;
+  }
+
+  .iv-frames {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 20px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iv-loading-band {
+    animation: none;
+  }
 }

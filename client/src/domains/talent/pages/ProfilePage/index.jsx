@@ -28,7 +28,7 @@ import {
   RepresentationSection
 } from '../../components/profile-index';
 import { cmToFeetInches } from '../../../../shared/utils/measurementConversions';
-import { normalizePhoneInput } from '../../../../shared/lib/phone-format';
+import { formatPhoneDisplay } from '../../../../shared/lib/phone-format';
 import { formatLocation } from '../../../../shared/utils/locationFormat';
 import { IdentitySection } from './IdentitySection';
 import { DisciplineSection } from './DisciplineSection';
@@ -1604,13 +1604,16 @@ export default function ProfilePage() {
                   autoComplete="tel"
                   placeholder="+1 (555) 000-0000"
                   error={errors.emergency_contact_phone}
-                  value={field.value ?? ''}
-                  onChange={(e) => field.onChange(e.target.value)}
+                  value={field.value ? formatPhoneDisplay(field.value) : ''}
+                  onChange={(e) => {
+                    const formatted = formatPhoneDisplay(e.target.value);
+                    field.onChange(formatted);
+                  }}
                   onBlur={(e) => {
                     field.onBlur();
-                    const next = normalizePhoneInput(e.target.value);
-                    if (next !== field.value) {
-                      setValue('emergency_contact_phone', next, { shouldDirty: true, shouldValidate: true });
+                    const formatted = formatPhoneDisplay(e.target.value);
+                    if (formatted !== field.value) {
+                      setValue('emergency_contact_phone', formatted, { shouldDirty: true, shouldValidate: true });
                     }
                   }}
                   name={field.name}

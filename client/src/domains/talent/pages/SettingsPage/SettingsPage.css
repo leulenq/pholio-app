@@ -577,13 +577,22 @@
   transform: none;
 }
 
-.set-fields .pholio-custom-select-trigger:focus,
+.set-fields .pholio-custom-select-trigger:focus {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+  outline: none;
+  transform: none;
+}
+
 .set-fields .pholio-custom-select-trigger.open {
   border-color: rgba(201, 165, 90, 0.5);
   background: #fff;
   box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
   outline: none;
   transform: none;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
 }
 
 .set-fields .pholio-select-control-wrapper {
@@ -593,13 +602,18 @@
 
 .set-fields .pholio-custom-select-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: 100% !important;
   left: 0;
   right: 0;
+  margin-top: 0 !important;
   z-index: 9999;
   background: #fff;
-  border: 1px solid var(--set-hair);
-  border-radius: 2px;
+  border: 1px solid rgba(201, 165, 90, 0.5);
+  border-top: none !important;
+  border-bottom-left-radius: 2px !important;
+  border-bottom-right-radius: 2px !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
   box-shadow: 0 12px 36px rgba(26, 24, 21, 0.08);
   padding: 0;
   max-height: 250px;
@@ -935,10 +949,27 @@
 }
 
 .set-plan__renewal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   margin: 20px 0 0;
-  font-size: 13.5px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #1a1a1a;
+}
+
+.set-plan__trial-highlight {
+  font-weight: 600;
+  color: #1a1a1a;
+  letter-spacing: -0.005em;
+}
+
+.set-plan__trial-sub {
   font-weight: 400;
-  color: var(--set-text);
+  color: rgba(26, 26, 26, 0.72);
 }
 
 .set-plan__fine {

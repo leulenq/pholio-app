@@ -96,6 +96,9 @@ export const IdentitySection = ({
             <PholioCustomSelect
               label="Gender"
               id="gender"
+              // Values must match CANONICAL_GENDERS in src/shared/lib/gender.js
+              // — a value with no matching option renders as the placeholder,
+              // which is how mis-cased legacy rows looked blank here.
               options={[
                 { value: 'Male', label: 'Male' },
                 { value: 'Female', label: 'Female' },

@@ -5,50 +5,145 @@ import PholioButton, {
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../../shared/components/ui/PholioButton';
-import PholioSpark from '../../../../shared/components/ui/PholioSpark';
 import { PholioTextarea } from '../../../../shared/components/ui/forms';
 import styles from './BioWriter.module.css';
+
+const markVariants = {
+  idle: { scale: 1, rotate: 0 },
+  awake: {
+    scale: [1, 0.96, 1.045, 1],
+    rotate: [0, -3, 2, 0],
+    transition: {
+      duration: 1.8,
+      times: [0, 0.28, 0.62, 1],
+      ease: [0.22, 1, 0.36, 1],
+      repeat: Infinity,
+    },
+  },
+  working: {
+    scale: [1, 0.94, 1.06, 1],
+    rotate: [0, -5, 3, 0],
+    transition: {
+      duration: 1.15,
+      times: [0, 0.28, 0.62, 1],
+      ease: [0.22, 1, 0.36, 1],
+      repeat: Infinity,
+    },
+  },
+};
+
+const majorVariants = {
+  idle: { scale: 1, opacity: 1 },
+  awake: {
+    scale: [1, 0.86, 1.08, 1],
+    opacity: [1, 0.72, 1, 1],
+    transition: { duration: 1.8, times: [0, 0.3, 0.62, 1], repeat: Infinity },
+  },
+  working: {
+    scale: [1, 0.82, 1.1, 1],
+    opacity: [1, 0.64, 1, 1],
+    transition: { duration: 1.15, times: [0, 0.3, 0.62, 1], repeat: Infinity },
+  },
+};
+
+const upperVariants = {
+  idle: { x: 0, y: 0, scale: 1, opacity: 0.82 },
+  awake: {
+    x: [0, -1.1, 0.45, 0],
+    y: [0, 1.1, -0.45, 0],
+    scale: [1, 0.62, 1.22, 1],
+    opacity: [0.82, 0.28, 1, 0.82],
+    transition: { duration: 1.8, times: [0, 0.28, 0.64, 1], repeat: Infinity },
+  },
+  working: {
+    x: [0, -1.2, 0.5, 0],
+    y: [0, 1.2, -0.5, 0],
+    scale: [1, 0.55, 1.26, 1],
+    opacity: [0.82, 0.2, 1, 0.82],
+    transition: { duration: 1.15, times: [0, 0.28, 0.64, 1], repeat: Infinity },
+  },
+};
+
+const lowerVariants = {
+  idle: { x: 0, y: 0, scale: 1, opacity: 0.62 },
+  awake: {
+    x: [0, -0.8, 0.5, 0],
+    y: [0, -0.8, 0.5, 0],
+    scale: [1, 0.68, 1.16, 1],
+    opacity: [0.62, 0.22, 0.92, 0.62],
+    transition: {
+      duration: 1.8,
+      times: [0, 0.34, 0.7, 1],
+      repeat: Infinity,
+      delay: 0.12,
+    },
+  },
+  working: {
+    x: [0, -0.9, 0.55, 0],
+    y: [0, -0.9, 0.55, 0],
+    scale: [1, 0.6, 1.2, 1],
+    opacity: [0.62, 0.18, 1, 0.62],
+    transition: {
+      duration: 1.15,
+      times: [0, 0.34, 0.7, 1],
+      repeat: Infinity,
+      delay: 0.08,
+    },
+  },
+};
+
+/**
+ * The original thin-waisted Pholio spark, animated as one coordinated mark.
+ * Motion variants propagate from the SVG to each path so the major and two
+ * minor forms gather and release with one rhythm.
+ */
+function PholioMagicMark({ size = 24, state = 'idle' }) {
+  return (
+    <motion.svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={styles.magicMark}
+      aria-hidden="true"
+      focusable="false"
+      initial={false}
+      animate={state}
+      variants={markVariants}
+    >
+      <motion.path
+        className={styles.magicMajor}
+        d="M9.7 3.4 C10.9 8.2 12.6 9.9 17.4 11.1 C12.6 12.3 10.9 14 9.7 18.8 C8.5 14 6.8 12.3 2 11.1 C6.8 9.9 8.5 8.2 9.7 3.4 Z"
+        variants={majorVariants}
+      />
+      <motion.path
+        className={styles.magicMinor}
+        d="M18.6 1 C19.1 3 19.8 3.7 21.8 4.2 C19.8 4.7 19.1 5.4 18.6 7.4 C18.1 5.4 17.4 4.7 15.4 4.2 C17.4 3.7 18.1 3 18.6 1 Z"
+        variants={upperVariants}
+      />
+      <motion.path
+        className={styles.magicMinor}
+        d="M18.6 15.6 C19.1 17.6 19.8 18.3 21.8 18.8 C19.8 19.3 19.1 20 18.6 22 C18.1 20 17.4 19.3 15.4 18.8 C17.4 18.3 18.1 17.6 18.6 15.6 Z"
+        variants={lowerVariants}
+      />
+    </motion.svg>
+  );
+}
 
 /**
  * The bio writer.
  *
- * The spark is the only way into the writing experience, and length and voice
- * are settings *of* that action rather than a permanent row of toggles under
- * the field — a standing row implied they did something on their own, which is
- * what made the old arrangement read as three unrelated controls.
- *
- * So: press the spark, a composer opens against it, and the parameters live
- * inside next to the confirm. Ignore the parameters and the defaults write a
- * standard, third-person bio.
- *
- * Word ranges below are the real targets the model is prompted with
- * (`src/domains/talent/services/bio-writer/prompt-builder.js`) — if those
- * change, change these.
+ * Hover/focus reveals the writing controls; the magic mark itself generates.
+ * On touch, the first tap reveals the controls and the second activates them.
  */
 const LENGTHS = [
-  {
-    value: 'tight',
-    label: 'Tight',
-    note: 'One or two lines, 25–45 words. Built to be scanned on a board.',
-  },
-  {
-    value: 'standard',
-    label: 'Standard',
-    note: 'A short paragraph, 35–80 words. Room for range and credits.',
-  },
+  { value: 'tight', label: 'Tight' },
+  { value: 'standard', label: 'Standard' },
 ];
 
 const VOICES = [
-  {
-    value: 'third',
-    label: 'Agency',
-    note: 'Third person — the way a booker introduces you to a client.',
-  },
-  {
-    value: 'first',
-    label: 'Personal',
-    note: 'First person — your own voice, for direct submissions.',
-  },
+  { value: 'third', label: 'Agency' },
+  { value: 'first', label: 'Personal' },
 ];
 
 const MIN_REFINE_LENGTH = 10;
@@ -72,47 +167,63 @@ export default function BioWriter({
   const reduceMotion = useReducedMotion();
   const panelId = `bio-composer-${useId()}`;
   const [open, setOpen] = useState(false);
-  const [sweeping, setSweeping] = useState(false);
-  const rootRef = useRef(null);
-  const panelRef = useRef(null);
-  const triggerRef = useRef(null);
-  const wasWorkingRef = useRef(false);
-  const valueAtWriteRef = useRef(value);
+  const [engaged, setEngaged] = useState(false);
+  const magicAnchorRef = useRef(null);
+  const closeTimerRef = useRef(null);
+  const touchPrimedRef = useRef(false);
 
   const length = options?.length === 'tight' ? 'tight' : 'standard';
   const person = options?.person === 'first' ? 'first' : 'third';
   const hasBio = String(value || '').trim().length >= MIN_REFINE_LENGTH;
   const wordCount = useMemo(() => countWords(value), [value]);
-
-  const actionLabel = hasBio ? 'Refine bio' : 'Write bio';
-  const workingLabel = hasBio ? 'Refining…' : 'Writing…';
+  const motionState = reduceMotion
+    ? 'idle'
+    : isWorking
+      ? 'working'
+      : engaged || open
+        ? 'awake'
+        : 'idle';
 
   const setOption = (patch) => {
     onOptionsChange?.({ length, person, ...patch });
   };
 
-  const closePanel = ({ restoreFocus = true } = {}) => {
-    setOpen(false);
-    if (restoreFocus) triggerRef.current?.focus();
+  const cancelScheduledClose = () => {
+    if (!closeTimerRef.current) return;
+    window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
   };
 
-  // The composer is a non-modal popover: escape and outside presses dismiss it,
-  // and tabbing past the confirm lets it go rather than trapping the keyboard.
+  const schedulePanelClose = () => {
+    cancelScheduledClose();
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      setEngaged(false);
+      closeTimerRef.current = null;
+    }, 140);
+  };
+
+  useEffect(() => () => cancelScheduledClose(), []);
+
   useEffect(() => {
     if (!open) return undefined;
 
     const handleKeyDown = (event) => {
       if (event.key !== 'Escape') return;
       event.stopPropagation();
-      closePanel();
+      setOpen(false);
     };
     const handlePointerDown = (event) => {
-      if (rootRef.current?.contains(event.target)) return;
+      if (magicAnchorRef.current?.contains(event.target)) return;
+      cancelScheduledClose();
       setOpen(false);
+      setEngaged(false);
     };
     const handleFocusIn = (event) => {
-      if (rootRef.current?.contains(event.target)) return;
+      if (magicAnchorRef.current?.contains(event.target)) return;
+      cancelScheduledClose();
       setOpen(false);
+      setEngaged(false);
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -125,84 +236,90 @@ export default function BioWriter({
     };
   }, [open]);
 
-  // Opening hands the keyboard the first parameter, so the whole composer is
-  // reachable with Tab from the spark.
-  useEffect(() => {
-    if (!open) return;
-    panelRef.current?.querySelector('[data-pholio-toggle]')?.focus();
-  }, [open]);
-
-  // The prose lands in a textarea, so it can't animate in. A gold rule drawn
-  // under the field marks the moment instead — but only when the model
-  // actually returned something new, never after a failed attempt.
-  useEffect(() => {
-    if (isWorking) {
-      wasWorkingRef.current = true;
-      return;
-    }
-    if (!wasWorkingRef.current) return;
-    wasWorkingRef.current = false;
-    setOpen(false);
-    if (value !== valueAtWriteRef.current && !reduceMotion) setSweeping(true);
-  }, [isWorking, value, reduceMotion]);
-
   const runWriter = () => {
-    valueAtWriteRef.current = value;
+    cancelScheduledClose();
+    setOpen(false);
+    setEngaged(false);
     if (hasBio) onRefine?.();
     else onWrite?.();
   };
 
-  const activeLengthNote = LENGTHS.find((item) => item.value === length)?.note;
-  const activeVoiceNote = VOICES.find((item) => item.value === person)?.note;
+  const handleTriggerClick = () => {
+    if (touchPrimedRef.current) {
+      touchPrimedRef.current = false;
+      return;
+    }
+    if (!open) {
+      setOpen(true);
+      return;
+    }
+    runWriter();
+  };
+
+  const handlePointerDown = (event) => {
+    if (event.pointerType === 'mouse' || open) return;
+    touchPrimedRef.current = true;
+    setOpen(true);
+  };
 
   return (
-    <div className={styles.writer} ref={rootRef}>
+    <div className={styles.writer}>
       <div className={styles.head}>
         <div className={styles.titleRow}>
           <h3 className={styles.title}>
             About <em>you</em>
           </h3>
 
-          <div className={styles.sparkAnchor}>
+          <div
+            ref={magicAnchorRef}
+            className={styles.magicAnchor}
+            onMouseEnter={cancelScheduledClose}
+            onMouseLeave={schedulePanelClose}
+          >
             <PholioIconButton
-              ref={triggerRef}
               label={hasBio ? 'Refine your bio with Pholio' : 'Write your bio with Pholio'}
-              className={`${styles.spark} ${open ? styles.sparkOpen : ''} ${
-                isWorking ? styles.sparkWorking : ''
+              title={hasBio ? 'Refine bio with Pholio' : 'Write bio with Pholio'}
+              className={`${styles.magicButton} ${open ? styles.magicOpen : ''} ${
+                isWorking ? styles.magicWorking : ''
               }`}
+              loading={isWorking}
               aria-haspopup="dialog"
               aria-expanded={open}
               aria-controls={open ? panelId : undefined}
-              onClick={() => (open ? closePanel({ restoreFocus: false }) : setOpen(true))}
+              onMouseEnter={() => {
+                cancelScheduledClose();
+                setEngaged(true);
+                setOpen(true);
+              }}
+              onMouseLeave={() => setEngaged(false)}
+              onPointerDown={handlePointerDown}
+              onFocus={() => {
+                setEngaged(true);
+                setOpen(true);
+              }}
+              onBlur={() => setEngaged(false)}
+              onClick={handleTriggerClick}
             >
-              <PholioSpark size={24} />
+              <PholioMagicMark size={25} state={motionState} />
             </PholioIconButton>
 
             <AnimatePresence>
               {open && (
                 <motion.div
-                  ref={panelRef}
                   id={panelId}
                   role="dialog"
                   aria-label="Pholio bio writer"
                   className={styles.panel}
-                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  initial={{ opacity: 0, y: -7, scale: 0.975 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  exit={{ opacity: 0, y: -5, scale: 0.985 }}
                   transition={
                     reduceMotion
-                      ? { duration: 0.12 }
-                      : { type: 'spring', stiffness: 380, damping: 30, mass: 0.6 }
+                      ? { duration: 0.1 }
+                      : { type: 'spring', stiffness: 360, damping: 28, mass: 0.62 }
                   }
                 >
-                  <p className={styles.panelLede}>
-                    {hasBio
-                      ? 'Pholio rewrites what you have, keeping the facts.'
-                      : 'Pholio drafts from your profile — bases, categories, training, credits.'}
-                  </p>
-
                   <div className={styles.param} role="group" aria-label="Bio length">
-                    <span className={styles.paramLabel}>Length</span>
                     <PholioToggleGroup className={styles.paramOptions}>
                       {LENGTHS.map((item) => (
                         <PholioToggleButton
@@ -215,11 +332,9 @@ export default function BioWriter({
                         </PholioToggleButton>
                       ))}
                     </PholioToggleGroup>
-                    <p className={styles.paramNote}>{activeLengthNote}</p>
                   </div>
 
                   <div className={styles.param} role="group" aria-label="Bio voice">
-                    <span className={styles.paramLabel}>Voice</span>
                     <PholioToggleGroup className={styles.paramOptions}>
                       {VOICES.map((item) => (
                         <PholioToggleButton
@@ -232,19 +347,7 @@ export default function BioWriter({
                         </PholioToggleButton>
                       ))}
                     </PholioToggleGroup>
-                    <p className={styles.paramNote}>{activeVoiceNote}</p>
                   </div>
-
-                  <PholioButton
-                    variant="ai"
-                    fullWidth
-                    icon={<PholioSpark size={14} />}
-                    loading={isWorking}
-                    className={styles.confirm}
-                    onClick={runWriter}
-                  >
-                    {isWorking ? workingLabel : actionLabel}
-                  </PholioButton>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -267,16 +370,75 @@ export default function BioWriter({
           value={value}
         />
         <AnimatePresence>
-          {sweeping && (
-            <motion.span
-              className={styles.sweep}
+          {isWorking && (
+            <motion.svg
+              className={styles.thinkingSweep}
               aria-hidden="true"
-              initial={{ scaleX: 0, opacity: 1 }}
-              animate={{ scaleX: 1, opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              onAnimationComplete={() => setSweeping(false)}
-            />
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              initial={{ opacity: 0, scale: 0.997 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, scale: 1.003 }}
+              transition={{
+                duration: reduceMotion ? 0.1 : 0.42,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <motion.rect
+                className={styles.thinkingSweepBase}
+                x="0.75"
+                y="0.75"
+                width="98.5"
+                height="98.5"
+                rx="1.2"
+                pathLength={1}
+                vectorEffect="non-scaling-stroke"
+                initial={false}
+                animate={
+                  reduceMotion
+                    ? { opacity: 0.34 }
+                    : { opacity: [0.2, 0.36, 0.2] }
+                }
+                transition={
+                  reduceMotion
+                    ? { duration: 0.1 }
+                    : { duration: 3.2, ease: 'easeInOut', repeat: Infinity }
+                }
+              />
+              <motion.rect
+                className={styles.thinkingSweepCurrent}
+                x="0.75"
+                y="0.75"
+                width="98.5"
+                height="98.5"
+                rx="1.2"
+                pathLength={1}
+                strokeDasharray="0.16 0.84"
+                vectorEffect="non-scaling-stroke"
+                initial={false}
+                animate={
+                  reduceMotion
+                    ? { opacity: 0 }
+                    : { strokeDashoffset: [0, -1], opacity: [0.52, 0.78, 0.52] }
+                }
+                transition={
+                  reduceMotion
+                    ? { duration: 0.1 }
+                    : {
+                        strokeDashoffset: {
+                          duration: 4.6,
+                          ease: 'linear',
+                          repeat: Infinity,
+                        },
+                        opacity: {
+                          duration: 2.8,
+                          ease: 'easeInOut',
+                          repeat: Infinity,
+                        },
+                      }
+                }
+              />
+            </motion.svg>
           )}
         </AnimatePresence>
       </div>

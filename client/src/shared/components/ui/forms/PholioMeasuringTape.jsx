@@ -7,11 +7,11 @@ import styles from './PholioMeasuringTape.module.css';
  * Supports feet and inches notation (e.g. 5'11", 5-11, 5 11) for imperial height (unit: 'in'),
  * as well as normal numeric strings for other cases.
  */
-const parseValue = (str, currentUnit, minVal, maxVal) => {
+const parseValue = (str, currentUnit, minVal, maxVal, allowFeetInches) => {
   let val;
   const cleanStr = str.trim();
   
-  if (currentUnit === 'in') {
+  if (currentUnit === 'in' && allowFeetInches) {
     // Look for feet and inches format: e.g. 5'11", 5-11, 5 11, 5ft 11
     const ftInMatch = cleanStr.match(/^(\d+)\s*(?:'|ft|’|′|-)\s*(\d+)?\s*(?:"|in|”|″)?$/i) 
       || cleanStr.match(/^(\d+)\s+(\d+)\s*(?:"|in|”|″)?$/i);
@@ -38,7 +38,10 @@ const parseValue = (str, currentUnit, minVal, maxVal) => {
  * @param {number} min - Minimum value
  * @param {number} max - Maximum value
  * @param {number} step - Step increment (default 1)
+ * @param {number} majorStep - Value interval between labelled ticks
+ * @param {number} unsetValue - Resting position when no value has been entered
  * @param {string} unit - Label for the unit (cm, kg, etc.)
+ * @param {boolean} allowFeetInches - Parse imperial edits such as 5'11"
  */
 const PholioMeasuringTape = ({ 
   value, 
@@ -46,7 +49,10 @@ const PholioMeasuringTape = ({
   min = 140, 
   max = 220, 
   step = 1, 
+  majorStep,
+  unsetValue,
   unit = 'cm',
+  allowFeetInches = false,
   size = 'medium',
   formatter, // Function to format the display value (e.g. val => val + "'")
   className = '',
@@ -76,19 +82,23 @@ const PholioMeasuringTape = ({
   // Each small tick width based on size
   const tickWidth = size === 'small' ? 8 : 10;
   
-  // Density: Label every 10 for cm, every 12 for inches (1 foot), or 5 for general
-  const majorTickInterval = unit === 'cm' ? 10 : (unit.includes('in') ? 12 : 5);
+  // Keep label density based on values rather than tick count so fractional
+  // steps do not accidentally double the number of labelled ticks.
+  const majorValueInterval = majorStep ?? (unit === 'cm' ? 10 : (unit.includes('in') ? 12 : 5));
+  const majorTickInterval = Math.max(1, Math.round(majorValueInterval / step));
+  const emptyRestingValue = unsetValue ?? Math.round((min + max) / 2);
 
   // Initial scroll position based on value - MUST RE-SYNC when min/max/step changes
   useEffect(() => {
     if (containerRef.current && !isDragging) {
-      // If there's no value, default the visual scroll position to the middle of the tape
-      const numericValue = value !== null && value !== undefined && value !== '' ? value : Math.round((min + max) / 2);
+      // Unset fields may provide a stable ergonomic resting point independent
+      // of broad technical min/max bounds.
+      const numericValue = value !== null && value !== undefined && value !== '' ? value : emptyRestingValue;
       const targetScroll = (numericValue - min) * (tickWidth / step);
       syncedScrollTargetRef.current = targetScroll;
       containerRef.current.scrollLeft = targetScroll;
     }
-  }, [value, min, max, step, tickWidth, isDragging]);
+  }, [value, min, step, tickWidth, isDragging, emptyRestingValue]);
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current || isDragging) return;
@@ -181,7 +191,7 @@ const PholioMeasuringTape = ({
   };
 
   const handleCommit = () => {
-    const parsed = parseValue(editVal, unit, min, max);
+    const parsed = parseValue(editVal, unit, min, max, allowFeetInches);
     if (parsed !== null && !isNaN(parsed)) {
       const stepped = Math.round(parsed / step) * step;
       onChange(stepped);
@@ -204,7 +214,7 @@ const PholioMeasuringTape = ({
     const stepSize = step;
     const pageStepSize = unit === 'cm' ? 5 : (unit === 'in' ? 12 : 5);
     
-    let newValue = hasValue ? value : Math.round((min + max) / 2);
+    let newValue = hasValue ? value : emptyRestingValue;
 
     switch (e.key) {
       case 'ArrowRight':
@@ -309,11 +319,13 @@ const PholioMeasuringTape = ({
           onMouseUp={onMouseUp}
           onMouseMove={onMouseMove}
         >
-          <div className={styles.spacer} />
-          <div className={styles.scale} ref={scaleRef}>
+          <div
+            className={styles.scale}
+            ref={scaleRef}
+            style={{ '--tape-tick-width': `${tickWidth}px` }}
+          >
             {ticks}
           </div>
-          <div className={styles.spacer} />
         </div>
       </div>
     </div>

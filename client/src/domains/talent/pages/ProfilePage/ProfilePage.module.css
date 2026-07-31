@@ -979,12 +979,27 @@
 .profileForms :global(.pholio-input:focus),
 .profileForms :global(.pholio-select:focus),
 .profileForms :global(.pholio-textarea:focus),
-.profileForms :global(.pholio-custom-select-trigger:focus),
+.profileForms :global(.pholio-custom-select-trigger:focus) {
+  border-color: rgba(201, 165, 90, 0.5);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+  outline: none;
+  transform: none;
+}
+
 .profileForms :global(.pholio-custom-select-trigger.open) {
   border-color: rgba(201, 165, 90, 0.5);
   background: #fff;
   box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
   outline: none;
+  transform: none;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.profileForms :global(.pholio-autocomplete-field:has(.pholio-custom-select-dropdown)) :global(.pholio-input) {
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
   transform: none;
 }
 
@@ -1011,13 +1026,18 @@
 .profileForms :global(.pholio-custom-select-dropdown),
 .profileForms :global(.pholio-autocomplete-dropdown) {
   position: absolute !important;
-  top: calc(100% + 6px) !important;
+  top: 100% !important;
   left: 0 !important;
   right: 0 !important;
+  margin-top: 0 !important;
   z-index: 9999 !important;
   background: #FFFFFF;
-  border: 1px solid var(--pf-hair);
-  border-radius: var(--pf-radius-sm);
+  border: 1px solid rgba(201, 165, 90, 0.5) !important;
+  border-top: none !important;
+  border-bottom-left-radius: var(--pf-radius-sm) !important;
+  border-bottom-right-radius: var(--pf-radius-sm) !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
   box-shadow: 0 12px 36px rgba(26, 24, 21, 0.08);
   padding: 0;
   max-height: 250px;

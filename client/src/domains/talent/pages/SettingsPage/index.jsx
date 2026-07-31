@@ -39,6 +39,7 @@ import SubscriptionReturnBanner from '../../../../shared/components/billing/Subs
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCustomSelect';
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
+import { formatPhoneDisplay } from '../../../../shared/lib/phone-format';
 import { identityFormFromProfile } from './identityForm';
 import './SettingsPage.css';
 
@@ -596,7 +597,12 @@ function IdentityMovement({ settings }) {
               <input value={form.last_name} onChange={(e) => setField('last_name', e.target.value)} autoComplete="family-name" />
             </Field>
             <Field label="Phone" hint="booking contact only, never public">
-              <input value={form.phone} onChange={(e) => setField('phone', e.target.value)} autoComplete="tel" placeholder="+1 (555) 000-0000" />
+              <input
+                value={form.phone ? formatPhoneDisplay(form.phone) : ''}
+                onChange={(e) => setField('phone', formatPhoneDisplay(e.target.value))}
+                autoComplete="tel"
+                placeholder="+1 (555) 000-0000"
+              />
             </Field>
             <PholioCustomSelect
               label="Working language"
@@ -862,12 +868,6 @@ function StudioMovement({ settings, isLoading }) {
     try { await redirectToCheckout(payload); } catch (error) { toast.error(error?.message || 'Unable to open billing'); setOpening(false); }
   };
 
-  const renewalLine = subscription?.renewalDate
-    ? `Renews ${formatDate(subscription.renewalDate)}`
-    : subscription?.isTrialing
-      ? `Trial ends ${formatDate(subscription.trialEndDate)}`
-      : '14-day trial available. Cancel anytime.';
-
   return (
     <Movement
       id="studio"
@@ -891,7 +891,18 @@ function StudioMovement({ settings, isLoading }) {
                 {opening || handoffOpen ? 'Opening…' : subscription.isPro ? 'Manage billing' : 'Start Studio+'}
               </PholioButton>
             </div>
-            <p className="set-plan__renewal">{renewalLine}</p>
+            <p className="set-plan__renewal">
+              {subscription?.renewalDate
+                ? `Renews ${formatDate(subscription.renewalDate)}`
+                : subscription?.isTrialing
+                  ? `Trial ends ${formatDate(subscription.trialEndDate)}`
+                  : (
+                    <>
+                      <span className="set-plan__trial-highlight">14-day trial available.</span>{' '}
+                      <span className="set-plan__trial-sub">Cancel anytime.</span>
+                    </>
+                  )}
+            </p>
             <p className="set-plan__fine">Submissions an agency invites through their open call never count toward the monthly limit, on any plan.</p>
             <p className="set-plan__method">
               <CreditCard size={14} aria-hidden="true" />

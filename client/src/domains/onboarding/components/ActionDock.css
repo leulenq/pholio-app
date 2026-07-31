@@ -112,19 +112,8 @@
     text-transform: none;
   }
 
-  /* Gold underline accent (mirrors .pholio-btn--primary::after). */
   .action-dock-cta::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: 0;
-    width: 46px;
-    height: 1.5px;
-    border-radius: 999px;
-    background: linear-gradient(to right, transparent, #c9a55a, transparent);
-    opacity: 0.6;
-    transform: translateX(-50%);
-    pointer-events: none;
+    display: none;
   }
 
   .action-dock-arw {

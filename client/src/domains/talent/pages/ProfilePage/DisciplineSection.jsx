@@ -4,27 +4,25 @@ import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCus
 import { Section } from '../../components/profile-index';
 import { BookingLanesControl } from './BookingLanesControl';
 import { getLaneFitSignals } from './bookingLaneSignals';
+import { STATS_TRACK_OPTIONS } from '../../../../shared/constants/statsTrack';
 import styles from './ProfilePage.module.css';
+
+// Stored lowercase — `profiles.discipline` defaults to "model" (migration
+// 20260701100100) and the server enum is ["model","performer","creator"].
+// Title-cased values here 400'd the entire profile save and left the select
+// showing its placeholder for every existing profile.
+const DISCIPLINE_OPTIONS = [
+  { value: 'model', label: 'Model' },
+  { value: 'performer', label: 'Performer' },
+  { value: 'creator', label: 'Creator' },
+];
 
 export function DisciplineSection({
   control,
   errors,
   watch,
 }) {
-  const disciplineValue = watch('discipline');
   const profileValues = watch();
-
-  const disciplineOptions = [
-    { value: 'Model', label: 'Model' },
-    { value: 'Performer', label: 'Performer' },
-    { value: 'Creator', label: 'Creator' },
-  ];
-
-  const statsTrackOptions = [
-    { value: 'Womenswear', label: 'Womenswear' },
-    { value: 'Menswear', label: 'Menswear' },
-    { value: 'Ungendered', label: 'Ungendered' },
-  ];
 
   return (
     <Section
@@ -42,7 +40,7 @@ export function DisciplineSection({
             <PholioCustomSelect
               label="Primary Discipline"
               id="discipline"
-              options={disciplineOptions}
+              options={DISCIPLINE_OPTIONS}
               value={field.value}
               onChange={field.onChange}
               error={errors.discipline}
@@ -51,23 +49,24 @@ export function DisciplineSection({
           )}
         />
 
-        {disciplineValue === 'Model' && (
-          <Controller
-            name="stats_track"
-            control={control}
-            render={({ field }) => (
-              <PholioCustomSelect
-                label="Stats Track"
-                id="stats_track"
-                options={statsTrackOptions}
-                value={field.value}
-                onChange={field.onChange}
-                error={errors.stats_track}
-                placeholder="Select your stats track"
-              />
-            )}
-          />
-        )}
+        {/* Shown for every discipline. Gating this on "model" left performers
+            and creators with no way to change track, so they were stuck on the
+            womenswear fallback with no control to correct it. */}
+        <Controller
+          name="stats_track"
+          control={control}
+          render={({ field }) => (
+            <PholioCustomSelect
+              label="Stats Track"
+              id="stats_track"
+              options={STATS_TRACK_OPTIONS}
+              value={field.value}
+              onChange={field.onChange}
+              error={errors.stats_track}
+              placeholder="Select your stats track"
+            />
+          )}
+        />
       </div>
 
       <div className={styles.bookingLaneSection}>

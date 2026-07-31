@@ -83,7 +83,15 @@ export const talentApi = {
   getActivity: () => apiClient.get('/activity'),
 
   // Intel (talent intelligence hub — composed payload + per-day scrub detail)
-  getIntel: (days) => apiClient.get(`/intel${days ? `?days=${days}` : ''}`),
+  // The talent's own zone travels with the request so timing findings ("attention
+  // lands Thursday afternoons") are stated in their clock, not UTC.
+  getIntel: (days, tz) => {
+    const params = new URLSearchParams();
+    if (days) params.set('days', String(days));
+    if (tz) params.set('tz', tz);
+    const qs = params.toString();
+    return apiClient.get(`/intel${qs ? `?${qs}` : ''}`);
+  },
   getIntelDay: (date) => apiClient.get(`/intel/day/${date}`),
 
   // Notifications (high-signal bell center)

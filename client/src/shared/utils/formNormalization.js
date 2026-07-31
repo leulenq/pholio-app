@@ -4,6 +4,10 @@ import {
 } from '../constants/bookingLanes';
 import { normalizePhoneInput } from '../lib/phone-format';
 import { SENSITIVE_MEASUREMENT_FIELDS } from './talentAge';
+import {
+  resolveStatsTrack,
+  coreCircumferenceFor,
+} from '../constants/statsTrack';
 
 /**
  * Traverses an object or array recursively, converting empty strings or whitespace-only
@@ -239,9 +243,17 @@ export function normalizeProfileForForm(profile = {}) {
       (profile.guardian_consent_at ? 'verified' : 'none'),
     work_permit_on_file: toFormBoolean(profile.work_permit_on_file, false),
 
-    // Discipline & Stats Track (NEW)
-    discipline: profile.discipline ? String(profile.discipline) : '',
-    stats_track: profile.stats_track ? String(profile.stats_track) : '',
+    // Discipline & Stats Track. Both are stored lowercase; lowercase on read so
+    // a legacy title-cased row still matches its select option.
+    discipline: profile.discipline ? String(profile.discipline).toLowerCase() : '',
+    // Seeded from gender when the profile has never set one, so the select shows
+    // the track that is ALREADY in effect server-side (resolveStatsTrack applies
+    // the same fallback) instead of sitting empty on the womenswear default.
+    // Deliberately left blank when there is nothing to seed FROM: persisting a
+    // derived "ungendered" before the talent has stated a gender would lock the
+    // track (track beats gender by design) and stop a later gender from seeding.
+    stats_track:
+      profile.stats_track || profile.gender ? resolveStatsTrack(profile) : '',
   };
 }
 
@@ -293,20 +305,17 @@ export function normalizeProfileForSave(formData, measurementsLocked = false) {
     payload.training = payload.training_summary;
   }
 
-  // Handle bust vs chest mapping based on stats_track
-  if (payload.stats_track === 'Menswear' || payload.stats_track === 'Ungendered') {
-    // For menswear/ungendered, chest_cm is primary
-    if (payload.chest_cm) {
-      payload.chest_cm = Number(payload.chest_cm);
-    }
-    delete payload.bust_cm; // Clear womenswear field
-  } else {
-    // For womenswear (default), bust_cm is primary
-    if (payload.bust_cm) {
-      payload.bust_cm = Number(payload.bust_cm);
-    }
-    delete payload.chest_cm; // Clear menswear field
+  // Handle bust vs chest mapping based on the resolved stats track. Resolving
+  // (rather than testing the raw string) is what keeps a menswear profile from
+  // writing its chest measurement into bust_cm.
+  const track = resolveStatsTrack(payload);
+  const core = coreCircumferenceFor(track);
+  if (payload[core.field]) {
+    payload[core.field] = Number(payload[core.field]);
   }
+  // Only the track's own circumference is sent; the other column keeps whatever
+  // the server already holds instead of being overwritten from a hidden input.
+  delete payload[core.field === 'bust_cm' ? 'chest_cm' : 'bust_cm'];
 
   // Persist shoe region
   if (payload.shoe_region) {

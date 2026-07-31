@@ -140,11 +140,6 @@ function flowCounts(applications, activitiesByApp) {
   };
   for (const app of applications) {
     const acts = activitiesByApp.get(app.id) || [];
-    const wasReviewed =
-      Boolean(app.viewed_at) ||
-      acts.some((a) => a.activity_type === "profile_viewed");
-    if (wasReviewed) flow.reviewed += 1;
-
     // Highest stage the submission has touched, from status history.
     const touched = new Set([app.status]);
     for (const a of acts) {
@@ -154,9 +149,25 @@ function flowCounts(applications, activitiesByApp) {
         if (meta.old_status) touched.add(meta.old_status);
       }
     }
-    const everAdvanced =
-      [...touched].some((s) => ADVANCING.has(s) || SIGNED.has(s));
+    // Kept-on-file counts as movement past a plain read: the board looked and
+    // chose to retain the materials. Without it the funnel is not nested — a
+    // submission could settle positively having never been "advanced", which
+    // makes stage-to-stage conversion rates meaningless.
+    const everAdvanced = [...touched].some(
+      (s) => ADVANCING.has(s) || SIGNED.has(s) || s === "kept_on_file",
+    );
     if (everAdvanced) flow.advanced += 1;
+
+    // A board cannot shortlist, file or sign what it never opened, so an
+    // advance stands as evidence of a read even when `viewed_at` was never
+    // stamped. Deriving it this way keeps `reviewed` a true superset of
+    // `advanced` instead of letting a capture gap invert the funnel.
+    const wasReviewed =
+      Boolean(app.viewed_at) ||
+      acts.some((a) => a.activity_type === "profile_viewed") ||
+      everAdvanced;
+    if (wasReviewed) flow.reviewed += 1;
+
     if (touched.has("shortlisted")) flow.stages.shortlisted += 1;
     if (touched.has("requested_more")) flow.stages.requestedMore += 1;
     if (touched.has("meeting_requested")) flow.stages.meeting += 1;
@@ -241,6 +252,7 @@ async function stageClock(profileId, applications) {
     if (latencies.length >= 20) {
       band = {
         p25: Math.round(quantile(latencies, 0.25) * 10) / 10,
+        p50: Math.round(quantile(latencies, 0.5) * 10) / 10,
         p75: Math.round(quantile(latencies, 0.75) * 10) / 10,
       };
     }

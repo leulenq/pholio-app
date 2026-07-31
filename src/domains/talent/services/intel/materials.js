@@ -25,15 +25,23 @@ function ringState(ageDays, windowDays) {
   return "stale";
 }
 
-function ring(key, label, ageDays, windowDays) {
+/**
+ * One dated material measured against its industry window.
+ *
+ * `daysLeft` (positive) and `daysOver` (past the window) are the decidable
+ * numbers — "reshoot in 11 days" and "34 days past" are acts; a ring fill
+ * fraction is not. Every item carries the same `windowDays` scale so the three
+ * can be drawn on one axis and honestly compared.
+ */
+function item(key, label, ageDays, windowDays) {
+  const age = ageDays === null ? null : Math.round(ageDays);
   return {
     key,
     label,
-    ageDays: ageDays === null ? null : Math.round(ageDays),
+    ageDays: age,
     windowDays,
-    // How much of the window remains (0 = spent). Drives the depleting ring.
-    remaining:
-      ageDays === null ? 0 : Math.max(0, Math.min(1, 1 - ageDays / windowDays)),
+    daysLeft: age === null ? null : Math.max(0, windowDays - age),
+    daysOver: age === null ? null : Math.max(0, age - windowDays),
     state: ringState(ageDays, windowDays),
   };
 }
@@ -80,39 +88,56 @@ async function buildLens(profile, images) {
     .filter((d) => d && !isNaN(d.getTime()))
     .sort((a, b) => b - a)[0];
 
-  let cardRing;
+  // The card is not judged on age but on whether it predates the book it sells.
+  // It shares the item shape (so it can sit on the same axis) but reports its
+  // own scale explicitly rather than borrowing another material's window.
+  let cardItem;
   if (!lastCard) {
-    cardRing = { ...ring("card", "Comp card", null, 1), state: "missing" };
-  } else if (latestMaterialChange && latestMaterialChange > lastCard) {
-    const staleness = ageInDays(latestMaterialChange, now);
-    cardRing = {
+    cardItem = {
       key: "card",
       label: "Comp card",
-      ageDays: staleness === null ? null : Math.round(staleness),
+      ageDays: null,
       windowDays: null,
-      remaining: 0,
-      state: "stale", // material changed after the card was generated
+      daysLeft: null,
+      daysOver: null,
+      state: "missing",
+      note: "never generated",
     };
-  } else {
-    cardRing = {
+  } else if (latestMaterialChange && latestMaterialChange > lastCard) {
+    const behindDays = Math.round(ageInDays(latestMaterialChange, now));
+    cardItem = {
       key: "card",
       label: "Comp card",
       ageDays: Math.round(ageInDays(lastCard, now)),
       windowDays: null,
-      remaining: 1,
+      daysLeft: null,
+      // The card is out of date by however long ago the book moved past it.
+      daysOver: behindDays,
+      state: "stale",
+      note: "your book changed after it was made",
+    };
+  } else {
+    cardItem = {
+      key: "card",
+      label: "Comp card",
+      ageDays: Math.round(ageInDays(lastCard, now)),
+      windowDays: null,
+      daysLeft: null,
+      daysOver: 0,
       state: "current",
+      note: "matches your book",
     };
   }
 
   const rings = [
-    ring("digitals", "Digitals", digitalsAge, DIGITALS_WINDOW_DAYS),
-    ring(
+    item("digitals", "Digitals", digitalsAge, DIGITALS_WINDOW_DAYS),
+    item(
       "measurements",
       "Measurements",
       measurementsAge,
       MEASUREMENTS_WINDOW_DAYS,
     ),
-    cardRing,
+    cardItem,
   ];
 
   // Range read — what a booker scans a book for.
@@ -146,114 +171,38 @@ async function buildLens(profile, images) {
   return { rings, range };
 }
 
-/** One-word verdict for the Pulse, with the drivers that set it. */
-function materialsVerdict(rings) {
+/**
+ * Can this package be sent today?
+ *
+ * `hold` / `caveat` / `ready` is the decision; `verdict` keeps the older
+ * currency word for copy that reads about materials rather than about sending.
+ * Digitals and range coverage are what a board rejects a package over, so they
+ * alone can force a hold — an aging comp card is a caveat, not a blocker.
+ */
+function materialsVerdict(rings, range = []) {
   const states = rings.map((r) => r.state);
-  const drivers = rings
-    .filter((r) => r.state !== "current")
-    .map((r) => r.key);
+  const byKey = Object.fromEntries(rings.map((r) => [r.key, r]));
+  const drivers = rings.filter((r) => r.state !== "current").map((r) => r.key);
+  const missingRange = (range || []).filter((r) => !r.present);
+
   let verdict = "current";
   if (states.includes("stale") || states.includes("missing")) verdict = "stale";
   else if (states.includes("aging")) verdict = "aging";
-  return { verdict, drivers };
-}
 
-/**
- * Next Moves — max three ranked actions, each observation + industry reason +
- * one act, ranked by expected effect on Tier 1–3 signal (spec zone 6).
- */
-function nextMoves({ rings, range, inMotionRows, flow, periodDays }) {
-  const moves = [];
-  const byKey = Object.fromEntries(rings.map((r) => [r.key, r]));
+  const digitalsBad =
+    byKey.digitals &&
+    (byKey.digitals.state === "stale" || byKey.digitals.state === "missing");
 
-  const urgentRequest = (inMotionRows || []).find((r) => r.urgent);
-  if (urgentRequest) {
-    moves.push({
-      key: "respond_requested_more",
-      observation: `${urgentRequest.agencyName} requested more ${
-        urgentRequest.daysAgo != null ? `${urgentRequest.daysAgo} days ago` : "recently"
-      }.`,
-      reason:
-        "A request for more materials is the strongest live signal a submission can carry — response time is part of the read.",
-      action: "Respond with the requested materials today.",
-      to: "/dashboard/talent/applications",
-    });
-  }
+  let sendability = "ready";
+  if (digitalsBad || missingRange.length > 0) sendability = "hold";
+  else if (verdict !== "current") sendability = "caveat";
 
-  if (byKey.digitals && byKey.digitals.state !== "current") {
-    const age = byKey.digitals.ageDays;
-    moves.push({
-      key: "reshoot_digitals",
-      observation:
-        byKey.digitals.state === "missing"
-          ? "No digitals in your book."
-          : `Your digitals are ${Math.round(age / 7)} weeks old.`,
-      reason:
-        "Agencies expect digitals no older than 3 months — they read the date before the frame.",
-      action: "Shoot fresh digitals before your next submission.",
-      to: "/dashboard/talent/media",
-    });
-  }
-
-  if (byKey.measurements && byKey.measurements.state !== "current") {
-    moves.push({
-      key: "reconfirm_measurements",
-      observation:
-        byKey.measurements.state === "missing"
-          ? "Your measurements have never been confirmed."
-          : `Your measurements were last confirmed ${byKey.measurements.ageDays} days ago.`,
-      reason:
-        "Bookers work from current numbers; stats older than 90 days get re-asked or passed over.",
-      action: "Re-measure and confirm your stats.",
-      to: "/dashboard/talent/profile",
-    });
-  }
-
-  if (byKey.card && byKey.card.state !== "current") {
-    moves.push({
-      key: "regenerate_card",
-      observation:
-        byKey.card.state === "missing"
-          ? "You haven't generated a comp card yet."
-          : "Your book changed after your card was last generated.",
-      reason:
-        "The card is what gets pulled and filed — it should carry your current strongest frames.",
-      action: "Regenerate your comp card.",
-      to: "/dashboard/talent/media",
-    });
-  }
-
-  const missingRange = (range || []).filter((r) => !r.present);
-  if (missingRange.length > 0) {
-    moves.push({
-      key: "complete_range",
-      observation: `Your book is missing: ${missingRange
-        .map((r) => r.label.toLowerCase())
-        .join(", ")}.`,
-      reason:
-        "A booker scans for headshot, full length and profile before anything else — a gap reads as unfinished.",
-      action: "Add the missing frames to your book.",
-      to: "/dashboard/talent/media",
-    });
-  }
-
-  if (
-    moves.length === 0 &&
-    flow &&
-    flow.entered === 0 &&
-    periodDays >= 30
-  ) {
-    moves.push({
-      key: "submit",
-      observation: "Your materials are current, and nothing is in the pipeline.",
-      reason:
-        "Current materials age; the window to use them is while they're fresh.",
-      action: "Submit to an agency this week.",
-      to: "/dashboard/talent/applications",
-    });
-  }
-
-  return moves.slice(0, 3);
+  return {
+    verdict,
+    sendability,
+    drivers,
+    missingRange: missingRange.map((r) => r.key),
+  };
 }
 
 module.exports = {
@@ -261,5 +210,4 @@ module.exports = {
   MEASUREMENTS_WINDOW_DAYS,
   buildLens,
   materialsVerdict,
-  nextMoves,
 };

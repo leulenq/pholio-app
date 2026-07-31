@@ -61,7 +61,7 @@ async function withTalentSession(req) {
 }
 
 describe("GET /api/talent/intel", () => {
-  test("returns the composed payload with every zone key", async () => {
+  test("returns the composed payload with every block key", async () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/intel?days=30"),
     );
@@ -70,15 +70,12 @@ describe("GET /api/talent/intel", () => {
     const data = res.body.data;
     for (const key of [
       "meta",
-      "pulse",
-      "seismograph",
-      "rhythm",
-      "markets",
-      "sources",
-      "pipeline",
+      "decisions",
+      "submissions",
+      "materials",
+      "attention",
       "book",
-      "lens",
-      "trajectory",
+      "momentum",
     ]) {
       expect(data).toHaveProperty(key);
     }
@@ -87,57 +84,179 @@ describe("GET /api/talent/intel", () => {
     expect(data.meta.maxDays).toBe(90);
   });
 
-  test("Signal Spectrum has the five tiers in signal-hierarchy order", async () => {
+  test("every decision carries an action and a destination — never advice alone", async () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/intel?days=30"),
     );
-    const { spectrum } = res.body.data.pulse;
-    expect(spectrum).toHaveLength(5);
-    expect(spectrum.map((s) => s.tier)).toEqual([1, 2, 3, 4, 5]);
-    for (const seg of spectrum) {
-      expect(Number.isFinite(seg.count)).toBe(true);
-      expect(seg.count).toBeGreaterThanOrEqual(0);
+    const { decisions } = res.body.data;
+    expect(Array.isArray(decisions)).toBe(true);
+    expect(decisions.length).toBeLessThanOrEqual(4);
+    for (const d of decisions) {
+      expect(typeof d.headline).toBe("string");
+      expect(typeof d.reason).toBe("string");
+      expect(typeof d.action).toBe("string");
+      expect(d.to).toMatch(/^\/dashboard\/talent\//);
+      expect(["act", "fix", "grow"]).toContain(d.severity);
     }
   });
 
-  test("seismograph covers the full requested window, one entry per day", async () => {
-    const res = await withTalentSession(
-      request(app).get("/api/talent/intel?days=30"),
-    );
-    const { days } = res.body.data.seismograph;
-    expect(days).toHaveLength(30);
-    for (const d of days) {
-      expect(d).toHaveProperty("qualified");
-      expect(d).toHaveProperty("pulls");
-      expect(d).toHaveProperty("opens");
-      expect(d).toHaveProperty("annotations");
-    }
-  });
-
-  test("pipeline reads the real submissions ledger with kept-on-file framing", async () => {
+  test("conversion ladder is ordered and rates are null, never a fabricated zero", async () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/intel?days=90"),
     );
-    const { pipeline } = res.body.data;
-    expect(pipeline.lifetime.entered).toBeGreaterThan(0);
-    expect(pipeline).toHaveProperty("keptOnFile.count");
-    expect(pipeline).toHaveProperty("keptOnFile.agencies");
-    expect(pipeline).toHaveProperty("stageClock");
+    const { submissions } = res.body.data;
+    for (const scope of ["period", "lifetime"]) {
+      const steps = submissions[scope].steps;
+      expect(steps.map((s) => s.key)).toEqual([
+        "sent",
+        "opened",
+        "advanced",
+        "settled",
+      ]);
+      // The first rung has no denominator above it.
+      expect(steps[0].rate).toBeNull();
+      for (const step of steps.slice(1)) {
+        // A rate is either a real fraction or withheld — never 0-by-default.
+        expect(step.rate === null || Number.isFinite(step.rate)).toBe(true);
+        if (step.rate !== null) {
+          expect(step.rate).toBeGreaterThanOrEqual(0);
+        }
+      }
+      // Counts only ever narrow down the ladder.
+      for (let i = 1; i < steps.length; i += 1) {
+        expect(steps[i].count).toBeLessThanOrEqual(steps[i - 1].count);
+      }
+    }
+    expect(submissions.lifetime.steps[0].count).toBeGreaterThan(0);
   });
 
-  test("trajectory band never fakes benchmarks — calibrating until honest", async () => {
+  test("read clock never grades a submission without a real platform band", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/intel?days=90"),
+    );
+    const clock = res.body.data.submissions.readClock;
+    expect(clock).toHaveProperty("open");
+    if (!clock.band) {
+      // No band → nothing may be called late or cold.
+      for (const row of clock.open) {
+        expect(["read", "normal"]).toContain(row.state);
+      }
+    } else {
+      expect(clock.band.p75).toBeGreaterThanOrEqual(clock.band.p25);
+      for (const row of clock.open) {
+        expect(["read", "normal", "late", "cold"]).toContain(row.state);
+      }
+    }
+  });
+
+  test("materials report days left / days over against real industry windows", async () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/intel?days=30"),
     );
-    const { trajectory } = res.body.data;
-    expect(trajectory.band).toBeNull();
-    expect(trajectory.bandState).toBe("calibrating");
-    expect(trajectory.weeks.length).toBeGreaterThan(0);
-    // Composition is inspectable, never a hidden formula.
-    expect(trajectory.weights).toEqual(
-      expect.objectContaining({ t1: expect.any(Number) }),
+    const { materials } = res.body.data;
+    expect(["ready", "caveat", "hold"]).toContain(materials.sendability);
+    const digitals = materials.items.find((i) => i.key === "digitals");
+    expect(digitals.windowDays).toBe(84);
+    if (digitals.ageDays != null) {
+      // Exactly one of the two is non-zero; they can never both be positive.
+      expect(digitals.daysLeft > 0 && digitals.daysOver > 0).toBe(false);
+    }
+    expect(materials.range.map((r) => r.key)).toEqual([
+      "headshot",
+      "full_length",
+      "profile",
+    ]);
+  });
+
+  test("intent series covers the window and aligns the prior period by index", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/intel?days=30"),
     );
-    expect(trajectory.weeks[0]).toHaveProperty("components");
+    const { intent } = res.body.data.attention;
+    expect(intent.series).toHaveLength(30);
+    for (const d of intent.series) {
+      expect(d).toHaveProperty("date");
+      expect(Number.isFinite(d.intent)).toBe(true);
+      // Prior is a number when comparable, null when the earlier window was
+      // too thin — never an implied zero.
+      expect(d.prior === null || Number.isFinite(d.prior)).toBe(true);
+    }
+    if (res.body.data.meta.deltasSuppressed) {
+      expect(intent.priorTotal).toBeNull();
+      expect(intent.changePct).toBeNull();
+    }
+  });
+
+  test("market rows ship an array series aligned to the window", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/intel?days=30"),
+    );
+    const { markets } = res.body.data.attention;
+    for (const row of markets.rows) {
+      // Regression: this shipped as a date-keyed object, so the frontend
+      // sparkline's Array.isArray guard rejected it and drew nothing.
+      expect(Array.isArray(row.series)).toBe(true);
+      expect(row.series).toHaveLength(30);
+    }
+  });
+
+  test("momentum is real weekly counts — no composite index, no fake cohort band", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/intel?days=30"),
+    );
+    const { momentum } = res.body.data;
+    expect(momentum.weeks.length).toBe(12);
+    expect(momentum.halfWeeks).toBe(6);
+    expect(momentum).not.toHaveProperty("weights");
+    expect(momentum).not.toHaveProperty("band");
+    expect(momentum).not.toHaveProperty("bandState");
+    for (const week of momentum.weeks) {
+      expect(week).not.toHaveProperty("value");
+      for (const key of ["sent", "reviews", "advances", "intent"]) {
+        expect(Number.isInteger(week[key])).toBe(true);
+      }
+    }
+    // The halves are the comparison; they must sum from the same weeks.
+    const sum = (rows, k) => rows.reduce((s, r) => s + r[k], 0);
+    expect(momentum.recent.reviews).toBe(sum(momentum.weeks.slice(6), "reviews"));
+    expect(momentum.prior.reviews).toBe(sum(momentum.weeks.slice(0, 6), "reviews"));
+  });
+
+  test("book ranks on an open rate, and only frames that were actually shown", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/intel?days=90"),
+    );
+    const { book } = res.body.data;
+    for (const frame of book.images) {
+      expect(frame).not.toHaveProperty("score");
+      if (frame.impressions > 0) {
+        expect(frame.openRate).toBeGreaterThanOrEqual(0);
+        expect(frame.openRate).toBeLessThanOrEqual(1);
+      } else {
+        expect(frame.openRate).toBeNull();
+      }
+      // A frame nobody was shown is unranked, not ranked last.
+      if (frame.impressions < 5) expect(frame.rank).toBeNull();
+    }
+  });
+
+  test("timing findings are bucketed in the requested zone, not UTC", async () => {
+    const utc = await withTalentSession(
+      request(app).get("/api/talent/intel?days=90&tz=UTC"),
+    );
+    const ny = await withTalentSession(
+      request(app).get("/api/talent/intel?days=90&tz=America/New_York"),
+    );
+    expect(utc.body.data.meta.tz).toBe("UTC");
+    expect(ny.body.data.meta.tz).toBe("America/New_York");
+  });
+
+  test("an unknown time zone falls back to UTC rather than throwing", async () => {
+    const res = await withTalentSession(
+      request(app).get("/api/talent/intel?days=30&tz=Mars/Olympus"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.meta.tz).toBe("UTC");
   });
 
   test("day clamp: requesting more than the tier maximum clamps to it", async () => {

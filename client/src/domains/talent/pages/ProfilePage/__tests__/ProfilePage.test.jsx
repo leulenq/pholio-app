@@ -297,10 +297,28 @@ describe('ProfilePage Component', () => {
 
     // The AI action is an icon, so its accessible name comes from aria-label —
     // which the old unlabelled flare never had.
-    await user.click(screen.getByRole('button', { name: /write your bio with pholio/i }));
-    await user.click(screen.getByRole('button', { name: /^write bio$/i }));
+    const writerAction = screen.getByRole('button', { name: /write your bio with pholio/i });
+    await user.hover(writerAction);
+    expect(screen.getByRole('dialog', { name: /pholio bio writer/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^tight$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^agency$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^write bio$/i })).not.toBeInTheDocument();
+    await user.unhover(writerAction);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /pholio bio writer/i })).not.toBeInTheDocument();
+    });
 
     const bioInput = screen.getByPlaceholderText(/tell us about yourself/i);
+    await user.hover(writerAction);
+    await user.click(bioInput);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /pholio bio writer/i })).not.toBeInTheDocument();
+    });
+
+    await user.hover(writerAction);
+    await user.click(writerAction);
+    expect(screen.queryByRole('dialog', { name: /pholio bio writer/i })).not.toBeInTheDocument();
+
     await waitFor(() => expect(bioInput).toHaveValue(generatedBio));
     expect(saveButton).toBeEnabled();
     expect(screen.getByText(/unsaved changes/i)).toBeInTheDocument();

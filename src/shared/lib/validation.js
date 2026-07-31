@@ -4,6 +4,7 @@ const {
   normalizeBookingLaneList,
   normalizeBookingLaneSlug,
 } = require("../constants/booking-lanes");
+const { CANONICAL_GENDERS, canonicalizeGender } = require("./gender");
 
 /**
  * Core field schemas
@@ -182,12 +183,15 @@ const hipsSchema = z
   .optional();
 
 // New comprehensive profile field schemas
+// Case-insensitive on input, canonical on output. Legacy rows stored by
+// onboarding as "Non-Binary" (capital B) round-trip through the profile form on
+// every save; without this preprocess they failed the enum and 400'd the ENTIRE
+// profile update. See src/shared/lib/gender.js.
 const genderSchema = z
-  .union([
-    z.enum(["Male", "Female", "Non-binary", "Other", "Prefer not to say"]),
-    z.literal(""),
-    z.null(),
-  ])
+  .preprocess(
+    canonicalizeGender,
+    z.union([z.enum(CANONICAL_GENDERS), z.literal(""), z.null()]),
+  )
   .optional();
 
 const dateOfBirthSchema = z
@@ -788,6 +792,20 @@ function normalizeTalentProfileUpdateBody(input) {
   return o;
 }
 
+/**
+ * A lowercase-canonical enum that accepts any casing on input. Empty string and
+ * null stay meaningful ("cleared"), matching the other optional profile fields.
+ * @param {string[]} values — the canonical lowercase members
+ */
+function lowercaseEnum(values) {
+  return z
+    .preprocess(
+      (value) => (typeof value === "string" ? value.trim().toLowerCase() : value),
+      z.union([z.enum(values), z.literal(""), z.null()]),
+    )
+    .optional();
+}
+
 const bookingLaneSlugSchema = z.preprocess(
   (value) => {
     if (value === "" || value === null || value === undefined) return null;
@@ -970,8 +988,11 @@ const talentProfileUpdateInnerSchema = z.object({
     .or(z.null()),
   booking_primary_lane: bookingLaneSlugSchema.optional(),
   booking_secondary_lanes: bookingSecondaryLanesSchema.optional(),
-  stats_track: z.enum(["womenswear", "menswear", "ungendered"]).nullable().optional().or(z.literal("")),
-  discipline: z.enum(["model", "performer", "creator"]).nullable().optional().or(z.literal("")),
+  // Both are stored lowercase. Case-fold on input: a title-cased value used to
+  // fail the enum and 400 the ENTIRE profile update, so one mis-cased select
+  // option silently blocked every other field on the page from saving.
+  stats_track: lowercaseEnum(["womenswear", "menswear", "ungendered"]),
+  discipline: lowercaseEnum(["model", "performer", "creator"]),
   chest_cm: bustSchema.optional(),
   suit_size: z.string().trim().max(20).optional().or(z.literal("")).or(z.null()),
 });

@@ -16,7 +16,7 @@ import LoadingSpinner from './LoadingSpinner';
  */
 export default function PageLoadingScreen() {
   return (
-    <div className="flex items-center justify-center h-screen bg-[#faf9f7]">
+    <div className="flex items-center justify-center h-screen bg-[#faf8f5]">
       <LoadingSpinner size="lg" />
     </div>
   );

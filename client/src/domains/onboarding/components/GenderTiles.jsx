@@ -9,7 +9,10 @@ import './GenderTiles.css';
  * @param {Function}    onChange(value)        Called with the selected option value.
  * @param {boolean}    [disabled=false]
  *
- * Option values (payload contract): Female | Male | Non-Binary | Prefer not to say.
+ * Option values (payload contract): Female | Male | Non-binary | Prefer not to say.
+ * These MUST match CANONICAL_GENDERS in src/shared/lib/gender.js — the value is
+ * written straight to profiles.gender and is later re-validated by the profile
+ * update schema on every dashboard save.
  */
 
 // Icons ported verbatim from the prototype (stroke/fill handled in CSS).
@@ -37,8 +40,8 @@ const OPTIONS = [
     ),
   },
   {
-    value: 'Non-Binary',
-    label: 'Non-Binary',
+    value: 'Non-binary',
+    label: 'Non-binary',
     icon: (
       <svg width="30" height="30" viewBox="0 0 24 24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="13.6" r="4.2" />

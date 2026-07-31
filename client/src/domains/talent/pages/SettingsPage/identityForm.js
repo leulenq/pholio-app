@@ -15,6 +15,8 @@ export function parseJsonArray(raw) {
   }
 }
 
+import { formatPhoneDisplay } from '../../../../shared/lib/phone-format';
+
 /** Build the Identity movement form from the auth/profile payload. */
 export function identityFormFromProfile(profile) {
   const fullName = typeof profile?.name === 'string' ? profile.name.trim() : '';
@@ -22,7 +24,7 @@ export function identityFormFromProfile(profile) {
   return {
     first_name: profile?.first_name || nameParts[0] || '',
     last_name: profile?.last_name || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : '') || '',
-    phone: profile?.phone || '',
+    phone: formatPhoneDisplay(profile?.phone || ''),
     language: parseJsonArray(profile?.languages)[0] || 'English',
     timezone: profile?.timezone || 'America/New_York',
   };

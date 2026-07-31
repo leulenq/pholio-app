@@ -7,14 +7,14 @@ describe('identityFormFromProfile', () => {
       identityFormFromProfile({
         first_name: 'Ava',
         last_name: 'Martinez',
-        phone: '+1 555 0100',
+        phone: '+1 555 010 0199',
         languages: '["English","Spanish"]',
         timezone: 'America/Los_Angeles',
       }),
     ).toEqual({
       first_name: 'Ava',
       last_name: 'Martinez',
-      phone: '+1 555 0100',
+      phone: '+1 (555) 010-0199',
       language: 'English',
       timezone: 'America/Los_Angeles',
     });

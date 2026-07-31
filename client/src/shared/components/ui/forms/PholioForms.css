@@ -120,7 +120,7 @@
   box-shadow: 
     0 0 0 5px rgba(201, 165, 90, 0.12),
     inset 0 2px 4px rgba(0, 0, 0, 0.02);
-  transform: translateY(-1.5px);
+  transform: none;
 }
 
 /* Specific height for text inputs and selects */
@@ -144,7 +144,7 @@
 .pholio-textarea:hover:not(:focus) {
   border-color: rgba(201, 165, 90, 0.2); 
   background: #fdfdfc;
-  transform: translateY(-0.5px);
+  transform: none;
 }
 
 /* Error States */
@@ -394,14 +394,31 @@
   transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
-.pholio-custom-select-trigger:focus,
+.pholio-custom-select-trigger:focus {
+  border-color: rgba(201, 165, 90, 0.3);
+  background: #ffffff;
+  box-shadow: 
+    0 0 0 5px rgba(201, 165, 90, 0.12),
+    inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  transform: none;
+}
+
 .pholio-custom-select-trigger.open {
   border-color: rgba(201, 165, 90, 0.3);
   background: #ffffff;
   box-shadow: 
     0 0 0 5px rgba(201, 165, 90, 0.12),
     inset 0 2px 4px rgba(0, 0, 0, 0.02);
-  transform: translateY(-1.5px);
+  transform: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.pholio-autocomplete-field:has(.pholio-custom-select-dropdown) .pholio-input {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  transform: none;
+  border-color: rgba(201, 165, 90, 0.3);
 }
 
 .pholio-custom-select-trigger:focus-visible {
@@ -432,22 +449,27 @@
   color: var(--pholio-gold);
 }
 
-/* Dropdown Menu */
+/* Dropdown Menu - Flush with input textbox */
 .pholio-custom-select-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: 100%;
   left: 0;
   right: 0;
+  margin-top: 0;
   background: #FFFFFF;
-  border: 1px solid var(--pholio-border, #e2e8f0);
-  border-radius: 8px;
+  border: 1px solid rgba(201, 165, 90, 0.3);
+  border-top: none;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
   box-shadow: 0 16px 48px rgba(26, 24, 21, 0.08);
   z-index: 9999;
   max-height: 250px;
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  animation: dropdownFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 6px;
 }
 
@@ -462,11 +484,11 @@
 @keyframes dropdownFadeIn {
   from { 
     opacity: 0; 
-    transform: translateY(-8px) scale(0.98); 
+    transform: translateY(-2px); 
   }
   to { 
     opacity: 1; 
-    transform: translateY(0) scale(1); 
+    transform: translateY(0); 
   }
 }
 
