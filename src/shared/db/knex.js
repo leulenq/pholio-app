@@ -118,6 +118,51 @@ if (!CACHE_DISABLED) {
   });
 }
 
+/* ============================================================
+   Pool teardown under the test runner
+
+   57 test files call `knex.destroy()` in afterAll. Plenty of application
+   code keeps working slightly past the end of a test — the PDF matte
+   precompute queue, moderation column checks, session-store writes — and
+   those in-flight queries then hit a destroyed pool and reject with
+   "Unable to acquire a connection".
+
+   Nothing awaits those rejections, so Node's default unhandled-rejection
+   behaviour KILLED THE WHOLE PROCESS partway through `npm test`. Running
+   the suite in one go was impossible: it died mid-run with no summary,
+   regardless of which tests passed. Running by directory worked only
+   because fewer files meant fewer chances to lose the race.
+
+   The pool's real lifetime under the test runner is the process, which is
+   what `--forceExit` in scripts/run-jest.js already assumes. So `destroy()`
+   becomes a no-op there: the handle is reclaimed on exit, in-flight work
+   completes harmlessly, and suites keep their existing afterAll hooks.
+
+   Deliberately gated on the safe runner's own flag AND NODE_ENV, so this
+   can never change behaviour in dev or production, where destroy() must
+   genuinely close the pool.
+   ============================================================ */
+const UNDER_SAFE_TEST_RUNNER =
+  process.env.NODE_ENV === "test" && process.env.PHOLIO_SAFE_TEST_RUNNER === "1";
+
+if (UNDER_SAFE_TEST_RUNNER) {
+  const realDestroy = db.destroy.bind(db);
+  // knex defines `destroy` as non-writable on the callable, so plain
+  // assignment throws in strict mode. Redefine it instead.
+  Object.defineProperty(db, "destroy", {
+    configurable: true,
+    writable: true,
+    // Resolves like the real thing, so `await knex.destroy()` still works.
+    value: async () => undefined,
+  });
+  // Kept reachable for anything that genuinely must close the pool.
+  Object.defineProperty(db, "destroyForReal", {
+    configurable: true,
+    writable: true,
+    value: realDestroy,
+  });
+}
+
 // The export stays the knex instance itself — a callable function carrying all
 // of knex's properties — so `knex(...)`, `knex.raw`, `knex.transaction`, and
 // every existing require() call site keep working unchanged.

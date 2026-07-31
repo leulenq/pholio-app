@@ -6,6 +6,18 @@ const request = require("supertest");
 const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
 
+// This suite exercises real application queries, so it needs the real
+// schema and the seeded talent. It gets its own database: the shared run
+// database is hand-built by other suites and cannot be migrated safely.
+// Must run before knex loads.
+const {
+  useIsolatedDatabase,
+  migrateAndSeed,
+  dropIsolatedDatabase,
+} = require("../setup/isolated-db");
+
+const TEST_DB_FILE = useIsolatedDatabase("talent-intel");
+
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 
@@ -16,6 +28,8 @@ let PROFILE;
 const SESSION_IDS = [];
 
 beforeAll(async () => {
+  await migrateAndSeed(knex);
+
   const user = await knex("users")
     .where({ email: "talent@example.com" })
     .first();
@@ -35,6 +49,7 @@ afterAll(async () => {
   await knex("profile_events").where({ profile_id: PROFILE.id }).delete();
   await knex("share_tokens").where({ profile_id: PROFILE.id }).delete();
   await knex.destroy();
+  dropIsolatedDatabase(TEST_DB_FILE);
 });
 
 async function withTalentSession(req) {

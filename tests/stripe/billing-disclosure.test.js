@@ -24,6 +24,20 @@ jest.mock("../../src/shared/lib/subscriptions", () => ({
   upsertSubscriptionFromStripe: jest.fn(),
 }));
 
+// Needs the real schema (it inserts users/profiles), so it gets its own
+// migrated database. Must run before knex loads.
+const {
+  useIsolatedDatabase,
+  migrate,
+  dropIsolatedDatabase,
+} = require("../setup/isolated-db");
+
+const TEST_DB_FILE = useIsolatedDatabase("stripe-billing-disclosure");
+
+const {
+  CURRENT_TERMS_VERSION,
+  CURRENT_PRIVACY_VERSION,
+} = require("../../src/shared/lib/legal-acceptance");
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { createCheckoutSession } = require("../../src/shared/lib/stripe");
@@ -36,11 +50,20 @@ describe("POST /stripe/create-checkout-session billing disclosure", () => {
   const sessionIds = [];
 
   beforeAll(async () => {
+    await migrate(knex);
+
     await knex("users").insert({
       id: TALENT_ID,
       email: `billing-${TALENT_ID}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      // Unrelated precondition: talent API routes sit behind the legal gate,
+      // so a fixture user without acceptance 403s before reaching the handler
+      // under test.
+      terms_accepted_at: new Date(),
+      terms_accepted_version: CURRENT_TERMS_VERSION,
+      privacy_accepted_at: new Date(),
+      privacy_accepted_version: CURRENT_PRIVACY_VERSION,
     });
     await knex("profiles").insert({
       id: PROFILE_ID,
@@ -54,7 +77,7 @@ describe("POST /stripe/create-checkout-session billing disclosure", () => {
       bio_curated: "",
       onboarding_completed_at: knex.fn.now(),
     });
-  });
+  }, 60000);
 
   beforeEach(async () => {
     createCheckoutSession.mockClear();
@@ -68,6 +91,7 @@ describe("POST /stripe/create-checkout-session billing disclosure", () => {
     await knex("profiles").where({ id: PROFILE_ID }).delete();
     await knex("users").where({ id: TALENT_ID }).delete();
     await knex.destroy();
+    dropIsolatedDatabase(TEST_DB_FILE);
   });
 
   async function withTalentSession() {
