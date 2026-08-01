@@ -72,3 +72,56 @@ export function measurementFreshness(timestamp) {
   if (ageDays < 181) return { label: `Updated ${ageMonths}mo`, tone: 'due' };
   return { label: `Stale · ${ageMonths}mo`, tone: 'stale' };
 }
+
+/* ============================================================
+   Roster stage <-> division vocabulary
+
+   A membership's ladder stage (new_face / development / main) is itself a
+   board in the division taxonomy, so it renders through the same mark as
+   the talent's boards rather than as a separate label vocabulary. Shared
+   between the roster table and the detail drawer so the two cannot drift.
+   ============================================================ */
+
+export const STAGE_DIVISION = {
+  main: 'mainboard',
+  development: 'development',
+  new_face: 'newfaces',
+};
+
+/**
+ * Mirrors deriveStanding() in the roster_board_standings migration, so the
+ * UI and the backfill agree on what a stage plus status means.
+ *
+ * `status` is the MEMBERSHIP status ('active' | 'inactive' | 'left' | 'ended').
+ * It is NOT `item.availability`, which is a humanised display string
+ * ("Available", "On booking"): passing that made an inactive talent fall
+ * through every branch and render as Represented.
+ */
+export function standingForStage(stage, membershipStatus) {
+  if (membershipStatus === 'left' || membershipStatus === 'ended') return 'ended';
+  if (membershipStatus === 'inactive') return 'inactive';
+  if (stage === 'new_face' || stage === 'development') return 'developing';
+  if (stage === 'main') return 'represented';
+  return 'unknown';
+}
+
+/** Normalise a roster row's boards into the shape DivisionSet expects. */
+export function rowBoardStandings(item) {
+  if (Array.isArray(item?.boards) && item.boards.length > 0) {
+    return item.boards
+      .map((b) => ({
+        division: typeof b === 'string' ? b : b?.board?.name || b?.name,
+        standing: typeof b === 'string' ? undefined : b?.standing,
+      }))
+      .filter((b) => b.division);
+  }
+  if (item?.board?.name) {
+    return [
+      {
+        division: item.board.name,
+        standing: standingForStage(item.stage, item.membershipStatus),
+      },
+    ];
+  }
+  return [];
+}

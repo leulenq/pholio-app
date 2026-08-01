@@ -1,0 +1,472 @@
+/* ============================================================
+   Division Mark
+
+   The board name, typeset as the thing it is, inside a rectangle whose
+   ground carries the standing.
+
+     TYPESETTING  identifies the board — the accessible identifier.
+     GROUND       carries the standing.
+     COLOUR       is a family-level recall aid, never the identifier.
+
+   Colour cannot be the identifier: 22 mutually CVD-distinct hues do not
+   exist in sRGB. Every ladder rung therefore also differs in ground
+   lightness AND border treatment, so standing survives greyscale,
+   colour blindness, and forced-colors mode.
+
+   Serif appears at the identity tier here, which reverses the agency
+   system's "no serif in dense controls" rule. That reversal is explicitly
+   authorised for this component: the serif does semantic work. It is
+   capped at md/lg — `sm` degrades every treatment to weight, tracking and
+   case within Inter and the mono, because Playfair's hairlines fall under
+   one device pixel below ~12px.
+
+   Contrast for every ground/type pair is verified by
+   scripts/check-division-contrast.mjs.
+   ============================================================ */
+
+.dv {
+  --dvm-pad-y: 7px;
+  --dvm-pad-x: 13px;
+
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: var(--dvm-pad-y) var(--dvm-pad-x);
+  border: 1px solid transparent;
+  border-radius: 0;
+  vertical-align: middle;
+  /* Long agency board names must not blow out a roster row. */
+  overflow: hidden;
+}
+
+.dv__name {
+  display: block;
+  min-width: 0;
+  line-height: 1;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Shorthand cell for the dense code-only variant. */
+.dv__code {
+  font-family: var(--ag-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.075em;
+  line-height: 1;
+}
+
+/* Screen-reader-only. Standing is visual; it must also be words. */
+.dv-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================================
+   The identity layer — one authored setting per board
+   ============================================================ */
+.dvt--masthead {
+  font-family: var(--ag-font-display);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.dvt--plain {
+  font-family: var(--ag-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.dvt--invitation {
+  font-family: var(--ag-font-display);
+  font-size: 11.5px;
+  font-weight: 400;
+  /* Tracking this wide is expensive on long names; capped below. */
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.dvt--cosmetic {
+  font-family: var(--ag-font-display);
+  font-size: 15px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.015em;
+}
+.dvt--screen {
+  font-family: var(--ag-font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.dvt--house {
+  font-family: var(--ag-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.dvt--stated {
+  font-family: var(--ag-font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.dvt--airy {
+  font-family: var(--ag-font-body);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.dvt--technical {
+  font-family: var(--ag-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.dvt--quiet {
+  font-family: var(--ag-font-display);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.dvt--billing {
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+/* Long names: tracking is the expensive part. "Runway & Show Package" at
+   0.3em costs ~90px in tracking alone before a single glyph is drawn, and
+   boards.name allows 80 characters. Past ~18 characters the wide settings
+   fall back to normal tracking rather than overflowing the row. */
+.dv--long .dvt--invitation,
+.dv--long .dvt--airy,
+.dv--long .dvt--house {
+  letter-spacing: 0.06em;
+}
+.dv--long .dvt--masthead {
+  letter-spacing: 0.08em;
+}
+
+/* ============================================================
+   Density
+
+   `sm` is the roster-table size. Serif is dropped entirely here and every
+   board falls back to a sans/mono distinction, because a Didone at 11px
+   aliases into mush. Identity degrades from "typeface" to "weight,
+   tracking and case", which still separates the boards.
+
+   It also normalises font-size across every treatment, so a row of four
+   marks shares one baseline instead of four.
+   ============================================================ */
+.dv--sm {
+  --dvm-pad-y: 4px;
+  --dvm-pad-x: 9px;
+}
+.dv--sm .dv__name {
+  font-size: 11px;
+}
+.dv--sm .dvt--masthead,
+.dv--sm .dvt--quiet,
+.dv--sm .dvt--stated,
+.dv--sm .dvt--cosmetic,
+.dv--sm .dvt--invitation {
+  font-family: var(--ag-font-body);
+  font-style: normal;
+}
+.dv--sm .dvt--masthead {
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.dv--sm .dvt--invitation {
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.dv--sm .dvt--cosmetic {
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.dv--sm .dvt--stated {
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.dv--sm .dvt--quiet {
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: none;
+}
+
+.dv--lg {
+  --dvm-pad-y: 9px;
+  --dvm-pad-x: 16px;
+}
+.dv--lg .dvt--masthead { font-size: 15px; }
+.dv--lg .dvt--plain,
+.dv--lg .dvt--billing { font-size: 14px; }
+.dv--lg .dvt--cosmetic { font-size: 17px; }
+.dv--lg .dvt--stated { font-size: 17px; }
+
+/* ============================================================
+   The standing ladder — ground + border
+
+   Every rung differs in BOTH ground lightness and border treatment, so
+   the ladder never depends on hue alone. The border also guarantees the
+   rectangle is visible: the low rungs are 6–12% tints that measure barely
+   1.05:1 against the cream canvas, i.e. invisible without a stroke. A
+   ground that conveys standing has to actually be a shape.
+   ============================================================ */
+
+/* represented — signed to this board. The only solid field. */
+.dv--represented {
+  background: var(--p);
+  border-color: var(--p);
+  color: #ffffff;
+}
+
+/* active — working the board. */
+.dv--active {
+  background: color-mix(in srgb, var(--p) 32%, #fff);
+  border-color: color-mix(in srgb, var(--p) 85%, transparent);
+  color: color-mix(in srgb, var(--p) 70%, var(--ag-text-0));
+}
+
+/* developing — provisional; the field is not closed. */
+.dv--developing {
+  background: color-mix(in srgb, var(--p) 20%, #fff);
+  border-color: color-mix(in srgb, var(--p) 85%, transparent);
+  border-style: dashed;
+  color: color-mix(in srgb, var(--p) 70%, var(--ag-text-0));
+}
+
+/* shortlisted — under consideration. */
+.dv--shortlisted {
+  background: color-mix(in srgb, var(--p) 12%, #fff);
+  border-color: color-mix(in srgb, var(--p) 85%, transparent);
+  color: color-mix(in srgb, var(--p) 70%, var(--ag-text-0));
+}
+
+/* onfile — the commonest real outcome of a submission. */
+.dv--onfile {
+  background: color-mix(in srgb, var(--p) 6%, #fff);
+  border-color: color-mix(in srgb, var(--p) 85%, transparent);
+  color: var(--ag-text-2);
+}
+
+/* inactive / ended — the hue is gone with the commitment. */
+.dv--inactive {
+  background: #f4f1eb;
+  border-color: rgba(26, 24, 21, 0.5);
+  color: var(--ag-text-2);
+}
+
+/* passed — declined for this board. */
+.dv--passed {
+  background: transparent;
+  border-color: rgba(26, 24, 21, 0.5);
+  color: var(--ag-text-2);
+}
+.dv--passed .dv__name {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* unknown — no standing recorded. Deliberately reads as a gap, never as a
+   claim. Nothing about a person's representation is asserted here. */
+.dv--unknown {
+  background: transparent;
+  border-color: rgba(26, 24, 21, 0.5);
+  border-style: dashed;
+  color: var(--ag-text-3);
+}
+
+/* ============================================================
+   Interactive variant — division marks as roster filters
+   ============================================================ */
+.dv--action {
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
+  transition:
+    border-color 160ms var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1)),
+    box-shadow 160ms var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1)),
+    transform 160ms var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
+.dv--action:hover {
+  border-color: color-mix(in srgb, var(--p) 62%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--ag-shadow-sm, 0 1px 3px rgba(26, 24, 21, 0.06));
+}
+.dv--action:active {
+  transform: translateY(0);
+}
+.dv--action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.3);
+  border-color: var(--ag-gold, #c9a55a);
+}
+.dv--action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ============================================================
+   On dark — drawer hero, photo scrims
+   ============================================================ */
+.dv--onDark {
+  --pl: color-mix(in srgb, var(--p) 45%, #fff);
+  color: #f4eee2;
+}
+.dv--onDark.dv--represented {
+  background: var(--pl);
+  border-color: var(--pl);
+  color: #14110b;
+}
+.dv--onDark.dv--active {
+  background: color-mix(in srgb, var(--pl) 22%, transparent);
+  border-color: color-mix(in srgb, var(--pl) 55%, transparent);
+  color: var(--pl);
+}
+.dv--onDark.dv--developing,
+.dv--onDark.dv--shortlisted {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--pl) 45%, transparent);
+  color: var(--pl);
+}
+.dv--onDark.dv--onfile {
+  background: transparent;
+  border-color: rgba(239, 233, 220, 0.22);
+  color: rgba(244, 238, 226, 0.78);
+}
+.dv--onDark.dv--inactive,
+.dv--onDark.dv--passed,
+.dv--onDark.dv--unknown {
+  background: transparent;
+  border-color: rgba(239, 233, 220, 0.16);
+  color: rgba(244, 238, 226, 0.62);
+}
+
+/* ============================================================
+   Division Set
+   ============================================================ */
+.dv-set {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.dv-set--tight {
+  gap: 4px;
+}
+
+/* Overflow indicator — square, mono, inline. Not a count bubble. */
+.dv-set__more {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid var(--ag-border);
+  border-radius: 0;
+  background: var(--ag-surface-1);
+  font-family: var(--ag-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ag-text-2);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.dv-set--sm .dv-set__more {
+  padding: 4px 7px;
+  font-size: 10px;
+}
+.dv-set--lg .dv-set__more {
+  padding: 9px 11px;
+  font-size: 12px;
+}
+.dv-set--onDark .dv-set__more {
+  background: transparent;
+  border-color: rgba(239, 233, 220, 0.16);
+  color: rgba(244, 238, 226, 0.62);
+}
+
+/* A talent on no board is a real roster condition, not an error. */
+.dv-set__empty {
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  color: var(--ag-text-2);
+  font-style: italic;
+}
+.dv-set--onDark .dv-set__empty {
+  color: rgba(244, 238, 226, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dv--action {
+    transition: border-color 160ms linear, box-shadow 160ms linear;
+  }
+  .dv--action:hover,
+  .dv--action:active {
+    transform: none;
+  }
+}
+
+/* ============================================================
+   Forced colors
+
+   Backgrounds are stripped in high-contrast mode, so the ground can carry
+   nothing. Each rung gets a distinct border treatment instead, which is
+   the only channel that survives.
+   ============================================================ */
+@media (forced-colors: active) {
+  .dv {
+    border-color: CanvasText;
+    forced-color-adjust: none;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .dv--represented {
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+    border-width: 2px;
+  }
+  .dv--active {
+    border-width: 2px;
+  }
+  .dv--developing {
+    border-style: dashed;
+    border-width: 2px;
+  }
+  .dv--shortlisted {
+    border-style: dashed;
+  }
+  .dv--onfile {
+    border-style: dotted;
+  }
+  .dv--inactive,
+  .dv--passed {
+    border-color: GrayText;
+    color: GrayText;
+  }
+  .dv--unknown {
+    border-style: dotted;
+    border-color: GrayText;
+    color: GrayText;
+  }
+}

@@ -12,6 +12,7 @@ const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
 
+const { acceptedLegal } = require("../setup/legal-fixture");
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const { recordLegalAcceptance } = require("../../src/shared/lib/legal-acceptance");
@@ -111,6 +112,8 @@ describe("agency open call claims", () => {
         email: `open-call-${userId}@example.com`,
         password_hash: "x",
         role: "TALENT",
+        // Talent API routes sit behind the legal gate.
+        ...acceptedLegal(),
       },
       {
         id: invitingAgencyId,
@@ -289,6 +292,9 @@ describe("agency open call claims", () => {
       userId: invitingAgencyId,
       role: "AGENCY",
       agencyMembershipRole: "OWNER",
+      // requireAgencyOnboardingComplete reads this straight off the session and
+      // 403s AGENCY_SETUP_REQUIRED without it, before any handler runs.
+      agencyOnboardingCompletedAt: new Date().toISOString(),
     });
   }
 

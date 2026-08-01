@@ -5,6 +5,18 @@ const request = require("supertest");
 const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
 
+// This suite exercises real application queries, so it needs the real
+// schema and the seeded talent. It gets its own database: the shared run
+// database is hand-built by other suites and cannot be migrated safely.
+// Must run before knex loads.
+const {
+  useIsolatedDatabase,
+  migrateAndSeed,
+  dropIsolatedDatabase,
+} = require("./setup/isolated-db");
+
+const TEST_DB_FILE = useIsolatedDatabase("overview-backend");
+
 const knex = require("../src/shared/db/knex");
 const app = require("../src/app");
 
@@ -14,6 +26,8 @@ let TALENT_USER_ID;
 const SESSION_IDS = [];
 
 beforeAll(async () => {
+  await migrateAndSeed(knex);
+
   const user = await knex("users")
     .where({ email: "talent@example.com" })
     .first();
@@ -31,6 +45,7 @@ afterAll(async () => {
     await knex("sessions").whereIn("sid", SESSION_IDS).delete();
   }
   await knex.destroy();
+  dropIsolatedDatabase(TEST_DB_FILE);
 });
 
 /**
@@ -116,7 +131,7 @@ describe("Demo seed: talent@example.com profile", () => {
     expect(profile.first_name).toBe("Mia");
     expect(profile.last_name).toBe("Voss");
     expect(profile.slug).toBe("mia-voss");
-    expect(profile.is_pro).toBe(true);
+    expect(Boolean(profile.is_pro)).toBe(true); // SQLite stores booleans as 1
   });
 
   test("profile has 6 images", async () => {

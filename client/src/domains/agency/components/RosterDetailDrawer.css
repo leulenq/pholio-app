@@ -167,6 +167,15 @@
   color: #F4EEE2;
 }
 
+/* Board standing sits directly under the name — it's the first thing a booker
+   reads about a roster member. Rendered by <DivisionMark onDark>. */
+.rd-boards {
+  margin: 10px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .rd-facts {
   margin: 9px 0 0;
   font-size: 11px;
@@ -396,4 +405,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rd-hero-img { animation: none; }
+}
+
+/* Placement fields that hold a block editor rather than a single control. */
+.rd-field--block {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }

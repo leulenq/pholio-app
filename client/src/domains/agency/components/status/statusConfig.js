@@ -11,24 +11,19 @@
  * Colours reference the --ss-* tokens in agency-tokens.css.
  */
 
-/** Lowercase + strip non-alphanumerics so 'On Booking', 'on_booking',
- *  'on-booking' and 'onbooking' all resolve to the same entry. */
-export const norm = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+/* `norm` and `titleCase` now live in divisions.js — the single source of truth
+   for board vocabulary. Imported here (not re-exported) so the module barrel
+   can `export *` from both files without ambiguous duplicate names. */
+import { norm, titleCase, resolveDivision } from './divisions';
 
-/* ---------- Division / board — code + pigment ---------- */
-export const DIVISIONS = {
-  women:       { label: 'Women',       code: 'WM', c: 'var(--ss-p-women)' },
-  men:         { label: 'Men',         code: 'MN', c: 'var(--ss-p-men)' },
-  newfaces:    { label: 'New Faces',   code: 'NF', c: 'var(--ss-p-newfaces)' },
-  development: { label: 'Development', code: 'DV', c: 'var(--ss-p-dev)' },
-  curve:       { label: 'Curve',       code: 'CV', c: 'var(--ss-p-curve)' },
-  plus:        { label: 'Curve',       code: 'CV', c: 'var(--ss-p-curve)' },
-  commercial:  { label: 'Commercial', code: 'CM', c: 'var(--ss-p-commercial)' },
-  runway:      { label: 'Runway',     code: 'RW', c: 'var(--ss-p-runway)' },
-  talent:      { label: 'Talent',     code: 'TL', c: 'var(--ss-p-talent)' },
+/* ---------- Division / board ----------
+   Superseded by divisions.js + <DivisionMark>. Kept as a thin adapter so any
+   remaining caller of `getDivision` keeps working, now with the full ~21-board
+   taxonomy and a never-null fallback behind it. */
+export const getDivision = (key) => {
+  const d = resolveDivision(key);
+  return { label: d.label, code: d.code, c: `var(--dv-${d.pigment})` };
 };
-
-export const getDivision = (key) => DIVISIONS[norm(key)] || null;
 
 /* ---------- Type / market — pigment ---------- */
 export const TYPES = {
@@ -108,8 +103,4 @@ export const STATES = {
 
 export const getState = (status) => STATES[norm(status)] || STATES.available;
 
-/* ---------- helpers ---------- */
-export function titleCase(v) {
-  const s = String(v || '').trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
-}
+/* `titleCase` is re-exported from divisions.js via the module barrel. */

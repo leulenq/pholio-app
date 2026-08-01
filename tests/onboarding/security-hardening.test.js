@@ -57,6 +57,9 @@ const {
 const {
   purgeStoredImageArtifacts,
 } = require("../../src/shared/lib/purge-image-artifacts");
+const {
+  canCollectSensitiveProfileFields,
+} = require("../../src/shared/lib/talent-age");
 
 const FIXTURE = path.join(__dirname, "..", "fixtures", "test-image.jpg");
 
@@ -65,11 +68,24 @@ function cookieFrom(res) {
 }
 
 // Drive entry with a given decoded token; returns the response.
+/** A date_of_birth `years` ago, as YYYY-MM-DD. */
+function dobYearsAgo(years) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  return d.toISOString().slice(0, 10);
+}
+
 async function entry(agent, token, body = {}) {
   mockAuth.token = token;
-  return agent
-    .post("/casting/entry")
-    .send({ firebase_token: "tok", terms_accepted: true, privacy_accepted: true, ...body });
+  return agent.post("/casting/entry").send({
+    firebase_token: "tok",
+    terms_accepted: true,
+    privacy_accepted: true,
+    // Account creation now requires a date of birth up front (DOB_REQUIRED).
+    // Callers that care about age pass their own; everyone else gets an adult.
+    date_of_birth: dobYearsAgo(28),
+    ...body,
+  });
 }
 
 async function getProfileByUser(userId) {
@@ -221,21 +237,55 @@ describe("H3 — account linking requires a verified email", () => {
 });
 
 // -----------------------------------------------------------------------------
+/* M5 has TWO layers, and only one of them is reachable over HTTP today.
+ *
+ * Layer 1 — the adults-only launch gate. POST /casting/entry rejects any minor
+ * with ADULT_ELIGIBILITY_REQUIRED, and requireAdultLaunchEligibility re-checks
+ * the profile's DOB on every /casting and /onboarding request. So a minor can
+ * neither create an account nor reach the upload handler at all. That is what
+ * these route tests assert: a legacy under-18 record — the only way a minor
+ * session can exist now — is turned away from the upload surface itself, not
+ * just from signup. (Signup rejection is covered in adult-launch-eligibility.)
+ *
+ * Layer 2 — canCollectSensitiveProfileFields, the original M5 finding: a minor
+ * without recorded guardian consent may not have a full_body shot COLLECTED,
+ * independent of any launch policy. The route can no longer exercise it,
+ * because layer 1 answers first and returns a different error. It is asserted
+ * directly instead. The launch gate is explicitly described in the code as
+ * "Pholio's CURRENT launch"; when it lifts, layer 2 is what still stands
+ * between a minor and a full-length photo, so it stays pinned.
+ *
+ * The earlier version of this block drove entry with a 15-year-old DOB and
+ * then asserted SENSITIVE_SHOT_BLOCKED. Since the launch gate landed, that
+ * created no user at all and failed on `user.id` of undefined. */
 describe("M5 — minors cannot upload full_body at collection", () => {
-  it("rejects a full_body scout upload for a minor with 403", async () => {
-    const email = track("m5.minor@example.test");
+  /** Adult account, then the DOB rewritten to a minor's — the legacy shape. */
+  async function legacyMinorSession(email, uid) {
     await purgeUserByEmail(email);
     const agent = request.agent(app);
-    const res = await entry(agent, { uid: "m5-minor-uid", email, email_verified: true, name: "Minor Teen" });
+    const res = await entry(agent, {
+      uid,
+      email,
+      email_verified: true,
+      name: "Legacy Minor",
+    });
+    expect(res.status).toBe(200);
+
     const cookie = cookieFrom(res);
     const user = await knex("users").where({ email }).first();
     const profile = await getProfileByUser(user.id);
-    // 15 years old today → minor, no guardian consent.
-    const dob = new Date();
-    dob.setFullYear(dob.getFullYear() - 15);
     await setProfileState(profile.id, "scout", ["entry", "birthdate", "gender"], {
-      date_of_birth: dob.toISOString().slice(0, 10),
+      date_of_birth: dobYearsAgo(15),
     });
+    return { agent, cookie, profile };
+  }
+
+  it("turns a minor session away from the scout upload before any image is stored", async () => {
+    const email = track("m5.minor@example.test");
+    const { agent, cookie, profile } = await legacyMinorSession(
+      email,
+      "m5-minor-uid",
+    );
 
     const uploadRes = await agent
       .post("/casting/scout")
@@ -244,24 +294,17 @@ describe("M5 — minors cannot upload full_body at collection", () => {
       .attach("digi", FIXTURE);
 
     expect(uploadRes.status).toBe(403);
-    expect(uploadRes.body.error).toBe("SENSITIVE_SHOT_BLOCKED");
-    const imgs = await knex("images").where({ profile_id: profile.id, shot_type: "full_body" });
+    expect(uploadRes.body.error).toBe("ADULT_ELIGIBILITY_REQUIRED");
+    const imgs = await knex("images").where({ profile_id: profile.id });
     expect(imgs.length).toBe(0);
   });
 
-  it("still allows a minor to upload a headshot", async () => {
+  it("blocks a minor's headshot too — the launch gate is not shot-type aware", async () => {
     const email = track("m5.minor.headshot@example.test");
-    await purgeUserByEmail(email);
-    const agent = request.agent(app);
-    const res = await entry(agent, { uid: "m5-minor-hs-uid", email, email_verified: true, name: "Minor Two" });
-    const cookie = cookieFrom(res);
-    const user = await knex("users").where({ email }).first();
-    const profile = await getProfileByUser(user.id);
-    const dob = new Date();
-    dob.setFullYear(dob.getFullYear() - 15);
-    await setProfileState(profile.id, "scout", ["entry", "birthdate", "gender"], {
-      date_of_birth: dob.toISOString().slice(0, 10),
-    });
+    const { agent, cookie, profile } = await legacyMinorSession(
+      email,
+      "m5-minor-hs-uid",
+    );
 
     const uploadRes = await agent
       .post("/casting/scout")
@@ -269,8 +312,28 @@ describe("M5 — minors cannot upload full_body at collection", () => {
       .field("shot_type", "headshot")
       .attach("digi", FIXTURE);
 
-    expect(uploadRes.status).toBe(200);
-    expect(uploadRes.body.success).toBe(true);
+    expect(uploadRes.status).toBe(403);
+    expect(uploadRes.body.error).toBe("ADULT_ELIGIBILITY_REQUIRED");
+    const imgs = await knex("images").where({ profile_id: profile.id });
+    expect(imgs.length).toBe(0);
+  });
+
+  it("keeps the collection guard itself denying minors and unknown ages", () => {
+    // The predicate the upload handler calls once a request gets that far.
+    const minor = { date_of_birth: dobYearsAgo(15) };
+    const minorWithGuardian = {
+      date_of_birth: dobYearsAgo(15),
+      guardian_consent_at: new Date().toISOString(),
+    };
+    const adult = { date_of_birth: dobYearsAgo(28) };
+
+    expect(canCollectSensitiveProfileFields(minor)).toBe(false);
+    // Fails closed with no verifiable age on file.
+    expect(canCollectSensitiveProfileFields({})).toBe(false);
+    expect(canCollectSensitiveProfileFields({ date_of_birth: null })).toBe(false);
+    expect(canCollectSensitiveProfileFields(adult)).toBe(true);
+    // Guardian consent is what unlocks it — recorded, not assumed.
+    expect(canCollectSensitiveProfileFields(minorWithGuardian)).toBe(true);
   });
 });
 

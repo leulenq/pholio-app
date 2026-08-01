@@ -12,8 +12,12 @@ import {
 import { AgencyButton, AgencyModal, SkeletonRow, StatusText } from '../components/ui';
 import RosterDetailDrawer from '../components/RosterDetailDrawer';
 import { EmptyErrorState } from '../../../shared/components/states';
+import { DivisionMark, DivisionSet } from '../components/status';
 import {
   STAGE_LABELS,
+  STAGE_DIVISION,
+  standingForStage,
+  rowBoardStandings,
   normalizeStatusKey,
   cmToImperial,
   measurementSummary,
@@ -46,8 +50,8 @@ const EMPTY_FORM = Object.freeze({
 });
 
 function RosterRow({ item, selected, onSelect }) {
-  const division = item.board?.name || 'Unassigned';
-  const stage = STAGE_LABELS[item.stage] || STAGE_LABELS.main;
+  const rowBoards = rowBoardStandings(item);
+  const stageStanding = standingForStage(item.stage, item.membershipStatus);
   const freshness = measurementFreshness(item.measurementsUpdatedAt);
   const height = item.heightCm
     ? `${item.heightCm} cm · ${cmToImperial(item.heightCm)}`
@@ -75,10 +79,16 @@ function RosterRow({ item, selected, onSelect }) {
         </span>
       </span>
       <span className="ag-roster-cell">
-        <span className={`ag-roster-tag${item.board?.name ? '' : ' is-empty'}`} title={division}>{division}</span>
+        {/* Boards and standing in one vocabulary. Caps at two so a talent on
+            five boards cannot stretch the row; the rest collapse to "+N". */}
+        <DivisionSet divisions={rowBoards} max={2} size="sm" tight empty="Unassigned" />
       </span>
       <span className="ag-roster-cell">
-        <span className={`ag-roster-stagetag ag-roster-stagetag--${item.stage || 'main'}`}>{stage}</span>
+        <DivisionMark
+          division={STAGE_DIVISION[item.stage] || 'mainboard'}
+          standing={stageStanding}
+          size="sm"
+        />
       </span>
       <span className="ag-roster-cell">
         <StatusText className="ag-roster-avail" status={normalizeStatusKey(item.availability)} label={item.availability} />
@@ -253,7 +263,13 @@ export default function RosterPage() {
     queryFn: () => fetchRoster(filters),
     placeholderData: (previous) => previous,
   });
-  const boardsQuery = useQuery({ queryKey: ['agency-boards'], queryFn: getBoards, staleTime: 60000 });
+  // Divisions only — the roster board picker must not offer casting boards
+  // ("Nike SS26") as though they were standing divisions.
+  const boardsQuery = useQuery({
+    queryKey: ['agency-boards', 'division'],
+    queryFn: () => getBoards('division'),
+    staleTime: 60000,
+  });
   const items = rosterQuery.data?.items || EMPTY_ITEMS;
   const pagination = rosterQuery.data?.pagination;
   const boards = boardsQuery.data || [];

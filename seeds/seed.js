@@ -2,6 +2,17 @@ const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const { seedAgencyDemo } = require("../scripts/seed-agency-demo");
 
+/* Legal acceptance must track the live constant. This file used to hardcode
+   "2026-06-25"; CURRENT_LEGAL_VERSION has since moved to a later date, so every
+   seeded account failed requireTalentLegalAcceptance() and got a 403 on every
+   API route. That silently broke the demo accounts for developers and made two
+   whole test suites unpassable. Deriving it here means a future version bump
+   cannot reintroduce the drift. */
+const {
+  CURRENT_TERMS_VERSION,
+  CURRENT_PRIVACY_VERSION,
+} = require("../src/shared/lib/legal-acceptance");
+
 async function seedDemoData(knex, talentId, profileId) {
   const now = new Date();
   const daysAgo = (n) => new Date(now.getTime() - n * 86400000).toISOString();
@@ -152,8 +163,8 @@ async function seedDemoData(knex, talentId, profileId) {
         id: uuidv4(),
         profile_id: profileId,
         visitor_id: visitorId,
-        started_at: viewTime.toISOString(),
-        last_activity_at: viewTime.toISOString(),
+        started_at: viewTime,
+        last_activity_at: viewTime,
         ip_address: ip,
         user_agent: userAgent,
         referrer,
@@ -168,7 +179,7 @@ async function seedDemoData(knex, talentId, profileId) {
         metadata: JSON.stringify({ referrer, slug: "mia-voss" }),
         ip_address: ip,
         user_agent: userAgent,
-        created_at: viewTime.toISOString(),
+        created_at: viewTime,
       });
 
       if (Math.random() < 0.65) {
@@ -182,7 +193,7 @@ async function seedDemoData(knex, talentId, profileId) {
           }),
           ip_address: ip,
           user_agent: userAgent,
-          created_at: new Date(viewTime.getTime() + 15000).toISOString(),
+          created_at: new Date(viewTime.getTime() + 15000),
         });
       }
 
@@ -195,7 +206,7 @@ async function seedDemoData(knex, talentId, profileId) {
           metadata: JSON.stringify({ platform: "instagram" }),
           ip_address: ip,
           user_agent: userAgent,
-          created_at: new Date(viewTime.getTime() + 30000).toISOString(),
+          created_at: new Date(viewTime.getTime() + 30000),
         });
       }
 
@@ -208,7 +219,7 @@ async function seedDemoData(knex, talentId, profileId) {
           metadata: JSON.stringify({ target: "editorial" }),
           ip_address: ip,
           user_agent: userAgent,
-          created_at: new Date(viewTime.getTime() + 45000).toISOString(),
+          created_at: new Date(viewTime.getTime() + 45000),
         });
       }
 
@@ -221,7 +232,7 @@ async function seedDemoData(knex, talentId, profileId) {
           metadata: JSON.stringify({ depth: Math.random() < 0.6 ? 75 : 100 }),
           ip_address: ip,
           user_agent: userAgent,
-          created_at: new Date(viewTime.getTime() + 60000).toISOString(),
+          created_at: new Date(viewTime.getTime() + 60000),
         });
       }
 
@@ -236,7 +247,7 @@ async function seedDemoData(knex, talentId, profileId) {
           }),
           ip_address: ip,
           user_agent: userAgent,
-          created_at: new Date(viewTime.getTime() + 90000).toISOString(),
+          created_at: new Date(viewTime.getTime() + 90000),
         });
       }
     }
@@ -345,9 +356,9 @@ exports.seed = async function seed(knex) {
     email: "agency@example.com",
     password_hash: passwordHash,
     terms_accepted_at: new Date(),
-    terms_accepted_version: "2026-06-25",
+    terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
-    privacy_accepted_version: "2026-06-25",
+    privacy_accepted_version: CURRENT_PRIVACY_VERSION,
     role: "AGENCY",
     first_name: "Sarah",
     last_name: "Chen",
@@ -374,9 +385,9 @@ exports.seed = async function seed(knex) {
     email: "talent@example.com",
     password_hash: passwordHash,
     terms_accepted_at: new Date(),
-    terms_accepted_version: "2026-06-25",
+    terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
-    privacy_accepted_version: "2026-06-25",
+    privacy_accepted_version: CURRENT_PRIVACY_VERSION,
     role: "TALENT",
   });
 
@@ -494,9 +505,9 @@ exports.seed = async function seed(knex) {
     email: "elara@example.com",
     password_hash: passwordHash,
     terms_accepted_at: new Date(),
-    terms_accepted_version: "2026-06-25",
+    terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
-    privacy_accepted_version: "2026-06-25",
+    privacy_accepted_version: CURRENT_PRIVACY_VERSION,
     role: "TALENT",
   });
 

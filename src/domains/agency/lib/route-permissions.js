@@ -206,6 +206,14 @@ const ROUTE_PERMISSION_RULES = [
     pattern: /^\/api\/agency\/roster-memberships\/[^/]+$/,
     permission: "roster.manage_status",
   },
+  {
+    // Replaces the set of boards a talent sits on, and their standing on each.
+    // Same authority as changing their roster status: it decides who this
+    // agency represents, and on which board.
+    method: "PUT",
+    pattern: /^\/api\/agency\/roster-memberships\/[^/]+\/boards$/,
+    permission: "roster.manage_status",
+  },
 
   // Booking Desk calendar. Talent-declared bookouts are included by the read
   // endpoint but remain immutable through these agency routes.
