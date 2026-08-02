@@ -1,23 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import {
-  X,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpRight,
-  Check,
-  Star,
-  Maximize2,
-} from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ArrowUpRight, Check, Star } from 'lucide-react';
 import { getApplicationDetails } from '../../api/agency';
 import { resolveTier, MATCH_TIER_LABELS, normalizeScore } from '../../lib/matchTier';
 import { getStatusLabel } from '../ui/StatusText';
-import { cmToImperial } from '../../pages/rosterFormat';
+import { formatLocation } from '../../../../shared/utils/locationFormat';
 import './ReviewRoom.css';
 
-/* ── local helpers ───────────────────────────────────────────────── */
+/* ── helpers ─────────────────────────────────────────────────────── */
 
 const initials = (name) =>
   (name || '')
@@ -32,12 +24,12 @@ const timeAgo = (ts) => {
   if (!ts) return null;
   const s = (Date.now() - new Date(ts).getTime()) / 1000;
   if (!Number.isFinite(s) || s < 0) return 'just now';
-  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))} minutes ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} hours ago`;
   const d = Math.floor(s / 86400);
   if (d === 1) return 'yesterday';
-  if (d < 14) return `${d}d ago`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (d < 14) return `${d} days ago`;
+  return `on ${new Date(ts).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`;
 };
 
 const titleCase = (value) =>
@@ -47,99 +39,87 @@ const imageSrc = (img) => img?.url || img?.public_url || img?.path || null;
 
 const DECIDED = new Set(['represented', 'booked', 'accepted', 'signed', 'declined', 'passed']);
 
-/* ── taxonomy — a bespoke set of marks for the room, not the codebase cell ── */
-
-// Match grade → a four-mark strength meter; the fill is the tier.
-const TIER_LEVEL = { exceptional: 4, strong: 3, fair: 2, low: 1 };
-
-// Pipeline state → tone family ONLY. The room sits on deep ink, so it needs
-// its own dark-surface tone colors (a legitimate surface difference). The
-// LABEL is not defined here: it comes from the single source of truth,
-// `getStatusLabel`, so the room's vocabulary equals the list's everywhere.
-const STATE_TONE = {
-  represented: 'signed', booked: 'signed', accepted: 'signed', signed: 'signed',
-  shortlisted: 'short', requested_more: 'short', meeting_requested: 'short',
-  under_review: 'short', development: 'short',
-  declined: 'passed', passed: 'passed', withdrawn: 'passed',
-  kept_on_file: 'filed',
+// Frame captions come from the talent's own slot picks; they read as plain
+// English rather than the storage key.
+const SHOT_LABELS = {
+  headshot: 'Headshot',
+  profile: 'Profile',
+  three_quarter: 'Three-quarter',
+  full_length: 'Full length',
+  back: 'Back',
+  portrait: 'Portrait',
+  editorial: 'Editorial',
+  commercial: 'Commercial',
+  polaroid: 'Digital',
+  digital: 'Digital',
 };
 
-/** State mark — an underscored state line; tone by family, no cell, no dot. */
-function StateMark({ status }) {
-  const key = String(status || '').toLowerCase();
-  const label = getStatusLabel(status);
-  const tone = STATE_TONE[key] || 'wait';
-  return <span className={`rr-state rr-state--${tone}`}>{label}</span>;
+const frameCaption = (img, index, count) => {
+  const key = String(img?.shot_type || img?.image_type || '').toLowerCase();
+  const named = SHOT_LABELS[key] || (key ? titleCase(key.replaceAll('_', ' ')) : null);
+  const position = count > 1 ? `${index + 1} of ${count}` : null;
+  return [named, position].filter(Boolean).join(' · ');
+};
+
+/**
+ * The measurement run — canonical, dual-unit, track-aware. `profile.stats`
+ * already carries render-ready `{ label, value }` lines from the server's one
+ * stats formatter, so the room never re-derives measurements. The legacy
+ * columns are only a fallback for records saved before that snapshot existed.
+ */
+function buildMeasurements(profile) {
+  if (!profile) return [];
+  const fields = Array.isArray(profile.stats?.fields) ? profile.stats.fields : null;
+  if (fields && fields.length) {
+    return fields.map((f) => ({
+      label: f.label,
+      value: f.key === 'hair' || f.key === 'eyes' ? titleCase(f.value) : f.value,
+    }));
+  }
+  const legacy = [];
+  const push = (label, value) => {
+    if (value == null || value === '') return;
+    legacy.push({ label, value: String(value) });
+  };
+  push('Height', profile.height_cm ? `${profile.height_cm} cm` : null);
+  push(profile.bust_cm != null ? 'Bust' : 'Chest', profile.bust_cm ?? profile.chest_cm);
+  push('Waist', profile.waist_cm);
+  push('Hips', profile.hips_cm);
+  push('Inseam', profile.inseam_cm);
+  push('Dress', profile.dress_size);
+  push('Suit', profile.suit_size);
+  push('Shoe', profile.shoe_size);
+  push('Hair', titleCase(profile.hair_color));
+  push('Eyes', titleCase(profile.eye_color));
+  return legacy;
 }
 
-/** Grade — the match numeral over a four-mark strength meter. */
-function Grade({ score, tier }) {
-  const level = TIER_LEVEL[tier] || 0;
+/** A titled group of the reading column. Separated by space and one hairline. */
+function Group({ title, children }) {
   return (
-    <div className="rr-grade">
-      <span className="rr-grade-num">{normalizeScore(score)}</span>
-      <span className="rr-grade-meta">
-        <span className="rr-grade-meter" aria-hidden="true">
-          {[0, 1, 2, 3].map((i) => <i key={i} className={i < level ? 'is-on' : ''} />)}
-        </span>
-        <span className="rr-grade-tier">{MATCH_TIER_LABELS[tier]}</span>
-      </span>
-    </div>
+    <section className="rv-group">
+      <h3 className="rv-group-title">{title}</h3>
+      {children}
+    </section>
   );
 }
 
-/** The comp-card band: the numbers a booker checks first, in print order. */
-function buildCompCard(profile) {
-  if (!profile) return [];
-  const cells = [];
-  if (profile.height_cm) {
-    cells.push({ key: 'Height', value: `${profile.height_cm}`, sub: cmToImperial(profile.height_cm) });
-  }
-  const bwh = [profile.bust_cm ?? profile.chest_cm, profile.waist_cm, profile.hips_cm];
-  if (bwh.some((v) => v != null)) {
-    cells.push({
-      key: profile.bust_cm != null ? 'B · W · H' : 'C · W · H',
-      value: bwh.map((v) => (v != null ? v : '—')).join(' · '),
-      sub: 'cm',
-    });
-  }
-  if (profile.shoe_size != null && profile.shoe_size !== '') {
-    cells.push({ key: 'Shoe', value: String(profile.shoe_size), sub: null });
-  }
-  return cells;
-}
-
-/** Everything after the comp card — quieter, two-up. */
-function buildDetails(profile) {
-  if (!profile) return [];
-  const languages = Array.isArray(profile.languages) && profile.languages.length
-    ? profile.languages.join(', ')
-    : null;
-  const dressLabel = profile.dress_size != null ? 'Dress' : profile.suit_size != null ? 'Suit' : null;
-  return [
-    { label: 'Hair', value: titleCase(profile.hair_color) || null },
-    { label: 'Eyes', value: titleCase(profile.eye_color) || null },
-    { label: 'Age', value: profile.age ?? profile.age_band ?? null },
-    { label: dressLabel, value: profile.dress_size ?? profile.suit_size ?? null },
-    { label: 'Based in', value: profile.city || null },
-    { label: 'Nationality', value: profile.nationality || null },
-    { label: 'Languages', value: languages },
-  ].filter((row) => row.label && row.value != null && row.value !== '');
-}
-
-/* ── the screening room, recomposed ──────────────────────────────── */
+/* ── the review room ─────────────────────────────────────────────── */
 
 /**
- * ReviewRoom — the screening room.
+ * ReviewRoom — where an agency decides on one submission.
  *
- * An editorial spread on the agency's deep ink: the photograph is the whole
- * left page, full bleed under a warm stage light; the right page is the
- * dossier — identity, the comp-card band, verdict, details — terminating in
- * the decision deck. A queue rail of faces runs along the foot with
- * click-to-jump; a gold thread across the top marks progress.
+ * A full-page editorial spread on the house cream: the talent's book occupies
+ * the left leaf as a print laid on a light table; the right leaf is a single
+ * reading column of paper that runs identity → measurements → the submission
+ * → their words → the agency's own record, and terminates in the decision.
  *
- * Keyboard: the page owns J/K/S/A/X/Esc. The room adds only ArrowLeft/Right
- * (frames) and Escape-capture while the zoom overlay is open.
+ * There is no panel, no card, no chrome. Grouping is carried by space, a
+ * hairline, and typographic weight — never by a box. Gold appears exactly
+ * three times: the primary action, the active frame, and the focus ring.
+ *
+ * Keyboard: the submissions page owns J/K/S/A/X/Esc. The room adds only
+ * ArrowLeft/Right (paging frames) and captures Escape while zoom is open.
  */
 export default function ReviewRoom({
   applicationId,
@@ -154,15 +134,7 @@ export default function ReviewRoom({
   const [frame, setFrame] = useState(0);
   const [bioOpen, setBioOpen] = useState(false);
   const [zoom, setZoom] = useState(false);
-  const queueRailRef = useRef(null);
-
-  // Paging direction for the crossfade (render-time adjust-on-prop-change).
-  const [paging, setPaging] = useState({ index: position?.index ?? 0, dir: 1 });
-  const posIndex = position?.index ?? 0;
-  if (posIndex !== paging.index) {
-    setPaging({ index: posIndex, dir: posIndex > paging.index ? 1 : -1 });
-  }
-  const dir = paging.dir;
+  const roomRef = useRef(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['application', applicationId],
@@ -172,6 +144,7 @@ export default function ReviewRoom({
 
   const application = data?.application || null;
   const profile = data?.profile || null;
+  const submissionPackage = data?.submissionPackage || null;
   const notes = useMemo(() => (Array.isArray(data?.notes) ? data.notes : []), [data]);
   const tags = useMemo(() => (Array.isArray(data?.tags) ? data.tags : []), [data]);
 
@@ -189,11 +162,14 @@ export default function ReviewRoom({
     return full || row?.name || 'Talent';
   }, [profile, row]);
 
-  const type = profile?.archetype || row?.type || 'Editorial';
-  const city = profile?.city || row?.city || '';
+  const type = titleCase(profile?.archetype || row?.type || 'Editorial');
+  const rawCity = profile?.city || row?.city || '';
+  const city = rawCity ? formatLocation(rawCity) : '';
   const status = String(application?.status || row?.status || '').toLowerCase();
   const score = application?.match_score ?? row?.match ?? null;
   const tier = score != null ? resolveTier(score) : null;
+  const decided = DECIDED.has(status);
+  const isMinor = Boolean(profile?.is_minor);
 
   const images = useMemo(() => {
     const list = Array.isArray(profile?.images) ? profile.images.filter((i) => imageSrc(i)) : [];
@@ -215,7 +191,21 @@ export default function ReviewRoom({
     [images.length],
   );
 
-  // Frames page with ArrowLeft/ArrowRight — the only list keys the room owns.
+  // ---- queue navigation -------------------------------------------------
+  const index = position?.index ?? 0;
+  const total = position?.total ?? queue.length;
+  const prevId = index > 0 ? queue[index - 1]?.applicationId ?? null : null;
+  const nextId = queue[index + 1]?.applicationId ?? null;
+  const remaining = queue.filter((q) => !DECIDED.has(String(q.status || '').toLowerCase())).length;
+
+  // Paging direction drives the crossfade (adjust-on-prop-change, no effect).
+  const [paging, setPaging] = useState({ index, dir: 1 });
+  if (index !== paging.index) {
+    setPaging({ index, dir: index > paging.index ? 1 : -1 });
+  }
+  const dir = paging.dir;
+
+  // Frames page with ArrowLeft / ArrowRight — the only list keys the room owns.
   useEffect(() => {
     if (!multi) return undefined;
     const onKey = (e) => {
@@ -242,349 +232,380 @@ export default function ReviewRoom({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [zoom]);
 
-  // Keep the current face centered in the queue rail.
+  // Open with the room focused so screen readers announce the dialog and the
+  // page's keyboard triage keeps working without a click.
   useEffect(() => {
-    const rail = queueRailRef.current;
-    if (!rail) return;
-    const current = rail.querySelector('.rr-q.is-current');
-    if (current) {
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      current.scrollIntoView({ inline: 'center', block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-    }
-  }, [applicationId, queue.length]);
+    roomRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  // ---- reading content --------------------------------------------------
+  const measurements = useMemo(() => buildMeasurements(profile), [profile]);
+  const measurementNote = profile?.stats?.is_stale && profile?.stats?.updated_days_ago != null
+    ? `Last confirmed ${Math.round(profile.stats.updated_days_ago / 30) || 1} months ago`
+    : null;
 
   const bioText = profile?.bio_curated || profile?.bio_raw || '';
-  const bioLong = bioText.length > 260;
+  const bioLong = bioText.length > 280;
 
-  const compCard = useMemo(() => buildCompCard(profile), [profile]);
-  const details = useMemo(() => buildDetails(profile), [profile]);
-  const decided = DECIDED.has(status);
+  const boards = useMemo(
+    () => (Array.isArray(submissionPackage?.boards) ? submissionPackage.boards.filter(Boolean) : []),
+    [submissionPackage],
+  );
+  const contact = submissionPackage?.contact || null;
+  const compCard = submissionPackage?.compCard || null;
+  const mediaSetName = submissionPackage?.mediaSet?.name || null;
+  const packageRedacted = Boolean(submissionPackage?.redacted || submissionPackage?.revoked);
+
+  const submittedAgo = timeAgo(submissionPackage?.submittedAt || application?.created_at || row?.appliedAt);
+  const origin = application
+    ? (application.invited_by_agency_id ? 'Invited by your agency' : 'Open application')
+    : null;
 
   const tagList = useMemo(
-    () =>
-      tags
-        .map((t) => (typeof t === 'string' ? t : t?.tag || t?.label || t?.name))
-        .filter(Boolean),
+    () => tags.map((t) => (typeof t === 'string' ? t : t?.tag || t?.label || t?.name)).filter(Boolean),
     [tags],
   );
-  const latestNote = notes.length
-    ? notes[0]?.body || notes[0]?.note || notes[0]?.text || ''
-    : '';
-  const social = Array.isArray(profile?.social) ? profile.social.filter((s) => s?.handle || s?.url) : [];
+  const latestNote = notes.length ? (notes[0]?.body || notes[0]?.note || notes[0]?.text || '') : '';
+  const social = useMemo(
+    () => (Array.isArray(profile?.social) ? profile.social.filter((s) => s?.handle || s?.url) : []),
+    [profile],
+  );
+  const hasRecord = tagList.length > 0 || notes.length > 0 || social.length > 0;
 
-  const submittedAgo = timeAgo(application?.created_at || row?.appliedAt);
-  const total = position?.total ?? 0;
-  const index = position?.index ?? 0;
-  const progressPct = total > 0 ? ((index + 1) / total) * 100 : 0;
-  const remaining = queue.filter((q) => !DECIDED.has(String(q.status || '').toLowerCase())).length;
+  const identityLine = [type, city, profile?.age ? `${profile.age}` : null].filter(Boolean).join(' · ');
+  const standing = decided || status === 'shortlisted' || (status && status !== 'submitted' && status !== 'pending')
+    ? getStatusLabel(status)
+    : null;
 
-  const factParts = [
-    submittedAgo ? `Submitted ${submittedAgo}` : null,
-    application ? (application.invited_by_agency_id ? 'Invited by your agency' : 'Open application') : null,
-    application && !application.viewed_at ? 'First look' : null,
-  ].filter(Boolean);
-
-  // Rendered through a portal to <body> so the full-screen takeover escapes
-  // the dashboard shell's stacking context (the rail's own layer would
-  // otherwise bleed through the ink).
+  // Rendered through a portal so the takeover escapes the dashboard shell's
+  // stacking context.
   return createPortal(
     <motion.div
-      className="rr-room"
+      ref={roomRef}
+      className="rv-room"
       role="dialog"
       aria-modal="true"
       aria-label={`Reviewing ${name}`}
+      tabIndex={-1}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.26, ease: [0.4, 0, 0.2, 1] }}
+      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
     >
-      {/* Queue progress — the gold thread. */}
-      <div className="rr-thread" aria-hidden="true">
-        <i style={{ width: `${progressPct}%` }} />
-      </div>
-
-      {/* ───────── TOP BAR — apply-workspace chrome, dark room ───────── */}
-      <header className="rr-top" aria-label="Submissions review workspace">
-        <button
-          type="button"
-          className="rr-top-logo"
-          onClick={onClose}
-          aria-label="Exit room"
-        >
-          <span>PHOLIO</span>
-        </button>
-        <div
-          className="rr-top-status"
-          aria-label={
-            total > 0
-              ? `Submissions review, queue position ${index + 1} of ${total}`
-              : 'Submissions review'
-          }
-        >
-          <span>Submissions review</span>
-          {total > 0 && <strong>queue {index + 1}</strong>}
-        </div>
-        <div className="rr-top-actions">
-          <button type="button" className="rr-top-exit" onClick={onClose}>
-            Exit room
+      {/* ── the lintel: exit on one side, the queue on the other ── */}
+      <header className="rv-lintel">
+        <div className="rv-lintel-left">
+          <button type="button" className="rv-exit" onClick={onClose}>
+            <X size={16} strokeWidth={1.8} aria-hidden="true" />
+            Close
           </button>
+          <span className="rv-lintel-where">Submissions review</span>
+        </div>
+
+        <div className="rv-lintel-right">
+          {remaining > 0 && (
+            <span className="rv-lintel-rest">
+              {remaining} awaiting a decision
+            </span>
+          )}
+          {total > 1 && (
+            <div className="rv-step">
+              <button
+                type="button"
+                className="rv-step-btn"
+                onClick={() => prevId && onJump?.(prevId)}
+                disabled={!prevId}
+                aria-label="Previous submission"
+              >
+                <ChevronLeft size={17} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+              <span className="rv-step-count">{index + 1} of {total}</span>
+              <button
+                type="button"
+                className="rv-step-btn"
+                onClick={() => nextId && onJump?.(nextId)}
+                disabled={!nextId}
+                aria-label="Next submission"
+              >
+                <ChevronRight size={17} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* ───────── THE SPREAD ───────── */}
-      <div className="rr-main">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={applicationId}
-            className="rr-scene"
-            initial={{ opacity: 0, x: 24 * dir }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 * dir }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-          >
-            {/* Left page — the portrait, centered under the stage light. */}
-            <figure className={`rr-stage${isLoading && !activeImage ? ' is-loading' : ''}`}>
-              <div className="rr-frame">
-                {activeImage ? (
-                  <button
-                    type="button"
-                    className="rr-photo"
-                    style={{ backgroundImage: `url(${imageSrc(activeImage)})` }}
-                    onClick={() => setZoom(true)}
-                    aria-label={`View ${name}'s digital at full size`}
-                  />
-                ) : (
-                  <div className="rr-photo rr-photo--empty" role="img" aria-label={name}>
-                    {!isLoading && <span className="rr-photo-initials">{initials(name)}</span>}
-                  </div>
-                )}
-                <div className="rr-stage-bar">
-                  {multi ? (
-                    <span className="rr-frame-nav">
-                      <button type="button" className="rr-frame-btn" onClick={prevFrame} aria-label="Previous digital">
-                        <ChevronLeft size={15} strokeWidth={1.9} />
-                      </button>
-                      <span className="rr-frame-count">{activeFrame + 1} / {images.length}</span>
-                      <button type="button" className="rr-frame-btn" onClick={nextFrame} aria-label="Next digital">
-                        <ChevronRight size={15} strokeWidth={1.9} />
-                      </button>
-                    </span>
-                  ) : <span />}
-                  {activeImage && (
-                    <button type="button" className="rr-frame-btn" onClick={() => setZoom(true)} aria-label="View full size">
-                      <Maximize2 size={14} strokeWidth={1.9} />
-                    </button>
-                  )}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={applicationId}
+          className="rv-spread"
+          initial={{ opacity: 0, y: 8 * dir }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 * dir }}
+          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+        >
+          {/* ── left leaf: the book, on the light table ── */}
+          <figure className="rv-leaf">
+            <div className={`rv-plate${isLoading && !activeImage ? ' is-waiting' : ''}`}>
+              {activeImage ? (
+                <button
+                  type="button"
+                  className="rv-print"
+                  style={{ backgroundImage: `url(${imageSrc(activeImage)})` }}
+                  onClick={() => setZoom(true)}
+                  aria-label={`View ${name}'s frame at full size`}
+                />
+              ) : (
+                <div className="rv-print rv-print--empty" role="img" aria-label={name}>
+                  {!isLoading && <span className="rv-print-initials">{initials(name)}</span>}
                 </div>
+              )}
+            </div>
+
+            <figcaption className="rv-leaf-foot">
+              {images.length > 0 && (
+                <span className="rv-frame-caption">
+                  {frameCaption(activeImage, activeFrame, images.length)}
+                </span>
+              )}
+              {multi && (
+                <div className="rv-frames" role="group" aria-label="Submitted frames">
+                  {images.map((img, i) => (
+                    <button
+                      key={img.id || imageSrc(img) || i}
+                      type="button"
+                      aria-pressed={i === activeFrame}
+                      aria-label={`Frame ${i + 1} of ${images.length}`}
+                      className={`rv-frame${i === activeFrame ? ' is-on' : ''}`}
+                      style={{ backgroundImage: `url(${imageSrc(img)})` }}
+                      onClick={() => setFrame(i)}
+                    />
+                  ))}
+                </div>
+              )}
+            </figcaption>
+          </figure>
+
+          {/* ── right leaf: the reading column ── */}
+          <div className="rv-column">
+            <div className="rv-read">
+              <div className="rv-head">
+                <h2 className="rv-name">{name}</h2>
+                {identityLine && <p className="rv-identity">{identityLine}</p>}
+
+                {score != null && (
+                  <p className="rv-match">
+                    <span className="rv-match-num">{normalizeScore(score)}</span>
+                    <span className="rv-match-word">{MATCH_TIER_LABELS[tier]} match</span>
+                  </p>
+                )}
+
+                {isMinor && (
+                  <p className="rv-flag">
+                    Minor — handle under your Kids &amp; Teens custody rules.
+                  </p>
+                )}
+                {standing && (
+                  <p className="rv-standing">
+                    <span>Standing</span>
+                    {standing}
+                  </p>
+                )}
               </div>
-            </figure>
 
-            {/* Right page — the dossier. */}
-            <div className="rr-page">
-              <div className="rr-read">
-                <h2 className="rr-name">{name}</h2>
-                <p className="rr-market">
-                  <span className="rr-market-mark" aria-hidden="true" />
-                  <span className="rr-market-name">{type}</span>
-                  {city && <span className="rr-market-city">{city}</span>}
-                </p>
-
-                {/* The comp card — the numbers a booker checks first. */}
-                {compCard.length > 0 && (
-                  <div className="rr-comp">
-                    {compCard.map((c) => (
-                      <div className="rr-comp-cell" key={c.key}>
-                        <span className="rr-comp-key">{c.key}</span>
-                        <span className="rr-comp-val">
-                          {c.value}
-                          {c.sub && <em>{c.sub}</em>}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Billing — the match grade and the state, on one rule. */}
-                <div className="rr-billing">
-                  {score != null ? <Grade score={score} tier={tier} /> : <span />}
-                  <StateMark status={status} />
+              {isError ? (
+                <div className="rv-group rv-empty">
+                  <p>This submission could not be loaded.</p>
+                  <button type="button" className="rv-textbtn" onClick={() => refetch()}>Try again</button>
                 </div>
-                {factParts.length > 0 && <p className="rr-facts">{factParts.join(' · ')}</p>}
-
-                {isError ? (
-                  <div className="rr-error">
-                    <p>This submission could not be loaded.</p>
-                    <button type="button" className="rr-textbtn" onClick={() => refetch()}>Try again</button>
-                  </div>
-                ) : isLoading ? (
-                  <div className="rr-loading" aria-hidden="true">
-                    {[64, 46, 58, 38].map((w, i) => (
-                      <span key={i} className="rr-bone" style={{ width: `${w}%` }} />
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    {details.length > 0 && (
-                      <dl className="rr-details">
-                        {details.map((v) => (
-                          <div className="rr-detail" key={v.label}>
-                            <dt>{v.label}</dt>
-                            <dd>{v.value}</dd>
+              ) : isLoading ? (
+                <div className="rv-waiting" aria-hidden="true">
+                  {[70, 52, 64, 44, 58].map((w, i) => (
+                    <span key={i} className="rv-bone" style={{ width: `${w}%` }} />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {measurements.length > 0 && (
+                    <Group title="Measurements">
+                      <dl className="rv-facts">
+                        {measurements.map((m) => (
+                          <div className="rv-fact" key={m.label}>
+                            <dt>{m.label}</dt>
+                            <dd>{m.value}</dd>
                           </div>
                         ))}
                       </dl>
-                    )}
-
-                    {bioText && (
-                      <div className="rr-section">
-                        <span className="rr-key">Bio</span>
-                        <p className={`rr-bio${bioLong && !bioOpen ? ' is-clamped' : ''}`}>{bioText}</p>
-                        {bioLong && (
-                          <button type="button" className="rr-textbtn" onClick={() => setBioOpen((v) => !v)}>
-                            {bioOpen ? 'Show less' : 'Read more'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {(tagList.length > 0 || notes.length > 0 || social.length > 0) && (
-                      <div className="rr-section">
-                        <span className="rr-key">Agency record</span>
-                        {tagList.length > 0 && (
-                          <div className="rr-filed">
-                            {tagList.map((t, i) => (
-                              <span className="rr-filed-mark" key={`${t}-${i}`}>{t}</span>
-                            ))}
-                          </div>
-                        )}
-                        {notes.length > 0 && (
-                          <p className="rr-line">
-                            {notes.length} {notes.length === 1 ? 'note' : 'notes'}
-                            {latestNote ? ` — “${latestNote.slice(0, 90)}${latestNote.length > 90 ? '…' : ''}”` : ''}
-                          </p>
-                        )}
-                        {social.map((s, i) => {
-                          const label = `${(s.platform || 'link').toLowerCase()} — ${
-                            s.handle ? (s.handle.startsWith('@') ? s.handle : `@${s.handle}`) : s.url
-                          }`;
-                          return s.url ? (
-                            <a
-                              key={`${s.platform || 'link'}-${i}`}
-                              className="rr-line rr-line--link"
-                              href={s.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {label}
-                              <ArrowUpRight size={11} strokeWidth={1.9} aria-hidden="true" />
-                            </a>
-                          ) : (
-                            <p key={`${s.platform || 'link'}-${i}`} className="rr-line">{label}</p>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* The decision deck — terminates the reading flow. */}
-              <div className="rr-deck">
-                {decided ? (
-                  <div className="rr-deck-decided">
-                    <StateMark status={status} />
-                    <span className="rr-deck-note">Decided — J / K to keep moving</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="rr-deck-row">
-                      <button
-                        type="button"
-                        className="rr-act rr-act--sign"
-                        onClick={() => onDecide?.('accept')}
-                        disabled={busy}
-                      >
-                        <Check size={16} strokeWidth={2.1} aria-hidden="true" />
-                        Sign
-                      </button>
-                      <button
-                        type="button"
-                        className="rr-act rr-act--shortlist"
-                        onClick={() => onDecide?.('shortlist')}
-                        disabled={busy}
-                      >
-                        <Star size={15} strokeWidth={1.9} aria-hidden="true" />
-                        Shortlist
-                      </button>
-                      <button
-                        type="button"
-                        className="rr-act rr-act--pass"
-                        onClick={() => onDecide?.('decline')}
-                        disabled={busy}
-                      >
-                        <X size={15} strokeWidth={1.9} aria-hidden="true" />
-                        Pass
-                      </button>
-                    </div>
-                    <div className="rr-deck-quiet">
-                      <div className="rr-soft-row">
-                        <button type="button" className="rr-soft" onClick={() => onDecide?.('kept_on_file')} disabled={busy}>
-                          Keep on file
-                        </button>
-                        <span className="rr-soft-div" aria-hidden="true">·</span>
-                        <button type="button" className="rr-soft" onClick={() => onDecide?.('requested_more')} disabled={busy}>
-                          Request digitals
-                        </button>
-                      </div>
-                      <span className="rr-legend" aria-hidden="true">
-                        <b>S</b> shortlist<i /> <b>A</b> sign<i /> <b>X</b> pass<i /> <b>J K</b> browse
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* ───────── QUEUE RAIL — the desk's stack, visible ───────── */}
-      {queue.length > 1 && (
-        <div className="rr-queue">
-          <span className="rr-queue-key">
-            Queue
-            <em>{remaining} to review</em>
-          </span>
-          <div className="rr-queue-rail" ref={queueRailRef}>
-            {queue.map((q) => {
-              const qDecided = DECIDED.has(String(q.status || '').toLowerCase());
-              const current = q.applicationId === applicationId;
-              return (
-                <button
-                  key={q.applicationId}
-                  type="button"
-                  className={`rr-q${current ? ' is-current' : ''}${qDecided ? ' is-decided' : ''}`}
-                  onClick={() => onJump?.(q.applicationId)}
-                  aria-label={`Review ${q.name}`}
-                  aria-current={current || undefined}
-                >
-                  {q.photo ? (
-                    <span className="rr-q-img" style={{ backgroundImage: `url(${q.photo})` }} />
-                  ) : (
-                    <span className="rr-q-img rr-q-img--empty">{initials(q.name)}</span>
+                      {measurementNote && <p className="rv-aside">{measurementNote}</p>}
+                    </Group>
                   )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {/* ───────── ZOOM — the detail look ───────── */}
+                  <Group title="The submission">
+                    <dl className="rv-facts">
+                      <div className="rv-fact">
+                        <dt>Submitted for</dt>
+                        <dd>{boards.length ? boards.join(' · ') : 'General consideration'}</dd>
+                      </div>
+                      {submittedAgo && (
+                        <div className="rv-fact">
+                          <dt>Received</dt>
+                          <dd>{submittedAgo}</dd>
+                        </div>
+                      )}
+                      {origin && (
+                        <div className="rv-fact">
+                          <dt>Route</dt>
+                          <dd>{origin}</dd>
+                        </div>
+                      )}
+                      {images.length > 0 && (
+                        <div className="rv-fact">
+                          <dt>Frames</dt>
+                          <dd>{images.length}{mediaSetName ? ` · ${mediaSetName}` : ''}</dd>
+                        </div>
+                      )}
+                      {profile?.nationality && (
+                        <div className="rv-fact">
+                          <dt>Nationality</dt>
+                          <dd>{profile.nationality}</dd>
+                        </div>
+                      )}
+                      {Array.isArray(profile?.languages) && profile.languages.length > 0 && (
+                        <div className="rv-fact">
+                          <dt>Languages</dt>
+                          <dd>{profile.languages.join(', ')}</dd>
+                        </div>
+                      )}
+                    </dl>
+
+                    {packageRedacted && (
+                      <p className="rv-aside">
+                        The talent withdrew this submission; its disclosure package is no longer available.
+                      </p>
+                    )}
+
+                    <div className="rv-links">
+                      {compCard?.viewUrl && (
+                        <a className="rv-link" href={compCard.viewUrl} target="_blank" rel="noopener noreferrer">
+                          {compCard.name || 'Comp card'}
+                          <ArrowUpRight size={13} strokeWidth={1.9} aria-hidden="true" />
+                        </a>
+                      )}
+                      {contact?.email && (
+                        <a className="rv-link" href={`mailto:${contact.email}`}>{contact.email}</a>
+                      )}
+                      {contact?.phone && (
+                        <a className="rv-link" href={`tel:${contact.phone}`}>{contact.phone}</a>
+                      )}
+                    </div>
+                  </Group>
+
+                  {bioText && (
+                    <Group title="In their words">
+                      <p className={`rv-prose${bioLong && !bioOpen ? ' is-clamped' : ''}`}>{bioText}</p>
+                      {bioLong && (
+                        <button type="button" className="rv-textbtn" onClick={() => setBioOpen((v) => !v)}>
+                          {bioOpen ? 'Show less' : 'Read more'}
+                        </button>
+                      )}
+                    </Group>
+                  )}
+
+                  {hasRecord && (
+                    <Group title="Your record">
+                      {tagList.length > 0 && <p className="rv-prose">{tagList.join(' · ')}</p>}
+                      {notes.length > 0 && (
+                        <p className="rv-prose">
+                          {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+                          {latestNote ? ` — “${latestNote.slice(0, 120)}${latestNote.length > 120 ? '…' : ''}”` : ''}
+                        </p>
+                      )}
+                      {social.length > 0 && (
+                        <div className="rv-links">
+                          {social.map((s, i) => {
+                            const handle = s.handle
+                              ? (s.handle.startsWith('@') ? s.handle : `@${s.handle}`)
+                              : s.url;
+                            const label = `${titleCase(s.platform || 'Link')} ${handle}`;
+                            return s.url ? (
+                              <a
+                                key={`${s.platform || 'link'}-${i}`}
+                                className="rv-link"
+                                href={s.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {label}
+                                <ArrowUpRight size={13} strokeWidth={1.9} aria-hidden="true" />
+                              </a>
+                            ) : (
+                              <span key={`${s.platform || 'link'}-${i}`} className="rv-link rv-link--flat">{label}</span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Group>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* ── the decision: where the column terminates ── */}
+            <div className="rv-decide">
+              {decided ? (
+                <p className="rv-decided">
+                  <strong>{getStatusLabel(status)}</strong>
+                  <span>Move on with the arrows above.</span>
+                </p>
+              ) : (
+                <>
+                  <div className="rv-verbs">
+                    <button
+                      type="button"
+                      className="rv-verb rv-verb--sign"
+                      onClick={() => onDecide?.('accept')}
+                      disabled={busy}
+                    >
+                      <Check size={16} strokeWidth={2.1} aria-hidden="true" />
+                      Sign
+                    </button>
+                    <button
+                      type="button"
+                      className="rv-verb"
+                      onClick={() => onDecide?.('shortlist')}
+                      disabled={busy}
+                    >
+                      <Star size={15} strokeWidth={1.9} aria-hidden="true" />
+                      Shortlist
+                    </button>
+                    <button
+                      type="button"
+                      className="rv-verb rv-verb--pass"
+                      onClick={() => onDecide?.('decline')}
+                      disabled={busy}
+                    >
+                      Pass
+                    </button>
+                  </div>
+                  <div className="rv-softs">
+                    <button type="button" className="rv-textbtn" onClick={() => onDecide?.('kept_on_file')} disabled={busy}>
+                      Keep on file
+                    </button>
+                    <button type="button" className="rv-textbtn" onClick={() => onDecide?.('requested_more')} disabled={busy}>
+                      Request more digitals
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* ── full-size look ── */}
       <AnimatePresence>
         {zoom && activeImage && (
           <motion.div
-            className="rr-zoom"
+            className="rv-zoom"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -592,8 +613,8 @@ export default function ReviewRoom({
             onClick={() => setZoom(false)}
           >
             <img src={imageSrc(activeImage)} alt={activeImage?.alt || name} />
-            <button type="button" className="rr-topbtn rr-zoom-close" aria-label="Close detail view">
-              <X size={17} strokeWidth={1.8} />
+            <button type="button" className="rv-zoom-close" aria-label="Close full-size view">
+              <X size={18} strokeWidth={1.8} aria-hidden="true" />
             </button>
           </motion.div>
         )}
