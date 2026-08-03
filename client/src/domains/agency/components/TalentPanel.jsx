@@ -9,6 +9,7 @@ import { ApplicantsZone } from './zones/ApplicantsZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
 import MatchScore from './ui/MatchScore';
+import { MetaLine, Place } from './meta';
 import './TalentPanel.css';
 
 const getInitials = (name) => {
@@ -215,10 +216,10 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
 
           <div className="tp-identity">
             <div className="tp-identity-top">
-              <div className="tp-meta-type">
+              <MetaLine className="tp-meta-type">
                 {talent.type || talent.typeLabel || 'Editorial'}
-                {talent.location || talent.city ? ` · ${talent.location || talent.city}` : ''}
-              </div>
+                <Place value={talent.location || talent.city} />
+              </MetaLine>
               {matchScore != null && (
                 <MatchScore score={matchScore} size="sm" tone="overlay" className="tp-hero-match" />
               )}

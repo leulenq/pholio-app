@@ -1,14 +1,5 @@
 import React from 'react';
-
-function timeAgo(ts) {
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return '';
-  const s = (Date.now() - d.getTime()) / 1000;
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
+import { MetaLine, Moment } from '../meta';
 
 export default function ActivityFeed({ items }) {
   return (
@@ -27,9 +18,10 @@ export default function ActivityFeed({ items }) {
                 <span className="ov-act-text">
                   {a.talentName && <strong>{a.talentName}</strong>} {a.description}
                 </span>
-                <span className="ov-act-meta">
-                  {a.application_label}{a.application_label ? ' · ' : ''}{timeAgo(a.created_at)}
-                </span>
+                <MetaLine size="sm" className="ov-act-meta">
+                  {a.application_label}
+                  <Moment value={a.created_at} size="sm" />
+                </MetaLine>
               </div>
             </div>
           ))}

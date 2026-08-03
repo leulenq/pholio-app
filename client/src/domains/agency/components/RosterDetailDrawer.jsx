@@ -11,11 +11,10 @@ import { TalentRecordForm } from '../pages/RosterPage';
 import {
   STAGE_LABELS,
   normalizeStatusKey,
-  heightLine,
-  measurementSummary,
-  measurementAge,
   measurementsToFormFields,
 } from '../pages/rosterFormat';
+import { MetaLine, Place, Figure, Freshness } from './meta';
+import { heightFigure, measurementFigure, ageFigure } from './meta/metaFormat';
 import { DivisionSet } from './status';
 import BoardStandingsEditor from './BoardStandingsEditor';
 import './RosterDetailDrawer.css';
@@ -70,9 +69,10 @@ function useLedgerRows(item, talent) {
     const heightCm = talent?.height_cm ?? item.heightCm;
     const measurements = talent?.measurements ?? item.measurements;
     const rows = [];
-    if (heightCm) rows.push({ label: 'Height', value: heightLine(heightCm) });
-    const measure = measurementSummary({ measurements });
-    if (measure !== 'Measurements incomplete') rows.push({ label: 'Measurements', value: measure });
+    const height = heightFigure(heightCm);
+    if (height) rows.push({ label: 'Height', ...height });
+    const measure = measurementFigure(measurements);
+    if (measure) rows.push({ label: measure.key, ...measure });
     return rows;
   }, [item, talent]);
 }
@@ -160,9 +160,16 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
 
   const identityFacts = useMemo(() => {
     const facts = [];
-    if (item.location) facts.push(item.location);
+    if (item.location) {
+      facts.push(<Place key="place" value={item.location} onDark />);
+    }
     if (talent?.gender) facts.push(talent.gender);
-    if (talent?.age != null) facts.push(`${talent.age}`);
+    /* A bare "24" in a metadata line is ambiguous next to a height and a
+       shoe size; the unit is what makes it read as an age. */
+    const age = ageFigure(talent);
+    if (age) {
+      facts.push(<Figure key="age" value={age.value} unit={age.unit} inline onDark />);
+    }
     if (talent?.nationality) facts.push(talent.nationality);
     return facts;
   }, [item.location, talent]);
@@ -261,7 +268,9 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
               <DivisionSet divisions={boardStandings} size="sm" onDark empty="No board assigned" />
             </div>
             {identityFacts.length > 0 && (
-              <p className="rd-facts">{identityFacts.join(' · ')}</p>
+              <MetaLine className="rd-facts" onDark wrap>
+                {identityFacts}
+              </MetaLine>
             )}
             {availabilityMeta && (
               <p className="rd-availability" style={{ color: availabilityMeta.color }}>
@@ -326,11 +335,15 @@ export default function RosterDetailDrawer({ item, boards, onClose, onChanged })
                 {ledger.map((row) => (
                   <div className="rd-ledger-row" key={row.label}>
                     <dt>{row.label}</dt>
-                    <dd>{row.value}</dd>
+                    <dd>
+                      <Figure value={row.value} unit={row.unit} sub={row.sub} size="sm" />
+                    </dd>
                   </div>
                 ))}
               </dl>
-              <p className="rd-note">{measurementAge(item.measurementsUpdatedAt)}</p>
+              <p className="rd-note">
+                <Freshness value={item.measurementsUpdatedAt} size="sm" />
+              </p>
             </section>
           ) : null}
 

@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { updateInterview, cancelInterview } from '../api/agency';
 import { deriveInterviewState, TYPE_META, monogram, formatWhen } from './interview-state';
+import { MetaLine, Place } from './meta';
 
 export default function InterviewRow({ interview, index = 0 }) {
   const qc = useQueryClient();
@@ -100,17 +101,18 @@ export default function InterviewRow({ interview, index = 0 }) {
           <span className="iv-name">{interview.talent_name || 'Talent'}</span>
           {state.reason && <span className="iv-reason">{state.reason}</span>}
         </div>
-        <div className="iv-meta">
+        <MetaLine className="iv-meta" size="sm">
           <span className="iv-meta-item"><TypeIcon size={12} />{type.label}</span>
-          <span className="iv-dot">·</span>
           <span className="iv-meta-item"><Calendar size={12} />{formatWhen(interview.proposed_datetime)}</span>
           {interview.duration_minutes ? (
-            <><span className="iv-dot">·</span><span className="iv-meta-item">{interview.duration_minutes} min</span></>
+            <span className="iv-meta-item">{interview.duration_minutes} min</span>
           ) : null}
+          {/* An interview address is one of the few places the region
+              genuinely matters — a booker is deciding about travel. */}
           {interview.location && state.bucket !== 'action' ? (
-            <><span className="iv-dot">·</span><span className="iv-meta-item"><MapPin size={12} />{interview.location}</span></>
+            <Place value={interview.location} full size="sm" icon={<MapPin size={12} />} />
           ) : null}
-        </div>
+        </MetaLine>
       </div>
 
       <div className="iv-actions">
