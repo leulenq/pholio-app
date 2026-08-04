@@ -7,7 +7,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
-import { Loader2, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
 import {
@@ -118,7 +118,6 @@ export default function LoginPage() {
       ? 'Your session couldn’t be verified. Please sign in again.'
       : null,
   );
-  const [resetSent, setResetSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isInstagramLoading, setIsInstagramLoading] = useState(false);
@@ -243,38 +242,6 @@ export default function LoginPage() {
         msg = 'Please enter a valid email address.';
       } else if (err.code === 'auth/too-many-requests') {
         msg = 'Too many failed attempts. Please try again later.';
-      }
-      setError(msg);
-      setIsLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Please enter your email address first to reset your password.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setResetSent(false);
-
-    try {
-      const response = await fetch('/api/auth/password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to send reset email.');
-      }
-      setResetSent(true);
-      setIsLoading(false);
-    } catch (err) {
-      let msg = 'Failed to send reset email. Please try again.';
-      if (err.message) {
-        msg = err.message;
       }
       setError(msg);
       setIsLoading(false);
@@ -439,13 +406,6 @@ export default function LoginPage() {
         </p>
       </header>
 
-      {resetSent && (
-        <div className={`${styles.alert} ${styles.alertSuccess}`} role="status" aria-live="polite">
-          <CheckCircle2 size={18} />
-          <span>Password reset email sent. Please check your inbox.</span>
-        </div>
-      )}
-
       {error && (
         <div className={`${styles.alert} ${styles.alertError}`} role="alert" aria-live="assertive" id="login-error">
           <AlertCircle size={18} />
@@ -482,14 +442,16 @@ export default function LoginPage() {
             <label htmlFor="login-password" className={styles.label}>
               Password
             </label>
-            <button
-              type="button"
-              onClick={handleForgotPassword}
-              disabled={busy}
+            {/* A screen of its own, not a toggle on this form — arriving
+                there needs nothing typed here first. The typed email (if
+                any) rides along as a convenience prefill, not a requirement. */}
+            <Link
+              to="/login/forgot-password"
+              state={email ? { email } : undefined}
               className={styles.forgotLink}
             >
               Forgot?
-            </button>
+            </Link>
           </div>
           <div className={styles.passwordWrapper}>
             <input

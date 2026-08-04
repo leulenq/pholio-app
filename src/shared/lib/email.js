@@ -14,6 +14,7 @@ const {
   buildAgencyActivationEmailHtml,
   buildEmailVerificationHtml,
   buildPasswordResetEmailHtml,
+  buildSignInMethodNoticeEmailHtml,
   buildPasswordChangedEmailHtml,
   buildMagicSignInEmailHtml,
   buildTeamInviteEmailHtml,
@@ -258,6 +259,12 @@ async function sendPasswordResetEmail({
   return sendEmail({ to, subject, html });
 }
 
+async function sendSignInMethodNoticeEmail({ to, firstName, providerLabel }) {
+  const subject = "How to sign in to Pholio";
+  const html = buildSignInMethodNoticeEmailHtml({ firstName, providerLabel });
+  return sendEmail({ to, subject, html });
+}
+
 async function sendPasswordChangedEmail({
   to,
   firstName,
@@ -346,6 +353,7 @@ module.exports = {
   sendAgencyActivationEmail,
   sendEmailVerificationEmail,
   sendPasswordResetEmail,
+  sendSignInMethodNoticeEmail,
   sendPasswordChangedEmail,
   sendMagicSignInEmail,
   sendTeamInviteEmail,

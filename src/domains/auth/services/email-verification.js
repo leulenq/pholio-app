@@ -17,7 +17,9 @@ const {
 const {
   sendEmailVerificationEmail,
   sendPasswordResetEmail,
+  sendSignInMethodNoticeEmail,
 } = require("../../../shared/lib/email");
+const { normalizeProviderId } = require("./auth-provider");
 const config = require("../../../config");
 
 /**
@@ -65,4 +67,40 @@ async function sendPasswordResetViaSmtp({ email, firstName }) {
   return { ok: true };
 }
 
-module.exports = { sendVerificationEmailViaSmtp, sendPasswordResetViaSmtp };
+/**
+ * Sent in place of a reset link when the account has no `password` entry in
+ * Firebase's `providerData` — it signed in through Google, Instagram, or
+ * another provider only. `generatePasswordResetLink` has no such account to
+ * reset and Firebase refuses the request, so the caller (the password-reset
+ * route) must check `providerData` and branch here *before* ever asking
+ * Firebase for a link, not react to the failure after the fact.
+ *
+ * @param {Object} args
+ * @param {string} args.email
+ * @param {string} [args.firstName]
+ * @param {string[]} args.providerIds - Raw `providerData[].providerId` values
+ *   for the account (e.g. `["google.com"]`). The first recognized one names
+ *   the provider in the email; Pholio accounts only ever carry one non-
+ *   password provider in practice.
+ */
+async function sendSignInMethodNoticeViaSmtp({ email, firstName, providerIds }) {
+  if (!email) {
+    throw new Error("email is required to send a sign-in method notice");
+  }
+
+  const normalized = (providerIds || [])
+    .map(normalizeProviderId)
+    .find(Boolean);
+  const providerLabel = normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : null;
+
+  await sendSignInMethodNoticeEmail({ to: email, firstName, providerLabel });
+  return { ok: true };
+}
+
+module.exports = {
+  sendVerificationEmailViaSmtp,
+  sendPasswordResetViaSmtp,
+  sendSignInMethodNoticeViaSmtp,
+};
