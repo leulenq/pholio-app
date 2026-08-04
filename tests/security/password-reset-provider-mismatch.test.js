@@ -93,9 +93,15 @@ describe("POST /api/auth/password-reset", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ success: true });
+    // handleCodeInApp: true + url: .../reset-password is what routes the link
+    // at ResetPasswordPage instead of Firebase's own generic hosted page —
+    // regressing either half silently reverts to the unbranded flow.
     expect(firebaseAdmin.generatePasswordResetLink).toHaveBeenCalledWith(
       PASSWORD_EMAIL,
-      expect.any(Object),
+      expect.objectContaining({
+        handleCodeInApp: true,
+        url: expect.stringMatching(/\/reset-password$/),
+      }),
     );
   });
 

@@ -58,9 +58,13 @@ async function sendPasswordResetViaSmtp({ email, firstName }) {
     throw new Error("email is required to send a password reset email");
   }
 
+  // handleCodeInApp: true points the link straight at ResetPasswordPage
+  // (client/src/domains/auth/pages/ResetPasswordPage) instead of Firebase's
+  // own generic hosted action page — the oobCode arrives as a query param on
+  // our own branded screen, which calls confirmPasswordReset itself.
   const resetUrl = await generatePasswordResetLink(email, {
-    url: `${config.appUrl}/login`,
-    handleCodeInApp: false,
+    url: `${config.appUrl}/reset-password`,
+    handleCodeInApp: true,
   });
 
   await sendPasswordResetEmail({ to: email, firstName, resetUrl });

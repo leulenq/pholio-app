@@ -6,12 +6,13 @@ import styles from './AuthLayout.module.css';
 /**
  * Route-keyed back link shown beside the wordmark in the page header — the
  * actual top-left of the page, not the left edge of the centered panel below
- * it. A single-entry lookup is deliberate: there is exactly one auth sub-route
- * today (forgot-password). If a second one needs a back link, promote this to
- * route data instead of growing an ad hoc map.
+ * it. A small lookup, not route data, because both entries point at the same
+ * place for the same reason (abandon this step, sign in normally instead) —
+ * if a future entry needs different behavior, promote this to route data.
  */
 const HEADER_BACK_LINKS = {
   '/login/forgot-password': { to: '/login', label: 'Back to sign in' },
+  '/reset-password': { to: '/login', label: 'Back to sign in' },
 };
 
 export default function AuthLayout() {
